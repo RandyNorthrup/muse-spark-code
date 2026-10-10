@@ -103,6 +103,7 @@ export interface PaidFeatures {
 /** What the confirmation says the feature does and costs, in the display language. */
 function confirmationDetail(feature: PaidFeature): string {
   const details: Readonly<Record<PaidFeature, string>> = {
+    autoCompaction: UI_TEXT.autoCompactionName,
     webSearch: UI_TEXT.paidConfirmWebSearch,
     imageGeneration: UI_TEXT.paidConfirmImage,
     voice: UI_TEXT.paidConfirmVoice,

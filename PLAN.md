@@ -29485,8 +29485,13 @@ integration branch plus this plan). C-M101-1 (2026-10-10, lane CM1011,
 `docs/certification/m101-admission.md`): production
 `admitAutoCompaction`/`autoCompactModel` from the panel and runtime backend
 managers through one shared D78 gate and ledger; dormant behind
-`IS_AUTO_COMPACTION_EVALUATED`; popup, BYO cards and the latch flip remain
-with C-M101-3/C-M101-4. The item numbers below are the
+`IS_AUTO_COMPACTION_EVALUATED`. CM1011R2 repairs RVCM1011: first-charge
+consent uses the existing paid gate; Stop/storage fail closed; each HTTP
+attempt owns one claim, refunds nonsends and awaits settlement before further
+spending; runtime transport owns its existing daily debit. ACP gains the
+explicit `--auto-compaction` paid opt-in through its existing flag/consent
+mechanism; exec paid defaults stay off. BYO cards and the
+latch flip remain with C-M101-3/C-M101-4. The item numbers below are the
 research report's (`docs/research/pi-solpi-2026-10-05.md`): plain numbers are
 its sections 1–2 (harness), "BYO n" its section 3 (providers).
 

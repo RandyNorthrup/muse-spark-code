@@ -12,12 +12,19 @@ import type { Usage } from '../../src/core/backends/modelapi/schemas'
 import { MODEL_API_MODEL_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import {
+  FAKE_MODEL_API_ACCOUNT_ID,
+  fakeModelApi,
+  fakeModelApiClient,
+  type ScriptedReply,
+} from './helpers/fakeModelApi'
 import { memoryToolIo, type MemoryToolIo } from './helpers/fakeToolIo'
 import { memoryStoreOver } from './helpers/fakeMemoryIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { watchSessionTurns } from './helpers/sessionTurns'
+import { createAutoCompactionAdmission } from '../../src/core/backends/modelapi/autoCompactionAdmission'
+import type { AutoCompactionLedgerClaim } from '../../src/core/backends/modelapi/autoCompactionAdmission'
 import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 
 const TODOS = [
@@ -29,6 +36,13 @@ const TOOL = { name: 'todo_write', arguments: JSON.stringify({ items: TODOS }) }
 const OVERFLOW = {
   httpError: { status: 400, body: { error: { message: 'maximum context length exceeded' } } },
 }
+const SUMMARY_RETRY = [
+  OVERFLOW,
+  { httpError: { status: 429, body: { error: { message: 'rate limited' } } } },
+  { calls: [{ name: 'read_file', arguments: '{"path":"never-read.txt"}' }] },
+  { text: 'usable summary' },
+  { text: 'done' },
+] satisfies readonly ScriptedReply[]
 
 async function setup(
   changes: Partial<Omit<ModelApiHostDeps, 'io'>> & { io?: MemoryToolIo } = {},
@@ -153,7 +167,167 @@ async function setup(
   }
 }
 
+function productionAdmission() {
+  const claims: { check: ReturnType<typeof vi.fn>; settle: ReturnType<typeof vi.fn> }[] = []
+  const allowsPaidUse = vi.fn(() => Promise.resolve(true))
+  const reserveCompaction = vi.fn(
+    (amount: ReturnType<Usd['toAmount']>): Promise<AutoCompactionLedgerClaim> => {
+      let isFinalized = false
+      const claim = {
+        reservedUsd: amount,
+        check: vi.fn(() => {
+          if (isFinalized) throw new Error('isFinalized claim')
+        }),
+        settle: vi.fn(() => {
+          isFinalized = true
+          return Promise.resolve()
+        }),
+      }
+      claims.push(claim)
+      return Promise.resolve(claim)
+    },
+  )
+  const admitAutoCompaction = createAutoCompactionAdmission({
+    accounting: { reserveCompaction },
+    allowsPaidUse,
+    isOn: () => true,
+    dailyBudgetUsd: () => Usd.from(5).toAmount(),
+    notePaidUse: () => undefined,
+    log: new FakeLogOutputChannel(),
+    storeUnavailable: EN.sessionBudgetStoreUnavailable,
+  })
+  return { admitAutoCompaction, claims, allowsPaidUse, reserveCompaction }
+}
+
+function stoppingMemoryHook() {
+  const files = new Map<string, string>()
+  const { store } = memoryStoreOver(files)
+  const io = memoryToolIo({}, '/ws')
+  io.runHook = () =>
+    Promise.resolve({
+      exitCode: 0,
+      stdout: JSON.stringify({ continue: false, stopReason: 'stop memory flush' }),
+      stderr: '',
+      isTimedOut: false,
+      isCancelled: false,
+    })
+  return {
+    files,
+    changes: {
+      io,
+      memory: store,
+      loadHooks: () =>
+        Promise.resolve(
+          parseHookConfig(
+            JSON.stringify({
+              hooks: {
+                PostToolUse: [
+                  { matcher: 'add_memory', hooks: [{ type: 'command', command: 'stop' }] },
+                ],
+              },
+            }),
+            'project',
+            'linux',
+          ).hooks,
+        ),
+    },
+  }
+}
+
+function expectStorageFailure(t: Awaited<ReturnType<typeof setup>>) {
+  expect(t.api.responseBodies()).toHaveLength(3)
+  expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+    terminal: 'failed',
+    reason: EN.sessionBudgetStoreUnavailable,
+  })
+}
+
 describe('automatic compaction in the shared Model API loop', () => {
+  it('completed summaries already update session usage and M82 totals', async () => {
+    const store = memorySessionStore()
+    const journal = store.budget
+    if (journal === undefined) throw new Error('test journal missing')
+    const t = await setup({ store, sessionBudgetUsd: () => Usd.from(1).toAmount() })
+    await t.seed()
+    t.api.script({ text: 'summary', usage: { input: 1000, output: 500, cached: 200 } })
+    expect(await t.session.compact()).toMatchObject({ status: 'accepted' })
+    expect(t.session.snapshot().usage).toMatchObject({
+      inputTokens: 1010,
+      outputTokens: 505,
+      cachedTokens: 200,
+    })
+    const total = await journal.read(t.session.sessionId, FAKE_MODEL_API_ACCOUNT_ID)
+    expect(total.spentUsd).toBe(Usd.from(0.00318875).toAmount())
+    await t.host.close()
+  })
+  it('production admission denies paid consent before summary or continuation', async () => {
+    const paid = productionAdmission()
+    paid.allowsPaidUse.mockResolvedValue(false)
+    const t = await setup({ admitAutoCompaction: paid.admitAutoCompaction })
+    await t.seed()
+    t.api.script(OVERFLOW, { text: 'must not summarize' })
+    await t.send()
+    expect(paid.allowsPaidUse).toHaveBeenCalledTimes(1)
+    expect(paid.reserveCompaction).not.toHaveBeenCalled()
+    expect(t.api.responseBodies()).toHaveLength(2)
+    await t.host.close()
+  })
+  it('production claims survive a 429 retry and tool-less fallback without reuse', async () => {
+    const paid = productionAdmission()
+    const t = await setup({ admitAutoCompaction: paid.admitAutoCompaction })
+    await t.seed()
+    t.api.script(...SUMMARY_RETRY)
+    await t.send()
+    expect(t.api.responseBodies()).toHaveLength(6)
+    expect(paid.claims).toHaveLength(3)
+    expect(
+      t.events.some(
+        (event) =>
+          event.type === 'itemCompleted' &&
+          event.item.kind === 'compaction' &&
+          event.item.paid === 'autoCompaction',
+      ),
+    ).toBe(true)
+    for (const claim of paid.claims) expect(claim.settle).toHaveBeenCalledTimes(1)
+    expect(paid.claims[0]?.settle).toHaveBeenCalledWith(Usd.from(0).toAmount(), false)
+    expect(paid.allowsPaidUse).toHaveBeenCalledTimes(1)
+    expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'completed',
+    })
+    await t.host.close()
+  })
+  it('production settlement failure ends the owning turn before ordinary continuation', async () => {
+    const paid = productionAdmission()
+    paid.reserveCompaction.mockImplementation((amount) =>
+      Promise.resolve({
+        reservedUsd: amount,
+        check: () => undefined,
+        settle: () => Promise.reject(new Error('storage failed')),
+      }),
+    )
+    const t = await setup({ admitAutoCompaction: paid.admitAutoCompaction })
+    await t.seed()
+    t.api.script(OVERFLOW, { text: 'summary' }, { text: 'must not continue' })
+    await t.send()
+    expectStorageFailure(t)
+    expect(paid.reserveCompaction).toHaveBeenCalledTimes(1)
+    await t.host.close()
+  })
+  it('production memory-hook stop owns no unsent daily reservation', async () => {
+    const paid = productionAdmission()
+    const memory = stoppingMemoryHook()
+    const t = await setup({
+      ...memory.changes,
+      admitAutoCompaction: paid.admitAutoCompaction,
+    })
+    await t.seed()
+    t.api.script(OVERFLOW, { text: 'must not summarize' })
+    await t.send()
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(paid.reserveCompaction).not.toHaveBeenCalled()
+    await t.host.close()
+  })
+
   it('compacts at a settled tool boundary and restores the exact host list before continuation', async () => {
     const t = await setup()
     await t.seed()
@@ -252,13 +426,7 @@ describe('automatic compaction in the shared Model API loop', () => {
   it('settles every HTTP attempt, including a summary retry and a tool-less fallback', async () => {
     const t = await setup()
     await t.seed()
-    t.api.script(
-      OVERFLOW,
-      { httpError: { status: 429, body: { error: { message: 'rate limited' } } } },
-      { calls: [{ name: 'read_file', arguments: '{"path":"never-read.txt"}' }] },
-      { text: 'usable summary' },
-      { text: 'done' },
-    )
+    t.api.script(...SUMMARY_RETRY)
     await t.send()
     expect(t.starts()).toBe(3)
     expect(t.settled).toHaveLength(3)
@@ -326,11 +494,7 @@ describe('automatic compaction in the shared Model API loop', () => {
       t.api.script(OVERFLOW, plan, { text: 'must not continue' })
       await t.send()
       expect(settlements).toEqual([outcome])
-      expect(t.api.responseBodies()).toHaveLength(3)
-      expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
-        terminal: 'failed',
-        reason: EN.sessionBudgetStoreUnavailable,
-      })
+      expectStorageFailure(t)
       await t.host.close()
     },
   )
@@ -557,35 +721,8 @@ describe('automatic compaction in the shared Model API loop', () => {
   it.each(['overflow', 'boundary'])(
     'honours a stopping memory hook on %s before buying a summary or continuation',
     async (boundary) => {
-      const files = new Map<string, string>()
-      const { store } = memoryStoreOver(files)
-      const io = memoryToolIo({}, '/ws')
-      io.runHook = () =>
-        Promise.resolve({
-          exitCode: 0,
-          stdout: JSON.stringify({ continue: false, stopReason: 'stop memory flush' }),
-          stderr: '',
-          isTimedOut: false,
-          isCancelled: false,
-        })
-      const t = await setup({
-        io,
-        memory: store,
-        loadHooks: () =>
-          Promise.resolve(
-            parseHookConfig(
-              JSON.stringify({
-                hooks: {
-                  PostToolUse: [
-                    { matcher: 'add_memory', hooks: [{ type: 'command', command: 'stop' }] },
-                  ],
-                },
-              }),
-              'project',
-              'linux',
-            ).hooks,
-          ),
-      })
+      const { files, changes } = stoppingMemoryHook()
+      const t = await setup(changes)
       await t.seed()
       if (boundary === 'boundary') t.nearWindow()
       t.api.script(

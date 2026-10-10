@@ -321,21 +321,22 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 
 ## Interactive ACP options
 
-| Argument                               | Effect                                                                                                                            |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `--backend museCode\|modelApi`         | Which backend, and so who pays (default `museCode`)                                                                               |
-| `--trust-workspace`                    | Load the folder's rules, skills and memory, as Muse Code's own flag does. Without it the folder is treated as untrusted           |
-| `--muse-binary <path>`                 | The Muse Code CLI to run; by default the agent looks where the VS Code extension looks                                            |
-| `--shell-sandbox auto\|muse\|off`      | Muse Code's shell sandbox, as the extension's `museSpark.shellSandbox` setting                                                    |
-| `--questions-defer-after <seconds>`    | M112: 60 by default; 0 waits indefinitely; 1–9 become 10; maximum 3600. Clients without forms defer immediately.                  |
-| `--allow-dangerously-skip-permissions` | Offer the Bypass permissions mode                                                                                                 |
-| `--allow-contributor-models`           | List contributor-tier models, whose content Meta may train on; they are hidden otherwise                                          |
-| `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                            |
-| `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price                       |
-| `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                               |
-| `--no-auto-compaction`                 | Disable automatic compaction in the shared Model API core (also accepted by exec); production is awaiting evaluation and inactive |
-| `--scheduled-prompts`                  | Offer the `/schedule` command with unattended runs (Model API backend only); needs `--max-budget-usd`                             |
-| `--max-budget-usd <USD>`               | Hard spending cap for unattended scheduled runs; without a positive cap paid authorization is refused                             |
+| Argument                               | Effect                                                                                                                                                                                           |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--backend museCode\|modelApi`         | Which backend, and so who pays (default `museCode`)                                                                                                                                              |
+| `--trust-workspace`                    | Load the folder's rules, skills and memory, as Muse Code's own flag does. Without it the folder is treated as untrusted                                                                          |
+| `--muse-binary <path>`                 | The Muse Code CLI to run; by default the agent looks where the VS Code extension looks                                                                                                           |
+| `--shell-sandbox auto\|muse\|off`      | Muse Code's shell sandbox, as the extension's `museSpark.shellSandbox` setting                                                                                                                   |
+| `--questions-defer-after <seconds>`    | M112: 60 by default; 0 waits indefinitely; 1–9 become 10; maximum 3600. Clients without forms defer immediately.                                                                                 |
+| `--allow-dangerously-skip-permissions` | Offer the Bypass permissions mode                                                                                                                                                                |
+| `--allow-contributor-models`           | List contributor-tier models, whose content Meta may train on; they are hidden otherwise                                                                                                         |
+| `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                                                                                           |
+| `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price                                                                                      |
+| `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                                                                                              |
+| `--auto-compaction`                    | Offer paid automatic compaction on Model API, asking once before the first charge with model rates and the shared daily budget; awaiting evaluation and inactive. Exec does not accept this flag |
+| `--no-auto-compaction`                 | Disable automatic compaction in the shared Model API core (also accepted by exec); production is awaiting evaluation and inactive                                                                |
+| `--scheduled-prompts`                  | Offer the `/schedule` command with unattended runs (Model API backend only); needs `--max-budget-usd`                                                                                            |
+| `--max-budget-usd <USD>`               | Hard spending cap for unattended scheduled runs; without a positive cap paid authorization is refused                                                                                            |
 
 ## What the editor sees
 

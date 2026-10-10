@@ -1181,17 +1181,23 @@ Automatic compaction, its exact todo continuation and the memory flush are
 implemented in the shared Model API engine, but **awaiting evaluation and
 inactive**. `museSpark.modelApiAutoCompaction` defaults to `true`; set it to
 `false` to turn the mechanism off. ACP and headless use the same core and
-accept `--no-auto-compaction`. Muse Code continues to compact itself.
+accept `--no-auto-compaction`. ACP requires `--auto-compaction` to offer the
+paid extra and asks through the editor; exec does not authorize it. Muse Code
+continues to compact itself.
 
-Once a current M75 pair passes and the shared paid gate/ledger is connected,
-compaction is considered inside your turn after a settled tool batch. A
+Once a current M75 pair passes, compaction can be enabled and considered
+inside your turn after a settled tool batch. A
 registered todo completion can trigger it when the expected token saving
 repays the summary call, cache-write premium and carried debt. Cost decisions
 require at least 50% context occupancy and two ordinary requests since the
 last compaction. At 90% occupancy, protection bypasses those economic guards;
 a classified overflow gets at most one automatic compact-and-retry per turn.
 The first paid charge requires the shared price/daily-budget consent, and
-every attempt is tallied. Stop and final account/key/budget checks still apply.
+every attempt is tallied. Allow once covers this window (ACP: this agent
+process); Always is workspace scoped and revocable. Each HTTP retry or
+fallback owns a fresh daily claim; known nonsends refund, and settlement
+failure ends the turn. Daily Stop, unreadable storage and the hard daily cap
+refuse protection too. Final account/key/budget checks still apply.
 
 The memory flush writes a labelled, untrusted host snapshot through the
 ordinary memory permission path: Manual asks; Plan and Restricted Mode refuse

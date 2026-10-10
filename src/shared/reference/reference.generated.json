@@ -497,20 +497,20 @@
     },
     {
       "id": "auto-compaction",
-      "name": { "setting": "modelApiAutoCompaction" },
+      "name": { "ui": "autoCompactionName" },
       "summary": {
         "conditions": [
           {
-            "when": "conversationStart&modelPricing",
-            "text": { "setting": "modelApiAutoCompaction" }
+            "when": "autoCompactionEvaluation",
+            "text": { "ui": "autoCompactionAwaitingEvaluation" }
           }
         ]
       },
       "description": {
         "conditions": [
           {
-            "when": "conversationStart&modelPricing",
-            "text": { "setting": "modelApiAutoCompaction" }
+            "when": "autoCompactionEvaluation",
+            "text": { "ui": "autoCompactionAwaitingEvaluation" }
           }
         ]
       },
@@ -518,10 +518,39 @@
       "settings": ["museSpark.modelApiAutoCompaction"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
       "backends": ["modelApi"],
-      "paid": false,
+      "paid": true,
       "surfaces": ["vscode:modelApi", "acp:modelApi"],
       "details": [],
-      "facts": {},
+      "facts": {
+        "paidFeature": "autoCompaction",
+        "paidSettings": ["museSpark.modelApiAutoCompaction"],
+        "configuredDefaults": { "museSpark.modelApiAutoCompaction": true },
+        "defaultState": { "type": "boolean", "value": true },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
+        "tokenRatesPerMillion": {
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
+        },
+        "billing": "storedModelApiKey",
+        "effectiveAvailability": {
+          "vscode:modelApi": {
+            "defaultState": { "type": "boolean", "value": true },
+            "key": "SecretStorage",
+            "consent": "window",
+            "ledger": "paidDailyBudgetUsd"
+          },
+          "acp:modelApi": {
+            "configuredDefault": false,
+            "flag": "auto-compaction",
+            "consent": "editorPermission",
+            "ledger": "runtime:paidDailyBudgetUsd"
+          }
+        }
+      },
       "editors": ["vscode", "acp"]
     },
     {
@@ -5251,6 +5280,15 @@
     },
     {
       "route": "serve",
+      "name": "serve: --auto-compaction",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "text": {
+        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
+      },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "serve",
       "name": "serve: --web-search",
       "description": "--web-search                     Offer paid web search (Model API backend; its price is asked first)",
       "text": { "cli": "web-search" },
@@ -5494,6 +5532,20 @@
     },
     {
       "route": "login",
+      "name": "login: --auto-compaction",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "text": {
+        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "login",
       "name": "login: --web-search",
       "description": "--web-search                     Offer paid web search (Model API backend; its price is asked first)",
       "text": { "cli": "web-search" },
@@ -5715,6 +5767,20 @@
       "name": "setup: --allow-contributor-models",
       "description": "--allow-contributor-models       List contributor-tier models (Meta may train on their content)",
       "text": { "cli": "allow-contributor-models" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "setup",
+      "name": "setup: --auto-compaction",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "text": {
+        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
+      },
       "contract": {
         "type": "boolean",
         "repeatable": false,
@@ -5969,6 +6035,20 @@
     },
     {
       "route": "authSet",
+      "name": "authSet: --auto-compaction",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "text": {
+        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authSet",
       "name": "authSet: --web-search",
       "description": "--web-search                     Offer paid web search (Model API backend; its price is asked first)",
       "text": { "cli": "web-search" },
@@ -6212,6 +6292,20 @@
     },
     {
       "route": "authStatus",
+      "name": "authStatus: --auto-compaction",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "text": {
+        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authStatus",
       "name": "authStatus: --web-search",
       "description": "--web-search                     Offer paid web search (Model API backend; its price is asked first)",
       "text": { "cli": "web-search" },
@@ -6446,6 +6540,20 @@
       "name": "authClear: --allow-contributor-models",
       "description": "--allow-contributor-models       List contributor-tier models (Meta may train on their content)",
       "text": { "cli": "allow-contributor-models" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authClear",
+      "name": "authClear: --auto-compaction",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "text": {
+        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
+      },
       "contract": {
         "type": "boolean",
         "repeatable": false,

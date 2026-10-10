@@ -123,6 +123,7 @@ export function referenceDescription(text: ReferenceText): ReferenceText {
         when = 'permission=denied'
         break
       }
+      case 'auto-compaction':
       case 'no-auto-compaction': {
         when = 'autoCompactionEvaluation'
         break
@@ -477,13 +478,13 @@ export function featureCatalog(): readonly Feature[] {
     ),
     feature(
       'auto-compaction',
-      { setting: 'modelApiAutoCompaction' },
-      { setting: 'modelApiAutoCompaction' },
+      { ui: 'autoCompactionName' },
+      { ui: 'autoCompactionAwaitingEvaluation' },
       [],
       ['modelApiAutoCompaction'],
       'agent-loop-guarantees',
       ['modelApi'],
-      false,
+      true,
       ['vscode', 'acp'],
     ),
     feature(

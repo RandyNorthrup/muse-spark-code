@@ -418,6 +418,8 @@ export const EN = {
     description: '--description <text>  What was happening, in your own words',
     'no-facts': '--no-facts           Leave the support facts out',
     'no-events': '--no-events          Leave the recent events out',
+    'auto-compaction':
+      'Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.',
     'no-auto-compaction': 'Disable automatic compaction',
     'output-schema':
       'Validate the final answer against a bounded JSON schema file (Model API only).',
@@ -3059,6 +3061,7 @@ export const EN = {
   installOrKeyDetail:
     'The Muse Code CLI hosts conversations for this extension; without it you can still use a Meta Model API key.',
   compactionDone: 'Context compacted',
+  autoCompactionName: 'Automatic compaction',
   autoCompactionAwaitingEvaluation: 'Automatic compaction is awaiting evaluation and is inactive.',
   autoCompactionFailed: 'Automatic compaction failed; continuing with the original context.',
   contextWindowFull: 'Context window full: /compact or /handoff',

@@ -2706,6 +2706,7 @@ async function activateWindow(
     // C-M101-1: the D78 daily claim behind automatic compaction. Exact-USD,
     // like the reservationUsd branch above; without it the host has no
     // production admission and automatic compaction stays dormant.
+    paidDailyBudgetUsd: () => dailyPaid.capUsd(),
     reserveAutoCompaction: async (amount, signal) => {
       signal.throwIfAborted()
       const claim = await dailyPaid.reserveExact(amount)

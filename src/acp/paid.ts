@@ -174,6 +174,7 @@ export class AcpPaidUse {
           nextQuoteOrder: this.deps.grants.nextQuoteOrder,
         }),
         isOn: (feature) => this.isOn(feature),
+        windowOnceFeatures: new Set<PaidFeature>(['autoCompaction']),
         canRemember: this.deps.canRemember,
         ...(this.deps.grants.prepareQuoteGeneration !== undefined && {
           prepareQuoteGeneration: this.deps.grants.prepareQuoteGeneration,

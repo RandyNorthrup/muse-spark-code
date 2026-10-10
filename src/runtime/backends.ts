@@ -499,20 +499,11 @@ function modelApiManager(
     webSearchMaxPerRequest: () => SETTING_DEFAULTS.webSearchMaxPerRequest,
     isAutoCompactionOn: () =>
       deps.options.autoCompaction ?? SETTING_DEFAULTS.modelApiAutoCompaction,
-    // C-M101-1: the D78 daily claim behind automatic compaction, the same
-    // shared gate the panel binds. Without it the host has no production
-    // admission and automatic compaction stays dormant.
-    reserveAutoCompaction: async (amount, signal) => {
+    // The wrapped runtime transport owns one daily claim per HTTP attempt.
+    autoCompactionAccounting: 'transport',
+    paidDailyBudgetUsd: async () => {
       const budget = await dailyBudget()
-      const claim = await budget.reserve(amount, signal)
-      return {
-        reservedUsd: claim.reservedUsd,
-        check: () => {
-          // The argument is ignored: the daily wrapper rechecks its own cap.
-          claim.check(Usd.from(0).toAmount())
-        },
-        settle: (actual, hasUnknownCost) => claim.settle(actual, hasUnknownCost),
-      }
+      return budget.capUsd()
     },
     // D78 changes only VS Code's display default; ACP remains unchanged.
     showReplyUsage: () => false,

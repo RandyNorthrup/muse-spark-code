@@ -1,7 +1,3 @@
-// C-M101-1: the shared D78 admission for automatic compaction. Every
-// automatic attempt passes one gate and ledger: refusal (or no ledger)
-// means zero dispatches, the guard rechecks at send, and each attempt
-// settles exactly once. Protection (near-window/overflow) is never blocked.
 import { describe, expect, it, vi } from 'vitest'
 import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { MODEL_API_PRICES_PER_MILLION } from '../../src/shared/constants'
@@ -15,7 +11,9 @@ import {
   type AutoCompactionLedger,
   type AutoCompactionLedgerClaim,
 } from '../../src/core/backends/modelapi/autoCompactionAdmission'
-import type { Usage } from '../../src/core/backends/modelapi/schemas'
+import { PaidUseConsent, paidUseQuestion } from '../../src/core/paid/paidConsent'
+import { paidWindowOnceFeatures, paidTotalUsd, type PaidUseRequest } from '../../src/shared/paid'
+import { EN } from '../../src/shared/l10n/en'
 import { FakeLogOutputChannel } from './helpers/fakes'
 
 const PRICED: AutoCompactModel = {
@@ -24,7 +22,6 @@ const PRICED: AutoCompactModel = {
     card: { input: 0.000001, cachedInput: 0.0000002, output: 0.000004, source: 'catalogue' },
   },
 }
-const UNPRICED: AutoCompactModel = { pricing: { kind: 'unpriced' } }
 const COST: AutoCompactDecision = {
   reason: 'cost',
   newDebt: 0.012,
@@ -32,213 +29,230 @@ const COST: AutoCompactDecision = {
   breakEvenRequests: 3,
   writeReadRatio: 2,
 }
-const OVERFLOW: AutoCompactDecision = { ...COST, reason: 'overflow' }
-const NEAR_WINDOW: AutoCompactDecision = { ...COST, reason: 'near-window' }
-const USAGE: Usage = {
+const USAGE = {
   input_tokens: 1000,
   output_tokens: 500,
   input_tokens_details: { cached_tokens: 200 },
 }
 const ZERO = Usd.from(0).toAmount()
 
-interface FakeClaim extends AutoCompactionLedgerClaim {
-  readonly settled: { readonly amount: UsdAmount; readonly unknown: boolean }[]
-  checks: number
-}
-
-function fakeClaim(reservedUsd: UsdAmount): FakeClaim {
-  const settled: { amount: UsdAmount; unknown: boolean }[] = []
-  const claim: FakeClaim = {
-    reservedUsd,
-    settled,
-    checks: 0,
-    check: () => {
-      claim.checks += 1
-    },
-    settle: vi.fn((amount: UsdAmount, hasUnknownCost: boolean) => {
-      settled.push({ amount, unknown: hasUnknownCost })
-      return Promise.resolve()
-    }),
-  }
-  return claim
-}
-
-function requestFor(model: AutoCompactModel, decision: AutoCompactDecision) {
+function requestFor(decision: AutoCompactDecision = COST, signal = new AbortController().signal) {
   return {
     sessionId: 'session',
     turnId: 'turn',
     modelId: 'muse-spark-1.3',
-    model,
+    model: PRICED,
     decision,
-    signal: new AbortController().signal,
+    signal,
   }
 }
-
-function setup(reserve: AutoCompactionLedger['reserveCompaction']) {
-  const log = new FakeLogOutputChannel()
+function fakeClaim(reservedUsd = Usd.from(0.012).toAmount()) {
+  let isFinalized = false
+  return {
+    reservedUsd,
+    check: vi.fn(() => {
+      if (isFinalized) throw new Error('isFinalized claim')
+    }),
+    settle: vi.fn((_amount: UsdAmount, _hasUnknownCost: boolean) => {
+      if (isFinalized) throw new Error('double settlement')
+      isFinalized = true
+      return Promise.resolve()
+    }),
+  }
+}
+function setup(reserve?: AutoCompactionLedger['reserveCompaction'], isOn = () => true) {
+  const claims: ReturnType<typeof fakeClaim>[] = []
+  const reserveCompaction = vi.fn(
+    reserve ??
+      ((amount: UsdAmount) => {
+        const claim = fakeClaim(amount)
+        claims.push(claim)
+        return Promise.resolve(claim)
+      }),
+  )
+  const allowsPaidUse = vi.fn(() => Promise.resolve(true))
+  const notePaidUse = vi.fn()
   const admit = createAutoCompactionAdmission({
-    ledger: { reserveCompaction: reserve },
-    log,
+    accounting: { reserveCompaction },
+    allowsPaidUse,
+    isOn,
+    dailyBudgetUsd: () => Usd.from(5).toAmount(),
+    notePaidUse,
+    log: new FakeLogOutputChannel(),
     storeUnavailable: 'ledger unavailable',
   })
-  return { admit, log }
+  return { admit, claims, reserveCompaction, allowsPaidUse, notePaidUse }
 }
 
-function declinedReserve(): Promise<never> {
-  throw new Error('over cap')
-}
-
-describe('automatic compaction admission', () => {
-  it('admits the cost path with one reserve for the projected debt', async () => {
-    const claim = fakeClaim(Usd.from(0.012).toAmount())
-    const reserve = vi.fn((_amount: UsdAmount): Promise<AutoCompactionLedgerClaim> =>
-      Promise.resolve(claim),
-    )
-    const { admit } = setup(reserve)
-    const admission = await admit(requestFor(PRICED, COST))
-    expect(admission).not.toBe(undefined)
-    expect(reserve).toHaveBeenCalledTimes(1)
-    const reserved = reserve.mock.calls[0]?.[0] ?? ZERO
-    expect(Usd.from(reserved).toString()).toBe(Usd.from(0.012).toString())
-  })
-
-  it('refuses the cost path when the ledger refuses: no admission, zero dispatch', async () => {
-    const { admit } = setup(declinedReserve)
-    await expect(admit(requestFor(PRICED, COST))).resolves.toBe(undefined)
-  })
-
-  it('refuses the cost path when the ledger is missing', async () => {
-    const { admit } = setup(() => Promise.resolve(undefined))
-    await expect(admit(requestFor(PRICED, COST))).resolves.toBe(undefined)
-  })
-
-  it('refuses an aborted admission and refunds its claim', async () => {
-    const claim = fakeClaim(Usd.from(0.012).toAmount())
-    const aborted = new AbortController()
-    const log = new FakeLogOutputChannel()
-    const admit = createAutoCompactionAdmission({
-      ledger: {
-        reserveCompaction: () => {
-          aborted.abort()
-          return Promise.resolve(claim)
-        },
-      },
-      log,
-      storeUnavailable: 'ledger unavailable',
-    })
-    await expect(
-      admit({
-        sessionId: 'session',
-        turnId: 'turn',
+describe('automatic compaction production admission', () => {
+  it('asks first-charge consent before preparing any claim and reserves at HTTP preparation', async () => {
+    const t = setup()
+    const a = await t.admit(requestFor())
+    expect(t.allowsPaidUse).toHaveBeenCalledWith(
+      {
+        feature: 'autoCompaction',
         modelId: 'muse-spark-1.3',
-        model: PRICED,
-        decision: COST,
-        signal: aborted.signal,
-      }),
-    ).resolves.toBe(undefined)
-    expect(claim.settled).toHaveLength(1)
-    expect(Usd.from(claim.settled[0]?.amount ?? ZERO).compare(Usd.from(0))).toBe(0)
+        dailyBudgetUsd: Usd.from(5).toAmount(),
+      },
+      false,
+      'session',
+    )
+    expect(t.reserveCompaction).not.toHaveBeenCalled()
+    await a?.guard.prepare?.()
+    expect(t.reserveCompaction).toHaveBeenCalledTimes(1)
+    expect(t.reserveCompaction.mock.calls[0]?.[0]).toBe(Usd.from(0.012).toAmount())
+    await a?.close?.()
   })
-
-  it('rechecks the claim synchronously at send: final-send', async () => {
-    const claim = fakeClaim(Usd.from(0.012).toAmount())
-    const { admit } = setup(() => Promise.resolve(claim))
-    const admission = await admit(requestFor(PRICED, COST))
-    admission?.guard('digest')
-    expect(claim.checks).toBe(1)
+  it('an off paid gate declines before consent and is rechecked at final send', async () => {
+    let isEnabled = false
+    const t = setup(undefined, () => isEnabled)
+    expect(await t.admit(requestFor())).toBeUndefined()
+    expect(t.allowsPaidUse).not.toHaveBeenCalled()
+    isEnabled = true
+    const a = await t.admit(requestFor())
+    await a?.guard.prepare?.()
+    isEnabled = false
+    expect(() => a?.guard('digest')).toThrow('ledger unavailable')
+    await a?.close?.()
+    expect(t.claims[0]?.settle).toHaveBeenCalledWith(ZERO, false)
   })
-
-  it('settles returned usage at its exact catalogue cost', async () => {
-    const claim = fakeClaim(Usd.from(0.012).toAmount())
-    const { admit } = setup(() => Promise.resolve(claim))
-    const admission = await admit(requestFor(PRICED, COST))
-    admission?.settle('muse-spark-1.3', USAGE, 'returned')
-    await vi.waitFor(() => {
-      expect(claim.settled).toHaveLength(1)
-    })
+  it('denied consent sends nothing and never reserves', async () => {
+    const t = setup()
+    t.allowsPaidUse.mockResolvedValue(false)
+    expect(await t.admit(requestFor())).toBeUndefined()
+    expect(t.reserveCompaction).not.toHaveBeenCalled()
+  })
+  it.each(['cost', 'overflow', 'near-window'] as const)(
+    'refuses Stop/storage/cap errors for %s protection',
+    async (reason) => {
+      const t = setup(() => Promise.reject(new Error('stopped or unreadable')))
+      const a = await t.admit(requestFor({ ...COST, reason }))
+      await expect(a?.guard.prepare?.()).rejects.toThrow('stopped or unreadable')
+      expect(() => a?.guard('digest')).toThrow('ledger unavailable')
+      expect(t.notePaidUse).not.toHaveBeenCalled()
+      await a?.close?.()
+    },
+  )
+  it('refuses an absent claim at send', async () => {
+    const t = setup(() => Promise.resolve(undefined))
+    const a = await t.admit(requestFor())
+    await expect(a?.guard.prepare?.()).rejects.toThrow('ledger unavailable')
+  })
+  it('final-send checks the live claim synchronously', async () => {
+    const t = setup()
+    const a = await t.admit(requestFor())
+    await a?.guard.prepare?.()
+    a?.guard('digest')
+    expect(t.claims[0]?.check).toHaveBeenCalledTimes(1)
+    await a?.close?.()
+  })
+  it('settles exact returned usage once and gives every retry/fallback a fresh claim', async () => {
+    const t = setup()
+    const a = await t.admit(requestFor())
+    for (const outcome of ['rate-limited', 'returned', 'returned'] as const) {
+      await a?.guard.prepare?.()
+      a?.guard('digest')
+      a?.guard.onRequestStarted?.()
+      await a?.settle('muse-spark-1.3', outcome === 'rate-limited' ? undefined : USAGE, outcome)
+    }
+    await a?.close?.()
+    expect(t.reserveCompaction).toHaveBeenCalledTimes(3)
+    expect(t.notePaidUse).toHaveBeenCalledTimes(3)
+    for (const claim of t.claims) expect(claim.settle).toHaveBeenCalledTimes(1)
+    expect(t.claims[0]?.settle).toHaveBeenCalledWith(ZERO, false)
     const rates = MODEL_API_PRICES_PER_MILLION.standard
-    const expected = Usd.from(rates.input)
+    const exact = Usd.from(rates.input)
       .times(800)
       .add(Usd.from(rates.cachedInput).times(200))
       .add(Usd.from(rates.output).times(500))
       .divide(1_000_000)
-    expect(claim.settled[0]?.unknown).toBe(false)
-    expect(Usd.from(claim.settled[0]?.amount ?? ZERO).compare(Usd.from(expected.toAmount()))).toBe(
-      0,
-    )
+      .toAmount()
+    expect(t.claims[1]?.settle).toHaveBeenCalledWith(exact, false)
   })
-
-  it('retains the reservation as uncertain when no usage came back', async () => {
-    const claim = fakeClaim(Usd.from(0.012).toAmount())
-    const { admit } = setup(() => Promise.resolve(claim))
-    const admission = await admit(requestFor(PRICED, COST))
-    admission?.settle('muse-spark-1.3', undefined, 'uncertain')
-    await vi.waitFor(() => {
-      expect(claim.settled).toHaveLength(1)
+  it('retains uncertain sends and refunds known nonsends on close', async () => {
+    const t = setup()
+    const a = await t.admit(requestFor())
+    await a?.guard.prepare?.()
+    await a?.close?.()
+    expect(t.claims[0]?.settle).toHaveBeenCalledWith(ZERO, false)
+    await a?.guard.prepare?.()
+    a?.guard.onRequestStarted?.()
+    await a?.close?.()
+    expect(t.claims[1]?.settle).toHaveBeenCalledWith(Usd.from(0.012).toAmount(), true)
+  })
+  it('refunds cancellation racing reservation publication', async () => {
+    const stop = new AbortController()
+    const claim = fakeClaim()
+    const t = setup(() => {
+      stop.abort()
+      return Promise.resolve(claim)
     })
-    expect(claim.settled[0]?.unknown).toBe(true)
-    expect(Usd.from(claim.settled[0]?.amount ?? ZERO).compare(Usd.from(claim.reservedUsd))).toBe(0)
+    const a = await t.admit(requestFor(COST, stop.signal))
+    await expect(a?.guard.prepare?.()).rejects.toThrow()
+    expect(claim.settle).toHaveBeenCalledWith(ZERO, false)
+    await a?.close?.()
+    expect(claim.settle).toHaveBeenCalledTimes(1)
   })
-
-  it('refunds a rate-limited attempt as a known nonsend', async () => {
-    const claim = fakeClaim(Usd.from(0.012).toAmount())
-    const { admit } = setup(() => Promise.resolve(claim))
-    const admission = await admit(requestFor(PRICED, COST))
-    admission?.settle('muse-spark-1.3', USAGE, 'rate-limited')
-    await vi.waitFor(() => {
-      expect(claim.settled).toHaveLength(1)
+  it('awaits settlement and surfaces rejection before the next attempt', async () => {
+    const held = Promise.withResolvers<unknown>()
+    const claim = fakeClaim()
+    const failing: AutoCompactionLedgerClaim = { ...claim, settle: () => held.promise }
+    const t = setup(() => Promise.resolve(failing))
+    const a = await t.admit(requestFor())
+    await a?.guard.prepare?.()
+    a?.guard.onRequestStarted?.()
+    const settled = a?.settle('muse-spark-1.3', USAGE, 'returned')
+    const preparing = a?.guard.prepare?.()
+    expect(t.reserveCompaction).toHaveBeenCalledTimes(1)
+    held.reject(new Error('disk gone'))
+    await expect(settled).rejects.toThrow('ledger unavailable')
+    await expect(preparing).rejects.toThrow('ledger unavailable')
+    await expect(a?.close?.()).rejects.toThrow('ledger unavailable')
+  })
+  it('declines unpriced models and corrupt projections before consent', async () => {
+    const t = setup()
+    expect(
+      await t.admit({ ...requestFor(), model: { pricing: { kind: 'unpriced' } } }),
+    ).toBeUndefined()
+    expect(await t.admit(requestFor({ ...COST, newDebt: NaN }))).toBeUndefined()
+    expect(t.allowsPaidUse).not.toHaveBeenCalled()
+  })
+  it('uses the shared ask-once consent and revokes when disabled', async () => {
+    let isEnabled = true
+    const ask = vi.fn(() => Promise.resolve('once' as const))
+    const consent = new PaidUseConsent({
+      isOn: () => isEnabled,
+      canRemember: () => true,
+      readGrants: () => new Set(),
+      writeGrants: () => Promise.resolve(),
+      ask,
+      windowOnceFeatures: paidWindowOnceFeatures(),
+      log: new FakeLogOutputChannel(),
     })
-    expect(claim.settled[0]?.unknown).toBe(false)
-    expect(Usd.from(claim.settled[0]?.amount ?? ZERO).compare(Usd.from(0))).toBe(0)
-  })
-
-  it('ends the turn on the ledger error after a settlement failure', async () => {
-    const claim = fakeClaim(Usd.from(0.012).toAmount())
-    const failing = vi.fn(() => Promise.reject(new Error('disk gone')))
-    claim.settle = failing
-    const { admit } = setup(() => Promise.resolve(claim))
-    const admission = await admit(requestFor(PRICED, COST))
-    admission?.settle('muse-spark-1.3', USAGE, 'returned')
-    await vi.waitFor(() => {
-      expect(failing).toHaveBeenCalledTimes(1)
-    })
-    // The async write fails after the sync settle returned; the next
-    // synchronous guard check refuses the send instead of spending blind.
-    await vi.waitFor(() => {
-      expect(() => admission?.guard('digest')).toThrow('ledger unavailable')
-    })
-  })
-
-  it('never blocks overflow protection when the ledger refuses', async () => {
-    const reserve = vi.fn((_amount: UsdAmount): Promise<AutoCompactionLedgerClaim> =>
-      Promise.reject(new Error('over cap')),
-    )
-    const { admit } = setup(reserve)
-    const admission = await admit(requestFor(PRICED, OVERFLOW))
-    expect(admission).not.toBe(undefined)
-    expect(() => admission?.guard('digest')).not.toThrow()
-    expect(() => admission?.settle('muse-spark-1.3', USAGE, 'returned')).not.toThrow()
-    expect(reserve).toHaveBeenCalledTimes(1)
-  })
-
-  it('never blocks near-window protection on an unpriced model', async () => {
-    const reserve = vi.fn((amount: UsdAmount): Promise<AutoCompactionLedgerClaim> =>
-      Promise.resolve(fakeClaim(amount)),
-    )
-    const { admit } = setup(reserve)
-    const admission = await admit(requestFor(UNPRICED, NEAR_WINDOW))
-    expect(admission).not.toBe(undefined)
-    const reserved = reserve.mock.calls[0]?.[0] ?? Usd.from(-1).toAmount()
-    expect(Usd.from(reserved).compare(Usd.from(0))).toBe(0)
-  })
-
-  it('declines a corrupt cost projection instead of reserving blind', async () => {
-    const reserve = vi.fn((_amount: UsdAmount): Promise<AutoCompactionLedgerClaim | undefined> =>
-      Promise.resolve(undefined),
-    )
-    const { admit } = setup(reserve)
-    await expect(admit(requestFor(PRICED, { ...COST, newDebt: NaN }))).resolves.toBe(undefined)
-    expect(reserve).not.toHaveBeenCalled()
+    const request: PaidUseRequest = {
+      feature: 'autoCompaction',
+      modelId: 'muse-spark-1.3',
+      dailyBudgetUsd: Usd.from(5).toAmount(),
+    }
+    expect(await consent.allows(request)).toBe(true)
+    expect(await consent.allows(request)).toBe(true)
+    expect(ask).toHaveBeenCalledTimes(1)
+    isEnabled = false
+    expect(await consent.allows(request)).toBe(false)
+    const question = await paidUseQuestion(request)
+    expect(question.title).toContain(EN.autoCompactionName)
+    expect(question.detail).toContain('$5.00')
+    expect(question.detail).toContain('muse-spark-1.3')
+    // Summaries already enter session token totals; the paid row never doubles their cost.
+    expect(
+      paidTotalUsd({
+        webSearches: 0,
+        images: 0,
+        voiceSeconds: 0,
+        scheduledRuns: 0,
+        autoCompactionRequests: 1,
+      }),
+    ).toBe(ZERO)
   })
 })
 

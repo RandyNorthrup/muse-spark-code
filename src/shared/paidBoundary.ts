@@ -17,6 +17,7 @@ const paidCostSchema = z.optional(nonnegativeUsdSchema)
 
 /** What this window used of each paid feature since it opened. */
 export const paidTallySchema = z.object({
+  autoCompactionRequests: paidCountSchema,
   webSearches: z.number(),
   webSearchCharges: z.optional(
     z.array(
@@ -105,6 +106,7 @@ export function usablePaidFeatures(
 /** The feature's short name, as the badge and the dialog show it. */
 export function paidFeatureName(feature: PaidFeature): string {
   const names: Readonly<Record<PaidFeature, string>> = {
+    autoCompaction: UI_TEXT.autoCompactionName,
     webSearch: UI_TEXT.paidWebSearchName,
     imageGeneration: UI_TEXT.paidImageGenerationName,
     voice: UI_TEXT.paidVoiceName,

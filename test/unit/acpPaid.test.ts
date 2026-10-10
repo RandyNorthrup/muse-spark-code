@@ -15,6 +15,34 @@ import { memoryPaidGrants } from './helpers/paidGrants'
 import { removeFolder } from './helpers/temporaryFolders'
 import type { PaidUseRequest } from '../../src/shared/paid'
 
+it('ACP automatic compaction asks once after its explicit flag and refuses without it', async () => {
+  const request: PaidUseRequest = {
+    feature: 'autoCompaction',
+    modelId: 'muse-spark-1.3',
+    dailyBudgetUsd: Usd.from(5).toAmount(),
+  }
+  const paid = new AcpPaidUse({
+    flagged: ['autoCompaction'],
+    canRemember: () => true,
+    grants: memoryPaidGrants(),
+    log: logger(),
+  })
+  const ask = vi.fn(() => Promise.resolve('once' as const))
+  paid.attach(ask)
+  expect(await paid.allows('/ws', 'session', request, false)).toBe(true)
+  expect(await paid.allows('/ws', 'session', request, false)).toBe(true)
+  expect(ask).toHaveBeenCalledTimes(1)
+  const off = new AcpPaidUse({
+    flagged: [],
+    canRemember: () => true,
+    grants: memoryPaidGrants(),
+    log: logger(),
+  })
+  off.attach(ask)
+  expect(await off.allows('/ws', 'session', request, false)).toBe(false)
+  expect(ask).toHaveBeenCalledTimes(1)
+})
+
 describe('M80 structural headless paid policy', () => {
   it('P4/P7 headless receives requiresAsking and never reads or changes grants or asks editor', async () => {
     const grants = {
@@ -284,7 +312,7 @@ describe('AcpPaidUse', () => {
     const paid = new AcpPaidUse({ flagged: [], canRemember: () => true, grants, log })
     await paid.forgetUnflagged()
     expect(log.warn).toHaveBeenCalledWith(
-      'Paid uses allowed always could not be forgotten for webSearch, imageGeneration: read-only data folder',
+      'Paid uses allowed always could not be forgotten for autoCompaction, webSearch, imageGeneration: read-only data folder',
     )
     expect(paid.isRemembered(FOLDER, 'webSearch')).toBe(false)
   })
@@ -309,7 +337,7 @@ describe('AcpPaidUse', () => {
     const grants = memoryPaidGrants()
     const forget = vi.spyOn(grants, 'forget')
     const paid = new AcpPaidUse({
-      flagged: ['webSearch', 'imageGeneration'],
+      flagged: ['autoCompaction', 'webSearch', 'imageGeneration'],
       canRemember: () => true,
       grants,
       log: logger(),

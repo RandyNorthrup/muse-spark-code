@@ -1,26 +1,4 @@
-// C-M101-1: one shared D78 gate and ledger for automatic compaction.
-//
-// `ModelApiHost` decides and sends compaction itself, but every automatic
-// attempt must pass a production admission (`admitAutoCompaction`) and read
-// its cost-model rates from a production reader (`autoCompactModel`). Both
-// managers (the panel's `modelApiBackendManager.ts` and the runtime's
-// `backends.ts`, covering VS Code, ACP, exec and the panel) bind the two
-// functions here, so every editor admits the same way on every OS.
-//
-// Gate: fail closed. No reservation means zero dispatches: a refused or
-// unreadable daily ledger declines the cost path, an aborted admission
-// refunds its claim, and the returned guard rechecks the claim
-// synchronously at send (D78: reserve before dispatch, recheck at send).
-// The M82 account/key/budget/final-send fences still run on each extra POST
-// inside the host's own composed guard.
-//
-// Ledger: settle known usage at its exact cost (M121 exact money), refund
-// known nonsends, and retain the reservation with an unknown-cost mark when
-// no usage came back. A settlement failure is flagged so the next guard
-// check ends the turn on the ledger-unavailable error instead of spending
-// blind. Cost-model protection (near-window and overflow) is never blocked
-// by economics: when the ledger refuses there, admission still succeeds
-// with a tally-only claim, exactly like a manual `/compact`.
+// C-M101-1: paid consent and per-attempt daily claims shared by editor and runtime.
 import { Usd, type UsdAmount } from '../../../shared/usd'
 import { MODEL_API_PRICES_PER_MILLION, TOKENS_PER_MILLION } from '../../../shared/constants'
 import { modelApiPaidTier } from '../../../shared/paid'
@@ -72,7 +50,12 @@ export interface AutoCompactionLedger {
 }
 
 export interface AutoCompactionAdmissionDeps {
-  readonly ledger: AutoCompactionLedger
+  /** Runtime transport already owns the daily claim for every HTTP attempt. */
+  readonly accounting: AutoCompactionLedger | 'transport'
+  readonly allowsPaidUse: ModelApiHostDeps['allowsPaidUse']
+  readonly isOn: () => boolean
+  readonly dailyBudgetUsd: () => UsdAmount | Promise<UsdAmount>
+  readonly notePaidUse: ModelApiHostDeps['notePaidUse']
   readonly log: CoreLogger
   /** `UI_TEXT.sessionBudgetStoreUnavailable` in the installed language. */
   readonly storeUnavailable: string
@@ -121,73 +104,87 @@ function settleAmount(
   }
 }
 
-/**
- * The production `admitAutoCompaction`: one D78 reserve per automatic
- * compaction, one synchronous recheck per send, one settlement per attempt.
- * Undefined means declined: the host then sends no extra request.
- */
+/** Consent once per use; reserve/recheck/settle each HTTP attempt before further spending. */
 export function createAutoCompactionAdmission(
   deps: AutoCompactionAdmissionDeps,
 ): AdmitAutoCompaction {
-  return async ({ signal, model, decision }) => {
-    if (signal.aborted) return
-    // Only the cost path can wait for money; protection compacts regardless.
-    const isProtection = decision.reason !== 'cost'
+  return async ({ signal, model, decision, modelId, sessionId }) => {
+    if (signal.aborted || !deps.isOn()) return
     const reserveUsd = reserveAmountUsd(model, decision)
-    if (reserveUsd === undefined && !isProtection) return
+    // A corrupt projection or missing tariff cannot authorize a paid extra.
+    if (reserveUsd === undefined || model.pricing.kind !== 'priced') return
+    const dailyBudgetUsd = await deps.dailyBudgetUsd()
+    signal.throwIfAborted()
+    const paidDecision = await deps.allowsPaidUse(
+      { feature: 'autoCompaction', modelId, dailyBudgetUsd },
+      false,
+      sessionId,
+    )
+    signal.throwIfAborted()
+    if (paidDecision !== true || !deps.isOn()) return
     let claim: AutoCompactionLedgerClaim | undefined
-    if (reserveUsd !== undefined) {
-      try {
+    let didSend = false
+    let hasFailed = false
+    let pending: Promise<void> = Promise.resolve()
+    const settle = (
+      sentModelId: string,
+      usage: Usage | undefined,
+      outcome: 'returned' | 'uncertain' | 'rate-limited',
+    ): Promise<void> => {
+      const owned = claim
+      claim = undefined
+      const wasSent = didSend
+      didSend = false
+      if (owned === undefined) return pending
+      const { amount, hasUnknownCost } = wasSent
+        ? settleAmount(sentModelId, usage, outcome, owned.reservedUsd)
+        : { amount: Usd.from(0).toAmount(), hasUnknownCost: false }
+      pending = (async () => {
+        try {
+          await owned.settle(amount, hasUnknownCost)
+        } catch (error: unknown) {
+          hasFailed = true
+          deps.log.warn('Automatic compaction could not settle its ledger claim')
+          throw new Error(deps.storeUnavailable, { cause: error })
+        }
+      })()
+      // Cleanup/retry awaits the same write; observe rejections even when Stop wins.
+      void pending.catch(() => {
+        /* Cleanup owns the rejected write. */
+      })
+      return pending
+    }
+    const guard = Object.assign(
+      () => {
         signal.throwIfAborted()
-        claim = await deps.ledger.reserveCompaction(reserveUsd, signal)
-      } catch {
-        deps.log.warn('Automatic compaction was refused by the daily ledger')
-        claim = undefined
-      }
-    }
-    try {
-      signal.throwIfAborted()
-    } catch {
-      // The reservation never became a dispatch: refund it before declining.
-      // A throw here is the abort racing the reserve, not a ledger failure.
-      try {
-        await claim?.settle(Usd.from(0).toAmount(), false)
-      } catch {
-        deps.log.warn('Automatic compaction could not refund its ledger claim')
-      }
-      return
-    }
-    // Economics never block near-window or overflow protection; the M82
-    // per-send fences still run on each extra POST inside the host.
-    if (claim === undefined && !isProtection) return
-    let hasSettleFailed = false
-    return {
-      guard: () => {
-        if (hasSettleFailed) throw new Error(deps.storeUnavailable)
+        if (hasFailed) throw new Error(deps.storeUnavailable)
+        if (!deps.isOn()) throw new Error(deps.storeUnavailable)
+        if (claim === undefined && deps.accounting !== 'transport')
+          throw new Error(deps.storeUnavailable)
         claim?.check()
       },
-      settle: (sentModelId, usage, outcome) => {
-        // Without a journal row (protection admitted past a refused
-        // ledger) there is nothing to settle; the M82 fences still ran.
-        if (claim === undefined) return
-        const { amount, hasUnknownCost } = settleAmount(
-          sentModelId,
-          usage,
-          outcome,
-          claim.reservedUsd,
-        )
-        try {
-          const settled = claim.settle(amount, hasUnknownCost)
-          if (settled instanceof Promise) {
-            void settled.catch(() => {
-              hasSettleFailed = true
-              deps.log.warn('Automatic compaction could not settle its ledger claim')
-            })
-          }
-        } catch {
-          hasSettleFailed = true
-        }
+      {
+        prepare: async () => {
+          await settle(modelId, undefined, 'uncertain')
+          signal.throwIfAborted()
+          if (hasFailed || !deps.isOn()) throw new Error(deps.storeUnavailable)
+          if (deps.accounting === 'transport') return
+          claim = await deps.accounting.reserveCompaction(reserveUsd, signal)
+          if (claim === undefined) throw new Error(deps.storeUnavailable)
+          if (!signal.aborted) return
+          await settle(modelId, undefined, 'uncertain')
+          signal.throwIfAborted()
+        },
+        onRequestStarted: () => {
+          didSend = true
+          deps.notePaidUse('autoCompaction', 1)
+        },
       },
+    )
+    return {
+      guard,
+      settle,
+      close: () => settle(modelId, undefined, 'uncertain'),
     }
   }
 }

@@ -255,6 +255,12 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
   readonly detail: string
 }> {
   switch (request.feature) {
+    case 'autoCompaction': {
+      return {
+        title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.autoCompactionName }),
+        detail: `${request.modelId}: ${scheduledRunPrice(request.modelId)}\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatUsd(request.dailyBudgetUsd, 2) })}`,
+      }
+    }
     case 'judge': {
       const price = autoReviewPrice(request.modelId)
       if (price === undefined || Usd.from(request.dailyBudgetUsd).compare(Usd.from(0)) < 0)

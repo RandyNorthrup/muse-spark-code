@@ -44,6 +44,16 @@ happened, not what was planned; superseded entries are kept.
   chip and status adapter once their M104 bridges bind them; none does yet.
   ACP and terminals keep `/resources` and `resources status|resume`.
 
+### Fixed
+
+- **Automatic compaction admission** (M101, RVCM1011): shared first-charge
+  consent precedes spending; daily Stop and unreadable storage refuse even
+  near-window protection. Each HTTP attempt gets a fresh claim, known
+  nonsends refund, and settlement failure ends the owning turn before any
+  continuation. ACP/exec use their transport's sole daily debit. ACP adds
+  `--auto-compaction` as an explicit paid opt-in; exec paid defaults remain
+  off. The evaluated latch remains false.
+
 ### Changed
 
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4

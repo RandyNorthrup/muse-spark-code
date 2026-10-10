@@ -1063,6 +1063,7 @@ export const HOOK_EXPANSION_MAX_CHARS = 2048
 // once, Allow always in this workspace, or Deny), shown per use and tallied
 // (the owner's rule: "opt in and loud").
 export const PAID_FEATURES = [
+  'autoCompaction',
   'webSearch',
   'imageGeneration',
   'voice',
@@ -1089,6 +1090,7 @@ export const MUSE_CODE_PAID_FEATURES = [
 export type PaidFeature = (typeof PAID_FEATURES)[number]
 /** Each feature's setting, relative to the `museSpark` section. */
 export const PAID_FEATURE_SETTINGS = {
+  autoCompaction: 'modelApiAutoCompaction',
   webSearch: 'modelApiWebSearch',
   imageGeneration: 'modelApiImageGeneration',
   voice: 'modelApiVoice',
@@ -4009,11 +4011,13 @@ export const ACP_CONFIG_IDS = { model: 'model', effort: 'effort', account: 'acco
 // only with its flag, and each use asked in the editor (M58, D48). Muse
 // Voice needs the panel's microphone, so the agent has none.
 export const ACP_PAID_FEATURES = [
+  'autoCompaction',
   'webSearch',
   'imageGeneration',
 ] as const satisfies readonly PaidFeature[]
 export type AcpPaidFeature = (typeof ACP_PAID_FEATURES)[number]
 export const ACP_PAID_FLAGS = {
+  autoCompaction: 'auto-compaction',
   webSearch: 'web-search',
   imageGeneration: 'image-generation',
 } as const satisfies Readonly<Record<AcpPaidFeature, string>>

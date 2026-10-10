@@ -50,6 +50,7 @@ import {
   MODEL_TEXT,
   type PromptCacheRetention,
   UI_TEXT,
+  SETTING_DEFAULTS,
 } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { forgetFile, requireFile } from '../lazyBundle'
@@ -181,11 +182,11 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly createAttemptVerify?: ((workspaceRoot: string) => VerifyHooks) | undefined
   /** The runtime can share notices across aliases without changing its saved-session identity. */
   readonly workspaceEdits?: WorkspaceEdits | undefined
-  /**
-   * The D78 daily reserve behind automatic compaction (C-M101-1): an exact-USD
-   * claim for the projected cost. Absent, the host has no production
-   * admission and automatic compaction stays dormant.
-   */
+  /** Runtime transport owns the daily debit; other hosts supply the reserve below. */
+  readonly autoCompactionAccounting?: 'transport'
+  /** The current shared daily cap, quoted before the first charge. */
+  readonly paidDailyBudgetUsd?: () => UsdAmount | Promise<UsdAmount>
+  /** D78 claim per attempt; without either owner there is no automatic admission. */
   readonly reserveAutoCompaction?:
     | ((amount: UsdAmount, signal: AbortSignal) => Promise<AutoCompactionLedgerClaim | undefined>)
     | undefined
@@ -427,9 +428,25 @@ export class ModelApiBackendManager {
         observationPacking: this.deps.isObservationPackingOn,
         autoCompaction: this.deps.isAutoCompactionOn,
         autoCompactModel: resolveAutoCompactModel,
-        ...(this.deps.reserveAutoCompaction !== undefined && {
+        ...((this.deps.reserveAutoCompaction !== undefined ||
+          this.deps.autoCompactionAccounting === 'transport') && {
           admitAutoCompaction: createAutoCompactionAdmission({
-            ledger: { reserveCompaction: this.deps.reserveAutoCompaction },
+            accounting:
+              this.deps.autoCompactionAccounting === 'transport'
+                ? 'transport'
+                : {
+                    reserveCompaction: async (amount, signal) => {
+                      if (this.deps.reserveAutoCompaction === undefined)
+                        throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+                      return await this.deps.reserveAutoCompaction(amount, signal)
+                    },
+                  },
+            allowsPaidUse: variant.allowsPaidUse,
+            isOn: () => variant.isPaidFeatureOn('autoCompaction'),
+            dailyBudgetUsd:
+              this.deps.paidDailyBudgetUsd ??
+              (() => Usd.from(SETTING_DEFAULTS.paidDailyBudgetUsd).toAmount()),
+            notePaidUse: this.deps.notePaidUse,
             log: this.deps.log,
             storeUnavailable: UI_TEXT.sessionBudgetStoreUnavailable,
           }),
