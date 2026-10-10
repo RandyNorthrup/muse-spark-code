@@ -3265,23 +3265,36 @@ async function activateWindow(
     surface: ChatSurface | undefined,
     argumentsText = '',
   ): Promise<void> => {
+    if (surface !== undefined && !registry.has(surface))
+      throw new Error(UI_TEXT.reportUi.generationFailed)
     const id = surface?.id ?? 'window'
     let reportingPanel = reportingPanels.get(id)
     if (reportingPanel === undefined) {
+      const reportController = surface === undefined ? undefined : controllerFor(surface)
       reportingPanel = loadReportingPanel().createReportingWindow(
         {
           context: { extensionUri: context.extensionUri, l10n, log },
           generatorVersion: version,
-          ...(surface !== undefined && { questions: controllerFor(surface).reportingQuestions() }),
+          ...(reportController !== undefined && {
+            questions: reportController.reportingQuestions(),
+          }),
           // M113 C-M113-2: the session report reads this surface's live
           // conversation (or its stored Model API session by id); usage reads
           // the shared journal. Only identifiers cross into the lazy bundle.
           ...(surface !== undefined && {
-            reportSessionHistory: () => controllerFor(surface).reportingSessionHistory(),
+            reportSessionHistory: () =>
+              registry.has(surface)
+                ? (reportController?.reportingSessionHistory() ?? Promise.resolve(null))
+                : Promise.resolve(null),
           }),
           ...(context.storageUri !== undefined && {
             reportStoredSessionDir: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
           }),
+          reportBeforeRead: () => usageRecording.flush(),
+          reportReadBudgets: async () => [
+            ...(await dailyPaid.readToday()),
+            ...(await modelApi.readUsageBudgets()),
+          ],
           reportUsageDataFolder: agentDataFolder({
             platform: process.platform,
             env: process.env,

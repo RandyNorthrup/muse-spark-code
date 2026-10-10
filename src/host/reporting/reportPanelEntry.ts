@@ -11,6 +11,9 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { reportWorkspaceKey } from '../../core/reporting/sources/local'
+import type { SourceReadContext } from '../../core/reporting/sources/types'
+import type { UsageReportJournal } from '../../core/usage/reportUsage'
+import type { UsageBudgetRead } from '../../core/usage/usageService'
 import type { SessionHistoryInput } from '../../runtime/reporting/reportInputs'
 import { readSettings } from '../settings'
 import * as vscode from 'vscode'
@@ -43,6 +46,8 @@ export interface ReportingWindowDeps extends Pick<
    */
   readonly reportSessionHistory?: () => Promise<SessionHistoryInput | null>
   readonly reportStoredSessionDir?: string | undefined
+  readonly reportBeforeRead: () => Promise<void>
+  readonly reportReadBudgets: () => Promise<readonly UsageBudgetRead[]>
   readonly reportUsageDataFolder: string
 }
 
@@ -71,6 +76,16 @@ export function createReportingWindow(
     bundlePath: vscode.Uri.joinPath(deps.context.extensionUri, 'dist', 'reportInputs.js').fsPath,
     log: deps.context.log,
   })
+  let journalReader:
+    ReturnType<ReturnType<typeof loadInputs>['createReportJournalReader']> | undefined
+  const readJournal: (context: SourceReadContext) => Promise<UsageReportJournal> = (context) => {
+    journalReader ??= loadInputs().createReportJournalReader({
+      dataFolder: deps.reportUsageDataFolder,
+      beforeRead: deps.reportBeforeRead,
+      readBudgets: deps.reportReadBudgets,
+    })
+    return journalReader(context)
+  }
   const sessionInput = () => ({
     resolveSession: async (sessionId: string | undefined) => {
       if (sessionId === undefined) return (await deps.reportSessionHistory?.()) ?? null
@@ -84,7 +99,7 @@ export function createReportingWindow(
       const current = await deps.reportSessionHistory?.()
       return current?.sessionId === sessionId ? current : null
     },
-    readJournal: () => loadInputs().readUsageReportJournal(deps.reportUsageDataFolder),
+    readJournal,
   })
   return createReportPanel(
     {
@@ -97,12 +112,21 @@ export function createReportingWindow(
         (engine ??= loadEngine().createReportingEngine({
           ...deps,
           session: {
-            read: (context) => loadInputs().createSessionReportReader(sessionInput()).read(context),
+            read: (context) =>
+              loadInputs().createSessionReportReader(sessionInput(), table, locale).read(context),
           },
           usage: (context) =>
-            loadInputs().createUsageReportReader({
-              dataFolder: deps.reportUsageDataFolder,
-            })(context),
+            loadInputs().createUsageReportReader(
+              {
+                dataFolder: deps.reportUsageDataFolder,
+                readJournal,
+                // The machine-local day, like M102's page and the journal's
+                // own day stamps; the contract carries it explicitly (D93).
+                timezoneOffsetMins: new Date().getTimezoneOffset(),
+              },
+              table,
+              locale,
+            )(context),
           workspaceKey,
           l10n: deps.context.l10n,
           log: deps.context.log,

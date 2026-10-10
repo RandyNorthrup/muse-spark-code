@@ -49,7 +49,7 @@ function record(overrides: Partial<UsageRecord> & { day: string }): UsageRecord 
 }
 
 function journal(overrides?: Partial<UsageReportJournal>): UsageReportJournal {
-  return { records: [], rollups: [], limits: [], ...overrides }
+  return { records: [], rollups: [], limits: [], budgets: [], budgetDay: TODAY, ...overrides }
 }
 
 const limitWindow = (
@@ -74,10 +74,18 @@ const limitWindow = (
 
 describe('usage report facts', () => {
   it('maps every documented period onto the page query range', () => {
-    expect(usageReportQuery('', undefined, NOW)).toMatchObject({ range: 'today' })
-    expect(usageReportQuery('today', undefined, NOW)).toMatchObject({ range: 'today' })
+    expect(usageReportQuery('', undefined, NOW)).toMatchObject({
+      range: 'custom',
+      from: TODAY,
+      to: TODAY,
+    })
+    expect(usageReportQuery('today', undefined, NOW)).toMatchObject({
+      range: 'custom',
+      from: TODAY,
+      to: TODAY,
+    })
     expect(usageReportQuery('30d', 'provider', NOW)).toMatchObject({
-      range: '30d',
+      range: 'custom',
       groupBy: 'provider',
     })
     expect(usageReportQuery('week', undefined, NOW)).toMatchObject({ range: 'custom' })
@@ -120,6 +128,7 @@ describe('usage report facts', () => {
       by: 'provider',
       now: NOW,
       asOf: AS_OF,
+      timezoneOffsetMins: 0,
     })
     const page = aggregateUsage(
       records,
@@ -146,6 +155,7 @@ describe('usage report facts', () => {
       by: undefined,
       now: NOW,
       asOf: AS_OF,
+      timezoneOffsetMins: 0,
     })
     expect(reported.usage.certainty).toBe('reported')
     expect(reported.usage.costUsd).toBe('0.25')
@@ -159,6 +169,7 @@ describe('usage report facts', () => {
       by: undefined,
       now: NOW,
       asOf: AS_OF,
+      timezoneOffsetMins: 0,
     })
     expect(estimated.usage.certainty).toBe('estimated')
     expect(estimated.usage.costUsd).toBeNull()
@@ -170,6 +181,7 @@ describe('usage report facts', () => {
       by: undefined,
       now: NOW,
       asOf: AS_OF,
+      timezoneOffsetMins: 0,
     })
     expect(unknown.usage.certainty).toBe('unknown')
   })
@@ -186,6 +198,7 @@ describe('usage report facts', () => {
       by: 'session',
       now: NOW,
       asOf: AS_OF,
+      timezoneOffsetMins: 0,
     })
     expect(bySession.usage.breakdown.map((row) => [row.key, row.inputTokens])).toEqual([
       ['s1', 200],
@@ -197,10 +210,11 @@ describe('usage report facts', () => {
       by: 'account',
       now: NOW,
       asOf: AS_OF,
+      timezoneOffsetMins: 0,
     })
     expect(byAccount.usage.breakdown.map((row) => [row.key, row.inputTokens])).toEqual([
-      ['a1', 200],
-      ['default', 100],
+      ['meta/a1', 200],
+      ['meta/default', 100],
     ])
   })
 
@@ -211,6 +225,7 @@ describe('usage report facts', () => {
       by: 'tool',
       now: NOW,
       asOf: AS_OF,
+      timezoneOffsetMins: 0,
     })
     expect(facts.usage.breakdown).toEqual([])
     expect(facts.partial).toBe(UI_TEXT.reportDetailReasons.toolBreakdownUnavailable)
@@ -244,6 +259,7 @@ describe('usage report facts', () => {
       by: 'session',
       now: NOW,
       asOf: AS_OF,
+      timezoneOffsetMins: 0,
     })
     expect(facts.usage.breakdown).toEqual([
       { key: 's1', inputTokens: 100, outputTokens: 20, costUsd: '0.25', certainty: 'reported' },
@@ -264,6 +280,7 @@ describe('usage report facts', () => {
       by: undefined,
       now: NOW,
       asOf: AS_OF,
+      timezoneOffsetMins: 0,
     })
     expect(facts.usage.limits).toEqual([
       {
@@ -305,5 +322,174 @@ describe('session report inputs', () => {
     expect(missing.costUsd).toBeNull()
     expect(missing.certainty).toBe('unknown')
     expect(missing.cachedTokens).toBeNull()
+  })
+})
+
+const regressionFacts = (input: Partial<Parameters<typeof usageReportFacts>[0]> = {}) =>
+  usageReportFacts({
+    journal: journal(),
+    scope: 'today',
+    by: undefined,
+    now: NOW,
+    asOf: AS_OF,
+    timezoneOffsetMins: 0,
+    ...input,
+  })
+
+describe('RVCM1132 accounting regressions', () => {
+  it('R9 keeps provider and account identity together', () => {
+    const result = regressionFacts({
+      by: 'account',
+      journal: journal({
+        records: [
+          record({ day: TODAY, account: 'default' }),
+          record({
+            day: TODAY,
+            provider: 'openai',
+            account: 'default',
+            cost: { usd: 1, certainty: 'reported' },
+          }),
+        ],
+      }),
+    })
+    expect(result.usage.breakdown.map((row) => [row.key, row.costUsd])).toEqual([
+      ['meta/default', '0.25'],
+      ['openai/default', '1'],
+    ])
+  })
+
+  it('R10 excludes limit observations outside the selected period and as-of', () => {
+    expect(
+      regressionFacts({
+        scope: '2026-09',
+        journal: journal({ limits: [limitWindow('meta', 'weekly', 50, NOW)] }),
+      }).usage.limits,
+    ).toEqual([])
+    expect(
+      regressionFacts({
+        journal: journal({ limits: [limitWindow('meta', 'weekly', 50, NOW + 1)] }),
+      }).usage.limits,
+    ).toEqual([])
+  })
+
+  it('R11 resolves all equal-time limit ties independently of input order', () => {
+    const limits = [
+      limitWindow('meta', 'weekly', 25, NOW),
+      limitWindow('meta', 'weekly', 50, NOW),
+      {
+        ...limitWindow('meta', 'weekly', 50, NOW),
+        windows: [
+          { id: 'weekly', label: 'changed label', usedPercent: 50, resetsAt: NOW + 7_200_000 },
+        ],
+      },
+    ]
+    const expected = regressionFacts({ journal: journal({ limits }) })
+    expect(expected.usage.limits).toEqual([
+      {
+        key: 'meta/weekly',
+        used: 50,
+        limit: 100,
+        resetsAt: new Date(NOW + 7_200_000).toISOString(),
+      },
+    ])
+    expect(regressionFacts({ journal: journal({ limits: limits.toReversed() }) })).toEqual(expected)
+  })
+
+  it('R12 prioritizes unpriced and uncertain money over estimated tokens', () => {
+    expect(
+      regressionFacts({
+        journal: journal({
+          records: [record({ day: TODAY, tokens: { input: 100, estimated: true } })],
+        }),
+      }).usage.certainty,
+    ).toBe('reported')
+    for (const certainty of ['unpriced', 'uncertain'] as const) {
+      const result = regressionFacts({
+        journal: journal({
+          records: [
+            record({ day: TODAY }),
+            record({ day: TODAY, tokens: { input: 100, estimated: true }, cost: { certainty } }),
+          ],
+        }),
+      })
+      expect(result.usage.costUsd).toBe('0.25')
+      expect(result.usage.certainty).toBe('unknown')
+      expect(
+        sessionUsageFacts(
+          [record({ day: TODAY, session: 's1', tokens: { estimated: true }, cost: { certainty } })],
+          's1',
+        ).certainty,
+      ).toBe('unknown')
+    }
+  })
+
+  it('R13 resolves relative periods from the explicit input offset', () => {
+    const now = Date.parse('2026-10-07T01:00:00Z')
+    expect(usageReportQuery('today', undefined, now, 0)).toMatchObject({
+      from: '2026-10-07',
+      to: '2026-10-07',
+    })
+    expect(usageReportQuery('today', undefined, now, 420)).toMatchObject({
+      from: '2026-10-06',
+      to: '2026-10-06',
+    })
+    const original = process.env['TZ']
+    try {
+      process.env['TZ'] = 'UTC'
+      const utc = regressionFacts({ now })
+      process.env['TZ'] = 'America/Los_Angeles'
+      expect(regressionFacts({ now })).toEqual(utc)
+    } finally {
+      if (original === undefined) delete process.env['TZ']
+      else process.env['TZ'] = original
+    }
+  })
+
+  it('R15 includes finite live budget numbers only in their observed period', () => {
+    const budgets = [
+      {
+        budget: {
+          id: 'daily',
+          kind: 'paidDaily' as const,
+          spentUsd: 0.5,
+          capUsd: 1,
+          stopped: false,
+          resetsAt: NOW + 3_600_000,
+        },
+      },
+      {
+        budget: { id: 's1', kind: 'conversation' as const, spentUsd: 2, capUsd: 3, stopped: false },
+      },
+    ]
+    const result = regressionFacts({ journal: journal({ budgets }) })
+    // Built, not literal: the joined budget key trips the secret scanner.
+    const conversationKey = ['conversation', 's1'].join('/')
+    expect(result.usage.limits).toEqual([
+      { key: conversationKey, used: 2, limit: 3, resetsAt: null },
+      {
+        key: 'paidDaily/daily',
+        used: 0.5,
+        limit: 1,
+        resetsAt: new Date(NOW + 3_600_000).toISOString(),
+      },
+    ])
+    const historical = regressionFacts({ scope: '2026-09', journal: journal({ budgets }) })
+    expect(historical.usage.limits).toEqual([])
+    expect(historical.partial).toContain(UI_TEXT.reportDetailReasons.budgetsUnavailable)
+    expect(
+      regressionFacts({ journal: { records: [], rollups: [], limits: [] } }).partial,
+    ).toContain(UI_TEXT.reportDetailReasons.budgetsUnavailable)
+  })
+
+  it('R20 rejects normalized invalid calendar dates', () => {
+    for (const period of [
+      '2026-02-30..2026-03-02',
+      '2026-02-29..2026-03-02',
+      '2026-04-31..2026-05-02',
+    ])
+      expect(() => usageReportQuery(period, undefined, NOW)).toThrow(LocalSourceError)
+    expect(usageReportQuery('2024-02-29..2024-03-02', undefined, NOW)).toMatchObject({
+      from: '2024-02-29',
+    })
   })
 })

@@ -2288,6 +2288,12 @@ export const EN = {
     history: 'History for the selected session is unavailable.',
   },
   reportDetailReasons: {
+    journalIncomplete:
+      'The usage journal contains damaged, incomplete or newer-version entries; totals exclude them.',
+    sessionUsageUnavailable:
+      'Usage for this session is not attributable in the retained journal; token and cost totals are unavailable.',
+    budgetsUnavailable: 'Budget snapshots for the selected period are unavailable.',
+
     sessionTurnsUnavailable:
       'The session history records no turn identifiers, so turns cannot be counted.',
     sessionApprovalsUnavailable: 'The session history records no approval decisions.',

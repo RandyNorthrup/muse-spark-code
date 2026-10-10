@@ -50,10 +50,15 @@ export class LocalSourceError extends Error {
 }
 /** A failure code from any bundle copy, or undefined when it is not one. */
 export function localFailureOf(error: unknown): LocalFailure | undefined {
-  if (error instanceof LocalSourceError) return error.code
+  if (error instanceof LocalSourceError && Object.hasOwn(LOCAL_FAILURES, error.code))
+    return LOCAL_FAILURES[error.code]
   if (typeof error === 'object' && error !== null) {
     const branded = error as { isLocalSourceError?: unknown; code?: unknown }
-    if (branded.isLocalSourceError === true && typeof branded.code === 'string')
+    if (
+      branded.isLocalSourceError === true &&
+      typeof branded.code === 'string' &&
+      Object.hasOwn(LOCAL_FAILURES, branded.code)
+    )
       return LOCAL_FAILURES[branded.code]
   }
   return undefined

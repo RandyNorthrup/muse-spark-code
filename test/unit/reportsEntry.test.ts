@@ -1,3 +1,8 @@
+import {
+  readHostReportSession,
+  createSessionReportReader,
+} from '../../src/runtime/reporting/reportInputs'
+import { createReportingServices } from '../../src/runtime/reporting/engine'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
@@ -194,4 +199,72 @@ describe('lazy runtime report entry', () => {
       }
     }
   })
+})
+
+it('R1 ACP binds primary history for its automatically selected session', async () => {
+  const readSession = vi.fn(() =>
+    Promise.resolve({
+      mode: 'inline',
+      name: undefined,
+      items: [
+        {
+          itemId: 'u1',
+          kind: 'userMessage' as const,
+          status: 'completed' as const,
+          turnId: 't1',
+          text: 'Primary',
+        },
+      ],
+      todos: [],
+    }),
+  )
+  const host = {
+    info: {
+      kind: 'museCode' as const,
+      serverName: 'fake',
+      serverVersion: '1',
+      canEditSessions: true,
+      grantedCapabilities: [],
+    },
+    readSession,
+    listModels: () =>
+      Promise.resolve([
+        {
+          modelId: 'primary-model',
+          displayLabel: 'Primary',
+          contextLimit: undefined,
+          isDefault: true,
+          isActive: true,
+        },
+      ]),
+  }
+  const h = entry({
+    servicesFor: (cwd) =>
+      Promise.resolve({
+        keepHistory: false,
+        services: createReportingServices({
+          workspaceRoot: cwd,
+          storageRoot: '/reports/workspace/data',
+          l10n: { table: EN, locale: 'en' },
+          generatorVersion: 'test',
+          keepHistory: false,
+          enabledAgents: [],
+          session: createSessionReportReader({
+            resolveSession: (id) =>
+              id === undefined ? Promise.resolve(null) : readHostReportSession(host, id),
+            readJournal: () => Promise.resolve({ records: [], rollups: [], limits: [] }),
+          }),
+        }),
+      }),
+  })
+  const result = await h.reports.acp.execute('session', {
+    cwd: h.input.cwd,
+    sessionId: 'primary',
+    format: 'md',
+    signal: new AbortController().signal,
+  })
+  expect(result.code).toBe(0)
+  expect(result.text).toContain('primary-model')
+  expect(result.text).toContain('museCode')
+  expect(readSession).toHaveBeenCalledWith('primary', { recoverGoal: false })
 })

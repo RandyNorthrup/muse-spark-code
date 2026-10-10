@@ -67,6 +67,7 @@ export interface ReportSessionReader {
     usage: ReportSourcePayloads['session']['usage']
     checkRuns: ReportSourcePayloads['session']['checkRuns']
     observedAt: string
+    partial?: string
   } | null>
 }
 export function sessionSource(
@@ -108,6 +109,7 @@ export function sessionSource(
         ),
       },
       observedAt: read.observedAt,
+      ...(read.partial !== undefined && { partial: scrub(read.partial) }),
     }
   })
 }

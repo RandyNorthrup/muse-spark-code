@@ -35102,6 +35102,23 @@ lane T and M111b. One short live check per backend (step 3).
 
 ### M113 — Deterministic reports: `/report` (D93)
 
+**CM1132R2 review repair (2026-10-10, linuxlt).** Fix all 22 RVCM1132
+findings by class within the session/usage lane. One request-scoped, read-only
+journal snapshot follows pending recording; damaged and unattributed evidence
+is disclosed. Stored reads reject links and mismatched identities. Account
+keys include providers; periods use an explicit UTC offset; limits and live
+budgets are period-scoped and deterministic; money certainty takes precedence.
+Install the caller's language in the lazy input bundle, bind primary-backend
+history through the active runtime host, scope questions to the requested
+session, preserve closed-surface lifetime, and load inputs only for their
+consuming kinds. Fix the production-admission e2e build and all P3s. No new
+dependency, cap, hook, guard widening, merge, push or live/model call.
+
+- [x] Repair accounting, journal and stored-session input classes.
+- [x] Repair runtime/editor/language/lazy bindings and the e2e build.
+- [x] Prove every finding with regressions and byte-exact red drills.
+- [ ] Run scoped gates and default-timeout owning suites; commit with hooks.
+
 **Lane W integration (2026-10-06, Kubuntu).** Merge the ten ordered lanes,
 retain current release/question records while applying P's grammar repairs,
 and bind the lazy reporting engine, panel, destinations and page. Close the
@@ -38015,6 +38032,14 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+CM1132R2's rig/common brief delegates aggregate `npm run quality` to the lead
+and prohibits it in the lane. This qualification runs five typechecks,
+changed-file ESLint/Prettier, plain knip, duplication, localization, reference,
+roadmap, host API and production build gates, plus complete owned test files
+at repository deadlines. No threshold, timeout, ignore or hook is relaxed.
+Receipts and deliberate failure/restoration drills are recorded in
+`docs/certification/m113-session-usage-c-m113-2.md`.
 
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering

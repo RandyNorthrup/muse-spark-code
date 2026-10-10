@@ -11,7 +11,9 @@ function isBundle(value: unknown): value is Bundle {
     typeof bundle?.createSessionReportReader === 'function' &&
     typeof bundle.createUsageReportReader === 'function' &&
     typeof bundle.readStoredReportSession === 'function' &&
-    typeof bundle.readUsageReportJournal === 'function'
+    typeof bundle.readUsageReportJournal === 'function' &&
+    typeof bundle.createReportJournalReader === 'function' &&
+    typeof bundle.readHostReportSession === 'function'
   )
 }
 

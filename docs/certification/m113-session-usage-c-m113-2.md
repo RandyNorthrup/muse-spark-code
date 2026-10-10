@@ -1,97 +1,112 @@
-# M113 C-M113-2 certification — session and usage report kinds
+# M113 C-M113-2 certification — CM1132R2 review repair
 
-Lane: CM1132 (branch c/m113-2, from 82d50d5e4). Scope: pass M84 retained
-activity and the M102 aggregate.ts journal into every engine construction
-(VS Code panel, ACP, CLI); `--by account` from the journal's own account
-field. Acceptance: D93.4 session and usage rows; usage totals identical to
-M102's page for the same range.
+2026-10-10, linuxlt, branch `c/m113-2`, base `2c22e56ac`.
+This record supersedes the first-pass certification and its primary-backend,
+budget and lazy-loading limitations. All 22 RVCM1132 findings are repaired.
+No new dependency, paid/live call, credentials, merge, push, gate relaxation
+or hook change. Shared core/runtime logic serves the editor, ACP and CLI.
+No webview paint changed; existing responsive/accessibility surfaces remain.
 
-## What shipped
+## Finding → fix → regression → deliberate failure
 
-- `src/core/usage/reportUsage.ts` — pure mapping from the validated journal
-  onto `UsageFacts`: every documented period becomes the page's own query
-  range; totals and page-dimension breakdowns come from `aggregateUsage`
-  itself; session/account breakdowns group kept records (`unknown` session,
-  `default` account per the journal's own convention); rolled-up days stay
-  totals-only with an explicit partial reason; `--by tool` stays partial
-  because the journal records no per-tool use; limits map journal windows to
-  percent scale, latest observation winning; money sums in integer
-  micro-dollars end to end.
-- `src/runtime/reporting/reportInputs.ts` (+ `reportInputsEntry.ts`,
-  `reportInputsLoader.ts`, `dist/reportInputs.js`, 100 KiB budget) — the
-  node-side bindings: stored-session reads (UUID-alphabet path guard),
-  journal reads tolerating a fresh install, and the session reader (turns
-  from retained turn ids, per-session journal usage, approvals explicitly
-  unavailable). Checks run arrive through the workspace check-run source,
-  which `collectSession` prefers; the payload keeps an empty list so a
-  second journal read never diverges from it.
-- Wiring: VS Code (`extension.ts`, `reportPanelEntry.ts`, current live
-  conversation + stored fallback), CLI/ACP (`main.ts` servicesFor,
-  `--session <id>`). The inputs bundle loads on the first session or usage
-  read, never for other kinds.
-- `localFailureOf` in `sources/local.ts` — failures thrown from a lazy
-  bundle's copy of `LocalSourceError` keep their code across the boundary
-  via a minification-safe brand (this also fixes the latent
-  reporting-network case). Unknown codes and unbranded errors still map to
-  the generic read failure.
-- Strings: `reportDetailReasons` (4 keys) in all 15 tables.
-- Split gate: one `priceCard.ts` exception for `dist/reportInputs.js`,
-  mirroring the existing `usageService.js` rationale (the journal store's
-  static record import carries the card; reporting never prices).
+Test names below use the exact `R<number>` prefix in the complete owning file.
+Every drill ran the entire listed file at repository deadlines, no filtering.
 
-## Tests (repository timeouts, no --testTimeout)
+| Finding | Fix                                                                                       | Regression                                     | Red drill                                             |
+| ------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------- |
+| R1      | Active primary host history, no resume/turn; CLI transient host closes                    | reportInputs R1; reportsEntry R1; e2e R1       | inputs (exit 1, named regression failed)              |
+| R2      | One snapshot per engine generation, fresh run identity                                    | reportInputs R2 (both tests)                   | inputs + generation (exit 1, named regression failed) |
+| R3      | Await production usageRecording.flush before snapshot                                     | reportInputs R3                                | inputs (exit 1, named regression failed)              |
+| R4      | All invalid/torn/newer counters become partial evidence                                   | reportInputs R4                                | inputs (exit 1, named regression failed)              |
+| R5      | Nonempty un-attributed sessions disclose missing usage                                    | reportInputs R5                                | inputs (exit 1, named regression failed)              |
+| R6      | No-follow open, regular/single-link file, ancestor and held identity checks, bounded read | reportInputs R6                                | inputs (exit 1, named regression failed)              |
+| R7      | Stored schema version and requested envelope identity checked                             | reportInputs R7                                | inputs (exit 1, named regression failed)              |
+| R8      | Lazy factories install caller table/locale                                                | reportInputs R8; e2e R8                        | inputs (exit 1, named regression failed)              |
+| R9      | Account keys include provider and account                                                 | reportUsage R9                                 | usage (exit 1, named regression failed)               |
+| R10     | Limit day and as-of filtering                                                             | reportUsage R10                                | usage (exit 1, named regression failed)               |
+| R11     | Stable window IDs; used/reset ties independent of input order                             | reportUsage R11                                | usage (exit 1, named regression failed)               |
+| R12     | Money certainty takes precedence over token estimates                                     | reportUsage R12                                | usage (exit 1, named regression failed)               |
+| R13     | Explicit timezoneOffsetMins input; editor/runtime choose UTC (0)                          | reportUsage R13                                | usage (exit 1, named regression failed)               |
+| R14     | Questions reject another requested session                                                | conversationController R14                     | controller (exit 1, named regression failed)          |
+| R15     | Actual editor/runtime budgets supplied; unavailable/historical snapshots disclosed        | reportUsage R15                                | usage (exit 1, named regression failed)               |
+| R16     | Capture controller once; closed registry and pending lifecycle guards                     | reportingPanel R16; conversationController R16 | panel + controller (exit 1, named regression failed)  |
+| R17     | E2e uses production shared admission and its actual bundles                               | e2e R17 plus original nine live cases          | admission (exit 1, named regression failed)           |
+| R18     | Project usage uses seven days; milestone/release scope never parsed as usage              | reportInputs R18                               | inputs (exit 1, named regression failed)              |
+| R19     | Only session/usage/project consumers touch optional input readers                         | reportInputs R19                               | inputs (exit 1, named regression failed)              |
+| R20     | Strict journal calendar schema rejects normalized invalid dates                           | reportUsage R20                                | usage (exit 1, named regression failed)               |
+| R21     | Remove unused alternate e2e entry and knip exemption                                      | reportInputs R21; plain knip                   | inputs (exit 1, named regression failed)              |
+| R22     | Own-key lookup rejects branded prototype keys                                             | localSource R22                                | inputs (exit 1, named regression failed)              |
 
-- `test/unit/reportUsage.test.ts` (10): period grammar + rejection,
-  same-numbers-as-page, certainty mapping, session/account grouping,
-  tool partial, rolled-up partial, limits, session usage, turn counting.
-- `test/unit/reportInputs.test.ts` (5): stored reads + path-escape
-  refusal, empty-vs-seeded journal, session source over real directories,
-  unknown session as unavailable history, stored fallback.
-- `test/unit/localSource.test.ts` (4): brand recognition incl.
-  foreign-copy, unknown-code refusal, end-to-end code preservation.
-- `test/unit/collect.session.test.ts` (+2): journal preference with
-  checkRuns citation, embedded fallback with status disclosure.
-- `test/e2e/reports.e2e.test.ts` (+9, 18 total): live CLI over an
-  isolated data folder — stored session with journal usage, all six
-  attributable `--by` dimensions, tool partial, unknown session.
-- Untouched suites re-run: sessionReportSource, collect.usage,
-  reportingPanel, reportEngine-adjacent (see final message).
+## Red-drill receipts
 
-## Red drills (all restored byte-exact by SHA-256)
+The lane helper saved original bytes, mutated the guards, ran at most three
+complete files with `--maxWorkers=3`, required the named failures, restored in
+`finally`, and compared SHA-256. All expected finding prefixes failed. The
+journal/language/storage/kind guards were tested together; accounting guards
+together; engine generation, controller lifetime, panel lifetime and e2e
+admission each had their own run. No red mutation is retained.
 
-1. `src/core/usage/reportUsage.ts`
-   `83221652d9b5296e7be8a20743027f3b515d270b63d42bcf3ad230f69d1a4526` —
-   broke the model breakdown key; `reportUsage.test.ts` >
-   `carries certainty honestly` failed; restored to the same SHA, 10 pass.
-   The first attempt passed green and caught a real gap (breakdown keys
-   unpinned); the test was strengthened before the recorded drill.
-2. `src/core/reporting/sources/local.ts`
-   `b0a229f8fa255de7d15ceb586b79d0da55968206488ae31c7b90f55f67c0117a` —
-   broke the instanceof arm; `localSource.test.ts` > `keeps the instanceof
-code` failed; restored to the same SHA, 4 pass.
-3. `scripts/check-bundle-split.mjs`
-   `e3f91822a494f1658006a568d70e47c752c10ea46dbbc10ee39dfacd437417ff` —
-   removed the reportInputs priceCard exception;
-   `node scripts/check-bundle-split.mjs` exited 1 naming
-   `dist/reportInputs.js carries src/core/providers/priceCard.ts`;
-   restored to the same SHA, exit 0.
+### inputs
 
-## Gates
+Exit 1; named failures: R1, R2, R3, R4, R5, R6, R7, R8, R18, R19, R21, R22. Restored hashes:
 
-`npm run build` exits 0 (reporting.js 146.6 KiB ≤ 175; reportInputs.js
-65.6 KiB ≤ 100; split/host-globals/notices clean). `node
-scripts/check-l10n.mjs` 0 problems. eslint/prettier clean on touched
-files. Host + unit typechecks clean. `npm run check:reference`
-unaffected (no new command, setting or feature row).
+- `src/runtime/reporting/reportInputs.ts`: `4568903657358ba3c673d88afa2506e84ab85bca7da0abec7f84e7b5b75cfe97`
+- `src/runtime/reporting/reportInputsEntry.ts`: `52b5154ef48df769444955add6051f7ca2ca32fffedde08d116b47abf3774622`
+- `src/core/reporting/sources/index.ts`: `a7478e7058e9115894793b0105908db530f9a8c74dfb99b2ccad62fbdb883c8e`
+- `src/core/reporting/sources/local.ts`: `51007ba74c67b0b54dc2f8e23df6c3f35fb66ec8ccc6157c2870c9d706c8bd4a`
+- `test/e2e/reportsLiveEntry.ts`: `absent`
+- `knip.jsonc`: `6593b3da379b900b330a7c1e3fc44dcd6fad9883b66dfde5bc212670a57c67a6`
 
-## Known limits (for the lead)
+### usage
 
-- ACP/CLI sessions on the Muse Code backend have no durable history the
-  runtime can read; `report session --session <that-id>` reports
-  unavailable history with its reason. VS Code covers both backends live.
-- Session usage covers kept (un-rolled-up) journal records; older rolled-up
-  days are totals-only in the usage kind and absent from per-session sums.
-- Usage limits show journal plan windows; daily-budget rows are not in the
-  journal and are not shown.
-- Approval decisions are unavailable in every host: history items carry
-  none, and nothing retains them per session today.
+Exit 1; named failures: R9, R10, R11, R12, R13, R15, R20. Restored hashes:
+
+- `src/core/usage/reportUsage.ts`: `3fc60e0725d4a820df4055052ce0f06072e0dd286ea3139f5157edb2fd10b80f`
+
+### generation
+
+Exit 1; named failures: R2 every engine. Restored hashes:
+
+- `src/runtime/reporting/engine.ts`: `ff108a2526b845319a39215f3986bab1c8621335563c6b0d20b89d441a493a90`
+
+### controller
+
+Exit 1; named failures: R14, R16. Restored hashes:
+
+- `src/host/conversation/conversationController.ts`: `2e1bbc37f3b767ccf997a725fcd430f1630be923bf603a5a44efac323a5fea22`
+
+### panel
+
+Exit 1; named failures: R16. Restored hashes:
+
+- `src/extension.ts`: `a2afdae339e5e9523fdf567ea54ab8eb25202215d8f57fdf426248ed8554057f`
+
+## Verification
+
+Pending final clean suite and scoped gate receipts. Aggregate quality belongs
+to the lead under the rig/common brief; no commit is proposed as fully gated
+until the lead runs it. No platform/native-editor certification is claimed.
+
+The primary-backend tests use existing validated AgentHost ports and a fake
+runtime at the e2e bundle boundary. They never start a model turn or require
+credentials. Stored reads and journal tests use isolated real temporary
+folders under the lane's disk-backed TMPDIR.
+
+The initial full controller run passed 713 tests but four existing native
+review setup groups stopped before admission. The collector's empty-filter
+inventory expects Node `code`, while the production Git runner now exposes
+`exitCode`. The native ownership fixture declares an inactive filter driver
+so its complete real-Git admission cases exercise their intended ownership
+contract without changing production guards. Final results follow below.
+
+Two attempts at a VM-only runtimeReports test stopped under the common
+rule: report-history storage was misbound, then the journal directory was
+unbound. That approach was abandoned. The retained public ACP integration
+and actual-main CLI e2e replace it. An accidentally overlapping exploratory
+Vitest run was immediately terminated (exit 130); it is not counted as proof.
+
+Honest unavailable data remains a supported result: approvals are not retained,
+per-tool journal usage is not recorded, rollups lack session attribution, and
+historical budget snapshots are not retained. These are explicit rows, not
+assigned review findings left open. Current budgets appear where their observed
+UTC day intersects the chosen period; no historical budget is invented.

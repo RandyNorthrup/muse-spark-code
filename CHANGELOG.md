@@ -7,6 +7,18 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Session and usage reports preserve source honesty and identity** (CM1132R2).
+  Concurrent sources share a flushed journal snapshot. Damage, newer versions,
+  missing session attribution and unavailable budget snapshots produce partial
+  rows. Stored reads reject links and mismatched IDs. Provider/account grouping,
+  explicit UTC periods, period-scoped limits and budgets, deterministic ties and
+  monetary uncertainty prevent misleading totals. Lazy inputs receive the
+  caller's language and load only for consuming kinds; primary history is bound
+  in ACP and CLI, questions stay session-scoped, and closed chats stay closed.
+  CLI end-to-end builds use production resource admission.
+
 ### Added
 
 - **Session and usage report kinds are real end to end** (M113 C-M113-2).

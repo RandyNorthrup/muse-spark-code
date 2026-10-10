@@ -4,26 +4,31 @@
 // M102's page for the same range. No journal parser is guessed here; the
 // host supplies already-validated journal rows.
 import { LocalSourceError, codeUnitCompare, sourceReason } from '../reporting/sources/local'
-import {
-  aggregateUsage,
-  usageLocalDay,
-  usageRange,
-  usdUnits,
-  shiftUsageDay,
-  type UsageAggregation,
-} from './aggregate'
+import { aggregateUsage, usdUnits, shiftUsageDay, type UsageAggregation } from './aggregate'
 import { Usd } from '../../shared/usd'
 import type { UsageLimitSnapshot, UsageRecord } from '../../shared/usageJournal'
 import type { UsageQuery, UsageTotals } from '../../shared/usagePage'
 import type { ReportOptions } from '../../shared/reportSchema'
-import { DAYS_PER_WEEK, EXEC_USD_UNITS, REPORT_MAX_ROWS, UI_TEXT } from '../../shared/constants'
+import {
+  DAYS_PER_WEEK,
+  EXEC_USD_UNITS,
+  REPORT_MAX_ROWS,
+  MILLISECONDS_PER_SECOND,
+  SECONDS_PER_MINUTE,
+  UI_TEXT,
+} from '../../shared/constants'
 import type { UsageAggregateRow } from './aggregate'
+import type { UsageBudgetRead } from './usageService'
+import { usageDaySchema } from '../../shared/usageJournal'
 import type { UsageFacts } from '../reporting/sources/types'
 
 export interface UsageReportJournal {
   readonly records: readonly UsageRecord[]
   readonly rollups: readonly UsageAggregateRow[]
   readonly limits: readonly UsageLimitSnapshot[]
+  readonly partial?: string
+  readonly budgets?: readonly UsageBudgetRead[]
+  readonly budgetDay?: string
 }
 
 type BreakdownBy = NonNullable<ReportOptions['by']>
@@ -36,7 +41,7 @@ function fail(): never {
 }
 
 function parseDay(value: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(value))) fail()
+  if (!usageDaySchema.safeParse(value).success) fail()
   return value
 }
 
@@ -55,17 +60,30 @@ function pageGroupBy(by: ReportOptions['by']): UsageQuery['groupBy'] {
   }
 }
 
-export function usageReportQuery(scope: string, by: ReportOptions['by'], now: number): UsageQuery {
-  const today = usageLocalDay(now)
+export function usageReportQuery(
+  scope: string,
+  by: ReportOptions['by'],
+  now: number,
+  timezoneOffsetMins = 0,
+): UsageQuery {
+  const today =
+    new Date(now - timezoneOffsetMins * MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE)
+      .toISOString()
+      .split('T', 1)[0] ?? ''
   if (today === '') fail()
   const groupBy = pageGroupBy(by)
   const base = { groupBy, metric: 'cost' } as const
-  if (['', 'today'].includes(scope)) return { range: 'today', ...base }
+  if (['', 'today'].includes(scope)) return { range: 'custom', from: today, to: today, ...base }
   switch (scope) {
     case '7d':
     case '30d':
     case '90d': {
-      return { range: scope, ...base }
+      return {
+        range: 'custom',
+        from: shiftUsageDay(today, -Number(scope.slice(0, -1)) + 1),
+        to: today,
+        ...base,
+      }
     }
   }
   if (scope === 'week') {
@@ -111,9 +129,12 @@ export function usageReportQuery(scope: string, by: ReportOptions['by'], now: nu
 
 type Certainty = UsageFacts['certainty']
 
-function factsCertainty(certainties: readonly string[], hasEstimatedTokens: boolean): Certainty {
-  if (hasEstimatedTokens) return 'estimated'
-  if (certainties.length === 0) return 'unknown'
+function factsCertainty(certainties: readonly string[]): Certainty {
+  if (
+    certainties.length === 0 ||
+    certainties.some((certainty) => certainty !== 'reported' && certainty !== 'estimated')
+  )
+    return 'unknown'
   if (certainties.every((certainty) => certainty === 'reported')) return 'reported'
   return certainties.every((certainty) => certainty === 'reported' || certainty === 'estimated')
     ? 'estimated'
@@ -127,7 +148,6 @@ interface TokenCostSums {
   hasCached: boolean
   usd: (number | undefined)[]
   certainties: string[]
-  hasEstimatedTokens: boolean
 }
 
 function emptySums(): TokenCostSums {
@@ -138,7 +158,6 @@ function emptySums(): TokenCostSums {
     hasCached: false,
     usd: [],
     certainties: [],
-    hasEstimatedTokens: false,
   }
 }
 
@@ -149,7 +168,6 @@ function addTotals(sums: TokenCostSums, totals: UsageTotals): void {
     sums.cached += totals.tokens.cached
     sums.hasCached = true
   }
-  if (totals.tokens.estimated === true) sums.hasEstimatedTokens = true
   for (const cost of totals.costs) {
     sums.certainties.push(cost.certainty)
     sums.usd.push(cost.usd)
@@ -163,7 +181,6 @@ function addRecord(sums: TokenCostSums, record: UsageRecord): void {
     sums.cached += record.tokens.cached
     sums.hasCached = true
   }
-  if (record.tokens.estimated === true) sums.hasEstimatedTokens = true
   sums.certainties.push(record.cost.certainty)
   sums.usd.push(record.cost.usd)
 }
@@ -184,7 +201,7 @@ function finishSums(sums: TokenCostSums, period: string): UsageFacts {
     outputTokens: sums.output,
     cachedTokens: sums.hasCached ? sums.cached : null,
     costUsd: priced === 0 ? null : Usd.fromUnits(BigInt(units), MICRO_DOLLAR_PLACES).toAmount(),
-    certainty: factsCertainty(sums.certainties, sums.hasEstimatedTokens),
+    certainty: factsCertainty(sums.certainties),
     breakdown: [],
     limits: [],
   }
@@ -216,7 +233,10 @@ function journalBreakdown(
   const groups = new Map<string, TokenCostSums>()
   for (const record of records) {
     if (record.day < from || record.day > to) continue
-    const key = by === 'session' ? (record.session ?? 'unknown') : (record.account ?? 'default')
+    const key =
+      by === 'session'
+        ? (record.session ?? 'unknown')
+        : `${record.provider}/${record.account ?? 'default'}`
     let sums = groups.get(key)
     if (sums === undefined) {
       sums = emptySums()
@@ -238,13 +258,30 @@ function journalBreakdown(
     })
 }
 
-function journalLimits(limits: readonly UsageLimitSnapshot[]): UsageFacts['limits'] {
+function journalLimits(
+  limits: readonly UsageLimitSnapshot[],
+  from: string,
+  to: string,
+  asOf: number,
+): UsageFacts['limits'] {
   const latest = new Map<string, { used: number; resetsAt: string | null; observedAt: number }>()
   for (const snapshot of limits) {
+    if (snapshot.day < from || snapshot.day > to || snapshot.observedAt > asOf) continue
     for (const window of snapshot.windows) {
-      const key = `${snapshot.provider}/${window.label ?? window.id}`
+      const key = `${snapshot.provider}/${window.id}`
       const previous = latest.get(key)
-      if (previous !== undefined && previous.observedAt > snapshot.observedAt) continue
+      if (
+        previous !== undefined &&
+        (previous.observedAt > snapshot.observedAt ||
+          (previous.observedAt === snapshot.observedAt &&
+            (previous.used > window.usedPercent ||
+              (previous.used === window.usedPercent &&
+                codeUnitCompare(
+                  previous.resetsAt ?? '',
+                  window.resetsAt === undefined ? '' : new Date(window.resetsAt).toISOString(),
+                ) >= 0))))
+      )
+        continue
       latest.set(key, {
         used: window.usedPercent,
         resetsAt: window.resetsAt === undefined ? null : new Date(window.resetsAt).toISOString(),
@@ -281,12 +318,14 @@ export function usageReportFacts(input: {
   readonly by: ReportOptions['by']
   readonly now: number
   readonly asOf: string
+  readonly timezoneOffsetMins: number
 }): UsageReportFacts {
-  const query = usageReportQuery(input.scope, input.by, input.now)
+  const query = usageReportQuery(input.scope, input.by, input.now, input.timezoneOffsetMins)
   const aggregation = aggregateUsage(input.journal.records, input.journal.rollups, query, input.now)
-  const range = usageRange(query, input.now)
+  if (query.range !== 'custom' || query.from === undefined || query.to === undefined) fail()
+  const range = { from: query.from, to: query.to }
   const by: BreakdownBy = input.by ?? 'model'
-  const partials: string[] = []
+  const partials: string[] = input.journal.partial === undefined ? [] : [input.journal.partial]
   let breakdown: UsageFacts['breakdown']
   if (by === 'tool') {
     breakdown = []
@@ -304,7 +343,28 @@ export function usageReportFacts(input: {
   const facts = finishSums(totals, period)
   const cappedBreakdown = capRows(breakdown)
   if (cappedBreakdown.capped) partials.push(sourceReason('limit'))
-  const cappedLimits = capRows(journalLimits(input.journal.limits))
+  const limits = [
+    ...journalLimits(input.journal.limits, range.from, range.to, Date.parse(input.asOf)),
+  ]
+  if (
+    input.journal.budgets === undefined ||
+    input.journal.budgetDay === undefined ||
+    input.journal.budgetDay < range.from ||
+    input.journal.budgetDay > range.to
+  ) {
+    partials.push(UI_TEXT.reportDetailReasons.budgetsUnavailable)
+  } else {
+    for (const { budget } of input.journal.budgets) {
+      if (budget.capUsd === undefined) continue
+      limits.push({
+        key: `${budget.kind}/${budget.id}`,
+        used: budget.spentUsd,
+        limit: budget.capUsd,
+        resetsAt: budget.resetsAt === undefined ? null : new Date(budget.resetsAt).toISOString(),
+      })
+    }
+  }
+  const cappedLimits = capRows(limits.toSorted((a, b) => codeUnitCompare(a.key, b.key)))
   if (cappedLimits.capped && !partials.includes(sourceReason('limit')))
     partials.push(sourceReason('limit'))
   return {
@@ -317,8 +377,7 @@ export function usageReportFacts(input: {
 /**
  * The session kind's usage: the kept records for one session, grouped by
  * model. The journal never attributes rolled-up days to a session, so a
- * session older than its rollup reads zeros with unknown certainty rather
- * than a guess.
+ * missing attribution is disclosed by the reader rather than inferred.
  */
 export function sessionUsageFacts(records: readonly UsageRecord[], sessionId: string): UsageFacts {
   const groups = new Map<string, TokenCostSums>()
@@ -342,7 +401,6 @@ export function sessionUsageFacts(records: readonly UsageRecord[], sessionId: st
         totals.cached += sums.cached
         totals.hasCached = true
       }
-      if (sums.hasEstimatedTokens) totals.hasEstimatedTokens = true
       totals.certainties.push(...sums.certainties)
       totals.usd.push(...sums.usd)
       const facts = finishSums(sums, 'session')
