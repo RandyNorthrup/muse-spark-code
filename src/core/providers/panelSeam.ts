@@ -61,8 +61,11 @@ export function createModelsPanelSeam(options: {
       const file = await read()
       return file.defaultModel
     },
-    setDefaultModel: (ref) =>
+    setDefaultModel: (ref, expected) =>
       mutate(async (file) => {
+        if (expected !== undefined && file.defaultModel !== expected.value) {
+          throw new Error(UI_TEXT.providerEditConflict)
+        }
         const { defaultModel: _old, ...rest } = file
         await save({ ...rest, ...(ref !== undefined && { defaultModel: ref }) })
       }),
@@ -91,14 +94,19 @@ export function createModelsPanelSeam(options: {
       }),
     replaceAll: (rows, replacement) =>
       mutate(async (file) => {
+        const previous = file.providers.map((row) => entry(row))
+        const next = typeof rows === 'function' ? rows(previous) : rows
+        if (replacement === undefined && JSON.stringify(next) === JSON.stringify(previous)) {
+          return previous
+        }
         const { defaultModel, ...rest } = file
         const nextDefault = replacement === undefined ? defaultModel : replacement.defaultModel
         await save({
           ...rest,
-          providers: rows,
+          providers: next,
           ...(nextDefault !== undefined && { defaultModel: nextDefault }),
         })
-        return file.providers.map((row) => entry(row))
+        return previous
       }),
   }
   const catalog = new Map<string, PresetInfo>()

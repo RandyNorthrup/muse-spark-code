@@ -288,6 +288,8 @@ export const panelDraftSchema = z.strictObject({
   costAccepted: z.boolean(),
   /** One queued Save owns this draft until it settles. */
   saving: z.optional(z.boolean()),
+  /** The host refused a changed field; Reload discards the stale draft. */
+  saveConflict: z.optional(z.boolean()),
   test: z.optional(providerTestSchema),
   models: z.array(z.string()),
   /** A custom server's per-model limits, keyed by model id. */
@@ -429,7 +431,11 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
   // through the host, anything else is refused there.
   z.strictObject({ type: z.literal('openExternal'), url: z.string() }),
   z.strictObject({ type: z.literal('providers/select'), presetId: z.string() }),
-  z.strictObject({ type: z.literal('providers/edit'), providerId: z.string() }),
+  z.strictObject({
+    type: z.literal('providers/edit'),
+    providerId: z.string(),
+    reload: z.optional(z.boolean()),
+  }),
   z.strictObject({
     type: z.literal('providers/prefill'),
     fields: prefillFieldsSchema,

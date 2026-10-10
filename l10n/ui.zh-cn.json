@@ -3868,6 +3868,7 @@
   "providerProbeRebinding": "地址所属网络已变化，已拒绝请求。",
   "providerSaveSecretFailed": "凭据存储操作失败。",
   "providerSaveWriteConflict": "无法写入文件，或文件在保存期间已更改，请重试。",
+  "providerEditConflict": "你编辑的字段已在其他地方更改。请重新加载表单后再保存。",
   "providerSaveBusy": "另一个提供方更新正在进行，或无法获取锁，请重试。",
   "providerSaveRecoveryFailed": "保存失败，无法恢复 {provider} 的凭据。重试前请检查 auth status，并重新输入或清除密钥。",
   "providerTestOkKey": "密钥有效。",

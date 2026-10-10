@@ -8,6 +8,7 @@ import { providerSecretKey } from '../../src/host/providers/credentialRecords'
 import type { AddressPolicy } from '../../src/host/providers/providerPorts'
 import { saveWizardDraft, type WizardDraft } from '../../src/host/providers/wizardSave'
 import { memoryProvidersStore, memorySecrets, unexpectedWarning } from './helpers/fakes'
+import { UI_TEXT } from '../../src/shared/constants'
 
 const POLICY: AddressPolicy = {
   check: (address) =>
@@ -90,6 +91,96 @@ describe('saveWizardDraft', () => {
     expect(providerWrite).not.toHaveBeenCalled()
     expect(defaultWrite).not.toHaveBeenCalled()
     expect(secretWrite).not.toHaveBeenCalled()
+  })
+
+  it('keeps untouched credential rotations even when composer refusal rolls back the save', async () => {
+    const parts = saving()
+    await saveWizardDraft({ ...parts, policy: POLICY }, { ...DRAFT, useNow: false })
+    const initialSecret = await parts.credentials.getProviderCredential(DRAFT.provider.id)
+    if (initialSecret === undefined) throw new Error('Missing fixture credential')
+    await expect(
+      saveWizardDraft(
+        {
+          ...parts,
+          policy: POLICY,
+          setComposerModel: async () => {
+            await parts.credentials.setProviderCredential(DRAFT.provider.id, {
+              ...initialSecret,
+              secret: 'synthetic-rotated-key',
+            })
+            throw new Error('composer refused')
+          },
+        },
+        {
+          ...DRAFT,
+          credential: undefined,
+          editing: true,
+          setDefault: false,
+          editSnapshot: {
+            provider: DRAFT.provider,
+            credential: DRAFT.credential,
+            defaultModel: DRAFT.defaultModel,
+          },
+        },
+      ),
+    ).rejects.toThrow('composer refused')
+    expect(await parts.credentials.getProviderCredential(DRAFT.provider.id)).toEqual({
+      ...initialSecret,
+      secret: 'synthetic-rotated-key',
+    })
+  })
+
+  it('compares changed routing leaves and keeps untouched routing choices', async () => {
+    const parts = saving()
+    const initial = {
+      ...DRAFT.provider,
+      routing: { privacy: 'zdr' as const, order: ['anthropic'], allowFallbacks: true },
+    }
+    await saveWizardDraft(
+      { ...parts, policy: POLICY },
+      { ...DRAFT, provider: initial, useNow: false },
+    )
+    const current = {
+      ...initial,
+      routing: { ...initial.routing, order: ['openai'], allowFallbacks: false },
+    }
+    await parts.store.replaceAll([current])
+    const edit = {
+      ...DRAFT,
+      credential: undefined,
+      editing: true,
+      setDefault: false,
+      useNow: false,
+      provider: { ...initial, routing: { ...initial.routing, privacy: 'any' as const } },
+      editSnapshot: {
+        provider: initial,
+        credential: DRAFT.credential,
+        defaultModel: DRAFT.defaultModel,
+      },
+    }
+    await saveWizardDraft({ ...parts, policy: POLICY }, edit)
+    expect(parts.store.current).toEqual([
+      { ...current, routing: { ...current.routing, privacy: 'any' } },
+    ])
+    await expect(saveWizardDraft({ ...parts, policy: POLICY }, edit)).rejects.toThrow(
+      UI_TEXT.providerEditConflict,
+    )
+    expect(parts.store.current).toEqual([
+      { ...current, routing: { ...current.routing, privacy: 'any' } },
+    ])
+    await parts.store.replaceAll([DRAFT.provider])
+    const withoutOrder = { ...initial, routing: { privacy: 'zdr' as const, allowFallbacks: true } }
+    await expect(
+      saveWizardDraft(
+        { ...parts, policy: POLICY },
+        {
+          ...edit,
+          provider: { ...withoutOrder, routing: { ...withoutOrder.routing, order: ['google'] } },
+          editSnapshot: { ...edit.editSnapshot, provider: withoutOrder },
+        },
+      ),
+    ).rejects.toThrow(UI_TEXT.providerEditConflict)
+    expect(parts.store.current).toEqual([DRAFT.provider])
   })
 
   it('leaves the composer alone without use now, and rolls back its refusal', async () => {

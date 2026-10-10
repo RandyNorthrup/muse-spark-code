@@ -4156,6 +4156,7 @@
   "providerProbeRebinding": "O endereço mudou de rede; a solicitação foi recusada.",
   "providerSaveSecretFailed": "A operação do armazenamento de credenciais falhou.",
   "providerSaveWriteConflict": "Não foi possível gravar o arquivo ou ele mudou durante o salvamento; tente novamente.",
+  "providerEditConflict": "Um campo que você editou foi alterado em outro lugar. Recarregue o formulário antes de salvar.",
   "providerSaveBusy": "Outra atualização de provedores está em andamento ou não foi possível obter o bloqueio; tente novamente.",
   "providerSaveRecoveryFailed": "O salvamento falhou e não foi possível restaurar a credencial de {provider}. Antes de tentar novamente, confira auth status e insira novamente ou apague a chave.",
   "providerTestOkKey": "A chave funciona.",

@@ -20,6 +20,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Provider Save compares edited fields with the opening snapshot inside the
+  stored update. Untouched keys retain later rotations or removals, and untouched
+  provider fields retain changes made during private-network confirmation.
+  Competing edits to the same field stop Save and offer Reload with no overwrite.
+
 - Provider Edit and Change key share a full copy of the saved connection.
   Unchanged routing, format, model limits, favourites, compatibility, private
   access and default model stay intact; only an explicit default choice

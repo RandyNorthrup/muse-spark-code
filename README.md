@@ -697,7 +697,11 @@ Saved custom providers keep their editable per-model limits, and Back keeps
 incomplete limits so you can return to Models and finish them. **Edit** and
 **Change key** preserve the saved connection, routing and default model;
 changing a limit leaves the default alone. Save writes only changed fields,
-disables its buttons while working and ignores repeated submissions. A refused
+keeping newer stored values for untouched fields and keys, including changes
+made while a private-network question is open. A key is replaced only if you
+enter one in this draft. If a field you edited also changed elsewhere, Save
+keeps the form open and offers **Reload** before you save again. Save disables
+its buttons while working and ignores repeated submissions. A refused
 private-network question keeps the form open and asks you to confirm access.
 
 ## Questions

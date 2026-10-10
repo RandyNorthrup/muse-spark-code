@@ -4156,6 +4156,7 @@
   "providerProbeRebinding": "L’indirizzo ha cambiato rete; la richiesta è stata rifiutata.",
   "providerSaveSecretFailed": "Operazione dell’archivio credenziali non riuscita.",
   "providerSaveWriteConflict": "Impossibile scrivere il file oppure è cambiato durante il salvataggio; riprova.",
+  "providerEditConflict": "Un campo che hai modificato è cambiato altrove. Ricarica il modulo prima di salvare.",
   "providerSaveBusy": "È in corso un altro aggiornamento dei provider o il blocco non è disponibile; riprova.",
   "providerSaveRecoveryFailed": "Salvataggio non riuscito; impossibile ripristinare la credenziale di {provider}. Controlla auth status e reinserisci o cancella la chiave prima di riprovare.",
   "providerTestOkKey": "La chiave funziona.",

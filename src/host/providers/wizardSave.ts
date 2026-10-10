@@ -13,7 +13,7 @@ import type { AddressPolicy, ProviderEntry, ProvidersStore } from './providerPor
 /** The wizard's in-memory draft: never written until Save. */
 export interface WizardDraft {
   readonly provider: ProviderEntry
-  /** The entered key; absent for a local server without auth. */
+  /** The entered key; absent for no-auth servers or an untouched edit key. */
   readonly credential?: string | undefined
   /** How the credential was obtained (a pasted key or an OAuth connect). */
   readonly credentialAuth: 'apiKey' | 'oauth' | 'subscription'
@@ -26,6 +26,12 @@ export interface WizardDraft {
   /** Save and use now: the conversation's model is set too. */
   readonly useNow: boolean
   readonly editing?: boolean
+  /** Host-only opening values; a cached credential is not an entered replacement. */
+  readonly editSnapshot?: {
+    readonly provider: ProviderEntry
+    readonly credential: string | undefined
+    readonly defaultModel: string | undefined
+  }
 }
 
 export interface WizardSaveDeps {
@@ -45,6 +51,90 @@ export interface WizardSaveOutcome {
   readonly sessionBudgetUsd: UsdAmount | undefined
 }
 
+function editedValue<T>(initial: T, desired: T, current: T): T {
+  if (JSON.stringify(initial) === JSON.stringify(desired)) return current
+  if (JSON.stringify(initial) !== JSON.stringify(current)) {
+    throw new Error(UI_TEXT.providerEditConflict)
+  }
+  return desired
+}
+
+/** Compare each edited leaf, retaining the latest value for untouched leaves. */
+function editedProvider(
+  initial: ProviderEntry,
+  desired: ProviderEntry,
+  current: ProviderEntry,
+): ProviderEntry {
+  const limits = { ...current.modelLimits }
+  const desiredLimits = Object.entries(desired.modelLimits ?? {})
+  for (const [model, wanted] of desiredLimits) {
+    const before = initial.modelLimits?.[model]
+    if (JSON.stringify(before) === JSON.stringify(wanted)) continue
+    const now = current.modelLimits?.[model]
+    limits[model] = {
+      contextTokens:
+        editedValue(before?.contextTokens, wanted.contextTokens, now?.contextTokens) ??
+        wanted.contextTokens,
+      outputTokens:
+        editedValue(before?.outputTokens, wanted.outputTokens, now?.outputTokens) ??
+        wanted.outputTokens,
+    }
+  }
+  if (
+    initial.routing !== undefined &&
+    current.routing === undefined &&
+    JSON.stringify(desired.routing) !== JSON.stringify(initial.routing)
+  ) {
+    throw new Error(UI_TEXT.providerEditConflict)
+  }
+  return {
+    ...current,
+    address: editedValue(initial.address, desired.address, current.address),
+    auth: editedValue(initial.auth, desired.auth, current.auth),
+    models: editedValue(initial.models, desired.models, current.models),
+    ...(desired.format !== initial.format && {
+      format: editedValue(initial.format, desired.format, current.format),
+    }),
+    ...(desired.privateNetwork !== initial.privateNetwork && {
+      privateNetwork: editedValue(
+        initial.privateNetwork,
+        desired.privateNetwork,
+        current.privateNetwork,
+      ),
+    }),
+    ...(JSON.stringify(desired.modelLimits) !== JSON.stringify(initial.modelLimits) && {
+      modelLimits: limits,
+    }),
+    ...(JSON.stringify(desired.routing) !== JSON.stringify(initial.routing) && {
+      routing: {
+        ...current.routing,
+        privacy:
+          editedValue(
+            initial.routing?.privacy,
+            desired.routing?.privacy,
+            current.routing?.privacy,
+          ) ??
+          desired.routing?.privacy ??
+          'zdr',
+        ...(desired.routing?.order !== initial.routing?.order && {
+          order: editedValue(
+            initial.routing?.order,
+            desired.routing?.order,
+            current.routing?.order,
+          ),
+        }),
+        ...(desired.routing?.allowFallbacks !== initial.routing?.allowFallbacks && {
+          allowFallbacks: editedValue(
+            initial.routing?.allowFallbacks,
+            desired.routing?.allowFallbacks,
+            current.routing?.allowFallbacks,
+          ),
+        }),
+      },
+    }),
+  }
+}
+
 /**
  * Saves a finished draft: the file and the secret together, then the
  * default model, then (for Save and use now) the composer's model. Throws
@@ -62,7 +152,11 @@ export async function saveWizardDraft(
   ) {
     throw new Error('The provider draft is not complete')
   }
-  if (draft.provider.auth !== 'none' && (draft.credential ?? '').trim() === '') {
+  if (
+    draft.provider.auth !== 'none' &&
+    (draft.credential ?? '').trim() === '' &&
+    (draft.editSnapshot === undefined || draft.credential !== undefined)
+  ) {
     throw new Error(`Provider ${draft.provider.id} needs a key`)
   }
   const address = await deps.policy.check(draft.provider.address)
@@ -87,21 +181,45 @@ export async function saveWizardDraft(
   }
   const previousDefault = await deps.store.defaultModel()
   const previousSecret = await deps.credentials.getProviderCredential(draft.provider.id)
-  const previousEntries = await deps.store.list()
+  const snapshot = draft.editSnapshot
+  if (snapshot !== undefined) {
+    if (
+      secret !== '' &&
+      (previousSecret?.secret !== snapshot.credential ||
+        (previousSecret !== undefined &&
+          previousSecret.origin !== new URL(snapshot.provider.address).origin))
+    ) {
+      throw new Error(UI_TEXT.providerEditConflict)
+    }
+    if (draft.setDefault !== false) {
+      editedValue(snapshot.defaultModel, draft.defaultModel, previousDefault)
+    }
+  }
+  let previousEntries = await deps.store.list()
   if (draft.editing === true) {
     if (previousEntries.every((entry) => entry.id !== draft.provider.id)) {
       throw new Error(UI_TEXT.actionFailed)
     }
     const previous = previousEntries.find((entry) => entry.id === draft.provider.id)
-    if (JSON.stringify(previous) !== JSON.stringify(draft.provider)) {
-      await deps.store.replaceAll(
-        previousEntries.map((entry) => (entry.id === draft.provider.id ? draft.provider : entry)),
-      )
+    if (JSON.stringify(snapshot?.provider ?? previous) !== JSON.stringify(draft.provider)) {
+      previousEntries = await deps.store.replaceAll((entries) => {
+        if (entries.every((entry) => entry.id !== draft.provider.id)) {
+          throw new Error(UI_TEXT.providerEditConflict)
+        }
+        return entries.map((entry) => {
+          if (entry.id !== draft.provider.id) return entry
+          return snapshot === undefined
+            ? draft.provider
+            : editedProvider(snapshot.provider, draft.provider, entry)
+        })
+      })
     }
   } else {
     await deps.store.add(draft.provider)
   }
   let isComposerSet = false
+  let isDefaultWritten = false
+  let isSecretAttempted = false
   try {
     if (
       secret !== '' &&
@@ -110,6 +228,14 @@ export async function saveWizardDraft(
         previousSecret.auth !==
           (draft.credentialAuth === 'oauth' ? 'apiKey' : draft.credentialAuth))
     ) {
+      if (
+        snapshot !== undefined &&
+        JSON.stringify(await deps.credentials.getProviderCredential(draft.provider.id)) !==
+          JSON.stringify(previousSecret)
+      ) {
+        throw new Error(UI_TEXT.providerEditConflict)
+      }
+      isSecretAttempted = true
       await deps.credentials.setProviderCredential(draft.provider.id, {
         v: 1,
         auth: draft.credentialAuth === 'oauth' ? 'apiKey' : draft.credentialAuth,
@@ -118,7 +244,11 @@ export async function saveWizardDraft(
       })
     }
     if (draft.setDefault !== false && draft.defaultModel !== previousDefault) {
-      await deps.store.setDefaultModel(draft.defaultModel)
+      await deps.store.setDefaultModel(
+        draft.defaultModel,
+        snapshot === undefined ? undefined : { value: snapshot.defaultModel },
+      )
+      isDefaultWritten = true
     }
     if (draft.useNow) {
       await deps.setComposerModel(draft.defaultModel)
@@ -126,12 +256,14 @@ export async function saveWizardDraft(
     }
   } catch (error) {
     await deps.store.replaceAll(previousEntries)
-    if (previousSecret === undefined) {
-      await deps.credentials.clearProviderCredential(draft.provider.id)
-    } else {
-      await deps.credentials.setProviderCredential(draft.provider.id, previousSecret)
+    if (isSecretAttempted) {
+      if (previousSecret === undefined) {
+        await deps.credentials.clearProviderCredential(draft.provider.id)
+      } else {
+        await deps.credentials.setProviderCredential(draft.provider.id, previousSecret)
+      }
     }
-    await deps.store.setDefaultModel(previousDefault)
+    if (isDefaultWritten) await deps.store.setDefaultModel(previousDefault)
     throw error
   }
   return {

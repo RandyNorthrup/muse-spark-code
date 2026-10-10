@@ -295,7 +295,9 @@ export function featureCatalog(): readonly Feature[] {
       // while the connection is unchanged; failed saves retain the draft.
       // Edit and Change key share a full saved snapshot; unchanged routing,
       // limits, consent and the default survive. Save admits one operation
-      // per draft, overlays only changed fields and keeps failures retryable.
+      // per draft, compares edited fields inside the stored mutation and offers
+      // Reload on conflicts. Untouched fields and rotated/removed keys survive
+      // consent waits; only an entered key replaces a stored credential.
       // Earlier steps remain navigable while final Save validates limits.
       ['suggestedProvider', 'modelApiSessionBudgetUsd'],
       'backends',

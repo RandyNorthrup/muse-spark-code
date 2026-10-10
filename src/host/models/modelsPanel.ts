@@ -170,7 +170,15 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   const savedConnections = new WeakSet<PanelDraft>()
   // Keep the entire stored entry on the host, including fields the form
   // does not expose. Only differences from this draft snapshot are saved.
-  const editSnapshots = new WeakMap<PanelDraft, { entry: ProviderEntry; fields: PanelDraft }>()
+  const editSnapshots = new WeakMap<
+    PanelDraft,
+    {
+      entry: ProviderEntry
+      fields: PanelDraft
+      credential: string | undefined
+    }
+  >()
+  const enteredCredentials = new WeakSet<PanelDraft>()
   let isDisposed = false
   let navigation: ModelsPanelNavigate | undefined
   let operations = Promise.resolve()
@@ -196,6 +204,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     } else {
       // Save failures name their cause with every retained key redacted.
       state.notice = undefined
+      draft.saveConflict = error instanceof Error && error.message === UI_TEXT.providerEditConflict
       draft.errors = [
         redactSecrets(
           error instanceof Error && error.message !== '' && error.message !== UI_TEXT.actionFailed
@@ -221,13 +230,13 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     const entry = structuredClone(await entryOf(id))
     const draft = newDraft(providers.preset(entry.preset), entry)
     draft.defaultModel = await providers.defaultModel()
-    editSnapshots.set(draft, { entry, fields: structuredClone(draft) })
     let secret: string | undefined
     try {
       secret = await providers.storedCredential(entry)
     } catch {
       draft.errors = [UI_TEXT.importNeedsKey]
     }
+    editSnapshots.set(draft, { entry, fields: structuredClone(draft), credential: secret })
     if (secret !== undefined) {
       credentials.set(entry.id, { secret, origin: new URL(entry.address).origin })
       draft.keyPresent = true
@@ -244,7 +253,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     return draft
   }
-  const draftEntry = (draft: PanelDraft, id?: string, current?: ProviderEntry): ProviderEntry => {
+  const draftEntry = (draft: PanelDraft, id?: string): ProviderEntry => {
     const preset = providers.preset(draft.presetId ?? '')
     if (preset === undefined) {
       throw new Error(UI_TEXT.actionFailed)
@@ -265,7 +274,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         : undefined
     const snapshot = editSnapshots.get(draft)
     if (snapshot !== undefined) {
-      const base = current ?? snapshot.entry
+      const base = snapshot.entry
       const initial = snapshot.fields
       const editedLimits = Object.fromEntries(
         Object.entries(modelLimits ?? {})
@@ -722,6 +731,12 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         break
       }
       case 'providers/edit': {
+        if (message.reload === true) {
+          state.drafts.edits = Object.fromEntries(
+            Object.entries(state.drafts.edits).filter(([id]) => id !== message.providerId),
+          )
+          credentials.delete(message.providerId)
+        }
         await createEditDraft(message.providerId)
         break
       }
@@ -781,6 +796,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             ? connection?.key
             : await providers.promptForKey({ ...preset, origin: new URL(entry.address).origin })
         if (secret !== undefined && !isDisposed) {
+          enteredCredentials.add(draft)
           credentials.set(id ?? 'wizard', {
             secret,
             origin:
@@ -868,12 +884,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         if (draft.blockers.length > 0) {
           throw new Error(UI_TEXT.actionFailed)
         }
-        const entry = draftEntry(
-          draft,
-          message.providerId,
-          message.providerId === undefined ? undefined : await entryOf(message.providerId),
-        )
+        const entry = draftEntry(draft, message.providerId)
+        const snapshot = editSnapshots.get(draft)
         draft.errors = []
+        draft.saveConflict = false
         state.notice = undefined
         if (draft.test?.status !== 'ok' && !savedConnections.has(draft)) {
           draft.errors = [UI_TEXT.providerText.wizard.test]
@@ -892,12 +906,21 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         try {
           outcome = await providers.saveDraft({
             provider: { ...entry, ...(verdict.kind === 'private' && { privateNetwork: true }) },
-            credential: draftSecret(entry, message.providerId),
+            credential:
+              snapshot === undefined || enteredCredentials.has(draft)
+                ? draftSecret(entry, message.providerId)
+                : undefined,
             credentialAuth: 'apiKey',
             defaultModel: draft.defaultModel ?? `${entry.id}/${entry.models[0] ?? ''}`,
             setDefault:
-              !editSnapshots.has(draft) ||
-              draft.defaultModel !== editSnapshots.get(draft)?.fields.defaultModel,
+              snapshot === undefined || draft.defaultModel !== snapshot.fields.defaultModel,
+            ...(snapshot !== undefined && {
+              editSnapshot: {
+                provider: snapshot.entry,
+                credential: snapshot.credential,
+                defaultModel: snapshot.fields.defaultModel,
+              },
+            }),
             sessionBudgetUsd: draft.sessionBudgetUsd,
             useNow: message.useNow,
             editing: message.providerId !== undefined || savedDrafts.has(draft),
@@ -905,6 +928,14 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         } catch (error) {
           fail(draft, error)
           break
+        }
+        // A later budget failure keeps this draft. Its own successful writes
+        // become the new comparison baseline for the provider-save retry.
+        if (snapshot !== undefined) {
+          snapshot.entry = structuredClone(await entryOf(entry.id))
+          snapshot.fields = structuredClone(draft)
+          snapshot.credential = await providers.storedCredential(snapshot.entry)
+          enteredCredentials.delete(draft)
         }
         savedDrafts.add(draft)
         // Provider/credential/default/composer rollback must finish before

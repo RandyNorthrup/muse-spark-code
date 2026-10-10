@@ -4012,6 +4012,7 @@
   "providerProbeRebinding": "A cím hálózatot váltott; a kérés elutasítva.",
   "providerSaveSecretFailed": "A hitelesítőadat-tároló művelete sikertelen.",
   "providerSaveWriteConflict": "A fájl nem írható vagy mentés közben megváltozott; próbálja újra.",
+  "providerEditConflict": "Egy Ön által szerkesztett mező máshol megváltozott. Mentés előtt töltse újra az űrlapot.",
   "providerSaveBusy": "Másik szolgáltatófrissítés fut vagy nem szerezhető meg a zárolás; próbálja újra.",
   "providerSaveRecoveryFailed": "A mentés sikertelen, és a(z) {provider} hitelesítő adata nem állítható vissza. Újrapróbálás előtt ellenőrizze az auth status eredményét, majd adja meg újra vagy törölje a kulcsot.",
   "providerTestOkKey": "A kulcs működik.",

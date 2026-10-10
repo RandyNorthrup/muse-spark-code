@@ -123,12 +123,14 @@ function EditForm({
   editId,
   onSave,
   onCancel,
+  onReload,
   onPrefill,
 }: {
   readonly draft: PanelDraft
   readonly editId: string
   readonly onSave: () => void
   readonly onCancel: () => void
+  readonly onReload: () => void
   readonly onPrefill: (fields: PrefillFields) => void
 }) {
   return (
@@ -159,6 +161,16 @@ function EditForm({
         ))}
       <InlineError messages={[...draft.errors, ...draft.blockers]} />
       <div className="models-row-actions">
+        {draft.saveConflict === true && (
+          <button
+            type="button"
+            className="models-button"
+            disabled={draft.saving === true}
+            onClick={onReload}
+          >
+            {UI_TEXT.crashReload}
+          </button>
+        )}
         <button
           type="button"
           className="models-button-primary"
@@ -340,6 +352,9 @@ function ProviderRow({
           }}
           onCancel={() => {
             post({ type: 'providers/wizard', event: 'cancel', providerId: provider.id })
+          }}
+          onReload={() => {
+            post({ type: 'providers/edit', providerId: provider.id, reload: true })
           }}
           onPrefill={(fields) => {
             post({ type: 'providers/prefill', fields, providerId: provider.id })

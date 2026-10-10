@@ -17,6 +17,7 @@ import type { ProviderEntry, ProvidersStore } from '../../../src/host/providers/
 import { Usd, legacyUsdSchema, type UsdAmount } from '../../../src/shared/usd'
 import type { SettingsSource } from '../../../src/host/settings'
 import { EN } from '../../../src/shared/l10n/en'
+import { UI_TEXT } from '../../../src/shared/constants'
 import { BASE_LOCALE } from '../../../src/shared/l10n/text'
 import type { HostToWebviewMessage, SettingsSnapshot } from '../../../src/shared/protocol'
 import type { ChatSurface } from '../../../src/host/views/chatSurface'
@@ -389,13 +390,17 @@ export function memoryProvidersStore(
     },
     replaceAll: (next, replacement) => {
       const previous = [...current]
+      const rows = typeof next === 'function' ? next(previous) : next
       current.length = 0
-      current.push(...next)
-      replaced.push([...next])
+      current.push(...rows)
+      replaced.push([...rows])
       if (replacement !== undefined) defaultModel = replacement.defaultModel
       return Promise.resolve(previous)
     },
-    setDefaultModel: (ref) => {
+    setDefaultModel: (ref, expected) => {
+      if (expected !== undefined && defaultModel !== expected.value) {
+        return Promise.reject(new Error(UI_TEXT.providerEditConflict))
+      }
       defaultModel = ref
       return Promise.resolve()
     },

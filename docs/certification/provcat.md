@@ -1248,3 +1248,177 @@ installed-editor/real-browser and hosted multi-OS qualification remain with
 the lead under the explicit brief; the inherited duplication gate is not
 reported green. No live sign-in, credential inspection, network provider
 contact, paid call, merge, rebase, push or publication is made.
+
+# PROVWIZ7 — Compare-and-set against the edit snapshot (RVPROVWIZ6C)
+
+2026-10-09, **macmini**, `/Users/randy/lanes/PROVWIZ6`, branch
+`fix/provider-panel`, base `d32349de1`. Read the rig brief, `codex/common.md`,
+`RVPROVWIZ6C.report.md`, AGENTS and the applicable PLAN scope before editing;
+recorded this round in PLAN §6 first. The rig brief overrides the generic
+merge/full-quality instructions: no merge, rebase, push or aggregate quality.
+No subagents, dependency installation, real credential access, external provider
+contact or paid/live call. All fixtures hold synthetic credentials in memory.
+
+## Repairs and production regressions
+
+- **P2-1: an untouched credential is never a replacement.** The host retains
+  the opening credential separately from a flag set only when the native key
+  prompt or account connect returns an entered credential. Edit Save omits an
+  untouched credential entirely. A limit-only edit saves 8000 reply tokens while
+  retaining a newer key at the same origin, or retaining the key's removal;
+  neither case calls the secret writer. Explicit key replacements compare with
+  the opening key/origin, and recheck the record after the provider write before
+  writing the replacement. The rendered form proves conflicts both before Save
+  and when the competing rotation happens during persistence. Keys remain
+  outside state, postMessage and logs. Composer refusal does not restore an
+  untouched credential over a rotation during that wait.
+- **P2-2: apply the patch inside the protected mutation.** `draftEntry` builds
+  desired changes against the opening snapshot; `saveWizardDraft` supplies a
+  callback to the production store's existing serialized `replaceAll`. The
+  callback reads the latest entries inside the mutation, compares edited leaves
+  with the snapshot and retains current values for untouched leaves. The
+  reviewer's private provider starts pinned m1 at 128000/4000. While the private
+  question waits, the real writer removes the pin, adds `toolChoice: omit`, and
+  changes context to 256000. Accepting consent saves **256000/8000**, no pin,
+  and that compat override. The store regression also proves the callback sees
+  a preceding queued writer and an unchanged callback never writes the file.
+- **Both-changed conflicts and reload.** The real shared form refuses competing
+  reply-limit, default and key edits, preserving the current file/key and typed
+  8000 value. The plain localized sentence offers Reload; Reload discards the
+  stale host draft and credential, reads the current values and successfully
+  saves a subsequent edit. An expected default is checked again inside its
+  own store mutation. A competing default after preflight remains intact when
+  the write refuses and prior provider changes roll back. Untouched keys and
+  defaults are not restored during rollback. Routing comparison is per choice;
+  newer order/fallback choices survive a privacy edit, while removal of routing
+  or a competing privacy edit conflicts instead of being reconstructed.
+- **Retained edit lifecycle.** Existing Edit / Change key / Change key → Edit,
+  unchanged routing/default no-op, connection test, duplicate admission,
+  failure/retry, private refusal and captured wiring cases all remain. A rejected
+  budget remains an honest partial save; clearing that rejected value retries
+  against the draft's own successful provider save without a false conflict or
+  a second provider write.
+
+The regressions use the rendered shared React Providers section, real panel,
+facade, production `createModelsPanelSeam` and atomic `providers.json` writer;
+only editor UI/storage/dispatch are fake. Existing transport suites retain the
+M95 captures and provenance above, including OpenRouter's model-list and
+key-usage frames. New comparisons add no external wire shape. **0 model
+attempts**, including every drill.
+
+The strict shared bridge validates optional `reload` and `saveConflict`
+booleans and refuses host-only credential/snapshot fields. The host supplies
+both the translated conflict sentence and the Reload availability flag; the
+browser does not load that sentence just to compare it. This recovered an
+initial surface-English budget overflow without a budget or loader change.
+All 14 UI tables have a real conflict translation; Reload reuses its existing
+translated label. The React change adds a native button using existing styles
+and labels, disabled during Save; no new hooks, eager imports or render effects.
+README, CHANGELOG and the existing providers catalog entry move with behavior;
+reference generation leaves generated content unchanged and current. Shared
+editor bridges receive the same form and validated flags. ACP still reads the
+unchanged provider-file schema; installed-editor qualification stays lead-owned.
+
+## Failing first and byte-exact guard drills
+
+The six required initial regressions fail against the starting production code:
+**6 failed / 20 passed**, then pass after the repair. Extra boundary/retry tests
+also pass before their deliberate breaks. The final drill set below runs
+complete owning files, at most three files/workers, using
+`npx vitest run <files> --maxWorkers=3`, with no name filters, timeout overrides,
+skips or weakened assertions. Each break produces assertion failures and exit 1,
+restores original bytes in `finally`, and compares SHA-256 before/after.
+
+| Drill                    | Failed / total | Source                             |
+| ------------------------ | -------------: | ---------------------------------- |
+| `entered-key-only`       |           2/29 | `src/host/models/modelsPanel.ts`   |
+| `current-entry`          |           6/39 | `src/host/providers/wizardSave.ts` |
+| `changed-field-conflict` |           2/39 | `src/host/providers/wizardSave.ts` |
+| `key-snapshot`           |           1/29 | `src/host/providers/wizardSave.ts` |
+| `key-recheck`            |           1/29 | `src/host/providers/wizardSave.ts` |
+| `default-compare`        |           2/39 | `src/core/providers/panelSeam.ts`  |
+| `untouched-key-rollback` |           2/39 | `src/host/providers/wizardSave.ts` |
+| `default-rollback`       |           1/29 | `src/host/providers/wizardSave.ts` |
+| `reload-snapshot`        |           3/29 | `src/host/models/modelsPanel.ts`   |
+| `routing-removed`        |           1/10 | `src/host/providers/wizardSave.ts` |
+| `unchanged-file`         |           1/10 | `src/core/providers/panelSeam.ts`  |
+| `reload-schema`          |           1/13 | `src/shared/modelsPanel.ts`        |
+| `conflict-flag`          |           3/29 | `src/host/models/modelsPanel.ts`   |
+| `conflict-flag-schema`   |           1/13 | `src/shared/modelsPanel.ts`        |
+| `partial-save-baseline`  |           1/29 | `src/host/models/modelsPanel.ts`   |
+
+All 15 before/after hash pairs match. Hashes for the restored source files:
+
+| File                               | SHA-256 before and after                                           |
+| ---------------------------------- | ------------------------------------------------------------------ |
+| `src/host/models/modelsPanel.ts`   | `bd35f2df92620ab9cf327e47e33b635510e3d3a61228f569271385283021d8aa` |
+| `src/host/providers/wizardSave.ts` | `999292db964e007d391d6d017d21a4fbc5176c0c5df12b5d025603d8e72b562b` |
+| `src/core/providers/panelSeam.ts`  | `dd1242fa58c810391c6ec64b4c8e47e87856c11388e15118e27af573c95e36ec` |
+| `src/shared/modelsPanel.ts`        | `d0172835271fe533570de13fb8b9970464a102d531080fc06a5a08e29cabf509` |
+
+Drills remove the entered-key distinction, current-entry merge, changed-field
+comparison, initial/final key checks, expected-default comparison, conditional
+key/default rollback, snapshot reload, routing-removal conflict, no-op file
+admission, strict reload/conflict flag types, conflict availability and the
+post-save comparison baseline. Receipt/log paths are the untracked
+`temp/provwiz7-drills.json` and `temp/provwiz7-drill-*`.
+
+## Final whole-file qualification
+
+**45 complete provider/models/capability files, 788 passed tests, no skips.**
+The final run follows every restoration and the assertion-sharing cleanup;
+it uses repository deadlines, at most three files/workers per invocation.
+
+| Batch | Complete files (`test/unit/`)                                                                     | Passed |
+| ----- | ------------------------------------------------------------------------------------------------- | -----: |
+| 1     | `configuredProviders.test.ts`, `execProvider.test.ts`, `modelApiProviders.test.ts`                |     57 |
+| 2     | `modelCapabilitiesBinding.test.ts`, `modelsActivationBudget.test.ts`, `modelsApp.test.tsx`        |     15 |
+| 3     | `modelsComponents.test.tsx`, `modelsPanel.test.ts`, `modelsPanelBundle.test.ts`                   |     52 |
+| 4     | `modelsPanelEdit.test.tsx`, `modelsPanelEntry.test.ts`, `modelsPanelReducer.test.ts`              |     43 |
+| 5     | `modelsPanelSchemas.test.ts`, `modelsPanelSections.test.tsx`, `modelsQuickPick.test.ts`           |     56 |
+| 6     | `modelsSections.test.ts`, `modelsWebviewEntry.test.tsx`, `providerAuthService.test.ts`            |      9 |
+| 7     | `providerCatalog.test.ts`, `providerCredentialRecords.test.ts`, `providerCredentialStore.test.ts` |     98 |
+| 8     | `providerImportExport.test.ts`, `providerKeyPrompt.test.ts`, `providerLocalProbe.test.ts`         |     22 |
+| 9     | `providerModelScans.test.ts`, `providerOAuthLoopback.test.ts`, `providerOpenRouter.test.ts`       |     30 |
+| 10    | `providerPanelSeam.test.ts`, `providerProvidersHost.test.ts`, `providerRemoval.test.ts`           |     26 |
+| 11    | `providerRetry.test.ts`, `providerTransport.test.ts`, `providerWiring.test.ts`                    |     67 |
+| 12    | `providerWizardSave.test.ts`, `providerWorkspaceSuggestion.test.ts`, `providersFlow.test.ts`      |     39 |
+| 13    | `providersL10n.test.ts`, `providersModel.test.ts`, `providersOverflow.test.ts`                    |     70 |
+| 14    | `providersPolicy.test.ts`, `providersPresets.test.ts`, `providersThreats.test.ts`                 |    121 |
+| 15    | `providersX.test.ts`, `providersXFix.test.ts`, `wizardSessionBudget.test.ts`                      |     83 |
+
+The owning Edit file now has 29 cases, transaction 10, production seam 10,
+bridge 13 and captured wiring 26. Per-batch logs/JSON are
+`temp/provwiz7-suite-*` and `temp/provwiz7-suites.json`.
+
+## Individual gates and retained holds
+
+Changed-file ESLint and Prettier checks, host and final unit-project typechecks,
+localization (**14 UI tables, 14 usage tables, 0 problems**), reference
+(**current**), host API (**0 problems**) and plain Knip pass. Production
+`npm run build` passes all size/split/global/notices checks and retains every
+existing cap. The shared English surface is again **25597/25600 bytes**, exactly
+the prior size; host supplies the new sentence lazily through its table.
+
+| Bundle                         | Bytes / unchanged cap |
+| ------------------------------ | --------------------: |
+| Activation                     |       521707 / 614400 |
+| Model API                      |       500425 / 537600 |
+| Providers                      |       137457 / 153600 |
+| Models host                    |       116166 / 128000 |
+| Shared Node English            |        83747 / 128000 |
+| Shared browser surface English |         25597 / 25600 |
+
+Duplication still exits 1 at the unchanged zero-clone threshold: **21 clones /
+287 lines / 1970 tokens**, the inherited baseline recorded for PROVWIZ6 and
+reviewed at this round's starting SHA. The one repeated assertion sequence this
+round initially added is shared without removing an assertion. No new clone
+remains, and no ignore or threshold changes. PLAN §7 retains the lead-owned
+broader duplication cleanup; aggregate quality is not claimed green.
+
+Gate logs are `temp/provwiz7-{eslint-final,format,typecheck-unit-final,l10n,
+reference,host-api,deadcode,duplication-final,build-final}.log` (and the earlier
+host tsc log). No finding in this review is deferred. Aggregate quality,
+coverage, hosted multi-OS, browser/installed-editor and live qualification remain
+with the lead as prescribed by the rig brief. No gate, deadline, dependency,
+paid policy, provider serializer or prompt prefix changes.

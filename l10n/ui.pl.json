@@ -4300,6 +4300,7 @@
   "providerProbeRebinding": "Adres zmienił sieć; żądanie zostało odrzucone.",
   "providerSaveSecretFailed": "Operacja magazynu poświadczeń nie powiodła się.",
   "providerSaveWriteConflict": "Nie można zapisać pliku lub zmienił się podczas zapisu; spróbuj ponownie.",
+  "providerEditConflict": "Edytowane przez Ciebie pole zostało zmienione gdzie indziej. Przed zapisaniem wczytaj formularz ponownie.",
   "providerSaveBusy": "Trwa inna aktualizacja dostawców lub nie można uzyskać blokady; spróbuj ponownie.",
   "providerSaveRecoveryFailed": "Zapis nie powiódł się i nie można przywrócić poświadczenia {provider}. Przed ponowieniem sprawdź auth status i ponownie wprowadź lub usuń klucz.",
   "providerTestOkKey": "Klucz działa.",

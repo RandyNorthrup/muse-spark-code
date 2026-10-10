@@ -10,6 +10,7 @@ import type { ProviderEntry } from '../../src/host/providers/providerPorts'
 import { PROVIDER_SECRET_PREFIX, UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { fill } from '../../src/shared/l10n/text'
+import { Usd } from '../../src/shared/usd'
 import { parseHostToPanelMessage, type PanelToHostMessage } from '../../src/shared/modelsPanel'
 import { ProvidersSection } from '../../src/webview/models/ProvidersSection'
 import { FakeWebviewPanel, memorySessionBudgetConfig } from './helpers/fakes'
@@ -91,12 +92,13 @@ async function editSurface(
       warnings.push(text)
     },
   }
+  const sessionBudget = memorySessionBudgetConfig()
   const host = createModelsPanel({
     extensionUri: new FakeUri('/ext'),
     l10n: { locale: 'en', table: EN },
     providers,
     log,
-    sessionBudget: memorySessionBudgetConfig(),
+    sessionBudget,
     onWizardSaved: saved,
     writeExportFile: () => Promise.resolve(),
     readImportFile: () => Promise.resolve(undefined),
@@ -152,7 +154,18 @@ async function editSurface(
       )
     })
   }
-  return { configFile, seam, providers, secrets, saved, warnings, host, post, state: () => state }
+  return {
+    configFile,
+    seam,
+    providers,
+    secrets,
+    saved,
+    warnings,
+    host,
+    post,
+    sessionBudget,
+    state: () => state,
+  }
 }
 
 async function changeReplyLimit() {
@@ -167,6 +180,14 @@ async function saveEditSurface() {
   await waitFor(() => {
     expect(screen.queryByLabelText(UI_TEXT.providerFields.address)).toBeNull()
   })
+}
+
+async function saveConflictingEdit() {
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.saveProvider }))
+  await waitFor(() => {
+    expect(screen.getByText(UI_TEXT.providerEditConflict)).toBeDefined()
+  })
+  expect(screen.getByLabelText(UI_TEXT.customLimitsOutput)).toHaveValue(8000)
 }
 
 describe('Saved custom provider Edit through the shared form and production store', () => {
@@ -309,6 +330,153 @@ describe('Saved custom provider Edit through the shared form and production stor
     host.dispose()
   })
 
+  it.each(['rotated', 'removed'] as const)(
+    'a limit-only save keeps an untouched credential that was %s elsewhere',
+    async (change) => {
+      const { providers, secrets, host } = await editSurface()
+      const key = `${PROVIDER_SECRET_PREFIX}custom`
+      if (change === 'rotated') {
+        await secrets.store(
+          key,
+          JSON.stringify({
+            v: 1,
+            auth: 'apiKey',
+            origin: 'https://llm.example',
+            secret: 'synthetic-rotated-key',
+          }),
+        )
+      } else {
+        await secrets.delete(key)
+      }
+      const secretWrite = vi.spyOn(secrets, 'store')
+      await changeReplyLimit()
+      await saveEditSurface()
+      const entries = await providers.providers()
+      expect(entries[0]?.modelLimits?.['m1']?.outputTokens).toBe(8000)
+      expect(
+        await providers.storedCredential(
+          entries[0] ??
+            (() => {
+              throw new Error('Missing entry')
+            })(),
+        ),
+      ).toBe(change === 'rotated' ? 'synthetic-rotated-key' : undefined)
+      expect(secretWrite).not.toHaveBeenCalled()
+      host.dispose()
+    },
+  )
+
+  it('merges untouched fields changed while the private-network question waits', async () => {
+    const entry: ProviderEntry = {
+      id: 'custom',
+      preset: 'custom',
+      address: 'https://192.168.1.20/v1',
+      auth: 'apiKey',
+      format: 'chat',
+      models: ['m1'],
+      pinned: ['m1'],
+      privateNetwork: true,
+      modelLimits: { m1: { contextTokens: 128_000, outputTokens: 4000 } },
+    }
+    const consent = Promise.withResolvers<boolean>()
+    const confirmPrivateNetwork = vi.fn(() => consent.promise)
+    const { seam, host } = await editSurface({ entry, confirmPrivateNetwork })
+    await changeReplyLimit()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.saveProvider }))
+    await waitFor(() => {
+      expect(confirmPrivateNetwork).toHaveBeenCalledOnce()
+    })
+    const concurrent: ProviderEntry = {
+      ...entry,
+      pinned: [],
+      compat: { toolChoice: 'omit' },
+      modelLimits: { m1: { contextTokens: 256_000, outputTokens: 4000 } },
+    }
+    await seam.store.replaceAll([concurrent])
+    consent.resolve(true)
+    await waitFor(() => {
+      expect(screen.queryByLabelText(UI_TEXT.customLimitsOutput)).toBeNull()
+    })
+    expect(await seam.store.list()).toEqual([
+      { ...concurrent, modelLimits: { m1: { contextTokens: 256_000, outputTokens: 8000 } } },
+    ])
+    host.dispose()
+  })
+
+  it.each(['limit', 'default', 'key'] as const)(
+    'stops when the edited %s also changed elsewhere and offers a working reload',
+    async (field) => {
+      const { seam, configFile, providers, secrets, post, state, warnings, host } =
+        await editSurface(field === 'default' ? { defaultModel: 'another/m1' } : {})
+      await changeReplyLimit()
+      if (field === 'default') {
+        post({
+          type: 'providers/prefill',
+          providerId: 'custom',
+          fields: { defaultModel: 'custom/m1' },
+        })
+        await waitFor(() => {
+          expect(state().drafts.edits['custom']?.defaultModel).toBe('custom/m1')
+        })
+        await seam.store.setDefaultModel('newer/m1')
+      } else if (field === 'key') {
+        fakeWindow.showInputBox.mockResolvedValueOnce('synthetic-replacement-key')
+        fireEvent.click(screen.getByRole('button', { name: UI_TEXT.changeKey }))
+        fireEvent.click(screen.getByRole('button', { name: UI_TEXT.testConnection }))
+        await waitFor(() => {
+          expect(state().drafts.edits['custom']?.test?.status).toBe('ok')
+        })
+        await secrets.store(
+          `${PROVIDER_SECRET_PREFIX}custom`,
+          JSON.stringify({
+            v: 1,
+            auth: 'apiKey',
+            origin: 'https://llm.example',
+            secret: 'synthetic-rotated-key',
+          }),
+        )
+      } else {
+        const entries = await seam.store.list()
+        await seam.store.replaceAll(
+          entries.map((entry) => ({
+            ...entry,
+            modelLimits: { m1: { contextTokens: 128_000, outputTokens: 6000 } },
+          })),
+        )
+      }
+      const before = await readFile(configFile, 'utf8')
+      const secretBefore = await secrets.get(`${PROVIDER_SECRET_PREFIX}custom`)
+      const secretWrite = vi.spyOn(secrets, 'store')
+      await saveConflictingEdit()
+      expect(await readFile(configFile, 'utf8')).toBe(before)
+      expect(await secrets.get(`${PROVIDER_SECRET_PREFIX}custom`)).toBe(secretBefore)
+      expect(secretWrite).not.toHaveBeenCalled()
+      expect(state().drafts.edits['custom']?.saveConflict).toBe(true)
+      expect(JSON.stringify(state())).not.toContain('synthetic-')
+      expect(warnings.join(' ')).not.toContain('synthetic-')
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.crashReload }))
+      await waitFor(() => {
+        expect(screen.getByLabelText(UI_TEXT.customLimitsOutput)).toHaveValue(
+          field === 'limit' ? 6000 : 4000,
+        )
+        expect(screen.queryByText(UI_TEXT.providerEditConflict)).toBeNull()
+      })
+      if (field === 'default') expect(state().drafts.edits['custom']?.defaultModel).toBe('newer/m1')
+      await changeReplyLimit()
+      await saveEditSurface()
+      const reloadedEntries = await seam.store.list()
+      expect(
+        await providers.storedCredential(
+          reloadedEntries[0] ??
+            (() => {
+              throw new Error('Missing entry')
+            })(),
+        ),
+      ).toBe(field === 'key' ? 'synthetic-rotated-key' : 'synthetic-edit-key')
+      host.dispose()
+    },
+  )
+
   it.each(['Edit', 'Change key', 'Change key → Edit'] as const)(
     'one full snapshot preserves untouched concurrent fields via %s',
     async (flow) => {
@@ -364,6 +532,80 @@ describe('Saved custom provider Edit through the shared form and production stor
       host.dispose()
     },
   )
+
+  it('keeps a newer default when it changes after preflight and the compared write refuses', async () => {
+    const { seam, post, state, host } = await editSurface({ defaultModel: 'another/m1' })
+    await changeReplyLimit()
+    post({ type: 'providers/prefill', providerId: 'custom', fields: { defaultModel: 'custom/m1' } })
+    await waitFor(() => {
+      expect(state().drafts.edits['custom']?.defaultModel).toBe('custom/m1')
+    })
+    const writeDefault = seam.store.setDefaultModel
+    vi.spyOn(seam.store, 'setDefaultModel').mockImplementationOnce(async (ref, expected) => {
+      await writeDefault('newer/m1')
+      await writeDefault(ref, expected)
+    })
+    await saveConflictingEdit()
+    expect(await seam.store.defaultModel()).toBe('newer/m1')
+    expect(await seam.store.list()).toMatchObject([{ modelLimits: { m1: { outputTokens: 4000 } } }])
+    host.dispose()
+  })
+
+  it('clears a rejected edit budget and retries against its own successful provider save', async () => {
+    const { seam, post, sessionBudget, state, host } = await editSurface()
+    await changeReplyLimit()
+    const wanted = Usd.from(2).toAmount()
+    post({ type: 'providers/prefill', providerId: 'custom', fields: { sessionBudgetUsd: wanted } })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.saveProvider }))
+    await waitFor(() => {
+      expect(state().drafts.edits['custom']?.errors).toEqual([
+        fill(UI_TEXT.sessionBudgetPartialSave, { detail: UI_TEXT.wizardSessionBudgetInvalid }),
+      ])
+    })
+    expect(await seam.store.list()).toMatchObject([{ modelLimits: { m1: { outputTokens: 8000 } } }])
+    expect(sessionBudget.read().effectiveUsd).toBe(Usd.from(0).toAmount())
+    const providerWrite = vi.spyOn(seam.store, 'replaceAll')
+    post({
+      type: 'providers/prefill',
+      providerId: 'custom',
+      fields: { sessionBudgetUsd: undefined },
+    })
+    await waitFor(() => {
+      expect(state().drafts.edits['custom']?.sessionBudgetUsd).toBeUndefined()
+    })
+    await saveEditSurface()
+    expect(providerWrite).not.toHaveBeenCalled()
+    expect(sessionBudget.writes).toEqual([])
+    host.dispose()
+  })
+
+  it('keeps a credential rotated after preflight while the edited provider is written', async () => {
+    const { seam, configFile, secrets, state, host } = await editSurface({ flow: 'Change key' })
+    await changeReplyLimit()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.testConnection }))
+    await waitFor(() => {
+      expect(state().drafts.edits['custom']?.test?.status).toBe('ok')
+    })
+    const before = await readFile(configFile, 'utf8')
+    const writeProviders = seam.store.replaceAll
+    vi.spyOn(seam.store, 'replaceAll').mockImplementationOnce(async (entries, options) => {
+      const previous = await writeProviders(entries, options)
+      await secrets.store(
+        `${PROVIDER_SECRET_PREFIX}custom`,
+        JSON.stringify({
+          v: 1,
+          auth: 'apiKey',
+          origin: 'https://llm.example',
+          secret: 'synthetic-rotated-key',
+        }),
+      )
+      return previous
+    })
+    await saveConflictingEdit()
+    expect(await readFile(configFile, 'utf8')).toBe(before)
+    expect(await secrets.get(`${PROVIDER_SECRET_PREFIX}custom`)).toContain('synthetic-rotated-key')
+    host.dispose()
+  })
 
   it('queues one Save, disables the form and keeps its successful outcome on duplicate delivery', async () => {
     const { seam, providers, post, state, host } = await editSurface()

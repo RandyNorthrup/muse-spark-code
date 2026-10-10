@@ -4156,6 +4156,7 @@
   "providerProbeRebinding": "La dirección cambió de red; se rechazó la solicitud.",
   "providerSaveSecretFailed": "Falló la operación del almacén de credenciales.",
   "providerSaveWriteConflict": "No se pudo escribir el archivo o cambió durante el guardado; vuelve a intentarlo.",
+  "providerEditConflict": "Un campo que editaste cambió en otro lugar. Vuelve a cargar el formulario antes de guardar.",
   "providerSaveBusy": "Hay otra actualización de proveedores en curso o no se pudo obtener el bloqueo; vuelve a intentarlo.",
   "providerSaveRecoveryFailed": "El guardado falló y no se pudo restaurar la credencial de {provider}. Antes de reintentar, comprueba auth status y vuelve a introducir o borra su clave.",
   "providerTestOkKey": "La clave funciona.",
