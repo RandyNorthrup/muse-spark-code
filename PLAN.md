@@ -20524,8 +20524,11 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### M125 — The Judge: our own Jev, for speed and accuracy (D107)
 
-**Status 2026-10-10: planned.** Q-D107 is answered by the owner (B), so
-lane F is planned work. Design: `docs/design/judge-fast-path.md`, revised
+**Status 2026-10-10: building.** F1a builds the internal B1 runner and
+native confinement boundary; it stays off and has no command, setting or
+panel entry until its platform receipts and fresh reviews pass. Q-D107 is
+answered by the owner (B), so lane F is underway. Design:
+`docs/design/judge-fast-path.md`, revised
 after the third, fourth and fifth reviews (`RVJUDGEFAST3` to
 `RVJUDGEFAST5`). Lane F is split by the lead's ruling of 2026-10-10: F1
 (B1) ships when its review is clean; F2 (B2, default-deny) never blocks
@@ -20772,6 +20775,14 @@ it.
         lives with a bounded, discarding overflow, mirrored user files
         instead of exempt misses, and a B2-6 its preflight allows.
   - [ ] Lane F1's review clean (F1 ships then; F2 does not block it).
+  - [ ] F1a: Linux confinement and inspect runner certified (including the
+        fail-closed 128-level walk limit); macOS's captured
+        Seatbelt system/service allow-list and Mac mini receipt required
+        before enabling macOS. Windows is an owner-recorded exception:
+        no verified B1 programs or unprivileged confinement (§9.2).
+        F1b owns approval integration, the floor's session/mode/rule gates,
+        veto races, transcript/audit rows and all editor bindings; F1a
+        is portable core and adds no active editor surface.
   - [ ] Lane F2's review clean.
   - [ ] Acceptance 1–17, each with its failing drill and passing receipt.
   - [ ] Per-decision M75 wins and live receipts on each backend before any

@@ -113,6 +113,8 @@
     "src/webview/whatsNew/main.ts",
     // M98's Judge, required only at the first eligible approval.
     "src/host/judge/judgeEntry.ts",
+    // F1a's internal API is built by build:confine, never by the product build.
+    "src/core/judge/fast/inspectExec.ts",
     "src/host/backend/searchWorker.ts",
     // Web fetch's page converter (M69), a worker bundle started by path.
     "src/host/web/pageWorker.ts",
@@ -176,6 +178,7 @@
     "test/unit/helpers/questions/queuedTurnCrash.ts",
     // The never-ending monitor the M92b bounded-run proof starts by path.
     "test/fixtures/never-ending-monitor.mjs",
+    "test/fixtures/inspect-helper.mjs",
     // M116 playbook scenes: the axe runner (an npm script knip already sees)
     // bundles this scene file with esbuild, which knip does not trace.
     "test/harness/playbook.mjs",

@@ -1769,6 +1769,7 @@
     "check:host-api": "node scripts/check-host-api.mjs",
     "check:plan": "node scripts/check-plan.mjs",
     "check:roadmap": "node scripts/gen-roadmap.mjs --check",
+    "build:confine": "node scripts/build-confine.mjs",
     "roadmap:generate": "node scripts/gen-roadmap.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

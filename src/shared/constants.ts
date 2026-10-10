@@ -3868,6 +3868,16 @@ export const PROTECTED_FILE_NAMES: ReadonlySet<string> = new Set([
 ])
 export const LIST_FILES_DEFAULT_LIMIT = 500
 export const SHELL_DEFAULT_TIMEOUT_MS = 120_000
+// D107 §9.4: internal B1 boundary; F1b installs it only after certification.
+export const JUDGE_FAST_B1_WALK_MAX_ENTRIES = 20_000
+export const JUDGE_FAST_B1_WALK_MAX_MS = 100
+export const JUDGE_FAST_B1_WALK_MAX_DEPTH = 128
+export const JUDGE_FAST_B1_MAX_ABI = 8
+export const JUDGE_FAST_B1_MIN_ABI = 3
+export const JUDGE_FAST_B1_REFUSED_EXIT = 125
+export const JUDGE_FAST_B1_PROTOCOL_MAX_BYTES = 1024
+export const JUDGE_FAST_B1_ELF_MAX_BYTES = 32 * 1024 * 1024
+export const JUDGE_FAST_B1_SYSTEM_MAX_FILES = 64
 export const SHELL_MAX_TIMEOUT_MS = 600_000
 // Per stream: past it the middle of the output is dropped with a count.
 export const SHELL_OUTPUT_MAX_CHARS = 2 * 1024 * 1024

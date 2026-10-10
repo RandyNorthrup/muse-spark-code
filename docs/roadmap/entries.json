@@ -901,7 +901,7 @@
     {
       "id": "M125",
       "title": "A faster, more accurate agent through a fast judge",
-      "summary": "A fast judge answers the agent's small decisions and checks its work while the model is busy, set up by a wizard that scans your computer first, and lets sandboxed safe commands skip the slow reviewer on Linux and macOS.",
+      "summary": "A fast judge checks the agent's work and small decisions, with a setup wizard and command confinement being certified internally for Linux and macOS before reviewer skips are enabled, while Windows keeps its existing reviewer.",
       "area": "agents"
     },
     {
