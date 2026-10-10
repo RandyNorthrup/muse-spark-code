@@ -73,8 +73,9 @@ hash verification and migrate when read.
 - **Smaller fixes.** Chat action menus fan close around the row's **…**
   button, highlighted-text actions included; a question's own-answer field no
   longer overlaps the options and buttons around it, DeepSeek's Thinking off
-  sends DeepSeek's own switch, and a Muse Code older than 1.4.3 that hits its
-  approval-record fault now gets the update command.
+  sends DeepSeek's own switch, a nearly spent budget stops with the budget
+  message instead of a Meta error, and a Muse Code older than 1.4.3 that hits
+  its approval-record fault now gets the update command.
 
 ### Earlier in 0.17.0
 
@@ -4089,6 +4090,15 @@ Media omitted from replay explains unsupported capability, MIME refusal or
 individual model limits separately from limits consumed by newer media.
 Final provider dispatch remains an integration milestone; this core change is
 not a claim that every listed vendor is supported in the installed extension.
+
+An output cap below a provider's known minimum is refused when saved and
+before sending, including an older stored value. The message names the minimum;
+the cap is never silently increased. Meta's captured minimum is 16 tokens.
+Custom provider entries can declare `modelCapabilities.<model>.output.minTokens`;
+both `output.maxTokens` and `modelLimits.<model>.outputTokens` must meet it.
+Providers without a known minimum retain a one-token minimum. Editor settings,
+ACP configuration and CLI/exec flags currently expose no separate output-token
+cap; they share the provider entry and request validation.
 
 Custom models can declare `modelCapabilities` in their user-level
 `providers.json` entry, keyed by native model id. For example:

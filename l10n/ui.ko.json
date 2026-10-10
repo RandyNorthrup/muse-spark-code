@@ -3984,6 +3984,10 @@
   "startWithOwnModelDetail": "API 키로 모델 공급자를 추가하고 모델을 선택하세요.",
   "setupComplete": "{provider} · {model} 준비 완료",
   "manageProviders": "공급자 관리",
+  "outputCapBelowMinimum": {
+    "other": "출력 한도는 최소 {count} 토큰이어야 합니다."
+  },
+  "referenceOutputCapMinimum": "제공자의 알려진 최솟값보다 낮은 출력 한도는 저장 시와 전송 전에 거부됩니다. Meta는 최소 16 토큰을 요구합니다.",
   "modelsPanelTitle": "모델 및 에이전트",
   "modelsPanelUnavailable": "모델 및 에이전트는 이 빌드에서 사용할 수 없습니다.",
   "providersSectionTitle": "공급자",

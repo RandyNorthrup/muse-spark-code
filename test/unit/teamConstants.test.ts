@@ -980,3 +980,72 @@ describe('team roles and tool sets', () => {
     }
   })
 })
+
+it('refuses Meta output caps below sixteen in team pool and orchestrator settings', () => {
+  const agent = {
+    kind: 'engine',
+    agentId: 'meta-model-api',
+    model: 'muse-spark-1.3',
+    provider: 'meta',
+    pays: 'key',
+  }
+  for (const cap of [0, 1, 15]) {
+    const entry = { id: 'meta', agent, concurrent: 1, caps: [], settings: { outputCap: cap } }
+    for (const parsed of [
+      teamPoolEntrySchema.safeParse(entry),
+      teamSnapshotSchema.safeParse({
+        roles: [],
+        intensity: 'balanced',
+        orchestrator: { agent, settings: { outputCap: cap } },
+      }),
+    ]) {
+      expect(parsed.success).toBe(false)
+      if (!parsed.success)
+        expect(parsed.error.message).toContain('Output cap must be at least 16 tokens.')
+    }
+  }
+  expect(
+    teamPoolEntrySchema.safeParse({
+      id: 'meta',
+      agent,
+      concurrent: 1,
+      caps: [],
+      settings: { outputCap: 16 },
+    }).success,
+  ).toBe(true)
+  expect(
+    teamPoolEntrySchema.safeParse({
+      id: 'other',
+      agent: { ...agent, provider: 'custom', model: 'native' },
+      concurrent: 1,
+      caps: [],
+      settings: { outputCap: 1 },
+    }).success,
+  ).toBe(true)
+})
+
+it('validates inherited Meta output caps for default team entries and orchestrator settings', () => {
+  for (const snapshot of [
+    {
+      roles: [],
+      intensity: 'balanced',
+      orchestratorModel: 'muse-spark-1.3',
+      orchestrator: { settings: { outputCap: 15 } },
+    },
+    {
+      roles: [
+        {
+          role: 'engineering',
+          pool: [{ id: 'default', concurrent: 1, caps: [], settings: { outputCap: 15 } }],
+        },
+      ],
+      intensity: 'balanced',
+      orchestratorModel: 'meta/muse-spark-1.3',
+    },
+  ]) {
+    const parsed = teamSnapshotSchema.safeParse(snapshot)
+    expect(parsed.success).toBe(false)
+    if (!parsed.success)
+      expect(parsed.error.message).toContain('Output cap must be at least 16 tokens.')
+  }
+})
