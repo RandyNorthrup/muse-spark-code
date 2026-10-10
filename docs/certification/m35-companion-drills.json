@@ -545,7 +545,7 @@
   {
     "drill": "rvcmiccomp-4-permission-cancellation-signal",
     "file": "src/acp/agent.ts",
-    "sha256": "2db8dd85f268c38a94753f3475e6d69e7050b70ecddc6ff8461b0f06684b1dd9a3ad9",
+    "sha256": "5f6c1a504b0996a7e34c9ab3b30b93c4d98b60e53f4de566b0da805253897fbd",
     "failed": [
       "test/unit/acpAgent.test.ts > the ACP agent (M63) > companion cancellation cancels the editor permission request"
     ],
