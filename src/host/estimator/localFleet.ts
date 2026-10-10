@@ -121,9 +121,9 @@ export function estimatorSourcePorts(
 ): EstimatorSourcePorts {
   return {
     snapshot,
-    fleet: (lanes) => Promise.resolve(localFleet(lanes)),
+    fleet: (lanes, asOf) => Promise.resolve(localFleet(lanes, asOf)),
     history: () => Promise.resolve([]),
-    candidatePool: (lanes) => Promise.resolve(localFleet(lanes)),
+    candidatePool: (lanes, asOf) => Promise.resolve(localFleet(lanes, asOf)),
     board: () => ({
       audit: () => missingEstimateBinding('M117-W-M96-board'),
       start: () => missingEstimateBinding('M117-W-M96-board'),
@@ -137,8 +137,10 @@ export function estimatorSourcePorts(
   }
 }
 
-/** This machine's fleet now. Read at call time: hot-plugged cores count. */
-export function localFleet(lanes: readonly EstimateLane[]): FleetSnapshot {
+/** This machine's fleet at the request's asOf: cores are read at call time
+ * (hot-plugged cores count) but the stamp is passed through, never a second
+ * clock, so the inputs' fleet/request equality holds. */
+export function localFleet(lanes: readonly EstimateLane[], asOf: string): FleetSnapshot {
   return fleetFromHost(
     {
       platform: os.platform(),
@@ -147,6 +149,6 @@ export function localFleet(lanes: readonly EstimateLane[]): FleetSnapshot {
       ramGiB: os.totalmem() / ESTIMATE_BYTES_PER_GIB,
     },
     lanes,
-    new Date().toISOString(),
+    asOf,
   )
 }

@@ -2329,6 +2329,7 @@ async function activateWindow(
         bundlePath: snapshotBundlePath,
         log,
         root: firstFolderPath() ?? '',
+        networkAllowed: settings.sandboxNetwork !== SANDBOX_NETWORK_DENIED,
       })
       return estimatorSourcePorts(
         () => ({
