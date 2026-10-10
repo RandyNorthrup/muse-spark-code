@@ -387,12 +387,19 @@ describe('M118 ACP local commands over the SDK prompt path', () => {
       const h = acpHarness(createAcpSharing(local.commands, () => local.ui))
       await h.run(async (client, sessionId) => {
         const failure = await refusedWire(client, sessionId, '/share chat')
-        expect(failure).toMatchObject({ code: acp.RequestError.internalError().code })
+        expect(failure).toMatchObject({
+          code: acp.RequestError.internalError().code,
+          message: expect.stringContaining(UI_TEXT.actionFailed),
+        })
         const wire = JSON.stringify(failure)
         expect(wire).not.toContain('/home/someone')
         expect(wire).not.toContain('sentinel-prompt-text')
+        expect(wire).not.toContain(UI_TEXT.promptFileInvalid)
       })
       expect(local.release).not.toHaveBeenCalled()
+      expect(h.log.warn).toHaveBeenCalledWith(expect.stringContaining('sharing command failed'))
+      expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain('/home/someone')
+      expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain('sentinel-prompt-text')
     })
     it('keeps a prompt-store failure internal with no raw text', async () => {
       const local = sharingHarness()
@@ -404,10 +411,16 @@ describe('M118 ACP local commands over the SDK prompt path', () => {
       const h = acpHarness(createAcpSharing(local.commands, () => local.ui))
       await h.run(async (client, sessionId) => {
         const failure = await refusedWire(client, sessionId, '/prompt list')
-        expect(failure).toMatchObject({ code: acp.RequestError.internalError().code })
+        expect(failure).toMatchObject({
+          code: acp.RequestError.internalError().code,
+          message: expect.stringContaining(UI_TEXT.actionFailed),
+        })
         const wire = JSON.stringify(failure)
         expect(wire).not.toContain('/home/someone')
+        expect(wire).not.toContain(UI_TEXT.promptFileInvalid)
       })
+      expect(h.log.warn).toHaveBeenCalledWith(expect.stringContaining('sharing command failed'))
+      expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain('/home/someone')
     })
     it.each([['/share chat --typo'], [String.raw`/share "a\xb"`]])(
       'refuses bad slash syntax in the installed language: %s',

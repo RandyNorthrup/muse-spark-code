@@ -995,7 +995,6 @@ describe('the ACP agent (M63)', () => {
         h.host.sessions[0]?.sendTurn.mockResolvedValue({
           turnId: 'turn-9',
           disposition: 'denied',
-          userMessageId: undefined,
         })
         await expect(prompt(client, sessionId, 'hello')).rejects.toMatchObject({
           code: -32_600,
