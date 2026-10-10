@@ -27,6 +27,7 @@ export const PRODUCTION_BUILD_SUITES = [
   '/runtimeChatGptPackage.test.ts',
   '/webviewBundle.test.mjs',
   '/execStdio.e2e.test.ts',
+  '/visualCapture.test.mjs',
   '/visualStability.test.mjs',
   '/m114ConversationReview.test.mjs',
 ]

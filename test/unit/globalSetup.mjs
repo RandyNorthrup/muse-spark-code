@@ -49,7 +49,11 @@ export default async function setup(project) {
     }
     project.provide(PRODUCTION_BUILD_KEY, production)
     if (
-      testFiles.some((file) => file.replaceAll('\\', '/').endsWith('/visualStability.test.mjs'))
+      testFiles.some((file) =>
+        ['/visualStability.test.mjs', '/visualCapture.test.mjs'].some((suite) =>
+          file.replaceAll('\\', '/').endsWith(suite),
+        ),
+      )
     ) {
       // Staging a complete capture root copies fixture inputs too; keep that
       // disk work before workers, outside each scene's ten-second hook.
