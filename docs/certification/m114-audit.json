@@ -10759,7 +10759,7 @@
     },
     {
       "file": "src/webview/components/QuestionCard.tsx",
-      "sha256": "6d9cb62d151632a56abc584dfeb139a19d46af8540733f83bc1978ed2f0f3118"
+      "sha256": "016f9fae9e293fd4fb09ae09e7c6827b6b862ea57e6315bd9e0bc2b736daa892"
     },
     {
       "file": "src/webview/components/QuestionSurface.tsx",
@@ -11455,7 +11455,7 @@
     },
     {
       "file": "src/webview/styles.css",
-      "sha256": "e546b30b35aae47762bc1260746ac2883463f0f5d2e988f257096f248807275e"
+      "sha256": "a4695eb212edbcd2006c179cdc1b9be925936d9a9c5489a8dafbaa45e1dca4eb"
     },
     {
       "file": "src/webview/surfaceRetry.ts",
