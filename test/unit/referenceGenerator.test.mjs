@@ -446,7 +446,7 @@ describe('RVHELPREF truth regressions', () => {
   })
   it('R10 records actual local voice availability, including zero-cap Model API refusal', () => {
     expect(feature('free-dictation').facts).toEqual({
-      platforms: ['win32', 'darwin'],
+      platforms: ['win32', 'darwin', 'linux'],
       remote: false,
     })
     expect(feature('voice').facts.modelApi).toBe('unavailable')

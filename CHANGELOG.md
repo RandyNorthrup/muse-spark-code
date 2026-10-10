@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Linux free dictation: a prebuilt CPU-only whisper.cpp helper for local x64/arm64
+  recognizes English offline. First use asks before a pinned 74 MiB tiny.en
+  model download; downloads resume, corrupt weights refuse recognition, and
+  `linuxDictationModel=false` stops recording and removes stored weights.
+  Audio stays in bounded memory; Windows/macOS retain their existing helpers.
+
+
 ### Added
 
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's

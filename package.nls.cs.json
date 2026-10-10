@@ -136,7 +136,7 @@
   "command.showWhatsNew.title": "Novinky",
   "config.showWhatsNewOnUpdate.description": "Zapnuto ve výchozím nastavení: po aktualizaci rozšíření se Novinky otevřou v kartě editoru, pokud vydání obsahuje hlavní novinky; po opravné verzi jen s opravami je místo toho nenápadně nabídne oznámení. Vypnuto nezobrazí po aktualizacích nic; příkaz Muse Spark: Novinky je otevře i tak.",
   "config.paidDailyBudgetUsd.description": "Společný denní rozpočet v USD pro interaktivní placené doplňky Model API napříč okny a klíči. Výchozí 5,00; rozsah 0,50–500. Částku rezervuje před odesláním; nečitelné úložiště požadavek odmítne. Samostatný rozpočet Tab se nezapočítává. Příznaky a rozpočty ACP a bezobslužného běhu se nemění.",
-  "config.dictationEngine.description": "Diktovací modul v Model API. Výchozí je bezplatný systémový rozpoznávač; Muse Voice vyžaduje souhlas s placeným použitím a ověřené přijetí rozpočtem. Výslovné zapnutí hlasu v Muse Code se nemění.",
+  "config.dictationEngine.description": "Diktovací modul v Model API. Výchozí je bezplatné diktování; Muse Voice vyžaduje souhlas s placeným použitím a ověřené přijetí rozpočtem. Výslovné zapnutí hlasu v Muse Code se nemění.",
   "config.modelApiTab.description": "Tab používá uložený klíč Model API s oběma chatovacími backendy. Výchozí spouštění je Invoke; návrhy při psaní vyžadují Automatic.\nPevný denní rozpočet v amerických dolarech na požadavky doplňování Tab ve všech oknech tohoto počítače; požadavek, jehož nejhorší případ by jej překročil, se neodešle. Od 0,05 $ do 50 $.\nPovolit jednou / Vždy povolit v tomto pracovním prostoru.",
   "config.tabModel.description": "Model, který používají požadavky doplňování Tab. Standard stojí na token více; Meta netrénuje na tom, co je mu odesláno. Přispěvatelský model stojí na token méně a Meta trénuje na kódu, který je mu odeslán.",
   "config.tabModel.enumDescriptions.standard": "muse-spark-1.3: sazby Standard, žádné trénování na vašem kódu.",
@@ -250,5 +250,6 @@
   "config.reports.network.enumDescriptions.always": "Povolit síťové zdroje zpráv.",
   "config.reports.network.enumDescriptions.off": "Číst pouze místní zdroje.",
   "config.reports.keepHistory.description": "Uchovávat na tomto počítači nejnovějších 50 zpráv každého druhu pro historii a porovnání.",
-  "config.reports.agentSources.description": "Volitelně číst vlastní soubory využití a limitů Claude Code nebo Codex. Výchozí: žádné. Text konverzací a soubory přihlašovacích údajů se nikdy nečtou jako zdroje zpráv."
+  "config.reports.agentSources.description": "Volitelně číst vlastní soubory využití a limitů Claude Code nebo Codex. Výchozí: žádné. Text konverzací a soubory přihlašovacích údajů se nikdy nečtou jako zdroje zpráv.",
+  "config.linuxDictationModel.description": "Povolí bezplatné offline anglické diktování na místním Linuxu x64/arm64. Před prvním stažením modelu 74 MiB se zeptá. Vypnutí zastaví diktování a odstraní model i částečné stažení; pro opětovné povolení zapněte a znovu načtěte okno. Windows/macOS beze změny."
 }

@@ -53,6 +53,22 @@ export async function stageVsix(root, stage) {
   for (const arch of ['x64', 'arm64'])
     if (files.every((file) => file.replaceAll('\\', '/') !== `native/linux/${arch}/muse-created`))
       throw new Error(`Required Linux created-path helper excluded from VSIX: ${arch}`)
+  const normalized = new Set(files.map((file) => file.replaceAll('\\', '/')))
+  for (const arch of ['x64', 'arm64']) {
+    const baseline = arch === 'x64' ? 'libggml-cpu-x64.so' : 'libggml-cpu-armv8.0_1.so'
+    for (const name of [
+      'muse-dictate',
+      'libwhisper.so.1',
+      'libggml.so',
+      'libggml-base.so',
+      baseline,
+    ])
+      if (!normalized.has(`native/linux/${arch}/${name}`))
+        throw new Error(`Required Linux dictation runtime excluded from VSIX: ${arch}/${name}`)
+  }
+  for (const license of ['whisper-LICENSE.txt', 'model-LICENSE.txt'])
+    if (!normalized.has(`native/dictation-linux/${license}`))
+      throw new Error(`Required Linux dictation licence excluded from VSIX: ${license}`)
   if (!files.includes('dist/validation.js'))
     throw new Error('Shared validation runtime excluded from VSIX')
   rmSync(stage, { recursive: true, force: true })

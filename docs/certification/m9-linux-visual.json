@@ -1,0 +1,25 @@
+{
+  "revision": "6636c84beb804af52e49363ac10ede3223d3d295",
+  "manifestSha256": "aaa2f8fdf0fd4322083a1fc3b9f0357f648da34bcb345ee1ec70a9ad0cac23ea",
+  "candidateSha256": "0bf5d7b7ec920e85dc6bade72ae3494088e0da844413ec583c3f83e94b5ed6f4",
+  "shard": {
+    "index": 26,
+    "count": 136
+  },
+  "selectionSha256": "08fc1577d7a17c621424526137b4e084b136bfe35f6d042728565b486fb5cccb",
+  "checked": 72,
+  "changedPixels": 0,
+  "maxImageChangedPixels": 0,
+  "regenerated": false,
+  "baselineBytes": 3311922,
+  "candidateBytes": 3311926,
+  "browser": "150.0.7871.186",
+  "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+  "platform": "linux",
+  "policy": {
+    "threshold": 0.1,
+    "includeAA": false,
+    "maxChangedPixelRatio": 0.0001,
+    "maxChangedPixels": 12
+  }
+}

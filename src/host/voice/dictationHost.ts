@@ -6,8 +6,10 @@
 // the socket, are dist/voice.js (PLAN.md D6), loaded on the first recording.
 
 import { existsSync } from 'node:fs'
-import { env, ExtensionKind, extensions } from 'vscode'
+import path from 'node:path'
+import { env, ExtensionKind, extensions, workspace, window, type Disposable } from 'vscode'
 import type { CoreLogger } from '../../core/logging'
+import { unlessAborted } from '../../core/timeouts'
 import type { DictationSetup } from '../../core/voice/dictation'
 import {
   type CaptureProbe,
@@ -15,8 +17,14 @@ import {
   locateCaptureHelper,
   locateDictationHelper,
 } from '../../core/voice/helperLocation'
-import { EXTENSION_QUALIFIED_ID, UI_TEXT } from '../../shared/constants'
-import { uiLocale } from '../../shared/l10n/text'
+import {
+  EXTENSION_QUALIFIED_ID,
+  LINUX_DICTATION,
+  SETTINGS_SECTION,
+  SETTING_DEFAULTS,
+  UI_TEXT,
+} from '../../shared/constants'
+import { fill, formatBytes, uiLocale } from '../../shared/l10n/text'
 import { deferredDriver, type VoiceBundle } from './voiceBundle'
 
 /**
@@ -36,9 +44,42 @@ export function createDictationSetup(
   probe: Omit<HelperProbe, 'fileExists' | 'programFiles' | 'remoteName' | 'appName'>,
   log: CoreLogger,
   voice: () => VoiceBundle,
+  linux?: { readonly storageRoot: string; readonly register: (disposable: Disposable) => void },
 ): DictationSetup {
+  const directory =
+    linux === undefined ? undefined : path.join(linux.storageRoot, LINUX_DICTATION.directory)
+  const isEnabled = (): boolean =>
+    workspace
+      .getConfiguration(SETTINGS_SECTION)
+      .get<unknown>(LINUX_DICTATION.setting, SETTING_DEFAULTS.linuxDictationModel) === true
+  if (directory !== undefined && linux !== undefined && probe.platform === 'linux') {
+    const remove = async (): Promise<void> => {
+      try {
+        await voice().removeLinuxDictationModel(directory)
+      } catch {
+        log.warn('Linux dictation model removal failed')
+        await window.showErrorMessage(UI_TEXT.linuxDictationRemoveFailed)
+      }
+    }
+    if (!isEnabled() && existsSync(directory)) void remove()
+    linux.register(
+      workspace.onDidChangeConfiguration((event) => {
+        if (
+          event.affectsConfiguration(`${SETTINGS_SECTION}.${LINUX_DICTATION.setting}`) &&
+          !isEnabled()
+        )
+          void remove()
+      }),
+    )
+  }
+  if (directory !== undefined && probe.platform === 'linux' && !isEnabled()) {
+    return { isAvailable: false, reason: UI_TEXT.linuxDictationRemoved }
+  }
   const location = locateDictationHelper({
     ...probe,
+    arch: process.arch,
+    linuxModelPath:
+      directory === undefined ? undefined : path.join(directory, LINUX_DICTATION.modelFile),
     fileExists: existsSync,
     programFiles: process.env['ProgramFiles'],
     remoteName: remoteHostName(),
@@ -52,7 +93,23 @@ export function createDictationSetup(
     isAvailable: true,
     create: (listener) =>
       deferredDriver(listener, () =>
-        voice().createDictation(location.invocation, listener, log, UI_TEXT, uiLocale()),
+        directory !== undefined && probe.platform === 'linux'
+          ? voice().createLinuxDictation(
+              {
+                invocation: location.invocation,
+                listener,
+                log,
+                isEnabled,
+                model: {
+                  directory,
+                  fetch,
+                  consent: async (signal) => await canDownloadLinuxModel(directory, signal),
+                },
+              },
+              UI_TEXT,
+              uiLocale(),
+            )
+          : voice().createDictation(location.invocation, listener, log, UI_TEXT, uiLocale()),
       ),
   }
 }
@@ -108,4 +165,17 @@ export function createMuseVoiceSetup(
         ),
       ),
   }
+}
+
+async function canDownloadLinuxModel(directory: string, signal: AbortSignal): Promise<boolean> {
+  if (signal.aborted) return false
+  const download = { title: UI_TEXT.browserRuntimeDownload }
+  const decline = { title: UI_TEXT.browserRuntimeNotNow, isCloseAffordance: true }
+  const asked = window.showInformationMessage(
+    fill(UI_TEXT.linuxDictationDownloadTitle, { size: formatBytes(LINUX_DICTATION.bytes) }),
+    { modal: true, detail: fill(UI_TEXT.linuxDictationDownloadDetail, { location: directory }) },
+    download,
+    decline,
+  )
+  return (await unlessAborted(Promise.resolve(asked), signal)) === download && !signal.aborted
 }

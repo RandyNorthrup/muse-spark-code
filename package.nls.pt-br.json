@@ -136,7 +136,7 @@
   "command.showWhatsNew.title": "Novidades",
   "config.showWhatsNewOnUpdate.description": "Ativado por padrão: depois que a extensão é atualizada, Novidades abre em uma guia do editor quando a versão tem destaques; depois de um patch só de correções, uma notificação discreta oferece a página no lugar. Desativado não mostra nada nas atualizações; Muse Spark: Novidades continua abrindo a página.",
   "config.paidDailyBudgetUsd.description": "Orçamento diário compartilhado em USD para extras interativos pagos da Model API, entre janelas e chaves. Padrão 5,00; intervalo 0,50–500. Reserva antes de enviar e recusa armazenamento ilegível. O orçamento separado do Tab não está incluído. Sinalizadores e orçamentos ACP e sem interface não mudam.",
-  "config.dictationEngine.description": "Mecanismo de ditado na Model API. O reconhecedor gratuito do sistema é o padrão; Muse Voice exige consentimento pago e admissão verificada pelo orçamento. A ativação explícita de voz no Muse Code não muda.",
+  "config.dictationEngine.description": "Mecanismo de ditado na Model API. O ditado gratuito é o padrão; Muse Voice exige consentimento pago e admissão verificada pelo orçamento. A ativação explícita de voz no Muse Code não muda.",
   "config.modelApiTab.description": "Tab usa a chave Model API salva com ambos os mecanismos de chat. O gatilho padrão é Invoke; sugestões ao digitar exigem Automatic.\nOrçamento diário rígido em dólares para os pedidos de preenchimento do Tab em todas as janelas desta máquina; um pedido cujo pior caso o ultrapasse não é enviado. De US$ 0,05 a US$ 50.\nPermitir uma vez / Sempre permitir neste espaço de trabalho.",
   "config.tabModel.description": "O modelo usado pelos pedidos de preenchimento do Tab. O Standard custa mais por token; a Meta não treina com o que recebe. O modelo colaborador é mais barato por token, e a Meta treina com o código enviado a ele.",
   "config.tabModel.enumDescriptions.standard": "muse-spark-1.3: tarifas Standard, sem treino com o seu código.",
@@ -250,5 +250,6 @@
   "config.reports.network.enumDescriptions.always": "Permitir fontes de rede para relatórios.",
   "config.reports.network.enumDescriptions.off": "Ler apenas fontes locais.",
   "config.reports.keepHistory.description": "Manter os 50 relatórios mais recentes de cada tipo neste computador para histórico e comparação.",
-  "config.reports.agentSources.description": "Permitir a leitura dos seus próprios arquivos de uso e limites do Claude Code ou Codex. Padrão: nenhum. O texto das conversas e arquivos de credenciais nunca são lidos como fontes de relatórios."
+  "config.reports.agentSources.description": "Permitir a leitura dos seus próprios arquivos de uso e limites do Claude Code ou Codex. Padrão: nenhum. O texto das conversas e arquivos de credenciais nunca são lidos como fontes de relatórios.",
+  "config.linuxDictationModel.description": "Ativa o ditado gratuito em inglês offline no Linux local x64/arm64. Pede permissão antes de baixar o modelo de 74 MiB. Desativar para o ditado e remove o modelo e o download parcial; ative e recarregue a janela para usar novamente. Windows/macOS não mudam."
 }

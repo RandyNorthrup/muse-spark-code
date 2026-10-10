@@ -1,50 +1,21 @@
-import { EventEmitter } from 'node:events'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CoreLogger } from '../../src/core/logging'
 import {
   Dictation,
   type DictationListener,
   type DictationStatus,
-  type HelperChild,
   type HelperInvocation,
   LineSplitter,
   parseHelperLine,
 } from '../../src/core/voice/dictation'
+import { FakeChild } from './helpers/dictationChild'
 import { captureListener, SILENT_LOG } from './helpers/captureListener'
 import {
   DICTATION_IDLE_EXIT_MS,
   DICTATION_QUIT_GRACE_MS,
   DICTATION_STOP_GRACE_MS,
+  LINUX_DICTATION,
 } from '../../src/shared/constants'
-
-/** A helper process under test control: commands are recorded, output is fed. */
-class FakeChild implements HelperChild {
-  private exitListener: ((description: string) => void) | undefined
-  public readonly stdout = new EventEmitter()
-  public readonly stderr = new EventEmitter()
-  public readonly sent: string[] = []
-  public killCount = 0
-
-  public send(line: string): void {
-    this.sent.push(line)
-  }
-
-  public onExit(listener: (description: string) => void): void {
-    this.exitListener = listener
-  }
-
-  public kill(): void {
-    this.killCount += 1
-  }
-
-  public emitLine(payload: unknown): void {
-    this.stdout.emit('data', Buffer.from(`${JSON.stringify(payload)}\n`))
-  }
-
-  public exit(description: string): void {
-    this.exitListener?.(description)
-  }
-}
 
 const invocation: HelperInvocation = { command: 'helper', args: ['--x'] }
 
@@ -256,6 +227,21 @@ describe('Dictation driver', () => {
     t.dictation.start()
     t.child().exit('could not start: ENOENT')
     expect(t.errors).toEqual(['could not start: ENOENT'])
+  })
+
+  it('lets a CPU helper drain past the OS stop deadline, but still bounds an unresponsive recognizer', () => {
+    const t = setup({ ...invocation, stopGraceMs: LINUX_DICTATION.stopGraceMs })
+    t.dictation.start()
+    t.child().emitLine({ type: 'ready', language: 'en' })
+    t.child().emitLine({ type: 'listening' })
+    t.dictation.stop()
+    vi.advanceTimersByTime(DICTATION_STOP_GRACE_MS)
+    t.child().emitLine({ type: 'text', text: 'late final phrase' })
+    expect(t.texts).toEqual(['late final phrase'])
+    expect(t.errors).toEqual([])
+    vi.advanceTimersByTime(LINUX_DICTATION.stopGraceMs - DICTATION_STOP_GRACE_MS)
+    expect(t.errors).toEqual(['The dictation helper stopped responding'])
+    expect(t.child().killCount).toBe(1)
   })
 
   it('restarts a helper that never confirms a stop', () => {

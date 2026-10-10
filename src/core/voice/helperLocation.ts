@@ -2,11 +2,9 @@
 //
 // Windows: Windows PowerShell 5.1 under %SystemRoot% runs the bundled script
 // on the .NET Framework's System.Speech. macOS: the Swift helper compiled in
-// CI and shipped in the .vsix. Linux: no distribution ships a speech
-// recogniser and the extension adds no third-party engine, so the button
-// explains itself (owner decision 2026-09-22). A remote window: the
-// extension host runs on the other machine, so neither recogniser can hear
-// the user (M26, PLAN.md D29).
+// CI and shipped in the .vsix. Linux: the bundled offline English helper
+// uses consented, pinned weights acquired separately (CM9LNX). A remote
+// workspace host cannot hear the local microphone (M26, PLAN.md D29).
 
 import path from 'node:path'
 import {
@@ -16,6 +14,7 @@ import {
   DICTATION_WINDOWS_CAPTURE_SEGMENTS,
   DICTATION_WINDOWS_SCRIPT_SEGMENTS,
   LINUX_RECORDERS,
+  LINUX_DICTATION,
   UI_TEXT,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
   WINDOWS_PSMODULEPATH_VARIABLE,
@@ -44,6 +43,9 @@ export interface HelperProbe {
   readonly appName: string
   /** The extension's `native/` folder. */
   readonly helperDir: string
+  /** Installed model path; acquisition happens lazily before the helper starts. */
+  readonly linuxModelPath?: string | undefined
+  readonly arch?: string | undefined
   readonly fileExists: (fsPath: string) => boolean
 }
 
@@ -140,15 +142,35 @@ function bundledHelper(
 }
 
 export function locateDictationHelper(probe: HelperProbe): HelperLocation {
-  return (
-    bundledHelper(probe, DICTATION_WINDOWS_SCRIPT_SEGMENTS, []) ?? {
-      isAvailable: false,
-      reason:
-        probe.platform === 'linux'
-          ? UI_TEXT.dictationUnavailableLinux
-          : UI_TEXT.dictationUnavailable,
-    }
-  )
+  const bundled = bundledHelper(probe, DICTATION_WINDOWS_SCRIPT_SEGMENTS, [])
+  if (bundled !== undefined) return bundled
+  if (
+    probe.platform === 'linux' &&
+    probe.linuxModelPath !== undefined &&
+    (probe.arch === 'x64' || probe.arch === 'arm64')
+  ) {
+    const command = path.join(probe.helperDir, 'linux', probe.arch, 'muse-dictate')
+    const libraryDirectory = path.dirname(command)
+    const libraries = [...LINUX_DICTATION.libraries, LINUX_DICTATION.baseline[probe.arch]]
+    if (
+      probe.fileExists(command) &&
+      libraries.every((file) => probe.fileExists(path.join(libraryDirectory, file)))
+    )
+      return {
+        isAvailable: true,
+        invocation: {
+          command,
+          args: ['--model', probe.linuxModelPath],
+          stopGraceMs: LINUX_DICTATION.stopGraceMs,
+          environment: LINUX_DICTATION.environment,
+        },
+      }
+  }
+  return {
+    isAvailable: false,
+    reason:
+      probe.platform === 'linux' ? UI_TEXT.dictationUnavailableLinux : UI_TEXT.dictationUnavailable,
+  }
 }
 
 /**
