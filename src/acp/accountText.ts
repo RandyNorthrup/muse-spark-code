@@ -41,6 +41,17 @@ export function accountErrorText(error: unknown): string {
   // A refused switch repeats its own filled text: the session did stay on
   // its account, so a generic failure would misreport what happened.
   if (isAccountSwitchRefusedError(error)) return error.message
+  // A refused providers file names the refusal: the runtime is already on
+  // the account service, and the file was left untouched. Brand-checked like
+  // the refused switch above, since each bundle carries its own copy of the
+  // store error constructor.
+  if (
+    error instanceof Error &&
+    error.name === 'AccountStoreError' &&
+    'code' in error &&
+    error.code === 'invalidProvidersFile'
+  )
+    return UI_TEXT.accounts.providersInvalid
   return error instanceof Error && error.message === UI_TEXT.accounts.invalidAccount
     ? UI_TEXT.accounts.invalidAccount
     : UI_TEXT.accounts.unavailable

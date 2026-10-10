@@ -8,6 +8,8 @@ import {
   serveAccountsPort,
   type AccountsPanelPort,
 } from '../../src/acp/accounts'
+import { accountErrorText } from '../../src/acp/accountText'
+import { AccountStoreError } from '../../src/core/providers/accountCredentialRecord'
 import { fill } from '../../src/shared/l10n/text'
 import { createAcpAgent, type AcpAgentDeps } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
@@ -26,6 +28,17 @@ import { memoryPaidGrants } from './helpers/paidGrants'
 class ForeignRefusal extends Error {
   public override readonly name = 'AccountSwitchRefusedError'
   public readonly code = 'accountSwitchRefused'
+}
+
+/** A refused providers file from another bundle: same shape and brand, but a
+ * different constructor, so `instanceof` the shipped class is false. */
+class ForeignStoreError extends Error {
+  public override readonly name = 'AccountStoreError'
+  public readonly code = 'invalidProvidersFile'
+
+  public constructor() {
+    super('invalidProvidersFile')
+  }
 }
 
 function foreignRefusal(message: string): ForeignRefusal {
@@ -952,6 +965,17 @@ describe('M108 ACP accounts', () => {
       await expectRefusedSwitch(client, id, 'This session stays on meta · Default.')
       expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
     })
+  })
+
+  it('names a refused providers file by its brand instead of the connection sentence', () => {
+    // The producer bundle carries its own copy of the store error
+    // constructor, so `instanceof` is false here: only the brand travels.
+    const foreign = new ForeignStoreError()
+    expect(foreign).not.toBeInstanceOf(AccountStoreError)
+    expect(accountErrorText(foreign)).toBe(UI_TEXT.accounts.providersInvalid)
+    expect(accountErrorText(new AccountStoreError('unavailable'))).toBe(
+      UI_TEXT.accounts.unavailable,
+    )
   })
 })
 

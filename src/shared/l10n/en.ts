@@ -5996,6 +5996,8 @@ export const EN = {
       'Headless accounts: {command} exec --account <id> [--account-pool]. CI with --key-stdin uses only the default account and never swaps.',
     unavailable:
       'Accounts are unavailable until this runtime is connected to the shared account service.',
+    providersInvalid:
+      'The providers file is invalid, so its entries were refused and the file was left unchanged.',
     poolUnavailable:
       'Account pooling is unavailable in this runtime: it needs a bound resource owner. Run again without --account-pool.',
     cliUsage:
