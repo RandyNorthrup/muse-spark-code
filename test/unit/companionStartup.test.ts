@@ -76,6 +76,29 @@ function startHeld(signal?: AbortSignal) {
   return { started, servers }
 }
 
+/**
+ * RVCOMPSUB finding 1 guard: `closed` must settle promptly from the asserted
+ * cause, never from the 5000 ms idle timer. A background timer that settles
+ * the same promise would otherwise let the test pass with the cause removed.
+ */
+async function settlesBeforeIdle(closed: Promise<void>): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    let isSettled = false
+    const watch = (async (): Promise<void> => {
+      await closed
+      isSettled = true
+    })()
+    const waitIdle = new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, 1000)
+    })
+    await Promise.race([watch, waitIdle])
+    expect(isSettled).toBe(true)
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 describe('companion startup races', () => {
   it('rejects with a listen error fired before startup resolves', async () => {
     const { started, servers } = startHeld()
@@ -98,8 +121,9 @@ describe('companion startup races', () => {
     servers[0]!.release()
     const panel = await started
     try {
-      await panel.closed
+      await settlesBeforeIdle(panel.closed)
       expect(() => panel.launchUrl()).toThrow('EPANEL_CLOSED')
+      expect(servers[0]!.closedCalls).toBe(1)
     } finally {
       await panel.close()
     }
@@ -111,10 +135,24 @@ describe('companion startup races', () => {
     const panel = await started
     try {
       servers[0]!.emit('error', new Error('synthetic post-startup failure'))
-      await panel.closed
+      await settlesBeforeIdle(panel.closed)
       expect(() => panel.launchUrl()).toThrow('EPANEL_CLOSED')
+      expect(servers[0]!.closedCalls).toBe(1)
     } finally {
       await panel.close()
     }
+  })
+  it('rejects at once when the caller aborts while the bind is in flight', async () => {
+    const controller = new AbortController()
+    const intBefore = process.listenerCount('SIGINT')
+    const termBefore = process.listenerCount('SIGTERM')
+    const { started, servers } = startHeld(controller.signal)
+    controller.abort()
+    // The bind is never released: only the pre-await abort path can settle
+    // this, with the same reason the post-bind re-check would throw.
+    await expect(started).rejects.toThrow('This operation was aborted')
+    expect(servers[0]!.closedCalls).toBe(1)
+    expect(process.listenerCount('SIGINT')).toBe(intBefore)
+    expect(process.listenerCount('SIGTERM')).toBe(termBefore)
   })
 })

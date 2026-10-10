@@ -260,12 +260,21 @@ export async function startCompanionServer<Input, Output>(
   // Every lifecycle listener is attached before the first await below, so no
   // event can fire before its subscriber exists. An error or close that lands
   // while the bind is in flight rejects startup; a process signal that lands
-  // in the same window is buffered and shuts the server down once it is up.
+  // in the same window is buffered and shuts the server down once it is up;
+  // aborting options.signal in the same window rejects startup at once with
+  // the signal's reason instead of waiting out the bind.
   let isListening = false
   let rejectStartup: ((error: unknown) => void) | undefined
   const earlySignal = new AbortController()
   const onEarlySignal = (): void => {
     earlySignal.abort()
+  }
+  const onCallerAbort = (): void => {
+    try {
+      options.signal?.throwIfAborted()
+    } catch (error) {
+      rejectStartup?.(error)
+    }
   }
   const onServerError = (error: unknown): void => {
     if (isListening) onSignal()
@@ -279,6 +288,7 @@ export async function startCompanionServer<Input, Output>(
     }
     if (closing === undefined) onSignal()
   })
+  options.signal?.addEventListener('abort', onCallerAbort)
   process.once('SIGINT', onEarlySignal)
   process.once('SIGTERM', onEarlySignal)
   try {
@@ -311,6 +321,7 @@ export async function startCompanionServer<Input, Output>(
     await close()
     throw error
   } finally {
+    options.signal?.removeEventListener('abort', onCallerAbort)
     process.off('SIGINT', onEarlySignal)
     process.off('SIGTERM', onEarlySignal)
   }
