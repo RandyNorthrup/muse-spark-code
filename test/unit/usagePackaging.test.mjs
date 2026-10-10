@@ -93,6 +93,7 @@ function fixture() {
     'pageWorker',
     'usageService',
     'usageCompanion',
+    'voiceCompanion',
     'fontsInstall',
     'scheduleBackground',
     'reporting',
@@ -159,6 +160,11 @@ function fixture() {
   }
   for (const file of Object.keys(outputs)) put(file, '/* usage asset */')
   put('dist/webview/main.js', '/* chat must not ship */')
+  // The packager copies the companion page beside the usage assets
+  // (scripts/package-acp.mjs pageAssets); stub both so the tarball
+  // assertion below runs instead of failing in requireBundles.
+  put('dist/webview/voiceCompanion.js', '/* companion page fixture */')
+  put('dist/webview/voiceCompanion.css', '/* companion page fixture */')
   put('dist/webview/usage.js.map', '/* private source paths must not ship */')
   put('dist/meta/usageWebview.json', JSON.stringify({ outputs }))
   return {
