@@ -664,3 +664,52 @@ it('records best-of-N requests once with the attempt kind and its own session', 
     await manager.dispose()
   }
 })
+
+it('R4-2: the worker host awaits its priced request reservation before transport', async () => {
+  const m = manager('/ws')
+  const held = Promise.withResolvers<undefined>()
+  const reached = Promise.withResolvers<undefined>()
+  const reserveUsage = vi.fn(
+    async (_maximum: {
+      inputTokens: number
+      outputTokens: number
+      costUsd?: string | undefined
+    }) => {
+      reached.resolve(undefined)
+      await held.promise
+    },
+  )
+  const worker = await m.manager.buildTeamWorkerHost(
+    '/copy',
+    Object.assign(() => undefined, { reserveUsage }),
+    () => undefined,
+    undefined,
+    (io) => io,
+  )
+  try {
+    const session = await worker.startSession({
+      workspaceRoot: '/copy',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'allowAll',
+    })
+    const turns = watchSessionTurns(session)
+    m.api.script({ text: 'worker result' })
+    await session.sendTurn([{ type: 'text', text: 'work' }])
+    await reached.promise
+    expect(m.api.responseBodies()).toEqual([])
+    expect(reserveUsage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inputTokens: expect.any(Number),
+        outputTokens: expect.any(Number),
+        costUsd: expect.any(String),
+      }),
+    )
+    held.resolve(undefined)
+    await turns.turnDone()
+    expect(m.api.responseBodies()).toHaveLength(1)
+  } finally {
+    held.resolve(undefined)
+    await worker.close()
+    await m.manager.dispose()
+  }
+})

@@ -5,7 +5,11 @@
 // and `blocked` carries the questions that need the user.
 
 import * as z from 'zod/mini'
-import { parseReviewFindings, type ReviewFinding } from '../../../shared/reviewFindings'
+import {
+  parseReviewFindings,
+  reviewFindingSchema,
+  type ReviewFinding,
+} from '../../../shared/reviewFindings'
 import { WORKER_UNSTRUCTURED_SUMMARY_MAX_CHARS } from '../../../shared/constants'
 import { WORKER_REPORT_FENCE, WORKER_REVIEW_FENCE } from './workerTypes'
 
@@ -21,6 +25,7 @@ const reportSchema = z
     sources: z.optional(z.array(z.string())),
     questions: z.optional(z.array(z.string().check(z.refine(hasVisibleText)))),
     next: z.optional(z.string()),
+    findings: z.optional(z.array(reviewFindingSchema)),
   })
   .check(z.refine((report) => report.status !== 'blocked' || (report.questions?.length ?? 0) > 0))
 

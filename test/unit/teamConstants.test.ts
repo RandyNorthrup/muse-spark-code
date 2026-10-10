@@ -1,3 +1,8 @@
+import {
+  teamReportSchema,
+  teamReportStatusSchema,
+  teamReportStatuses,
+} from '../../src/shared/teamReport'
 // M96 lane 0: the team constants, charter templates, schemas and protocol
 // region. Every test here can fail: each guards a value or shape another
 // lane builds on, with its red drill recorded in docs/certification/m96-0.md.
@@ -110,11 +115,8 @@ import {
   teamLedgerTotalsRowSchema,
   teamModelSettingsSchema,
   teamPoolEntrySchema,
-  teamReportSchema,
   teamReportShapeSchema,
   teamReportShapes,
-  teamReportStatusSchema,
-  teamReportStatuses,
   teamRoleConfigSchema,
   teamRolesSaveSchema,
   teamRolesUpdateSchema,

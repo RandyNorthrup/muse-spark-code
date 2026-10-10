@@ -1057,7 +1057,11 @@ const TEXT_BLOCKS = [
   },
   // M96 workers are not wired into a shipped bundle yet: forbid their text everywhere.
   // C-M96-3: the engine workers' prompt assembly loads with the team host.
-  { block: 'WORKER_MODEL_TEXT', sentinels: ['boundedExcerpt'], readers: ['dist/teamHost.js'] },
+  {
+    block: 'WORKER_MODEL_TEXT',
+    sentinels: ['boundedExcerpt'],
+    readers: ['dist/teamHost.js', 'dist/teamFileIo.js'],
+  },
   {
     block: 'QUESTION_MODEL_TEXT',
     sentinels: ['deferredClarification'],

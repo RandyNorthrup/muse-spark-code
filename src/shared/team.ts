@@ -155,30 +155,7 @@ export type TeamIntensity = z.infer<typeof teamIntensitySchema>
 export const teamRubricReasonSchema = z.enum(TEAM_RUBRIC_REASON_CODES)
 export type TeamRubricReason = z.infer<typeof teamRubricReasonSchema>
 
-// A worker's report status (D75). `unstructured` is assigned by the parser
-// to a last message with no valid block, never sent by a worker.
-export const teamReportStatuses = [
-  'done',
-  'partial',
-  'blocked',
-  'failed',
-  'capped',
-  'unstructured',
-] as const
-export const teamReportStatusSchema = z.enum(teamReportStatuses)
-export type TeamReportStatus = z.infer<typeof teamReportStatusSchema>
-
-/** A report in its fenced block, parsed with zod as M70's `muse-review` is. */
-export const teamReportSchema = z.object({
-  status: teamReportStatusSchema,
-  summary: z.string().check(z.minLength(1)),
-  files: z.optional(z.array(z.string())),
-  checks: z.optional(z.array(z.string())),
-  sources: z.optional(z.array(z.string())),
-  questions: z.optional(z.array(z.string())),
-  next: z.optional(z.string()),
-})
-export type TeamReport = z.infer<typeof teamReportSchema>
+export type { TeamReport, TeamReportStatus } from './teamReport'
 
 // A task's live state (D75, lane K): active while it can still move, idle
 // once finished but still open to `continue`, the rest terminal.

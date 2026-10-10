@@ -24,7 +24,12 @@ import {
   type WorkerFenceIo,
 } from './workerFence'
 import { scrubWorkerEnv } from './workerEnv'
-import { extractTeamReport, parseReportJson, type WorkerReportOutcome } from './report'
+import {
+  extractReviewFindings,
+  extractTeamReport,
+  parseReportJson,
+  type WorkerReportOutcome,
+} from './report'
 import { type WorkerPromptParts, type WorkerRolePolicy, type WorkerTask } from './workerTypes'
 import {
   routeChecks,
@@ -244,10 +249,18 @@ export function resolveWorkerReport(input: {
   if (input.reportedText !== undefined) {
     const direct = parseReportJson(input.reportedText)
     if (direct !== undefined) {
-      return { ok: true, report: direct }
+      const findings = direct.findings ?? extractReviewFindings(input.lastMessage ?? '')
+      return {
+        ok: true,
+        report: { ...direct, ...(findings !== undefined && { findings: [...findings] }) },
+      }
     }
   }
-  return extractTeamReport(input.lastMessage ?? '')
+  const result = extractTeamReport(input.lastMessage ?? '')
+  const findings = extractReviewFindings(input.lastMessage ?? '')
+  return findings !== undefined && result.ok && result.report.findings === undefined
+    ? { ...result, report: { ...result.report, findings: [...findings] } }
+    : result
 }
 
 /** A limit error's handoff: lane A's marks, per agent (acceptances 8–9). */

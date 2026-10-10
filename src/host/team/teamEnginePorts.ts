@@ -52,7 +52,6 @@ import type {
 } from '../../core/team/teamHostService'
 import type { ResponseAttemptGuard } from '../../core/backends/modelapi/transport'
 import type { ToolIo } from '../../core/backends/modelapi/tools'
-import { fenceWorkerToolIo } from '../../core/team/workers/workerToolIo'
 import { assertWorkerRoot } from '../../core/team/workers/workerFence'
 
 /** One worker conversation the host started in the task's copy. */
@@ -139,8 +138,8 @@ function addUsage(total: TeamUsage, usage: SubagentUsage): TeamUsage {
     output: total.output + usage.outputTokens,
     reasoning: total.reasoning,
     modelCalls: total.modelCalls + 1,
-    ...(usage.costUsd !== undefined && {
-      costUsd: (total.costUsd ?? 0) + Number(usage.costUsd),
+    ...((total.costUsd !== undefined || usage.costUsd !== undefined) && {
+      costUsd: (total.costUsd ?? 0) + Number(usage.costUsd ?? 0),
     }),
     estimated: total.estimated,
   }
@@ -192,6 +191,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
   }
 
   const runTask = async (spec: TeamTaskSpec, signal: AbortSignal): Promise<TeamWorkerOutcome> => {
+    signal.throwIfAborted()
     if (!deps.isTrusted()) throw new Error(TEAM_MODEL_TEXT.hostUntrusted)
     const repositoryRoot = repository()
     const builtin = builtinRoles().find((role) => role.id === spec.role.role)
@@ -216,15 +216,16 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
           })
         : { folder: previous.folder, branch: previous.branch, agentsRef: previous.agentsRef }
     const isNewCopy = previous?.folder === undefined
-    if (isNewCopy)
-      spec.meter.noteWorkspace({
+    let usage = EMPTY_USAGE
+    let meterWrites = Promise.resolve()
+    let requestOrdinal: number | undefined
+    try {
+      await spec.meter.noteWorkspace({
         folder: workspace.folder,
         baseCommit,
         branch: workspace.branch,
         agentsRef: workspace.agentsRef,
       })
-    let usage = EMPTY_USAGE
-    try {
       signal.throwIfAborted()
       const groups = spec.role.tools ?? TEAM_ROLE_TOOLSETS[builtin.id]
       const writePaths = spec.role.writePaths ?? builtin.writePaths
@@ -236,10 +237,31 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       }
       // The copy's identity is retained now: a replaced copy refuses every later call.
       const grant = await assertWorkerRoot(fenceInput)
-      const admit = (): void => {
+      const check = (): void => {
         signal.throwIfAborted()
-        spec.meter.admitRequest()
+        spec.meter.admitRequest(true)
       }
+      const admit: ResponseAttemptGuard = Object.assign(check, {
+        reserveUsage: async (maximum: {
+          inputTokens: number
+          outputTokens: number
+          costUsd?: string | undefined
+        }) => {
+          check()
+          await meterWrites
+          requestOrdinal = await spec.meter.reserveRequest({
+            ...EMPTY_USAGE,
+            input: maximum.inputTokens,
+            output: maximum.outputTokens,
+            modelCalls: 1,
+            estimated: true,
+            ...(maximum.costUsd !== undefined && { costUsd: Number(maximum.costUsd) }),
+          })
+          check()
+        },
+      })
+      const { fenceWorkerToolIo } = await import('../../core/team/workers/workerToolIoEntry')
+      check()
       const worker = await deps.startWorker({
         folder: workspace.folder,
         modelId: spec.entry.agent.model,
@@ -248,7 +270,26 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         admit,
         noteUsage: (_modelId, reported) => {
           usage = addUsage(usage, reported)
-          spec.meter.noteUsage(usage)
+          const saved =
+            requestOrdinal === undefined
+              ? spec.meter.noteUsage(usage)
+              : spec.meter.settleRequest(requestOrdinal, {
+                  ...EMPTY_USAGE,
+                  input: reported.inputTokens,
+                  cachedInput: reported.cachedTokens,
+                  output: reported.outputTokens,
+                  modelCalls: 1,
+                  ...(reported.costUsd !== undefined && { costUsd: Number(reported.costUsd) }),
+                })
+          const previousWrite = meterWrites
+          meterWrites = (async () => {
+            await Promise.all([previousWrite, saved])
+          })()
+          // Completion and the next reservation await this write; the rejection
+          // is consumed here because the engine's usage callback is synchronous.
+          void meterWrites.catch(() => {
+            // The write already recorded its failure on the service.
+          })
         },
         parentSessionId: spec.parentSessionId,
         fenceIo: (io) =>
@@ -261,7 +302,10 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
               ...(writePaths !== undefined && { writePaths }),
               reportShape: spec.role.report ?? builtin.report,
             },
-            admit,
+            admit: () => {
+              signal.throwIfAborted()
+              spec.meter.admitRequest()
+            },
           }),
       })
       const adapter = new AgentWorktreeSession(worker.session, noTerminalWork)
@@ -344,11 +388,13 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         signal.removeEventListener('abort', stop)
         await worker.close()
       }
+      await meterWrites
       signal.throwIfAborted()
       const report = teamReport(result.report, result.outcome.ceilingReached)
       if (mode === 'read-only') {
         const breach = await scratchBreach(runGit, workspace.folder)
         await removeTeamWorkspace(runGit, repositoryRoot, await storage(), workspace.folder)
+        await spec.meter.noteWorkspace(undefined)
         return {
           report:
             breach.length === 0
@@ -387,6 +433,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         )
         .split('\0')
         .filter((name) => name !== '')
+      signal.throwIfAborted()
       return {
         report,
         usage,
@@ -409,8 +456,11 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
             workspace.folder,
             workspace.agentsRef,
           )
+          await spec.meter.noteWorkspace(undefined)
         } catch {
-          deps.log.warn(`Team task ${spec.taskId}: its working copy could not be removed`)
+          deps.log.warn(
+            `Team task ${spec.taskId}: its cleanup or recovery record could not be completed`,
+          )
         }
       }
       throw error

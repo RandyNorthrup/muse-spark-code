@@ -8,6 +8,7 @@ import { mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { resolveWorkerReport } from '../../src/core/team/workers/engineWorker'
 import { createEngineTeamPorts, processTeamGit } from '../../src/host/team/teamEnginePorts'
 import type { TeamTaskSpec, TeamTaskWorkspace } from '../../src/core/team/teamHostService'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
@@ -93,8 +94,10 @@ function spec(
     parentSessionId: 's1',
     meter: {
       admitRequest: () => undefined,
-      noteUsage: () => undefined,
-      noteWorkspace: () => undefined,
+      reserveRequest: () => Promise.resolve(0),
+      settleRequest: () => Promise.resolve(),
+      noteUsage: () => Promise.resolve(),
+      noteWorkspace: () => Promise.resolve(),
     },
     ...extra,
   }
@@ -235,9 +238,12 @@ describe('the engine worker port after the RVCM963 review', () => {
       admitRequest: () => {
         if (!isAdmitted) throw new Error('revoked')
       },
-      noteUsage: () => undefined,
-      noteWorkspace: (workspace: TeamTaskWorkspace) => {
-        workspaces.push(workspace)
+      noteUsage: () => Promise.resolve(),
+      reserveRequest: () => Promise.resolve(0),
+      settleRequest: () => Promise.resolve(),
+      noteWorkspace: (workspace: TeamTaskWorkspace | undefined) => {
+        if (workspace !== undefined) workspaces.push(workspace)
+        return Promise.resolve()
       },
     }
     const outcome = await ports.workers.run(
@@ -250,14 +256,10 @@ describe('the engine worker port after the RVCM963 review', () => {
     isAdmitted = false
     expect(() => worker?.admit(undefined)).toThrow('revoked')
     isAdmitted = true
-    const writes: string[] = []
     const base: ToolIo = {
       readFile: () => Promise.resolve(undefined),
       readBytes: () => Promise.resolve(undefined),
-      writeFile: (absolute) => {
-        writes.push(absolute)
-        return Promise.resolve()
-      },
+      writeFile: () => Promise.reject(new Error('the handle writes, never the base callback')),
       writeFileIfUnchanged: () => Promise.reject(new Error('unused')),
       pathExists: () => Promise.resolve(false),
       reserveFile: () => Promise.reject(new Error('unused')),
@@ -272,7 +274,7 @@ describe('the engine worker port after the RVCM963 review', () => {
     const folder = outcome.folder ?? ''
     await expect(fenced?.writeFile(path.join(folder, '.git', 'config'), 'x')).rejects.toThrow()
     await fenced?.writeFile(path.join(folder, 'tracked.txt'), 'y')
-    expect(writes).toEqual([path.join(folder, 'tracked.txt')])
+    expect(await readFile(path.join(folder, 'tracked.txt'), 'utf8')).toBe('y')
   })
 
   it('14: merges a protected path only with the approval the merge card gave', async () => {
@@ -315,4 +317,14 @@ describe('the engine worker port after the RVCM963 review', () => {
     ).rejects.toThrow()
     expect(await readFile(path.join(root, 'tracked.txt'), 'utf8')).toBe('before\n')
   })
+})
+
+it('R4-11: the production report parser preserves structured review findings', () => {
+  const finding = { file: 'a.ts', line: 2, severity: 'P1', title: 'unsafe', detail: 'race detail' }
+  expect(
+    resolveWorkerReport({
+      reportedText: JSON.stringify({ status: 'done', summary: 'complete', findings: [finding] }),
+      lastMessage: undefined,
+    }),
+  ).toMatchObject({ ok: true, report: { findings: [finding] } })
 })

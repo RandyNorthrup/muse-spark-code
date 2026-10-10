@@ -139,9 +139,13 @@ export interface TeamTaskWorkspace {
  * each response; `noteWorkspace` records the copy as soon as it exists.
  */
 export interface TeamTaskMeter {
-  readonly admitRequest: () => void
-  readonly noteUsage: (usage: TeamUsage) => void
-  readonly noteWorkspace: (workspace: TeamTaskWorkspace) => void
+  readonly admitRequest: (hasReservation?: boolean) => void
+  /** Maximum liability for this exact attempt, durably held before dispatch. */
+  readonly reserveRequest: (maximum: TeamUsage) => Promise<number>
+  /** Settlement belongs to this exact request, including a late report. */
+  readonly settleRequest: (requestOrdinal: number, usage: TeamUsage) => Promise<void>
+  readonly noteUsage: (usage: TeamUsage) => Promise<void>
+  readonly noteWorkspace: (workspace: TeamTaskWorkspace | undefined) => Promise<void>
 }
 
 /** One task as the service hands it to the editor's worker port. */
