@@ -26364,9 +26364,11 @@ serve`."
 
 ### M96b — The team in the ACP agent and headless runs (D75)
 
-**Status 2026-10-04: planned.**
+**Status 2026-10-10 (C-M96b-0 contracts; acceptance review pending): building.**
 
-Status detail retained: planned; starts after M96 merges.
+Status detail retained: planned; starts after M96 merges. C-M96b-0 froze the
+ACP mapping and exec flag contracts (`src/acp/teamContracts.ts`, certified in
+`docs/certification/m96b-0.md`); the wiring follows in C-M96b-1/2.
 
 - **Goal.** The same team, roles, pools and caps work in the ACP agent (D62)
   and in headless `exec` (D65), with each surface's own way of asking.

@@ -30,6 +30,17 @@ happened, not what was planned; superseded entries are kept.
   chip and status adapter once their M104 bridges bind them; none does yet.
   ACP and terminals keep `/resources` and `resources status|resume`.
 
+- **Team contracts for other editors and headless runs** (M96b, contracts
+  only). The frozen mapping those surfaces will use: a worker approval
+  becomes an ACP permission request titled `{role} · {agent}: {detail}`; a
+  task is a `tool_call` whose report is text content and whose diff is
+  `diff` content; the merge is a permission request carrying the diff; the
+  agent map goes out as a `plan` with one entry per running task.
+  `exec --team` parses and validates (Model API backend, `acceptEdits`,
+  hard budget) but exits 2 with an explicit error; it never runs a `--team`
+  request as a single session. Team runs in the ACP agent and headless
+  follow in their own lanes.
+
 ### Changed
 
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
