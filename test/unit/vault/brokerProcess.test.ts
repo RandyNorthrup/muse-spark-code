@@ -38,8 +38,8 @@ vi.mock('../../../src/core/resources/launcher', async () => {
   }
 })
 const heldLocks = new Set<Awaited<ReturnType<typeof holdVaultStartupLock>>>()
-async function hold(file: string) {
-  const held = await holdVaultStartupLock(native.helper, file)
+async function hold(file: string, helper: string = native.helper) {
+  const held = await holdVaultStartupLock(helper, file)
   heldLocks.add(held)
   return held
 }
@@ -63,12 +63,50 @@ afterEach(async () => {
     }),
   )
 })
-const native = { directory: '', helper: '', childEntry: '' }
+const native = { directory: '', helper: '', childEntry: '', suicide: '' }
 beforeAll(async () => {
   if (process.platform === 'win32') return
   native.directory = await mkdtemp(path.join(os.tmpdir(), 'cm109-broker-'))
   native.helper = path.join(native.directory, 'peer')
   native.childEntry = path.join(native.directory, 'child.cjs')
+  // A startup-lock guardian that reports readiness with one synchronous write
+  // and then dies by signal, like a guardian killed after readiness but before
+  // onLost subscribes (exitCode stays null, signalCode is set). Compiled C, so
+  // it runs under the production empty environment with no interpreter lookup.
+  native.suicide = path.join(native.directory, 'suicide')
+  await writeFile(
+    path.join(native.directory, 'suicide.c'),
+    [
+      '#include <stdio.h>',
+      '#include <stdlib.h>',
+      '#include <string.h>',
+      '#include <time.h>',
+      '#include <unistd.h>',
+      '#include <signal.h>',
+      'int main(int argc, char **argv) {',
+      '  if (argc > 1 && strcmp(argv[1], "identity") == 0) {',
+      '    int pid = argc > 2 ? atoi(argv[2]) : 0;',
+      String.raw`    printf("{\"processId\":%d,\"userId\":\"%d\",\"startedAt\":%lld,\"executable\":\"suicide\"}\n",`,
+      '      pid, (int)getuid(), (long long)time(0));',
+      '    return 0;',
+      '  }',
+      String.raw`  static const char ready[] = "{\"v\":1,\"locked\":true}\n";`,
+      '  if (write(STDOUT_FILENO, ready, sizeof(ready) - 1) < 0) return 1;',
+      '  kill(getpid(), SIGKILL);',
+      '  return 1;',
+      '}',
+      '',
+    ].join('\n'),
+  )
+  execFileSync('/usr/bin/cc', [
+    '-Os',
+    '-Wall',
+    '-Wextra',
+    '-Werror',
+    path.join(native.directory, 'suicide.c'),
+    '-o',
+    native.suicide,
+  ])
   execFileSync('/usr/bin/cc', [
     '-Os',
     '-Wall',
@@ -362,6 +400,47 @@ describe.skipIf(process.platform === 'win32')('POSIX vault broker lifecycle', ()
       client.close()
     } finally {
       await handle.close()
+    }
+  })
+  it('notifies lock loss when the guardian died by signal before subscribing', async () => {
+    const file = path.join(native.directory, 'signal.lock')
+    const held = await hold(file, native.suicide)
+    heldLocks.delete(held)
+    try {
+      // Let the reaper run so the death is fully in the past: exitCode is null
+      // and only signalCode records the kill, exactly the missed state.
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      let notified = 0
+      held.onLost(() => {
+        notified += 1
+      })
+      // The replay is synchronous; one more turn covers a not-yet-reaped exit.
+      await new Promise((resolve) => setImmediate(resolve))
+      expect(notified).toBe(1)
+    } finally {
+      await held.release()
+    }
+  })
+  it('refuses startup when the guardian died by signal before lock-loss subscribes', async () => {
+    const f = await fixture('guardian-signal', 1000)
+    // A channel double that never binds: reaching it proves startup wrongly
+    // survived the dead guardian (this also keeps the test sandbox-proof,
+    // since real socket listen is unavailable under some sandboxes).
+    const reachedChannel = vi.fn(() => ({
+      listen: () => Promise.resolve(),
+      close: () => Promise.resolve(),
+    }))
+    try {
+      await expect(
+        start({ ...f.options, helper: native.suicide, channel: reachedChannel }),
+      ).rejects.toThrow()
+      expect(reachedChannel).not.toHaveBeenCalled()
+      const discovery = new VaultBrokerDiscovery(f.options.runDirectory, f.options.userSession)
+      await expect(stat(path.join(discovery.directory, 'broker.sock'))).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+    } finally {
+      await f.f.broker.dispose()
     }
   })
 })

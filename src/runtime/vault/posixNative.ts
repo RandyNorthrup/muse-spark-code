@@ -151,7 +151,9 @@ export async function holdVaultStartupLock(
         child.once('exit', () => {
           if (!hasReleased) listener()
         })
-        if (!hasReleased && child.exitCode !== null) listener()
+        // A signal kill leaves exitCode null, so a death already reaped before
+        // this subscription would otherwise be missed: re-check signalCode too.
+        if (!hasReleased && (child.exitCode !== null || child.signalCode !== null)) listener()
       },
     }
   } finally {
