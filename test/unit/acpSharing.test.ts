@@ -383,7 +383,7 @@ describe('M118 ACP local commands over the SDK prompt path', () => {
     it('keeps an unexpected sharing failure internal with no path or prompt text', async () => {
       const secret = 'lstat failed under /home/someone/private for sentinel-prompt-text'
       const local = sharingHarness()
-      local.renderPreview.mockRejectedValueOnce(new Error(secret))
+      local.renderPreview.mockRejectedValueOnce(new TypeError(secret))
       const h = acpHarness(createAcpSharing(local.commands, () => local.ui))
       await h.run(async (client, sessionId) => {
         const failure = await refusedWire(client, sessionId, '/share chat')
@@ -398,13 +398,39 @@ describe('M118 ACP local commands over the SDK prompt path', () => {
       })
       expect(local.release).not.toHaveBeenCalled()
       expect(h.log.warn).toHaveBeenCalledWith(expect.stringContaining('sharing command failed'))
+      // The log names the underlying fault, not the adapter's wrapper.
+      expect(h.log.warn).toHaveBeenCalledWith(expect.stringContaining('TypeError'))
+      expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain('AcpSharingFailure')
       expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain('/home/someone')
       expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain('sentinel-prompt-text')
+    })
+    it('carries the original fault as cause on an internal sharing failure', async () => {
+      const fault = new TypeError('lstat failed under /home/someone/private')
+      const local = sharingHarness()
+      local.renderPreview.mockRejectedValueOnce(fault)
+      const port = createAcpSharing(local.commands, () => local.ui)
+      let failure: unknown
+      try {
+        await port.execute('/share chat', {
+          cwd: SHARING_CWD,
+          sessionId: 's',
+          isActive: () => true,
+          signal: new AbortController().signal,
+        })
+      } catch (error: unknown) {
+        failure = error
+      }
+      expect(isAcpSharingFailure(failure)).toBe(true)
+      expect(failure).toMatchObject({
+        code: acp.RequestError.internalError().code,
+        message: UI_TEXT.actionFailed,
+      })
+      expect((failure as Error).cause).toBe(fault)
     })
     it('keeps a prompt-store failure internal with no raw text', async () => {
       const local = sharingHarness()
       local.storageFor.mockImplementationOnce(() => ({
-        list: () => Promise.reject(new Error('readdir /home/someone/prompts: denied')),
+        list: () => Promise.reject(new TypeError('readdir /home/someone/prompts: denied')),
         write: local.write,
         remove: () => Promise.reject(new Error('unused remove in fake')),
       }))
@@ -420,6 +446,9 @@ describe('M118 ACP local commands over the SDK prompt path', () => {
         expect(wire).not.toContain(UI_TEXT.promptFileInvalid)
       })
       expect(h.log.warn).toHaveBeenCalledWith(expect.stringContaining('sharing command failed'))
+      // The log names the underlying fault, not the adapter's wrapper.
+      expect(h.log.warn).toHaveBeenCalledWith(expect.stringContaining('TypeError'))
+      expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain('AcpSharingFailure')
       expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain('/home/someone')
     })
     it.each([['/share chat --typo'], [String.raw`/share "a\xb"`]])(

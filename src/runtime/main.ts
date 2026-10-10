@@ -1232,7 +1232,7 @@ async function main(): Promise<number> {
       return await runtimeSharingLoader(
         path.join(distDir, 'sharingRuntime.js'),
         log,
-      )().runRuntimeSharing(command, sharingPorts(log), UI_TEXT, uiLocale())
+      )().runRuntimeSharing(command, sharingPorts(log), UI_TEXT, uiLocale(), log)
     }
     case 'schedule': {
       const load = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)

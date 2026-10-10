@@ -21,7 +21,9 @@ export function promptBundleLoader(bundlePath: string, log: Logger): () => Promp
     bundlePath,
     log,
     isBundle: isPromptBundle,
+    // A bundle that cannot load is an installation fault, not a prompt-file
+    // error; the loader already logged the cause.
     label: 'prompts',
-    unavailable: () => UI_TEXT.promptFileInvalid,
+    unavailable: () => UI_TEXT.actionFailed,
   })
 }
