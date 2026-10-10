@@ -108,16 +108,19 @@ function missingEstimateBinding(dependency: string): never {
 }
 
 /**
- * The refusing milestone bindings every shell assembles (M117, PLAN.md D97):
- * this machine measured as the fleet; the snapshot, board, broker and catalog
- * bindings refuse with their handoff names until those merge; history appends
- * arrive with M115's lane-finished trigger. Only the price lookup differs.
+ * The milestone bindings every shell assembles (M117, PLAN.md D97): this
+ * machine measured as the fleet; the snapshot reads the workspace plan
+ * through the shared core adapter (C-M117-1); the board, broker and catalog
+ * bindings refuse with their handoff names until those merge; history
+ * appends arrive with M115's lane-finished trigger. Only the price lookup
+ * differs.
  */
 export function estimatorSourcePorts(
   priceLookup: EstimatorSourcePorts['priceLookup'],
+  snapshot: EstimatorSourcePorts['snapshot'],
 ): EstimatorSourcePorts {
   return {
-    snapshot: () => missingEstimateBinding('M117-W-M113-plan-reader'),
+    snapshot,
     fleet: (lanes) => Promise.resolve(localFleet(lanes)),
     history: () => Promise.resolve([]),
     candidatePool: (lanes) => Promise.resolve(localFleet(lanes)),

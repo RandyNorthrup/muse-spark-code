@@ -36,6 +36,7 @@ import {
   CONVERSATION_BUNDLE_FILE,
   BUNDLED_SKILLS_BUNDLE_FILE,
   ESTIMATOR_BUNDLE_FILE,
+  PLAN_SNAPSHOT_BUNDLE_FILE,
   BUNDLED_SKILLS_SETTING,
   WHATS_NEW_BUNDLE_FILE,
   WHATS_NEW_CLAIMS_DIR,
@@ -268,6 +269,7 @@ import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
 import { lazyReview } from './host/review/reviewBundle'
 import { lazyEstimator } from './host/estimator/estimatorBundle'
 import { estimatorSourcePorts } from './host/estimator/localFleet'
+import { planSnapshotLoader } from './host/estimator/planSnapshotBundle'
 import { PendingPrompts, type BoardSession } from './core/sessionBoard'
 import { BestOfNCoordinator } from './core/bestOfN/bestOfNCoordinator'
 import { createMemoryFeatures } from './host/memoryFeatures'
@@ -2304,22 +2306,40 @@ async function activateWindow(
   })
 
   // The capacity estimator (M117, PLAN.md D97): its engine loads the first
-  // time an estimate runs. The snapshot, board, broker and catalog bindings
-  // belong to unmerged milestones (M113, M96, M109, M110) and refuse with
-  // their handoff names until those merge; the fleet is this machine,
-  // measured. History appends arrive with M115's lane-finished trigger.
+  // time an estimate runs. The snapshot reads the first folder's PLAN.md
+  // with its git and `gh` evidence through the shared core adapter; the
+  // board, broker and catalog bindings belong to unmerged milestones (M96,
+  // M109, M110) and refuse with their handoff names until those merge; the
+  // fleet is this machine, measured. History appends arrive with M115's
+  // lane-finished trigger.
+  // The plan snapshot's bundle beside the extension's own (M117 C-M117-1,
+  // PLAN.md D6): required the first time an estimate needs a snapshot, never
+  // at activation.
+  const snapshotBundlePath = vscode.Uri.joinPath(
+    context.extensionUri,
+    'dist',
+    PLAN_SNAPSHOT_BUNDLE_FILE,
+  ).fsPath
   const estimator = lazyEstimator({
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', ESTIMATOR_BUNDLE_FILE).fsPath,
     log,
     ports: () => {
       const settings = currentSettings()
-      return estimatorSourcePorts(() => ({
-        // No catalogs are pinned until M113 merges its Reports catalogs.
-        enabled: settings['estimator.priceLookup'],
-        networkAllowed: settings.sandboxNetwork !== SANDBOX_NETWORK_DENIED,
-        maxAgeMs: 0,
-        catalogUrls: [],
-      }))
+      const snapshot = planSnapshotLoader({
+        bundlePath: snapshotBundlePath,
+        log,
+        root: firstFolderPath() ?? '',
+      })
+      return estimatorSourcePorts(
+        () => ({
+          // No catalogs are pinned until M113 merges its Reports catalogs.
+          enabled: settings['estimator.priceLookup'],
+          networkAllowed: settings.sandboxNetwork !== SANDBOX_NETWORK_DENIED,
+          maxAgeMs: 0,
+          catalogUrls: [],
+        }),
+        snapshot,
+      )
     },
   })
 

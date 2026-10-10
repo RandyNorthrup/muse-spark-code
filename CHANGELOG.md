@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Estimator plan snapshots** (M117 C-M117-1). `/estimate` goals now resolve
+  from your workspace `PLAN.md` with its git and `gh` evidence — lane hours,
+  Starts dependencies, rigs, file affinities, the delivery order and §10
+  releases — in the VS Code extension and headless, instead of refusing with
+  `M117-W-M113-plan-reader`. A goal whose lanes lack hour estimates is refused
+  naming the lanes; per-lane metered demands the plan never carries are
+  disclosed zero-sample assumptions until calibration replaces them per kind.
+  Starting lanes, price catalogs, history and multi-machine fleets still refuse
+  with their handoff names until their lanes land.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
