@@ -83,6 +83,9 @@ happened, not what was planned; superseded entries are kept.
   known is cleaned up by every number it may carry, so a failed listing
   never leaves a checkout blocked; a lock renewal writes only the very
   lock it holds, never one another window took over.
+  A failed sweep listing logs its operation and safe error code without
+  user paths, and uncertain record writes report their error in the
+  installed display language, including all fourteen translations.
 
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or

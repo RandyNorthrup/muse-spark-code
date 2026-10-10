@@ -21,7 +21,7 @@
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import type { CoreLogger } from '../../../core/logging'
+import { wireWordForLog, type CoreLogger } from '../../../core/logging'
 import { parseWorktreeRegistry, type WorktreeRecord } from '../../../core/worktreeConversations'
 import {
   ATOMIC_TEMPORARY_SUFFIX,
@@ -280,11 +280,15 @@ export async function sweepGenerations(
   folder: string,
   head: number,
   now: number,
+  log: CoreLogger,
 ): Promise<void> {
   let listed: readonly string[]
   try {
     listed = await names(fs, folder)
-  } catch {
+  } catch (error: unknown) {
+    log.warn(
+      `The worktree records sweep listing failed (${wireWordForLog(errorCode(error) ?? 'unknown')}); the next write tries again`,
+    )
     return
   }
   for (const name of listed) {

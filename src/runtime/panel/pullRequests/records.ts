@@ -57,6 +57,7 @@ import {
   type ProcessOwner,
 } from '../../../core/locks/processOwner'
 import {
+  UI_TEXT,
   WORKTREE_RECORD_LOCK_LEASE_MS,
   WORKTREE_RECORD_LOCK_POLL_MS,
   WORKTREE_RECORD_LOCK_TIMEOUT_MS,
@@ -152,7 +153,7 @@ export class UnknownWriteError<T> extends Error {
     public readonly results: readonly T[],
     cause: unknown,
   ) {
-    super('The worktree records may have been written', { cause })
+    super(UI_TEXT.worktreeRecordsWriteUnknown, { cause })
     this.name = 'UnknownWriteError'
   }
 }
@@ -575,7 +576,9 @@ export function createWorktreeRecordStore(
         if (!(error instanceof UnknownWriteError)) {
           throw error
         }
-        // Not known whether it landed: the record is one of these.
+        // Only this mutate<Claimed> can produce UnknownWriteError here:
+        // make's errors are caught above, and mutate retains its own T[];
+        // instanceof erases that generic (M123P9, PLAN.md §8).
         const results = error.results as readonly Claimed[]
         return {
           status: 'unknown',
@@ -768,7 +771,7 @@ export function createFileRecordRegistry(
             if (outcome === 'written') {
               // Best effort, and never past the landed write it follows.
               try {
-                await sweepGenerations(fs, folder, read.generation + 1, now())
+                await sweepGenerations(fs, folder, read.generation + 1, now(), log)
               } catch {
                 log.warn('The worktree records could not be swept; the next write tries again')
               }
