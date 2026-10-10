@@ -749,9 +749,10 @@
     },
     {
       "id": "M101",
-      "title": "Long-task context and automatic compaction",
-      "summary": "Long-task context integration, including automatic compaction, is in progress.",
-      "area": "agents"
+      "title": "Long-task context upgrades",
+      "summary": "Prompts stay cache-stable, the model can search and recall packed tool output exactly, and manual compaction works in ACP editors; automatic compaction is in progress.",
+      "area": "agents",
+      "release": "0.15.0"
     },
     {
       "id": "M102",
@@ -781,9 +782,10 @@
     },
     {
       "id": "M106",
-      "title": "Agent-loop integration",
-      "summary": "Agent-loop integration, including live argument previews, is in progress.",
-      "area": "agents"
+      "title": "Stronger agent-loop guarantees",
+      "summary": "On the Model API the agent loop uses strict tool contracts, validated side answers and concurrent read-only calls wherever the selected model supports them; live tool-argument previews are in progress.",
+      "area": "agents",
+      "release": "0.16.0"
     },
     {
       "id": "M107",
@@ -795,9 +797,8 @@
     {
       "id": "M108",
       "title": "Several accounts per provider",
-      "summary": "Keep several labelled accounts with one provider, each with its own use thresholds, see which one is in use and pin a headless run to one, so a vendor limit blocks only the affected account.",
-      "area": "models-providers",
-      "release": "0.17.0"
+      "summary": "Several-account integration is in progress.",
+      "area": "models-providers"
     },
     {
       "id": "M109",
@@ -826,9 +827,10 @@
     },
     {
       "id": "M113",
-      "title": "Deterministic report integrations",
-      "summary": "Additional report kinds are in progress.",
-      "area": "platform"
+      "title": "Deterministic reports",
+      "summary": "Run /report for project, quality, milestone, release and change reports built from local facts in Markdown, HTML, JSON or text, with saved history and comparisons and nothing sent to a model, while additional report kinds are in progress.",
+      "area": "platform",
+      "release": "0.17.0"
     },
     {
       "id": "M114",
@@ -845,9 +847,10 @@
     },
     {
       "id": "M116",
-      "title": "Orchestrator playbook in VS Code",
-      "summary": "Orchestrator playbook integration in the VS Code panel is in progress.",
-      "area": "agents"
+      "title": "Orchestrator playbook",
+      "summary": "The orchestration rules ship as a built-in skill, and /playbook shows status, records and settings locally in the CLI and ACP editors; the VS Code panel integration is in progress.",
+      "area": "agents",
+      "release": "0.17.0"
     },
     {
       "id": "M117",

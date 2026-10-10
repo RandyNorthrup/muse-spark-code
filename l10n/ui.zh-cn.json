@@ -16,7 +16,7 @@
   "resourcePauseNotice": "计算机繁忙：{metric} 为 {reading}（上限 {threshold}）。新的后台工作已暂停。",
   "resourceOverrideNotice": "已恢复工作，直到 {time}。",
   "resourceRelocatedNotice": "由于此计算机繁忙，排队的工作已移至 {device}。",
-  "resourceRelocationNoRoute": "迁移尚不可用：需要配对设备或通往运行机器的路由。工作将保留在此计算机上。",
+  "resourceRelocationNoRoute": "迁移需要配对设备或通往运行机器的路由。工作将保留在此计算机上。",
   "resourceUnavailable": "此计算机无法提供这项读数。",
   "resourceGovernorOff": "此计算机上的资源限制已关闭。",
   "resourceStatusRefused": "无法读取最新的资源状态，因此不显示任何读数。",
@@ -69,7 +69,7 @@
   "resourceMemoryMinFreeGiBDescription": "最低可用内存（GiB），最高为此计算机 RAM 的15%。",
   "resourceGpuMaxPercentDescription": "可选的 GPU 使用率上限（百分比）。未设置时不检测 GPU。",
   "resourceDiskBusyMaxPercentDescription": "可选的磁盘繁忙程度上限（百分比）。未设置时不检测磁盘。",
-  "resourceRelocateDescription": "此计算机繁忙时，排队的团队任务和检查可迁移到的位置。迁移需要配对设备或通往运行机器的路由，目前尚不可用，因此工作将保留在此计算机上。",
+  "resourceRelocateDescription": "迁移需要配对设备或通往运行机器的路由。工作将保留在此计算机上。",
   "resourceRelocatePairedDescription": "迁移可用后，使用已批准配对且资源负载正常的设备。",
   "resourceRelocateAskDescription": "迁移排队的工作前先询问。",
   "resourceRelocateOffDescription": "将工作保留在此计算机上。",
@@ -1877,7 +1877,7 @@
     "attached": "报告已附加到消息。",
     "saveFailed": "无法保存报告。",
     "copyFailed": "无法复制报告。",
-    "unsupportedKind": "报告类型 {kind} 暂不可用。",
+    "unsupportedKind": "报告类型 {kind} 不可用。",
     "localBudgetExceeded": "本地报告超过了 {duration}。",
     "confirmFirstSend": "请确认向此收件人发送的首封邮件。",
     "destinations": "发送目标",
@@ -1899,7 +1899,7 @@
     "failed": "无法完整读取来源。",
     "refused": "来源路径属于私密路径或位于允许的文件夹之外。",
     "disabled": "此代理用量来源未启用。",
-    "unbound": "此来源集成尚不可用。",
+    "unbound": "此来源集成不可用。",
     "history": "所选会话的历史记录不可用。"
   },
   "reportRowsMore": {
@@ -4026,7 +4026,7 @@
   "providerImport": "导入",
   "providerImportPreviewTitle": "导入预览",
   "importNeedsKey": "需要密钥",
-  "providerOpenRouterServices": "OpenRouter 账户连接和密钥用量查询尚不可用。请粘贴密钥以使用模型。",
+  "providerOpenRouterServices": "OpenRouter 账户连接和密钥用量查询不可用。请粘贴密钥以使用模型。",
   "refreshModels": "刷新模型",
   "scanNewModels": {
     "other": "自上次扫描以来新增 {count} 个模型"

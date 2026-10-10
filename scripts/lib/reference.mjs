@@ -1337,7 +1337,8 @@ export function publishedReference(model, source) {
     'museSpark.scheduleAgentCreation',
     'museSpark.resourceRelocate',
   ])
-  const hiddenRoutes = new Set(['estimate', 'schedule', 'vault', 'vaultHelp'])
+  // CX1R4 F1: the accounts route is dormant; CM108ACC re-adds it with the runtime.
+  const hiddenRoutes = new Set(['estimate', 'schedule', 'vault', 'vaultHelp', 'accounts'])
 
   return {
     ...model,
@@ -1356,7 +1357,9 @@ export function publishedReference(model, source) {
     cli: model.cli.filter(
       (command) =>
         !hiddenRoutes.has(command.route) &&
-        !/(?:^|\s)--(?:scheduled-prompts|vault|no-auto-compaction)(?:\s|$)/.test(command.name),
+        !/(?:^|\s)--(?:scheduled-prompts|vault|no-auto-compaction|account(?:-pool)?)(?:\s|$)/.test(
+          command.name,
+        ),
     ),
     shortcuts: model.shortcuts.filter(
       (shortcut) => !commands.has(shortcut.command) && shortcut.command !== 'team.tree',

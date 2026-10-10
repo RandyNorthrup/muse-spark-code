@@ -269,12 +269,14 @@ function feature(
 }
 
 // CX1R3: retained for coverage validation, omitted from published Help.
+// CX1R4 F1: accounts joins the list; CM108ACC re-adds it when the runtime lands.
 export const REFERENCE_IN_PROGRESS_FEATURES: readonly string[] = [
   'team-workers',
   'vault',
   'estimator',
   'auto-compaction',
   'argument-preview',
+  'accounts',
 ]
 
 export function featureCatalog(): readonly Feature[] {

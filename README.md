@@ -41,7 +41,7 @@ built, what is planned and what each release shipped.
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
-[Several accounts](#several-accounts-per-provider) ·
+[Developer options](#developer-options) ·
 [Rules, skills and memory](#rules-skills-and-memory) ·
 [Muse Code's own tools](#muse-codes-own-tools) · [Web fetch](#web-fetch) ·
 [Browser check](#browser-check) · [Design](#design) · [The panel](#the-panel) ·
@@ -61,8 +61,6 @@ hash verification and migrate when read.
 - **Deterministic reports.** `/report` builds project, quality, milestone,
   release and change reports from local facts, in Markdown, HTML, JSON or text,
   with saved history and comparisons; nothing is sent to a model.
-- **Several accounts per provider.** List provider accounts, see the current
-  one and its thresholds; a vendor limit blocks only the affected account.
 - **Orchestrator playbook CLI/ACP.** Read journal records and change settings
   locally with the CLI or ACP agent.
 - **Refreshed design.** Shared design tokens and generated palettes style every
@@ -832,63 +830,21 @@ question open, even when interactive deferral is disabled.
 
 ## Several accounts per provider
 
-Accounts keep separate credentials, labels, order, limit groups and thresholds.
-The terminal can manage their metadata and choose a fixed account for a
-headless run. Automatic swapping, parallel admission, device placement and
-the editor panel/usage mounts await the provider, journal and shared-owner
-integration listed in [M108's certification](docs/certification/m108.md).
-`museSpark.accountSwap` and `museSpark.accountParallel` are machine-scoped
-and default on; they do not enable those missing integrations by themselves.
+See [In progress](ROADMAP.md#in-progress).
 
-These commands require an existing provider metadata record; this base
-refuses absent or malformed configuration until its provider owner supplies
-it. Display order never selects a backend credential.
-
-Manage metadata through the agent (credentials only from standard input,
-never an argument or a file):
-
-- `muse-spark-code-acp providers accounts list --provider <id>`
-- `muse-spark-code-acp providers accounts add --provider <id> --account <id> --label <label>`
-- `muse-spark-code-acp providers accounts thresholds --provider <id> --account <id> --thresholds <JSON>`
-- `muse-spark-code-acp auth set --provider <id> --account <id>` (then paste the key)
-- `muse-spark-code-acp exec --account <id> <prompt>` pins one run to one account
-
-`exec --account-pool` and in-session credential swaps report unavailable
-until the pooled owner is connected. ACP's `/accounts` and `account` picker
-read live metadata; choosing another account also reports unavailable.
-Second Muse Code accounts and cross-account native replay/cache evidence
-wait for the Q-M108 captures. The usage-page mount awaits M102's journal;
-it must keep outstanding reservations and uncertain charges across resets.
-The shared paid gate, daily budget and conversation cap never reset on a
-swap, and a different account needs its own first-charge consent.
-
-Placement defaults to one account per provider per device. Another account
-needs another paired device, or the machine-scoped, default-off
-`museSpark.accounts.severalOnThisDevice` option. That option requires the
-provider's terms confirmation and isolated local profiles, labelled “on this
-PC”. The installed profile/placement owner is still pending, so the setting
-does not currently start another account process.
+## Developer options
 
 `muse-spark-code-acp developer` opens the terminal's machine-local Developer
 options after typed confirmation; `developer status` shows its state. The
 shared editor unlocks use seven clicks on the version within ten seconds or
 **Muse Spark: Developer options**, once their palette/About mounts land.
 Testing mode is badged and audited, expires, and Reset stops and removes only
-its recorded profiles. The visible several-account option has no developer
-badge or expiry. Profile start and cleanup report unavailable until their
+its recorded profiles. Profile start and cleanup report unavailable until their
 resource owner is bound; no successful cleanup is claimed in its absence.
 Revoking testing authority closes admission immediately and attempts to stop
 recorded profiles before saving. Persistence failures are reported; a durable
 revocation audit prevents restoring the previous enabled grant. Removing an
 unknown profile reports an error without changing the current grant.
-
-The [policy record](docs/certification/m108-policy.md), checked 2026-10-05,
-lists every provider's pooling decision with its clause, source and date.
-“Confirmation required” quotes the restriction and offers Confirm, Only at
-my own caps, or Cancel; one-account-per-person rules also apply at user caps.
-Accounts sharing a vendor limit group add no capacity against that limit.
-These rules hold on every device and in developer mode. Nothing creates
-accounts, changes request identity or moves a credential to another device.
 
 ## Permission modes
 
