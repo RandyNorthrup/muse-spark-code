@@ -110,8 +110,10 @@ roadmap, plan, host API (0 problems), plain knip and duplication all pass.
 `npm run build` passes token, size, split, host-global and notice gates:
 activation 550.14/600 KiB, Model API 515.81/525 KiB, checkpoint store
 87.27/225 KiB, chat startup 742.4/900 KiB, original deferred JS 31.9/50 KiB
-and overlays 6.7/10 KiB. No cap changed. Reviewed visual results are recorded
-in the follow-up verification commit. The rig brief forbids running full `quality` here;
+and overlays 6.7/10 KiB. No cap changed. The keyboard-caption follow-up also
+passed 133 reference/README tests, ESLint, Prettier, localization, reference
+freshness and the production build. The three visual unit suites passed
+their 22 tests again after the final capture. The rig brief forbids running full `quality` here;
 the lead retains that gate. No gate, timeout, coverage threshold, ignore,
 hook, or hook configuration was weakened.
 
@@ -120,6 +122,54 @@ After `npm run harness:shots -- rewind quote-menu history --theme=light`
 and the README runner's three recaptures, `README_INPUTS_DIGEST` was refreshed
 following the test's own instructions to
 `76e954e5561bf4169777940d5e3ab0bae626facbf05bd876268d8e66d677619c`.
+
+## Reviewed visuals
+
+Implementation commit: `1d73ab0fdddca2271351bdc67098c57a383cb389`.
+Keyboard-caption and final capture source:
+`71ca4b93e89e60e50225e5d5114f345a4a518042`.
+Installed hooks passed both commits; their staged and committed diffs matched
+byte-exact. The capture inputs were committed before each reviewed update.
+An intermediate full capture preceded the keyboard-caption follow-up; the
+final archive was captured again from the complete source revision.
+
+The initial `npm run check:visual` failed at
+`panel/chat-tool-menu-narrow/default/light/320`: 9,835 changed pixels,
+allowance 12 (`temp/menufan/visual-before-update.log`). The final update used
+`npm run check:visual -- --update --review=owner-2026-10-10-menu-fan --archive=/var/tmp/l-MENUFAN/visual-owner-2026-10-10-menu-fan-final`.
+It captured 9,792 PNGs / 447,111,110 bytes (426.4 MiB of the 512 MiB cap),
+with Chrome 150.0.7871.186 on Linux: 136 scenes, six states, six themes,
+320/690 px widths and 760 px height. Full PNG sets remain outside git.
+The separate before/after request uses 800 px height, as listed above.
+
+Comparison against the previous recorded source
+`6636c84beb804af52e49363ac10ede3223d3d295` used the repository's unchanged
+pixel policy. Exactly 360 captures exceeded its tolerance, across these
+five scene ids:
+
+- `chat-tool-menu-narrow`
+- `history-archived`
+- `palette`
+- `prompt-library`
+- `quote-menu`
+
+The other 1,057 differing PNGs stayed within the existing tolerance; 8,375
+PNGs matched the previous hashes. Representative menu, palette, archived
+history and prompt-library frames were inspected. No other scene exceeded
+the policy. Full comparison rows are in `temp/menufan/visual-comparison.json`;
+the tracked `docs/certification/menufan-visual-review.json` records the review,
+source, dimensions, environment, archive and changed scene ids. The 75-minute
+checkpoint is in `temp/menufan/progress.md`.
+
+The final `npm run check:visual` rerun passed all 9,792 captures: eight
+changed pixels in total, at most one per image, under the unchanged
+per-image tolerance. The manifest stayed unchanged during verification.
+The receipt's manifest SHA-256 matched
+`3951179a8aa655657632557845efdeca6c82c0916a5f60738aa0733efdd86542`.
+Baseline/candidate PNG totals were 447,111,110 / 447,112,737 bytes, both
+under 512 MiB. The full receipt is included in the tracked review JSON
+and copied to `temp/menufan/visual-final-result.json`; the command log is
+`temp/menufan/visual-final.log`.
 
 ## Additional smoke limitation
 
