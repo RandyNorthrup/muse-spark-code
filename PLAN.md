@@ -38949,8 +38949,13 @@ contract vocabulary repair removes its setup/teardown errors; both target
 matrices and native red drills are recorded in M104 F1's certification.
 These two diagnostic tests remain a main-integration blocker. Installed VS Code
 on Win11, real Visual Studio/Xcode qualification and resource-chip parity stay
-open; portable fixtures, SDK compilation and the Linux native matrices do not
-promote those hosts to supported.
+open. The C# endpoint change has a portable .NET 10 probe only; the Swift
+endpoint change awaits a native macOS run because this Linux rig has no Swift
+compiler. Portable fixtures, SDK compilation and the Linux native matrices do
+not promote those hosts to supported. The full visual gate also stops while
+reconstructing reviewed source `484964c46`: agents-details/dark/690/en never
+renders `.agent-node-clickable` after 2,448 captures. Candidate comparison does
+not run; visual qualification remains with the lead, with no baseline update.
 
 **M104INT final static-gate cleanup (2026-10-09).** Plain Knip identifies
 the Windows receipt/config and esbuild fixture as real path-invoked entries,
