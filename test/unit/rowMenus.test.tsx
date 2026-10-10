@@ -40,10 +40,10 @@ function expectPlacedInNarrowPanel(count: number) {
   }))
   expect(boxes).toHaveLength(count)
   // The owner: "they should be a uniform size", only as wide as the longest
-  // label (drawnPill's max-content width); a note longer than the panel
-  // stops at 320 - 2 × 8 and ends in an ellipsis.
+  // label (drawnPill's max-content width); a long note stops at the
+  // opener’s side room, 300 - 8 - 16, and ends in an ellipsis.
   const widest = Math.min(
-    304,
+    276,
     Math.max(...pills.map((pill) => drawnPill(pill.getAttribute('aria-label')))),
   )
   expect(new Set(pills.map((pill) => `${pill.style.width} × ${pill.style.height}`))).toEqual(
@@ -51,7 +51,7 @@ function expectPlacedInNarrowPanel(count: number) {
   )
   for (const [index, box] of boxes.entries()) {
     expect(box.left).toBeGreaterThanOrEqual(8)
-    expect(box.left + box.width).toBeLessThanOrEqual(312)
+    expect(box.left + box.width).toBeLessThanOrEqual(284)
     expect(box.top).toBeGreaterThanOrEqual(8)
     expect(box.top + 40).toBeLessThanOrEqual(752)
     const later = boxes.slice(index + 1)

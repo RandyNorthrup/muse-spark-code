@@ -172,12 +172,14 @@ export const GOOEY_MENU = {
   /** A pill's height, the old bubble's; its ends are half circles. */
   pillHeight: 40,
   edgePadding: 8,
-  /** Between the fan's pills at rest. */
-  gap: 20,
-  /** The least room from the origin to a pill: clears a 26 px control centred there. */
+  /** Fallback for non-CSS layout callers; the renderer derives this from focus tokens. */
+  gap: 6,
+  /** Clear space beyond a neighbouring focus ring. */
+  outlineClearance: 2,
+  /** The least room from the origin to a pill: clears the 24 px row button centred there. */
   reach: 16,
   /** How much farther the fan's middle reaches than its ends: the arc. */
-  bow: 32,
+  bow: 16,
   /** Each pill starts its scale-in this long after the one before it. */
   staggerMs: 30,
 } as const

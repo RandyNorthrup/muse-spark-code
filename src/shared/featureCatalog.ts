@@ -576,6 +576,8 @@ export function featureCatalog(): readonly Feature[] {
       'the-panel',
       ['modelApi'],
     ),
+    // M87 MENUFAN: shared row/selection bursts follow visible element anchors;
+    // inside pointer/selected borders keep neighbouring focus rings clear.
     feature(
       'conversation-actions',
       { ui: 'transcriptLabel' },
@@ -1133,7 +1135,17 @@ const REFERENCE_DETAILS: Readonly<
   support: ['referenceAcp'],
   cache: ['referenceCache'],
   'custom-agents': ['referencePaidContexts'],
-  'conversation-actions': ['referenceWindowsSessions'],
+  'conversation-actions': [
+    'referenceWindowsSessions',
+    'restoreFilesToHere',
+    'rewindAndRestore',
+    'copyResponse',
+    'replyToOutput',
+    'askAboutThis',
+    'commentOnThis',
+    'promptSave',
+    'sharePrompt',
+  ],
   questions: ['referenceQuestionsDeferral'],
 }
 
