@@ -32,6 +32,21 @@ export class TeamContractError extends Error {
   override readonly name = 'TeamContractError'
 }
 
+/**
+ * One entry snapshot of a caller's input (PLAN.md M96b): `structuredClone`
+ * reads getters once, ignores overridden methods and custom iterators, and
+ * refuses proxies, functions and symbols, so validation and the build below
+ * see the same plain data the caller can no longer change. Anything the
+ * clone cannot copy is a typed refusal, never a partial build.
+ */
+function snapshotInput<T>(value: T): T {
+  try {
+    return structuredClone(value)
+  } catch {
+    throw new TeamContractError('M96b: a team builder cannot copy its input')
+  }
+}
+
 /** Validate the complete output, preserving D36's unknown additional fields. */
 function checkedContract<T>(schema: z.ZodMiniType, value: T): T {
   const checked = schema.safeParse(value)
@@ -91,11 +106,12 @@ export function formatTeamPermissionTitle(input: {
   readonly agent: string
   readonly detail: string
 }): string {
-  const role = checkedTitlePart('role', input.role)
-  const agent = checkedTitlePart('agent', input.agent)
-  if (input.detail === '')
+  const snap = snapshotInput(input)
+  const role = checkedTitlePart('role', snap.role)
+  const agent = checkedTitlePart('agent', snap.agent)
+  if (snap.detail === '')
     throw new TeamContractError('M96b: a team permission title needs its detail')
-  return fill(UI_TEXT.acpTeamPermissionTitle, { role, agent, detail: input.detail })
+  return fill(UI_TEXT.acpTeamPermissionTitle, { role, agent, detail: snap.detail })
 }
 
 const TITLE_SLOTS: ReadonlySet<string> = new Set(['role', 'agent', 'detail'])
@@ -171,13 +187,13 @@ export function teamDiff(input: {
   readonly oldText: string | null
   readonly newText: string
 }): ToolCallContent {
-  if (typeof input.path !== 'string')
-    throw new TeamContractError('M96b: a team diff needs its path')
+  const snap = snapshotInput(input)
+  if (typeof snap.path !== 'string') throw new TeamContractError('M96b: a team diff needs its path')
   return checkedContract(teamDiffSchema, {
     type: 'diff',
-    path: normalizeTeamPath(input.path),
-    oldText: input.oldText,
-    newText: input.newText,
+    path: normalizeTeamPath(snap.path),
+    oldText: snap.oldText,
+    newText: snap.newText,
   })
 }
 
@@ -217,9 +233,10 @@ export function teamTaskToolCall(input: {
   readonly agent: string
   readonly detail: string
 }): ToolCallUpdate {
+  const snap = snapshotInput(input)
   return checkedContract(teamTaskUpdateSchema, {
-    toolCallId: teamTaskToolCallId(input.taskId),
-    title: formatTeamPermissionTitle(input),
+    toolCallId: teamTaskToolCallId(snap.taskId),
+    title: formatTeamPermissionTitle(snap),
     kind: TEAM_TASK_TOOL_KIND,
     status: 'in_progress',
   })
@@ -235,11 +252,12 @@ export function teamTaskReportUpdate(input: {
   readonly report: string
   readonly diffs?: readonly ToolCallContent[]
 }): ToolCallUpdate {
-  const diffs = checkedContract(z.array(teamToolContentSchema), input.diffs ?? [])
+  const snap = snapshotInput(input)
+  const diffs = checkedContract(z.array(teamToolContentSchema), snap.diffs ?? [])
   return checkedContract(teamTaskUpdateSchema, {
-    toolCallId: teamTaskToolCallId(input.taskId),
+    toolCallId: teamTaskToolCallId(snap.taskId),
     status: 'completed',
-    content: [teamReportContent(input.report), ...diffs],
+    content: [teamReportContent(snap.report), ...diffs],
   })
 }
 
@@ -256,10 +274,11 @@ export function teamTaskDiffUpdate(input: {
   readonly taskId: string
   readonly diffs: readonly ToolCallContent[]
 }): ToolCallUpdate {
+  const snap = snapshotInput(input)
   return checkedContract(teamTaskUpdateSchema, {
-    toolCallId: teamTaskToolCallId(input.taskId),
+    toolCallId: teamTaskToolCallId(snap.taskId),
     status: 'in_progress',
-    content: checkedDiffs(input.diffs),
+    content: checkedDiffs(snap.diffs),
   })
 }
 
@@ -288,9 +307,10 @@ export interface TeamPlanTask {
  * `plan` with one entry per running task (PLAN.md M96b).
  */
 export function teamPlanEntries(tasks: readonly TeamPlanTask[]): PlanEntry[] {
+  const snap = snapshotInput(tasks)
   return checkedContract(
-    z.array(teamPlanEntrySchema).check(z.length(tasks.length)),
-    tasks.map((task) => ({
+    z.array(teamPlanEntrySchema).check(z.length(snap.length)),
+    snap.map((task) => ({
       content: task.title,
       priority: TEAM_PLAN_PRIORITY,
       status: 'in_progress',
@@ -338,16 +358,17 @@ export function teamMergeRequest(input: {
   readonly diffs: readonly ToolCallContent[]
   readonly options: readonly PermissionOption[]
 }): RequestPermissionRequest {
-  const diffs = checkedDiffs(input.diffs)
+  const snap = snapshotInput(input)
+  const diffs = checkedDiffs(snap.diffs)
   const options = checkedContract(
     z.array(teamPermissionOptionSchema).check(z.minLength(1)),
-    input.options,
+    snap.options,
   )
   return checkedContract(teamMergeRequestSchema, {
-    sessionId: input.sessionId,
+    sessionId: snap.sessionId,
     toolCall: {
-      toolCallId: teamMergeToolCallId(input.mergeId),
-      title: formatTeamPermissionTitle(input),
+      toolCallId: teamMergeToolCallId(snap.mergeId),
+      title: formatTeamPermissionTitle(snap),
       kind: TEAM_TASK_TOOL_KIND,
       status: 'pending',
       content: diffs,
@@ -364,12 +385,13 @@ export function teamMergeCompletedCall(input: {
   readonly detail: string
   readonly diffs: readonly ToolCallContent[]
 }): ToolCallUpdate {
+  const snap = snapshotInput(input)
   return checkedContract(teamTaskUpdateSchema, {
-    toolCallId: teamMergeToolCallId(input.mergeId),
-    title: formatTeamPermissionTitle(input),
+    toolCallId: teamMergeToolCallId(snap.mergeId),
+    title: formatTeamPermissionTitle(snap),
     kind: TEAM_TASK_TOOL_KIND,
     status: 'completed',
-    content: checkedDiffs(input.diffs),
+    content: checkedDiffs(snap.diffs),
   })
 }
 
@@ -405,8 +427,9 @@ export function teamExecAdmission(input: {
   readonly mode: string
   readonly backend: string
 }): { readonly ok: true } | { readonly ok: false; readonly reason: string } {
-  if (input.backend !== 'modelApi') return { ok: false, reason: UI_TEXT.execModelApiOnly }
-  const isAcceptEdits = input.mode === 'acceptEdits'
+  const snap = snapshotInput(input)
+  if (snap.backend !== 'modelApi') return { ok: false, reason: UI_TEXT.execModelApiOnly }
+  const isAcceptEdits = snap.mode === 'acceptEdits'
   return {
     ok: false,
     reason: isAcceptEdits ? UI_TEXT.execTeamNotReady : UI_TEXT.execTeamNeedsEdits,
