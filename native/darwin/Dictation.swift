@@ -85,6 +85,15 @@ func runProcIdentityIfRequested() {
 // Dispatch before responsibility/audio setup: process probes must never ask TCC.
 runProcIdentityIfRequested()
 
+// M107 memory sampling never requests microphone/speech access or relays responsibility.
+@_silgen_name("muse_memory_main")
+func memoryHeadroomMain() -> Int32
+
+if CommandLine.arguments.dropFirst().first == "--memory-headroom" {
+    guard CommandLine.argc == 2 else { exit(2) }
+    exit(memoryHeadroomMain())
+}
+
 // M107 DK's directory mode exits before voice setup or privacy requests.
 @_silgen_name("muse_created_main")
 func createdDirectoryMain(_ argc: Int32, _ argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) -> Int32

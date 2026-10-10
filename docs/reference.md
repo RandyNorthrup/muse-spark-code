@@ -10,6 +10,8 @@ Open `/help` in the panel or **Muse Spark: Open Help & Reference**. Search the r
 
 Resource, service and transport pressure reduce admission. Each job has observed process and birth limits; cleanup removes only recorded temp roots.
 
+On macOS, memory headroom includes free, inactive and purgeable pages. Older runtimes use the signed helper; a failed reading stays unknown.
+
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: `museSpark.showResources`, `museSpark.resumeResources`. Settings: `museSpark.resourceGovernor`, `museSpark.resourceCpuMaxPercent`, `museSpark.resourceMemoryMaxPercent`, `museSpark.resourceMemoryMinFreeGiB`, `museSpark.resourceGpuMaxPercent`, `museSpark.resourceDiskBusyMaxPercent`, `museSpark.resourceDiskMinFreeGiB`, `museSpark.resourceRelocate`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#keeping-your-machine-responsive)

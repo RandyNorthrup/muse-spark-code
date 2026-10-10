@@ -74,6 +74,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- macOS resource headroom includes inactive and purgeable pages on runtimes
+  with libuv older than 1.52, including Node 22 and older extension hosts.
+  The existing signed helper handles one request per sample in one child per
+  governor; failures remain unknown, and newer runtimes keep Node's API.
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.

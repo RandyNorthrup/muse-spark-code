@@ -11,6 +11,9 @@ import type { BrowserRuntimeMode } from './browserCheckConstants'
 export const RESOURCE_SAMPLE_MS = 5000
 // libuv 1.52 adds inactive/purgeable pages to Darwin's available-memory reading.
 export const RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR = 52
+// The fixed headroom frame is tiny; never retain an unbounded child stream.
+export const RESOURCE_DARWIN_HEADROOM_MAX_BYTES = 128
+export const RESOURCE_DARWIN_HEADROOM_MAX_COUNTER = Number.MAX_SAFE_INTEGER
 // D87.14: free-space policy and owned-tree retention.
 export const RESOURCE_DISK_SAMPLE_MS = 30_000
 export const RESOURCE_DISK_FAST_SAMPLE_MS = 5000

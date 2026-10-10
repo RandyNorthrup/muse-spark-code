@@ -1,0 +1,221 @@
+[
+  {
+    "name": "legacy-selection",
+    "file": "src/core/resources/sampler/system.ts",
+    "exitCode": 1,
+    "originalSha256": "aa46e566f69f6f9f24938fc3244fbde785a0bdf7ea895eed2a73a0ad865860bb",
+    "restoredSha256": "aa46e566f69f6f9f24938fc3244fbde785a0bdf7ea895eed2a73a0ad865860bb",
+    "failures": [
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯",
+      "FAIL  test/unit/samplerSystem.test.ts > resource sampler OS adapter > uses genuine headroom on darwin with libuv 1.51.0",
+      "FAIL  test/unit/samplerSystem.test.ts > resource sampler OS adapter > uses genuine headroom on darwin with libuv 1.51.999",
+      "FAIL  test/unit/samplerSystem.test.ts > resource sampler OS adapter > keeps failed older-Darwin headroom unknown and disposes its helper",
+      "Test Files  1 failed (1)",
+      "Tests  3 failed | 14 passed (17)"
+    ]
+  },
+  {
+    "name": "zero-counter",
+    "file": "src/core/resources/sampler/darwinMemory.ts",
+    "exitCode": 1,
+    "originalSha256": "2339f522f1a206f80acba8f1e29b2f37aeb8ed54278c21930e8626af420f824a",
+    "restoredSha256": "2339f522f1a206f80acba8f1e29b2f37aeb8ed54278c21930e8626af420f824a",
+    "failures": [
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > preserves a genuine zero counter",
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 19 passed (20)"
+    ]
+  },
+  {
+    "name": "shared-request",
+    "file": "src/core/resources/sampler/darwinMemory.ts",
+    "exitCode": 1,
+    "originalSha256": "2339f522f1a206f80acba8f1e29b2f37aeb8ed54278c21930e8626af420f824a",
+    "restoredSha256": "2339f522f1a206f80acba8f1e29b2f37aeb8ed54278c21930e8626af420f824a",
+    "failures": [
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > starts lazily, shares concurrent requests and reuses one idle child across samples",
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 19 passed (20)"
+    ]
+  },
+  {
+    "name": "retry-after-close",
+    "file": "src/core/resources/sampler/darwinMemory.ts",
+    "exitCode": 1,
+    "originalSha256": "2339f522f1a206f80acba8f1e29b2f37aeb8ed54278c21930e8626af420f824a",
+    "restoredSha256": "2339f522f1a206f80acba8f1e29b2f37aeb8ed54278c21930e8626af420f824a",
+    "failures": [
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > starts a replacement only after the previous failed child closes",
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 19 passed (20)"
+    ]
+  },
+  {
+    "name": "sampler-dispose",
+    "file": "src/core/resources/sampler/machineSampler.ts",
+    "exitCode": 1,
+    "originalSha256": "9293f9a48684298a4df3b62ad4c3cb4fc03b02a47d6b40c31365b80aeeacb84f",
+    "restoredSha256": "9293f9a48684298a4df3b62ad4c3cb4fc03b02a47d6b40c31365b80aeeacb84f",
+    "failures": [
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      "FAIL  test/unit/samplerSystem.test.ts > resource sampler OS adapter > keeps failed older-Darwin headroom unknown and disposes its helper",
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 16 passed (17)"
+    ]
+  },
+  {
+    "name": "strict-shape",
+    "file": "src/core/resources/sampler/darwinMemory.ts",
+    "exitCode": 1,
+    "originalSha256": "2339f522f1a206f80acba8f1e29b2f37aeb8ed54278c21930e8626af420f824a",
+    "restoredSha256": "2339f522f1a206f80acba8f1e29b2f37aeb8ed54278c21930e8626af420f824a",
+    "failures": [
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper: {\"availableBytes\":6000,\"unexpected\":true}",
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 19 passed (20)"
+    ]
+  },
+  {
+    "name": "output-bound",
+    "file": "src/core/resources/sampler/darwinMemory.ts",
+    "exitCode": 1,
+    "originalSha256": "2339f522f1a206f80acba8f1e29b2f37aeb8ed54278c21930e8626af420f824a",
+    "restoredSha256": "2339f522f1a206f80acba8f1e29b2f37aeb8ed54278c21930e8626af420f824a",
+    "failures": [
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper:                                                                                                                                  {\"availableBytes\":6000}",
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 19 passed (20)"
+    ]
+  },
+  {
+    "name": "absolute-path",
+    "file": "src/core/resources/sampler/darwinMemory.ts",
+    "exitCode": 1,
+    "originalSha256": "2339f522f1a206f80acba8f1e29b2f37aeb8ed54278c21930e8626af420f824a",
+    "restoredSha256": "2339f522f1a206f80acba8f1e29b2f37aeb8ed54278c21930e8626af420f824a",
+    "failures": [
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown for a missing helper and refuses relative executables",
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 19 passed (20)"
+    ]
+  },
+  {
+    "name": "empty-environment",
+    "file": "src/core/resources/sampler/darwinMemory.ts",
+    "exitCode": 1,
+    "originalSha256": "2339f522f1a206f80acba8f1e29b2f37aeb8ed54278c21930e8626af420f824a",
+    "restoredSha256": "2339f522f1a206f80acba8f1e29b2f37aeb8ed54278c21930e8626af420f824a",
+    "failures": [
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > starts lazily, shares concurrent requests and reuses one idle child across samples",
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 19 passed (20)"
+    ]
+  },
+  {
+    "name": "missing-is-unknown",
+    "file": "src/core/resources/sampler/darwinMemory.ts",
+    "exitCode": 1,
+    "originalSha256": "2339f522f1a206f80acba8f1e29b2f37aeb8ed54278c21930e8626af420f824a",
+    "restoredSha256": "2339f522f1a206f80acba8f1e29b2f37aeb8ed54278c21930e8626af420f824a",
+    "failures": [
+      "⎯⎯⎯⎯⎯⎯ Failed Tests 18 ⎯⎯⎯⎯⎯⎯⎯",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper: {\"availableBytes\":-1}",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper: {\"availableBytes\":0.5}",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper: {\"availableBytes\":9007199254740992}",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper: {\"availableBytes\":null}",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper: {\"availableBytes\":6000,\"unexpected\":true}",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper: {\"availableBytes\":\"6000\"}",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper: not JSON",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper: invalid-utf8",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper:                                                                                                                                  {\"availableBytes\":6000}",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper: {\"availableBytes\":6000}",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper: stderr",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper: exit",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper: {\"availableBytes\":6000}",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper: stall",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown for a missing helper and refuses relative executables",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > settles an in-flight request on disposal and cannot restart",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > starts a replacement only after the previous failed child closes",
+      "Test Files  1 failed (1)",
+      "Tests  18 failed | 2 passed (20)"
+    ]
+  },
+  {
+    "name": "request-deadline",
+    "file": "src/core/resources/sampler/darwinMemory.ts",
+    "exitCode": 1,
+    "originalSha256": "2339f522f1a206f80acba8f1e29b2f37aeb8ed54278c21930e8626af420f824a",
+    "restoredSha256": "2339f522f1a206f80acba8f1e29b2f37aeb8ed54278c21930e8626af420f824a",
+    "failures": [
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper: {\"availableBytes\":6000}",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown and retires malformed/failed helper: stall",
+      "FAIL  test/unit/darwinMemory.test.ts > Darwin memory helper transport > returns unknown for a missing helper and refuses relative executables",
+      "Test Files  1 failed (1)",
+      "Tests  3 failed | 17 passed (20)"
+    ]
+  },
+  {
+    "name": "dispose-chain",
+    "file": "src/core/resources/governor.ts",
+    "exitCode": 1,
+    "originalSha256": "364d762ac0c9975626b53bc6208f68c14e7e20ecc74b56b3df66070c073e5f19",
+    "restoredSha256": "364d762ac0c9975626b53bc6208f68c14e7e20ecc74b56b3df66070c073e5f19",
+    "failures": [
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      "FAIL  test/unit/governor.test.ts > resource governor levels > disposes sampler-owned infrastructure without doing so on disable or resume",
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 57 passed (58)"
+    ]
+  },
+  {
+    "name": "reclaimable-pages",
+    "file": "native/darwin/MuseSparkCreated.c",
+    "exitCode": 1,
+    "originalSha256": "888d39872afec2290fec9ab1de8de48936c1252eec3931a2d4e82afcdd8f1aec",
+    "restoredSha256": "888d39872afec2290fec9ab1de8de48936c1252eec3931a2d4e82afcdd8f1aec",
+    "failures": [
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      "FAIL  test/unit/darwinMemoryNative.test.ts > matches libuv 1.52 available memory within one adjacent sample",
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 1 passed (2)"
+    ]
+  },
+  {
+    "name": "native-request-validation",
+    "file": "native/darwin/MuseSparkCreated.c",
+    "exitCode": 1,
+    "originalSha256": "888d39872afec2290fec9ab1de8de48936c1252eec3931a2d4e82afcdd8f1aec",
+    "restoredSha256": "888d39872afec2290fec9ab1de8de48936c1252eec3931a2d4e82afcdd8f1aec",
+    "failures": [
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      "FAIL  test/unit/darwinMemoryNative.test.ts > exits on EOF, rejects foreign requests and preserves the existing directory protocol",
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 1 passed (2)"
+    ]
+  },
+  {
+    "name": "legacy-api-absence",
+    "file": "src/core/resources/sampler/system.ts",
+    "exitCode": 1,
+    "originalSha256": "aa46e566f69f6f9f24938fc3244fbde785a0bdf7ea895eed2a73a0ad865860bb",
+    "restoredSha256": "aa46e566f69f6f9f24938fc3244fbde785a0bdf7ea895eed2a73a0ad865860bb",
+    "failures": [
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯",
+      "FAIL  test/unit/samplerSystem.test.ts > resource sampler OS adapter > uses genuine headroom on darwin with libuv 1.51.0",
+      "FAIL  test/unit/samplerSystem.test.ts > resource sampler OS adapter > uses genuine headroom on darwin with libuv 1.51.999",
+      "FAIL  test/unit/samplerSystem.test.ts > resource sampler OS adapter > keeps failed older-Darwin headroom unknown and disposes its helper",
+      "FAIL  test/unit/samplerSystem.test.ts > resource sampler OS adapter > reads older-Darwin headroom without a Node available-memory API, including Node 20 hosts",
+      "Test Files  1 failed (1)",
+      "Tests  4 failed | 14 passed (18)"
+    ]
+  }
+]

@@ -12208,7 +12208,7 @@ one governor for everything the harness starts.
 
 4. **The sampler is cheap and honest.**
    - **The machine,** every `RESOURCE_SAMPLE_MS` (5 seconds), with no child
-     process:
+     process except the older-Darwin headroom helper below:
      - CPU from `os.cpus()` deltas (`os.loadavg()` is all zeros on Windows),
        plus Linux's pressure files (`/proc/pressure/cpu` and `memory`) where
        present;
@@ -12216,9 +12216,17 @@ one governor for everything the harness starts.
        a container from cgroup v2's `memory.max` and `memory.current`;
      - on macOS, `process.availableMemory()` only with libuv 1.52 or newer,
        which counts free, inactive and purgeable pages. Older versions count
-       free pages alone and report unknown headroom here; an absent API does
-       too. `kern.memorystatus_level` is not a byte reading. ACPM118's Node
-       22/24 capture and regressions certify this boundary (2026-10-09).
+       free pages alone. **C-M107-2 amendment (2026-10-10):** on those older
+       Darwin runtimes, the existing universal ad-hoc-signed helper reads
+       `host_statistics64(HOST_VM_INFO64)` free + inactive + purgeable pages,
+       multiplied by the host page size. One request-driven child per governor
+       stays idle between samples, inherits no credentials and exits on stdin
+       EOF or governor disposal. Construction starts nothing; each request
+       has a bounded deadline and strict bounded response validation. A missing,
+       failed or malformed helper returns unknown; it never substitutes free
+       pages. Newer runtimes still use the API; an absent API or unparseable
+       libuv version remains unknown. `kern.memorystatus_level` is not bytes.
+       ACPM118's Node 22/24 capture certifies the original API boundary.
    - **The harness's own trees,** every `RESOURCE_TREE_SAMPLE_MS` (15
      seconds), only while governed work runs: CPU time and resident memory
      per tree.
@@ -31975,6 +31983,29 @@ quality/coverage and non-Linux native receipts remain the lead's release gate.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**C-M107-2 — older macOS memory headroom (2026-10-10).** Scope: D87.4's
+request-driven memory mode in the existing signed Darwin helper, shared by
+the extension and ACP/headless sampler. Acceptance: parity with Node 24.21's
+available-memory API within one sample, one child per governor only below
+libuv 1.52, unknown on helper failure, bounded/cancellable lifecycle, and
+combined sampler/helper CPU below 0.5% of one core on the Mac mini. Certify
+the production universal signed artifact, default-timeout regressions and
+byte-exact red drills in `docs/certification/m107-darwin-memory.md`. Windows
+and Linux retain their existing sampler. Native editor status/chip rows
+(JetBrains, Visual Studio, Eclipse, Zed, Xcode, Neovim/Emacs/Sublime and the
+companion) remain with C-M104-1/C-M107-8; their shared ACP runtime receives
+this headroom fix without an editor-specific implementation. No dependency,
+paid/model call, command or setting is added. The lane brief forbids full
+quality and merges; the lead owns joined quality and cross-OS CI.
+
+Scoped certification: native parity and the 25-sample production signed-helper
+receipt pass on the Mac mini; one child, combined cost 0.071407% of one core
+(including measurement resolution), all 15 guard drills fail as intended and
+restore byte-exact. The same-agent Codex review covers validation/security,
+failure honesty, concurrency/lifecycle and docs. This closes the older-Darwin
+headroom scope, not M107's unrelated relocation, native bindings or editor
+qualification. Evidence: `docs/certification/m107-darwin-memory.md`.
+
 **M107 W chip — the U–C1/W window binding (2026-10-08, for 0.17).** PR #140's
 review found the chip never mounted. The window's `ResourceLaunchHost` now
 keeps one cached, schema-checked status (replaced only when its content
@@ -42637,7 +42668,22 @@ actual receipts in `docs/certification/m101-p2.md`. The lead must run the
 aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
+**CM1072 focused gate scope (2026-10-10).** The rig brief and its shared
+`codex/common.md` explicitly prohibit full `npm run quality`, full coverage,
+merges and pushes on this shared Mac mini. C-M107-2 runs complete owned test
+files at repository timeouts, all project typechecks, changed-file lint and
+format, deadcode, duplication, localization, host API, reference, roadmap and
+production build checks locally. Native universal signing, API parity,
+combined sampler/helper cost and byte-exact red drills are recorded in
+`docs/certification/m107-darwin-memory.md`. The lead retains combined quality,
+coverage and hosted cross-OS/editor receipts before integration; no rule,
+threshold or timeout is relaxed.
+
 ## 8. Escape hatches register
+
+| C-M107-2 escape                                                                        | Reason                                                                                                                                                                                                                                                                               |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/core/resources/sampler/darwinMemory.ts:start` — `nosemgrep: detect-child-process` | Absolute packaged Darwin helper, fixed `--memory-headroom` argument, no shell or inherited credentials, neutral temporary cwd, strict bounded schema/deadline and sampler-owned retirement. Read-only sampling infrastructure is outside governed work to avoid recursive admission. |
 
 | PORTS017 escape                                                                           | Reason                                                                                                                                                                                                                          |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

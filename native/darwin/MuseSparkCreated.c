@@ -12,15 +12,48 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stddef.h>
 #include <time.h>
 #ifdef __APPLE__
 #include <CommonCrypto/CommonDigest.h>
+#include <mach/mach.h>
 #else
 // Stable SHA primitives keep static delivery small; see PLAN §8 for the scoped deprecation deferral.
 #define OPENSSL_SUPPRESS_DEPRECATED
 #include <openssl/sha.h>
 #include <linux/stat.h>
 #include <sys/syscall.h>
+#endif
+
+#ifdef __APPLE__
+// Request-driven headroom mode, dispatched before Swift's audio/privacy setup.
+// One host port is held for the child's lifetime; EOF retires it without a timer.
+int muse_memory_main(void) {
+  const char request[] = "sample\n";
+  char input[sizeof(request)];
+  mach_port_t host = mach_host_self();
+  vm_size_t page_size;
+  int result = 0;
+  if (host_page_size(host, &page_size) != KERN_SUCCESS || !page_size) result = 1;
+  while (!result && fgets(input, sizeof(input), stdin)) {
+    vm_statistics64_data_t stats;
+    mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
+    // New SDKs can declare fields older kernels omit. Require only through purgeable_count.
+    const size_t required = offsetof(vm_statistics64_data_t, purgeable_count) + sizeof(stats.purgeable_count);
+    if (strcmp(input, request) ||
+        host_statistics64(host, HOST_VM_INFO64, (host_info64_t)&stats, &count) != KERN_SUCCESS ||
+        (size_t)count * sizeof(integer_t) < required) { result = 1; break; }
+    // Promote each counter before addition: vm_statistics counters are 32-bit.
+    uint64_t pages = (uint64_t)stats.free_count + stats.inactive_count + stats.purgeable_count;
+    const uint64_t max_safe_bytes = 9007199254740991ULL;
+    if (pages > max_safe_bytes / page_size) { result = 1; break; }
+    if (printf("{\"availableBytes\":%llu}\n", (unsigned long long)(pages * page_size)) < 0 ||
+        fflush(stdout)) { result = 1; break; }
+  }
+  if (ferror(stdin)) result = 1;
+  mach_port_deallocate(mach_task_self(), host);
+  return result;
+}
 #endif
 
 static const char *marker = ".muse-owner.json";
@@ -213,5 +246,10 @@ int muse_created_main(int argc, char **argv) {
 }
 
 #ifdef MUSE_CREATED_STANDALONE
-int main(int argc, char **argv) { return muse_created_main(argc, argv); }
+int main(int argc, char **argv) {
+#ifdef __APPLE__
+  if (argc == 2 && !strcmp(argv[1], "--memory-headroom")) return muse_memory_main();
+#endif
+  return muse_created_main(argc, argv);
+}
 #endif

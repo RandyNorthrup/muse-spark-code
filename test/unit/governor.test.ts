@@ -67,6 +67,16 @@ function setup(
 }
 
 describe('resource governor levels', () => {
+  it('disposes sampler-owned infrastructure without doing so on disable or resume', () => {
+    const dispose = vi.fn()
+    const f = setup(undefined, { sample: () => Promise.resolve(sample(0)), dispose })
+    f.governor.updateSettings(resourceSettingsSchema.parse({ enabled: false }))
+    f.governor.resumeNow()
+    expect(dispose).not.toHaveBeenCalled()
+    f.governor.dispose()
+    expect(dispose).toHaveBeenCalledTimes(1)
+  })
+
   it('ends one caller’s wait at its signal without cancelling the shared sample', async () => {
     const pending = Promise.withResolvers<ResourceSample>()
     const finish = pending.resolve
