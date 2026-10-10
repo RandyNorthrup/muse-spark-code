@@ -12,10 +12,20 @@ import { ModelSettings } from './fields'
 export function RolesSection({ panelState, post, highlightedItem }: SectionProps) {
   const slice = panelState.roles
   const [step, setStep] = useState(0)
+  // The guide leaves only once an imported draft actually arrives (the
+  // host announces it); cancelling the file picker changes nothing, so
+  // the guide stays.
   const [guided, setGuided] = useState(
     panelState.roles?.hasSavedConfiguration === false &&
       panelState.roles.document.roles.length === 0,
   )
+  // Only a fresh import arrival ends the guide: a notice that was
+  // already there (a cancelled picker, a reset draft) changes nothing.
+  const [seenNotice, setSeenNotice] = useState(slice?.notice)
+  if (slice?.notice !== seenNotice) {
+    setSeenNotice(slice?.notice)
+    if (guided && slice?.notice === UI_TEXT.teamImportDraft) setGuided(false)
+  }
   const [template, setTemplate] = useState<'solo' | 'pair' | 'full' | 'custom'>('pair')
   const [roleId, setRoleId] = useState('')
   const [chip, setChip] = useState<string | undefined>()
@@ -358,6 +368,9 @@ export function RolesSection({ panelState, post, highlightedItem }: SectionProps
             onClick={() => {
               post({ type: 'roles/reset' })
               setStep(0)
+              // Cancelling back to an empty, unsaved workspace restores
+              // guided setup; a saved configuration stays out of the guide.
+              if (!slice.hasSavedConfiguration) setGuided(true)
             }}
           >
             {UI_TEXT.wizardCancel}
@@ -366,7 +379,6 @@ export function RolesSection({ panelState, post, highlightedItem }: SectionProps
             type="button"
             className="models-button"
             onClick={() => {
-              setGuided(false)
               post({ type: 'roles/import' })
             }}
           >

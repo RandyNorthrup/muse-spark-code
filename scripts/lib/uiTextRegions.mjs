@@ -611,7 +611,7 @@ installSurfaceEnglish(EN);`,
           edits.push({
             start: argument.getStart(tree),
             end: argument.end,
-            source: `async () => { await ${node.expression.text === 'lazy' ? "Promise.all([import('browser-surface-english'), import('browser-account-english'), import('browser-team-english')])" : "import('browser-reference-english')"}; return await (${argument.getText(tree)})() }`,
+            source: `async () => { await ${node.expression.text === 'lazy' ? "Promise.all([import('browser-surface-english'), import('browser-account-english')])" : "import('browser-reference-english')"}; return await (${argument.getText(tree)})() }`,
           })
         }
         ts.forEachChild(node, visit)
