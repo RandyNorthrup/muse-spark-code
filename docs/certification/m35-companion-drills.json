@@ -514,5 +514,14 @@
       "test/unit/companionVoiceCli.test.mjs > held companion CLI with fake browser and billing > send keeps stdout and final tally honest"
     ],
     "exit": 1
+  },
+  {
+    "drill": "stereo-pcm-mixing",
+    "file": "src/shared/companionWav.ts",
+    "sha256": "e52d1eee3eb39a888789d96a913117992fbc420ad2e9bd279251571fbc2cb04c",
+    "failed": [
+      "test/unit/companionVoice.test.ts > companion WAV boundary > mixes stereo before clipping and rounding without signed PCM overflow"
+    ],
+    "exit": 1
   }
 ]

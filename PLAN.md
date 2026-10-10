@@ -22182,7 +22182,9 @@ stored-key Muse Code support supersedes the archive's original backend limit.
 Use U18's captured mono PCM WAV batch endpoint, not unbounded realtime billing.
 The browser captures at most 60 seconds / 1,920,044 WAV bytes; the server
 independently validates origin, bearer, byte count, WAV geometry, ticket age,
-single-use ownership and concurrency. Audio is memory-only on the paid path;
+single-use ownership and concurrency. Stereo channels are mixed in float
+precision before one clip/round to PCM16, preventing positive full-scale wrap.
+Audio is memory-only on the paid path;
 free OS recognition uses an owner-only temporary WAV deleted in finally.
 Windows reuses `dictate.ps1 -InputWav`; macOS adds file recognition to the
 same signed helper, without opening the host microphone. No free Linux engine.
@@ -22209,7 +22211,7 @@ Lane plan (keep current):
 - [x] Free Windows/macOS file engines, bounded child lifecycle and fake cleanup tests.
       Native macOS compilation and actual OS recognition remain in the release hold.
 - [x] Accessible/responsive companion, explicit ACP/CLI prompt handoff.
-- [x] Fake-mic Chrome e2e, 48 red drills with byte-exact SHA-256 restoration.
+- [x] Fake-mic Chrome e2e, 49 red drills with byte-exact SHA-256 restoration.
 - [x] Localization, Help/docs and focused gates; local hooked commit at handoff.
 - [ ] Windows/macOS browser and native-helper receipts on lead rigs.
 

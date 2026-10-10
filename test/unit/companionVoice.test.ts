@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { describe, it, expect, vi } from 'vitest'
-import { companionWav, companionWavSeconds } from '../../src/shared/companionWav'
+import { companionPcm, companionWav, companionWavSeconds } from '../../src/shared/companionWav'
 import {
   companionVoiceHandler,
   type CompanionVoiceWindow,
@@ -49,6 +49,13 @@ function setup() {
 }
 
 describe('companion WAV boundary', () => {
+  it('mixes stereo before clipping and rounding without signed PCM overflow', () => {
+    const left = Float32Array.from([1, -1, 1, 0.5, 2])
+    const right = Float32Array.from([1, -1, -1, 0.5, 0])
+    expect([...companionPcm([left, right], left.length)]).toEqual([
+      32_767, -32_768, 0, 16_384, 32_767,
+    ])
+  })
   it('derives exact duration from canonical PCM bytes and accepts the hard cap', () => {
     expect(companionWavSeconds(wav())).toBe(1)
     expect(

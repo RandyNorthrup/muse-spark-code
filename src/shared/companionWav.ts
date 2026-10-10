@@ -3,6 +3,8 @@ import {
   COMPANION_VOICE_WAV_HEADER_BYTES,
   MUSE_VOICE_BYTES_PER_SECOND,
   MUSE_VOICE_SAMPLE_RATE,
+  COMPANION_VOICE_PCM_MAX,
+  COMPANION_VOICE_PCM_MIN,
 } from './constants'
 
 // Fixed RIFF field offsets and geometry, not tunables.
@@ -22,6 +24,21 @@ const WAV = {
   pcmFormatSize: 16,
   pcmBits: 16,
   wordBytes: 4,
+}
+
+/** Mix in float precision, then clip and round once; PCM addition can wrap. */
+export function companionPcm(
+  channels: readonly [Float32Array, ...Float32Array[]],
+  length: number,
+): Int16Array {
+  const pcm = new Int16Array(length)
+  for (let i = 0; i < length; i++) {
+    let average = 0
+    for (const channel of channels) average += (channel[i] ?? 0) / channels.length
+    const value = Math.max(-1, Math.min(1, average))
+    pcm[i] = Math.round(value * (value < 0 ? -COMPANION_VOICE_PCM_MIN : COMPANION_VOICE_PCM_MAX))
+  }
+  return pcm
 }
 
 export function companionWav(pcm: Int16Array): Uint8Array {
