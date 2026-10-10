@@ -150,3 +150,53 @@ closed`) and loopback `listen` is denied, so the rewritten
   A companion appearance settings UI is a later-lane decision.
 - Native rows of acceptance 9 stay with C-M114-2; visual-regression
   goldens and the full gate stay with S/the lead.
+
+## Round 3 — RVCM1141B readiness rebuild (2026-10-10, macbook rig, lane CM1141R3)
+
+Review RVCM1141B's one P2: `companionThemedBrowser` waited on the header
+title/subtitle, which `UsageApp` renders while `state` is undefined, so a
+journal read that never resolves still passed certification on the
+"Loading usage…" page. Rebuilt instead of patched, per the lane brief.
+
+- Production (`src/webview/usage/UsageApp.tsx`): `<main>` carries
+  `data-usage-ready="true"` only when `state !== undefined`, i.e. only
+  after the view renders real host state. Error/unavailable shells never
+  set it (separate component, no marker), and `aria-busy` settling on an
+  error does not set it either.
+- Browser certification (`test/unit/companionThemedBrowser.test.mjs`):
+  every mode waits on `main.usage-page[data-usage-ready="true"]` idle
+  (`aria-busy="false"`) and then asserts rendered values from the
+  deterministic empty-journal fixture: `History is stored on ACP.`, the
+  `No usage yet` empty state, and the absence of `Loading usage…`,
+  alongside the existing palette/font/axe assertions.
+- Regression (`test/unit/usageReadyMarker.test.tsx`, jsdom, 3 cases):
+  marker absent on the pending shell although title/subtitle render (the
+  old predicate's hole); marker plus settled values after `usage/state`;
+  marker absent on a `usage/error` settle although `aria-busy` is false.
+- Sweep of every readiness predicate in `test/unit/companion*` for the
+  same class: `companionBrowser` waits on the launch document's
+  `data-launch` marker plus `panelLoaded` and asserts only
+  transport/security behaviour on a fake shell (no Usage content);
+  `companionMediaBrowser` waits on `data-attached` set after the server
+  consumed the upload, with assertions on the server-side uploads array;
+  lifecycle/upload/media suites wait on server events or rendered props,
+  never on page copy. None assert Usage content on a shell wait, so none
+  needed the marker. Harness `usage-*.mjs` `aria-busy` waits are
+  screenshot drivers, not certifications, and one flow asserts error
+  paths where the marker never appears; left untouched.
+
+Red drill: broke the guard (`data-usage-ready={undefined}`) —
+`usageReadyMarker` failed exactly the settled-state case (1 failed,
+2 passed); restored and `sha256sum -c` OK on both files at drill time
+(`UsageApp.tsx` `c71a62a1…`, `usageReadyMarker` `8ac94508…`; later
+lint-driven edits re-verified by the passing runs below).
+
+Verification (repository timeouts, no `--testTimeout`): the new file plus
+`UsageApp` plus `companionThemedPage` — 45/45 pass on this rig.
+`npm run typecheck` clean (all projects); eslint and prettier clean on
+all touched files; `check-l10n` 0 problems (no user-visible string).
+Blocked in this sandbox: the rebuilt `companionThemedBrowser` suite
+cannot run here — `listen EPERM` on 127.0.0.1 in `beforeAll`, the same
+sandbox denial the lane already records. No workaround built, per the
+2026-10-08 rule; the lead runs the four-mode browser certification
+unsandboxed.

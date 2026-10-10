@@ -136,8 +136,16 @@ export function UsageApp({
       host.messages.removeEventListener('message', receive)
     }
   }, [host])
+  // The browser certification's readiness marker: present only after this
+  // view renders real host state. The header title/subtitle render while
+  // state is undefined, and aria-busy settles on errors too, so neither
+  // proves a settled page (RVCM1141B).
   return (
-    <main className="usage-page" aria-busy={busy}>
+    <main
+      className="usage-page"
+      aria-busy={busy}
+      data-usage-ready={state === undefined ? undefined : 'true'}
+    >
       <Header
         capabilities={state?.capabilities}
         query={query}

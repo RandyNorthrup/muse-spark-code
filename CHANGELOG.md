@@ -91,7 +91,11 @@ happened, not what was planned; superseded entries are kept.
   root. The Chromium suite drives this whole handshake against the real
   server in all four appearance modes and asserts the mounted Usage body,
   and watch mode rebuilds the static theme sheets after a theme-only edit
-  (M114 C-M114-1).
+  (M114 C-M114-1). The suite's readiness wait now keys on the marker the
+  Usage view sets only after rendering real host state, with the settled
+  host line, empty state and idle busy flag asserted in every mode, so a
+  journal read that never resolves fails the wait instead of passing the
+  loading page (RVCM1141B).
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
