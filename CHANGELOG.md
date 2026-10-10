@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- README screenshots now show 0.17.1's current labels and question-field
+  spacing, regenerated through the repository's screenshot script.
 - Visual baseline reconstruction accepts the recorded sentence-case account
   and vault labels alongside 0.17.1's Title Case labels. Pixel, coverage and
   readiness checks retain their existing limits.
