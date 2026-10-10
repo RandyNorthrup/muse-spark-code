@@ -1,6 +1,7 @@
 import * as z from 'zod/mini'
 import { parseArgs } from 'node:util'
 import { UI_TEXT, VAULT_LIMITS } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import {
   vaultApprovalAnswerSchema,
   vaultAuditRecordSchema,
@@ -18,6 +19,7 @@ import {
   vaultStatusSchema,
 } from '../../shared/vaultProtocol'
 import { vaultApprovalText, vaultDecisionChoices } from './vaultApproval'
+import type { VaultManagementPort } from '../../core/vault/broker/ports'
 
 const auditFilterSchema = z.strictObject({
   item: z.optional(vaultAuditRecordSchema.shape.handle),
@@ -29,7 +31,7 @@ type AuditFilter = z.infer<typeof auditFilterSchema>
 
 export type VaultReadCommand = 'status' | 'list' | 'lock' | 'audit'
 export type VaultCommandOptions =
-  | { command: VaultReadCommand | 'watch'; filters?: AuditFilter }
+  | { command: VaultReadCommand | 'watch' | 'setup' | 'recover'; filters?: AuditFilter }
   | { command: 'unlock'; slotId: string | null }
   | { command: 'add'; metadata: VaultItemMetadata }
   | { command: 'grant'; grant: VaultGrant }
@@ -38,7 +40,10 @@ export type VaultCommandOptions =
   | { command: 'import'; path: string }
 
 /** Trusted local management channel only. Private material never uses the panel/MHP port. */
-export interface VaultCommandPort {
+export interface VaultCommandPort extends Pick<
+  VaultManagementPort,
+  'setup' | 'confirmSetup' | 'cancelSetup' | 'recover'
+> {
   status(): Promise<unknown>
   list(): Promise<unknown>
   lock(): Promise<void>
@@ -61,12 +66,16 @@ export interface VaultCommandDeps {
   choose(title: string, options: readonly string[], signal: AbortSignal): Promise<string>
   print(text: string): void
   printError(text: string): void
+  /** A terminal is attached: setup and recovery never run without one. */
+  readonly isInteractive: boolean
+  /** One hidden terminal line (echo off), as owned bytes. */
+  readLine(prompt: string, signal: AbortSignal): Promise<Buffer>
   now(): number
   signal: AbortSignal
 }
 
 export function vaultUsage(): string {
-  return `${UI_TEXT.vault.title}: status | unlock [slot-id] | lock | list | add <metadata-json> | remove <item-id> | grant <grant-json> | revoke <grant-id> | audit [--item <handle>] [--requester <id>] [--kind <kind>] [--outcome <outcome>] | import <path> | public-key <item-id> | watch`
+  return `${UI_TEXT.vault.title}: setup | recover | status | unlock [slot-id] | lock | list | add <metadata-json> | remove <item-id> | grant <grant-json> | revoke <grant-id> | audit [--item <handle>] [--requester <id>] [--kind <kind>] [--outcome <outcome>] | import <path> | public-key <item-id> | watch`
 }
 
 /** Parse without echoing supplied arguments or JSON errors (they can contain an accidental value). */
@@ -88,7 +97,7 @@ export function parseVaultCommand(args: readonly string[]): VaultCommandOptions 
       return { command, filters: auditFilterSchema.parse(parsed.values) }
     }
     if (rest.length > 0) return undefined
-    const read = (['status', 'list', 'lock', 'watch'] as const).find(
+    const read = (['status', 'list', 'lock', 'watch', 'setup', 'recover'] as const).find(
       (candidate) => candidate === command,
     )
     if (argument === undefined && read !== undefined) return { command: read }
@@ -254,6 +263,34 @@ async function watch(port: VaultCommandPort, deps: VaultCommandDeps): Promise<vo
   }
 }
 
+/** Shown once; the vault exists only after "I Saved It" (lead decision 8). */
+async function setUpVault(port: VaultCommandPort, deps: VaultCommandDeps): Promise<number> {
+  if (!deps.isInteractive) {
+    deps.printError(UI_TEXT.vault.setupHeadless)
+    return 1
+  }
+  const shown = await port.setup()
+  try {
+    deps.printError(UI_TEXT.vault.recoveryWarning)
+    deps.print(fill(UI_TEXT.vault.recoveryShownOnce, { code: shown.code.toString('ascii') }))
+    let answer = 'cancel'
+    try {
+      answer = await deps.choose(UI_TEXT.vault.savedItPrompt, ['savedIt', 'cancel'], deps.signal)
+    } catch {
+      /* EOF, timeout and cancellation cancel the setup. */
+    }
+    if (answer === 'savedIt') {
+      await port.confirmSetup(shown.setupId)
+      return 0
+    }
+    await port.cancelSetup(shown.setupId)
+    deps.printError(UI_TEXT.vault.setupCancelled)
+    return 1
+  } finally {
+    shown.code.fill(0)
+  }
+}
+
 export async function runVaultCommand(
   options: VaultCommandOptions,
   deps: VaultCommandDeps,
@@ -323,6 +360,25 @@ export async function runVaultCommand(
       }
       case 'watch': {
         await watch(port, deps)
+        break
+      }
+      case 'setup': {
+        code = await setUpVault(port, deps)
+        break
+      }
+      case 'recover': {
+        if (!deps.isInteractive) {
+          deps.printError(UI_TEXT.vault.setupHeadless)
+          code = 1
+          break
+        }
+        const recovery = await deps.readLine(`${UI_TEXT.vault.recoveryCode}: `, deps.signal)
+        try {
+          deps.signal.throwIfAborted()
+          await port.recover(recovery)
+        } finally {
+          recovery.fill(0)
+        }
         break
       }
     }

@@ -3,7 +3,7 @@ import { constants } from 'node:fs'
 import { createServer, type Server } from 'node:net'
 import { type Duplex } from 'node:stream'
 import { randomBytes } from 'node:crypto'
-import * as z from 'zod/mini'
+import type * as z from 'zod/mini'
 import {
   VAULT_PROTOCOL_VERSION,
   VAULT_APPROVAL_TTL_MS,
@@ -11,11 +11,7 @@ import {
   UI_TEXT,
 } from '../../../shared/constants'
 import {
-  vaultBrokerRequestSchema,
-  vaultBrokerResponseSchema,
   vaultBrokerEventFrameSchema,
-  vaultPrivateRequestSchema,
-  vaultPrivateResponseSchema,
   vaultPrivateMaterialSchema,
   vaultPrivateRecoveryCodeSchema,
   type VaultBrokerRequest,
@@ -45,21 +41,11 @@ import { type RegistrationToken, type ConnectionToken } from './state'
 import { type VaultCeiling } from './policy'
 import { type VaultPeerVerifier, type VaultProcessIdentity } from './peer'
 
-const privateEnvelope = z.strictObject({
-  v: z.literal(VAULT_PROTOCOL_VERSION),
-  sequence: z.number().check(z.int(), z.nonnegative()),
-  request: vaultPrivateRequestSchema,
-})
-export const vaultChannelRequestSchema = z.union([vaultBrokerRequestSchema, privateEnvelope])
-export const vaultChannelResponseSchema = z.union([
-  vaultBrokerResponseSchema,
-  z.strictObject({
-    v: z.literal(VAULT_PROTOCOL_VERSION),
-    sequence: z.number().check(z.int(), z.nonnegative()),
-    response: vaultPrivateResponseSchema,
-  }),
-])
-export type VaultChannelResponse = z.infer<typeof vaultChannelResponseSchema>
+import {
+  vaultChannelRequestSchema,
+  vaultChannelResponseSchema,
+  type VaultChannelResponse,
+} from './frames'
 export type { VaultConnectionIdentity } from './ports'
 export interface VaultSecuredListenerPort {
   /** P creates an owner-only, remote-refusing pipe before handing over any accepted socket. */

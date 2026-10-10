@@ -430,7 +430,7 @@ export const EN = {
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
   referenceVault:
-    'Work with the per-user credential vault from a terminal: status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.',
+    'Work with the per-user credential vault from a terminal: setup, recover, status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.',
   referenceVaultHelp: 'Show the per-user credential vault command usage.',
   referenceVaultPanel:
     'The credential vault is unavailable in this build because the broker is not installed.',
@@ -6216,6 +6216,20 @@ export const EN = {
       'Passkeys stay with your authenticator. Sign in yourself; the vault stores session cookies only.',
     recoveryWarning:
       'Keep the recovery code somewhere safe. It is shown only once and unlocks the vault.',
+    // C-M109-1: the setup flow and the CLI (lead decision 8).
+    setUp: 'Set Up Vault',
+    savedIt: 'I Saved It',
+    copyCode: 'Copy',
+    cancelSetup: 'Cancel Setup',
+    setupNeeded: 'Set up the vault before you store a secret in it.',
+    setupExists: 'A vault already exists for this user.',
+    setupPending: 'Save the recovery code, then confirm to finish setting up the vault.',
+    setupCancelled: 'Vault setup was cancelled. Nothing was saved.',
+    setupHeadless:
+      'Vault setup and recovery need an interactive terminal; headless runs cannot do them.',
+    recoveryShownOnce: 'Recovery code (shown only now): {code}',
+    savedItPrompt: 'Have you saved the recovery code somewhere safe?',
+    busy: 'The vault is busy in another window. Try again.',
     remoteWarning:
       'Only a signature or a one-time code may be requested from another device. Its user must approve each use there.',
     approvalExpired: 'This approval expired. Request the use again.',

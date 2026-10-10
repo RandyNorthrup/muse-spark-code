@@ -3,6 +3,14 @@ import { vi } from 'vitest'
 import type { VaultCommandDeps, VaultCommandPort } from '../../../../src/runtime/vault/vaultCommand'
 import { audit, metadata, panel } from './fixtures'
 
+/** A generated setup answer: a random id and a random 40-hex recovery code. */
+export function generatedSetup(): Promise<{ setupId: string; code: Buffer }> {
+  return Promise.resolve({
+    setupId: randomBytes(16).toString('hex'),
+    code: Buffer.from(randomBytes(20).toString('hex'), 'ascii'),
+  })
+}
+
 export function commandHarness(events: readonly unknown[] = []) {
   const port = {
     status: vi.fn<VaultCommandPort['status']>(() => Promise.resolve(panel().status)),
@@ -24,6 +32,10 @@ export function commandHarness(events: readonly unknown[] = []) {
     answer: vi.fn<VaultCommandPort['answer']>(() =>
       Promise.resolve({ kind: 'denied', reason: 'policy' }),
     ),
+    setup: vi.fn<VaultCommandPort['setup']>(generatedSetup),
+    confirmSetup: vi.fn(() => Promise.resolve()),
+    cancelSetup: vi.fn(() => Promise.resolve()),
+    recover: vi.fn(() => Promise.resolve()),
     close: vi.fn(() => Promise.resolve()),
   } satisfies VaultCommandPort
   const bytes = randomBytes(32)
@@ -34,6 +46,8 @@ export function commandHarness(events: readonly unknown[] = []) {
     choose: vi.fn<VaultCommandDeps['choose']>(() => Promise.resolve('allowOnce')),
     print: vi.fn(),
     printError: vi.fn(),
+    isInteractive: true,
+    readLine: vi.fn(() => Promise.resolve(Buffer.from(randomBytes(20).toString('hex'), 'ascii'))),
     now: vi.fn(() => 1),
     signal: controller.signal,
   } satisfies VaultCommandDeps

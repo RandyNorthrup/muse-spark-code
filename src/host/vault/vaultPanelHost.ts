@@ -29,6 +29,10 @@ export interface VaultPanelService {
   answer(answer: VaultApprovalAnswer): Promise<void>
   /** M imports only the selected path; never another application's private store. */
   importFile(path: string, authorize: () => void): Promise<void>
+  /** Set Up Vault: the one-time code as owned bytes; nothing is written before confirmSetup. */
+  setup(): Promise<{ setupId: string; code: Buffer }>
+  confirmSetup(setupId: string): Promise<void>
+  cancelSetup(setupId: string): Promise<void>
 }
 export interface VaultPanelHostDeps {
   readonly service: VaultPanelService
@@ -43,6 +47,8 @@ export interface VaultPanelHostDeps {
   readonly publish: (message: ReturnType<typeof vaultHostMessageSchema.parse>) => void
   readonly status: (isUnlocked: boolean) => void
   readonly showError: (message: string) => void
+  /** The host's own modal with Copy and I Saved It; true only for I Saved It. */
+  readonly showRecoveryCode: (code: string, signal: AbortSignal) => Promise<boolean>
 }
 
 function wipe(item: VaultItem): void {
@@ -216,6 +222,25 @@ export class VaultPanelHost {
     }
     return this.enqueue(async (generation) => {
       if (message.type === 'vaultReady') {
+        await this.load(generation)
+        return
+      }
+      if (message.type === 'vaultSetup') {
+        const current = await this.load(generation)
+        if (current.status.state !== 'uncreated') throw new Error(UI_TEXT.vault.setupExists)
+        const shown = await this.deps.service.setup()
+        try {
+          const isSaved = await this.deps.showRecoveryCode(
+            shown.code.toString('ascii'),
+            this.cancellation.signal,
+          )
+          if (isSaved) {
+            this.authorize(generation)
+            await this.deps.service.confirmSetup(shown.setupId)
+          } else await this.deps.service.cancelSetup(shown.setupId)
+        } finally {
+          shown.code.fill(0)
+        }
         await this.load(generation)
         return
       }

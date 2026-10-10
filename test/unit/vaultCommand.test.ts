@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import {
+  parseVaultCommand,
   runVaultCommand,
   vaultRead,
   type VaultCommandOptions,
@@ -330,5 +331,43 @@ describe('M109 H vault watch', () => {
     h.port.answer.mockResolvedValue({ kind: 'denied', reason: 'policy', value: 'private-canary' })
     expect(await runVaultCommand({ command: 'watch' }, h.deps)).toBe(1)
     expect(h.deps.print).not.toHaveBeenCalled()
+  })
+})
+
+describe('C-M109-1 vault setup and recover', () => {
+  it('prints the code once, confirms only on I Saved It and erases it', async () => {
+    const h = commandHarness()
+    const code = Buffer.from('a1'.repeat(20), 'ascii')
+    h.port.setup.mockResolvedValueOnce({ setupId: 'b'.repeat(32), code })
+    h.deps.choose.mockResolvedValueOnce('savedIt')
+    expect(parseVaultCommand(['setup'])).toEqual({ command: 'setup' })
+    expect(await runVaultCommand({ command: 'setup' }, h.deps)).toBe(0)
+    expect(h.deps.print).toHaveBeenCalledOnce()
+    expect(h.deps.print.mock.calls[0]?.[0]).toContain('a1'.repeat(20))
+    expect(h.port.confirmSetup).toHaveBeenCalledWith('b'.repeat(32))
+    expect(code.every((byte) => byte === 0)).toBe(true)
+  })
+  it('cancels when the person does not confirm, and refuses without a terminal', async () => {
+    const h = commandHarness()
+    h.deps.choose.mockResolvedValueOnce('cancel')
+    expect(await runVaultCommand({ command: 'setup' }, h.deps)).toBe(1)
+    expect(h.port.cancelSetup).toHaveBeenCalledOnce()
+    expect(h.port.confirmSetup).not.toHaveBeenCalled()
+    expect(h.deps.printError).toHaveBeenCalledWith(UI_TEXT.vault.setupCancelled)
+    const headless = commandHarness()
+    const detached = { ...headless.deps, isInteractive: false }
+    expect(await runVaultCommand({ command: 'setup' }, detached)).toBe(1)
+    expect(await runVaultCommand({ command: 'recover' }, detached)).toBe(1)
+    expect(headless.port.setup).not.toHaveBeenCalled()
+    expect(headless.port.recover).not.toHaveBeenCalled()
+    expect(headless.deps.printError).toHaveBeenCalledWith(UI_TEXT.vault.setupHeadless)
+  })
+  it('recovers from a hidden terminal line and erases it', async () => {
+    const h = commandHarness()
+    const line = Buffer.from('c2'.repeat(20), 'ascii')
+    h.deps.readLine.mockResolvedValueOnce(line)
+    expect(await runVaultCommand({ command: 'recover' }, h.deps)).toBe(0)
+    expect(h.port.recover).toHaveBeenCalledOnce()
+    expect(line.every((byte) => byte === 0)).toBe(true)
   })
 })
