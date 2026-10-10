@@ -208,6 +208,163 @@
         "FAIL  test/unit/portablePageSecurity.test.ts > embeds manifest import text as inert JSON, including closing tags and line separators",
         "Tests  1 failed | 14 passed (15)"
       ]
+    },
+    {
+      "drill": "embedded-regexp",
+      "file": "hosts/jetbrains/src/main/resources/embedded.mjs",
+      "beforeSha256": "b369c5b30a0cefa8fc3d10e470087f52fbb9721ba93347266953a5f4f5c8d4cc",
+      "mutatedSha256": "66b90603eca9f58ce43060b87a2983267692626ba095ad04a8799e8fb9e3b21d",
+      "restoredSha256": "b369c5b30a0cefa8fc3d10e470087f52fbb9721ba93347266953a5f4f5c8d4cc",
+      "exit": 1,
+      "seconds": 1.1,
+      "log": "temp/red-embedded-regexp.log",
+      "logSha256": "5c11856abd363a4ec861f73e0daed4bde5f4aeffd8dcfbeb13214e1d51b2d8b9",
+      "logBytes": 2578,
+      "failures": [
+        "\u2716 refuses unknown schema regex source instead of compiling or dispatching it (1.829314ms)",
+        "\u2716 requires a listener and validates payloads before forwarding (2.279504ms)",
+        "\u2716 failing tests:",
+        "\u2716 refuses unknown schema regex source instead of compiling or dispatching it (1.829314ms)",
+        "\u2716 requires a listener and validates payloads before forwarding (2.279504ms)"
+      ]
+    },
+    {
+      "drill": "eclipse-regular-file",
+      "file": "hosts/eclipse/plugin/src/io/musespark/eclipse/RuntimeProcess.java",
+      "beforeSha256": "0fd051cdf1ee22b08d52cb3a1cda9fc11cec0861ee1867d5545bad9fb4d6c994",
+      "mutatedSha256": "c82aeffd72269d9135e8f258cfac8c0a61e2c7e16502d7f92d596115ff3aeb8e",
+      "restoredSha256": "0fd051cdf1ee22b08d52cb3a1cda9fc11cec0861ee1867d5545bad9fb4d6c994",
+      "exit": 1,
+      "seconds": 1.3,
+      "log": "temp/red-eclipse-regular-file.log",
+      "logSha256": "28419842c240ff492b559c8f52d4dfb5a373ef5cb8e1be9f5fdf20e753867d2b",
+      "logBytes": 555,
+      "failures": ["FAILURES!!!", "Tests run: 3,  Failures: 1"]
+    },
+    {
+      "drill": "eclipse-executable",
+      "file": "hosts/eclipse/plugin/src/io/musespark/eclipse/RuntimeProcess.java",
+      "beforeSha256": "0fd051cdf1ee22b08d52cb3a1cda9fc11cec0861ee1867d5545bad9fb4d6c994",
+      "mutatedSha256": "b402facafacac86fc5540c241b1dacb5f03448ceb8f52925e9cf3a4c938574d4",
+      "restoredSha256": "0fd051cdf1ee22b08d52cb3a1cda9fc11cec0861ee1867d5545bad9fb4d6c994",
+      "exit": 1,
+      "seconds": 1.3,
+      "log": "temp/red-eclipse-executable.log",
+      "logSha256": "e3813ffb1a213ac3877274a9d320f6bc2395b23f58bf81a32e9fcdc7143541b2",
+      "logBytes": 555,
+      "failures": ["FAILURES!!!", "Tests run: 3,  Failures: 1"]
+    },
+    {
+      "drill": "jetbrains-script-placeholders",
+      "file": "hosts/jetbrains/build-resources.mjs",
+      "beforeSha256": "f37395af92c11dace00a68227f7cb49e1e6e009e02ecd822616e6e26d37fde5a",
+      "mutatedSha256": "6038297b952583b3973db0a9a0a5aef324b9bdbd9300e2b445a785b9adbe644e",
+      "restoredSha256": "f37395af92c11dace00a68227f7cb49e1e6e009e02ecd822616e6e26d37fde5a",
+      "exit": 1,
+      "seconds": 10.9,
+      "log": "temp/red-jetbrains-pages.log",
+      "logSha256": "79202004d533f59ef4f11c09c618c59600523420e675e6a7b5d8174c886e15ba",
+      "logBytes": 621459,
+      "failures": [
+        "FAIL  test/unit/jetbrainsPagesSecurity.test.ts > generates chat with external nonce-bearing scripts and no executable bridge placeholder",
+        "FAIL  test/unit/jetbrainsPagesSecurity.test.ts > generates tasks with external nonce-bearing scripts and no executable bridge placeholder",
+        "FAIL  test/unit/jetbrainsPagesSecurity.test.ts > generates whatsNew with external nonce-bearing scripts and no executable bridge placeholder",
+        "Tests  3 failed (3)"
+      ]
     }
-  ]
+  ],
+  "offlineSast": {
+    "version": "1.177.0",
+    "scope": "Four local site-reproduction patterns; supplemental, not the registry auto gate",
+    "configSha256": "95e106e4a82fb447b077d84bc215b9849c16ffa6fc1ab09e3a4bfa11a8b8474f",
+    "rules": "rules:\n  - id: m104-f2.manual-html-escaping\n    languages: [javascript, typescript]\n    severity: ERROR\n    message: Use the existing contextual serializer rather than chained entity replacements.\n    pattern-either:\n      - pattern: $VALUE.replaceAll('&', '&amp;')\n      - pattern: $VALUE.replaceAll('<', '&lt;')\n      - pattern: $VALUE.replaceAll('>', '&gt;')\n      - pattern: $VALUE.replaceAll('\"', '&quot;')\n  - id: m104-f2.generated-script-placeholder\n    languages: [javascript, typescript]\n    severity: ERROR\n    message: The native host inserts its reviewed bridge; the generator must not emit executable placeholders.\n    pattern: $HTML.replace('</head>', '<script nonce=\"__MUSE_NONCE__\">__MUSE_BRIDGE__</script></head>')\n  - id: m104-f2.dynamic-schema-regexp\n    languages: [javascript, typescript]\n    severity: ERROR\n    message: Schema pattern source must select a reviewed literal, never be compiled.\n    pattern: new RegExp($SOURCE, 'u')\n  - id: m104-f2.launcher-command\n    languages: [java]\n    severity: ERROR\n    message: Resolve a regular executable and pass its complete command as an argument list.\n    pattern: new ProcessBuilder($LAUNCHER, \"panel\", \"--stdio\")\n",
+    "beforeCount": 16,
+    "afterCount": 0,
+    "beforeErrors": 0,
+    "afterErrors": 0,
+    "beforeResultSha256": "8ab179b710007e15530dc07596d43c1d425c5a1fc498d02c03e0ff567b7c3341",
+    "afterResultSha256": "37bea748507b2ec622bec5bdec2618331a9412d615e4c277b82dd26c5a83f130",
+    "sites": [
+      {
+        "owner": "hosts/eclipse/plugin/src/io/musespark/eclipse/WindowSession.java",
+        "line": 57,
+        "rule": "temp.m104-f2.launcher-command"
+      },
+      {
+        "owner": "hosts/jetbrains/build-resources.mjs",
+        "line": 52,
+        "rule": "temp.m104-f2.generated-script-placeholder"
+      },
+      {
+        "owner": "hosts/jetbrains/build-resources.mjs",
+        "line": 77,
+        "rule": "temp.m104-f2.generated-script-placeholder"
+      },
+      {
+        "owner": "hosts/jetbrains/src/main/resources/embedded.mjs",
+        "line": 46,
+        "rule": "temp.m104-f2.dynamic-schema-regexp"
+      },
+      {
+        "owner": "hosts/xcode/Scripts/generate.mjs",
+        "line": 110,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "hosts/xcode/Scripts/generate.mjs",
+        "line": 110,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "hosts/xcode/Scripts/generate.mjs",
+        "line": 110,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "src/host/ui/pageHtml.ts",
+        "line": 8,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "src/host/ui/pageHtml.ts",
+        "line": 8,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "src/host/ui/pageHtml.ts",
+        "line": 8,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "src/host/ui/pageHtml.ts",
+        "line": 8,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "src/runtime/panel/portablePage.ts",
+        "line": 81,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "src/runtime/panel/portablePage.ts",
+        "line": 81,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "src/runtime/panel/portablePage.ts",
+        "line": 81,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "src/runtime/panel/portablePage.ts",
+        "line": 86,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "src/runtime/panel/portablePage.ts",
+        "line": 86,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      }
+    ]
+  }
 }

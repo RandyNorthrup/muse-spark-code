@@ -1,6 +1,19 @@
 const areEqual = (left, right) => JSON.stringify(left) === JSON.stringify(right)
 const bytes = (value) => new TextEncoder().encode(JSON.stringify(value)).length
 const clone = (value) => structuredClone(value)
+// These are the complete patterns in the frozen panel/state contract. Never
+// compile schema-provided source: a future pattern needs review and a literal.
+const schemaPatterns = new Map(
+  [
+    /^[\w-][\w.-]*$/u,
+    /^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$/u,
+    /^(?:0|[1-9]\d*)(?:\.\d*[1-9])?$/u,
+    /^[^\s\-\p{Cc}][^\s\p{Cc}]*$/u,
+    /^(?!meta$)[a-z][a-z0-9-]{0,31}$/u,
+    /^[a-f0-9]{64}$/u,
+    /^[a-z][a-z0-9-]{0,31}$/u,
+  ].map((pattern) => [pattern.source, pattern]),
+)
 // This compatibility boundary uses JSON wire semantics, including omitted undefined fields.
 const serializeForWire = (value) => {
   const encoded = JSON.stringify(value)
@@ -43,7 +56,11 @@ const matches = (schema, value, root = schema) => {
     case 'string': {
       if (schema.minLength !== undefined && value.length < schema.minLength) return false
       if (schema.maxLength !== undefined && value.length > schema.maxLength) return false
-      if (schema.pattern && !new RegExp(schema.pattern, 'u').test(value)) return false
+      if (schema.pattern !== undefined) {
+        const pattern = schemaPatterns.get(schema.pattern)
+        if (pattern === undefined) throw new Error('MHP_SCHEMA_UNSUPPORTED')
+        if (!pattern.test(value)) return false
+      }
       if (schema.format === 'uri') {
         try {
           new URL(value)

@@ -1,5 +1,9 @@
 package io.musespark.eclipse;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
@@ -25,6 +29,28 @@ public final class RuntimeProcess implements AutoCloseable {
     private final Consumer<String> log;
     private final Thread tracker;
     private final Thread shutdown;
+    /** Resolve one executable before launch; PATH never falls back to the workspace. */
+    public static List<String> panelCommand(String configured, String searchPath) throws IOException {
+        Path executable = null;
+        boolean windows = File.separatorChar == '\\';
+        if (configured != null && !configured.isBlank()) {
+            Path candidate = Path.of(configured);
+            if (!candidate.isAbsolute()) throw new IllegalArgumentException("MHP_RUNTIME_PATH_INVALID");
+            executable = candidate.toRealPath();
+        } else {
+            String name = windows ? "muse-spark-code-acp.exe" : "muse-spark-code-acp";
+            for (String directory : (searchPath == null ? "" : searchPath).split(java.util.regex.Pattern.quote(File.pathSeparator))) {
+                if (directory.isBlank() || !Path.of(directory).isAbsolute()) continue;
+                Path candidate = Path.of(directory).resolve(name);
+                if (Files.isRegularFile(candidate) && Files.isExecutable(candidate)) { executable = candidate.toRealPath(); break; }
+            }
+        }
+        if (executable == null || !Files.isRegularFile(executable) || !Files.isExecutable(executable)) throw new IllegalArgumentException("MHP_RUNTIME_PATH_INVALID");
+        // Windows batch launchers require shell interpretation. The installed
+        // native executable is the only Windows launch lane here.
+        if (windows && !executable.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".exe")) throw new IllegalArgumentException("MHP_RUNTIME_PATH_INVALID");
+        return List.of(executable.toString(), "panel", "--stdio");
+    }
     public RuntimeProcess(Process process, Consumer<String> log) {
         this.process = process; this.log = log;
         ProcessHandle handle = process.toHandle();

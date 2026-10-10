@@ -38219,7 +38219,7 @@ keeping its detailed native qualification catalogue generated too.
 Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
 in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
 
-**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. Verification retains the portable graph cap, duplication and SAST findings, four ACP fixture failures, native bridge contract checks, installed qualification and the next resource-chip parity lane as blockers. Retained requirements and receipts follow.
+**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. M104 F2 repairs the sixteen reported SAST sites with regressions and an offline 16-to-zero reproduction. The unchanged registry SAST rescan remains lead-owned under the lane's network restriction. Verification still retains the portable graph cap, duplication, four ACP fixture failures, native bridge contract checks, installed qualification and the next resource-chip parity lane as blockers. Retained requirements and receipts follow.
 
 **FIXM104PB / RVM104PB (2026-10-06).** Repair all four P2 findings and the
 P3 evidence error inside B's paid engines and their shared guards. One
@@ -38952,16 +38952,20 @@ guards and assertions; do not make cosmetic token changes or add excludes to
 hide equivalent implementations during this blocked integration join. Record
 the exact clone locations and retain duplication as a main-integration blocker.
 
-**M104INT SAST review deferral (2026-10-09).** The unchanged auto-rule
-scan reports sixteen blocking findings in six joined owners: Eclipse's
-launcher ProcessBuilder, JetBrains resource/script interpolation and embedded
-schema RegExp, Xcode generated HTML escaping, shared page HTML escaping and
-the portable page's text/session-id escaping. Retain each finding for the
-native/HTML boundary review; do not label them safe merely because they are
-audits or add suppression comments to obtain green. The scan also reports
-one default rule timeout in ModelApiHost's express-SSRF analysis. No rule,
-exclude, deadline or dependency is changed. These results block main integration
-alongside the portable cap, duplication, ACP and native qualification failures.
+**M104INT SAST review deferral (2026-10-09; F2 repair below).** The original
+unchanged auto-rule scan reports sixteen blocking findings in six joined owners:
+Eclipse's launcher, JetBrains script placeholders and dynamic schema RegExp,
+Xcode generated XML and shared/portable page entity escaping. M104 F2 replaces
+the reported sites with validated executable argument lists, native-owned bridge
+insertion, reviewed literal patterns and the existing contextual serializers.
+Regressions and byte-exact red drills cover all sixteen; an offline four-pattern
+Semgrep reproduction reports the original 1/2/1/3/4/5 counts and zero after repair.
+This supplemental scan does not certify the registry's complete auto rule set.
+The shared lane rules prohibit registry network reads, so the unchanged full
+SAST rescan remains a main-integration requirement, including resolution or
+qualification of the original ModelApiHost express-SSRF rule timeout. No rule,
+exclude, deadline, dependency or suppression is changed. The portable cap,
+duplication, ACP and native qualification failures remain with their owners.
 
 **M104 F2 SAST boundary repair (2026-10-09, before implementation).** Repair
 the sixteen findings in those six owners with explicit executable argument
@@ -38973,6 +38977,19 @@ Add hostile-input regressions for every finding and byte-exact red drills in
 and all compiler projects on this rig. The lane brief substitutes these checks
 for aggregate quality; native contracts, ACP fixtures, portable budgets and
 duplication remain with their separate owners. No merge, push or live call.
+
+**M104 F2 completed boundaries (2026-10-09, kubuntu).** Eclipse resolves a
+regular executable from an absolute override or absolute PATH directory;
+the fixed `panel`/`--stdio` arguments stay separate. Windows admits `.exe`
+launchers and refuses batch/shell-command strings. All sixteen plugin Java
+sources compile against cached target jars, and the portable launcher JUnit
+regressions pass. JetBrains page generation emits no executable bridge
+placeholder; the existing native insertion path supplies its reviewed script
+and nonce. Its seven frozen panel/state patterns are literal-only, with unknown
+source refused and contract-inventory/acceptance/refusal tests. Keep the existing
+embedded unknown-member assertion unchanged: its failure remains the separate
+native-input contract blocker. Scope/gate receipts and fifteen byte-exact red
+drills are in `docs/certification/m104.md` and `m104-f2-drills.json`.
 
 **M104INT aggregate formatting cleanup (2026-10-09).** The single final
 quality attempt stops at formatting because native test runs left ignored

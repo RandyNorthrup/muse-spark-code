@@ -14,7 +14,7 @@ const contract = JSON.parse(
     'utf8',
   ),
 )
-function setup(kind = 0) {
+function setup(kind = 0, toHost = contract.panel.envelope.oneOf[0].properties.payload.anyOf[kind]) {
   const sent = []
   const context = vm.createContext({
     TextEncoder,
@@ -27,7 +27,7 @@ function setup(kind = 0) {
   vm.runInContext(source, context)
   context.window.installMuseHost(
     {
-      toHost: contract.panel.envelope.oneOf[0].properties.payload.anyOf[kind],
+      toHost,
       toPanel: contract.panel.envelope.oneOf[1].properties.payload.anyOf[kind],
       stateSchema: contract.embeddedBridge.setState.state,
       limits: contract.panel.limits,
@@ -38,6 +38,47 @@ function setup(kind = 0) {
   )
   return { api: context.window.museHost, receive: context.window.__museReceive, sent, context }
 }
+
+test('uses only the seven reviewed panel/state pattern literals and keeps their verdicts', () => {
+  const cases = [
+    [String.raw`^[\w-][\w.-]*$`, 'skill-name_2.md', '../outside'],
+    [
+      String.raw`^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$`,
+      '2024-02-29',
+      '2023-02-29',
+    ],
+    [String.raw`^(?:0|[1-9]\d*)(?:\.\d*[1-9])?$`, '0.000001', '1.0'],
+    [String.raw`^[^\s\-\p{Cc}][^\s\p{Cc}]*$`, 'Personal-key', ' key'],
+    ['^(?!meta$)[a-z][a-z0-9-]{0,31}$', 'openai', 'meta'],
+    ['^[a-f0-9]{64}$', 'a'.repeat(64), 'A'.repeat(64)],
+    ['^[a-z][a-z0-9-]{0,31}$', 'meta', 'Meta'],
+  ]
+  const patterns = new Set()
+  const collect = (value) => {
+    if (typeof value !== 'object' || value === null) return
+    if (value.pattern !== undefined) patterns.add(value.pattern)
+    for (const child of Object.values(value)) collect(child)
+  }
+  collect(contract.panel)
+  collect(contract.embeddedBridge)
+  assert.deepEqual(patterns, new Set(cases.map(([pattern]) => pattern)))
+  for (const [pattern, accepted, refused] of cases) {
+    const { api, sent } = setup(0, { type: 'string', pattern })
+    api.onMessage(() => null)
+    api.postMessage(accepted)
+    assert.throws(() => api.postMessage(refused), /MHP_PANEL_INVALID_PAYLOAD/u)
+    assert.equal(sent.at(-1).request.value, accepted)
+  }
+})
+
+test('refuses unknown schema regex source instead of compiling or dispatching it', () => {
+  for (const pattern of ['^(a+)+$', '[', '']) {
+    const { api, sent } = setup(0, { type: 'string', pattern })
+    api.onMessage(() => null)
+    assert.throws(() => api.postMessage('aaa'), /MHP_SCHEMA_UNSUPPORTED/u)
+    assert.equal(sent.length, 1)
+  }
+})
 
 test('requires a listener and validates payloads before forwarding', () => {
   const { api, sent } = setup()

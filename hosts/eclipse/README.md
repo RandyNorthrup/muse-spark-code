@@ -30,7 +30,10 @@ the exact runtime working directory. The runtime replies with its independently
 supported services; legacy 1.1/1.2 selections are refused. An absolute
 `MUSE_SPARK_RUNTIME` executable path overrides PATH discovery. There is no
 automatic installation or download. Credential variables are removed before
-launch. Release lane I supplies the installed runtime and platform Node
+launch. Discovery uses only absolute PATH directories and resolves a regular,
+executable file before passing `panel` and `--stdio` as separate arguments.
+Windows requires the installed `.exe` launcher; batch files and command strings
+are refused. Release lane I supplies the installed runtime and platform Node
 fragments; lane B supplies panel mode and lane D the embedded UI bridge.
 
 Windows explicitly requests `SWT.EDGE` and refuses an Internet Explorer
