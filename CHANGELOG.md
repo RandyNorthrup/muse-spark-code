@@ -79,6 +79,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Narrow chat menus, including the checkpoint **Rewind** submenu at 320 px,
+  keep their uniform pills clear of the **…** opener and truncate long labels
+  with their full tooltip. Open highlighted-text menus follow their row’s
+  opener when the panel is resized.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.

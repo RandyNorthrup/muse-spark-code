@@ -182,3 +182,74 @@ That wait was reverted; this lane retains only the English opener-label
 updates in the smoke. The fixture, schedule renderer and schedule handlers
 match the base. The smoke is not claimed green; PLAN §7 records the deferral.
 No selector, scenario, assertion, timeout or gate was weakened.
+
+## Round 2 — RVMENUFAN findings (2026-10-10, Kubuntu)
+
+Review: `owner-2026-10-10-menu-fan-r2`; starting head `d5f2381df`.
+The two P2 findings are repaired in the shared React panel:
+
+- `gooeyLayout.ts` limits the uniform width and whole-stack arc shift to
+  the room on the fan’s side of the opener, minus edge padding and reach.
+  The fan keeps its 16–32 px clearance; long labels stay one line, with
+  an ellipsis and the full label in the existing tooltip. Both bursts use
+  the same bound. No size, gap, height, colour or motion token changes.
+- `App.tsx` retains the selected row’s opener element, passed through
+  Transcript and QuoteMenu, so GooeyMenuContent’s existing ResizeObserver
+  measures the moved button. A row without an opener still uses the pointer.
+
+The layout test sweeps every integer width from 280 through 700, counts
+one through six, left/right/centre openers and top/middle/bottom positions
+in both bursts: 45,468 layouts, uniform widths, panel containment,
+16–32 px clearance and no pill/pill or pill/opener overlap. The real Chrome
+regression opens checkpoint-restore at 320 px and chooses Rewind; it checks
+all four children, equal widths, 40 px heights, 6 px gaps, opener clearance,
+nowrap/ellipsis styling and full tooltips. Another Chrome regression keeps
+the selection menu open across 320→690→320 px and checks that its three
+pills follow the button. The native App regression checks both coordinates.
+The two inherited viewport-wide test expectations now require the smaller
+side bound and preserve their uniform-size and containment assertions.
+
+Both regressions failed against the original source before implementation:
+layout opener overlap at 280 px; App origin 295 instead of 666 after resize.
+After repair, reverting both fixes made all six sweep cases, the exact
+checkpoint browser test and the native/browser resize tests fail. The browser
+checkpoint pill ended at 293.328125 while the opener began at 283; resize
+left the selection pills 185.078125 px away (maximum 32.02). The drill
+exited 1 with 11 failed / 207 passed; no timeout was raised. Restore receipts
+are in `temp/menufan/r2/drill-sha256.json` and the failure log is
+`temp/menufan/r2/drill-revert-both.log`. Saved and restored bytes matched:
+
+- `src/webview/gooeyLayout.ts`: `4b34669947c665376e1247484e203ba973db4043ebdcefa8e17f5a92e1cd9980`.
+- `src/webview/App.tsx`: `cdd280486fc7395138244e20af3455ffff1f5249e55f20cd512880db656c5c89`.
+
+README, changelog, M87’s plan/roadmap entry and the conversation-actions
+feature reference move with the repair. Existing translated labels and
+provider/host capabilities stay intact; no wire shape, model attempt, paid
+call, dependency, install, cast, suppression or gate change is introduced.
+The React review found no added hook, listener, eager import or focus change.
+
+Round 2 verification ran directly in the lane, at repository deadlines and
+with at most three files/workers per invocation. Fifteen focused suites
+passed 514 tests: layout/GooeyMenu/QuoteMenu (45), App/Transcript/rowMenus
+(280), visual stability/matrix/source (13), visual gate/capture/readiness
+(26), and reference generator/README shots/HistoryDialog (150). After the
+lint-driven test cleanup, the complete App/layout/browser stability owners
+passed their 218 tests again. All five TypeScript projects pass; scoped
+ESLint has zero warnings, all production CSS passes stylelint, localization
+reports 14 tables and 0 problems, and reference/roadmap/plan/host API/token
+gates, plain knip and zero-clone duplication pass. The initial duplication
+gate fired on repeated origin-reading assertions; both tests now share one
+reader, preserving their coordinate checks. No gate was weakened.
+
+The production build passes size/split/host-global/notice/token gates:
+activation 550.1/600 KiB, Model API 515.8/525 KiB, checkpoint store
+87.3/225 KiB, original deferred JS 31.9/50 KiB and overlays 6.7/10 KiB.
+Aggregate quality stays lead-owned under the rig/common brief.
+
+The requested after image is
+`temp/menufan/after/checkpoint-restore-320.png` (320×800). Its JSON beside
+it records opener x=283–307/y=56–80 and every child x=8–279, a 4 px gap
+from the opener; their y bounds are 8–48, 54–94, 100–140 and 146–186.
+The longest label is clipped, with its complete tooltip. The image was
+inspected. The reviewed visual generator requires committed capture inputs;
+the source commit precedes the baseline receipt below.

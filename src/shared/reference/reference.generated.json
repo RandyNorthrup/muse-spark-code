@@ -673,6 +673,8 @@
       "surfaces": ["vscode:museCode", "vscode:modelApi"],
       "details": [
         { "ui": "referenceWindowsSessions" },
+        { "ui": "restoreFilesToHere" },
+        { "ui": "rewindAndRestore" },
         { "ui": "copyResponse" },
         { "ui": "replyToOutput" },
         { "ui": "askAboutThis" },

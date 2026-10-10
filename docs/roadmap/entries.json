@@ -606,7 +606,7 @@
     {
       "id": "M87",
       "title": "Panel polish",
-      "summary": "The chat panel gains a context ring, steps folded under one summary row, message times on hover, editable queued messages, a diff tally with Review, a collapsible tasks pane and compact labelled action menus around each row’s opener.",
+      "summary": "The chat panel adds a context ring, folded steps, message times, editable queues, a review tally, collapsible tasks and compact action menus that clear the row opener in narrow panels, with highlighted-text menus following it on resize.",
       "area": "chat",
       "release": "0.13.0"
     },

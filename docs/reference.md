@@ -471,6 +471,10 @@ turnState: Rename, fork or rewind a conversation. Rewind can restore recorded ed
 
 Muse Code cannot rename or fork sessions on Windows (meta-models/muse-code-sdk#30, #31).
 
+Restore Files to Here
+
+Rewind Conversation and Restore Files
+
 Copy Response
 
 Reply to This Output

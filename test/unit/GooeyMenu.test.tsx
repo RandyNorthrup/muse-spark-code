@@ -162,7 +162,7 @@ describe('GooeyMenu', () => {
 
   it.each([
     [1024, 469],
-    [320, 304],
+    [320, 272],
   ])(
     'draws every pill as wide as the widest label in a %s px panel, a long pseudo-locale label included',
     (width, expected) => {
@@ -203,7 +203,7 @@ describe('GooeyMenu', () => {
       expect(natural).toEqual([84, 469, 196])
       const pills = screen.getAllByRole('menuitem')
       // The owner, 2026-10-09: uniform, "only as long as the text in the
-      // longest text button"; only a narrower panel cuts it, to 320 - 2 × 8.
+      // longest text button"; side room limits it to 296 - 8 - 16 at 320 px.
       for (const pill of pills) {
         expect(pill.style.width).toBe(`${String(expected)}px`)
         expect(pill.style.height).toBe('40px')

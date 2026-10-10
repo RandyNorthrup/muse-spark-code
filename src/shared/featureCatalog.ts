@@ -1116,6 +1116,8 @@ const REFERENCE_DETAILS: Readonly<
   'custom-agents': ['referencePaidContexts'],
   'conversation-actions': [
     'referenceWindowsSessions',
+    'restoreFilesToHere',
+    'rewindAndRestore',
     'copyResponse',
     'replyToOutput',
     'askAboutThis',

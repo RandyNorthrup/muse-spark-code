@@ -23506,7 +23506,13 @@ re-rendered. Evidence: `docs/certification/m87.md`, "Integration on
 
 - **MENUFAN follow-up (2026-10-10).** Tighten both menu bursts around the
   row opener and anchor highlighted-text actions there; English menu labels
-  use Title Case (D66). Evidence: `docs/certification/menufan.md`.
+  use Title Case (D66). Round 2 caps uniform pill widths by the space on
+  the fan’s side of the opener so narrow checkpoint submenus never cover
+  it; clipped labels retain their full tooltip. Highlighted-text menus keep
+  the opener element and follow it across panel resizes. Sweep 280–700 px,
+  one to six items and left/right/centre openers; certify the exact 320 px
+  checkpoint Rewind scene, resize regression and byte-exact red drills.
+  Evidence: `docs/certification/menufan.md`.
 
 - **Goal.** The panel can be read at a glance: how full the context is,
   what the agent did (one line per run of steps), what changed, and that it

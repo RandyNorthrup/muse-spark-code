@@ -36,11 +36,11 @@ function clamp(value: number, low: number, high: number): number {
  * size"; 2026-10-09: "only as long as the text in the longest text
  * button"): `natural`, the widest pill's own max-content width as the
  * browser laid it out, so no pill is wider than its longest label needs.
- * Only a panel too narrow for it gives each pill its width less the edge
- * padding, and a longer label ends in an ellipsis.
+ * Only too little room beside the opener narrows every pill together;
+ * a longer label ends in an ellipsis and keeps its full tooltip.
  */
-export function gooeyPillWidth(viewport: MenuViewport, natural: number): number {
-  return Math.max(0, Math.min(natural, viewport.width - 2 * GOOEY_MENU.edgePadding))
+export function gooeyPillWidth(available: number, natural: number): number {
+  return Math.max(0, Math.min(natural, available))
 }
 
 /**
@@ -48,9 +48,9 @@ export function gooeyPillWidth(viewport: MenuViewport, natural: number): number 
  * whole to stay inside the panel, with 6 px gaps. Their near ends sit on half an ellipse
  * 16–32 px from the anchor: the pills level with it reach farthest, the outer ones
  * curve back, so the rows read as a fan. When the fan would leave the panel
- * it moves back towards (and over) the origin all at once, keeping its arc;
- * only a panel too narrow for the whole arc gets a shallower one. Rows never
- * overlap.
+ * it moves back whole, keeping its arc and clearance from the opener.
+ * Only too little room beside the opener gives it narrower pills and
+ * a shallower arc. Rows and the opener never overlap.
  */
 function column(
   anchor: MenuPoint,
@@ -77,9 +77,11 @@ function column(
   const lifts = tops.map((top) => top + height / 2 - anchor.y)
   const span = Math.max(...lifts.map((lift) => Math.abs(lift))) + step / 2
   const curve = lifts.map((lift) => Math.sqrt(1 - (lift / span) ** 2))
-  const width = gooeyPillWidth(viewport, natural)
+  // Only the fan’s side is available: shifting a viewport-wide pill would
+  // cover its opener. The same room bounds the arc’s whole-stack shift.
+  const across = (side === 1 ? viewport.width - pad - anchor.x : anchor.x - pad) - GOOEY_MENU.reach
+  const width = gooeyPillWidth(across, natural)
   const spread = Math.max(...curve) - Math.min(...curve)
-  const across = viewport.width - 2 * pad
   const bow = spread > 0 ? clamp((across - width) / spread, 0, GOOEY_MENU.bow) : GOOEY_MENU.bow
   const lefts = curve.map((bend) => {
     const near = anchor.x + side * (GOOEY_MENU.reach + bow * bend)

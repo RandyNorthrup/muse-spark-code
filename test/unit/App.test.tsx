@@ -2282,6 +2282,18 @@ function reply(itemId: string, text: string) {
   })
 }
 
+function selectionMenuOrigin() {
+  const pill = screen.getAllByRole('menuitem')[0]
+  if (pill === undefined) throw new Error('Missing selection pill')
+  const [originX, originY] = pill.style.transformOrigin
+    .split(' ')
+    .map((value) => Number(value.replace('px', '')))
+  return {
+    x: Number(pill.style.left.replace('px', '')) + (originX ?? 0),
+    y: Number(pill.style.top.replace('px', '')) + (originY ?? 0),
+  }
+}
+
 describe('App chat references (M17)', () => {
   afterEach(() => {
     vi.restoreAllMocks()
@@ -2352,16 +2364,46 @@ describe('App chat references (M17)', () => {
       selection?.removeAllRanges()
       selection?.addRange(range)
       fireEvent.contextMenu(passage, { clientX: 300, clientY: 180 })
-      const pill = screen.getAllByRole('menuitem')[0]
-      if (pill === undefined) throw new Error('Missing selection pill')
-      const [originX, originY] = pill.style.transformOrigin
-        .split(' ')
-        .map((value) => Number(value.replace('px', '')))
-      expect(Number(pill.style.left.replace('px', '')) + (originX ?? 0)).toBe(hasButton ? 712 : 300)
-      expect(Number(pill.style.top.replace('px', '')) + (originY ?? 0)).toBe(hasButton ? 252 : 180)
+      expect(selectionMenuOrigin()).toEqual({ x: hasButton ? 712 : 300, y: hasButton ? 252 : 180 })
       selection?.removeAllRanges()
     },
   )
+
+  it('keeps the selection menu attached to its row button across panel resize', () => {
+    const observers = new Set<() => void>()
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        public constructor(private readonly callback: () => void) {}
+        public observe(): void {
+          observers.add(this.callback)
+        }
+        public disconnect(): void {
+          observers.delete(this.callback)
+        }
+      },
+    )
+    renderReady()
+    reply('m1', 'Selected passage')
+    const passage = screen.getByText('Selected passage')
+    const button = passage.closest('[data-entry-id]')?.querySelector('.row-actions-button')
+    if (button === null || button === undefined) throw new Error('Missing row opener')
+    const rect = vi.spyOn(button, 'getBoundingClientRect')
+    rect.mockReturnValue(new DOMRect(283, 150, 24, 24))
+    const range = document.createRange()
+    range.selectNodeContents(passage)
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+    fireEvent.contextMenu(passage, { clientX: 100, clientY: 180 })
+    rect.mockReturnValue(new DOMRect(654, 240, 24, 24))
+    act(() => {
+      for (const callback of observers) callback()
+    })
+    expect(selectionMenuOrigin()).toEqual({ x: 666, y: 252 })
+    selection?.removeAllRanges()
+    vi.unstubAllGlobals()
+  })
 
   it('opens row actions without a selection, quotes with one, and Escape closes each', () => {
     renderReady()
