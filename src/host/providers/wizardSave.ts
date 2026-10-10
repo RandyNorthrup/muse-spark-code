@@ -59,6 +59,42 @@ function editedValue<T>(initial: T, desired: T, current: T): T {
   return desired
 }
 
+/** Undo changed leaves only while they still equal this save's written value. */
+function rollbackValue<T>(previous: T, written: T, current: T): T {
+  if (JSON.stringify(previous) === JSON.stringify(written)) return current
+  if (JSON.stringify(current) === JSON.stringify(written)) return previous
+  if (
+    typeof previous === 'object' &&
+    previous !== null &&
+    typeof written === 'object' &&
+    written !== null &&
+    typeof current === 'object' &&
+    current !== null &&
+    !Array.isArray(previous) &&
+    !Array.isArray(written) &&
+    !Array.isArray(current)
+  ) {
+    const restored = { ...current }
+    for (const key in { ...previous, ...written }) {
+      const value = rollbackValue(
+        Object.hasOwn(previous, key) ? previous[key] : undefined,
+        Object.hasOwn(written, key) ? written[key] : undefined,
+        Object.hasOwn(current, key) ? current[key] : undefined,
+      )
+      // Optional undefined leaves disappear when the provider file is encoded.
+      // Define own properties safely even when a model id names __proto__.
+      Object.defineProperty(restored, key, {
+        value,
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      })
+    }
+    return restored
+  }
+  return current
+}
+
 /** Compare each edited leaf, retaining the latest value for untouched leaves. */
 function editedProvider(
   initial: ProviderEntry,
@@ -195,27 +231,33 @@ export async function saveWizardDraft(
       editedValue(snapshot.defaultModel, draft.defaultModel, previousDefault)
     }
   }
-  let previousEntries = await deps.store.list()
+  const previousEntries = await deps.store.list()
+  let previousEntry: ProviderEntry | undefined
+  let writtenEntry: ProviderEntry | undefined
   if (draft.editing === true) {
     if (previousEntries.every((entry) => entry.id !== draft.provider.id)) {
       throw new Error(UI_TEXT.actionFailed)
     }
     const previous = previousEntries.find((entry) => entry.id === draft.provider.id)
     if (JSON.stringify(snapshot?.provider ?? previous) !== JSON.stringify(draft.provider)) {
-      previousEntries = await deps.store.replaceAll((entries) => {
+      await deps.store.replaceAll((entries) => {
         if (entries.every((entry) => entry.id !== draft.provider.id)) {
           throw new Error(UI_TEXT.providerEditConflict)
         }
         return entries.map((entry) => {
           if (entry.id !== draft.provider.id) return entry
-          return snapshot === undefined
-            ? draft.provider
-            : editedProvider(snapshot.provider, draft.provider, entry)
+          previousEntry = entry
+          writtenEntry =
+            snapshot === undefined
+              ? draft.provider
+              : editedProvider(snapshot.provider, draft.provider, entry)
+          return writtenEntry
         })
       })
     }
   } else {
     await deps.store.add(draft.provider)
+    writtenEntry = draft.provider
   }
   let isComposerSet = false
   let isDefaultWritten = false
@@ -255,7 +297,18 @@ export async function saveWizardDraft(
       isComposerSet = true
     }
   } catch (error) {
-    await deps.store.replaceAll(previousEntries)
+    if (writtenEntry !== undefined) {
+      const written = writtenEntry
+      const previous = previousEntry
+      await deps.store.replaceAll((entries) =>
+        entries.flatMap((entry) => {
+          if (entry.id !== written.id) return [entry]
+          if (previous !== undefined) return [rollbackValue(previous, written, entry)]
+          // Remove this save's addition only if another writer has not edited it.
+          return JSON.stringify(entry) === JSON.stringify(written) ? [] : [entry]
+        }),
+      )
+    }
     if (isSecretAttempted) {
       if (previousSecret === undefined) {
         await deps.credentials.clearProviderCredential(draft.provider.id)

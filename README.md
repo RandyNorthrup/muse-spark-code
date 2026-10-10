@@ -699,7 +699,9 @@ incomplete limits so you can return to Models and finish them. **Edit** and
 changing a limit leaves the default alone. Save writes only changed fields,
 keeping newer stored values for untouched fields and keys, including changes
 made while a private-network question is open. A key is replaced only if you
-enter one in this draft. If a field you edited also changed elsewhere, Save
+enter one in this draft. If a later save step fails, recovery undoes only this
+save's changed fields and preserves other provider and field changes. If a field
+you edited also changed elsewhere, Save
 keeps the form open and offers **Reload** before you save again. Save disables
 its buttons while working and ignores repeated submissions. A refused
 private-network question keeps the form open and asks you to confirm access.

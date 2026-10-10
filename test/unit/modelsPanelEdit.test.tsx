@@ -175,6 +175,13 @@ async function changeReplyLimit() {
   })
 }
 
+async function testEditConnection(state: () => ReturnType<typeof makeState>) {
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.testConnection }))
+  await waitFor(() => {
+    expect(state().drafts.edits['custom']?.test?.status).toBe('ok')
+  })
+}
+
 async function saveEditSurface() {
   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.saveProvider }))
   await waitFor(() => {
@@ -422,10 +429,7 @@ describe('Saved custom provider Edit through the shared form and production stor
       } else if (field === 'key') {
         fakeWindow.showInputBox.mockResolvedValueOnce('synthetic-replacement-key')
         fireEvent.click(screen.getByRole('button', { name: UI_TEXT.changeKey }))
-        fireEvent.click(screen.getByRole('button', { name: UI_TEXT.testConnection }))
-        await waitFor(() => {
-          expect(state().drafts.edits['custom']?.test?.status).toBe('ok')
-        })
+        await testEditConnection(state)
         await secrets.store(
           `${PROVIDER_SECRET_PREFIX}custom`,
           JSON.stringify({
@@ -507,10 +511,7 @@ describe('Saved custom provider Edit through the shared form and production stor
       await seam.store.setDefaultModel('another/m2')
       await changeReplyLimit()
       if (flow !== 'Edit') {
-        fireEvent.click(screen.getByRole('button', { name: UI_TEXT.testConnection }))
-        await waitFor(() => {
-          expect(state().drafts.edits['custom']?.test?.status).toBe('ok')
-        })
+        await testEditConnection(state)
       }
       post({ type: 'providers/save', providerId: 'custom', useNow: false })
       await waitFor(() => {
@@ -548,6 +549,52 @@ describe('Saved custom provider Edit through the shared form and production stor
     await saveConflictingEdit()
     expect(await seam.store.defaultModel()).toBe('newer/m1')
     expect(await seam.store.list()).toMatchObject([{ modelLimits: { m1: { outputTokens: 4000 } } }])
+    host.dispose()
+  })
+
+  it('rolls back only saved limits after a key-write failure, keeping unrelated concurrent changes', async () => {
+    const { seam, secrets, state, host } = await editSurface({ flow: 'Change key' })
+    const [initial] = await seam.store.list()
+    if (initial === undefined) throw new Error('Missing fixture provider')
+    const other = { ...initial, id: 'other' }
+    await changeReplyLimit()
+    await testEditConnection(state)
+    await seam.store.add(other)
+    await seam.store.add({ ...initial, id: 'removed' })
+    vi.spyOn(secrets, 'store').mockImplementationOnce(async () => {
+      await seam.store.replaceAll((entries) => [
+        ...entries
+          .filter((entry) => entry.id !== 'removed')
+          .map((entry): ProviderEntry =>
+            entry.id === 'custom'
+              ? {
+                  ...entry,
+                  pinned: ['m1'],
+                  compat: { toolChoice: 'omit' },
+                  modelLimits: { m1: { contextTokens: 256_000, outputTokens: 8000 } },
+                }
+              : { ...entry, pinned: ['m1'] },
+          ),
+        { ...initial, id: 'added' },
+      ])
+      throw new Error('credential write refused')
+    })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.saveProvider }))
+    await waitFor(() => {
+      expect(screen.getByText('credential write refused')).toBeDefined()
+    })
+    expect(await seam.store.list()).toEqual([
+      {
+        ...initial,
+        pinned: ['m1'],
+        compat: { toolChoice: 'omit' },
+        modelLimits: { m1: { contextTokens: 256_000, outputTokens: 4000 } },
+      },
+      { ...other, pinned: ['m1'] },
+      { ...initial, id: 'added' },
+    ])
+    expect(await secrets.get(`${PROVIDER_SECRET_PREFIX}custom`)).toContain('synthetic-edit-key')
+    expect(screen.getByLabelText(UI_TEXT.customLimitsOutput)).toHaveValue(8000)
     host.dispose()
   })
 
@@ -638,10 +685,7 @@ describe('Saved custom provider Edit through the shared form and production stor
   it('keeps a credential rotated after preflight while the edited provider is written', async () => {
     const { seam, configFile, secrets, state, host } = await editSurface({ flow: 'Change key' })
     await changeReplyLimit()
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.testConnection }))
-    await waitFor(() => {
-      expect(state().drafts.edits['custom']?.test?.status).toBe('ok')
-    })
+    await testEditConnection(state)
     const before = await readFile(configFile, 'utf8')
     const writeProviders = seam.store.replaceAll
     vi.spyOn(seam.store, 'replaceAll').mockImplementationOnce(async (entries, options) => {

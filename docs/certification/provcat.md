@@ -1473,3 +1473,137 @@ in `finally`; SHA-256 before and after is
 The restored complete three-file run passes **93 tests**. Changed-file ESLint,
 Prettier and localization pass; generated reference remains current. Hook
 output and untracked drill/hash receipts are `temp/provwiz8-*`.
+
+## P2-3 — Per-field inverse against the current provider
+
+The forward provider mutation captures only the target entry's actual before
+and written values. Recovery uses the existing serialized store callback to
+read the latest entries and reverse only leaves changed by this save that
+still equal its written value. Arrays remain one field; routing choices and
+per-model token limits reverse individually. Unchanged saves perform no provider
+rollback write. Other providers keep their current values, additions, removals
+and order. A concurrently removed target is never recreated. A new provider is
+removed only while its entry still equals this save's addition; a later edit
+keeps it. Native model ids are own data properties, including `__proto__` and
+`constructor`, never inherited object members.
+
+The rendered shared form uses the real host/facade, production store and
+atomic providers file. After the reply limit saves 8000, a synthetic credential
+writer adds a pin and compatibility override, changes context to 256000, edits
+another provider, removes another and adds a third, then rejects the key write.
+Rollback restores only the reply limit to 4000; every concurrent change survives.
+The form keeps the typed 8000 for retry and the prior synthetic stored key.
+Transaction regressions also cover unchanged/edited/added saves under composer
+refusal, a later edit to the same context-limit leaf, untouched routing order
+and fallback changes, an added private-network flag, removal of the target,
+and an unrelated addition during new-provider rollback. No external wire shape
+or request serializer changes; all frames retain the M95 capture provenance.
+**0 model attempts** throughout.
+
+## Final red/restored drills
+
+All qualifying drills run complete owning files, default deadlines and at most
+three workers. Each deliberate source mutation fails assertions with exit 1,
+then restores original bytes in `finally` and compares SHA-256. Earlier property
+probes did not exercise the recursive path; adding a concurrent token-limit
+change makes both property guards fail when broken. No assertion or gate is
+weakened. The corrected original-source drill proves all ten new rollback cases
+fail against the starting production file.
+
+| Qualifying drill                                                    | Failed / total | Source                             |
+| ------------------------------------------------------------------- | -------------: | ---------------------------------- |
+| `refresh-notice`                                                    |         4 / 33 | `src/host/models/modelsPanel.ts`   |
+| `rollback-original` (starting file restored temporarily)            |        10 / 53 | `src/host/providers/wizardSave.ts` |
+| `rollback-collection` (whole-collection restore, initial six cases) |         6 / 49 | `src/host/providers/wizardSave.ts` |
+| `rollback-concurrent-field`                                         |         1 / 51 | `src/host/providers/wizardSave.ts` |
+| `rollback-added-edit`                                               |         1 / 51 | `src/host/providers/wizardSave.ts` |
+| `rollback-own-fields` (final)                                       |         2 / 19 | `src/host/providers/wizardSave.ts` |
+| `rollback-data-property` (final)                                    |         1 / 19 | `src/host/providers/wizardSave.ts` |
+
+The final wizard source's before/after SHA-256 is
+`ff013dc1ee6951e083a87b0f4167d3373417afc59a474384ba71fd573cd0d65b`;
+refresh source hash is recorded above. The early collection drill's source hash
+is `cf205e0c88133a3d054d78b02ffa5f4d05ed24459405c582d4ebb0db2f919f2f`
+before and after. Full logs and every hash receipt, including exploratory
+non-firing property probes, are untracked `temp/provwiz8-drill-*` and
+`temp/provwiz8-drills.json`. The same two-file source-guard drills at 51 total
+precede the final two added property cases; the final complete suites follow
+all source restorations. The first shared-form rollback fixture needed its
+connection test before listing unrelated provider rows to disambiguate Test;
+its mapped fixture now has an explicit `ProviderEntry` annotation. Only the
+corrected whole-file default-deadline runs qualify.
+
+## Complete owning-suite qualification
+
+**45 complete provider/models/capability files, 802 passed, no skips.**
+Runs are sequential in batches of at most three files, with
+`npx vitest run <files> --maxWorkers=3`, no test-name filters or timeout
+changes. The three Meta request-golden files additionally pass **152 tests**.
+The final focused Edit / transaction / production-seam run passes **63 tests**
+after sharing the repeated Test/wait interaction; every assertion remains.
+
+| Batch | Complete files (`test/unit/`)                                                                     | Passed |
+| ----- | ------------------------------------------------------------------------------------------------- | -----: |
+| 1     | `configuredProviders.test.ts`, `execProvider.test.ts`, `modelApiProviders.test.ts`                |     57 |
+| 2     | `modelCapabilitiesBinding.test.ts`, `modelsActivationBudget.test.ts`, `modelsApp.test.tsx`        |     15 |
+| 3     | `modelsComponents.test.tsx`, `modelsPanel.test.ts`, `modelsPanelBundle.test.ts`                   |     52 |
+| 4     | `modelsPanelEdit.test.tsx`, `modelsPanelEntry.test.ts`, `modelsPanelReducer.test.ts`              |     48 |
+| 5     | `modelsPanelSchemas.test.ts`, `modelsPanelSections.test.tsx`, `modelsQuickPick.test.ts`           |     56 |
+| 6     | `modelsSections.test.ts`, `modelsWebviewEntry.test.tsx`, `providerAuthService.test.ts`            |      9 |
+| 7     | `providerCatalog.test.ts`, `providerCredentialRecords.test.ts`, `providerCredentialStore.test.ts` |     98 |
+| 8     | `providerImportExport.test.ts`, `providerKeyPrompt.test.ts`, `providerLocalProbe.test.ts`         |     22 |
+| 9     | `providerModelScans.test.ts`, `providerOAuthLoopback.test.ts`, `providerOpenRouter.test.ts`       |     30 |
+| 10    | `providerPanelSeam.test.ts`, `providerProvidersHost.test.ts`, `providerRemoval.test.ts`           |     26 |
+| 11    | `providerRetry.test.ts`, `providerTransport.test.ts`, `providerWiring.test.ts`                    |     67 |
+| 12    | `providerWizardSave.test.ts`, `providerWorkspaceSuggestion.test.ts`, `providersFlow.test.ts`      |     48 |
+| 13    | `providersL10n.test.ts`, `providersModel.test.ts`, `providersOverflow.test.ts`                    |     70 |
+| 14    | `providersPolicy.test.ts`, `providersPresets.test.ts`, `providersThreats.test.ts`                 |    121 |
+| 15    | `providersX.test.ts`, `providersXFix.test.ts`, `wizardSessionBudget.test.ts`                      |     83 |
+
+Whole-file logs/receipts are `temp/provwiz8-suite-*`,
+`temp/provwiz8-suites.json`, `temp/provwiz8-meta-goldens.log` and
+`temp/provwiz8-rollback-restored-final.log`. They use the repository deadline.
+No installed-editor, hosted multi-OS, coverage, package or live qualification
+is implied. Final gate receipts and local-commit checks follow below.
+
+## Final individual gates and retained holds
+
+Changed-file ESLint passes. The unit-project tsc includes all host/core/shared
+and React sources plus every unit fixture; it passes without suppressions or
+casts. Localization reports **14 UI tables, 14 usage tables, 0 problems**.
+Reference regeneration/check reports **current** (72 features); host API reports
+**0 problems**. Plain Knip exits 0 with only its two inherited configuration
+hints. Production `npm run build` exits 0, including all unchanged size, split,
+host-globals and notices gates. No hook, gate, dependency, setting/default,
+paid-consent policy, wire schema, serializer or prompt-prefix changes.
+
+| Artifact             | Bytes / unchanged cap |
+| -------------------- | --------------------: |
+| Activation           |       521707 / 614400 |
+| Model API            |       500425 / 537600 |
+| Providers            |       137457 / 153600 |
+| Configured providers |         27721 / 51200 |
+| Models host          |       117113 / 128000 |
+| Shared Node English  |        83823 / 128000 |
+
+Models browser startup remains **326.5 / 500 KiB** and shared browser surface
+English **25.0 / 25 KiB**, passing the hard caps. All other bundle budgets pass.
+Static/build logs are `temp/provwiz8-{eslint-final,typecheck-final,l10n-final,
+reference,host-api,deadcode,build}.log` and the final formatting log.
+
+Plain jscpd still exits 1 at its unchanged zero-clone threshold: **21 clones /
+287 lines / 1970 tokens**, identical to the reviewed base's recorded hold.
+The initially added six-line Test/wait clone is shared across its four uses,
+retaining all waits and assertions. No new clone remains and no ignore,
+threshold or rule changes. PLAN §7 retains the lead-owned broader cleanup;
+aggregate quality is not claimed green. Duplication logs are
+`temp/provwiz8-duplication{,-final}.log`.
+
+Both repairs are complete in this window's store mutation. P2-1/P2-2 remain
+only under the lead's explicit 0.17.1 decision above; they are not called fixed.
+Aggregate quality, coverage, packages, browser/installed-editor, hosted multi-OS
+and live qualification remain with the lead per the brief. No sandbox block or
+install occurs. No real credential access, model/provider contact, paid/live
+call, merge, rebase, push or publication occurs. Local commits use the original
+installed hooks, with output in `temp/provwiz8-{refresh,rollback}-commit.log`;
+their staged/committed diffs are reread and compared byte-for-byte.

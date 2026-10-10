@@ -300,6 +300,8 @@ export function featureCatalog(): readonly Feature[] {
       // consent waits; only an entered key replaces a stored credential.
       // A failed refresh after Save acknowledges persistence and retires the
       // form for reopening; the requested spending limit is still processed.
+      // Rollback undoes only this save's changed leaves against the current entry,
+      // preserving unrelated providers and later field changes.
       // Simultaneous cross-window saves remain last-writer-wins until LOCKLIB.
       // Earlier steps remain navigable while final Save validates limits.
       ['suggestedProvider', 'modelApiSessionBudgetUsd'],

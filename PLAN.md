@@ -44816,6 +44816,21 @@ is relaxed. No live or paid calls, push, rebase or merge.
 
 ## 7. Gates
 
+**PROVWIZ8 scoped qualification and retained duplication hold (2026-10-09).**
+Repair RVPROVWIZ7C P2-3/P2-4 with a per-field inverse in the existing provider
+mutation and an honest saved-provider notice on refresh failure in all 14
+languages. Complete provider/models/capability suites pass 802 tests; Meta
+request goldens pass 152. All qualifying guard drills fail and restore bytes
+exactly; the final focused run passes 63 tests. The rig/common brief delegates
+aggregate quality, coverage, packages, hosted/editor and live qualification to
+the lead. Plain jscpd remains exit 1 at the unchanged threshold with the same
+21 clones / 287 lines / 1970 tokens as the reviewed base. A new repeated Test/wait
+interaction is shared without dropping assertions; no new clone remains. The
+lead's broader duplication cleanup remains open, and quality is not claimed
+green. P2-1/P2-2 are the explicit 0.17.1 cross-window residual at M95 and §8,
+awaiting PROVSTORE-LOCKLIB after M123. Receipts: `docs/certification/provcat.md`,
+PROVWIZ8 section.
+
 **PROVWIZ7 scoped qualification and retained duplication hold (2026-10-09).**
 Repair both RVPROVWIZ6C P2 findings with host-only edit/credential snapshots,
 changed-field comparisons inside the provider mutation, expected-default
