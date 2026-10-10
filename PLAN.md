@@ -18881,7 +18881,31 @@ go. It stays.
    with a benefit check of its four tests. PR #62, from the same author,
    stays untouched until its own record and the owner's decision.
 
-### D103 — The Model API backend on the Muse Code subscription (C-M95-SUB, 2026-10-10)
+### D106 — The Model API backend on the Muse Code subscription (C-M95-SUB, 2026-10-10)
+
+**CMSUBKEYR3 redesign (2026-10-10, macmini).** Third review round:
+replace independent billing/auth reads with one frozen per-attempt
+`BillingRoute` (kind, credential, accountId). Resolve only for Meta-direct
+models; other providers keep their origin-bound authentication. Carry the
+route through ordinary and compaction guards and transport; compare the
+sent credential digest synchronously and re-resolve after durable admission
+only to refuse a changed kind/account, never to replace the credential.
+The stable subscription identity hashes a fixed label and the resolved,
+separator-normalized sign-in path: the captured DEVICE_LOGIN_FILE has no
+account/user id, so no uncaptured field or bearer digest is invented.
+Rotation preserves saved-session ownership. Drop subscription-bound fences
+when sign-out leaves an unrelated provider usable; retain pasted-key fences.
+Plan exemption, reply cost and runtime accounting use this attempt's route;
+clear sending state at completion and never hide the journal with old state.
+Subscription readiness refuses with the actual sign-in fix even with a
+pasted key. Keep every previously seen secret registered/redacted for the
+process lifetime. Paid extras (search, subagents, Auto reviewer) require the
+stored pay-as-you-go key and ordinary price/budget/use consent; off features
+stay quiet. Extract and test the backend restart predicate. Each of the eight
+review findings gets a regression and hash-exact red drill in `m95-sub.md`.
+No live/paid calls, dependencies, cap increases or merges. Rig/common rules
+assign full quality to the lead; this lane runs scoped suites and static/build
+gates directly, with installed hooks on each commit.
 
 The owner, 2026-10-10: users with a Muse Code subscription drive the Model
 API backend from their subscription, with no pasted key and no extra
@@ -42701,7 +42725,7 @@ threshold, ignore or rule is changed.
 RVCMSUBKEY P3-10).** The 100 → 120 KiB rise is withdrawn: the headless
 preflight now reads through the run's bounded reader (parse plus refuse
 only) and `dist/headless.js` measures 100.0 KiB (102,391 B) against the
-restored 100 KiB cap. Full D103.6. No other threshold, ignore or rule is
+restored 100 KiB cap. Full D106.6. No other threshold, ignore or rule is
 changed. Receipts: `docs/certification/m95-sub.md`.
 
 ## 8. Escape hatches register

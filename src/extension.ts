@@ -9,7 +9,6 @@ import {
   PROVIDERS_CONFIG_DIR_NAME,
   PROVIDERS_FILE_NAME,
   LEGAL_REGISTRY_NOTICE_KEY,
-  BACKEND_SETTING,
   BYPASS_SETTING,
   CLI_PROCESS_SETTINGS,
   HTTP_SETTINGS_SECTION,
@@ -316,7 +315,12 @@ import { OutputDocumentStore } from './host/outputDocuments'
 import { loggedPopups } from './host/popups'
 import { pickMentionFile } from './host/mention/mentionQuickPick'
 import { createWorkspaceFileLister, findRootFiles } from './host/mention/workspaceFiles'
-import { permissionSettingsOf, readSettings, toSettingsSnapshot } from './host/settings'
+import {
+  requiresBackendRestart,
+  permissionSettingsOf,
+  readSettings,
+  toSettingsSnapshot,
+} from './host/settings'
 import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvider'
 import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
 import { TasksPanel } from './host/views/tasksPanel'
@@ -4308,14 +4312,7 @@ async function activateWindow(
       // A host keeps its sandbox posture, its environment and its binary for
       // life, and the backend choice is made per host: drop them so the next
       // message spawns afresh (and resumes the conversation, D25).
-      const isBackendSetting = event.affectsConfiguration(BACKEND_SETTING)
-      // C-M95-SUB: switching the subscription opt-in swaps the credential
-      // source, so the host restarts and re-reads auth like a backend
-      // change: the running host keeps the old key's account identity.
-      if (
-        isBackendSetting ||
-        event.affectsConfiguration(`${SETTINGS_SECTION}.useMuseCodeSubscription`)
-      ) {
+      if (requiresBackendRestart((key) => event.affectsConfiguration(key))) {
         if (isSubscriptionConnecting) return
         void restartBackend('the backend setting changed')
           .then(() => auth.refresh())

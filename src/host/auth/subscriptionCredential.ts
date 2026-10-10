@@ -23,8 +23,7 @@ export interface SubscriptionCredentialDeps {
 
 export class SubscriptionCredential {
   private readonly source: SubscriptionKeySource
-  private trackedKey: string | undefined
-  private releaseTrackedKey: (() => void) | undefined
+  private readonly trackedKeys = new Set<string>()
   public constructor(private readonly deps: SubscriptionCredentialDeps) {
     this.source =
       deps.source ??
@@ -35,19 +34,11 @@ export class SubscriptionCredential {
       })
   }
 
-  /**
-   * The key about to be sent, held in the shared redactor registry while
-   * it is current: every `redactSecrets` call site (logs, snapshots,
-   * exports, receipts, errors) then redacts the credential actually sent,
-   * subscription or pasted. Rotation releases the old value and tracks the
-   * new one, so at most one value is held.
-   */
+  /** Keep old literals too: a later snapshot can still contain a rotated key. */
   private track(key: string): void {
-    if (this.trackedKey === key) return
-    this.releaseTrackedKey?.()
-    this.releaseTrackedKey = undefined
-    this.trackedKey = key
-    this.releaseTrackedKey = registerSecretValue(key)
+    if (this.trackedKeys.has(key)) return
+    this.trackedKeys.add(key)
+    registerSecretValue(key)
   }
 
   private resolved() {
@@ -73,7 +64,7 @@ export class SubscriptionCredential {
 
   /**
    * Exact literals for the boundaries that persist or scrub text (session
-   * snapshots, receipts): the pasted key and the currently sent one.
+   * snapshots, receipts): every observed key, including rotated values.
    * Best-effort and never throwing, so a store that cannot be read
    * contributes nothing instead of breaking the save.
    */
@@ -93,7 +84,8 @@ export class SubscriptionCredential {
       // A refusal or an unreadable sign-in contributes no literal here;
       // the turn path surfaces the refusal itself.
     }
-    return keys
+    for (const key of keys) this.track(key)
+    return [...keys, ...[...this.trackedKeys].filter((key) => !keys.includes(key))]
   }
 
   /** True while this turn would bill the Muse Code plan. */

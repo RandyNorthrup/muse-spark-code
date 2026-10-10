@@ -52,7 +52,10 @@ import type { SessionStore } from '../core/backends/modelapi/sessionStore'
 import { CliAccount, isCliSignedIn } from '../host/auth/cliAccount'
 import { CredentialStore, type SecretStore } from '../host/auth/credentialStore'
 import { SubscriptionCredential } from '../host/auth/subscriptionCredential'
-import { SubscriptionKeySource } from '../core/backends/modelapi/subscriptionKey'
+import {
+  SubscriptionKeySource,
+  subscriptionKeyRefusal,
+} from '../core/backends/modelapi/subscriptionKey'
 import type { Logger } from '../host/logger'
 import { createWorkspaceFileLister } from '../host/mention/workspaceFiles'
 import { pageConverter } from '../host/web/pageConverter'
@@ -669,12 +672,10 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     // touched: a valid sign-in is usable with no pasted key, and an
     // unavailable OS store never blocks subscription-only use.
     if (deps.options.subscription === true) {
-      try {
-        if (await subscriptionSource.isReady()) return { state: 'ready' }
-      } catch {
-        // Not ready by subscription: fall through to the stored key below,
-        // whose turn path refuses with the subscription fix when it matters.
-      }
+      const read = await subscriptionSource.read()
+      return read.status === 'ready'
+        ? { state: 'ready' }
+        : { state: 'signedOut', message: subscriptionKeyRefusal(read.status) }
     }
     let key: string | undefined
     try {

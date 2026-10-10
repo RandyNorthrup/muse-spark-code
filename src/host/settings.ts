@@ -9,6 +9,7 @@ import { widenedHost } from '../core/browser/browserPolicy'
 import { checkCommandsSchema } from '../core/verify/checkCommands'
 import {
   BACKEND_MODES,
+  BACKEND_SETTING,
   PAID_DAILY_BUDGET,
   WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
   type BackendMode,
@@ -516,4 +517,9 @@ export function toSettingsSnapshot(settings: ExtensionSettings): SettingsSnapsho
     schedules: settings.schedules,
     'estimator.optimize': settings['estimator.optimize'],
   }
+}
+
+/** Configuration that changes the credential source must restart the backend. */
+export function requiresBackendRestart(isAffected: (key: string) => boolean): boolean {
+  return isAffected(BACKEND_SETTING) || isAffected(`${SETTINGS_SECTION}.useMuseCodeSubscription`)
 }

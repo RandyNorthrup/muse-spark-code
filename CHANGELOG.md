@@ -92,6 +92,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Subscription mode refuses unavailable CLI sign-in even with a pasted key,
+  retains rotated credentials in transcript redaction, and tests the setting
+  that restarts the backend when the credential source changes.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.

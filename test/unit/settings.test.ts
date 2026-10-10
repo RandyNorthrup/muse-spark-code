@@ -2,7 +2,12 @@ import { defaultSettings } from './helpers/defaultSettings'
 import { Usd } from '../../src/shared/usd'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { permissionSettingsOf, readSettings, toSettingsSnapshot } from '../../src/host/settings'
+import {
+  requiresBackendRestart,
+  permissionSettingsOf,
+  readSettings,
+  toSettingsSnapshot,
+} from '../../src/host/settings'
 import { SETTING_DEFAULTS } from '../../src/shared/constants'
 import { FakeLogOutputChannel, fakeSettingsSource } from './helpers/fakes'
 
@@ -423,5 +428,17 @@ describe('toSettingsSnapshot', () => {
     expect(snapshot).not.toHaveProperty('modelApiSessionBudgetUsd')
     expect(snapshot.modelApiReplyUsage).toBe(true)
     expect(snapshot.preferredLocation).toBe(SETTING_DEFAULTS.preferredLocation)
+  })
+})
+
+describe('backend credential restart', () => {
+  it.each(['museSpark.backend', 'museSpark.useMuseCodeSubscription'])(
+    'restarts when %s changes',
+    (changed) => {
+      expect(requiresBackendRestart((key) => key === changed)).toBe(true)
+    },
+  )
+  it('does not restart for an unrelated setting', () => {
+    expect(requiresBackendRestart((key) => key === 'museSpark.fontSize')).toBe(false)
   })
 })
