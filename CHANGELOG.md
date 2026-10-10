@@ -43,6 +43,9 @@ happened, not what was planned; superseded entries are kept.
   at least one real diff; option kinds are exactly the SDK's; a completed
   task re-sends the diffs it showed; Help says `--team` is refused until
   the runner lane lands; the refusal runs after full request validation.
+  Every structured builder now validates its final frozen shape and throws
+  a typed contract error for invalid caller content, including empty diff
+  paths, unsupported media/terminal content, empty option ids and plan titles.
 
 ### Changed
 
