@@ -19,6 +19,14 @@ afterAll(async () => {
   await removeFolder(rig.root)
 })
 
+async function renderDocument(sessionId = 'session'): Promise<Document> {
+  const page = await portablePage(rig.root, { kind: 'dark', tokens: {} })
+  return new DOMParser().parseFromString(
+    page.render({ surface: 'chat', sessionId, surfaceKind: 'chat' }, 'nonce'),
+    'text/html',
+  )
+}
+
 it.each([
   '&lt;img src=x&gt;',
   '<img src=x onerror="attacker()">',
@@ -26,11 +34,7 @@ it.each([
 ])('keeps translated launch errors as literal text: %s', async (text) => {
   setUiText({ ...EN, companionLaunchFailed: text }, 'en')
   try {
-    const page = await portablePage(rig.root, { kind: 'dark', tokens: {} })
-    const document = new DOMParser().parseFromString(
-      page.render({ surface: 'chat', sessionId: 'session', surfaceKind: 'chat' }, 'nonce'),
-      'text/html',
-    )
+    const document = await renderDocument()
     const alert = document.querySelector('#launch-error')
     expect(alert?.textContent).toBe(text)
     expect(alert?.children).toHaveLength(0)
@@ -47,11 +51,7 @@ it.each([
   '</body><script>attacker()</script>',
   "'session",
 ])('preserves opaque session identifiers without markup: %s', async (sessionId) => {
-  const page = await portablePage(rig.root, { kind: 'dark', tokens: {} })
-  const document = new DOMParser().parseFromString(
-    page.render({ surface: 'chat', sessionId, surfaceKind: 'chat' }, 'nonce'),
-    'text/html',
-  )
+  const document = await renderDocument(sessionId)
   expect(document.body.dataset['sessionId']).toBe(sessionId)
   expect(document.querySelector('[onload]')).toBeNull()
   expect(document.querySelectorAll('script')).toHaveLength(5)
@@ -114,11 +114,7 @@ it('embeds manifest import text as inert JSON, including closing tags and line s
   }
   try {
     await writeFile(file, JSON.stringify(manifest))
-    const page = await portablePage(rig.root, { kind: 'dark', tokens: {} })
-    const document = new DOMParser().parseFromString(
-      page.render({ surface: 'chat', sessionId: 'session', surfaceKind: 'chat' }, 'nonce'),
-      'text/html',
-    )
+    const document = await renderDocument()
     const data = document.querySelector('#muse-modules')?.textContent
     expect(data).not.toMatch(/[<\u{2028}\u{2029}]/u)
     expect(JSON.parse(data ?? '')).toEqual(manifest)

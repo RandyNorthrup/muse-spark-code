@@ -1,0 +1,310 @@
+{
+  "machine": "kubuntu",
+  "codeCommits": [
+    "956e8f7b6c68422f15624818c1193e6e3819c41d",
+    "c19d0fe33a9ec03a6bcbd9298d434f864f1eccfb"
+  ],
+  "sourceNote": "Production sources match the code commits; portablePageSecurity fixture setup is factored after the clone gate fires. Its final compiler/lint/test/format and clone rerun are separate receipts.",
+  "sources": [
+    {
+      "path": "hosts/eclipse/plugin/src/io/musespark/eclipse/RuntimeProcess.java",
+      "sha256": "0fd051cdf1ee22b08d52cb3a1cda9fc11cec0861ee1867d5545bad9fb4d6c994"
+    },
+    {
+      "path": "hosts/eclipse/plugin/src/io/musespark/eclipse/WindowSession.java",
+      "sha256": "b60c612d45f5877f961e24e3b94766f845cd05f85c2e86613fa86cfa4a250551"
+    },
+    {
+      "path": "hosts/eclipse/tests/src/io/musespark/eclipse/tests/RuntimeLaunchTest.java",
+      "sha256": "b80dd0b2aee6cdfb08f3a86defae759d6f96d6f64a81deb73764ca1b593ee59e"
+    },
+    {
+      "path": "hosts/jetbrains/build-resources.mjs",
+      "sha256": "f37395af92c11dace00a68227f7cb49e1e6e009e02ecd822616e6e26d37fde5a"
+    },
+    {
+      "path": "hosts/jetbrains/src/main/resources/embedded.mjs",
+      "sha256": "b369c5b30a0cefa8fc3d10e470087f52fbb9721ba93347266953a5f4f5c8d4cc"
+    },
+    {
+      "path": "hosts/jetbrains/test/embedded.test.mjs",
+      "sha256": "47d843e42d8c479930c722f1c53d4214b5fb6dd9997790ce4fc857e07898396b"
+    },
+    {
+      "path": "hosts/xcode/Scripts/generate.mjs",
+      "sha256": "a8719449f9341a010e77db6160961330d3194b08fd3e8ad717d55283ae56270e"
+    },
+    {
+      "path": "hosts/xcode/Scripts/nativeTables.ts",
+      "sha256": "cab12dcd91d65a1e976923b938796f5f5d1df0f893a875d65ec518104ff05a19"
+    },
+    {
+      "path": "src/host/html.ts",
+      "sha256": "bf3558f024bd1c5de47fe9c5cad51ff1af1b7ce5daa33729cce1b87af7b65a9e"
+    },
+    {
+      "path": "src/host/ui/pageHtml.ts",
+      "sha256": "5b236842d514786ef9d6fcb36078fea8a957932e5868ce12fd3f52c315d87f3a"
+    },
+    {
+      "path": "src/runtime/panel/portablePage.ts",
+      "sha256": "3e6e66e69e00e65a5b6d731280aeef428574257d83fbbcea94d28006229ad453"
+    },
+    {
+      "path": "test/unit/jetbrainsPagesSecurity.test.ts",
+      "sha256": "3abf082fccc8e5d04acf3bd3de5c47e8e29070d889024a14a457097bb5966eb3"
+    },
+    {
+      "path": "test/unit/pageHtml.test.ts",
+      "sha256": "a26ed059622d917e3f0071c6ace873b62288bfbbab6c1676ada1cfdb54843c0d"
+    },
+    {
+      "path": "test/unit/portablePageSecurity.test.ts",
+      "sha256": "1f96e66c9397b636a13a4c53c62af197269890d5a73ae83e42c58a814638b5cc"
+    },
+    {
+      "path": "test/unit/xcodePlistSecurity.test.ts",
+      "sha256": "247da861f82cbb67b8a594b4368e6a237d299fcd30ba9378dbfe5563e9c03843"
+    }
+  ],
+  "checks": [
+    {
+      "name": "typecheck",
+      "command": "npm run typecheck",
+      "exit": 0,
+      "seconds": 349.8,
+      "log": "temp/final-typecheck.log",
+      "logSha256": "5bacb23bddaaf6facafe98c434a10326a48f8eb0044ebf8bc7244aa719b6e985",
+      "logBytes": 1417
+    },
+    {
+      "name": "related-html",
+      "command": "npx vitest run test/unit/html.test.ts test/unit/xcodeHost.test.ts test/unit/whatsNewHtml.test.ts --maxWorkers=3",
+      "exit": 0,
+      "seconds": 13.0,
+      "log": "temp/final-related-html.log",
+      "logSha256": "92f865390bfe04e2c122621e362f5bfc1ca95769f631b1db42352664d7392935",
+      "logBytes": 1001
+    },
+    {
+      "name": "portable-assets",
+      "command": "npx vitest run test/unit/portableAssets.test.ts --maxWorkers=3",
+      "exit": 0,
+      "seconds": 17.7,
+      "log": "temp/final-portable-assets.log",
+      "logSha256": "0e598d20dfd2a409851b2dec2ddd356dbf0c9e5e5c401220f1bb963606ca1bac",
+      "logBytes": 677
+    },
+    {
+      "name": "deadcode",
+      "command": "npm run deadcode",
+      "exit": 0,
+      "seconds": 8.2,
+      "log": "temp/final-deadcode.log",
+      "logSha256": "0b85ed45a4b661efee420db16b8d41ae2d67af2292c008940d53384af9fe0a7c",
+      "logBytes": 630
+    },
+    {
+      "name": "duplication",
+      "command": "npx jscpd",
+      "exit": 1,
+      "seconds": 2.9,
+      "log": "temp/final-duplication.log",
+      "logSha256": "8255f9ba57d009d993bddcb41208f63c5059a46c8e7ca4d7e57ff00b000a3568",
+      "logBytes": 5668
+    },
+    {
+      "name": "localization",
+      "command": "npm run check:l10n",
+      "exit": 0,
+      "seconds": 4.6,
+      "log": "temp/final-localization.log",
+      "logSha256": "0d0bbe35b49c20c9ba1da849e23ac62130c77661503562d86f041afd37ee71e8",
+      "logBytes": 181
+    },
+    {
+      "name": "host-api",
+      "command": "npm run check:host-api",
+      "exit": 0,
+      "seconds": 45.3,
+      "log": "temp/final-host-api.log",
+      "logSha256": "96bc71dcfe64be71e10321c7d6aaee24813e821e2868b72600c3123ad4f541ee",
+      "logBytes": 207
+    },
+    {
+      "name": "reference",
+      "command": "npm run check:reference",
+      "exit": 0,
+      "seconds": 3.9,
+      "log": "temp/final-reference.log",
+      "logSha256": "73e587c563b307d7fccace5c24e9d14a1ff2e249cbbbd05ec3fb6dea25c0ebcc",
+      "logBytes": 233
+    },
+    {
+      "name": "plan",
+      "command": "npm run check:plan",
+      "exit": 0,
+      "seconds": 0.8,
+      "log": "temp/final-plan.log",
+      "logSha256": "7d92b0a61352418afffc6815b26141a0a3249a0d70bcafae45b1cedad2e85c87",
+      "logBytes": 144
+    },
+    {
+      "name": "roadmap",
+      "command": "npm run check:roadmap",
+      "exit": 0,
+      "seconds": 1.1,
+      "log": "temp/final-roadmap.log",
+      "logSha256": "e9e415bd9d0fc6e9aea6b4cb90239175b2fecf90ee404a630b88c51b82d8203e",
+      "logBytes": 894
+    },
+    {
+      "name": "build",
+      "command": "npm run build",
+      "exit": 1,
+      "seconds": 16.1,
+      "log": "temp/final-build.log",
+      "logSha256": "84c70042ce6358508c437ac3f9c51b48b54218d89d727bd044b849491804eb37",
+      "logBytes": 19262
+    },
+    {
+      "name": "fixture-format",
+      "command": "npx prettier --write test/unit/portablePageSecurity.test.ts",
+      "exit": 0,
+      "seconds": 0.7,
+      "log": "temp/final-fixture-format.log",
+      "logSha256": "14fbbcaeb50be402dc0e1fb24274750cbe8e2b21ae990811d79f2d7cd9e80bd2",
+      "logBytes": 172
+    },
+    {
+      "name": "fixture-typecheck",
+      "command": "npm run typecheck:unit",
+      "exit": 0,
+      "seconds": 103.7,
+      "log": "temp/final-fixture-typecheck.log",
+      "logSha256": "a509bbda03fe2ed422b010d2c97dc697a0a9b6adc44f3a94e02ecbe8edc5af78",
+      "logBytes": 167
+    },
+    {
+      "name": "fixture-lint",
+      "command": "npx eslint --max-warnings=0 test/unit/portablePageSecurity.test.ts",
+      "exit": 0,
+      "seconds": 16.7,
+      "log": "temp/final-fixture-lint.log",
+      "logSha256": "a6b40783d268715228149ad457d94fb7e8ccb7659296d987f69c907a1259fde8",
+      "logBytes": 122
+    },
+    {
+      "name": "fixture-tests",
+      "command": "npx vitest run test/unit/portablePageSecurity.test.ts --maxWorkers=3",
+      "exit": 0,
+      "seconds": 15.0,
+      "log": "temp/final-fixture-tests.log",
+      "logSha256": "ecdc4034009e030be08bcadf30f384ed3b81ee365a3b7b4195d06c0ba95ac375",
+      "logBytes": 702
+    },
+    {
+      "name": "duplication-final",
+      "command": "npx jscpd",
+      "exit": 1,
+      "seconds": 3.1,
+      "log": "temp/final-duplication-final.log",
+      "logSha256": "c5c7e7cc67100e96ec0d2bfb63cfc70c959ab2747da56087f62c95c0e290cb8d",
+      "logBytes": 5488
+    },
+    {
+      "name": "format-final",
+      "command": "npx prettier --check CHANGELOG.md PLAN.md ROADMAP.md docs/certification/m104-f2-drills.json docs/certification/m104.md docs/roadmap/entries.json hosts/eclipse/README.md hosts/jetbrains/build-resources.mjs hosts/jetbrains/src/main/resources/embedded.mjs hosts/jetbrains/test/embedded.test.mjs hosts/xcode/Scripts/generate.mjs hosts/xcode/Scripts/nativeTables.ts src/host/html.ts src/host/ui/pageHtml.ts src/runtime/panel/portablePage.ts test/unit/jetbrainsPagesSecurity.test.ts test/unit/pageHtml.test.ts test/unit/portablePageSecurity.test.ts test/unit/xcodePlistSecurity.test.ts",
+      "exit": 0,
+      "seconds": 16.5,
+      "log": "temp/final-format-final.log",
+      "logSha256": "df637e164bcba58bf8e0ba164690f4650c8ffa590e3bfec2268546185c386efd",
+      "logBytes": 701
+    },
+    {
+      "name": "bundle-split",
+      "command": "node scripts/check-bundle-split.mjs",
+      "exit": 0,
+      "seconds": 3.6,
+      "log": "temp/final-bundle-split.log",
+      "logSha256": "3f7043ba865fc3ea2d44b6d5920f54859c318df227110f834ff8a9c57a7cbb25",
+      "logBytes": 6779
+    },
+    {
+      "name": "host-globals",
+      "command": "node scripts/check-host-globals.mjs",
+      "exit": 0,
+      "seconds": 0.1,
+      "log": "temp/final-host-globals.log",
+      "logSha256": "3ecbed35abf70ad717fc85f819993ba22ad92576d03ebe32f5e622e975a7eafa",
+      "logBytes": 4046
+    },
+    {
+      "name": "notices",
+      "command": "node scripts/third-party-notices.mjs",
+      "exit": 0,
+      "seconds": 0.4,
+      "log": "temp/final-notices.log",
+      "logSha256": "ef2d00f3e4f18f45abec6919be243e3119c82a54e878db3581c031227c5407ce",
+      "logBytes": 72
+    }
+  ],
+  "owningChecks": [
+    {
+      "name": "html-owned",
+      "exit": 0,
+      "log": "temp/html-final.log",
+      "logSha256": "ad0d6f9ee286331a05b570e660eaaece8314128bdd555cba4dc343081dc114c1",
+      "logBytes": 767
+    },
+    {
+      "name": "html-lint",
+      "exit": 0,
+      "log": "temp/html-lint.log",
+      "logSha256": "8a3861cee8f4cba1f5f439800d3bbb79709103fe853a7d9369e216af16e30a90",
+      "logBytes": 330
+    },
+    {
+      "name": "native-pages",
+      "exit": 0,
+      "log": "temp/jvm-pages-final.log",
+      "logSha256": "cda3676c64e029964851af8df6a9b9052b256bac772c5dc60a063c6994038734",
+      "logBytes": 701
+    },
+    {
+      "name": "native-lint",
+      "exit": 0,
+      "log": "temp/jvm-lint.log",
+      "logSha256": "cacc119b9c5ae372fe53d9b088a5ca7286299e93ef8969f05d1569e7313ccfd1",
+      "logBytes": 247
+    },
+    {
+      "name": "eclipse-plugin-compile",
+      "exit": 0,
+      "log": "temp/eclipse-plugin-compile.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "logBytes": 0
+    },
+    {
+      "name": "eclipse-launch-junit",
+      "exit": 0,
+      "log": "temp/eclipse-launch-green.log",
+      "logSha256": "77d8dd2ca3d5ddba62ec177c7600c43626ef5f26e385faa785f632bb7cd388a2",
+      "logBytes": 52
+    },
+    {
+      "name": "embedded",
+      "exit": 1,
+      "log": "temp/embedded-final.log",
+      "logSha256": "d0e824cc8ef7adbdf4ccf62d36fae590bd1cf1cbd9c23c0e4fbb6ec40f74d02d",
+      "logBytes": 1688
+    }
+  ],
+  "limits": [
+    "Complete registry auto SAST was not run: the shared brief forbids its network reads.",
+    "Embedded unknown-member admission retains the pre-existing native-contract assertion failure.",
+    "Production build stops at portable 1321.5 KiB / 1100 KiB; later build stages have separate receipts.",
+    "Duplication initially reports 13 clones including one new fixture clone; fixture cleanup restores the inherited 12 (93 lines / 707 tokens).",
+    "No installed native/editor, live/model, paid, publication or aggregate quality claim."
+  ]
+}
