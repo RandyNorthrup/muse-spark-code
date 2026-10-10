@@ -228,7 +228,6 @@
   "config.accountSwap.description": "Troca para a próxima conta com capacidade quando uma atinge um limite, no limite da próxima solicitação. Cada conta mantém seus próprios limites. Ativado por padrão; somente a configuração desta máquina é usada.",
   "config.accountParallel.description": "Distribui o trabalho em segundo plano entre as contas pela capacidade disponível; cada worker permanece em sua conta. Ativado por padrão; somente a configuração desta máquina é usada.",
   "config.accounts.severalOnThisDevice.description": "Permite várias contas de um provedor neste PC para testes, cada uma em seu próprio perfil local isolado. Ativar pede primeiro a confirmação dos termos do provedor. Desativado por padrão; somente a configuração desta máquina é usada.",
-  "config.github.useGhLogin.description": "Permite que pull requests usem seu login existente do GitHub CLI (`gh auth token`), tentado por último, depois do login do GitHub do editor e do login do Muse Spark. O token é lido para uma solicitação por vez e nunca é armazenado. Desativado por padrão; somente nas configurações do usuário, para que um repositório não possa ativá-lo.",
   "command.vault.title": "Cofre",
   "command.lockVault.title": "Bloquear o cofre agora",
   "config.vault.description": "Ativar o cofre de credenciais por usuário compartilhado entre editores.",

@@ -20418,7 +20418,44 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### M123 — Git and pull requests in every editor (D104)
 
-**Status 2026-10-08: planned.**
+**Status 2026-10-10: building.** Lanes 0, G and P are integrated on
+`int/m123` and switched off; lanes A, L, U and Q are not integrated.
+Record: `docs/certification/m123.md`, INTM123.
+
+- **Integration (INTM123, 2026-10-10, host Claude).** `int/m123` is
+  `origin/main` (0.17.0, `82d50d5e4`) with lane G at `3c76add1f` (which
+  carries lane 0 and lane P to `5fed6f040`) and lane P's last commit
+  `261309b80`. M123 ships whole or not at all (the owner, 2026-10-10), so
+  nothing merged is reachable or offered until the milestone is complete:
+  - `M123_RELEASE.isNativeGitRouteOn` (`src/shared/constants.ts`) is
+    false, so `createGitWindow` supplies no `nativeGit` and a VS
+    Code-family host without `vscode.git` keeps its earlier behaviour.
+    Lane Q turns it on with F36's receipts.
+  - `museSpark.github.useGhLogin` is not contributed (manifest, the 15
+    `package.nls` tables, the defaults, `settings.ts`, the catalogue and
+    the Help reference); `isGhLoginEnabled` keeps its reading rule for
+    lane A. `test/unit/m123Unreleased.test.ts` guards both.
+  - README, the Help reference and What's New name none of it; the
+    changelog keeps the merged lanes under [Unreleased] "Pending", which
+    What's New never shows.
+- **Not yet shipped (what M123 still lacks, 2026-10-10).**
+  - Lane A, the GitHub sign-in (source b, the vault/keychain item, source
+    c behind `useGhLogin`, Sign out, the CLI's `auth github`): accepted at
+    `m123/a5` `373e8fe66` with RVM123A5's cross-process residual, not
+    integrated. It carries the client id `Ov23liXlNSPBbFyJ0A1z` (Q-M123);
+    `GITHUB_OAUTH_CLIENT_ID` here is still empty.
+  - Lane L, editor leases (`auth/githubLease`, `github/request` in VS
+    Code, JetBrains and Visual Studio; `nativeGitHub.ts`): not started; it
+    waits for M104's host API rows.
+  - Lane U, the panel (`GitPanel.tsx` forms and the held card in all three
+    bridges, `GitHubSignIn.tsx`, strings in 15 tables, the catalogue and
+    reference, harness scenes, README screenshots): not started.
+  - Lane Q, qualification: the F36 scenarios per editor,
+    `docs/certification/m123-<host>.md`, F36 moved to W: not started.
+  - Lane D's README, matrix, SECURITY, PRIVACY, CONTRIBUTING and AGENTS
+    rule 14 rows wait for the behaviour they describe.
+  - Acceptance items 1 to 6 below and every certification checklist box
+    stay open; the runtime panel's D6 measurement waits for lane U.
 
 - **Lane 0 landed on `feature/m123` (2026-10-08, Kubuntu).** Record:
   `docs/certification/m123.md`.

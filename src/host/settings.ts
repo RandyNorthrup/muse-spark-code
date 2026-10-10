@@ -184,8 +184,6 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly accountParallel: boolean
   /** D88 amendment b2: several accounts of one provider on this PC; off by default. */
   readonly 'accounts.severalOnThisDevice': boolean
-  /** M123 (PLAN.md D104 source c): the user's `gh` login for GitHub; off by default. */
-  readonly 'github.useGhLogin': boolean
   /** The per-user credential vault, shared by every editor (M109, PLAN.md D89). */
   readonly 'vault.enabled': boolean
   /** How the vault key is protected; `auto` is hardware plus the OS store. */
@@ -323,7 +321,6 @@ const settingSchemas = {
   accountSwap: z.boolean(),
   accountParallel: z.boolean(),
   'accounts.severalOnThisDevice': z.boolean(),
-  'github.useGhLogin': z.boolean(),
   'vault.enabled': z.boolean(),
   'vault.protection': z.enum(VAULT_PROTECTION_MODES),
   'vault.agentFence': z.boolean(),
@@ -478,7 +475,6 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     accountSwap: readSetting(config, 'accountSwap', log),
     accountParallel: readSetting(config, 'accountParallel', log),
     'accounts.severalOnThisDevice': readSetting(config, 'accounts.severalOnThisDevice', log),
-    'github.useGhLogin': readSetting(config, 'github.useGhLogin', log),
     'vault.enabled': readSetting(config, 'vault.enabled', log),
     'vault.protection': readSetting(config, 'vault.protection', log),
     'vault.agentFence': readSetting(config, 'vault.agentFence', log),
