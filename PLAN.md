@@ -20278,6 +20278,16 @@ github.com` only. `test/unit/helpers/github/`: the device-flow shapes,
   cross-window `mkdir` lock folder, and the batch child in its own process
   group with its own deadline. RVM123P3 found three P1s and two P2s left in
   that lock and lifecycle; FIXM123P4 below replaces both.
+- **RVM123P8 repair (M123P9, 2026-10-09, win11).** Close the three P3
+  findings without changing the fenced protocol: log a failed sweep listing
+  where it is caught, with only the operation and a validated error code;
+  use installed UI text for the uncertain-write error, translated in all
+  fourteen tables; justify and register the two erased generic payload
+  assertions. Add warning/privacy and translated checkout regressions,
+  prove both against the old behavior and with byte-exact restored red
+  drills, then run the complete lane P suites at repository timeouts and
+  scoped static gates. Aggregate quality remains the lead's under the
+  shared lane rules; no merge, push, paid/live calls or gate changes.
 - **Record/checkout protocol (FIXM123P7 redesign, 2026-10-09; replaces
   FIXM123P4–P6).** The fourth review round (RVM123P6: three P2s) applied
   the third-round rule: the store and the checkout were rebuilt on one
@@ -38260,6 +38270,19 @@ lane A's first step.
 
 ## 7. Gates
 
+**M123P9 inherited gate failures (2026-10-09, win11).** The scoped repair
+passes its eleven native lane P suites, one unit/source typecheck, changed-file
+lint/format, localization, plan, roadmap, reference, host API and plain knip.
+The unchanged zero-clone gate exits 1 on 44 clones at both `5fed6f040` and
+the repaired sources; every current matched span is equal to or a shorter
+part of a base clone (547 duplicated lines now, 569 before). The production
+build exits 1 only on `dist/resourceGovernor.js`: 135,386 bytes against
+128,000, byte-identical to the base. Baseline overlays are restored
+byte-exact and re-hashed; a restored production build confirms the same
+failure. No threshold, ignore or cap changes. The inherited clones, governor
+size repair and aggregate quality remain with the lead under the shared
+lane rules; receipts are in `docs/certification/m123.md`.
+
 **MERGESPAWN (2026-10-08).** `rel017/spawn4` is merged into `release/0.17.0`
 with both sides' behaviour; the reporting bundles now share resource
 admission and `dist/validation.js` exports `tuple`. Open for the lead, caps
@@ -42730,6 +42753,11 @@ aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
+
+| M123P9 location                                                    | Escape hatch                                | Reason                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------ | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/runtime/panel/pullRequests/records.ts`, `claim`               | `error.results as readonly Claimed[]`       | This catch surrounds only its own `mutate<Claimed>`; `make` errors are captured in `outcome`, and `mutate` constructs the error with its own `T[]` of attempted results. `instanceof` cannot retain that generic correlation. The unknown-claim regression verifies every potentially owned fence and cleanup. |
+| `src/runtime/panel/pullRequests/checkout.ts`, `reserveAndCheckout` | `error.results as readonly ReserveResult[]` | Only `reserve` and `supersede` mutations run in this try; the record store constructs this error from those methods' `ReserveResult` attempts. `instanceof` erases the generic payload type. The uncertain-write interleavings verify cleanup after either reservation operation lands and fails.              |
 
 | PORTS017 escape                                                                           | Reason                                                                                                                                                                                                                          |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -1528,6 +1528,7 @@
   "worktreeDetachedHead": "o commit com check-out no momento",
   "worktreeFolderExists": "Essa pasta já existe:",
   "worktreeAddFailed": "O git não conseguiu criar a árvore de trabalho",
+  "worktreeRecordsWriteUnknown": "Os registros das árvores de trabalho podem ter sido gravados",
   "worktreeCreated": "Árvore de trabalho pronta em {path}",
   "worktreeOpen": "Abrir em Nova Janela",
   "worktreeListFailed": "O git não conseguiu listar as árvores de trabalho",
