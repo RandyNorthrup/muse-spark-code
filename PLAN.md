@@ -19228,6 +19228,17 @@ in-tree junctions below it, drive-letter spelling) and
 
 ## 3. Open questions (need the owner)
 
+- **Q-M104F4-PAYLOAD-DIET (2026-10-09).** The complete portable graph is
+  1,323,336 bytes against its unchanged 1,126,400-byte cap. Optional panels,
+  presentation pages, estimator, reports, media and native/companion bridges
+  are already lazy; all ten duplicated loader-parser sources together account
+  for only 17,014 bytes. Which implementation diet should the next lane own:
+  renderer/dependency changes or shared application consolidation? Lazy edge
+  changes alone leave all output payloads charged to the complete graph.
+  Default: keep the cap, features and trust boundaries, preserve build exit 1,
+  and apply the shared brief's bounded-repair stop rule. Composition, current
+  first-use budgets and byte-exact split drills: certification `m104.md`, F4.
+
 - **Q-M104L-POSIX-CONTAINMENT (updated 2026-10-06).** The shared exact
   registry and independent EOF guardian reap observed detached children,
   including after supervisor SIGKILL. Node roots wait for registration and
@@ -37907,6 +37918,19 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**M104 F4 portable-size audit (2026-10-09, kubuntu; before changes).**
+Keep the complete portable JavaScript graph's 1,100 KiB cap and every existing
+startup/deferred cap. Measure the production metafile's forty largest source
+contributors, group them by feature, audit existing first-use chunks and
+repeated dependencies, and replay the owning portable/native suites and a
+byte-exact eager-import split drill. Moving bytes from static to dynamic imports
+does not reduce this complete-graph total. If the named optional surfaces are
+already deferred and a payload diet cannot fit the shared brief's bounded scope,
+retain the refusal and record the exact remaining gap and needed owner decision;
+never exclude lazy outputs from the existing counter. Aggregate quality and
+other lanes' security/native/installed qualification remain lead-owned.
+Receipts belong in `docs/certification/m104.md`, M104 F4.
+
 **FIXM104L9 closing-owner qualification (2026-10-08, complete on macOS).**
 RVM104L8 finding 1 came from the fixture's invalid 128-byte control pathname.
 It now binds and closes a real 84-byte socket at the recorded address.
@@ -38874,6 +38898,19 @@ language/kind combinations after finite entrance motion, split by language and f
 so each test fits the unchanged deadline. Preserve every locale-specific
 plural form when ordering source tables. No assertions, contrasts, caps or
 platform guards are relaxed; failing receipts remain blockers until corrected.
+
+**M104 F4 bounded split audit (2026-10-09, kubuntu).** The production
+metafile audit records the forty largest contributors by feature and every
+portable output's measured bytes/hash. Chat startup is 757,722 B (58 outputs);
+the other 119 JavaScript outputs cost 565,614 B. Named optional UI and editor
+bridges already load on first use, with existing closure guards and budgets.
+The only source copies are the authenticated classic loader's ten parser
+modules: even eliminating all 17,014 repeated bytes without overhead leaves
+179,922 B above the unchanged complete-graph cap. Replays and eager-import
+drills qualify the current boundaries, not an aggregate size pass. No source,
+feature, dependency, counter, exclusion or cap is changed; before/after totals
+remain 1,323,336 B. A broader implementation diet is an explicit owner question
+in section 3. Full quality and other integration blockers remain lead-owned.
 
 **M104 F3 repair scope (2026-10-09, kubuntu).** The dedicated follow-up
 brief authorizes root-cause repair of the twelve recorded clones, the complete

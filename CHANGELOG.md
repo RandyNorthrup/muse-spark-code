@@ -126,6 +126,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Portable-panel certification records the complete graph's forty largest
+  contributors, existing lazy-feature budgets and dependency copies. Its
+  unchanged 1,100 KiB cap still refuses 1,292.3 KiB; optional panels and bridges
+  are already deferred, so size qualification remains open.
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did
