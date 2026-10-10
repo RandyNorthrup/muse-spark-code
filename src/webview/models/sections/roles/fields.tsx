@@ -53,6 +53,65 @@ export function NumberField({
     </label>
   )
 }
+function SettingControl({
+  control,
+  current,
+  onChange,
+}: {
+  readonly control: TeamSettingControl
+  readonly current: boolean | string | number | undefined
+  readonly onChange: (value: boolean | string | number | undefined) => void
+}) {
+  if (control.kind === 'boolean') {
+    return (
+      <label>
+        <input
+          type="checkbox"
+          checked={current === true}
+          onChange={(event) => {
+            onChange(event.target.checked)
+          }}
+        />
+        {control.label}
+      </label>
+    )
+  }
+  if (control.kind === 'choice') {
+    return (
+      <label>
+        {control.label}
+        <select
+          value={typeof current === 'string' ? current : ''}
+          onChange={(event) => {
+            onChange(event.target.value)
+          }}
+        >
+          <option value="" disabled>
+            {UI_TEXT.teamDefaultEntry}
+          </option>
+          {control.choices?.map((choice) => (
+            <option key={choice} value={choice}>
+              {choice}
+            </option>
+          ))}
+        </select>
+      </label>
+    )
+  }
+  return (
+    <NumberField
+      label={control.label}
+      value={typeof current === 'number' ? current : undefined}
+      min={control.min ?? 0}
+      max={control.max}
+      step={['thinkingBudget', 'outputCap', 'windowCap'].includes(control.key) ? 1 : 'any'}
+      onChange={onChange}
+      onClear={() => {
+        onChange(undefined)
+      }}
+    />
+  )
+}
 export function ModelSettings({
   controls,
   value,
@@ -76,51 +135,7 @@ export function ModelSettings({
         }
         return (
           <div key={control.key} className="team-editor-field">
-            {control.kind === 'boolean' ? (
-              <label>
-                <input
-                  type="checkbox"
-                  checked={current === true}
-                  onChange={(event) => {
-                    change(event.target.checked)
-                  }}
-                />
-                {control.label}
-              </label>
-            ) : control.kind === 'choice' ? (
-              <label>
-                {control.label}
-                <select
-                  value={typeof current === 'string' ? current : ''}
-                  onChange={(event) => {
-                    change(event.target.value)
-                  }}
-                >
-                  <option value="" disabled>
-                    {UI_TEXT.teamDefaultEntry}
-                  </option>
-                  {control.choices?.map((choice) => (
-                    <option key={choice} value={choice}>
-                      {choice}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : (
-              <NumberField
-                label={control.label}
-                value={typeof current === 'number' ? current : undefined}
-                min={control.min ?? 0}
-                max={control.max}
-                step={
-                  ['thinkingBudget', 'outputCap', 'windowCap'].includes(control.key) ? 1 : 'any'
-                }
-                onChange={change}
-                onClear={() => {
-                  change(undefined)
-                }}
-              />
-            )}
+            {<SettingControl control={control} current={current} onChange={change} />}
             <p className="models-hint">{control.note}</p>
             {current === undefined ? <p>{UI_TEXT.teamDefaultEntry}</p> : null}
             <button
