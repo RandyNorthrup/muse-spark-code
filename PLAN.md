@@ -37485,7 +37485,8 @@ No merge, push, live/paid calls or aggregate quality; lead owns integration.
 - [x] Run scoped gates and record unchanged artifacts and inherited encoder
       blocker (670 tests in 15 complete files; five typechecks plus final unit
       recheck; production bytes and all three 76,800 B caps unchanged).
-- [ ] Commit with installed hooks and reread staged and committed diffs.
+- [x] Commit with installed hooks and reread staged and committed diffs
+      (implementation `0f2b025db`; all seven file hashes and patch unchanged).
 
 - **Goal:** D103 across every balancing surface.
 - **Order:** after the Wednesday set, and before the M110/M111 resume.
