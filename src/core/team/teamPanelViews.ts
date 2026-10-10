@@ -7,6 +7,8 @@ import {
   REPO_MAP_CHARS_PER_TOKEN,
   TEAM_INTENSITY_ORDER,
   PERMISSION_MODES,
+  TEAM_TOKENS_PER_MTOK,
+  TEAM_PREVIEW_OUTPUT_SHARE,
 } from '../../shared/constants'
 import { fill, formatNumber } from '../../shared/l10n/text'
 import type {
@@ -195,6 +197,69 @@ function roleIssues(
   }
   return { issues: [...new Set(issues)], warnings: [...new Set(warnings)] }
 }
+interface PreviewStepNeed {
+  readonly typical: number
+  readonly stepInput: number
+  readonly stepOutput: number
+  readonly usedTokens: number
+  readonly usedUsd: number
+  readonly usedTasks: number
+  /** Undefined when the entry's model is unpriced; validation refuses dollar caps there. */
+  readonly stepUsd: number | undefined
+}
+
+/** The step's estimated cost on the entry's model, at full input rates. */
+function previewStepUsd(
+  entry: TeamEditorRole['pool'][number],
+  offers: readonly TeamPanelOffer[],
+  defaultRef: string,
+  stepInput: number,
+  stepOutput: number,
+): number | undefined {
+  const offer =
+    entry.agent === undefined
+      ? offers.find((item) => item.ref === defaultRef)
+      : offers.find((item) => isSameAgent(item, entry.agent))
+  const inputRate = offer?.inputRate
+  const outputRate = offer?.outputRate
+  return inputRate === undefined || outputRate === undefined
+    ? undefined
+    : (stepInput * inputRate + stepOutput * outputRate) / TEAM_TOKENS_PER_MTOK
+}
+
+/** Whether one cap leaves room for the preview step: every measure, every window. */
+function hasPreviewCapRoom(
+  cap: TeamEditorRole['pool'][number]['caps'][number],
+  need: PreviewStepNeed,
+): boolean {
+  switch (cap.measure) {
+    case 'tokens': {
+      const total = cap.window === 'task' ? need.typical : need.usedTokens + need.typical
+      return total <= cap.amount
+    }
+    case 'inputTokens': {
+      const used = need.usedTokens * (1 - TEAM_PREVIEW_OUTPUT_SHARE)
+      const total = cap.window === 'task' ? need.stepInput : used + need.stepInput
+      return total <= cap.amount
+    }
+    case 'outputTokens': {
+      const used = need.usedTokens * TEAM_PREVIEW_OUTPUT_SHARE
+      const total = cap.window === 'task' ? need.stepOutput : used + need.stepOutput
+      return total <= cap.amount
+    }
+    case 'spendUsd': {
+      // An unpriced entry cannot be costed; validation refuses its dollar caps instead.
+      return (
+        need.stepUsd === undefined ||
+        (cap.window === 'task' ? need.stepUsd : need.usedUsd + need.stepUsd) <= cap.amount
+      )
+    }
+    case 'tasks': {
+      const total = cap.window === 'task' ? 1 : need.usedTasks + 1
+      return total <= cap.amount
+    }
+  }
+}
 export function deriveTeamPanel(
   document: TeamEditorDocument,
   offers: TeamPanelOffer[],
@@ -241,6 +306,10 @@ export function deriveTeamPanel(
     usdPerMTokOutput: offer.outputRate,
     usdPerMTokCachedInput: offer.cachedRate,
   }))
+  // Per-entry spend and step counts behind the preview's selection, so
+  // `day` and `lifetime` dollar and task caps see what earlier steps used.
+  const previewSpentUsd = new Map<string, number[]>()
+  const previewTaskCounts = new Map<string, number[]>()
   const preview = previewDraft({
     draft,
     sample,
@@ -248,13 +317,34 @@ export function deriveTeamPanel(
     resolveDefault: () => defaultRef,
     select: (roleId, _size, spent) => {
       const pool = document.roles.find((role) => role.role === roleId)?.pool ?? []
-      return pool.findIndex((entry, index) =>
-        entry.caps.every(
-          (cap) =>
-            cap.measure !== 'tokens' ||
-            (spent[index] ?? 0) + typicalTokensFor(roleId) <= cap.amount,
+      const typical = typicalTokensFor(roleId)
+      const stepInput = Math.round(typical * (1 - TEAM_PREVIEW_OUTPUT_SHARE))
+      const stepOutput = typical - stepInput
+      const usedUsd = previewSpentUsd.get(roleId) ?? []
+      const usedTasks = previewTaskCounts.get(roleId) ?? []
+      const chosen = pool.findIndex((entry, index) =>
+        entry.caps.every((cap) =>
+          hasPreviewCapRoom(cap, {
+            typical,
+            stepInput,
+            stepOutput,
+            usedTokens: spent[index] ?? 0,
+            usedUsd: usedUsd[index] ?? 0,
+            usedTasks: usedTasks[index] ?? 0,
+            stepUsd: previewStepUsd(entry, offers, defaultRef, stepInput, stepOutput),
+          }),
         ),
       )
+      if (chosen === -1) return chosen
+      const placed = pool[chosen]
+      if (placed !== undefined) {
+        const cost = previewStepUsd(placed, offers, defaultRef, stepInput, stepOutput)
+        usedUsd[chosen] = (usedUsd[chosen] ?? 0) + (cost ?? 0)
+        usedTasks[chosen] = (usedTasks[chosen] ?? 0) + 1
+        previewSpentUsd.set(roleId, usedUsd)
+        previewTaskCounts.set(roleId, usedTasks)
+      }
+      return chosen
     },
   })
   const ceilings = { provider: maxWorkers, hard: maxWorkers, machine: maxWorkers }

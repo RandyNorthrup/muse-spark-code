@@ -119,16 +119,37 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
     if (offer === undefined) throw new Error(UI_TEXT.teamEntryMissing)
     return offer
   }
+  const resolvedDefaultRef = () =>
+    offers.find((offer) => isSameAgent(offer, current().orchestrator?.agent))?.ref ??
+    deps.defaultRef()
+  const defaultCeiling = () =>
+    offers.find((item) => item.ref === resolvedDefaultRef())?.ceiling ?? deps.maxWorkers()
+  const defaultConcurrent = () =>
+    Math.max(
+      1,
+      runningForLevel(current().intensity, {
+        provider: defaultCeiling(),
+        hard: deps.maxWorkers(),
+        machine: deps.maxWorkers(),
+      }),
+    )
   const makeEntry = (role: string, ref: string) => {
     const spec = TEAM_INTENSITY_SPECS[current().intensity]
+    // Default is live, not a snapshot (D75): it runs on the orchestrator
+    // slot's model, so a Default entry carries that model's ceiling, not
+    // the machine limit. An unsaved orchestrator override resolves first.
+    // A Default entry stays agent-free (its marker) and settings-free
+    // (validation refuses settings on Default); only its ceiling follows
+    // the resolved model.
     const offer = ref === 'default' ? undefined : offerOf(ref)
+    const ceiling = ref === 'default' ? defaultCeiling() : (offer?.ceiling ?? deps.maxWorkers())
     return {
       id: deps.newId(),
       ...(offer !== undefined && { agent: offer.agent }),
       concurrent: Math.max(
         1,
         runningForLevel(current().intensity, {
-          provider: offer?.ceiling ?? deps.maxWorkers(),
+          provider: ceiling,
           hard: deps.maxWorkers(),
           machine: deps.maxWorkers(),
         }),
@@ -176,7 +197,11 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
         ...entry,
         concurrent: next.concurrent,
         caps: next.caps,
-        settings: { ...entry.settings, ...next.settings },
+        // Merging two absent settings must stay absent: validation
+        // refuses any settings object on a Default entry.
+        ...((entry.settings ?? next.settings) !== undefined && {
+          settings: { ...entry.settings, ...next.settings },
+        }),
       }
     })
     role.custom = false
@@ -289,6 +314,12 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
             ? undefined
             : { agent: offerOf(message.modelRef).agent, settings: message.settings }
         draft.orchestratorModel = draft.orchestrator?.agent?.model
+        // Default is live: existing fallback entries follow the newly
+        // resolved model. Only their concurrency is level-owned, so custom
+        // caps and the role's custom flag stay untouched.
+        for (const role of draft.roles)
+          for (const entry of role.pool)
+            if (entry.agent === undefined) entry.concurrent = defaultConcurrent()
         break
       }
       case 'roles/intensity': {
@@ -325,20 +356,29 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
           }
         } else if (suggestion.amount !== undefined) {
           const role = roleOf(message.role)
-          for (const entry of role.pool) {
+          // The suggestion names the role's share of the remaining budget
+          // (D75); the meters count caps per entry, so the share is split
+          // across the priced entries rather than copied onto each one.
+          const priced = role.pool.filter((entry) => {
             const offer =
               entry.agent === undefined
                 ? offers.find((item) => item.ref === view().defaultRef)
                 : offers.find((item) => isSameAgent(item, entry.agent))
-            if (
-              offer?.agent.pays !== 'key' ||
-              offer.inputRate === undefined ||
-              offer.outputRate === undefined
+            return (
+              offer?.agent.pays === 'key' &&
+              offer.inputRate !== undefined &&
+              offer.outputRate !== undefined
             )
-              continue
+          })
+          if (priced.length === 0) throw new Error(UI_TEXT.teamEditor.invalid)
+          for (const entry of priced) {
             entry.caps = [
               ...entry.caps.filter((cap) => cap.measure !== 'spendUsd' || cap.window !== 'day'),
-              { measure: 'spendUsd', window: 'day', amount: suggestion.amount },
+              {
+                measure: 'spendUsd',
+                window: 'day',
+                amount: suggestion.amount / priced.length,
+              },
             ]
           }
           role.custom = true

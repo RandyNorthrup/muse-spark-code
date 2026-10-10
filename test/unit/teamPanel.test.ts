@@ -338,6 +338,95 @@ describe('M96 U1 portable panel', () => {
     expect(snapshot18.issues).toContain(UI_TEXT.teamEntryMissing)
     await expect(missing.controller.handle({ type: 'roles/save' })).rejects.toThrow()
   })
+  it('caps generated Default entries at the resolved model ceiling', async () => {
+    const offers = teamOffers()
+    for (const offer of offers) offer.ceiling = 1
+    const rig = panelRig({ offers: () => Promise.resolve(offers) })
+    await rig.read()
+    await rig.controller.handle({ type: 'roles/template', template: 'pair' })
+    const slice = await rig.read()
+    expect(slice.issues).toEqual([])
+    for (const role of slice.document.roles) {
+      expect(role.pool.at(-1)?.agent).toBeUndefined()
+      for (const entry of role.pool) expect(entry.concurrent).toBeLessThanOrEqual(1)
+    }
+  })
+  it('caps regenerated Default entries at an unsaved orchestrator override', async () => {
+    const offers = teamOffers()
+    const reviewer = offers[1]
+    if (reviewer === undefined) throw new Error('No reviewer offer')
+    reviewer.ceiling = 1
+    const rig = panelRig({ offers: () => Promise.resolve(offers) })
+    await rig.read()
+    await rig.controller.handle({ type: 'roles/template', template: 'pair' })
+    await rig.controller.handle({ type: 'roles/orchestrator', modelRef: reviewer.ref })
+    await rig.controller.handle({ type: 'roles/reapply', role: 'engineering' })
+    const slice = await rig.read()
+    expect(slice.issues).toEqual([])
+    const pool = slice.document.roles.find((role) => role.role === 'engineering')?.pool ?? []
+    expect(pool.at(-1)?.agent).toBeUndefined()
+    for (const entry of pool)
+      if (entry.agent === undefined) expect(entry.concurrent).toBeLessThanOrEqual(1)
+  })
+  it('switches the preview off an entry a dollar cap prices out', async () => {
+    const rig = panelRig()
+    await rig.read()
+    await rig.controller.handle({ type: 'roles/template', template: 'pair' })
+    const before = await rig.read()
+    const primary = before.document.roles.find((role) => role.role === 'engineering')?.pool[0]
+    if (primary === undefined) throw new Error('No primary entry')
+    await rig.controller.handle({
+      type: 'roles/cap',
+      role: 'engineering',
+      entryId: primary.id,
+      index: primary.caps.length,
+      cap: { measure: 'spendUsd', window: 'day', amount: 0.000001 },
+    })
+    const slice = await rig.read()
+    const step = slice.preview.steps.find((item) => item.role === 'engineering')
+    expect(step?.switched).toBe(true)
+    expect(step?.model).toBe(slice.defaultRef)
+    expect(slice.preview.unstaffed).not.toContain('engineering')
+  })
+  it('switches the preview off an entry a one-token output cap blocks', async () => {
+    const rig = panelRig()
+    await rig.read()
+    await rig.controller.handle({ type: 'roles/template', template: 'pair' })
+    const before = await rig.read()
+    const primary = before.document.roles.find((role) => role.role === 'engineering')?.pool[0]
+    if (primary === undefined) throw new Error('No primary entry')
+    await rig.controller.handle({
+      type: 'roles/cap',
+      role: 'engineering',
+      entryId: primary.id,
+      index: primary.caps.length,
+      cap: { measure: 'outputTokens', window: 'task', amount: 1 },
+    })
+    const slice = await rig.read()
+    expect(slice.preview.steps.find((item) => item.role === 'engineering')?.switched).toBe(true)
+  })
+  it('splits an accepted role budget across the priced entries', async () => {
+    const rig = panelRig()
+    const slice = await pairSlice(rig)
+    const suggestion = slice.suggestions.find(
+      (item) => item.role === 'engineering' && item.kind === 'roleBudget',
+    )
+    if (suggestion?.amount === undefined) throw new Error('No engineering budget suggestion')
+    await rig.controller.handle({
+      type: 'roles/suggestion',
+      role: 'engineering',
+      kind: 'roleBudget',
+      decision: 'accept',
+    })
+    const after = await rig.read()
+    const pool = after.document.roles.find((role) => role.role === 'engineering')?.pool ?? []
+    const dayCaps = pool.flatMap((entry) =>
+      entry.caps.filter((cap) => cap.measure === 'spendUsd' && cap.window === 'day'),
+    )
+    expect(dayCaps.length).toBe(2)
+    for (const cap of dayCaps) expect(cap.amount).toBe(suggestion.amount / 2)
+    expect(dayCaps.reduce((sum, cap) => sum + cap.amount, 0)).toBeCloseTo(suggestion.amount, 10)
+  })
   it('rejects nested secret and command fields at the panel boundary', () => {
     expect(
       parsePanelToHostMessage({
