@@ -83,7 +83,7 @@ const SETTING_CONDITIONS: Readonly<
   notifyOnBackgroundTurn: 'turnState&windowFocus',
   modelApiSessionBudgetUsd: 'sessionBudget',
 
-  schedules: 'scheduleRuntime=unbound',
+  schedules: 'scheduleRuntime=unbound&backend=museCode',
   modelApiObservationPacking: 'conversationStart',
   modelApiAutoCompaction: 'conversationStart&modelPricing',
   modelApiStrictTools: 'conversationStart&tools.strict',

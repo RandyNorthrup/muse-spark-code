@@ -8,6 +8,13 @@ import { renderSignedInApp } from './helpers/initializedApp'
 afterEach(cleanup)
 
 describe('CX1R6 installed chat availability', () => {
+  it('retains the legacy loop row without a v2 owner or workspace skill', async () => {
+    renderSignedInApp(vi.fn())
+    fireEvent.change(screen.getByLabelText(UI_TEXT.composerLabel), { target: { value: '/' } })
+    expect(await screen.findByRole('option', { name: /\/loop/ })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /\/schedule|\/estimate/ })).toBeNull()
+  })
+
   it('omits dormant palette rows and completions even with reserved workspace skills', async () => {
     renderSignedInApp(vi.fn())
     act(() => {
@@ -26,7 +33,7 @@ describe('CX1R6 installed chat availability', () => {
     })
     fireEvent.change(screen.getByLabelText(UI_TEXT.composerLabel), { target: { value: '/' } })
     expect(await screen.findByRole('option', { name: /compact/ })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: /\/loop/ })).toBeInTheDocument()
+    expect(screen.getAllByRole('option', { name: /\/loop/ })).toHaveLength(2)
     expect(screen.queryByRole('option', { name: /\/schedule|\/estimate/ })).toBeNull()
     fireEvent.click(screen.getByLabelText(UI_TEXT.commandsTitle))
     expect(await screen.findByRole('combobox')).toBeInTheDocument()

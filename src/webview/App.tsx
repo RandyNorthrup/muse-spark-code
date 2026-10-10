@@ -2558,14 +2558,14 @@ export function App({
   const paletteContext = useMemo(
     () => ({
       arePromptCommandsBound: true,
-      ...(OPTIONAL_RUNTIME_AVAILABILITY.schedules &&
-        (state.settings?.schedules ?? ARE_SCHEDULES_ON_BY_DEFAULT) && {
-          schedules: {
-            create: { type: 'openScheduleEditor' as const },
-            list: { type: 'openScheduleList' as const },
-            timeline: { type: 'openScheduleTimeline' as const },
-          },
-        }),
+      ...((state.settings?.schedules ?? ARE_SCHEDULES_ON_BY_DEFAULT) && {
+        schedules: {
+          isAvailable: OPTIONAL_RUNTIME_AVAILABILITY.schedules,
+          create: { type: 'openScheduleEditor' as const },
+          list: { type: 'openScheduleList' as const },
+          timeline: { type: 'openScheduleTimeline' as const },
+        },
+      }),
       currentModel: state.model,
       models: state.models,
       effort: state.effort,
