@@ -25,5 +25,29 @@
       "test/unit/paidConsent.test.ts": "43242c6a6cfa4b071457dc9d02f188dbd9535ee783e99303820751fc1853ef12",
       "test/unit/windowsTrustedPath.test.ts": "ab18f85aae4f3b918a66fbed5fb6a73f3011cd38c9e126248436fcb58b948726"
     }
+  },
+  {
+    "name": "portable-parser-red",
+    "exitCode": 1,
+    "command": ["npx", "vitest", "run", "test/unit/webviewBundle.test.mjs", "--maxWorkers=3"],
+    "restored": {
+      "scripts/build.mjs": "48db4512f0e49801378fc5f82f63d42895072e4736f04579c4b52028bd5fd77f"
+    }
+  },
+  {
+    "name": "portable-pacing-red",
+    "exitCode": 1,
+    "command": ["npx", "vitest", "run", "test/unit/webviewBundles.test.mjs", "--maxWorkers=3"],
+    "restored": {
+      "scripts/lib/webviewBundles.mjs": "d22cb3d0ed19ae721ec57822146c6ed1cf60a47485cb7c3258b90d0284109017"
+    }
+  },
+  {
+    "name": "portable-team-red",
+    "exitCode": 1,
+    "command": ["npx", "vitest", "run", "test/unit/webviewBundles.test.mjs", "--maxWorkers=3"],
+    "restored": {
+      "scripts/lib/webviewBundles.mjs": "d22cb3d0ed19ae721ec57822146c6ed1cf60a47485cb7c3258b90d0284109017"
+    }
   }
 ]

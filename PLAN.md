@@ -38219,7 +38219,7 @@ keeping its detailed native qualification catalogue generated too.
 Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
 in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
 
-**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. Verification retains the portable graph cap and SAST findings, native bridge contract checks, installed qualification and the next resource-chip parity lane as blockers. M104 F3 repairs the four ACP resource fixtures and the twelve recorded duplication findings; their complete touched suites and the zero-clone gate pass. Retained requirements and receipts follow.
+**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. Verification retains the portable graph cap (F3: 1292.3/1100 KiB) and SAST findings, native bridge contract checks, installed qualification and the next resource-chip parity lane as blockers. M104 F3 repairs the four ACP resource fixtures and the twelve recorded duplication findings; their complete touched suites and the zero-clone gate pass. Retained requirements and receipts follow.
 
 **FIXM104PB / RVM104PB (2026-10-06).** Repair all four P2 findings and the
 P3 evidence error inside B's paid engines and their shared guards. One
@@ -38885,6 +38885,36 @@ contributors before removing repeated code/data from the graph. Run complete
 touched suites at repository deadlines, byte-exact red drills, changed-file
 lint/format and all compiler projects. Aggregate quality, native contract/SAST
 repair and installed qualification remain lead/other-lane work.
+
+**M104 F3 portable counter compatibility (2026-10-09).** The complete
+portable inventory exposes two optional-closure counters still rooted at VS
+Code's entry. Pass the already-selected startup entry through pacing and team
+accounting, including Windows paths; keep shared dependencies charged to their
+original group and every cap unchanged. Preserve the original static-file
+stat refusal while the new complete portable inventory retains its explicit
+missing-chunk refusal. Owned gate fixtures must supply the portable metafile
+and Xcode table reader so every existing assertion reaches its guard.
+
+**M104 F3 portable graph bounded repair (2026-10-09).** The complete
+177-output JavaScript graph measures 1,353,195 bytes before the repair and
+1,323,336 after it, against the unchanged 1,126,400-byte cap. The portable
+build inherited VS Code's resource-only Zod namespace, which isolates startup
+but duplicates a parser already counted in this complete graph. Share it only
+in the portable build; preserve VS Code's deferred copy and all resource
+validation/UI. Savings: 29,859 bytes. Both optional-closure counters now use
+the selected entry; all portable closure caps pass independently. Existing
+static and portable missing-file refusal tests retain every assertion.
+All three full bundle suites pass (134 tests). Restoring the copied parser
+fails its real-production assertion; independently restoring each wrong
+counter entry fails both slash-style cases, with byte-exact restoration.
+The aggregate still exceeds its cap by 196,936 bytes. A measured read-only
+GFM candidate saves only 15,647 more bytes and does not fit; it is not adopted.
+The remaining 192.3 KiB would require a broader renderer/dependency or shared
+application diet, beyond a bounded fixture/build-owner repair. Apply the
+brief's stop-and-report rule; keep the cap and every feature, with build exit
+1 and main integration blocked. The lead must authorize/own that broader diet
+before qualification. No release, complete-build or visual qualification is
+claimed by these scoped repairs.
 
 **M104INT ACP fixture stop (2026-10-09).** Four real-stdio session
 startup cases still fail after the private Linux-helper and joined-factory

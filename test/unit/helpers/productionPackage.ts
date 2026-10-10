@@ -14,6 +14,7 @@ export function buildProductionPackage(root: string, folder: string): void {
     'design',
     'first-party-skills',
     'native',
+    'hosts/xcode/Scripts',
     'l10n',
     'docs',
     'media',

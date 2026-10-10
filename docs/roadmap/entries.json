@@ -772,7 +772,7 @@
     {
       "id": "M104",
       "title": "Every feature in every editor",
-      "summary": "Experimental native and companion panels and LSP are joined for verification; bundle and security gates, native contracts, installed-editor receipts and resource-chip parity still block qualification; the ACP resource fixtures and zero-clone gate pass.",
+      "summary": "Experimental native and companion panels and LSP await qualification: portable size, security, native contracts, installed-editor receipts and resource-chip parity remain blocked; ACP fixtures and duplication pass.",
       "area": "editors",
       "labels": ["experimental", "untested"]
     },

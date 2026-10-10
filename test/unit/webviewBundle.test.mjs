@@ -80,6 +80,13 @@ beforeAll(() => {
   // Exercise the real allowlist over all real emitted browser files in an
   // owned tree, without traversing other tests’ concurrently growing temp trees.
   cpSync(outputFile('dist/webview'), path.join(built.fixture, 'dist/webview'), { recursive: true })
+  const portable = JSON.parse(readFileSync(outputFile('dist/meta/portable.json'), 'utf8'))
+  cpSync(outputFile('dist/meta/portable.json'), path.join(built.fixture, 'dist/meta/portable.json'))
+  // This size fixture varies the original chat budget; retain the complete
+  // portable inventory with zero payloads. Its eager/lazy cap has its own suite.
+  for (const file of Object.keys(portable.outputs)) {
+    if (file.endsWith('.js')) writeFileSync(path.join(built.fixture, file), '')
+  }
   mkdirSync(path.join(built.fixture, 'docs/schemas'), { recursive: true })
   cpSync(
     'docs/schemas/exec-event-v2.schema.json',
@@ -249,6 +256,15 @@ describe('the production webview chunks (FIX78W)', () => {
       expect(owners).toHaveLength(1)
       expect(eager.has(owners[0][0])).toBe(true)
     }
+  })
+
+  it('shares resource validation in the complete portable graph', () => {
+    const portable = JSON.parse(readFileSync(outputFile('dist/meta/portable.json'), 'utf8'))
+    expect(
+      Object.keys(portable.inputs).some((file) => file.startsWith('resource-validation:')),
+    ).toBe(false)
+    for (const source of ['src/shared/resources.ts', 'src/shared/hostApi/panel.ts'])
+      expect(Object.hasOwn(portable.inputs, source)).toBe(true)
   })
 
   it('keeps usage, action dialogs and estimator within their existing closure caps', () => {

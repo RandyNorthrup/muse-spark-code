@@ -1185,6 +1185,9 @@ const webviewOptions = {
 // bridge or fallback can share a static chunk with VS Code's chat entry.
 const portableOptions = {
   ...webviewOptions,
+  // Its cap counts the whole graph; reuse the parser instead of paying for
+  // VS Code's separate resource-only copy that protects chat's startup cap.
+  plugins: webviewOptions.plugins.filter((plugin) => plugin !== resourceBrowserValidation),
   metafile: true,
   entryPoints: {
     main: PORTABLE_ENTRY,
