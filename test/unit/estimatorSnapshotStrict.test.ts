@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
-import { buildPlanSnapshot, type PlanSnapshotEvidence } from '../../src/core/estimator/planSnapshot'
+import {
+  buildPlanSnapshot,
+  checkPlan,
+  type PlanSnapshotEvidence,
+} from '../../src/core/estimator/planSnapshot'
 import { resolveEstimateGoal, remainingHours } from '../../src/core/estimator/goal'
 import {
   createPlanSnapshotSource,
@@ -9,6 +13,7 @@ import {
 import { planSnapshotLoader } from '../../src/host/estimator/planSnapshotBundle'
 import { createAcpEstimate } from '../../src/acp/estimate'
 import { EstimateViewSession } from '../../src/runtime/estimator/session'
+import { UI_TEXT } from '../../src/shared/l10n/text'
 import { registerSecretValue } from '../../src/core/redact'
 import { estimateFailureText, runEstimateCommand } from '../../src/runtime/estimator/command'
 import { parseEstimateGoal, estimateLaneSchema } from '../../src/shared/estimate'
@@ -159,21 +164,29 @@ describe('M117 R3 strict snapshot regressions', () => {
     ).toBe(true)
   })
   it('F4 lists every unresolved local self-qualified and foreign-qualified prerequisite', () => {
-    const bad = PLAN.replace('after 0', "after X; after M112's Y; after M999's Z")
+    const bad = PLAN.replace('after 0', 'after X; after M112:Y; after M999:Z')
     expect(() => buildPlanSnapshot(bad, goal(), AS_OF)).toThrow(
       /unknown-prerequisite:.*M112:X.*M112:Y.*M999:Z/,
     )
-    expect(() => buildPlanSnapshot(bad, goal('M112:0'), AS_OF)).toThrow(/M112:X/)
-    expect(() =>
-      buildPlanSnapshot(PLAN.replace('after 0', 'after M999'), goal('M112:0'), AS_OF),
-    ).toThrow(/unknown-prerequisite: M999/)
+    // Lane 0's own closure is clean: the broken Q row outside it does not block.
+    expect(
+      buildPlanSnapshot(bad, goal('M112:0'), AS_OF).lanes.map((entry) => entry.lane.id),
+    ).toEqual(['M112:0'])
+    expect(() => buildPlanSnapshot(PLAN.replace('after 0', 'after M999'), goal(), AS_OF)).toThrow(
+      /unknown-prerequisite: M999/,
+    )
   })
-  it('validates bare compound possessive and colon prerequisite declarations', async () => {
-    for (const starts of ['0', "after 0's interface", 'after M112:0']) {
+  it('validates strict colon and keyword prerequisite declarations', async () => {
+    for (const starts of ['after 0', 'after lane 0', 'after M112:0']) {
       const lanes = await resolve(PLAN.replace('after 0', () => starts))
       expect(lanes[1]?.dependencies).toEqual(['M112:0'])
     }
-    for (const starts of ['after 0 + X', "after M112's lane missing", 'after M112:missing']) {
+    {
+      const lanes = await resolve(PLAN.replace('after 0', () => 'day 0 (first, kept as a note)'))
+      expect(lanes.map((lane) => lane.id)).toEqual(['M112:Q'])
+      expect(lanes[0]?.dependencies).toEqual([])
+    }
+    for (const starts of ['after 0 + X', 'after M112:missing']) {
       expect(() =>
         buildPlanSnapshot(
           PLAN.replace('after 0', () => starts),
@@ -181,6 +194,23 @@ describe('M117 R3 strict snapshot regressions', () => {
           AS_OF,
         ),
       ).toThrow(/unknown-prerequisite:.*M112:/)
+    }
+    for (const starts of [
+      "after 0's interface",
+      "after M112's lane missing",
+      'after 0, with M112 merged',
+      'with M112',
+      'throughout',
+      'now',
+      'after the 0 interface',
+    ]) {
+      expect(() =>
+        buildPlanSnapshot(
+          PLAN.replace('after 0', () => starts),
+          goal(),
+          AS_OF,
+        ),
+      ).toThrow(/malformed-starts: M112:Q line 14/)
     }
     const duplicate = PLAN.replace('| Q |', '| 0 |')
     expect(() => buildPlanSnapshot(duplicate, goal('M112'), AS_OF)).toThrow(
@@ -362,6 +392,85 @@ describe('M117 R3 strict snapshot regressions', () => {
     } finally {
       release()
     }
+  })
+  it('R4 scopes strictness to the goal closure: outside rows never block a forecast', async () => {
+    const other = `
+
+### M113 — Elsewhere (2026-10-10)
+
+**Status 2026-10-10: planned.**
+
+- **Goal.** Elsewhere.
+- **Depends on.** Nothing new.
+- **Gates.** The full gate.
+
+| Lane | Items | Own files | Starts | Rig | Hours |
+| ---- | ----- | --------- | ------ | --- | ----- |
+| S | 1 | \`src/s.ts\` | after the prose interface | Buildertown | 4 |
+| S | 1 | \`src/s.ts\` | after S | Kubuntu | 4 |
+`
+    const plan = `${PLAN}${other}`
+    // M112's own closure is clean: the broken M113 rows do not block it.
+    const lanes = await resolve(plan, {}, 'M112:Q')
+    expect(lanes.map((lane) => lane.id)).toEqual(['M112:0', 'M112:Q'])
+    // The broken milestone still refuses with every problem named at once.
+    expect(() => buildPlanSnapshot(plan, goal('M113:S'), AS_OF)).toThrow(
+      /duplicate-lane: M113:S.*malformed-starts: M113:S line 31.*unknown-rig: M113:S:buildertown/s,
+    )
+    // checkPlan lists the whole plan's problems; the clean plan lists none.
+    expect(checkPlan(PLAN)).toEqual([])
+    expect(checkPlan(plan)).toEqual([
+      'duplicate-lane: M113:S',
+      expect.stringMatching(/^malformed-starts: M113:S line \d+$/),
+      'unknown-rig: M113:S:buildertown',
+    ])
+  })
+  it('R4 refuses a planned lane with Hours 0 as a missing estimate', () => {
+    const zero = PLAN.replace(
+      '| Q | 1 | `src/q.ts` | after 0 | Kubuntu | 5 |',
+      '| Q | 1 | `src/q.ts` | after 0 | Kubuntu | 0 |',
+    )
+    expect(() => buildPlanSnapshot(zero, goal(), AS_OF)).toThrow(/missing-estimate: M112:Q/)
+    expect(estimateFailureText({ estimateDiagnostic: 'missing-estimate: M112:Q' })).toContain(
+      'missing-estimate: M112:Q',
+    )
+    const merged = buildPlanSnapshot(zero, goal(), AS_OF, {
+      branches: [{ name: 'm112/q', merged: true }],
+    })
+    expect(merged.lanes.find((entry) => entry.lane.id === 'M112:Q')?.lane.state).toBe('merged')
+  })
+  it('R4 lists every plan problem through /estimate --check-plan', async () => {
+    const context = vi.fn(() => ({ asOf: AS_OF, optimize: 'cost' as const }))
+    const money = { price: () => '' }
+    const signal = new AbortController().signal
+    const port = createAcpEstimate({
+      context,
+      runner: () => ({ estimate: () => Promise.reject(new Error('unused')) }),
+      money,
+      checkPlan: () =>
+        Promise.resolve(['duplicate-lane: M91:S', 'unknown-rig: M113:S:buildertown']),
+    })
+    expect(await port.run('/estimate --check-plan', '/workspace', signal)).toBe(
+      'duplicate-lane: M91:S\nunknown-rig: M113:S:buildertown',
+    )
+    const clean = createAcpEstimate({
+      context,
+      runner: () => ({ estimate: () => Promise.reject(new Error('unused')) }),
+      money,
+      checkPlan: () => Promise.resolve([]),
+    })
+    expect(await clean.run('/estimate --check-plan', '/workspace', signal)).toBe('')
+    const missing = createAcpEstimate({
+      context,
+      runner: () => ({ estimate: () => Promise.reject(new Error('unused')) }),
+      money,
+    })
+    expect(await missing.run('/estimate --check-plan', '/workspace', signal)).toContain(
+      'estimate-unavailable',
+    )
+    expect(await port.run('/estimate M112 --check-plan', '/workspace', signal)).toBe(
+      UI_TEXT.estimateUsage,
+    )
   })
   it('F15 collects no unusable issue evidence for supported goals', async () => {
     const calls: string[][] = []

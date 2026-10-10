@@ -11,7 +11,7 @@ import path from 'node:path'
 import { createAcpEstimate, type AcpEstimatePort } from '../../acp/estimate'
 import { lazyEstimator, type EstimatorSourcePorts } from '../../host/estimator/estimatorBundle'
 import { estimatorSourcePorts } from '../../host/estimator/localFleet'
-import { planSnapshotLoader } from '../../host/estimator/planSnapshotBundle'
+import { planCheckLoader, planSnapshotLoader } from '../../host/estimator/planSnapshotBundle'
 import { runEstimateCommand } from './command'
 import type { Logger } from '../../host/logger'
 import { PLAN_SNAPSHOT_BUNDLE_FILE } from '../../shared/constants'
@@ -93,6 +93,18 @@ export function createRuntimeEstimate(deps: RuntimeEstimatorDeps): AcpEstimatePo
   let active: ReturnType<typeof lazyEstimator> | undefined
   const forSession = (cwd: string): ReturnType<typeof lazyEstimator> =>
     estimatorFor(deps, cwd, estimators)
+  const checks = new Map<string, ReturnType<typeof planCheckLoader>>()
+  const checkFor = (cwd: string): ReturnType<typeof planCheckLoader> => {
+    const known = checks.get(cwd)
+    if (known !== undefined) return known
+    const check = planCheckLoader({
+      bundlePath: path.join(path.dirname(deps.bundlePath), PLAN_SNAPSHOT_BUNDLE_FILE),
+      log: deps.log,
+      root: cwd,
+    })
+    checks.set(cwd, check)
+    return check
+  }
   return createAcpEstimate({
     // Outside the editor there is no workspace preference: headless runs
     // optimize for cost under their budget (M80, PLAN.md D65).
@@ -104,6 +116,7 @@ export function createRuntimeEstimate(deps: RuntimeEstimatorDeps): AcpEstimatePo
         return estimator.estimate(request, signal)
       },
     }),
+    checkPlan: (cwd, signal) => checkFor(cwd)(signal),
     money: {
       price: (price) => {
         if (active === undefined) throw new Error('estimate has not run yet')
@@ -122,6 +135,11 @@ export async function runRuntimeEstimateCommand(
   // invocation directory is the session root, read once at entry.
   const root = process.cwd()
   const runner = lazyEstimator({ ...deps, ports: portsWith(deps, root) })
+  const check = planCheckLoader({
+    bundlePath: path.join(path.dirname(deps.bundlePath), PLAN_SNAPSHOT_BUNDLE_FILE),
+    log: deps.log,
+    root,
+  })
   return await runEstimateCommand(argv, {
     context: () => ({ asOf: new Date().toISOString(), optimize: 'cost' }),
     runner,
@@ -133,5 +151,6 @@ export async function runRuntimeEstimateCommand(
       deps.error(text)
     },
     signal: new AbortController().signal,
+    checkPlan: (signal) => check(signal),
   })
 }

@@ -344,6 +344,60 @@ describe('M117 estimate command', () => {
     expect(deps.context).not.toHaveBeenCalled()
     expect(deps.runner.estimate).not.toHaveBeenCalled()
   })
+
+  it('parses --check-plan without a goal and refuses it with one', () => {
+    expect(parseEstimateOptions(['--check-plan'])).toEqual({ kind: 'check-plan' })
+    for (const argv of [
+      ['M112', '--check-plan'],
+      ['--check-plan', '--format', 'json'],
+      ['--check-plan=x'],
+      ['--check-plan', '--check-plan'],
+    ]) {
+      expect(parseEstimateOptions(argv).kind).toBe('invalid')
+    }
+  })
+
+  it('lists plan problems with exit 1 and stays silent with exit 0 when clean', async () => {
+    const write = vi.fn()
+    const error = vi.fn()
+    const deps = {
+      context: () => context,
+      runner: runner(),
+      money,
+      write,
+      error,
+      signal: new AbortController().signal,
+      checkPlan: vi.fn(() =>
+        Promise.resolve(['duplicate-lane: M91:S', 'malformed-starts: M110:TD line 33877']),
+      ),
+    }
+    expect(await runEstimateCommand(['--check-plan'], deps)).toBe(1)
+    expect(write).toHaveBeenCalledWith(
+      'duplicate-lane: M91:S\nmalformed-starts: M110:TD line 33877\n',
+    )
+    expect(deps.checkPlan).toHaveBeenCalledTimes(1)
+    write.mockClear()
+    const clean = { ...deps, checkPlan: vi.fn(() => Promise.resolve([])) }
+    expect(await runEstimateCommand(['--check-plan'], clean)).toBe(0)
+    expect(write).not.toHaveBeenCalled()
+    const missing = { ...deps, checkPlan: undefined }
+    expect(await runEstimateCommand(['--check-plan'], missing)).toBe(1)
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('estimate-unavailable'))
+  })
+
+  it('notices panel --check-plan as usage without opening an estimate', () => {
+    const open = vi.fn()
+    const notice = vi.fn()
+    expect(
+      wasEstimateComposerHandled('/estimate --check-plan', {
+        context: () => ({ asOf: context.asOf, optimize: 'cost' as const }),
+        open,
+        notice,
+      }),
+    ).toBe(true)
+    expect(open).not.toHaveBeenCalled()
+    expect(notice).toHaveBeenCalledWith(UI_TEXT.estimateUsage)
+  })
 })
 
 describe('M117 re-estimation and TUI', () => {

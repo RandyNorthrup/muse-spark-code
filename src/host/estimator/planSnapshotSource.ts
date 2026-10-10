@@ -15,7 +15,11 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import * as z from 'zod/mini'
 import { withoutCredentials } from '../../core/credentialEnvironment'
-import { buildPlanSnapshot, EstimateDiagnosticError } from '../../core/estimator/planSnapshot'
+import {
+  buildPlanSnapshot,
+  checkPlan,
+  EstimateDiagnosticError,
+} from '../../core/estimator/planSnapshot'
 import { resolveExecutable } from '../../core/executables'
 import type { EstimateGoal } from '../../shared/estimate'
 import type { UiText } from '../../shared/l10n/en'
@@ -45,6 +49,11 @@ const ghPullSchema = z
     }),
   )
   .check(z.refine((pulls) => new Set(pulls.map((pull) => pull.number)).size === pulls.length))
+  // A MERGED row without a merge timestamp is malformed evidence: accepting
+  // it would record the pull as merely closed and silently drop completion.
+  .check(
+    z.refine((pulls) => pulls.every((pull) => pull.state !== 'MERGED' || pull.mergedAt !== null)),
+  )
 
 export interface PlanSnapshotSourceIo {
   /** The plan text; rejects when the plan cannot be read. */
@@ -254,6 +263,36 @@ export function createPlanSnapshotSource(
         })),
       }),
     })
+  }
+}
+
+export interface PlanCheckSourceDeps {
+  /** The workspace root holding PLAN.md; empty refuses every check. */
+  readonly root: string
+  /** How the source reads; the default reads the machine's own PLAN.md. */
+  readonly io?: Pick<PlanSnapshotSourceIo, 'readPlanFile'> | undefined
+}
+
+/** The whole plan's estimator problems, evidence-free: no git, no `gh`, no
+ * network. Reports every duplicate, malformed Starts cell, unknown
+ * prerequisite, unknown rig and unknown release member; empty means every
+ * goal is forecastable. */
+export function createPlanCheckSource(
+  deps: PlanCheckSourceDeps,
+): (signal?: AbortSignal) => Promise<string[]> {
+  const io = deps.io ?? defaultIo(deps.root)
+  return async (signal) => {
+    if (deps.root === '') refuseMissingPlan(deps.root)
+    signal?.throwIfAborted()
+    let planText: string
+    try {
+      planText = await io.readPlanFile(path.join(deps.root, 'PLAN.md'), signal)
+    } catch {
+      signal?.throwIfAborted()
+      refuseMissingPlan(path.join(deps.root, 'PLAN.md'))
+    }
+    signal?.throwIfAborted()
+    return checkPlan(planText)
   }
 }
 

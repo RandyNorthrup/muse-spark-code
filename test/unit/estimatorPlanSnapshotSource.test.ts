@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  createPlanCheckSource,
   createPlanSnapshotSource,
   type PlanSnapshotSourceIo,
 } from '../../src/host/estimator/planSnapshotSource'
@@ -115,7 +116,10 @@ describe('M117 plan snapshot source', () => {
   })
 
   it('refuses unavailable or malformed enabled PR evidence for every goal', async () => {
-    for (const output of ['not json', '{}']) {
+    const mergedWithoutTimestamp = JSON.stringify([
+      { number: 12, headRefName: 'm112/q', state: 'MERGED', mergedAt: null },
+    ])
+    for (const output of ['not json', '{}', mergedWithoutTimestamp]) {
       const failed = ioWith({ runGh: () => Promise.resolve(output) })
       await expect(
         resolveThrough(failed, 'M112', '/workspace', { networkAllowed: true }),
@@ -229,5 +233,32 @@ describe('M117 plan snapshot source', () => {
     controller.abort()
     await expect(pending).rejects.toThrow()
     expect(started).toEqual(['plan'])
+  })
+
+  it('lists every plan problem without git or gh evidence', async () => {
+    const plan = PLAN.replace('after 0', 'after 0 and X')
+    const check = createPlanCheckSource({ root: '/workspace', io: ioWith() })
+    await expect(check()).resolves.toEqual([])
+    const broken = createPlanCheckSource({
+      root: '/workspace',
+      io: ioWith({ readPlanFile: () => Promise.resolve(plan) }),
+    })
+    await expect(broken()).resolves.toEqual(['unknown-prerequisite: M112:X'])
+  })
+
+  it('refuses the check without reading when the plan is missing', async () => {
+    let calls = 0
+    const io = ioWith({
+      readPlanFile: () => {
+        calls += 1
+        return Promise.reject(new Error('denied'))
+      },
+    })
+    await expect(createPlanCheckSource({ root: '/workspace', io })()).rejects.toThrow(
+      /missing-plan: PLAN.md/,
+    )
+    expect(calls).toBe(1)
+    await expect(createPlanCheckSource({ root: '', io })()).rejects.toThrow(/missing-plan/)
+    expect(calls).toBe(1)
   })
 })

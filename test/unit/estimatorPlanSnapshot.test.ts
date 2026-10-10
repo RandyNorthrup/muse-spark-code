@@ -29,7 +29,7 @@ const PLAN = `## 3. Questions
 | ---- | ----- | ------------- | ------ | --- | ----- |
 | 0 | all | \`src/shared/l10n/en.ts\` | First | Kubuntu | 8 |
 | Q | 1 | \`native/windows/job.cs\` | after 0 | Win11 VM | 5 |
-| U | 2 | \`src/core/u.ts\` | after Q; finished after 0 | Mac mini | 3 |
+| U | 2 | \`src/core/u.ts\` | after Q and 0 (finished after 0) | Mac mini | 3 |
 
 ### M113 — Follow-ups (2026-10-10)
 
@@ -41,7 +41,7 @@ const PLAN = `## 3. Questions
 
 | Lane | Items | Own files | Starts | Rig | Hours |
 | ---- | ----- | --------- | ------ | --- | ----- |
-| S | 1 | \`src/s.ts\` | after M112's lane U, with M112 merged | Kubuntu | 4 |
+| S | 1 | \`src/s.ts\` | after M112:U and M112 | Kubuntu | 4 |
 | T | 2 | \`os/arm64/kernel.c\` | after S | Kubuntu | 2 |
 
 ### Delivery order (2026-10-10)
@@ -182,8 +182,8 @@ describe('M117 plan snapshot adapter', () => {
 
   it('refuses a goal whose closure needs an hour-less lane, naming it', () => {
     const plan = PLAN.replace(
-      '| U | 2 | `src/core/u.ts` | after Q; finished after 0 | Mac mini | 3 |',
-      '| U | 2 | `src/core/u.ts` | after Q; finished after 0 | Mac mini | — |',
+      '| U | 2 | `src/core/u.ts` | after Q and 0 (finished after 0) | Mac mini | 3 |',
+      '| U | 2 | `src/core/u.ts` | after Q and 0 (finished after 0) | Mac mini | — |',
     )
     const goal = parseEstimateGoal('M112')
     if (goal === undefined) throw new Error('unparseable goal')
@@ -354,10 +354,10 @@ describe('M117 plan snapshot adapter', () => {
     )
     const qualified = PLAN.replace(
       '| Q | 1 | `native/windows/job.cs` | after 0 | Win11 VM | 5 |',
-      "| Q | 1 | `native/windows/job.cs` | after M999's X | Win11 VM | 5 |",
+      '| Q | 1 | `native/windows/job.cs` | after M999:X | Win11 VM | 5 |',
     )
     expect(() => buildPlanSnapshot(qualified, goal, ESTIMATOR_AS_OF, EVIDENCE)).toThrow(
-      /unknown-prerequisite: M999/,
+      /unknown-prerequisite: M999:X/,
     )
   })
 

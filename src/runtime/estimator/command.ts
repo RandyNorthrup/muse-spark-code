@@ -25,7 +25,7 @@ export function estimateFailureText(error: unknown): string {
       .string()
       .check(
         z.regex(
-          /^(?:missing-associations|missing-plan|unknown-goal|unknown-prerequisite|unknown-release-member|unknown-rig|duplicate-lane|missing-estimate|source-unavailable|source-incomplete|invalid-lane|plan-drift|lane-limit):?[\w .,:;-]*$/,
+          /^(?:missing-associations|missing-plan|unknown-goal|unknown-prerequisite|unknown-release-member|unknown-rig|duplicate-lane|malformed-starts|missing-estimate|source-unavailable|source-incomplete|invalid-lane|plan-drift|lane-limit):?[\w .,:;-]*$/,
         ),
       )
     const parsed = estimateDiagnosticSchema.safeParse(error.estimateDiagnostic)
@@ -58,6 +58,7 @@ export interface EstimateFormatPort {
 
 type ParsedOptions =
   | { readonly kind: 'estimate'; readonly options: EstimateCommandOptions }
+  | { readonly kind: 'check-plan' }
   | { readonly kind: 'help' }
   | { readonly kind: 'invalid'; readonly reason: string }
 
@@ -67,6 +68,13 @@ export function estimateDeadline(text: string): string | undefined {
   const parsed = estimateRequestSchema.shape.asOf.safeParse(instant)
   return parsed.success ? new Date(instant).toISOString() : undefined
 }
+
+/** Valueless estimate flags (`--check-plan`); every other flag takes a value. */
+const BOOLEAN_ESTIMATE_FLAGS = new Set(
+  Object.entries(ESTIMATE_OPTIONS)
+    .filter(([, option]) => option.type === 'boolean')
+    .map(([flag]) => `--${flag}`),
+)
 
 /** Shared CLI/ACP grammar. No shell evaluation; labels can contain spaces. */
 export function parseEstimateOptions(argv: readonly string[]): ParsedOptions {
@@ -85,9 +93,19 @@ export function parseEstimateOptions(argv: readonly string[]): ParsedOptions {
     const flag = equals === -1 ? token : token.slice(0, equals)
     if (flag === '--help' || !Object.hasOwn(ESTIMATE_OPTIONS, flag.slice(2)) || values.has(flag))
       return invalid()
+    if (BOOLEAN_ESTIMATE_FLAGS.has(flag)) {
+      if (equals !== -1) return invalid()
+      values.set(flag, '')
+      continue
+    }
     const value = equals === -1 ? argv[++index] : token.slice(equals + 1)
     if (value === undefined || value === '' || value.startsWith('--')) return invalid()
     values.set(flag, value)
+  }
+  // `--check-plan` lists every plan problem instead of estimating: it takes
+  // no goal and no other flag.
+  if (values.has('--check-plan')) {
+    return goalParts.length === 0 && values.size === 1 ? { kind: 'check-plan' } : invalid()
   }
   const goal = parseEstimateGoal(goalParts.join(' '))
   const deadlineText = values.get('--by')
@@ -303,6 +321,8 @@ export async function runEstimateCommand(
     write(text: string): void
     error(text: string): void
     readonly signal: AbortSignal
+    /** Every plan problem for `--check-plan`; absent refuses the check. */
+    readonly checkPlan?: ((signal: AbortSignal) => Promise<readonly string[]>) | undefined
   },
 ): Promise<number> {
   const parsed = parseEstimateOptions(argv)
@@ -314,6 +334,25 @@ export async function runEstimateCommand(
   if (parsed.kind === 'help') {
     deps.write(`${usage}\n${UI_TEXT.estimateCliHelp}\n`)
     return 0
+  }
+  // `--check-plan` lists every plan problem, one per line, and prints
+  // nothing when the plan is clean: the exit code carries that verdict.
+  if (parsed.kind === 'check-plan') {
+    if (deps.checkPlan === undefined) {
+      deps.error(estimateFailureText(new Error('no plan check')))
+      return 1
+    }
+    try {
+      const problems = await deps.checkPlan(deps.signal)
+      if (problems.length > 0) {
+        deps.write(`${problems.join('\n')}\n`)
+        return 1
+      }
+      return 0
+    } catch (error: unknown) {
+      deps.error(estimateFailureText(error))
+      return 1
+    }
   }
   try {
     const section = await collectEstimate(parsed.options, deps.context(), deps.runner, deps.signal)
