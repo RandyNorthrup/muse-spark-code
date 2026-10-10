@@ -23057,7 +23057,21 @@ extension's own storage, never the workspace's `.git`.
 
 ### M77 — Session board and best-of-N (D49)
 
-**Status 2026-09-29: building.** Status evidence: `docs/certification/m77.md`.
+**Status 2026-10-10: building.** VS Code certification closure has local
+evidence; cost folding, other editor bindings, qualification and lead-run
+gates remain. Status evidence: `docs/certification/m77.md`.
+
+**C-M77-1 certification scope, 2026-10-10.** Close the VS Code proof gaps:
+the seven queued ownership/account/terminal/HTTP/snapshot/apply/target
+mutations with byte-exact restores in disposable source copies; a parent
+and two real Model API attempt hosts sharing one M82 disk journal; mixed
+Muse Code/Model API board keyboard focus and axe in four themes at 320 px;
+native Windows junction, symlink and short-name refusal; and Git 2.36
+boundary coverage. This lane adds no command, setting or paid call.
+C-M77-2 owns parent cost folding. C-M77-3 owns board/best-of-N bindings
+for JetBrains, Visual Studio, Eclipse, Zed, Xcode, Neovim, Emacs, Sublime
+and ACP/headless; C-M77-4 owns their F24 qualification. Hosted three-OS
+CI and independent Grok review remain lead-run acceptance gates.
 
 **RV78 review fixes, 2026-10-02.** The board's git status ran through the
 ordinary runner, so opening it could start a repository's configured
@@ -23173,9 +23187,14 @@ JSON ledger format; converting the project plan is outside this lane.
   `BestOfNDialog.test.tsx`, plus the touched `conversationController`,
   `paidFeatures` and `paidHost` suites. The harness `board`/`bestofn`
   scenarios run in the accessibility gate.
-- **Gates.** `npm run quality` and meaningful red/restored drills remain
-  queued for the completion draft; `docs/certification/m77.md` records this
-  explicit verification hold. The prior branch did not contain that record.
+- **Gates (C-M77-1, 2026-10-10).** Nineteen drills fail their named checks,
+  restore source byte-exact by SHA-256 and pass again. Windows proves native
+  junction/symlink/8.3 refusal, immutable binary/index/HEAD behavior and the
+  Git 2.36 floor. A parent and two production attempt hosts contend on one
+  real M82 journal. Mixed-backend keyboard focus and board/best-of-N axe
+  pass in four themes, including 320 px captures with no horizontal page
+  overflow. Full `npm run quality`, hosted three-OS CI and independent Grok
+  review remain lead-owned; this rig lane is forbidden to run full quality.
 - **Docs.** README (Session board and best-of-N, Paid features, settings
   table), CHANGELOG, the 14 UI and manifest tables.
 - **Security.** Attempts run worktree-confined on the Model API backend
@@ -23183,10 +23202,10 @@ JSON ledger format; converting the project plan is outside this lane.
   never reaches `muse serve`; "take" applies and stages only the captured
   chosen tree, through ordinary Git apply with no force/three-way fallback.
   The attempt index is pinned to its original absolute Git directory.
-- **Status.** Completion draft on `feature/m77-board` (2026-09-29),
-  verification queued; M82 external parent-budget binding remains an
-  integration dependency. No new model calls or verifiers were run during
-  the shared host verification hold.
+- **Status.** C-M77-1 closes the queued local VS Code proof gaps and verifies
+  the integrated M82 parent-budget binding. The scope and later lanes are
+  recorded above; M77 remains building until those lanes and lead-run gates
+  pass. No live or paid model call was made for this certification.
 
 ### M78 — Auto, made safe (D49)
 

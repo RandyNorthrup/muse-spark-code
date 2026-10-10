@@ -6140,6 +6140,31 @@
           })
         },
         // --- M77: best-of-N: parallel attempts, their diffs side by side, "take this one" ---
+        'board-narrow': () => {
+          if (innerWidth !== 320) throw new Error('The board requires a 320 px viewport')
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          steps.board()
+          whenFound('#board-listbox', () => {
+            const search = document.querySelector('[role="combobox"]')
+            if (search === null || document.activeElement !== search)
+              throw new Error('The mixed-backend board must focus its search')
+            search.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+            whenFound('[id="board-row-museCode:s2"][aria-selected="true"]', () => {
+              if (
+                document.activeElement !== search ||
+                search.getAttribute('aria-activedescendant') !== 'board-row-museCode:s2'
+              )
+                throw new Error('The board arrows must reach the native row without moving focus')
+            })
+          })
+        },
+        'bestofn-narrow': () => {
+          if (innerWidth !== 320) throw new Error('Best-of-N requires a 320 px viewport')
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          steps.bestofn()
+        },
         bestofn: () => {
           // The run lands first: the dialog shows the run view only for a run
           // it already knows when it opens.
@@ -6599,6 +6624,10 @@
       const scheduleNarrowFits = () =>
         window.innerWidth === 320 && document.documentElement.scrollWidth <= window.innerWidth
       const SCENARIO_READY = {
+        'board-narrow': () =>
+          scheduleNarrowFits() && document.querySelector('#board-listbox') !== null,
+        'bestofn-narrow': () =>
+          scheduleNarrowFits() && document.querySelector('.bestofn-panes') !== null,
         jump: () => document.querySelector('.jump-latest') !== null,
         'resources-throttle': () =>
           document.querySelector('.resource-popover footer') !== null &&

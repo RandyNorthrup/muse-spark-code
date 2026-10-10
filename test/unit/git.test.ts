@@ -42,6 +42,20 @@ function configuredWith(name: string) {
   )
 }
 
+function automaticRunner(reply: (args: readonly string[]) => Promise<string>) {
+  const exec = vi.fn((_file: string, args: readonly string[]) => reply(args))
+  return {
+    exec,
+    run: createGitRunner({
+      platform: 'linux',
+      env: { PATH: '/usr/bin' },
+      fileExists: (file) => file === '/usr/bin/git',
+      execFile: exec,
+      isAutomatic: true,
+    }),
+  }
+}
+
 describe('createGitRunner (D24)', () => {
   it.each(['hook.driver=unsafe.command', 'hook.tab\tname.event'])(
     'refuses an unrepresentable hook name %j before running a complete held command',
@@ -258,6 +272,23 @@ describe('createGitRunner (D24)', () => {
     expect(exec.mock.calls.some(([, args]) => args.includes('apply'))).toBe(false)
   })
 
+  it('refuses a retargeted path discovered by final preparation before applying', async () => {
+    const { exec, run } = automaticRunner((args) =>
+      Promise.resolve(args[0] === '--version' ? 'git version 2.36.0\n' : ''),
+    )
+    const guard = Object.assign(() => undefined, {
+      prepare: async () => {
+        expect(exec.mock.calls.at(-1)?.[1]).toContain('config')
+        await Promise.resolve()
+        throw new Error('Path retargeted')
+      },
+    })
+    await expect(
+      run(['apply', '--index', '--binary', '-'], '/ws', undefined, 'patch', guard),
+    ).rejects.toThrow('Path retargeted')
+    expect(exec.mock.calls.some(([, args]) => args.includes('apply'))).toBe(false)
+  })
+
   it('refuses automatic Git before 2.36 rather than treating fsmonitor false as an executable', async () => {
     const exec = vi.fn(() => Promise.resolve('git version 2.35.1\n'))
     const run = createGitRunner({
@@ -270,6 +301,19 @@ describe('createGitRunner (D24)', () => {
     await expect(run(['status'], '/ws')).rejects.toThrow(UI_TEXT.bestOfNGitProgramsUnavailable)
     expect(exec).toHaveBeenCalledTimes(1)
   })
+
+  it.each(['2.36.0', '2.36.0.windows.1', '2.55.0', '3.0.0'])(
+    'accepts automatic Git %s with repository program controls',
+    async (version) => {
+      const { exec, run } = automaticRunner((args) =>
+        Promise.resolve(args[0] === '--version' ? `git version ${version}\n` : ''),
+      )
+      await expect(run(['status'], '/ws')).resolves.toBe('')
+      const actual = exec.mock.calls.find(([, args]) => args.includes('status'))?.[1]
+      expect(actual).toContain('core.fsmonitor=false')
+      expect(actual).toContain('core.hooksPath=/dev/null')
+    },
+  )
 
   it('runs git by absolute path with a timeout, no window, no prompt and no optional locks', async () => {
     const { run, calls } = runner({ PATH: '.:/usr/bin', HOME: '/h' }, new Set(['/usr/bin/git']))

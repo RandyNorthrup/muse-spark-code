@@ -2523,7 +2523,9 @@ The header's board button lists every conversation open in the window, on
 either backend, and the saved conversations of the backend this window runs
 on (the ones it can resume). Each row names its state (**Running** or **Idle**), branch, changed
 files and waiting approvals, running conversations first. Type to filter,
-press Enter (or click) to resume a conversation. Ephemeral Best-of-N rows
+use Up/Down to select while focus stays in the search box, and press Enter
+(or click) to resume a conversation on its own backend. Escape closes the
+board. Ephemeral Best-of-N rows
 open their owned worktree instead: they have no saved conversation to resume.
 **Best of N…** opens the best-of-N dialog.
 
@@ -2561,7 +2563,8 @@ uncommitted edits. Ignored files are excluded. **Apply and stage** applies
 the exact selected snapshot to your checkout and stages it; it creates no
 commit. Later edits in an attempt never silently replace the captured
 preview. The base HEAD, clean index and working files, unsaved editors and
-protected or linked targets are checked before application; a changed target
+protected or linked targets are checked before application; Windows junctions,
+symlinks and 8.3 repository aliases are refused too. A changed target
 refuses the action. Failed, cancelled or unreadable attempts cannot be taken.
 An apply failure is reported without claiming success; inspect your checkout
 before retrying. **Open in New Window** opens an attempt's owned worktree,

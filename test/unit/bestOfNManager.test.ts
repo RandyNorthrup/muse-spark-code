@@ -3,6 +3,10 @@
 // validates the requirement it declines through the zod schema.
 
 import { describe, expect, it, vi } from 'vitest'
+import { spawnSync } from 'node:child_process'
+import { mkdtemp, mkdir, realpath, rm, symlink } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import type {
   AgentSession,
   StartSessionOptions,
@@ -188,6 +192,81 @@ function managerWith(host: FakeHost): {
 }
 
 describe('BestOfNManager', () => {
+  for (const aliasKind of ['junction', 'dir', 'short-name'] as const) {
+    it(`refuses a real Windows ${aliasKind} repository alias before any Git or attempt`, async (context) => {
+      if (process.platform !== 'win32') {
+        context.skip()
+        return
+      }
+      const folder = await realpath(await mkdtemp(path.join(tmpdir(), 'muse-bestofn-alias-')))
+      const target = path.join(folder, 'Repository with a long name')
+      await mkdir(target)
+      let alias = path.join(folder, 'linked-repository')
+      try {
+        if (aliasKind === 'short-name') {
+          // cmd's short-path expansion reads the OS name; it changes no volume policy.
+          const shortName = spawnSync(
+            'cmd.exe',
+            ['/d', '/c', `for %I in ("${target}") do @echo %~sI`],
+            {
+              encoding: 'utf8',
+              windowsHide: true,
+              windowsVerbatimArguments: true,
+            },
+          )
+          if (shortName.error !== undefined) throw shortName.error
+          expect(shortName.status).toBe(0)
+          alias = shortName.stdout.trim()
+          if (alias.toLowerCase() === target.toLowerCase()) {
+            context.skip()
+            return
+          }
+        } else {
+          try {
+            await symlink(target, alias, aliasKind)
+          } catch (error: unknown) {
+            if (
+              aliasKind === 'dir' &&
+              error instanceof Error &&
+              'code' in error &&
+              error.code === 'EPERM'
+            ) {
+              context.skip()
+              return
+            }
+            throw error
+          }
+        }
+        const canonical = await realpath(alias)
+        expect(canonical.toLowerCase()).toBe(target.toLowerCase())
+        const host = new FakeHost()
+        const git = vi.fn(() => Promise.resolve(''))
+        const manager = new BestOfNManager({
+          ...bestOfNManagerBase([], new FakeLogOutputChannel()),
+          isBestOfNOn: () => true,
+          allowsPaidUse: () => Promise.resolve(true),
+          notePaidUse: () => undefined,
+          repositoryRoot: () => alias,
+          platform: 'win32',
+          realPath: realpath,
+          runGit: git,
+          buildAttemptHost: () => Promise.resolve(host),
+        })
+        try {
+          await expect(
+            manager.start({ prompt: 'edit', attempts: 2, requestCeilingPerAttempt: 5 }, 'modelApi'),
+          ).rejects.toMatchObject({ refusal: 'worktreeFailed' })
+          expect(git).not.toHaveBeenCalled()
+          expect(host.started).toEqual([])
+        } finally {
+          manager.dispose()
+        }
+      } finally {
+        await rm(folder, { recursive: true, force: true })
+      }
+    })
+  }
+
   it('starts sessions in the worktrees and declines with abort', async () => {
     const host = new FakeHost()
     const t = managerWith(host)

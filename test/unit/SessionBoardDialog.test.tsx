@@ -44,6 +44,28 @@ function renderDialog(overrides: Partial<SessionBoardDialogProps> = {}) {
 }
 
 describe('SessionBoardDialog', () => {
+  it('keeps keyboard focus and distinguishes native/API rows with the same session id', () => {
+    const props = renderDialog({
+      rows: [
+        row({ sessionId: 'shared-id', title: 'Native chat', backend: 'museCode' }),
+        row({ sessionId: 'shared-id', title: 'API chat', backend: 'modelApi' }),
+      ],
+    })
+    const search = screen.getByRole('combobox')
+    expect(search).toHaveFocus()
+    expect(search).toHaveAttribute('aria-activedescendant', 'board-row-museCode:shared-id')
+    fireEvent.keyDown(search, { key: 'ArrowDown' })
+    expect(search).toHaveFocus()
+    expect(search).toHaveAttribute('aria-activedescendant', 'board-row-modelApi:shared-id')
+    fireEvent.keyDown(search, { key: 'Enter' })
+    expect(props.onResume).toHaveBeenLastCalledWith('shared-id', 'modelApi')
+    fireEvent.keyDown(search, { key: 'ArrowUp' })
+    fireEvent.keyDown(search, { key: 'Enter' })
+    expect(props.onResume).toHaveBeenLastCalledWith('shared-id', 'museCode')
+    fireEvent.keyDown(search, { key: 'Escape' })
+    expect(props.onClose).toHaveBeenCalledOnce()
+  })
+
   it('shows every conversation with its state, branch, changes and approvals', () => {
     renderDialog()
     expect(screen.getByRole('option', { name: /Main chat/ })).toHaveTextContent('Running')
