@@ -540,6 +540,9 @@ export const EN = {
     'Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.',
   referenceAcp:
     'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
+  referenceCiOtherTitle: 'Other CI systems',
+  referenceCiOther:
+    'Run the same headless review or fix on GitLab CI, Azure Pipelines, Jenkins or Bitbucket Pipelines. Each template takes the key from that system’s secret store into the run step only, refuses forks and untrusted runs before anything is spent, and keeps the Action’s exit codes; no template comments or pushes. See docs/ci-other-systems.md.',
   referenceWebFetchTitle: 'Web fetch',
   referenceWebFetchDetail:
     'Fetch public web pages as readable text, with permission and network checks.',

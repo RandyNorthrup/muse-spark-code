@@ -4943,6 +4943,21 @@ See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 [M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform
 results and what is still open.
 
+### Other CI systems
+
+The same headless run also ships as first-class templates for GitLab CI,
+Azure Pipelines, Jenkins and Bitbucket Pipelines under
+[`ci-templates/`](ci-templates/gitlab-ci.yml), all calling the shared
+[`muse-spark-run.mjs`](ci-templates/muse-spark-run.mjs) runner. Each template
+carries the Action's inputs (plan or fix mode, budget cap, model), takes the
+key from that system's secret store into the run step only, refuses
+forks and untrusted runs before anything is spent, and keeps the Action's
+exit codes; none comments or pushes. They are fake-tested here (validators
+plus end-to-end runs against a fake agent); no live run on these systems
+exists yet, so this is **not certified yet**. [The CI systems
+guide](docs/ci-other-systems.md) lists each system's secret setup,
+fork mechanism, inputs and claim limits.
+
 ## Keeping your machine responsive
 
 M107's integration candidate adds one portable governor per harness process.

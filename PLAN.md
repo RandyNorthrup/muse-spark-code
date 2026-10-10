@@ -23315,6 +23315,26 @@ the obsolete bootstrap/reservation/paid policy wording below with v4's policy.
 - **Size:** L. Existing bundle caps remain unchanged; final integrated-tree
   sizes and package/workflow hashes belong to the lead's closing receipt.
 
+**Lane CM80CI, 2026-10-10 (other CI systems; status: built, not certified).**
+M80's headless CLI runs anywhere, so this lane makes GitLab CI, Azure
+Pipelines, Jenkins and Bitbucket Pipelines first-class, tested paths:
+one template per system under `ci-templates/` plus the shared
+dependency-free runner `ci-templates/muse-spark-run.mjs`, equivalent to the
+GitHub Action's documented inputs (plan/review mode, fix-mode limits,
+budget cap, model, the key from that system's secret store, no comment or
+push, the same refusals and exit codes). Secrets reach only the run step
+over private stdin and never echo; fork/untrusted runs are refused before
+anything is spent through each system's own mechanism (protected
+variables, IsFork, CHANGE_FORK, PR-build marking). Docs:
+`docs/ci-other-systems.md`, README's Other CI systems, Help reference
+`ci-other-systems`; tests: per-system structural validators plus
+end-to-end runs of the exact template command against a fake agent with
+the same outputs and exit codes. Evidence and red drills:
+[cm80ci.md](docs/certification/cm80ci.md). No live run on these systems
+exists yet and the registry install path still waits on LR, so this lane
+claims nothing certified. No new dependency, no escape hatch (§8
+unchanged), no bundle change.
+
 ### M81 — Browser check (D49)
 
 **Status 2026-10-02: lane A1 of design spec v4 built on
