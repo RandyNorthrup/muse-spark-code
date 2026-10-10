@@ -19,6 +19,8 @@ export interface WizardDraft {
   readonly credentialAuth: 'apiKey' | 'oauth' | 'subscription'
   /** The model's qualified reference (`<providerId>/<modelId>`). */
   readonly defaultModel: string
+  /** False for an edit whose stored default was not explicitly changed. */
+  readonly setDefault?: boolean
   /** A session budget the suggestion accepted, for M82's seam when it lands. */
   readonly sessionBudgetUsd?: UsdAmount | undefined
   /** Save and use now: the conversation's model is set too. */
@@ -78,6 +80,7 @@ export async function saveWizardDraft(
   }
   const secret = (draft.credential ?? '').trim()
   if (
+    (draft.setDefault !== false || draft.useNow) &&
     draft.provider.models.every((model) => draft.defaultModel !== `${draft.provider.id}/${model}`)
   ) {
     throw new Error(UI_TEXT.actionFailed)
@@ -89,15 +92,24 @@ export async function saveWizardDraft(
     if (previousEntries.every((entry) => entry.id !== draft.provider.id)) {
       throw new Error(UI_TEXT.actionFailed)
     }
-    await deps.store.replaceAll(
-      previousEntries.map((entry) => (entry.id === draft.provider.id ? draft.provider : entry)),
-    )
+    const previous = previousEntries.find((entry) => entry.id === draft.provider.id)
+    if (JSON.stringify(previous) !== JSON.stringify(draft.provider)) {
+      await deps.store.replaceAll(
+        previousEntries.map((entry) => (entry.id === draft.provider.id ? draft.provider : entry)),
+      )
+    }
   } else {
     await deps.store.add(draft.provider)
   }
   let isComposerSet = false
   try {
-    if (secret !== '') {
+    if (
+      secret !== '' &&
+      (previousSecret?.secret !== secret ||
+        previousSecret.origin !== origin ||
+        previousSecret.auth !==
+          (draft.credentialAuth === 'oauth' ? 'apiKey' : draft.credentialAuth))
+    ) {
       await deps.credentials.setProviderCredential(draft.provider.id, {
         v: 1,
         auth: draft.credentialAuth === 'oauth' ? 'apiKey' : draft.credentialAuth,
@@ -105,7 +117,9 @@ export async function saveWizardDraft(
         secret,
       })
     }
-    await deps.store.setDefaultModel(draft.defaultModel)
+    if (draft.setDefault !== false && draft.defaultModel !== previousDefault) {
+      await deps.store.setDefaultModel(draft.defaultModel)
+    }
     if (draft.useNow) {
       await deps.setComposerModel(draft.defaultModel)
       isComposerSet = true

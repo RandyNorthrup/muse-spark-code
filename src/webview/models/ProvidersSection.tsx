@@ -162,7 +162,7 @@ function EditForm({
         <button
           type="button"
           className="models-button-primary"
-          disabled={draft.blockers.length > 0}
+          disabled={draft.saving === true || draft.blockers.length > 0}
           onClick={onSave}
         >
           {UI_TEXT.saveProvider}
@@ -307,11 +307,7 @@ function ProviderRow({
           type="button"
           className="models-button"
           onClick={() => {
-            post(
-              editDraft === undefined
-                ? { type: 'providers/edit', providerId: provider.id }
-                : { type: 'providers/wizard', event: 'cancel', providerId: provider.id },
-            )
+            post({ type: 'providers/edit', providerId: provider.id })
           }}
         >
           {UI_TEXT.providerEdit}

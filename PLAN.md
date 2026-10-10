@@ -19855,6 +19855,29 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### PROVWIZ6 — Provider wizard/wiring integration and RVPROVWIZ5G (2026-10-09)
+
+Use one host-owned full snapshot factory for Edit, Change key and Change key →
+Edit, including routing, models/limits, format, pinned/compat/prices, the saved
+file default and private-network consent. Save overlays only changed draft
+fields on the current entry; an untouched default, secret or optional field is
+never synthesized or rewritten. Keep credential/connection validation and the
+production store transaction. Admit one queued Save per draft and disable both
+shared Save controls until it settles; failures retain the draft for retry.
+Declined private-network consent uses the existing confirmation sentence.
+
+Qualify the merged provider lanes with real host/store and captured transport
+regressions, including the reviewer's unchanged ZDR Edit → Save, second/other/
+absent defaults, duplicate Save and private consent refusal. Supply the wizard
+lane's required spending-limit port in the older capture-backed wiring fixture;
+retain every existing assertion. Run complete named models/provider suites in
+batches of at most three at repository deadlines, changed-file lint/format,
+five typechecks, localization/reference and individual static/build gates.
+Append byte-exact red/restored receipts to `docs/certification/provcat.md`.
+No subagents, merge, push, live/paid call, dependency or gate change. Aggregate
+quality and hosted/editor qualification remain with the lead per the rig brief.
+Shared webview/editor bridges and ACP's stored provider contract remain intact.
+
 ### PROVWIZ2 round 5 — RVPROVWIZ4G repairs (2026-10-09, macmini)
 
 Save a saved provider's limits without requiring a fresh credential test when
@@ -44746,6 +44769,20 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**PROVWIZ6 scoped qualification and inherited duplication hold (2026-10-09).**
+The rig/shared brief reserves aggregate quality, coverage and hosted/editor
+qualification for the lead. All 45 complete provider/models files pass 774
+cases at repository deadlines; 18 deliberate failures restore source SHA-256
+exactly. Five typechecks, changed-file lint/format, localization/reference,
+host API, plain Knip and production build pass with unchanged caps. The
+one newly introduced repeated test block is shared without removing assertions.
+A temporary source archive of the exact merge base `40fdfe2fe` and the repaired
+worktree both fail the unchanged zero-clone gate with **21 clones / 287 lines /
+1970 tokens**. None is introduced by this lane. Retain the prior wizard lane's
+lead-owned broader duplication cleanup below; do not claim aggregate quality
+green. The owned temporary baseline is removed. Evidence and per-batch/drill
+receipts: `docs/certification/provcat.md`, PROVWIZ6 section.
 
 **PROVWIZ2 round 5 scoped qualification (2026-10-09).** The rig brief
 reserves aggregate quality for the lead. All 28 owned files pass 511 tests at

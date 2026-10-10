@@ -96,6 +96,7 @@ export interface ProviderState {
 
 export interface ProvidersHost {
   readonly providers: () => Promise<readonly ProviderEntry[]>
+  readonly defaultModel: () => Promise<string | undefined>
   readonly updateProvider: (entry: ProviderEntry) => Promise<void>
   readonly storedCredential: (entry: ProviderEntry) => Promise<string | undefined>
   readonly preset: (id: string) => PresetInfo | undefined
@@ -198,6 +199,7 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
 
   return {
     providers: () => deps.store.list(),
+    defaultModel: () => deps.store.defaultModel(),
     storedCredential: (entry) => credentialFor(deps.credentials, entry),
     updateProvider: (entry) =>
       serialize(async () => {
@@ -224,7 +226,7 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
       if (isConfirmed) {
         confirmedAddresses.add(address)
       }
-      return isConfirmed ? verdict : { kind: 'refused', detail: verdict.address }
+      return isConfirmed ? verdict : { kind: 'refused', detail: UI_TEXT.providerPrivateConfirm }
     },
     promptForKey: (preset) =>
       promptForProviderKey(deps.ui.showInputBox, {

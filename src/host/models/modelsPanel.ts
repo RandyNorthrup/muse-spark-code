@@ -105,7 +105,7 @@ function newDraft(preset?: PresetInfo, entry?: ProviderEntry): PanelDraft {
         ? preset?.origin
         : `http://${loopbackProbe.host}:${String(loopbackProbe.port)}`),
     ...(loopbackProbe !== undefined && { loopbackPort: loopbackProbe.port }),
-    auth: preset?.auth ?? 'apiKey',
+    auth: entry?.auth ?? preset?.auth ?? 'apiKey',
     keyPresent: false,
     keyShapeOk: false,
     connected: false,
@@ -116,7 +116,7 @@ function newDraft(preset?: PresetInfo, entry?: ProviderEntry): PanelDraft {
     privacy: entry?.routing?.privacy ?? 'zdr',
     providerOrder: [...(entry?.routing?.order ?? [])],
     allowFallbacks: entry?.routing?.allowFallbacks ?? false,
-    privateConfirmed: false,
+    privateConfirmed: entry?.privateNetwork ?? false,
     privateAsked: false,
     errors: [],
     blockers: [],
@@ -168,6 +168,9 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   // Token limits do not change the saved connection; only connection edits
   // invalidate this exemption from a fresh credential test.
   const savedConnections = new WeakSet<PanelDraft>()
+  // Keep the entire stored entry on the host, including fields the form
+  // does not expose. Only differences from this draft snapshot are saved.
+  const editSnapshots = new WeakMap<PanelDraft, { entry: ProviderEntry; fields: PanelDraft }>()
   let isDisposed = false
   let navigation: ModelsPanelNavigate | undefined
   let operations = Promise.resolve()
@@ -212,6 +215,28 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     return entry
   }
+  const createEditDraft = async (id: string): Promise<PanelDraft> => {
+    const existing = state.drafts.edits[id]
+    if (existing !== undefined) return existing
+    const entry = structuredClone(await entryOf(id))
+    const draft = newDraft(providers.preset(entry.preset), entry)
+    draft.defaultModel = await providers.defaultModel()
+    editSnapshots.set(draft, { entry, fields: structuredClone(draft) })
+    let secret: string | undefined
+    try {
+      secret = await providers.storedCredential(entry)
+    } catch {
+      draft.errors = [UI_TEXT.importNeedsKey]
+    }
+    if (secret !== undefined) {
+      credentials.set(entry.id, { secret, origin: new URL(entry.address).origin })
+      draft.keyPresent = true
+      draft.keyShapeOk = true
+    }
+    if (secret !== undefined || entry.auth === 'none') savedConnections.add(draft)
+    state.drafts.edits[id] = draft
+    return draft
+  }
   const draftOf = (id?: string): PanelDraft => {
     const draft = id === undefined ? state.drafts.wizard : state.drafts.edits[id]
     if (draft === undefined) {
@@ -219,7 +244,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     return draft
   }
-  const draftEntry = (draft: PanelDraft, id?: string): ProviderEntry => {
+  const draftEntry = (draft: PanelDraft, id?: string, current?: ProviderEntry): ProviderEntry => {
     const preset = providers.preset(draft.presetId ?? '')
     if (preset === undefined) {
       throw new Error(UI_TEXT.actionFailed)
@@ -238,6 +263,60 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             ),
           )
         : undefined
+    const snapshot = editSnapshots.get(draft)
+    if (snapshot !== undefined) {
+      const base = current ?? snapshot.entry
+      const initial = snapshot.fields
+      const editedLimits = Object.fromEntries(
+        Object.entries(modelLimits ?? {})
+          .filter(
+            ([model, limits]) =>
+              JSON.stringify(limits) !== JSON.stringify(initial.modelLimits?.[model]),
+          )
+          .map(([model, limits]) => [
+            model,
+            {
+              contextTokens:
+                limits.contextTokens === initial.modelLimits?.[model]?.contextTokens
+                  ? (base.modelLimits?.[model]?.contextTokens ?? limits.contextTokens)
+                  : limits.contextTokens,
+              outputTokens:
+                limits.outputTokens === initial.modelLimits?.[model]?.outputTokens
+                  ? (base.modelLimits?.[model]?.outputTokens ?? limits.outputTokens)
+                  : limits.outputTokens,
+            },
+          ]),
+      )
+      const isOrderChanged =
+        JSON.stringify(draft.providerOrder) !== JSON.stringify(initial.providerOrder)
+      const isPrivacyChanged = draft.privacy !== initial.privacy
+      const isFallbacksChanged = draft.allowFallbacks !== initial.allowFallbacks
+      return {
+        ...base,
+        ...(draft.address !== initial.address && { address: draft.address ?? preset.origin }),
+        ...(draft.auth !== initial.auth && { auth: draft.auth }),
+        ...(draft.customFormat !== initial.customFormat && { format: draft.customFormat }),
+        ...(JSON.stringify(draft.models) !== JSON.stringify(initial.models) && {
+          models: draft.models,
+        }),
+        ...(JSON.stringify(draft.modelLimits) !== JSON.stringify(initial.modelLimits) && {
+          modelLimits: { ...base.modelLimits, ...editedLimits },
+        }),
+        ...(preset.id === 'openrouter' &&
+          (isPrivacyChanged || isOrderChanged || isFallbacksChanged) && {
+            routing: {
+              privacy: base.routing?.privacy ?? draft.privacy,
+              ...base.routing,
+              ...(isPrivacyChanged && { privacy: draft.privacy }),
+              ...(isOrderChanged && { order: draft.providerOrder }),
+              ...(isFallbacksChanged && { allowFallbacks: draft.allowFallbacks }),
+            },
+          }),
+        ...(draft.privateConfirmed !== initial.privateConfirmed && {
+          privateNetwork: draft.privateConfirmed,
+        }),
+      }
+    }
     return {
       id: id ?? preset.id,
       preset: preset.id,
@@ -643,24 +722,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         break
       }
       case 'providers/edit': {
-        if (state.drafts.edits[message.providerId] !== undefined) break
-        const entry = await entryOf(message.providerId)
-        const draft = newDraft(providers.preset(entry.preset), entry)
-        let secret: string | undefined
-        try {
-          secret = await providers.storedCredential(entry)
-        } catch {
-          draft.errors = [UI_TEXT.importNeedsKey]
-        }
-        if (secret !== undefined) {
-          credentials.set(entry.id, { secret, origin: new URL(entry.address).origin })
-          draft.keyPresent = true
-          draft.keyShapeOk = true
-        }
-        if (secret !== undefined || entry.auth === 'none') {
-          savedConnections.add(draft)
-        }
-        state.drafts.edits[entry.id] = draft
+        await createEditDraft(message.providerId)
         break
       }
       case 'providers/prefill': {
@@ -698,8 +760,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       case 'providers/connect': {
         const id = message.providerId
         if (id !== undefined && state.drafts.edits[id] === undefined) {
-          const entry = await entryOf(id)
-          state.drafts.edits[id] = newDraft(providers.preset(entry.preset), entry)
+          await createEditDraft(id)
         }
         const draft = draftOf(id)
         const entry = draftEntry(draft, id)
@@ -807,10 +868,11 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         if (draft.blockers.length > 0) {
           throw new Error(UI_TEXT.actionFailed)
         }
-        const entry = {
-          ...(message.providerId !== undefined && (await entryOf(message.providerId))),
-          ...draftEntry(draft, message.providerId),
-        }
+        const entry = draftEntry(
+          draft,
+          message.providerId,
+          message.providerId === undefined ? undefined : await entryOf(message.providerId),
+        )
         draft.errors = []
         state.notice = undefined
         if (draft.test?.status !== 'ok' && !savedConnections.has(draft)) {
@@ -819,16 +881,23 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         }
         const verdict = await providers.confirmAddress(entry.address)
         if (verdict.kind === 'refused') {
-          draft.errors = [fill(UI_TEXT.providerAddressInvalid, { detail: verdict.detail })]
+          draft.errors = [
+            verdict.detail === UI_TEXT.providerPrivateConfirm
+              ? verdict.detail
+              : fill(UI_TEXT.providerAddressInvalid, { detail: verdict.detail }),
+          ]
           break
         }
         let outcome: WizardSaveOutcome
         try {
           outcome = await providers.saveDraft({
-            provider: { ...entry, privateNetwork: verdict.kind === 'private' },
+            provider: { ...entry, ...(verdict.kind === 'private' && { privateNetwork: true }) },
             credential: draftSecret(entry, message.providerId),
             credentialAuth: 'apiKey',
             defaultModel: draft.defaultModel ?? `${entry.id}/${entry.models[0] ?? ''}`,
+            setDefault:
+              !editSnapshots.has(draft) ||
+              draft.defaultModel !== editSnapshots.get(draft)?.fields.defaultModel,
             sessionBudgetUsd: draft.sessionBudgetUsd,
             useNow: message.useNow,
             editing: message.providerId !== undefined || savedDrafts.has(draft),
@@ -1028,6 +1097,18 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     publish()
   }
   const enqueue = (message: PanelToHostMessage): void => {
+    let savingDraft: PanelDraft | undefined
+    if (message.type === 'providers/save') {
+      savingDraft =
+        message.providerId === undefined
+          ? state.drafts.wizard
+          : state.drafts.edits[message.providerId]
+      // Admit synchronously, before the queue awaits earlier work. Duplicate
+      // deliveries join the first outcome; a retired draft cannot save again.
+      if (savingDraft === undefined || savingDraft.saving === true) return
+      savingDraft.saving = true
+      publish()
+    }
     const previous = operations
     operations = (async () => {
       await previous
@@ -1039,10 +1120,15 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       } catch (error) {
         fail(
           message.type === 'providers/save' && message.providerId !== undefined
-            ? state.drafts.edits[message.providerId]
+            ? savingDraft
             : undefined,
           error,
         )
+      } finally {
+        if (savingDraft !== undefined) {
+          savingDraft.saving = false
+          publish()
+        }
       }
     })()
   }

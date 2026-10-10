@@ -286,6 +286,8 @@ export const panelDraftSchema = z.strictObject({
   /** OpenRouter's OAuth connect completed (the key arrived with no paste). */
   connected: z.boolean(),
   costAccepted: z.boolean(),
+  /** One queued Save owns this draft until it settles. */
+  saving: z.optional(z.boolean()),
   test: z.optional(providerTestSchema),
   models: z.array(z.string()),
   /** A custom server's per-model limits, keyed by model id. */

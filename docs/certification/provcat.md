@@ -1054,3 +1054,197 @@ the batch result JSON are under `temp/provwire-r2-*` (untracked).
 Aggregate quality, hosted CI and installed-editor/live qualification remain
 lead-owned under the brief/common rules. No review finding is deferred; no
 merge, rebase, push, installation, live provider contact or paid/model call.
+
+# PROVWIZ6 — One edit draft, integrated provider lanes and RVPROVWIZ5G
+
+Recorded 2026-10-09 on **macmini**, worktree `PROVWIZ6`, branch
+`fix/provider-panel`, starting at `40fdfe2fe` (wizard `27ef127ae` joined with
+wiring `3924929f4`). The rig brief and `codex/common.md` govern this lane:
+local installed hooks, no subagents, merge, rebase or push, no live/paid calls,
+at most three complete test files/workers per invocation, repository deadlines.
+The prescribed scope is added to PLAN §6 before implementation.
+
+## Findings and production proof
+
+- **P2-1 / one edit draft.** `createEditDraft` is the single factory for Edit,
+  Change key and Change key → Edit. It deep-copies the complete stored entry on
+  the host, prefills its editable fields and stored file default, and retains
+  the entry's pinned models, compat, prices, optional routing and private
+  consent. Existing drafts retain their replacement key. Edit always opens
+  that draft rather than cancelling a Change key draft. Save compares against
+  its initial fields and overlays only changes on the current stored entry,
+  including each routing choice and each edited token limit. Untouched optional
+  fields remain absent. The reviewer's OpenRouter ZDR / `['anthropic']` /
+  fallback-enabled Edit → Save leaves the production file **byte-identical**,
+  with no provider/default/secret write and no credential test. The same
+  byte-exact assertions cover minimal routing and absent routing.
+- **P2-2 / default model.** A limit-only Save keeps `custom/m2` when m1 is the
+  first of two listed models, an `another/m2` default, and an absent default.
+  The default writer is never called. An explicit choice changes it to
+  `custom/m1`; new setups still choose and validate their selected model.
+  Regression entries retain pinned m2, custom compat, prices, other limits and
+  limits for an unselected model. All three edit flows also preserve concurrent
+  changes to favourites, prices, selected models, a different default, and
+  m1's context limit while saving only m1's typed reply limit.
+- **P2-3 / Save lifecycle.** Admission sets the validated bridge's `saving`
+  flag synchronously before the queue awaits earlier work. Duplicate messages
+  for that draft are ignored, as are stale Saves for a retired draft. The
+  edit Save button and both wizard Save buttons are disabled while saving.
+  The held production Save runs once and keeps its success notice after a
+  second delivery and a later stale delivery. A held failed wizard Save also
+  runs once, retains its model/key/typed data, reports the specific redacted
+  failure, resets `saving`, and successfully retries through the real store.
+- **P3 / private-network refusal.** The facade returns the existing
+  `providerPrivateConfirm` sentence on declined consent. Save shows
+  “Confirm access to this private network first.”, retains the form and typed
+  limit, and writes nothing. A second Save asks again and persists the limit
+  after consent. Policy refusals still use the address-invalid template.
+- **Merged F6/F7 qualification.** The older wiring fixture did not inject the
+  wizard lane's now-required `SessionBudgetConfig`; `refresh` failed before
+  publishing refreshed rows and reported generic failures. The initial merged
+  run has **21 failed / 39 passed** across three files. Supplying the same
+  memory-backed setting port the other panel fixtures use restores **all 26
+  wiring cases** with every existing assertion unchanged. Its production
+  catalogue → facade → configured transport → panel still replays only the
+  checked-in M95 captures. Failure/retry retains four cached rows and clears
+  the failed reason; actual in-flight cancellation settles done with its prior
+  cache and no failure log. No scanner, parser or capture was weakened.
+
+The new host regressions use the rendered shared Providers form, the real
+host/facade, production `createModelsPanelSeam` and atomic `providers.json`
+writer, with fake VS Code/credential backing/dispatch only. The wiring suite
+uses `docs/certification/m95-captures`, especially OpenRouter's captured
+`01-models-list.json` and `02-key-usage.json`; original capture provenance is
+unchanged. Every replay and drill makes **0 model attempts**. Existing editor
+bridges share these webview/host changes; ACP reads the same unchanged stored
+provider schema and limits. No new provider wire shape, command or setting.
+
+The React review checks native disabled semantics, existing labels, event
+handlers and typed props; there are no new hooks, render-time side effects,
+network calls or eager imports. The full entry stays host-only. The new
+optional `saving` boolean is validated on the shared bridge. README,
+CHANGELOG and the providers feature-catalog record describe the saved behavior;
+reference regeneration leaves the generated files current without content drift.
+
+## Failing first and byte-exact guard drills
+
+Before production changes, the first review regressions fail **7/17** (no-op
+writes, missing defaults/consent, key → Edit cancelling, duplicate admission).
+The expanded per-model/unselected/concurrent-limit regressions then fail
+**6/19** before their selective limit patch. Restored production code passes
+all cases below. Each deliberately broken guard runs whole files at default
+repository deadlines, exits 1 with assertion failures, then restores the
+original bytes in `finally`. SHA-256 before/after matches in every receipt.
+No timeout override, test-name filter, assertion removal, suppression or gate
+threshold change is used.
+
+| Drill                           | Broken guard                                               | Failed / total | Source hash key |
+| ------------------------------- | ---------------------------------------------------------- | -------------: | --------------- |
+| `routing-copy`                  | Replace saved privacy with a blank-draft default           |           7/26 | 1               |
+| `stored-default-copy`           | Do not copy the stored file default                        |           2/20 | 1               |
+| `keep-existing-draft-key`       | Recreate an existing draft and replace its draft key       |           4/46 | 1               |
+| `changed-fields-only`           | Bypass the stored-entry overlay                            |           9/20 | 1               |
+| `preserve-current-entry`        | Save against the old snapshot instead of the current entry |           3/20 | 1               |
+| `preserve-untouched-limits`     | Replace every limit with the draft model set               |           6/20 | 1               |
+| `private-consent-copy`          | Do not copy stored private-network consent                 |           1/20 | 1               |
+| `default-change-only`           | Set the default without an explicit change                 |           4/20 | 2               |
+| `explicit-default-choice`       | Ignore an explicit default choice                          |           1/20 | 1               |
+| `duplicate-save-admission`      | Admit a second Save while the first runs                   |           3/20 | 1               |
+| `retired-save-honesty`          | Report a false failure for a retired draft                 |           1/20 | 1               |
+| `save-retry-unlocks`            | Keep the failed draft marked saving                        |           3/20 | 1               |
+| `edit-save-disabled`            | Enable edit Save while saving                              |           1/20 | 3               |
+| `wizard-save-disabled`          | Enable both wizard Saves while saving                      |           1/35 | 4               |
+| `declined-private-message`      | Call declined private access an invalid address            |           1/20 | 5               |
+| `skip-unchanged-provider-write` | Rewrite an identical provider entry                        |           4/28 | 2               |
+| `skip-unchanged-secret-write`   | Rewrite an identical stored credential                     |           5/28 | 2               |
+| `skip-unchanged-default-write`  | Rewrite an identical default                               |            1/8 | 2               |
+
+| Hash key | Restored source                           | SHA-256 before = after                                             |
+| -------- | ----------------------------------------- | ------------------------------------------------------------------ |
+| 1        | `src/host/models/modelsPanel.ts`          | `566f05818c82a983e1d73d17fbee41e12ed92630797833a5d003f2a1b0ab0a2c` |
+| 2        | `src/host/providers/wizardSave.ts`        | `d1b604a8379f0abd3bdcc8e24956462432c48e5bc766b9dc45c97b4164c78cad` |
+| 3        | `src/webview/models/ProvidersSection.tsx` | `36cbab99e7156d563b7e78f1e6ff0f9998f5e1d4deb619fb5eb4e57f93e1983f` |
+| 4        | `src/webview/models/Wizard.tsx`           | `282070861c9b097ac3dd569bde0aaf5ead6e75b96247fae5f09881fd23b910eb` |
+| 5        | `src/host/providers/providersHost.ts`     | `1486aad4e51fc6f15dffbc3d74528bb10a7bbbbcf67cc1b72e83551c265bed65` |
+
+The shared bridge schema's final SHA-256 is
+`c97a51c620982d80316f4c961f240aec2a87764e49b1c01d341206d5e53d6cda`.
+Raw assertion logs and machine-readable hash receipts are in the lane's
+untracked `temp/provwiz6-drill-*` files and `temp/provwiz6-drills.json`.
+
+## Final whole-file regression table
+
+All **45 complete files / 774 tests pass**, no skips, in 15 sequential batches:
+`npx vitest run <files> --maxWorkers=3`, **without `--testTimeout`**. These are
+all 44 provider/models files qualified by the joined lanes plus the selected
+model capability-binding file. The final run follows all production restorations.
+
+| Batch | Complete files (`test/unit/`)                                                                     | Passed |
+| ----- | ------------------------------------------------------------------------------------------------- | -----: |
+| 1     | `configuredProviders.test.ts`, `execProvider.test.ts`, `modelApiProviders.test.ts`                |     57 |
+| 2     | `modelCapabilitiesBinding.test.ts`, `modelsActivationBudget.test.ts`, `modelsApp.test.tsx`        |     15 |
+| 3     | `modelsComponents.test.tsx`, `modelsPanel.test.ts`, `modelsPanelBundle.test.ts`                   |     52 |
+| 4     | `modelsPanelEdit.test.tsx`, `modelsPanelEntry.test.ts`, `modelsPanelReducer.test.ts`              |     34 |
+| 5     | `modelsPanelSchemas.test.ts`, `modelsPanelSections.test.tsx`, `modelsQuickPick.test.ts`           |     55 |
+| 6     | `modelsSections.test.ts`, `modelsWebviewEntry.test.tsx`, `providerAuthService.test.ts`            |      9 |
+| 7     | `providerCatalog.test.ts`, `providerCredentialRecords.test.ts`, `providerCredentialStore.test.ts` |     98 |
+| 8     | `providerImportExport.test.ts`, `providerKeyPrompt.test.ts`, `providerLocalProbe.test.ts`         |     22 |
+| 9     | `providerModelScans.test.ts`, `providerOAuthLoopback.test.ts`, `providerOpenRouter.test.ts`       |     30 |
+| 10    | `providerPanelSeam.test.ts`, `providerProvidersHost.test.ts`, `providerRemoval.test.ts`           |     24 |
+| 11    | `providerRetry.test.ts`, `providerTransport.test.ts`, `providerWiring.test.ts`                    |     67 |
+| 12    | `providerWizardSave.test.ts`, `providerWorkspaceSuggestion.test.ts`, `providersFlow.test.ts`      |     37 |
+| 13    | `providersL10n.test.ts`, `providersModel.test.ts`, `providersOverflow.test.ts`                    |     70 |
+| 14    | `providersPolicy.test.ts`, `providersPresets.test.ts`, `providersThreats.test.ts`                 |    121 |
+| 15    | `providersX.test.ts`, `providersXFix.test.ts`, `wizardSessionBudget.test.ts`                      |     83 |
+
+The new host Edit file has 20 cases, the shared section file 35, the existing
+capture-backed wiring file 26, and the save transaction file 8. Final batch
+logs and JSON receipts are `temp/provwiz6-suite-*` and
+`temp/provwiz6-suites.json`. Fixture/validation/compiler issues found during
+preparation were fixed; only the final default-deadline run is qualification.
+
+The owning Edit suite is rerun after sharing its repeated Save/wait block:
+**20 passed**. All assertions remain; no new duplicate is left.
+
+## Individual gates, sizes and qualification boundary
+
+`npm run typecheck` passes all five projects. Changed-file ESLint and Prettier,
+`check:l10n` (14 UI tables, 14 usage tables, **0 problems**), `check:reference`
+(current; 72 features), `check:host-api` (**0 problems**) and plain
+`npm run deadcode` exit 0. `npm run build` exits 0, including unchanged
+size/split/global/notices gates. The reference is regenerated successfully.
+The unit-project compiler and changed-file lint/format also include the final
+test-helper cleanup. Hook-installed lint-staged and staged gitleaks run on the
+local commit; its staged/committed source is reread and compared byte-for-byte.
+No dependency, hook, machine setting or gate configuration is changed.
+
+Duplication remains the documented inherited wizard-lane hold, now measured
+against the exact combined base: a temporary `git archive 40fdfe2fe` of the
+tracked sources under the OS temp directory and the final worktree both fail
+plain jscpd with **21 clones / 287 duplicated lines / 1970 tokens**. The first
+lane check additionally catches one new six-line test clone; sharing the
+Save/wait helper removes it while retaining every assertion. No ignore,
+threshold or rule changes. The 21 remaining clones are the same prior wizard
+setup/interaction and footer duplication already deferred in PLAN §7 to the
+lead's broader quality cleanup. Logs are `temp/provwiz6-duplication-base.log`
+and `temp/provwiz6-duplication-final.log`; the owned temporary base is removed.
+
+| Built artifact                |  Bytes | Existing cap (bytes) |
+| ----------------------------- | -----: | -------------------: |
+| `dist/extension.js`           | 521707 |               614400 |
+| `dist/modelApi.js`            | 500425 |               537600 |
+| `dist/providers.js`           | 137273 |               153600 |
+| `dist/configuredProviders.js` |  27721 |                51200 |
+| `dist/modelsPanel.js`         | 113484 |               128000 |
+| `dist/uiText.js`              |  83695 |               128000 |
+
+Models startup with static imports is **326.5 / 500 KiB**; shared deferred
+surface English is **25.0 / 25 KiB** and passes its byte cap. All other existing
+bundle budgets pass. Full build output is `temp/provwiz6-build.log`.
+
+All four RVPROVWIZ5G findings and the requested lane integration cases are
+closed in this scope. Aggregate `npm run quality`, full coverage, packages,
+installed-editor/real-browser and hosted multi-OS qualification remain with
+the lead under the explicit brief; the inherited duplication gate is not
+reported green. No live sign-in, credential inspection, network provider
+contact, paid call, merge, rebase, push or publication is made.

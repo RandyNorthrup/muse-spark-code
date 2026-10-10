@@ -827,7 +827,7 @@ function ConfirmStep({
 }: Omit<WizardProps, 'panelState' | 'onNavigateModels'>) {
   // **Save** stays disabled until the form is valid, with each blocker
   // inline in plain words.
-  const isBlocked = draft.blockers.length > 0
+  const isBlocked = draft.saving === true || draft.blockers.length > 0
   const save = (shouldUseNow: boolean): void => {
     if (isBlocked) {
       return

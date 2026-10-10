@@ -206,6 +206,27 @@ describe('ProvidersSection', () => {
     })
   })
 
+  it('disables both wizard Save controls while the host owns its save', () => {
+    const post = vi.fn()
+    const draft = makeDraft({ step: 'confirm', blockers: [], saving: true })
+    render(
+      <Wizard
+        panelState={makeState()}
+        draft={draft}
+        post={post}
+        onNavigateModels={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    const save = screen.getByRole('button', { name: UI_TEXT.saveProvider })
+    const useNow = screen.getByRole('button', { name: UI_TEXT.saveAndUseNow })
+    expect(save).toBeDisabled()
+    expect(useNow).toBeDisabled()
+    fireEvent.click(save)
+    fireEvent.click(useNow)
+    expect(post).not.toHaveBeenCalled()
+  })
+
   it('lists a provider with its key state and removes with Undo', () => {
     const post = vi.fn()
     const state = makeState({

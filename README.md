@@ -694,7 +694,11 @@ and the setting changes meanwhile, the wizard shows the new current limit and
 asks you to confirm yours. The provider is saved first; a later limit failure
 explicitly says the provider was saved and why the limit was not changed.
 Saved custom providers keep their editable per-model limits, and Back keeps
-incomplete limits so you can return to Models and finish them.
+incomplete limits so you can return to Models and finish them. **Edit** and
+**Change key** preserve the saved connection, routing and default model;
+changing a limit leaves the default alone. Save writes only changed fields,
+disables its buttons while working and ignores repeated submissions. A refused
+private-network question keeps the form open and asks you to confirm access.
 
 ## Questions
 

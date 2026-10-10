@@ -80,6 +80,18 @@ describe('saveWizardDraft', () => {
     })
   })
 
+  it('saves an unchanged editing draft without rewriting the provider, default or secret', async () => {
+    const parts = saving()
+    await saveWizardDraft({ ...parts, policy: POLICY }, { ...DRAFT, useNow: false })
+    const providerWrite = vi.spyOn(parts.store, 'replaceAll')
+    const defaultWrite = vi.spyOn(parts.store, 'setDefaultModel')
+    const secretWrite = vi.spyOn(parts.credentials, 'setProviderCredential')
+    await saveWizardDraft({ ...parts, policy: POLICY }, { ...DRAFT, editing: true, useNow: false })
+    expect(providerWrite).not.toHaveBeenCalled()
+    expect(defaultWrite).not.toHaveBeenCalled()
+    expect(secretWrite).not.toHaveBeenCalled()
+  })
+
   it('leaves the composer alone without use now, and rolls back its refusal', async () => {
     const without = saving()
     const outcome = await saveWizardDraft(

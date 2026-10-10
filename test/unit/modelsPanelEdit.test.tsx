@@ -6,7 +6,8 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createModelsPanelSeam } from '../../src/core/providers/panelSeam'
 import { createModelsPanel } from '../../src/host/models/modelsPanel'
-import { UI_TEXT } from '../../src/shared/constants'
+import type { ProviderEntry } from '../../src/host/providers/providerPorts'
+import { PROVIDER_SECRET_PREFIX, UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { fill } from '../../src/shared/l10n/text'
 import { parseHostToPanelMessage, type PanelToHostMessage } from '../../src/shared/modelsPanel'
@@ -27,7 +28,14 @@ afterEach(async () => {
   for (const folder of folders.splice(0)) await rm(folder, { recursive: true, force: true })
 })
 
-async function editSurface() {
+async function editSurface(
+  options: {
+    entry?: ProviderEntry
+    defaultModel?: string | null
+    flow?: 'Edit' | 'Change key' | 'Change key → Edit'
+    confirmPrivateNetwork?: () => Promise<boolean>
+  } = {},
+) {
   const folder = await mkdtemp(path.join(tmpdir(), 'models-edit-'))
   folders.push(folder)
   const configFile = path.join(folder, 'providers.json')
@@ -35,28 +43,44 @@ async function editSurface() {
     configFile,
     subscriptionModels: () => Promise.resolve([]),
   })
-  const { providers } = testProvidersHost({
+  const { providers, secrets } = testProvidersHost({
+    ...(options.confirmPrivateNetwork !== undefined && {
+      confirmPrivateNetwork: options.confirmPrivateNetwork,
+    }),
     deps: {
+      policy: {
+        check: (address) =>
+          address.includes('192.168.') ? { kind: 'private', address } : { kind: 'ok' },
+      },
       store: seam.store,
       catalog: seam.catalog,
       fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
     },
   })
-  await providers.saveDraft({
-    provider: {
-      id: 'custom',
-      preset: 'custom',
-      address: 'https://llm.example',
+  const entry: ProviderEntry = options.entry ?? {
+    id: 'custom',
+    preset: 'custom',
+    address: 'https://llm.example',
+    auth: 'apiKey',
+    format: 'chat',
+    models: ['m1'],
+    modelLimits: { m1: { contextTokens: 128_000, outputTokens: 4000 } },
+  }
+  await seam.store.add(entry)
+  await seam.store.setDefaultModel(
+    options.defaultModel === null
+      ? undefined
+      : (options.defaultModel ?? `${entry.id}/${entry.models[0] ?? ''}`),
+  )
+  await secrets.store(
+    `${PROVIDER_SECRET_PREFIX}${entry.id}`,
+    JSON.stringify({
+      v: 1,
       auth: 'apiKey',
-      format: 'chat',
-      models: ['m1'],
-      modelLimits: { m1: { contextTokens: 128_000, outputTokens: 4000 } },
-    },
-    credential: 'synthetic-edit-key',
-    credentialAuth: 'apiKey',
-    defaultModel: 'custom/m1',
-    useNow: false,
-  })
+      origin: new URL(entry.address).origin,
+      secret: 'synthetic-edit-key',
+    }),
+  )
   const saved = vi.fn()
   const warnings: string[] = []
   const log = {
@@ -108,17 +132,40 @@ async function editSurface() {
   await waitFor(() => {
     expect(screen.getByRole('button', { name: UI_TEXT.providerEdit })).toBeDefined()
   })
-  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providerEdit }))
+  if (options.flow !== undefined && options.flow !== 'Edit') {
+    fakeWindow.showInputBox.mockResolvedValueOnce('synthetic-replacement-key')
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.changeKey }))
+    await waitFor(() => {
+      expect(state.drafts.edits[entry.id]?.keyPresent).toBe(true)
+    })
+  }
+  if (options.flow !== 'Change key') {
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providerEdit }))
+  }
   await waitFor(() => {
-    expect(screen.getByLabelText(UI_TEXT.customLimitsOutput)).toHaveValue(4000)
+    expect(screen.getByLabelText(UI_TEXT.providerFields.address)).toHaveValue(entry.address)
   })
-  return { configFile, seam, providers, saved, warnings, host, post, state: () => state }
+  if (entry.preset === 'custom') {
+    await waitFor(() => {
+      expect(screen.getAllByLabelText(UI_TEXT.customLimitsOutput)[0]).toHaveValue(
+        entry.modelLimits?.[entry.models[0] ?? '']?.outputTokens,
+      )
+    })
+  }
+  return { configFile, seam, providers, secrets, saved, warnings, host, post, state: () => state }
 }
 
 async function changeReplyLimit() {
   fireEvent.change(screen.getByLabelText(UI_TEXT.customLimitsOutput), { target: { value: '8000' } })
   await waitFor(() => {
     expect(screen.getByLabelText(UI_TEXT.customLimitsOutput)).toHaveValue(8000)
+  })
+}
+
+async function saveEditSurface() {
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.saveProvider }))
+  await waitFor(() => {
+    expect(screen.queryByLabelText(UI_TEXT.providerFields.address)).toBeNull()
   })
 }
 
@@ -172,6 +219,263 @@ describe('Saved custom provider Edit through the shared form and production stor
     const retried = await seam.store.list()
     expect(retried[0]?.modelLimits?.['m1']?.outputTokens).toBe(8000)
     expect(write).toHaveBeenCalledTimes(2)
+    host.dispose()
+  })
+
+  it.each([
+    { privacy: 'zdr', order: ['anthropic'], allowFallbacks: true },
+    { privacy: 'any' },
+    undefined,
+  ] as const)(
+    'unchanged OpenRouter Edit → Save preserves routing %j byte-exact',
+    async (routing) => {
+      const entry: ProviderEntry = {
+        id: 'openrouter',
+        preset: 'openrouter',
+        address: 'https://openrouter.ai',
+        auth: 'apiKey',
+        models: ['m1'],
+        pinned: ['m1'],
+        ...(routing !== undefined && { routing }),
+      }
+      const { seam, configFile, providers, secrets, host } = await editSurface({ entry })
+      const before = await readFile(configFile, 'utf8')
+      const write = vi.spyOn(seam.store, 'replaceAll')
+      const defaultWrite = vi.spyOn(seam.store, 'setDefaultModel')
+      const test = vi.spyOn(providers, 'testCredential')
+      const secretWrite = vi.spyOn(secrets, 'store')
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.saveProvider }))
+      await waitFor(() => {
+        expect(screen.queryByLabelText(UI_TEXT.providerFields.address)).toBeNull()
+      })
+      expect(await readFile(configFile, 'utf8')).toBe(before)
+      expect(write).not.toHaveBeenCalled()
+      expect(secretWrite).not.toHaveBeenCalled()
+      expect(defaultWrite).not.toHaveBeenCalled()
+      expect(test).not.toHaveBeenCalled()
+      host.dispose()
+    },
+  )
+
+  it.each(['custom/m2', 'another/m2', null])(
+    'a limit-only save keeps the stored default %s and optional fields',
+    async (defaultModel) => {
+      const entry: ProviderEntry = {
+        id: 'custom',
+        preset: 'custom',
+        address: 'https://llm.example',
+        auth: 'apiKey',
+        models: ['m1', 'm2'],
+        modelLimits: {
+          m1: { contextTokens: 128_000, outputTokens: 4000 },
+          m2: { contextTokens: 128_000, outputTokens: 4000 },
+          spare: { contextTokens: 128_000, outputTokens: 4000 },
+        },
+        pinned: ['m2'],
+        compat: { toolChoice: 'omit' },
+        prices: { m1: { input: 1, output: 2 } },
+      }
+      const { seam, state, host } = await editSurface({ entry, defaultModel })
+      expect(state().drafts.edits['custom']?.defaultModel).toBe(defaultModel ?? undefined)
+      const defaultWrite = vi.spyOn(seam.store, 'setDefaultModel')
+      fireEvent.change(
+        screen.getAllByLabelText(UI_TEXT.customLimitsOutput)[0] ??
+          (() => {
+            throw new Error('Missing first limit')
+          })(),
+        { target: { value: '8000' } },
+      )
+      await waitFor(() => {
+        expect(screen.getAllByLabelText(UI_TEXT.customLimitsOutput)[0]).toHaveValue(8000)
+      })
+      await saveEditSurface()
+      expect(await seam.store.defaultModel()).toBe(defaultModel ?? undefined)
+      expect(defaultWrite).not.toHaveBeenCalled()
+      expect(await seam.store.list()).toEqual([
+        {
+          ...entry,
+          modelLimits: { ...entry.modelLimits, m1: { contextTokens: 128_000, outputTokens: 8000 } },
+        },
+      ])
+      host.dispose()
+    },
+  )
+
+  it('an explicit default choice changes the saved default', async () => {
+    const { seam, post, host } = await editSurface({ defaultModel: 'another/m2' })
+    post({ type: 'providers/prefill', providerId: 'custom', fields: { defaultModel: 'custom/m1' } })
+    await saveEditSurface()
+    expect(await seam.store.defaultModel()).toBe('custom/m1')
+    host.dispose()
+  })
+
+  it.each(['Edit', 'Change key', 'Change key → Edit'] as const)(
+    'one full snapshot preserves untouched concurrent fields via %s',
+    async (flow) => {
+      const entry: ProviderEntry = {
+        id: 'custom',
+        preset: 'custom',
+        address: 'https://llm.example',
+        auth: 'apiKey',
+        format: 'responses',
+        models: ['m1'],
+        pinned: ['m1'],
+        compat: { toolChoice: 'omit' },
+        modelLimits: { m1: { contextTokens: 128_000, outputTokens: 4000 } },
+      }
+      const { seam, providers, post, state, host } = await editSurface({ entry, flow })
+      const concurrent = {
+        ...entry,
+        pinned: [],
+        prices: { m1: { input: 1, output: 2 } },
+        privateNetwork: false,
+        models: ['m1', 'm2'],
+        modelLimits: {
+          m1: { contextTokens: 256_000, outputTokens: 4000 },
+          m2: { contextTokens: 128_000, outputTokens: 4000 },
+        },
+      }
+      await seam.store.replaceAll([concurrent])
+      await seam.store.setDefaultModel('another/m2')
+      await changeReplyLimit()
+      if (flow !== 'Edit') {
+        fireEvent.click(screen.getByRole('button', { name: UI_TEXT.testConnection }))
+        await waitFor(() => {
+          expect(state().drafts.edits['custom']?.test?.status).toBe('ok')
+        })
+      }
+      post({ type: 'providers/save', providerId: 'custom', useNow: false })
+      await waitFor(() => {
+        expect(screen.queryByLabelText(UI_TEXT.providerFields.address)).toBeNull()
+      })
+      expect(await seam.store.list()).toEqual([
+        {
+          ...concurrent,
+          modelLimits: {
+            ...concurrent.modelLimits,
+            m1: { contextTokens: 256_000, outputTokens: 8000 },
+          },
+        },
+      ])
+      expect(await seam.store.defaultModel()).toBe('another/m2')
+      expect(await providers.storedCredential(entry)).toBe(
+        flow === 'Edit' ? 'synthetic-edit-key' : 'synthetic-replacement-key',
+      )
+      host.dispose()
+    },
+  )
+
+  it('queues one Save, disables the form and keeps its successful outcome on duplicate delivery', async () => {
+    const { seam, providers, post, state, host } = await editSurface()
+    await changeReplyLimit()
+    const heldSave = Promise.withResolvers<undefined>()
+    const save = providers.saveDraft
+    const held = vi.spyOn(providers, 'saveDraft').mockImplementation(async (draft) => {
+      await heldSave.promise
+      return await save(draft)
+    })
+    post({ type: 'providers/save', providerId: 'custom', useNow: false })
+    post({ type: 'providers/save', providerId: 'custom', useNow: false })
+    await waitFor(() => {
+      expect(held).toHaveBeenCalledOnce()
+    })
+    expect(screen.getByRole('button', { name: UI_TEXT.saveProvider })).toBeDisabled()
+    heldSave.resolve(undefined)
+    await waitFor(() => {
+      expect(screen.queryByLabelText(UI_TEXT.customLimitsOutput)).toBeNull()
+    })
+    expect(held).toHaveBeenCalledOnce()
+    expect(await seam.store.list()).toMatchObject([{ modelLimits: { m1: { outputTokens: 8000 } } }])
+    expect(state().notice).toBe(
+      fill(UI_TEXT.setupComplete, { provider: 'Custom server', model: 'custom/m1' }),
+    )
+    post({ type: 'providers/save', providerId: 'custom', useNow: false })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providerEdit }))
+    await waitFor(() => {
+      expect(screen.getByLabelText(UI_TEXT.customLimitsOutput)).toHaveValue(8000)
+    })
+    expect(held).toHaveBeenCalledOnce()
+    expect(state().notice).toBe(
+      fill(UI_TEXT.setupComplete, { provider: 'Custom server', model: 'custom/m1' }),
+    )
+    host.dispose()
+  })
+
+  it('the first wizard Save owns duplicate deliveries and unlocks its draft after failure', async () => {
+    const { seam, providers, post, state, host } = await editSurface()
+    post({ type: 'providers/select', presetId: 'openrouter' })
+    await waitFor(() => {
+      expect(state().drafts.wizard?.presetId).toBe('openrouter')
+    })
+    fakeWindow.showInputBox.mockResolvedValueOnce('sk-or-synthetic-wizard-key')
+    post({ type: 'providers/enterKey', mode: 'new' })
+    post({ type: 'providers/test', acceptCost: false })
+    await waitFor(() => {
+      expect(state().drafts.wizard?.test?.status).toBe('ok')
+    })
+    post({ type: 'models/tick', scope: { scope: 'wizard' }, ref: 'openrouter/m1', ticked: true })
+    await waitFor(() => {
+      expect(state().drafts.wizard?.models).toEqual(['m1'])
+    })
+    const heldSave = Promise.withResolvers<undefined>()
+    const held = vi.spyOn(providers, 'saveDraft').mockImplementationOnce(async () => {
+      await heldSave.promise
+      throw new Error('disk full: sk-or-synthetic-wizard-key')
+    })
+    post({ type: 'providers/save', useNow: false })
+    post({ type: 'providers/save', useNow: false })
+    await waitFor(() => {
+      expect(held).toHaveBeenCalledOnce()
+    })
+    expect(state().drafts.wizard?.saving).toBe(true)
+    heldSave.resolve(undefined)
+    await waitFor(() => {
+      expect(state().drafts.wizard?.errors).toEqual(['disk full: [redacted]'])
+      expect(state().drafts.wizard?.saving).toBe(false)
+    })
+    expect(held).toHaveBeenCalledOnce()
+    const failedEntries = await seam.store.list()
+    expect(failedEntries.map((entry) => entry.id)).toEqual(['custom'])
+    post({ type: 'providers/save', useNow: false })
+    await waitFor(() => {
+      expect(state().drafts.wizard).toBeUndefined()
+    })
+    expect(held).toHaveBeenCalledTimes(2)
+    const savedEntries = await seam.store.list()
+    expect(savedEntries.map((entry) => entry.id)).toEqual(['custom', 'openrouter'])
+    expect(await seam.store.defaultModel()).toBe('openrouter/m1')
+    host.dispose()
+  })
+
+  it('private-network refusal keeps limits and says to confirm access before retrying', async () => {
+    const entry: ProviderEntry = {
+      id: 'custom',
+      preset: 'custom',
+      address: 'https://192.168.1.20/v1',
+      auth: 'apiKey',
+      format: 'chat',
+      models: ['m1'],
+      privateNetwork: true,
+      modelLimits: { m1: { contextTokens: 128_000, outputTokens: 4000 } },
+    }
+    const confirmPrivateNetwork = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+    const { seam, state, host } = await editSurface({ entry, confirmPrivateNetwork })
+    expect(state().drafts.edits['custom']?.privateConfirmed).toBe(true)
+    await changeReplyLimit()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.saveProvider }))
+    await waitFor(() => {
+      expect(screen.getByText(UI_TEXT.providerPrivateConfirm)).toBeDefined()
+    })
+    expect(await seam.store.list()).toEqual([entry])
+    expect(screen.getByLabelText(UI_TEXT.customLimitsOutput)).toHaveValue(8000)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.saveProvider }))
+    await waitFor(() => {
+      expect(screen.queryByLabelText(UI_TEXT.customLimitsOutput)).toBeNull()
+    })
+    expect(confirmPrivateNetwork).toHaveBeenCalledTimes(2)
+    expect(await seam.store.list()).toMatchObject([
+      { privateNetwork: true, modelLimits: { m1: { outputTokens: 8000 } } },
+    ])
     host.dispose()
   })
 

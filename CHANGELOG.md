@@ -20,6 +20,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Provider Edit and Change key share a full copy of the saved connection.
+  Unchanged routing, format, model limits, favourites, compatibility, private
+  access and default model stay intact; only an explicit default choice
+  retargets it. Save preserves untouched concurrent fields, ignores duplicate
+  submissions and disables its buttons while working. Declining private-network
+  access asks for confirmation instead of calling the saved address invalid.
+
 - Saved custom-provider limits persist directly from Edit without another
   connection test when the address, format and key are unchanged.
   Save reports success or its specific failure; failed saves keep the form and

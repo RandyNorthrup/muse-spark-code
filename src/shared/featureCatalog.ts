@@ -293,6 +293,9 @@ export function featureCatalog(): readonly Feature[] {
       ],
       // Saved custom limits persist directly from Edit without a new test
       // while the connection is unchanged; failed saves retain the draft.
+      // Edit and Change key share a full saved snapshot; unchanged routing,
+      // limits, consent and the default survive. Save admits one operation
+      // per draft, overlays only changed fields and keeps failures retryable.
       // Earlier steps remain navigable while final Save validates limits.
       ['suggestedProvider', 'modelApiSessionBudgetUsd'],
       'backends',

@@ -16,7 +16,7 @@ import { createModelsPanel } from '../../src/host/models/modelsPanel'
 import { parseHostToPanelMessage } from '../../src/shared/modelsPanel'
 import { PROVIDER_SECRET_PREFIX, UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
-import { FakeWebviewPanel } from './helpers/fakes'
+import { FakeWebviewPanel, memorySessionBudgetConfig } from './helpers/fakes'
 import { testProvidersHost } from './helpers/m95kFixtures'
 import { window, FakeUri } from './mocks/vscode'
 
@@ -157,6 +157,7 @@ async function fixture(preset: string, capture: string, isConfigured = true) {
     extensionUri: new FakeUri('/ext'),
     l10n: { locale: 'en', table: EN },
     providers: host.providers,
+    sessionBudget: memorySessionBudgetConfig(),
     log: {
       trace: () => undefined,
       info: () => undefined,
