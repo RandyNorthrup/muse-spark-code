@@ -38391,6 +38391,17 @@ lane A's first step.
 
 ## 7. Gates
 
+**REL0171B final 0.17.1 branch (2026-10-10, linuxlt + Kubuntu).** Merge
+MENUFAN and VIS0171 onto `release/0.17.1` by meaning, regenerate every
+generated file with its script, and repair what the merged gates found:
+the pressed menu pill's inset ring (M114 P2), the menu browser cases' setup
+cost, the open-menu capture race and the 21 inherited jscpd clones. One
+reviewed full visual update explains every changed scene (the two menu
+scenes and What's New's 0.17.1 notes); the full unsharded `check:visual`
+on the final head is the receipt that closes VIS0171's stopped replay. No
+deadline, threshold, assertion or cap changes. Evidence:
+`docs/certification/rel0171b.md`.
+
 **VIS0171 0.17.1 visual refresh (2026-10-10, linuxlt).** Compare the full
 9,792-frame matrix on `4acb7015f`; classify every changed scene as Title Case,
 question-field spacing, provider-picker repair, or an unrelated hold. Inspect
