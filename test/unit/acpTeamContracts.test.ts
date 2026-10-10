@@ -62,6 +62,13 @@ function withHole<T>(entries: readonly T[], index: number): T[] {
   return sparse
 }
 
+/** The same indexed entries, but iterating the array yields something else. */
+function withYields<T>(entries: readonly T[], yielded: readonly T[]): T[] {
+  const hostile = [...entries]
+  hostile[Symbol.iterator] = () => [...yielded].values()
+  return hostile
+}
+
 describe('M96b team tool call ids', () => {
   it('namespaces tasks and merges under team/', () => {
     expect(teamTaskToolCallId('t1')).toBe('team/task/t1')
@@ -216,11 +223,18 @@ describe('M96b agent-map plan', () => {
     expect(z.array(teamPlanEntrySchema).safeParse(entries).success).toBe(true)
   })
 
-  it('refuses a returned plan collection with missing entries', () => {
+  // RVCM96B0D: the entry snapshot cannot copy a function-valued own
+  // property, so a caller `map` fails closed with a typed error instead of
+  // shrinking the plan. Symbol-keyed overrides (custom iterators) are
+  // dropped by the clone; string-valued overrides are ignored below.
+  it('refuses a plan collection with an overridden map', () => {
     const tasks: TeamPlanTask[] = [{ taskId: 't1', title: 'First' }]
-    // A caller can override map without a cast; validate its complete result too.
+    // A caller can override map without a cast; the snapshot refuses it.
     tasks.map = () => []
     expect(() => teamPlanEntries(tasks)).toThrow(TeamContractError)
+    const benign: TeamPlanTask[] = [{ taskId: 't1', title: 'First' }]
+    Object.defineProperty(benign, 'note', { value: 'extra', enumerable: true })
+    expect(teamPlanEntries(benign)).toHaveLength(1)
   })
 })
 
@@ -558,6 +572,155 @@ describe('RVCM96B0B builder/schema consistency', () => {
       expect(count.accepted, name).toBeGreaterThan(0)
       expect(count.refused, name).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('RVCM96B0D hostile caller collections use the entry snapshot', () => {
+  const DIFF_B = teamDiff({ path: '/repo/b.ts', oldText: null, newText: 'c' })
+  const DIFFS = [DIFF, DIFF_B]
+  const TWO_OPTIONS: PermissionOption[] = [
+    { optionId: 'yes', name: 'Yes', kind: 'allow_once' },
+    { optionId: 'no', name: 'No', kind: 'reject_once' },
+  ]
+  const mergeInput = {
+    sessionId: 's1',
+    mergeId: 'm1',
+    role: 'merger',
+    agent: 'zed',
+    detail: 'Land t1',
+    diffs: DIFFS,
+    options: TWO_OPTIONS,
+  }
+
+  it('builds every content call from indexed entries, not the caller iterator', () => {
+    const empty = withYields(DIFFS, [])
+    expect(teamTaskDiffUpdate({ taskId: 't1', diffs: empty }).content).toEqual(DIFFS)
+    const completed = teamTaskReportUpdate({ taskId: 't1', report: 'done', diffs: empty })
+    expect(completed.content?.map((entry) => entry.type)).toEqual(['content', 'diff', 'diff'])
+    expect(completed.content?.slice(1)).toEqual(DIFFS)
+    expect(teamMergeRequest({ ...mergeInput, diffs: empty }).toolCall.content).toEqual(DIFFS)
+    expect(teamMergeCompletedCall({ ...mergeInput, diffs: empty }).content).toEqual(DIFFS)
+  })
+
+  it('keeps every indexed entry when the caller iterator yields fewer, more or invalid items', () => {
+    expect(
+      teamTaskDiffUpdate({ taskId: 't1', diffs: withYields(DIFFS, DIFFS.slice(0, 1)) }).content,
+    ).toEqual(DIFFS)
+    const extra = withYields([DIFF], [...DIFFS, teamReportContent('smuggled')])
+    expect(teamTaskDiffUpdate({ taskId: 't1', diffs: extra }).content).toEqual([DIFF])
+    const invalid = withYields([DIFF], [atRuntime({ type: 'diff', path: '', newText: 'x' })])
+    expect(teamTaskDiffUpdate({ taskId: 't1', diffs: invalid }).content).toEqual([DIFF])
+  })
+
+  it('keeps every permission option when the caller iterator yields fewer', () => {
+    const request = teamMergeRequest({
+      ...mergeInput,
+      options: withYields(TWO_OPTIONS, TWO_OPTIONS.slice(0, 1)),
+    })
+    expect(request.options).toHaveLength(TWO_OPTIONS.length)
+    expect(request.options).toEqual(TWO_OPTIONS)
+  })
+
+  it('returns the complete plan when the caller iterator yields nothing', () => {
+    const tasks: TeamPlanTask[] = [
+      { taskId: 't1', title: 'First' },
+      { taskId: 't2', title: 'Second' },
+    ]
+    const entries = teamPlanEntries(withYields(tasks, []))
+    expect(entries).toHaveLength(tasks.length)
+    expect(entries.map((entry) => entry._meta?.['teamTask'])).toEqual(['t1', 't2'])
+    expect(z.array(teamPlanEntrySchema).safeParse(entries).success).toBe(true)
+  })
+
+  it('reads a caller index getter once and builds from that value', () => {
+    let indexReads = 0
+    const diffs = [...DIFFS]
+    Object.defineProperty(diffs, '0', {
+      get() {
+        indexReads++
+        return DIFF
+      },
+      enumerable: true,
+      configurable: true,
+    })
+    expect(teamTaskDiffUpdate({ taskId: 't1', diffs }).content).toEqual(DIFFS)
+    expect(indexReads).toBe(1)
+  })
+
+  it('uses the first-read value when a caller getter shifts between reads', () => {
+    let reads = 0
+    const diffs = [...DIFFS]
+    Object.defineProperty(diffs, '1', {
+      get(): ToolCallContent {
+        reads++
+        return reads === 1 ? DIFF_B : atRuntime({ type: 'diff', path: '', newText: 'x' })
+      },
+      enumerable: true,
+      configurable: true,
+    })
+    expect(teamTaskDiffUpdate({ taskId: 't1', diffs }).content).toEqual(DIFFS)
+  })
+
+  it('reads input-object getters through the snapshot', () => {
+    let diffReads = 0
+    const input = { taskId: 't1', diffs: DIFFS }
+    Object.defineProperty(input, 'diffs', {
+      get() {
+        diffReads++
+        return DIFFS
+      },
+      enumerable: true,
+      configurable: true,
+    })
+    expect(teamTaskDiffUpdate(atRuntime(input)).content).toEqual(DIFFS)
+    expect(diffReads).toBe(1)
+    const callInput = { taskId: 't1', role: 'coder', agent: 'zed', detail: 'Write x' }
+    Object.defineProperty(callInput, 'detail', {
+      get() {
+        return 'Write x'
+      },
+      enumerable: true,
+      configurable: true,
+    })
+    expect(teamTaskToolCall(atRuntime(callInput)).title).toBe('coder · zed: Write x')
+  })
+
+  it('refuses proxy collections with a typed error instead of reading through traps', () => {
+    const proxied = new Proxy(DIFFS, {})
+    expect(() => teamTaskDiffUpdate({ taskId: 't1', diffs: proxied })).toThrow(TeamContractError)
+    expect(() => teamTaskReportUpdate({ taskId: 't1', report: 'done', diffs: proxied })).toThrow(
+      TeamContractError,
+    )
+    expect(() => teamMergeRequest({ ...mergeInput, diffs: proxied })).toThrow(TeamContractError)
+    expect(() => teamMergeCompletedCall({ ...mergeInput, diffs: proxied })).toThrow(
+      TeamContractError,
+    )
+    expect(() => teamMergeRequest({ ...mergeInput, options: new Proxy(TWO_OPTIONS, {}) })).toThrow(
+      TeamContractError,
+    )
+    expect(() => teamPlanEntries(new Proxy([{ taskId: 't1', title: 'First' }], {}))).toThrow(
+      TeamContractError,
+    )
+  })
+
+  it('refuses uncloneable entries with a typed error', () => {
+    const smuggled: ToolCallContent = atRuntime({
+      type: 'diff',
+      path: '/a',
+      newText: 'b',
+      run: () => 1,
+    })
+    expect(() => teamTaskDiffUpdate({ taskId: 't1', diffs: [DIFF, smuggled] })).toThrow(
+      TeamContractError,
+    )
+    expect(() => teamMergeRequest({ ...mergeInput, diffs: [DIFF, smuggled] })).toThrow(
+      TeamContractError,
+    )
+    const hostileDiffs = [...DIFFS]
+    hostileDiffs.map = () => []
+    expect(() => teamTaskDiffUpdate({ taskId: 't1', diffs: hostileDiffs })).toThrow(
+      TeamContractError,
+    )
   })
 })
 
