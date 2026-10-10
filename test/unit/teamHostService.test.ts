@@ -92,7 +92,7 @@ function harness(
   const controls: Controls = {
     isTrusted: options.trusted ?? true,
     isTeamWorkersOn: true,
-    mode: undefined,
+    mode: 'promptUnmatched',
     isPaidAllowed: options.paid ?? true,
     isPaidHeld: false,
     isMergeHeld: false,
@@ -589,9 +589,12 @@ describe('the team host service', () => {
         teamMerge: { taskId: 'task-1', affectedFiles: ['a.ts'], review: 'not-reviewed' },
       },
     })
-    await service.decideMerge('task-1', 'merge')
+    await expect(service.decideMerge('task-1', 'merge')).rejects.toThrow('refused a moved ref')
     expect(await output(merging)).toContain('refused a moved ref')
-    expect(h.cards.at(-1)?.item).toMatchObject({ status: 'completed', teamDecision: 'merge' })
+    expect(h.cards.at(-1)?.item).toMatchObject({
+      status: 'completed',
+      teamDecision: 'refused a moved ref',
+    })
     expect(await service.taskDiff('task-1')).toBe(`diff ${'b'.repeat(40)}`)
   })
 })
@@ -734,9 +737,9 @@ describe('RVCM963 review findings', () => {
     await service.probeEntries()
     await service.teamRunner.delegate(delegateOne, context())
     const meter = h.started[0]?.meter
-    meter?.noteUsage(usage(60, 30))
+    await meter?.noteUsage(usage(60, 30))
     expect(() => meter?.admitRequest()).not.toThrow()
-    meter?.noteUsage(usage(80, 40))
+    await meter?.noteUsage(usage(80, 40))
     expect(() => meter?.admitRequest()).toThrow(
       TEAM_MODEL_TEXT.hostCapReached.split('{', 1)[0] ?? '',
     )
@@ -751,7 +754,7 @@ describe('RVCM963 review findings', () => {
     expect(collected['tasks']).toEqual([expect.objectContaining({ state: 'capped' })])
     // 120 of 150 used: another task still fits; at 160 the entry is capped.
     await service.teamRunner.delegate(delegateOne, context())
-    h.started[1]?.meter.noteUsage(usage(40))
+    await h.started[1]?.meter.noteUsage(usage(40))
     h.finish(1, { usage: usage(40) })
     await settle()
     expect(service.tree()?.roles[0]?.entries[0]?.state).toBe('capped')
@@ -792,6 +795,7 @@ describe('RVCM963 review findings', () => {
   it('5: the tree Merge is gated like the model merge and still decided on the card', async () => {
     const h = harness(team([entry('e1', WORKER_MODEL)]))
     const service = await finishedTask(h)
+    h.controls.mode = undefined
     await expect(service.decideMerge('task-1', 'merge')).rejects.toThrow(
       UI_TEXT.teamMergeNeedsConversation,
     )
@@ -806,7 +810,9 @@ describe('RVCM963 review findings', () => {
     expect(h.cards.at(-1)?.item).toMatchObject({ kind: 'teamMerge', status: 'inProgress' })
     // Trust withdrawn while the card waits: the answer merges nothing.
     h.controls.isTrusted = false
-    await service.decideMerge('task-1', 'merge')
+    await expect(service.decideMerge('task-1', 'merge')).rejects.toThrow(
+      TEAM_MODEL_TEXT.hostUntrusted,
+    )
     await settle()
     expect(h.merged).toEqual([])
     h.controls.isTrusted = true
@@ -916,7 +922,7 @@ describe('RVCM963 review findings', () => {
     const h = harness(team([entry('e1', WORKER_MODEL)]), { values })
     const service = await finishedTask(h)
     await service.teamRunner.delegate(delegateOne, context())
-    h.started[1]?.meter.noteWorkspace({ folder: '/copies/y', baseCommit: 'c'.repeat(40) })
+    await h.started[1]?.meter.noteWorkspace({ folder: '/copies/y', baseCommit: 'c'.repeat(40) })
     await settle()
     const again = harness(team([entry('e1', WORKER_MODEL)]), { values })
     const reloaded = createTeamHostService(again.deps)
@@ -936,12 +942,13 @@ describe('RVCM963 review findings', () => {
     h.controls.mode = 'promptUnmatched'
     h.controls.isMergeHeld = true
     await service.decideMerge('task-1', 'merge')
-    await service.decideMerge('task-1', 'merge')
+    const committing = service.decideMerge('task-1', 'merge')
     await settle()
     expect(h.merged).toEqual(['task-1'])
     await expect(service.decideMerge('task-1', 'merge')).rejects.toThrow(UI_TEXT.teamTaskBusy)
     await expect(service.decideMerge('task-1', 'discard')).rejects.toThrow(UI_TEXT.teamTaskBusy)
     h.releaseMerge()
+    await committing
     await settle()
     expect(h.merged).toEqual(['task-1'])
     expect(h.discarded).toEqual([])
@@ -1038,4 +1045,449 @@ describe('RVCM963C probe ownership', () => {
     await probing
     expect(h.started).toHaveLength(1)
   })
+})
+
+function reviewedTeam(reviewers = [entry('r1', 'reviewer-model')]): TeamSnapshot {
+  return {
+    roles: [
+      { role: 'engineering', workspace: 'own-branch', pool: [entry('e1', WORKER_MODEL)] },
+      { role: 'code-review', pool: reviewers },
+    ],
+    intensity: 'balanced',
+  }
+}
+
+describe('RVCM963C ownership redesign', () => {
+  it('R4-2: reserves concurrent requests and retains unreported liability', async () => {
+    const h = harness(
+      team([keyEntry('e1', WORKER_MODEL, 2, [{ measure: 'spendUsd', window: 'day', amount: 1 }])]),
+    )
+    const service = createTeamHostService(h.deps)
+    await service.probeEntries()
+    await service.teamRunner.delegate(
+      { tasks: [...delegateOne.tasks, ...delegateOne.tasks] },
+      context(),
+    )
+    const first = h.started[0]
+    const second = h.started[1]
+    expect(first).toBeDefined()
+    expect(second).toBeDefined()
+    await first?.meter.reserveRequest({ ...usage(50), costUsd: 0.75 })
+    await expect(second?.meter.reserveRequest({ ...usage(50), costUsd: 0.75 })).rejects.toThrow()
+    h.fail(0, new Error('response lost'))
+    await settle()
+    expect(service.tree()?.roles[0]?.entries[0]?.caps[0]?.used).toBe(0.75)
+    await expect(second?.meter.reserveRequest({ ...usage(1), costUsd: 0.5 })).rejects.toThrow()
+    await service.dispose()
+  })
+
+  it('R4-3: counts requests by their admission day when a task crosses midnight', async () => {
+    const h = harness(team([entry('e1', WORKER_MODEL)], {}, {}))
+    const capped = team([
+      { ...entry('e1', WORKER_MODEL), caps: [{ measure: 'tokens', window: 'day', amount: 100 }] },
+    ])
+    h.values.set(TEAM_WORKSPACE_KEYS.team, capped)
+    let now = new Date(2026, 9, 9, 23, 59).getTime()
+    const service = createTeamHostService({ ...h.deps, now: () => now })
+    await service.probeEntries()
+    await service.teamRunner.delegate(delegateOne, context())
+    const meter = h.started[0]?.meter
+    await meter?.reserveRequest(usage(30))
+    await meter?.noteUsage(usage(30))
+    now = new Date(2026, 9, 10, 0, 1).getTime()
+    await meter?.reserveRequest(usage(80))
+    await meter?.noteUsage(usage(110))
+    expect(service.tree()?.roles[0]?.entries[0]?.caps[0]?.used).toBe(80)
+    await expect(meter?.reserveRequest(usage(21))).rejects.toThrow()
+    await service.dispose()
+  })
+
+  it('R4-4: queued launches and automatic reviews obey the global ceiling', async () => {
+    const h = harness(reviewedTeam(), { maxWorkers: 1 })
+    const service = await finishedTask(h)
+    await service.teamRunner.delegate(delegateOne, context())
+    const merging = service.teamRunner.merge({ task_id: 'task-1' }, context())
+    await settle()
+    expect(h.started).toHaveLength(2)
+    await service.decideMerge('task-1', 'discard')
+    await merging
+    await service.dispose()
+    const q = harness(team([entry('e1', WORKER_MODEL, 1)], {}, { exhausted: 'queue' }), {
+      maxWorkers: 1,
+    })
+    const queued = createTeamHostService(q.deps)
+    await queued.probeEntries()
+    await queued.teamRunner.delegate(
+      { tasks: [...delegateOne.tasks, ...delegateOne.tasks] },
+      context(),
+    )
+    await queued.resetEntry('e1')
+    expect(q.started).toHaveLength(1)
+    await queued.dispose()
+  })
+
+  it('R4-5: a continuation reserves the source copy before paid consent', async () => {
+    const h = harness(team([keyEntry('e1', WORKER_MODEL, 2)]))
+    const service = await finishedTask(h)
+    h.controls.isPaidHeld = true
+    const args = { tasks: [{ ...delegateOne.tasks[0], continue: 'task-1' }] }
+    const first = service.teamRunner.delegate(args, context())
+    await settle()
+    const second = service.teamRunner.delegate(args, context())
+    await settle()
+    h.releasePaid(true)
+    await first
+    const refused = await second
+    expect(refused.output).toContain(TEAM_MODEL_TEXT.hostContinueNotReady)
+    expect(h.started.filter((spec) => spec.continueFrom?.folder === '/copies/x')).toHaveLength(1)
+    await service.dispose()
+  })
+
+  it('R4-6: reload preserves the running continuation copy for discard', async () => {
+    const h = harness(team([entry('e1', WORKER_MODEL)]))
+    const service = await finishedTask(h)
+    await service.teamRunner.delegate(
+      { tasks: [{ ...delegateOne.tasks[0], continue: 'task-1' }] },
+      context(),
+    )
+    let discarded: TeamWorkerOutcome | undefined
+    const restored = createTeamHostService({
+      ...h.deps,
+      merges: {
+        ...h.deps.merges,
+        discard: (task) => {
+          discarded = task.outcome
+          return Promise.resolve()
+        },
+      },
+    })
+    await restored.decideMerge('task-2', 'discard')
+    expect(discarded?.folder).toBe('/copies/x')
+    await restored.dispose()
+    await service.dispose()
+  })
+
+  it('R4-7: delayed or failed durable saves gate launch and workspace use', async () => {
+    const h = harness(team([entry('e1', WORKER_MODEL)]))
+    const saved = Promise.withResolvers<undefined>()
+    let isHeld = false
+    let hasFailed = false
+    const service = createTeamHostService({
+      ...h.deps,
+      state: {
+        ...h.deps.state,
+        update: async (key, value) => {
+          if (hasFailed) throw new Error('durable store unavailable')
+          if (isHeld) await saved.promise
+          await h.deps.state.update(key, value)
+        },
+      },
+    })
+    await service.probeEntries()
+    isHeld = true
+    const delegated = service.teamRunner.delegate(delegateOne, context())
+    await settle()
+    try {
+      expect(h.started).toHaveLength(0)
+    } finally {
+      isHeld = false
+      saved.resolve(undefined)
+    }
+    await delegated
+    hasFailed = true
+    await expect(
+      h.started[0]?.meter.noteWorkspace({ folder: '/copies/new', baseCommit: 'x' }),
+    ).rejects.toThrow('durable store unavailable')
+    const next = await service.teamRunner.delegate(delegateOne, context())
+    expect(next.output).toContain('durable store unavailable')
+    expect(h.started).toHaveLength(1)
+    await service.dispose()
+  })
+
+  it('R4-8: closing the live parent cancels its open merge card', async () => {
+    const h = harness(team([entry('e1', WORKER_MODEL)]))
+    const service = await finishedTask(h)
+    h.controls.mode = 'promptUnmatched'
+    await service.decideMerge('task-1', 'merge')
+    h.controls.mode = undefined
+    await expect(service.decideMerge('task-1', 'merge')).rejects.toThrow()
+    expect(h.merged).toEqual([])
+    await service.dispose()
+  })
+
+  it('R4-9: parallel merges own only one decision waiter', async () => {
+    const h = harness(team([entry('e1', WORKER_MODEL)]))
+    const service = await finishedTask(h)
+    const first = service.teamRunner.merge({ task_id: 'task-1' }, context())
+    const second = service.teamRunner.merge({ task_id: 'task-1' }, context())
+    await settle()
+    expect(
+      h.cards.filter(({ item }) => item.kind === 'teamMerge' && item.status === 'inProgress'),
+    ).toHaveLength(1)
+    await service.decideMerge('task-1', 'merge')
+    const secondResult = await second
+    expect(secondResult.output).toContain('Error:')
+    const firstResult = await first
+    expect(firstResult.output).toContain('merged')
+    await service.dispose()
+  })
+
+  it('R4-10: cancellation while reviewer consent waits starts no paid review', async () => {
+    const h = harness(reviewedTeam([keyEntry('r1', 'reviewer-model')]))
+    const service = await finishedTask(h)
+    const abort = new AbortController()
+    h.controls.isPaidHeld = true
+    const merging = service.teamRunner.merge(
+      { task_id: 'task-1' },
+      context({ signal: abort.signal }),
+    )
+    await settle()
+    abort.abort()
+    h.releasePaid(true)
+    await merging
+    expect(h.started).toHaveLength(1)
+    await service.dispose()
+  })
+
+  it('R4-11: structured findings keep severity, location and detail through the card', async () => {
+    const h = harness(reviewedTeam())
+    const service = await finishedTask(h)
+    await service.teamRunner.merge({ task_id: 'task-1' }, context())
+    h.finish(1, {
+      report: {
+        status: 'done',
+        summary: 'review complete',
+        findings: [
+          { file: 'a.ts', line: 2, severity: 'P1', title: 'unsafe', detail: 'race detail' },
+        ],
+      },
+      folder: undefined,
+    })
+    await settle()
+    const merging = service.teamRunner.merge({ task_id: 'task-1' }, context())
+    await settle()
+    const card = h.cards.at(-1)?.item
+    expect(card?.kind === 'teamMerge' ? card.teamMerge.reviewerFindings?.join('\n') : '').toContain(
+      'a.ts:2',
+    )
+    expect(card?.kind === 'teamMerge' ? card.teamMerge.reviewerFindings?.join('\n') : '').toContain(
+      'race detail',
+    )
+    await service.decideMerge('task-1', 'discard')
+    await merging
+    await service.dispose()
+  })
+
+  it.each(['blocked', 'partial', 'capped'] as const)(
+    'R4-12: a %s review cannot certify the head',
+    async (status) => {
+      const h = harness(reviewedTeam())
+      const service = await finishedTask(h)
+      await service.teamRunner.merge({ task_id: 'task-1' }, context())
+      h.finish(1, {
+        report: { status, summary: 'unfinished', questions: ['need input'] },
+        folder: undefined,
+      })
+      await settle()
+      const retry = service.teamRunner.merge({ task_id: 'task-1' }, context())
+      await settle()
+      expect(h.started).toHaveLength(3)
+      expect(h.cards.filter(({ item }) => item.kind === 'teamMerge')).toHaveLength(0)
+      await service.dispose()
+      await retry
+    },
+  )
+
+  it('R4-13: reviewer selection excludes every writer in continuation provenance', async () => {
+    const stored = reviewedTeam([entry('r1', WORKER_MODEL), entry('r2', 'independent-model')])
+    stored.roles[0]?.pool.push(entry('e2', 'second-writer'))
+    const h = harness(stored)
+    const service = await finishedTask(h)
+    await service.teamRunner.delegate(
+      { tasks: [{ ...delegateOne.tasks[0], entry: 'e2', continue: 'task-1' }] },
+      context(),
+    )
+    h.finish(1, { head: 'c'.repeat(40) })
+    await settle()
+    await service.teamRunner.merge({ task_id: 'task-2' }, context())
+    expect(h.started[2]?.entry.id).toBe('r2')
+    await service.dispose()
+  })
+
+  it('R4-14: reset boundaries survive reload without erasing uncertain requests', async () => {
+    const h = harness(
+      team([
+        {
+          ...entry('e1', WORKER_MODEL),
+          caps: [{ measure: 'tokens', window: 'lifetime', amount: 10 }],
+        },
+      ]),
+    )
+    const service = await finishedTask(h)
+    await service.resetEntry('e1')
+    const restored = createTeamHostService(h.deps)
+    await restored.probeEntries()
+    expect(restored.tree()?.roles[0]?.entries[0]?.state).toBe('ready')
+    await restored.dispose()
+    await service.dispose()
+  })
+
+  it('R4-15: Raise carries its one-task ceiling exception through request admission', async () => {
+    const h = harness(
+      team([
+        {
+          ...entry('e1', WORKER_MODEL),
+          caps: [{ measure: 'tokens', window: 'lifetime', amount: 10 }],
+        },
+      ]),
+    )
+    const service = await finishedTask(h)
+    const delegated = service.teamRunner.delegate(delegateOne, context())
+    await settle()
+    const card = h.cards.at(-1)?.item
+    expect(card?.kind).toBe('teamWaiting')
+    if (card?.kind === 'teamWaiting')
+      await service.answerWaiting(card.teamWaiting.waitingId, 'raise')
+    await delegated
+    expect(() => h.started[1]?.meter.admitRequest()).not.toThrow()
+    await h.started[1]?.meter.reserveRequest(usage(100))
+    await service.dispose()
+  })
+
+  it('R4-16: a rejecting card discard reports failure and retains cleanup ownership', async () => {
+    const h = harness(team([entry('e1', WORKER_MODEL)]))
+    const service = createTeamHostService({
+      ...h.deps,
+      merges: { ...h.deps.merges, discard: () => Promise.reject(new Error('discard failed')) },
+    })
+    await service.probeEntries()
+    await service.teamRunner.delegate(delegateOne, context())
+    h.finish(0)
+    await settle()
+    await service.decideMerge('task-1', 'merge')
+    await expect(service.decideMerge('task-1', 'discard')).rejects.toThrow('discard failed')
+    expect(service.tree()?.roles[0]?.unmerged).toHaveLength(1)
+    await service.dispose()
+  })
+
+  it('R4-17: Stop racing the final outcome retains a discardable copy', async () => {
+    const h = harness(team([entry('e1', WORKER_MODEL)]))
+    const service = createTeamHostService(h.deps)
+    await service.probeEntries()
+    await service.teamRunner.delegate(delegateOne, context())
+    h.finish(0)
+    await service.stopTask('task-1')
+    await settle()
+    expect(service.tree()?.roles[0]?.interrupted).toHaveLength(1)
+    await service.stopTask('task-1')
+    expect(h.discarded).toEqual(['task-1'])
+    await service.dispose()
+  })
+
+  it('R4-20: rejected consent releases both delegation and review leases', async () => {
+    const h = harness(reviewedTeam([keyEntry('r1', 'reviewer-model')]), { maxWorkers: 1 })
+    let shouldReject = false
+    const service = createTeamHostService({
+      ...h.deps,
+      paid: {
+        allowKeyTasks: (...args) =>
+          shouldReject
+            ? Promise.reject(new Error('lazy import failed'))
+            : h.deps.paid.allowKeyTasks(...args),
+      },
+    })
+    await service.probeEntries()
+    await service.teamRunner.delegate(delegateOne, context())
+    h.finish(0)
+    await settle()
+    shouldReject = true
+    const refusedMerge = await service.teamRunner.merge({ task_id: 'task-1' }, context())
+    expect(refusedMerge.output).toContain('lazy import failed')
+    expect(service.tree()?.roles[1]?.entries[0]?.running).toBe(0)
+    h.values.set(TEAM_WORKSPACE_KEYS.team, team([keyEntry('e1', WORKER_MODEL)]))
+    service.reload()
+    await service.probeEntries()
+    const refusedDelegate = await service.teamRunner.delegate(delegateOne, context())
+    expect(refusedDelegate.output).toContain('lazy import failed')
+    expect(service.tree()?.roles[0]?.entries[0]?.running).toBe(0)
+    shouldReject = false
+    await service.teamRunner.delegate(delegateOne, context())
+    expect(h.started).toHaveLength(2)
+    await service.dispose()
+  })
+
+  it('R4-21: completed review verdict and findings survive reload', async () => {
+    const h = harness(reviewedTeam())
+    const service = await finishedTask(h)
+    await service.teamRunner.merge({ task_id: 'task-1' }, context())
+    h.finish(1, { report: { status: 'done', summary: 'review complete' }, folder: undefined })
+    await settle()
+    const restored = createTeamHostService(h.deps)
+    const merging = restored.teamRunner.merge({ task_id: 'task-1' }, context())
+    await settle()
+    expect(h.cards.at(-1)?.item).toMatchObject({ teamMerge: { reviewVerdict: 'done' } })
+    await restored.decideMerge('task-1', 'discard')
+    await merging
+    await restored.dispose()
+    await service.dispose()
+  })
+})
+
+it('R4-2: late per-request settlement preserves known tokens and other uncertain requests', async () => {
+  const h = harness(
+    team([
+      keyEntry('e1', WORKER_MODEL, 1, [{ measure: 'spendUsd', window: 'lifetime', amount: 2 }]),
+    ]),
+  )
+  const service = createTeamHostService(h.deps)
+  await service.probeEntries()
+  await service.teamRunner.delegate(delegateOne, context())
+  const meter = h.started[0]?.meter
+  expect(meter).toBeDefined()
+  if (meter === undefined) throw new Error('worker missing')
+  const first = await meter.reserveRequest({ ...usage(80), costUsd: 0.75 })
+  await meter.settleRequest(first, usage(80))
+  const second = await meter.reserveRequest({ ...usage(10), costUsd: 0.5 })
+  await meter.settleRequest(first, { ...usage(80), costUsd: 0.3 })
+  expect(service.tree()?.roles[0]?.entries[0]?.caps[0]).toMatchObject({
+    used: 0.8,
+    estimated: true,
+  })
+  await meter.settleRequest(second, { ...usage(5), costUsd: 0.1 })
+  expect(service.tree()?.roles[0]?.entries[0]?.caps[0]?.used).toBeCloseTo(0.4)
+  const collected = await service.teamRunner.collect({}, context())
+  expect(JSON.parse(collected.output)).toMatchObject({ tasks: [{ usage: { input: 85 } }] })
+  await service.dispose()
+})
+
+it("R4-4: resetting a queued entry cannot borrow another role's global slot", async () => {
+  const h = harness(
+    {
+      roles: [
+        {
+          role: 'engineering',
+          workspace: 'own-branch',
+          exhausted: 'queue',
+          pool: [
+            {
+              ...entry('e1', WORKER_MODEL, 1),
+              caps: [{ measure: 'tasks', window: 'lifetime', amount: 1 }],
+            },
+          ],
+        },
+        { role: 'research', pool: [entry('a1', 'analyst-model', 1)] },
+      ],
+      intensity: 'balanced',
+    },
+    { maxWorkers: 1 },
+  )
+  const service = await finishedTask(h)
+  await service.teamRunner.delegate(
+    { tasks: [{ ...delegateOne.tasks[0], role: 'research' }] },
+    context(),
+  )
+  await service.teamRunner.delegate(delegateOne, context())
+  await service.resetEntry('e1')
+  expect(h.started).toHaveLength(2)
+  await service.dispose()
 })

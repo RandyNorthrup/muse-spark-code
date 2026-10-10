@@ -198,3 +198,21 @@ describe('searchOnWorker', () => {
     }
   })
 })
+
+it('R4-1: matches a verified worker snapshot without reopening its path', async () => {
+  const outcome = await searchOnWorker(
+    paths.worker,
+    {
+      ...job('^alpha', []),
+      files: [
+        {
+          relative: 'held.txt',
+          absolute: path.join(paths.root, 'missing.txt'),
+          content: 'alpha held\n',
+        },
+      ],
+    },
+    10_000,
+  )
+  expect(outcome).toEqual({ ok: true, hits: [{ file: 'held.txt', line: 1, text: 'alpha held' }] })
+})

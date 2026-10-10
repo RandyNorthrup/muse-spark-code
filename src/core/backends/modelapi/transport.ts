@@ -384,6 +384,12 @@ export interface ResponseAttemptGuard {
   readonly prepareRetry?: (keyDigest: string, signal: AbortSignal) => Promise<void>
   /** Durable admission before the synchronous credential/gate fence. */
   readonly prepare?: () => Promise<void>
+  /** A worker's durable per-attempt token/spend ceiling, computed from its request. */
+  readonly reserveUsage?: (maximum: {
+    readonly inputTokens: number
+    readonly outputTokens: number
+    readonly costUsd?: UsdAmount | undefined
+  }) => Promise<void>
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly paidFeature?: PaidFeature
   readonly paidEstimatedInputTokens?: number

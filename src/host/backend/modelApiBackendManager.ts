@@ -548,6 +548,10 @@ export class ModelApiBackendManager {
           },
           {
             paidFeature: kind.paidFeature,
+            ...(admitRequest.prepare !== undefined && { prepare: admitRequest.prepare }),
+            ...(admitRequest.reserveUsage !== undefined && {
+              reserveUsage: admitRequest.reserveUsage,
+            }),
             onRequestStarted: () => {
               admitRequest.onRequestStarted?.()
             },

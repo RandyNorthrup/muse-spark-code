@@ -699,11 +699,9 @@
     },
     {
       "id": "M96",
-      "note": "C-M96-3 round 4 redesign in progress; team host remains hidden pending certification.",
       "title": "Agent roles and teams",
-      "summary": "Agent roles with charters, tools, model pools and task limits, and teams of workers in isolated workspaces whose work is reviewed before it merges.",
-      "area": "agents",
-      "release": "0.15.0"
+      "summary": "Planned agent roles with charters, tools, model pools and task limits, and teams in isolated workspaces. Team execution remains hidden pending the remaining bindings and certification.",
+      "area": "agents"
     },
     {
       "id": "M96b",

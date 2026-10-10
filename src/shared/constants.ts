@@ -7091,6 +7091,8 @@ export const WORKER_FILE_PATH_TIMEOUT_MS = 5000
 export const WORKER_MODEL_TEXT = {
   // M96 worker scaffolding stays out of shipped bundles until lane X wires it.
   boundedExcerpt: 'bounded excerpt; may be truncated',
+  fileOperationUnavailable:
+    'this worker file operation requires a handle-relative native port; nothing was created or replaced',
 } as const
 // M117 / D97: deterministic capacity estimation; no model or paid request.
 // M117 W: the local fleet reads RAM to one decimal with this floor (a smaller

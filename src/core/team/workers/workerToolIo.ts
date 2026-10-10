@@ -9,13 +9,17 @@
 // `write-paths`). Each call first asks the task's live admission (trust, the
 // paid switch, the caps, a stop), so a worker stops at its next file call too.
 
+import { TOOL_FILE_MAX_BYTES, WORKER_MODEL_TEXT } from '../../../shared/constants'
+import { fingerprint } from '../../verify/fingerprint'
 import type { ToolIo } from '../../backends/modelapi/tools'
 import { pathModule } from '../../workspaceRoot'
 import {
   confineWorkerPath,
   isCheckedWorkerWriteAllowed,
   MuseWorkerFolderError,
+  withWorkerFile,
   type WorkerPathInput,
+  type WorkerFileHandle,
 } from './workerFence'
 import type { WorkerRolePolicy } from './workerTypes'
 
@@ -61,59 +65,123 @@ async function confineTarget(input: WorkerPathInput, given: string): Promise<Con
 }
 
 /** The worker host's tool I/O with every path admitted against the grant and the role. */
+function unavailable(): never {
+  throw new Error(WORKER_MODEL_TEXT.fileOperationUnavailable)
+}
+
 export function fenceWorkerToolIo(base: ToolIo, fence: WorkerToolFence): ToolIo {
-  const read = async (given: string): Promise<void> => {
+  const readBytes = async (
+    given: string,
+    maxBytes: number,
+    signal?: AbortSignal,
+  ): Promise<Uint8Array | undefined> => {
     fence.admit()
-    await confineTarget(fence.input, given)
+    signal?.throwIfAborted()
+    try {
+      return await withWorkerFile(fence.input, given, false, async (handle) => {
+        fence.admit()
+        signal?.throwIfAborted()
+        if (handle.readBytes === undefined) return unavailable()
+        const bytes = await handle.readBytes(maxBytes)
+        signal?.throwIfAborted()
+        return bytes
+      })
+    } catch (error: unknown) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return undefined
+      throw error
+    }
   }
-  const write = async (given: string): Promise<void> => {
+  const readText = async (given: string, signal?: AbortSignal): Promise<string | undefined> => {
+    const bytes = await readBytes(given, TOOL_FILE_MAX_BYTES, signal)
+    return bytes === undefined
+      ? undefined
+      : new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)
+  }
+  const write = async <T>(
+    given: string,
+    work: (handle: WorkerFileHandle) => Promise<T>,
+  ): Promise<T> => {
     fence.admit()
-    const target = await confineTarget(fence.input, given)
-    if (!isCheckedWorkerWriteAllowed(fence.role, target)) throw new MuseWorkerFolderError()
+    // Opening r+ never creates or truncates; only this verified handle writes.
+    return await withWorkerFile(fence.input, given, true, async (handle, target) => {
+      fence.admit()
+      if (!isCheckedWorkerWriteAllowed(fence.role, target)) throw new MuseWorkerFolderError()
+      return await work(handle)
+    })
   }
   return {
-    ...(base.readMedia !== undefined && {
-      readMedia: async (absolute, maxBytes, expected, signal, observe) => {
-        await read(absolute)
-        return await base.readMedia?.(absolute, maxBytes, expected, signal, observe)
-      },
-    }),
-    readFile: async (absolute, expected, signal, observe) => {
-      await read(absolute)
-      return await base.readFile(absolute, expected, signal, observe)
+    readFile: (absolute, _expected, signal) => readText(absolute, signal),
+    readBytes: (absolute, maxBytes, _expected, signal) => readBytes(absolute, maxBytes, signal),
+    writeFile: async (absolute, content, _expected, assertCanWrite) => {
+      await write(absolute, async (handle) => {
+        assertCanWrite?.()
+        await handle.write(content)
+      })
     },
-    readBytes: async (absolute, maxBytes, expected, signal, observe) => {
-      await read(absolute)
-      return await base.readBytes(absolute, maxBytes, expected, signal, observe)
-    },
-    writeFile: async (absolute, content, expected, assertCanWrite) => {
-      await write(absolute)
-      await base.writeFile(absolute, content, expected, assertCanWrite)
-    },
-    writeFileIfUnchanged: async (absolute, fingerprint, content, options) => {
-      await write(absolute)
-      return await base.writeFileIfUnchanged(absolute, fingerprint, content, options)
-    },
+    writeFileIfUnchanged: async (absolute, expected, content, options) =>
+      await write(absolute, async (handle) => {
+        if (typeof expected !== 'string' || options.staged !== undefined) return unavailable()
+        if (handle.readBytes === undefined) return unavailable()
+        const current = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+          await handle.readBytes(TOOL_FILE_MAX_BYTES),
+        )
+        if (
+          fingerprint(current) !== expected ||
+          options.unsavedAt.some((given) => base.hasUnsavedChanges(given))
+        )
+          return 'changed'
+        fence.admit()
+        options.assertCanWrite?.()
+        await handle.write(content)
+        return 'written'
+      }),
     pathExists: async (absolute) => {
-      await read(absolute)
-      return await base.pathExists(absolute)
+      fence.admit()
+      await confineTarget(fence.input, fence.input.folder)
+      // Metadata has no unverified base callback; the retained grant checks it.
+      const target = await confineWorkerPath(fence.input, absolute)
+      return target.ok
     },
-    reserveFile: async (absolute, expected, beforeCreate) => {
-      await write(absolute)
-      return await base.reserveFile(absolute, expected, beforeCreate)
-    },
+    // Node's portable API has no handle-relative creation or removal. These
+    // operations fail closed until a native port can bind their parent handle.
+    reserveFile: () => unavailable(),
     hasUnsavedChanges: (absolute) => base.hasUnsavedChanges(absolute),
     unsavedFiles: () => base.unsavedFiles(),
     listFiles: async (signal) => {
-      await read(fence.input.folder)
-      return await base.listFiles(signal)
+      fence.admit()
+      await confineTarget(fence.input, fence.input.folder)
+      const listed = await base.listFiles(signal)
+      await confineTarget(fence.input, fence.input.folder)
+      const kept: string[] = []
+      for (const relative of listed) {
+        signal?.throwIfAborted()
+        try {
+          await withWorkerFile(fence.input, relative, false, () => {
+            kept.push(relative)
+            return Promise.resolve()
+          })
+        } catch {
+          /* A name cannot escape the grant, even if enumeration raced. */
+        }
+      }
+      fence.admit()
+      return kept
     },
     searchFiles: async (job, signal) => {
-      await read(job.root)
-      return await base.searchFiles(job, signal)
+      fence.admit()
+      const files = []
+      for (const file of job.files) {
+        const bytes = await readBytes(file.absolute, job.maxFileBytes, signal)
+        if (bytes !== undefined)
+          files.push({
+            ...file,
+            content: new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes),
+          })
+      }
+      // The matcher receives verified snapshots, never paths to reopen.
+      return await base.searchFiles({ ...job, files }, signal)
     },
-    runShell: (command, cwd, timeoutMs, signal, limit, assertCanRun, isInteractive, kind) =>
-      base.runShell(command, cwd, timeoutMs, signal, limit, assertCanRun, isInteractive, kind),
+    runShell: (...args) => base.runShell(...args),
     realPath: async (absolute) => {
       fence.admit()
       const target = await confineTarget(fence.input, absolute)

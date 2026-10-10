@@ -4816,6 +4816,20 @@ export class ModelApiSession implements ScheduledAgentSession {
         estimateInput(this.media?.budgetParts(body) ?? requestParts(body), undefined).inputTokens
     }
     return Object.assign(guard, {
+      prepare: async () => {
+        await this.deps.admitResponseAttempt?.prepare?.()
+        const reserve = this.deps.admitResponseAttempt?.reserveUsage
+        if (reserve === undefined) return
+        // M82's same upper bound: one token per serialized UTF-8 byte;
+        // media uses its calibrated bound. No cache discount is assumed.
+        const inputTokens = estimateInput(
+          this.media?.budgetParts(body) ?? requestParts(body),
+          undefined,
+        ).inputTokens
+        const outputTokens = body.max_output_tokens
+        const costUsd = resolved.price.reserve({ inputTokens, outputTokens })
+        await reserve({ inputTokens, outputTokens, costUsd })
+      },
       observe: (observation: ResponseObservation) => {
         if (directBudget !== undefined || this.recordedCall === undefined) {
           return
