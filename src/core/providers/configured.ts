@@ -186,7 +186,11 @@ export function createConfiguredProviderServices(
     const preset = presetFor(entry)
     const base = new URL(entry.address ?? fail())
     if (
-      (!preset.wireCapture && entry.preset !== 'custom' && entry.auth !== 'none') ||
+      // No capture, no calls (rule 13): `custom` is the user's own server,
+      // but an uncaptured preset stays refused even when keyless
+      // (C-M95-4 R2: the old `auth !== 'none'` escape let a picked vLLM or
+      // Ollama entry send chat with no capture behind it).
+      (!preset.wireCapture && entry.preset !== 'custom') ||
       (preset.origin.kind === 'fixed' && base.origin !== preset.origin.origin)
     )
       return fail()
@@ -463,9 +467,9 @@ export function createConfiguredProviderServices(
     let reasoningParam: chat.ChatPresetQuirks['reasoningParam'] = 'none'
     if (record.reasoning.effortLevels.state === 'yes')
       reasoningParam = preset.id === 'openrouter' ? 'effort-object' : 'effort-flat'
-    let replayField: chat.ChatPresetQuirks['replayField'] = 'none'
-    if (preset.quirks.reasoningField === 'reasoning_details') replayField = 'details'
-    else if (preset.quirks.reasoningField === 'reasoning_content') replayField = 'content'
+    // C-M95-4 R2: local presets never replay thinking (fail closed on
+    // unversioned servers); see `replayFieldFor`.
+    const replayField = presets.replayFieldFor(preset)
     const quirks: chat.ChatPresetQuirks = {
       presetId: preset.id.replace('-plan', ''),
       providerId: entry.id,
@@ -784,6 +788,23 @@ export function createConfiguredProviderServices(
           .string()
           .check(z.minLength(1))
           .parse(native['id'] ?? native['name'])
+        // C-M95-4 R2: the quirks above were captured against
+        // `capturedBuild`, whose list carries the live window as
+        // `meta.n_ctx`. A list without it is an unknown build: offering
+        // its models with an unknown window would let manual compact
+        // assume Meta's window, so the scan fails closed instead.
+        if (preset.id === 'llamacpp') {
+          const meta = native['meta']
+          const live =
+            typeof meta === 'object' && meta !== null && 'n_ctx' in meta
+              ? Reflect.get(meta, 'n_ctx')
+              : undefined
+          if (typeof live !== 'number' || !(live > 0)) {
+            throw new Error(
+              `llamacpp list without meta.n_ctx (quirks captured against ${preset.capturedBuild ?? 'an unknown build'})`,
+            )
+          }
+        }
         const source = { kind: 'models-list' as const, ref: entry.address ?? fail() }
         const known = catalogue.providers[preset.id.replace('-plan', '')]?.models[id]
         const record = capabilities.resolveModelCapabilities(

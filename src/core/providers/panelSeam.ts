@@ -6,7 +6,7 @@ import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import type { ModelsPanelSeam, ProviderEntry, PresetInfo } from '../../host/providers/providerPorts'
 import { emptyProvidersFile, readProvidersFile, writeProvidersFileAtomic } from './providersFile'
-import { listedPresets, PRESETS, PLAN_KEY_PRESETS, isKeyShape } from './presets'
+import { listedPresets, PLAN_KEY_PRESETS, isKeyShape } from './presets'
 import { checkEndpointUrl } from './endpointPolicy'
 import { createPkcePair } from './pkce'
 import { UI_TEXT } from '../../shared/constants'
@@ -98,11 +98,11 @@ export function createModelsPanelSeam(options: {
       }),
   }
   const catalog = new Map<string, PresetInfo>()
-  for (const preset of [
-    ...listedPresets(),
-    ...PRESETS.filter((row) => row.category === 'local'),
-    ...PLAN_KEY_PRESETS,
-  ]) {
+  // Captured wires only (rule 13): an uncaptured preset stays out of the
+  // panel even when it is local (C-M95-4 R2: the old union with every
+  // `category === 'local'` preset kept vLLM and Ollama listed, probed and
+  // callable with no capture behind them).
+  for (const preset of [...listedPresets(), ...PLAN_KEY_PRESETS]) {
     const origin = preset.origin.kind === 'fixed' ? preset.origin.origin : ''
     let kind: PresetInfo['kind'] = preset.category === 'custom' ? 'cloud' : preset.category
     if (PLAN_KEY_PRESETS.some((plan) => plan.id === preset.id)) kind = 'subscription'
