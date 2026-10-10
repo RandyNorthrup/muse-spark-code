@@ -7578,6 +7578,10 @@ export const LEGAL_FINDINGS_MAX = 500
 export const LEGAL_FILE_MAX_BYTES = 1_000_000
 export const LEGAL_TOTAL_MAX_BYTES = 10_000_000
 export const LEGAL_DIRECTORY_ENTRIES_MAX = 20_000
+// Hash-only reads (M97 CM971-R3: build evidence for every bundle input and
+// output, text or binary) keep no bytes, so they get their own bounds.
+export const LEGAL_HASH_FILE_MAX_BYTES = 64_000_000
+export const LEGAL_HASH_TOTAL_MAX_BYTES = 512_000_000
 export const LEGAL_FINDINGS_PER_RULE_MAX = 100
 // The only raw file content a finding may carry: a short excerpt around the
 // evidence (a header block, a license line), never a whole file, so a report
@@ -7628,6 +7632,9 @@ export const LEGAL_TEMPLATE_CAPITALS_RUN_MAX = 3
 // Characters of slack when comparing variable text with the template's
 // original value, before tokenizing it: past this it cannot be equal.
 export const LEGAL_TEMPLATE_ORIGINAL_SLACK_CHARS = 16
+// Leading lines searched for a title-only line (a license's name, which
+// the SPDX guidelines ignore), before or after the copyright line.
+export const LEGAL_TEMPLATE_TITLE_LINES_MAX = 3
 
 // --- The headless `legal` command (M97 lane R, PLAN.md D76) ---
 //

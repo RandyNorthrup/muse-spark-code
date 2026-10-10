@@ -67,9 +67,10 @@ import {
 import { lazyBrowserKeybindings } from './lib/browserKeybindings.mjs'
 import { compressedModelText } from './lib/compressedModelText.mjs'
 import {
-  compiledInputHashes,
-  compiledSourceRecorder,
+  compiledRecordFor,
+  newBuildRecord,
   readCompiledSource,
+  withCompiledRecording,
 } from './lib/compiledSources.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
@@ -1119,17 +1120,18 @@ const webviewOptions = {
 
 // M97 CM971-R3: SHA-256 hashes beside each bundle metafile (record
 // version 2), so the legal scanner proves artifact freshness from bytes,
-// never from file names. Input hashes come from the build itself: the
-// recorder hashed the exact bytes esbuild compiled (raw bytes, byte-order
-// mark included, as the scanner's native reader hashes them); inputs the
-// recorder never saw or saw change stay unrecorded and read as stale.
-// Output hashes cover the files esbuild just wrote, and an output whose
-// size disagrees with the metafile stays unrecorded. A separate folder
-// keeps third-party-notices (which reads every file in dist/meta/)
-// untouched, and the folder is not packaged, like dist/meta/ itself.
+// never from file names. Every hash comes from the build itself: the
+// exact source bytes esbuild or a plugin compiled (raw bytes, text or
+// binary, as the scanner hashes them), and under `generated` the contents
+// a plugin handed esbuild for a generated module or a transformed file.
+// Anything the build could not attribute stays unrecorded and is named by
+// the scanner. Output hashes cover the files esbuild just wrote, and an
+// output whose size disagrees with the metafile stays unrecorded. A
+// separate folder keeps third-party-notices (which reads every file in
+// dist/meta/) untouched; like dist/meta/, it is not packaged.
 const META_HASHES_DIR = 'dist/meta-hashes'
-function writeMetafileHashes(name, metafile) {
-  const inputs = compiledInputHashes(Object.keys(metafile.inputs ?? {}))
+function writeMetafileHashes(name, metafile, buildRecord) {
+  const { inputs, generated } = compiledRecordFor(Object.keys(metafile.inputs ?? {}), buildRecord)
   const outputs = {}
   const listedOutputs = Object.entries(metafile.outputs ?? {})
   for (const [output, meta] of listedOutputs) {
@@ -1144,11 +1146,11 @@ function writeMetafileHashes(name, metafile) {
   }
   writeFileSync(
     path.join(META_HASHES_DIR, `${name}.json`),
-    JSON.stringify({ version: 2, inputs, outputs }),
+    JSON.stringify({ version: 2, inputs, outputs, generated }),
   )
 }
 
-function writeWebviewMetafiles(metafile) {
+function writeWebviewMetafiles(metafile, buildRecord) {
   const pages = {
     webview: 'dist/webview/main.js',
     modelsWebview: 'dist/webview/models.js',
@@ -1174,7 +1176,7 @@ function writeWebviewMetafiles(metafile) {
         : [],
     )
     writeFileSync(path.join(METAFILE_DIR, `${page}.json`), JSON.stringify(pageMetafile))
-    writeMetafileHashes(page, pageMetafile)
+    writeMetafileHashes(page, pageMetafile, buildRecord)
   }
 }
 
@@ -1210,8 +1212,9 @@ console.log(
 if (process.argv.includes('--webview-only')) {
   if (!isProduction || isWatch) throw new Error('--webview-only requires --production')
   mkdirSync(METAFILE_DIR, { recursive: true })
-  const { metafile } = await esbuild.build(webviewOptions)
-  writeWebviewMetafiles(metafile)
+  const buildRecord = newBuildRecord()
+  const { metafile } = await esbuild.build(withCompiledRecording(webviewOptions, buildRecord))
+  writeWebviewMetafiles(metafile, buildRecord)
   process.exit(0)
 }
 
@@ -1327,12 +1330,15 @@ if (isWatch) {
   console.log('watching for changes…')
 } else {
   // M97 CM971-R3: production bundles record the exact bytes they compile.
-  const shippedBuild = (options) =>
-    esbuild.build(
-      isProduction
-        ? { ...options, plugins: [...(options.plugins ?? []), compiledSourceRecorder] }
-        : options,
+  const buildRecords = new Map()
+  const shippedBuild = (options) => {
+    const buildRecord = newBuildRecord()
+    const pending = esbuild.build(
+      isProduction ? withCompiledRecording(options, buildRecord) : options,
     )
+    buildRecords.set(pending, buildRecord)
+    return pending
+  }
   const shipped = {
     questionNotes: shippedBuild({
       ...modelApiOptions,
@@ -1472,11 +1478,12 @@ if (isWatch) {
     mkdirSync(META_HASHES_DIR, { recursive: true })
     for (const [name, build] of Object.entries(shipped)) {
       const { metafile } = await build
+      const buildRecord = buildRecords.get(build)
       if (name === 'webview') {
-        writeWebviewMetafiles(metafile)
+        writeWebviewMetafiles(metafile, buildRecord)
       } else {
         writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
-        writeMetafileHashes(name, metafile)
+        writeMetafileHashes(name, metafile, buildRecord)
       }
     }
     mkdirSync(ACP_METAFILE_DIR, { recursive: true })

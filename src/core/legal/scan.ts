@@ -40,6 +40,7 @@ import {
 } from './dependencies'
 import * as z from 'zod/mini'
 import {
+  bundleFreshnessProblems,
   checkNotices,
   computeShipped,
   materialInSnapshot,
@@ -227,6 +228,7 @@ const hashRecordSchema = z.object({
   version: z.literal(LEGAL_META_HASHES_VERSION),
   inputs: z.record(z.string(), z.string().check(z.regex(/^[0-9a-f]{64}$/u))),
   outputs: z.record(z.string(), z.string().check(z.regex(/^[0-9a-f]{64}$/u))),
+  generated: z.optional(z.record(z.string(), z.string().check(z.regex(/^[0-9a-f]{64}$/u)))),
 })
 
 function readJson(snapshot: LegalFileSnapshot, file: string): unknown {
@@ -291,7 +293,12 @@ function deriveBundleEvidence(snapshot: LegalFileSnapshot): {
       inputs: bundleInputs,
       outputs: workspaceEntries(metaOutputs),
       outside: listed.filter((entry) => evidencePathKind(entry) === 'outside'),
-      ...(hashes !== undefined && { inputHashes: hashes.inputs, outputHashes: hashes.outputs }),
+      generated: metaInputs.filter((entry) => evidencePathKind(entry) === 'generated'),
+      ...(hashes !== undefined && {
+        inputHashes: hashes.inputs,
+        outputHashes: hashes.outputs,
+        generatedHashes: hashes.generated ?? {},
+      }),
     })
   }
   return { bundleInputs: [...inputs].toSorted((a, b) => compareLegalText(a, b)), bundles }
@@ -323,6 +330,16 @@ function namedLicenseFiles(snapshot: LegalFileSnapshot, dep: LegalDependency): s
   return named
     .map((file) => normalizeEvidencePath(file))
     .filter((file) => present.has(file) && !file.split('/').includes('..'))
+}
+
+/**
+ * Every build-evidence problem of a workspace's bundle records, unbounded
+ * (M97 CM971-R3): what the release build checks of its own records, so no
+ * reason can hide past the report's incomplete-check bound.
+ */
+export function buildRecordProblems(snapshot: LegalFileSnapshot): readonly string[] {
+  const { bundles } = deriveBundleEvidence(snapshot)
+  return bundleFreshnessProblems(snapshot, new Set(snapshot.files), bundles)
 }
 
 function deriveDistribution(snapshot: LegalFileSnapshot): DistributionEvidence {
@@ -421,11 +438,14 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
     // Admitted-bytes digests travel with the bounded view (M97 CM971-R3),
     // so freshness compares the same bytes, byte-order mark included,
     // that the build hashed.
+    // Hash reads (text or binary) are admitted by the snapshot itself.
     ...(snapshot.readFileHash !== undefined && {
-      readFileHash: (path: string) =>
-        allowed.has(path) && cache.get(path) !== undefined
+      readFileHash: (path: string) => {
+        if (options.signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
+        return allowed.has(path) && Date.now() < deadline
           ? snapshot.readFileHash?.(path)
-          : undefined,
+          : undefined
+      },
     }),
   }
   const templates = licenseTemplateSet()

@@ -36942,6 +36942,11 @@ Record regression failures, byte-exact red drills and bounded checks in
 
 **Status 2026-10-07: waiting.** Certification metadata remains incomplete; retained requirements and receipts follow.
 
+- **Decision 2026-10-10 (owner).** The bundled SPDX License List 3.28.0
+  templates and equivalent-words list (CM971-R3) stay attributed under
+  CC-BY-3.0, Linux Foundation and its Contributors; the licence texts in
+  them keep their own terms (release issue I-R11).
+
 - **Goal.** Both backends offer an evidence-based legal/licensing and header
   hygiene report without modifying the project; the user can then authorize
   selected, supported fixes. The feature does not certify that everything is legal.
@@ -46223,10 +46228,24 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
   C-M97-1 (2026-10-10) narrows this, and CM971-R3 redesigns it: texts
   match the pinned SPDX templates under the SPDX matching guidelines, a
   variable accepts only what it stands for, and modified or unrecognized
-  texts keep the named full-matching reason with the differing span. A
-  capitalised phrase written as part of a copyright holder's name still
-  reads as a name (residual, `docs/certification/m97.md`); linkage analysis
-  and legal conclusions remain human-review items, not verdicts.
+  texts keep the named full-matching reason with the differing span.
+  Restriction vocabulary (noncommercial, nonprofit, educational, only,
+  personal, no, …) is never part of a holder's name in any case, so a
+  notice carrying it keeps human review. Linkage analysis and legal
+  conclusions remain human-review items, not verdicts.
+- I-R11 — **decided 2026-10-10, owner: SPDX template data licence.** The
+  SPDX License List 3.28.0 templates and equivalent-words list bundled in
+  `src/core/legal/legal-data/` (and `dist/legal-data/`) stay attributed
+  under CC-BY-3.0 (Linux Foundation and its Contributors), as
+  `NOTICE.md`, `THIRD_PARTY_NOTICES.txt` and `provenance.json` record;
+  the licence texts inside keep their own terms.
+- I-R12 — **this repository's own build records verify; owner: lead.**
+  `npm run build` ends with `scripts/check-legal-build-records.mjs`: the
+  production scanner over every bundle record and listed file must report
+  no build-evidence reason (87 bundles, 0 reasons on macmini, CM971-R3).
+  A scan of the whole source checkout still exits 2 for reasons outside
+  the build records (`.git`, `node_modules` links and the enumeration and
+  read budgets, development-only dependency texts); scope ruling pending.
 - I-R9 — **closed; owner: M97FIN.** Merge `242a47f2` incorporates all 20
   finished S/W findings from `aa181639`; combined targeted suites pass.
 - I-R10 — **local aggregate closed; owner: FIN4/lead.** Full

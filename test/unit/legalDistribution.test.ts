@@ -179,6 +179,30 @@ describe('computeShipped', () => {
     )
   })
 
+  it('attributes a generated module only by its recorded hash', () => {
+    const files = { 'src/ok.ts': 'x', [OUT]: OUT_TEXT }
+    const bundle = record(
+      'bundle',
+      { 'src/ok.ts': 'x' },
+      { [OUT]: OUT_TEXT },
+      {
+        generated: ['browser-ns:table'],
+      },
+    )
+    const missing = computeShipped(snapshotFrom(files), [], {
+      bundleInputs: ['src/ok.ts'],
+      bundles: [bundle],
+    })
+    expect(missing.incomplete).toContain(
+      fill(UI_TEXT.legalScanner.m206, { v0: 'bundle', v1: 'browser-ns:table' }),
+    )
+    const recorded = computeShipped(snapshotFrom(files), [], {
+      bundleInputs: ['src/ok.ts'],
+      bundles: [{ ...bundle, generatedHashes: { 'browser-ns:table': fingerprint('EN') } }],
+    })
+    expect(recorded.incomplete).toEqual([])
+  })
+
   it('matches Windows-separator evidence against snapshot paths', () => {
     const files = { 'src/ok.ts': 'x', [OUT]: OUT_TEXT }
     const shipped = computeShipped(snapshotFrom(files), [], {

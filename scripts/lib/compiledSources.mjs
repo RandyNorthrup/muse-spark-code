@@ -1,16 +1,25 @@
 // M97 CM971-R3: the SHA-256 of the exact bytes esbuild compiles, captured
-// inside the build itself (an onLoad hook that reads each source once and
-// hands those same bytes to esbuild), never by re-reading files after the
-// build. Plugins that transform a source read it through
-// `readCompiledSource`, so their input is recorded the same way. A file
-// read twice with different bytes in one build run is recorded as
-// conflicting and gets no hash, so the legal scanner reads it as stale.
+// inside the build itself, never by re-reading files after the build.
+// - The last plugin of every shipped build loads each file no earlier
+//   plugin claimed from the bytes it hashes (any loader, text or binary).
+// - Plugins that transform a source read it through `readCompiledSource`.
+// - Every plugin's onLoad is wrapped, so the contents a plugin hands
+//   esbuild are hashed where they are handed over: a generated module
+//   (`namespace:name`), or a file whose compiled contents a plugin
+//   generated (recorded beside the source bytes, which are pinned at that
+//   moment when the plugin never read them).
+// Records are kept per build. A file read twice with different bytes in
+// one build run is recorded as conflicting and gets no hash, so the legal
+// scanner reads it as stale.
+import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
-/** Workspace-relative path → SHA-256, or `null` once two reads disagree. */
+/** Workspace-relative path → SHA-256 of the source bytes read, or `null` once two reads disagree. */
 const recorded = new Map()
+
+const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex')
 
 function workspaceKey(file) {
   return path.relative(process.cwd(), path.resolve(file)).split(path.sep).join('/')
@@ -18,7 +27,7 @@ function workspaceKey(file) {
 
 function record(file, bytes) {
   const key = workspaceKey(file)
-  const digest = createHash('sha256').update(bytes).digest('hex')
+  const digest = sha256(bytes)
   const earlier = recorded.get(key)
   recorded.set(key, earlier === undefined || earlier === digest ? digest : null)
 }
@@ -46,10 +55,10 @@ const DEFAULT_LOADERS = {
 
 /**
  * The last plugin of every shipped build: loads each file no earlier
- * plugin claimed from the bytes it hashes. Files with no known loader
- * are left to esbuild (and stay unrecorded, so never proven fresh).
+ * plugin claimed from the bytes it hashes. Files with no loader at all
+ * are left to esbuild, which refuses them.
  */
-export const compiledSourceRecorder = {
+const compiledSourceRecorder = {
   name: 'compiled-source-recorder',
   setup(build) {
     const configured = build.initialOptions.loader ?? {}
@@ -64,13 +73,69 @@ export const compiledSourceRecorder = {
   },
 }
 
-/** Recorded hashes for a metafile's inputs; unrecorded or conflicting ones are left out. */
-export function compiledInputHashes(inputs) {
-  const hashes = {}
-  for (const input of inputs) {
-    const key = input.replaceAll('\\', '/')
-    const digest = recorded.get(key)
-    if (typeof digest === 'string') hashes[key] = digest
+/** A fresh per-build record: source and generated-contents hashes. */
+export function newBuildRecord() {
+  return { inputs: new Map(), generated: new Map() }
+}
+
+function capture(buildRecord, args, contents) {
+  const bytes = typeof contents === 'string' ? Buffer.from(contents, 'utf8') : contents
+  const digest = sha256(bytes)
+  if (args.namespace !== 'file') {
+    buildRecord.generated.set(`${args.namespace}:${args.path}`, digest)
+    return
   }
-  return hashes
+  const key = workspaceKey(args.path)
+  // A plugin that generated contents without reading the file: pin the
+  // source bytes now, so a later edit still reads as stale.
+  if (!recorded.has(key)) record(args.path, readFileSync(args.path))
+  const source = recorded.get(key) ?? null
+  buildRecord.inputs.set(key, source)
+  if (digest !== source) buildRecord.generated.set(key, digest)
+}
+
+/**
+ * The build options with every plugin's onLoad wrapped to record what it
+ * hands esbuild into `buildRecord`, and the recorder appended last.
+ */
+export function withCompiledRecording(options, buildRecord) {
+  const wrap = (plugin) => ({
+    name: plugin.name,
+    setup(build) {
+      const onLoad = (filter, callback) =>
+        build.onLoad(filter, async (args) => {
+          const result = await callback(args)
+          if (result?.contents !== undefined) capture(buildRecord, args, result.contents)
+          return result
+        })
+      return plugin.setup({ ...build, onLoad })
+    },
+  })
+  return {
+    ...options,
+    plugins: [...(options.plugins ?? []), compiledSourceRecorder].map((plugin) => wrap(plugin)),
+  }
+}
+
+/**
+ * One bundle's build record for its metafile: input and generated-module
+ * hashes from `buildRecord`; unrecorded or conflicting entries are left
+ * out, so the scanner names them. esbuild's empty stand-ins for disabled
+ * modules (`(disabled):…`) are recorded as the empty contents they are.
+ */
+export function compiledRecordFor(metafileInputs, buildRecord) {
+  const inputs = {}
+  const generated = {}
+  for (const input of metafileInputs) {
+    const key = input.replaceAll('\\', '/')
+    if (key.startsWith('(disabled):')) {
+      generated[key] = sha256(Buffer.alloc(0))
+      continue
+    }
+    const source = buildRecord.inputs.get(key) ?? recorded.get(key)
+    if (typeof source === 'string') inputs[key] = source
+    const contents = buildRecord.generated.get(key)
+    if (typeof contents === 'string') generated[key] = contents
+  }
+  return { inputs, generated }
 }

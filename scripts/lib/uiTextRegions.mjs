@@ -35,7 +35,7 @@ export const UI_TEXT_REGIONS = [
 
 /** The canonical object, parsed rather than searched through strings/comments. */
 export function uiTextProperties() {
-  const source = readFileSync(TABLE, 'utf8')
+  const source = readCompiledSource(TABLE)
   const tree = ts.createSourceFile(TABLE, source, ts.ScriptTarget.Latest, true)
   const declaration = tree.statements
     .filter((statement) => ts.isVariableStatement(statement))

@@ -225,6 +225,41 @@ describe('M97 legal run (lane R)', () => {
     expect(exitCode).toBe(LEGAL_EXIT.ok)
   })
 
+  it('verifies a binary bundle input from its exact bytes end to end (CM971-R3)', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'legal-e2e-'))
+    const source =
+      '// Copyright (c) 2026 Example Corp\n// SPDX-License-Identifier: MIT\nexport const value = 1\n'
+    const bundle =
+      '// Copyright (c) 2026 Example Corp\n// SPDX-License-Identifier: MIT\nconsole.log(1)\n'
+    const pixel = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0xff, 0xfe, 0x00, 0x01])
+    const files: Record<string, string | Buffer> = {
+      LICENSE: FULL_MIT_LICENSE,
+      'package.json': JSON.stringify({ name: 'example', version: '1.0.0', license: 'MIT' }),
+      'src/ok.ts': source,
+      'src/table.bin': pixel,
+      'dist/bundle.js': bundle,
+      'dist/meta/bundle.json': JSON.stringify({
+        inputs: { 'src/ok.ts': { bytes: 1 }, 'src/table.bin': { bytes: pixel.byteLength } },
+        outputs: { 'dist/bundle.js': { bytes: Buffer.byteLength(bundle) } },
+      }),
+      'dist/meta-hashes/bundle.json': JSON.stringify({
+        version: 2,
+        inputs: {
+          'src/ok.ts': shaText(source),
+          'src/table.bin': createHash('sha256').update(pixel).digest('hex'),
+        },
+        outputs: { 'dist/bundle.js': shaText(bundle) },
+      }),
+    }
+    for (const [file, contents] of Object.entries(files)) {
+      const absolute = path.join(root, file)
+      mkdirSync(path.dirname(absolute), { recursive: true })
+      writeFileSync(absolute, contents)
+    }
+    const handle = await runLegalScan({ workspaceRoot: root, input: { headerPolicy: 'optional' } })
+    expect(handle.result.incompleteChecks).toEqual([])
+  })
+
   it('reports a shipped incompatible dependency end to end with exit 1 (RVCM971 P2-2)', async () => {
     const headed =
       '// Copyright (c) 2026 Example Corp\n// SPDX-License-Identifier: MIT\nexport const value = 1\n'

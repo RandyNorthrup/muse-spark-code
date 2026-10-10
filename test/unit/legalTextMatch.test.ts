@@ -41,6 +41,29 @@ const RESTRICTIONS: readonly string[] = [
   'Коммерческое использование запрещено.',
 ]
 
+/** Restriction vocabulary glued into a holder's name, with no full stop. */
+const GLUED_RESTRICTIONS: readonly string[] = [
+  'Example Nonprofit Projects Only',
+  'Example Corp Noncommercial Use Only',
+  'Example Educational Use',
+  'Example Corp NO AI',
+  'Example Personal Use Only',
+  'Example Non-Commercial Ltd',
+  'Example Corp, nonprofit',
+  'EXAMPLE NONPROFIT',
+  'Example Academic Research Only',
+  'Example Corp Without Military',
+]
+
+/** Holder placeholders in the canonical (template original) texts. */
+const HOLDER_PLACEHOLDERS: readonly string[] = [
+  '<copyright holders>',
+  '<owner>',
+  '<copyright notice>',
+  '[name of copyright owner]',
+  '<name of author>',
+]
+
 /** Deterministic pseudo-random numbers (a 32-bit LCG), so failures replay. */
 function random(seed: number): () => number {
   let state = seed
@@ -124,10 +147,59 @@ describe('SPDX template matching', () => {
     },
   )
 
+  it('ignores a title line written after the copyright line', () => {
+    const text = FULL_MIT_LICENSE.replace(
+      `MIT License\n\n${MIT_COPYRIGHT}`,
+      () => `${MIT_COPYRIGHT}\n\nMIT License`,
+    )
+    expect(identifyLicenseText(text)).toMatchObject({ id: 'MIT', exact: true })
+  })
+
+  it('quotes the variable where a text stops short of the template', () => {
+    const text = FULL_MIT_LICENSE.replace(/SOFTWARE\.\n$/u, 'SOFTWARE\n')
+    const match = identifyLicenseText(text)
+    expect(match?.exact).toBe(false)
+    expect(match?.differs?.expected).toContain('<Software8>')
+  })
+
   it('ignores a title line made only of the license name, and nothing more', () => {
     const bsd = canonicalText('BSD-3-Clause')
     expect(readLicenseText(`BSD 3-Clause License\n\n${bsd}`)?.exact).toBe(true)
     expect(readLicenseText(`BSD 3-Clause License, noncommercial\n\n${bsd}`)?.exact).toBe(false)
+  })
+
+  it.each(GLUED_RESTRICTIONS)(
+    'never reads restriction vocabulary glued into the holder as exact: %s',
+    (holder) => {
+      const notice = `Copyright 2026 ${holder}`
+      expect(
+        identifyLicenseText(FULL_MIT_LICENSE.replace(MIT_COPYRIGHT, () => notice)),
+      ).toMatchObject({
+        id: 'MIT',
+        exact: false,
+      })
+    },
+  )
+
+  it('never reads any pinned holder placeholder with glued restriction vocabulary as exact (property)', () => {
+    let covered = 0
+    for (const id of PINNED_TEMPLATE_IDS) {
+      const base = canonicalText(id)
+      const placeholder = HOLDER_PLACEHOLDERS.find((entry) => base.includes(entry))
+      if (placeholder === undefined) continue
+      covered += 1
+      for (const holder of GLUED_RESTRICTIONS) {
+        const reading = readLicenseText(base.replace(placeholder, () => holder))
+        if (reading?.exact === true) throw new Error(`${id} read as exact with holder "${holder}"`)
+      }
+    }
+    expect(covered).toBeGreaterThanOrEqual(8)
+    for (const id of ['MIT', 'BSD-2-Clause', 'BSD-3-Clause', 'ISC']) {
+      const base = canonicalText(id)
+      const placeholder = HOLDER_PLACEHOLDERS.find((entry) => base.includes(entry)) ?? ''
+      const holder = id === 'ISC' ? 'Copyright (c) 2026 Example Corp' : 'Example Corp'
+      expect(readLicenseText(base.replace(placeholder, () => holder))?.exact).toBe(true)
+    }
   })
 
   it('never reads a restriction in a name variable as exact', () => {

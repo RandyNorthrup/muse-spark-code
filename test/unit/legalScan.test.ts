@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { LEGAL_FILES_SCANNED_MAX, LEGAL_FINDINGS_MAX, UI_TEXT } from '../../src/shared/constants'
 import { fingerprint } from '../../src/core/verify/fingerprint'
 import { fill, formatNumber } from '../../src/shared/l10n/text'
-import { scanLegal } from '../../src/core/legal/scan'
+import { buildRecordProblems, scanLegal } from '../../src/core/legal/scan'
 import { legalScanResultSchema } from '../../src/shared/legal'
 import {
   BUNDLE_OUTPUT,
@@ -129,16 +129,53 @@ describe('scanLegal', () => {
     outputs: { [BUNDLE_OUTPUT]: fingerprint(BUNDLE_TEXT) },
   }
 
-  it('derives distribution from a version-2 build record, skipping generated modules', () => {
-    // Plugin-generated `namespace:name` modules are not files; every
-    // workspace input and listed output verifies against the record.
+  it('derives distribution from a version-2 build record, generated modules included', () => {
+    // A plugin-generated `namespace:name` module is attributed by the hash
+    // the build recorded for its contents; every workspace input and
+    // listed output verifies against the record.
+    const files = metaProject(
+      { 'src/ok.ts': { bytes: 1 }, 'browser-ns:virtual': { bytes: 1 } },
+      { ...versionTwo, generated: { 'browser-ns:virtual': fingerprint('EN') } },
+    )
+    const result = scanLegal(snapshotFrom(files), { headerPolicy: 'optional' })
+    expect(result.incompleteChecks).toEqual([])
+    expect(result.findings).toEqual([])
+  })
+
+  it('lists every build-record problem, past the report bound (CM971-R3)', () => {
+    const inputs = Object.fromEntries(
+      Array.from({ length: 150 }, (_entry, index) => [
+        `src/missing${String(index)}.ts`,
+        { bytes: 1 },
+      ]),
+    )
+    const files = metaProject({ ...inputs, 'browser-ns:virtual': { bytes: 1 } }, versionTwo)
+    const problems = buildRecordProblems(snapshotFrom(files))
+    expect(problems).toHaveLength(151)
+    expect(problems).toContain(
+      fill(UI_TEXT.legalScanner.m206, { v0: 'bundle', v1: 'browser-ns:virtual' }),
+    )
+    expect(
+      buildRecordProblems(
+        snapshotFrom(
+          metaProject(
+            { 'src/ok.ts': { bytes: 1 }, 'browser-ns:virtual': { bytes: 1 } },
+            { ...versionTwo, generated: { 'browser-ns:virtual': fingerprint('EN') } },
+          ),
+        ),
+      ),
+    ).toEqual([])
+  })
+
+  it('names a generated module the build did not record (CM971-R3)', () => {
     const files = metaProject(
       { 'src/ok.ts': { bytes: 1 }, 'browser-ns:virtual': { bytes: 1 } },
       versionTwo,
     )
     const result = scanLegal(snapshotFrom(files), { headerPolicy: 'optional' })
-    expect(result.incompleteChecks).toEqual([])
-    expect(result.findings).toEqual([])
+    expect(result.incompleteChecks).toContain(
+      fill(UI_TEXT.legalScanner.m206, { v0: 'bundle', v1: 'browser-ns:virtual' }),
+    )
   })
 
   it('names inputs outside the workspace instead of treating them as constants (RVCM971B P2-5)', () => {

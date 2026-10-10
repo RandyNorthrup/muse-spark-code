@@ -4,7 +4,7 @@ import { UI_TEXT } from '../../shared/constants'
 // file is bound to the exact native identity sampled during enumeration,
 // opened read-only, and checked again before any bytes are read. Runtime
 // and host lanes can share this adapter rather than supply an unsafe reader.
-import { bytesFingerprint } from '../verify/fingerprint'
+import { rawBytesFingerprint } from '../verify/fingerprint'
 import {
   closeSync,
   constants,
@@ -20,6 +20,8 @@ import path from 'node:path'
 import {
   LEGAL_DIRECTORY_ENTRIES_MAX,
   LEGAL_FILE_MAX_BYTES,
+  LEGAL_HASH_FILE_MAX_BYTES,
+  LEGAL_HASH_TOTAL_MAX_BYTES,
   LEGAL_TOTAL_MAX_BYTES,
   LEGAL_SCAN_TIMEOUT_MS,
 } from '../../shared/constants'
@@ -164,64 +166,93 @@ export function createLegalSnapshot(
     }
   }
   visit(root, '')
+  let hashBytesRead = 0
+  /**
+   * One admitted read of a member's exact bytes: the same identity checks
+   * for text and hash reads, each against its own budget.
+   */
+  const readAdmitted = (
+    local: string,
+    fileMax: number,
+    totalMax: number,
+    already: number,
+  ): Buffer | undefined => {
+    const expected = admitted.get(local)
+    if (expected === undefined) return undefined
+    let fd: number | undefined
+    try {
+      const absolute = path.join(root, ...local.split('/'))
+      const leaf = lstatSync(absolute, { bigint: true })
+      if (
+        leaf.isSymbolicLink() ||
+        !sameFile(expected, leaf) ||
+        !isWithin(root, realpathSync(absolute))
+      )
+        return undefined
+      const flags =
+        constants.O_RDONLY |
+        (Object.hasOwn(constants, 'O_NOFOLLOW') ? constants.O_NOFOLLOW : 0) |
+        (Object.hasOwn(constants, 'O_NONBLOCK') ? constants.O_NONBLOCK : 0)
+      fd = openSync(absolute, flags)
+      const held = fstatSync(fd, { bigint: true })
+      if (!held.isFile() || !sameFile(expected, held) || !isWithin(root, realpathSync(absolute)))
+        return undefined
+      if (held.size > BigInt(fileMax) || held.size + BigInt(already) > BigInt(totalMax)) {
+        incompleteChecks.push(fill(UI_TEXT.legalScanner.m114, { v0: local }))
+        return undefined
+      }
+      const bytes = Buffer.alloc(Number(held.size) + 1)
+      const count = readSync(fd, bytes)
+      const after = fstatSync(fd, { bigint: true })
+      const isSteady =
+        count === Number(held.size) && after.size === held.size && after.mtimeNs === held.mtimeNs
+      return isSteady ? bytes.subarray(0, count) : undefined
+    } catch {
+      checkCancellation()
+      return undefined
+    } finally {
+      if (fd !== undefined) closeSync(fd)
+    }
+  }
   return {
     files: Array.from(admitted.keys(), (entry) => entry).toSorted((a, b) => compareLegalText(a, b)),
     incompleteChecks,
-    readFileHash: (local) => hashes.get(local),
+    // The SHA-256 of a member's exact bytes, text or binary (M97
+    // CM971-R3): freshness compares these with the build's own record. A
+    // hash read keeps no bytes, so it has its own, larger budget.
+    readFileHash: (local) => {
+      checkCancellation()
+      assertWorkspaceRelative(local)
+      const known = hashes.get(local)
+      if (known !== undefined || !isWithinTime()) return known
+      const bytes = readAdmitted(
+        local,
+        LEGAL_HASH_FILE_MAX_BYTES,
+        LEGAL_HASH_TOTAL_MAX_BYTES,
+        hashBytesRead,
+      )
+      if (bytes === undefined) return
+      hashBytesRead += bytes.byteLength
+      const hash = rawBytesFingerprint(bytes)
+      hashes.set(local, hash)
+      return hash
+    },
     readFile: (local: string): string | undefined => {
       checkCancellation()
       assertWorkspaceRelative(local)
       if (!isWithinTime()) return undefined
       if (cache.has(local)) return cache.get(local)
-      const expected = admitted.get(local)
-      if (expected === undefined) return undefined
-      let fd: number | undefined
+      const bytes = readAdmitted(local, LEGAL_FILE_MAX_BYTES, LEGAL_TOTAL_MAX_BYTES, bytesRead)
+      checkCancellation()
+      if (bytes === undefined || !isWithinTime()) return undefined
+      bytesRead += bytes.byteLength
+      hashes.set(local, rawBytesFingerprint(bytes))
       try {
-        const absolute = path.join(root, ...local.split('/'))
-        const leaf = lstatSync(absolute, { bigint: true })
-        if (
-          leaf.isSymbolicLink() ||
-          !sameFile(expected, leaf) ||
-          !isWithin(root, realpathSync(absolute))
-        )
-          return undefined
-        const flags =
-          constants.O_RDONLY |
-          (Object.hasOwn(constants, 'O_NOFOLLOW') ? constants.O_NOFOLLOW : 0) |
-          (Object.hasOwn(constants, 'O_NONBLOCK') ? constants.O_NONBLOCK : 0)
-        fd = openSync(absolute, flags)
-        const held = fstatSync(fd, { bigint: true })
-        if (!held.isFile() || !sameFile(expected, held) || !isWithin(root, realpathSync(absolute)))
-          return undefined
-        if (
-          held.size > BigInt(LEGAL_FILE_MAX_BYTES) ||
-          held.size + BigInt(bytesRead) > BigInt(LEGAL_TOTAL_MAX_BYTES)
-        ) {
-          incompleteChecks.push(fill(UI_TEXT.legalScanner.m114, { v0: local }))
-          return undefined
-        }
-        const bytes = Buffer.alloc(Number(held.size) + 1)
-        const count = readSync(fd, bytes)
-        const after = fstatSync(fd, { bigint: true })
-        if (
-          count !== Number(held.size) ||
-          after.size !== held.size ||
-          after.mtimeNs !== held.mtimeNs
-        )
-          return undefined
-        checkCancellation()
-        if (!isWithinTime()) return undefined
-        bytesRead += count
-        const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, count))
-        const hash = bytesFingerprint(bytes.subarray(0, count))
-        if (hash !== undefined) hashes.set(local, hash)
+        const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
         cache.set(local, text)
         return text
       } catch {
-        checkCancellation()
         return undefined
-      } finally {
-        if (fd !== undefined) closeSync(fd)
       }
     },
   }
