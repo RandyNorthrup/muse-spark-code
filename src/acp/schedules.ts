@@ -12,6 +12,7 @@ export interface AcpScheduleContext {
   readonly maxBudgetUsd?: UsdAmount
 }
 export interface AcpSchedulePort {
+  readonly isAvailable?: boolean
   run(text: string, context: AcpScheduleContext): Promise<string>
   holdWorkspace?(cwd: string): Promise<(() => Promise<void>) | undefined>
 }

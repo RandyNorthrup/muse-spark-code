@@ -70,7 +70,7 @@
   "resourceGpuMaxPercentDescription": "Opcionális GPU-használati korlát százalékban. Érték nélkül nincs GPU-mérés.",
   "resourceDiskBusyMaxPercentDescription": "Opcionális lemezterhelési korlát százalékban. Érték nélkül nincs lemezmérés.",
   "resourceRelocateDescription": "Az áthelyezés párosított eszközt vagy futtató géphez vezető útvonalat igényel. A munka ezen a gépen marad.",
-  "resourceRelocatePairedDescription": "Engedélyezett, párosított eszközt használ normál erőforrás-terheléssel, amint az áthelyezés elérhető.",
+  "resourceRelocatePairedDescription": "Nincs párosított eszközhöz kötött útvonal. A munka ezen a gépen marad.",
   "resourceRelocateAskDescription": "A várakozó munka áthelyezése előtt kérdez.",
   "resourceRelocateOffDescription": "Ezen a gépen tartja a munkát.",
   "toolArgumentPreviewLabel": "Argumentumok előnézete",
@@ -349,7 +349,7 @@
   "referenceAuthClear": "Eltávolítja a tárolt Model API-kulcsot.",
   "referenceAuthStatus": "Ellenőrzi, hogy van-e tárolt Model API-kulcs.",
   "referenceAccountsTitle": "Several accounts per provider",
-  "referenceAccounts": "Egy szolgáltató fiókjainak kezelése: listázás, hozzáadás, eltávolítás, sorrend és küszöbértékek. A hitelesítő adatok csak a standard bemenetről érkeznek. A fizetős hozzájárulás egyelőre munkaterületenként érvényes.",
+  "referenceAccounts": "Folyamatban.",
   "referenceDeveloper": "Megjeleníti vagy feloldja a gép helyi fejlesztői beállításait. A profilműveletekhez csatlakoztatott erőforrás-kezelő szükséges.",
   "referenceTabLanguages": "Válasszon nyelvet a Tab-javaslatok be- vagy kikapcsolásához.",
   "referenceTabMenu": "Tab kikapcsolása; Szundi 15 percre; Szundi egy órára; Szundi újraindításig; Tab-nyelvek…; Többsoros mód…; Fiók és használat. Ha a Tab elsőbbséget ad a Copilotnak, a menüben kikapcsolható a Copilot az aktuális nyelvhez vagy mindkettő futtatható.",
@@ -3677,7 +3677,7 @@
   "paidTeamWorkerBudget": "Megosztott napi csapatkeret: {budget}.",
   "paidTeamWorkersTitle": "Jóváhagyja a csapat fizetős feladatait?",
   "paidTeamWorkersDetail": "{tasks}\n\nMinden feladat díját az adott szolgáltatónál használt API-kulcsára számlázzuk. A tényleges költség a felhasznált tokenektől függ. Az egyszeri engedélyezés csak ezekre a feladatokra érvényes.",
-  "paidConfirmTeamWorkers": "A csapatfeladatok a Model API-kulcsára számlázott modelleken futnak. {price} Az első delegálási hívás, amely kulcsos feladatokat indít, minden engedélyezési módban jóváhagyást igényel, a Bypass módban is, hacsak nem engedélyezi mindig a csapatügynököket ebben a munkaterületen. Az előfizetéses és helyi feladatok nem fizetős használatok. A tényleges költség a felhasznált tokenektől függ; a többi fizetős eszköz többe kerül.",
+  "paidConfirmTeamWorkers": "A csapat-munkások nem érhetők el: nincs kötött csapat-futtató, így nem indulhat csapatfeladat, és nincs számlázás.",
   "usagePaidTeamTasks": {
     "one": "{count} csapatfeladat",
     "other": "{count} csapatfeladat"

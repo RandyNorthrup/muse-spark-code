@@ -40,6 +40,13 @@ happened, not what was planned; superseded entries are kept.
   roadmap and editor records (CX1R3, for 0.17.1). Correct historical release
   claims with dated notices. Legacy `/loop` and CLI/ACP playbook commands
   retain their working documentation.
+- Hide unavailable ACP commands from editor discovery and drop the unbound
+  vault binding from the ACP agent (CX1R5): `/schedule` and `/estimate` stay
+  out of `available_commands_update` while their owners refuse, and `/vault`
+  refuses without a broker. Dormant Settings entries read as compatibility
+  placeholders with no runtime effect; the accounts, relocation and team
+  Help strings say only what they do today. The 0.17.0 detailed accounts
+  claim and the stale relocation wording are archived out of current notes.
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did
@@ -376,7 +383,7 @@ happened, not what was planned; superseded entries are kept.
 
 ## [0.17.0] - 2026-10-08
 
-Correction (2026-10-10): Credential vault, scheduled prompts v2, capacity estimator forecasts, ten report kinds and VS Code panel playbook access did not work for users in this release; it is being completed.
+Correction (2026-10-10): Several accounts per provider, credential vault, scheduled prompts v2, capacity estimator forecasts, ten report kinds and VS Code panel playbook access did not work for users in this release; it is being completed.
 
 ### Highlights
 
@@ -705,15 +712,15 @@ Correction (2026-10-10): Credential vault, scheduled prompts v2, capacity estima
 ### Added
 
 - Add several-account storage, thresholds, confirmations and shared account/
-  usage/developer UI, certified with fake editor ports. `providers accounts`
-  manages metadata; `auth set` reads credentials only from stdin; headless
-  `--account` pins a run; ACP refreshes membership. Machine-scoped
-  `accountSwap`/`accountParallel` default on; `accounts.severalOnThisDevice`
-  defaults off. Installed mounts, pooling, credential-changing selection and
-  profile/device owners remain pending; extra Muse Code accounts await captures.
-  Account changes never reset paid gates or shared budgets. See
+  usage/developer UI, certified with fake editor ports. Installed mounts,
+  pooling, credential-changing selection and profile/device owners remain
+  pending; extra Muse Code accounts await captures. Account changes never
+  reset paid gates or shared budgets. See
   [policy](docs/certification/m108-policy.md) and
   [integration evidence](docs/certification/m108.md).
+  <!-- whats-new: historical -->
+- Terminal `auth set` reads credentials only from standard input, never an
+  argument or file.
 - Resource-history deletion refuses swapped links outside the usage folder
   on Linux/Windows; macOS retains the same-user race documented in SECURITY.
   Failed removal reports and retries, leftovers are cleaned, and retention
@@ -1107,6 +1114,7 @@ Correction (2026-10-10): Live argument previews did not work for users in this r
   No paired-device or runner route is bound in this release, so resource status,
   the pause notice and `resources status` say relocation is in progress,
   and the setting's description says so too.
+  <!-- whats-new: historical -->
 - Release CI fixtures retain both resource commands and agent outcomes, staged
   multilingual Help checks, and the harness's signed-in readiness handshake.
   Cold bundle tests own a complete build, and exec package fixtures supply

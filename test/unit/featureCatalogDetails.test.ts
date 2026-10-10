@@ -1,7 +1,7 @@
 // Help's feature entries combine the feature's own details with the reference
 // generator's REFERENCE_DETAILS. Lane MONEY017E found the merge overwrote the
 // feature-level list, which erased the schedules media limitation (and the
-// accounts developer detail) from Help.
+// accounts developer detail) from Help before accounts publication was removed.
 
 import { describe, expect, it } from 'vitest'
 import { featureCatalog } from '../../src/shared/featureCatalog'
@@ -21,8 +21,11 @@ describe('feature catalogue details merge', () => {
     expect(detailKeys('schedules')).toContain('scheduledMediaSupport')
   })
 
-  it('keeps the accounts feature-level developer detail', () => {
-    expect(detailKeys('accounts')).toContain('referenceDeveloper')
+  it('removes dormant account details while keeping the working developer CLI route', () => {
+    expect(detailKeys('accounts')).toEqual([])
+    const published = referenceModel()
+    expect(published.features.some((feature) => feature.id === 'accounts')).toBe(false)
+    expect(published.cli.some((command) => command.route === 'developer')).toBe(true)
   })
 
   it('still merges the reference details in', () => {

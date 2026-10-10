@@ -30,29 +30,23 @@ Code” are Meta trademarks. You bring your own credentials.
 - **Deterministic reports.** `/report` builds project, quality, milestone,
   release and change reports from local facts, in Markdown, HTML, JSON or text,
   with saved history and comparisons; nothing is sent to a model.
-- **Capacity estimates (preview).** `/estimate <goal>` and the Estimator are in
-  place and verified with test data. Real forecasts need the plan reader that
-  comes later; until then they say so instead of guessing.
-- **Several accounts per provider.** List provider accounts, see the current
-  one and its thresholds; a vendor limit blocks only the affected account.
 - **Orchestrator playbook.** The nine orchestration rules ship as a first-party
   skill. In the ACP agent and the CLI, `/playbook status`, `record` and
-  `settings` answer locally; the VS Code panel follows.
+  `settings` answer locally without a model call.
 - **Refreshed design.** Shared design tokens and generated palettes style every
   panel surface; an optional pinned OFL font pack serves standalone installs.
 
 ### Earlier in 0.16.0
 
-- **Loop guarantees.** Strict tool contracts, bounded hosted search and streamed
-  argument previews help you follow Model API tool calls. Independent reads can
+- **Loop guarantees.** Strict tool contracts and bounded hosted search
+  govern Model API tool calls. Independent reads can
   run concurrently while their results keep call order. The loop bounds
   continuations, refuses cut-short tool execution and stops repeated unchanged
   calls. Structured side calls validate answers; headless runs can require a
   bounded final-answer schema. See [Agent loop guarantees](#agent-loop-guarantees)
   for capability gates and remaining native-reader qualifications.
 - **CPU and memory thresholds.** Set machine-scoped limits to throttle, then
-  pause, new background work. Relocation needs a paired device or runner route
-  and is not available yet, so work stays on this machine.
+  pause, new background work. Work stays on this machine.
 - **Disk floors.** Disk-heavy launches wait below the free-space floor and
   critical-volume writes refuse with a reason. Temporary cleanup requires
   recorded ownership and proved tree exit. See
@@ -65,16 +59,12 @@ Code” are Meta trademarks. You bring your own credentials.
   models in **Models & Agents**. ChatGPT sign-in is a Subscription Sharing
   preview for eligible Plus/Pro accounts; Copilot uses a compatible VS Code
   host's models. Features follow each selected model's capabilities.
-- **Agent roles and teams.** Configure role pools, task limits and worker
-  review. Paid workers require consent and share the daily budget.
 - **/legal.** Scan licensing, copyright and source evidence without a model
   call, export the report, and confirm supported header repairs. The report
   states its coverage limits; it is not a legal certificate.
-- **Automatic compaction and Pi/SoL-Pi sync.** The shared engine preserves
-  packed output, literal recall and cache-stable prompts. Automatic compaction
-  is implemented and its setting defaults on, but production remains inactive
-  pending the paired evaluation.
-- **Usage & Cost.** Open the local page for provider and team totals, token
+- **Pi/SoL-Pi context improvements.** The shared engine preserves
+  packed output, literal recall and cache-stable prompts.
+- **Usage & Cost.** Open the local page for provider totals, token
   counts, budgets and exports. Reported, estimated and unknown costs stay distinct.
 
 ### Earlier in 0.14.5

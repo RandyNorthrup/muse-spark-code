@@ -401,6 +401,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
           .replaceAll(' ', '-'),
       ),
   )
+  for (const match of readme.matchAll(/<a id="([a-z0-9-]+)"><\/a>/g)) anchors.add(match[1])
   const errors = []
   const properties = manifest.contributes.configuration.properties
   const protocol = source.evidence['src/shared/protocol.ts']
