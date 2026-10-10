@@ -243,3 +243,36 @@ with 126; restored byte-exact.
 - `npm run build`: exit 0, bundle caps and split checks pass.
 - Not run here: full `quality`, hosted vendor qualification, live L/LA/LR
   receipts (lead-owned, as before). No live runs, no real keys, no paid calls.
+
+## R5: RVCM80CI4 findings fixed (lane CM80CIR5, 2026-10-10)
+
+Review RVCM80CI4 at `8b38be1ef` (kubuntu) confirmed 1 P1, 1 P2, 1 P3. All
+three are fixed below with a regression test each; every fix sweeps the
+lane for siblings of the same kind. Fakes only; no real CI runs, no live
+runs, no real keys, no paid calls. No new dependency, no widened guard.
+
+| #    | Finding (RVCM80CI4)                                                                                                                                                                           | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                       | Regression test (fails without it)                                                                                                                                                                                                                                                                                | Red drill (restored byte-exact, `sha256sum -c` OK)                                                                                      |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 P1 | Azure start expression `{0:yyyy-MM-ddTHH:mm:ss.fffZ}` is not a documented `format()` form, so the pipeline rejects it (or drops the value) and the launcher loses vendor time                 | `MUSE_CI_PIPELINE_STARTED_AT` is now `$[ format('{0:yyyy}-{0:MM}-{0:dd}T{0:HH}:{0:mm}:{0:ss}Z', pipeline.startTime) ]`: every `{0:…}` item is exactly one documented specifier and every separator lives outside the items. `pipeline.startTime` (documented special datetime variable, UTC default) still supplies the conservative pre-checkout start; `jobStartMs` already ignores unparseable values in favour of the bootstrap start | `ciTemplates` "Azure expressions use only documented syntax": the start variable's specifiers are all documented, only ISO separators sit outside the items, all of yyyy/MM/dd/HH/mm/ss ship, a sample rendering parses via `Date.parse`; plus every Azure `$[…]`/condition expression uses documented words only | Old literal restored → the specifier test fails; restored OK                                                                            |
+| 2 P2 | The parent trap unsets `muse_dir` then expands it under `set -u`, so an exec failure (e.g. no Node on a persistent agent's PATH) skips both removals and leaks the `0700` bootstrap directory | The parent copies `muse_cleanup_dir="$muse_dir"` before the trap; the trap copies `muse_rm_dir="$muse_cleanup_dir"` first, then unsets names/aliases, then removes `"$muse_rm_dir"`. Synced into all four templates by `node scripts/sync-ci-bootstrap.mjs`. Siblings swept: the inner download trap never unsets before use; no other unset-then-expand trap exists in the lane                                                          | `ciTemplatesRun` R5-P2 runs the exact parent slice from `bootstrap.sh` (generated names expanded) under `sh -e` and `bash -e` with a failing exec and asserts the directory is gone with no unbound-variable error                                                                                                | Old trap restored → the test fails; a manual dash probe shows `muse_dir: parameter not set` with the directory left behind; restored OK |
+| 3 P3 | The Other CI systems help is gated on the invented selector `ciVendor&artifactTransport&secretIsolation`, which names nothing the product sets                                                | The condition is now `system`: the dimension (`gitlab`/`azure`/`jenkins`/`bitbucket`) the launcher branches on (`CI_SYSTEMS` in `ci-adapters.mjs`, the `system` parameter across `ci-run.mjs`), whose per-system states the paragraph explains. Reference regenerated (`reference.generated.json`/`.ts`, node blob, `docs/reference.md` now reads `system: Digest-pinned…`)                                                               | `referenceGenerator` R5-P3 asserts the feature's summary/description equal `{ conditions: [{ when: 'system', text: { ui: 'referenceCiOther' } }] }`, the rendered text starts with `system: ` without `ciVendor`, and the Markdown reference contains it                                                          | Condition reverted → the stale-reference gate fires; with a consistent regen the named test fails; source restored, regenerated, OK     |
+
+Azure documentation cited (page fetched 2026-10-10,
+[Expressions](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/expressions?view=azure-devops)):
+`format` "uses .NET custom date and time format specifiers for date
+formatting (`yyyy`, `yy`, `MM`, `M`, `dd`, `d`, `HH`, `H`, `m`, `mm`,
+`ss`, `s`, `f`, `ff`, `ffff`, `K`)" with the example
+"`format('{0:yyyyMMdd}', pipeline.startTime)`", where "`pipeline.startTime`
+is a special date time object variable" formatting
+`system.pipelineStartTime`, "The default time zone for `pipeline.startTime`
+is UTC". No hosted compile text was captured (no real CI runs in this
+lane); the expression now uses only forms that page documents, and the
+launcher keeps its bootstrap-start fallback for any value it cannot parse.
+
+### Test receipts (kubuntu rig, this worktree, repository timeouts, no `--testTimeout`)
+
+- `ciTemplates` + `ciTemplatesRun` + `ciRun`: 88 passed (85 at R4 + 2 P1
+  expression tests + 1 P2 trap test).
+- `referenceGenerator`: 117 passed (includes the new R5-P3 condition test).
+- Typecheck, eslint and prettier on changed files, `check:l10n`,
+  `check:reference` and `npm run build`: see the R5 lane report.
