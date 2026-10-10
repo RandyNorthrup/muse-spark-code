@@ -1,5 +1,11 @@
 import { randomBytes } from 'node:crypto'
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import {
+  createServer,
+  type IncomingMessage,
+  type RequestListener,
+  type Server,
+  type ServerResponse,
+} from 'node:http'
 import * as z from 'zod/mini'
 import { HTTP_STATUS, IDE_MCP_LOOPBACK_HOST, IDE_MCP_TOKEN_BYTES } from '../../shared/constants'
 import { CompanionEvents } from './events'
@@ -52,6 +58,9 @@ function reply(response: ServerResponse, status: number, error?: string): void {
 /** Browser boundary. Close on runtime abort, process signal, or authenticated inactivity. */
 export async function startCompanionServer<Input, Output>(
   options: CompanionOptions<Input, Output>,
+  /** Embedding gate: build the HTTP transport. Production passes node:http;
+   * tests pass a socket-free fake so startup races stay deterministic. */
+  createTransport: (requestListener: RequestListener) => Server = createServer,
 ) {
   const host = options.host ?? IDE_MCP_LOOPBACK_HOST
   if (host !== IDE_MCP_LOOPBACK_HOST && host !== '::1') throw new Error('EPANEL_BIND')
@@ -79,7 +88,7 @@ export async function startCompanionServer<Input, Output>(
       { once: true },
     )
   })
-  const server = createServer((request, response) => {
+  const server = createTransport((request, response) => {
     const nonce = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
     secureHeaders(response, nonce)
     void handle(request, response, nonce).catch(() => {
@@ -248,11 +257,45 @@ export async function startCompanionServer<Input, Output>(
     })
   }
 
+  // Every lifecycle listener is attached before the first await below, so no
+  // event can fire before its subscriber exists. An error or close that lands
+  // while the bind is in flight rejects startup; a process signal that lands
+  // in the same window is buffered and shuts the server down once it is up;
+  // aborting options.signal in the same window rejects startup at once with
+  // the signal's reason instead of waiting out the bind.
+  let isListening = false
+  let rejectStartup: ((error: unknown) => void) | undefined
+  const earlySignal = new AbortController()
+  const onEarlySignal = (): void => {
+    earlySignal.abort()
+  }
+  const onCallerAbort = (): void => {
+    try {
+      options.signal?.throwIfAborted()
+    } catch (error) {
+      rejectStartup?.(error)
+    }
+  }
+  const onServerError = (error: unknown): void => {
+    if (isListening) onSignal()
+    else rejectStartup?.(error)
+  }
+  server.on('error', onServerError)
+  server.once('close', () => {
+    if (!isListening) {
+      rejectStartup?.(new Error('EPANEL_BIND'))
+      return
+    }
+    if (closing === undefined) onSignal()
+  })
+  options.signal?.addEventListener('abort', onCallerAbort)
+  process.once('SIGINT', onEarlySignal)
+  process.once('SIGTERM', onEarlySignal)
   try {
     await new Promise<void>((resolve, reject) => {
-      server.once('error', reject)
+      rejectStartup = reject
       server.listen(0, host, () => {
-        server.off('error', reject)
+        isListening = true
         resolve()
       })
     })
@@ -264,6 +307,7 @@ export async function startCompanionServer<Input, Output>(
     process.once('SIGTERM', onSignal)
     options.signal?.addEventListener('abort', onSignal, { once: true })
     activity()
+    if (earlySignal.signal.aborted) await close()
     return {
       url: `${origin}/`,
       launchUrl: () => {
@@ -276,5 +320,9 @@ export async function startCompanionServer<Input, Output>(
   } catch (error) {
     await close()
     throw error
+  } finally {
+    options.signal?.removeEventListener('abort', onCallerAbort)
+    process.off('SIGINT', onEarlySignal)
+    process.off('SIGTERM', onEarlySignal)
   }
 }

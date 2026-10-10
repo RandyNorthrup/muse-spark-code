@@ -146,6 +146,12 @@ happened, not what was planned; superseded entries are kept.
   minimum (16 tokens for Meta). Older stored caps are refused without a request
   or a silent increase.
 
+- The companion page server no longer misses a stop request, a transport
+  error or an early transport close that arrives while it is still starting:
+  it handles them instead of hanging or failing with an error nothing catches,
+  and cancelling during startup stops it at once with the cancel's reason
+  instead of waiting for the server to finish binding.
+
 - Muse Code approval-ledger fault notices now give the update command on
   versions older than 1.4.3. A live Windows 1.4.3 check accepted the approval
   without that fault; detection remains active on every version. Rename and

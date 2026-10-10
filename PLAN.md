@@ -46861,7 +46861,9 @@ PROVWIRE; `docs/certification/provcat.md`), the owner's Title Case sweep
 ported from `fix/muse-1.4.3`), the question answer-field spacing fix and the
 chat menus anchored to their row opener (MENUFAN, rounds 1–3, merged on
 `rel0171/final`; `docs/certification/menufan.md`) and the provider
-output-cap minimum (MINOUT, rounds 1–3; `docs/certification/min-output-cap.md`). This is preparation, not publication; the
+output-cap minimum (MINOUT, rounds 1–3; `docs/certification/min-output-cap.md`)
+and the companion server's early lifecycle events (RVCOMPSUB3;
+`docs/certification/companion-early-events.md`). This is preparation, not publication; the
 public roadmap (M122) lists 0.17.1 as the next release until a
 `0.17.1 released (…)` record follows here.
 

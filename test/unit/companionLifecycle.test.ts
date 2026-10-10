@@ -1,6 +1,14 @@
 import { request, type IncomingMessage } from 'node:http'
 import { describe, expect, it, vi } from 'vitest'
-import { call, headers, login, startPanel, trackedPanels, type Panel } from './helpers/companion'
+import {
+  call,
+  headers,
+  login,
+  settlesBeforeIdle,
+  startPanel,
+  trackedPanels,
+  type Panel,
+} from './helpers/companion'
 const tracked = trackedPanels()
 
 function holdUntilAbort(panel: Panel) {
@@ -57,7 +65,10 @@ describe('companion lifecycle and SSE', () => {
     const controller = new AbortController()
     const panel = await tracked({}, undefined, controller.signal)
     controller.abort()
-    await panel.closed
+    // RVCOMPSUB2 finding 1: the default 5000 ms idle timer settles this same
+    // promise, so an unbounded wait passes with the abort path removed. The
+    // abort must settle it ~at once, 4 s before idle could fire.
+    await settlesBeforeIdle(panel.closed)
     expect(() => panel.launchUrl()).toThrow('EPANEL_CLOSED')
     await expect(call(panel, '/')).rejects.toThrow()
     await panel.close()
