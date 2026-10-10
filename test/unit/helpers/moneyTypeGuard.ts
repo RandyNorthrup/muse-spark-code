@@ -145,18 +145,36 @@ function checkAlias(
   const visit = (type: ts.Type): void => {
     if (seen.has(type)) return
     seen.add(type)
+    // A schema is judged by its declared output, never its input side:
+    // `~standard.types.input` accepts versioned-reader numbers the boundary
+    // converts exactly, which no holding ever is.
+    const zod = type.getProperty('_zod')
+    if (zod !== undefined) {
+      const output = checker.getTypeOfSymbol(zod).getProperty('output')
+      if (output !== undefined) visit(checker.getTypeOfSymbol(output))
+      return
+    }
     const apparent = checker.getApparentType(type)
     if (apparent !== type) visit(apparent)
     if (type.isUnionOrIntersection()) for (const member of type.types) visit(member)
     if (type.isClassOrInterface()) for (const base of checker.getBaseTypes(type)) visit(base)
     for (const property of type.getProperties()) {
       const key = property.getName()
-      if (key.startsWith('#') || !MONEY_HINT.test(key)) continue
+      if (key.startsWith('#')) continue
       const propertyType = checker.getTypeOfSymbol(property)
-      if (isCallable(checker, propertyType) || !hasNumber(checker, propertyType, new Set()))
-        continue
-      numeric.add(`${file}:${key}`)
-      if (MONEY_KEY.test(key)) flagged.add(`${file}:${key}`)
+      if (isCallable(checker, propertyType)) continue
+      if (MONEY_HINT.test(key) && hasNumber(checker, propertyType, new Set())) {
+        numeric.add(`${file}:${key}`)
+        if (MONEY_KEY.test(key)) flagged.add(`${file}:${key}`)
+      }
+      // An ordinary wrapper hides lib-declared mapped money (`Record<...>`
+      // has no syntax here): judge the property type's own properties too.
+      // The visited set keeps recursive types terminating. A schema's
+      // internals are never descended into: it is judged by its declared
+      // output, and `_zod.input` accepts versioned-reader numbers the
+      // boundary converts exactly, which no holding ever is.
+      if (key === '_zod') continue
+      visit(propertyType)
     }
   }
   visit(target)
@@ -200,6 +218,11 @@ function analyzeProgram(
           } else if (type.isStringLiteral() && MONEY_HINT.test(type.value)) {
             numeric.add(`${file}:${type.value}`)
             if (MONEY_KEY.test(type.value)) flagged.add(`${file}:${type.value}`)
+          } else {
+            // A remapped name (`as `${P}Usd``) is a template-literal type,
+            // not a string literal: judge its resolved base constraint.
+            const base = checker.getBaseConstraintOfType(type)
+            if (base !== undefined && base !== type) checkKey(base)
           }
         }
         checkKey(checker.getTypeFromTypeNode(node.nameType ?? node.typeParameter.constraint))

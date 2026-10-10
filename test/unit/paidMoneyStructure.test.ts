@@ -122,6 +122,11 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
     category: 'sanctioned',
     reason: 'Estimator USD/hour demand forecast, scheduling math (PLAN.md:20265).',
   },
+  'core/estimator/schedule.ts:accountUsdPerHour': {
+    category: 'sanctioned',
+    reason:
+      'The same estimator USD/hour demand forecast, seen through Reservation (PLAN.md:20265).',
+  },
   'core/estimator/schedule.ts:usd': {
     category: 'sanctioned',
     reason: 'Estimator USD/hour demand forecast, scheduling math (PLAN.md:20265).',
@@ -237,6 +242,17 @@ export interface Totals extends Base {}`,
   'recursiveMapped.ts': `export type Totals = {
   next?: Totals
   data: { [K in 'fooUsd']: number }
+}`,
+  'remapGeneric.ts': "export type Wrap<K extends 'foo'> = { [P in K as `${P}Usd`]: number }",
+  'remapWrapper.ts': `export type Wrap<K extends 'foo'> = { [P in K as \`\${P}Usd\`]: number }
+export type Holding = { data: Wrap<'foo'> }`,
+  'recordWrapper.ts': `export type Totals = { data: Record<'fooUsd', number> }`,
+  'remapInline.ts': `export type Totals = { data: { [P in 'foo' as \`\${P}Usd\`]: number } }`,
+  'plainWrapper.ts': `export type Totals = { data: { fooUsd: number } }`,
+  'nonMoneyWrapper.ts': `export type Totals = { data: Record<'count', number> }`,
+  'recursiveWrapper.ts': `export interface Chain {
+  next?: Chain
+  data: Record<'fooUsd', number>
 }`,
   'exactNestedMapped.ts': `import type { UsdAmount } from '../../../src/shared/usdSchema'
 export type Totals = {
@@ -377,6 +393,23 @@ describe('exact-money type guard', () => {
       'genericUnionMapped.ts:barUsd',
       'genericUnionMapped.ts:fooUsd',
     ])
+  })
+
+  it.each(['remapGeneric.ts', 'remapWrapper.ts', 'remapInline.ts'])(
+    'flags a remapped money key in %s (RVM121DC P3)',
+    (file) => {
+      expect(probe(file)).toEqual([`${file}:fooUsd`])
+    },
+  )
+
+  it('flags lib-declared mapped money beneath an ordinary wrapper (RVM121DC P3)', () => {
+    expect(probe('recordWrapper.ts')).toEqual(['recordWrapper.ts:fooUsd'])
+    expect(probe('plainWrapper.ts')).toEqual(['plainWrapper.ts:fooUsd'])
+    expect(probe('nonMoneyWrapper.ts')).toEqual([])
+  })
+
+  it('terminates on a recursive wrapper and still flags its money', () => {
+    expect(probe('recursiveWrapper.ts')).toEqual(['recursiveWrapper.ts:fooUsd'])
   })
 
   it('leaves nested and generic mapped exact money alone', () => {
