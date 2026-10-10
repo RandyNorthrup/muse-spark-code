@@ -48,7 +48,7 @@ const PLAN = `## 3. Questions
 
 1. **M112** — First. Needs: main only.
 2. **M113** — Second. Needs: M112.
-3. **0.16.0** — Release. Needs: M112 and M113.
+3. **0.16.0: M112 and M113** — Release. Needs: M112 and M113.
 
 ## 10. Releases
 
@@ -95,10 +95,52 @@ describe('M117 plan snapshot adapter', () => {
     ['pr:12', ['M112:0', 'M112:Q']],
     ['issues:7', ['M112:0', 'M112:Q', 'M112:U']],
     ['label:bug', ['M112:0', 'M112:Q', 'M112:U']],
-    ['release:0.16.0', ['M112:0', 'M112:Q', 'M112:U', 'M113:S', 'M113:T']],
   ])('resolves every goal kind %s from the plan', async (text, ids) => {
     const lanes = await resolve(text)
     expect(lanes.map((lane) => lane.id)).toEqual(ids)
+  })
+
+  it('takes release membership from delivery-order titles, never prerequisites', async () => {
+    const goal = parseEstimateGoal('release:0.16.0')
+    if (goal === undefined) throw new Error('unparseable goal')
+    const plan = `## 6. Milestones
+
+### M112 — Widget work (2026-10-10)
+
+**Status 2026-10-10: building.**
+
+- **Goal.** Ship widgets.
+- **Depends on.** Nothing new.
+- **Gates.** The full gate.
+
+| Lane | Items | Files it owns | Starts | Rig | Hours |
+| ---- | ----- | ------------- | ------ | --- | ----- |
+| 0 | all | \`src/a.ts\` | First | Kubuntu | 8 |
+
+### M113 — Follow-ups (2026-10-10)
+
+**Status 2026-10-10: planned.**
+
+- **Goal.** More widgets.
+- **Depends on.** M112.
+- **Gates.** The full gate.
+
+| Lane | Items | Own files | Starts | Rig | Hours |
+| ---- | ----- | --------- | ------ | --- | ----- |
+| S | 1 | \`src/s.ts\` | First | Kubuntu | 4 |
+
+### Delivery order (2026-10-10)
+
+1. **M112** — First. Needs: main only.
+2. **0.16.0: M113** — Second. Needs: M112.
+`
+    // The Needs clause names M112, but the title assigns only M113.
+    const snapshot = buildPlanSnapshot(plan, goal, ESTIMATOR_AS_OF, {})
+    expect(snapshot.releases.find((entry) => entry.id === '0.16.0')?.milestoneIds).toEqual(['M113'])
+    const lanes = await resolveEstimateGoal(goal, ESTIMATOR_AS_OF, {
+      snapshot: () => Promise.resolve(snapshot),
+    })
+    expect(lanes.map((lane) => lane.id)).toEqual(['M113:S'])
   })
 
   it('marks open PR lanes running and keeps their remaining work', async () => {
@@ -197,7 +239,7 @@ describe('M117 plan snapshot adapter', () => {
   })
 
   it('returns byte-identical snapshots when evidence order changes', () => {
-    const goal = parseEstimateGoal('release:0.16.0')
+    const goal = parseEstimateGoal('M112')
     if (goal === undefined) throw new Error('unparseable goal')
     const ordered: PlanSnapshotEvidence = {
       ...EVIDENCE,
@@ -223,13 +265,160 @@ describe('M117 plan snapshot adapter', () => {
     expect(second).toBe(first)
   })
 
-  it('reads rigs as named affinities and leaves unknown rigs unconstrained', () => {
-    const snapshot = snapshotFor('release:0.16.0')
+  it('reads rigs as named affinities', () => {
+    const snapshot = snapshotFor('M112')
     const rigs = new Map(snapshot.rigs.map((rig) => [rig.id, rig.affinity]))
     expect(rigs.get('kubuntu')).toMatchObject({ os: ['linux'] })
     expect(rigs.get('win11-vm')).toMatchObject({ os: ['windows'] })
     expect(rigs.get('mac-mini')).toMatchObject({ os: ['macos'], architectures: ['arm64'] })
-    expect(rigs.get('buildertown')).toMatchObject({ os: [], architectures: [] })
+  })
+
+  it('refuses an unknown rig instead of scheduling it locally', () => {
+    const goal = parseEstimateGoal('M113:T')
+    if (goal === undefined) throw new Error('unparseable goal')
+    expect(() => buildPlanSnapshot(PLAN, goal, ESTIMATOR_AS_OF, EVIDENCE)).toThrow(
+      /unknown-rig: buildertown/,
+    )
+  })
+
+  it('keeps current work when an old merged PR shares the lane', async () => {
+    const evidence: PlanSnapshotEvidence = {
+      branches: [
+        { name: 'm112/q-old', merged: true },
+        { name: 'm112/q-new', merged: false },
+      ],
+      pullRequests: [
+        { branch: 'm112/q-old', number: 12, state: 'merged' },
+        { branch: 'm112/q-new', number: 13, state: 'open' },
+      ],
+      issues: [],
+    }
+    // The current open PR wins over the older merged one: Q stays running
+    // with its remaining work and dependencies, never merged by history.
+    const lanes = await resolve('M112:Q', evidence)
+    expect(lanes.map((lane) => lane.id)).toEqual(['M112:0', 'M112:Q'])
+    expect(lanes[1]).toMatchObject({
+      id: 'M112:Q',
+      state: 'running',
+      estimatedHours: 5,
+      dependencies: ['M112:0'],
+    })
+  })
+
+  it('estimates unfinished work past a merged prerequisite without hours', async () => {
+    const goal = parseEstimateGoal('M114:Q')
+    if (goal === undefined) throw new Error('unparseable goal')
+    const plan = `## 6. Milestones
+
+### M114 — Polish (2026-10-10)
+
+**Status 2026-10-10: building.**
+
+- **Goal.** Polish.
+- **Depends on.** Nothing new.
+- **Gates.** The full gate.
+
+| Lane | Items | Files it owns | Starts | Rig | Hours |
+| ---- | ----- | ------------- | ------ | --- | ----- |
+| 0 | all | \`src/a.ts\` | First | Kubuntu | — |
+| Q | 1 | \`src/q.ts\` | after 0 | Kubuntu | 5 |
+`
+    const evidence: PlanSnapshotEvidence = {
+      branches: [{ name: 'm114/0', merged: true }],
+    }
+    // Lane 0 is done with zero remaining work: its unknown past must not
+    // block Q, and the lane stays out of the snapshot.
+    const snapshot = buildPlanSnapshot(plan, goal, ESTIMATOR_AS_OF, evidence)
+    expect(snapshot.lanes.map((entry) => entry.lane.id)).toEqual(['M114:Q'])
+    const lanes = await resolveEstimateGoal(goal, ESTIMATOR_AS_OF, {
+      snapshot: () => Promise.resolve(snapshot),
+    })
+    expect(lanes.map((lane) => lane.id)).toEqual(['M114:Q'])
+    expect(lanes[0]).toMatchObject({ dependencies: [] })
+  })
+
+  it('refuses a named prerequisite the plan does not contain', () => {
+    const missing = PLAN.replace(
+      '| Q | 1 | `native/windows/job.cs` | after 0 | Win11 VM | 5 |',
+      '| Q | 1 | `native/windows/job.cs` | after M999 | Win11 VM | 5 |',
+    )
+    const goal = parseEstimateGoal('M112')
+    if (goal === undefined) throw new Error('unparseable goal')
+    expect(() => buildPlanSnapshot(missing, goal, ESTIMATOR_AS_OF, EVIDENCE)).toThrow(
+      /unknown-prerequisite: M999/,
+    )
+    const qualified = PLAN.replace(
+      '| Q | 1 | `native/windows/job.cs` | after 0 | Win11 VM | 5 |',
+      "| Q | 1 | `native/windows/job.cs` | after M999's X | Win11 VM | 5 |",
+    )
+    expect(() => buildPlanSnapshot(qualified, goal, ESTIMATOR_AS_OF, EVIDENCE)).toThrow(
+      /unknown-prerequisite: M999/,
+    )
+  })
+
+  it('refuses a milestone whose lane table drifts from the reader grammar', () => {
+    const drifted = PLAN.replace(
+      '| Lane | Items | Files it owns | Starts | Rig | Hours |',
+      '| Lane | Items | Owner | Starts | Rig | Hours |',
+    )
+    const goal = parseEstimateGoal('M112')
+    if (goal === undefined) throw new Error('unparseable goal')
+    expect(() => buildPlanSnapshot(drifted, goal, ESTIMATOR_AS_OF, EVIDENCE)).toThrow(
+      /plan-drift: lanes-columns/,
+    )
+  })
+
+  it('starts a last lane after every other unfinished lane of its milestone', async () => {
+    const goal = parseEstimateGoal('M114')
+    if (goal === undefined) throw new Error('unparseable goal')
+    const plan = `## 6. Milestones
+
+### M114 — Polish (2026-10-10)
+
+**Status 2026-10-10: building.**
+
+- **Goal.** Polish.
+- **Depends on.** Nothing new.
+- **Gates.** The full gate.
+
+| Lane | Items | Files it owns | Starts | Rig | Hours |
+| ---- | ----- | ------------- | ------ | --- | ----- |
+| 0 | all | \`src/a.ts\` | First | Kubuntu | 2 |
+| Q | 1 | \`src/q.ts\` | after 0 | Kubuntu | 5 |
+| Z | 2 | \`src/z.ts\` | last | Kubuntu | 3 |
+`
+    const snapshot = buildPlanSnapshot(plan, goal, ESTIMATOR_AS_OF, {})
+    const lanes = await resolveEstimateGoal(goal, ESTIMATOR_AS_OF, {
+      snapshot: () => Promise.resolve(snapshot),
+    })
+    expect(lanes.find((lane) => lane.id === 'M114:Z')?.dependencies).toEqual(['M114:0', 'M114:Q'])
+  })
+
+  it('canonicalizes plan punctuation in lane ids to protocol ids', async () => {
+    const goal = parseEstimateGoal('M114')
+    if (goal === undefined) throw new Error('unparseable goal')
+    const plan = `## 6. Milestones
+
+### M114 — Polish (2026-10-10)
+
+**Status 2026-10-10: building.**
+
+- **Goal.** Polish.
+- **Depends on.** Nothing new.
+- **Gates.** The full gate.
+
+| Lane | Items | Files it owns | Starts | Rig | Hours |
+| ---- | ----- | ------------- | ------ | --- | ----- |
+| 0 | all | \`src/a.ts\` | First | Kubuntu | 2 |
+| Integration, done | 1 | \`src/done.ts\` | after 0 | Kubuntu | 3 |
+`
+    const snapshot = buildPlanSnapshot(plan, goal, ESTIMATOR_AS_OF, {})
+    expect(snapshot.lanes.map((entry) => entry.lane.id)).toEqual(['M114:0', 'M114:Integration'])
+    const lanes = await resolveEstimateGoal(goal, ESTIMATOR_AS_OF, {
+      snapshot: () => Promise.resolve(snapshot),
+    })
+    expect(lanes.map((lane) => lane.id)).toEqual(['M114:0', 'M114:Integration'])
+    expect(lanes[1]).toMatchObject({ kind: 'integration' })
   })
 
   it('combines file and rig affinity at resolution without inventing capacity', async () => {
