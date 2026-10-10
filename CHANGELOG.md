@@ -39,11 +39,13 @@ happened, not what was planned; superseded entries are kept.
   recorded. Muse Code 1.4.4's removed delete method is captured as a refusal.
 - The Model API backend now binds the selected model's capability record in
   production: streamed tool-argument previews render on the U9-captured
-  `muse-spark-1.3-contributor` model, and Meta turns request the documented
-  131,072-token output cap, in VS Code, ACP and headless `exec` alike.
-  Unobserved models keep today's stream and the legacy 32,768-token request
-  cap. No setting changes; feature-off request bytes are unchanged
-  (`docs/certification/m106-capability-binding.md`).
+  `muse-spark-1.3-contributor` model in VS Code and ACP, and Meta turns in
+  VS Code, ACP and headless `exec` request the documented 131,072-token
+  output cap. Headless `exec` drops every `tool_call`/`tool_call_update`
+  before its sink, so it records completed tools only and never shows live
+  argument previews. Unobserved models keep today's stream and the legacy
+  32,768-token request cap. No setting changes; feature-off request bytes
+  are unchanged (`docs/certification/m106-capability-binding.md`).
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did
