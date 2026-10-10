@@ -18,10 +18,9 @@ import { type Buffer } from 'node:buffer'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { isCommitSha } from '../../core/git/github'
-import { BlobAnswers } from '../../core/git/heldCheckoutCore'
-import { foldName, heldTree, type HeldEntry, unsafePathReason } from '../../core/git/heldTree'
+import { BlobAnswers, heldDestination } from '../../core/git/heldCheckoutCore'
+import { heldTree, type HeldEntry, unsafePathReason } from '../../core/git/heldTree'
 import { isSamePath } from '../../core/paths'
-import { confineWorkspacePath } from '../../core/workspacePath'
 import { worktreeAddHeldArgs } from '../../core/worktrees'
 import {
   GIT_WORKTREE_TIMEOUT_MS,
@@ -81,20 +80,12 @@ function unreadable(): Error {
   return new GitUnavailableError(UI_TEXT.openPullRequestUnreadable)
 }
 
-/**
- * Where a path of the commit lands: inside the worktree, with nothing on the
- * way that leads elsewhere. Every folder on the way was made by this
- * checkout with the commit's spelling, so any other canonical spelling is a
- * link, a junction or a name the volume reads as another (a short name).
- */
+/** Where a path of the commit lands (`heldDestination`), or the refusal. */
 async function destinationOf(platform: NodeJS.Platform, folder: string, entryPath: string) {
-  const resolution = await confineWorkspacePath(folder, entryPath, platform, {
+  const resolution = await heldDestination(platform, folder, entryPath, {
     realPath: canonicalPath,
   })
-  if (
-    !resolution.ok ||
-    foldName(resolution.canonical, platform) !== foldName(resolution.relative, platform)
-  ) {
+  if (resolution === undefined) {
     throw new GitUnavailableError(unsafePathReason(entryPath))
   }
   return resolution

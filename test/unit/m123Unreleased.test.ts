@@ -8,40 +8,12 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { createGitFeatures, type GitFeaturesDeps } from '../../src/host/git/gitWindow'
-import { WindowHold, WorktreeRegistry } from '../../src/host/git/worktreeRegistry'
+import { createGitFeatures } from '../../src/host/git/gitWindow'
 import { M123_RELEASE, SETTING_DEFAULTS } from '../../src/shared/constants'
 import { featureCatalog } from '../../src/shared/featureCatalog'
-import { memoryMemento } from './helpers/fakeGit'
-import { FakeLogOutputChannel } from './helpers/fakes'
+import { gitFeaturesDeps } from './helpers/gitFeatures'
 
 const GITHUB_SETTING = /^(museSpark\.)?github\./
-
-function unused(): Promise<never> {
-  return Promise.reject(new Error('not in this test'))
-}
-
-/** Activation's primitives for the window's Git features, as extension.ts hands them. */
-function featuresDeps(): GitFeaturesDeps {
-  return {
-    workspaceRoot: '/repo',
-    storageRoot: '/storage',
-    hold: new WindowHold(undefined),
-    registry: new WorktreeRegistry(memoryMemento(), 'linux', () => true),
-    workspaceState: memoryMemento(),
-    fetch: unused,
-    userAgent: 'muse-spark-code/test',
-    runGit: unused,
-    gitProcess: unused,
-    env: {},
-    isCurrent: () => true,
-    admit: (start) => start(),
-    restartBackends: () => Promise.resolve(),
-    holdReleased: () => undefined,
-    signal: new AbortController().signal,
-    log: new FakeLogOutputChannel(),
-  }
-}
 
 describe('M123 stays off until it is complete', () => {
   it('offers no GitHub setting in the manifest, the defaults or the Help reference', () => {
@@ -60,7 +32,7 @@ describe('M123 stays off until it is complete', () => {
   })
 
   it('gives a host without the Git extension no native Git route', () => {
-    const features = createGitFeatures(featuresDeps())
+    const features = createGitFeatures(gitFeaturesDeps())
     expect(features.window.nativeGit).toBeUndefined()
     expect(M123_RELEASE.isNativeGitRouteOn).toBe(false)
   })

@@ -6,6 +6,7 @@
 
 import type { ExecFileOptions } from 'node:child_process'
 import { UI_TEXT, UNTRUSTED_CHECKOUT_MIN_GIT_MINOR } from '../../shared/constants'
+import { namedHookOverrides } from '../../core/git/heldCheckoutCore'
 import {
   type GitArgsBefore,
   type GitExecFile,
@@ -13,7 +14,6 @@ import {
   processGitRunner,
 } from '../git'
 
-const CHECKOUT_HOOK_KEY = /^hook\.(.+)\.(?:command|event|enabled)$/iu
 /**
  * Every git a held pull request's checkout runs (heldCheckout.ts) runs with
  * these: no hooks, no fsmonitor, no replacement objects, no automatic
@@ -79,27 +79,11 @@ async function checkoutOverrides(
     throw checkoutRefusal()
   }
   check?.()
-  // New Git can configure named hooks independently of core.hooksPath.
-  const hooks = new Set(
-    configuration.split('\0').flatMap((name) => {
-      const hook = CHECKOUT_HOOK_KEY.exec(name)?.[1]
-      return hook === undefined ? [] : [hook]
-    }),
-  )
-  // -c splits at its first '='; such subsection names cannot be represented
-  // by these per-command overrides. Never guess an escape.
-  if ([...hooks].some((name) => name.includes('=') || /\p{Cc}/u.test(name))) {
+  const overrides = namedHookOverrides(configuration, UNTRUSTED_CHECKOUT_OPTIONS)
+  if (overrides === undefined) {
     throw checkoutRefusal()
   }
-  return [
-    ...UNTRUSTED_CHECKOUT_OPTIONS,
-    ...[...hooks].flatMap((hook) => [
-      '-c',
-      `hook.${hook}.enabled=false`,
-      '-c',
-      `hook.${hook}.event=`,
-    ]),
-  ]
+  return overrides
 }
 
 /** The lane's arguments for one runner (git.ts `argsBefore`). */
