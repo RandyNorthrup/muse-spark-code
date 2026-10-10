@@ -360,6 +360,16 @@ for (const { name, source, budgetKiB } of [
 const modelsMeta = JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8'))
 const modelsSectionGroups = modelsDeferredBudgetGroups(modelsMeta)
 for (const { name, budgetKiB, outputs } of modelsSectionGroups) {
+  // An empty group is a MISS, never an `ok` 0 KiB line: it means the
+  // section chunk is gone, or its bytes moved back into the panel body
+  // (where the body's own cap has room to hide them).
+  if (outputs.length === 0) {
+    hasFailure = true
+    console.log(
+      `MISS dist/webview ${name}: deferred section chunk missing (budget ${budgetKiB} KiB)`,
+    )
+    continue
+  }
   const sizeKiB = outputs.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
   if (sizeKiB > budgetKiB) hasFailure = true
   console.log(
