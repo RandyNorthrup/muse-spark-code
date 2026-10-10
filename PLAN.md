@@ -19178,6 +19178,54 @@ schedule data directory). Evidence: `test/unit/windowsTrustedPath.test.ts`
 in-tree junctions below it, drive-letter spelling) and
 `docs/certification/trustroot.md`.
 
+### D106 — Linux dictation helper downloads on consent; the VSIX carries no helper binaries (2026-10-10, lead decision closing Q67)
+
+**Lead decision (2026-10-10, CM9LNX2 brief).** The native recogniser helper
+is NOT packaged in the VSIX. The VSIX size and its 3,700 KiB cap stay
+unchanged. Instead the helper (x64 and arm64, five files each:
+`muse-dictate` plus four libraries) is built by the release workflow,
+attested, and published as same-tag release assets; the build embeds each
+asset's SHA-256 in the extension, generated at build time from the built
+helpers.
+
+**Mechanism (this lane).** `src/shared/linuxHelperPins.ts` carries the ten
+pins (stable asset names under `releases/latest/download`, exact bytes and
+SHA-256); it is read only by `dist/voice.js` on the first recording, never
+at activation. The release workflow regenerates it with
+`node scripts/build-linux-helper-pins.mjs` from both built architectures
+before packaging; committed values are UNSET (bytes 0, empty digest), and an
+unset build refuses every helper download before any consent card, instead
+of trusting anything. `node scripts/check-linux-helper-pins.mjs` guards the
+shape always, `--require-values` in the packages job, and
+`--bundle dist/voice.js --assets <uploaded>` in the build and release jobs,
+so a VSIX whose pinned digests do not match the uploaded assets fails. The
+staging guard (`scripts/package-vsix.mjs`), `.vscodeignore` and the hosted
+VSIX content check now refuse any helper binary in the package instead of
+requiring it; only the licence notices stay packed.
+
+**Acquisition.** The existing Whisper-model consent card covers both
+downloads with their sizes, asked once per press (the first answer covers
+helper and model). Every helper file travels the model's hardened path
+(`PinnedFileDownload`: HTTPS-only redirects, identity encoding, validated
+ranges/lengths, bounded streaming writes, fsync, exact size and full SHA-256
+before publication, atomic lock with live/dead owner rules, symlinked
+storage refusal, resumable partials). Installed files are re-hashed before
+every start; the binary keeps owner-only execute permissions
+(`helperMode: 0o755`), libraries owner-only data (`fileMode: 0o600`). A
+digest mismatch, a partial file or a swapped file refuses loudly through the
+existing integrity errors and offers retry/remove; OFF removes helper and
+model with their partials. Manual install (offline users): download the ten
+assets plus the model file into the folder the card names; digests are
+checked the same way.
+
+**Known approximations (lead to confirm).** The card shows the measured
+first-download size (~7.6 MB x64 inventory) rather than the brief's ~3 MB,
+which was the ZIP-compressed inventory: the download is the uncompressed
+files. A swapped helper binary between verification and spawn (TOCTOU) is
+not closed; the window is one spawn and is recorded here. The
+`latest/download` asset URL resolves to the newest release: an older
+extension against newer assets refuses by digest (fail closed).
+
 ## 3. Open questions (need the owner)
 
 **Q-VISREGEN2 resolved by lead (2026-10-09).** Preserve every 0.17.0
@@ -19419,7 +19467,7 @@ INT0170B integration question (2026-10-07), narrowed by LEFT017 (2026-10-08): th
 | Q64 | **Resolved 2026-09-26:** "the top editors come first but i want them all or as close to all as possible": the order is D62's.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | Q65 | **Answered 2026-09-26:** after npm held the owner's account for suspicious activity, the owner set `NPM_TOKEN` in the `marketplace` environment. The name `muse-spark-code-acp` was free that day; the next tag publishes it, and each GitHub Release still carries the package.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | Q66 | **Resolved 2026-09-27: loud, not re-routed.** The ACP agent's own requests (the Model API backend) use Node's `fetch`, which ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` (Node 22.21+ or 24+; measured on seven releases). The owner: the agent does not re-route by itself or add undici. It warns once at start, in its log, when a proxy variable is set for the Model API backend and Node's switch is off or missing (`src/runtime/proxyWarning.ts`), and a request that never reaches Meta gets advice naming the agent's environment variables instead of VS Code's `http.*` settings (M56's classifier, told by the runtime which host it serves: `networkAdvice: 'agent'`).                                                                                                     | Closed; `docs/acp.md` "Networks and proxies", `docs/certification/pr32-integration.md`. |
-| Q67 | **CM9LNX, 2026-10-10:** which native-package budget should the approved Linux offline dictation bundle use? The x64 payload alone is 3,111,639 B with ZIP deflate; the unchanged whole-VSIX cap is 3,700 KiB. The final universal artifact also needs the arm64 payload. No cap is raised in this lane and no Linux-enabled VSIX is published.                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Open; lead/owner decision before publication.                                           |
+| Q67 | **Answered 2026-10-10 (lead decision, D106):** the native helper is NOT packaged in the VSIX; the 3,700 KiB cap stays unchanged. The helper (x64 and arm64) ships as same-tag release assets with build-embedded SHA-256 pins, acquired after the existing consent card (now naming both downloads). Decided against bundling: the x64 payload alone is 3,111,639 B with ZIP deflate; the unchanged whole-VSIX cap is 3,700 KiB. The final universal artifact also needs the arm64 payload. No cap is raised in this lane and no Linux-enabled VSIX is published.                                                                                                                                                                                                                                | Closed; D106. The feature stays off until review passes and hosted receipts land.       |
 | Q12 | Should a shell tool session rule ("Always allow in this session" for a shell command) lapse when the model edits a file the command names or that decides what it runs, as the verify loop's rules do since M68? Today the shell tool keeps its pre-M68 behaviour: its rules are keyed on the exact command line and answer whatever the model edited. The verify loop's grants are kept apart from it (PR #54).                                                                                                                                                                                                                                                                                                                                                                                 | The shell tool's rules keep answering; only the verify loop's lapse.                    |
 
 ### D89.5 — Credential variables stay out of model-run processes (ENVFENCE, 2026-10-05)

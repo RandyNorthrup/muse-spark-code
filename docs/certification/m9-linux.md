@@ -162,6 +162,59 @@ legal certification. An exploratory workspace-wide scan reached the existing
 node_modules enumeration budget and reported dependency/licence ambiguities
 outside this contribution; no npm dependency was changed here.
 
+## D106 — Download on consent (Kubuntu, 2026-10-10, CM9LNX2)
+
+Lead decision (closes PLAN Q67): the native helper is NOT packaged in the
+VSIX; the 3,700 KiB cap stays unchanged. The helper (x64 and arm64, five
+files each) ships as same-tag release assets with build-embedded SHA-256
+pins (`src/shared/linuxHelperPins.ts`, read only by `dist/voice.js`).
+
+One consent card names both downloads with their sizes, asked once per
+press (the first answer covers helper and model; `LinuxDictation` memoizes
+it for the press). Every helper file travels the model's hardened path
+(`PinnedFileDownload`, extracted from `LinuxDictationModel` with zero
+behaviour change to its 12-case suite): HTTPS-only redirects, validated
+ranges/lengths, fsync, exact size and full SHA-256 before publication, the
+same lock directory, resumable partials. Installed files re-hash before
+every start; the binary is owner-executable (0755), libraries owner-only
+(0600). Mismatch, partial or swapped files refuse through the existing
+integrity errors; OFF removes helper and model with their partials; unset
+pins (a build without the release helpers) refuse before any consent.
+Offline installs place the ten assets plus the model in the shown folder;
+digests are checked identically. All 14 localization tables carry the new
+card wording with real translations (`npm run check:l10n`: 0 problems).
+
+Staging (`.vscodeignore`, `scripts/package-vsix.mjs`) and the hosted VSIX
+content check refuse any helper binary instead of requiring it; only the
+licence notices stay packed. `scripts/build-linux-helper-pins.mjs`
+regenerates pins from both built architectures in the packages job;
+`scripts/check-linux-helper-pins.mjs` guards shape, `--require-values`, and
+`--bundle dist/voice.js --assets <uploaded>`, wired into the build and
+release jobs (assets enter SHA256SUMS and the existing attestation;
+`github-release.mjs` verifies existing assets byte-equal before uploading).
+Pins are verified in `dist/voice.js` only, never in the activation bundle
+(activation still 553.0 / 600 KiB; lazy voice 43.8 / 50 KiB).
+
+Deliberate failures: five new red drills in `m9-linux-drills.json`
+(D106-nopack/lazy/once/unset/pins), each observed failing, restored
+byte-exact by SHA-256 and re-run green. The existing RELFAST/RELFAST2
+workflow-drift counts in `manifest.test.ts` were extended (4→6, 6→6→8,
+3→5) for the two helper artifact downloads; nothing else in that contract
+changed. The pins tamper drill initially stayed green because the fixture
+tamper also changes the byte size (the length guard fires first); the drill
+now neuters both guards.
+
+The card shows the measured first-download size (~7.6 MB x64 inventory),
+not the brief's ~3 MB, which was the ZIP-compressed inventory while the
+download is the uncompressed files (D106 records this for the lead).
+TOCTOU between verification and spawn is not closed (one-spawn window).
+`latest/download` asset URLs resolve to the newest release; older
+extensions refuse newer assets by digest. The release/build YAML cannot run
+on this rig (no ARM runner, no `gh`); both files parse, and the hosted
+release is a publication receipt for the lead. `museVoice.test.ts`'s live
+WebSocket case fails identically on the pristine base (sandbox blocks
+loopback here); it is outside this lane's suites and untouched.
+
 ## Publication boundary
 
 This is the local VS Code-family binding. Native composer/editor and
@@ -169,10 +222,11 @@ ACP/terminal rows remain C-M9-1/C-M104-1 as named above. No paid API, Meta
 endpoint, live vendor model call, credential or workflow publication was used.
 
 The x64 native payload alone measured 3,111,639 bytes with ZIP deflate;
-the current whole-VSIX cap is 3,700 KiB. The universal artifact also needs
-arm64. PLAN Q67 and §7 record the required lead/owner budget decision; this
-lane does not raise a cap. Stage/CI guards require both helpers, baseline
-libraries and licence files and exclude model/source fixtures. Hosted
-x64/arm64 native builds, the complete universal package and the lead's full
-aggregate quality remain publication receipts; this lane cannot push or
-launch that workflow. No Linux-enabled VSIX was produced or published.
+the current whole-VSIX cap is 3,700 KiB, unchanged by the lead's D106
+decision: the helper ships as same-tag release assets instead of in the
+package. Stage/CI guards now refuse helper binaries in the VSIX, require
+the licence files, and verify the embedded pins against the uploaded
+assets. Hosted x64/arm64 native builds, the first real release with helper
+assets, the complete universal package and the lead's full aggregate
+quality remain publication receipts; this lane cannot push or launch that
+workflow. No Linux-enabled VSIX was produced or published.
