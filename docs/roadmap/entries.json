@@ -679,7 +679,7 @@
     {
       "id": "M95",
       "title": "Bring your own models",
-      "summary": "Add keys for other providers or local model servers, with authentication bound to its address and features to model capabilities, and use Meta subscription sign-in without fallback to a pasted key.",
+      "summary": "Use other providers or local servers with origin-bound authentication and model capabilities; Meta subscription chat binds billing to each attempt, preserves history on rotation, and keeps consented paid extras on the stored Model API key.",
       "area": "models-providers",
       "release": "0.15.0"
     },

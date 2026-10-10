@@ -694,8 +694,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           get selectedModel() {
             return model ?? ''
           },
-          // C-M95-SUB: plan-billed chat requests admit at zero dollars and
-          // settle at $0; only paid image spend draws on the budget.
+          // Meta-only, fixed-model one-shot: subscription preflight is plan or
+          // refusal. Provider runs use runtimeAccounting's per-attempt route.
+          // The flag is safe here; paid images remain separately dollar-billed.
           planBilling: options.subscription,
           imageGeneration: options.paidFeatures.includes('imageGeneration'),
           lifecycle,

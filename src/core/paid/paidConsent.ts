@@ -274,6 +274,13 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
           fill(UI_TEXT.paidUseWebSearchDetail, {
             price: paidFeaturePrice('webSearch', request.quote?.tariffUsd ?? request.priceUsd),
           }),
+          ...(request.paidModelId === undefined
+            ? []
+            : [
+                fill(UI_TEXT.subscriptionKey.paidSearch, {
+                  price: hookModelPrice(request.paidModelId),
+                }),
+              ]),
           ...(request.quote === undefined
             ? []
             : [

@@ -21,9 +21,10 @@ happened, not what was planned; superseded entries are kept.
   unreadable CLI sign-in stops Model API calls with the fix instead of
   billing a stored key. The key is held in memory only: never shown, logged,
   copied into settings, or stored anywhere. Paid images still bill a stored
-  Model API key; hosted web search stays off while chat bills the plan, and
-  voice keeps using the stored key. A rotated subscription key rebinds the
-  conversation instead of ending it; toggling the opt-in restarts the
+  Model API key; enabled hosted search, subagents and Auto review use that
+  key under normal consent, while voice keeps using the stored key. A search
+  response's model tokens also bill that key, disclosed before use; denied
+  search keeps chat on the plan. Rotation preserves saved-session ownership; toggling the opt-in restarts the
   backend. Outside VS Code, `serve` and
   `exec` take `--subscription` (Model API backend only); a macOS
   Keychain-only sign-in cannot be read, so use a key there.
@@ -92,6 +93,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Subscription requests bind billing and authorization to one immutable
+  route per attempt and refuse account changes during admission before any
+  send; plan exemption is confined to Meta-direct calls, including runtime
+  accounting and compaction. A subsequent capped provider turn remains usable
+  after plan chat or subscription sign-out. Paid extras use the pasted key.
 - Subscription mode refuses unavailable CLI sign-in even with a pasted key,
   retains rotated credentials in transcript redaction, and tests the setting
   that restarts the backend when the credential source changes.

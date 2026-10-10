@@ -251,5 +251,5 @@
   "config.reports.network.enumDescriptions.off": "Číst pouze místní zdroje.",
   "config.reports.keepHistory.description": "Uchovávat na tomto počítači nejnovějších 50 zpráv každého druhu pro historii a porovnání.",
   "config.reports.agentSources.description": "Volitelně číst vlastní soubory využití a limitů Claude Code nebo Codex. Výchozí: žádné. Text konverzací a soubory přihlašovacích údajů se nikdy nečtou jako zdroje zpráv.",
-  "config.useMuseCodeSubscription.description": "Backend Model API spustit s předplatným Muse Code místo klíče pay-as-you-go. Volání se počítají do tarifu Muse Code, ne na kartu, s klíčem předplatného, který Muse Code CLI drží po přihlášení. Chybějící nebo nečitelné přihlášení CLI zastaví volání Model API místo účtování uloženého klíče."
+  "config.useMuseCodeSubscription.description": "Pro chat Meta Model API použijte přihlášení k předplatnému Muse Code CLI. Chybějící nebo nečitelné přihlášení chat zastaví místo účtování uloženému klíči. Placené doplňky včetně hostovaného vyhledávání, dílčích agentů a automatické kontroly se účtují uloženému klíči Model API s běžným souhlasem s cenou, rozpočtem a použitím."
 }

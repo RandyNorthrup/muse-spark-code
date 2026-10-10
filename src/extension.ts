@@ -2581,7 +2581,8 @@ async function activateWindow(
     getApiKey: () => subscription.getApiKey(),
     // Paid extras bill the stored key even while chat bills the plan.
     getPaidApiKey: () => credentials.getApiKey(),
-    isSubscriptionBilling: () => subscription.isSubscriptionBilling(),
+    subscriptionAccountId: subscription.accountId(),
+    getBillingRoute: (isPaid) => subscription.route(isPaid),
     workspaceRoot,
     io: checkpointedIo,
     listAttemptFiles: (attemptRoot) =>

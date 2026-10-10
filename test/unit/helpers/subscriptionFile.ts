@@ -34,7 +34,3 @@ export function memorySubscriptionFile() {
     },
   }
 }
-
-export function subscriptionFileText(accessToken: string): string {
-  return JSON.stringify({ schema_version: 1, providers: { meta: { access_token: accessToken } } })
-}

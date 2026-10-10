@@ -18887,13 +18887,17 @@ go. It stays.
 replace independent billing/auth reads with one frozen per-attempt
 `BillingRoute` (kind, credential, accountId). Resolve only for Meta-direct
 models; other providers keep their origin-bound authentication. Carry the
-route through ordinary and compaction guards and transport; compare the
+route through ordinary and compaction guards and transport; the small shared
+route module is activation-allowed, explicitly forbidden in headless, and
+never added to the nine-byte-slack subscription parser. Compare the
 sent credential digest synchronously and re-resolve after durable admission
 only to refuse a changed kind/account, never to replace the credential.
 The stable subscription identity hashes a fixed label and the resolved,
 separator-normalized sign-in path: the captured DEVICE_LOGIN_FILE has no
 account/user id, so no uncaptured field or bearer digest is invented.
-Rotation preserves saved-session ownership. Drop subscription-bound fences
+Rotation preserves saved-session ownership. External paid budget scopes bind
+the pasted credential digest separately from the stable conversation owner.
+Drop subscription-bound fences
 when sign-out leaves an unrelated provider usable; retain pasted-key fences.
 Plan exemption, reply cost and runtime accounting use this attempt's route;
 clear sending state at completion and never hide the journal with old state.
@@ -18918,8 +18922,8 @@ certification [`docs/certification/m95-sub.md`](docs/certification/m95-sub.md).
    sign-in: `providers.meta`'s `access_token` (the captured `accountLogin`
    shape, `DEVICE_LOGIN_FILE` in `docs/certification/sign-in-detection.md`),
    from the CLI's auth file on every OS (XDG honoured, Windows included),
-   read fresh from disk on every call: nothing is cached or retained between
-   reads, and a 64 KiB size guard refuses oversized files before they are
+   read fresh from disk for every attempt: no credential cache supplies a
+   later send, and a 64 KiB size guard refuses oversized files before they are
    read. A `muse auth set` file holds a pay-as-you-go `api_key` alone (the
    captured `apiKey` shape) and NEVER counts as the subscription: it reads
    as unsigned and the turn refuses, so a card-billed key is never billed
@@ -18927,8 +18931,8 @@ certification [`docs/certification/m95-sub.md`](docs/certification/m95-sub.md).
    into settings, sent to telemetry, or written anywhere. The sent key is
    tracked in the shared redactor registry plus exact literals at every
    persistence boundary, so snapshots, logs, receipts and errors redact the
-   credential actually sent. A 401 surfaces through the ordinary
-   credential-error path.
+   credential actually sent, retaining old literals until the process ends.
+   A 401 surfaces through the ordinary credential-error path.
 2. **Tension, for the lead.** D74/M95b reads "another application's client
    or stored tokens are never read or reused", and the research in §4 notes
    subscription credentials are "for use with Muse Code only" (ToS §3.1,
@@ -18937,7 +18941,7 @@ certification [`docs/certification/m95-sub.md`](docs/certification/m95-sub.md).
    confirm the reading before release.
 3. **Refusal, not fallback.** Opted in but missing/unreadable/unsigned (or a
    macOS Keychain pointer, which is never read): the turn refuses with the
-   fix; a pasted key is never billed silently. Paid scopes stay quiet.
+   fix; a pasted key is never billed silently. Disabled paid scopes stay quiet.
 4. **Billing.** Subscription Meta turns price as plan: usage records carry
    certainty `plan` with no dollar charge, the settle math prices the
    attempt like a plan model (no journal write, no reply-usd, no spend
@@ -18950,12 +18954,16 @@ certification [`docs/certification/m95-sub.md`](docs/certification/m95-sub.md).
 5. **Scope.** VS Code, ACP `serve` and headless `exec` share the core
    resolver. Paid extras bill a stored key: a billed image POST
    authenticates as the pasted key and refuses with the fix when none is
-   stored; hosted search stays off plan-billed turns with a notice instead
-   of settling dollars for plan-covered use. A rotated subscription key
-   rebinds both account fences instead of ending the conversation; a
+   stored; enabled hosted search, subagents and Auto review use the pasted
+   pay-as-you-go key under ordinary price, daily-budget and use consent.
+   A search response's model tokens also bill that key, disclosed before use;
+   denied search leaves chat on the plan. Off features stay quiet; an enabled
+   extra without a pasted key gives the localized refusal. Rotation preserves
+   stable session ownership instead of rebinding to a bearer digest; a
    pasted-key switch still refuses. Toggling the opt-in restarts the
-   backend and re-reads auth. A refused subscription falls back to
-   configured provider accounts for unrelated models. macOS
+   backend and re-reads auth. A refused subscription leaves unrelated
+   provider models on their own accounts, including on a living host after
+   sign-out; subscription-bound account and budget fences are dropped there. macOS
    Keychain-backed sign-ins refuse with the fix; file-backed sign-ins work
    on Windows, macOS and Linux.
 6. **Bundle budget (cap restored, 2026-10-10, RVCMSUBKEY P3-10).** The

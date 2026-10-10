@@ -5231,10 +5231,12 @@
     "signInAgain": "A Muse Code-előfizetés be van kapcsolva, de a Muse Code CLI-nek itt nincs előfizetéses bejelentkezése. A használatalapú kulcs (`muse auth set`) nem számít. Jelentkezzen be Muse-fiókjával (`muse login`), majd próbálja újra – vagy használjon Model API-kulcsot.",
     "cannotRead": "A Muse Code-előfizetés be van kapcsolva, de a Muse Code CLI bejelentkezési fájlja nem olvasható. Jelentkezzen be újra a Muse Code CLI-be, majd próbálja újra – vagy használjon Model API-kulcsot.",
     "keychainBacked": "A Muse Code-előfizetés be van kapcsolva, de ez a bejelentkezés a bejelentkezési kulcskarikában van, amely itt nem olvasható. Használjon Model API-kulcsot.",
-    "paidNeedsKey": "A Muse Code-előfizetés a chatet fedezi. Ehhez a fizetős extrához tárolt Model API-kulcs kell: tároljon egyet, majd próbálja újra."
+    "paidNeedsKey": "A Muse Code-előfizetés a chatet fedezi. Ehhez a fizetős extrához tárolt Model API-kulcs kell: tároljon egyet, majd próbálja újra.",
+    "billingChanged": "A számlázási fiók megváltozott. Semmit sem küldtünk el; próbálja újra.",
+    "paidSearch": "A válasz modelltokenjeit is a tárolt Model API-kulcsra számlázzuk, a következő díjak szerint: {price}."
   },
   "acpSubscriptionNeedsModelApi": "{argument} használatához --backend modelApi szükséges: a Muse Code-előfizetés fizeti a Model API-hívásokat.",
   "execSubscriptionStdin": "A --subscription és a --key-stdin nem kombinálható: futásonként egy hitelesítő adat.",
   "referenceMuseCodeSubscriptionName": "Muse Code-előfizetés",
-  "referenceMuseCodeSubscriptionSummary": "A Model API-hívások elszámolása a csomagra a Muse Code CLI által tárolt kulccsal."
+  "referenceMuseCodeSubscriptionSummary": "A Meta-csevegés a Muse Code előfizetést használja; a bekapcsolt fizetős kiegészítőkhöz tárolt Model API-kulcs és hozzájárulás szükséges."
 }

@@ -1,3 +1,8 @@
+import {
+  billingRoute,
+  subscriptionAccountId,
+  type BillingRoute,
+} from '../../core/backends/modelapi/billingRoute'
 // C-M95-SUB: the host's view of the subscription credential. One opt-in
 // (the VS Code setting, the ACP/headless flag) over the shared core
 // resolver: the effective key for sends, plan billing for the turn path,
@@ -49,17 +54,39 @@ export class SubscriptionCredential {
     })
   }
 
+  /** Stable non-secret identity, also available after sign-out to drop its fences. */
+  public accountId(): string {
+    return subscriptionAccountId(this.source.path())
+  }
+
   /** The CLI auth file read, for diagnostics that never carry the key. */
   public filePath(): string {
     return this.source.path()
   }
 
-  /** The effective Model API key. Throws when opted in but unreadable. */
-  public async getApiKey(): Promise<string | undefined> {
+  /** Resolve exactly once per Meta attempt; paid extras always use the pasted key. */
+  public async route(isPaid = false): Promise<BillingRoute | undefined> {
+    if (isPaid) {
+      const key = await this.deps.credentials.getApiKey()
+      if (key === undefined) return
+      this.track(key)
+      return billingRoute('payAsYouGo', key)
+    }
     const resolved = await this.resolved()
     if (resolved.kind === 'refused') throw new SubscriptionKeyError(resolved.status)
-    if (resolved.kind === 'key') this.track(resolved.key)
-    return resolved.kind === 'key' ? resolved.key : undefined
+    if (resolved.kind !== 'key') return
+    this.track(resolved.key)
+    return billingRoute(
+      resolved.billing,
+      resolved.key,
+      resolved.billing === 'museCodePlan' ? this.accountId() : undefined,
+    )
+  }
+
+  /** The effective Model API key derives from the same route as billing. */
+  public async getApiKey(): Promise<string | undefined> {
+    const route = await this.route()
+    return route?.credential
   }
 
   /**

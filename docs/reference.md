@@ -699,11 +699,11 @@ Commands: `museSpark.signOut`, `museSpark.restartMuseCode`, `museSpark.openInTer
 
 ### Muse Code subscription
 
-Bill Model API calls to the Muse Code plan with the key the Muse Code CLI holds.
+useMuseCodeSubscription&paidFeatureConsent: Meta chat uses the Muse Code plan; enabled paid extras require a stored Model API key and consent.
 
 Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: `museSpark.useMuseCodeSubscription`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-code-subscription)
+Commands: —. Settings: `museSpark.useMuseCodeSubscription`, `museSpark.modelApiWebSearch`, `museSpark.modelApiSubagents`, `museSpark.modelApiAutoReviewer`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-code-subscription)
 
 ### Several accounts per provider
 
@@ -2537,7 +2537,7 @@ Type: `"number"`. Default: `0`. Scope: `machine`.
 
 ### museSpark.useMuseCodeSubscription
 
-Drive the Model API backend with the Muse Code subscription instead of a pay-as-you-go key. Calls count against the Muse Code plan, not the card, using the subscription key the Muse Code CLI holds after sign-in. A missing or unreadable CLI sign-in stops Model API calls instead of billing a stored key.
+Use the Muse Code CLI subscription sign-in for Meta Model API chat. A missing or unreadable sign-in stops chat instead of billing a stored key. Paid extras, including hosted search, subagents and Auto review, bill the stored Model API key with normal price, budget and use consent.
 
 Type: `"boolean"`. Default: `false`. Scope: `machine`.
 

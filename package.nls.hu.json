@@ -251,5 +251,5 @@
   "config.reports.network.enumDescriptions.off": "Csak helyi források olvasása.",
   "config.reports.keepHistory.description": "A legújabb 50 jelentés megőrzése típusonként ezen a gépen az előzményekhez és összevetéshez.",
   "config.reports.agentSources.description": "Saját Claude Code vagy Codex használati és korlátfájlok olvasásának engedélyezése. Alapérték: nincs. Beszélgetésszöveget és hitelesítőadat-fájlokat soha nem olvas jelentésforrásként.",
-  "config.useMuseCodeSubscription.description": "A Model API-backend használata a Muse Code-előfizetéssel használatalapú kulcs helyett. A hívások a Muse Code-csomagot terhelik, nem a kártyát, a Muse Code CLI által a bejelentkezés után tárolt előfizetési kulccsal. Hiányzó vagy olvashatatlan CLI-bejelentkezés esetén a Model API-hívások leállnak, a tárolt kulcs terhelése helyett."
+  "config.useMuseCodeSubscription.description": "A Meta Model API-csevegéshez használja a Muse Code CLI előfizetéses bejelentkezését. A hiányzó vagy olvashatatlan bejelentkezés leállítja a csevegést a tárolt kulcs megterhelése helyett. A fizetős kiegészítők, köztük a szolgáltatói keresés, az alügynökök és az automatikus ellenőrzés, a tárolt Model API-kulcsot terhelik a szokásos ár-, költségkeret- és használati hozzájárulással."
 }

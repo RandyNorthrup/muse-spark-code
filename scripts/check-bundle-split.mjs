@@ -133,6 +133,10 @@ const UNBUNDLED = new Set(['hookFormats/clineDiscover.ts', 'files.ts'])
 
 // The backend's files the activation bundle may carry, each with its reason.
 const ACTIVATION_ALLOWED = new Map([
+  [
+    'billingRoute.ts',
+    'the frozen credential route and stable sign-in identity shared by activation and Model API (D106)',
+  ],
   ['schemas.ts', 'shared boundary schemas used by activation and ACP'],
   ['imageGeneration.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['imageToolDefinitions.ts', "the IDE server's image tools on Muse Code (M44)"],
@@ -298,6 +302,15 @@ for (const name of [
 }
 
 const activation = inputsOf(BUNDLES.activation)
+// D106: the frozen route belongs to the engine, never the tiny headless preflight.
+const headlessRouteInputs = inputsOf({
+  output: 'dist/headless.js',
+  metafile: 'dist/meta-acp/headless.json',
+})
+if (headlessRouteInputs.has(`${MODEL_API_DIR}/billingRoute.ts`))
+  problems.push(
+    'dist/headless.js carries the billing route; keep it out of the headless preflight (D106)',
+  )
 // M118: prompt/share implementations load with their first action, never
 // activation. Type-only imports contribute no runtime bytes.
 for (const file of ['src/shared/prompts.ts', 'src/shared/share.ts']) {

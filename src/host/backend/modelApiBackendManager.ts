@@ -1,3 +1,4 @@
+import type { BillingRoute } from '../../core/backends/modelapi/billingRoute'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
 import type { UsageRecording } from '../../core/usage/recording'
@@ -77,8 +78,9 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly getAccountId?: (() => Promise<string | undefined>) | undefined
   readonly createProviders?: (() => Promise<ModelResolver>) | undefined
   readonly hasMetaCredential?: (() => boolean) | undefined
-  /** C-M95-SUB: the host's answer, from the same resolver as its key. */
-  readonly isSubscriptionBilling?: (() => Promise<boolean>) | undefined
+  /** The immutable Meta credential/pricing decision for each request. */
+  readonly subscriptionAccountId?: string | undefined
+  readonly getBillingRoute?: ((isPaid?: boolean) => Promise<BillingRoute | undefined>) | undefined
   readonly workspaceRoot: string | undefined
   readonly io: ToolIo
   /** Existing file-listing adapter rooted in each actual attempt worktree. */
@@ -365,8 +367,20 @@ export class ModelApiBackendManager {
         confirmContributorModel: this.deps.confirmContributorModel,
         store: variant.store,
         scheduleStore: variant.scheduleStore,
+        subscriptionAccountId: this.deps.subscriptionAccountId,
         getAccountId: async () => {
           if (this.deps.getAccountId !== undefined) return await this.deps.getAccountId()
+          if (this.deps.getBillingRoute !== undefined) {
+            try {
+              const route = await this.deps.getBillingRoute()
+              if (route !== undefined) return route.accountId
+            } catch (error: unknown) {
+              const fallback = await this.deps.getProviderAccountId?.()
+              if (fallback !== undefined) return fallback
+              throw error
+            }
+            return await this.deps.getProviderAccountId?.()
+          }
           let key: string | undefined
           let refusal: Error | undefined
           try {
@@ -394,8 +408,8 @@ export class ModelApiBackendManager {
         hasExternalPaidRecording: this.deps.hasExternalPaidRecording,
         usageKind: variant.usageKind,
         hasMetaCredential: this.deps.hasMetaCredential,
-        ...(this.deps.isSubscriptionBilling !== undefined && {
-          isSubscriptionBilling: this.deps.isSubscriptionBilling,
+        ...(this.deps.getBillingRoute !== undefined && {
+          getBillingRoute: this.deps.getBillingRoute,
         }),
         ...(variant.budgetScope !== undefined && { budgetScope: variant.budgetScope }),
         describeEnvironment: variant.describeEnvironment,

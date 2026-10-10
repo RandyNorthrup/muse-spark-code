@@ -212,6 +212,8 @@ export type PaidUseRequest =
   | { readonly feature: 'judge'; readonly modelId: string; readonly dailyBudgetUsd: UsdAmount }
   | {
       readonly feature: 'webSearch'
+      /** A subscription search response also bills its model tokens to the pasted key. */
+      readonly paidModelId?: string | undefined
       readonly priceUsd: UsdAmount
       readonly quote?: PaidQuote
       readonly isCurrent?: () => boolean
