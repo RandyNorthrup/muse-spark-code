@@ -338,7 +338,7 @@ export const EN = {
   referenceElicitationKeys: 'Cancel',
   referenceGoalKeys: 'Cancel',
   referenceMicKeys: 'records your voice into the composer (tap to toggle, hold to talk)',
-  referenceOutputKeys: 'Open output',
+  referenceOutputKeys: 'Open Output',
   referenceAgentKeys: 'Send message',
   referenceDialogKeys: 'Browse matches, activate the selected conversation or close the dialog.',
   referencePopoverKeys: 'Navigate options, adjust a value, choose an option or close the popover.',
@@ -464,7 +464,7 @@ export const EN = {
   referenceRenameKeys: 'Confirm or cancel renaming this conversation.',
   referenceRadialKeys:
     'Navigate actions, jump to the first or last, activate an action, or close or return to the parent menu.',
-  referenceRowKeys: 'ContextMenu / Shift+F10: More actions',
+  referenceRowKeys: 'ContextMenu / Shift+F10: More Actions',
   referenceEffortKeys: 'Choose how much effort Muse puts into each reply.',
   referenceMenuKeys: 'Navigate items, choose or complete a selection, or close the list.',
   referenceArchiveKeys: 'Archive / Unarchive',

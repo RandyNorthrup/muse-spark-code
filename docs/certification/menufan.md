@@ -45,6 +45,11 @@ Existing action labels already in Title Case: Fork Conversation, Fork and
 Rewind, Rewind, Copy, Edit, Redo, Review, Revert, Dismiss. Disabled explanatory
 notes remain sentences.
 
+The English keyboard reference captions also follow their current action
+labels: `referenceRowKeys` is `ContextMenu / Shift+F10: More Actions`, and
+`referenceOutputKeys` is `Open Output`. Manifest command names remain the
+names supplied by the manifest.
+
 ## Screenshots and measurements
 
 All twelve 320×800 / 690×800 PNGs are outside git:
@@ -99,7 +104,7 @@ for every host that mounts it; ACP/headless has no visual action menu.
 (39), controller/questions/deferred surfaces (712), visual matrix/gate/source
 (22), visual capture/stability/readiness (15), reference/harness/README shots
 (140). After the additional guard drill, App/browser/README shots passed
-206 tests again. All commands used `--maxWorkers=3`, at most three files and
+206 tests again. All Vitest runs used `--maxWorkers=3`, at most three files and
 repository default timeouts; final runs had no skipped tests. Scoped ESLint, Prettier, stylelint, localization (0 problems), reference,
 roadmap, plan, host API (0 problems), plain knip and duplication all pass.
 `npm run build` passes token, size, split, host-global and notice gates:

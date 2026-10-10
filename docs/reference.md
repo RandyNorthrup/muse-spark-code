@@ -3621,12 +3621,12 @@ These are defaults; editor customizations take precedence.
 - `palette`: `ArrowDown / ArrowUp / ArrowRight / ArrowLeft / Enter / Escape`; when `palette`; Navigate items, choose or complete a selection, or close the list. Choose how much effort Muse puts into each reply.
 - `popover`: `ArrowDown / ArrowUp / ArrowRight / ArrowLeft / Enter / Space / Escape`; when `popover`; Navigate options, adjust a value, choose an option or close the popover.
 - `dialog`: `ArrowDown / ArrowUp / Enter / Escape`; when `dialog`; Browse matches, activate the selected conversation or close the dialog.
-- `row.menu`: `ContextMenu / Shift+F10`; when `row.menu`; ContextMenu / Shift+F10: More actions
+- `row.menu`: `ContextMenu / Shift+F10`; when `row.menu`; ContextMenu / Shift+F10: More Actions
 - `radial.menu`: `ArrowDown / ArrowRight / ArrowUp / ArrowLeft / Home / End / Enter / Space / Escape`; when `radial.menu`; Navigate actions, jump to the first or last, activate an action, or close or return to the parent menu.
 - `header.rename`: `Enter / Escape`; when `header.rename`; Confirm or cancel renaming this conversation.
 - `modal.focus`: `Tab / Shift+Tab / Escape`; when `modal.focus`; Close the dialog or move focus within it.
 - `agent.message`: `Enter`; when `agent.message`; Send message
-- `output.open`: `Enter / Space`; when `output.open`; Open output
+- `output.open`: `Enter / Space`; when `output.open`; Open Output
 - `goal.edit`: `Escape`; when `goal.edit`; Cancel
 - `elicitation`: `Escape`; when `elicitation`; Cancel
 - `deferred.close`: `Escape`; when `deferred.close`; Close the dialog or move focus within it.
