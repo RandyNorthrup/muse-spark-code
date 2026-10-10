@@ -15,10 +15,12 @@ import {
   EDITOR_CHAT_PROMPT_CACHE_RETENTION,
   UI_TEXT,
 } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { fill, formatNumber } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 
 const selectedSchema = z.array(z.string().check(z.minLength(1)))
+const confirmationsSchema = z.record(z.string(), z.string())
+const modelOptionsSchema = z.strictObject({ reasoningEffort: z.optional(z.string()) })
 const textSchema = z.object({ value: z.string() })
 const callSchema = z.object({
   callId: z.string(),
@@ -70,6 +72,8 @@ export interface EditorChatDeps {
   readonly now: () => number
   readonly saveSelected: (refs: readonly string[]) => Promise<void>
   readonly saveCap: (amount: UsdAmount) => Promise<void>
+  readonly confirmations: () => unknown
+  readonly saveConfirmation: (ref: string, evidence: string | undefined) => Promise<void>
 }
 export interface EditorChatInformation {
   readonly id: string
@@ -132,7 +136,7 @@ function bodyFor(
     !opts.success ||
     (opts.data.toolMode !== undefined &&
       opts.data.toolMode !== vscode.LanguageModelChatToolMode.Auto) ||
-    Object.keys(opts.data.modelOptions ?? {}).length > 0
+    !modelOptionsSchema.safeParse(opts.data.modelOptions ?? {}).success
   )
     return fail()
   const input: InputItem[] = []
@@ -204,14 +208,121 @@ function bodyFor(
   }
 }
 
+const confirmationEvidence = (model: ResolvedModel, budget: UsdAmount) =>
+  JSON.stringify({
+    model: model.ref,
+    origin: model.origin,
+    pricing: model.policy.pricing,
+    budget,
+  })
+
+const pricePerMillion = (rate: number) =>
+  formatUsd(Usd.from(rate).times(TOKENS_PER_MILLION).toAmount(), 2)
+
+const modelRates = (model: ResolvedModel) => {
+  const pricing = model.policy.pricing
+  if (pricing.kind === 'local') return UI_TEXT.modelLocal
+  if (pricing.kind !== 'priced') return fail()
+  const card = pricing.card
+  const tokenRates = (tier: typeof card.longContextTier) => {
+    const input = tier?.input ?? card.input
+    const output = tier?.output ?? card.output
+    const cached = tier?.cachedInput ?? card.cachedInput ?? input
+    const write = tier?.cacheWrite ?? card.cacheWrite ?? input
+    const write1h = tier?.cacheWrite1h ?? card.cacheWrite1h ?? write
+    return fill(UI_TEXT.editorChatRates, {
+      input: pricePerMillion(input),
+      output: pricePerMillion(output),
+      cached: pricePerMillion(cached),
+      write: pricePerMillion(write),
+      write1h: pricePerMillion(write1h),
+    })
+  }
+  const base = tokenRates(undefined)
+  const fees = fill(UI_TEXT.editorChatFees, {
+    request: formatUsd(card.request ?? 0, 2),
+    image: formatUsd(card.image ?? 0, 2),
+  })
+  const tier = card.longContextTier
+  return [
+    base,
+    fees,
+    ...(tier === undefined
+      ? []
+      : [
+          fill(UI_TEXT.editorChatTier, {
+            tokens: formatNumber(tier.fromTokens),
+            rates: tokenRates(tier),
+          }),
+        ]),
+  ].join('\n')
+}
+
+const reasoningEffortFor = (model: ResolvedModel, options: unknown) => {
+  const opts = optionsSchema.parse(options)
+  const requested = modelOptionsSchema.parse(opts.modelOptions ?? {}).reasoningEffort
+  const { supported, effortLevels, canDisable } = model.policy.reasoning
+  if (requested !== undefined) {
+    return supported.state !== 'no' &&
+      effortLevels.state === 'yes' &&
+      effortLevels.value.includes(requested) &&
+      (requested !== 'none' || canDisable.state === 'yes')
+      ? requested
+      : fail()
+  }
+  if (supported.state === 'no') return 'none'
+  if (effortLevels.state === 'yes') {
+    if (canDisable.state === 'yes' && effortLevels.value.includes('none')) return 'none'
+    const level = effortLevels.value.find((value) => value !== 'none')
+    if (level !== undefined) return level
+  }
+  return canDisable.state === 'yes' ? 'none' : fail()
+}
+
 export function createEditorChat(deps: EditorChatDeps) {
   const active = new Set<AbortController>()
+  const confirming = new Map<string, Promise<void>>()
   const resolveModel = async (ref: string) =>
     await deps.models.resolve(ref.startsWith('meta/') ? ref.slice('meta/'.length) : ref)
   const selected = () => selectedSchema.parse(deps.selected())
   const cap = () => {
     const value = legacyUsdSchema.safeParse(deps.cap())
     return !value.success || Usd.from(value.data).compare(Usd.from(0)) <= 0 ? fail() : value.data
+  }
+  const isConfirmed = (ref: string, model: ResolvedModel, budget: UsdAmount) =>
+    confirmationsSchema.safeParse(deps.confirmations()).data?.[ref] ===
+    confirmationEvidence(model, budget)
+  const confirm = async (ref: string, model: ResolvedModel, budget: UsdAmount) => {
+    if (isConfirmed(ref, model, budget)) return
+    const prior = confirming.get(ref)
+    if (prior !== undefined) {
+      await prior
+      if (!isConfirmed(ref, model, budget)) return fail()
+      return
+    }
+    const originalCap = deps.cap()
+    const pending = (async () => {
+      const answer = await vscode.window.showWarningMessage(
+        fill(UI_TEXT.editorChatConsent, {
+          model: ref,
+          rates: modelRates(model),
+          cap: formatUsd(budget, 2),
+        }),
+        { modal: true },
+        UI_TEXT.editorChatEnable,
+      )
+      if (answer !== UI_TEXT.editorChatEnable) return fail()
+      if (!deps.allowed() || !model.isCurrent() || deps.cap() !== originalCap) return fail()
+      if (legacyUsdSchema.safeParse(originalCap).data !== budget) await deps.saveCap(budget)
+      if (!deps.allowed() || !model.isCurrent() || cap() !== budget) return fail()
+      await deps.saveConfirmation(ref, confirmationEvidence(model, budget))
+    })()
+    confirming.set(ref, pending)
+    try {
+      await pending
+    } finally {
+      confirming.delete(ref)
+    }
   }
   const resolve = async (ref: string) => {
     if (!deps.allowed() || !selected().includes(ref)) return fail()
@@ -223,6 +334,7 @@ export function createEditorChat(deps: EditorChatDeps) {
     )
       return fail()
     limits(model)
+    reasoningEffortFor(model, {})
     return model
   }
   const provider: EditorChatProvider = {
@@ -268,7 +380,7 @@ export function createEditorChat(deps: EditorChatDeps) {
         messages,
         options,
         bound.output,
-        model.policy.identity.provider === 'meta' ? 'minimal' : 'none',
+        reasoningEffortFor(model, options),
       )
       const images = body.input.reduce(
         (count, item) =>
@@ -292,6 +404,14 @@ export function createEditorChat(deps: EditorChatDeps) {
         images,
       })
       if (worst === undefined) return fail()
+      await confirm(ref, model, cap())
+      if (
+        !deps.allowed() ||
+        !selected().includes(ref) ||
+        !model.isCurrent() ||
+        !isConfirmed(ref, model, cap())
+      )
+        return fail()
       const admission = await deps.ledger.admit(worst, cap())
       if (!admission.admitted) return fail()
       const abort = new AbortController()
@@ -309,6 +429,7 @@ export function createEditorChat(deps: EditorChatDeps) {
       const guard = () => {
         abort.signal.throwIfAborted()
         if (!deps.allowed() || !selected().includes(ref) || !model.isCurrent()) return fail()
+        if (!isConfirmed(ref, model, cap())) return fail()
         if (Usd.from(admission.totalUsd).compare(Usd.from(cap())) > 0) return fail()
         if (state.isDispatched) return fail() // Automatic retries cannot spend a second reservation.
       }
@@ -360,17 +481,26 @@ export function createEditorChat(deps: EditorChatDeps) {
         try {
           if (!state.isDispatched) actual = Usd.from(0).toAmount()
           else if (usage !== undefined && state.isCompleted)
-            actual = model.price.settle({
-              inputTokens: usage.input_tokens,
-              outputTokens: usage.output_tokens,
-              cachedTokens: usage.input_tokens_details?.cached_tokens,
-              cacheWriteTokens: usage.input_tokens_details?.cache_write_tokens,
-              cacheWriteTokens1h: usage.input_tokens_details?.cache_write_tokens_1h,
-              images,
-            })
-          if (actual !== undefined && Usd.from(actual).compare(Usd.from(worst)) <= 0)
-            await deps.ledger.settle(admission.reservation, actual)
-          else actual = undefined
+            actual = model.price.settle(
+              {
+                inputTokens: usage.input_tokens,
+                outputTokens: usage.output_tokens,
+                cachedTokens: usage.input_tokens_details?.cached_tokens,
+                cacheWriteTokens: usage.input_tokens_details?.cache_write_tokens,
+                cacheWriteTokens1h: usage.input_tokens_details?.cache_write_tokens_1h,
+                images,
+              },
+              usage.provider_cost_usd === undefined ? undefined : { cost: usage.provider_cost_usd },
+            )
+          if (actual !== undefined && Usd.from(actual).compare(Usd.from(worst)) <= 0) {
+            if (!(await deps.ledger.settle(admission.reservation, actual))) {
+              actual = undefined
+              outcome = 'failed'
+            }
+          } else {
+            actual = undefined
+            if (state.isDispatched && state.isCompleted) outcome = 'failed'
+          }
         } catch {
           // A failed settlement retains the durable reservation and still gets a tally.
           actual = undefined
@@ -386,6 +516,11 @@ export function createEditorChat(deps: EditorChatDeps) {
             durationMs: Math.max(0, deps.now() - at),
             outcome,
             pricing: model.policy.pricing,
+            ...(images > 0 && { units: { images } }),
+            providerCostUsd:
+              usage?.provider_cost_usd === undefined
+                ? undefined
+                : Usd.from(usage.provider_cost_usd).toAmount(),
             uncertain: actual === undefined,
             retainedLiabilityUsd: actual === undefined ? worst : undefined,
           })
@@ -401,10 +536,12 @@ export function createEditorChat(deps: EditorChatDeps) {
     async toggle(ref: string): Promise<void> {
       const refs = selected()
       if (refs.includes(ref)) {
+        await deps.saveConfirmation(ref, undefined)
         await deps.saveSelected(refs.filter((value) => value !== ref))
         return
       }
       if (!deps.allowed()) return fail()
+      await deps.saveConfirmation(ref, undefined)
       const originalCap = deps.cap()
       let budget = legacyUsdSchema.safeParse(originalCap).data
       if (budget === undefined || Usd.from(budget).compare(Usd.from(0)) <= 0) {
@@ -425,27 +562,19 @@ export function createEditorChat(deps: EditorChatDeps) {
       const pricing = model.policy.pricing
       if (pricing.kind !== 'local' && pricing.kind !== 'priced') return fail()
       limits(model)
-      const rate =
-        pricing.kind === 'local'
-          ? UI_TEXT.modelLocal
-          : fill(UI_TEXT.editorChatRates, {
-              input: formatUsd(
-                Usd.from(pricing.card.input).times(TOKENS_PER_MILLION).toAmount(),
-                2,
-              ),
-              output: formatUsd(
-                Usd.from(pricing.card.output).times(TOKENS_PER_MILLION).toAmount(),
-                2,
-              ),
-            })
-      const answer = await vscode.window.showWarningMessage(
-        fill(UI_TEXT.editorChatConsent, { model: ref, rates: rate, cap: formatUsd(budget, 2) }),
-        { modal: true },
-        UI_TEXT.editorChatEnable,
+      reasoningEffortFor(model, {})
+      try {
+        await confirm(ref, model, budget)
+      } catch {
+        return
+      }
+      if (
+        !deps.allowed() ||
+        !model.isCurrent() ||
+        cap() !== budget ||
+        !isConfirmed(ref, model, budget)
       )
-      if (answer !== UI_TEXT.editorChatEnable) return
-      if (!deps.allowed() || !model.isCurrent() || deps.cap() !== originalCap) return fail()
-      await deps.saveCap(budget)
+        return fail()
       await deps.saveSelected([...new Set([...selected(), ref])])
     },
   }

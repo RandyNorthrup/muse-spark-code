@@ -19,7 +19,7 @@ function fakeLedger(admission: TabAdmission, total?: TabDayTotal) {
   const day: TabDayTotal = total ?? { ok: true, totalUsd: Usd.from(0).toAmount() }
   const ledger = {
     admit: vi.fn((): Promise<TabAdmission> => Promise.resolve(admission)),
-    settle: vi.fn((): Promise<void> => Promise.resolve()),
+    settle: vi.fn((): Promise<boolean> => Promise.resolve(true)),
     todayTotal: vi.fn((): Promise<TabDayTotal> => Promise.resolve(day)),
   }
   const typed: TabLedger = ledger

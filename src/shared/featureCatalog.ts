@@ -322,6 +322,7 @@ export function featureCatalog(): readonly Feature[] {
     ),
     feature(
       'editor-chat',
+      // Native Muse and BYO rows share recorded price/cap confirmation and M102 accounting.
       { ui: 'editorChatTitle' },
       { ui: 'referenceEditorChat' },
       ['modelsAndAgents'],

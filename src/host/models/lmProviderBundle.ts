@@ -10,6 +10,7 @@ import {
   EDITOR_CHAT_BUNDLE_FILE,
   EDITOR_CHAT_VENDOR,
   SETTINGS_SECTION,
+  GLOBAL_STATE_KEYS,
   UI_TEXT,
 } from '../../shared/constants'
 
@@ -62,6 +63,10 @@ export function registerEditorChat(deps: {
   readonly recording: EditorChatDeps['recording']
   readonly allowed: () => boolean
   readonly loadBundle?: (file: string) => unknown
+  readonly globalState: {
+    get(key: string): unknown
+    update(key: string, value: unknown): Thenable<void>
+  }
 }) {
   let isDisposed = false
   let registration: vscode.Disposable | undefined
@@ -69,6 +74,54 @@ export function registerEditorChat(deps: {
   let loaded: ReturnType<typeof createEditorChat> | undefined
   const config = () => vscode.workspace.getConfiguration(SETTINGS_SECTION)
   const selected = () => config().get<unknown>('editorChatModels', [])
+  let previousBudget = config().get<unknown>('editorChatDailyBudgetUsd', 0)
+  const stored = deps.globalState.get(GLOBAL_STATE_KEYS.editorChatConfirmations)
+  const confirmations: Record<string, string> = {}
+  if (typeof stored === 'object' && stored !== null && !Array.isArray(stored))
+    for (const [ref, value] of Object.entries(stored))
+      if (typeof value === 'string') confirmations[ref] = value
+  let saving = Promise.resolve()
+  const generations = new Map<string, number>()
+  const saveConfirmation = async (ref: string, evidence: string | undefined) => {
+    const generation = (generations.get(ref) ?? 0) + 1
+    generations.set(ref, generation)
+    if (evidence === undefined) Reflect.deleteProperty(confirmations, ref)
+    const previous = saving
+    const write = (async () => {
+      try {
+        await previous
+      } catch {
+        // The earlier caller owns its failure; this update still runs in order.
+      }
+      const next = { ...confirmations }
+      if (evidence === undefined) Reflect.deleteProperty(next, ref)
+      else next[ref] = evidence
+      await deps.globalState.update(GLOBAL_STATE_KEYS.editorChatConfirmations, next)
+      if (generations.get(ref) !== generation) return
+      if (evidence === undefined) Reflect.deleteProperty(confirmations, ref)
+      else confirmations[ref] = evidence
+    })()
+    saving = write
+    await write
+  }
+  const withdraw = (hasBudgetChanged: boolean) => {
+    const refs = selected()
+    const budget = config().get<unknown>('editorChatDailyBudgetUsd', 0)
+    const refsToCheck = new Set([...Object.keys(confirmations), ...generations.keys()])
+    for (const ref of refsToCheck)
+      if (
+        hasBudgetChanged ||
+        typeof budget !== 'number' ||
+        !Array.isArray(refs) ||
+        !refs.includes(ref) ||
+        budget <= 0 ||
+        !Number.isFinite(budget)
+      )
+        void saveConfirmation(ref, undefined).catch(() => {
+          deps.log.warn('Editor chat confirmation could not be withdrawn')
+        })
+  }
+  withdraw(false)
   const load = () => {
     if (engine !== undefined) return engine
     const pending = (async () => {
@@ -91,6 +144,8 @@ export function registerEditorChat(deps: {
         }),
         recording: deps.recording,
         selected,
+        confirmations: () => confirmations,
+        saveConfirmation,
         cap: () => config().get<unknown>('editorChatDailyBudgetUsd', 0),
         allowed: () => !isDisposed && deps.allowed() && vscode.workspace.isTrusted,
         now: Date.now,
@@ -159,11 +214,17 @@ export function registerEditorChat(deps: {
   }
   refresh()
   const listener = vscode.workspace.onDidChangeConfiguration((event) => {
-    if (
+    if (!(
       event.affectsConfiguration(`${SETTINGS_SECTION}.editorChatModels`) ||
       event.affectsConfiguration(`${SETTINGS_SECTION}.editorChatDailyBudgetUsd`)
-    )
-      refresh()
+    )) {
+      return
+    }
+
+    const budget = config().get<unknown>('editorChatDailyBudgetUsd', 0)
+    withdraw(budget !== previousBudget)
+    previousBudget = budget
+    refresh()
   })
   return {
     available: hasEditorChatApi,

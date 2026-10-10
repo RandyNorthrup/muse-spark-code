@@ -7,6 +7,16 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Editor chat money and model integration** (M95c review). Settings edits
+  require recorded price-and-budget consent before spending; confirmation
+  discloses cache, image, request, reasoning and long-context costs. Usage
+  records match image-inclusive settlements, including one-hour cache writes,
+  and failed durable settlement reports retained liability. Requests use only
+  supported reasoning levels. Native Muse Standard models work without BYO
+  providers. Bundle-budget fixtures include and test the mandatory lazy control.
+
 ### Added
 
 - **Editor chat models** (M95c part 2). Explicitly offer priced or local models

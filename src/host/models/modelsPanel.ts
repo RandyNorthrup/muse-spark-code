@@ -36,6 +36,7 @@ import type { WizardSaveOutcome } from '../providers/wizardSave'
 import { OPENROUTER_ORIGIN } from '../providers/openRouter'
 
 export interface ModelsPanelDeps {
+  readonly metaModels?: (() => Promise<readonly ProviderModelRow[]>) | undefined
   readonly editorChat?:
     | { available(): boolean; selected(ref: string): boolean; toggle(ref: string): Promise<void> }
     | undefined
@@ -258,6 +259,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       }
     })
     const all: ModelRow[] = []
+    const nativeModels = await deps.metaModels?.()
+    if (nativeModels !== undefined) rows.set('meta', nativeModels)
     const families = new Map<string, string>()
     for (const [providerId, models] of rows) {
       if (providerId === 'copilot' && deps.isConfidential?.() === true) continue
@@ -287,7 +290,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           serverless: model.serverless,
           isNew: newModels.has(`${providerId}/${model.id}`),
           freeOrLocal: model.isFree || model.isLocal,
-          ticked: (saved?.models ?? draft?.models ?? []).includes(model.id),
+          ticked:
+            providerId === 'meta' || (saved?.models ?? draft?.models ?? []).includes(model.id),
           pinned: saved?.pinned.includes(model.id) ?? false,
           priceNote: modelPriceNote(model),
           badges: {

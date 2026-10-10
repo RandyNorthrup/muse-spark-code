@@ -5231,7 +5231,9 @@
   "editorChatRefused": "A szerkesztői csevegés kérése elutasítva. Ellenőrizze a modell engedélyezését, az ismert árakat, a tokenkorlátokat, a munkaterület megbízhatóságát és a napi keretet.",
   "editorChatEnable": "Engedélyezés",
   "editorChatBudgetPrompt": "Adjon meg pozitív napi keretet USD-ben, amely közös minden modell és szerkesztőablak számára.",
-  "editorChatRates": "{input} bemenet / {output} kimenet egymillió tokenenként",
+  "editorChatRates": "{input} bemenet / {output} kimenet (a következtetéssel együtt) millió tokenenként; {cached} gyorsítótár-olvasás / {write} gyorsítótár-írás / {write1h} 1 órás gyorsítótár-írás millió tokenenként",
   "editorChatConsent": "Felajánlja a(z) {model} modellt a szerkesztői csevegésnek? {rates}. Minden telepített bővítmény hívhatja ezt a modellt az Ön kulcsával. Közös napi korlát: {cap}. A megszakított hívások megtartják a foglalásukat. Az előfizetés ebből semmit sem fedez.",
-  "referenceEditorChat": "Engedélyezze a kiválasztott ismert árú vagy helyi modelleket a VS Code csevegésében közös napi USD-korláttal; a hívások a használat és költség oldalon jelennek meg. VS Code 1.104+ és megbízható, nem bizalmas munkaterület szükséges."
+  "referenceEditorChat": "Engedélyezze a kiválasztott ismert árú vagy helyi modelleket a VS Code csevegésében közös napi USD-korláttal; a hívások a használat és költség oldalon jelennek meg. VS Code 1.104+ és megbízható, nem bizalmas munkaterület szükséges. A natív Muse nem igényel saját szolgáltatót; költés előtt a rögzített megerősítés minden díjat és a keretet lefedi.",
+  "editorChatFees": "{request} kérésenként / {image} képenként",
+  "editorChatTier": "{tokens} bemeneti tokentől: {rates}"
 }

@@ -20,6 +20,10 @@ function mockWebviewMeta(meta, models, whatsNew) {
         imports: [],
         entryPoint: 'src/webview/models/panel.tsx',
       },
+      'dist/webview/chunks/editor-chat-control.js': {
+        imports: [],
+        entryPoint: 'src/webview/models/EditorChatToggle.tsx',
+      },
     },
   }
   const pageMetafiles = {
@@ -57,6 +61,35 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('bundled What’s New content budget', () => {
+  it('requires exactly one editor chat control chunk and preserves its 2 KiB cap', async () => {
+    const control = 'dist/webview/chunks/editor-chat-control.js'
+    statSync.mockImplementation((file) => ({ size: file === control ? 2 * 1024 : 0 }))
+    await import('../../scripts/check-bundle-size.mjs')
+    expect(process.exit).not.toHaveBeenCalled()
+    vi.resetModules()
+    statSync.mockImplementation((file) => ({ size: file === control ? 2 * 1024 + 1 : 0 }))
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+    expect(console.log).toHaveBeenCalledWith('OVER editor chat controls: 2.0 KiB (budget 2 KiB)')
+    for (const entries of [[], ['one', 'two']]) {
+      vi.resetModules()
+      mockWebviewMeta({ outputs: { 'dist/webview/main.js': { imports: [] } } })
+      const validRead = readFileSync.getMockImplementation()
+      readFileSync.mockImplementation((file) => {
+        const meta = JSON.parse(validRead(file))
+        if (file === 'dist/meta/modelsWebview.json') {
+          Reflect.deleteProperty(meta.outputs, control)
+          for (const name of entries)
+            meta.outputs[`dist/webview/chunks/${name}.js`] = {
+              imports: [],
+              entryPoint: 'src/webview/models/EditorChatToggle.tsx',
+            }
+        }
+        return JSON.stringify(meta)
+      })
+      await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+      expect(console.error).toHaveBeenCalledWith('Missing or duplicated editor chat control chunk')
+    }
+  })
   it.each([
     ['models', 75],
     ['usage', 50],

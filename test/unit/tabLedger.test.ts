@@ -299,7 +299,7 @@ describe('TabLedger admission and settlement (M94 lane L)', () => {
         { date: DATE_ONE, worstCaseUsd: Usd.from(0.1).toAmount() },
         Usd.from(0.001).toAmount(),
       ),
-    ).resolves.toBeUndefined()
+    ).resolves.toBe(false)
     expect(log.warn).toHaveBeenCalled()
   })
 
@@ -320,7 +320,7 @@ describe('TabLedger admission and settlement (M94 lane L)', () => {
         { date: DATE_ONE, worstCaseUsd: Usd.from(-1).toAmount() },
         Usd.from(0.001).toAmount(),
       ),
-    ).resolves.toBeUndefined()
+    ).resolves.toBe(false)
     await expect(ledger.todayTotal()).resolves.toEqual({
       ok: true,
       totalUsd: Usd.from(0).toAmount(),
@@ -338,7 +338,7 @@ describe('TabLedger admission and settlement (M94 lane L)', () => {
         { date: '../escape', worstCaseUsd: Usd.from(0.1).toAmount() },
         Usd.from(0.001).toAmount(),
       ),
-    ).resolves.toBeUndefined()
+    ).resolves.toBe(false)
     expect(log.warn).toHaveBeenCalled()
     await expect(ledger.todayTotal('../escape')).resolves.toEqual({
       ok: false,

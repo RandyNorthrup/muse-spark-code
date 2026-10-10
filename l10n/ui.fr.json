@@ -5384,7 +5384,9 @@
   "editorChatRefused": "Requête du chat de l’éditeur refusée. Vérifiez l’activation du modèle, les prix connus, les limites de jetons, la confiance dans l’espace de travail et le budget quotidien.",
   "editorChatEnable": "Activer",
   "editorChatBudgetPrompt": "Saisissez un budget quotidien positif en USD, partagé entre tous les modèles et fenêtres de l’éditeur.",
-  "editorChatRates": "{input} en entrée / {output} en sortie par million de jetons",
+  "editorChatRates": "{input} en entrée / {output} en sortie (raisonnement compris) par million de jetons ; {cached} lecture du cache / {write} écriture du cache / {write1h} écriture du cache pour 1 heure par million de jetons",
   "editorChatConsent": "Proposer {model} au chat de l’éditeur ? {rates}. Toutes les extensions installées peuvent appeler ce modèle avec votre clé. Plafond quotidien partagé : {cap}. Les appels interrompus conservent leur réservation. L’abonnement ne paie rien de cela.",
-  "referenceEditorChat": "Activez les modèles choisis tarifés ou locaux dans le chat de VS Code avec un plafond quotidien partagé en USD ; les appels apparaissent dans Utilisation et coût. Nécessite VS Code 1.104+ et un espace de travail fiable et non confidentiel."
+  "referenceEditorChat": "Activez les modèles choisis tarifés ou locaux dans le chat de VS Code avec un plafond quotidien partagé en USD ; les appels apparaissent dans Utilisation et coût. Nécessite VS Code 1.104+ et un espace de travail fiable et non confidentiel. Muse natif ne nécessite aucun fournisseur personnel ; la confirmation enregistrée couvre tous les tarifs et le plafond avant toute dépense.",
+  "editorChatFees": "{request} par requête / {image} par image",
+  "editorChatTier": "À partir de {tokens} jetons en entrée : {rates}"
 }

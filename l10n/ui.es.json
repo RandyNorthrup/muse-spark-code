@@ -5384,7 +5384,9 @@
   "editorChatRefused": "Solicitud del chat del editor rechazada. Comprueba la activación del modelo, los precios conocidos, los límites de tokens, la confianza del espacio de trabajo y el presupuesto diario.",
   "editorChatEnable": "Activar",
   "editorChatBudgetPrompt": "Introduce un presupuesto diario positivo en USD, compartido por todos los modelos y ventanas del editor.",
-  "editorChatRates": "{input} de entrada / {output} de salida por millón de tokens",
+  "editorChatRates": "{input} entrada / {output} salida (incluido el razonamiento) por millón de tokens; {cached} lectura de caché / {write} escritura de caché / {write1h} escritura de caché de 1 hora por millón de tokens",
   "editorChatConsent": "¿Ofrecer {model} al chat del editor? {rates}. Todas las extensiones instaladas pueden llamar a este modelo con tu clave. Límite diario compartido: {cap}. Las llamadas interrumpidas conservan su reserva. La suscripción no paga nada de esto.",
-  "referenceEditorChat": "Activa modelos elegidos con precio conocido o locales en el chat de VS Code con un límite diario compartido en USD; las llamadas aparecen en Uso y coste. Requiere VS Code 1.104+ y un espacio de trabajo de confianza y no confidencial."
+  "referenceEditorChat": "Activa modelos elegidos con precio conocido o locales en el chat de VS Code con un límite diario compartido en USD; las llamadas aparecen en Uso y coste. Requiere VS Code 1.104+ y un espacio de trabajo de confianza y no confidencial. Muse nativo no necesita un proveedor propio; la confirmación guardada cubre todas las tarifas y el límite antes de gastar.",
+  "editorChatFees": "{request} por solicitud / {image} por imagen",
+  "editorChatTier": "A partir de {tokens} tokens de entrada: {rates}"
 }
