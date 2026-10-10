@@ -74,6 +74,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Local report sources sort every tied list to a total order, so the same
+  inputs produce byte-identical reports whatever order records arrive in:
+  Git commits, tags, branches and worktrees break key ties on their full
+  serialized bytes, session check runs break remaining ties on serialized
+  bytes after the existing timestamp/check/outcome/commit/duration fields,
+  usage breakdown and limit keys do the same, scrubbed
+  question ids do the same, and agent file order normalizes Windows
+  separators before comparing. Runtime discovery also refuses directory
+  entries shaped like session files, so a folder named `*.jsonl` can no
+  longer mark a usage read partial (C-M113-1, RVM113S tie-breaks).
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.

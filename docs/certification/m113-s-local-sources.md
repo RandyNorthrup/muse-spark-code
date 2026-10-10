@@ -208,3 +208,70 @@ All associated tests are in `gitSource.test.ts`, `changelogSource.test.ts`, `ses
 | `src/core/reporting/sources/session.ts`       | `d21ccfc17e4abf95070681efdd026054f9729048e98d5c65d054ef47a8bd34fa` |
 | `src/core/reporting/sources/questions.ts`     | `ad4307954d9a717250f678682c0022d7957a40f039265d4f5800d84082670a33` |
 | `src/core/reporting/sources/agentUsage.ts`    | `eb0739c308535cc4f0b525e6c572a2bd4eeaadc189afbd14001436a5ac6591e7` |
+
+## C-M113-1 port — 2026-10-10 (MacBook lane CM1131)
+
+Ports the accepted RVM113S repair (`port/m113-s`: 20854be3693, 7ea2fcac83a)
+onto release 0.17.0 as a manual port: the base has moved on, so a blind
+cherry-pick would regress two later improvements. Ported: total-order
+tie-breaks in `git.ts` (commits, tags, branches, worktrees),
+`questions.ts`, `session.ts` (check-run tail after the existing
+at/check/outcome/commit/durationMs fields, breakdown and limits tails),
+`agentUsage.ts` (Windows-separator normalization in file order) and the
+`!entry.directory` discovery guard in `src/runtime/reporting/sources.ts`.
+Deliberately NOT ported: the `package.ts` hunk (the base replaced the
+`npm-run-all2` matcher with its own `matchTaskNames` over
+`path.posix.matchesGlob`; re-applying the old hunk would regress it) and
+the discovery-descent hunk (the base already descends into
+`projects/<project>/subagents` with case-insensitive, separator-tolerant
+matching, a superset of the repair). No new string, command, setting,
+dependency or activation change; `check:l10n` reports 0 problems.
+
+Property tests (repository default timeouts, `--maxWorkers=3`, MacBook):
+
+- `test/unit/gitSource.test.ts`: shuffled scrub-colliding identities/paths
+  produce byte-identical Git facts across three input orders.
+- `test/unit/sessionReportSource.test.ts`: all 24 permutations of tied
+  checks with repeated usage keys, and all 6 permutations of
+  scrub-colliding questions, produce byte-identical session facts.
+- `test/unit/agentUsageSource.test.ts`: byte-identical file order for
+  Windows vs POSIX separators; the subagent discovery test gains a
+  directory-shaped `directory.jsonl` entry that must stay unselected.
+
+Final runs: `gitSource + sessionReportSource` 25 passed;
+`agentUsageSource` 12 passed; all three files together 37 passed.
+`npm run typecheck` (all projects), scoped ESLint zero warnings, Prettier
+and `check:l10n` (0 problems) pass.
+
+### Guard-fire receipts (each guard broken independently, restored byte-exact)
+
+| Disabled guard                  | Named regression              | Result                                           |
+| ------------------------------- | ----------------------------- | ------------------------------------------------ |
+| git-commit-tie                  | byte-identical Git facts      | 1 failed / 11 passed; exact restore              |
+| git-tag-tie                     | byte-identical Git facts      | 1 failed / 11 passed; exact restore              |
+| git-branch-tie                  | byte-identical Git facts      | 1 failed / 11 passed; exact restore              |
+| git-worktree-tie                | byte-identical Git facts      | 1 failed / 11 passed; exact restore              |
+| check-duration-step (tail kept) | byte-identical session facts  | 13 passed: the JSON tail alone holds determinism |
+| check-duration-step + JSON tail | byte-identical session facts  | 1 failed / 12 passed; exact restore              |
+| usage-breakdown-tie             | byte-identical session facts  | 1 failed / 12 passed; exact restore              |
+| usage-limit-tie                 | byte-identical session facts  | 1 failed / 12 passed; exact restore              |
+| question-scrubbed-id-tie        | byte-identical questions      | 1 failed / 12 passed; exact restore              |
+| agent-path-separators           | byte-identical file order     | 1 failed / 11 passed; exact restore              |
+| discovery-regular-files         | subagent discovery stays `ok` | 1 failed / 11 passed; exact restore              |
+
+Note: the check-run JSON tail cannot fire on the frozen five-field schema
+(two rows agreeing on every compared field are identical), so its drill is
+the pair above: dropping the duration step stays green only while the tail
+stands, and dropping both fails. Restored production-file SHA-256:
+
+| File                                       | SHA-256                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------ |
+| `src/core/reporting/sources/git.ts`        | `a0168aea691f31ed309c05b2c7015fa842aaaae2d05f567c3fb901cdfbe0d8bc` |
+| `src/core/reporting/sources/session.ts`    | `5fe4f79edfa2441abc4d2ae67de66293b6b0df655e7628363d8b0bdf57a6eb29` |
+| `src/core/reporting/sources/questions.ts`  | `7e593e574951805363bc3a1fec97a05149bc43946028ec719ce96c889440cf27` |
+| `src/core/reporting/sources/agentUsage.ts` | `e739e7d1f417316733c97e2456bab14353d095531ab5d5c3894648446e3aaa80` |
+| `src/runtime/reporting/sources.ts`         | `a36e8dd8165d4554192ff56dd10f64f27d39d4571e8623b4d155842fe0badb55` |
+
+Drill driver `temp/cm1131-drill.mjs` (gitignored scratch) breaks/restores
+each guard and prints file hashes; `temp/cm1131-baseline.sha` holds the
+pre-drill hashes the restores were diffed against.
