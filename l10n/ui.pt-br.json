@@ -323,7 +323,7 @@
     "effort": "Escolha quanto esforço o Muse dedica a cada resposta.",
     "output": "Escolher o formato do resultado: text, json ou jsonl.",
     "max-budget-usd": "Definir o limite rígido de gastos em USD para esta execução.",
-    "team": "--team: Pedir uma execução de equipe (backend da Model API, acceptEdits e um orçamento fixo).",
+    "team": "--team: Pedir uma execução de equipe (backend da Model API, acceptEdits e um orçamento fixo; recusado até a chegada da faixa do executor de equipe: todo pedido sai com 2).",
     "max-requests": "Definir o máximo de solicitações ao modelo.",
     "timeout": "Definir o limite de duração em segundos.",
     "fail-on-denial": "Parar a execução se uma permissão for negada.",

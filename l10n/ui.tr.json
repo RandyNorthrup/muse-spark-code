@@ -323,7 +323,7 @@
     "effort": "Muse'un her yanıta ayırdığı çabayı seçin.",
     "output": "Sonuç biçimini seçin: text, json veya jsonl.",
     "max-budget-usd": "Bu çalıştırma için USD cinsinden kesin harcama sınırı belirleyin.",
-    "team": "--team: Ekip çalıştırması iste (Model API arka ucu, acceptEdits ve sabit bütçe).",
+    "team": "--team: Ekip çalıştırması iste (Model API arka ucu, acceptEdits ve sabit bütçe; ekip çalıştırıcı şeridi gelene kadar reddedilir: her istek 2 ile çıkar).",
     "max-requests": "Maksimum model isteği sayısını belirleyin.",
     "timeout": "Çalıştırma süresi sınırını saniye olarak belirleyin.",
     "fail-on-denial": "İzin reddedilirse çalıştırmayı durdurun.",

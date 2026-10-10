@@ -323,7 +323,7 @@
     "effort": "Wählen, wie viel Mühe Muse in jede Antwort steckt.",
     "output": "Das Ergebnisformat wählen: text, json oder jsonl.",
     "max-budget-usd": "Das feste Ausgabenlimit in USD für diesen Lauf festlegen.",
-    "team": "--team: Einen Team-Lauf anfordern (Model-API-Backend, acceptEdits und ein festes Budget).",
+    "team": "--team: Einen Team-Lauf anfordern (Model-API-Backend, acceptEdits und ein festes Budget; bis zur Team-Runner-Spur verweigert: jede Anfrage endet mit 2).",
     "max-requests": "Die maximale Anzahl von Modellanfragen festlegen.",
     "timeout": "Die Laufzeitgrenze in Sekunden festlegen.",
     "fail-on-denial": "Den Lauf bei verweigerter Berechtigung stoppen.",
