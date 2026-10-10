@@ -1192,8 +1192,16 @@ class AcpSession {
             this.deps.log.warn('Companion ACP prompt failed')
           })
           try {
-            await Promise.race([accepted, running])
+            const admitted = (async (): Promise<StopReason | 'admitted'> => {
+              await accepted
+              return 'admitted'
+            })()
+            const outcome = await Promise.race([admitted, running])
             signal.throwIfAborted()
+            // A preparation cancelled before admission starts no backend
+            // turn: report nothing sent, so the browser keeps the reviewed
+            // text for retry. A local outcome counts as sent.
+            if (outcome === 'cancelled') throw new Error('EVOICE_NOT_SENT')
             this.send({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text } })
           } finally {
             signal.removeEventListener('abort', abort)
