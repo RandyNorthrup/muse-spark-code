@@ -974,9 +974,13 @@ judge is one of two gates, never the only one.
 for both B1 and B2.** The decision first said 300 ms. He was told that no
 measured engine answers in 300 ms and that 5 s is still about ten times
 faster than the reviewer's 45–60 s timeouts, and chose up to 5 s for both
-classes over "B2 5 s, B1 300 ms" and "300 ms for both". For B2 the window
-may run alongside the contained run and ends at the earlier of the run's
-end and 5 s; no answer by then is still a veto.
+classes over "B2 5 s, B1 300 ms" and "300 ms for both". The window is the
+same for both classes: up to 5 s from the moment the action is held,
+whenever B2's contained run ends. A B2 run that finishes before the judge
+answers waits for the answer within those 5 s; no answer by 5 s is a veto.
+(An earlier record of this answer said B2's window ended at the earlier of
+the run's end and 5 s; that wording was a relay error, corrected by the
+lead the same day.)
 
 Lane F builds this; it is planned work, no longer conditional. The rest of
 this section is how it is built so that the three conditions mean what
@@ -1050,9 +1054,11 @@ as today.
 4. **The class's confinement is available** on this machine and passed its
    self-test in this session (9.4, 9.5).
 5. **The judge does not veto within its window**, `JUDGE_FAST_VETO_WINDOW_MS`
-   = 5,000 ms from the moment the action is held (Q-D107-VETO); for B2 the
-   window ends at the earlier of the contained run's end and those 5 s. The
-   judge answers 7.1's `risk.destructive` noul over the command (for B2
+   = 5,000 ms from the moment the action is held (Q-D107-VETO), the same
+   for both classes. For B2 the contained run starts at the hold too, and
+   its end does not move the window: a run that finishes first waits for
+   the judge's answer until 5 s; a run still going at 5 s goes on only if
+   the non-veto has arrived. The judge answers 7.1's `risk.destructive` noul over the command (for B2
    also the script's text and the paths changed since the owner's
    baseline) with p(yes) under a calibrated threshold (a fitted profile,
    section 7.0), from an engine whose complete-call p95 on this machine,
@@ -1060,20 +1066,23 @@ as today.
    the window. No answer, a late answer or an uncalibrated engine is a
    veto. 9.7 lists the engines that qualify.
 
-**The reviewer still starts when it does today.** A 5 s window must not
-make a veto slower than today's path, so the harness does not wait for the
-judge before asking the reviewer: when the action is held, the reviewer
-starts exactly as today, and the judge's question (and, for B2, the
-contained run) start beside it. The fast path wins only if the judge's
-non-veto arrives inside its window and before the reviewer's verdict; the
-reviewer is then cancelled, and only once the fast path's result is
-delivered (B1 after its output passes the secret check, B2 after its
-delivery rules, 9.5), so a discarded B2 run falls back to a reviewer that
-is already running. If the reviewer's verdict comes first, or the judge
-vetoes, or the window closes without an answer, today's path decides with
-no added wait, and a B2 run in progress is killed and discarded. The cost
-is a reviewer request started and cancelled for each skip; the reviewer's
-wait, not its tokens, is what B removes, and the ship rule counts both
+**The reviewer still starts when it does today** (the lead's decision,
+2026-10-10). A 5 s window must not make a veto slower than today's path,
+so the harness does not wait for the judge before asking the reviewer:
+when the action is held, the reviewer starts exactly as today, and the
+judge's question (and, for B2, the contained run) start beside it. The
+fast path wins only if the judge's non-veto arrives inside its window and
+before the reviewer's verdict. The skip is decided when the fast path's
+result is delivered (B1 after its output passes the secret check, B2 after
+its delivery rules, 9.5), and the cancel is sent to the reviewer at that
+moment; until then the reviewer keeps running, so a discarded B2 run falls
+back to a reviewer that is already under way. If the reviewer's verdict
+comes first, or the judge vetoes, or the window closes without an answer,
+today's path decides with no added wait, and a B2 run in progress is
+killed and discarded. **A skip saves wall time, not tokens:** the
+reviewer's request has already been sent when the skip is decided, so the
+tokens it has used by then are spent, and the cancel stops only what
+remains. The ship rule counts both the time saved and those tokens
 (section 11).
 
 ### 9.4 B1, inspect: what runs, and what it may read
@@ -1562,8 +1571,9 @@ It costs lane F's confinement helper for Linux and macOS (native, per
 architecture), the Linux B2 runner and its socket filter, the
 owner-baseline tracker, the per-platform captures and self-tests, the
 drills above, a fitted `risk.destructive` profile for an engine that
-answers within the 5 s window, a reviewer request started and cancelled
-per skip, and 400 labelled actions per class and platform. It buys a
+answers within the 5 s window, the tokens of a reviewer request started
+and then cancelled per skip (a skip saves wall time, not those tokens),
+and 400 labelled actions per class and platform. It buys a
 skipped review for a single read-only inspect command on Linux and macOS,
 and for the workspace's own unchanged npm or pnpm check scripts on Linux
 with bubblewrap 0.11.0 or later, on the Model API and M95 only. It skips
@@ -1599,8 +1609,9 @@ workspace never skips the reviewer. The resolver measures every engine on the ma
 these rows are where to expect a fit, not receipts. With the reviewer
 running alongside (9.3), an engine that answers in 2–4 s still beats the
 reviewer's big-model call (8–14 s on Muse Spark, 45–60 s timeouts); for B2,
-a run that ends before the answer arrives is discarded and the reviewer
-decides, with no added wait.
+a run that ends before the answer arrives waits for it until 5 s after the
+hold, and with no answer by then it is discarded and the reviewer, already
+running, decides with no added wait.
 
 ### 9.8 How B relates to the standing rule, and what was recommended
 
