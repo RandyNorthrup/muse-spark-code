@@ -22,6 +22,7 @@ import {
   LEGAL_TEMPLATE_SPAN_MAX_CHARS,
   LEGAL_TEMPLATE_TITLE_LINES_MAX,
   LEGAL_TEMPLATE_VARIABLE_MAX_CHARS,
+  WORK_LEAD_IN_WORDS_MAX,
 } from '../../shared/constants'
 import { bytesFingerprint } from '../verify/fingerprint'
 import { SPDX_TEMPLATE_FILES, type SpdxTemplateFile } from './data'
@@ -82,6 +83,12 @@ interface LicenseTemplate {
   readonly requiredCounts: ReadonlyMap<string, number>
   readonly requiredTotal: number
   readonly titleVocabulary: ReadonlySet<string>
+  /**
+   * Per optional part, the copyright variables inside it: an optional
+   * appendix (`How to apply …`) may be given from its notice on, as the
+   * applied notice, since its instructions are not terms.
+   */
+  readonly noticeEntries: ReadonlyMap<number, readonly number[]>
 }
 
 interface Equivalences {
@@ -105,6 +112,7 @@ interface Token {
   readonly isWord: boolean
 }
 
+const EMPTY_VOCABULARY: ReadonlySet<string> = new Set()
 const ANY_TOKEN = '\u{0}any'
 const END_TOKEN = '\u{0}end'
 const QUOTES = /^["'`«»‘’‚‛“”„‟‹›]$/u
@@ -113,6 +121,8 @@ const WORD = /^[\p{L}\p{N}\p{M}]+$/u
 const TOKEN = /[\p{L}\p{N}\p{M}]+|\S/gu
 const COMMENT_PREFIX = /^\s*(?:\/\/+|\/\*+|\*+\/|\*+(?=\s|$)|#+|;+|--+(?=\s|$)|%+|<!--|-->)?/u
 const SEPARATOR_LINE = /^\s*([^\p{L}\p{N}\s])\1{2,}\s*$/u
+// A list item's marker at a line start; `(c)` is the copyright mark, not item c.
+const LIST_ITEM = /^\s*(?:[-•·]|\(?(?:\d{1,3}|[abd-z]|[ivxl]{2,6})[.)])\s+/iu
 const MARKUP = /<<(beginOptional|endOptional|var;([\s\S]*?))>>/gu
 const VARIABLE_FIELDS = /^name="([\s\S]*?)";\s*original="([\s\S]*?)";\s*match="([\s\S]*?)"\s*$/u
 const BOUNDED_WILDCARD = /^\.\{\d+,(\d+)\}$/u
@@ -157,10 +167,15 @@ function isRestrictionWord(lower: string): boolean {
   )
 }
 
+/**
+ * Punctuation as the guidelines compare it. Quote marks of every style
+ * and Markdown emphasis (`*AS IS*`, `_AS IS_`) carry no terms, so they
+ * drop out on both sides; the other marks stay.
+ */
 function normalizePunctuation(token: string): readonly string[] {
   if (token === '©') return ['(', 'c', ')']
   if (token === '&') return ['and']
-  if (QUOTES.test(token)) return ["'"]
+  if (token === '*' || token === '_' || QUOTES.test(token)) return []
   return [DASHES.test(token) ? '-' : token]
 }
 
@@ -215,7 +230,9 @@ function tokenize(text: string, equivalences: Equivalences): readonly Token[] {
   let lineNumber = 0
   for (const line of text.split(/(?<=\n)/u)) {
     const body = line.replace(/\r?\n$/u, '')
-    const prefix = COMMENT_PREFIX.exec(body)?.[0].length ?? 0
+    const commentPrefix = COMMENT_PREFIX.exec(body)?.[0].length ?? 0
+    // A list item's bullet or number carries no terms (guideline B.6).
+    const prefix = commentPrefix + (LIST_ITEM.exec(body.slice(commentPrefix))?.[0].length ?? 0)
     const content = withoutBoxEdge(body.slice(prefix))
     if (!SEPARATOR_LINE.test(content))
       tokens.push(...baseTokens(content, offset + prefix, lineNumber))
@@ -499,7 +516,22 @@ function buildTemplate(id: string, source: string, equivalences: Equivalences): 
     requiredCounts: required,
     requiredTotal: sumOf(required),
     titleVocabulary: titleVocabularyOf(nodes, id, equivalences),
+    noticeEntries: noticeEntriesOf(program),
   }
+}
+
+function noticeEntriesOf(program: readonly Instruction[]): Map<number, number[]> {
+  const entries = new Map<number, number[]>()
+  for (const [pc, instruction] of program.entries()) {
+    if (instruction.op !== 'split') continue
+    const inside: number[] = []
+    for (let at = pc + 1; at < instruction.skip; at += 1) {
+      const candidate = program[at]
+      if (candidate?.op === 'variable' && candidate.variable.role === 'notice') inside.push(at)
+    }
+    if (inside.length > 0) entries.set(pc, inside)
+  }
+  return entries
 }
 
 /**
@@ -601,11 +633,12 @@ function isNameShaped(text: string, vocabulary: ReadonlySet<string>): boolean {
     hasContacts
       ? body
           .replaceAll(/<[^<>\s]+@[^<>\s]+>|<https?:\/\/[^<>\s]+>|\(https?:\/\/[^()\s]+\)/giu, ' ')
-          .replaceAll(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+|https?:\/\/\S+/giu, ' ')
+          .replaceAll(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+|https?:\/\/\S+|(?<!\S)@[\w-]+/giu, ' ')
       : body
   )
     .split(/\s+/u)
-    .map((part) => part.replace(/^[(<[]+/u, '').replace(/[)\]>,]+$/u, ''))
+    // Brackets, and quotes around a nickname (`Menglin "Mark" Xu`), are not words.
+    .map((part) => part.replace(/^[(<["'“‘«]+/u, '').replace(/[)\]>,"'”’»]+$/u, ''))
     .filter((part) => part !== '' && !/^[,&/+-]+$/u.test(part))
   let isAfterAbbreviation = false
   let capitalRun = 0
@@ -631,6 +664,34 @@ function isNameShaped(text: string, vocabulary: ReadonlySet<string>): boolean {
   return parts.length > 0
 }
 
+/** Words that may name which work a notice covers (`Portions`, `pngjs original work`). */
+const WORK_LEAD_IN_WORDS: ReadonlySet<string> = new Set(
+  'original derived modified work works portions portion parts part of the this software code file files library project and based on'.split(
+    ' ',
+  ),
+)
+
+/**
+ * A notice line from its first copyright marker, when what precedes the
+ * marker only names the work (`Portions Copyright …`, `pngjs original
+ * work Copyright …`): closed lead-in words plus at most one name word,
+ * never restriction vocabulary or a terminator. Otherwise the line as is.
+ */
+function withoutWorkLeadIn(line: string): string {
+  const at = line.search(/\b(?:copyright\b|copr\.)|\(c\)|©/iu)
+  if (at <= 0) return line
+  const words = line.slice(0, at).trim().split(/\s+/u)
+  const others = words.filter((word) => !WORK_LEAD_IN_WORDS.has(word.toLowerCase()))
+  const isWorkName =
+    words.length <= WORK_LEAD_IN_WORDS_MAX &&
+    others.length <= 1 &&
+    others.every(
+      (word) =>
+        /^[\p{L}\p{N}][\p{L}\p{N}._-]*$/u.test(word) && !isRestrictionWord(word.toLowerCase()),
+    )
+  return isWorkName ? line.slice(at) : line
+}
+
 /**
  * Whether text is only copyright notices: each line opens with a marker
  * (or is `All rights reserved`); a variable whose original carries no
@@ -641,7 +702,7 @@ function isCopyrightNotice(
   vocabulary: ReadonlySet<string>,
   requiresMarker: boolean,
 ): boolean {
-  const lines = contentLines(text)
+  const lines = contentLines(text).map((line) => withoutWorkLeadIn(line))
   if (lines.length === 0) return true
   const isMarked = lines.every(
     (line) => COPYRIGHT_MARKER.test(line) || RIGHTS_RESERVED_LINE.test(line),
@@ -780,7 +841,10 @@ function isAligned(
       if (instruction.op === 'end' && pos === tokens.length) return true
       let isMatched = false
       if (instruction.op === 'split')
-        isMatched = isRunMatched(pc + 1, pos) || isRunMatched(instruction.skip, pos)
+        isMatched =
+          isRunMatched(pc + 1, pos) ||
+          isRunMatched(instruction.skip, pos) ||
+          (template.noticeEntries.get(pc) ?? []).some((entry) => isRunMatched(entry, pos))
       else if (instruction.op === 'variable')
         isMatched = isVariableMatched(pc, pos, instruction.variable)
       else note(pos, pc)
@@ -897,13 +961,20 @@ export function readLicenseText(
   // match; the others are never walked for exactness.
   for (const { template, similarity, recall } of ranked) {
     if (recall < 1) continue
-    const untitled = withoutTitleLines(template, tokens)
-    if (
-      isAligned(template, input, 0, newFailure()) ||
-      (untitled !== undefined &&
-        isAligned(template, { ...input, tokens: untitled }, 0, newFailure()))
-    )
-      return { key: template.key, exact: true, similarity }
+    // The text as written, without title-only lines, and without
+    // copyright-notice lines outside the template's own slot (guidelines:
+    // titles and copyright notices are not terms).
+    const untitled = withoutTitleLines(template, tokens) ?? tokens
+    const variants = new Set([
+      tokens,
+      untitled,
+      withoutEdgeNotices(tokens, text),
+      withoutEdgeNotices(untitled, text),
+    ])
+    for (const variant of variants) {
+      if (isAligned(template, { ...input, tokens: variant }, 0, newFailure()))
+        return { key: template.key, exact: true, similarity }
+    }
   }
   const closest = ranked[0]
   if (closest === undefined || closest.similarity < LEGAL_TEMPLATE_SIMILARITY_MIN) return undefined
@@ -915,6 +986,36 @@ export function readLicenseText(
     similarity: closest.similarity,
     difference: differenceOf(closest.template, input, failure),
   }
+}
+
+/**
+ * The tokens without copyright-notice lines at the start or end (up to
+ * three each): a notice outside the template's own slot carries no terms
+ * when it passes the same notice check a copyright variable applies.
+ */
+function withoutEdgeNotices(tokens: readonly Token[], text: string): readonly Token[] {
+  const lines = [...new Set(tokens.map((token) => token.line))]
+  const isNotice = (line: number): boolean => {
+    const own = tokens.filter((token) => token.line === line)
+    const first = own[0]
+    const last = own.at(-1)
+    return (
+      first !== undefined &&
+      last !== undefined &&
+      isCopyrightNotice(text.slice(first.start, last.end), EMPTY_VOCABULARY, true)
+    )
+  }
+  const dropped = new Set<number>()
+  for (const line of lines.slice(0, LEGAL_TEMPLATE_TITLE_LINES_MAX)) {
+    if (!isNotice(line)) break
+    dropped.add(line)
+  }
+  for (const line of lines.toReversed().slice(0, LEGAL_TEMPLATE_TITLE_LINES_MAX)) {
+    if (dropped.has(line) || !isNotice(line)) break
+    dropped.add(line)
+  }
+  const kept = tokens.filter((token) => !dropped.has(token.line))
+  return dropped.size === 0 || kept.length === 0 ? tokens : kept
 }
 
 function newFailure(): Failure {

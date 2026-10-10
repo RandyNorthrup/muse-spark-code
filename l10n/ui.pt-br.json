@@ -4945,7 +4945,6 @@
     "m138": "Não verificado: {v0} é um link ou diretório fora do perímetro.",
     "m139": "Análise interrompida no limite: orçamento de entradas atingido; restante não enumerado.",
     "m140": "Não verificado: {v0} mudou durante a enumeração.",
-    "m141": "Não verificado: {v0} é interno ao repositório.",
     "m142": "Não verificado: {v0} é um link.",
     "m143": "Não verificado: {v0} é um arquivo especial.",
     "m144": "Não verificado: não foi possível admitir {v0}.",
@@ -5018,11 +5017,6 @@
     "m171": "Não verificado: metadados npm ilegíveis em {v0}.",
     "m172": "Não verificado: versão de bloqueio npm não suportada em {v0}.",
     "m173": "Não verificado: {v0} excede a profundidade de bloqueio npm.",
-    "m174": {
-      "one": "Não verificado: {count} entrada npm em {v1} sem licença nem dados instalados correspondentes.",
-      "other": "Não verificado: {count} entradas npm em {v1} sem licença nem dados instalados correspondentes.",
-      "many": "Não verificado: {count} entradas npm em {v1} sem licença nem dados instalados correspondentes."
-    },
     "m175": "Não verificado: nenhuma entrada Yarn legível em {v0}.",
     "m176": {
       "one": "Não verificado: {v0} registra versões sem licenças para {count} pacotes; dados instalados poderiam ajudar.",
@@ -5086,6 +5080,18 @@
     "m204": "Não verificado: a saída {v1} do pacote {v0} está ausente ou difere do registro de build",
     "m205": "Não verificado: os dados fixados de modelos SPDX falharam na verificação ({v0}); a correspondência exata do texto da licença está desligada para eles",
     "m206": "Não verificado: a entrada {v1} do pacote {v0} não tem hash capturado no build ou não corresponde mais a ele",
+    "m207": {
+      "one": "Dependências que não são distribuídas ({count}) têm textos de licença diferentes do modelo SPDX ou não reconhecidos ({v0}); não são distribuídas, então não limitam esta verificação.",
+      "other": "Dependências que não são distribuídas ({count}) têm textos de licença diferentes do modelo SPDX ou não reconhecidos ({v0}); não são distribuídas, então não limitam esta verificação.",
+      "many": "Dependências que não são distribuídas ({count}) têm textos de licença diferentes do modelo SPDX ou não reconhecidos ({v0}); não são distribuídas, então não limitam esta verificação."
+    },
+    "m208": "Se alguma dessas dependências passar a ser distribuída, revise o texto da licença.",
+    "m209": {
+      "one": "Mais avisos para {v0} ({count}) não estão listados; nada mais foi omitido.",
+      "other": "Mais avisos para {v0} ({count}) não estão listados; nada mais foi omitido.",
+      "many": "Mais avisos para {v0} ({count}) não estão listados; nada mais foi omitido."
+    },
+    "m210": "Verifique um conjunto menor de caminhos para listá-los.",
     "unknown": "desconhecido",
     "unresolved": "não resolvido",
     "noLicense": "sem licença",

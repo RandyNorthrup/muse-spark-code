@@ -47,6 +47,24 @@ try {
     for (const problem of problems) console.error(`  ${problem}`)
     process.exitCode = 1
   }
+  // The whole repository, scanned as any user's workspace is (scan-scope
+  // ruling 2026-10-10): it must complete (exit 0, or 1 with blockers),
+  // never stay incomplete (exit 2).
+  const { result } = await scanner.runLegalScan({
+    workspaceRoot: process.cwd(),
+    input: { headerPolicy: 'optional' },
+  })
+  const blockers = result.findings.filter((finding) => finding.severity === 'blocker')
+  const shouldFix = result.findings.filter((finding) => finding.severity === 'should-fix')
+  console.log(
+    `legal repository scan: ${String(result.incompleteChecks.length)} incomplete, ${String(blockers.length)} blockers, ${String(shouldFix.length)} should-fix, ${String(result.findings.length)} findings`,
+  )
+  for (const finding of [...blockers, ...shouldFix])
+    console.log(`  ${finding.severity}: ${finding.explanation}`)
+  if (result.incompleteChecks.length > 0) {
+    for (const check of result.incompleteChecks) console.error(`  ${check}`)
+    process.exitCode = 1
+  }
 } finally {
   rmSync(workspace, { recursive: true, force: true })
 }

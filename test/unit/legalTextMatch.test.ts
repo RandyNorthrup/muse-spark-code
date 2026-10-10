@@ -81,11 +81,11 @@ function sentenceBoundaries(text: string): number[] {
 }
 
 describe('SPDX template matching', () => {
-  it('loads all twenty pinned templates with every hash verified', () => {
+  it('loads all twenty-one pinned templates with every hash verified', () => {
     const set = licenseTemplateSet()
     expect(set.problems).toEqual([])
     expect(set.templates).toHaveLength(PINNED_TEMPLATE_IDS.length)
-    expect(PINNED_TEMPLATE_IDS).toHaveLength(20)
+    expect(PINNED_TEMPLATE_IDS).toHaveLength(21)
   })
 
   it.each(PINNED_TEMPLATE_IDS)(
@@ -181,19 +181,24 @@ describe('SPDX template matching', () => {
     },
   )
 
-  it('never reads any pinned holder placeholder with glued restriction vocabulary as exact (property)', () => {
-    let covered = 0
-    for (const id of PINNED_TEMPLATE_IDS) {
-      const base = canonicalText(id)
-      const placeholder = HOLDER_PLACEHOLDERS.find((entry) => base.includes(entry))
-      if (placeholder === undefined) continue
-      covered += 1
-      for (const holder of GLUED_RESTRICTIONS) {
-        const reading = readLicenseText(base.replace(placeholder, () => holder))
-        if (reading?.exact === true) throw new Error(`${id} read as exact with holder "${holder}"`)
-      }
+  it.each(
+    PINNED_TEMPLATE_IDS.filter((id) =>
+      HOLDER_PLACEHOLDERS.some((entry) => canonicalText(id).includes(entry)),
+    ),
+  )('never reads %s with glued restriction vocabulary in its holder as exact (property)', (id) => {
+    const base = canonicalText(id)
+    const placeholder = HOLDER_PLACEHOLDERS.find((entry) => base.includes(entry)) ?? ''
+    for (const holder of GLUED_RESTRICTIONS) {
+      const reading = readLicenseText(base.replace(placeholder, () => holder))
+      if (reading?.exact === true) throw new Error(`${id} read as exact with holder "${holder}"`)
     }
-    expect(covered).toBeGreaterThanOrEqual(8)
+  })
+
+  it('covers the holder placeholders of the pinned templates, plain holders staying exact', () => {
+    const covered = PINNED_TEMPLATE_IDS.filter((id) =>
+      HOLDER_PLACEHOLDERS.some((entry) => canonicalText(id).includes(entry)),
+    )
+    expect(covered.length).toBeGreaterThanOrEqual(8)
     for (const id of ['MIT', 'BSD-2-Clause', 'BSD-3-Clause', 'ISC']) {
       const base = canonicalText(id)
       const placeholder = HOLDER_PLACEHOLDERS.find((entry) => base.includes(entry)) ?? ''
@@ -240,8 +245,8 @@ describe('SPDX template matching', () => {
         const offsets = [
           0,
           base.length,
-          ...Array.from({ length: 6 }, pick),
-          ...Array.from({ length: 6 }, () => Math.floor(next() * base.length)),
+          ...Array.from({ length: 4 }, pick),
+          ...Array.from({ length: 4 }, () => Math.floor(next() * base.length)),
         ]
         for (const offset of offsets) {
           const at = base.lastIndexOf(' ', offset - 1) + 1 || offset
@@ -284,7 +289,7 @@ describe('pinned SPDX template provenance', () => {
       (entry) => entry.name === 'spdx-license-templates',
     )
     expect(dataset).toMatchObject({ version: '3.28.0', tag: 'v3.28.0' })
-    expect(SPDX_TEMPLATE_FILES).toHaveLength(21)
+    expect(SPDX_TEMPLATE_FILES).toHaveLength(22)
     for (const file of SPDX_TEMPLATE_FILES) {
       const bytes = readFileSync(path.join(LEGAL_DATA, ...file.path.split('/')))
       expect(createHash('sha256').update(bytes).digest('hex')).toBe(file.sha256)

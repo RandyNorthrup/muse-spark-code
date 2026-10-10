@@ -4817,7 +4817,6 @@
     "m138": "İncelenmedi: {v0} bağlantı veya sınır dışı dizin.",
     "m139": "Tarama sınırda durdu: dizin kaydı bütçesi doldu; kalan ağaç listelenmedi.",
     "m140": "İncelenmedi: {v0} listeleme sırasında değişti.",
-    "m141": "İncelenmedi: {v0} depo iç verisi.",
     "m142": "İncelenmedi: {v0} bağlantı.",
     "m143": "İncelenmedi: {v0} özel dosya.",
     "m144": "İncelenmedi: {v0} kabul edilemedi.",
@@ -4880,10 +4879,6 @@
     "m171": "İncelenmedi: {v0} npm kilit meta verileri okunamıyor.",
     "m172": "İncelenmedi: {v0} desteklenmeyen npm kilit sürümü kullanıyor.",
     "m173": "İncelenmedi: {v0} npm kilit derinliği sınırını aşıyor.",
-    "m174": {
-      "one": "İncelenmedi: {v1} içindeki {count} npm kaydında lisans veya eşleşen kurulu veri yok.",
-      "other": "İncelenmedi: {v1} içindeki {count} npm kaydında lisans veya eşleşen kurulu veri yok."
-    },
     "m175": "İncelenmedi: {v0} okunabilir Yarn paket kaydı içermiyor.",
     "m176": {
       "one": "İncelenmedi: {v0} sürüm kaydeder, ancak {count} paket için lisans yok; kurulu veriler boşluğu kapatabilir.",
@@ -4939,6 +4934,16 @@
     "m204": "Denetlenmedi: {v0} paketinin {v1} çıktısı eksik ya da derleme kaydından farklı",
     "m205": "Denetlenmedi: sabitlenmiş SPDX şablon verileri doğrulamayı geçemedi ({v0}); bunlar için tam lisans metni eşleştirmesi kapalı",
     "m206": "Denetlenmedi: {v0} paketinin {v1} girdisinin derlemede alınmış bir özeti yok ya da artık onunla eşleşmiyor",
+    "m207": {
+      "one": "Dağıtılmayan bağımlılıkların ({count}) lisans metni SPDX şablonundan farklı ya da tanınmıyor ({v0}); dağıtılmadıkları için bu taramayı sınırlamıyorlar.",
+      "other": "Dağıtılmayan bağımlılıkların ({count}) lisans metni SPDX şablonundan farklı ya da tanınmıyor ({v0}); dağıtılmadıkları için bu taramayı sınırlamıyorlar."
+    },
+    "m208": "Bu bağımlılıklardan biri dağıtılmaya başlarsa lisans metnini inceleyin.",
+    "m209": {
+      "one": "{v0} için diğer öneriler ({count}) listelenmedi; başka hiçbir şey atlanmadı.",
+      "other": "{v0} için diğer öneriler ({count}) listelenmedi; başka hiçbir şey atlanmadı."
+    },
+    "m210": "Listelemek için daha küçük bir yol kümesini tarayın.",
     "unknown": "bilinmiyor",
     "unresolved": "çözümlenmemiş",
     "noLicense": "lisans yok",

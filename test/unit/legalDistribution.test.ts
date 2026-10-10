@@ -241,12 +241,50 @@ describe('checkNotices', () => {
     const deps = [
       dependency('npm', 'package-lock.json', 'leftpad', { version: '1.3.0', scope: 'production' }),
     ]
+    const files = { ...lock, 'node_modules/leftpad/index.js': 'module.exports = 1\n' }
+    const shipped = computeShipped(snapshotFrom(files), deps, {
+      bundleInputs: ['node_modules/leftpad/index.js'],
+    })
+    const result = checkNotices(snapshotFrom(files), evaluated(['leftpad']), shipped, [])
+    expect(result.findings).toHaveLength(1)
+    expect(result.findings[0]?.category).toBe('noticeFile')
+  })
+
+  it('treats a dependency the bundles never took in as not shipping (scope ruling)', () => {
+    const deps = [
+      dependency('npm', 'package-lock.json', 'leftpad', { version: '1.3.0', scope: 'production' }),
+    ]
     const shipped = computeShipped(snapshotFrom(lock), deps, {
       bundleInputs: ['package-lock.json'],
     })
-    const result = checkNotices(snapshotFrom(lock), evaluated(['leftpad']), shipped, [])
-    expect(result.findings).toHaveLength(1)
-    expect(result.findings[0]?.category).toBe('noticeFile')
+    expect(shipped.unknownNames).toEqual([])
+    expect(checkNotices(snapshotFrom(lock), evaluated(['leftpad']), shipped, []).findings).toEqual(
+      [],
+    )
+  })
+
+  it('counts a root notice file the package carries beside its bundles', () => {
+    const files = {
+      ...lock,
+      'node_modules/leftpad/index.js': 'module.exports = 1\n',
+      THIRD_PARTY_NOTICES: 'leftpad (WTFPL)\n',
+    }
+    const deps = [
+      dependency('npm', 'package-lock.json', 'leftpad', { version: '1.3.0', scope: 'production' }),
+    ]
+    const evidence = { bundleInputs: ['node_modules/leftpad/index.js'] }
+    const notices = [{ path: 'THIRD_PARTY_NOTICES', text: files.THIRD_PARTY_NOTICES }]
+    const carried = computeShipped(snapshotFrom(files), deps, evidence)
+    expect(
+      checkNotices(snapshotFrom(files), evaluated(['leftpad']), carried, notices).findings,
+    ).toEqual([])
+    const excluded = computeShipped(snapshotFrom(files), deps, {
+      ...evidence,
+      vscodeignoreText: 'THIRD_PARTY_NOTICES\n',
+    })
+    expect(
+      checkNotices(snapshotFrom(files), evaluated(['leftpad']), excluded, notices).findings,
+    ).toHaveLength(1)
   })
 
   it('checks Apache NOTICE attribution against present notices', () => {

@@ -4817,7 +4817,6 @@
     "m138": "Nem ellenőrzött: {v0} hivatkozás vagy kilépő könyvtár.",
     "m139": "Vizsgálat korlátnál leállt: könyvtárbejegyzés-keret kimerült; a többi nincs felsorolva.",
     "m140": "Nem ellenőrzött: {v0} megváltozott a felsorolás során.",
-    "m141": "Nem ellenőrzött: {v0} belső tárolóadat.",
     "m142": "Nem ellenőrzött: {v0} hivatkozás.",
     "m143": "Nem ellenőrzött: {v0} különleges fájl.",
     "m144": "Nem ellenőrzött: {v0} nem engedhető be.",
@@ -4880,10 +4879,6 @@
     "m171": "Nem ellenőrzött: {v0} npm-zármetaadatai olvashatatlanok.",
     "m172": "Nem ellenőrzött: {v0} nem támogatott npm-zárverziót használ.",
     "m173": "Nem ellenőrzött: {v0} meghaladja az npm-zár beágyazási mélységét.",
-    "m174": {
-      "one": "Nem ellenőrzött: {count} npm-zárbejegyzéshez {v1} fájlban nincs licenc vagy telepített adat.",
-      "other": "Nem ellenőrzött: {count} npm-zárbejegyzéshez {v1} fájlban nincs licenc vagy telepített adat."
-    },
     "m175": "Nem ellenőrzött: {v0} nem tartalmaz olvasható Yarn-bejegyzést.",
     "m176": {
       "one": "Nem ellenőrzött: {v0} verziókat rögzít licenc nélkül {count} csomaghoz; telepített adatok segíthetnének.",
@@ -4939,6 +4934,16 @@
     "m204": "Nincs ellenőrizve: a(z) {v0} csomag {v1} kimenete hiányzik, vagy eltér a buildrekordjától",
     "m205": "Nincs ellenőrizve: a rögzített SPDX-sablonadatok nem mentek át az ellenőrzésen ({v0}); a pontos licencszöveg-egyeztetés ki van kapcsolva rájuk",
     "m206": "Nincs ellenőrizve: a(z) {v0} csomag {v1} bemenetének nincs buildkor rögzített hash-e, vagy már nem egyezik vele",
+    "m207": {
+      "one": "Nem terjesztett függőségek ({count}), amelyek licencszövege eltér az SPDX-sablontól vagy ismeretlen ({v0}); nem terjesztik őket, így nem korlátozzák ezt az ellenőrzést.",
+      "other": "Nem terjesztett függőségek ({count}), amelyek licencszövege eltér az SPDX-sablontól vagy ismeretlen ({v0}); nem terjesztik őket, így nem korlátozzák ezt az ellenőrzést."
+    },
+    "m208": "Ha valamelyik függőséget terjeszteni kezdik, nézze át a licencszövegét.",
+    "m209": {
+      "one": "További tanácsok ({count}) ehhez nincsenek felsorolva: {v0}; más nem maradt ki.",
+      "other": "További tanácsok ({count}) ehhez nincsenek felsorolva: {v0}; más nem maradt ki."
+    },
+    "m210": "A felsoroláshoz vizsgáljon kisebb útvonalkészletet.",
     "unknown": "ismeretlen",
     "unresolved": "feloldatlan",
     "noLicense": "nincs licenc",

@@ -6,7 +6,9 @@ import {
   LEGAL_EXCLUSIONS_MAX,
   LEGAL_INCOMPLETE_MAX,
   LEGAL_TEXT_MAX_CHARS,
+  LEGAL_DEPENDENCIES_MAX,
   LEGAL_FINDINGS_MAX,
+  LEGAL_TOTAL_MAX_BYTES,
   LEGAL_PATH_MAX_CHARS,
 } from '../../src/shared/constants'
 import { snapshotFrom } from './legal/helpers'
@@ -43,7 +45,7 @@ describe('legal coverage and metadata', () => {
           lockfileVersion: 3,
           packages: {
             ...Object.fromEntries(
-              Array.from({ length: LEGAL_FINDINGS_MAX }, (_, index) => [
+              Array.from({ length: LEGAL_DEPENDENCIES_MAX }, (_, index) => [
                 `node_modules/x${String(index)}`,
                 { version: '1', license: 'MIT' },
               ]),
@@ -167,10 +169,11 @@ describe('legal coverage and metadata', () => {
 
   it('bounds aggregate text across individually permitted files', () => {
     const text = 'x'.repeat(LEGAL_TEXT_MAX_CHARS * LEGAL_FINDINGS_MAX)
+    const files = Math.floor(LEGAL_TOTAL_MAX_BYTES / text.length) + 2
     const report = scanLegal(
       snapshotFrom(
         Object.fromEntries(
-          Array.from({ length: 12 }, (_, index) => [`source${String(index)}.ts`, text]),
+          Array.from({ length: files }, (_, index) => [`source${String(index)}.ts`, text]),
         ),
       ),
       { headerPolicy: 'required' },
