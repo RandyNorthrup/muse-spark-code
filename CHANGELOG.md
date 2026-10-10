@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Visual review covers 0.17.1's Title Case labels, provider-picker repair and
+  current What's New notes across all six themes at 320 and 690 px.
 - README screenshots now show 0.17.1's current labels and question-field
   spacing, regenerated through the repository's screenshot script.
 - Visual baseline reconstruction accepts the recorded sentence-case account
