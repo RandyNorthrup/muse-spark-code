@@ -5187,8 +5187,8 @@ No activation read or broker start is added. Internal broker composition,
 its installed-runtime contract and the native receipts are documented in
 [the broker process contract](docs/design/vault-broker-process.md) and
 [the POSIX certification](docs/certification/cm109-1b.md).
-On macOS the vault also uses the Secure Enclave without biometry where
-`SecureEnclave.isAvailable`.
+On macOS the composed broker wraps the key with the login Keychain only;
+it does not use the Secure Enclave.
 
 The terminal, ACP and headless commands load `dist/vaultRuntime.js` on the
 first vault need. Its broker process and per-OS connection are not installed
