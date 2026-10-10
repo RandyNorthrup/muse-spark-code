@@ -304,25 +304,19 @@ declare module '*/action/lib/ci-run.mjs' {
     inputs: Pick<ActionInputs, 'timeoutMinutes'>,
     nowMs?: number,
   ): void
+  export const CI_BOOTSTRAP_UNSET: readonly string[]
+  export const CI_KEY_VARIABLES: readonly string[]
   export function refuseExistingOutput(
-    workspace: string,
-    io?: {
-      mkdir: (...args: never[]) => Promise<unknown>
-      copyFile: (...args: never[]) => Promise<unknown>
-      writeFile: (...args: never[]) => Promise<unknown>
-      rm: (...args: never[]) => Promise<unknown>
-    },
+    target: string,
+    execute?: CiFileOperation,
+    cleanupMs?: number,
   ): Promise<void>
   export function publishToWorkspace(
-    workspace: string,
+    target: string,
     paths: Record<string, string>,
     outputs: Record<string, string>,
-    io?: {
-      mkdir: (...args: never[]) => Promise<unknown>
-      copyFile: (...args: never[]) => Promise<unknown>
-      writeFile: (...args: never[]) => Promise<unknown>
-      rm: (...args: never[]) => Promise<unknown>
-    },
+    execute?: CiFileOperation,
+    publishMs?: number,
   ): Promise<Record<string, string>>
   export function privateTemp(
     value: string | undefined,
@@ -343,12 +337,7 @@ declare module '*/action/lib/ci-run.mjs' {
     execPath?: string
     launcherRoot?: string
     ownerOptions?: CiOwnerOptions
-    io?: {
-      mkdir: (...args: never[]) => Promise<unknown>
-      copyFile: (...args: never[]) => Promise<unknown>
-      writeFile: (...args: never[]) => Promise<unknown>
-      rm: (...args: never[]) => Promise<unknown>
-    }
+    fileOperation?: CiFileOperation
     finalBounds?: { publishMs?: number; cleanupMs?: number }
   }): Promise<number>
 }
@@ -625,4 +614,27 @@ declare module '*/action/apply/lib/apply.mjs' {
     remote: string
     baseEnv: Record<string, string>
   }): Promise<{ ready: true; commitSha: string | null }>
+}
+
+interface CiFileInput {
+  kind: 'remove' | 'mkdir' | 'publish'
+  target: string
+  files?: string[]
+  outputs?: Record<string, string>
+}
+type CiFileOperation = (operation: CiFileInput, signal: AbortSignal) => Promise<void>
+declare module '*/action/lib/ci-files.mjs' {
+  import type { ChildProcess, SpawnOptions } from 'node:child_process'
+  // The worker calls Node's spawn with these; the test's wrapper returns its child.
+  export function fileOperation(
+    operation: CiFileInput,
+    signal: AbortSignal,
+    spawnChild?: (file: string, args: readonly string[], options: SpawnOptions) => ChildProcess,
+  ): Promise<void>
+  export function boundedFiles(
+    operation: CiFileInput,
+    withinMs: number,
+    what: string,
+    execute?: CiFileOperation,
+  ): Promise<void>
 }

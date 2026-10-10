@@ -587,7 +587,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Other CI systems
 
-Run the same headless review or fix on GitLab CI, Azure Pipelines, Jenkins or Bitbucket Pipelines. Each template takes the key from that system’s secret store into the run step only, refuses forks and untrusted runs before anything is spent, and keeps the Action’s exit codes; no template comments or pushes. See docs/ci-other-systems.md.
+ciVendor&artifactTransport&secretIsolation: Digest-pinned headless review/fix templates for GitLab, Azure, Jenkins and Bitbucket. Node reads the key and publishes outside the checkout; Azure/Jenkins upload those files. GitLab/Bitbucket artifact transport and Bitbucket process isolation remain unqualified. Declare extra key binding names in MUSE_CI_KEY_ALIASES. Fake tests only; see docs/ci-other-systems.md.
 
 Surfaces: acp:modelApi. Paid: no extra feature charge; model usage still applies.
 

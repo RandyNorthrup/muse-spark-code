@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { parse } from 'yaml'
+import { CI_BOOTSTRAP_UNSET } from '../../../action/lib/ci-run.mjs'
 import { REPO_ROOT } from './actionFixtures'
 
 const FILES: Record<string, string> = {
@@ -70,10 +71,10 @@ export function scriptOf(system: string): string {
 
 /** The source of truth: ci-templates/bootstrap.sh with its trailing newline cut. */
 export function bootstrapSource(): string {
-  return readFileSync(path.join(REPO_ROOT, 'ci-templates', 'bootstrap.sh'), 'utf8').replace(
-    /\n$/,
-    '',
-  )
+  return readFileSync(path.join(REPO_ROOT, 'ci-templates', 'bootstrap.sh'), 'utf8')
+    .replace(/\n$/, '')
+    .split('@MUSE_KEY_NAMES@')
+    .join(CI_BOOTSTRAP_UNSET.join(' '))
 }
 
 /** The shared bootstrap: the generated block between the template's markers. */

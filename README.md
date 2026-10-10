@@ -4945,22 +4945,23 @@ results and what is still open.
 
 ### Other CI systems
 
-The GitHub Action's own launcher also runs on GitLab CI, Azure Pipelines,
-Jenkins and Bitbucket Pipelines, from one thin template each under
-[`ci-templates/`](ci-templates/gitlab-ci.yml). Each template downloads the
-pinned `muse-spark-code-acp` release, checks its SHA-256 before anything of
-it runs, and starts the launcher the package carries (`ci/lib/ci-run.mjs`),
-which installs and checks the package the Action's way and runs the
-Action's review or fix with its inputs, budget, prompt file, result
-validation and exit codes. The key comes from that system's secret store
-into the one credential step, which the system's own mechanism (protected
-variables, fork secret policy and conditions, a guarded stage, branch-only
-steps) keeps untrusted runs away from; it reaches the agent over private
-stdin only. None comments or pushes. They are tested with fakes here;
-there is no live run on these systems and no release carrying the launcher
-yet, so this is **not certified yet**. [The CI systems
-guide](docs/ci-other-systems.md) lists each system's secret setup, trust
-mechanism, inputs and limits.
+GitLab, Azure, Jenkins and Bitbucket templates under
+[`ci-templates/`](ci-templates/gitlab-ci.yml) share the GitHub Action's
+budgeted review/fix engine. The shell downloads and verifies the pinned
+package without reading or copying the key; Node reads the vendor source,
+strips key names and value copies before children, and sends the key only
+through trusted private stdin. Declare extra secret binding names in
+`MUSE_CI_KEY_ALIASES`. Output is created outside the checkout under job temp;
+Azure/Jenkins upload those publisher files. GitLab/Bitbucket built-in
+artifact paths cannot upload external temp, so their templates omit that
+transport. Bitbucket's automatic-process secret isolation remains
+unqualified; deployment variables are narrower than repository variables.
+Nothing comments or pushes. **Fake-tested, not certified or supported**;
+no hosted/live run or release carrying the launcher is claimed. [The CI
+systems guide](docs/ci-other-systems.md) covers setup, inputs and limits.
+
+Regenerate the shared bootstrap after editing its source with
+`node scripts/sync-ci-bootstrap.mjs`.
 
 ## Keeping your machine responsive
 

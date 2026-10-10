@@ -6,7 +6,7 @@
 
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import {
@@ -37,6 +37,7 @@ export interface PackageOptions {
   readonly scan?: Record<string, unknown>
   readonly name?: string
   readonly scripts?: Record<string, string>
+  readonly missingLauncherModule?: string
 }
 
 /**
@@ -52,6 +53,8 @@ export function ciPackage(root: string, options: PackageOptions = {}): CiPackage
   mkdirSync(path.join(stage, 'dist'), { recursive: true })
   cpSync(path.join(ACTION_DIR, 'lib'), path.join(stage, 'ci', 'lib'), { recursive: true })
   cpSync(path.join(ACTION_DIR, 'prompts'), path.join(stage, 'ci', 'prompts'), { recursive: true })
+  if (options.missingLauncherModule !== undefined)
+    rmSync(path.join(stage, 'ci', 'lib', options.missingLauncherModule))
   writeFileSync(
     path.join(stage, 'package.json'),
     JSON.stringify({
@@ -149,6 +152,7 @@ export function systemEnv(
         SYSTEM_PULLREQUEST_PULLREQUESTID: '13',
         MUSE_INPUT_TRUST_PULL_REQUESTS: 'True',
         MUSE_CI_JOB_TIMEOUT_MINUTES: '35',
+        MUSE_CI_PIPELINE_STARTED_AT: new Date().toISOString(),
       }
     }
     case 'jenkins': {

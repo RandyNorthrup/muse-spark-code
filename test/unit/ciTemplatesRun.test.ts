@@ -33,7 +33,7 @@ import {
 import { scriptOf, templateText } from './helpers/ciTemplateText'
 
 const SYSTEMS = ['gitlab', 'azure', 'jenkins', 'bitbucket'] as const
-const SHIMMED = ['curl', 'sha256sum', 'tar', 'mktemp', 'mkdir', 'git']
+const SHIMMED = ['date', 'curl', 'sha256sum', 'tar', 'mktemp', 'mkdir', 'git', 'cp']
 const isPosix = process.platform !== 'win32'
 const state: { layout?: TempLayout } = {}
 
@@ -71,6 +71,23 @@ function shims(): { dir: string; log: string } {
     )
     chmodSync(file, 0o755)
   }
+  const copyProbe = path.join(dir, 'cp')
+  writeFileSync(
+    copyProbe,
+    [
+      '#!/bin/sh',
+      `env > '${log}/cp.'$$'.env'`,
+      String.raw`printf '%s\n' "$@" > '${log}/cp.'$$'.args'`,
+      'if [ -f "$1" ]; then',
+      '  IFS= read -r muse_probe < "$1" || :',
+      `  if [ "$muse_probe" = '${CI_KEY}' ]; then printf 'held-key' > '${log}/cp-input'; fi`,
+      'fi',
+      'PATH="${PATH#*:}"',
+      'exec cp "$@"',
+      '',
+    ].join('\n'),
+  )
+  chmodSync(copyProbe, 0o755)
   // mktemp also records every directory it makes: the bootstrap calls it
   // once, and nothing else in the run shells out to the mktemp binary.
   const mktemp = path.join(dir, 'mktemp')
@@ -120,8 +137,10 @@ function runTemplate(
   system: string,
   pkg: CiPackage,
   extra: Record<string, string> = {},
+  prepareWorkspace?: () => void,
 ): ScriptRun {
   const clone = cloneFor(system, layout())
+  prepareWorkspace?.()
   const { dir, log } = shims()
   const result = spawnSync('sh', ['-xe', '-c', scriptOf(system)], {
     cwd: layout().workspace,
@@ -129,6 +148,8 @@ function runTemplate(
     env: {
       PATH: `${dir}:${path.dirname(NODE)}:${process.env['PATH'] ?? ''}`,
       HOME: layout().root,
+      TMPDIR: layout().runnerTemp,
+      MUSE_CI_OUTPUT_ROOT: path.join(layout().root, 'output'),
       ...declaredVariables(system),
       ...systemEnv(system, layout(), clone),
       MUSE_AGENT_VERSION: REPO_VERSION,
@@ -167,7 +188,7 @@ describe.runIf(isPosix)('the exact template scripts', PROCESS_SUITE, () => {
       expect(run.output).not.toContain('muse-spark: ')
       expect(run.status).toBe(0)
       const outputs = JSON.parse(
-        readFileSync(path.join(layout().workspace, CI_OUT_DIR, 'outputs.json'), 'utf8'),
+        readFileSync(path.join(layout().root, 'output', CI_OUT_DIR, 'outputs.json'), 'utf8'),
       ) as Record<string, string>
       expect(outputs).toMatchObject({ status: 'completed', 'exit-code': '0' })
       const exec = agentReports(pkg).find((line) => line['command'] === 'exec' && 'keyLine' in line)
@@ -183,7 +204,7 @@ describe.runIf(isPosix)('the exact template scripts', PROCESS_SUITE, () => {
       }
       for (const entry of logs) expect(hasKey(entry.text), entry.name).toBe(false)
       expect(hasKey(run.output)).toBe(false)
-      const out = path.join(layout().workspace, CI_OUT_DIR)
+      const out = path.join(layout().root, 'output', CI_OUT_DIR)
       const files = readdirSync(out)
       for (const file of files) {
         expect(hasKey(readFileSync(path.join(out, file), 'utf8')), file).toBe(false)
@@ -199,10 +220,16 @@ describe.runIf(isPosix)('the exact template scripts', PROCESS_SUITE, () => {
       const pkg = ciPackage(layout().root, { exec: { result: completedResult() } })
       const run = runTemplate(system, pkg, {
         MUSE_SPARK_MODEL_API_KEY: CI_KEY,
+        MUSE_CI_KEY_ALIASES: 'RENAMED_BINDING ARBITRARY_ALIAS',
+        RENAMED_BINDING: CI_KEY,
+        ARBITRARY_ALIAS: CI_KEY,
         META_API_KEY: CI_KEY,
-        muse_key: 'a-decoy-holder',
+        muse_key: CI_KEY,
+        muse_setup: CI_KEY,
+        muse_alias: CI_KEY,
         muse_key_file: '/nonexistent-decoy',
       })
+      for (const entry of shimLogs(run.log)) expect(hasKey(entry.text), entry.name).toBe(false)
       expect(run.status).toBe(0)
       const exec = agentReports(pkg).find((line) => line['command'] === 'exec' && 'keyLine' in line)
       expect(exec?.['keyLine']).toBe(CI_KEY)
@@ -211,7 +238,7 @@ describe.runIf(isPosix)('the exact template scripts', PROCESS_SUITE, () => {
     },
   )
 
-  it('gitlab: a File-type variable reaches the launcher; shells see the path only (P1 finding 1)', () => {
+  it('R4-P1-1: GitLab File variable is read only by Node; no key file copying child', () => {
     const keyFile = path.join(layout().root, 'model-api-key')
     writeFileSync(keyFile, CI_KEY)
     const pkg = ciPackage(layout().root, { exec: { result: completedResult() } })
@@ -219,6 +246,8 @@ describe.runIf(isPosix)('the exact template scripts', PROCESS_SUITE, () => {
       MUSE_MODEL_API_KEY: '',
       MUSE_MODEL_API_KEY_FILE: keyFile,
     })
+    expect(existsSync(path.join(run.log, 'cp-input'))).toBe(false)
+    expect(shimLogs(run.log).some((entry) => entry.name.startsWith('cp.'))).toBe(false)
     expect(run.status).toBe(0)
     const exec = agentReports(pkg).find((line) => line['command'] === 'exec' && 'keyLine' in line)
     expect(exec?.['keyLine']).toBe(CI_KEY)
@@ -232,6 +261,60 @@ describe.runIf(isPosix)('the exact template scripts', PROCESS_SUITE, () => {
     expect(hasKey(run.output)).toBe(false)
   })
 
+  it.each([...SYSTEMS])(
+    'R4-P1-3: %s early bootstrap failure never selects repository artifacts',
+    (system) => {
+      const pkg = ciPackage(layout().root)
+      // runTemplate creates the clone first; the shim's first-child probe sees
+      // every exported alias. The planted directory models files restored by checkout.
+      const run = runTemplate(system, pkg, { MUSE_AGENT_VERSION: '' }, () => {
+        const planted = path.join(layout().workspace, CI_OUT_DIR)
+        mkdirSync(planted)
+        writeFileSync(path.join(planted, 'outputs.json'), '{"status":"completed","exit-code":"0"}')
+      })
+      expect(run.status).toBe(1)
+      expect(existsSync(path.join(layout().root, 'output', CI_OUT_DIR))).toBe(false)
+      const template = templateText(system)
+      switch (system) {
+        case 'gitlab': {
+          expect(template).not.toContain('  artifacts:')
+          break
+        }
+        case 'bitbucket': {
+          expect(template).not.toContain('        artifacts:')
+          break
+        }
+        case 'azure': {
+          expect(template).toContain('publish: $(Agent.TempDirectory)/')
+          expect(template).toContain("eq(variables['MUSE_CI_OUTPUT_READY'], 'true')")
+          break
+        }
+        default: {
+          expect(template).toContain('dir(env.MUSE_CI_OUTPUT_ROOT)')
+          break
+        }
+      }
+    },
+  )
+
+  it('R4-P2-7: malformed launcher facts clean the whole bootstrap after exec', () => {
+    const pkg = ciPackage(layout().root)
+    const run = runTemplate('jenkins', pkg, { GIT_COMMIT: 'malformed' })
+    expect(run.status).toBe(1)
+    expect(existsSync(tempOf(run.log))).toBe(false)
+    expect(agentReports(pkg)).toEqual([])
+  })
+
+  it('R4-P2-7: module-load failure keeps an exit owner before importing the proposal', () => {
+    const pkg = ciPackage(layout().root, { missingLauncherModule: 'ci-adapters.mjs' })
+    const run = runTemplate('gitlab', pkg)
+    expect(run.status).toBe(1)
+    expect(run.output).toContain('the launcher could not start')
+    expect(existsSync(tempOf(run.log))).toBe(false)
+    expect(agentReports(pkg)).toEqual([])
+    for (const entry of shimLogs(run.log)) expect(hasKey(entry.text), entry.name).toBe(false)
+  })
+
   it('a tarball whose digest differs is never unpacked or run (finding 3)', () => {
     const pkg = ciPackage(layout().root, { exec: { result: completedResult() } })
     const run = runTemplate('gitlab', pkg, { MUSE_INPUT_AGENT_PACKAGE_SHA256: 'e'.repeat(64) })
@@ -239,7 +322,7 @@ describe.runIf(isPosix)('the exact template scripts', PROCESS_SUITE, () => {
     expect(run.output).toContain('muse-spark: the agent package does not match')
     expect(shimLogs(run.log).some((entry) => entry.name.startsWith('tar.'))).toBe(false)
     expect(agentReports(pkg)).toEqual([])
-    expect(existsSync(path.join(layout().workspace, CI_OUT_DIR))).toBe(false)
+    expect(existsSync(path.join(layout().root, 'output', CI_OUT_DIR))).toBe(false)
     // The trap owns the temp directory on the digest failure path too.
     expect(existsSync(tempOf(run.log))).toBe(false)
   })

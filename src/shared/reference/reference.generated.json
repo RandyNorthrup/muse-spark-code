@@ -782,8 +782,22 @@
     {
       "id": "ci-other-systems",
       "name": { "ui": "referenceCiOtherTitle" },
-      "summary": { "ui": "referenceCiOther" },
-      "description": { "ui": "referenceCiOther" },
+      "summary": {
+        "conditions": [
+          {
+            "when": "ciVendor&artifactTransport&secretIsolation",
+            "text": { "ui": "referenceCiOther" }
+          }
+        ]
+      },
+      "description": {
+        "conditions": [
+          {
+            "when": "ciVendor&artifactTransport&secretIsolation",
+            "text": { "ui": "referenceCiOther" }
+          }
+        ]
+      },
       "commands": [],
       "settings": [],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#other-ci-systems",
