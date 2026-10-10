@@ -72,11 +72,16 @@ export interface LeasePort {
   /** The entry itself (a link is not followed), with exact native ids. */
   lstat(file: string): Promise<BigIntStats>
   /**
-   * Rewrites `file` in place with `content` only while the opened file is
-   * `identity` (checked on the open handle, so a replacement is never
-   * written); false when it is another file or gone.
+   * Rewrites `file` in place with `content` only while `isOwn` accepts the
+   * opened file, judged on the open handle's own stats and content (so a
+   * replacement at the name, even one with a reused file id, is never
+   * written); false otherwise, or when the file is gone.
    */
-  rewriteOwn(file: string, identity: FileIdentity, content: string): Promise<boolean>
+  rewriteOwn(
+    file: string,
+    isOwn: (opened: BigIntStats, content: Buffer) => boolean,
+    content: string,
+  ): Promise<boolean>
   readdirSync(folder: string): readonly string[]
   readFileSync(file: string): Buffer
   lstatSync(file: string): BigIntStats
@@ -434,11 +439,23 @@ function heldLease(
       }
       const renewedSince = env.monotonic()
       const renewed: LeaseNote = { ...note, renewal: (note.renewal ?? 0) + 1 }
-      if (!(await env.port.rewriteOwn(lockPath, instance.identity, JSON.stringify(renewed)))) {
+      // Only this very instance is rewritten: file id, birth time, note id
+      // and renewal, read through the opened handle itself.
+      const owned = instance
+      const isOwn = (opened: BigIntStats, bytes: Buffer) =>
+        isSameInstance(instanceOf(opened, parseNote(bytes)), owned)
+      if (!(await env.port.rewriteOwn(lockPath, isOwn, JSON.stringify(renewed)))) {
         return false
       }
+      // Renewed: this instance at the lock's name, with the new renewal,
+      // and still the highest fence.
+      const expected: LeaseInstance = { ...owned, renewal: renewed.renewal }
       const seen = await observe(env.port, lockPath)
-      if (seen.kind !== 'seen' || seen.instance.noteId !== renewed.id) {
+      if (
+        seen.kind !== 'seen' ||
+        !isSameInstance(seen.instance, expected) ||
+        (await readHighestFence(env.port, fences)) !== fence
+      ) {
         return false
       }
       instance = seen.instance

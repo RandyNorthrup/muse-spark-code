@@ -294,6 +294,47 @@ async function seeded(dataFolder: string, folder: string, isTrusted: boolean) {
   return reserved.stored
 }
 
+/**
+ * The node file operations, failing chosen listings (EACCES), counted from
+ * the first generation published after `arm()`: 1 is that publish's own
+ * proof, 2 the sweep after it (or, unproven, the reconciliation read).
+ */
+function failingListingsAfterLink(failing: readonly number[]) {
+  let isArmed = false
+  let listings: number | undefined
+  let failed = 0
+  const fs: RecordStoreFs = {
+    ...nodeRecordStoreFs,
+    link: async (existing, target) => {
+      await nodeRecordStoreFs.link(existing, target)
+      if (!isArmed || !GENERATION_FILE.test(target)) {
+        return
+      }
+      isArmed = false
+      listings = 0
+    },
+    readdir: async (folder) => {
+      if (listings !== undefined) {
+        listings += 1
+        if (failing.includes(listings)) {
+          failed += 1
+          throw Object.assign(new Error(`EACCES: permission denied, scandir '${folder}'`), {
+            code: 'EACCES',
+          })
+        }
+      }
+      return await nodeRecordStoreFs.readdir(folder)
+    },
+  }
+  return {
+    fs,
+    arm: () => {
+      isArmed = true
+    },
+    failed: () => failed,
+  }
+}
+
 describe('worktree record store: fenced reservations (M123 lane P)', () => {
   it('stamps each write with its hold’s fence and refuses a reservation another write moved', async () => {
     const { dataFolder, folder } = await dataSetup()
@@ -434,6 +475,85 @@ describe('worktree record store: fenced reservations (M123 lane P)', () => {
         .at(-1) ?? ''
     await writeFile(path.join(recordsFolder, head), '{"generation":')
     expect(store.holdsSync(reserved.reservation)).toBe(false)
+  })
+
+  it('keeps a landed claim when the sweep after it cannot list the records', async () => {
+    // RVM123P7 finding 1: the claim's generation landed and was proven;
+    // the best-effort sweep's listing then failed once (EACCES). The claim
+    // stands, with its new fence, and its folder is made.
+    const { dataFolder, folder } = await dataSetup()
+    const failing = failingListingsAfterLink([2])
+    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
+      fs: failing.fs,
+    })
+    const reserved = await store.reserve(pendingRecord(folder, 'a'))
+    if (!reserved.ok) {
+      throw new Error('refused')
+    }
+    failing.arm()
+    let made = 0
+    const claimed = await store.claim(reserved.reservation, () => {
+      made += 1
+      return Promise.resolve('made')
+    })
+    expect(failing.failed()).toBe(1)
+    if (claimed.status !== 'made') {
+      throw new Error(`expected a made claim, not ${claimed.status}`)
+    }
+    expect(claimed.reservation.fence).toBeGreaterThan(reserved.reservation.fence)
+    expect(made).toBe(1)
+    expect(store.holdsSync(claimed.reservation)).toBe(true)
+  })
+
+  it('keeps a landed claim whose proof cannot be read, once the head shows it', async () => {
+    const { dataFolder, folder } = await dataSetup()
+    const failing = failingListingsAfterLink([1])
+    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
+      fs: failing.fs,
+    })
+    const reserved = await store.reserve(pendingRecord(folder, 'a'))
+    if (!reserved.ok) {
+      throw new Error('refused')
+    }
+    failing.arm()
+    const claimed = await store.claim(reserved.reservation, () => Promise.resolve('made'))
+    expect(failing.failed()).toBe(1)
+    expect(claimed.status).toBe('made')
+  })
+
+  it('names every fence a claim may hold when its landing cannot be known', async () => {
+    // The proof and the reconciliation both fail: whether the claim landed
+    // is not known, so nothing is made and both reservations come back.
+    const { dataFolder, folder } = await dataSetup()
+    const failing = failingListingsAfterLink([1, 2])
+    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
+      fs: failing.fs,
+    })
+    const reserved = await store.reserve(pendingRecord(folder, 'a'))
+    if (!reserved.ok) {
+      throw new Error('refused')
+    }
+    failing.arm()
+    let made = 0
+    const claimed = await store.claim(reserved.reservation, () => {
+      made += 1
+      return Promise.resolve('made')
+    })
+    expect(failing.failed()).toBe(2)
+    if (claimed.status !== 'unknown') {
+      throw new Error(`expected an unknown claim, not ${claimed.status}`)
+    }
+    expect(made).toBe(0)
+    const fences = claimed.reservations.map((reservation) => reservation.fence)
+    expect(fences).toContain(reserved.reservation.fence)
+    expect(Math.max(...fences)).toBeGreaterThan(reserved.reservation.fence)
+    // It landed here: the newer fence is the record's, and it discards.
+    const [newest] = claimed.reservations
+    if (newest === undefined) {
+      throw new Error('no reservations')
+    }
+    expect(await store.discard(newest)).toBe(true)
+    expect(await store.recordFor(folder)).toBeUndefined()
   })
 
   it('keeps a pending checkout owner’s boot through the file', async () => {
