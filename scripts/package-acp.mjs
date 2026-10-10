@@ -66,6 +66,7 @@ const BUNDLES = [
   'runtimeEngine.js',
   'modelApiBoundaries.js',
   'vault.js',
+  'vaultBroker.js',
   'vaultBoundaries.js',
   'estimateContracts.js',
   'legalScan.js',
@@ -219,11 +220,17 @@ const screenBundle = path.join('native', 'darwin', 'muse-dictate-screen.app')
 if (existsSync(screenBundle)) {
   cpSync(screenBundle, path.join(STAGE, screenBundle), { recursive: true })
 }
-const vaultHelper = path.join('dist', 'native', 'darwin', 'muse-vault')
-if (existsSync(vaultHelper)) {
-  const target = path.join(STAGE, vaultHelper)
+for (const helper of [
+  path.join('dist', 'native', 'darwin', 'muse-vault'),
+  path.join('native', 'darwin', 'muse-vault-peer'),
+]) {
+  if (!existsSync(helper)) {
+    continue
+  }
+
+  const target = path.join(STAGE, helper)
   mkdirSync(path.dirname(target), { recursive: true })
-  copyFileSync(vaultHelper, target)
+  copyFileSync(helper, target)
 }
 cpSync(RUNNER_HELPERS, path.join(STAGE, RUNNER_HELPERS), { recursive: true })
 const tables = readdirSync('l10n')

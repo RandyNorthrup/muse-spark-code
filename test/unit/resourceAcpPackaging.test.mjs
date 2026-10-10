@@ -166,3 +166,24 @@ it('ships the Darwin helper and refuses its absence before staging', async () =>
   expect(copyFileSync).not.toHaveBeenCalled()
   expect(execFileSync).not.toHaveBeenCalled()
 })
+
+it('C-M109-1b packages the broker and both Linux peer helpers before packing', async () => {
+  await import('../../scripts/package-acp.mjs')
+  const copied = copyFileSync.mock.calls.map(([source]) => source.replaceAll('\\', '/'))
+  expect(copied).toEqual(
+    expect.arrayContaining([
+      'dist/vaultBroker.js',
+      'native/linux/x64/muse-vault-peer',
+      'native/linux/arm64/muse-vault-peer',
+      'native/darwin/muse-vault-peer',
+    ]),
+  )
+  vi.resetModules()
+  vi.clearAllMocks()
+  statSync.mockImplementation((file) => ({
+    isFile: () => !file.replaceAll('\\', '/').endsWith('/muse-vault-peer'),
+  }))
+  await expect(import('../../scripts/package-acp.mjs')).rejects.toThrow('Required Linux')
+  expect(copyFileSync).not.toHaveBeenCalled()
+  expect(execFileSync).not.toHaveBeenCalled()
+})

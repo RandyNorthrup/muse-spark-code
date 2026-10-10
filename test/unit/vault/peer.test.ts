@@ -8,18 +8,26 @@ import os from 'node:os'
 import { UnixVaultPeerVerifier } from '../../../src/core/vault/broker/peer'
 import { VAULT_APPROVAL_TTL_MS } from '../../../src/shared/constants'
 
+// Governor admission is tested separately; this fixture must reach the actual kernel helper.
+vi.mock(
+  '../../../src/core/resources/launcher',
+  async () => await import('../helpers/vault/brokerChildLauncher'),
+)
+
 // A Unix-socket peer check: /usr/bin/id, the system C compiler and a UID.
 // Windows peers are named-pipe clients judged by WindowsVaultPeerVerifier
 // (channel.test.ts covers that seam), so this suite has no Windows half.
 describe.skipIf(process.platform === 'win32')('native Unix foreign-user rejection', () => {
   it('owner-only socket denies another user and OS uid still refuses on a deliberately relaxed test socket', async () => {
-    const directory = await mkdtemp(
-      path.join(process.platform === 'darwin' ? '/private/tmp' : os.tmpdir(), 'm109-b-peer-uid-'),
-    )
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'm109-b-peer-uid-'))
     const helper = path.join(directory, 'peer'),
       client = path.join(directory, 'client'),
       socketPath = path.join(directory, 'broker.sock')
     const foreignUid = execFileSync('/usr/bin/id', ['-u', 'nobody'], {
+      env: {},
+      encoding: 'utf8',
+    }).trim()
+    const foreignGid = execFileSync('/usr/bin/id', ['-g', 'nobody'], {
       env: {},
       encoding: 'utf8',
     }).trim()
@@ -44,7 +52,7 @@ describe.skipIf(process.platform === 'win32')('native Unix foreign-user rejectio
       await new Promise((resolve, reject) => {
         execFile(
           '/usr/bin/sudo',
-          ['-n', '-u', 'nobody', '--', client, socketPath],
+          ['-n', '--', client, socketPath, foreignUid, foreignGid],
           { env: {}, timeout: VAULT_APPROVAL_TTL_MS },
           (error, stdout) => {
             if (error)
@@ -82,7 +90,7 @@ describe.skipIf(process.platform === 'win32')('native Unix foreign-user rejectio
       expect(await run()).toMatchObject({ connected: false })
       expect(identify).not.toHaveBeenCalled()
       await chmod(socketPath, 0o666)
-      expect(await run()).toEqual({ connected: true })
+      expect(await run()).toEqual({ connected: true, uid: Number(foreignUid) })
       expect(await verified.promise).toBe(false)
       expect(identify).not.toHaveBeenCalled()
     } finally {

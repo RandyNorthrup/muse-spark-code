@@ -5771,6 +5771,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/webview/reportingPage.js',
   'dist/webview/reportingDestinations.js',
   'dist/vault.js',
+  'dist/vaultBroker.js',
   'dist/vaultBoundaries.js',
   'dist/estimator.js',
   'dist/estimateContracts.js',
@@ -7800,6 +7801,10 @@ export const VAULT_FORMAT_VERSION = 1
 export const VAULT_PROTOCOL_VERSION = 2
 export const VAULT_STORE_FORMAT_VERSION = 2
 export const VAULT_APPROVAL_TTL_MS = 120_000
+export const VAULT_BROKER_NATIVE_TIMEOUT_MS = 5000
+export const VAULT_BROKER_EMPTY_IDLE_MS = 30_000
+export const VAULT_BROKER_MAX_CONNECTIONS = 64
+export const VAULT_FILE_SINGLE_LINK = 1n
 // Lock wipes synchronously; audit and process cleanup get this bounded settlement window.
 export const VAULT_LOCK_DRAIN_MS = 1000
 export const VAULT_ASKPASS_USES = 3

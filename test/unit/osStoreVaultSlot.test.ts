@@ -4,6 +4,7 @@ import {
   OsStoreVaultSlot,
   VaultOsStoreUnavailableError,
 } from '../../src/runtime/vault/slots/osStoreVaultSlot'
+import { PosixVaultSlots } from '../../src/runtime/vault/slots/posixVaultSlots'
 import { slotContext } from './helpers/vault/fixtures'
 import { UI_TEXT } from '../../src/shared/constants'
 
@@ -71,20 +72,54 @@ describe('OS-store vault slot', () => {
     f.entry.getSecret.mockResolvedValueOnce(null).mockResolvedValueOnce(damaged)
     await expect(f.slot.wrap(key)).rejects.toMatchObject({ code: 'io' })
     expect(damaged).toEqual(Buffer.alloc(32))
+    expect(f.entry.deleteCredential).toHaveBeenCalledTimes(2)
     expect(f.entry.setSecret.mock.calls[0]?.[0]).toEqual(Buffer.alloc(32))
     key.fill(0)
   })
+  it.each(['linux', 'darwin'] as const)(
+    'implements provider selection on %s and denies unsupported presence',
+    async (platform) => {
+      const f = fixture(platform),
+        key = randomBytes(32)
+      const record = await f.slot.wrap(key)
+      key.fill(0)
+      const provider = new PosixVaultSlots(platform)
+      expect(provider.slotFor(record)).toBeInstanceOf(OsStoreVaultSlot)
+      expect(provider.slotFor({ ...record, tier: 'hardware' })).toBeNull()
+      expect(
+        provider.slotFor({
+          ...record,
+          provider: platform === 'linux' ? 'loginKeychain' : 'secretService',
+        }),
+      ).toBeNull()
+      expect(provider.osStore(record.vaultId, record.id)).toBeInstanceOf(OsStoreVaultSlot)
+      expect(await provider.presence()).toBe(false)
+      expect(() => provider.onScreenLock()).toThrow()
+      expect(() => new PosixVaultSlots('win32')).toThrow()
+      await f.slot.remove()
+    },
+  )
   it('normalizes and erases native numeric arrays captured on Kubuntu', async () => {
     const f = fixture(),
       key = randomBytes(32)
     const record = await f.slot.wrap(key)
     const native = [...key]
     f.entry.getSecret.mockResolvedValueOnce(native)
-    const restored = await f.slot.unwrap(record, '')
-    expect(restored).toEqual(key)
-    expect(native).toEqual(Array.from({ length: 32 }, () => 0))
-    restored.fill(0)
-    key.fill(0)
+    const erasedArrays = vi.spyOn(Array.prototype, 'fill')
+    try {
+      const restored = await f.slot.unwrap(record, '')
+      expect(restored).toEqual(key)
+      const empty = Array.from({ length: 32 }, () => 0)
+      expect(native).toEqual(empty)
+      expect(erasedArrays.mock.contexts).toHaveLength(2)
+      expect(erasedArrays.mock.contexts[0]).not.toBe(native)
+      expect(erasedArrays.mock.contexts[0]).toEqual(empty)
+      expect(erasedArrays.mock.contexts[1]).toBe(native)
+      restored.fill(0)
+    } finally {
+      erasedArrays.mockRestore()
+      key.fill(0)
+    }
   })
   it('normalizes the native missing-entry null captured on Secret Service', async () => {
     const f = fixture(),
@@ -118,7 +153,9 @@ describe('OS-store vault slot', () => {
   it('erases owned input and replaces native diagnostics on denied storage', async () => {
     const f = fixture(),
       key = randomBytes(32)
-    f.entry.setSecret.mockImplementationOnce(() => Promise.reject(new Error(key.toString('hex'))))
+    f.entry.setSecret.mockImplementationOnce(() =>
+      Promise.reject(new Error('native account path must stay private')),
+    )
     await expect(f.slot.wrap(key)).rejects.toThrow(UI_TEXT.vault.secretServiceUnavailable)
     expect(f.inputs).toEqual([])
     expect(f.entry.setSecret.mock.calls[0]?.[0]).toEqual(Buffer.alloc(32))

@@ -630,6 +630,14 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**C-M109-1b (2026-10-10, Kubuntu).** The POSIX broker's new lazy child is
+103,730 bytes; its first cap is 119,290 bytes (ceiling of measured × 1.15),
+with gate-fire and source-hash receipts in `docs/certification/cm109-1b.md`.
+Activation is 563,348 bytes and Model API is 528,186 bytes, inside their
+unchanged caps. The Models body is 77,652 bytes against its unchanged
+76,800-byte cap, exactly the same as the starting `96ded9299` scratch build;
+that pre-existing budget failure is recorded in §7 for the lead.
+
 **INT0170 (2026-10-08, kubuntu).** Three lane merges broke the Node bundles
 under unchanged caps; each is fixed at the root and held by the split check.
 Activation took classic zod through `paidConsent.ts` (1,033,339 B, two
@@ -19180,6 +19188,16 @@ in-tree junctions below it, drive-letter spelling) and
 
 ## 3. Open questions (need the owner)
 
+**C-M109-1b integration receipt (2026-10-10).** Part (a) must provide the
+installed `vaultRuntime.js` broker-binding factory (audit, identity/launch
+registry, execution, taint and scrub, importer and resource admission). The
+VSIX also needs the pinned keyring native module; it currently excludes
+`node_modules` and treats keyring as an ACP dependency only. Until those
+bindings and native packaging are certified, the editor surfaces stay closed.
+Mac mini's native OS-store receipt is blocked by SSH host-key verification;
+no trust settings were changed. These are reported to the lead for integration,
+not replaced with fake production ports.
+
 **Q-VISREGEN2 resolved by lead (2026-10-09).** Preserve every 0.17.0
 change and Highlight while tightening only that release's wording below
 72,000 decoded bytes. Keep 0.16.0 and older notes byte-exact and all content
@@ -33241,6 +33259,17 @@ Neovim, Emacs and Sublime receipts belong to C-M109-10. Linux hardware and
 screen-lock receipts remain C-M109-2; macOS biometry is not offered under
 decision 10. Acceptance 3's per-user-session/protocol singleton takes
 precedence over the brief's abbreviated "one per user".
+The process exports `createVaultBrokerProcess(context, bindings)` and its
+internal executable loads only installed `dist/vaultRuntime.js`'s
+`createVaultBrokerBindings(context)` export. Part (a)'s merged building-block
+commit does not yet provide that export: installed editor use stays closed.
+The Linux/macOS native helper uses OS peer credentials, process birth/image
+identity and an EOF-held kernel startup lock; no caller supplies a descriptor.
+A broker with no connected clients locks and exits after 30 seconds; at most
+64 clients are accepted at once. Native identity execution and startup-lock readiness have five-second response bounds.
+A cold broker synchronizes the shared lock epoch under its startup lock before
+accepting a connection; a rejected contender constructs no broker and cannot
+bump that epoch or lock an already live broker.
 Certification: `docs/certification/cm109-1b.md`.
 
 **FIXM109W integrated review repair (2026-10-07, Mac mini).** Verify every
@@ -38102,6 +38131,16 @@ lane A's first step.
 
 ## 7. Gates
 
+**C-M109-1b scoped qualification (2026-10-10, Kubuntu).** The lane brief
+reserves full quality for the lead. Targeted types, lint, formatting, dead code,
+duplication, localization, host API, reference, roadmap and production checks
+run without changing any existing gate. A clean scratch build of starting
+revision `96ded9299` already fails the Models body cap (75.8 KiB against
+75 KiB); record the exact baseline and current bytes in the certification
+receipt and defer that pre-existing browser-budget repair to the lead. The
+broker gets only its own measured-plus-15% cap. No editor surface is enabled
+until part (a)'s installed bindings and the native host receipts pass.
+
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering
 under bounded CPU/memory pressure before repairing their causes. Keep all
@@ -42724,6 +42763,11 @@ aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
+
+| C-M109-1b location                      | Escape hatch                                                 | Reason                                                                                                                                                                            | Removal                                                    |
+| --------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `src/runtime/vault/posixNative.ts`      | `Reflect.get(socket, '_handle')`, then zod validates `fd`    | M109 lead decision 9 explicitly approves Node's internal descriptor for this exact live `Socket`; the native helper checks its kernel credentials, and no wire field supplies it. | A supported public Node socket descriptor API.             |
+| `src/runtime/vault/vaultBrokerEntry.ts` | Installed sibling loader result cast to its factory contract | Only the installed `vaultRuntime.js` can supply the broker bindings; the factory export is checked before calling. No workspace module or missing-export fallback is loaded.      | Static typed bundle import once the sibling factory lands. |
 
 | PORTS017 escape                                                                           | Reason                                                                                                                                                                                                                          |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

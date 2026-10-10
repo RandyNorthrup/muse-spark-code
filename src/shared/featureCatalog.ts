@@ -1032,6 +1032,7 @@ export function featureCatalog(): readonly Feature[] {
       ['showWhatsNewOnUpdate'],
       'help-and-reference',
     ),
+    // C-M109-1b adds internal POSIX broker composition; installed editor bindings remain closed.
     feature(
       'vault',
       { command: COMMAND_IDS.vault },

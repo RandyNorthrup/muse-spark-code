@@ -1,5 +1,4 @@
 import * as z from 'zod/mini'
-import { AsyncEntry } from '@napi-rs/keyring'
 import {
   KEYRING_SERVICE,
   UI_TEXT,
@@ -26,7 +25,9 @@ interface SecretEntry {
 // Native capture on Kubuntu (2026-10-10): AsyncEntry returns number[], despite its typings.
 const secretSchema = z.union([
   z.instanceof(Uint8Array),
-  z.array(z.number().check(z.int(), z.minimum(0), z.maximum(VAULT_BYTE_MAX))),
+  z
+    .array(z.number().check(z.int(), z.minimum(0), z.maximum(VAULT_BYTE_MAX)))
+    .check(z.maxLength(VAULT_KEY_BYTES)),
 ])
 async function secretBytes(entry: SecretEntry): Promise<Uint8Array | null> {
   const raw = await entry.getSecret()
@@ -34,9 +35,15 @@ async function secretBytes(entry: SecretEntry): Promise<Uint8Array | null> {
   try {
     const parsed = secretSchema.safeParse(raw)
     if (!parsed.success) throw new VaultError('invalid')
-    const bytes = Buffer.alloc(parsed.data.length)
-    bytes.set(parsed.data)
-    return bytes
+    try {
+      if (parsed.data.length !== VAULT_KEY_BYTES) throw new VaultError('invalid')
+      const bytes = Buffer.alloc(parsed.data.length)
+      bytes.set(parsed.data)
+      return bytes
+    } finally {
+      // zod clones numeric arrays; erase that owned copy as well as the native return below.
+      parsed.data.fill(0)
+    }
   } finally {
     if (raw instanceof Uint8Array || Array.isArray(raw)) raw.fill(0)
   }
@@ -63,8 +70,7 @@ export class OsStoreVaultSlot implements VaultSlotPort {
   constructor(
     context: SlotContext,
     private readonly platform: NodeJS.Platform = process.platform,
-    private readonly open: OpenEntry = (service, account) =>
-      new AsyncEntry(service, account, { linux: { store: 'secret-service' } }),
+    private readonly open?: OpenEntry,
   ) {
     if (platform !== 'linux' && platform !== 'darwin') throw new VaultError('invalid')
     const provider = platform === 'linux' ? 'secretService' : 'loginKeychain'
@@ -85,7 +91,14 @@ export class OsStoreVaultSlot implements VaultSlotPort {
   }
   private async operation<T>(work: (entry: SecretEntry) => Promise<T>): Promise<T> {
     try {
-      return await work(this.open(KEYRING_SERVICE, this.record.keyReference ?? ''))
+      const account = this.record.keyReference ?? ''
+      let entry: SecretEntry
+      if (this.open) entry = this.open(KEYRING_SERVICE, account)
+      else {
+        const { AsyncEntry } = await import('@napi-rs/keyring')
+        entry = new AsyncEntry(KEYRING_SERVICE, account, { linux: { store: 'secret-service' } })
+      }
+      return await work(entry)
     } catch (error: unknown) {
       if (error instanceof VaultError) throw error
       throw new VaultOsStoreUnavailableError(this.platform)
@@ -103,12 +116,18 @@ export class OsStoreVaultSlot implements VaultSlotPort {
           previous.fill(0)
           throw new VaultError('busy')
         }
-        await entry.setSecret(owned)
-        const verified = await secretBytes(entry)
+        // This fresh reference is owned by this setup. Remove even an uncertain failed write.
         try {
-          if (verified == null || !areVaultBytesEqual(owned, verified)) throw new VaultError('io')
-        } finally {
-          verified?.fill(0)
+          await entry.setSecret(owned)
+          const verified = await secretBytes(entry)
+          try {
+            if (verified == null || !areVaultBytesEqual(owned, verified)) throw new VaultError('io')
+          } finally {
+            verified?.fill(0)
+          }
+        } catch (error: unknown) {
+          await entry.deleteCredential()
+          throw error
         }
       })
       return structuredClone(this.record)
@@ -139,10 +158,6 @@ export class OsStoreVaultSlot implements VaultSlotPort {
     return await this.operation(async (entry) => {
       const key = await secretBytes(entry)
       if (key == null) throw new VaultError('locked')
-      if (key.byteLength !== VAULT_KEY_BYTES) {
-        key.fill(0)
-        throw new VaultError('invalid')
-      }
       return key
     })
   }

@@ -9,9 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- Internal vault OS-store slots use Linux Secret Service and the macOS login
-  Keychain, with fixed actionable errors when the store is unavailable.
-  Editor vault bindings remain closed until their integration is certified.
+- Internal vault broker composition uses the shared v2 repository, management
+  and OS-store anchor, with a lazy child bundle, POSIX peer checks, kernel startup
+  serialization, stale-socket recovery and lock-before-idle-exit cleanup. Linux
+  Secret Service and macOS login Keychain slots report fixed actionable storage
+  failures. Editor vault bindings remain closed until integration is certified;
+  Touch ID is not offered under the named Apple Developer ID exception.
 
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or

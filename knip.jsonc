@@ -54,6 +54,7 @@
     "src/runtime/resources/resourceJournalEntry.ts",
     // Vault schemas shared by real Node bundle readers (D6).
     "src/shared/vaultBoundariesEntry.ts",
+    "src/runtime/vault/vaultBrokerEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
     "src/core/legal/entry.ts",
@@ -174,6 +175,8 @@
     "test/unit/helpers/fakeMcpStartMarker.mjs",
     // ACP crash regression bundles this child by path; esbuild entries are not traced.
     "test/unit/helpers/questions/queuedTurnCrash.ts",
+    // POSIX broker SIGKILL fixture is another esbuild entry launched by path.
+    "test/unit/helpers/vault/brokerProcessChild.ts",
     // The never-ending monitor the M92b bounded-run proof starts by path.
     "test/fixtures/never-ending-monitor.mjs",
     // M116 playbook scenes: the axe runner (an npm script knip already sees)
