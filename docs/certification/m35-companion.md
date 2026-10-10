@@ -196,6 +196,31 @@ with the lead: the browser suites that cover them are
 `test/unit/companionBrowser.test.ts`, `test/unit/companionMediaBrowser.test.mjs`
 and the voice CLI suite `test/unit/companionVoiceCli.test.mjs`.
 
+### RVCMICCOMP2 fixes (2026-10-10, macbook rig, no browser)
+
+Both P3 findings are fixed, each with a regression test and a red drill at
+the repository's own timeout (no `--testTimeout` raised). Source bytes were
+restored to the before-drill SHA-256 every time.
+
+| Finding                                    | Fix                                                                                                                                                                                                                                                       | Regression test                                                                                                          | Red drill                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1, finding-4 drill digest was 69 hex chars | `m35-companion-drills.json:548` now records the real SHA-256 of `src/acp/agent.ts` at `fb5668e10` (`5f6c1a50…97fbd`, verified with `sha256sum`)                                                                                                           | New `test/unit/companionDrills.test.ts`: every digest in the drills file matches `/^[0-9a-f]{64}$/`                      | Truncated the first entry's digest to 63 chars: the named test failed (`wav-geometry: expected '218e0682…' to match`), file restored byte-exact (`0752e876…b2a80bc4d` before and after)                                                                                                                   |
+| 2, dictate.ps1 tarball assertion never ran | `test/unit/usagePackaging.test.mjs` fixture now stubs `dist/voiceCompanion.js` (the `BUNDLES` entry added with the companion) and `dist/webview/voiceCompanion.js`/`.css` (the `pageAssets` copies), so the happy-path test reaches the tarball assertion | The existing `expect(files).toContain('package/native/windows/dictate.ps1')` now executes and passes (12/12 in the file) | Dropped `...VOICE_WINDOWS_HELPERS` from the packager copy loop: the tarball test failed exactly at the assertion (`expected […(97)] to include 'package/native/windows/dictate.ps1'`, `usagePackaging.test.mjs:212`); `scripts/package-acp.mjs` restored byte-exact (`284e9c0e…91cb563` before and after) |
+
+Sibling sweeps. All 52 digests in the drills file are 64 lowercase hex
+(one bad, now fixed). The packager's `BUNDLES` list was diffed against the
+fixture's stub list: `voiceCompanion` was the only missing stub
+(`providerCatalog` is staged separately); the other two packaging fixtures
+(`runtimeChatGptPackage`, execStdio e2e) copy production builds, so they
+already carry the companion files.
+
+Rig note: this macbook's shared `~/.npm/_cacache` holds root-owned files,
+so the fixture's `npm pack` fails with EPERM unless `npm_config_cache`
+points at a writable directory (used `temp/npm-cache`, gitignored). No repo
+file was changed for this; hosted CI with a healthy npm cache is unaffected.
+No browser was started: the browser suites covering these paths stay with
+the lead.
+
 ### Local commit and handoff
 
 `674c83bb2` contains the guarded implementation and certification hold;
