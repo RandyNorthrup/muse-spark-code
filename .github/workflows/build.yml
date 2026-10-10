@@ -114,15 +114,12 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.part.name == 'build' && !inputs.fast
         with:
           name: production-webview
+          # The whole production dist, minus the VSIX stage and build metadata:
+          # a hand list drifted once (wire.js gained a lazy chunk the list lacked).
           path: |
-            dist/webview
-            dist/reportingPanel.js
-            dist/validation.js
-            dist/wire.js
-            dist/uiText.js
-            dist/uiTextRuntime.js
-            dist/uiTextHooks.js
-            dist/uiTextSurfaces.js
+            dist
+            !dist/vsix-package
+            !dist/meta
           if-no-files-found: error
 
   # M114: rebuild the reviewed Git source in this runner's browser/fonts;

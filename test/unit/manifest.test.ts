@@ -658,19 +658,12 @@ describe('tiered CI (CIFLOW)', () => {
     expect(job('packages')).toContain('name: muse-spark-code-sboms')
   })
 
-  it('carries the reporting panel metrics input with browser files for accessibility', () => {
-    expect(job('checks')).toContain('path: |\n            dist/webview\n')
-    for (const file of [
-      'reportingPanel',
-      'validation',
-      'wire',
-      'uiText',
-      'uiTextRuntime',
-      'uiTextHooks',
-      'uiTextSurfaces',
-    ]) {
-      expect(job('checks')).toContain(`            dist/${file}.js\n`)
-    }
+  it('carries the whole production dist, not a hand list, to the accessibility job', () => {
+    // A hand list drifted once: wire.js gained a lazy chunk the list lacked.
+    expect(job('checks')).toContain(
+      'path: |\n            dist\n            !dist/vsix-package\n            !dist/meta\n',
+    )
+    expect(job('checks')).not.toMatch(/^ {12}dist\/[A-Za-z]+\.js$/m)
     expect(job('accessibility')).toContain('name: production-webview\n          path: dist\n')
     expect(read('test/harness/reporting/verify.mjs')).toContain(
       "statSync(path.join(root, 'dist/reportingPanel.js'))",
