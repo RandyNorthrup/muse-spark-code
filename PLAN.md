@@ -29848,6 +29848,17 @@ receipts remain the lead's checks under the rig brief.
   and absent shared D78/registry binding keep production inactive; the milestone
   checkbox remains open until those integration receipts exist.
 
+  **C-M101-2 evaluation freeze (2026-10-10, kubuntu).** The M75 harness
+  freezes four arms (baseline, packing, auto-compaction, strict-tools) and
+  sixteen tasks (the twelve previous fixtures plus per split one
+  long-context compaction task and one two-defect multi-edit task) with
+  digest `7f6241a6…45b26` (`src/core/eval/mechanisms.ts`,
+  `src/core/eval/tasks.ts`, `docs/certification/m101-eval-arms.md`).
+  Fake baseline/mechanism pairs for packing, strict tools and
+  auto-compaction hold both 0.75 floors; multi-edit comparability is
+  task-level (no host seam exists). Production stays inactive; lane E owns
+  the counted run, the D78 binding and the window-size decision.
+
   **C2 final-review accounting correction.** If shared settlement throws during
   an HTTP retry notice, mark that attempt consumed before invoking settlement
   so cleanup cannot settle it a second time. A complete-file regression must

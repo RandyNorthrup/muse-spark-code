@@ -6933,6 +6933,16 @@ export const EVAL_LONG_EVIDENCE_LINES = 512
 export const EVAL_LONG_EVIDENCE_MIDDLE_LINE = 256
 export const EVAL_LONG_EVIDENCE_LINE_CHARS = 64
 export const EVAL_LONG_EVIDENCE_RECALL_OFFSET = 16_000
+// M101's long-context tasks: the prompt carries a build log of this many
+// records, each padded to one width, the needed value on one middle line.
+// The first request then lands between 90% of the window below and the
+// preflight limit, so the arm compacts at its first settled tool boundary
+// (a single file read can never trip it: reads are capped at half a window
+// in characters while near-window needs nine tenths in tokens).
+export const EVAL_COMPACT_WINDOW_TOKENS = 26_000
+export const EVAL_COMPACT_BULK_LINES = 2200
+export const EVAL_COMPACT_BULK_LINE_CHARS = 40
+export const EVAL_COMPACT_VALUE_LINE = 1100
 // The shape of the report the live run writes.
 export const EVAL_REPORT_VERSION = 2
 // Decimals for the report's dollar amounts: a task costs a few

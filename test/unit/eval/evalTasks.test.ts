@@ -69,13 +69,16 @@ function probeTask(verify: string, files = [{ path: 'a.js', content: 'export con
 }
 
 describe('eval task set', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, () => {
-  it('holds seven accept and five held-out tasks, one of each with a long output (M73)', () => {
-    expect(evalTasksOfSplit('accept')).toHaveLength(7)
-    expect(evalTasksOfSplit('heldout')).toHaveLength(5)
-    expect(EVAL_TASKS).toHaveLength(12)
+  it('holds nine accept and seven held-out tasks: a long output, a long context and a multi-edit per split (M73, M101)', () => {
+    expect(evalTasksOfSplit('accept')).toHaveLength(9)
+    expect(evalTasksOfSplit('heldout')).toHaveLength(7)
+    expect(EVAL_TASKS).toHaveLength(16)
     expect(
       EVAL_TASKS.filter((task) => task.isLongOutput === true).map((task) => task.split),
     ).toEqual(['accept', 'heldout'])
+    expect(EVAL_TASKS.filter((task) => task.isLongContext === true).map((task) => task.id)).toEqual(
+      ['accept-long-compaction', 'heldout-long-compaction'],
+    )
   })
 
   it('has unique ids, complete definitions and safe paths', () => {
@@ -90,7 +93,7 @@ describe('eval task set', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, () => {
     }
   })
 
-  it('runs on the contributor model, with floors of six of seven and four of five', () => {
+  it('runs on the contributor model, with floors of seven of nine and six of seven', () => {
     expect(modelApiPaidTier(EVAL_MODEL_ID)).toBe('contributor')
     expect(EVAL_FLOOR_ACCEPT_PASS_RATE).toBe(0.75)
     expect(EVAL_FLOOR_HELDOUT_PASS_RATE).toBe(0.75)

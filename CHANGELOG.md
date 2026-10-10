@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Frozen M75 evaluation arms and long-context tasks** (M101 C-M101-2).
+  The paired harness now freezes four arms (baseline, observation packing,
+  automatic compaction, strict tool schemas) and sixteen tasks: the twelve
+  previous fixtures plus, per split, one long-context compaction task whose
+  prompt-filled window compacts at the first settled boundary and one
+  two-defect multi-edit task. A SHA-256 digest pins the frozen bytes for the
+  counted run; fake baseline/mechanism pairs hold both 0.75 floors.
+  Production automatic compaction stays off, awaiting lane E's live
+  evaluation.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

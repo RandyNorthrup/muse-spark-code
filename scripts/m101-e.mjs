@@ -13,7 +13,7 @@ const plan = {
   liveAttemptsHere: 0,
   cacheProbe:
     'In an empty workspace, capture one /compact and one token-budgeted goal round, comparing instructions/tools/key and cached_tokens. About 4 calls; allow 8 for bounded retries/fallback and record every actual POST.',
-  m75: '10 tasks × 2 arms (baseline/packing), typically 5–10 calls per task/arm: estimate 100–200 calls. Existing trace stops future sends at its $0.50 estimate or unknown usage; this is not a reservation theorem.',
+  m75: '16 tasks × 2 arms (baseline/packing), typically 5–10 calls per task/arm: estimate 160–320 calls. Existing trace stops future sends at its $0.50 estimate or unknown usage; this is not a reservation theorem.',
   autoCompaction:
     'E must bind the explicit evaluation admission/settlement port and add its paired arm, prove it actually compacted, then capture overflow/cut-short frames. Estimate another 50–100 ordinary calls plus 1–2 summary calls per compaction, retries counted. Never flip the production latch from this launcher.',
   captures:
