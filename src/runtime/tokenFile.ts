@@ -99,7 +99,7 @@ ${WINDOWS_ACL_SCRIPT}`
   },
 }
 
-async function secure(
+export async function secure(
   file: string,
   isDirectory: boolean,
   acl?: TokenWindowsAcl,

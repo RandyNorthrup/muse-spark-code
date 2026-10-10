@@ -52,6 +52,7 @@ import {
   SECRET_KEYS,
   UI_TEXT,
   PAID_FEATURES,
+  COMPANION_VOICE_RELEASE,
 } from '../../src/shared/constants'
 import { memorySecrets } from './helpers/fakes'
 import { FAKE_MODEL_API_KEY, fakeModelApi, responseOutputsByCall } from './helpers/fakeModelApi'
@@ -921,16 +922,16 @@ describe('createRuntimeBackend', () => {
     },
   )
 
-  it('lets "always" lapse at start only for the Model API agent, which has the flags (M58)', async () => {
+  it('revokes unflagged voice on either backend and other paid grants on Model API only', async () => {
     const home = folder()
     const env = { XDG_DATA_HOME: home, LOCALAPPDATA: home }
     const file = paidGrantsFile({ platform: process.platform, env, homeDir: home })
     const workspace = path.resolve('work')
     const grants = paidGrantFile({ file, log, sleep: () => Promise.resolve() })
-    await grants.add(workspace, ['webSearch'])
-    const runtimeOn = (backend: ServeOptions['backend']) =>
+    await grants.add(workspace, ['webSearch', 'voice'])
+    const runtimeOn = (backend: ServeOptions['backend'], isVoiceOn = false) =>
       createRuntimeBackend({
-        options: { ...DEFAULTS, backend },
+        options: { ...DEFAULTS, backend, companionVoice: isVoiceOn },
         version: '0.0.0-test',
         distDir: dist.folder,
         platform: process.platform,
@@ -942,11 +943,21 @@ describe('createRuntimeBackend', () => {
         sleep: () => Promise.resolve(),
         log,
       })
-    // A Muse Code agent beside it leaves the Model API agent's grants alone.
     await runtimeOn('museCode').forgetUnflaggedGrants()
-    expect(grants.read(workspace)).toEqual(new Set(['webSearch']))
-    await runtimeOn('modelApi').forgetUnflaggedGrants()
-    expect(grants.read(workspace)).toEqual(new Set())
+    expect(grants.read(workspace)).toEqual(new Set(['webSearch', 'voice']))
+    COMPANION_VOICE_RELEASE.isReady = true
+    try {
+      await runtimeOn('museCode', true).forgetUnflaggedGrants()
+      expect(grants.read(workspace)).toEqual(new Set(['webSearch', 'voice']))
+      // Voice has its own flag on both backends; other flags belong to Model API.
+      await runtimeOn('museCode').forgetUnflaggedGrants()
+      expect(grants.read(workspace)).toEqual(new Set(['webSearch']))
+      await grants.add(workspace, ['voice'])
+      await runtimeOn('modelApi').forgetUnflaggedGrants()
+      expect(grants.read(workspace)).toEqual(new Set())
+    } finally {
+      COMPANION_VOICE_RELEASE.isReady = false
+    }
   })
 
   it('refuses an ACP model request after headless has reserved the shared daily budget', async () => {

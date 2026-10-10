@@ -940,3 +940,12 @@ repository README's vault section. Companion and native bridges share the
 same public panel handler; M104 must bind authenticated connections and honor
 its cancellation signal before committing effects. Add/edit opens the host's
 terminal. No value is accepted or returned in panel messages.
+
+### Companion microphone certification
+
+The companion microphone implementation is held off in this build. Its ACP
+command, terminal route and paid flag stay hidden until the Windows/macOS
+browser/free speech-helper receipts and assigned editor bindings/receipts pass. The certification record in
+`docs/certification/m35-companion.md` in the source repository distinguishes
+Linux fake-device/agent evidence from the remaining real editor and platform
+checks. This does not change the supported voice routes in this guide.

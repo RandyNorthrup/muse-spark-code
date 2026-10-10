@@ -19,6 +19,7 @@ import {
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
   UI_TEXT,
+  COMPANION_VOICE_RELEASE,
   REPORT_KINDS,
 } from '../shared/constants'
 import { modelRef } from '../host/backend/providerPolicyEntry'
@@ -67,6 +68,7 @@ import { parseVaultCommand, vaultUsage, type VaultCommandOptions } from './vault
 
 export interface ServeOptions {
   readonly usageHistory?: boolean
+  readonly companionVoice?: boolean
   /** Which account pays; chosen here, never guessed (D62). */
   readonly backend: AcpBackendKind
   /** A folder's rules, skills and memory load (D13's flag, as Muse Code takes it). */
@@ -119,6 +121,7 @@ export interface ProvidersAddOptions {
 }
 
 export type RuntimeCommand =
+  | { readonly command: 'dictate'; readonly paid: boolean; readonly trustWorkspace: boolean }
   | { readonly command: 'usage'; readonly options: UsageCommand }
   | { readonly command: 'schedule'; readonly options: ScheduleCommandOptions }
   | { readonly command: 'vault'; readonly options: VaultCommandOptions }
@@ -270,6 +273,19 @@ export function parseCommandLine<T>(
   if (argv[0] === 'exec' && argv[1] === 'legal-scan')
     return parseLegalCommand(['legal', ...argv.slice(2)])
   if (argv[0] === '--usage') return parseUsage(['--json', ...argv.slice(1)])
+  if (COMPANION_VOICE_RELEASE.isReady && argv[0] === 'dictate') {
+    const flags = argv.slice(1)
+    if (
+      flags.some((flag) => flag !== '--muse-voice' && flag !== '--trust-workspace') ||
+      new Set(flags).size !== flags.length
+    )
+      return invalid('dictate')
+    return {
+      command: 'dictate',
+      paid: flags.includes('--muse-voice'),
+      trustWorkspace: flags.includes('--trust-workspace'),
+    }
+  }
   if (argv[0] === 'resources') return parseResources(argv.slice(1))
   if (argv[0] === 'usage' && argv[1] === 'resources')
     return parseResources(['history', ...argv.slice(2)])
@@ -375,6 +391,7 @@ export function parseCommandLine<T>(
     canBypass: values['allow-dangerously-skip-permissions'] === true,
     allowsContributorModels: values['allow-contributor-models'] === true,
     paidFeatures,
+    ...(COMPANION_VOICE_RELEASE.isReady && { companionVoice: values['muse-voice'] === true }),
     isVerbose: values.verbose === true,
     questionsDeferAfterSeconds,
     autoCompaction: values['no-auto-compaction'] !== true,

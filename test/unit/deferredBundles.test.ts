@@ -132,6 +132,7 @@ beforeAll(async () => {
       configuredProviders: 'src/host/backend/configuredProvidersEntry.ts',
       usageService: 'src/runtime/usage/usageServiceEntry.ts',
       usageCompanion: 'src/runtime/usage/usageCompanionEntry.ts',
+      voiceCompanion: 'src/runtime/companion/voiceEntry.ts',
       usagePanel: 'src/host/usage/usagePanelEntry.ts',
       headless: 'src/runtime/exec/runExec.ts',
       modelsPanel: 'src/host/models/modelsPanelEntry.ts',
@@ -346,9 +347,11 @@ function runLegalGate(name: string) {
   if (program === undefined) throw new Error(`Missing gate program: ${name}`)
   const scanner = readFileSync(bundleFile('legalScan'), 'utf8')
   const textOf = (file: string) =>
-    file.replaceAll('\\', '/') === 'dist/legalScan.js'
-      ? scanner
-      : (bundleTexts.get(path.basename(file.replaceAll('\\', '/'), '.js')) ?? '')
+    file.replaceAll('\\', '/') === 'dist/webview/voiceCompanion.js'
+      ? '' // Independent browser receipt measures this page; do not read its same-named Node entry.
+      : file.replaceAll('\\', '/') === 'dist/legalScan.js'
+        ? scanner
+        : (bundleTexts.get(path.basename(file.replaceAll('\\', '/'), '.js')) ?? '')
   const meta = {
     outputs: {
       ...Object.fromEntries(
@@ -435,6 +438,28 @@ function inputs(name: string): string[] {
 }
 
 describe('deferred cohort bundles', () => {
+  it('keeps companion microphone code lazy and fires for each initial parent', () => {
+    for (const source of [
+      'src/runtime/companion/voiceEntry.ts',
+      'src/runtime/companion/voiceHandler.ts',
+      'src/runtime/companion/voicePaid.ts',
+      'src/runtime/companion/voiceSystem.ts',
+    ]) {
+      expect(inputs('voiceCompanion')).toContain(source)
+      for (const parent of ['extension', 'modelApi', 'acp']) {
+        expect(inputs(parent)).not.toContain(source)
+        const problems = checkDeferredBundles((bundle) =>
+          bundle.output === `dist/${parent}.js`
+            ? new Map([...bundleInputs(bundle), [source, 1]])
+            : bundleInputs(bundle),
+        )
+        expect(
+          problems.some((problem) => problem.includes(`dist/${parent}.js carries ${source}`)),
+        ).toBe(true)
+      }
+    }
+    expect(checkDeferredBundles(bundleInputs)).toEqual([])
+  })
   it('keeps governor execution in its lazy bundle and shares the admission shim', () => {
     for (const name of ['extension', 'modelApi', 'acp', 'browserCheck']) {
       expect(inputs(name)).not.toContain('src/core/resources/governor.ts')

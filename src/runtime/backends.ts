@@ -64,6 +64,7 @@ import {
   SECRET_KEYS,
   PROVIDER_SECRET_PREFIX,
   PAID_PRICES_USD,
+  COMPANION_VOICE_RELEASE,
   PROVIDERS_CONFIG_DIR_NAME,
   PROVIDERS_FILE_NAME,
   SETTING_DEFAULTS,
@@ -540,14 +541,15 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     },
     "the operating system's credential store",
   )
+  const grants = paidGrantFile({
+    file: paidGrantsFile({ platform: deps.platform, env: deps.env, homeDir: deps.homeDir }),
+    log: deps.log,
+    sleep: deps.sleep,
+  })
   const paid = new AcpPaidUse({
     flagged: deps.options.paidFeatures,
     canRemember: () => deps.options.trustWorkspace,
-    grants: paidGrantFile({
-      file: paidGrantsFile({ platform: deps.platform, env: deps.env, homeDir: deps.homeDir }),
-      log: deps.log,
-      sleep: deps.sleep,
-    }),
+    grants,
     log: deps.log,
     ...(deps.exec !== undefined && { headless: deps.exec.headlessPaid }),
   })
@@ -716,10 +718,19 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     },
     museCode,
     paid,
-    forgetUnflaggedGrants: () =>
-      deps.exec === undefined && deps.options.backend === 'modelApi'
-        ? paid.forgetUnflagged()
-        : Promise.resolve(),
+    forgetUnflaggedGrants: async () => {
+      if (deps.exec !== undefined) return
+      if (deps.options.backend === 'modelApi') await paid.forgetUnflagged()
+      // Companion voice uses the stored Model API key on either backend.
+      // Dropping its flag revokes remembered consent before a later re-enable.
+      if (COMPANION_VOICE_RELEASE.isReady && deps.options.companionVoice !== true) {
+        try {
+          await grants.forget(['voice'])
+        } catch {
+          deps.log.warn('Companion voice workspace grants could not be forgotten')
+        }
+      }
+    },
     close: async () => {
       // A probe still waiting on its short-lived host ends with the agent.
       accountHosts.close()

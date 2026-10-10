@@ -14,6 +14,33 @@ import {
   paidTallySchema,
 } from '../../src/shared/paid'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import type { UsageRecording } from '../../src/core/usage/recording'
+
+it('preserves uncertain companion voice liability in the account usage journal', () => {
+  const recording: UsageRecording = {
+    note: vi.fn(),
+    limit: vi.fn(),
+    today: () => Promise.resolve([]),
+    flush: () => Promise.resolve(),
+  }
+  const usage = new PaidUsage(new FakeLogOutputChannel(), recording)
+  usage.addVoiceBatch(3.36, {
+    uncertain: true,
+    retainedLiabilityUsd: Usd.from('0.000168').toAmount(),
+    outcome: 'failed',
+  })
+  expect(usage.current.voiceSeconds).toBe(3.36)
+  expect(recording.note).toHaveBeenCalledExactlyOnceWith(
+    undefined,
+    expect.objectContaining({
+      kind: 'voice',
+      units: { audioSeconds: 3.36 },
+      uncertain: true,
+      retainedLiabilityUsd: '0.000168',
+      outcome: 'failed',
+    }),
+  )
+})
 
 /** A gate over in-memory settings and acceptances, with a scripted modal. */
 function gateWith(

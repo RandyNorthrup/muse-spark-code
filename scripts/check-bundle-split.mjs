@@ -1468,6 +1468,7 @@ const nodeMetafiles = readdirSync('dist/meta')
         'referencePage.json',
         'modelsWebview.json',
         'usageWebview.json',
+        'voiceCompanionWebview.json',
         'resourceSurface.json',
         'resourceHistory.json',
         'reportingPageWebview.json',

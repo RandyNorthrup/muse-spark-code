@@ -1141,6 +1141,13 @@ properties, and retain all existing caps. No new artifact or dependency.
 
 **`dist/tab.js` budget rationale.** (M94: first request/menu; status/provider registration stays eager)
 
+**CMICCOMP first-use bundle budgets (2026-10-10).** New independent entries:
+`dist/voiceCompanion.js` ≤125 KiB (100.3 KiB measured),
+`dist/webview/voiceCompanion.js` ≤100 KiB (67.4 KiB), and
+`dist/webview/voiceCompanion.css` ≤25 KiB (16.5 KiB).
+Each uses measured bytes +15%, rounded up to 25 KiB. Existing startup,
+deferred-aggregate and individual caps are unchanged.
+
 **`dist/extension.js` budget rationale.** (the M7 Model API client fit without raising it; the activation bundle since M57)
 
 **`dist/modelApi.js` budget rationale.** (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b; M91 brought it to 486.1 KiB, and moving the hook and MCP-form runtime and the imported records' reader out took it to 463.7 KiB, 466.8 KiB on 0.13.0, 2026-10-05: the cap held)
@@ -19180,6 +19187,15 @@ in-tree junctions below it, drive-letter spelling) and
 
 ## 3. Open questions (need the owner)
 
+**Q-CMICCOMP-RELEASE (2026-10-10, linuxlt).** New companion mic entry points
+remain hidden until the lead supplies Windows/macOS fake-device Chrome and
+actual free-helper recognition receipts (including macOS compilation/signing/TCC).
+The existing ACP protocol cannot mutate an editor's draft: the implementation
+reviews in the browser and submits only on explicit Send through its owning
+ACP session. CLI emits reviewed text on stdout. Native MHP editor-owner binding
+and real editor receipts remain C-M104-1 / C-M63-1; no new host row is claimed
+complete. See `docs/certification/m35-companion.md`.
+
 **Q-VISREGEN2 resolved by lead (2026-10-09).** Preserve every 0.17.0
 change and Highlight while tightening only that release's wording below
 72,000 decoded bytes. Keep 0.16.0 and older notes byte-exact and all content
@@ -22159,6 +22175,51 @@ sessions:
 ### M35 — Muse Voice dictation, paid and opt-in (D30)
 
 **Status 2026-09-25: built.**
+
+**CMICCOMP completion lane, 2026-10-10 (implemented; Linux-certified; hidden).** Extend M9/M35
+to the authenticated loopback companion for ACP and terminal users. D34's
+stored-key Muse Code support supersedes the archive's original backend limit.
+Use U18's captured mono PCM WAV batch endpoint, not unbounded realtime billing.
+The browser captures at most 60 seconds / 1,920,044 WAV bytes; the server
+independently validates origin, bearer, byte count, WAV geometry, ticket age,
+single-use ownership and concurrency. Audio is memory-only on the paid path;
+free OS recognition uses an owner-only temporary WAV deleted in finally.
+Windows reuses `dictate.ps1 -InputWav`; macOS adds file recognition to the
+same signed helper, without opening the host microphone. No free Linux engine.
+Paid voice is explicitly chosen, uses PaidUseConsent once per companion
+window, the runtime's shared durable daily ledger, and PaidUsage's tally.
+Keys remain in the runtime; no child receives one. No automatic retry.
+ACP paid consent uses the editor's permission request; CLI uses the browser
+dialog. Dropping the voice flag revokes remembered voice grants on either
+backend, and opening the free-only CLI route does the same before recognition.
+
+ACP has no client-draft mutation method. The companion therefore inserts
+transcripts into its reviewable prompt; an explicit Send submits that prompt
+through the owning ACP session. CLI writes reviewed text to stdout for the
+calling terminal, with paid calls recorded through the existing lazy usage
+journal and flushed before process exit. Neither transcription nor opening the page starts a turn. A capture ticket
+blocks Send on the host, and recording disables Send in the browser, including
+a second recording after an earlier transcript. Cancel releases that ticket
+before a reviewed prior prompt can be sent.
+
+Lane plan (keep current):
+
+- [x] Guarded WAV protocol and authenticated capture lifecycle, refusal tests.
+- [x] Captured batch adapter, consent, durable budget and tally, failure tests.
+- [x] Free Windows/macOS file engines, bounded child lifecycle and fake cleanup tests.
+      Native macOS compilation and actual OS recognition remain in the release hold.
+- [x] Accessible/responsive companion, explicit ACP/CLI prompt handoff.
+- [x] Fake-mic Chrome e2e, 48 red drills with byte-exact SHA-256 restoration.
+- [x] Localization, Help/docs and focused gates; local hooked commit at handoff.
+- [ ] Windows/macOS browser and native-helper receipts on lead rigs.
+
+Release hold: new command/control entry points remain off and unannounced
+until all lane acceptance rows are certified, including the other OS rigs.
+Existing M9/M35 behaviour is unchanged. No paid/live calls are authorized
+in this lane. Full quality is the lead's four-machine gate; the shared lane
+rules require focused checks here instead.
+
+First-use bundle measurements and separate budgets are recorded in §2 D6.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -42638,6 +42699,9 @@ aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
+
+| `src/acp/agent.ts`, `src/runtime/main.ts`, `src/runtime/companion/voiceSystem.ts` (CMICCOMP) | `unicorn/prefer-promise-with-resolvers` disables with inline reasons | The host type project has the Node 20 library shape, which lacks `Promise.withResolvers`; synchronous resolver capture preserves the supported runtime without adding a shim. Remove when the type baseline supplies it. |
+| `src/runtime/companion/voiceLoader.ts` (CMICCOMP) | Same-build exported-function type predicate | Runtime checks the module and function property; a packaged TypeScript function signature cannot be checked by JavaScript. The factory is from this same build and installs the caller's language table. |
 
 | PORTS017 escape                                                                           | Reason                                                                                                                                                                                                                          |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

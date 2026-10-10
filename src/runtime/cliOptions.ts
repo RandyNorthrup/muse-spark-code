@@ -28,7 +28,7 @@ interface CliParserOption {
   readonly multiple?: boolean
 }
 type CliParserOptions = Readonly<Record<string, CliParserOption>>
-import { ACP_PAID_FLAGS } from '../shared/constants'
+import { ACP_PAID_FLAGS, COMPANION_VOICE_RELEASE } from '../shared/constants'
 
 const PROVIDER_OPTIONS = {
   preset: { type: 'string' },
@@ -42,6 +42,7 @@ const PROVIDER_OPTIONS = {
 } as const satisfies CliParserOptions
 
 const COMMON_OPTIONS = {
+  ...(COMPANION_VOICE_RELEASE.isReady && { 'muse-voice': { type: 'boolean' as const } }),
   ...PROVIDER_OPTIONS,
   'usage-history': { type: 'string' },
 
@@ -169,6 +170,7 @@ export const CLI_OPTION_REGISTRY = {
 // chooses an English usage line or a failure message by matching its contents.
 export const CLI_OPTION_TEXT = {
   'usage-history': 'usage-history',
+  'muse-voice': 'muse-voice',
   preset: 'preset',
   as: 'as',
   address: 'address',
