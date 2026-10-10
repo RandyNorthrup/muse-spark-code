@@ -6,6 +6,10 @@ import { fill } from '../shared/l10n/text'
 
 /** Compact CLI help, also checked against the installed package's tables. */
 export function formatAcpUsage(table: UiText, command: string): string {
+  const options = {
+    [ACP_PAID_FLAGS.autoCompaction]: table.referenceCliOptions[ACP_PAID_FLAGS.autoCompaction],
+    'no-auto-compaction': table.referenceCliOptions['no-auto-compaction'],
+  }
   return [
     fill(table.acpUsage, { command }),
     fill(table.acpChatGpt.usage, { command }),
@@ -13,24 +17,20 @@ export function formatAcpUsage(table: UiText, command: string): string {
     fill(table.accounts.cliUsage, { command }),
     fill(table.accounts.execHelp, { command }),
     table.scheduleV2.runtime.usage,
-    `  --auto-compaction ${table.referenceCliOptions['auto-compaction']}`,
+    ...Object.entries(options)
+      .filter(
+        ([option]) =>
+          isAutoCompactionEvaluated() ||
+          (option !== ACP_PAID_FLAGS.autoCompaction && option !== 'no-auto-compaction'),
+      )
+      .map(([option, description]) => `  --${option} ${description}`),
     `${command} resources [status|history|resume] [--json]`,
     `${command} usage resources [--json]`,
     ...(['resource-governor', 'cpu-max', 'memory-max'] as const).map(
       (flag) => table.referenceCliOptions[flag],
     ),
     `${table.helpReferenceTitle}: ${command} help --all`,
-  ]
-    .filter((line) => isAutoCompactionEvaluated() || !line.includes('--auto-compaction'))
-    .map((line) =>
-      isAutoCompactionEvaluated()
-        ? line
-        : line
-            .split('\n')
-            .filter((part) => !part.includes('--no-auto-compaction'))
-            .join('\n'),
-    )
-    .join('\n')
+  ].join('\n')
 }
 
 // One parseArgs definition per runtime route, also read by the lazy reference.

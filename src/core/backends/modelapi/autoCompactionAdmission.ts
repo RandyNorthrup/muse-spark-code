@@ -7,6 +7,7 @@ import type { CoreLogger } from '../../logging'
 import { reserveRequestAmount } from '../../providers/priceCard'
 import { requestImageCount } from './modelPolicy'
 import type { AutoCompactModel } from './autoCompact'
+import { AutoCompactionNotAuthorizedError } from '../../paid/paidConsent'
 import type { ModelApiHostDeps } from './ModelApiHost'
 import type { CreateResponseBody, Usage } from './schemas'
 
@@ -137,7 +138,7 @@ export function createAutoCompactionAdmission(
     let isConsentCurrent = beforeConsent
     const checkAuthorization = () => {
       signal.throwIfAborted()
-      if (!isAvailable() || !isConsentCurrent()) throw new Error(deps.storeUnavailable)
+      if (!isAvailable() || !isConsentCurrent()) throw new AutoCompactionNotAuthorizedError()
     }
     const dailyBudgetUsd = await deps.dailyBudgetUsd()
     signal.throwIfAborted()

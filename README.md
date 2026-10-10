@@ -1179,10 +1179,12 @@ conversation in Plan mode stays in Plan.
 
 Automatic compaction, its exact todo continuation and the memory flush are
 implemented in the shared Model API engine, but **awaiting evaluation and
-inactive**. The automatic feature is absent from Settings, paid surfaces,
-consent cards and ACP/CLI help until evaluation passes. The hidden
-`museSpark.modelApiAutoCompaction` defaults to `true`; set it to
-`false` to turn the mechanism off. ACP and headless use the same core and
+inactive**. `museSpark.modelApiAutoCompaction` is visible in the native
+Settings editor as an inactive preference: it defaults to `true`, but neither
+value enables automatic requests today. Set it to `false` to keep automatic
+compaction disabled after evaluation passes. The automatic feature is absent
+from paid surfaces, consent cards and ACP/CLI help until then.
+ACP and headless use the same core and
 accept `--no-auto-compaction`. ACP requires `--auto-compaction` to offer the
 paid extra and asks through the editor; exec does not authorize it. Muse Code
 continues to compact itself.
@@ -1201,7 +1203,9 @@ fallback reserves its actual estimated input at list price plus its full
 output allowance and every other priced part; reported usage settles the
 claim and refunds the difference. Consent, switch, trust and evaluation are
 checked at preparation and immediately before dispatch; revocation stops
-the send. Each attempt owns a fresh daily claim; known nonsends refund, and settlement
+the summary send and lets an ordinary turn continue; it is not a ledger
+failure. A genuine context overflow still requires manual recovery if
+automatic compaction is refused. Each attempt owns a fresh daily claim; known nonsends refund, and settlement
 failure ends the turn. Daily Stop, unreadable storage and the hard daily cap
 refuse protection too. Final account/key/budget checks still apply.
 
@@ -4378,7 +4382,7 @@ Bypass at once.
 | `showWhatsNewOnUpdate`            | `true`      | Open What's New after the extension updates: the page after a release with Highlights, a quiet notification after a fixes-only patch; off shows nothing on updates ([What's New after an update](#whats-new-after-an-update))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `paidDailyBudgetUsd`              | `5`         | Shared interactive extras budget in USD, $0.50–$500; machine-scoped. Daily reservations persist across windows; Tab uses its own separate ledger.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `dictationEngine`                 | `"system"`  | Model API dictation engine: `system` (free default) or `museVoice` (paid, currently refused under the finite cap). Muse Code retains its explicit voice opt-in.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `modelApiAutoCompaction`          | `true`      | Automatic Model API compaction; awaiting evaluation and inactive until the M75 pair and shared paid admission are certified. Set false to opt out. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `modelApiAutoCompaction`          | `true`      | Visible inactive preference: no automatic requests today. Defaults on for use after the M75 pair and shared paid admission are certified; false keeps it disabled. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 | `modelApiTeamWorkers` | `true` | [Paid](#paid-features): team tasks billed to your Model API key (M96 agent roles, lane A): on with one price question before the first charge; the first delegate call that starts key tasks asks once with each model's prices, each task's ceiling and the shared daily budget. Machine-scoped |
 | `mediaMaxUploadMiB` | `200` | Uploaded media cap in MiB, 1–1024; machine-scoped. An attachment over it is refused before it is read |

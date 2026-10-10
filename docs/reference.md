@@ -368,6 +368,8 @@ Commands: —. Settings: `museSpark.modelApiParallelReads`. [Documentation](http
 
 autoCompactionEvaluation: Automatic compaction is awaiting evaluation and is inactive.
 
+conversationStart&modelPricing: This setting stores a preference only: automatic compaction is currently inactive and sends no extra model requests. Defaults on; setting it off keeps compaction disabled after a paired evaluation passes. Additional paid calls then require consent to the price and daily budget.
+
 ```json
 {
   "paidFeature": "autoCompaction",
@@ -3225,7 +3227,7 @@ Type: `"string"`. Default: `""`. Scope: `window`.
 
 ### museSpark.modelApiAutoCompaction
 
-conversationStart&modelPricing: Automatically compact long Model API conversations. Defaults on, but remains inactive until a paired evaluation passes. Additional paid calls require consent to the price and daily budget.
+conversationStart&modelPricing: This setting stores a preference only: automatic compaction is currently inactive and sends no extra model requests. Defaults on; setting it off keeps compaction disabled after a paired evaluation passes. Additional paid calls then require consent to the price and daily budget.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 

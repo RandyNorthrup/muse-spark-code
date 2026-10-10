@@ -1572,8 +1572,7 @@ async function main(): Promise<number> {
         process.stderr,
         localized.command === 'invalid' ? localized.reason : UI_TEXT.accounts.unavailable,
       )
-      writeLine(process.stderr, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
-      writeLine(process.stderr, UI_TEXT.acpChatGpt.usage)
+      writeLine(process.stderr, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
       return command.exitCode ?? EXIT_FAILED
     }
   }

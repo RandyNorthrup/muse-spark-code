@@ -46,12 +46,21 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Automatic compaction review repairs** (M101, RVCM1011C): hidden options
+  preserve the complete ACP and CLI manuals, including invalid-argument help.
+  Help filters structured option identities rather than flag substrings.
+  Revoked consent, paid switch, trust or evaluation refuses only that
+  compaction and lets the ordinary turn continue; actual ledger failures
+  still fail closed. The native setting and README describe its currently
+  inactive preference honestly.
+
 - **Automatic compaction admission, third review** (M101, RVCM1011B): one
   authority reserves each actual request's input estimate and full output
   allowance, settles reported usage and refunds the difference. Consent,
   paid switch, trust and evaluation are checked at preparation and final
   dispatch, including retries; revocation stops the send. Unevaluated
-  automatic compaction is absent from Settings, paid surfaces and help.
+  automatic compaction is absent from paid surfaces and help; the native
+  setting remains an inactive preference.
   Turn-on confirms its rates, manual summary forks keep their own identity,
   and ACP Once is documented per workspace within the agent process.
 

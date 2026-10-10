@@ -29485,12 +29485,20 @@ integration branch plus this plan). C-M101-1 (2026-10-10, lane CM1011,
 `docs/certification/m101-admission.md`): production
 `admitAutoCompaction`/`autoCompactModel` from the panel and runtime backend
 managers through one shared D78 gate and ledger; dormant behind
-`IS_AUTO_COMPACTION_EVALUATED`. CM1011R3 fixes all six RVCM1011B
+`IS_AUTO_COMPACTION_EVALUATED`. CM1011R4 repairs all three RVCM1011C
+findings: hide help options by structured identity while retaining both
+manuals and sharing the formatter with invalid-argument help; treat revoked
+consent, switch, trust or evaluation as refusal of that compaction only,
+with no summary send and no ledger-failure turn abort; disclose the native
+Settings editor's dormant preference accurately in its description and README.
+Regression tests and byte-exact red drills are recorded in the certification.
+CM1011R3 fixes all six RVCM1011B
 findings through ONE admission authority: reserve the actual request's estimated
 input at list price and full output allowance, settle reported usage and refund;
 fence live consent, paid switch, trust and evaluation at preparation and final
 send for every attempt. While unevaluated, omit automatic compaction from
-Settings, paid surfaces, consent and ACP/CLI help. Price acceptance names its
+paid surfaces, consent and ACP/CLI help; the native setting remains visible
+as an inactive preference. Price acceptance names its
 rates; manual summaries keep their own identity; ACP Once is per workspace
 within the process. No new dependency, live call or evaluation-latch flip.
 CM1011R2 repairs RVCM1011: first-charge

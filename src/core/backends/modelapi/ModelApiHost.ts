@@ -413,6 +413,10 @@ import {
   type AutoCompactModel,
   type AutoCompactDecision,
 } from './autoCompact'
+import {
+  AutoCompactionNotAuthorizedError,
+  isAutoCompactionNotAuthorizedError,
+} from '../../paid/paidConsent'
 import type {
   ContextModel,
   ContextOverflowEvent,
@@ -14584,11 +14588,14 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (
           this.active !== turn ||
           revision !== this.modelRevision ||
-          goalRevision !== this.goalCommandRevision ||
+          goalRevision !== this.goalCommandRevision
+        )
+          throw new AbortedError()
+        if (
           !(this.deps.autoCompaction?.() ?? SETTING_DEFAULTS.modelApiAutoCompaction) ||
           !(this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED)
         )
-          throw new AbortedError()
+          throw new AutoCompactionNotAuthorizedError()
       }
       assertCurrent()
       if (admission === undefined) {
@@ -14653,6 +14660,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         (error instanceof Error && error.message === UI_TEXT.sessionBudgetStoreUnavailable)
       )
         throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
+      if (isAutoCompactionNotAuthorizedError(error)) return false
       if (isAbortRequested(turn.abort.signal) || error instanceof AbortedError) throw error
       this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.autoCompactionFailed })
       return false
@@ -14757,6 +14765,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       signal,
       isTerminalError: (error) =>
         error instanceof HookStoppedError ||
+        isAutoCompactionNotAuthorizedError(error) ||
         error instanceof SessionBudgetExceededError ||
         (error instanceof Error && error.message === UI_TEXT.sessionBudgetStoreUnavailable),
       notice: (text) => {

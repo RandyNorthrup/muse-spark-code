@@ -17,7 +17,11 @@ import {
   type AutoCompactionLedger,
   type AutoCompactionLedgerClaim,
 } from '../../src/core/backends/modelapi/autoCompactionAdmission'
-import { PaidUseConsent, paidUseQuestion } from '../../src/core/paid/paidConsent'
+import {
+  AutoCompactionNotAuthorizedError,
+  PaidUseConsent,
+  paidUseQuestion,
+} from '../../src/core/paid/paidConsent'
 import { paidWindowOnceFeatures, paidTotalUsd, type PaidUseRequest } from '../../src/shared/paid'
 import { EN } from '../../src/shared/l10n/en'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -179,13 +183,17 @@ describe('automatic compaction production admission', () => {
       })
       const a = await admit(requestFor())
       live[withdrawn] = false
-      await expect(a?.guard.prepareRequest?.(BODY, 1000)).rejects.toThrow('ledger unavailable')
+      await expect(a?.guard.prepareRequest?.(BODY, 1000)).rejects.toThrow(
+        AutoCompactionNotAuthorizedError,
+      )
       expect(reserveCompaction).not.toHaveBeenCalled()
       live[withdrawn] = true
       await a?.guard.prepareRequest?.(BODY, 1000)
       live[withdrawn] = false
-      expect(() => a?.guard('digest')).toThrow('ledger unavailable')
-      await expect(a?.guard.prepareRequest?.(BODY, 1000)).rejects.toThrow('ledger unavailable')
+      expect(() => a?.guard('digest')).toThrow(AutoCompactionNotAuthorizedError)
+      await expect(a?.guard.prepareRequest?.(BODY, 1000)).rejects.toThrow(
+        AutoCompactionNotAuthorizedError,
+      )
       expect(reserveCompaction).toHaveBeenCalledTimes(1)
       live[withdrawn] = true
       const held = Promise.withResolvers<ReturnType<typeof fakeClaim>>()
@@ -197,7 +205,7 @@ describe('automatic compaction production admission', () => {
       live[withdrawn] = false
       const claim = fakeClaim(RESERVE)
       held.resolve(claim)
-      await expect(preparing).rejects.toThrow('ledger unavailable')
+      await expect(preparing).rejects.toThrow(AutoCompactionNotAuthorizedError)
       expect(claim.settle).toHaveBeenCalledWith(ZERO, false)
       await a?.close?.()
     },
@@ -230,7 +238,7 @@ describe('automatic compaction production admission', () => {
     const a = await t.admit(requestFor())
     await a?.guard.prepareRequest?.(BODY, 1000)
     isEnabled = false
-    expect(() => a?.guard('digest')).toThrow('ledger unavailable')
+    expect(() => a?.guard('digest')).toThrow(AutoCompactionNotAuthorizedError)
     await a?.close?.()
     expect(t.claims[0]?.settle).toHaveBeenCalledWith(ZERO, false)
   })

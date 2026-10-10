@@ -255,6 +255,102 @@ function expectStorageFailure(t: Awaited<ReturnType<typeof setup>>) {
 }
 
 describe('automatic compaction in the shared Model API loop', () => {
+  describe.each(['consent', 'switch', 'trust', 'evaluation'] as const)(
+    'production revoked %s refuses only the automatic compaction',
+    (withdrawn) => {
+      it.each(['memory', 'reservation', 'final send', 'retry'] as const)(
+        'continues the ordinary turn after revocation during %s',
+        async (stage) => {
+          const live = { consent: true, switch: true, trust: true, evaluation: true }
+          const revoke = () => {
+            live[withdrawn] = false
+          }
+          const isConsentCurrent = () => live.consent
+          const paid = productionAdmission({
+            isOn: () => live.switch,
+            isTrusted: () => live.trust,
+            isEvaluated: () => live.evaluation,
+            paidUseFence: () => isConsentCurrent,
+          })
+          const reserve = paid.reserveCompaction.getMockImplementation()
+          if (reserve === undefined) throw new Error('expected reserve')
+          paid.reserveCompaction.mockImplementation(async (amount) => {
+            const claim = await reserve(amount)
+            if (stage === 'reservation') revoke()
+            return claim
+          })
+          const memory = memoryStoreOver(new Map(), {
+            afterWrite: () => {
+              if (stage === 'memory') revoke()
+              return Promise.resolve()
+            },
+          })
+          const t = await setup({
+            admitAutoCompaction: async (request) => {
+              const admission = await paid.admitAutoCompaction(request)
+              if (admission === undefined) throw new Error('expected admission')
+              return {
+                ...admission,
+                guard: Object.assign(
+                  (digest: string | undefined) => {
+                    admission.guard(digest)
+                  },
+                  {
+                    ...admission.guard,
+                    prepareRequest: async (
+                      ...args: Parameters<NonNullable<typeof admission.guard.prepareRequest>>
+                    ) => {
+                      await admission.guard.prepareRequest?.(...args)
+                      if (stage === 'final send') revoke()
+                    },
+                  },
+                ),
+              }
+            },
+            autoCompaction: () => live.switch,
+            autoCompactionEvaluated: () => live.evaluation,
+            memory: memory.store,
+            sideCallFormats: () => ({ state: 'yes', value: ['json_schema'] }),
+          })
+          try {
+            await t.seed()
+            t.nearWindow()
+            t.api.script(
+              { calls: [TOOL] },
+              ...(stage === 'retry' ? [{ ...SUMMARY_RETRY[1], onRequest: revoke }] : []),
+              { text: 'ordinary turn finished' },
+            )
+            await t.send()
+            expect(live[withdrawn]).toBe(false)
+            expect(t.api.responseBodies()).toHaveLength(stage === 'retry' ? 4 : 3)
+            expect(JSON.stringify(t.api.responseBodies().at(-1))).not.toContain(
+              MODEL_API_MODEL_TEXT.autoCompactionFollowup,
+            )
+            expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+              terminal: 'completed',
+            })
+            expect(
+              t.events.some(
+                (event) =>
+                  event.type === 'backendNotice' &&
+                  [
+                    EN.autoCompactionFailed,
+                    EN.structuredOutputRepair,
+                    EN.structuredOutputFallback,
+                  ].includes(event.text),
+              ),
+            ).toBe(false)
+            for (const claim of paid.claims) {
+              expect(claim.settle).toHaveBeenCalledExactlyOnceWith(Usd.from(0).toAmount(), false)
+            }
+          } finally {
+            await t.host.close()
+          }
+        },
+      )
+    },
+  )
+
   it('completed summaries already update session usage and M82 totals', async () => {
     const store = memorySessionStore()
     const journal = store.budget
@@ -357,6 +453,13 @@ describe('automatic compaction in the shared Model API loop', () => {
     expect(t.api.responseBodies()).toHaveLength(2)
     expect(consent.remembered()).toEqual([])
     expect(paid.claims[0]?.settle).toHaveBeenCalledWith(Usd.from(0).toAmount(), false)
+    expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'failed',
+      errorKind: 'context_overflow',
+    })
+    expect(t.events.findLast((event) => event.type === 'turnCompleted')).not.toMatchObject({
+      reason: EN.sessionBudgetStoreUnavailable,
+    })
     await t.host.close()
   })
 

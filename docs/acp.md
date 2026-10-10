@@ -326,6 +326,10 @@ passes. Its Allow once covers this workspace within this agent process;
 a second workspace asks again, and a new process forgets Once. Always remains
 workspace scoped and revocable. The dormant options below document the parser,
 without enabling the feature.
+If consent, the paid switch, workspace trust or evaluation is withdrawn before
+dispatch, that automatic compaction is refused without a summary request and
+the ordinary turn continues. A refused overflow recovery still reports the
+original context overflow; actual ledger failures remain terminal.
 
 | Argument                               | Effect                                                                                                                                                                                           |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

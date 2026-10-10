@@ -506,7 +506,16 @@
       "backends": ["modelApi"],
       "paid": true,
       "surfaces": ["vscode:modelApi", "acp:modelApi"],
-      "details": [],
+      "details": [
+        {
+          "conditions": [
+            {
+              "when": "conversationStart&modelPricing",
+              "text": { "setting": "modelApiAutoCompaction" }
+            }
+          ]
+        }
+      ],
       "facts": {
         "paidFeature": "autoCompaction",
         "paidSettings": ["museSpark.modelApiAutoCompaction"],
@@ -3978,7 +3987,7 @@
       },
       "id": "museSpark.modelApiAutoCompaction",
       "name": "museSpark.modelApiAutoCompaction",
-      "description": "Automatically compact long Model API conversations. Defaults on, but remains inactive until a paired evaluation passes. Additional paid calls require consent to the price and daily budget.",
+      "description": "This setting stores a preference only: automatic compaction is currently inactive and sends no extra model requests. Defaults on; setting it off keeps compaction disabled after a paired evaluation passes. Additional paid calls then require consent to the price and daily budget.",
       "descriptionKey": "config.modelApiAutoCompaction.description",
       "type": "boolean",
       "default": true,

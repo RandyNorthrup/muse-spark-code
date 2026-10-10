@@ -14,10 +14,12 @@ import { workspaceKey } from '../../src/runtime/dataFolder'
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { removeFolder } from './helpers/temporaryFolders'
 import { readFileSync as readDocumentation } from 'node:fs'
-import { formatAcpUsage } from '../../src/runtime/cliOptions'
+import { CLI_OPTION_REGISTRY, formatAcpUsage } from '../../src/runtime/cliOptions'
 import { createReference } from '../../src/shared/reference/referenceEntry'
 import { EN } from '../../src/shared/l10n/en'
 import type { PaidUseRequest } from '../../src/shared/paid'
+import { referenceModel } from '../../src/shared/reference/reference.generated'
+import { fill } from '../../src/shared/l10n/text'
 
 it('ACP automatic compaction asks once after its explicit flag and refuses without it', async () => {
   const request: PaidUseRequest = {
@@ -65,6 +67,46 @@ it('unevaluated compaction is absent from compact and full ACP/CLI help', () => 
   expect(help).not.toContain('auto-compaction')
   expect(help).not.toContain('modelApiAutoCompaction')
   expect(help).not.toContain(EN.autoCompactionName)
+})
+
+it('hidden automatic compaction preserves the complete ACP and CLI usage manuals', () => {
+  // A visible option's prose may mention a hidden option without being that option.
+  const table = {
+    ...EN,
+    acpUsage: `${EN.acpUsage}\n  --backend note: --auto-compaction is unavailable`,
+    referenceCliOptions: {
+      ...EN.referenceCliOptions,
+      backend: `${EN.referenceCliOptions.backend} (--auto-compaction is unavailable)`,
+    },
+  }
+  const usage = formatAcpUsage(table, 'muse-spark-code-acp')
+  expect(usage).toContain(fill(table.acpUsage, { command: 'muse-spark-code-acp' }))
+  const acpLines = fill(EN.acpUsage, { command: 'muse-spark-code-acp' }).split('\n')
+  for (const line of acpLines) {
+    if (/^\s+--(?:no-)?auto-compaction\b/.test(line)) continue
+    expect(usage).toContain(line)
+  }
+  for (const chunk of [EN.acpChatGpt.usage, EN.accounts.cliUsage, EN.accounts.execHelp]) {
+    expect(usage).toContain(fill(chunk, { command: 'muse-spark-code-acp' }))
+  }
+  const help = createReference(table, 'en').all()
+  const inventory = referenceModel()
+  expect(help).toContain(table.referenceCliOptions.backend)
+  for (const [route, definition] of Object.entries(CLI_OPTION_REGISTRY)) {
+    for (const option of Object.keys(definition.options)) {
+      if (option === 'auto-compaction' || option === 'no-auto-compaction') continue
+      // The generated reference deliberately omits accepted-but-unused account/provider routes.
+      const entry = inventory.cli.find(
+        (row) =>
+          row.name === `${route}: --${option}` || row.name.startsWith(`${route}: --${option} `),
+      )
+      if (entry !== undefined) expect(help).toContain(`${entry.name}:`)
+    }
+  }
+  for (const entry of inventory.cli) {
+    if (entry.contract === undefined) expect(help).toContain(`${entry.name}:`)
+  }
+  createReference(EN, 'en')
 })
 
 it('documents ACP Once as workspace-scoped within the agent process', () => {

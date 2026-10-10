@@ -217,7 +217,8 @@ through the same module by ACP/headless. That one authority:
   `listedPaidFeatures`, the paid gate's availability, consent cards, the
   reference/help (runtime-filtered `referenceEntry`), ACP/CLI usage and the
   `compaction` reference row (now the manual `/compact` row) never name it;
-  manual compaction is untouched.
+  manual compaction is untouched. The native Settings editor retains the
+  dormant preference; R4 corrects the README and makes that distinction explicit.
 
 ## Findings fixed (all P1/P2/P3, no residuals)
 
@@ -237,6 +238,9 @@ runtime default to stay declared). Its description discloses dormancy
 ("remains inactive until a paired evaluation passes"). A draft
 `"included": false` manifest flag was tried and reverted: VS Code defines
 no such property, so it hid nothing and its test guarded a decoration.
+R4 uses the review's permitted alternative: describe exactly what the
+preference does today and document its native visibility, rather than claim
+an unsupported hiding mechanism works.
 
 ## R3 red-drill receipts (all fired, all restored byte-exact)
 
@@ -286,3 +290,79 @@ below.
 - `npm run check:host-api`: 375 APIs, 0 problems. `npm run deadcode`: only the existing vendor/axe-core hints. `npx jscpd`: back to the single inherited `windowsTrustedPath.test.ts` clone (a new 11-line body-literal clone my fixture introduced was removed by key reorder).
 - `npm run build` fails before bundling at `encodeWhatsNewContent`'s decode bound — the inherited blocker the review measured identically (79,510 bytes) on base and head; no cap or guard changed, no size claimed.
 - `test/unit/runtimeChatGptPackage.test.ts` fails with `spawnSync node ENOBUFS`: it shells out to the production build, whose throw at the inherited bound above carries a ~1.2 MB `data:`-URL stack frame, overflowing the spawn buffer. Same throw, same output on base (nothing in this lane touches the payload, bound or scripts); the lead runs it after the blocker is lifted. No browser/GUI/server test in scope was started here.
+
+---
+
+# CM1011R4 certification — RVCM1011C review repairs
+
+CM1011R4, branch `c/m101-1`, base `9aaef8c99`, macmini, 2026-10-10.
+All three assigned findings are repaired; the evaluation latch remains false.
+No new dependency, live/paid model call, credential access, guard widening,
+merge, push, rebase or hook change occurred. The shared lane brief reserves
+aggregate `npm run quality` for the lead; checks here run directly on the rig.
+
+## Findings and class sweeps
+
+| Finding                                                                     | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Regression                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1 — help removed by text matching; bad-argument help exposes dormant flags | `cliOptions.ts` renders both compaction flags as structured option entries and filters their identities; the fixed ACP manual contains no embedded conditional flag. `referenceEntry.ts` filters the structured CLI text keys, including conditioned entries, rather than display-name suffixes. All 14 UI tables move the embedded flag out. `main.ts` uses the same formatter for help and invalid arguments.                                                                                 | `hidden automatic compaction preserves the complete ACP and CLI usage manuals` checks every fixed manual line, other option entries and command rows, plus visible prose mentioning a hidden flag. The real-process `prints its version and help, and refuses an argument it does not know` verifies identical complete manuals and absence of dormant flags on both output routes.                                                                                                                                                                                                                |
+| P2 — revocation reported as broken storage and aborts the ordinary turn     | The shared paid-consent module defines a distinct authorization-refusal error and a guard that survives separately loaded bundles. Admission uses it before/after reserve and at synchronous dispatch; host switch/evaluation rechecks use it too. The host skips that compaction, clears its economic debt and keeps the ordinary turn running. Structured repair/fallback treats refusal as terminal for that summary. Unsent claims refund; actual ledger errors stay terminal for the turn. | Sixteen production cases cover consent/switch/trust/evaluation withdrawal during memory flush, reservation, final send and retry, with structured output enabled: no unauthorized summary, completed ordinary turn, no repair/failure notices, exactly one zero settlement per claim. Existing real `PaidUseConsent.forget` coverage now requires the original context-overflow result instead of a ledger failure. Admission tests require the refusal class; `recognizes compaction authorization refusal across independently loaded bundles` builds and loads a genuinely separate class copy. |
+| P3 — native setting and README disagree                                     | Use the review's permitted description alternative: the native machine setting remains visible and stores a preference only, defaults true, and sends no automatic requests today. Its English and all 14 translated manifest descriptions say so; README's prose and settings row match. The feature catalogue includes the setting's description, and reference/roadmap artifacts are regenerated.                                                                                            | `describes the visible automatic compaction setting as a dormant preference` verifies the live false latch, manifest default/scope, installed English description and README visibility claim.                                                                                                                                                                                                                                                                                                                                                                                                     |
+
+**P1 reproduction correction:** the report's expression
+`'--no-auto-compaction'.includes('--auto-compaction')` evaluates to **false**.
+The initial baseline manual-preservation test passed. The class of text-filter
+failure is real when unrelated prose mentions the hidden spelling; the
+adversarial regression and restored legacy-filter drill demonstrate it. The
+bad-argument route genuinely used the unfiltered raw manual. No claim is made
+that the report's specific substring example reproduced.
+
+**P2 boundaries:** revocation declines only automatic work. A real context
+overflow that cannot be recovered still reports that original overflow; it is
+not relabelled as storage failure. Stop, changed model/goal ownership and
+actual reservation/settlement failures keep their existing semantics. The
+refusal class stays beside paid consent so activation never imports the
+backend-only compaction engine. Its classifier checks the error's stable name
+because the admission and lazy backend bundles own different class copies.
+
+## R4 red drills — all restored byte-exact
+
+Every drill runs complete files with `--maxWorkers=3`, at most three files per
+run, repository timeouts and no test filters. Each exits 1 for the named
+regression; the changed source is restored from its saved bytes and SHA-256
+compared before proceeding.
+
+| Drill          | Deliberate break and observed failure                                                                                                                                                                                                 | Restored file SHA-256                                                                            |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| F1-manual      | Restore substring filtering on formatted chunks; `hidden automatic compaction preserves the complete ACP and CLI usage manuals` fails, 1 failed / 33 passed.                                                                          | `cliOptions.ts`: `e3c2e7416dbd1c82ba70f18306dbfc89d296ec61ba473a4b3ec3b83083a3aa39`              |
+| F1-errors      | Restore raw invalid-argument usage; `prints its version and help, and refuses an argument it does not know` fails in the real ACP process. 5 failed / 8 passed, versus the four unchanged baseline session failures documented below. | `main.ts`: `37dee2c2bdd644d52323db2cc7b976d009aa697ff371902df4f35ab24d77aea7`                    |
+| F2-class       | Restore the ledger-error throw for withdrawn authorization; admission classification and production consent/trust/reservation/retry cases fail, 16 failed / 70 passed.                                                                | `autoCompactionAdmission.ts`: `83a971a22a1ca39af44fa59c4c30698dd13fdc11b64d7a97bd7b6e875cf1acdf` |
+| F2-host        | Restore the host's abort classification for switch/evaluation withdrawal; the six memory/final-send/retry ordinary-turn cases fail, 6 failed / 58 passed.                                                                             | `ModelApiHost.ts`: `4e576248e60bf52f39488ba8bc2a562f42e1518c714745f3c37766f73b082aef`            |
+| F2-repair      | Remove refusal from structured-output terminal errors; fourteen production cases fail on unwanted repair/fallback notices, 14 failed / 50 passed.                                                                                     | `ModelApiHost.ts`: same hash as F2-host.                                                         |
+| F2-bundles     | Change the refusal guard to `instanceof` its local class; `recognizes compaction authorization refusal across independently loaded bundles` fails, 1 failed / 1 passed.                                                               | `paidConsent.ts`: `fd497774473c98ac6e1e55f4a51bd6a84ce7d4c56641f6994de6be86eb1ce7b7`             |
+| F3-description | Restore the old manifest description; `describes the visible automatic compaction setting as a dormant preference` fails, 1 failed / 39 passed.                                                                                       | `package.nls.json`: `e0b8ea27f4acb359974e3983a7cb05ec64a7dbdf561b844f831bb9ad734e543c`           |
+| F3-README      | Reintroduce a hidden-preference claim in README; the same manifest/README test fails, 1 failed / 39 passed.                                                                                                                           | `README.md`: `2f56037fed1b82a5d43c448b4a02c384d18c71b6f6503b55d5a40c50d474817e`                  |
+
+The first exploratory production-test fixtures passed UI mode names
+(`acceptEdits`, then `auto`) to the MSP session constructor; those fail at
+setup before exercising a guard. The corrected fixtures use the suite's
+existing `onRequest` default. Neither setup failure is counted as a red drill,
+and no timeout or assertion was weakened.
+
+## ACP process baseline comparison
+
+The complete `test/e2e/acpStdio.e2e.test.ts` file passes both English and
+translated help cases, including the new invalid-argument assertions:
+**9 passed, 4 failed**. The same four failures reproduce on the exact
+unmodified base `9aaef8c99` (all 51 then-changed working files temporarily
+replaced with their base bytes and restored byte-exact):
+
+- loads the real question bundles, defers without forms, and drains an idle answer once;
+- binds saved prompts and sharing help over real ACP stdio without a model send (M118);
+- streams a reply, runs an allowed tool call and skips a denied one, on Muse Code;
+- cancels a running turn and lists the session afterwards.
+
+Each fails with ACP `RequestError: Internal error` while setting up a Muse Code
+session. Both baseline and repaired runs exit 1; no full E2E pass is claimed.
+The F1-errors drill adds exactly the named help regression to those four.
+No browser, GUI, server daemon or sandbox workaround was started.
