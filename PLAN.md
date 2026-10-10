@@ -33230,6 +33230,19 @@ The split:
   Linux slot.
 - **(c)**, Codex on the Win11 VM: the Windows natives.
 
+**C-M109-1b execution (2026-10-10, Kubuntu).** Part (b) composes part
+(a)'s repository, management and OS-store anchor in the portable broker
+process, ships the POSIX peer/identity/singleton helper and supplies Secret
+Service and login Keychain slots through the pinned `@napi-rs/keyring`.
+The OS-store slot is certified separately before merging part (a)'s blocks.
+No editor surface is enabled here. Installed VS Code/CLI/ACP/headless
+receipts belong to part (a); JetBrains, Visual Studio, Eclipse, Zed, Xcode,
+Neovim, Emacs and Sublime receipts belong to C-M109-10. Linux hardware and
+screen-lock receipts remain C-M109-2; macOS biometry is not offered under
+decision 10. Acceptance 3's per-user-session/protocol singleton takes
+precedence over the brief's abbreviated "one per user".
+Certification: `docs/certification/cm109-1b.md`.
+
 **FIXM109W integrated review repair (2026-10-07, Mac mini).** Verify every
 P1/P2 in `_ctx/codex/M109-findings.md` against integration `a1d2b73e7`,
 including already repaired U findings and the L certificate observation.

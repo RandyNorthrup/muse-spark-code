@@ -5220,6 +5220,8 @@
     "commandUsage": "Utilisation : developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   },
   "vault": {
+    "secretServiceUnavailable": "Le coffre ne peut pas accéder à Secret Service. Connectez-vous à une session de bureau et déverrouillez son trousseau, puis réessayez.",
+    "keychainUnavailable": "Le coffre ne peut pas accéder au trousseau de session. Déverrouillez-le dans Trousseaux d’accès, puis réessayez.",
     "title": "Coffre-fort",
     "locked": "Verrouillé",
     "unlocked": "Déverrouillé",

@@ -5070,6 +5070,8 @@
     "commandUsage": "Használat: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   },
   "vault": {
+    "secretServiceUnavailable": "A tároló nem éri el a Secret Service szolgáltatást. Jelentkezzen be az asztali munkamenetbe, oldja fel a kulcstartóját, majd próbálja újra.",
+    "keychainUnavailable": "A tároló nem éri el a bejelentkezési kulcskarikát. Oldja fel a Kulcskarika-elérés alkalmazásban, majd próbálja újra.",
     "title": "Tároló",
     "locked": "Zárolva",
     "unlocked": "Feloldva",

@@ -5220,6 +5220,8 @@
     "commandUsage": "Utilizzo: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   },
   "vault": {
+    "secretServiceUnavailable": "Il vault non può accedere a Secret Service. Accedi a una sessione desktop e sblocca il suo portachiavi, quindi riprova.",
+    "keychainUnavailable": "Il vault non può accedere al portachiavi di login. Sbloccalo in Accesso Portachiavi, quindi riprova.",
     "title": "Cassaforte",
     "locked": "Bloccata",
     "unlocked": "Sbloccata",

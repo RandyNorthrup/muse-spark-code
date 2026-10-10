@@ -5070,6 +5070,8 @@
     "commandUsage": "Kullanım: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   },
   "vault": {
+    "secretServiceUnavailable": "Kasa Secret Service hizmetine erişemiyor. Bir masaüstü oturumunda oturum açıp anahtarlığının kilidini açın, ardından yeniden deneyin.",
+    "keychainUnavailable": "Kasa oturum açma anahtar zincirine erişemiyor. Anahtar Zinciri Erişimi uygulamasında kilidini açıp yeniden deneyin.",
     "title": "Kasa",
     "locked": "Kilitli",
     "unlocked": "Kilidi açık",

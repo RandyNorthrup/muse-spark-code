@@ -4920,6 +4920,8 @@
     "commandUsage": "使用法: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   },
   "vault": {
+    "secretServiceUnavailable": "保管庫から Secret Service に接続できません。デスクトップセッションにログインしてキーリングのロックを解除し、再試行してください。",
+    "keychainUnavailable": "保管庫からログインキーチェーンに接続できません。キーチェーンアクセスでロックを解除し、再試行してください。",
     "title": "保管庫",
     "locked": "ロック中",
     "unlocked": "ロック解除済み",

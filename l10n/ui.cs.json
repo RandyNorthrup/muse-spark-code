@@ -5370,6 +5370,8 @@
     "commandUsage": "Použití: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   },
   "vault": {
+    "secretServiceUnavailable": "Trezor nemůže kontaktovat Secret Service. Přihlaste se do desktopové relace a odemkněte její klíčenku, poté to zkuste znovu.",
+    "keychainUnavailable": "Trezor nemůže kontaktovat přihlašovací klíčenku. Odemkněte ji v aplikaci Klíčenka a zkuste to znovu.",
     "title": "Trezor",
     "locked": "Uzamčeno",
     "unlocked": "Odemčeno",
