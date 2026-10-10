@@ -34,6 +34,7 @@ happened, not what was planned; superseded entries are kept.
 
 - **Schedule delivery qualification** (C-M115-1). The lazy engine can accept
   host-owned unattended targets, safety and authoritative cost settlement.
+  Host publication, safety and cost callbacks retain their owning receivers.
   Fake backend tests cover collision order, interrupt, event isolation,
   background targets and Model API queue withdrawal/parallel runs; a real
   three-process journal test admits one fire. This composition is unregistered:

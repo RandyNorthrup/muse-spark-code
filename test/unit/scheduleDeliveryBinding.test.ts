@@ -12,6 +12,7 @@ import { FakeAgentHost, FakeAgentSession } from './helpers/fakeAgent'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { fakeRunContext, fakeSchedule } from './helpers/schedules/fixtures'
 import type { TurnSubmission } from '../../src/core/agent/agentBackend'
+import { FakeScheduleApprovalStream } from './helpers/schedules/approvals'
 
 function queuedSubmission(): Promise<TurnSubmission> {
   return Promise.resolve({ turnId: 'admitted', userMessageId: 'message', disposition: 'queued' })
@@ -102,7 +103,6 @@ describe('unregistered schedule delivery factory', () => {
       readonly dialect = rig.ports.dialect
       readonly io = rig.ports.io
       readonly signal = rig.ports.signal
-      readonly safety = rig.ports.safety
       readonly row: ScheduleEditorDeliveryPorts['row'] = (...args) => {
         rig.ports.row(...args)
       }
@@ -126,6 +126,10 @@ describe('unregistered schedule delivery factory', () => {
         this.calls += 1
         return rig.ports.publish(...args)
       }
+      safety(...args: Parameters<ScheduleEditorDeliveryPorts['safety']>) {
+        this.calls += 1
+        return rig.ports.safety(...args)
+      }
     }
     const ports = new OwnedPorts()
     const binding = createScheduleDeliveryBinding(ports, rig.authority)
@@ -141,6 +145,24 @@ describe('unregistered schedule delivery factory', () => {
         expect(ports.calls).toBe(3)
       } finally {
         await lease.release()
+      }
+      const live = await binding.targets.find(rig.schedule)
+      if (live === undefined) throw new Error('missing live target')
+      const result = binding.runs.run(live.session, rig.schedule, rig.context, async () => {
+        await live.session.queue('scheduled prompt', rig.context)
+      })
+      try {
+        await vi.waitFor(() => {
+          expect(rig.agent.sendScheduledTurn).toHaveBeenCalledOnce()
+        })
+        const run = rig.agent.sendScheduledTurn.mock.calls[0]?.[1]
+        if (run === undefined) throw new Error('missing unattended run')
+        await run.decide(new FakeScheduleApprovalStream('museCode').request('shell'))
+        expect(ports.calls).toBe(4)
+      } finally {
+        rig.agent.emit({ type: 'turnCompleted', turnId: 'admitted', terminal: 'completed' })
+        await result
+        await live.release()
       }
     } finally {
       await rig.lease.release()

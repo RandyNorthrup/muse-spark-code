@@ -119,7 +119,7 @@ export function createScheduleDeliveryBinding(
             ports.row(agent, text)
           },
           deferQuestions: (event, runContext) => ports.deferQuestions(agent, event, runContext),
-          safety: ports.safety,
+          safety: (action, requester) => ports.safety(action, requester),
           ...(paid !== undefined && { paid: paid.policy }),
         })
       }
