@@ -69,7 +69,12 @@ function boot(): void {
     cancel.disabled = true
     prompt.disabled = false
   }
-  const fail = () => {
+  // A stale generation's late failure must never disturb the capture that
+  // replaced it: asynchronous failure callbacks pass the generation they
+  // belong to, and only that generation fails. Direct user actions (cancel,
+  // a dead event channel) pass none and always fail.
+  const fail = (owner?: number) => {
+    if (owner !== undefined && owner !== generation) return
     generation += 1
     captureId = undefined
     ticket = undefined
@@ -80,6 +85,17 @@ function boot(): void {
     status.textContent = UI_TEXT.companionVoiceFailed
     send.disabled = prompt.value.trim() === ''
     idle()
+  }
+  // Fail this generation and tell the host to drop its ticket. The cancel
+  // post's own failure must not fail a newer capture either: the page
+  // already reset, and a dead channel is reported through events().
+  const cancelCapture = (owner: number) => {
+    if (owner !== generation) return
+    fail()
+    const failed = generation
+    void post({ type: 'cancel' }).catch(() => {
+      fail(failed)
+    })
   }
   const post = async (input: unknown) => {
     await companionPost(companionVoiceInputSchema.parse(input), ending.signal)
@@ -136,28 +152,28 @@ function boot(): void {
       if (owner !== generation) return
       recordedBytes += event.data.size
       if (recordedBytes > COMPANION_VOICE_MAX_BYTES) {
-        fail()
-        void post({ type: 'cancel' }).catch(fail)
+        cancelCapture(owner)
         return
       }
       chunks.push(event.data)
     })
     recorder.addEventListener('stop', () => {
+      // A replaced capture's late stop event owns nothing: its tracks were
+      // stopped when it failed, and the chunks now belong to the new one.
+      if (owner !== generation) return
       const id = ticket
       const captured = chunks
       chunks = []
-      if (owner !== generation || id === undefined) {
+      if (id === undefined) {
         cleanup()
         return
       }
       void encode(owner, id, captured).catch(() => {
-        fail()
-        void post({ type: 'cancel' }).catch(fail)
+        cancelCapture(owner)
       })
     })
     recorder.addEventListener('error', () => {
-      fail()
-      void post({ type: 'cancel' }).catch(fail)
+      cancelCapture(owner)
     })
     recorder.start(MILLISECONDS_PER_SECOND)
     timer = setTimeout(finish, COMPANION_VOICE_MAX_SECONDS * MILLISECONDS_PER_SECOND)
@@ -168,11 +184,12 @@ function boot(): void {
   const event = async (message: CompanionVoiceOutput) => {
     switch (message.type) {
       case 'ready': {
-        if (message.id === captureId)
+        if (message.id === captureId) {
+          const owner = generation
           void record(message).catch(() => {
-            fail()
-            void post({ type: 'cancel' }).catch(fail)
+            cancelCapture(owner)
           })
+        }
 
         break
       }
@@ -232,6 +249,7 @@ function boot(): void {
   }
   start.addEventListener('click', () => {
     generation += 1
+    const owner = generation
     start.disabled = true
     send.disabled = true
     engine.disabled = true
@@ -239,7 +257,11 @@ function boot(): void {
     captureId = crypto.randomUUID()
     const id = captureId
     status.textContent = UI_TEXT.dictationStarting
-    void ready.promise.then(() => post({ type: 'begin', id, engine: engine.value })).catch(fail)
+    void ready.promise
+      .then(() => post({ type: 'begin', id, engine: engine.value }))
+      .catch(() => {
+        fail(owner)
+      })
   })
   stop.addEventListener('click', finish)
   cancel.addEventListener('click', () => {
@@ -252,20 +274,32 @@ function boot(): void {
       fail()
       return
     }
+    const owner = generation
     send.disabled = true
     prompt.disabled = true
     start.disabled = true
     engine.disabled = true
     void post({ type: 'send', text: prompt.value }).catch(() => {
       send.disabled = false
-      fail()
+      fail(owner)
     })
+  })
+  prompt.addEventListener('input', () => {
+    // A corrected reviewed prompt re-enables Send on its own. A capture in
+    // flight still owns Send until its transcript arrives, and a dead event
+    // channel leaves the start control disabled, so neither admits a send.
+    if (start.disabled) return
+    send.disabled = prompt.value.trim() === ''
   })
   const answer = (value: 'once' | 'always' | 'deny') => {
     const id = approval
+    const owner = generation
     approval = undefined
     dialog.close()
-    if (id !== undefined) void post({ type: 'answer', id, answer: value }).catch(fail)
+    if (id !== undefined)
+      void post({ type: 'answer', id, answer: value }).catch(() => {
+        fail(owner)
+      })
   }
   once.addEventListener('click', () => {
     answer('once')

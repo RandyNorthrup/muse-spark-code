@@ -1114,21 +1114,25 @@ class AcpSession {
       const text = await scan(this.cwd, stop.signal, isRegistryOn, async (hosts) => {
         const response = permissionResponse(
           await unlessAborted(
-            this.client.request('session/request_permission', {
-              sessionId: this.sessionId,
-              toolCall: {
-                toolCallId: 'legal-registry-notice',
-                title: fill(UI_TEXT.legalRegistryNotice, { hosts: hosts.join(', ') }),
-                kind: 'other',
-                status: 'pending',
-                content: [],
-                locations: [],
+            this.client.request(
+              'session/request_permission',
+              {
+                sessionId: this.sessionId,
+                toolCall: {
+                  toolCallId: 'legal-registry-notice',
+                  title: fill(UI_TEXT.legalRegistryNotice, { hosts: hosts.join(', ') }),
+                  kind: 'other',
+                  status: 'pending',
+                  content: [],
+                  locations: [],
+                },
+                options: [
+                  { optionId: 'legal-registry-allow', name: UI_TEXT.allowOnce, kind: 'allow_once' },
+                  { optionId: 'legal-registry-deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
+                ],
               },
-              options: [
-                { optionId: 'legal-registry-allow', name: UI_TEXT.allowOnce, kind: 'allow_once' },
-                { optionId: 'legal-registry-deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
-              ],
-            }),
+              { cancellationSignal: stop.signal },
+            ),
             stop.signal,
           ),
         )
@@ -1301,24 +1305,35 @@ class AcpSession {
       return `${UI_TEXT.agentReceipt}\n${agentStateText({ status: agent.status, controlStatus: agent.controlStatus, evidence: agent.agentEvidence }, Date.now())}\n${JSON.stringify({ ...receipt, attempts: agent.agentEvidence?.attempts ?? [] }, undefined, 2)}`
     }
     const title = action === 'continue' ? UI_TEXT.agentContinue : UI_TEXT.agentRetry
-    const response = permissionResponse(
-      await this.client.request('session/request_permission', {
-        sessionId: this.sessionId,
-        toolCall: {
-          toolCallId: randomUUID(),
-          title: fill(UI_TEXT.agentRecoveryConfirm, {
-            action: title,
-            objective: agent.objective ?? id,
-          }),
-          kind: 'other',
-          status: 'pending',
-        },
-        options: [
-          { optionId: 'recover', name: title, kind: 'allow_once' },
-          { optionId: 'deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
-        ],
-      }),
-    )
+    let response: RequestPermissionResponse
+    try {
+      response = permissionResponse(
+        await this.client.request(
+          'session/request_permission',
+          {
+            sessionId: this.sessionId,
+            toolCall: {
+              toolCallId: randomUUID(),
+              title: fill(UI_TEXT.agentRecoveryConfirm, {
+                action: title,
+                objective: agent.objective ?? id,
+              }),
+              kind: 'other',
+              status: 'pending',
+            },
+            options: [
+              { optionId: 'recover', name: title, kind: 'allow_once' },
+              { optionId: 'deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
+            ],
+          },
+          { cancellationSignal: preparing.abort.signal },
+        ),
+      )
+    } catch (error: unknown) {
+      // A cancelled preparation's withdrawn prompt is a denial, not a failure.
+      if (!isCancelled()) throw error
+      response = permissionResponse({ outcome: { outcome: 'cancelled' } })
+    }
     this.ensureHeld()
     if (
       isCancelled() ||
@@ -1386,7 +1401,13 @@ class AcpSession {
         toolCall: { toolCallId, title, status: 'pending', content },
         options: paidUseOptions(canRemember),
       }
-      const request = this.client.request('session/request_permission', params)
+      // The companion's cancellation also cancels the editor's prompt: a
+      // locally abandoned wait must not leave the editor's question open.
+      const request = this.client.request(
+        'session/request_permission',
+        params,
+        signal === undefined ? undefined : { cancellationSignal: signal },
+      )
       const response = signal === undefined ? await request : await unlessAborted(request, signal)
       // A session let go while the editor was asked is billed for nothing.
       answer =
