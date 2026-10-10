@@ -75,6 +75,8 @@ Commands: `museSpark.openUsagePage`. Settings: `museSpark.usageHistory`, `museSp
 
 teamWorkerBinding=absent|teamConfigurationBinding=absent: Roles and Agents stay hidden until the team worker and configuration bindings are installed.
 
+Alt+Up / Alt+Down move this entry in its pool.
+
 Surfaces: vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: `museSpark.modelsAndAgents`. Settings: `museSpark.team`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#team-configuration)

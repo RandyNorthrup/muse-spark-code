@@ -25,7 +25,7 @@ const browser = await chromium.launch(
   path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' },
 )
 const axe = await readFile('node_modules/axe-core/axe.min.js', 'utf8')
-const themes = ['light', 'dark', 'hc-light', 'hc-dark']
+const themes = ['light', 'dark', 'hc-light', 'hc-dark', 'one-dark-pro', 'dracula']
 const scenes = ['empty', 'template', 'validation', 'suggestions', 'preview', 'in-place', 'agents']
 const languages = [
   'en',

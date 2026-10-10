@@ -152,7 +152,7 @@
       "backends": ["modelApi"],
       "paid": false,
       "surfaces": ["vscode:modelApi"],
-      "details": [],
+      "details": [{ "ui": "referenceTeamPoolKeys" }],
       "facts": {},
       "editors": ["vscode"]
     },

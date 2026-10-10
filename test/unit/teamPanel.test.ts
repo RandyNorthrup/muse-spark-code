@@ -355,6 +355,48 @@ describe('M96 U1 portable panel', () => {
     expect(snapshot18.issues).toContain(UI_TEXT.teamEntryMissing)
     await expect(missing.controller.handle({ type: 'roles/save' })).rejects.toThrow()
   })
+  it('preserves manual Default concurrency through orchestrator settings and model changes', async () => {
+    const offers = teamOffers()
+    const reviewer = offers[1]
+    if (reviewer === undefined) throw new Error('No reviewer')
+    reviewer.ceiling = 2
+    const rig = panelRig({ offers: () => Promise.resolve(offers) })
+    const slice = await pairSlice(rig)
+    const fallback = slice.document.roles[0]?.pool.at(-1)
+    if (fallback === undefined) throw new Error('No Default')
+    await rig.controller.handle({
+      type: 'roles/updateEntry',
+      role: 'engineering',
+      entryId: fallback.id,
+      fields: { concurrent: 1 },
+    })
+    for (const modelRef of ['main/main', reviewer.ref, undefined]) {
+      await rig.controller.handle({
+        type: 'roles/orchestrator',
+        modelRef,
+        settings: { effort: 'high' },
+      })
+      const edited = await rig.read()
+      expect(edited.document.roles[0]?.pool.at(-1)?.concurrent).toBe(1)
+      expect(edited.document.roles[0]?.custom).toBe(true)
+      expect(edited.issues).toEqual([])
+    }
+    await rig.controller.handle({
+      type: 'roles/updateEntry',
+      role: 'engineering',
+      entryId: fallback.id,
+      fields: { concurrent: 8 },
+    })
+    await rig.controller.handle({ type: 'roles/orchestrator', modelRef: reviewer.ref })
+    const clamped = await rig.read()
+    expect(clamped.document.roles[0]?.pool.at(-1)?.concurrent).toBe(2)
+    await rig.controller.handle({ type: 'roles/orchestrator', modelRef: 'main/main' })
+    const preserved = await rig.read()
+    expect(preserved.document.roles[0]?.pool.at(-1)?.concurrent).toBe(2)
+    await rig.controller.handle({ type: 'roles/reapply', role: 'engineering' })
+    const reapplied = await rig.read()
+    expect(reapplied.document.roles[0]?.pool.at(-1)?.concurrent).toBe(4)
+  })
   it('caps generated Default entries at the resolved model ceiling', async () => {
     const offers = teamOffers()
     for (const offer of offers) offer.ceiling = 1

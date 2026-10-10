@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { webviewKey } from '../../../../shared/keybindings'
 import { UI_TEXT } from '../../../../shared/constants'
 import { fill, formatNumber } from '../../../../shared/l10n/text'
+import { useMoneyDisplay, type MoneyDisplay } from '../../../money'
 import { teamCapMeasures, teamCapWindows } from '../../../../shared/teamConfig'
 import type {
   TeamEditorRole,
@@ -15,14 +16,27 @@ import { FilterBar } from '../../components/FilterBar'
 import { ModelSettings, NumberField } from './fields'
 import { usePropDraft } from './propDraft'
 
+// Mirror M95's family rule without importing its provider-only Node module.
+function offerFamily(offer: TeamPanelOffer): string {
+  const last = offer.agent.model.split('/').at(-1) ?? offer.agent.model
+  return (last.split(/[-_:.\s]/, 1)[0] ?? last).toLowerCase()
+}
+
 /** Whether a catalogue offer passes the pool picker's filters (D75: M95's table with its filters). */
-export function isPoolOfferMatch(offer: TeamPanelOffer, filter: ModelFilter): boolean {
+export function isPoolOfferMatch(
+  offer: TeamPanelOffer,
+  filter: ModelFilter,
+  money?: MoneyDisplay,
+): boolean {
   const needle = filter.search?.trim().toLowerCase() ?? ''
   if (
     needle !== '' &&
-    [offer.label, offerDescription(offer), offer.agent.provider ?? '', offer.agent.model].every(
-      (text) => !text.toLowerCase().includes(needle),
-    )
+    [
+      offer.label,
+      offerDescription(offer, money),
+      offer.agent.provider ?? '',
+      offer.agent.model,
+    ].every((text) => !text.toLowerCase().includes(needle))
   )
     return false
   if (filter.toolCalling !== undefined && offer.toolCalling !== filter.toolCalling) return false
@@ -55,6 +69,8 @@ export function isPoolOfferMatch(offer: TeamPanelOffer, filter: ModelFilter): bo
     (offer.agent.provider ?? offer.agent.agentId) !== filter.providerId
   )
     return false
+  if (filter.family !== undefined && offerFamily(offer) !== filter.family.toLowerCase())
+    return false
   return true
 }
 
@@ -63,12 +79,12 @@ function isFreeOrLocalOffer(offer: TeamPanelOffer): boolean {
 }
 
 /** The option line: provider and model with context and price to compare. */
-export function offerDescription(offer: TeamPanelOffer): string {
+export function offerDescription(offer: TeamPanelOffer, money?: MoneyDisplay): string {
   const parts = [`${offer.agent.provider ?? offer.agent.agentId} · ${offer.agent.model}`]
   if (offer.contextWindow !== undefined)
     parts.push(`${formatNumber(offer.contextWindow)} ${UI_TEXT.teamUsageTokens}`)
-  if (offer.inputRate !== undefined && offer.outputRate !== undefined)
-    parts.push(`$${String(offer.inputRate)}/$${String(offer.outputRate)}`)
+  if (money !== undefined && offer.inputRate !== undefined && offer.outputRate !== undefined)
+    parts.push(`${money.formatMoney(offer.inputRate)}/${money.formatMoney(offer.outputRate)}`)
   else if (offer.agent.pays === 'local') parts.push(UI_TEXT.teamPoolFree)
   return parts.join(' · ')
 }
@@ -82,6 +98,7 @@ export function PoolEditor({
   readonly slice: TeamPanelSlice
   readonly post: (message: TeamPanelMessage) => void
 }) {
+  const money = useMoneyDisplay()
   const [announcement, announce] = useState('')
   const [chip, setChip] = useState<string | undefined>()
   const [dragged, setDragged] = useState<string | undefined>()
@@ -112,6 +129,9 @@ export function PoolEditor({
   const providers = [
     ...new Set(slice.offers.map((offer) => offer.agent.provider ?? offer.agent.agentId)),
   ].toSorted((left, right) => (left < right ? -1 : Number(left > right)))
+  const families = [...new Set(slice.offers.map((offer) => offerFamily(offer)))].toSorted(
+    (left, right) => (left < right ? -1 : Number(left > right)),
+  )
   const options = [
     {
       value: 'default',
@@ -120,11 +140,11 @@ export function PoolEditor({
       category: 'default',
     },
     ...slice.offers
-      .filter((offer) => isPoolOfferMatch(offer, poolFilter))
+      .filter((offer) => isPoolOfferMatch(offer, poolFilter, money))
       .map((offer) => ({
         value: offer.ref,
         label: offer.label,
-        description: offerDescription(offer),
+        description: offerDescription(offer, money),
         category: offer.agent.kind,
       })),
   ]
@@ -139,7 +159,7 @@ export function PoolEditor({
         filter={poolFilter}
         searchPlaceholder={UI_TEXT.teamAddEntry}
         providers={providers}
-        families={[]}
+        families={families}
         onChange={setPoolFilter}
         onClear={() => {
           setPoolFilter({})
