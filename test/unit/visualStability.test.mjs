@@ -3,12 +3,14 @@ import { beforeAll, beforeEach, expect, inject, it } from 'vitest'
 import { captureMatrix } from '../harness/goldens/capture.mjs'
 import { comparePixels, decodePng } from '../../scripts/lib/visualImages.mjs'
 import { VISUAL_BUILD_KEY } from './helpers/productionPackage'
-import { REVIEW_BROWSER_KEY } from './helpers/reviewBrowser.mjs'
+import { REVIEW_BROWSER_KEY, REVIEW_RASTERIZATION_KEY } from './helpers/reviewBrowser.mjs'
 
 // The global setup builds and stages this suite's complete source/output
 // copy before workers begin. Capture writes never mutate the shared build.
 const root = inject(VISUAL_BUILD_KEY)
 const browserEndpoint = inject(REVIEW_BROWSER_KEY)
+// Measured once in global setup on the same browser: no hook loads its fonts.
+const rasterization = inject(REVIEW_RASTERIZATION_KEY)
 const frames = new Map()
 const repeated = new Map()
 const inputs = { audit: undefined, matrix: undefined }
@@ -49,6 +51,7 @@ for (const index of [0, 1, 2, 3])
       },
       undefined,
       browserEndpoint,
+      rasterization,
     )
   })
 // Bound each fresh scene separately at the unchanged default hook deadline.
@@ -64,6 +67,7 @@ for (const index of [0, 1, 2, 3])
       },
       undefined,
       browserEndpoint,
+      rasterization,
     )
   })
 
