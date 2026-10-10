@@ -15,10 +15,9 @@ import {
   UI_TEXT,
 } from '../../src/shared/constants'
 import { runLegalScan } from '../../src/core/legal/entry'
-import { fingerprint } from '../../src/core/verify/fingerprint'
 import { requestUrl } from './helpers/legalRequest'
 import { scanLegal } from '../../src/core/legal/scan'
-import { FULL_MIT_LICENSE, snapshotFrom } from './legal/helpers'
+import { FULL_MIT_LICENSE, hashEvidence, snapshotFrom } from './legal/helpers'
 import type { LegalRegistryTarget } from '../../src/runtime/legal/legalRegistry'
 import { loadLegalScanner, type LegalScanHandle } from '../../src/runtime/legal/legalScanner'
 import {
@@ -153,13 +152,7 @@ describe('M97 legal run (lane R)', () => {
     }
     const result = scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
-      distribution: {
-        bundleInputs: Object.keys(files),
-        bundleInputHashes: Object.fromEntries(
-          Object.entries(files).map(([file, text]) => [file, fingerprint(text)]),
-        ),
-        bundleOutputHashes: {},
-      },
+      distribution: hashEvidence(files),
     })
     expect(result.incompleteChecks).toEqual([])
     const context = deps({ scan: fakeScan(result) })

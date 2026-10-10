@@ -234,11 +234,35 @@ function readJsonRecord(
   }
 }
 
+/**
+ * Whether a metafile key can name a workspace file (M97 CM971R2):
+ * workspace-relative with forward slashes, never a plugin-namespace key
+ * (`namespace:name`, which the webview page metafiles synthesize), an
+ * absolute path or a parent escape. Keys that cannot name a snapshot
+ * member are build-time constants, not artifacts, so they contribute no
+ * inputs or outputs. Anything workspace-relative stays verifiable: a
+ * deleted file still reads as stale downstream.
+ */
+function isWorkspaceEvidencePath(entry: string): boolean {
+  const normalized = normalizeEvidencePath(entry)
+  return (
+    normalized !== '' &&
+    !normalized.startsWith('/') &&
+    !normalized.includes(':') &&
+    !normalized.split('/').includes('..')
+  )
+}
+
 function stringMap(value: unknown): Record<string, string> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return {}
   const kept: Record<string, string> = {}
   for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-    if (typeof key === 'string' && key !== '' && typeof entry === 'string' && entry !== '') {
+    if (
+      typeof key === 'string' &&
+      typeof entry === 'string' &&
+      entry !== '' &&
+      isWorkspaceEvidencePath(key)
+    ) {
       kept[normalizeEvidencePath(key)] = entry
     }
   }
@@ -261,11 +285,11 @@ function deriveBundleEvidence(snapshot: LegalFileSnapshot): {
     if (parsed === undefined) continue
     const metaInputs =
       typeof parsed['inputs'] === 'object' && parsed['inputs'] !== null
-        ? Object.keys(parsed['inputs'])
+        ? Object.keys(parsed['inputs']).filter((entry) => isWorkspaceEvidencePath(entry))
         : []
     const metaOutputs =
       typeof parsed['outputs'] === 'object' && parsed['outputs'] !== null
-        ? Object.keys(parsed['outputs'])
+        ? Object.keys(parsed['outputs']).filter((entry) => isWorkspaceEvidencePath(entry))
         : []
     if (metaInputs.length === 0 && metaOutputs.length === 0) continue
     const stem = metafile.slice(LEGAL_META_DIR.length, -'.json'.length)

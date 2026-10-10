@@ -3,6 +3,8 @@
 // reader test runs offline with no file-system writes.
 
 import type { LegalFileSnapshot } from '../../../src/core/legal/files'
+import type { DistributionEvidence } from '../../../src/core/legal/distribution'
+import { fingerprint } from '../../../src/core/verify/fingerprint'
 
 /** A snapshot over caller-owned text: sorted paths, exact reads. */
 export function snapshotFrom(files: Record<string, string>): LegalFileSnapshot {
@@ -40,6 +42,21 @@ EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 USE OR OTHER DEALINGS IN THE SOFTWARE.
 `
+
+/**
+ * Hash-backed distribution evidence over every file (M97 CM971R2): file
+ * names alone never prove freshness, so the evidence carries the content
+ * hash of each input alongside the input list.
+ */
+export function hashEvidence(files: Record<string, string>): DistributionEvidence {
+  return {
+    bundleInputs: Object.keys(files),
+    bundleInputHashes: Object.fromEntries(
+      Object.entries(files).map(([file, text]) => [file, fingerprint(text)]),
+    ),
+    bundleOutputHashes: {},
+  }
+}
 
 /** A snapshot that counts `readFile` calls, for bound and write proofs. */
 export function countingSnapshot(files: Record<string, string>): {
