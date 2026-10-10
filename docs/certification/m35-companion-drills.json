@@ -523,5 +523,32 @@
       "test/unit/companionVoice.test.ts > companion WAV boundary > mixes stereo before clipping and rounding without signed PCM overflow"
     ],
     "exit": 1
+  },
+  {
+    "drill": "rvcmiccomp-3-capture-generation-fence",
+    "file": "src/webview/voice/companion.ts",
+    "sha256": "ae7e2237eb4e925c0a9f32b1f8e28cfef8ed2944b6e1e8eb501916b2adcd2a0c",
+    "failed": [
+      "test/unit/companionVoicePage.test.ts > voice companion page without a browser > a replaced capture’s late microphone rejection leaves the new recording live"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "rvcmiccomp-5-send-reenable-on-input",
+    "file": "src/webview/voice/companion.ts",
+    "sha256": "ae7e2237eb4e925c0a9f32b1f8e28cfef8ed2944b6e1e8eb501916b2adcd2a0c",
+    "failed": [
+      "test/unit/companionVoicePage.test.ts > voice companion page without a browser > typing after an empty reviewed prompt re-enables Send"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "rvcmiccomp-4-permission-cancellation-signal",
+    "file": "src/acp/agent.ts",
+    "sha256": "2db8dd85f268c38a94753f3475e6d69e7050b70ecddc6ff8461b0f06684b1dd9a3ad9",
+    "failed": [
+      "test/unit/acpAgent.test.ts > the ACP agent (M63) > companion cancellation cancels the editor permission request"
+    ],
+    "exit": 1
   }
 ]

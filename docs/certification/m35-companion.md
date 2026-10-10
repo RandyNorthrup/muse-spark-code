@@ -99,7 +99,7 @@ explicit; generated Help/roadmap stay current. No Preview wording added.
 
 ## Red drills and final gates
 
-49 named mutations failed the owned tests at repository timeouts. Source
+52 named mutations failed the owned tests at repository timeouts. Source
 bytes were restored to the before-drill SHA-256 every time. Full receipts and
 failed test names: [m35-companion-drills.json](m35-companion-drills.json).
 Coverage includes WAV geometry/size/duration, hidden release entry points,
@@ -172,6 +172,29 @@ inspected under `CMICCOMP-2026-10-10-linuxlt-accessibility-responsive-review`;
 the PNG files stay in ignored lane artifacts. This is the lane agent's review;
 the owner's release review remains outstanding.
 The lead retains full quality, full visual matrix and the other OS/editor rows.
+
+### RVCMICCOMP red drills (2026-10-10, macbook rig, no browser)
+
+Three further drills cover the review findings, each with a browser-free
+regression test at the repository's own timeout (no `--testTimeout` raised).
+Every drill broke the fixed source, watched exactly the named test fail, and
+restored the file to its before-drill SHA-256:
+
+| Finding                        | Mutation                                                                                                               | Failing test                                                                                                                                            |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3, capture-generation fence    | Removed `if (owner !== generation) return` from `cancelCapture` in `src/webview/voice/companion.ts`                    | `companionVoicePage.test.ts`: status read `Dictation failed…` instead of `Listening…`, the replacement's tracks ended and a new cancel reached the host |
+| 5, Send re-enable on input     | Removed the prompt `input` listener in `src/webview/voice/companion.ts`                                                | `companionVoicePage.test.ts`: `send.disabled` stayed `true` after typing `Corrected phrase`                                                             |
+| 4, permission RPC cancellation | Dropped `{ cancellationSignal: signal }` from the paid-consent `session/request_permission` call in `src/acp/agent.ts` | `acpAgent.test.ts`: the editor-side abort never arrived, so the wait for it timed out inside the repository deadline                                    |
+
+The finding 3 and 5 regressions run in jsdom with faked media
+(`test/unit/companionVoicePage.test.ts`); the earlier browser versions of
+those two cases were removed because no browser starts inside the lane
+sandbox. The finding 4 regression is a unit test with a fake editor
+(`test/unit/acpAgent.test.ts`). Real-Chrome receipts for all three paths stay
+with the lead: the browser suites that cover them are
+`test/unit/companionVoiceBrowser.test.mjs`,
+`test/unit/companionBrowser.test.ts`, `test/unit/companionMediaBrowser.test.mjs`
+and the voice CLI suite `test/unit/companionVoiceCli.test.mjs`.
 
 ### Local commit and handoff
 
