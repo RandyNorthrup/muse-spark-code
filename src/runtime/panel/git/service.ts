@@ -664,7 +664,7 @@ export class NativeGitService {
   /** The payload's last check, at the spawn: the lock still this transaction's, the seal intact. */
   private stillSealed(held: Held, seal: StateSeal): () => void {
     return () => {
-      expectSame(held.lock.isHeld() && isSealIntact(seal))
+      expectSame(held.lock.isHeldSync() && isSealIntact(seal))
     }
   }
 
@@ -685,7 +685,7 @@ export class NativeGitService {
       const start = (): Promise<T> => work({ repo, guard, lock })
       return admit === undefined ? await start() : await admit(start)
     } finally {
-      lock.release()
+      await lock.release()
     }
   }
 
