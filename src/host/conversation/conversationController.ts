@@ -231,6 +231,7 @@ import type { ReviewTurnFeatures } from '../review/reviewBundle'
 import { errorDetail, type Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/chatSurface'
 import type { TeamSurfacePort } from '../teamHostBinding'
+import type { TeamCardItem } from '../../core/team/teamHostService'
 import type { TeamTreeData } from '../../shared/teamView'
 import type { TasksTabPort, TasksTabView } from '../views/tasksTabPort'
 
@@ -10847,6 +10848,15 @@ export class ConversationController {
   /** The Agent map's team tree, or today's map when the workspace runs no team (M96). */
   public showTeamTree(tree: TeamTreeData | undefined): void {
     this.post(tree === undefined ? { type: 'clearTeamTree' } : { type: 'teamTree', tree })
+  }
+
+  /** A team card (waiting, merge) in this panel's conversation only (M96 lane U2's cards). */
+  public showTeamCard(sessionId: string, item: TeamCardItem): void {
+    if (this.session?.sessionId !== sessionId) return
+    this.post({
+      type: 'agentEvent',
+      event: { type: item.status === 'completed' ? 'itemCompleted' : 'itemStarted', item },
+    })
   }
 
   /**

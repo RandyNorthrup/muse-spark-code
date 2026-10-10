@@ -2528,9 +2528,9 @@ async function activateWindow(
       context: { workspaceRoot: root, storageRoot, l10n },
     })
   // M96 lane X: the window's team host service. A workspace that stores no
-  // team never loads dist/team.js; VS Code runs no team worker yet, so every
-  // custom entry is unavailable and each conversation is today's chat.
-  const teamHost = new TeamHostBinding({
+  // team never loads dist/team.js. Engine entries run as Model API
+  // conversations in the task's own copy; other agent kinds are unavailable.
+  const teamHost: TeamHostBinding = new TeamHostBinding({
     ports: {
       state: {
         get: (key) => context.workspaceState.get(key),
@@ -2548,18 +2548,60 @@ async function activateWindow(
       orchestrator: {
         modelId: () => DEFAULT_MODEL_ID,
         backend: () => currentSettings().backend,
+        // Default runs on the conversation's own model; on the Model API it bills the key.
+        defaultAgent: (modelId) =>
+          currentSettings().backend === 'modelApi'
+            ? { kind: 'engine', agentId: 'default', model: modelId, pays: 'key' }
+            : undefined,
       },
-      workers: {
-        canRun: () => false,
-        probe: () => Promise.resolve(false),
-        run: () =>
-          Promise.reject(new Error(fill(UI_TEXT.teamRunnerUnavailable, { tool: 'delegate' }))),
+      engine: {
+        repositoryRoot: () => workspaceRoot,
+        storageRoot: path.join(context.storageUri?.fsPath ?? storageRoot, 'team'),
+        platform: process.platform,
+        isTrusted: () => vscode.workspace.isTrusted,
+        listModels: async () => {
+          const host = await modelApi.ensureHost()
+          const models = await host.listModels()
+          return models.map((model) => model.modelId)
+        },
+        startWorker: async ({
+          folder,
+          modelId,
+          approvalMode,
+          admit,
+          noteUsage,
+          parentSessionId,
+        }) => {
+          let budgetScope
+          try {
+            budgetScope = await modelApi.bestOfNBudgetScope(parentSessionId)
+          } catch {
+            throw new Error(UI_TEXT.teamBudgetUnavailable)
+          }
+          const host = await modelApi.buildTeamWorkerHost(folder, admit, noteUsage, budgetScope)
+          try {
+            const session = await host.startSession({
+              workspaceRoot: folder,
+              modelId,
+              approvalMode,
+            })
+            return {
+              session,
+              toolNames: host.sessionToolNames(session.sessionId) ?? [],
+              close: () => host.close(),
+            }
+          } catch (error: unknown) {
+            await host.close()
+            throw error
+          }
+        },
+        now: () => Date.now(),
+        log,
       },
-      merges: {
-        merge: () =>
-          Promise.reject(new Error(fill(UI_TEXT.teamRunnerUnavailable, { tool: 'merge' }))),
-        discard: () =>
-          Promise.reject(new Error(fill(UI_TEXT.teamRunnerUnavailable, { tool: 'cancel' }))),
+      cards: {
+        show: (sessionId, item) => {
+          for (const controller of controllers.values()) controller.showTeamCard(sessionId, item)
+        },
       },
       paid: {
         allowKeyTasks: async (tasks, dailyBudgetUsd) =>
@@ -2570,7 +2612,7 @@ async function activateWindow(
       log,
     },
     loadFactory: async () => {
-      const { createTeamHost } = await import('./core/team/teamEntry')
+      const { createTeamHost } = await import('./host/team/teamHostEntry')
       return createTeamHost
     },
     uiText: () => UI_TEXT,
@@ -2580,6 +2622,10 @@ async function activateWindow(
     },
     openRoles: async () => {
       await vscode.commands.executeCommand(COMMAND_IDS.modelsAndAgents)
+    },
+    showDiff: async (_taskId, diff) => {
+      const document = await vscode.workspace.openTextDocument({ content: diff, language: 'diff' })
+      await vscode.window.showTextDocument(document, { preview: true })
     },
   })
   context.subscriptions.push({

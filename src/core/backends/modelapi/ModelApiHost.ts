@@ -182,6 +182,7 @@ import {
   VERIFY_TOOLS,
   WEB_FETCH_SUBJECT_KIND,
   CODEC_IMAGE_WITHOUT_VISION,
+  TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE,
   TEAM_TOOL_NAMES,
 } from '../../../shared/constants'
 import { fill, formatNumber, plural, uiLocale } from '../../../shared/l10n/text'
@@ -9909,7 +9910,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       return await runner.collect(
         {
           ...rest,
-          wait_seconds: this.team.clampCollectWait(wait ?? 0),
+          wait_seconds: this.team.clampCollectWait(wait ?? 0, TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE),
         },
         context,
       )
@@ -16796,6 +16797,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     return undefined
   }
+
+  /** The effective tool names, for a team worker's charter to meet (M96). */
+  public toolNames(): readonly string[] {
+    return this.offeredToolNames()
+  }
 }
 
 /**
@@ -17402,6 +17408,11 @@ export class ModelApiHost implements AgentHost {
 
   public readPlanUsage(): readonly PlanUsageRow[] {
     return this.deps.client.readPlanUsage?.() ?? []
+  }
+
+  /** A session's offered tool names, for a team worker's charter (M96); undefined when unknown. */
+  public sessionToolNames(sessionId: string): readonly string[] | undefined {
+    return this.sessions.get(sessionId)?.toolNames()
   }
 
   public async listModels(sessionId?: string): Promise<readonly ModelSummary[]> {

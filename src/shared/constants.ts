@@ -5748,6 +5748,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/reviewer.js',
   'dist/team.js',
   'dist/teamRunners.js',
+  'dist/teamHost.js',
   'dist/teamScheduler.js',
   'dist/schedules.js',
   'dist/planMarkdown.js',
@@ -5865,6 +5866,8 @@ export const MODEL_TEXT = {
   // M77: a working folder is not a confinement, so a best-of-N attempt runs no process.
   shellBestOfNAttempt:
     'shell commands do not run in a best-of-N attempt: nothing confines a process to its worktree; use the file tools',
+  shellTeamWorker:
+    'shell commands do not run for this team worker: nothing confines a process to its working copy; use the file tools and name in your report any command that still needs running',
   toolFileTooLarge: 'The file tools read and edit files up to',
   toolFileTooLargeHint:
     'read part of it with a shell command instead (the search tool skips files over 1 MiB)',
@@ -6664,8 +6667,17 @@ export const TEAM_MODEL_TEXT = {
   // The team host service's answers (M96 lane X, C-M96-3).
   hostInvalidArguments: 'invalid arguments for this team tool',
   hostRoleNotOffered: 'role {role} is not offered in this workspace',
-  hostContinueNotOffered:
-    'continue is not offered in this window; delegate a new task and put the finished task report in its brief',
+  hostContinueNotReady:
+    'continue reopens a finished, unmerged task of the same role from this conversation, on its own branch',
+  hostInPlaceNotOffered:
+    'this team runs in-place roles only after the user confirms them; give the role own-branch or read-only',
+  hostQueueTimedOut: 'the task waited its longest for headroom and did not start; ask the user',
+  hostQueueFull: 'at most {max} tasks wait for headroom at once',
+  hostWaitingSelf: 'the user asks you to do this work yourself',
+  hostWaitingCancelled: 'the user cancelled this task',
+  hostNoRepository: 'team workers need the workspace folder to be a git repository',
+  hostReadOnlyBreach: 'a read-only worker changed files in its scratch copy, so its task failed:',
+  hostNoReport: 'the worker ended without a report',
   hostNotStaffed: 'role {role} is not staffed',
   hostExhausted: 'every entry of role {role} is at a limit or unavailable; do the work yourself',
   hostUntrusted: 'the workspace is in Restricted Mode, so no worker starts',
@@ -7308,6 +7320,9 @@ export const TEAM_MCP_SERVER_NAME = 'team'
 export const TEAM_MCP_TOKEN_BYTES = 32
 // No positive collect wait until the Muse Code timeout capture lands (M96 P).
 export const TEAM_COLLECT_WAIT_MAX_SECONDS = 0
+// The Model API's own bound: its tools run in the extension host, so a
+// `collect` there has no MCP call timeout to stay under (C-M96-3).
+export const TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE = 60
 export const TEAM_TOOL_NAMES = ['roster', 'delegate', 'collect', 'cancel', 'merge'] as const
 export { TEAM_RUBRIC_REASON_CODES as TEAM_REASON_CODES }
 export type TeamReasonCode = (typeof TEAM_RUBRIC_REASON_CODES)[number]

@@ -11,11 +11,8 @@ import { readTeamWorkspaceHint } from '../shared/teamConversation'
 import type { WebviewToHostMessage } from '../shared/protocol'
 import type { TeamTreeData } from '../shared/teamView'
 import type { UiText } from '../shared/l10n/en'
-import type {
-  TeamHostSeams,
-  TeamHostService,
-  TeamHostServiceDeps,
-} from '../core/team/teamHostService'
+import type { TeamHostSeams, TeamHostService } from '../core/team/teamHostService'
+import type { TeamHostBundleDeps } from './team/teamEnginePorts'
 import type { TeamToolResult } from '../core/team/teamSeams'
 
 /** The tree's and cards' messages the service answers. */
@@ -40,11 +37,11 @@ export interface TeamSurfacePort {
 }
 
 export interface TeamHostBindingDeps {
-  /** The service's ports; `state` is also read here, without loading anything. */
-  readonly ports: TeamHostServiceDeps
+  /** The service's and the engine's ports; `state` is also read here, without loading anything. */
+  readonly ports: TeamHostBundleDeps
   /** dist/team.js's factory, required only for a workspace that stores a team. */
   readonly loadFactory: () => Promise<
-    (table: UiText, locale: string, deps: TeamHostServiceDeps) => TeamHostService
+    (table: UiText, locale: string, deps: TeamHostBundleDeps) => TeamHostService
   >
   readonly uiText: () => UiText
   readonly uiLocale: () => string
@@ -52,6 +49,8 @@ export interface TeamHostBindingDeps {
   readonly showTree: (tree: TeamTreeData | undefined) => void
   /** Opens the Models & Agents panel at its Roles section (lane U1 owns the section). */
   readonly openRoles: (roleId: string | undefined) => Promise<void>
+  /** Shows a task's unified diff in the editor (Review diff). */
+  readonly showDiff: (taskId: string, diff: string) => Promise<void>
 }
 
 const unavailable = (tool: string): TeamToolResult => {
@@ -159,10 +158,14 @@ export class TeamHostBinding implements TeamSurfacePort {
         await service.resetEntry(message.entryId)
         return
       }
+      case 'reviewTeamDiff': {
+        await this.deps.showDiff(message.taskId, await service.taskDiff(message.taskId))
+        return
+      }
       default: {
-        // A task's transcript and its diff need the worker port's records,
-        // which no worker in this window has written.
-        throw new Error(UI_TEXT.teamTaskUnknown)
+        // An engine worker's conversation closes with its task; its report
+        // and diff are what the window keeps.
+        throw new Error(UI_TEXT.teamTranscriptNotKept)
       }
     }
   }

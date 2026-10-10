@@ -69,6 +69,8 @@ export interface TeamHostService extends TeamHostSeams {
   readonly answerWaiting: (waitingId: string, choice: TeamWaitingChoice) => Promise<void>
   /** Answers a merge card, or merges or discards a finished task from the tree. */
   readonly decideMerge: (taskId: string, decision: TeamMergeDecision) => Promise<void>
+  /** A finished task's branch against its base, as a unified diff (the tree's Review diff). */
+  readonly taskDiff: (taskId: string) => Promise<string>
   /** Clears one entry's meters; the ledger keeps the record (acceptance 11). */
   readonly resetEntry: (entryId: string) => Promise<void>
   /**
@@ -124,6 +126,8 @@ export interface TeamTaskSpec {
   readonly files: readonly string[]
   /** The orchestrator's session, for the worker's own cards (D75). */
   readonly parentSessionId: string
+  /** `continue`: the finished task this one reopens, on its own copy and branch. */
+  readonly continueFrom?: TeamWorkerOutcome | undefined
 }
 
 /** What a finished worker hands back. */
@@ -136,6 +140,9 @@ export interface TeamWorkerOutcome {
   readonly head?: string | undefined
   /** Files the branch changed against its base; empty when nothing changed. */
   readonly changedFiles?: readonly string[] | undefined
+  /** `own-branch` only: the task's own copy and the extension's ref in the user's repository. */
+  readonly folder?: string | undefined
+  readonly agentsRef?: string | undefined
 }
 
 /**
@@ -149,6 +156,49 @@ export interface TeamWorkerPort {
   /** The declared setup probe: the agent's model observably loaded. */
   readonly probe: (agent: TeamAgentRef) => Promise<boolean>
   readonly run: (spec: TeamTaskSpec, signal: AbortSignal) => Promise<TeamWorkerOutcome>
+  /** A rate or usage limit marked the agent until its time (acceptance 8); absent marks nothing. */
+  readonly isLimited?: ((agent: TeamAgentRef) => boolean) | undefined
+}
+
+/**
+ * A card in the orchestrator's transcript (M96 lane U2's cards): the
+ * "waiting for you" card and the merge card, then the same item again with
+ * the user's answer in `teamDecision`. Shown only on the surface whose
+ * conversation is `sessionId`.
+ */
+export type TeamCardItem =
+  | {
+      readonly itemId: string
+      readonly kind: 'teamWaiting'
+      readonly status: 'inProgress' | 'completed'
+      readonly teamWaiting: {
+        readonly waitingId: string
+        readonly roleId: string
+        readonly brief?: string | undefined
+        readonly reasonText?: string | undefined
+      }
+      readonly teamDecision?: string | undefined
+    }
+  | {
+      readonly itemId: string
+      readonly kind: 'teamMerge'
+      readonly status: 'inProgress' | 'completed'
+      readonly teamMerge: {
+        readonly taskId: string
+        readonly roleId: string
+        readonly brief: string
+        readonly branch: string
+        readonly filesChanged?: number | undefined
+        readonly affectedFiles?: readonly string[] | undefined
+        readonly protectedPaths?: readonly string[] | undefined
+        readonly review: 'not-reviewed'
+      }
+      readonly teamDecision?: string | undefined
+    }
+
+/** Where the cards go: the editor's chat surface for that conversation. */
+export interface TeamCardPort {
+  readonly show: (sessionId: string, item: TeamCardItem) => void
 }
 
 /** What a merge did, in the words the model and the user read. */
@@ -173,6 +223,8 @@ export interface TeamMergePort {
     readonly role: TeamRoleConfig
     readonly outcome: TeamWorkerOutcome | undefined
   }) => Promise<void>
+  /** The task branch against its base, as a unified diff (Review diff). */
+  readonly diff: (outcome: TeamWorkerOutcome) => Promise<string>
 }
 
 /** Paid use (rule 12): one D48 popup per `delegate` call that starts key tasks. */
@@ -192,6 +244,7 @@ export interface TeamHostServiceDeps {
   readonly workers: TeamWorkerPort
   readonly merges: TeamMergePort
   readonly paid: TeamPaidPort
+  readonly cards: TeamCardPort
   readonly newId: () => string
   readonly now: () => number
   readonly log: {
