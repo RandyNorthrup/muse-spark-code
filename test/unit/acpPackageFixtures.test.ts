@@ -4,7 +4,8 @@
 // Before this, three fixtures kept hand lists; usagePackaging's lacked
 // MuseSparkMcpLauncher.cs after the package began to require it, and packaging
 // failed on every OS.
-import { globSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -25,17 +26,21 @@ const KNOWN_FIXTURES = [
 
 /** Test files that copy the packager into a temporary tree and run it there. */
 function packagingFixtures(): Set<string> {
+  // Search Git's index, not every working file: opening all 1,570 test files
+  // took 24.7 s on the win11 VM, where each fresh file is scanned on open.
+  const listed = spawnSync(
+    'git',
+    ['grep', '--cached', '-l', '-e', 'package-acp.mjs', '--', 'test'],
+    { cwd: root, encoding: 'utf8' },
+  )
+  expect(listed.status, listed.stderr).toBe(0)
   return new Set(
-    globSync('test/**/*.{ts,tsx,mjs,js,cjs}', { cwd: root })
-      .map((file) => file.replaceAll('\\', '/'))
-      .filter((file) => file !== SELF && file !== HELPER)
+    listed.stdout
+      .split('\n')
+      .filter((file) => file !== '' && file !== SELF && file !== HELPER)
       .filter((file) => {
         const text = read(file)
-        return (
-          text.includes('package-acp.mjs') &&
-          text.includes('mkdtempSync') &&
-          /\bspawnSync\(/u.test(text)
-        )
+        return text.includes('mkdtempSync') && /\bspawnSync\(/u.test(text)
       }),
   )
 }
