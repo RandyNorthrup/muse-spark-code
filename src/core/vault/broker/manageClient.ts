@@ -3,7 +3,7 @@
 // (the platform's connect: discovery, launch and peer check from lanes b and
 // c) and closes it; values travel only in private frames.
 
-import { UI_TEXT, VAULT_PROTOCOL_VERSION } from '../../../shared/constants'
+import { UI_TEXT, VAULT_PROTOCOL_VERSION, VAULT_WATCH_RETRY_MS } from '../../../shared/constants'
 import type {
   VaultApprovalAnswer,
   VaultAuditRecord,
@@ -11,11 +11,7 @@ import type {
   VaultItem,
   VaultItemMetadata,
 } from '../../../shared/vault'
-import type {
-  VaultBrokerEvent,
-  VaultBrokerSnapshot,
-  VaultStatus,
-} from '../../../shared/vaultProtocol'
+import type { VaultBrokerEvent, VaultBrokerSnapshot } from '../../../shared/vaultProtocol'
 import { encodeVaultMaterial } from '../crypto'
 import type { VaultBrokerClient } from './client'
 import type { VaultChannelResponse } from './frames'
@@ -73,11 +69,6 @@ export class VaultManageSession {
     return await this.call(async (client) => await client.send(request))
   }
 
-  async status(): Promise<VaultStatus> {
-    const response = await this.simple({ kind: 'status' })
-    if (response.kind !== 'status') throw new Error(UI_TEXT.vault.noAccess)
-    return response.status
-  }
   async snapshot(): Promise<VaultBrokerSnapshot> {
     const response = await this.simple({ kind: 'snapshot' })
     if (response.kind === 'refused') throw new Error(vaultRefusalMessage(response.reason))
@@ -189,6 +180,18 @@ export class VaultManageSession {
         signal.removeEventListener('abort', stop)
         client.close()
       }
+      // A broker that keeps closing the stream is retried at a bounded pace.
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, VAULT_WATCH_RETRY_MS)
+        signal.addEventListener(
+          'abort',
+          () => {
+            clearTimeout(timer)
+            resolve()
+          },
+          { once: true },
+        )
+      })
     }
   }
 }

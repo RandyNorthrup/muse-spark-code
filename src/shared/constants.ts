@@ -7804,6 +7804,8 @@ export const VAULT_STORE_FORMAT_VERSION = 2
 export const VAULT_APPROVAL_TTL_MS = 120_000
 // Lock wipes synchronously; audit and process cleanup get this bounded settlement window.
 export const VAULT_LOCK_DRAIN_MS = 1000
+// C-M109-1: pace of re-opening a `watch` stream the broker closed.
+export const VAULT_WATCH_RETRY_MS = 1000
 export const VAULT_ASKPASS_USES = 3
 export const VAULT_ASKPASS_TTL_MS = 600_000
 export const VAULT_SESSION_MAX_DAYS = 30

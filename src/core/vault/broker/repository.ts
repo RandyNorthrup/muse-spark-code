@@ -98,6 +98,10 @@ export class VaultSlotUnlock implements VaultUnlockPort {
     private readonly provider: VaultSlotProvider,
   ) {}
   /** The recovery code's unwrapped key, consumed by the very next unlock of that slot. */
+  discardRecovery(): void {
+    this.recovery?.key.fill(0)
+    this.recovery = null
+  }
   offerRecovery(slotId: string, key: Buffer): void {
     this.recovery?.key.fill(0)
     this.recovery = { slotId, key }
