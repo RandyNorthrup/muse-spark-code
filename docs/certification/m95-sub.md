@@ -2,7 +2,7 @@
 
 2026-10-10, rig `linuxlt`, worktree `/home/randy/lanes/CMSUBKEY`,
 branch `c/m95-subkey` from `82d50d5e4`. Owner order 2026-10-10 (binding);
-PLAN D103 records the scope and the D74/M95b tension for the lead.
+PLAN D106 records the scope and the D74/M95b tension for the lead.
 No real CLI auth file was read on this rig; every fixture is a temp-dir or
 in-memory fake. No paid or live model call. No new dependency.
 
@@ -167,3 +167,34 @@ through the resolved path` failed (path assertion still passed),
   launch (`socketpair: Operation not permitted`, sandbox). The lane's only
   visual surfaces are the settings row, usage labels and the KpiTiles key;
   the lead runs the gate outside the sandbox. No shim or workaround was built.
+
+## CMSUBKEYR3 redesign (2026-10-10, macmini)
+
+Third review round: **REDESIGN**. Base `bcceeb684`, branch `c/m95-subkey-r3`.
+One immutable per-attempt billing route binds pricing and authorization;
+after admission the fresh route is compare-only and can only stop a send.
+The captured DEVICE_LOGIN_FILE has name/email/avatar but no account/user id;
+use the lead-approved stable fixed-label + resolved-path digest, normalized
+for Windows separators. No real credentials are read, no live or paid calls,
+no new dependency. Full quality belongs to the lead under this lane's shared
+rules; no merge is authorized by the rig brief.
+
+### Part 1 — readiness, retained redaction, restart predicate
+
+Baseline `bcceeb684` production with the regressions: ACP subscription
+readiness returned the pasted-key guidance; the two-save rotation test
+persisted key A on save 2 (2 failed / 46 passed). After repair, the three
+owned files passed 74/74 at repository timeouts and three workers.
+The restart predicate is extracted from the reviewed condition and covers
+both the backend and subscription setting plus an unrelated-setting control.
+
+- r3-f1: `src/runtime/backends.ts`; exit 1; SHA-256 `4f176521686520c4a6bfbfc562dad5c09d82a921252a9e2077339b1431787193`, restored byte-exact. Tests: test/unit/acpRuntime.test.ts.
+- r3-f5: `src/host/auth/subscriptionCredential.ts`; exit 1; SHA-256 `ec243eafd2ca524d01ab7d7d958ef61885f897c3929c5f5510a4a7815a87da13`, restored byte-exact. Tests: test/unit/subscriptionRedaction.test.ts.
+- r3-f8: `src/host/settings.ts`; exit 1; SHA-256 `93f778f65866efe1e5fcdd76132c6f3fa73d6e19b167c3aea2513d9f0a737874`, restored byte-exact. Tests: test/unit/settings.test.ts.
+
+F1: subscription refusal forced ready, readiness test fails. F5: tracked
+literals replaced/released, two-save rotation fails. F8: subscription setting
+removed, its restart case fails. An initial F5 mutation of just the returned
+literal list stayed green because the retained shared registry independently
+scrubs snapshots; the second mutation breaks retention and fires the test.
+No production file is left mutated. Installed hook path `.husky/_` is used.

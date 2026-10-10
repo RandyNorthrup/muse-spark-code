@@ -2,6 +2,7 @@
 // actually sent (subscription or pasted), never only the pasted key.
 // Fakes only: an in-memory auth file and a capturing inner store.
 import { describe, expect, it } from 'vitest'
+import { redactSecrets } from '../../src/shared/redact'
 import { withCredentialRedaction } from '../../src/runtime/backends'
 import type { SessionStore, StoredSession } from '../../src/core/backends/modelapi/sessionStore'
 import { SubscriptionCredential } from '../../src/host/auth/subscriptionCredential'
@@ -72,6 +73,31 @@ function transcript(): StoredSession {
 }
 
 describe('headless credential redaction', () => {
+  it('scrubs key A on the second save after rotation to key B', async () => {
+    const file = memorySubscriptionFile()
+    file.writeAccessToken(SUB)
+    const keys = new SubscriptionCredential({
+      credentials: { getApiKey: () => Promise.resolve(PASTED) },
+      isEnabled: () => true,
+      platform: 'linux',
+      homeDir: '/home/rotation',
+      xdgConfigHome: undefined,
+      source: file.source,
+    })
+    const saved: unknown[] = []
+    const writer = withCredentialRedaction(capturingStore(saved), () => keys.redactionKeys())
+    await keys.getApiKey()
+    const snapshot = transcript()
+    await writer.save(snapshot)
+    const rotated = 'opaque rotation value a173d9'
+    file.writeAccessToken(rotated)
+    await keys.getApiKey()
+    await writer.save(snapshot)
+    expect(saved).toHaveLength(2)
+    expect(JSON.stringify(saved)).not.toContain(SUB)
+    expect(redactSecrets(`previous ${SUB}; current ${rotated}`)).not.toContain(SUB)
+    expect(redactSecrets(`previous ${SUB}; current ${rotated}`)).not.toContain(rotated)
+  })
   it('scrubs the actually-sent subscription key from saved transcripts', async () => {
     const saved: unknown[] = []
     const wrapper = withCredentialRedaction(capturingStore(saved), () =>

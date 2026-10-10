@@ -742,19 +742,23 @@ describe('createRuntimeBackend', () => {
       path.join(payg, '.config', 'muse', 'auth.json'),
       JSON.stringify({ schema_version: 1, providers: { meta: { api_key: 'payg-key' } } }),
     )
-    const refused = backend(
-      { backend: 'modelApi', subscription: true },
-      memorySecrets(),
-      {},
-      dist.folder,
-      fakeModelApi().fetch,
-      undefined,
-      payg,
-    )
-    expect(await refused.backend.readiness(false)).toEqual({
-      state: 'signedOut',
-      message: UI_TEXT.acpNoStoredKey,
-    })
+    for (const stored of [undefined, KEY]) {
+      const secrets = memorySecrets()
+      if (stored !== undefined) secrets.values.set(SECRET_KEYS.modelApiKey, stored)
+      const refused = backend(
+        { backend: 'modelApi', subscription: true },
+        secrets,
+        {},
+        dist.folder,
+        fakeModelApi().fetch,
+        undefined,
+        payg,
+      )
+      expect(await refused.backend.readiness(false)).toEqual({
+        state: 'signedOut',
+        message: UI_TEXT.subscriptionKey.signInAgain,
+      })
+    }
   })
 
   it('says where it looked when the Muse Code CLI is missing, and builds a Model API host per folder', async () => {
