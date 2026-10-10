@@ -42,6 +42,7 @@ import {
   checkNotices,
   computeShipped,
   materialInSnapshot,
+  normalizeEvidencePath,
   type DistributionEvidence,
 } from './distribution'
 import { readCargo } from './ecosystems/cargo'
@@ -63,7 +64,7 @@ import {
   type LegalFileSnapshot,
 } from './files'
 import { scanHeaders, scanAttributionRisks } from './headers'
-import { scanProjectLicense, identifyLicenseText } from './projectLicense'
+import { scanProjectLicense, identifyLicenseText, hasLicenseTextAgreement } from './projectLicense'
 
 /** The rule half of finding ids (`rule/version/counter`). */
 export const LEGAL_SCANNER_RULE_VERSION = '1'
@@ -207,6 +208,84 @@ function snapshotNotices(
   return found
 }
 
+/**
+ * Bundle metafiles the production build writes (`dist/meta/`, M26): every
+ * source file that went into each shipped bundle. Content hashes recorded
+ * beside each metafile (`dist/meta-hashes/`, M97 CM971R2) prove artifact
+ * freshness; a metafile without recorded hashes contributes its inputs
+ * but never freshness.
+ */
+const LEGAL_META_DIR = 'dist/meta/'
+const LEGAL_META_HASHES_DIR = 'dist/meta-hashes/'
+
+function readJsonRecord(
+  snapshot: LegalFileSnapshot,
+  file: string,
+): Record<string, unknown> | undefined {
+  const text = snapshot.readFile(file)
+  if (text === undefined) return undefined
+  try {
+    const parsed: unknown = JSON.parse(text)
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function stringMap(value: unknown): Record<string, string> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {}
+  const kept: Record<string, string> = {}
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof key === 'string' && key !== '' && typeof entry === 'string' && entry !== '') {
+      kept[normalizeEvidencePath(key)] = entry
+    }
+  }
+  return kept
+}
+
+function deriveBundleEvidence(snapshot: LegalFileSnapshot): {
+  readonly bundleInputs: string[]
+  readonly bundleInputHashes: Record<string, string>
+  readonly bundleOutputHashes: Record<string, string>
+} {
+  const inputs: string[] = []
+  let bundleInputHashes: Record<string, string> = {}
+  let bundleOutputHashes: Record<string, string> = {}
+  const metafiles = snapshot.files
+    .filter((file) => file.startsWith(LEGAL_META_DIR) && file.endsWith('.json'))
+    .toSorted((a, b) => compareLegalText(a, b))
+  for (const metafile of metafiles) {
+    const parsed = readJsonRecord(snapshot, metafile)
+    if (parsed === undefined) continue
+    const metaInputs =
+      typeof parsed['inputs'] === 'object' && parsed['inputs'] !== null
+        ? Object.keys(parsed['inputs'])
+        : []
+    const metaOutputs =
+      typeof parsed['outputs'] === 'object' && parsed['outputs'] !== null
+        ? Object.keys(parsed['outputs'])
+        : []
+    if (metaInputs.length === 0 && metaOutputs.length === 0) continue
+    const stem = metafile.slice(LEGAL_META_DIR.length, -'.json'.length)
+    const hashes = readJsonRecord(snapshot, `${LEGAL_META_HASHES_DIR}${stem}.json`)
+    if (hashes !== undefined) {
+      bundleInputHashes = { ...bundleInputHashes, ...stringMap(hashes['inputs']) }
+      bundleOutputHashes = { ...bundleOutputHashes, ...stringMap(hashes['outputs']) }
+    }
+    for (const input of metaInputs) {
+      const normalized = normalizeEvidencePath(input)
+      if (normalized !== '' && !inputs.includes(normalized)) inputs.push(normalized)
+    }
+  }
+  return {
+    bundleInputs: inputs.toSorted((a, b) => compareLegalText(a, b)),
+    bundleInputHashes,
+    bundleOutputHashes,
+  }
+}
+
 function deriveDistribution(snapshot: LegalFileSnapshot): DistributionEvidence {
   const text = snapshot.files.includes('package.json')
     ? snapshot.readFile('package.json')
@@ -229,7 +308,12 @@ function deriveDistribution(snapshot: LegalFileSnapshot): DistributionEvidence {
   const vscodeignoreText = snapshot.files.includes('.vscodeignore')
     ? snapshot.readFile('.vscodeignore')
     : undefined
+  const bundle = deriveBundleEvidence(snapshot)
+  const hasBundleInputs = bundle.bundleInputs.length > 0
   return {
+    ...(hasBundleInputs && { bundleInputs: bundle.bundleInputs }),
+    ...(hasBundleInputs && { bundleInputHashes: bundle.bundleInputHashes }),
+    ...(hasBundleInputs && { bundleOutputHashes: bundle.bundleOutputHashes }),
     ...(packageFiles !== undefined && { packageFiles }),
     ...(vscodeignoreText !== undefined && { vscodeignoreText }),
     notices: snapshotNotices(snapshot),
@@ -356,7 +440,17 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
         hasUnrecognizedLicenseText = true
         continue
       }
-      if (dep.licenseRaw !== match.id)
+      // A text that does not match exactly keeps the human-review
+      // limitation (M97 CM971R2): a heuristic reading never silently
+      // adopts possibly modified terms. Agreeing ids keep the declared
+      // terms under review; disagreeing ids still surface through the
+      // observed relabel, so genuine conflicts stay visible as conflicts.
+      if (!match.exact) {
+        incomplete.push(fill(UI_TEXT.legalScanner.m199, { v0: dep.name, v1: file }))
+        hasUnrecognizedLicenseText = true
+        if (hasLicenseTextAgreement(dep.licenseRaw, match.id)) continue
+      }
+      if (!hasLicenseTextAgreement(dep.licenseRaw, match.id))
         observed.push({
           ...dep,
           licenseRaw: match.id,

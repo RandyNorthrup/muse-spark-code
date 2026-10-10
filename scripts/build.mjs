@@ -54,6 +54,8 @@ import { listIntegrationTests } from './lib/integrationTests.mjs'
 // backend is built once for both.
 
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { TextDecoder } from 'node:util'
 import { cpSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
@@ -1096,6 +1098,46 @@ const webviewOptions = {
   jsx: 'automatic',
 }
 
+// M97 CM971R2: SHA-256 content hashes beside each bundle metafile, so the
+// legal scanner proves artifact freshness from bytes instead of file
+// names. Hashing matches the scanner's admitted-bytes digest exactly
+// (UTF-8 text decoded fatal with the byte-order mark kept, then SHA-256
+// over the text). Unreadable inputs stay unrecorded and read as stale
+// downstream, never as fresh. A separate folder keeps
+// third-party-notices (which reads every file in dist/meta/) untouched,
+// and the folder is not packaged, like dist/meta/ itself.
+const META_HASHES_DIR = 'dist/meta-hashes'
+function sha256TextFile(file) {
+  let digest
+  try {
+    const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+      readFileSync(file),
+    )
+    digest = createHash('sha256').update(text, 'utf8').digest('hex')
+  } catch {
+    // Unreadable inputs stay unrecorded and read as stale downstream.
+  }
+  return digest
+}
+function writeMetafileHashes(name, metafile) {
+  const inputs = {}
+  const metaInputs = Object.keys(metafile.inputs ?? {})
+  for (const input of metaInputs) {
+    const digest = sha256TextFile(input)
+    if (digest !== undefined) inputs[input.replaceAll('\\', '/')] = digest
+  }
+  const outputs = {}
+  const metaOutputs = Object.keys(metafile.outputs ?? {})
+  for (const output of metaOutputs) {
+    const digest = sha256TextFile(output)
+    if (digest !== undefined) outputs[output.replaceAll('\\', '/')] = digest
+  }
+  writeFileSync(
+    path.join(META_HASHES_DIR, `${name}.json`),
+    JSON.stringify({ version: 1, inputs, outputs }),
+  )
+}
+
 function writeWebviewMetafiles(metafile) {
   const pages = {
     webview: 'dist/webview/main.js',
@@ -1109,23 +1151,20 @@ function writeWebviewMetafiles(metafile) {
     reportingDestinationsWebview: 'dist/webview/reportingDestinations.js',
   }
   for (const [page, entry] of Object.entries(pages)) {
-    writeFileSync(
-      path.join(METAFILE_DIR, `${page}.json`),
-      JSON.stringify(
-        webviewEntryMetafile(
-          metafile,
-          entry,
-          page === 'webview'
-            ? [
-                'dist/webview/reportingPage.js',
-                'dist/webview/reportingDestinations.js',
-                'dist/webview/resourceSurface.js',
-                'dist/webview/resourceHistory.js',
-              ]
-            : [],
-        ),
-      ),
+    const pageMetafile = webviewEntryMetafile(
+      metafile,
+      entry,
+      page === 'webview'
+        ? [
+            'dist/webview/reportingPage.js',
+            'dist/webview/reportingDestinations.js',
+            'dist/webview/resourceSurface.js',
+            'dist/webview/resourceHistory.js',
+          ]
+        : [],
     )
+    writeFileSync(path.join(METAFILE_DIR, `${page}.json`), JSON.stringify(pageMetafile))
+    writeMetafileHashes(page, pageMetafile)
   }
 }
 
@@ -1409,14 +1448,19 @@ if (isWatch) {
   await Promise.all(builds)
   if (isProduction) {
     rmSync(METAFILE_DIR, { recursive: true, force: true })
+    rmSync(META_HASHES_DIR, { recursive: true, force: true })
     const ACP_METAFILE_DIR = 'dist/meta-acp'
     rmSync(ACP_METAFILE_DIR, { recursive: true, force: true })
     mkdirSync(METAFILE_DIR, { recursive: true })
+    mkdirSync(META_HASHES_DIR, { recursive: true })
     for (const [name, build] of Object.entries(shipped)) {
       const { metafile } = await build
       if (name === 'webview') {
         writeWebviewMetafiles(metafile)
-      } else writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
+      } else {
+        writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
+        writeMetafileHashes(name, metafile)
+      }
     }
     mkdirSync(ACP_METAFILE_DIR, { recursive: true })
     const { metafile: fontsMetafile } = await fontInstall
