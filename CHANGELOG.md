@@ -9,6 +9,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Production admission for automatic compaction** (M101 C-M101-1, dormant).
+  The panel backend manager and the runtime backend manager (ACP, exec) now
+  bind the one shared D78 gate and ledger for automatic compaction
+  (`admitAutoCompaction`) and the Meta catalogue model reader
+  (`autoCompactModel`), so every host that offers automatic compaction
+  admits the same way. Every automatic attempt reserves its projected cost
+  from the daily ledger before dispatch, rechecks the claim synchronously
+  at send, and settles once per attempt at its exact cost (known nonsends
+  refunded, uncertain attempts retain their liability); a refused or
+  missing ledger sends nothing. Near-window and overflow protection are
+  never blocked by economics. Nothing changes for users yet: the feature
+  stays off behind the unevaluated latch (`IS_AUTO_COMPACTION_EVALUATED`)
+  and reports "awaiting evaluation", and requests sent while it is off are
+  byte-identical.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

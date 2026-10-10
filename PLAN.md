@@ -29481,7 +29481,12 @@ joined with M57, M58 and PR #49's sign-in
 **Status 2026-10-05: planned.**
 
 Status detail retained: planned; lanes start from `m101/base` (the M95
-integration branch plus this plan). The item numbers below are the
+integration branch plus this plan). C-M101-1 (2026-10-10, lane CM1011,
+`docs/certification/m101-admission.md`): production
+`admitAutoCompaction`/`autoCompactModel` from the panel and runtime backend
+managers through one shared D78 gate and ledger; dormant behind
+`IS_AUTO_COMPACTION_EVALUATED`; popup, BYO cards and the latch flip remain
+with C-M101-3/C-M101-4. The item numbers below are the
 research report's (`docs/research/pi-solpi-2026-10-05.md`): plain numbers are
 its sections 1–2 (harness), "BYO n" its section 3 (providers).
 

@@ -55,6 +55,11 @@ import { uiLocale } from '../../shared/l10n/text'
 import { forgetFile, requireFile } from '../lazyBundle'
 import type { Logger } from '../logger'
 import {
+  createAutoCompactionAdmission,
+  resolveAutoCompactModel,
+  type AutoCompactionLedgerClaim,
+} from '../../core/backends/modelapi/autoCompactionAdmission'
+import {
   isModelApiBundle,
   type McpPoolFactory,
   type ModelApiBundle,
@@ -176,6 +181,14 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly createAttemptVerify?: ((workspaceRoot: string) => VerifyHooks) | undefined
   /** The runtime can share notices across aliases without changing its saved-session identity. */
   readonly workspaceEdits?: WorkspaceEdits | undefined
+  /**
+   * The D78 daily reserve behind automatic compaction (C-M101-1): an exact-USD
+   * claim for the projected cost. Absent, the host has no production
+   * admission and automatic compaction stays dormant.
+   */
+  readonly reserveAutoCompaction?:
+    | ((amount: UsdAmount, signal: AbortSignal) => Promise<AutoCompactionLedgerClaim | undefined>)
+    | undefined
   readonly sessionWorkspaceRoot?: string | undefined
   /** Runtime owners refuse a retargeted or replaced workspace before use. */
   readonly assertWorkspaceCurrent?: (() => void) | undefined
@@ -413,6 +426,14 @@ export class ModelApiBackendManager {
         isRepoMapInPrompt: variant.isRepoMapInPrompt,
         observationPacking: this.deps.isObservationPackingOn,
         autoCompaction: this.deps.isAutoCompactionOn,
+        autoCompactModel: resolveAutoCompactModel,
+        ...(this.deps.reserveAutoCompaction !== undefined && {
+          admitAutoCompaction: createAutoCompactionAdmission({
+            ledger: { reserveCompaction: this.deps.reserveAutoCompaction },
+            log: this.deps.log,
+            storeUnavailable: UI_TEXT.sessionBudgetStoreUnavailable,
+          }),
+        }),
         shellKeepsDirectory: this.deps.isShellKeepsDirectoryOn,
         allowsPaidUse: variant.allowsPaidUse,
         isPaidUseRemembered: variant.isPaidUseRemembered,

@@ -2703,6 +2703,27 @@ async function activateWindow(
         throw error
       }
     },
+    // C-M101-1: the D78 daily claim behind automatic compaction. Exact-USD,
+    // like the reservationUsd branch above; without it the host has no
+    // production admission and automatic compaction stays dormant.
+    reserveAutoCompaction: async (amount, signal) => {
+      signal.throwIfAborted()
+      const claim = await dailyPaid.reserveExact(amount)
+      try {
+        signal.throwIfAborted()
+      } catch (error: unknown) {
+        await claim.settle(Usd.from(0).toAmount())
+        throw error
+      }
+      return {
+        reservedUsd: claim.reservedUsd,
+        check: () => {
+          signal.throwIfAborted()
+          claim.check()
+        },
+        settle: (actual, hasUnknownCost) => claim.settle(actual, hasUnknownCost, true),
+      }
+    },
     showReplyUsage: () => currentSettings().modelApiReplyUsage,
     // Muse Code's MCP servers, run by this window for the Model API backend
     // (M50, PLAN.md D42): started in a trusted workspace only, stopped with
