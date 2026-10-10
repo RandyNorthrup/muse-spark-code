@@ -12,6 +12,14 @@ happened, not what was planned; superseded entries are kept.
   model download; downloads resume, corrupt weights refuse recognition, and
   `linuxDictationModel=false` stops recording and removes stored weights.
   Audio stays in bounded memory; Windows/macOS retain their existing helpers.
+- Linux free dictation (D106, lead decision): the native helper leaves the
+  VSIX (the 3,700 KiB cap is unchanged) and ships as same-tag release assets
+  instead. One consent card asks once before the helper (~7.6 MB) and model
+  (74 MiB) downloads; every helper file is verified by embedded SHA-256 pins
+  before it ever runs, refuses loudly on mismatch, and is removed with the
+  model when the setting is off. Offline installs place both files in the
+  shown folder; digests are checked the same way. The feature stays off until
+  review passes and hosted receipts land.
 
 
 ### Added

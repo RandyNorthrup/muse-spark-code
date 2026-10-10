@@ -643,5 +643,80 @@
     ],
     "certifiesGuard": true,
     "restoredSha256": "c3254c09eb2e76fe5b089db8512a28988eb8b527026d6953b7d47f5c159b2a3a"
+  },
+  {
+    "name": "D106-pins",
+    "file": "scripts/check-linux-helper-pins.mjs",
+    "originalSha256": "2156a246949dfecd564e90d4ae50afd29a195ec70ccce100a95be8d8eb2cbb1d",
+    "restoredSha256": "2156a246949dfecd564e90d4ae50afd29a195ec70ccce100a95be8d8eb2cbb1d",
+    "exitCode": 1,
+    "failures": [
+      "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[33m3 skipped\u001b[39m\u001b[90m (4)\u001b[39m",
+      "\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m test/unit/linuxHelperPins.test.mjs\u001b[2m > \u001b[22mLinux helper release pins\u001b[2m > \u001b[22maccepts regenerated pins against the fixture assets and refuses tampering"
+    ],
+    "certifiesGuard": true
+  },
+  {
+    "name": "D106-lazy",
+    "file": "src/core/voice/helperLocation.ts",
+    "originalSha256": "71c642ad63045f870e780e31d89f44dc3333dc503a06d4656195fd383a4094ad",
+    "restoredSha256": "71c642ad63045f870e780e31d89f44dc3333dc503a06d4656195fd383a4094ad",
+    "exitCode": 1,
+    "failures": [
+      "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[33m13 skipped\u001b[39m\u001b[90m (14)\u001b[39m",
+      "\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m test/unit/helperLocation.test.ts\u001b[2m > \u001b[22mlocateDictationHelper\u001b[2m > \u001b[22mlocates the downloaded Linux helper beside the model before any download"
+    ],
+    "certifiesGuard": true
+  },
+  {
+    "name": "D106-once",
+    "file": "src/core/voice/linuxDictation.ts",
+    "originalSha256": "2fd02c791390dece266f0f5d8e0c2d93e3979cba531231b5c0c7b9be774feb76",
+    "restoredSha256": "2fd02c791390dece266f0f5d8e0c2d93e3979cba531231b5c0c7b9be774feb76",
+    "exitCode": 1,
+    "failures": [
+      "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[33m8 skipped\u001b[39m\u001b[90m (9)\u001b[39m",
+      "\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m test/unit/linuxDictation.test.ts\u001b[2m > \u001b[22mLinux dictation preparation and helper protocol\u001b[2m > \u001b[22mone press with both downloads missing asks once for helper and model"
+    ],
+    "certifiesGuard": true
+  },
+  {
+    "name": "D106-unset",
+    "file": "src/core/voice/linuxHelper.ts",
+    "originalSha256": "5b4f0ef9404636931e8a65c1fe2cd7dddbd1a1656a48cae204c30d4b2c5456cf",
+    "restoredSha256": "5b4f0ef9404636931e8a65c1fe2cd7dddbd1a1656a48cae204c30d4b2c5456cf",
+    "exitCode": 1,
+    "failures": [
+      "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[33m3 skipped\u001b[39m\u001b[90m (4)\u001b[39m",
+      "\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m test/unit/linuxDictationHelper.test.ts\u001b[2m > \u001b[22mLinux helper acquisition\u001b[2m > \u001b[22mrefuses before any consent when the build carries no release pins"
+    ],
+    "certifiesGuard": true
+  },
+  {
+    "name": "D106-nopack",
+    "file": "scripts/package-vsix.mjs",
+    "originalSha256": "f3f97773b866b25b5ac1966c7542b0d68c005fdb27ccf99eeb6e9fcb160982ac",
+    "restoredSha256": "f3f97773b866b25b5ac1966c7542b0d68c005fdb27ccf99eeb6e9fcb160982ac",
+    "exitCode": 1,
+    "failures": [
+      "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m4 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[33m81 skipped\u001b[39m\u001b[90m (85)\u001b[39m",
+      "\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m test/unit/vsixPackaging.test.mjs\u001b[2m > \u001b[22mVSIX packaging\u001b[2m > \u001b[22mD106 refuses a stage containing Linux dictation binaries: native/linux/x64/muse-dictate",
+      "\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m test/unit/vsixPackaging.test.mjs\u001b[2m > \u001b[22mVSIX packaging\u001b[2m > \u001b[22mD106 refuses a stage containing Linux dictation binaries: native/linux/x64/libggml-cpu-x64.so",
+      "\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m test/unit/vsixPackaging.test.mjs\u001b[2m > \u001b[22mVSIX packaging\u001b[2m > \u001b[22mD106 refuses a stage containing Linux dictation binaries: native/linux/arm64/muse-dictate",
+      "\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m test/unit/vsixPackaging.test.mjs\u001b[2m > \u001b[22mVSIX packaging\u001b[2m > \u001b[22mD106 refuses a stage containing Linux dictation binaries: native/linux/arm64/libwhisper.so.1"
+    ],
+    "certifiesGuard": true
+  },
+  {
+    "name": "D106-lazy",
+    "file": "src/core/voice/helperLocation.ts",
+    "originalSha256": "1ba2ac053dc1861af8a8c9d361885aa52d39da670d72fe2abea68510c1a6bd26",
+    "restoredSha256": "1ba2ac053dc1861af8a8c9d361885aa52d39da670d72fe2abea68510c1a6bd26",
+    "exitCode": 1,
+    "failures": [
+      "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[33m13 skipped\u001b[39m\u001b[90m (14)\u001b[39m",
+      "\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m test/unit/helperLocation.test.ts\u001b[2m > \u001b[22mlocateDictationHelper\u001b[2m > \u001b[22mlocates the downloaded Linux helper beside the model before any download"
+    ],
+    "certifiesGuard": true
   }
 ]
