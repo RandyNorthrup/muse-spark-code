@@ -6021,6 +6021,8 @@ export const EN = {
     parallelDescription:
       'Spread background work by headroom and keep each worker on its assigned account.',
     current: 'Current account',
+    switchUnavailable:
+      'This session stays on {provider} · {account}. Account switching is unavailable in this runtime.',
     swapNotice: 'Now on {provider} · {account}: {previous} reached {threshold}.',
     coldCache: 'Estimated context re-read cost: {cost}.',
     stopped: '{provider} has no account with room. Resets {reset}.',

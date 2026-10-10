@@ -5135,6 +5135,7 @@
     "swapDescription": "Cambiare prima della richiesta successiva quando viene raggiunta una soglia. Ogni account mantiene i propri limiti.",
     "parallelDescription": "Distribuire il lavoro in background in base al margine e mantenere ogni esecutore sull’account assegnato.",
     "current": "Account attuale",
+    "switchUnavailable": "Questa sessione resta su {provider} · {account}. Il cambio di account non è disponibile in questo runtime.",
     "swapNotice": "Ora su {provider} · {account}: {previous} ha raggiunto {threshold}.",
     "coldCache": "Costo stimato della rilettura del contesto: {cost}.",
     "stopped": "{provider} non ha account con capacità disponibile. Ripristino: {reset}.",

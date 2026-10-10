@@ -894,9 +894,12 @@ integration listed in [M108's certification](docs/certification/m108.md).
 `museSpark.accountSwap` and `museSpark.accountParallel` are machine-scoped
 and default on; they do not enable those missing integrations by themselves.
 
-These commands require an existing provider metadata record; this base
-refuses absent or malformed configuration until its provider owner supplies
-it. Display order never selects a backend credential.
+The installed CLI, ACP agent and headless runs share one account service
+over the runtime's providers file and the OS credential store. Meta's Model
+API entry is built in, so listing, adding, ordering, thresholds and
+per-account credentials work with no pre-existing file; a corrupt file is
+reported, never clobbered. Any other provider needs its stored metadata row.
+Display order never selects a backend credential.
 
 Manage metadata through the agent (credentials only from standard input,
 never an argument or a file):
@@ -907,9 +910,13 @@ never an argument or a file):
 - `muse-spark-code-acp auth set --provider <id> --account <id>` (then paste the key)
 - `muse-spark-code-acp exec --account <id> <prompt>` pins one run to one account
 
-`exec --account-pool` and in-session credential swaps report unavailable
-until the pooled owner is connected. ACP's `/accounts` and `account` picker
-read live metadata; choosing another account also reports unavailable.
+ACP's `/accounts` (list, current, thresholds) and the `account` picker read
+the same live metadata on both backends. Choosing another account stays
+refused: moving a session credential needs the pooled owner, so the session
+keeps its current account and says so. `exec --account-pool` also stays
+refused until that owner lands. A vendor limit stops only its own account,
+and the stop names the blocked account and its reset even with no usage
+page bundled.
 Second Muse Code accounts and cross-account native replay/cache evidence
 wait for the Q-M108 captures. The usage-page mount awaits M102's journal;
 it must keep outstanding reservations and uncertain charges across resets.

@@ -4837,6 +4837,7 @@
     "swapDescription": "達到閾值後，在下一次請求前切換。每個帳戶保留各自的限制。",
     "parallelDescription": "依剩餘容量分配背景工作，並讓每個工作處理程序持續使用指派給它的帳戶。",
     "current": "目前帳戶",
+    "switchUnavailable": "此工作階段仍使用 {provider} · {account}。在此執行階段無法切換帳戶。",
     "swapNotice": "現在使用 {provider} · {account}：{previous} 已達到 {threshold}。",
     "coldCache": "重新讀取上下文的預估費用：{cost}。",
     "stopped": "{provider} 沒有仍有餘裕的帳戶。重設時間：{reset}。",

@@ -759,7 +759,11 @@ async function serve(
         ),
       reports: { format: 'md', execute: (args, context) => reports().acp.execute(args, context) },
       vault: acpVault,
-      ...(options.backend === 'modelApi' && { accounts: loadAccounts().sessions('meta') }),
+      // The shared Model API account service is backend-independent: ACP
+      // lists the same accounts, current account and thresholds on both
+      // backends. Switching stays refused (no adoption transaction) and the
+      // Muse Code backend still runs on its subscription.
+      accounts: loadAccounts().sessions('meta'),
       legalScan: async (cwd, signal, isRegistryOn, allowsRegistryLookup) => {
         const bundle = agentLegalBundle()
         const handle = await bundle.runLegalScan({ workspaceRoot: cwd, input: {}, signal })

@@ -1,7 +1,12 @@
 import * as acp from '@agentclientprotocol/sdk'
 import { describe, expect, it, vi } from 'vitest'
 import { usdInputSchema } from '../../src/shared/usdSchema'
-import { AcpAccounts, companionAccountsPanel, type AccountsPanelPort } from '../../src/acp/accounts'
+import {
+  AcpAccounts,
+  AccountSwitchRefusedError,
+  companionAccountsPanel,
+  type AccountsPanelPort,
+} from '../../src/acp/accounts'
 import { createAcpAgent, type AcpAgentDeps } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
 import { ACP_CONFIG_IDS, UI_TEXT } from '../../src/shared/constants'
@@ -810,7 +815,12 @@ describe('M108 ACP accounts', () => {
     ]) {
       h.port.usageUrl = () => url
       h.emit(stop)
-      expect(notice).toHaveBeenLastCalledWith(UI_TEXT.accounts.unavailable, stop)
+      // No bundled usage page: the stop still names the blocked account and
+      // its reset instead of becoming a failure.
+      expect(notice).toHaveBeenLastCalledWith(
+        'meta has no account with room. Reset time is unknown.',
+        stop,
+      )
     }
     expect(JSON.stringify(notice.mock.calls)).not.toContain('account-secret-canary')
     controller.dispose()
@@ -833,6 +843,48 @@ describe('M108 ACP accounts', () => {
       expect.objectContaining({ type: 'stop' }),
     )
     controller.dispose()
+  })
+
+  it('repeats a refused switch with the stay-put text instead of a generic failure', async () => {
+    const h = sessionAccountsRig()
+    const controller = new AcpAccounts('session', h.port, vi.fn(), vi.fn())
+    await controller.start()
+    const refused = new AccountSwitchRefusedError('meta', 'Default')
+    h.port.use = () => Promise.reject(refused)
+    await expect(controller.use('work', () => true)).rejects.toBe(refused)
+    // Any other port failure stays a generic unavailable, never raw text.
+    h.port.use = () => Promise.reject(new Error('account-secret-canary'))
+    await expect(controller.use('work', () => true)).rejects.toThrow(UI_TEXT.accounts.unavailable)
+    controller.dispose()
+  })
+
+  it('answers a refused switch as an invalid request with the stay-put text', async () => {
+    const h = connectedAccounts()
+    h.port.use = () => Promise.reject(new AccountSwitchRefusedError('meta', 'Default'))
+    await h.run(async (client, id) => {
+      const stayPut =
+        'This session stays on meta · Default. Account switching is unavailable in this runtime.'
+      await expect(
+        client.request('session/prompt', {
+          sessionId: id,
+          prompt: [{ type: 'text', text: '/accounts use work' }],
+        }),
+      ).rejects.toMatchObject({
+        code: acp.RequestError.invalidRequest().code,
+        message: expect.stringContaining(stayPut),
+      })
+      await expect(
+        client.request('session/set_config_option', {
+          sessionId: id,
+          configId: ACP_CONFIG_IDS.account,
+          value: 'work',
+        }),
+      ).rejects.toMatchObject({
+        code: acp.RequestError.invalidRequest().code,
+        message: expect.stringContaining(stayPut),
+      })
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    })
   })
 })
 

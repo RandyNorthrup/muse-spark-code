@@ -5135,6 +5135,7 @@
     "swapDescription": "Changer avant la prochaine requête lorsqu’un seuil est atteint. Chaque compte conserve ses propres limites.",
     "parallelDescription": "Répartir les tâches en arrière-plan selon la marge disponible et conserver chaque exécutant sur le compte qui lui est attribué.",
     "current": "Compte actuel",
+    "switchUnavailable": "Cette session reste sur {provider} · {account}. Le changement de compte est indisponible dans ce runtime.",
     "swapNotice": "Désormais sur {provider} · {account} : {previous} a atteint {threshold}.",
     "coldCache": "Coût estimé de relecture du contexte : {cost}.",
     "stopped": "{provider} n’a aucun compte avec de la marge. Réinitialisation : {reset}.",

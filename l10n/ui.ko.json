@@ -4837,6 +4837,7 @@
     "swapDescription": "임계값에 도달하면 다음 요청 전에 전환합니다. 각 계정의 자체 한도는 유지됩니다.",
     "parallelDescription": "남은 여유에 따라 백그라운드 작업을 분산하고 각 작업자가 할당된 계정을 계속 사용하게 합니다.",
     "current": "현재 계정",
+    "switchUnavailable": "이 세션은 {provider} · {account}을(를) 계속 사용합니다. 이 런타임에서는 계정 전환을 사용할 수 없습니다.",
     "swapNotice": "이제 {provider} · {account} 사용 중: {previous}이(가) {threshold}에 도달했습니다.",
     "coldCache": "컨텍스트 재읽기 예상 비용: {cost}.",
     "stopped": "{provider}에 여유가 있는 계정이 없습니다. 초기화: {reset}.",

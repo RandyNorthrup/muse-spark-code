@@ -5,6 +5,16 @@ import type { AccountEvent } from '../shared/accounts'
 import { UI_TEXT } from '../shared/constants'
 import { fill, formatDateTime } from '../shared/l10n/text'
 
+/** A port refused adoption: the switch did not happen and the session keeps its
+ * current account. Carries the user-facing text, already filled, so later
+ * layers can repeat it instead of reporting a generic failure. */
+export class AccountSwitchRefusedError extends Error {
+  public constructor(provider: string, account: string) {
+    super(fill(UI_TEXT.accounts.switchUnavailable, { provider, account }))
+    this.name = 'AccountSwitchRefusedError'
+  }
+}
+
 /** The one call a usage link needs from the account owner. */
 export interface AccountUsagePort {
   /** The selected provider's fixed public usage page, never a vendor error URL. */
@@ -12,6 +22,9 @@ export interface AccountUsagePort {
 }
 
 export function accountErrorText(error: unknown): string {
+  // A refused switch repeats its own filled text: the session did stay on
+  // its account, so a generic failure would misreport what happened.
+  if (error instanceof AccountSwitchRefusedError) return error.message
   return error instanceof Error && error.message === UI_TEXT.accounts.invalidAccount
     ? UI_TEXT.accounts.invalidAccount
     : UI_TEXT.accounts.unavailable

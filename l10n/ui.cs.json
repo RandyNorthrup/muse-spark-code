@@ -5284,6 +5284,7 @@
     "swapDescription": "Po dosažení prahu přepnout před dalším požadavkem. Každý účet si zachová vlastní limity.",
     "parallelDescription": "Rozdělit práci na pozadí podle volné kapacity a ponechat každého pracovníka na přiděleném účtu.",
     "current": "Aktuální účet",
+    "switchUnavailable": "Tato relace zůstává na {provider} · {account}. Přepínání účtů není v tomto běhovém prostředí dostupné.",
     "swapNotice": "Nyní {provider} · {account}: {previous} dosáhl {threshold}.",
     "coldCache": "Odhad ceny opětovného čtení kontextu: {cost}.",
     "stopped": "{provider} nemá účet s volnou kapacitou. Obnovení: {reset}.",

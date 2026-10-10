@@ -6,6 +6,7 @@ import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from '
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { AccountSwitchRefusedError } from '../../src/acp/accountText'
 import { runAccountsCommand, runAccountAuthSet } from '../../src/runtime/providers/accountsCommand'
 import { memoryKeyring } from './helpers/keyring'
 import { CURRENT_SHAPE_KEYS } from './helpers/modelApiKeys'
@@ -132,6 +133,28 @@ describe('installed runtime account service', () => {
     expect(state.accounts).toMatchObject([{ id: 'default' }, { id: 'work' }])
     const pinned = await h.services.sessions('meta', 'work').read('session-1')
     expect(pinned).toMatchObject({ type: 'accounts/state', currentAccount: 'work' })
+  })
+
+  it('refuses an in-session switch with the stay-put text', async () => {
+    const h = rig()
+    const run = (args: string[]) => accounts(h.services, h.print, h.printError, args)
+    expect(await run(['add', '--provider', 'meta', '--account', 'work', '--label', 'Work'])).toBe(0)
+    const port = h.services.sessions('meta')
+    // Re-selecting the current account is a no-op success.
+    await expect(port.use('session-1', 'default', () => true)).resolves.toMatchObject({
+      currentAccount: 'default',
+    })
+    // There is no adoption transaction here: the switch is refused and the
+    // session keeps its account, named with its label.
+    const refusal = port.use('session-1', 'work', () => true)
+    await expect(refusal).rejects.toThrow(AccountSwitchRefusedError)
+    await expect(refusal).rejects.toThrow(
+      'This session stays on meta · Default account. Account switching is unavailable in this runtime.',
+    )
+    await expect(port.use('session-1', 'missing', () => true)).rejects.toThrow(
+      UI_TEXT.accounts.invalidAccount,
+    )
+    await expect(port.read('session-1')).resolves.toMatchObject({ currentAccount: 'default' })
   })
 
   it('reports unavailable for an unconfigured provider and never writes it', async () => {

@@ -11,9 +11,14 @@ import {
 import { ACP_CONFIG_IDS, UI_TEXT } from '../shared/constants'
 import { fill, formatNumber } from '../shared/l10n/text'
 import { formatUsd, parseUsd } from '../shared/accountUsd'
-import { accountStopText, accountUsageUrl, type AccountUsagePort } from './accountText'
+import {
+  AccountSwitchRefusedError,
+  accountStopText,
+  accountUsageUrl,
+  type AccountUsagePort,
+} from './accountText'
 
-export { accountErrorText } from './accountText'
+export { accountErrorText, AccountSwitchRefusedError } from './accountText'
 
 type AccountsState = Extract<AccountsReply, { type: 'accounts/state' }>
 export interface AccountsSessionPort extends AccountUsagePort {
@@ -120,8 +125,14 @@ export class AcpAccounts {
     }
     if (event.type === 'spread')
       return `${UI_TEXT.accounts.spreadEvent}: ${event.provider} · ${this.label(event.account)}`
-    const url = accountUsageUrl(this.port, event.provider)
-    return `${accountStopText(event)} ${url}`
+    // The runtime owner has no bundled usage page (D88.5): the stop still
+    // names the blocked account and its reset instead of becoming a failure.
+    try {
+      const url = accountUsageUrl(this.port, event.provider)
+      return `${accountStopText(event)} ${url}`
+    } catch {
+      return accountStopText(event)
+    }
   }
 
   private current(): string {
@@ -232,8 +243,11 @@ export class AcpAccounts {
       let state: AccountsState
       try {
         state = parseState(await this.port.use(this.sessionId, account, canAdopt))
-      } catch {
-        throw new Error(UI_TEXT.accounts.unavailable)
+      } catch (error: unknown) {
+        // The owner refused adoption with the session's stay-put text; any
+        // other failure stays a generic unavailable, never raw error text.
+        if (error instanceof AccountSwitchRefusedError) throw error
+        throw new Error(UI_TEXT.accounts.unavailable, { cause: error })
       }
       if (!isCurrent() || !canCommit()) throw new Error(UI_TEXT.accounts.unavailable)
       if (state.provider !== this.state.provider || state.currentAccount !== account)

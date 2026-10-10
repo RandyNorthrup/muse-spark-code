@@ -10,6 +10,7 @@ import { randomBytes } from 'node:crypto'
 import { hostname } from 'node:os'
 import { AccountStore, type AccountsMetadataPort } from '../../core/providers/accounts'
 import type { Account, AccountThresholds } from '../../shared/accounts'
+import { AccountSwitchRefusedError } from '../../acp/accountText'
 import {
   AccountSecrets,
   secretStorageAccountVault,
@@ -54,7 +55,7 @@ export interface RuntimeAccountServices {
   readonly metadata: AccountsMetadataPort
   readonly commands: Omit<AccountsCommandDeps, 'print' | 'printError'>
   readonly exec: ExecAccountsPort
-  sessions(provider: string): AccountsSessionPort
+  sessions(provider: string, account?: string): AccountsSessionPort
   /** The backend's key reads through the fixed account; nothing else changes. */
   secretsFor(provider: string, account: string, fallback: SecretStore): SecretStore
   /** The terminal `developer` owner: real store, real confirmation, while
@@ -123,7 +124,7 @@ class RuntimeAccountSessions implements AccountsSessionPort {
   public async use(
     sessionId: string,
     account: string,
-    canCommit: () => boolean,
+    _canCommit: () => boolean,
   ): ReturnType<AccountsSessionPort['use']> {
     const state = await this.read(sessionId)
     if (state.accounts.every((row) => row.id !== account))
@@ -131,10 +132,13 @@ class RuntimeAccountSessions implements AccountsSessionPort {
     if (state.currentAccount === account) return state
     // Moving another session's credential needs the profile-owned pool and
     // its synchronous adoption transaction. A no-op re-adoption is the only
-    // safe in-process change; anything else refuses loudly instead of
-    // dispatching under the wrong identity (D88.7).
-    if (!canCommit()) throw new Error(UI_TEXT.accounts.unavailable)
-    throw new Error(UI_TEXT.accounts.unavailable)
+    // safe in-process change; anything else refuses with the session's
+    // stay-put text instead of dispatching under the wrong identity (D88.7).
+    // The commit signal has no transaction to guard here: AcpAccounts fences
+    // generations and staleness before this port is reached.
+    if (state.currentAccount === null) throw new Error(UI_TEXT.accounts.unavailable)
+    const current = state.accounts.find((row) => row.id === state.currentAccount)
+    throw new AccountSwitchRefusedError(this.provider, current?.label ?? state.currentAccount)
   }
 
   public subscribe(sessionId: string, listener: SessionListener): () => void {
@@ -245,11 +249,11 @@ export function createRuntimeAccountServices(
     get: async (key) => {
       if (key !== SECRET_KEYS.modelApiKey) return await fallback.get(key)
       const entry = await metadata.read(provider)
-      if (entry === undefined) {
-        if (provider !== 'meta' || account !== ACCOUNT_DEFAULT_ID)
-          throw new Error(UI_TEXT.accounts.unavailable)
-        return await fallback.get(key)
-      }
+      // Meta's entry is built in, so an undefined entry is an unconfigured
+      // provider. The vault serves the pre-existing default key through the
+      // same OS-store name (rule 8's original key) with nothing re-entered;
+      // a missing account is an invalid account, never a silent default key.
+      if (entry === undefined) throw new Error(UI_TEXT.accounts.unavailable)
       return await store.useCredential(provider, account, entry.origin, (_binding, credential) =>
         Promise.resolve(credential?.secret),
       )
