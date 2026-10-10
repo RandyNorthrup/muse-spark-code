@@ -38339,6 +38339,26 @@ lane A's first step.
 
 ## 7. Gates
 
+**VIS0171 0.17.1 visual refresh (2026-10-10, linuxlt).** Compare the full
+9,792-frame matrix on `4acb7015f`; classify every changed scene as Title Case,
+question-field spacing, provider-picker repair, or an unrelated hold. Inspect
+every changed frame before the repository's reviewed update; stop on unrelated
+changes. Regenerate all curated README shots, refresh their existing input
+fingerprint and current audit hashes, and certify a full zero-changed-scene
+replay, complete owning suites at repository deadlines, and an old-baseline
+failure with SHA-256 byte-exact restoration in `docs/certification/cifix017.md`.
+Aggregate quality remains lead-owned under the shared rig brief. No merge,
+push, subagents, paid calls, timeout changes or gate weakening.
+The initial reconstruction fails at `paid-always/light/320`: the current
+driver waits for Title Case `Auth Method` in the historical sentence-case
+source. Make the exact account-label and vault-action selectors accept both
+capitalizations, with browser regressions; preserve their readiness checks.
+
+- [ ] Full comparison, classification and changed-frame review.
+- [ ] Reviewed baseline and complete README refresh with freshness tests.
+- [ ] Full replay, owning tests, byte-exact drill and scoped gates.
+- [ ] Certification and hooks-on local commits; reread committed diffs.
+
 **PROVWIZ10 scoped qualification (2026-10-09, complete).** Both RVPROVWIZ9C
 P2 repairs pass production/shared-form regressions, including genuine concurrent
 credential changes and retry notices in all 14 translations. All 46 owning
