@@ -37450,8 +37450,8 @@ bundle imports are graph boundaries, including the existing scheduler tool
 factory in `team.js`. Check every emitted source against its graph owners
 in all six scheduler/team/runners directions, including zero-byte shims.
 Prove renamed implementations/re-exports, future folders inside and outside
-`src/`, and Windows paths
-with regressions and byte-exact red/restored drills. Keep all three
+`src/`, and Windows paths with regressions and byte-exact red/restored
+drills. Keep all three
 76,800 B caps, production bytes and runtime behavior unchanged. No merge,
 push, new dependency or live/paid call; aggregate quality stays lead-owned.
 
@@ -37459,7 +37459,8 @@ push, new dependency or live/paid call; aggregate quality stays lead-owned.
 - [x] Prove every directed pair, renamed shim, future folder and Windows paths.
 - [x] Run scoped gates, record drills and unchanged size receipts (204 tests,
       five typechecks; full build retains the inherited encoder blocker).
-- [ ] Commit with installed hooks and reread committed diff.
+- [x] Commit with installed hooks and reread committed diff (all nine file
+      hashes unchanged by hooks; implementation `e45c046f4`).
 
 - **Goal:** D103 across every balancing surface.
 - **Order:** after the Wednesday set, and before the M110/M111 resume.
