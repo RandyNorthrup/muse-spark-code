@@ -288,6 +288,202 @@ describe('the frozen arms source closure', () => {
     }
   })
 
+  it('fails closed on every review-RVCM1012E spelling', () => {
+    // Review RVCM1012E finding 1 (the TS walk's class) and finding 2
+    // (two-argument URL, import.meta.resolve): each spelling below was
+    // probed against esbuild 0.28.2 under the digest's own options and
+    // leaves the helper out of the metafile, so the collector must refuse
+    // it with file and line instead of freezing around it.
+    const tree = mkdtempSync(path.join(tmpdir(), 'arm-sources-'))
+    trees.push(tree)
+    const ownedDir = path.join(tree, 'owned')
+    mkdirSync(ownedDir, { recursive: true })
+    writeFileSync(path.join(ownedDir, 'helper.ts'), HELPER)
+    const refusals: readonly (readonly [string, string, RegExp])[] = [
+      [
+        'import.defer(name)',
+        `export function load(name: string): Promise<unknown> {\n  return import.defer(name)\n}\n`,
+        /leaves for runtime/,
+      ],
+      [
+        'import.defer(name as string)',
+        `export function load(name: string): Promise<unknown> {\n  return import.defer(name as string)\n}\n`,
+        /leaves for runtime/,
+      ],
+      [
+        'function-local require alias',
+        `export function load(): unknown {\n  const req = require\n  return req('./helper.js')\n}\n`,
+        /leaves for runtime/,
+      ],
+      [
+        'assigned require alias',
+        `let req: typeof require\nexport function setup(): void {\n  req = require\n}\nexport function load(): unknown {\n  return req('./helper.js')\n}\n`,
+        /leaves for runtime/,
+      ],
+      [
+        'destructured require',
+        `const { require: req } = module\nexport function load(): unknown {\n  return req('./helper.js')\n}\n`,
+        /leaves for runtime/,
+      ],
+      [
+        'comma-sequence require',
+        `export function load(): unknown {\n  return (0, require)('./helper.js')\n}\n`,
+        /leaves for runtime/,
+      ],
+      [
+        "module['require']",
+        `export function load(): unknown {\n  return module['require']('./helper.js')\n}\n`,
+        /leaves for runtime/,
+      ],
+      [
+        'module.require.call',
+        `export function load(): unknown {\n  return module.require.call(null, './helper.js')\n}\n`,
+        /leaves for runtime/,
+      ],
+      [
+        "require['apply']",
+        `export function load(): unknown {\n  return require['apply'](null, ['./helper.js'])\n}\n`,
+        /leaves for runtime/,
+      ],
+      [
+        'alias.call',
+        `const req = require\nexport function load(): unknown {\n  return req.call(null, './helper.js')\n}\n`,
+        /leaves for runtime/,
+      ],
+      [
+        'renamed createRequire',
+        `import { createRequire as cr } from 'node:module'\nexport function load(): unknown {\n  return cr(import.meta.url)('./helper.js')\n}\n`,
+        /leaves for runtime/,
+      ],
+      [
+        'namespaced createRequire',
+        `import * as mod from 'node:module'\nexport function load(): unknown {\n  return mod.createRequire(import.meta.url)('./helper.js')\n}\n`,
+        /leaves for runtime/,
+      ],
+      [
+        'parenthesized Worker',
+        `export function start(): unknown {\n  return new ((Worker))('./helper.js')\n}\n`,
+        /Worker load/,
+      ],
+      [
+        'cast Worker',
+        `export function start(): unknown {\n  return new (Worker as any)('./helper.js')\n}\n`,
+        /Worker load/,
+      ],
+      [
+        'namespaced Worker',
+        `import * as wt from 'node:worker_threads'\nexport function start(): unknown {\n  return new wt.Worker('./helper.js')\n}\n`,
+        /Worker load/,
+      ],
+      [
+        'renamed Worker',
+        `import { Worker as Thread } from 'node:worker_threads'\nexport function start(): unknown {\n  return new Thread('./helper.js')\n}\n`,
+        /Worker load/,
+      ],
+      [
+        'aliased Worker',
+        `import { Worker } from 'node:worker_threads'\nconst Maker = Worker\nexport function start(): unknown {\n  return new Maker('./helper.js')\n}\n`,
+        /Worker load/,
+      ],
+      [
+        'read through require.resolve',
+        `import { readFileSync } from 'node:fs'\nexport function load(): string {\n  return readFileSync(require.resolve('./helper.js'), 'utf8')\n}\n`,
+        /deferred module resolution/,
+      ],
+      [
+        'destructured resolve',
+        `const { resolve } = require\nexport function load(): unknown {\n  return resolve('./helper.js')\n}\n`,
+        /deferred module resolution/,
+      ],
+      [
+        'import.meta.resolve literal',
+        `export const target: unknown = import.meta.resolve('./helper.ts')\n`,
+        /deferred module resolution/,
+      ],
+      [
+        'import.meta.resolve(name)',
+        `export function load(name: string): unknown {\n  return import.meta.resolve(name)\n}\n`,
+        /deferred module resolution/,
+      ],
+      [
+        'two-argument URL literal',
+        `export const url = new URL('./helper.ts', import.meta.url)\n`,
+        /module-relative URL/,
+      ],
+      [
+        'two-argument URL(name)',
+        `export function locate(name: string): URL {\n  return new URL(name, import.meta.url)\n}\n`,
+        /module-relative URL/,
+      ],
+      [
+        'relative file read',
+        `import { readFileSync } from 'node:fs'\nexport function load(): string {\n  return readFileSync('./helper.ts', 'utf8')\n}\n`,
+        /outside the resolved closure/,
+      ],
+      [
+        'namespaced relative file read',
+        `import * as fs from 'node:fs'\nexport function load(): string {\n  return fs.readFileSync('./helper.ts', 'utf8')\n}\n`,
+        /outside the resolved closure/,
+      ],
+      [
+        'eval',
+        `export function load(name: string): unknown {\n  return eval(name)\n}\n`,
+        /dynamic evaluation/,
+      ],
+      [
+        'new Function',
+        `export function load(name: string): unknown {\n  return new Function(name)\n}\n`,
+        /dynamic evaluation/,
+      ],
+    ]
+    for (const [label, arm, pattern] of refusals) {
+      writeFileSync(path.join(ownedDir, 'arm.ts'), arm)
+      expect(() => collectOwned(ownedDir), label).toThrow(pattern)
+      expect(() => collectOwned(ownedDir), label).toThrow(/arm\.ts:\d/)
+    }
+  })
+
+  it('fails closed at the build on loads the bundler rejects outright', () => {
+    // Literal and static `import.defer` never reach the walk: esbuild
+    // 0.28.2 fails the cjs build on both (probed), as it does on a comma
+    // sequence around `import`. Each still fails the digest, never freezes.
+    const cases: Record<string, string> = {
+      'literal import.defer': `export function load(): Promise<unknown> {\n  return import.defer('./helper')\n}\n`,
+      'static import defer': `import defer * as helper from './helper'\nexport const arm = helper\n`,
+      'sequenced import': `export function load(): Promise<unknown> {\n  return (0, import)('./helper')\n}\n`,
+    }
+    for (const [label, arm] of Object.entries(cases)) {
+      const { ownedDir } = makeTree({ 'arm.ts': arm, 'helper.ts': HELPER }, {})
+      expect(() => collectOwned(ownedDir), label).toThrow(/cannot resolve the arms from/)
+    }
+  })
+
+  it('leaves the honest neighbours alone', () => {
+    // The rule above refuses loads, not lookalikes: a bare platform
+    // require, `path`'s own resolve, a computed file read (the loader
+    // itself reads its closure inputs that way), a `Function` type
+    // annotation and a one-argument URL all collect clean.
+    const tree = mkdtempSync(path.join(tmpdir(), 'arm-sources-'))
+    trees.push(tree)
+    const ownedDir = path.join(tree, 'owned')
+    mkdirSync(ownedDir, { recursive: true })
+    writeFileSync(path.join(ownedDir, 'helper.ts'), HELPER)
+    const neighbours: Record<string, string> = {
+      'bare platform require': `const fs = require('node:fs')\nexport const arm = typeof fs\n`,
+      'path resolve': `const { resolve } = require('path')\nexport const arm = resolve('a', 'b')\n`,
+      'computed file read': `import { readFileSync } from 'node:fs'\nexport function load(file: string): string {\n  return readFileSync(file, 'utf8')\n}\n`,
+      'Function annotation': `export function run(task: Function): unknown {\n  return typeof task\n}\n`,
+      'absolute file read': `import { readFileSync } from 'node:fs'\nexport function load(): string {\n  return readFileSync('/etc/hostname', 'utf8')\n}\n`,
+    }
+    for (const [label, arm] of Object.entries(neighbours)) {
+      writeFileSync(path.join(ownedDir, 'arm.ts'), arm)
+      expect(
+        collectOwned(ownedDir).files.map((file) => file.path),
+        label,
+      ).toEqual([keyOf(path.join(ownedDir, 'arm.ts'))])
+    }
+  })
+
   it('fails closed on a Worker load, literal or not', () => {
     // Probed on this rig: even `new Worker('./helper')` never lands in
     // the metafile, so the worker file would decide the arm outside the
