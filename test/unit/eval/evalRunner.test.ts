@@ -9,15 +9,18 @@ import {
   EVAL_REPORT_VERSION,
   EVAL_TURN_NOT_RUN,
   EVAL_ROOT_MASK,
+  MODEL_API_MODEL_TEXT,
   SETTING_DEFAULTS,
 } from '../../../src/shared/constants'
-import { OBSERVATION_PACKING_ARM } from '../../../src/core/eval/mechanisms'
+import {
+  AUTO_COMPACTION_ARM,
+  OBSERVATION_PACKING_ARM,
+  STRICT_TOOLS_ARM,
+} from '../../../src/core/eval/mechanisms'
 import { runPairedEval, type EvalArm, type EvalRunDeps } from '../../../src/core/eval/runner'
 import { EVAL_TASKS, evalTasksOfSplit, type EvalTask } from '../../../src/core/eval/tasks'
 import { listWorkspaceFiles } from '../../../src/core/eval/workspace'
 import { fileContextIo } from '../../../src/host/backend/contextIo'
-import { CONSERVATIVE_CAPABILITIES } from '../../../src/core/providers/capabilities'
-import { FORMAT_QUIRKS } from '../../../src/core/providers/presets'
 import { createToolIo } from '../../../src/host/backend/toolIo'
 import {
   FAKE_MODEL_API_ACCOUNT_ID,
@@ -32,6 +35,7 @@ import { removeFolder } from '../helpers/temporaryFolders'
 import {
   EVAL_CANONICAL_FIXES,
   EVAL_OTHER_FIXES,
+  compactionArmReplies,
   fixesFor,
   longTaskReplies,
   type EvalFix,
@@ -58,17 +62,8 @@ const RECHECK: EvalArm = {
   mechanism: 'prompt cache kept for 24 hours',
   change: (deps) => ({ ...deps, promptCacheRetention: () => '24h' }),
 }
-const STRICT_TOOLS: EvalArm = {
-  name: 'strict-tools',
-  mechanism: 'M101 strict-subset schemas for a capable selected model',
-  change: (deps) => ({
-    ...deps,
-    modelFacts: () => ({
-      capabilities: { ...CONSERVATIVE_CAPABILITIES, supportsStrictTools: true },
-      quirks: FORMAT_QUIRKS.responses,
-    }),
-  }),
-}
+// The frozen strict-tools arm: the pair runs what lane E will count.
+const STRICT_TOOLS: EvalArm = STRICT_TOOLS_ARM
 /** A harmful mechanism: the harness drops every write it is asked to make. */
 const DROPS_WRITES: EvalArm = {
   name: 'mechanism',
@@ -156,12 +151,12 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     expect(report.floors.every((floor) => floor.held)).toBe(true)
     for (const arm of report.arms) {
       expect(arm.summaries).toMatchObject([
-        { split: 'accept', tasks: 7, passed: 7, attempts: 21 },
-        { split: 'heldout', tasks: 5, passed: 5, attempts: 15 },
+        { split: 'accept', tasks: 9, passed: 9, attempts: 27 },
+        { split: 'heldout', tasks: 7, passed: 7, attempts: 21 },
       ])
     }
     const bodies = api.responseBodies()
-    expect(bodies).toHaveLength(72)
+    expect(bodies).toHaveLength(96)
     for (const index of EVAL_TASKS.keys()) {
       const pair = bodies.slice(index * 6, (index + 1) * 6)
       for (const [request, body] of pair.entries()) {
@@ -197,15 +192,15 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
       expect(arm.results.every((result) => result.terminal === 'completed')).toBe(true)
       // One read, one write, one answer per task: three model calls each.
       expect(arm.summaries).toMatchObject([
-        { split: 'accept', tasks: 7, passed: 7, passRate: 1, attempts: 21, requests: 21 },
-        { split: 'heldout', tasks: 5, passed: 5, passRate: 1, attempts: 15, requests: 15 },
+        { split: 'accept', tasks: 9, passed: 9, passRate: 1, attempts: 27, requests: 27 },
+        { split: 'heldout', tasks: 7, passed: 7, passRate: 1, attempts: 21, requests: 21 },
       ])
       expect(arm.results[0]).toMatchObject({ toolCalls: 2, approvals: 0, inputTokens: 30 })
     }
-    expect(api.responseBodies()).toHaveLength(72)
+    expect(api.responseBodies()).toHaveLength(96)
     expect(report.floors.every((floor) => floor.held)).toBe(true)
     // Every run had its own folder, and none is left.
-    expect(new Set(roots).size).toBe(24)
+    expect(new Set(roots).size).toBe(32)
     expect(roots.some((root) => existsSync(root))).toBe(false)
     expect(logLines(log)).toContain(
       'Evaluation baseline accept-off-by-one: passed after 3 attempts',
@@ -249,7 +244,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     expect(one.verdict).toBe('incomplete')
     expect(
       one.floors.find((floor) => floor.arm === 'mechanism' && floor.split === 'heldout'),
-    ).toMatchObject({ tasks: 5, passRate: 0.8, held: true })
+    ).toMatchObject({ tasks: 7, passRate: 6 / 7, held: true })
     expect(one.floors.find((floor) => floor.split === 'accept')).toMatchObject({
       tasks: 0,
       held: false,
@@ -258,7 +253,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     expect(two.verdict).toBe('fail')
     expect(
       two.floors.find((floor) => floor.arm === 'mechanism' && floor.split === 'heldout'),
-    ).toMatchObject({ passRate: 0.6, held: false })
+    ).toMatchObject({ passRate: 5 / 7, held: false })
   })
 
   it('lets the arms take turns going first, so no arm inherits the cache another warmed', async () => {
@@ -448,6 +443,45 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     const report = await runPairedEval([], [BASELINE], deps)
     expect(report.verdict).toBe('incomplete')
     expect(report.floors.every((floor) => floor.tasks === 0 && !floor.held)).toBe(true)
+  })
+
+  it('runs the M101 auto-compaction fake pair: the arm compacts the long-context tasks and both arms hold the floors', async () => {
+    const { api, deps } = rig()
+    const longIds = new Set(
+      EVAL_TASKS.filter((task) => task.isLongContext === true).map((task) => task.id),
+    )
+    expect([...longIds].toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'accept-long-compaction',
+      'heldout-long-compaction',
+    ])
+    api.script(
+      ...EVAL_TASKS.flatMap((task, index) => {
+        const base = canonical(task)
+        const arm = longIds.has(task.id) ? compactionArmReplies(task) : canonical(task)
+        // The arms take turns going first: odd tasks start with the mechanism.
+        return index % 2 === 0 ? [...base, ...arm] : [...arm, ...base]
+      }),
+    )
+    const report = await runPairedEval(EVAL_TASKS, [BASELINE, AUTO_COMPACTION_ARM], deps)
+    expect(report.verdict).toBe('pass')
+    expect(report.floors.every((floor) => floor.held)).toBe(true)
+    for (const arm of report.arms) {
+      expect(arm.results.every((result) => result.passed)).toBe(true)
+      expect(arm.summaries).toMatchObject([
+        { split: 'accept', tasks: 9, passed: 9 },
+        { split: 'heldout', tasks: 7, passed: 7 },
+      ])
+    }
+    // Fourteen small tasks at three attempts on both arms, plus two
+    // long-context tasks at three on the baseline and six on the arm.
+    expect(api.responseBodies()).toHaveLength(102)
+    // Exactly the arm's two long-context runs compacted: one summary each.
+    const summaries = api
+      .responseBodies()
+      .filter((body) =>
+        JSON.stringify(body).includes(MODEL_API_MODEL_TEXT.compactionPrompt.slice(0, 40)),
+      )
+    expect(summaries).toHaveLength(2)
   })
 
   it('records the packing ledger and the recalls of the long-output tasks (M73)', async () => {

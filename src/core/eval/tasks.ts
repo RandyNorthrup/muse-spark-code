@@ -2,7 +2,10 @@
 // planted defect and a verifier, split into accept tasks (mechanism work may
 // tune against these) and held-out tasks (which judge it). Two (M73) read a
 // long file whose middle record is needed after several more requests, so a
-// mechanism for long outputs has something to act on.
+// mechanism for long outputs has something to act on. Two more (M101) carry
+// their long log in the prompt itself, so the first request already fills
+// the auto-compaction arm's window, and two carry two defects in one file
+// for the multi-edit pair.
 //
 // A verifier is a Node ES module run after the turn, outside the workspace,
 // so the model never sees it. It imports the fixed files and asserts what
@@ -11,6 +14,9 @@
 
 import * as z from 'zod/mini'
 import {
+  EVAL_COMPACT_BULK_LINE_CHARS,
+  EVAL_COMPACT_BULK_LINES,
+  EVAL_COMPACT_VALUE_LINE,
   EVAL_LONG_EVIDENCE_LINE_CHARS,
   EVAL_LONG_EVIDENCE_LINES,
   EVAL_LONG_EVIDENCE_MIDDLE_LINE,
@@ -38,6 +44,13 @@ export const evalTaskSchema = z.object({
    * after it would be (M73): a packing arm must engage on it.
    */
   isLongOutput: z.optional(z.literal(true)),
+  /**
+   * Built so the first request already fills nine tenths of the
+   * auto-compaction arm's window (M101): the prompt carries the long log
+   * itself, since file reads are capped at half a window in characters. An
+   * auto-compaction arm must engage on it.
+   */
+  isLongContext: z.optional(z.literal(true)),
 })
 export type EvalTask = z.infer<typeof evalTaskSchema>
 
@@ -99,6 +112,23 @@ const PHASE_FILES = [
 
 const LONG_OUTPUT_PROMPT =
   'Read evidence.txt entirely first. Then read phase-one.txt and follow its instructions; each phase read must be a separate response. Recover the middle record as phase-two.txt directs, then'
+
+/**
+ * A long log carried by the prompt itself (M101): numbered lines padded to
+ * one width, with the one that matters on the value line.
+ */
+function compactBulk(middle: string): string {
+  const lines = Array.from({ length: EVAL_COMPACT_BULK_LINES }, (_, index) =>
+    (index + 1 === EVAL_COMPACT_VALUE_LINE
+      ? middle
+      : `log ${String(index + 1)}: routine build output`
+    ).padEnd(EVAL_COMPACT_BULK_LINE_CHARS, '.'),
+  )
+  return `${lines.join('\n')}\n`
+}
+
+const LONG_CONTEXT_PROMPT =
+  'A long build log follows; one numbered line holds the record you need. Track the work with todo_write (one item per step below) and mark each item completed as you finish it. Recover the record first, then'
 
 export const EVAL_TASKS: readonly EvalTask[] = [
   {
@@ -349,6 +379,74 @@ export const EVAL_TASKS: readonly EvalTask[] = [
       'assert.equal(transform(8), 67)',
     ].join('\n'),
     isLongOutput: true,
+  },
+  {
+    id: 'accept-long-compaction',
+    title: 'Recover a build number from a long log and record it',
+    split: 'accept',
+    prompt: `${LONG_CONTEXT_PROMPT} create answer.js exporting the build number as the number answer. Do not write answer.js before recovering the record.\n\n${compactBulk('required_build=781924')}`,
+    files: [PACKAGE_JSON],
+    verify: ["const { answer } = await load('answer.js')", 'assert.equal(answer, 781924)'].join(
+      '\n',
+    ),
+    isLongContext: true,
+  },
+  {
+    id: 'heldout-long-compaction',
+    title: 'Apply a rule from a long log to a transform',
+    split: 'heldout',
+    prompt: `${LONG_CONTEXT_PROMPT} create transform.js exporting transform(value), which applies the record's mapping. Do not write transform.js before recovering the record.\n\n${compactBulk('required mapping: add 4 to the input, then multiply by 6')}`,
+    files: [PACKAGE_JSON],
+    verify: [
+      "const { transform } = await load('transform.js')",
+      'assert.equal(transform(-3), 6)',
+      'assert.equal(transform(0), 24)',
+      'assert.equal(transform(2), 36)',
+      'assert.equal(transform(8), 72)',
+    ].join('\n'),
+    isLongContext: true,
+  },
+  {
+    id: 'accept-multi-edit',
+    title: 'Fix the case of two helpers in one file',
+    split: 'accept',
+    prompt:
+      'In voice.js, shout lowercases the text when it should uppercase it, and whisper uppercases the text when it should lowercase it. Fix both helpers; keep the punctuation as it is.',
+    files: [
+      PACKAGE_JSON,
+      {
+        path: 'voice.js',
+        content:
+          "export function shout(text) {\n  return text.toLowerCase() + '!!!'\n}\n\nexport function whisper(text) {\n  return text.toUpperCase() + '...'\n}\n",
+      },
+    ],
+    verify: [
+      "const { shout, whisper } = await load('voice.js')",
+      "assert.equal(shout('hey there'), 'HEY THERE!!!')",
+      "assert.equal(whisper('HEY THERE'), 'hey there...')",
+    ].join('\n'),
+  },
+  {
+    id: 'heldout-multi-edit',
+    title: 'Clamp both bounds without overshooting',
+    split: 'heldout',
+    prompt:
+      'In clamp.js, clampLow returns one above the minimum and clampHigh returns one below the maximum. Fix both helpers so each returns exactly its bound.',
+    files: [
+      PACKAGE_JSON,
+      {
+        path: 'clamp.js',
+        content:
+          'export function clampLow(value, min) {\n  return value < min ? min + 1 : value\n}\n\nexport function clampHigh(value, max) {\n  return value > max ? max - 1 : value\n}\n',
+      },
+    ],
+    verify: [
+      "const { clampLow, clampHigh } = await load('clamp.js')",
+      'assert.equal(clampLow(3, 5), 5)',
+      'assert.equal(clampLow(7, 5), 7)',
+      'assert.equal(clampHigh(9, 5), 5)',
+      'assert.equal(clampHigh(2, 5), 2)',
+    ].join('\n'),
   },
 ]
 
