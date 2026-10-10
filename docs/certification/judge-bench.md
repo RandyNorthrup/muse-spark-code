@@ -77,6 +77,29 @@ on the rig; the table below is the committed evidence).
 | `remote-systemone` (Jev, lead)     | —          | —        | —     | —                                     | —                                   | —             | —               |
 | `remote-chat` (Ollama Cloud, lead) | —          | —        | —     | —                                     | —                                   | —             | —               |
 
+### Lead runs 2026-10-10 (seed 42, full 170; PROVISIONAL)
+
+The lead ran the §4 commands over all 170 cases with `--shuffle-seed
+42`. The raw result files (`results-openrouter-jev.json`,
+`results-win11-gpu.json`) were not delivered to lane JEVBENCH2 — the
+`_ctx/codex/jevbench/` folder does not exist on the rig — so every
+number below is transcribed from the lane brief (the lead's reading),
+NOT verified against the files. The files win: re-check each cell when
+the raw files land, and commit them beside this record under
+`docs/certification/judge-bench/`.
+
+| Engine (lead hardware)                                                | N (errors) | Accuracy | Brier | Unsafe-approves          | Latency p50 / p95 / max (cold) | Tokens in/out | p95 ≤ 5 s veto? |
+| --------------------------------------------------------------------- | ---------- | -------- | ----- | ------------------------ | ------------------------------ | ------------- | --------------- |
+| `remote-systemone` (host PC → OpenRouter, Jev 1.13 over the Jev wire) | 170 (0)    | 0.794    | 0.083 | 0                        | 262 ms / 2,025 ms / — (—)      | — / —         | YES             |
+| `ollama-tev1-08b` (Win11 VM, GTX 1080 Ti, Ollama 0.35.1; VM CPU busy) | 170 (0)    | 0.376    | 0.306 | 1 (`net-011`)            | — / 311 ms / — (—)             | — / —         | YES             |
+| `ollama-tev1-4b` (same Win11 VM/GPU)                                  | 170 (2)    | 0.375    | 0.247 | 9 (case ids pending raw) | — / 2,989 ms / — (—)           | — / —         | YES             |
+
+`—` means not in the lead's reported reading; fill from the raw files
+on delivery (max, cold, tokens, per-label and per-domain splits, the
+4b unsafe-approve ids and the 2 error cases). Veto fit is p95 against
+the 5 s window; the 4b run's 2 errors are recorded separately because
+D107 counts every error as a miss with infinite latency.
+
 Per-label precision / recall, `ollama-tev1-4b`: allow 0.429 / 0.500,
 deny 0.364 / 0.571, ask 0.250 / 0.071. Per-domain accuracy: shell 0.455
 (11), file-edit 0.444 (9), secrets 0.385 (13), tool-call 0.200 (5),
@@ -208,6 +231,33 @@ the M98 shape (~0.975, ~2 s, ~$0.00002/request), Jev stays the veto
 engine until a calibrated local engine demonstrates ~0 unsafe-approves
 AND a complete-call p95 within 5 s on the target hardware. The bench
 re-runs unchanged: same seed, same cases, one command per engine.
+
+## 8. Engine decision (lead, 2026-10-10; recorded by lane JEVBENCH2)
+
+Against the owner's rule (local wins iff faster AND as accurate AND
+free), **Jev online stays the Judge engine**:
+
+- On the GPU the local models are fast enough (0.8b p95 311 ms, 4b
+  p95 2,989 ms — both inside the 5 s veto window) but fail accuracy
+  badly: 0.376 (0.8b) and 0.375 (4b) against Jev's 0.794 on the full
+  170, and 4b approved 9 must-refuse cases. Speed met, accuracy and
+  safety not met.
+- Local engines are not offered as the veto engine until a calibrated
+  local engine shows ~0 unsafe-approves AND accuracy within 2 points
+  of Jev on the full 170.
+- M125 lanes L/V retune the deny question first (it carries no signal
+  on either local model — see the §3 signal check), then calibrate
+  per engine.
+- The full 170 cases with seed 42 become the standing regression set;
+  the 40-case prefix stays as a quick smoke check.
+
+Provisional-data note: the lead's rows in §3 are transcribed, not
+verified — the raw files never reached this lane (see the PROVISIONAL
+note). When they land, commit them under
+`docs/certification/judge-bench/`, re-check every cell, and drop this
+paragraph. The no-leaked-keys test in `test/unit/judgeBench.test.ts`
+guards the committed files: `apiKey` must stay `<held-in-env>` and no
+Bearer token may appear in them.
 
 **Decisions for the lead:** (1) run the two remote rows and the Mac mini
 rows in §4; (2) whether lane L/V should retune the deny question first

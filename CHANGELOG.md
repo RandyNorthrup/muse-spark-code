@@ -21,6 +21,17 @@ happened, not what was planned; superseded entries are kept.
   `docs/certification/judge-bench.md`. Nothing here runs in CI or ships in
   the extension.
 
+- **Judge engine decision (lead, 2026-10-10; lane JEVBENCH2, D107/M125).**
+  Jev online stays the Judge engine: on the Win11 GPU both local sizes
+  fit the 5 s veto window but score far below Jev on the full 170 cases
+  (0.376/0.375 vs 0.794), with 9 must-refuse cases approved by 4b.
+  Local veto engines wait for ~0 unsafe-approves and accuracy within 2
+  points of Jev; M125 lanes L/V retune the deny question first. The
+  lead's rows are recorded as provisional in
+  `docs/certification/judge-bench.md` (§§3/8) pending delivery of the
+  raw result files, and a new unit test fails if a committed result
+  file contains anything key-like.
+
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
