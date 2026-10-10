@@ -2180,23 +2180,31 @@ both backends, as Muse Code's `/goal` does.
 
 ## Estimates
 
-The estimator routes are wired, but real forecasts are **not available yet**.
 The composer `/estimate <goal> [--by <date>] [--fleet
 current|minimum|optimum]`, ACP `/estimate`, **Open Estimator**, and standalone
-`muse-spark-code-acp estimate` use one lazy engine. Production snapshots refuse
-with `M117-W-M113-plan-reader` until the plan reader lands; fleet/catalog
-integration also waits for M113. `muse-spark-code-acp estimate --help` shows the
+`muse-spark-code-acp estimate` use one lazy engine. The snapshot reads your
+workspace `PLAN.md` with its git and `gh` evidence: lane hours, Starts
+dependencies, rigs, file affinities, the delivery order and §10 releases.
+`muse-spark-code-acp estimate --help` shows the
 standalone syntax without starting a model or asking for credentials.
 
-- **Verified with fakes.** The engine returns P50/P90 dates, critical-path
-  schedules, limiting resources and current/minimum/optimum setups. Figures
+- **Verified with fakes, and with real plans.** The engine returns P50/P90 dates,
+  critical-path schedules, limiting resources and current/minimum/optimum setups. Figures
   carry parameter-specific evidence and sample sizes; unknown capacity and
   approximate placement stay qualified. Below 20 samples, fitted parameters
-  remain priors. Bases older than seven days carry a schedule-risk flag.
+  remain priors. Bases older than seven days carry a schedule-risk flag. A goal
+  whose lanes lack hour estimates is refused naming the lanes, instead of a
+  partial forecast; per-lane metered demands the plan never carries are
+  disclosed zero-sample assumptions until calibration replaces them per kind.
+  Issue and label goals resolve once their lane associations land with M113 N.
 - **Existing fleet.** The panel sends an audited, contract-first first-wave
   request independently of rental readiness. Production dispatch still
   refuses with `M117-W-M96-board`. Finished-lane history updates and automatic
   production refresh wait for M115.
+- **Still waiting.** Starting lanes (M96's board), price catalogs (M113's
+  catalogs), finished-lane history (M115) and multi-machine fleets each refuse
+  with their handoff names until those land; the local single-machine forecast
+  from your plan works now.
 - **Rentals remain advice-only.** M109/M110 provider/install/pair bindings
   and P's internal Slice 2 provisioning lifecycle are still absent. Liability
   reservation, separate spend confirmation, funded-deadline/idle teardown,

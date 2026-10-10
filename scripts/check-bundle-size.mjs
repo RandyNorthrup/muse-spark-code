@@ -217,6 +217,11 @@ const BUDGETS = [
   { path: 'dist/estimator.js', budgetKiB: 75 },
   // INT0180: estimator application contracts, measured with D6 headroom.
   { path: 'dist/estimateContracts.js', budgetKiB: 25 },
+  // The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6, D97), loaded
+  // on the first estimate needing a plan snapshot: the shared core adapter
+  // over M113's plan reader with the host's git and `gh` reads. 61.5 KiB
+  // when split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/planSnapshot.js', budgetKiB: 75 },
   // The flight recorder's journal (M93), loaded just after activation or at
   // the first failure: 51.3 KiB when split out (the journal, its policy and
   // the shared protocol it validates against), plus 15%, rounded up to 25 KiB

@@ -36576,6 +36576,22 @@ record; the engine and the panel run on fakes until those merge. M107, M100,
 M108 and M110 join as they land; provisioning waits for M109, M110d and
 M110f.
 
+**C-M117-1 plan-snapshot adapter (2026-10-10, Kubuntu).** The snapshot binding
+no longer refuses with `M117-W-M113-plan-reader`: the shared core adapter
+(`src/core/estimator/planSnapshot.ts`) projects the goal's snapshot from
+M113's readPlan (lane tables, Starts, rigs, files, delivery order, §10) plus
+git merged-lane state plus PR/issue evidence, wired into every host through
+`src/host/estimator/planSnapshotSource.ts` (workspace PLAN.md, git and `gh`
+by absolute path, no credentials in the environment). Every goal kind
+resolves; hour-less lanes in the closure refuse naming them; metered demands
+are disclosed zero-sample assumptions at the engine fixtures' scale (the
+schedule refuses unknowns) until calibration replaces them per kind; review
+stays unknown and qualifies the forecast. Proof: `M118` and `M116` resolve
+from this PLAN.md, `M117` refuses naming its unestimated `M96` lanes, and a
+single-rig milestone forecasts P50/P90 deterministically. Receipts in
+`docs/certification/m117-snapshot.md`. Still waiting: board, catalog,
+history, multi-machine fleets, and issue lane linkage (M113 N).
+
 - **Goal.** For a goal (a milestone, a pull request, issues, a release, a
   list of lanes), the user sees when it will be done with what they have, or
   what they need to be done by a date: how many agents, on which machines,
