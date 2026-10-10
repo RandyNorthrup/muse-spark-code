@@ -48,9 +48,17 @@ async function expectWriteRejected(
 }
 
 describe('fileAccountsMetadata', () => {
-  it('reads nothing when the file is absent', async () => {
+  it('serves the built-in meta entry when the file is absent', async () => {
     const metadata = fileAccountsMetadata(dir())
-    await expect(metadata.read('meta')).resolves.toBeUndefined()
+    await expect(metadata.read('meta')).resolves.toMatchObject({
+      id: 'meta',
+      policyProvider: 'meta',
+      product: 'model-api',
+      auth: 'apiKey',
+      origin: 'https://api.meta.ai',
+    })
+    // Any other provider still needs its stored row.
+    await expect(metadata.read('openai')).resolves.toBeUndefined()
   })
 
   it('round-trips accounts and preserves the rest of the envelope', async () => {
@@ -68,10 +76,30 @@ describe('fileAccountsMetadata', () => {
     expect(raw).toMatchObject({ version: 2 })
   })
 
+  it('persists the built-in meta row on the first write', async () => {
+    const folder = dir()
+    seed(folder, { providers: {} })
+    const metadata = fileAccountsMetadata(folder)
+    await metadata.writeAccounts('meta', [
+      { id: 'default', label: 'Default', order: 0, thresholds: {} },
+    ])
+    await expect(metadata.read('meta')).resolves.toMatchObject({
+      id: 'meta',
+      accounts: [{ id: 'default' }],
+    })
+  })
+
   it('refuses an unknown provider instead of creating one', async () => {
     const folder = dir()
     seed(folder, { providers: {} })
-    await expectWriteRejected(fileAccountsMetadata(folder))
+    const metadata = fileAccountsMetadata(folder)
+    const rows = [{ id: 'default', label: 'D', order: 0, thresholds: {} }] as const
+    await expect(
+      (async () => {
+        await metadata.writeAccounts('openai', [...rows])
+      })(),
+    ).rejects.toBeInstanceOf(AccountStoreError)
+    await expect(metadata.read('openai')).resolves.toBeUndefined()
   })
 
   it('throws on a corrupt file instead of clobbering it', async () => {

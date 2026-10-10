@@ -3,12 +3,19 @@
 // Code-side envelope; this mirrors its accounts field, preserving every
 // other key byte-for-byte in field order. Writes are atomic (temporary file
 // plus rename); a corrupt file throws instead of being clobbered.
+// CM108ACC: Meta's Model API is the one provider the runtime natively knows
+// (its key names, its fixed origin, its policy row), so its entry is
+// built in: the CLI, ACP and headless serve the default account with no
+// pre-existing file, and the first metadata write persists the row. Any
+// other provider needs its stored row (a later owner supplies it); nothing
+// here invents its origin or policy mapping.
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { accountIdSchema, accountSchema, type Account } from '../../shared/accounts'
 import type { AccountProvider, AccountsMetadataPort } from '../../core/providers/accounts'
 import { AccountStoreError } from '../../core/providers/accountCredentialRecord'
+import { MODEL_API_BASE_URL } from '../../shared/constants'
 
 const providerEntrySchema = z.strictObject({
   id: accountIdSchema,
@@ -22,6 +29,21 @@ const providerEntrySchema = z.strictObject({
 function providerOf(value: unknown): AccountProvider | undefined {
   const parsed = providerEntrySchema.safeParse(value)
   return parsed.success ? parsed.data : undefined
+}
+
+/** The built-in entry: every field is already pinned in-repo (the key names
+ * in accountCredentialRecord.ts, the origin in MODEL_API_BASE_URL, the
+ * meta/model-api policy row). An absent accounts field migrates the default
+ * account in the store, so the pre-existing key keeps working. */
+function builtInProvider(id: string): AccountProvider | undefined {
+  if (id !== 'meta') return undefined
+  return {
+    id: 'meta',
+    policyProvider: 'meta',
+    product: 'model-api',
+    auth: 'apiKey',
+    origin: new URL(MODEL_API_BASE_URL).origin,
+  }
 }
 
 export function runtimeProvidersFile(dataDir: string): string {
@@ -62,7 +84,7 @@ export class FileAccountsMetadata implements AccountsMetadataPort {
   public read(provider: string): Promise<AccountProvider | undefined> {
     if (!accountIdSchema.safeParse(provider).success) return Promise.resolve(undefined)
     const value = this.load().providers[provider]
-    if (value === undefined) return Promise.resolve(undefined)
+    if (value === undefined) return Promise.resolve(builtInProvider(provider))
     const entry = providerOf(value)
     if (entry === undefined) throw new AccountStoreError('unavailable')
     return Promise.resolve(entry)
@@ -70,7 +92,7 @@ export class FileAccountsMetadata implements AccountsMetadataPort {
 
   public writeAccounts(provider: string, accounts: readonly Account[]): Promise<void> {
     const { envelope, providers } = this.load()
-    const entry = providerOf(providers[provider])
+    const entry = providerOf(providers[provider]) ?? builtInProvider(provider)
     if (entry === undefined) throw new AccountStoreError('invalidAccount')
     mkdirSync(path.dirname(this.file), { recursive: true })
     const next = {
