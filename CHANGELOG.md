@@ -113,6 +113,19 @@ happened, not what was planned; superseded entries are kept.
   took over 15 s per folder on machines with many PowerShell modules
   installed, such as hosted CI runners (CIFIX017W2).
 
+- macOS with Node 22 (or an editor on its libuv): the resource governor read
+  free memory pages as headroom, judged an ordinary Mac critically short of
+  memory and held every later process start for 20 seconds, so a second ACP
+  session took over 20 s to open. That reading is now treated as unknown
+  (CIFIX017R3).
+
+- A report save could fail after two seconds when another save released
+  its lock while a third retired one: a lock file being deleted was taken
+  for an unsafe file, and the releasing save kept its lock (CIFIX017R3).
+
+- The report's plan reader no longer parses each plan line three times;
+  this repository's plan reads about 15% faster (CIFIX017R3).
+
 - Windows: `muse-spark-code-acp usage open` and sharing to the clipboard or
   browser failed with "That did not work". The program lookup added `.exe`
   to names that already had it (`rundll32.exe.exe`) and found nothing.

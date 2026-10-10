@@ -314,7 +314,20 @@ async function stateShot(page, cdp, state, target) {
 }
 
 /** Streaming comparison avoids retaining thousands of images in memory. */
-export async function captureMatrix(root, audit, matrix, onCapture, groups, browserEndpoint) {
+/**
+ * `rasterization` is a fingerprint already measured on the browser at
+ * `browserEndpoint` with CAPTURE_CONTEXT (global setup's shared review
+ * browser); without one, the capture measures its own.
+ */
+export async function captureMatrix(
+  root,
+  audit,
+  matrix,
+  onCapture,
+  groups,
+  browserEndpoint,
+  rasterization,
+) {
   const chrome = findChrome()
   if (chrome === undefined) throw new Error('Chrome is required for check:visual')
   const { server, port } = await serveRepo(root)
@@ -339,7 +352,7 @@ export async function captureMatrix(root, audit, matrix, onCapture, groups, brow
       connection = await chromium.connect(browserEndpoint)
       browser = await connection.newContext(CAPTURE_CONTEXT)
     }
-    const rasterization = await rasterizationFingerprint(browser)
+    const fingerprint = rasterization ?? (await rasterizationFingerprint(browser))
     const page = await browser.newPage()
     const errors = []
     page.on('pageerror', (error) => {
@@ -450,7 +463,7 @@ export async function captureMatrix(root, audit, matrix, onCapture, groups, brow
     return {
       captures,
       browser: browser.browser().version(),
-      rasterization,
+      rasterization: fingerprint,
       platform: process.platform,
       totalBytes,
     }

@@ -14,6 +14,7 @@ import { brotliDecompressSync } from 'node:zlib'
 import * as z from 'zod/mini'
 import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from 'vitest'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
+import { layOutAcpNativeSources } from './helpers/acpPackageSources'
 import { removeFolder } from './helpers/temporaryFolders'
 import {
   PRODUCTION_BUILD_KEY,
@@ -43,7 +44,7 @@ afterEach(async () => {
 function fixture() {
   const dir = mkdtempSync(path.join(process.cwd(), 'temp', 'chatgpt-package-'))
   roots.push(dir)
-  for (const folder of ['scripts', 'dist', 'docs/schemas', 'l10n', 'native/windows'])
+  for (const folder of ['scripts', 'dist', 'docs/schemas', 'l10n'])
     mkdirSync(path.join(dir, folder), { recursive: true })
   const script = readFileSync('scripts/package-acp.mjs', 'utf8')
     .replace("'./check-badges.mjs'", () =>
@@ -94,32 +95,13 @@ function fixture() {
   cpSync(path.join(production, 'dist/legal-data'), path.join(dir, 'dist/legal-data'), {
     recursive: true,
   })
-  for (const platform of ['darwin', 'linux/x64', 'linux/arm64']) {
-    const folder = path.join(dir, 'native', platform)
-    mkdirSync(folder, { recursive: true })
-    writeFileSync(
-      path.join(folder, platform === 'darwin' ? 'muse-dictate' : 'muse-created'),
-      'test-owned inert helper',
-    )
-  }
-  cpSync('native/runner', path.join(dir, 'native/runner'), { recursive: true })
+  layOutAcpNativeSources(dir, root)
   cpSync(path.join(production, 'dist/webview'), path.join(dir, 'dist/webview'), { recursive: true })
   mkdirSync(path.join(dir, 'dist/meta'), { recursive: true })
   cpSync(
     path.join(production, 'dist/meta/usageWebview.json'),
     path.join(dir, 'dist/meta/usageWebview.json'),
   )
-  for (const name of [
-    'MuseSparkJob.cs',
-    'MuseSparkMcpJob.cs',
-    'MuseSparkMcpLauncher.cs',
-    'MuseSparkScreenRecord.cs',
-    'MuseSparkVault.cs',
-    'MuseSparkVaultCng.cs',
-    'MuseSparkVaultHello.cs',
-    'MuseSparkVaultLock.cs',
-  ])
-    writeFileSync(path.join(dir, 'native/windows', name), '// test-owned native fixture\n')
   mkdirSync(path.join(dir, 'design/fonts'), { recursive: true })
   cpSync('design/fonts/manifest.json', path.join(dir, 'design/fonts/manifest.json'))
   cpSync('media', path.join(dir, 'media'), { recursive: true })

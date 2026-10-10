@@ -246,3 +246,220 @@ The macOS-only 3 px/equal-image failures and M118 pending operation remain
 open, rather than being inferred closed from Linux timings. Aggregate
 quality and the hosted cross-platform replay remain lead-owned under the
 explicit rig brief and PLAN §7's qualification record.
+
+## Round 3 (CIFIX017R3)
+
+Lane CIFIX017R3, 2026-10-09: branch `rel017/cifix3` from `6597210bb` (PR #145),
+on the lead's Windows 11 host with vitest on kubuntu, the Mac mini and the
+win11 VM. Digest: CI run 37992331755 and Hosts run 37992331263 (agent
+package jobs). No timeout, cap, tolerance, budget or pixel policy changed;
+no test skipped or filtered in a committed file; hooks `.husky/_` with the
+fail-closed stubs (`npm run prepare`); commit output went to files. One
+download: Node 22.23.3 for darwin-x64 (nodejs.org, SHA-256 checked against
+SHASUMS256.txt) into `~/gates/tmp-cifix3-node22` on the Mac mini, to measure
+the runtime CI uses; nothing installed globally.
+
+### 1. Visual regression: What's New scenes
+
+All six theme shards stop at their first over-allowance frame, each
+`whats-new/whats-new/default/<theme>/320` (16,233-20,173 changed pixels),
+after regenerating the `53fb033b4` baseline in Chrome 154.0.8037.97. Between
+the manifest revision and this branch, the capture inputs changed only in
+`CHANGELOG.md` (the 0.17.0 Highlights of `a343f2538`; the other added
+bullets are under Unreleased, which no What's New page renders), harness
+timing/caching code and non-webview `src` files. The six-theme job was not
+cancelled: it failed by design at `test "$SHARDS" = success`.
+
+Reviewed visual update: on kubuntu (Linux, Google Chrome 150.0.7871.186)
+from committed source `6636c84be` (capture inputs clean),
+`npm run check:visual -- --update --review=CIFIX017R3-0.17.0-highlights-2026-10-09
+--archive=/var/tmp/cifix3-visual/candidate` captured all 9,792 frames
+(446,949,451 bytes outside Git) and wrote the manifest. In the same browser
+the `53fb033b4` baseline was captured from a source snapshot, as check:visual
+regenerates it, and every frame compared under the unchanged pixel policy:
+1,251 byte-different frames; **72 over the allowance, all `whats-new`** (six
+themes, both widths, all six states), with exactly CI's counts at 320 px
+(light 16,530, dark 16,609, hc-dark 20,173, hc-light 18,913, one-dark-pro
+16,233, dracula 19,559); the other 1,179 frames in 89 scenes have at most one
+counted pixel (17 in total), within the policy; no applied-state, target or
+renderer coverage changed. Inspected pairs (light 690, dracula 320) differ
+only in the two corrected Highlights (Capacity estimates (preview);
+Orchestrator playbook in the ACP agent and the CLI) and the reflow below
+them; `whats-new-highlights` shows the first Highlight only and is within
+the policy. Receipt: `cifix017r3-visual-review.json`. The manifest's
+revision is `6636c84be`; later commits change no capture input that renders
+(an Unreleased changelog entry, tests, docs). visualGate, m114Audit and
+readmeShots pass 36/36 on kubuntu with the new manifest.
+
+### 2. `usagePackaging` lacked the launcher's C#
+
+Cause: three suites run `scripts/package-acp.mjs` over a test-owned source
+tree, each with its own hand list of native files; CIFIX017W2 updated two
+of them. Fix: the packager's native inputs move to
+`scripts/lib/acpNativeSources.mjs`; `test/unit/helpers/acpPackageSources.ts`
+lays out every listed file, the runner helpers and the list module itself;
+all three fixtures use it. `acpPackageFixtures.test.ts` finds every test
+that runs the packager over a temporary tree and fails one that does not
+use the helper or names a job source itself. Commit `ec2a1353c`. On the
+win11 VM the guard first timed out (24.7 s against 15 s): it opened all
+1,570 test files, each scanned on first open in a fresh checkout. It now
+lists candidates with `git grep --cached` and reads only those; the hand-list
+drill still fails it (Mac mini). Commit `5f7cd085a`.
+
+### 3. `visualStability`
+
+Hook timeout (macOS): every `captureMatrix` call measured a rasterization
+fingerprint inside its hook, a cold font-fallback page the suite never
+reads. Mac mini under `taskpolicy -b`: the first hook spent 3.6-5.5 s there
+and timed out at 10 s. Global setup now measures it once on the shared
+browser and the suite passes it in; same policy and load: slowest hook
+6.6 s, pass. Commit `24c93a1dd`.
+
+Sub-pixel (Windows): Chrome carries MouseEvent client coordinates in whole
+pixels (170.5, 170.7 and 170.2 all arrive as 170; kubuntu Chrome probe).
+With Windows font metrics the passage centre is a half pixel, so the menu,
+anchored at the event, sits 0.5 px from it. Not device scale (1) and not
+product rounding. The assertion compares with the centre as the event
+carries it, at the same precision. Commit `d240c75eb`.
+
+### 4. `m114ConversationReview` forced colours
+
+All failures are 5 s timeouts; no distinctness assertion failed, and the
+owner's rule (pressed visibly distinct) holds. CIFIX017L2's paint flushes
+are not the cost: the 14 `runFor(100)` calls of a case take 25-34 ms
+(kubuntu). Each case drove seven controls (about 30 protocol calls and two
+screenshots each): 2.0-2.5 s per case on Ubuntu in round 2, 2.8-3.6 s in
+round 3, 4.3-4.7 s on macOS when passing; this run's runners were 19-45%
+slower on the static gates as well. Each theme and control is now its own
+case (every assertion kept): slowest of 42 cases 933-977 ms in a 4-CPU
+loaded emulation (taskset, coverage, three workers) over four runs. Commit
+`d7dc7a53d`.
+
+The shared browser's Playwright server ran in vitest's main process; in the
+same emulation one of six runs stalled the file's first three cases to 5 s
+with it there, none of six with the server in its own process
+(`reviewBrowserServer.mjs`). Commit `bacd08b93`. Supporting, not
+conclusive, evidence; see "Not root-caused".
+
+### 5. macOS shard 3
+
+`visualCapture`: each of 24 scene hooks launched its own persistent Chrome
+and fingerprint; launch 0.72-2.1 s and fingerprint 0.19-0.26 s of each
+1.6-2.9 s hook on the Mac mini, and under `taskpolicy -b` its build hook
+alone exceeded 10 s. It now uses global setup's staged build, shared browser
+and fingerprint; its CSP case writes under that root (the fixture cache is
+keyed by root). Mac mini 11/11 in 37.2 s (59.4 s before). Commit
+`6636c84be`.
+
+`m114Panel` "loads the real lazy menu independently of the secret modal
+focus owner": the file's first case, 5.0 s on hosted macOS (the second case
+4.3 s, the rest 0.8-2.4 s). Not reproduced: 1.3-1.4 s on the Mac mini, also
+under `taskpolicy -b`. No change made.
+
+### 6. `reportHistory` pending tombstone (macOS)
+
+Cause: the releasing writer listed and read the candidate's retired lease
+tombstone while the candidate was unlinking it; lstat (or fstat through the
+open handle) returned the name with no links left, `regular()` refused it as
+unsafe, the release threw and the live lease stayed until the candidate's
+2 s deadline. Reproduced on kubuntu with 0-3 ms jitter on the suite's fs
+calls (1 of 40 and 1 of 150 runs, about 2,050 ms, as on CI); instrumentation
+showed `lease-<uuid>` with nlink 0. Fix: fewer links than a stored file has
+means absent (ENOENT), for both reads; hard links are still refused. Commit
+`ac9a3460e`.
+
+### 7. `planReader` ten thousand milestones
+
+Not a regression: HEAD parses as fast as `8bbe763dd^` and faster than at the
+case's introduction (`883f7e843`), kubuntu, interleaved cold runs. The case
+is one cold sample under V8 block coverage in a three-worker shard. Removed
+redundant work: two full splits and fence matches per line, three heading
+matches per line, a whole-plan UTF-8 encode, a character walk with no
+registered literal, and empty-field matches. In vitest with coverage on
+kubuntu the case takes 110-112 ms (153-161 before); this repository's
+PLAN.md cold parse 195-211 -> 171-173 ms plain, 357-362 -> 253-254 ms under
+coverage. Output unchanged. Commit `296fe337b`.
+
+### 8. ACP M118 (macOS)
+
+Stage: "session/new (second workspace)" in both macOS logs; "loads the real
+question bundles" took 21.5 s there. Cause: Node 22.23.3 (libuv 1.51.0)
+answers `process.availableMemory()` on Darwin with exactly `os.freemem()`
+(Mac mini: 6,216,175,616 bytes both, 9.99 GB inactive beside them), unlike
+Node 24.21.0 (16,297,594,880). On a busy 7 GB runner those free pages fall
+under half the memory floor, the governor pauses at its first sample, and
+every later governed spawn waits the 20 s foreground deadline. The sampler
+now takes the figure only when it exceeds the free pages read around it;
+otherwise unknown. Reproduced on the Mac mini under Node 22.23.3 with a
+test-owned preload giving the agent 400 MiB of free pages: M118 fails at
+30 s naming that stage and the bundle case takes 22.0 s; with the fix 13/13.
+Commit `e4603d489`. The lead has since moved further M118 work to a
+separate lane.
+
+### 9. macOS static gates cancelled
+
+The job hit its 25-minute limit at 25:18, 27 s into `check:host-api`: no
+hang. Round 2 took 21.8 min; this run's macOS gates were all slower
+(format 92 -> 135 s, `lint:js:main` 360 -> 421, `lint:js:unit` 535 -> 613,
+unit typecheck 87 -> 143). Type-aware ESLint is 17.7 min of it (6.5 on
+Ubuntu); ESLint threads are no option on a 7 GB runner (kubuntu, one
+test/unit lint: 5.1 GB RSS single, 9.1 GB with two threads, 12.0 GB with
+three). The job now runs three parts per OS with the same 25-minute limit;
+`manifest.test` requires every leaf gate of `quality:gates` in exactly one
+part. Commit `aa850de86`, standalone so it can be dropped.
+
+### Red drills (each restored byte-exact, SHA-256 compared)
+
+| #   | Break                                                | Rig     | Result                                                               | Restored SHA-256 (prefix) |
+| --- | ---------------------------------------------------- | ------- | -------------------------------------------------------------------- | ------------------------- |
+| R1  | `usagePackaging` back to its hand list               | kubuntu | guard fails (no helper) and packaging fails (no list module)         | `8e740b37612d3aea`        |
+| R1b | add an entry to the shared native list (control)     | kubuntu | all three fixtures lay it out: 17/17                                 | `2d77fcff3e815c1b`        |
+| R2  | each milestone parses the rest of the plan           | kubuntu | 10k case fails at 59,521 ms                                          | `bc23fbd90fdf9b96`        |
+| R3  | original `history.ts`                                | kubuntu | both new mid-unlink cases fail, "could not be generated"             | `491c1f695accc0bd`        |
+| R4  | original `machineSampler.ts`                         | kubuntu | the new free-pages case fails                                        | `d2066c3a1810b876`        |
+| R4b | original sampler, Node 22.23.3, 400 MiB free pages   | macmini | M118 fails at 30 s, "session/new (second workspace)"; bundles 22.0 s | `d2066c3a1810b876`        |
+| R5  | original capture and fingerprint, `taskpolicy -b`    | macmini | first hook: fingerprint 3.6 s, timeout at 10 s                       | `857e27f523b715b5`        |
+| R6  | fractional passage centre (the old assertion)        | win11   | "expected 170 to be close to 170.5", as on CI                        | `ed7153f39f48ddd4`        |
+| R6b | open the quote menu 3 px below the centre            | kubuntu | assertion fails, 169 vs 166                                          | `857e27f523b715b5`        |
+| R7  | forced-colour `:active` with a 1 px outline at hover | kubuntu | all 42 split cases fail on the 2 px pressed outline                  | `e546b30b35aae477`        |
+| R8  | drop `cycles` from the build part                    | kubuntu | `manifest.test` fails naming `cycles`                                | `b581996832b1a918`        |
+
+### Receipts
+
+kubuntu: acpPackageFixtures, usagePackaging, runtimeChatGptPackage 17/17;
+execStdio 44/44; planReader, qualityLedgerPlan, genRoadmap, redact, feedback
+and both scrub suites 283/283; checkPlan, reportContracts, reportFixtures,
+resourceAcpPackaging, acpNpmReadme, execSchema, legalScanBundle 114/114;
+reportHistory 37/37 with the 150-run jitter replica; sampler, samplerSystem
+and the resource history, relocation and runtime suites 87/87;
+visualStability, visualReadiness, visualCapture 15/15; manifest and
+visualGate 52/52.
+
+Mac mini: acpPackageFixtures, usagePackaging, runtimeChatGptPackage,
+planReader, sampler, manifest, reportHistory, execStdio 205/205;
+reportHistory with the jitter replica 187/187; acpStdio 13/13 (Node 24) and
+13/13 under Node 22.23.3 with low free pages; m114ConversationReview,
+visualStability, visualReadiness 129/129; visualCapture and visualStability
+12/12; cyclesRoots, whatsNewContent, checkBadges 63/63.
+
+win11 (files one at a time, as on Windows CI): acpPackageFixtures,
+usagePackaging, runtimeChatGptPackage 17/17; reportHistory, planReader,
+sampler 104/104; visualCapture, visualStability, m114ConversationReview
+137/137 (the review browser server as a child process on Windows);
+manifest 40/40; visualStability 1/1 (the original assertion fails there as
+on CI).
+
+Static (host): changed-file ESLint and Prettier; host, unit and e2e
+typechecks (unit reports only the known `museCodeSdk142.test.ts` mismatch
+of the shared `node_modules`); actionlint; `check:roadmap`; `deadcode`
+(plain knip, the two existing configuration hints); `jscpd` (zero clones);
+`check:host-api` and `check:l10n` (zero problems).
+
+### Not root-caused
+
+- `m114ConversationReview` first-case slowness on hosted macOS (light axe
+  case 5.03 s, dark 3.77 s): the browser-server move is supported by one
+  stalled emulation run in six, not proven on a hosted runner.
+- `m114Panel`'s first case (5.0 s on hosted macOS): not reproduced.
+- In the 4-CPU emulation `playbookOutcomes.test.ts` failed eight cases in
+  every run, outside this brief; it passed on hosted Ubuntu (43.9 s).
