@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseInspectCommand } from '../../src/core/judge/fast/inspectGrammar'
+import { inspectPathSpellings, inspectProtectedPaths } from './helpers/inspectPaths'
 
 describe('B1 positive command grammar', () => {
   it.each([
@@ -75,5 +76,39 @@ describe('B1 positive command grammar', () => {
     expect(parseInspectCommand('du -d 2 .', 'darwin')).toMatchObject({ recursive: true })
     expect(parseInspectCommand('du --max-depth=2 .', 'darwin')).toBeUndefined()
     expect(parseInspectCommand('cat x', 'win32')).toBeUndefined()
+  })
+
+  it('refuses every protected/private path under seeded dot, dotdot, separator and case insertions', () => {
+    for (const platform of ['linux', 'darwin'] as const) {
+      for (const protectedPath of inspectProtectedPaths) {
+        for (const canonical of [protectedPath, `pkg/${protectedPath}/probe.txt`]) {
+          for (const spelling of inspectPathSpellings(canonical)) {
+            for (const operand of [
+              spelling,
+              spelling.toUpperCase(),
+              spelling.replaceAll('/', '\\'),
+            ]) {
+              expect(parseInspectCommand(`cat '${operand}'`, platform), operand).toBeUndefined()
+            }
+          }
+        }
+      }
+    }
+  })
+  it('uses canonical operands in grant and tool argv without changing patterns or relaxing the floor', () => {
+    expect(parseInspectCommand("grep -r -e './pattern' .github/.", 'linux')).toMatchObject({
+      args: ['-r', '-e', './pattern', '.github'],
+      operands: ['.github'],
+    })
+    expect(parseInspectCommand('cat ./src/./a.ts', 'linux')).toMatchObject({
+      args: ['src/a.ts'],
+      operands: ['src/a.ts'],
+    })
+    expect(parseInspectCommand('cat .github/./workflows-extra/a.ts', 'linux')).toMatchObject({
+      operands: ['.github/workflows-extra/a.ts'],
+    })
+    for (const operand of ['src/../a.ts', 'src//a.ts', 'src/a.ts/', './-n', './C:/outside']) {
+      expect(parseInspectCommand(`cat ${operand}`, 'linux'), operand).toBeUndefined()
+    }
   })
 })

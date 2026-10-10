@@ -45,19 +45,32 @@ static struct stat info(int fd) {
   if (fstat(fd, &s)) refuse("file");
   return s;
 }
-static int ascii_path(const char *path) {
-  if (!*path || *path == '/') return 0;
+static int canonical_path(const char *path, char *canonical) {
+  if (!*path || *path == '/' || strlen(path) >= PATH_MAX) return 0;
+  size_t length = 0;
   const char *part = path;
   for (const char *p = path;; p++) {
     unsigned char c = (unsigned char)*p;
     if (c >= 127 || c == '\\' || (c && c < 32)) return 0;
     if (!c || c == '/') {
       size_t n = (size_t)(p - part);
-      if (!n || (n == 2 && part[0] == '.' && part[1] == '.')) return 0;
+      if (n > NAME_MAX) return 0;
+      if (n == 2 && part[0] == '.' && part[1] == '.') {
+        if (!length) return 0;
+        while (length && canonical[length - 1] != '/') length--;
+        if (length) length--;
+      } else if (n && !(n == 1 && part[0] == '.')) {
+        if (length) canonical[length++] = '/';
+        memcpy(canonical + length, part, n); length += n;
+      }
       if (!c) break;
       part = p + 1;
     }
   }
+  if (!length) canonical[length++] = '.';
+  canonical[length] = 0;
+  if (*canonical == '-' || *canonical == '!' ||
+      (isalpha((unsigned char)canonical[0]) && canonical[1] == ':')) return 0;
   return 1;
 }
 static int listed(const char *name, const char *const *list) {
@@ -65,13 +78,20 @@ static int listed(const char *name, const char *const *list) {
   return 0;
 }
 static int private_path(const char *path) {
-  char lower[PATH_MAX];
-  if (strlen(path) >= sizeof(lower) || !ascii_path(path)) return 1;
-  for (size_t i = 0; i <= strlen(path); i++) lower[i] = (char)tolower((unsigned char)path[i]);
+  char canonical[PATH_MAX], lower[PATH_MAX];
+  // The trusted grammar rewrites both operand lists. Direct helper callers must agree.
+  if (!canonical_path(path, canonical) || strcmp(path, canonical)) return 1;
+  for (size_t i = 0; i <= strlen(canonical); i++) lower[i] = (char)tolower((unsigned char)canonical[i]);
   for (const char *part = lower; *part;) {
     for (size_t i = 0; PROTECTED_PATH_SEGMENTS[i]; i++) {
-      size_t n = strlen(PROTECTED_PATH_SEGMENTS[i]);
-      if (!strncmp(part, PROTECTED_PATH_SEGMENTS[i], n) && (!part[n] || part[n] == '/')) return 1;
+      const char *component = part, *protected = PROTECTED_PATH_SEGMENTS[i];
+      for (;;) {
+        size_t n = strcspn(component, "/"), m = strcspn(protected, "/");
+        if (n != m || memcmp(component, protected, n)) break;
+        if (!protected[m]) return 1;
+        if (!component[n]) break;
+        component += n + 1; protected += m + 1;
+      }
     }
     const char *end = strchr(part, '/');
     size_t n = end ? (size_t)(end - part) : strlen(part);
@@ -122,7 +142,9 @@ static void walk(int fd, const char *relative, int recursive, size_t depth) {
     if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) continue;
     visited++; budget();
     char name[PATH_MAX];
-    int n = snprintf(name, sizeof(name), "%s/%s", relative, entry->d_name);
+    int n = !strcmp(relative, ".")
+      ? snprintf(name, sizeof(name), "%s", entry->d_name)
+      : snprintf(name, sizeof(name), "%s/%s", relative, entry->d_name);
     if (n < 0 || (size_t)n >= sizeof(name)) refuse("walkBudget");
     if (private_path(name)) { excluded++; continue; }
     int child = beneath(fd, entry->d_name, O_PATH);
