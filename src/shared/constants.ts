@@ -583,6 +583,9 @@ export const SETTING_DEFAULTS = {
   'reports.network': 'whenSignedIn',
   'reports.keepHistory': true,
   'reports.agentSources': [],
+  // M123 (PLAN.md D104 source c): read the user's own `gh` login, off by
+  // default; machine-scoped so a repository cannot turn it on.
+  'github.useGhLogin': false,
   // M108 (PLAN.md D88.5): swap at the next request boundary and spread
   // background work across accounts, both on by default; machine-scoped so a
   // repository cannot pool the user's accounts.
@@ -826,6 +829,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'accountSwap',
   'accountParallel',
   'accounts.severalOnThisDevice',
+  // Reading the user's `gh` token is the user's choice (M123, D104 source c).
+  'github.useGhLogin',
   // Tab chooses what runs, what is billed and how much is approved (M94,
   // PLAN.md D73): every Tab setting is machine-scoped, so a workspace's
   // settings cannot change what Tab spends.
@@ -1679,6 +1684,35 @@ export const GITHUB_REQUEST_TIMEOUT_MS = 20_000
 // One page of check runs and one of commit statuses are read; a pull request
 // with more says how many were not.
 export const GITHUB_CHECKS_PAGE_SIZE = 100
+
+// --- GitHub outside VS Code (M123, PLAN.md D104) ---
+
+// The token sources, first available wins: (a) the editor's own sign-in by
+// lease, (b) the runtime's device-flow sign-in, (c) the user's `gh` login.
+export const GITHUB_TOKEN_SOURCE_ORDER = ['editorLease', 'deviceFlow', 'ghLogin'] as const
+// The scopes any source may ask for: `repo` (M71's), and `read:org` only
+// once a lane proves a call needs it. Nothing else is ever requested.
+export const GITHUB_PERMITTED_SCOPES: readonly string[] = ['repo', 'read:org']
+// GitHub names a token's scopes in this response header (comma-separated).
+export const GITHUB_SCOPES_HEADER = 'x-oauth-scopes'
+// The project's OAuth App (Q-M123): public, no secret. Empty until the owner
+// registers the app; the device flow refuses to start while it is.
+export const GITHUB_OAUTH_CLIENT_ID = ''
+// GitHub's device flow (docs.github.com, "Authorizing OAuth apps", device
+// flow; lane A re-reads and dates it). Only this verification address is
+// ever opened.
+export const GITHUB_DEVICE_CODE_URL = 'https://github.com/login/device/code'
+export const GITHUB_DEVICE_TOKEN_URL = 'https://github.com/login/oauth/access_token'
+export const GITHUB_DEVICE_VERIFICATION_URL = 'https://github.com/login/device'
+export const GITHUB_DEVICE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code'
+// GitHub's defaults when its reply omits them, and the step `slow_down` adds.
+export const GITHUB_DEVICE_CODE_EXPIRES_S = 900
+export const GITHUB_DEVICE_POLL_INTERVAL_S = 5
+export const GITHUB_DEVICE_SLOW_DOWN_STEP_S = 5
+// An editor lease lives at most this long, whatever the editor says.
+export const GITHUB_LEASE_TTL_MS = 15 * 60_000
+// `gh auth token` for github.com only (D104 source c).
+export const GH_AUTH_TOKEN_ARGS: readonly string[] = ['auth', 'token', '--hostname', 'github.com']
 // GitHub's own limits on a pull request's title and description.
 export const PULL_REQUEST_TITLE_MAX_CHARS = 256
 export const PULL_REQUEST_BODY_MAX_CHARS = 65_536
@@ -1697,6 +1731,25 @@ export const STDERR_SHOWN_CHARS = 1000
 // A pull request someone else wrote is checked out under the extension's
 // own storage, in this folder (M71).
 export const PULL_REQUEST_WORKTREES_DIR = 'pr-worktrees'
+// M123 lane G (RVM123G2 R7, R8): one native Git transaction per repository
+// across every editor and runtime process. The lock file sits in git's
+// common directory; LOCKLIB renews only the owned instance, and checks
+// its monotonic lease and increasing fence at each dispatch.
+export const GIT_TRANSACTION_LOCK_FILE = 'muse-spark-code-git.lock'
+export const GIT_TRANSACTION_LOCK_POLL_MS = 100
+export const GIT_TRANSACTION_LOCK_STALE_MS = 30_000
+const GIT_TRANSACTION_LOCK_LEASE_PARTS = 3
+export const GIT_TRANSACTION_LOCK_REFRESH_MS =
+  GIT_TRANSACTION_LOCK_STALE_MS / GIT_TRANSACTION_LOCK_LEASE_PARTS
+// D104's push and pull request fetch (RVM123G2 R3): the only credential
+// variables a Git child may receive, for those two operations only: the
+// GitHub routes `gh`'s credential helper reads. Never a model or provider key.
+export const GIT_PUSH_CREDENTIAL_VARIABLES = [
+  'GH_TOKEN',
+  'GITHUB_TOKEN',
+  'GH_ENTERPRISE_TOKEN',
+  'GITHUB_ENTERPRISE_TOKEN',
+] as const
 // The extension writes such a checkout itself (core/git/heldTree.ts): at
 // most this many files and folders, and this many bytes in all; a bigger
 // pull request is refused before anything is written.
@@ -1710,6 +1763,52 @@ export const HELD_FILE_MODE = 0o666
 export const HELD_EXECUTABLE_MODE = 0o777
 // The conversations whose pull request is remembered, newest first.
 export const PULL_REQUEST_LINKS_KEPT = 200
+// A worktree-record mutation that lost its generation to another window
+// (the fencing check) is read again and applied again this many times;
+// then it fails loudly, never writing over what it did not read (M123).
+export const WORKTREE_RECORD_SAVE_ATTEMPTS = 3
+// The worktree records' file lease (M123, PLAN.md M123's lock protocol,
+// src/core/locks/fileLease.ts), every duration on the monotonic clock: a
+// waiter gives up loudly past the timeout; a holder holds for its lease,
+// and a waiter takes over an instance it has itself watched unchanged for
+// that lease (never more than the lease below, whatever a note asks); an
+// instance whose owner note is missing or torn (a crash between create and
+// write) is taken over once watched for the unreadable bound.
+export const WORKTREE_RECORD_LOCK_TIMEOUT_MS = 10_000
+export const WORKTREE_RECORD_LOCK_POLL_MS = 10
+export const WORKTREE_RECORD_LOCK_LEASE_MS = 30_000
+export const WORKTREE_RECORD_LOCK_UNREADABLE_MS = 2000
+// Two readings of one process's birth in epoch milliseconds (Windows,
+// macOS) agree within this; a live process id whose birth is further off
+// belongs to another process. Linux births (ticks since boot) compare exactly.
+export const PROCESS_START_TOLERANCE_MS = 1000
+// Reading another process's birth (Windows PowerShell, macOS `ps`) gives
+// up after this.
+export const PROCESS_START_QUERY_TIMEOUT_MS = 10_000
+// A pending checkout whose folder never appeared is someone's crash after
+// this long, even while its process id looks alive (a reused id whose
+// start time cannot be read): every step before the folder exists is
+// bounded far below it (M123).
+export const PENDING_CHECKOUT_RECOVERY_MS = 60 * 60 * 1000
+// A file lease's newest fences kept beside its lock (src/core/locks/
+// fileLease.ts); older ones are removed by the next acquisition. Only the
+// highest is ever compared.
+export const FILE_LEASE_FENCES_KEPT = 8
+// The newest record generations kept; older ones, and stage or retired-lock
+// files older than the sweep age (a crash's leftovers), are removed.
+export const WORKTREE_RECORD_GENERATIONS_KEPT = 8
+export const WORKTREE_RECORD_SWEEP_AGE_MS = 60_000
+// A killed batch child is observed this long before the checkout settles
+// anyway: a helper holding the pipes cannot keep it pending (M123).
+export const GIT_BATCH_KILL_GRACE_MS = 1000
+// A failed held checkout waits this long for a file writer already in
+// flight to stop; past it the failure returns and the writer's cleanup runs
+// when it stops, the record staying pending (held) until then (M123).
+export const HELD_WRITER_DRAIN_GRACE_MS = 5000
+// A failed held checkout's `git worktree remove`, run even after Cancel,
+// and the folder removal behind it (Windows retries a held file).
+export const HELD_CLEANUP_TIMEOUT_MS = 60_000
+export const HELD_CLEANUP_REMOVE_RETRIES = 5
 // --- Review (M70, PLAN.md D49) ---
 
 // `/review …` in the prompt. The command and its keywords are commands, like

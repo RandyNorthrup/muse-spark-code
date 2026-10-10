@@ -2803,6 +2803,8 @@ async function activateWindow(
     gitProcess: processGitProcess(),
     env: process.env,
     isCurrent: () => !nativeStarts.signal.aborted,
+    // M123's native route (a host without `vscode.git`) stops its git with the window.
+    signal: nativeStarts.signal,
     // Commit and push run hooks, which can write the workspace: admitted as any such command is (M72).
     admit: (start) => backend.startWorkspaceCommand(start, nativeStarts.signal),
     restartBackends: (reason) => restartBackend(reason),

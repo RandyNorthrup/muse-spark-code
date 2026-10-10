@@ -590,7 +590,15 @@ The shipped lint configuration and 6144 MiB flag remain release-base values.
   no paid judge request is made before that answer. While
   `museSpark.confidentialWorkspace` is on, only same-model calls that the
   chat model itself may make can run; the local judge (2j) follows its
-  design spike.
+  design spike. Amended 2026-10-08 (D104, M123): GitHub in every editor.
+  API calls go only to `api.github.com`, through M71's client. The token
+  comes from one of three sources:
+  - the editor's own GitHub sign-in, by lease (the token stays in the
+    editor);
+  - the runtime's device-flow sign-in with the project's OAuth App
+    (`github.com/login/device/code` and `github.com/login/oauth/access_token`;
+    the token is kept in the M109 vault or the OS keychain);
+  - opt-in, the user's own `gh` login.
 - Contributor-tier models are opt-in behind a dialog quoting Meta's training
   wording; off by default; blocked when the workspace setting
   `museSpark.confidentialWorkspace` is true.
@@ -19144,6 +19152,212 @@ the slow one.
   Claude, with the saved diff). Its gotchas go into
   `docs/orchestration-gotchas.md`.
 
+### D104 — Git and pull requests in every editor (M123, 2026-10-08)
+
+The lead, 2026-10-08, under D84 (every registry row W in every editor, or a
+named, approved exception). M71's Git and pull request features (registry
+row F36) exist only in VS Code, because every piece they stand on is VS
+Code's:
+
+- the GitHub token: `vscode.authentication.getSession('github')`
+  (`src/host/git/githubSession.ts`);
+- commit and push: the Git extension API (`gitExtension.ts`);
+- the drafts' form wiring in the VS Code webview and controller;
+- the pull request links: workspace state (`pullRequestLinks.ts`);
+- the pull request checkout and the held/trust card
+  (`pullRequestCheckout.ts`, `heldCheckout.ts`).
+
+Nothing runs in `src/runtime` or `src/acp`, and `exec` strips `GH_TOKEN` and
+`GITHUB_TOKEN` (`EXEC_CHILD_ENV_DROP`). M104's registry names F36 with
+`auth/github`, `auth/githubLease` and `github/request` (the lease design on
+`m104/pd-fix`, with an unwired runtime client,
+`src/runtime/panel/nativeGitHub.ts`). The research matrix
+(`docs/research/editor-parity-2026-10-05.md`) marks F36 missing in every
+editor outside the VS Code family, and no M104 lane owns it. This decision
+owns it.
+
+1. **Git runs natively in the shared runtime.**
+   - Status, diff, commit, push (after the confirmation) and worktree
+     checkout run with the user's own `git` (`resolveExecutable`), through
+     the existing bounded Git runner (`createGitProcess`) under M107's spawn
+     admission (`admitResource`, whole-tree stop; D87, SPAWN017's
+     inventory): explicit argument arrays, output caps and deadlines.
+   - VS Code keeps the Git extension path (its credential helpers, sign-in
+     prompts and SCM view). A VS Code-family host without the `vscode.git`
+     extension (Arduino IDE 2, some forks) takes the native path in-process.
+   - M71's rules carry over unchanged:
+     - never force;
+     - push and pull request creation always ask, and show what goes out;
+     - the push plan's refusals (a detached HEAD, a branch behind its
+       upstream, names starting with `+` or `-` or holding `:` or
+       whitespace);
+     - a commit never pushes on its own;
+     - the consent names hooks, signers and credential helpers;
+     - project trust is checked after every await and before each Git
+       entry. Outside VS Code, project trust is the editor's trust (MHP
+       `workspace/trust`, or the runtime's own record where the editor has
+       none) and no hold.
+   - **The confirmed push and the pull request fetch use the user's Git
+     environment.** Every other Git call keeps `quietGitEnvironment` (no
+     credentials, no prompt). These two are the harness's own processes, not
+     model tools, so they keep the user's credential helpers, SSH agent and
+     Git token routes, as a terminal would, with `GIT_TERMINAL_PROMPT=0`.
+     The environment is an allow-list per operation (RVM123G2, 2026-10-09):
+     of credential variables, only `GIT_PUSH_CREDENTIAL_VARIABLES`
+     (`GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`,
+     `GITHUB_ENTERPRISE_TOKEN`) as captured at start; never a model or
+     provider key, whatever its name. They never gain anything of ours: no
+     `http.extraHeader`, no credential helper of ours, no token variable.
+     Model-run processes keep D89.5's fence. A push that needs typed
+     credentials fails with the remote named, and offers **Open in
+     terminal**: the same command in the editor's terminal (MHP
+     `terminal/create`, F23), for the user to finish, only in the same
+     repository with the confirmed plan revalidated, and in the same
+     allow-listed environment where the host honours it (VS Code's
+     `strictEnv`).
+   - **Threat boundary (the lead, 2026-10-09, RVM123G2).** In scope and
+     enforced: untrusted repository content (configuration, hooks,
+     attributes, filters, remotes, credential helpers, submodules, links
+     inside the tree); stale state (a plan, stamp or confirmation that no
+     longer matches what will run); cancellation and session or owner
+     changes; secrets (no credential, model key or provider key reaches
+     any Git child, terminal, log, error or the model unless that
+     operation needs that credential); confinement of every read made on
+     the model's behalf to the bound repository. Out of scope, a residual,
+     never claimed: a same-user process renaming, swapping or replacing
+     directories inside the user's own workspace between a check and the
+     operating system acting on a path. It already holds the user's
+     authority, and path-based APIs cannot close that race. Guards still
+     fail closed on every change they detect.
+   - **One bound pipeline per mutation:** plan → the user's confirmation →
+     admission (a per-repository transaction lock file in git's common
+     directory, shared by every editor and runtime process, then the
+     host's admission) → final revalidation (the state git reads sealed,
+     then the whole plan compared with what was confirmed: remote, every
+     push URL as git resolves it, refspec, target, the branch's commit,
+     the configuration files; or the commit stamp) → spawn (the runner's
+     last synchronous check after its own admission and the Windows job's
+     preparation, and again at the Windows helper's payload GO: arguments,
+     signal, owner, trust, the root a real directory with its bound
+     identity, the lock still held, the seal intact).
+
+2. **GitHub stays on M71's REST client; the token comes from layered
+   sources.** `src/core/git/github.ts` (`api.github.com`, API version
+   2022-11-28, schema-checked against captures) stays the only GitHub
+   client. A `GitHubTokenSource` port gives it a credential per call. The
+   first available source wins, in this order, and the panel says which one
+   is in use:
+   - **(a) The editor's own GitHub sign-in, by lease.** The token never
+     leaves the editor.
+     - The runtime asks `auth/githubLease` (`ask` or `silent`) and gets an
+       opaque lease id bound to its owner.
+     - Each call goes out as `github/request`: `api.github.com` only, `/user`
+       and `/repos/…` only, GET and POST, within the envelope cap. The editor
+       adds the token.
+     - Where: VS Code (`getSession('github', ['repo'])`); VS Code forks that
+       ship the GitHub provider; JetBrains (the bundled GitHub plugin's
+       account, as an optional plugin dependency); Visual Studio, where
+       lane L finds a supported API for its GitHub account.
+     - Leases expire (`GITHUB_LEASE_TTL_MS`). They also end with the window,
+       a change of owner, shutdown and sign-out.
+   - **(b) The runtime's own sign-in: GitHub's OAuth device flow** with the
+     project's OAuth App. Its client id is public and lives in
+     `src/shared/constants.ts`. The device flow needs no client secret
+     (GitHub's docs, 2026-10-08), and no secret exists in the repository or
+     the product.
+     - The panel shows the user code with Copy, and opens
+       `https://github.com/login/device` through `ui/openExternal`. No other
+       verification address from GitHub's reply is accepted.
+     - The runtime polls at GitHub's `interval`, adds the five seconds that
+       `slow_down` asks for, and stops at `expires_in` (900 s by default) or
+       at Cancel.
+     - Storage: the token goes only into the M109 vault, as an `oauth` item
+       bound to `https://api.github.com` and hidden from agents. While the
+       vault's broker is unavailable, it goes into the OS keychain through
+       `keyStore.ts`. It is never in settings, in files we write, in logs or
+       in MHP.
+     - If the OAuth App has expiring user tokens on (eight-hour access,
+       six-month refresh; GitHub's docs say a device-flow token refreshes
+       without a secret), the refresh token is stored the same way, and the
+       token is refreshed before it expires.
+   - **(c) Opt-in: the user's existing `gh` login.** This is behind
+     `museSpark.github.useGhLogin`: default off, user or machine scope only,
+     so a repository's settings cannot turn it on.
+     - The runtime runs `gh auth token --hostname github.com`: a governed
+       spawn, explicit arguments, capped output.
+     - It keeps the token in memory for that one request, and registers it
+       with the redactor.
+     - D93 used `gh api`, which keeps the token out of our process. Reading
+       it into our process widens that precedent, so this source is opt-in.
+   - **Scopes.**
+     - `repo` only: M71's scope, needed for pull requests on private
+       repositories.
+     - `read:org` is added only if a lane proves that a call needs it, and
+       it is asked for incrementally.
+     - `workflow`, `admin:*`, `delete_repo` and `gist` are never asked for.
+     - The client's method table bounds what any token is used for,
+       whatever scopes a lease or a `gh` token carries. Before a write, a
+       missing `repo` scope (from `X-OAuth-Scopes`) is named, rather than
+       surfacing GitHub's 404.
+   - **Sign-out and revocation.**
+     - Sign out deletes the stored item.
+     - GitHub's token-revocation endpoint authenticates the app itself,
+       which a public client cannot do (lane A confirms this against
+       GitHub's docs, dated). So Sign out also opens GitHub's authorized
+       applications page, where the user revokes the grant.
+     - A 401 drops the stored token and asks the user to sign in again.
+   - **Rejected.**
+     - A shipped client secret: it would be public.
+     - A GitHub App: it must be installed on each account or organization
+       before it can act there, which adds a setup step for every user.
+       Revisit if fine-grained permissions become necessary.
+     - Reading another application's token store (VS Code's or JetBrains'
+       files): D74 forbids it.
+     - A pasted personal access token: it is long-lived and often
+       over-scoped, and the device flow serves the same users.
+
+3. **Drafts, links and pull request checkout go through the shared panel.**
+   - **The Git port gets a runtime implementation.** The controller already
+     declares its Git port (`ConversationGitPort`, since M71's host-API
+     repair). The runtime implementation sits beside the VS Code adapter.
+     `GitPanel.tsx`, the commit and pull request forms, Write with Muse and
+     the held/trust card render through the three bridges (M104 lane D) in
+     every editor. The draft is still the user's own turn (D49), so there is
+     no paid-use popup.
+   - **Links and records.** Pull request links (session id to number,
+     address and title; newest 200) and worktree conversation records live
+     in the runtime's per-user store, keyed by the canonical repository
+     root. VS Code keeps its workspace and global state. Session export and
+     import carry the link.
+   - **Someone else's pull request** is materialized exactly as M71 does it
+     (RV71c):
+     - `worktree add --no-checkout --detach`, then `read-tree`;
+     - the files come from one `cat-file --batch`, through the exclusive
+       writer;
+     - the listing is refused whole on any bad name.
+
+     It goes under the runtime data folder's `pr-worktrees/`, and opens
+     with `workspace/openFolder` (F35).
+
+   - **The hold is by location, in every host.** Every host checks both
+     roots: VS Code's global storage and the runtime's. So a worktree made in
+     one editor is held when another editor opens it.
+   - **Held means the same everywhere:** Plan mode, no `!` commands, and
+     the project configuration untrusted, until the card confirms trust. The
+     card says that the editor's other extensions follow the editor's own
+     trust.
+
+4. **The network rule (D4) is amended** to name these sources.
+5. **One milestone, every editor.** M123 implements this decision. F36's
+   cells move to W, editor by editor, only on M123's receipts. M104's F36
+   fallback keeps its id, `gh-credential-store`, because renaming it would
+   be a breaking MHP change. It now means sources (b) and (c).
+6. **GitHub.com only**, as in M71. GitHub Enterprise Server needs a later
+   decision.
+7. **Owner item:** registering the OAuth App under the owner's GitHub
+   account (Q-M123). Everything builds and certifies against a fake
+   device-flow server without it.
+
 ### D105 — Windows trusted paths: a trusted root, links above it by identity (TRUSTROOT, 2026-10-09)
 
 **Owner rule (2026-10-08, "Windows paths: any drive").** Profile folders may
@@ -19199,6 +19413,32 @@ README and source-record refresh is complete; receipts in
   schedule fixture repairs, drills and remaining checks are recorded in
   `docs/certification/cifixm-macos-ci.md`. The lead's next hosted replay and
   exact error text close this evidence gap; no assertion or gate is waived.
+
+- **Q-M123 — The GitHub OAuth App (2026-10-08, owner item).** D104's
+  device-flow sign-in (source b) needs an OAuth App registered under the
+  owner's GitHub account, and only he can create it. It is Chrome-assisted:
+  the lead opens `github.com/settings/applications/new` and fills the form,
+  and the owner checks it and clicks Register.
+  1. **The form.**
+     - The name says "Unofficial" (A3), and implies no endorsement by Meta
+       or GitHub.
+     - The homepage is the repository, and so is the callback address. The
+       form requires a callback address, but the device flow never uses it.
+     - **Enable Device Flow** is ticked.
+     - No client secret is generated. If GitHub creates one anyway, it is
+       never copied or stored.
+  2. **Expiring user tokens.** **Default:** on, where the settings page
+     offers it (eight-hour tokens, refreshed without a secret).
+  3. **The client id** is public. It goes into `src/shared/constants.ts` in
+     a normal commit.
+  4. **The owning account.** **Default:** his personal account. The app can
+     be transferred to an organization later.
+
+  **Default until then:** every lane builds and certifies against the fake
+  server with a fake client id. Source (b) ships only after the app exists.
+  Until then the panel offers sources (a) and (c), and says why (b) is
+  missing. That gap goes at the top of every report, as an item blocked on
+  the owner.
 
 - **Q-FIX0160X-LINUX-ARTIFACTS (2026-10-07, macmini):** this worktree has
   no real x64 or arm64 `muse-created` build artifacts. Its universal Darwin
@@ -20175,6 +20415,342 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### M123 — Git and pull requests in every editor (D104)
+
+**Status 2026-10-08: planned.**
+
+- **Lane 0 landed on `feature/m123` (2026-10-08, Kubuntu).** Record:
+  `docs/certification/m123.md`.
+  - **Contracts.** `src/core/git/tokenSource.ts`: the `GitHubTokenSource`
+    port, `resolveGitHubCredential` (a silent pass in D104's order, then one
+    source asked: the user's pick or the first), expired credentials passed
+    over, `leaseExpiresAt` (never past `GITHUB_LEASE_TTL_MS`, 15 minutes),
+    the permitted scopes and the `X-OAuth-Scopes` check, the client id that
+    refuses while empty, and `isGhLoginEnabled` (the user's own value only).
+    `src/core/git/runtimeGit.ts`: `RuntimeGitDeps`, what lane G's
+    `createRuntimeGit(surface, deps): ConversationGitPort` takes, and the
+    `PullRequestLinkStore` port (lane P). `ConversationGitPort` is
+    unchanged.
+  - **Constants and the setting.** The GitHub block in `constants.ts`;
+    `museSpark.github.useGhLogin`, off and machine-scoped, in 15 tables, the
+    catalogue and the reference. Nothing reads it yet (lane A).
+  - **Dependency on M104 (recorded, not copied).** This base has no
+    `src/shared/hostApi/methods.ts`: the F36 rows (`auth/github`,
+    `auth/githubLease`, `github/request`) and `nativeGitHub.ts` live on the
+    unmerged M104 branches (`m104/pe`). So the additive `expiresAt` (epoch
+    ms, a positive integer, optional) is defined runtime-side as
+    `githubLeaseResultSchema`. When M104 merges, its `auth/githubLease`
+    result row gains the same field, the MHP schema snapshot takes its one
+    minor bump, `tokenSource.ts` reads the row's schema instead of its own,
+    and `check:host-api` covers it. Until then lanes A, G and P need nothing
+    from M104; lane L does.
+  - **Fakes.** `test/e2e/fakeGitHub.ts`: one loopback github.com, REST
+    replaying M71's captures through the unit route table (scopes per
+    token, 401 for an unknown one) and the device flow (every documented
+    error, `slow_down` +5 s, 900 s expiry, deny, refresh rotation, form or
+    JSON replies, a phishing address on request, a lost network).
+    `test/fixtures/github/fake-gh.mjs`: `gh auth token --hostname
+github.com` only. `test/unit/helpers/github/`: the device-flow shapes,
+    the fixture repositories (own, fork with parent, behind, detached,
+    failing hook, signer; GitHub URLs routed to local bare repositories by
+    `insteadOf`), an in-memory link store and `RuntimeGitDeps`. The
+    TypeScript helpers sit there, not under `test/fixtures/github/`,
+    because only the test projects' folders are type-checked and linted.
+  - **Not captured.** The device-flow shapes are GitHub's documented
+    examples, not re-read in lane 0 (the fetch was refused in the lane's
+    sandbox). Lane A checks and dates them, and captures one sign-in after
+    Q-M123 (AGENTS.md rule 14).
+- **Lane P built on `m123/p` (2026-10-08, linuxlt).** Record:
+  `docs/certification/m123.md`.
+  - **Core moves (VS Code wrappers stay, behaviour proved by M71's
+    suites).** `src/core/git/pullRequestLinksStore.ts`: the link schema,
+    the newest-200 prune and the in-memory lane 0 port (per root, `/`
+    keys). `src/core/git/heldCheckoutCore.ts`: the `cat-file --batch`
+    answers and the checkout confirmation both hosts show.
+    `src/host/git/pullRequestLinks.ts`, `heldCheckout.ts` and
+    `pullRequestCheckout.ts` delegate to them. `worktreeConversations.ts`
+    is untouched: the hold already takes both roots.
+  - **Runtime.** `src/runtime/panel/pullRequests/`: `pullRequests.ts`
+    (prepare/create/status through `GitHubClient` and
+    `resolveGitHubCredential`; forks onto the parent; credential shapes
+    masked; nothing posts without `confirm`; 401 drops the credential),
+    `checkout.ts` (own beside the repository as `pr-<n>`, foreign held
+    under the data folder's `pr-worktrees/` on the RV71c path, the fetch
+    in the user's environment, everything else quiet, the hold over both
+    roots, the card's release) and `records.ts` (memory and file
+    worktree-record stores). The untrusted-lane arguments are carried
+    beside the port until integration converges them on lane G's runner;
+    the scope precheck ships with lane A; the panel wiring follows in
+    lane U. No new command, setting, UI string or bundle.
+
+- **Goal.** F36 (M71's Git and pull request features) works in every editor
+  in M104's matrix. That means the same forms, drafts, confirmations, links,
+  checks and held checkout as in VS Code, with Git run natively by the
+  runtime and the GitHub token taken from D104's layered sources.
+- **Depends on.**
+  - M71 (released in 0.14.0) and D104.
+  - M104a's MHP contract, the runtime `panel` mode and the bridges (M104
+    lanes 0, B and D). The F36 methods and `nativeGitHub.ts` come from
+    `m104/pd-fix` once it merges, or lane L takes ownership of a copy, as
+    M104 did with M98's token file.
+  - M109's vault (an `oauth` item). While its broker is unavailable, the OS
+    keychain through `keyStore.ts`.
+  - M107's spawn admission (SPAWN017).
+  - The owner's Q-M123, for the OAuth App. Nothing blocks on it before
+    certification, because everything builds against the fake device-flow
+    server.
+- **Order.** Lane 0 first (one day). Then G, A, P and L run in parallel
+  against lane 0's fakes. U follows once G's and P's ports answer. Q
+  qualifies each editor as its route lands. D runs throughout. M123 starts
+  after M104a's contract freeze, and does not block the 0.17.0 release.
+- **Lanes and file ownership.** One integration branch, `feature/m123`,
+  under M87's region rules. Engine roles follow D103:
+  - Muse codes on the POSIX rigs.
+  - Claude codes Windows-native work and the Visual Studio C#.
+  - Codex reviews each lane class in one pass, never the engine that wrote
+    it.
+  - The lead integrates.
+
+| Lane                       | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Files it owns                                                                                                                       | Its regions in shared files                                                                                                                                                                   | Starts                  | Rig                                    | Hours | Codex review / acceptance focus                                                                                                                                                                                                                                                           |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | -------------------------------------- | ----: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Contracts, fakes (lead)  | The `GitHubTokenSource` port and its order; the runtime side of the controller's existing `ConversationGitPort` (unchanged); constants: `GITHUB_OAUTH_CLIENT_ID` (a fake until Q-M123), the device-flow deadlines, `GITHUB_LEASE_TTL_MS` (at most 15 minutes), the scope list; `museSpark.github.useGhLogin` (user or machine scope); an optional `expiresAt` on `auth/githubLease`'s result (an additive MHP minor version, with the schema snapshot); fakes: a device-flow server with every error code, a GitHub REST server replaying M71's captures, a fake `gh`, and fixture repositories (a bare origin, a fork with its parent, a failing hook, a configured signer) | `src/core/git/tokenSource.ts`, `test/e2e/fakeGitHub.ts`, `test/fixtures/github/**`                                                  | `src/shared/constants.ts` (the GitHub block); `src/shared/hostApi/methods.ts` (the F36 rows); `package.json` and `package.nls*.json` (one setting)                                            | after M104a's freeze    | Kubuntu                                |     6 | The schemas round-trip and reject bad input; the snapshot is bumped once; the fakes replay every captured shape; no secret field anywhere                                                                                                                                                 |
+| G Native Git (Muse)        | M123G4 migrates the transaction lock to LOCKLIB (renewal, synchronous fence at dispatch, no lost-lock recreation; refresh/resume and own-renewal dispatch regressions). The runtime Git adapter: status; a bounded, binary-safe diff; commit (message, the all-files choice, hooks and signers named); push (M71's push plan, the confirmation, the remote pick, `-u` on a first push, never `--force*`); the user-environment rule for the push and the PR fetch; Open in terminal; trust, owner and lifetime rechecks after every await; the in-process native route for VS Code-family hosts without `vscode.git`                                                         | `src/runtime/panel/git/**`, `src/core/git/{status,diff,commit}.ts` (new)                                                            | `src/host/git.ts`: `createGitProcess` and `quietGitEnvironment` move unchanged to `src/core/git/process.ts` if the host-API gate refuses the import, coordinated with the M71 owner           | after 0                 | Kubuntu; Win11 VM (Claude) for Windows |    14 | Never force; the same push-plan refusals as VS Code (one shared table test); no argument built from unchecked user text; the process tree stopped on Cancel; only the push and the fetch get the user's environment, and neither gets a token of ours                                     |
+| A GitHub sign-in (Claude)  | Source (b): the device-flow client (request, poll at `interval`, `slow_down`, expiry, Cancel, the verification-address check), storage as a vault `oauth` item with the keychain fallback, and refresh when expiring tokens are on; source (c): `gh auth token` behind the setting, in memory only; the scope check; Sign out with the revoke page; 401 handling; redactor registration for each token; the CLI's `auth github login`, `logout` and `status`                                                                                                                                                                                                                 | `src/core/git/deviceFlow.ts`, `src/runtime/github/**`                                                                               | `src/runtime/authCommands.ts` (the `github` subcommands); `src/runtime/vault/**` (the item kind's registration, with the M109 owner)                                                          | after 0                 | Win11 VM; Mac mini (the keychains)     |    14 | The token appears in no log, frame, file, argument or environment (grep drills for each source); polling is never faster than `interval`; only GitHub's address is opened; the setting is refused from workspace scope; agents never see the vault item                                   |
+| L Editor leases            | `auth/githubLease` and `github/request` implemented in: VS Code (`getSession('github', ['repo'])`); JetBrains (Muse, Kotlin: the bundled GitHub plugin's account manager as an optional dependency, and no lease when it is absent); Visual Studio (Claude, C#: a research spike first; a supported API for VS's GitHub account, or source (b) recorded with the reason); `nativeGitHub.ts` wired into the source order; the lease time limit, owner binding and revocation at shutdown                                                                                                                                                                                      | `src/host/vscode/github/**`, `hosts/jetbrains/**/github/**`, `hosts/visualstudio/**/GitHub/**`, `src/runtime/panel/nativeGitHub.ts` | the M104 plugins' MHP dispatch tables (one row each, with lanes E and F)                                                                                                                      | after 0                 | Kubuntu (JetBrains); Win11 VM (VS)     |    16 | No token crosses MHP (frame grep); a lease is refused after expiry, after an owner change, and for another origin, path or method; VS Code's behaviour is unchanged (golden frames)                                                                                                       |
+| P Pull requests (Muse)     | Creating, linking and reading pull requests in the runtime through the REST client and the token source; fork pull requests opened on the parent; credential-shaped strings masked; the link and worktree-record store in runtime storage (newest 200); the user's own pull request beside the repository as `pr-<n>`; the held checkout (RV71c's path) under the runtime data folder; the hold by location checking both roots; `workspace/openFolder`; release from the trust card                                                                                                                                                                                         | `src/runtime/panel/pullRequests/**`, `src/core/git/{pullRequestLinksStore,heldCheckoutCore}.ts` (new)                               | `src/host/git/heldCheckout.ts` and `pullRequestCheckout.ts` (their logic moves to core; the VS Code wrappers stay); `src/core/worktreeConversations.ts` (both roots), each with the M71 owner | after 0                 | Mac mini (case and NFC); Win11 VM      |    16 | RV71c's refusals are identical in every host (one shared table); a worktree made in one editor is held in another; no Git runs after the first foreign byte; the store stays bounded FIXM123P (2026-10-09, linuxlt) fixed RVM123P P1+5 P2 at the root; record docs/certification/m123.md. |
+| U Panel and strings (Muse) | `GitPanel.tsx`, the forms and the held card in all three bridges; the sign-in card (the code, Copy, Open, Cancel, the source in use, the account, Sign out); the 15 translation tables; the help reference and the feature catalogue; harness scenes and axe; the README screenshots                                                                                                                                                                                                                                                                                                                                                                                         | `src/webview/components/GitHubSignIn.tsx` (new)                                                                                     | `src/webview/components/GitPanel.tsx`, `l10n/*` (new keys, all 15 tables)                                                                                                                     | after G's and P's ports | Kubuntu                                |    10 | Keyboard and screen reader; equal buttons that never stack in a narrow panel; the same pixels in VS Code before and after                                                                                                                                                                 |
+| Q Qualification (lead)     | The F36 conformance scenarios on every adapter (M104g); a receipt per editor and version; the matrix moved to W only on that evidence; any exception recorded with its reason and equivalent                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | `docs/certification/m123-<host>.md`                                                                                                 | `test/hostApi/**` (the Git scenarios, with M104 lane I)                                                                                                                                       | as each route lands     | every rig                              |    12 | Every row W, or a named exception approved by the lead (none expected)                                                                                                                                                                                                                    |
+| D Docs (lead)              | README (Git and pull requests in every editor); `docs/ide-compatibility/matrix.md` regenerated; SECURITY and `docs/PRIVACY.md` (the three sources, what is stored where, how to revoke); CONTRIBUTING (the fakes); AGENTS.md rule 14's row; CHANGELOG; PLAN (D104, M123, §8 and §9 rows); `docs/certification/m123.md`                                                                                                                                                                                                                                                                                                                                                       | `docs/certification/m123.md`                                                                                                        | README, SECURITY, `docs/PRIVACY.md`, CONTRIBUTING, AGENTS.md, CHANGELOG, PLAN (D104 and M123 only)                                                                                            | throughout              | host                                   |     4 | Documented behaviour only after real runs; every token path described matches the code                                                                                                                                                                                                    |
+
+- **Record/checkout concurrency (FIXM123P3 redesign, 2026-10-09).** The
+  third review round (RVM123P2: one P1, two P2s) showed patches could not
+  close the races, so the record store and the checkout lifecycle were
+  redesigned as one serialized owner per repository: a per-folder
+  `revision`, validate → act → persist against the fresh state, a
+  cross-window `mkdir` lock folder, and the batch child in its own process
+  group with its own deadline. RVM123P3 found three P1s and two P2s left in
+  that lock and lifecycle; FIXM123P4 below replaces both.
+- **Record/checkout protocol (FIXM123P7 redesign, 2026-10-09; replaces
+  FIXM123P4–P6).** The fourth review round (RVM123P6: three P2s) applied
+  the third-round rule: the store and the checkout were rebuilt on one
+  shared lock primitive, LOCKLIB (`src/core/locks/fileLease.ts`, with
+  `nodeLeasePort.ts` and `processOwner.ts`), fenced reservations and one
+  dispatch gate. Code: `src/runtime/panel/pullRequests/`
+  (`recordGenerations.ts`, `records.ts`, `checkout.ts`, whose
+  `PullRequestCheckoutProtocol` the service runs). Record:
+  `docs/certification/m123.md`.
+
+  | State   | Meaning                                                                                                     | Leaves via                                                                                                                                                                                                                                                                     |
+  | ------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+  | absent  | no record; the folder is held by location anyway                                                            | `reserve` → pending                                                                                                                                                                                                                                                            |
+  | pending | a reserved checkout: a random `checkoutId`, its process (`pendingOwner`, with its boot), the writing fence  | `claim` → pending (claimed, the folder made under the same hold); `complete` → ready; `discard` → absent, once nothing it made is left; `supersede` → pending, when its folder is absent under the superseding hold and its process is provably gone or it is over an hour old |
+  | ready   | finished; bound to `checkoutId`, `revision`, fence, head SHA and folder identity (`dev:ino` and birth time) | `release` with the card's single-use ticket for exactly that → trusted; `supersede` → pending (folder absent)                                                                                                                                                                  |
+  | trusted | confirmed in the card                                                                                       | `supersede` → pending (folder absent); nothing restores an older record, and a failed checkout never brings trust back                                                                                                                                                         |
+
+  | Step                | Rule                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+  | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | Lease (LOCKLIB)     | `worktree-records/lock` created with O_EXCL; its note names the owner (host, process id and birth, Linux boot), a random id, a renewal count and the lease (30 s). Each hold then takes a fence: `lock.fences/<n>`, created exclusively, above every earlier fence and every fence the records carry. `isHeldSync()`: the lease runs on the holder's monotonic clock, the lock file is this instance, the highest fence is this one. The note and fences are made visible, not forced to disk (a crash ends the lease); record generations are flushed. The note and fences are made visible, not forced to disk (a crash ends the lease; record generations are flushed).                  |
+  | Renewal, release    | `renew()` rewrites the holder's own note in place only once the opened file itself shows this very instance (file id, birth time, note id, renewal: a reused file id is not enough), and holds only while its fence is still the highest after the write; `release()` retires only its own instance. Neither ever acts on a lock taken over from it.                                                                                                                                                                                                                                                                                                                                        |
+  | Takeover            | only an instance (file id, birth time, note id and renewal) the waiter has itself watched, unchanged, for its holder's lease (never more than 30 s), on the monotonic clock, kept across attempts; early when the owner is provably gone (`processOwner.ts`) or the note is missing/torn for 2 s. One rename moves it aside; proven, it is removed; unproven for any reason (a read error, a mismatch), it is linked back while the name is free and the waiter waits on; if it cannot go back, the waiter ends busy and the moved file stays aside, never removed.                                                                                                                         |
+  | Registry fence      | each hold reads the head and publishes at most once, a compare-and-swap: refused while the head's fence is not below the hold's, refused once `isHeldSync()` fails (checked synchronously just before the link), and the hard link of generation N+1 fails while N+1 exists. Every record written carries its hold's fence. Parent write ids and the one-record reconciliation stay as FIXM123P4 made them. A write that landed is never reported failed by what follows it (the sweep never throws; an unreadable proof leaves it unverified, then reconciled); one whose landing cannot be known comes back with every fence it may hold, and the checkout drops whichever its record is. |
+  | Reservation         | a checkout id and the record's fence. `claim`, `complete` and `discard` are compare-and-swaps on it; `supersede` is one on the version read (checkout id, revision and fence) with the folder checked absent under the same hold.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+  | Claim               | under one hold: publish the claimed record (a new fence), then make the folder under a private name and rename it into place, which fails while anything is there. A refused claim makes nothing; a claim whose folder could not be made drops only its reservation.                                                                                                                                                                                                                                                                                                                                                                                                                        |
+  | Dispatch gate       | every git `checkout.ts` starts goes through `runGit` or `startGitBatch`, which call the gate and start the process in the same synchronous turn. The checkout's gate: trusted, not cancelled, and `holdsSync` (the record is still exactly this reservation). The cleanup's gate: trusted; refused, what this checkout made is removed without git and its registration is left to git's prune. File writes ask trust and Cancel.                                                                                                                                                                                                                                                           |
+  | Completion, failure | completion is a compare-and-swap on the claimed reservation. Refused or not known, the checkout removes exactly what it made (identity-checked; whole only once git added the worktree, else only while empty), then discards its own reservation. A failed checkout's record goes once nothing it made is left; one it could not remove stays pending, so the folder stays held.                                                                                                                                                                                                                                                                                                           |
+  | Checkout lifecycle  | a failure invalidates the file writers first, kills the batch tree, drains the writer in flight (5 s), then cleans up even after Cancel. A writer past its grace keeps the record pending until it stops and its cleanup has run.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+
+  **What is proven, and how.** At most one window succeeds, no git runs
+  for a window whose trust is gone, and the store never ends with a folder
+  that no finished record of its maker names: every order of the
+  protocol's await points (acquire, publish, link, make, git dispatch,
+  remove), states reached again with the same history explored once, for
+  two windows (with one or two holds stalling past their lease before or
+  after their checks, trust revoked, a wall clock stepped at any point, a
+  finished checkout whose folder is gone, the user's own checkout) and
+  three windows (every order; and the taker's lease running out) —
+  `test/unit/runtimePullRequestInterleavings.test.ts`, the real protocol
+  and store logic over a registry that models the lease and generations.
+  The model's I/O succeeds, except an injected fault: a publish that lands
+  and then fails (one or two, at any link). That the file registry behaves
+  as the model, its other I/O failures included (a sweep or proof that
+  cannot list, a reconciliation that cannot read), is tested on real files
+  (LOCKLIB's suite, the generation compare-and-swap, the forced-takeover
+  property race, injected listing failures); renewal and its open-handle
+  races are LOCKLIB's suite's, not the model's. "One owner" holds only where no lease runs out: a hold
+  paused past its lease can leave both windows failed (never a folder
+  without its record).
+
+  **Residual window.** Same-user concurrent directory swaps stay outside
+  the threat boundary (D104); the identity checks still detect them.
+  Deleting the `worktree-records` folder by hand while a delayed writer is
+  mid-write can let that writer's stale generation head the new history
+  (deleting only the fences is recovered: holds go above the records'
+  fence). On POSIX, the rename that puts a claimed folder in place
+  replaces an _empty_ folder made in the instant between its presence
+  check and the rename (no content is lost; Windows refuses). Clock steps:
+  lease waits, leases and Linux births are immune; Windows and macOS
+  births are the wall-clock time the kernel recorded at creation (macOS
+  to the second; two births within 1 s are not told apart). The one
+  wall-clock judgement left is the hour after which a pending checkout
+  without its folder is recovered: a forward step can recover a live one
+  early, whose claim or completion is then refused by the fence (it
+  removes what it made); a backward step lengthens the wait. A file system
+  that reports no birth time leaves identity to the file id alone, which
+  Linux may reuse. A cleanup refused by trust leaves git's worktree
+  registration for `git worktree prune`. Liveness: a live lock owner holds
+  at most its 30 s lease, watched across attempts; a pending checkout
+  waits at most the hour; a busy store fails loudly after 10 s; a writer
+  stuck in a system call that never returns keeps its record pending; a
+  file system without hard links fails closed. Windows whole-tree
+  retirement of the batch stays lane G's.
+
+  **Lane G migration (M123G4, 2026-10-09).** Replaced the hand-rolled Git
+  transaction lock with LOCKLIB: `renew()` every third of the 30 s lease,
+  `isHeldSync()` beside the seal at every dispatch, and watched, proven
+  retirement instead of the presence poll and newcomer wait. A removed or
+  taken lock is never re-made. Certified RVM123G4's refresh/resume schedule:
+  a paused old holder cannot reclaim a renewed successor or start another
+  Git mutation. Already-running children may overlap after lock removal or
+  lease expiry; fencing refuses subsequent payload dispatch, not an existing child.
+
+  **Own renewal overlap (RVM123G4C, 2026-10-09).** LOCKLIB's synchronous
+  hold check accepts its own old or next renewal count while renewal is in
+  flight, with the same file id, birth, note id and current fence. A torn
+  note counts as owned only during the opened file's accepted rewrite,
+  within the unexpired lease. The Git wrapper defers latching an overlapping
+  failed check until renewal settles and rechecks ownership then. Regressions
+  pause the own-note write over an in-memory note port and native files,
+  dispatch a real Git mutation, and retain successor/expiry/fence refusals.
+  Simultaneous renewals recheck pending state after the ownership await
+  (G83); exactly one can enter its rewrite.
+
+Lane G landed 2026-10-09 without the planned `src/core/git/process.ts` move: the host-API gate passes on the `src/host/git.ts` import (no `vscode` in its closure), so the lane kept the import and added `isUserEnvironment` to `GitProcessOptions` for the push and the fetch instead. No escape hatches; the record is `docs/certification/m123.md`.
+
+Lane G repair (RVM123G, 6 P1 + 10 P2, 2026-10-09, branch `m123/g2`, Windows host). All sixteen findings fixed in one pass; each has a test that fails on `b9baa882d` and a red drill (`docs/certification/m123.md`).
+
+- **`RuntimeGitDeps` grew** (lane 0's file, additive): `confirmPush` (M71's push modal: remote, masked URL, branch, target, commits), `pickRemote`, `userEnvironment` (D104's push/fetch exception) and the optional `admitWorkspaceCommand` (M72's admission). `ConversationGitPort` is unchanged.
+- **The service binds the root at construction** (canonical path plus volume and file id) and refuses a link, junction or replacement folder at that path, at every operation and again at the spawn. The runner's `beforeRun` (after admission and the Windows job's preparation) rechecks the arguments, the operation's signal and owner, trust and the root's identity. Every method takes the caller's operation (signal and owner check); Cancel, a session change and disposal abort it. Mutations are serialized per physical repository across conversations in a process, each revalidating inside the lock (the commit stamp; the push re-planned and compared with what was confirmed). Two runtime processes on one repository still rely on git's own index lock between commands: a residual until the runtime has one owner per repository (M104's panel route). (Superseded by the third round below: a lock file shared across processes.)
+- **Commit stamps** carry the status records (modes and index object names) and a SHA-256 of the unstaged and new files' bytes, read confined by identity (`confinedFiles.ts`: every ancestor a real folder before and after the open, the handle the file just seen). Draft prompts read new files the same way.
+- **Redact before truncate:** the adapter redacts git's whole text before its cut; `createGitProcess` drops a partial last word of stderr once its cap cut it.
+- **The terminal fallback** opens only for git's own failure of the confirmed push while the conversation still owns a trusted operation, with the resolved `gitPath` in the bound root.
+- **Credentials:** the governed Windows job keeps `isUserEnvironment`; the standalone runtime keeps the Git routes it takes out at start (no `*_API_KEY`, no provider key) for the push and the fetch only (`src/runtime/gitUserEnvironment.ts`). `createGitProcess` takes an absolute `executable` (the resolved `gitPath`). (Superseded by the third round below: a named allow-list.)
+- **Status:** porcelain-v2 `u` records are parsed past their ten fields. **Worktrees:** `pr-worktrees/` must be a real folder directly under the resolved data folder, checked before and at the spawn.
+- **Wired:** the in-process route for a VS Code-family host without `vscode.git` (`conversationGitEntry.ts` picks `createRuntimeGit` when the extension is absent; `gitWindow.ts` supplies VS Code's push modal, remote pick, terminal, trust, hold and admission). Pull requests on that route wait for lane P. **Not wired:** every other editor (the runtime panel route is M104/lane U); the standalone runtime's `runtimeGitUserEnvironment` is that route's `userEnvironment`.
+
+Lane G third round (RVM123G2, 6 P1 + 6 P2, 2026-10-09, branch `m123/g3`, Windows host): a redesign, not a patch, under D104's threat boundary (the lead's decision, recorded in D104). Record: `docs/certification/m123.md`, with the closure of all 28 findings of both reviews.
+
+- **One bound pipeline** for every mutation: plan → confirmation → admission → final revalidation → spawn (D104). `src/runtime/panel/git/transaction.ts` holds the per-repository LOCKLIB lease (`GIT_TRANSACTION_LOCK_FILE` in git's common directory: exclusive create, a process-birth-bound holder, renewal every third of the 30 s monotonic lease, an increasing fence, watched takeover and proven retirement; a removed or taken lock is never re-made) and the seal (HEAD, the index, packed and loose refs, the reftable list, every configuration file git named, sampled before the revalidation, compared at the spawn). The in-process queue is gone (R7, R8).
+- **Final revalidation after every wait:** inside the lock and the host's admission, the push plan is read again and compared whole (remote, every push URL from `git remote get-url --push --all` so a `pushInsteadOf` rewrite is shown and bound, refspec, target, upstream use, commit count, the branch's commit, the configuration files) and the commit stamp likewise; the seal then carries that to the spawn, after the runner's own admission and the Windows job's preparation (R2, R9). After `add -A`, what got staged must be what the form showed, or nothing is committed (the staging stays).
+- **The spawn's last check** also runs at the Windows helper's payload authorization: `McpJobLaunch.authorize` is called on READY, and a refusal withholds GO, so the payload never starts (R1). It checks the root is a real directory (`lstat`, no link even to the same folder) with its bound identity (R10 detection), the lock still held and the seal intact.
+- **Credentials:** an allow-list per operation; push and fetch get only `GIT_PUSH_CREDENTIAL_VARIABLES` on both launch routes, from the runtime's start capture, the service, the runner and the VS Code-family route, whose terminal opens with `strictEnv` in the same environment (R3). The terminal fallback opens only after `confirmedPushRoot` revalidated the bound repository and the plan (R5).
+- **Confirmation text:** `maskRemoteUrl` masks every query value and fragment and judges the percent-decoded spelling too (R11).
+- **Construction:** the root's identity is sampled synchronously when the service is made (R6 detection). **Tests** run git as their own identity with an isolated home and global configuration (R12).
+- **Residuals under the boundary:** R4 (a same-user ancestor swap and restore around a path-based open), the windows R6 and R10 leave (host approval to construction; a swap of the root's own ancestors), a config include whose file is created between revalidation and spawn, a host that ignores `strictEnv`, and the pre-existing `dist/resourceGovernor.js` cap failure (also fails on the base).
+- **Fix round (RVM123G3G, Grok: 0 P1, 2 P2, 1 P3).** The seal samples a link together with the file it leads to, so a linked configuration file rewritten behind an unchanged link refuses the push. The original presence poll and newcomer settle wait were superseded by M123G4's LOCKLIB migration after RVM123G4 proved a resumed old holder could reclaim a settled successor after its heartbeat. The lease now renews only its owned instance and checks its fence synchronously at dispatch; no lost lock is re-made. Already-running Git children may overlap after lock removal or expiry; only later dispatch is refused. The `pushInsteadOf` test now pushes through the rewrite and refuses when the rewrite changes during admission.
+
+- **Acceptance per editor (all with fakes, no live calls).** The first
+  available token source wins, and the user may sign in with any later one.
+
+  | Editor                                         | Token sources, in order                                      | Git                                          | Panel                           | Exception |
+  | ---------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------- | ------------------------------- | --------- |
+  | VS Code                                        | (a) VS Code's GitHub session; (b); (c)                       | the Git extension                            | webview                         | none      |
+  | VS Code forks                                  | (a) where the fork ships GitHub sign-in; (b); (c)            | the Git extension where present, else native | webview                         | none      |
+  | Arduino IDE 2                                  | (b); (c)                                                     | native (no `vscode.git`)                     | webview                         | none      |
+  | JetBrains (with Android Studio)                | (a) the bundled GitHub plugin's account; (b); (c)            | native                                       | embedded (JCEF)                 | none      |
+  | Visual Studio                                  | (a) if lane L finds a supported API; (b); (c)                | native                                       | embedded (WebView2)             | none      |
+  | Eclipse (with Espressif IDE)                   | (b); (c)                                                     | native                                       | embedded (SWT browser)          | none      |
+  | Zed, Xcode, Qt Creator, Neovim, Emacs, Sublime | (b); (c)                                                     | native                                       | companion                       | none      |
+  | CLI                                            | (b), through `auth github login`, which prints the code; (c) | native                                       | companion (`panel --companion`) | none      |
+  1. **The full path, in every editor above.** Sign in with each available
+     source. Draft a commit message, commit, and push after the
+     confirmation; each push-plan case is refused. Draft and open a pull
+     request, as a draft and ready, including from a fork to its parent; an
+     open pull request for the branch is linked instead of a second one.
+     See its status and checks. Open someone else's pull request held,
+     confirm trust, and see the hold lifted.
+  2. **VS Code unchanged.** M71's suites pass, the harness screenshots are
+     pixel-identical, and its token stays VS Code's.
+  3. **The device flow, against the fake.** `authorization_pending`;
+     `slow_down` (plus five seconds, never faster); `expired_token`;
+     `access_denied`; `incorrect_device_code`; `device_flow_disabled`;
+     `unsupported_grant_type`; a lost network. Cancel stops polling. A
+     verification address other than GitHub's is refused.
+  4. **The sources.** The order is honoured. `gh` is off by default, and
+     refused from workspace scope. Leases expire. A 401 asks the user to
+     sign in again. A missing `repo` scope is named.
+  5. **Rule 8 drills.** Token canaries from each source are absent from MHP
+     frames, companion responses, logs, the transcript, the vault audit,
+     child arguments and environments (the push's included), problem
+     reports and screenshots, checked by a grep test.
+  6. **Held checkout.** RV71c's refusal table passes in every host, and a
+     worktree made in one editor is held when another opens it.
+
+- **Tests.**
+  - Unit: the source order; the device-flow client (every code and timer,
+    on a fake clock); the `gh` source (missing, signed out, scope missing,
+    several accounts); the lease time limit and owner binding; the native
+    Git adapter against the fixture repositories (a detached HEAD, behind
+    upstream, a failing hook, a configured signer); the link store's bound;
+    the scope header.
+  - Integration: `test/e2e` drives `panel --stdio` with the fake host and
+    the fake GitHub, and `--companion` with Playwright. The plugin
+    harnesses test the lease: IntelliJ's `BasePlatformTestCase`, and the VS
+    experimental instance.
+  - Live: none without the lead. After Q-M123, there is one optional check:
+    one device-flow sign-in by the owner and one draft pull request on a
+    throwaway repository. It makes no model calls (the drafts are typed by
+    hand), and it is counted and recorded.
+- **Gates.**
+  - The existing gates, with `check:editor-matrix` moving F36. The MHP
+    schema snapshot takes the minor bump for `expiresAt`.
+  - New guards with red drills, in `docs/certification/m123.md`: lease
+    expiry, the verification-address check, the workspace-scope refusal,
+    the push-environment rule and the token grep.
+  - D6: the runtime panel entry is measured, plus 15%. The VS Code
+    activation and Git bundle caps stay unchanged.
+- **Security.**
+  - **The token is never logged, returned or forwarded.** It is registered
+    with the redactor for each request. MHP carries lease ids only, and the
+    UI shows the source and the account's login, never the token.
+  - **Leases** are UUIDs bound to their owner. They expire, and end at
+    window close, a change of owner, shutdown and sign-out. Requests are
+    limited to the origin, path and method allowlist.
+  - **Scopes are minimal:** `repo`; `read:org` only on a proven need;
+    nothing else.
+  - **Storage:** a vault `oauth` item, origin-bound and hidden from agents,
+    or the OS keychain. Never a file, a setting or a log.
+  - **Revocation:** Sign out deletes the item and opens GitHub's revoke
+    page. A 401 drops the token. A refresh rotates both tokens.
+  - **Device-flow phishing:** only our panel shows a code; only GitHub's
+    address is opened; a code from the model or a tool is never accepted.
+  - **The `gh` source** is opt-in, from user or machine scope. Its token is
+    held in memory for one request, and `gh` is resolved as `git` is (an
+    absolute path, no shell).
+  - **Agents never get the token.** `EXEC_CHILD_ENV_DROP` is unchanged, and
+    the push gains no variable of ours.
+  - **§9 residuals:** a same-user process can read the vault or keychain
+    item, as it can VS Code's session (D89's residual). The `gh` source
+    reads a token that `gh` already stores.
+- **Size.** M overall:
+  - 6–8k lines of TypeScript including tests (0 0.8k, G 1.8k, A 1.8k,
+    P 1.8k, U 1.2k);
+  - 0.6k of Kotlin;
+  - 0.6k of C#, if Visual Studio has an API;
+  - 1k of conformance scenarios.
+    With five lanes in parallel, the critical path is lane 0, then P, U
+    and Q.
+- **Certification checklist** (§6.0, plus):
+  - [ ] Q-M123 is answered and the client id is in the constants, or the
+        fake id is recorded as the only blocker, at the top of the report.
+  - [ ] Lane 0's contract is frozen, with the schema snapshot.
+  - [ ] A receipt per editor in `docs/certification/m123-<host>.md`; the
+        matrix is generated; F36 is W in every row.
+  - [ ] VS Code is unchanged (M71's suites and screenshots).
+  - [ ] Rule 8 grep tests pass for each token source.
+  - [ ] Every new guard has its red drill.
+  - [ ] No live call without the lead; the optional live check is counted.
+  - [ ] Codex reviews each lane class in one pass before push.
 
 ### M122 — Public roadmap (2026-10-08)
 
@@ -22394,6 +22970,9 @@ owner commands; accepted control shapes remain uncaptured.
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M71 — Git and pull requests (D49)
+
+**Every editor (2026-10-08):** D104 and M123 bring these features to every
+editor. This section stays the record for VS Code.
 
 **FIX78W browser budget repair (2026-10-04, bounded rig proof complete;
 lead gates open).** Compare production metafiles for `main-sync` and this
@@ -37856,6 +38435,11 @@ lane A's first step.
   later) works in every editor in §1.3, through the editor's own APIs or
   our own implementation. Every future feature lands in all of them in the
   PR that adds it.
+- **F36 is owned by M123 (D104).** No M104 lane builds
+  `git-and-pull-requests`. M123 implements its methods (`auth/github`,
+  `auth/githubLease`, `github/request`) and its `gh-credential-store`
+  fallback (D104's sources b and c). F36's matrix cells move to W editor by
+  editor, only on M123's receipts.
 - **Depends on.**
   - D84.
   - The M60 gate and the M61 steps.
@@ -38161,6 +38745,29 @@ Bounded external gate deferral: full `jscpd` still reports the inherited
 51-token clone in `test/unit/modelApiLoopGuarantees.test.ts:741` and `:890`.
 That suite is another lane's scope; leave code and duplication limits intact
 for the lead's integration gate. Receipt: `docs/certification/cifixv.md`.
+
+**M123G4C local receipt (2026-10-09, Kubuntu).** Own-renewal dispatch is
+fixed at LOCKLIB and the Git wrapper: 301 tests passed, 2 existing platform
+skips, 19 byte-exact drills fire. One unit-project tsc (including all
+source), changed-file lint, formatting, deadcode, localization, host API,
+reference, plan, roadmap, split, globals and notices pass. Wider blockers
+stay unchanged: jscpd has the same 44 clone pairs and code fragments as
+`9c8ed7f70` (all five compared files restored byte-exact); the production
+build stops only at resourceGovernor's 135,557 bytes, exactly the recorded
+base size, over 125 KiB. No threshold or cap moved. Full quality is the
+lead's gate under the rig brief; Windows control-pipe execution remains for
+its rig. Receipt: `docs/certification/m123.md`, M123G4C.
+
+**M123G4 local receipt (2026-10-09, Kubuntu).** Required Git/LOCKLIB suites:
+279 passed, 2 existing platform skips; three byte-exact guard drills fire.
+Typecheck, changed-file lint, localization, host API, reference, plan and
+roadmap pass. Two wider gates remain for the lead, unchanged in policy:
+`jscpd` reports the exact same 44 clone pairs at base `79071a8ad` and here,
+none new; the production build fails only `dist/resourceGovernor.js` at
+132.38 KiB against 125 KiB (base 132.35 KiB, current +30 B). No threshold,
+ignore, timeout or cap moved. The rig brief forbids running full quality
+in a lane; the lead owns that gate. Receipt: `docs/certification/m123.md`,
+M123G4; the Windows control pipe still needs the Windows rig.
 
 **MERGESPAWN (2026-10-08).** `rel017/spawn4` is merged into `release/0.17.0`
 with both sides' behaviour; the reporting bundles now share resource

@@ -27,10 +27,12 @@ import { removeFolder } from './helpers/temporaryFolders'
 
 const built = { folder: '', file: '' }
 
-// The bundle's VS Code: a trusted workspace and a GitHub session, nothing else.
+// The bundle's VS Code: a trusted workspace, a GitHub session and the git
+// extension installed (so M71's adapter, not M123's native route), nothing else.
 const VSCODE_STUB = `module.exports = {
   workspace: { isTrusted: true },
   authentication: { getSession: async () => ({ accessToken: 'marker-token' }) },
+  extensions: { getExtension: (id) => (id === 'vscode.git' ? { id } : undefined) },
 }
 `
 
@@ -76,6 +78,7 @@ function featuresDeps(fetch: GitFeaturesDeps['fetch']): GitFeaturesDeps {
     admit: (start) => start(),
     restartBackends: () => Promise.resolve(),
     holdReleased: () => undefined,
+    signal: new AbortController().signal,
     log: new FakeLogOutputChannel(),
   }
 }

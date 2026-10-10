@@ -2,10 +2,17 @@
 // git and pull request features, each constructed synchronously with its
 // installed language. Everything that throws or checks a Git or GitHub error
 // lives here, so the adapter recognises its own window's errors.
+//
+// A VS Code-family host without the `vscode.git` extension (Arduino IDE 2,
+// some forks) gets M123's native adapter in-process instead (PLAN.md D104):
+// status, the commit form, commit, push after its modal, the remote pick
+// and commit-message drafts through the user's own git on PATH.
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
+import { createRuntimeGit } from '../../runtime/panel/git/adapter'
 import type { ConversationGitPort, GitSurface } from '../conversation/conversationController'
 import { ConversationGit, type ConversationGitErrorTypes, type GitWindow } from './conversationGit'
+import { isGitExtensionInstalled } from './gitExtension'
 import {
   createGitFeatures as gitFeaturesFrom,
   type GitFeaturesDeps,
@@ -21,7 +28,10 @@ export function createConversationGit(
   errorTypes?: ConversationGitErrorTypes,
 ): ConversationGitPort {
   setUiText(table, locale)
-  return new ConversationGit(window, surface, errorTypes)
+  const native = isGitExtensionInstalled() ? undefined : window.nativeGit?.()
+  return native === undefined
+    ? new ConversationGit(window, surface, errorTypes)
+    : createRuntimeGit(surface, native)
 }
 
 export function createGitFeatures(
