@@ -5,8 +5,14 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ProviderCredentialStore as CredentialStore } from '../../src/host/providers/credentialRecords'
 import { providerSecretKey } from '../../src/host/providers/credentialRecords'
-import type { AddressPolicy } from '../../src/host/providers/providerPorts'
-import { saveWizardDraft, type WizardDraft } from '../../src/host/providers/wizardSave'
+import type { AddressPolicy, ProviderModelRow } from '../../src/host/providers/providerPorts'
+import {
+  saveWizardDraft,
+  scannedLocalModelLimits,
+  type WizardDraft,
+} from '../../src/host/providers/wizardSave'
+import { UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 import { memoryProvidersStore, memorySecrets, unexpectedWarning } from './helpers/fakes'
 
 const POLICY: AddressPolicy = {
@@ -171,6 +177,25 @@ describe('saveWizardDraft', () => {
     expect(setComposerModel).not.toHaveBeenCalled()
   })
 
+  it('reports an incomplete draft and a missing key in the UI table', async () => {
+    // C-M95-4 R3: Add Model Provider shows the refusal text, so both
+    // reasons live in the UI table instead of thrown English sentences.
+    const savingParts = saving()
+    const deps = {
+      store: savingParts.store,
+      credentials: savingParts.credentials,
+      policy: POLICY,
+      setComposerModel: () => Promise.resolve(),
+    }
+    await expect(
+      saveWizardDraft(deps, { ...DRAFT, provider: { ...DRAFT.provider, id: '' } }),
+    ).rejects.toThrow(UI_TEXT.actionFailed)
+    await expect(saveWizardDraft(deps, { ...DRAFT, credential: '  ' })).rejects.toThrow(
+      fill(UI_TEXT.providerNeedsKey, { id: 'openrouter' }),
+    )
+    expect(savingParts.store.current).toEqual([])
+  })
+
   it('saves a local server with no secret', async () => {
     const savingParts = saving()
     const outcome = await saveWizardDraft(
@@ -195,5 +220,42 @@ describe('saveWizardDraft', () => {
     )
     expect(outcome.providerId).toBe('ollama')
     expect(savingParts.secrets.values.size).toBe(0)
+  })
+})
+
+function localRow(id: string, context: number | undefined): ProviderModelRow {
+  return {
+    id,
+    label: id,
+    toolCapable: true,
+    vision: false,
+    reasoning: false,
+    context,
+    priceFingerprint: 'local',
+    isFree: true,
+    isLocal: true,
+  }
+}
+
+describe('scannedLocalModelLimits', () => {
+  it('carries scanned local windows and skips unscanned models', () => {
+    expect(
+      scannedLocalModelLimits(
+        'none',
+        ['m1', 'm2'],
+        [localRow('m1', 4096), localRow('m2', undefined)],
+      ),
+    ).toEqual({ m1: { contextTokens: 4096, outputTokens: 4096 } })
+  })
+
+  it('carries nothing for keyed providers or unknown windows', () => {
+    const rows = [localRow('m1', 4096)]
+    expect(scannedLocalModelLimits('apiKey', ['m1'], rows)).toBeUndefined()
+    expect(scannedLocalModelLimits('subscription', ['m1'], rows)).toBeUndefined()
+    expect(scannedLocalModelLimits('none', ['m1'], [localRow('m1', undefined)])).toBeUndefined()
+    expect(scannedLocalModelLimits('none', ['m1'], [])).toBeUndefined()
+    for (const context of [0, -4096, 4096.5, NaN]) {
+      expect(scannedLocalModelLimits('none', ['m1'], [localRow('m1', context)])).toBeUndefined()
+    }
   })
 })

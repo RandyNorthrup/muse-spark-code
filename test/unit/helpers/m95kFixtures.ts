@@ -119,6 +119,25 @@ export function testRow(id: string, priceFingerprint = 'p1'): ProviderModelRow {
   }
 }
 
+/** A scanned local row carrying its server's reported window (C-M95-4 R3). */
+export function localWindowedRow(id: string, context = 4096): ProviderModelRow {
+  return { ...testRow(id), context, isLocal: true }
+}
+
+/** The saved ollama entry carrying the scanned window (C-M95-4 R3). */
+export function ollamaEntryWithWindow(models: readonly string[], context = 4096): ProviderEntry {
+  return {
+    id: 'ollama',
+    preset: 'ollama',
+    address: 'http://127.0.0.1:11434',
+    auth: 'none',
+    models: [...models],
+    modelLimits: Object.fromEntries(
+      models.map((id) => [id, { contextTokens: context, outputTokens: context }]),
+    ),
+  }
+}
+
 export interface SeamBase {
   readonly catalog: PresetCatalog
   readonly policy: AddressPolicy
