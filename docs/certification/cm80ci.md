@@ -166,3 +166,84 @@ These templates drive the headless runtime, not an editor bridge, so every
 editor gets the same run. The templates target Linux runners; the launcher
 is Node with built-ins only and is tested on Linux, macOS and Windows. The
 exact-template suite needs a POSIX shell and runs on Linux and macOS.
+
+## R3: redesign, not patches (lane CM80CI-R3, branch `c/m80-ci-r3`, 2026-10-10)
+
+Review RVCM80CI2 (3 P1, 4 P2) found every bootstrap and key-handling guard
+leaking at its edges. Per the lead's call this round REDESIGNS the CI
+bootstrap and key handling instead of patching them again:
+
+- (a) One shared POSIX bootstrap, `ci-templates/bootstrap.sh`, stamped into
+  all four templates by `node scripts/sync-ci-bootstrap.mjs`; the template
+  tests refuse any drift. It starts by unsetting into non-exported holders
+  (holders unset before assignment, then every secret name), copies the key
+  into a `chmod 600` file (`umask 077`), owns its temp directory with
+  `trap ... EXIT HUP INT TERM` (download, digest and unpack failures
+  included), and hands the launcher the key on stdin from that file. The
+  launcher reads stdin alone (`takeStdinKey`; the environment is still
+  scrubbed by `takeCiKey`).
+- (b) Narrowest vendor scope per secret: GitLab uses a File-type CI/CD
+  variable (`MUSE_MODEL_API_KEY_FILE`), so source preparation and artifact
+  shells see only a path; Azure maps the secret into the launcher step's
+  `env:` only (unchanged, verified by test); Jenkins binds it with
+  `withCredentials` around the launcher step only (the start-time, delete
+  and checkout steps sit outside it); Bitbucket uses a repository-level (not
+  workspace-level) Secured variable and the pipeline's only script is the
+  one step, so no other job process holds the value. Bitbucket offers no
+  per-step mapping or file type; with a single user step that is the
+  narrowest scope available, not an external blocker (no STOP needed).
+- (c) Output: the launcher refuses an existing or symlinked
+  `muse-spark-out` (removed without following) BEFORE any model call, so an
+  always-upload finds nothing forged; it publishes only its five fixed file
+  names (`CI_PUBLISHED_FILES`); Jenkins deletes the workspace output before
+  the explicit `checkout scm` (`skipDefaultCheckout`) and archives only
+  those five names (proven-safe `allowEmptyArchive`; the other systems keep
+  directory upload, which can then only contain publisher files).
+- (d) Deadline on time REMAINING: GitLab's `CI_JOB_STARTED_AT`, the Jenkins
+  template's `currentBuild.startTimeInMillis` (via a `script` step into
+  `MUSE_CI_JOB_START_MS`); Azure and Bitbucket consume no vendor variable —
+  no documented predefined start-time variable was relied on (guessing one
+  would violate the wire-shape rule) — so the bootstrap's own start minus
+  the worst-case setup bound applies, exactly the brief's fallback.
+  A missing bootstrap start refuses instead of admitting blind.
+- (e) Final publication and whole-temp cleanup run inside `withinBound`
+  owners (`finalBounds`, defaulting to `ACTION_PUBLISH_MS` /
+  `ACTION_CLEANUP_MS`, mirroring the Action's final writes and the owner's
+  `bounds` test seam).
+
+### Findings, fixes, tests, drills (all 7 fixed, no residuals)
+
+| #    | Finding (RVCM80CI2)                                                 | Fix                                                                                                                                    | Regression test (fails without it)                                                                                                    | Drill                                                                                                |
+| ---- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 1 P1 | GitLab secret job-wide: source prep and upload shells get the value | File-type variable; bootstrap `cp`s the file into the private key file, never a variable                                               | `ciTemplates` GitLab File-type comment/var; `ciTemplatesRun` File-var exact-script run (shells see the path only)                     | — (new design; the value-path tests cover the other branch)                                          |
+| 2 P1 | Bootstrap keeps key aliases; exported holder leaks                  | Two holders unset-before-assign, all four secret names unset before any child; value/file captured between                             | `ciTemplates` exact unset-line order; `ciTemplatesRun` alias+exported-holder exact-script runs on all four systems                    | Drill 1 (unset removed from a template: 3 template tests fail; `sync-ci-bootstrap.mjs` restores)     |
+| 3 P1 | Jenkins archives planted output paths                               | `refuseExistingOutput` before any model call (removes without following) + fixed five-name publish set + Jenkins explicit archive list | `ciRun` planted directory/symlink refusal (no spawns, no agent report, destination gone); `ciTemplates` Jenkins post list has no glob | Drill 3 (refusal removed: both planted tests fail); Drill 6 (glob restored: Jenkins post test fails) |
+| 4 P2 | Reused Jenkins workspace uploads the previous run                   | `skipDefaultCheckout` + `rm -rf muse-spark-out` before `checkout scm`; launcher refusal as backstop                                    | `ciTemplates` Jenkins step order; `ciRun` planted-directory refusal                                                                   | Drill 3 (same backstop)                                                                              |
+| 5 P2 | Deadline admits on configured duration, not remaining               | `jobStartMs`/`checkJobDeadline` on remaining (vendor start or bootstrap-minus-setup)                                                   | `ciRun` remaining-time cases incl. the review's 16-min-checkout scenario                                                              | Drill 4 (elapsed ignored: deadline test fails)                                                       |
+| 6 P2 | Tarball/launcher inputs have no cleanup owner                       | Bootstrap `trap`; launcher removes the whole temp on every path out                                                                    | `ciTemplatesRun` temp-gone after success and digest failure; `ciRun` temp-gone after e2e                                              | Drill 2 (trap removed: digest test fails on surviving temp)                                          |
+| 7 P2 | Final publication/cleanup outside every bound                       | Async publish + temp removal inside `withinBound` (`finalBounds` seam)                                                                 | `ciRun` stalled-copy (code 1, logged) and stalled-cleanup (code 0, logged) cases                                                      | Drill 5 (bound removed: stalled test times out at 5 s)                                               |
+
+Backstop drill 7b: `takeCiKey`'s value scrub removed → "takes the key out
+under every name" fails. (Drill 7a, removing only the explicit
+`CI_SECRET_VARIABLE` delete, did not fire — the value scrub already covers
+it; recorded honestly.)
+
+### Test receipts (kubuntu rig, this worktree, repository timeouts)
+
+- `ciTemplates` 27, `ciTemplatesRun` 12, `ciRun` 31 passed.
+- `actionRunExec` + `actionInstall` 47, `actionGit` + `actionInputs` +
+  `actionGate` 87, `actionManifest` + `actionPost` + `actionApply` 26,
+  `acpPackageFixtures` 3 passed.
+- `tsc -p test/unit` exit 0; `eslint --max-warnings=0` on every changed
+  file exit 0; prettier check on changed files (bootstrap.sh has no
+  prettier parser and is excluded); `check:l10n` 0 problems.
+- Not run here: `runtimeChatGptPackage` (needs a production build; passes
+  on macmini per the R2 record), full `quality`, hosted vendor qualification
+  (no live runs, as before).
+
+### Red-drill baseline (all restored byte-exact, `sha256sum -c` OK after each)
+
+`ci-run.mjs` 0195cd14…1cdbd, `run-exec.mjs` 151c57cc…fcecea,
+`bootstrap.sh` a2c9aefe…407b5b, `gitlab-ci.yml` 91021d18…e59b97,
+`azure-pipelines.yml` b3b3603e…9552c8, `Jenkinsfile` 7684da36…6cf055,
+`bitbucket-pipelines.yml` 780f4572…2e1274f.
