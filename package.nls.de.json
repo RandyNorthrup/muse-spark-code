@@ -228,7 +228,6 @@
   "config.accountSwap.description": "Bei Erreichen eines Schwellenwerts vor der nächsten Anfrage zum nächsten Konto mit freier Kapazität wechseln. Jedes Konto behält seine eigenen Limits. Standardmäßig ein; nur die Einstellung dieses Computers wird verwendet.",
   "config.accountParallel.description": "Hintergrundaufgaben nach freier Kapazität auf Konten verteilen; jeder Worker bleibt auf seinem Konto. Standardmäßig ein; nur die Einstellung dieses Computers wird verwendet.",
   "config.accounts.severalOnThisDevice.description": "Mehrere Konten eines Anbieters auf diesem PC zu Testzwecken zulassen, jedes in einem eigenen isolierten lokalen Profil. Das Einschalten fragt zuerst die Anbieterbedingungen zur Bestätigung ab. Standardmäßig aus; nur die Einstellung dieses Computers wird verwendet.",
-  "config.github.useGhLogin.description": "Erlaubt Pull Requests, Ihre bestehende GitHub-CLI-Anmeldung (`gh auth token`) zu verwenden, als letzte versucht, nach der GitHub-Anmeldung des Editors und der von Muse Spark. Das Token wird jeweils nur für eine Anfrage gelesen und nie gespeichert. Standardmäßig aus; nur in den Benutzereinstellungen, sodass ein Repository es nicht einschalten kann.",
   "command.vault.title": "Tresor",
   "command.lockVault.title": "Tresor jetzt sperren",
   "config.vault.description": "Den benutzerweiten Anmeldedatentresor für alle Editoren aktivieren.",

@@ -583,9 +583,6 @@ export const SETTING_DEFAULTS = {
   'reports.network': 'whenSignedIn',
   'reports.keepHistory': true,
   'reports.agentSources': [],
-  // M123 (PLAN.md D104 source c): read the user's own `gh` login, off by
-  // default; machine-scoped so a repository cannot turn it on.
-  'github.useGhLogin': false,
   // M108 (PLAN.md D88.5): swap at the next request boundary and spread
   // background work across accounts, both on by default; machine-scoped so a
   // repository cannot pool the user's accounts.
@@ -829,8 +826,6 @@ export const MACHINE_SCOPED_SETTINGS = [
   'accountSwap',
   'accountParallel',
   'accounts.severalOnThisDevice',
-  // Reading the user's `gh` token is the user's choice (M123, D104 source c).
-  'github.useGhLogin',
   // Tab chooses what runs, what is billed and how much is approved (M94,
   // PLAN.md D73): every Tab setting is machine-scoped, so a workspace's
   // settings cannot change what Tab spends.
@@ -1686,6 +1681,15 @@ export const GITHUB_REQUEST_TIMEOUT_MS = 20_000
 export const GITHUB_CHECKS_PAGE_SIZE = 100
 
 // --- GitHub outside VS Code (M123, PLAN.md D104) ---
+
+// M123 ships whole or not at all (the owner, 2026-10-10): until its sign-in,
+// editor leases, panel and per-editor qualification land (PLAN.md M123,
+// "Not yet shipped"), a VS Code-family host without `vscode.git` keeps its
+// earlier behaviour and the native Git route stays off. Lane Q turns it on
+// with F36's receipts, together with `museSpark.github.useGhLogin`.
+export const M123_RELEASE: { readonly isNativeGitRouteOn: boolean } = {
+  isNativeGitRouteOn: false,
+}
 
 // The token sources, first available wins: (a) the editor's own sign-in by
 // lease, (b) the runtime's device-flow sign-in, (c) the user's `gh` login.

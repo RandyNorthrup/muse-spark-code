@@ -228,7 +228,6 @@
   "config.accountSwap.description": "Küszöbérték elérésekor a következő, szabad kapacitású fiókra vált a következő kérés határán. Minden fiók megtartja saját limitjeit. Alapértelmezés szerint bekapcsolva; csak ennek a gépnek a beállítása érvényes.",
   "config.accountParallel.description": "A háttérmunkát szabad kapacitás szerint osztja el a fiókok között; minden worker a saját fiókján marad. Alapértelmezés szerint bekapcsolva; csak ennek a gépnek a beállítása érvényes.",
   "config.accounts.severalOnThisDevice.description": "Teszteléshez több fiók engedélyezése egy szolgáltatótól ezen a PC-n, mindegyik saját elkülönített helyi profilban. A bekapcsolás először a szolgáltató feltételeinek megerősítését kéri. Alapértelmezés szerint kikapcsolva; csak ennek a gépnek a beállítása érvényes.",
-  "config.github.useGhLogin.description": "Lehetővé teszi, hogy a pull requestek a meglévő GitHub CLI-bejelentkezést (`gh auth token`) használják, utolsóként, a szerkesztő GitHub-bejelentkezése és a Muse Spark bejelentkezése után. A tokent egyszerre csak egy kéréshez olvassa be, és sosem tárolja. Alapértelmezés szerint ki; csak felhasználói beállítás, így egy tároló nem kapcsolhatja be.",
   "command.vault.title": "Tároló",
   "command.lockVault.title": "Tároló zárolása most",
   "config.vault.description": "A szerkesztők közös, felhasználónkénti hitelesítőadat-tárolójának engedélyezése.",

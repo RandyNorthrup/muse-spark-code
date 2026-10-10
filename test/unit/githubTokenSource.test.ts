@@ -8,8 +8,6 @@ import {
   GITHUB_LEASE_TTL_MS,
   GITHUB_OAUTH_CLIENT_ID,
   GITHUB_TOKEN_SOURCE_ORDER,
-  MACHINE_SCOPED_SETTINGS,
-  SETTING_DEFAULTS,
 } from '../../src/shared/constants'
 import {
   assertPermittedScopes,
@@ -195,12 +193,9 @@ describe('the OAuth App (Q-M123)', () => {
   })
 })
 
+// The setting itself is not contributed until M123 is complete
+// (m123Unreleased.test.ts); its reading rule is fixed now.
 describe('museSpark.github.useGhLogin', () => {
-  it('is off by default and machine-scoped, so a repository cannot set it', () => {
-    expect(SETTING_DEFAULTS['github.useGhLogin']).toBe(false)
-    expect(MACHINE_SCOPED_SETTINGS).toContain('github.useGhLogin')
-  })
-
   it('counts only the user’s own true (the workspace-scope refusal)', () => {
     expect(isGhLoginEnabled(undefined)).toBe(false)
     expect(isGhLoginEnabled({ globalValue: true })).toBe(true)
