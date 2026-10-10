@@ -234,6 +234,11 @@ export const DEFERRED = [
     ],
   },
   {
+    output: 'dist/teamHost.js',
+    metafile: 'dist/meta/teamHost.json',
+    files: ['src/host/team/teamHostEntry.ts', 'src/core/team/teamHost.ts'],
+  },
+  {
     output: 'dist/team.js',
     metafile: 'dist/meta/team.json',
     files: ['src/core/team/teamEntry.ts', 'src/core/team/teamTools.ts', 'src/core/team/roster.ts'],
@@ -1000,6 +1005,7 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/team/teamEntry.ts'), 'dist/team.js'],
   [path.resolve('src/core/team/teamSchedulerEntry.ts'), 'dist/teamScheduler.js'],
   [path.resolve('src/host/runners/teamRunnersEntry.ts'), 'dist/teamRunners.js'],
+  [path.resolve('src/host/team/teamHostEntry.ts'), 'dist/teamHost.js'],
   [path.resolve('src/core/backends/modelapi/schedulesEntry.ts'), 'dist/schedules.js'],
   [path.resolve('src/core/backends/modelapi/reviewerEntry.ts'), 'dist/reviewer.js'],
   [path.resolve('src/core/backends/modelapi/foreignHooksEntry.ts'), 'dist/foreignHooks.js'],
@@ -1029,7 +1035,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|teamHostEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

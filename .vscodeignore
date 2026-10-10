@@ -25,6 +25,7 @@
 !dist/reviewer.js
 !dist/team.js
 !dist/teamRunners.js
+!dist/teamHost.js
 !dist/teamScheduler.js
 !dist/schedules.js
 !dist/foreignHooks.js

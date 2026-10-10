@@ -20,7 +20,7 @@ import { planMcpServers } from '../../src/core/backends/modelapi/mcp/servers'
 import { readMcpServerEntries } from '../../src/core/backends/musecode/museConfigView'
 import { parseStoredSession } from '../../src/core/backends/modelapi/sessionStore'
 import { watchSessionTurns } from './helpers/sessionTurns'
-import { TEAM_COLLECT_WAIT_MAX_SECONDS } from '../../src/core/team/teamConstants'
+import { TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE } from '../../src/shared/constants'
 import { delegateArgs, TEAM_TOOL_NAMES } from '../../src/core/team/teamTools'
 import type {
   TeamCustomEntryRef,
@@ -710,7 +710,9 @@ describe('team request stability and authority', () => {
       )
       await session.sendTurn([{ type: 'text', text: 'collect' }])
       await turnDone()
-      expect(collected).toEqual({ wait_seconds: TEAM_COLLECT_WAIT_MAX_SECONDS })
+      expect(collected).toEqual({
+        wait_seconds: argumentsJson === '{}' ? 0 : TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE,
+      })
       expect(context).toMatchObject({
         sessionId: session.sessionId,
         approvalMode: 'allowAll',

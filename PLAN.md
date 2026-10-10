@@ -24065,6 +24065,16 @@ Roles section (C-M96-2), the orchestrator pill, the Muse Code binding
 (C-M96-4), the scheduler and capacity port (C-M96c-1) and the other editors
 (C-M96-5, M96b). Receipts: `docs/certification/m96-x.md`.
 
+**Lane T seam amendment (2026-10-10, lead-accepted, C-M96-3).**
+`ModelApiHostDeps.teamDecisionSource` takes the conversation's own model
+(`(orchestratorModelId?: string) => TeamDecisionSource | undefined`), and
+`TeamToolContext` gains an optional `orchestratorModelId`, so Default and
+`sameModel` compare against the conversation's orchestrator, not the
+picker's default. The Model API declares and clamps `collect` with its own
+bound, `TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE` (60 s, golden `08-team-on`
+updated); the Muse Code team server keeps `TEAM_COLLECT_WAIT_MAX_SECONDS`
+(0) until lane P's timeout capture.
+
 **WINTEAM hosted Windows repair (2026-10-07, kubuntu).** Own the native
 lifetime, window hints/load and worker-fence suites, with the minimal product
 changes and Windows-control regressions they need. Resolve short/long native

@@ -1,14 +1,25 @@
 // The team host service's implementation (M96 lane X, C-M96-3). It owns one
 // workspace team's live tasks in one window: the decision a conversation reads
-// when it starts, the roster, the five tools' runner, and the Agent map's tree.
-// Every effect goes through the ports in teamHostService.ts, so the VS Code
-// host, the ACP agent and the other editors' panels drive the same code.
+// when it starts, the roster, the five tools' runner, the "waiting for you"
+// and merge cards, and the Agent map's tree. Every effect goes through the
+// ports in teamHostService.ts, so the VS Code host, the ACP agent and the
+// other editors' panels drive the same code.
 //
 // Loads with dist/team.js, and only for a workspace that stores a team.
 
-import { TEAM_MODEL_TEXT, TEAM_ROLE_WHEN_TO_USE_MAX_CHARS, UI_TEXT } from '../../shared/constants'
+import {
+  MILLISECONDS_PER_SECOND,
+  TEAM_EXHAUSTED_DEFAULT,
+  TEAM_MODEL_TEXT,
+  TEAM_QUEUE_MAX,
+  TEAM_QUEUE_MAX_WAIT_MS,
+  TEAM_ROLE_TOOLSETS,
+  TEAM_ROLE_WHEN_TO_USE_MAX_CHARS,
+  UI_TEXT,
+} from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { redactSecrets } from '../redact'
+import { isProtectedPath } from '../protectedPaths'
 import {
   teamSnapshotSchema,
   type TeamAgentRef,
@@ -25,7 +36,7 @@ import {
 } from '../../shared/teamConversation'
 import { builtinRoles, type BuiltinRole } from './builtInRoles'
 import { isSameTeamModel } from './sameModel'
-import { cancelArgs, collectArgs, delegateArgs, mergeArgs } from './teamTools'
+import { cancelArgs, collectArgs, delegateArgs, mergeArgs, type DelegateArgs } from './teamTools'
 import type {
   TeamDecisionSource,
   TeamStableRole,
@@ -37,6 +48,7 @@ import type {
   TeamHostServiceDeps,
   TeamMergeDecision,
   TeamStatePort,
+  TeamWaitingChoice,
   TeamWorkerOutcome,
 } from './teamHostService'
 
@@ -46,25 +58,49 @@ type StaffedEntry = TeamPoolEntry & {
   readonly isDefault: boolean
 }
 
-/** Where a task is: running, finished (open to merge), or closed. */
-type TaskPhase = 'running' | 'done' | 'failed' | 'stopped' | 'merged' | 'discarded'
+type DelegateItem = DelegateArgs['tasks'][number]
+
+/** Where a task is: waiting for headroom, running, finished (open to merge), or closed. */
+type TaskPhase =
+  'queued' | 'running' | 'done' | 'failed' | 'stopped' | 'merged' | 'discarded' | 'continued'
 
 interface TeamTaskRecord {
   readonly taskId: string
   readonly role: TeamRoleConfig
-  readonly entry: StaffedEntry
   readonly brief: string
+  readonly files: readonly string[]
   readonly reason: string
   readonly sessionId: string
   readonly startMs: number
   readonly controller: AbortController
+  /** The entry it runs on; unset while queued. */
+  entry: StaffedEntry | undefined
   phase: TaskPhase
+  continueFrom?: TeamWorkerOutcome | undefined
+  queueTimer?: ReturnType<typeof setTimeout> | undefined
   endMs?: number
   outcome?: TeamWorkerOutcome
   failure?: string
-  /** A `merge` call waiting for the user's answer on the tree's card. */
+  /** A `merge` call waiting for the user's answer on the merge card or the tree. */
   awaiting?: ((decision: TeamMergeDecision | 'cancelled') => void) | undefined
 }
+
+/** One planned delegation: refused with its reason, waiting for the user, or placed. */
+type PlanStep =
+  | { readonly item: DelegateItem; readonly refused: string }
+  | {
+      readonly item: DelegateItem
+      readonly role: TeamRoleConfig
+      readonly ask: string
+      readonly usable: readonly StaffedEntry[]
+    }
+  | {
+      readonly item: DelegateItem
+      readonly role: TeamRoleConfig
+      readonly entry: StaffedEntry
+      readonly continueFrom?: TeamTaskRecord | undefined
+    }
+  | { readonly item: DelegateItem; readonly role: TeamRoleConfig; readonly queue: true }
 
 /** The stored team, parsed; anything that does not parse is no team. */
 export function readStoredTeam(state: TeamStatePort): TeamSnapshot | undefined {
@@ -88,24 +124,62 @@ function refusal(reason: string): TeamToolResult {
   return { output: `Error: ${reason}`, visibleOutput: reason }
 }
 
-function isOpen(phase: TaskPhase): boolean {
-  return phase === 'running' || phase === 'done'
+function describeError(error: unknown): string {
+  return redactSecrets(error instanceof Error ? error.message : String(error))
+}
+
+function roleMode(role: TeamRoleConfig): 'read-only' | 'own-branch' | 'in-place' {
+  return role.workspace ?? builtinRole(role.role)?.workspace ?? 'read-only'
 }
 
 /** The worker node's status words, as `teamWorkerStatusLabel` knows them. */
 function workerStatus(task: TeamTaskRecord): string {
   switch (task.phase) {
-    case 'running': {
-      return task.awaiting === undefined ? 'running' : 'waitingForApproval'
+    case 'done': {
+      return task.awaiting === undefined ? 'done' : 'waitingForApproval'
     }
     case 'stopped': {
       return 'cancelled'
+    }
+    case 'continued': {
+      return 'closed'
     }
     default: {
       return task.phase
     }
   }
 }
+
+function toolGroups(role: TeamRoleConfig): readonly string[] {
+  const builtin = builtinRole(role.role)
+  return role.tools ?? (builtin === undefined ? [] : TEAM_ROLE_TOOLSETS[builtin.id])
+}
+
+const describePlan = (planned: readonly PlanStep[]) =>
+  planned.map((step) => {
+    if ('refused' in step) return { role: step.item.role, refused: step.refused }
+    if ('entry' in step)
+      return { role: step.item.role, entry: step.entry.id, model: step.entry.agent.model }
+    return { role: step.item.role, state: 'ask' in step ? 'ask' : 'queued' }
+  })
+
+const keyConfirmations = (steps: readonly PlanStep[]): TeamWorkerConfirmation[] =>
+  steps.flatMap((step) =>
+    'entry' in step && step.entry.agent.pays === 'key'
+      ? [
+          {
+            ...(step.entry.agent.provider !== undefined && {
+              provider: step.entry.agent.provider,
+            }),
+            role: step.item.role,
+            modelId: step.entry.agent.model,
+            taskCeilingTokens:
+              step.entry.caps.find((cap) => cap.measure === 'tokens' && cap.window === 'task')
+                ?.amount ?? 0,
+          },
+        ]
+      : [],
+  )
 
 export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostService {
   let snapshot = readStoredTeam(deps.state)
@@ -116,6 +190,10 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   /** Tasks counted against each entry's `tasks` caps since its last reset. */
   const resets = new Map<string, number>()
   const listeners = new Set<(tree: TeamTreeData | undefined) => void>()
+  /** `collect` calls waiting for a task to change, each with its bound. */
+  const waiters = new Set<() => void>()
+  /** "Waiting for you" cards, by id, until the user answers. */
+  const waiting = new Map<string, (choice: TeamWaitingChoice | 'cancelled') => void>()
   /** The last conversation model seen: the orchestrator the tree and Default show. */
   let lastModel: string | undefined
   const orchestratorModel = (): string => lastModel ?? deps.orchestrator.modelId()
@@ -162,7 +240,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
 
   const running = (entryId?: string): number =>
     allTasks().filter(
-      (task) => task.phase === 'running' && (entryId === undefined || task.entry.id === entryId),
+      (task) => task.phase === 'running' && (entryId === undefined || task.entry?.id === entryId),
     ).length
 
   const tasksSinceReset = (entry: StaffedEntry, window: 'task' | 'day' | 'lifetime'): number => {
@@ -170,24 +248,26 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       resets.get(entry.id) ?? 0,
       window === 'day' ? new Date(deps.now()).setHours(0, 0, 0, 0) : 0,
     )
-    return allTasks().filter((task) => task.entry.id === entry.id && task.startMs >= since).length
+    return allTasks().filter((task) => task.entry?.id === entry.id && task.startMs >= since).length
   }
 
-  /** The first entry with headroom (D75 selection); a named entry only if it has room. */
+  /** The entry can run at all: its worker exists, it is loaded, and it is not limited. */
   const isUsable = (entry: StaffedEntry): boolean =>
     deps.workers.canRun(entry.agent) &&
+    deps.workers.isLimited?.(entry.agent) !== true &&
+    (entry.agent.pays !== 'key' || deps.settings.isTeamWorkersOn()) &&
     (entry.isDefault ||
       (probes.get(entry.id) === true && !isSameTeamModel(entry.agent.model, orchestratorModel())))
 
-  const hasHeadroom = (entry: StaffedEntry): boolean =>
+  /** D75's selection: the first usable entry with a free slot and room under its caps. */
+  const hasHeadroom = (entry: StaffedEntry, taken = 0): boolean =>
     isUsable(entry) &&
-    (entry.agent.pays !== 'key' || deps.settings.isTeamWorkersOn()) &&
-    running(entry.id) < entry.concurrent &&
+    running(entry.id) + taken < entry.concurrent &&
     entry.caps.every(
       (cap) =>
         cap.measure !== 'tasks' ||
         cap.window === 'task' ||
-        tasksSinceReset(entry, cap.window) < cap.amount,
+        tasksSinceReset(entry, cap.window) + taken < cap.amount,
     )
 
   const entryState = (entry: StaffedEntry): string => {
@@ -196,23 +276,23 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   }
 
   const stableRoles = (): readonly TeamStableRole[] =>
-    roles().map((role) => {
-      const builtin = builtinRole(role.role)
-      return {
-        roleId: role.role,
-        workspaceMode: role.workspace ?? builtin?.workspace ?? 'read-only',
-        toolGroups: role.tools ?? [],
-        exhaustedPolicy: role.exhausted ?? 'self',
-        whenToUse: (builtin?.whenToUse ?? '').slice(0, TEAM_ROLE_WHEN_TO_USE_MAX_CHARS),
-        pool: pool(role).map((entry) => ({
-          entryId: entry.id,
-          agentLabel: entry.agent.agentId,
-          modelId: entry.agent.model,
-          kind: entry.agent.kind === 'museCode' ? 'musecode' : entry.agent.kind,
-          caps: entry.caps.map((cap) => `${String(cap.amount)} ${cap.measure}/${cap.window}`),
-        })),
-      }
-    })
+    roles().map((role) => ({
+      roleId: role.role,
+      workspaceMode: roleMode(role),
+      toolGroups: toolGroups(role),
+      exhaustedPolicy: role.exhausted ?? TEAM_EXHAUSTED_DEFAULT,
+      whenToUse: (builtinRole(role.role)?.whenToUse ?? '').slice(
+        0,
+        TEAM_ROLE_WHEN_TO_USE_MAX_CHARS,
+      ),
+      pool: pool(role).map((entry) => ({
+        entryId: entry.id,
+        agentLabel: entry.agent.agentId,
+        modelId: entry.agent.model,
+        kind: entry.agent.kind === 'museCode' ? 'musecode' : entry.agent.kind,
+        caps: entry.caps.map((cap) => `${String(cap.amount)} ${cap.measure}/${cap.window}`),
+      })),
+    }))
 
   const workerNode = (task: TeamTaskRecord): TeamWorker => ({
     taskId: task.taskId,
@@ -230,6 +310,10 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   const tree = (): TeamTreeData | undefined => {
     if (snapshot === undefined || (!isTeamRunning() && tasks.size === 0)) return undefined
     const all = allTasks()
+    const ofRole = (role: TeamRoleConfig, phase: TaskPhase): TeamWorker[] =>
+      all
+        .filter((task) => task.role.role === role.role && task.phase === phase)
+        .map((task) => workerNode(task))
     return {
       orchestrator: {
         model: orchestratorModel(),
@@ -239,8 +323,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       roles: roles().map((role) => ({
         id: role.role,
         name: builtinRole(role.role)?.name ?? role.role,
-        mode: role.workspace ?? builtinRole(role.role)?.workspace ?? 'read-only',
-        toolGroups: role.tools ?? [],
+        mode: roleMode(role),
+        toolGroups: toolGroups(role),
         entries: pool(role).map((entry) => ({
           id: entry.id,
           provider: entry.agent.provider ?? entry.agent.agentId,
@@ -256,61 +340,38 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
           state: entryState(entry),
           warnings: [],
           workers: all
-            .filter((task) => task.entry.id === entry.id && task.phase === 'running')
+            .filter((task) => task.entry?.id === entry.id && task.phase === 'running')
             .map((task) => workerNode(task)),
         })),
-        queued: [],
-        unmerged: all
-          .filter((task) => task.role.role === role.role && task.phase === 'done')
-          .map((task) => workerNode(task)),
+        queued: ofRole(role, 'queued'),
+        unmerged: ofRole(role, 'done'),
         interrupted: [],
       })),
     }
   }
 
   const changed = (): void => {
+    for (const wake of waiters) wake()
     if (isDisposed) return
     const current = tree()
     for (const listener of listeners) listener(current)
   }
 
-  const finish = (task: TeamTaskRecord, phase: TaskPhase, failure?: string): void => {
-    if (!isOpen(task.phase)) return
-    task.phase = phase
-    task.endMs = deps.now()
-    if (failure !== undefined) task.failure = redactSecrets(failure)
-    changed()
-  }
-
-  const start = (
-    role: TeamRoleConfig,
-    entry: StaffedEntry,
-    item: { readonly brief: string; readonly files?: readonly string[] | undefined },
-    reason: string,
-    context: TeamToolContext,
-  ): TeamTaskRecord => {
-    const task: TeamTaskRecord = {
-      taskId: deps.newId(),
-      role,
-      entry,
-      brief: item.brief,
-      reason,
-      sessionId: context.sessionId,
-      startMs: deps.now(),
-      controller: new AbortController(),
-      phase: 'running',
-    }
-    tasks.set(task.taskId, task)
-    deps.log.info(`Team task ${task.taskId} started: role ${role.role}, entry ${entry.id}`)
+  const launch = (task: TeamTaskRecord, entry: StaffedEntry): void => {
+    if (task.queueTimer !== undefined) clearTimeout(task.queueTimer)
+    task.entry = entry
+    task.phase = 'running'
+    deps.log.info(`Team task ${task.taskId} started: role ${task.role.role}, entry ${entry.id}`)
     void deps.workers
       .run(
         {
           taskId: task.taskId,
-          role,
+          role: task.role,
           entry,
-          brief: item.brief,
-          files: item.files ?? [],
-          parentSessionId: context.sessionId,
+          brief: task.brief,
+          files: task.files,
+          parentSessionId: task.sessionId,
+          continueFrom: task.continueFrom,
         },
         task.controller.signal,
       )
@@ -319,59 +380,173 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         finish(task, outcome.report.status === 'failed' ? 'failed' : 'done')
       })
       .catch((error: unknown) => {
-        finish(task, 'failed', error instanceof Error ? error.message : String(error))
+        finish(task, 'failed', describeError(error))
       })
+  }
+
+  /** Queued tasks start in order as soon as their role has headroom again. */
+  const pump = (): void => {
+    for (const task of allTasks()) {
+      if (task.phase !== 'queued') continue
+      const entry = pool(task.role).find((candidate) => hasHeadroom(candidate))
+      if (entry !== undefined) launch(task, entry)
+    }
+  }
+
+  function finish(task: TeamTaskRecord, phase: TaskPhase, failure?: string): void {
+    if (task.phase !== 'running' && task.phase !== 'queued') return
+    if (task.queueTimer !== undefined) clearTimeout(task.queueTimer)
+    task.phase = phase
+    task.endMs = deps.now()
+    if (failure !== undefined) task.failure = failure
+    if (!isDisposed) pump()
+    changed()
+  }
+
+  const record = (
+    role: TeamRoleConfig,
+    item: DelegateItem,
+    context: TeamToolContext,
+    continueFrom?: TeamTaskRecord,
+  ): TeamTaskRecord => {
+    const task: TeamTaskRecord = {
+      taskId: deps.newId(),
+      role,
+      brief: item.brief,
+      files: item.files ?? [],
+      reason: item.reason.code,
+      sessionId: context.sessionId,
+      startMs: deps.now(),
+      controller: new AbortController(),
+      entry: undefined,
+      phase: 'queued',
+      continueFrom: continueFrom?.outcome,
+    }
+    tasks.set(task.taskId, task)
+    if (continueFrom !== undefined) {
+      continueFrom.phase = 'continued'
+      continueFrom.endMs ??= deps.now()
+    }
     return task
   }
 
-  const plan = (args: unknown, context: TeamToolContext) => {
+  const enqueue = (task: TeamTaskRecord): void => {
+    task.queueTimer = setTimeout(() => {
+      finish(task, 'failed', TEAM_MODEL_TEXT.hostQueueTimedOut)
+    }, TEAM_QUEUE_MAX_WAIT_MS)
+  }
+
+  const ownTask = (taskId: string, context: TeamToolContext): TeamTaskRecord | undefined => {
+    const task = tasks.get(taskId)
+    return task?.sessionId === context.sessionId ? task : undefined
+  }
+
+  const plan = (args: unknown, context: TeamToolContext): readonly PlanStep[] | undefined => {
     if (context.orchestratorModelId !== undefined) lastModel = context.orchestratorModelId
     const parsed = delegateArgs.safeParse(args)
-    if (!parsed.success) return
+    if (!parsed.success) return undefined
     const taken = new Map<string, number>()
-    return parsed.data.tasks.map((item) => {
+    return parsed.data.tasks.map((item): PlanStep => {
       const role = roles().find((candidate) => candidate.role === item.role)
       if (role === undefined || builtinRole(item.role) === undefined) {
         return { item, refused: fill(TEAM_MODEL_TEXT.hostRoleNotOffered, { role: item.role }) }
       }
-      if (item.continue !== undefined) {
-        return { item, refused: TEAM_MODEL_TEXT.hostContinueNotOffered }
+      if (roleMode(role) === 'in-place') {
+        return { item, refused: TEAM_MODEL_TEXT.hostInPlaceNotOffered }
+      }
+      const previous = item.continue === undefined ? undefined : ownTask(item.continue, context)
+      if (
+        item.continue !== undefined &&
+        (previous?.phase !== 'done' ||
+          previous.awaiting !== undefined ||
+          previous.role.role !== role.role ||
+          previous.outcome?.folder === undefined)
+      ) {
+        return { item, refused: TEAM_MODEL_TEXT.hostContinueNotReady }
       }
       const candidates = pool(role).filter(
         (entry) => item.entry === undefined || entry.id === item.entry,
       )
-      const chosen = candidates.find(
-        (entry) =>
-          hasHeadroom(entry) && running(entry.id) + (taken.get(entry.id) ?? 0) < entry.concurrent,
-      )
-      if (chosen === undefined) {
-        return {
-          item,
-          refused: fill(
-            candidates.length === 0
-              ? TEAM_MODEL_TEXT.hostNotStaffed
-              : TEAM_MODEL_TEXT.hostExhausted,
-            { role: item.role },
-          ),
-        }
+      if (candidates.length === 0) {
+        return { item, refused: fill(TEAM_MODEL_TEXT.hostNotStaffed, { role: item.role }) }
       }
-      taken.set(chosen.id, (taken.get(chosen.id) ?? 0) + 1)
-      return { item, role, entry: chosen }
+      const chosen = candidates.find((entry) => hasHeadroom(entry, taken.get(entry.id) ?? 0))
+      if (chosen !== undefined) {
+        taken.set(chosen.id, (taken.get(chosen.id) ?? 0) + 1)
+        return { item, role, entry: chosen, continueFrom: previous }
+      }
+      const usable = candidates.filter((entry) => isUsable(entry))
+      const exhausted = fill(TEAM_MODEL_TEXT.hostExhausted, { role: item.role })
+      const policy = role.exhausted ?? TEAM_EXHAUSTED_DEFAULT
+      // `queue` waits only for a reason that recovers: a usable entry at its limits.
+      if (policy === 'self' || usable.length === 0) return { item, refused: exhausted }
+      return policy === 'queue'
+        ? { item, role, queue: true }
+        : { item, role, ask: exhausted, usable }
     })
   }
 
-  const describePlan = (planned: NonNullable<ReturnType<typeof plan>>) =>
-    planned.map((step) =>
-      'refused' in step
-        ? { role: step.item.role, refused: step.refused }
-        : { role: step.item.role, entry: step.entry.id, model: step.entry.agent.model },
-    )
+  /** The "waiting for you" card: the orchestrator gets the user's answer. */
+  const askUser = async (
+    step: Extract<PlanStep, { readonly ask: string }>,
+    context: TeamToolContext,
+  ): Promise<TeamWaitingChoice | 'cancelled'> => {
+    const waitingId = deps.newId()
+    const card = {
+      itemId: `team-waiting-${waitingId}`,
+      kind: 'teamWaiting' as const,
+      teamWaiting: {
+        waitingId,
+        roleId: step.role.role,
+        brief: step.item.brief,
+        reasonText: step.ask,
+      },
+    }
+    deps.cards.show(context.sessionId, { ...card, status: 'inProgress' })
+    const choice = await new Promise<TeamWaitingChoice | 'cancelled'>((resolve) => {
+      waiting.set(waitingId, resolve)
+      context.signal.addEventListener('abort', () => {
+        resolve('cancelled')
+      })
+    })
+    waiting.delete(waitingId)
+    deps.cards.show(context.sessionId, { ...card, status: 'completed', teamDecision: choice })
+    return choice
+  }
+
+  /** Resolves each waiting step with the user's answer, before any spend is asked. */
+  const settle = async (
+    planned: readonly PlanStep[],
+    context: TeamToolContext,
+  ): Promise<readonly PlanStep[]> => {
+    const settled: PlanStep[] = []
+    for (const step of planned) {
+      if (!('ask' in step)) {
+        settled.push(step)
+        continue
+      }
+      const choice = await askUser(step, context)
+      const entry = step.usable[0]
+      if (choice === 'queue') settled.push({ item: step.item, role: step.role, queue: true })
+      else if (choice === 'raise' && entry !== undefined)
+        // The user lets this one task past its entry's limits.
+        settled.push({ item: step.item, role: step.role, entry })
+      else
+        settled.push({
+          item: step.item,
+          refused:
+            choice === 'self'
+              ? TEAM_MODEL_TEXT.hostWaitingSelf
+              : TEAM_MODEL_TEXT.hostWaitingCancelled,
+        })
+    }
+    return settled
+  }
 
   const taskView = (task: TeamTaskRecord) => ({
     task_id: task.taskId,
     role: task.role.role,
-    entry: task.entry.id,
-    model: task.entry.agent.model,
+    ...(task.entry !== undefined && { entry: task.entry.id, model: task.entry.agent.model }),
     state: workerStatus(task),
     elapsed_ms: (task.endMs ?? deps.now()) - task.startMs,
     ...(task.failure !== undefined && { failure: task.failure }),
@@ -385,9 +560,19 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     }),
   })
 
-  const ownTask = (taskId: string, context: TeamToolContext): TeamTaskRecord | undefined => {
-    const task = tasks.get(taskId)
-    return task?.sessionId === context.sessionId ? task : undefined
+  /** Waits until a task changes, the bound passes or the call is cancelled. */
+  const waitForChange = async (ms: number, signal: AbortSignal): Promise<void> => {
+    await new Promise<void>((resolve) => {
+      const done = (): void => {
+        clearTimeout(timer)
+        waiters.delete(done)
+        signal.removeEventListener('abort', done)
+        resolve()
+      }
+      const timer = setTimeout(done, ms)
+      waiters.add(done)
+      signal.addEventListener('abort', done)
+    })
   }
 
   const discard = async (task: TeamTaskRecord): Promise<void> => {
@@ -398,13 +583,45 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   }
 
   const stop = async (task: TeamTaskRecord): Promise<void> => {
-    if (task.phase === 'running') {
+    if (task.phase === 'running' || task.phase === 'queued') {
       task.controller.abort()
       finish(task, 'stopped')
     } else if (task.phase === 'done') {
       task.awaiting?.('cancelled')
       await discard(task)
     }
+  }
+
+  const mergeCard = (task: TeamTaskRecord, outcome: TeamWorkerOutcome) => {
+    const files = outcome.changedFiles ?? []
+    return {
+      itemId: `team-merge-${task.taskId}`,
+      kind: 'teamMerge' as const,
+      teamMerge: {
+        taskId: task.taskId,
+        roleId: task.role.role,
+        brief: task.brief,
+        branch: outcome.branch ?? '',
+        filesChanged: files.length,
+        affectedFiles: files,
+        protectedPaths: files.filter((file) => isProtectedPath(file.toLowerCase())),
+        review: 'not-reviewed' as const,
+      },
+    }
+  }
+
+  const mergeNow = async (
+    task: TeamTaskRecord,
+    outcome: TeamWorkerOutcome,
+    signal: AbortSignal,
+  ) => {
+    const merged = await deps.merges.merge(
+      { taskId: task.taskId, role: task.role, outcome },
+      signal,
+    )
+    if (merged.status === 'merged') task.phase = 'merged'
+    changed()
+    return merged
   }
 
   const runner: TeamHostService['teamRunner'] = {
@@ -418,62 +635,63 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     },
     delegate: async (args, context) => {
       if (!deps.settings.isTrusted()) return refusal(TEAM_MODEL_TEXT.hostUntrusted)
-      const planned = plan(args, context)
-      if (planned === undefined) return refusal(TEAM_MODEL_TEXT.hostInvalidArguments)
+      const initial = plan(args, context)
+      if (initial === undefined) return refusal(TEAM_MODEL_TEXT.hostInvalidArguments)
+      const planned = await settle(initial, context)
       const starting = planned.filter((step) => 'entry' in step).length
       if (running() + starting > deps.settings.maxWorkers()) {
         return refusal(
           fill(TEAM_MODEL_TEXT.hostMaxWorkers, { max: String(deps.settings.maxWorkers()) }),
         )
       }
-      const keyTasks: TeamWorkerConfirmation[] = planned.flatMap((step) =>
-        'entry' in step && step.entry.agent.pays === 'key'
-          ? [
-              {
-                ...(step.entry.agent.provider !== undefined && {
-                  provider: step.entry.agent.provider,
-                }),
-                role: step.item.role,
-                modelId: step.entry.agent.model,
-                taskCeilingTokens:
-                  step.entry.caps.find((cap) => cap.measure === 'tokens' && cap.window === 'task')
-                    ?.amount ?? 0,
-              },
-            ]
-          : [],
-      )
+      const queued = allTasks().filter((task) => task.phase === 'queued').length
+      if (queued + planned.filter((step) => 'queue' in step).length > TEAM_QUEUE_MAX) {
+        return refusal(fill(TEAM_MODEL_TEXT.hostQueueFull, { max: String(TEAM_QUEUE_MAX) }))
+      }
+      const keyTasks = keyConfirmations(planned)
       if (keyTasks.length > 0 && !(await deps.paid.allowKeyTasks(keyTasks, undefined, context))) {
         return refusal(TEAM_MODEL_TEXT.hostPaidDeclined)
       }
       context.signal.throwIfAborted()
-      const started = planned.map((step) =>
-        'refused' in step
-          ? { role: step.item.role, refused: step.refused }
-          : taskView(start(step.role, step.entry, step.item, step.item.reason.code, context)),
-      )
+      const started = planned.map((step) => {
+        if ('refused' in step) return { role: step.item.role, refused: step.refused }
+        if ('entry' in step) {
+          const task = record(step.role, step.item, context, step.continueFrom)
+          launch(task, step.entry)
+          return taskView(task)
+        }
+        const task = record(step.role, step.item, context)
+        enqueue(task)
+        return taskView(task)
+      })
       changed()
       const count = started.filter((step) => 'task_id' in step).length
       return answer({ tasks: started }, fill(UI_TEXT.teamTasksStarted, { count: String(count) }))
     },
-    collect: (args, context) => {
+    collect: async (args, context) => {
       const parsed = collectArgs.safeParse(args)
-      if (!parsed.success) return Promise.resolve(refusal(TEAM_MODEL_TEXT.hostInvalidArguments))
+      if (!parsed.success) return refusal(TEAM_MODEL_TEXT.hostInvalidArguments)
       const ids = parsed.data.task_ids
-      const chosen =
+      const chosen = (): readonly (TeamTaskRecord | undefined)[] =>
         ids === undefined
           ? allTasks().filter((task) => task.sessionId === context.sessionId)
           : ids.map((id) => ownTask(id, context))
-      return Promise.resolve(
-        answer(
-          {
-            tasks: chosen.map((task, index) =>
-              task === undefined
-                ? { task_id: ids?.[index], refused: TEAM_MODEL_TEXT.hostUnknownTask }
-                : taskView(task),
-            ),
-          },
-          '',
-        ),
+      const waitMs = (parsed.data.wait_seconds ?? 0) * MILLISECONDS_PER_SECOND
+      if (
+        waitMs > 0 &&
+        chosen().some((task) => task?.phase === 'running' || task?.phase === 'queued')
+      ) {
+        await waitForChange(waitMs, context.signal)
+      }
+      return answer(
+        {
+          tasks: chosen().map((task, index) =>
+            task === undefined
+              ? { task_id: ids?.[index], refused: TEAM_MODEL_TEXT.hostUnknownTask }
+              : taskView(task),
+          ),
+        },
+        '',
       )
     },
     cancel: async (args, context) => {
@@ -494,7 +712,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     merge: async (args, context) => {
       const parsed = mergeArgs.safeParse(args)
       if (!parsed.success) return refusal(TEAM_MODEL_TEXT.hostInvalidArguments)
-      if (context.approvalMode === 'plan') return refusal(TEAM_MODEL_TEXT.hostMergePlanMode)
+      if (context.approvalMode === 'denyUnmatched')
+        return refusal(TEAM_MODEL_TEXT.hostMergePlanMode)
       if (!deps.settings.isTrusted()) return refusal(TEAM_MODEL_TEXT.hostUntrusted)
       const task = ownTask(parsed.data.task_id, context)
       if (task === undefined) return refusal(TEAM_MODEL_TEXT.hostUnknownTask)
@@ -503,7 +722,9 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         return refusal(TEAM_MODEL_TEXT.hostMergeNotReady)
       }
       // No reviewer runs here, so the merge is "not reviewed" and asks in
-      // every mode that allows one (acceptance 19), on the tree's card.
+      // every mode that allows one (acceptance 19), on the merge card.
+      const card = mergeCard(task, outcome)
+      deps.cards.show(context.sessionId, { ...card, status: 'inProgress' })
       const decision = await new Promise<TeamMergeDecision | 'cancelled'>((resolve) => {
         task.awaiting = resolve
         context.signal.addEventListener('abort', () => {
@@ -512,24 +733,22 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         changed()
       })
       task.awaiting = undefined
+      deps.cards.show(context.sessionId, { ...card, status: 'completed', teamDecision: decision })
       changed()
       if (decision === 'cancelled') return refusal(TEAM_MODEL_TEXT.hostMergeCancelled)
       if (decision === 'discard') {
         await discard(task)
         return answer({ task_id: task.taskId, state: 'discarded' }, UI_TEXT.teamWorkerDiscarded)
       }
-      const merged = await deps.merges.merge(
-        { taskId: task.taskId, role: task.role, outcome },
-        context.signal,
-      )
-      if (merged.status === 'merged') {
-        task.phase = 'merged'
-        changed()
+      try {
+        const merged = await mergeNow(task, outcome, context.signal)
+        return answer(
+          { task_id: task.taskId, ...merged },
+          merged.status === 'merged' ? UI_TEXT.teamWorkerMerged : UI_TEXT.teamMergeRework,
+        )
+      } catch (error: unknown) {
+        return refusal(describeError(error))
       }
-      return answer(
-        { task_id: task.taskId, ...merged },
-        merged.status === 'merged' ? UI_TEXT.teamWorkerMerged : UI_TEXT.teamMergeRework,
-      )
     },
   }
 
@@ -547,13 +766,13 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         entryId: entry.id,
         roleId: roles().find((role) => role.pool.some((item) => item.id === entry.id))?.role ?? '',
         headroom: `${String(entry.concurrent - running(entry.id))}/${String(entry.concurrent)} free`,
-        state: hasHeadroom(entry) ? 'ready' : 'capped or unavailable',
+        state: entryState(entry),
       }))
       return {
         stable: stableRoles(),
         live: {
           entries: live,
-          queueDepth: 0,
+          queueDepth: allTasks().filter((task) => task.phase === 'queued').length,
           unmergedTasks: allTasks().filter((task) => task.phase === 'done').length,
           budgetLeft: '',
         },
@@ -561,7 +780,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     },
     teamRunner: runner,
     isTeamInPlaceActive: () =>
-      allTasks().some((task) => task.phase === 'running' && task.role.workspace === 'in-place'),
+      allTasks().some((task) => task.phase === 'running' && roleMode(task.role) === 'in-place'),
     tree,
     onTreeChange: (listener) => {
       listeners.add(listener)
@@ -573,12 +792,16 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       await stop(known(taskId))
     },
     stopAllTasks: async () => {
-      const open = allTasks().filter((task) => task.phase === 'running')
+      const open = allTasks().filter((task) => task.phase === 'running' || task.phase === 'queued')
       for (const task of open) await stop(task)
       return open.length
     },
-    // The `ask` policy's cards come with the scheduler (M96c); nothing waits here.
-    answerWaiting: () => Promise.reject(new Error(UI_TEXT.teamWaitingUnknown)),
+    answerWaiting: async (waitingId, choice) => {
+      const resolve = waiting.get(waitingId)
+      if (resolve === undefined) throw new Error(UI_TEXT.teamWaitingUnknown)
+      resolve(choice)
+      await Promise.resolve()
+    },
     decideMerge: async (taskId, decision) => {
       const task = known(taskId)
       if (task.awaiting !== undefined) {
@@ -592,15 +815,17 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       }
       const outcome = task.outcome
       if (outcome?.branch === undefined) throw new Error(UI_TEXT.teamTaskUnknown)
-      const merged = await deps.merges.merge(
-        { taskId, role: task.role, outcome },
-        new AbortController().signal,
-      )
-      if (merged.status === 'merged') task.phase = 'merged'
-      changed()
+      // The user's own Merge on the tree is the approval itself.
+      await mergeNow(task, outcome, new AbortController().signal)
+    },
+    taskDiff: async (taskId) => {
+      const outcome = known(taskId).outcome
+      if (outcome?.head === undefined) throw new Error(UI_TEXT.teamTaskNoDiff)
+      return await deps.merges.diff(outcome)
     },
     resetEntry: async (entryId) => {
       resets.set(entryId, deps.now())
+      pump()
       changed()
       await Promise.resolve()
     },
@@ -613,6 +838,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
           probes.set(entry.id, false)
         }
       }
+      pump()
       changed()
     },
     reload: () => {
@@ -622,10 +848,13 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     dispose: async () => {
       isDisposed = true
       listeners.clear()
+      for (const resolve of waiting.values()) resolve('cancelled')
       for (const task of tasks.values()) {
         task.awaiting?.('cancelled')
-        if (task.phase === 'running') task.controller.abort()
+        if (task.queueTimer !== undefined) clearTimeout(task.queueTimer)
+        if (task.phase === 'running' || task.phase === 'queued') task.controller.abort()
       }
+      for (const wake of waiters) wake()
       await Promise.resolve()
     },
   }

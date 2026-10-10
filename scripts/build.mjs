@@ -143,6 +143,8 @@ const TEAM_SCHEDULER_ENTRY = 'src/core/team/teamSchedulerEntry.ts'
 const TEAM_SCHEDULER_OUTFILE = 'dist/teamScheduler.js'
 const TEAM_RUNNERS_ENTRY = 'src/host/runners/teamRunnersEntry.ts'
 const TEAM_RUNNERS_OUTFILE = 'dist/teamRunners.js'
+const TEAM_HOST_ENTRY = 'src/host/team/teamHostEntry.ts'
+const TEAM_HOST_OUTFILE = 'dist/teamHost.js'
 // M115 W: v1's Model API schedules re-exported beside the v2 runtime binding.
 const SCHEDULES_ENTRY = 'src/runtime/schedules/schedulesBundle.ts'
 const SCHEDULES_OUTFILE = 'dist/schedules.js'
@@ -442,6 +444,13 @@ const teamRunnersOptions = {
   ...teamOptions,
   entryPoints: [TEAM_RUNNERS_ENTRY],
   outfile: TEAM_RUNNERS_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const teamHostOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_HOST_ENTRY],
+  outfile: TEAM_HOST_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1196,6 +1205,7 @@ if (isWatch) {
     esbuild.context(reviewerOptions),
     esbuild.context(teamOptions),
     esbuild.context(teamRunnersOptions),
+    esbuild.context(teamHostOptions),
     esbuild.context(teamSchedulerOptions),
     esbuild.context(foreignHooksOptions),
     esbuild.context({
@@ -1310,6 +1320,7 @@ if (isWatch) {
     reviewer: esbuild.build(reviewerOptions),
     team: esbuild.build(teamOptions),
     teamRunners: esbuild.build(teamRunnersOptions),
+    teamHost: esbuild.build(teamHostOptions),
     teamScheduler: esbuild.build(teamSchedulerOptions),
     foreignHooks: esbuild.build(foreignHooksOptions),
     modelApiHooks: esbuild.build({
@@ -1465,6 +1476,7 @@ if (isWatch) {
   reportSize(REVIEWER_OUTFILE)
   reportSize(TEAM_OUTFILE)
   reportSize(TEAM_RUNNERS_OUTFILE)
+  reportSize(TEAM_HOST_OUTFILE)
   reportSize(TEAM_SCHEDULER_OUTFILE)
   reportSize(FOREIGN_HOOKS_OUTFILE)
   reportSize(HOOK_RUNTIME_OUTFILE)

@@ -4667,6 +4667,11 @@ export const EN = {
   teamMergeRework: 'The merge met conflicts: the task went back for rework.',
   teamTaskUnknown: 'That team task is not open in this window.',
   teamWaitingUnknown: 'Nothing is waiting for this answer any more.',
+  teamBudgetUnavailable:
+    "A team task cannot start under a session budget until it can share this conversation's budget.",
+  teamTaskNoDiff: 'That team task has no branch to compare.',
+  teamTranscriptNotKept:
+    "A team worker's conversation closes with its task; its report and its diff stay.",
   webSearchFailed: 'The search failed',
   // Under a reply that cites web pages (M33).
   citationsHeading: 'Sources',

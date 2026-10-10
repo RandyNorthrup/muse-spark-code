@@ -14,22 +14,10 @@ import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import { teamWorkerPrice, teamWorkerQuestion, canUseTeam } from './teamPaid'
 import { teamTreeSchema, teamUsageSchema, teamItemFields } from '../../shared/teamView'
-import { createTeamHostService } from './teamHost'
-import type { TeamHostService, TeamHostServiceDeps } from './teamHostService'
 
 /** The Node schema proxies load these only when a team payload is present. */
 export function createTeamViewSchemas() {
   return { teamTreeSchema, teamUsageSchema, teamItemFields }
-}
-
-/** The window's team host service (C-M96-3): loads only for a workspace that stores a team. */
-export function createTeamHost(
-  table: UiText,
-  locale: string,
-  deps: TeamHostServiceDeps,
-): TeamHostService {
-  setUiText(table, locale)
-  return createTeamHostService(deps)
 }
 
 export function createTeamRuntime(table: UiText, locale: string) {
