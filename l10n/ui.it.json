@@ -1958,6 +1958,12 @@
     "unbound": "L’integrazione di questa origine non è ancora disponibile.",
     "history": "La cronologia della sessione selezionata non è disponibile."
   },
+  "reportDetailReasons": {
+    "sessionTurnsUnavailable": "La cronologia della sessione non contiene identificativi di turno, quindi i turni non possono essere contati.",
+    "sessionApprovalsUnavailable": "La cronologia della sessione non contiene decisioni di approvazione.",
+    "toolBreakdownUnavailable": "L'utilizzo per strumento non è registrato nel diario di utilizzo.",
+    "rolledUpBreakdownExcluded": "La cronologia riepilogata è inclusa nei totali ma non in questa ripartizione."
+  },
   "reportRowsMore": {
     "one": "{count} riga in più",
     "other": "{count} righe in più",

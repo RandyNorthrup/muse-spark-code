@@ -19,6 +19,7 @@
     "src/webview/reporting/destinations/DestinationPicker.tsx",
     "src/runtime/reference.node.generated.ts",
     "src/runtime/reporting/reportsEntry.ts",
+    "src/runtime/reporting/reportInputsEntry.ts",
     "src/host/reporting/reportPanelEntry.ts",
     "src/webview/reporting/main.tsx",
     "test/harness/reporting/verify.mjs",
@@ -156,6 +157,8 @@
     // Native loader regression child, run by both package scripts after build.
     "test/packaging/moduleExports.test.mjs",
     "test/e2e/**/*.test.ts",
+    // C-M113-2: the live session/usage CLI binding, bundled by path in reports.e2e.test.ts.
+    "test/e2e/reportsLiveEntry.ts",
     // DIET1 production browser smoke, invoked directly as documented in README.
     "test/e2e/webviewDiet.mjs",
     "test/e2e/startupMoney.mjs",

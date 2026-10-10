@@ -26,10 +26,37 @@ export type LocalFailure =
   | 'disabled'
   | 'unbound'
   | 'history'
+const LOCAL_FAILURES: Record<string, LocalFailure | undefined> = {
+  missing: 'missing',
+  invalid: 'invalid',
+  limit: 'limit',
+  cancelled: 'cancelled',
+  failed: 'failed',
+  refused: 'refused',
+  disabled: 'disabled',
+  unbound: 'unbound',
+  history: 'history',
+}
 export class LocalSourceError extends Error {
+  /**
+   * Minification-safe brand: lazy bundles (report inputs, network) carry
+   * their own copy of this class, so `instanceof` alone cannot recognize a
+   * failure thrown across the bundle boundary (C-M113-2).
+   */
+  readonly isLocalSourceError = true
   constructor(readonly code: LocalFailure) {
     super(code)
   }
+}
+/** A failure code from any bundle copy, or undefined when it is not one. */
+export function localFailureOf(error: unknown): LocalFailure | undefined {
+  if (error instanceof LocalSourceError) return error.code
+  if (typeof error === 'object' && error !== null) {
+    const branded = error as { isLocalSourceError?: unknown; code?: unknown }
+    if (branded.isLocalSourceError === true && typeof branded.code === 'string')
+      return LOCAL_FAILURES[branded.code]
+  }
+  return undefined
 }
 export interface LocalFileIo {
   read(file: string, signal: AbortSignal): Promise<string>
@@ -115,7 +142,10 @@ export function localSource<K extends ReportSourceKind>(
       } catch (error) {
         let code: LocalFailure = 'failed'
         if (signal.aborted) code = 'cancelled'
-        else if (error instanceof LocalSourceError) code = error.code
+        else {
+          const failure = localFailureOf(error)
+          if (failure !== undefined) code = failure
+        }
         return {
           record: {
             id: kind,

@@ -79,7 +79,7 @@ import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/po
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
-import { agentDataFolder } from './dataFolder'
+import { agentDataFolder, workspaceSessionsFolder } from './dataFolder'
 import { fontsBundle } from './fonts/bundle'
 import { playbookLoader } from './playbook/playbookBundle'
 import { runReportCommand } from './reportCommand'
@@ -121,6 +121,7 @@ import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { reportsLoader } from './reporting/reportsLoader'
+import { reportInputsLoader } from './reporting/reportInputsLoader'
 import type { createRuntimeReports } from './reporting/reportsEntry'
 import { runtimeSchedulesBinding } from './schedules/binding'
 import { settleScheduleCommand } from './schedules/settle'
@@ -464,6 +465,11 @@ function resourcesFor(
 /** No account or backend is touched; W ships this entry in its own lazy chunk. */
 function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeReports> {
   const load = reportsLoader({ bundlePath: path.join(distDir, 'reporting.js'), log })
+  // M113 C-M113-2: the session and usage inputs ride their own lazy chunk.
+  const inputs = reportInputsLoader({
+    bundlePath: path.join(distDir, 'reportInputs.js'),
+    log,
+  })
   let reports: ReturnType<typeof createRuntimeReports> | undefined
   return () => {
     reports ??= load().createRuntimeReports({
@@ -487,6 +493,47 @@ function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeRepor
             generatorVersion: packageVersion(),
             keepHistory: true,
             enabledAgents: [],
+            // M113 C-M113-2: the CLI and ACP read the same durable inputs as
+            // VS Code: a stored Model API session by id, and the shared
+            // usage journal through aggregate.ts. The inputs bundle loads on
+            // the first session or usage read, never for other kinds.
+            session: {
+              read: (context) =>
+                inputs()
+                  .createSessionReportReader({
+                    resolveSession: (sessionId) =>
+                      sessionId === undefined
+                        ? Promise.resolve(null)
+                        : inputs().readStoredReportSession(
+                            workspaceSessionsFolder(
+                              {
+                                platform: process.platform,
+                                env: process.env,
+                                homeDir: homedir(),
+                              },
+                              cwd,
+                            ),
+                            sessionId,
+                          ),
+                    readJournal: () =>
+                      inputs().readUsageReportJournal(
+                        agentDataFolder({
+                          platform: process.platform,
+                          env: process.env,
+                          homeDir: homedir(),
+                        }),
+                      ),
+                  })
+                  .read(context),
+            },
+            usage: (context) =>
+              inputs().createUsageReportReader({
+                dataFolder: agentDataFolder({
+                  platform: process.platform,
+                  env: process.env,
+                  homeDir: homedir(),
+                }),
+              })(context),
             network: {
               policy: {
                 surface: 'terminal',

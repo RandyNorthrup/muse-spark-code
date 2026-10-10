@@ -1902,6 +1902,12 @@
     "unbound": "此来源集成尚不可用。",
     "history": "所选会话的历史记录不可用。"
   },
+  "reportDetailReasons": {
+    "sessionTurnsUnavailable": "会话历史记录中没有轮次标识符，因此无法统计轮次。",
+    "sessionApprovalsUnavailable": "会话历史记录中没有审批决定。",
+    "toolBreakdownUnavailable": "使用日志中不记录按工具划分的使用量。",
+    "rolledUpBreakdownExcluded": "汇总历史计入总数，但不计入此明细。"
+  },
   "reportRowsMore": {
     "other": "另外 {count} 行"
   },

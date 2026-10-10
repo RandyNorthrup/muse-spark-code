@@ -1930,6 +1930,12 @@
     "unbound": "Bu kaynak tümleştirmesi henüz kullanılamıyor.",
     "history": "Seçili oturumun geçmişi kullanılamıyor."
   },
+  "reportDetailReasons": {
+    "sessionTurnsUnavailable": "Oturum geçmişi tur tanımlayıcısı içermiyor, bu yüzden turlar sayılamıyor.",
+    "sessionApprovalsUnavailable": "Oturum geçmişi onay kararı içermiyor.",
+    "toolBreakdownUnavailable": "Araç bazında kullanım, kullanım günlüğüne kaydedilmiyor.",
+    "rolledUpBreakdownExcluded": "Toplanan geçmiş toplamlara dahildir, ancak bu dökümde yer almaz."
+  },
   "reportRowsMore": {
     "one": "{count} satır daha",
     "other": "{count} satır daha"

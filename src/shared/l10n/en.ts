@@ -2287,6 +2287,13 @@ export const EN = {
     unbound: 'This source integration is not available yet.',
     history: 'History for the selected session is unavailable.',
   },
+  reportDetailReasons: {
+    sessionTurnsUnavailable:
+      'The session history records no turn identifiers, so turns cannot be counted.',
+    sessionApprovalsUnavailable: 'The session history records no approval decisions.',
+    toolBreakdownUnavailable: 'Per-tool usage is not recorded in the usage journal.',
+    rolledUpBreakdownExcluded: 'Rolled-up history is included in totals but not in this breakdown.',
+  },
   reportRowsMore: forms({ one: '{count} more', other: '{count} more' }),
   reportCliUsage:
     'Generate a deterministic report from named sources, without a model call.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n',

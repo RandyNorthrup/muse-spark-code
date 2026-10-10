@@ -3273,6 +3273,20 @@ async function activateWindow(
           context: { extensionUri: context.extensionUri, l10n, log },
           generatorVersion: version,
           ...(surface !== undefined && { questions: controllerFor(surface).reportingQuestions() }),
+          // M113 C-M113-2: the session report reads this surface's live
+          // conversation (or its stored Model API session by id); usage reads
+          // the shared journal. Only identifiers cross into the lazy bundle.
+          ...(surface !== undefined && {
+            reportSessionHistory: () => controllerFor(surface).reportingSessionHistory(),
+          }),
+          ...(context.storageUri !== undefined && {
+            reportStoredSessionDir: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
+          }),
+          reportUsageDataFolder: agentDataFolder({
+            platform: process.platform,
+            env: process.env,
+            homeDir: homedir(),
+          }),
           workspaceRoot,
           storageRoot,
           attachMarkdown: (text) => {

@@ -1930,6 +1930,12 @@
     "unbound": "Diese Quellenintegration ist noch nicht verfügbar.",
     "history": "Der Verlauf der ausgewählten Sitzung ist nicht verfügbar."
   },
+  "reportDetailReasons": {
+    "sessionTurnsUnavailable": "Der Sitzungsverlauf enthält keine Turn-Kennungen, daher können Turns nicht gezählt werden.",
+    "sessionApprovalsUnavailable": "Der Sitzungsverlauf enthält keine Genehmigungsentscheidungen.",
+    "toolBreakdownUnavailable": "Die Werkzeugnutzung wird im Nutzungsverlauf nicht erfasst.",
+    "rolledUpBreakdownExcluded": "Zusammengefasste Verläufe sind in den Summen enthalten, aber nicht in dieser Aufschlüsselung."
+  },
   "reportRowsMore": {
     "one": "{count} weitere Zeile",
     "other": "{count} weitere Zeilen"

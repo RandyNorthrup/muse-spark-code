@@ -16,9 +16,12 @@ export interface LocalReportSourceDeps {
   readonly session?: ReportSessionReader
   readonly questions?: ReportQuestionsReader
   /** M102's aggregate adapter, supplied by its owner; no journal parser is guessed. */
-  readonly usage?: (
-    context: SourceReadContext,
-  ) => Promise<{ usage: UsageFacts; observedAt: string }>
+  readonly usage?: (context: SourceReadContext) => Promise<{
+    usage: UsageFacts
+    observedAt: string
+    /** Breakdowns the journal cannot attribute stay partial, never invented. */
+    partial?: string
+  }>
   readonly enabledAgents: readonly AgentUsageAgent[]
   readonly agentFiles: AgentUsageFiles
 }
@@ -45,7 +48,11 @@ export function createLocalReportSources(deps: LocalReportSourceDeps): LocalRepo
     usage: localSource('usage', async (context) => {
       if (deps.usage === undefined) throw new LocalSourceError('unbound')
       const result = await deps.usage(context)
-      return { data: scrubUsage(result.usage, deps.scrub), observedAt: result.observedAt }
+      return {
+        data: scrubUsage(result.usage, deps.scrub),
+        observedAt: result.observedAt,
+        ...(result.partial !== undefined && { partial: deps.scrub(result.partial) }),
+      }
     }),
     agentUsage: agentUsageSource(deps.enabledAgents, deps.agentFiles, deps.scrub),
   }

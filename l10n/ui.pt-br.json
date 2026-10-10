@@ -1958,6 +1958,12 @@
     "unbound": "A integração desta origem ainda não está disponível.",
     "history": "O histórico da sessão selecionada está indisponível."
   },
+  "reportDetailReasons": {
+    "sessionTurnsUnavailable": "O histórico da sessão não contém identificadores de turno, por isso os turnos não podem ser contados.",
+    "sessionApprovalsUnavailable": "O histórico da sessão não contém decisões de aprovação.",
+    "toolBreakdownUnavailable": "O uso por ferramenta não é registrado no diário de uso.",
+    "rolledUpBreakdownExcluded": "O histórico acumulado está incluído nos totais, mas não neste detalhamento."
+  },
   "reportRowsMore": {
     "one": "Mais {count} linha",
     "other": "Mais {count} linhas",
