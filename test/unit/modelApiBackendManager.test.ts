@@ -18,6 +18,7 @@ import { noopToolIo } from './helpers/fakeToolIo'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import { ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
+import { M106_CAPTURED_META_MODEL } from '../../src/shared/constants'
 import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
 import { EditReview } from '../../src/host/editor/editReview'
 
@@ -188,6 +189,84 @@ describe('ModelApiBackendManager', () => {
       await attempt.close()
       expect(api.responseBodies()).toEqual([])
       expect(legalScan).not.toHaveBeenCalled()
+    } finally {
+      await manager.dispose()
+      create.mockRestore()
+    }
+  })
+
+  it('binds the selected record through the unmanaged production path', async () => {
+    // No caller supplies preview or cap deps: the bundle entry installs the
+    // Meta defaults, so this turn runs the same path VS Code, ACP and exec use.
+    const api = fakeModelApi()
+    const manager = new ModelApiBackendManager(
+      fakeManagerDeps(api, new FakeLogOutputChannel(), {
+        workspaceRoot: '/ws',
+        store: undefined,
+        bundlePath: 'src/host/backend/modelApiEntry.ts',
+        loadBundle: () => modelApiEntry,
+        confirmContributorModel: () => Promise.resolve(true),
+      }),
+    )
+    try {
+      const host = await manager.ensureHost()
+      for (const [modelId, wantPreview, wantCap] of [
+        [M106_CAPTURED_META_MODEL, true, 131_072],
+        ['muse-spark-1.2', false, 131_072],
+        ['unobserved-model', false, 32_768],
+      ] as const) {
+        const session = await host.startSession({
+          workspaceRoot: '/ws',
+          modelId,
+          approvalMode: 'allowAll',
+        })
+        const watched = watchSessionTurns(session)
+        const before = api.responseBodies().length
+        api.script(
+          { calls: [{ name: 'read_file', arguments: '{"path":"a.txt"}', callId: 'c1' }] },
+          { text: 'done' },
+        )
+        await session.sendTurn([{ type: 'text', text: 'read it' }])
+        await watched.turnDone()
+        const previews = watched.events.filter((event) => event.type === 'toolArgumentPreview')
+        expect(previews.length > 0).toBe(wantPreview)
+        if (wantPreview) {
+          expect(previews.at(-1)).toMatchObject({
+            item: { argumentPreview: { text: expect.stringContaining('a.txt') } },
+          })
+        }
+        const bodies = api.responseBodies().slice(before)
+        expect(bodies.length).toBeGreaterThan(0)
+        for (const body of bodies) {
+          expect(body['max_output_tokens']).toBe(wantCap)
+        }
+        expect(JSON.stringify(bodies)).not.toContain('argumentPreview')
+      }
+    } finally {
+      await manager.dispose()
+    }
+  })
+
+  it('keeps a caller-supplied selected record ahead of the Meta default', async () => {
+    const create = vi.spyOn(modelApiEntry, 'createModelApiHost')
+    const api = fakeModelApi()
+    const previews = vi.fn(() => undefined)
+    const cap = vi.fn(() => 4096)
+    const manager = new ModelApiBackendManager(
+      fakeManagerDeps(api, new FakeLogOutputChannel(), {
+        workspaceRoot: '/ws',
+        store: undefined,
+        bundlePath: 'src/host/backend/modelApiEntry.ts',
+        loadBundle: () => modelApiEntry,
+        argumentPreviewCapabilities: previews,
+        modelOutputMaxTokens: cap,
+      }),
+    )
+    try {
+      await manager.ensureHost()
+      const host = create.mock.calls.at(-1)?.[0].host
+      expect(host.argumentPreviewCapabilities).toBe(previews)
+      expect(host.modelOutputMaxTokens).toBe(cap)
     } finally {
       await manager.dispose()
       create.mockRestore()

@@ -35,6 +35,8 @@ import {
   metaModelFacts,
   metaSideCallFormats,
   metaHostedCapabilities,
+  metaArgumentPreviewCapabilities,
+  metaOutputMaxTokens,
 } from '../../core/backends/modelapi/modelCapabilities'
 
 import { sparkHooksFiles } from '../../core/backends/modelapi/hookNames'
@@ -131,6 +133,9 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,
     sideCallFormats: hostDeps.sideCallFormats ?? metaSideCallFormats,
     modelCapabilities: hostDeps.modelCapabilities ?? metaHostedCapabilities,
+    argumentPreviewCapabilities:
+      hostDeps.argumentPreviewCapabilities ?? metaArgumentPreviewCapabilities,
+    modelOutputMaxTokens: hostDeps.modelOutputMaxTokens ?? metaOutputMaxTokens,
     client,
     ...('models' in client && { models: client.models }),
     ...(deps.createProviders !== undefined && {
