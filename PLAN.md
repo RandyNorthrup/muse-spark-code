@@ -46674,6 +46674,21 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 
 ## 10. Definition of done and release records
 
+**0.17.1 preparation (2026-10-10, release branch).** `release/0.17.1` carries
+the extension version 0.17.1 and the dated `CHANGELOG.md` `[0.17.1]` section:
+the provider picker fix and provider save redesign (PROVCAT, PROVWIZ2–10,
+PROVWIRE; `docs/certification/provcat.md`), the owner's Title Case sweep
+(UITEXT017), the DeepSeek reasoning resolver (DSTHINK3;
+`docs/certification/m95-h.md`) and the Muse Code 1.4.3 update hint (MUSE143,
+ported from `fix/muse-1.4.3`). This is preparation, not publication; the
+public roadmap (M122) lists 0.17.1 as the next release until a
+`0.17.1 released (…)` record follows here.
+
+**0.17.0 released (2026-10-10, tag `v0.17.0` on main's release merge `82d50d5e4`, PR #145, release run 38035245475).**
+The Release run succeeded and the GitHub release was published at
+2026-10-10 07:42 UTC. Recorded by the 0.17.1 preparation, which also files
+the notes v0.17.0 shipped under `[Unreleased]` in its `[0.17.0]` section.
+
 **0.17.0 preparation (2026-10-08, release branch).** `release/0.17.0` carries
 the extension version 0.17.0 and the dated `CHANGELOG.md` `[0.17.0]` section
 (reports, capacity estimates, several accounts per provider, the orchestrator

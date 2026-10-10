@@ -7,6 +7,97 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Pending
+
+- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
+  reads and writes, and 1-hour cache writes settle at their own price.
+  The shared retry classifier refuses known quota codes and excessive
+  `Retry-After` waits. Provider-specific retry-table binding remains pending for non-Meta transports;
+  this does not certify endpoint quota refusal.
+  One-shot OAuth callbacks retain every parameter and destroy keep-alive
+  connections on settlement. Custom servers accept validated compatibility
+  overrides. Session saves coalesce into one in-flight write plus the latest;
+  parallel save failures are observed immediately while other sessions drain.
+  History listing validates headers without replay/transcript validation.
+
+- M101 lane P1 (BYO codecs): one bad history item no longer breaks later
+  requests. Blank text is dropped, empty tool results ride as
+  `(no tool output)`, non-JSON tool arguments ride as `{}` (Ollama keeps its
+  documented raw-text fallback), PDFs ride as Anthropic `document` blocks,
+  and images for a model without image input ride as an
+  image-omitted placeholder. Tool-call ids are mapped per target format
+  (Anthropic charset, chat length, Mistral preset 9-alphanumeric even under
+  provider aliases) with unique
+  per-response Gemini fallback ids. Responses replays send the call `id`
+  only for the same model with an `fc_` prefix. Gemini replays thought
+  signatures on text parts (empty ones included), counts omitted usage as
+  zero, sends vision-gated tool-result images inside `functionResponse.parts`
+  and full tool schemas through `parametersJsonSchema` on Gemini 3.
+  Gemini rejects proxy-null usage and explicitly rejects negative usage
+  counters instead of retaining an earlier tally. Signed blank parts replay;
+  late response ids salt fallback call ids; `$ref` siblings stay constrained
+  through `allOf`. The Anthropic decoder tolerates
+  proxy-null usage and tool payloads cut off at `max_tokens`, and thinking
+  requests `display: summarized` so newer models stream thinking text.
+  Lone surrogates are removed from every BYO encoder; parsed JSON retains
+  own `__proto__` keys as data, including Anthropic tool arguments.
+  Fakes only; no live
+  or paid model call.
+
+- Provider-specific retry-table binding remains pending for non-Meta transports;
+  the shared retry classifier does not certify endpoint quota refusal.
+
+- DEVID017B (developer machine id, review round 2): the machine id is a
+  random value created once in the machine-scoped data folder instead of a
+  hostname digest, so renames and `host` vs `host.local` keep the unlock and
+  profiles. Legacy raw-hostname and digest grants migrate on open and the
+  raw hostname leaves stored state at once; a different machine identity is
+  refused with an honest message and `developer reset` recovers.
+
+- DEVID017C (developer machine id, review round 3): the id is published by
+  staging the full value to a private temp file, fsyncing it and claiming
+  the final name with `link`, so a racing reader sees no file or the
+  complete id, never a prefix; only the exact 64-lowercase-hex format
+  loads, anything else refuses honestly. Foreign reset asks first with
+  nothing mutated before the answer, never re-binds the grant, and clears
+  without stopping through this machine's resource port; profile folders
+  stay on disk. Cancel leaves everything unchanged.
+
+- DEVID017D (developer machine id, review round 4): a published id loads
+  before any staging, so storage that refuses new files still returns the
+  existing identity, and failed staging removes its temp file. A failed
+  foreign reset never clears without recording it: the reset audit row
+  comes first, and when it cannot be written the stored state is left
+  unchanged. Foreign reset asks its own confirmation, which says exactly
+  what happens: this machine's developer state is cleared, nothing is
+  stopped, and profile folders and credentials stay as they are.
+
+- DEVID017E (developer machine id, lead review fix): foreign Reset writes a
+  distinct `resetForeign` audit row (schema stays `v: 1`, as with `migrate`),
+  so only that clear is withheld when its audit append fails. Every other
+  revocation, own-machine Reset included, is still published after an audit
+  failure, and the caller still gets the persistence error.
+
+## [0.17.1] - 2026-10-10
+
+### Highlights
+
+- **The provider picker works again.** Models & Agents lists every provider
+  again, Anthropic and custom servers included; 0.16.0 and 0.17.0 showed only
+  "That did not work" and an empty list.
+  <!-- try: command museSpark.modelsAndAgents -->
+- **Saving a provider keeps what worked.** Save checks everything first, then
+  saves in order; if a later step fails, the saved parts stay saved and the
+  panel says what was not. Edit and Change Key keep the saved connection.
+- **The wizard's spending limit is your real conversation limit.** It shows
+  the current limit, writes only when you change it, and asks before
+  replacing a limit someone changed meanwhile.
+- **Title Case labels.** English buttons, menus, tabs and titles capitalize
+  every major word; sentences and messages keep sentence case.
+- **Smaller fixes.** DeepSeek's Thinking off sends DeepSeek's own switch, and
+  a Muse Code older than 1.4.3 that hits its approval-record fault now gets
+  the update command.
+
 ### Changed
 
 - **English titles and labels use Title Case.** Buttons, menu items, tabs,
@@ -128,7 +219,7 @@ happened, not what was planned; superseded entries are kept.
   Anthropic's scans and key tests send its required version header. Presets
   supply the wire format when it is absent from saved configuration.
 
-- Models & Agents: the provider picker works again. In 0.16.0 it showed only
+- Models & Agents: the provider picker works again. In 0.16.0 and 0.17.0 it showed only
   "That did not work" and listed no provider, Anthropic included, because
   Mistral's plan key carried the Subscription sign-in category the panel's
   card contract did not accept, and one refused card emptied the list. The
@@ -190,77 +281,6 @@ happened, not what was planned; superseded entries are kept.
   model."; a model without effort levels gets no effort field. Every
   other provider's requests are back to byte-identical with 0.17.0,
   which also restores short Claude Haiku replies at the default effort.
-
-### Pending
-
-- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
-  reads and writes, and 1-hour cache writes settle at their own price.
-  The shared retry classifier refuses known quota codes and excessive
-  `Retry-After` waits. Provider-specific retry-table binding remains pending for non-Meta transports;
-  this does not certify endpoint quota refusal.
-  One-shot OAuth callbacks retain every parameter and destroy keep-alive
-  connections on settlement. Custom servers accept validated compatibility
-  overrides. Session saves coalesce into one in-flight write plus the latest;
-  parallel save failures are observed immediately while other sessions drain.
-  History listing validates headers without replay/transcript validation.
-
-- M101 lane P1 (BYO codecs): one bad history item no longer breaks later
-  requests. Blank text is dropped, empty tool results ride as
-  `(no tool output)`, non-JSON tool arguments ride as `{}` (Ollama keeps its
-  documented raw-text fallback), PDFs ride as Anthropic `document` blocks,
-  and images for a model without image input ride as an
-  image-omitted placeholder. Tool-call ids are mapped per target format
-  (Anthropic charset, chat length, Mistral preset 9-alphanumeric even under
-  provider aliases) with unique
-  per-response Gemini fallback ids. Responses replays send the call `id`
-  only for the same model with an `fc_` prefix. Gemini replays thought
-  signatures on text parts (empty ones included), counts omitted usage as
-  zero, sends vision-gated tool-result images inside `functionResponse.parts`
-  and full tool schemas through `parametersJsonSchema` on Gemini 3.
-  Gemini rejects proxy-null usage and explicitly rejects negative usage
-  counters instead of retaining an earlier tally. Signed blank parts replay;
-  late response ids salt fallback call ids; `$ref` siblings stay constrained
-  through `allOf`. The Anthropic decoder tolerates
-  proxy-null usage and tool payloads cut off at `max_tokens`, and thinking
-  requests `display: summarized` so newer models stream thinking text.
-  Lone surrogates are removed from every BYO encoder; parsed JSON retains
-  own `__proto__` keys as data, including Anthropic tool arguments.
-  Fakes only; no live
-  or paid model call.
-
-- Provider-specific retry-table binding remains pending for non-Meta transports;
-  the shared retry classifier does not certify endpoint quota refusal.
-
-- DEVID017B (developer machine id, review round 2): the machine id is a
-  random value created once in the machine-scoped data folder instead of a
-  hostname digest, so renames and `host` vs `host.local` keep the unlock and
-  profiles. Legacy raw-hostname and digest grants migrate on open and the
-  raw hostname leaves stored state at once; a different machine identity is
-  refused with an honest message and `developer reset` recovers.
-
-- DEVID017C (developer machine id, review round 3): the id is published by
-  staging the full value to a private temp file, fsyncing it and claiming
-  the final name with `link`, so a racing reader sees no file or the
-  complete id, never a prefix; only the exact 64-lowercase-hex format
-  loads, anything else refuses honestly. Foreign reset asks first with
-  nothing mutated before the answer, never re-binds the grant, and clears
-  without stopping through this machine's resource port; profile folders
-  stay on disk. Cancel leaves everything unchanged.
-
-- DEVID017D (developer machine id, review round 4): a published id loads
-  before any staging, so storage that refuses new files still returns the
-  existing identity, and failed staging removes its temp file. A failed
-  foreign reset never clears without recording it: the reset audit row
-  comes first, and when it cannot be written the stored state is left
-  unchanged. Foreign reset asks its own confirmation, which says exactly
-  what happens: this machine's developer state is cleared, nothing is
-  stopped, and profile folders and credentials stay as they are.
-
-- DEVID017E (developer machine id, lead review fix): foreign Reset writes a
-  distinct `resetForeign` audit row (schema stays `v: 1`, as with `migrate`),
-  so only that clear is withheld when its audit append fails. Every other
-  revocation, own-machine Reset included, is still published after an audit
-  failure, and the caller still gets the persistence error.
 
 ### Documentation
 
