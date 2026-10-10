@@ -1868,6 +1868,7 @@ export const EN = {
   worktreeDetachedHead: 'the commit checked out now',
   worktreeFolderExists: 'That folder already exists:',
   worktreeAddFailed: 'git could not create the worktree',
+  worktreeRecordsWriteUnknown: 'The worktree records may have been written',
   worktreeCreated: 'Worktree ready at {path}',
   worktreeOpen: 'Open in New Window',
   worktreeListFailed: 'git could not list the worktrees',

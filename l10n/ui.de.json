@@ -1511,6 +1511,7 @@
   "worktreeDetachedHead": "der derzeit ausgecheckte Commit",
   "worktreeFolderExists": "Dieser Ordner ist bereits vorhanden:",
   "worktreeAddFailed": "Git konnte den Worktree nicht erstellen",
+  "worktreeRecordsWriteUnknown": "Die Worktree-Einträge wurden möglicherweise geschrieben",
   "worktreeCreated": "Worktree bereit unter {path}",
   "worktreeOpen": "In neuem Fenster öffnen",
   "worktreeListFailed": "Git konnte die Worktrees nicht auflisten",

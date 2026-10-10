@@ -1528,6 +1528,7 @@
   "worktreeDetachedHead": "el commit extraído actualmente",
   "worktreeFolderExists": "Esa carpeta ya existe:",
   "worktreeAddFailed": "git no pudo crear el árbol de trabajo",
+  "worktreeRecordsWriteUnknown": "Es posible que se hayan escrito los registros de los árboles de trabajo",
   "worktreeCreated": "Árbol de trabajo listo en {path}",
   "worktreeOpen": "Abrir en una nueva ventana",
   "worktreeListFailed": "git no pudo enumerar los árboles de trabajo",
