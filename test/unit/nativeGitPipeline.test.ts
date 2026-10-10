@@ -14,12 +14,15 @@ import {
   readFileSync,
   renameSync,
   rmSync,
-  utimesSync,
   writeFileSync,
 } from 'node:fs'
 import { hostname, tmpdir } from 'node:os'
 import path from 'node:path'
+import { performance } from 'node:perf_hooks'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as fileLeases from '../../src/core/locks/fileLease'
+import { nodeLeasePort } from '../../src/core/locks/nodeLeasePort'
+import { currentProcessOwner, isProcessOwnerGone } from '../../src/core/locks/processOwner'
 import { createGitProcess, type GitProcess } from '../../src/host/git'
 import { NativeGitService, type NativeGitOperation } from '../../src/runtime/panel/git/service'
 import {
@@ -29,7 +32,8 @@ import {
 } from '../../src/runtime/panel/git/transaction'
 import {
   GIT_TRANSACTION_LOCK_FILE,
-  GIT_TRANSACTION_LOCK_SETTLE_MS,
+  GIT_TRANSACTION_LOCK_POLL_MS,
+  GIT_TRANSACTION_LOCK_REFRESH_MS,
   GIT_TRANSACTION_LOCK_STALE_MS,
 } from '../../src/shared/constants'
 import type { RuntimeGitDeps } from '../../src/core/git/runtimeGit'
@@ -47,6 +51,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs()
+  vi.restoreAllMocks()
+  vi.useRealTimers()
 })
 
 function wait(ms: number): Promise<void> {
@@ -121,8 +127,8 @@ function never(): void {
 /** The lock in `dir` is taken (its holder is gone), held, and given back. */
 async function expectTakenOver(dir: string): Promise<void> {
   const lock = await acquireRepositoryLock(dir, new AbortController().signal, never)
-  expect(lock.isHeld()).toBe(true)
-  lock.release()
+  expect(lock.isHeldSync()).toBe(true)
+  await lock.release()
 }
 
 describe('the repository transaction lock', () => {
@@ -139,39 +145,95 @@ describe('the repository transaction lock', () => {
       const second = takeSecond()
       await wait(POLL_GRACE_MS)
       expect(isSecondHeld).toBe(false)
-      expect(first.isHeld()).toBe(true)
-      first.release()
+      expect(first.isHeldSync()).toBe(true)
+      await first.release()
       const taken = await second
-      expect(taken.isHeld()).toBe(true)
-      expect(first.isHeld()).toBe(false)
-      taken.release()
+      expect(taken.isHeldSync()).toBe(true)
+      expect(first.isHeldSync()).toBe(false)
+      await taken.release()
       expect(existsSync(path.join(dir, GIT_TRANSACTION_LOCK_FILE))).toBe(false)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
   })
 
-  it('P2: keeps a lock its holder still holds when the file is removed: a newcomer waits', async () => {
+  it('P2: a removed lock is lost, never re-made, and a newcomer takes the next fence', async () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'm123-native-lock-removed-'))
     try {
       const holder = await acquireRepositoryLock(dir, new AbortController().signal, never)
-      // A hook of the holder's running git removes the file.
-      rmSync(path.join(dir, GIT_TRANSACTION_LOCK_FILE))
-      let isTaken = false
-      const take = async (): Promise<Awaited<ReturnType<typeof acquireRepositoryLock>>> => {
-        const lock = await acquireRepositoryLock(dir, new AbortController().signal, never)
-        isTaken = true
-        return lock
-      }
-      const taking = take()
-      await wait(2 * POLL_GRACE_MS)
-      expect(isTaken).toBe(false)
-      expect(holder.isHeld()).toBe(true)
-      holder.release()
-      const taken = await taking
-      expect(taken.isHeld()).toBe(true)
-      taken.release()
+      const file = path.join(dir, GIT_TRANSACTION_LOCK_FILE)
+      // A hook of the holder's running Git removes the file. Fencing
+      // prevents later dispatch; it cannot stop that already-running child.
+      rmSync(file)
+      expect(holder.isHeldSync()).toBe(false)
+      const taken = await acquireRepositoryLock(dir, new AbortController().signal, never)
+      const successor = readFileSync(file)
+      expect(taken.isHeldSync()).toBe(true)
+      await holder.release()
+      expect(readFileSync(file)).toEqual(successor)
+      expect(taken.isHeldSync()).toBe(true)
+      await taken.release()
     } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('renews each third of the lease and drains a renewal before releasing', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'm123-native-lock-renew-'))
+    const file = path.join(dir, GIT_TRANSACTION_LOCK_FILE)
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    let elapsed = 0
+    vi.spyOn(performance, 'now').mockImplementation(() => elapsed)
+    const acquire = fileLeases.acquireFileLease
+    let primitive: fileLeases.FileLease | undefined
+    vi.spyOn(fileLeases, 'acquireFileLease').mockImplementation(async (...args) => {
+      primitive = await acquire(...args)
+      return primitive
+    })
+    const lock = await acquireRepositoryLock(dir, new AbortController().signal, never)
+    const resumed = Promise.withResolvers<undefined>()
+    try {
+      if (primitive === undefined) {
+        throw new Error('the repository must acquire LOCKLIB')
+      }
+      const renew = vi.spyOn(primitive, 'renew')
+      // Repeated renewal carries the hold beyond its initial 30 s lease.
+      for (let turn = 1; turn <= 4; turn += 1) {
+        elapsed += GIT_TRANSACTION_LOCK_REFRESH_MS
+        await vi.advanceTimersByTimeAsync(GIT_TRANSACTION_LOCK_REFRESH_MS)
+        expect(renew).toHaveBeenCalledTimes(turn)
+        const result = renew.mock.results.at(-1)
+        expect(await result?.value).toBe(true)
+        expect(lock.isHeldSync()).toBe(true)
+      }
+      // Release must stop the timer and wait for an already-open rewrite,
+      // so it retires the renewed instance rather than leaving it behind.
+      const rewriting = Promise.withResolvers<undefined>()
+      const rewrite = nodeLeasePort.rewriteOwn
+      vi.spyOn(nodeLeasePort, 'rewriteOwn').mockImplementation(async (...args) => {
+        rewriting.resolve(undefined)
+        await resumed.promise
+        return await rewrite(...args)
+      })
+      elapsed += GIT_TRANSACTION_LOCK_REFRESH_MS
+      await vi.advanceTimersByTimeAsync(GIT_TRANSACTION_LOCK_REFRESH_MS)
+      await rewriting.promise
+      let isReleased = false
+      const release = async (): Promise<void> => {
+        await lock.release()
+        isReleased = true
+      }
+      const releasing = release()
+      await wait(10)
+      expect(isReleased).toBe(false)
+      expect(lock.isHeldSync()).toBe(false)
+      resumed.resolve(undefined)
+      await releasing
+      expect(existsSync(file)).toBe(false)
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      resumed.resolve(undefined)
+      await lock.release()
       rmSync(dir, { recursive: true, force: true })
     }
   })
@@ -184,7 +246,12 @@ describe('the repository transaction lock', () => {
       await new Promise((resolve) => child.once('exit', resolve))
       writeFileSync(
         path.join(dir, GIT_TRANSACTION_LOCK_FILE),
-        JSON.stringify({ host: hostname(), pid, nonce: 'gone' }),
+        JSON.stringify({
+          owner: { host: hostname(), pid, processStart: 1 },
+          id: 'gone',
+          acquiredAt: Date.now(),
+          leaseMs: GIT_TRANSACTION_LOCK_STALE_MS,
+        }),
       )
       await expectTakenOver(dir)
     } finally {
@@ -196,7 +263,17 @@ describe('the repository transaction lock', () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'm123-native-lock-stale-'))
     const file = path.join(dir, GIT_TRANSACTION_LOCK_FILE)
     try {
-      writeFileSync(file, JSON.stringify({ host: 'elsewhere.invalid', pid: 1, nonce: 'far' }))
+      let elapsed = 0
+      vi.spyOn(performance, 'now').mockImplementation(() => elapsed)
+      writeFileSync(
+        file,
+        JSON.stringify({
+          owner: { host: 'elsewhere.invalid', pid: 1, processStart: 1 },
+          id: 'far',
+          acquiredAt: Date.now(),
+          leaseMs: GIT_TRANSACTION_LOCK_STALE_MS,
+        }),
+      )
       const stop = new AbortController()
       const waiting = acquireRepositoryLock(dir, stop.signal, () => {
         if (stop.signal.aborted) {
@@ -207,9 +284,8 @@ describe('the repository transaction lock', () => {
       stop.abort()
       await expect(waiting).rejects.toThrow('closed')
       expect(readFileSync(file, 'utf8')).toContain('elsewhere.invalid')
-      // Silent past the stale time: its holder is gone.
-      const past = new Date(Date.now() - 2 * GIT_TRANSACTION_LOCK_STALE_MS)
-      utimesSync(file, past, past)
+      // The unchanged instance has been watched for its whole monotonic lease.
+      elapsed = GIT_TRANSACTION_LOCK_STALE_MS + GIT_TRANSACTION_LOCK_POLL_MS
       await expectTakenOver(dir)
     } finally {
       rmSync(dir, { recursive: true, force: true })
@@ -221,9 +297,17 @@ describe('the repository transaction lock', () => {
     const file = path.join(dir, GIT_TRANSACTION_LOCK_FILE)
     try {
       const lock = await acquireRepositoryLock(dir, new AbortController().signal, never)
-      writeFileSync(file, JSON.stringify({ host: hostname(), pid: process.pid, nonce: 'other' }))
-      expect(lock.isHeld()).toBe(false)
-      lock.release()
+      writeFileSync(
+        file,
+        JSON.stringify({
+          owner: await currentProcessOwner(),
+          id: 'other',
+          acquiredAt: Date.now(),
+          leaseMs: GIT_TRANSACTION_LOCK_STALE_MS,
+        }),
+      )
+      expect(lock.isHeldSync()).toBe(false)
+      await lock.release()
       expect(readFileSync(file, 'utf8')).toContain('other')
     } finally {
       rmSync(dir, { recursive: true, force: true })
@@ -322,64 +406,53 @@ describe('the pipeline', () => {
     }
   })
 
-  it('P2: a hook that removes the lock while its push runs lets no commit start beside it', async () => {
+  it('P2: a hook removing the lock cannot let its running push reclaim or release a successor', async () => {
     const scratch = aheadOfOrigin()
     const started = path.join(scratch.base, 'hook-started')
     const released = path.join(scratch.base, 'hook-released')
-    const settled: Promise<unknown>[] = []
+    let pushing: Promise<PromiseSettledResult<void>[]> | undefined
+    let successor: Awaited<ReturnType<typeof acquireRepositoryLock>> | undefined
     try {
       const lockFile = path.join(scratch.dir, '.git', GIT_TRANSACTION_LOCK_FILE)
       const slashed = (file: string): string => file.replaceAll('\\', '/')
-      // The hook removes the lock, then waits for the test (shell builtins
-      // only: a Windows hook's PATH need not carry `sleep`).
+      // Shell builtins for the wait: Windows hooks need no `sleep`.
       writeFileSync(
         path.join(scratch.dir, '.git', 'hooks', 'pre-push'),
         [
           '#!/bin/sh',
-          `: > "${slashed(started)}"`,
           `rm -f "${slashed(lockFile)}"`,
+          `: > "${slashed(started)}"`,
           `while [ ! -f "${slashed(released)}" ]; do :; done`,
           '',
         ].join('\n'),
         { mode: 0o755 },
       )
-      const events: string[] = []
       const pusher = serviceFor(scratch.dir)
       const plan = await pusher.planPush()
       if (!plan.ok) {
         throw new Error('the scratch repository must be ahead')
       }
-      const pushAndNote = async (): Promise<void> => {
-        await pusher.push(plan)
-        events.push('push done')
-      }
-      const pushing = Promise.allSettled([pushAndNote()])
-      settled.push(pushing)
+      pushing = Promise.allSettled([pusher.push(plan)])
       while (!existsSync(started)) {
         await wait(10)
       }
-      writeFileSync(path.join(scratch.dir, 'beside.txt'), 'beside\n')
-      const committer = serviceFor(scratch.dir, {
-        admitWorkspaceCommand: async (start) => {
-          events.push('commit admitted')
-          return await start()
-        },
-      })
-      const committing = Promise.allSettled([committer.commit('Beside the push', true)])
-      settled.push(committing)
-      // Several settle times while the push's hook runs with its lock file gone.
-      await wait(2 * POLL_GRACE_MS)
-      expect(events).toEqual([])
+      successor = await acquireRepositoryLock(
+        path.join(scratch.dir, '.git'),
+        new AbortController().signal,
+        never,
+      )
+      const note = readFileSync(lockFile)
+      expect(successor.isHeldSync()).toBe(true)
       writeFileSync(released, '')
       const [pushed] = await pushing
-      const [committed] = await committing
-      expect(pushed.status).toBe('fulfilled')
-      expect(committed.status).toBe('fulfilled')
-      expect(events).toEqual(['push done', 'commit admitted'])
+      expect(pushed?.status).toBe('fulfilled')
+      // The already-running child finishes, but its holder cannot remove B.
+      expect(readFileSync(lockFile)).toEqual(note)
+      expect(successor.isHeldSync()).toBe(true)
     } finally {
-      // The hook never outlives the test: it is released, and both settle.
       writeFileSync(released, '')
-      await Promise.all(settled)
+      await pushing
+      await successor?.release()
       rmSync(scratch.base, { recursive: true, force: true })
     }
   })
@@ -411,20 +484,76 @@ describe('the pipeline', () => {
       fixtureGit(scratch.dir, 'add', 'a.txt')
       const service = serviceFor(scratch.dir, {
         admitWorkspaceCommand: async (start) => {
-          // Another holder's lock that already outlived its settle time.
+          // Another holder's instance: no newcomer settle grace period.
           const lockFile = path.join(scratch.dir, '.git', GIT_TRANSACTION_LOCK_FILE)
           writeFileSync(
             lockFile,
-            JSON.stringify({ host: hostname(), pid: process.pid, nonce: 'taken' }),
+            JSON.stringify({
+              owner: await currentProcessOwner(),
+              id: 'taken',
+              acquiredAt: Date.now(),
+              leaseMs: GIT_TRANSACTION_LOCK_STALE_MS,
+            }),
           )
-          const settled = new Date(Date.now() - 2 * GIT_TRANSACTION_LOCK_SETTLE_MS)
-          utimesSync(lockFile, settled, settled)
           return await start()
         },
       })
       await expect(service.commit('Lock lost', false)).rejects.toThrow('changed')
       expect(lastSubject(scratch.dir)).toBe('Base')
     } finally {
+      rmSync(scratch.base, { recursive: true, force: true })
+    }
+  })
+
+  it('RVM123G4: a resumed old holder never reclaims a refreshed successor or authorizes a spawn', async () => {
+    const scratch = scratchRepository()
+    const commonDir = path.join(scratch.dir, '.git')
+    const file = path.join(commonDir, GIT_TRANSACTION_LOCK_FILE)
+    // Pause only the old holder's renewal timer; Git and real file I/O keep
+    // running. Each process's monotonic clock advances with the schedule.
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    let elapsed = 0
+    vi.spyOn(performance, 'now').mockImplementation(() => elapsed)
+    let successor: fileLeases.FileLease | undefined
+    let refreshed: Buffer | undefined
+    try {
+      writeFileSync(path.join(scratch.dir, 'a.txt'), 'a\n')
+      fixtureGit(scratch.dir, 'add', 'a.txt')
+      const service = serviceFor(scratch.dir, {
+        admitWorkspaceCommand: async (start) => {
+          // A's hook removed its lock while A's event loop was paused. B
+          // acquired, settled, and later refreshed; A resumes 10 ms later.
+          rmSync(file)
+          successor = await fileLeases.acquireFileLease(file, {
+            port: nodeLeasePort,
+            now: Date.now,
+            monotonic: () => elapsed,
+            sleep: wait,
+            owner: await currentProcessOwner(),
+            isOwnerGone: isProcessOwnerGone,
+            leaseMs: GIT_TRANSACTION_LOCK_STALE_MS,
+            honoredLeaseMs: GIT_TRANSACTION_LOCK_STALE_MS,
+            unreadableMs: GIT_TRANSACTION_LOCK_STALE_MS,
+            timeoutMs: GIT_TRANSACTION_LOCK_STALE_MS,
+            pollMs: GIT_TRANSACTION_LOCK_POLL_MS,
+            watches: new Map(),
+          })
+          elapsed = GIT_TRANSACTION_LOCK_REFRESH_MS + 1000
+          expect(await successor.renew()).toBe(true)
+          refreshed = readFileSync(file)
+          elapsed += 10
+          await vi.advanceTimersByTimeAsync(GIT_TRANSACTION_LOCK_REFRESH_MS)
+          return await start()
+        },
+      })
+      await expect(service.commit('Old holder resumed', false)).rejects.toThrow('changed')
+      // Includes the old holder's renewal and release: neither rewrites B.
+      expect(readFileSync(file)).toEqual(refreshed)
+      expect(successor?.isHeldSync()).toBe(true)
+      expect(lastSubject(scratch.dir)).toBe('Base')
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      await successor?.release()
       rmSync(scratch.base, { recursive: true, force: true })
     }
   })
