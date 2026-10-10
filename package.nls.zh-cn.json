@@ -228,6 +228,7 @@
   "config.accountSwap.description": "达到阈值时在下一个请求边界切换到有余量的下一个账号。每个账号保留各自的限额。默认开启；仅使用本机的设置。",
   "config.accountParallel.description": "按余量将后台工作分散到各账号；每个工作器固定在其账号上。默认开启；仅使用本机的设置。",
   "config.accounts.severalOnThisDevice.description": "允许同一提供商的多个账号在本机上用于测试，每个账号运行在各自独立的本地配置文件中。开启时先请求确认该提供商的条款。默认关闭；仅使用本机的设置。",
+  "config.github.useGhLogin.description": "允许拉取请求使用你现有的 GitHub CLI 登录（`gh auth token`），在编辑器的 GitHub 登录和 Muse Spark 的登录之后最后尝试。令牌每次只为一个请求读取，从不保存。默认关闭；仅限用户设置，因此仓库无法将其打开。",
   "command.vault.title": "凭据库",
   "command.lockVault.title": "立即锁定凭据库",
   "config.vault.description": "启用由各编辑器共享的用户凭据库。",

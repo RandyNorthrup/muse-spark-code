@@ -8,6 +8,7 @@ import { resourceEnvironment } from '../core/resources/launch'
 
 import { type ExecFileOptions, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import path from 'node:path'
 import { admitResource, resourceWindowsJob, stopResourceTree } from '../core/resources/admission'
 import { spawnMcpJob } from './backend/mcpJobLaunch'
 import { observeResourceProcess } from './resources/resourceAdmission'
@@ -24,6 +25,7 @@ import {
   GIT_FILTER_NAME_MAX_CHARS,
   GIT_METADATA_OPTIONS,
   GIT_OUTPUT_MAX_BYTES,
+  GIT_PUSH_CREDENTIAL_VARIABLES,
   GIT_STDERR_MAX_CHARS,
   GIT_TIMEOUT_MS,
   UI_TEXT,
@@ -351,6 +353,15 @@ export function isGitExitError(value: unknown): value is GitExitError {
 export interface GitProcessOptions {
   /** Checkpoint Git bypasses temp pressure and checks this storage volume instead. */
   readonly checkpointDestination?: string | undefined
+  /**
+   * D104's named exception (M123): a confirmed push or a pull request fetch
+   * keeps the user's own Git environment (credential helpers, SSH agent and
+   * token variables, as a terminal would), with `GIT_TERMINAL_PROMPT=0`.
+   * Everything else keeps the quiet environment. The process never gains
+   * anything of ours either way: no `http.extraHeader`, no credential
+   * helper of ours, no token variable.
+   */
+  readonly isUserEnvironment?: boolean | undefined
   readonly beforeRun?: BestOfNGitGuard | undefined
   readonly cwd: string
   /** The child's whole environment: nothing else is inherited. */
@@ -377,6 +388,48 @@ export interface GitProcessDeps {
   readonly env: NodeJS.ProcessEnv
   readonly fileExists: (filePath: string) => boolean
   readonly spawn: typeof spawn
+  /**
+   * The git the caller already resolved (M123's `RuntimeGitDeps.gitPath`):
+   * used instead of a PATH search, and only when absolute, so a relative
+   * name never runs a workspace's own `git` (D24).
+   */
+  readonly executable?: string | undefined
+}
+
+/**
+ * One environment for both launch routes, an allow-list per operation
+ * (RVM123G2 R3): no credential variable at all, or for D104's exception
+ * (a confirmed push, a pull request fetch) only the Git routes
+ * GIT_PUSH_CREDENTIAL_VARIABLES names, never a model or provider key.
+ */
+function childGitEnvironment(options: GitProcessOptions): NodeJS.ProcessEnv {
+  return options.isUserEnvironment === true
+    ? {
+        ...withoutCredentials(options.env, GIT_PUSH_CREDENTIAL_VARIABLES),
+        GIT_TERMINAL_PROMPT: '0',
+      }
+    : withoutCredentials(options.env)
+}
+
+/**
+ * The stderr kept for an error: once the cap cut it, the last (partial)
+ * word goes too, so a credential cut short at the cap, no longer in a shape
+ * the redactor knows, is never shown, logged or returned (redact before
+ * truncate).
+ */
+export function cappedStderr(stderr: string, wasCut: boolean): string {
+  if (!wasCut) {
+    return stderr
+  }
+  const lastSpace = stderr.search(/\s\S*$/u)
+  return lastSpace === -1 ? '' : stderr.slice(0, lastSpace + 1)
+}
+
+/** An absolute git, as given, or undefined so the run fails as git missing. */
+function fixedExecutable(platform: NodeJS.Platform, executable: string): () => string | undefined {
+  const isAbsolute =
+    platform === 'win32' ? path.win32.isAbsolute(executable) : path.posix.isAbsolute(executable)
+  return () => (isAbsolute ? executable : undefined)
 }
 
 /**
@@ -388,7 +441,10 @@ export interface GitProcessDeps {
  * (a `GIT_DIR`, a `GIT_INDEX_FILE`) reaches it unless the caller says so.
  */
 export function createGitProcess(deps: GitProcessDeps): GitProcess {
-  const gitPath = gitLocator(deps)
+  const gitPath =
+    deps.executable === undefined
+      ? gitLocator(deps)
+      : fixedExecutable(deps.platform, deps.executable)
   return async (args, options) => {
     const resource =
       options.checkpointDestination === undefined
@@ -418,11 +474,30 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
           reject(new Error(`git ${command} was not started: the window is closing`))
           return
         }
+        // The same environment on both routes: the governed Windows job too
+        // keeps D104's user environment for a push and a fetch (M123).
+        const childEnv = resourceEnvironment(childGitEnvironment(options), resource)
+        // The Windows helper creates git only after GO: the caller's check
+        // runs again at that authorization, after the helper's own start
+        // (RVM123G2 R1), and its refusal is this command's.
+        let refusal: Error | undefined
+        const guard = options.beforeRun
+        const authorize =
+          guard === undefined
+            ? undefined
+            : () => {
+                try {
+                  guard()
+                } catch (error: unknown) {
+                  refusal = error instanceof Error ? error : new Error(String(error))
+                  throw error
+                }
+              }
         const child =
           job === undefined
             ? deps.spawn(git, [...args], {
                 cwd: options.cwd,
-                env: resourceEnvironment(withoutCredentials(options.env), resource),
+                env: childEnv,
                 stdio: ['pipe', 'pipe', 'pipe'],
                 windowsHide: true,
                 ...treeSpawnOptions(deps.platform),
@@ -432,19 +507,21 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
                 file: git,
                 args,
                 cwd: options.cwd,
-                env: resourceEnvironment(withoutCredentials(options.env), resource),
+                env: childEnv,
                 isVerbatim: false,
                 log: () => {
                   /* The launcher returns its failure through the process streams. */
                 },
                 resource,
                 resourceAssembly: job.assemblyPath,
+                authorize,
               })
         wasSpawned = true
         if (job === undefined) observeResourceProcess(resource, child)
         const chunks: Buffer[] = []
         let size = 0
         let stderr = ''
+        let isStderrCut = false
         let failure: Error | undefined
         // A failure (the timeout, the window closing) also ends the wait for a
         // taker still busy with a chunk after the child closed.
@@ -520,7 +597,11 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
         child.stderr.setEncoding('utf8')
         child.stderr.on('data', (chunk: string) => {
           if (stderr.length < GIT_STDERR_MAX_CHARS) {
-            stderr = `${stderr}${chunk}`.slice(0, GIT_STDERR_MAX_CHARS)
+            const joined = `${stderr}${chunk}`
+            isStderrCut ||= joined.length > GIT_STDERR_MAX_CHARS
+            stderr = joined.slice(0, GIT_STDERR_MAX_CHARS)
+          } else if (chunk !== '') {
+            isStderrCut = true
           }
         })
         // A command that exits before reading all of stdin closes the pipe
@@ -536,12 +617,14 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
           await Promise.race([taking, stopped])
           clearTimeout(timer)
           options.signal?.removeEventListener('abort', onAbort)
-          if (failure !== undefined) {
+          if (refusal !== undefined) {
+            reject(refusal)
+          } else if (failure !== undefined) {
             reject(failure)
           } else if (code === 0) {
             resolve(Buffer.concat(chunks))
           } else {
-            reject(new GitExitError(code ?? -1, stderr, command))
+            reject(new GitExitError(code ?? -1, cappedStderr(stderr, isStderrCut), command))
           }
         }
         child.on('close', (code) => {
@@ -554,6 +637,11 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
       throw error
     }
   }
+}
+
+/** git's absolute path on this process's PATH (D24), for M123's native route; undefined when absent. */
+export function processGitPath(): string | undefined {
+  return gitLocator({ platform: process.platform, env: process.env, fileExists: existsSync })()
 }
 
 /** Whether git is on the absolute entries of this process's PATH (M72's availability). */
