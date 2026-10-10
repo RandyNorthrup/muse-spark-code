@@ -1958,6 +1958,12 @@
     "unbound": "L’intégration de cette source n’est pas encore disponible.",
     "history": "L’historique de la session sélectionnée n’est pas disponible."
   },
+  "reportDetailReasons": {
+    "sessionTurnsUnavailable": "L'historique de la session ne contient aucun identifiant de tour ; les tours ne peuvent pas être comptés.",
+    "sessionApprovalsUnavailable": "L'historique de la session ne contient aucune décision d'approbation.",
+    "toolBreakdownUnavailable": "L'utilisation par outil n'est pas enregistrée dans le journal d'utilisation.",
+    "rolledUpBreakdownExcluded": "L'historique cumulé est inclus dans les totaux mais pas dans cette répartition."
+  },
   "reportRowsMore": {
     "one": "{count} ligne de plus",
     "other": "{count} lignes de plus",

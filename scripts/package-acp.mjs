@@ -85,6 +85,7 @@ const BUNDLES = [
   'recorder.js',
   'reporting.js',
   'reportingNetwork.js',
+  'reportInputs.js',
   'reportingDestinations.js',
   'reference.js',
   'uiText.js',

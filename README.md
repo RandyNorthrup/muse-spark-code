@@ -223,7 +223,7 @@ visible as unavailable.
 | Changes                     | `/report changes`; `since <tag, branch, or YYYY-MM-DD>` selects Git ancestry                |
 | Quality                     | `/report quality`                                                                           |
 | Usage                       | `/report usage today`; also `7d`, `30d`, `90d`, `week`, `month` or a date range             |
-| Session                     | `/report session`                                                                           |
+| Session                     | `/report session`; `--session <id>` reads a stored session (terminal)                       |
 | Playbook                    | `/report playbook`                                                                          |
 | Issues                      | `/report issues`                                                                            |
 | Estimate                    | `/report estimate M113`                                                                     |
@@ -235,7 +235,13 @@ all available rows. Next steps follow the plan's declared delivery order and
 only become ready when their required milestones are complete. At most three
 next steps are shown. Session turn
 and approval totals require retained activity facts; transcript row counts
-never substitute for them.
+never substitute for them. The session report reads the current conversation
+in the editor, or a stored Model API session by id. The usage report reads
+the on-disk usage journal through the same aggregation as Account & usage, so
+its totals match that page for the same period; `--by model`, `provider`,
+`kind`, `session`, `client` or `account` chooses the breakdown. Per-tool
+usage is not recorded in the journal, so `--by tool` reports totals with an
+explicit partial breakdown instead of invented rows.
 
 The tab provides **Save as…**, **Copy as Markdown**, **Attach to message**,
 **History**, **Diff with previous** and **Refresh**. Save as exports Markdown,

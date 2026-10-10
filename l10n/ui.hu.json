@@ -1930,6 +1930,12 @@
     "unbound": "A forrás integrációja még nem érhető el.",
     "history": "A kiválasztott munkamenet előzményei nem érhetők el."
   },
+  "reportDetailReasons": {
+    "sessionTurnsUnavailable": "A munkamenet-előzmények nem tartalmaznak körazonosítókat, ezért a körök nem számolhatók meg.",
+    "sessionApprovalsUnavailable": "A munkamenet-előzmények nem tartalmaznak jóváhagyási döntéseket.",
+    "toolBreakdownUnavailable": "Az eszközönkénti használat nincs rögzítve a használati naplóban.",
+    "rolledUpBreakdownExcluded": "Az összesített előzmények a végösszegekben szerepelnek, de ebben a bontásban nem."
+  },
   "reportRowsMore": {
     "one": "További {count} sor",
     "other": "További {count} sor"

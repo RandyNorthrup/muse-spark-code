@@ -1986,6 +1986,12 @@
     "unbound": "Integrace tohoto zdroje zatím není dostupná.",
     "history": "Historie vybrané relace není dostupná."
   },
+  "reportDetailReasons": {
+    "sessionTurnsUnavailable": "Historie relace neobsahuje žádné identifikátory tahů, takže tahy nelze spočítat.",
+    "sessionApprovalsUnavailable": "Historie relace neobsahuje žádná rozhodnutí o schválení.",
+    "toolBreakdownUnavailable": "Využití podle nástroje se v deníku využití nezaznamenává.",
+    "rolledUpBreakdownExcluded": "Agregovaná historie je zahrnuta v součtech, ale ne v tomto rozpadu."
+  },
   "reportRowsMore": {
     "one": "Další {count} řádek",
     "other": "Dalších {count} řádků",

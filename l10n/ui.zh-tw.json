@@ -1902,6 +1902,12 @@
     "unbound": "此來源整合尚無法使用。",
     "history": "所選工作階段的歷程記錄無法使用。"
   },
+  "reportDetailReasons": {
+    "sessionTurnsUnavailable": "工作階段歷程記錄中沒有回合識別碼，因此無法統計回合。",
+    "sessionApprovalsUnavailable": "工作階段歷程記錄中沒有核准決定。",
+    "toolBreakdownUnavailable": "使用日誌中不記錄按工具劃分的使用量。",
+    "rolledUpBreakdownExcluded": "彙總歷程記錄計入總數，但不計入此明細。"
+  },
   "reportRowsMore": {
     "other": "另外 {count} 列"
   },

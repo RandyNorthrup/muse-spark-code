@@ -9,6 +9,12 @@ export function collectSession(snapshot: SourceSnapshot, options: ReportOptions)
   const source = snapshot.sources.session
   const facts = source.data
   const ids = [source.record.id]
+  // Checks run are the workspace journal's own rows, read and scrubbed once by
+  // its source; the embedded session runs cover only a source that cannot
+  // read. Both the rows and the section cite whichever source supplied them.
+  const checkSource = snapshot.sources.checkRuns
+  const checks = checkSource.data ?? facts?.checkRuns ?? []
+  const checkSourceId = checkSource.data === null ? source.record.id : checkSource.record.id
   const make = (
     id: string,
     heading: Parameters<typeof sourcedSection>[3],
@@ -162,7 +168,15 @@ export function collectSession(snapshot: SourceSnapshot, options: ReportOptions)
       ) ?? [],
       ['questions'],
     ),
-    make('checks', 'checks', CHECK_COLUMNS, checkRows(facts?.checkRuns ?? [], source.record.id)),
+    sourcedSection(
+      snapshot,
+      options,
+      'checks',
+      'checks',
+      CHECK_COLUMNS,
+      checkRows(checks, checkSourceId),
+      ['session', 'checkRuns'],
+    ),
     make(
       'paidUses',
       'paidUses',

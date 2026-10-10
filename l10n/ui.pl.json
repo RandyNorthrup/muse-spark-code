@@ -1986,6 +1986,12 @@
     "unbound": "Integracja tego źródła nie jest jeszcze dostępna.",
     "history": "Historia wybranej sesji jest niedostępna."
   },
+  "reportDetailReasons": {
+    "sessionTurnsUnavailable": "Historia sesji nie zawiera żadnych identyfikatorów tur, więc tur nie można policzyć.",
+    "sessionApprovalsUnavailable": "Historia sesji nie zawiera żadnych decyzji zatwierdzających.",
+    "toolBreakdownUnavailable": "Wykorzystanie według narzędzia nie jest rejestrowane w dzienniku użycia.",
+    "rolledUpBreakdownExcluded": "Zagregowana historia jest uwzględniona w sumach, ale nie w tym podziale."
+  },
   "reportRowsMore": {
     "one": "{count} dodatkowy wiersz",
     "other": "{count} dodatkowego wiersza",

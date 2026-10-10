@@ -9,6 +9,21 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Session and usage report kinds are real end to end** (M113 C-M113-2).
+  `/report session` reads the current conversation in the editor, or a stored
+  Model API session by id (`--session <id>` in the terminal and ACP); turns
+  come from the retained turn identifiers, per-session tokens and cost from
+  the usage journal, and checks run from the workspace check-run journal. The
+  transcript travels in the export, and approvals stay explicitly unavailable
+  because history items carry no approval decisions. `/report usage` reads the
+  on-disk journal through the same aggregation as Account & usage, so its
+  totals match that page for the same period, with `--by model`, `provider`,
+  `kind`, `session`, `client` or `account` breakdowns; per-tool usage is not
+  recorded, so `--by tool` reports totals with an explicit partial breakdown.
+  Both kinds work in VS Code, ACP and the terminal without a model call. The
+  inputs load lazily in `dist/reportInputs.js` (100 KiB budget), off the
+  reporting engine's budget, and failures thrown across the bundle boundary
+  keep their source code instead of degrading to a generic read failure.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

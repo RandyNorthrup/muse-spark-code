@@ -1902,6 +1902,12 @@
     "unbound": "このソースの統合はまだ利用できません。",
     "history": "選択したセッションの履歴は利用できません。"
   },
+  "reportDetailReasons": {
+    "sessionTurnsUnavailable": "セッション履歴にターン識別子がないため、ターンを数えられません。",
+    "sessionApprovalsUnavailable": "セッション履歴に承認の決定がありません。",
+    "toolBreakdownUnavailable": "ツール別の使用量は使用量ジャーナルに記録されません。",
+    "rolledUpBreakdownExcluded": "集計済みの履歴は合計に含まれますが、この内訳には含まれません。"
+  },
   "reportRowsMore": {
     "other": "ほか {count} 行"
   },

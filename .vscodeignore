@@ -124,6 +124,7 @@
 !dist/webview/reportingDestinations.js
 !dist/webview/reportingDestinations.css
 !dist/reportingNetwork.js
+!dist/reportInputs.js
 !dist/vault.js
 !dist/vaultBoundaries.js
 !dist/estimator.js
