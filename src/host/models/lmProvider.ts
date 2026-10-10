@@ -10,6 +10,7 @@ import { Usd, legacyUsdSchema, usdInputSchema, type UsdAmount } from '../../shar
 import {
   EDITOR_CHAT_VENDOR,
   MAX_IMAGE_BYTES,
+  MODEL_API_EFFORT_OFF,
   MODEL_API_REQUEST_TIMEOUT_MS,
   TOKENS_PER_MILLION,
   EDITOR_CHAT_PROMPT_CACHE_RETENTION,
@@ -262,21 +263,30 @@ const reasoningEffortFor = (model: ResolvedModel, options: unknown) => {
   const opts = optionsSchema.parse(options)
   const requested = modelOptionsSchema.parse(opts.modelOptions ?? {}).reasoningEffort
   const { supported, effortLevels, canDisable } = model.policy.reasoning
+  // Reasoning off bills no reasoning level: a listed `none` level and a
+  // recorded disable capability each run without reasoning, even when the
+  // catalogue records only one of them.
+  const canRunWithoutReasoning =
+    canDisable.state === 'yes' ||
+    (effortLevels.state === 'yes' && effortLevels.value.includes('none'))
   if (requested !== undefined) {
     return supported.state !== 'no' &&
       effortLevels.state === 'yes' &&
       effortLevels.value.includes(requested) &&
-      (requested !== 'none' || canDisable.state === 'yes')
+      (requested !== 'none' || canRunWithoutReasoning)
       ? requested
       : fail()
   }
   if (supported.state === 'no') return 'none'
+  // Meta's thinking-off wire value is `minimal` (`none` is a 400); every
+  // other provider runs without reasoning on `none`.
+  const offEffort = model.policy.identity.provider === 'meta' ? MODEL_API_EFFORT_OFF : 'none'
   if (effortLevels.state === 'yes') {
-    if (canDisable.state === 'yes' && effortLevels.value.includes('none')) return 'none'
+    if (canRunWithoutReasoning) return offEffort
     const level = effortLevels.value.find((value) => value !== 'none')
     if (level !== undefined) return level
   }
-  return canDisable.state === 'yes' ? 'none' : fail()
+  return canDisable.state === 'yes' ? offEffort : fail()
 }
 
 export function createEditorChat(deps: EditorChatDeps) {
@@ -292,7 +302,12 @@ export function createEditorChat(deps: EditorChatDeps) {
   const isConfirmed = (ref: string, model: ResolvedModel, budget: UsdAmount) =>
     confirmationsSchema.safeParse(deps.confirmations()).data?.[ref] ===
     confirmationEvidence(model, budget)
-  const confirm = async (ref: string, model: ResolvedModel, budget: UsdAmount) => {
+  const confirm = async (
+    ref: string,
+    model: ResolvedModel,
+    budget: UsdAmount,
+    requiresSelected: boolean,
+  ) => {
     if (isConfirmed(ref, model, budget)) return
     const prior = confirming.get(ref)
     if (prior !== undefined) {
@@ -313,9 +328,16 @@ export function createEditorChat(deps: EditorChatDeps) {
       )
       if (answer !== UI_TEXT.editorChatEnable) return fail()
       if (!deps.allowed() || !model.isCurrent() || deps.cap() !== originalCap) return fail()
+      if (requiresSelected && !selected().includes(ref)) return fail()
       if (legacyUsdSchema.safeParse(originalCap).data !== budget) await deps.saveCap(budget)
       if (!deps.allowed() || !model.isCurrent() || cap() !== budget) return fail()
+      if (requiresSelected && !selected().includes(ref)) return fail()
       await deps.saveConfirmation(ref, confirmationEvidence(model, budget))
+      // A removal that lands with the grant write must not leave a revoked
+      // grant behind: recheck presence in the same step and withdraw instead.
+      if (!requiresSelected || selected().includes(ref)) return
+      await deps.saveConfirmation(ref, undefined)
+      return fail()
     })()
     confirming.set(ref, pending)
     try {
@@ -404,7 +426,7 @@ export function createEditorChat(deps: EditorChatDeps) {
         images,
       })
       if (worst === undefined) return fail()
-      await confirm(ref, model, cap())
+      await confirm(ref, model, cap(), true)
       if (
         !deps.allowed() ||
         !selected().includes(ref) ||
@@ -564,7 +586,7 @@ export function createEditorChat(deps: EditorChatDeps) {
       limits(model)
       reasoningEffortFor(model, {})
       try {
-        await confirm(ref, model, budget)
+        await confirm(ref, model, budget, false)
       } catch {
         return
       }

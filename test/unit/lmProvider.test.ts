@@ -396,6 +396,86 @@ describe('editor chat exposure and admission', () => {
     ).rejects.toThrow()
     expect(f.sent).toHaveLength(1)
   })
+  it('defaults to reasoning off when off is a listed level nobody asked to change', async () => {
+    const f = await fixture()
+    const model = {
+      ...f.model,
+      policy: modelPolicyFor(ref, {
+        pricing: defaultPricing,
+        maxOutputTokens: 100,
+        capabilities: { reasoning: true },
+        effortLevels: ['none', 'low', 'medium', 'high'],
+      }),
+    }
+    const engine = createEditorChat({
+      ...f.deps,
+      models: { resolve: () => Promise.resolve(model) },
+    })
+    expect(
+      await engine.provider.provideLanguageModelChatInformation({}, f.cancellation.value),
+    ).toHaveLength(1)
+    await f.run(engine.provider)
+    expect(f.sent[0]?.reasoning.effort).toBe('none')
+  })
+  it('defaults to reasoning off when the catalogue toggle allows disabling', async () => {
+    const f = await fixture()
+    const model = {
+      ...f.model,
+      policy: modelPolicyFor(ref, {
+        pricing: defaultPricing,
+        maxOutputTokens: 100,
+        capabilities: { reasoning: true },
+        canDisableReasoning: true,
+        effortLevels: ['high', 'xhigh'],
+      }),
+    }
+    const engine = createEditorChat({
+      ...f.deps,
+      models: { resolve: () => Promise.resolve(model) },
+    })
+    await f.run(engine.provider)
+    expect(f.sent[0]?.reasoning.effort).toBe('none')
+  })
+  it('honours a requested off level when off is listed without a disable flag', async () => {
+    const f = await fixture()
+    const model = {
+      ...f.model,
+      policy: modelPolicyFor(ref, {
+        pricing: defaultPricing,
+        maxOutputTokens: 100,
+        capabilities: { reasoning: true },
+        canDisableReasoning: false,
+        effortLevels: ['none', 'low'],
+      }),
+    }
+    const engine = createEditorChat({
+      ...f.deps,
+      models: { resolve: () => Promise.resolve(model) },
+    })
+    await engine.provider.provideLanguageModelChatResponse(
+      { id: ref },
+      messages,
+      { modelOptions: { reasoningEffort: 'none' } },
+      f.progress,
+      f.cancellation.value,
+    )
+    expect(f.sent[0]?.reasoning.effort).toBe('none')
+  })
+  it('an Enable click after the model is removed writes no grant', async () => {
+    const f = await fixture(defaultPricing, false)
+    host.window.showWarningMessage.mockImplementation(() => {
+      f.settings.selected = []
+      return Promise.resolve(UI_TEXT.editorChatEnable)
+    })
+    await expect(f.run()).rejects.toThrow(UI_TEXT.editorChatRefused)
+    expect(f.sent).toHaveLength(0)
+    expect(f.confirmations[ref]).toBeUndefined()
+    f.settings.selected = [ref]
+    host.window.showWarningMessage.mockResolvedValue(UI_TEXT.editorChatEnable)
+    await f.run()
+    expect(host.window.showWarningMessage).toHaveBeenCalledTimes(2)
+    expect(f.sent).toHaveLength(1)
+  })
   it('withdraws unknown reasoning without evidence that it can be disabled', async () => {
     const f = await fixture()
     const engine = createEditorChat({
