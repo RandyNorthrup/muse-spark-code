@@ -1,0 +1,1251 @@
+{
+  "review": "M96-U1-Codex-2026-10-10",
+  "sourceRevision": "74447012ba77f86081ae1323f20ddc3f7ce67ed0",
+  "sourceSha256": {
+    "l10n/ui.cs.json": "sha256:1aac771618276a86adb59bc6b73265bf7c968c343b51820bf517443b786ceb53",
+    "l10n/ui.de.json": "sha256:d894b1aa14a0792ddb18eee4023fc305d31d3b26bfbd28edf680f9d9ea330d32",
+    "l10n/ui.es.json": "sha256:384a776d90022699c2d70e62e93ea87fd551d4158eb7b7f8ab4a3fe234380339",
+    "l10n/ui.fr.json": "sha256:28e322816d86b98193382281d385357bdc63ec1870b6ef027208bf1884fc1fe5",
+    "l10n/ui.hu.json": "sha256:943d349db710e549535db049faa3df72fa8d0bc0e6bf0b7b5bac53fd3ede0cc6",
+    "l10n/ui.it.json": "sha256:c57ada41c1d40a3a11bc4f5aff91e65567270d4cc75166aeeb300d0c1100268a",
+    "l10n/ui.ja.json": "sha256:1aad2f0d9f0ff54b3ba2b77c84dc9261c20d63c9b8882039ead3a0308dcfe042",
+    "l10n/ui.ko.json": "sha256:3ef62132fea8249ee7dc99339d0cfdcaa8994924de8d4fe73bf5e143ac9c86d1",
+    "l10n/ui.pl.json": "sha256:c17f5c37b05ecad66ec7967d1497395c7a252356c88d393f1d6bbae89a2e7482",
+    "l10n/ui.pt-br.json": "sha256:da47481a5f12e235aa30915e13116ed5bcda843b5f58772edd252cb7cfff4bd7",
+    "l10n/ui.ru.json": "sha256:67a0945dea2e4ff7601a6a2baf0f876973df185518eb7d1d3ddcc08a70637437",
+    "l10n/ui.tr.json": "sha256:48ed734f315a31402b190fda53af6a24004831d9dd9965216b755d7a1bd14df3",
+    "l10n/ui.zh-cn.json": "sha256:5c7d2714213145c78d857b614615636c9be2adde3c45767ddceb20ccbcba3211",
+    "l10n/ui.zh-tw.json": "sha256:28693b452d1f733f96ed166b880fe3fa976e68a5b7f9cf08676367b3d996e146",
+    "scripts/build.mjs": "sha256:184fd076a312374f7211b609fc0249adccbb9fcdb4122bc5e6946100a33c68ed",
+    "scripts/lib/deferredBundles.mjs": "sha256:01dae94fcd3f6f6d7d2a9ee54e83919608f939178cc7bab0170a414f7dd16a11",
+    "scripts/lib/uiTextRegions.mjs": "sha256:8c004dd484cfeec2376e846ecd7438b4310d80d9a31d09110b5aef12cc82fe94",
+    "scripts/lib/webviewBundles.mjs": "sha256:01ef82fcfcde4e7fe18e8fd6fd9d4007660930a3621e7e3835573a5bfa1bdf96",
+    "src/core/team/teamPanel.ts": "sha256:327e0b0d2b47a600c1b3f24fc1fd8ebbe94da4ac4bf3cef57454d23d77d98f88",
+    "src/core/team/teamPanelEntry.ts": "sha256:c4825a082e2abc5611140656ef1bbb5b38f8412d983502b2175f0ad3f9c8e922",
+    "src/core/team/teamPanelViews.ts": "sha256:9d825d1a7043bc5d5870cacc6d57c01a944de036313d263ca70add6723246bf4",
+    "src/extension.ts": "sha256:a93595410287d4063ba73fcd8ed932a1438ae25358149d38c4bd8ae7952a5e1a",
+    "src/host/models/modelsPanel.ts": "sha256:c840ace2b05779f2843a6ee6dbf26e6c4b4656e4a24d153a6ca53e81130b7fd7",
+    "src/host/models/modelsPanelEntry.ts": "sha256:555861d05ada3a1ca1619e0506ea8daeb485b1a20e78da7ccf3e999553f00e8b",
+    "src/host/models/teamPanelBinding.ts": "sha256:05367ed188978e00484dfc2fe98cec5b1ec4e54c2ec6d489870a2e920ebec485",
+    "src/host/teamHostBinding.ts": "sha256:df170db95a7de84b64c2d4fed3899fb18645588804910810c2e0beb04c8bf882",
+    "src/runtime/reference.node.generated.ts": "sha256:9ef2c29dc232cbbbb1f2107e0aa3a68d824507c4b9f80e25600188b06f162c0d",
+    "src/shared/constants.ts": "sha256:b29b70c1fda20e862b22ed7181aa2a5d8743919d28ee55ab488cb465b692deb2",
+    "src/shared/featureCatalog.ts": "sha256:f13b7e12c948ca7a06c757baa02def3613e0a1b03f2b222a0919e8fd0d800b69",
+    "src/shared/keybindings.ts": "sha256:128e3e444863f8273d36269b0de9c1c6169bf1a18763478b29190de11adf3abb",
+    "src/shared/l10n/en.ts": "sha256:4c850162b43d45e44ee5afd8d2e489eb7d5c3b92768bcae4e428060596e9fb09",
+    "src/shared/modelsPanel.ts": "sha256:86c5f0d88dcdb4facaf743e99af364081c5e71eb8df990cfbedc09c607061f52",
+    "src/shared/reference/reference.generated.json": "sha256:e5d8de32596e8b425fea5bfe1bf046047e389f338683dd11ce3dd5d40a0484ef",
+    "src/shared/reference/reference.generated.ts": "sha256:3b5ccc59da64c3c00b061598bc7eb4fc16f4502306e3e731429878047951a0e9",
+    "src/shared/reference/referenceSchema.generated.ts": "sha256:8286cc55188681295d47acd375d4dccd06ae50752d4854aae603eb3f09543208",
+    "src/shared/reference/referenceSource.ts": "sha256:31eb4dbd34379571cfc8f9f7910e0fd0a63f3b5a877ccb9afd38fa942196c12f",
+    "src/shared/team.ts": "sha256:32a7ae1634fe3411bdf3c71a24d690749004ae9b35aae95a15847eb225b69b90",
+    "src/shared/teamConfig.ts": "sha256:868f8cc7f8a7454c5c0e0463f9145e56c956af5fc3a5d13d7f7230fb61c6cd4b",
+    "src/shared/teamConversation.ts": "sha256:83fa8a018357eec42edb28320c18a989bcc4ae38930fa54c30c5d8f360c5c797",
+    "src/shared/teamPanel.ts": "sha256:9d9d9ee8c9140f37062559e65cc991af3850dfaefdc6bb2b33c4c2853a5ff06a",
+    "src/shared/teamPanelDefinition.ts": "sha256:0fd5f28fc2fb7bef5a9b4b8993edfcde2b42076fe30f7079275fce4e25adb6b4",
+    "src/webview/components/TeamTree.tsx": "sha256:cfd6995d3c37ec68505cf8723770d77ef5ef8eb5638f2e1c21c98d1dfc6cff98",
+    "src/webview/models/models.css": "sha256:28c85b1a16f905e449d4a552a52ee8a115e6a5923485d0e7e1b5d0dbc3d081b7",
+    "src/webview/models/panel.tsx": "sha256:67f5d67faa8669a15e57f12502f799bb3a06d4eabf71614b10597064329e9693",
+    "src/webview/models/sections.ts": "sha256:e10805d4db14c941c10a6957cd27c0fff7f446b069d7966410cb092390370434",
+    "src/webview/models/sections/agents/AgentsSection.tsx": "sha256:3266df60105946a6aef45cf17807cad3cd2847fb2abb6ff6907b421b6740090f",
+    "src/webview/models/sections/agents/agents.css": "sha256:5fc063ff4720303dedbd03a8ea1bdadc18d76cf460c678bb203b65a2443f68d8",
+    "src/webview/models/sections/roles/PoolEditor.tsx": "sha256:91dca62f4351c4bc2eca7664da9bb947f39e028154df60073b64f422e79dd52e",
+    "src/webview/models/sections/roles/RoleEditor.tsx": "sha256:70f15b8d8f72e6ddc2e2779caea4a1f472c66ced86910cb37035a1f2f65919a0",
+    "src/webview/models/sections/roles/RolesSection.tsx": "sha256:3fe6acb54423ff41c9436af5910024fc5c0a239b2b6e6ed51d8bc2e2fa71cdb1",
+    "src/webview/models/sections/roles/fields.tsx": "sha256:a1fd10e5b43af2f9a620101894894cc046290b713e76da528e2d5bd326a7301c",
+    "src/webview/models/sections/roles/roles.css": "sha256:d94f39ebf0ddb768c7cca3e93b929b9c415b1d016912db7d32b72dc748ccac57",
+    "src/webview/models/teamPanelBrowser.ts": "sha256:8b7a8779aeb4978629c4c5c0171fc677e5b610228a6f3aca3c573ea35c83b038",
+    "test/harness/team-roles-check.mjs": "sha256:eb9a48d8d13dfe1e41e8e3649ab2d0ef7aa40d62f96b5371197f1c0fb34298bb",
+    "test/harness/teamRoles.css": "sha256:52916d5aae669ad10871bdbf2fa4e871c0c454721a35722c4129f0d7d7c1987d",
+    "test/harness/teamRoles.html": "sha256:f4760a6a2e642782c15fb993516c5af1a6d41aa1f842e97753bfc585261012b8",
+    "test/harness/teamRoles.tsx": "sha256:be4f4693c4e091a4b4d665421137c143b01881fc724ecd66e180b81f6f6d3bd9"
+  },
+  "coverage": [
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 320,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 320,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 320,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 320,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 320,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 320,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 690,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 690,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 690,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 690,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 690,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 690,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 690,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 320,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 320,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 320,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 320,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 320,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 320,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 690,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 690,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 690,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 690,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 690,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 690,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 690,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-cn",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-cn",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-cn",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-cn",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-tw",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-tw",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-tw",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-tw",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ja",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ja",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ja",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ja",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ko",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ko",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ko",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ko",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "de",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "de",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "de",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "de",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "fr",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "fr",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "fr",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "fr",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "es",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "es",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "es",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "es",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pt-br",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pt-br",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pt-br",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pt-br",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ru",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ru",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ru",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ru",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "it",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "it",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "it",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "it",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "tr",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "tr",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "tr",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "tr",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pl",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pl",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pl",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pl",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "cs",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "cs",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "cs",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "cs",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "hu",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "hu",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "hu",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "hu",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "temp/cm962-harness/empty-light.png",
+      "sha256": "3fe54439f4286d7e31bfb18d7c306ae774774d920e71485805bef9a489af5eef",
+      "width": 320,
+      "height": 1527
+    },
+    {
+      "file": "temp/cm962-harness/template-light.png",
+      "sha256": "7876e0cbf75f93c01dfa1f3e010a7f3a6739e3fd8908346aeb188fbc4d515f37",
+      "width": 320,
+      "height": 5014
+    },
+    {
+      "file": "temp/cm962-harness/validation-light.png",
+      "sha256": "f8e08a9cd3110c01464b17986294bd34c85cbb40ae44edbd15ff4d96acf608d1",
+      "width": 320,
+      "height": 4956
+    },
+    {
+      "file": "temp/cm962-harness/suggestions-light.png",
+      "sha256": "1549e6cb7dbd510e3627f6db052e960be9dc8c795efe63cbaa30d2c7cc764ff0",
+      "width": 320,
+      "height": 5917
+    },
+    {
+      "file": "temp/cm962-harness/preview-light.png",
+      "sha256": "7876e0cbf75f93c01dfa1f3e010a7f3a6739e3fd8908346aeb188fbc4d515f37",
+      "width": 320,
+      "height": 5014
+    },
+    {
+      "file": "temp/cm962-harness/in-place-light.png",
+      "sha256": "2c1276d6c0dc13af42df2473e2034c1de4121dfb3529d0777670e047f10ce896",
+      "width": 320,
+      "height": 5014
+    },
+    {
+      "file": "temp/cm962-harness/agents-light.png",
+      "sha256": "f199814e3735c2121ff8b5fcdd174e1ea07b8e7c374d365f7d665b8ac5ce34fc",
+      "width": 320,
+      "height": 917
+    },
+    {
+      "file": "temp/cm962-harness/empty-dark.png",
+      "sha256": "e8b0862e82b2dd3d1501d2304d92ba91c93a6fdba0bc141ab90dac704e4dbe4d",
+      "width": 320,
+      "height": 1527
+    },
+    {
+      "file": "temp/cm962-harness/template-dark.png",
+      "sha256": "5edaac164fcf8c9ae4e68e48e4706ad7fbfa9e4c5d7d6c42b0a66cb29c2892c7",
+      "width": 320,
+      "height": 5014
+    },
+    {
+      "file": "temp/cm962-harness/validation-dark.png",
+      "sha256": "279ffc98a8d21c74d947809e364557bae18dd54a6af2f3b77934b5dcc9f7133f",
+      "width": 320,
+      "height": 4956
+    },
+    {
+      "file": "temp/cm962-harness/suggestions-dark.png",
+      "sha256": "6111f17b078417d001e24382aaf421368621bb4b4ad31dad26070a5cbcea97a5",
+      "width": 320,
+      "height": 5917
+    },
+    {
+      "file": "temp/cm962-harness/preview-dark.png",
+      "sha256": "5edaac164fcf8c9ae4e68e48e4706ad7fbfa9e4c5d7d6c42b0a66cb29c2892c7",
+      "width": 320,
+      "height": 5014
+    },
+    {
+      "file": "temp/cm962-harness/in-place-dark.png",
+      "sha256": "433204482bb743732816eb016f2a5988c92f334d15303af91c71775cc2b06ed6",
+      "width": 320,
+      "height": 5014
+    },
+    {
+      "file": "temp/cm962-harness/agents-dark.png",
+      "sha256": "b584673b99447db64eba3f27f24dbf95c1a4bddaa92ceb07be0496e85b4b1be8",
+      "width": 320,
+      "height": 917
+    },
+    {
+      "file": "temp/cm962-harness/empty-hc-light.png",
+      "sha256": "fb378aa76f74d9d3dd3583086cbcbd3930dffc46bfd5b4ca9e21757fcba0495e",
+      "width": 320,
+      "height": 1527
+    },
+    {
+      "file": "temp/cm962-harness/template-hc-light.png",
+      "sha256": "67ee0abcbb6587c3d614bd82a72013973f74900f9668790e357e2d866b5d7251",
+      "width": 320,
+      "height": 5014
+    },
+    {
+      "file": "temp/cm962-harness/validation-hc-light.png",
+      "sha256": "8dfd14eacfee3d341d0f262e7521306051ffd19332ea1696eeb918fe84d3927e",
+      "width": 320,
+      "height": 4956
+    },
+    {
+      "file": "temp/cm962-harness/suggestions-hc-light.png",
+      "sha256": "4e6e663864cc032a76b849a09bb9a503d7a567ff5b268f0178e899698e124646",
+      "width": 320,
+      "height": 5917
+    },
+    {
+      "file": "temp/cm962-harness/preview-hc-light.png",
+      "sha256": "67ee0abcbb6587c3d614bd82a72013973f74900f9668790e357e2d866b5d7251",
+      "width": 320,
+      "height": 5014
+    },
+    {
+      "file": "temp/cm962-harness/in-place-hc-light.png",
+      "sha256": "ce31c2da4d2dcdb38900b75c13557cb292109fac26bc4e49dd59888f9c9e8949",
+      "width": 320,
+      "height": 5014
+    },
+    {
+      "file": "temp/cm962-harness/agents-hc-light.png",
+      "sha256": "2c0994dd001c9447dbd7ec8dd4bfb1cc97358d6e34f24588fc2a14a7034bff7c",
+      "width": 320,
+      "height": 917
+    },
+    {
+      "file": "temp/cm962-harness/empty-hc-dark.png",
+      "sha256": "b3f5511329a3e3b73d9a00b173bbc607090f219962cf3ea0f6965458d8354843",
+      "width": 320,
+      "height": 1527
+    },
+    {
+      "file": "temp/cm962-harness/template-hc-dark.png",
+      "sha256": "f3bfa7e3458973fe1e99307d49ade4e426e7f3234272b581a267e4eb5dca803c",
+      "width": 320,
+      "height": 5014
+    },
+    {
+      "file": "temp/cm962-harness/validation-hc-dark.png",
+      "sha256": "8179d790d1a9ecb836793f327347a5b4ef7a02f50697699d0208b4b910a8bed5",
+      "width": 320,
+      "height": 4956
+    },
+    {
+      "file": "temp/cm962-harness/suggestions-hc-dark.png",
+      "sha256": "f1879c2469ffe85ed742bbab73cba5f9d21de11a83c1e6b056a11b7405949cff",
+      "width": 320,
+      "height": 5917
+    },
+    {
+      "file": "temp/cm962-harness/preview-hc-dark.png",
+      "sha256": "f3bfa7e3458973fe1e99307d49ade4e426e7f3234272b581a267e4eb5dca803c",
+      "width": 320,
+      "height": 5014
+    },
+    {
+      "file": "temp/cm962-harness/in-place-hc-dark.png",
+      "sha256": "b98cb1bb52e0791f2d7c6ec52ba13b7ae4c26eebee31e2f83f48a48df864a6ce",
+      "width": 320,
+      "height": 5014
+    },
+    {
+      "file": "temp/cm962-harness/agents-hc-dark.png",
+      "sha256": "ac79ed802a2eed35fe40ec941fe56b54f3fe780c3b072a3c9df94959518bd902",
+      "width": 320,
+      "height": 917
+    }
+  ],
+  "pngsTracked": false,
+  "reviewNotes": "Reviewed Roles and Agents in all four themes; blue pill actions, separated focus rings, token fonts, narrow wrapping. Native consent uses fake host chrome; no production/editor receipt is implied.",
+  "baselineShard": {
+    "command": "npm run check:visual -- --shard=1/16",
+    "captures": 612,
+    "changedPixels": 0,
+    "fullMatrixLeadOwned": true
+  }
+}
