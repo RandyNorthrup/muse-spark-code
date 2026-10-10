@@ -8,7 +8,7 @@ import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
-import { waitForUsageReady } from './usageReadiness.mjs'
+import { assertUsageContent, assertUsageResourceInvalid } from './usageReadiness.mjs'
 
 const root = process.cwd()
 const output = path.join(root, 'docs/certification/m107-w-history')
@@ -48,10 +48,19 @@ try {
           await page.goto(
             `http://127.0.0.1:${String(port)}/test/harness/usage.html?bridge=vscode&scenario=one-provider&theme=${theme}&resources=${state}`,
           )
-          // RVCM1141C: only the ready marker set after real host state
-          // renders certifies the page; the section below mounts only
-          // inside rendered state, and this wait names that gate.
-          await waitForUsageReady(page)
+          // RVCM1141D P3: only rendered content certifies the page; the
+          // section below mounts only inside rendered state. The
+          // unreadable journal keeps the ready marker under the section's
+          // own invalid-history alert, so that scene asserts the marker
+          // plus the alert instead of passing on the marker alone.
+          if (state === 'unavailable') {
+            await assertUsageResourceInvalid(page, {
+              title,
+              message: 'Resource history could not be read.',
+            })
+          } else {
+            await assertUsageContent(page, { title, scenario: 'one-provider' })
+          }
           const section = page.locator('section.usage-resources')
           await section.waitFor()
           if (state === 'history') await section.getByRole('region').first().waitFor()

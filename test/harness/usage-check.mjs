@@ -6,7 +6,7 @@ import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
-import { assertUsageContent, assertUsageError, waitForUsageReady } from './usageReadiness.mjs'
+import { assertUsageContent, assertUsageError } from './usageReadiness.mjs'
 
 const root = process.cwd()
 const bridges = ['vscode', 'http', 'jcef', 'webView2', 'swt']
@@ -69,9 +69,10 @@ try {
                 await page.getByLabel('Group by').selectOption(group)
               for (const metric of ['tokens', 'requests', 'time', 'cost'])
                 await page.getByLabel('Metric').selectOption(metric)
-              // RVCM1141C: re-queries must return to the ready marker, not
-              // merely an idle shell.
-              await waitForUsageReady(page)
+              // RVCM1141D P3: re-queries must return to rendered content
+              // with no alert, not merely to the ready marker: a post-load
+              // `usage/error` keeps the marker under the alert.
+              await assertUsageContent(page, { title, scenario })
               await page.getByRole('radio', { name: 'Custom range' }).check()
               await page.getByLabel('From', { exact: true }).fill('2026-10-01')
               await page.getByLabel('To', { exact: true }).fill('2026-10-05')
@@ -84,7 +85,7 @@ try {
                 await input.focus()
                 for (const date of dates) {
                   await input.fill(date)
-                  await waitForUsageReady(page)
+                  await assertUsageContent(page, { title, scenario })
                   if (
                     !(await input.evaluate(
                       (element) => globalThis.document.activeElement === element,
@@ -95,7 +96,7 @@ try {
                 await input.dispose()
               }
               await page.getByRole('radio', { name: 'Today' }).check()
-              await waitForUsageReady(page)
+              await assertUsageContent(page, { title, scenario })
               if (['jcef', 'webView2', 'swt'].includes(bridge)) {
                 await page.evaluate(() => {
                   globalThis.usageHarness.failNextSend()
@@ -121,7 +122,9 @@ try {
                 await page.getByRole('alert').waitFor({ state: 'detached' })
               }
               await page.getByRole('button', { name: 'Refresh', exact: true }).click()
-              await waitForUsageReady(page)
+              // RVCM1141D P3: a refresh that fails must not pass on the
+              // kept marker; the content assertion refuses the alert.
+              await assertUsageContent(page, { title, scenario })
               for (const format of [
                 'Per-call CSV (last 30 days)',
                 'Summary CSV',

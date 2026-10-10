@@ -5,7 +5,7 @@ import path from 'node:path'
 import assert from 'node:assert/strict'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
-import { waitForUsageReady } from './usageReadiness.mjs'
+import { assertUsageContent } from './usageReadiness.mjs'
 
 const requireFile = createRequire(import.meta.url)
 const { createUsageAccess } = requireFile(path.resolve('dist/usageService.js'))
@@ -63,16 +63,28 @@ try {
     })
     try {
       await page.goto(companion.launchUrl())
-      // RVCM1141C: only the ready marker set after real host state renders
-      // certifies the page; the real companion serves the same Usage view,
-      // so its empty journal renders the marker too.
-      await waitForUsageReady(page)
+      // RVCM1141D P3: only rendered content with no alert certifies the
+      // page; the real companion serves the same Usage view, so its empty
+      // journal renders the marker, the host line and the empty heading.
+      // A post-load `usage/error` keeps the marker under the alert, so a
+      // bare marker wait must not certify either load. The host line names
+      // this companion's editor (state.history.host is deps.host), not the
+      // fixture machine of USAGE_HOST_LINE.
+      await assertUsageContent(page, {
+        title: `companion/${host}`,
+        scenario: 'empty',
+        hostLine: `History is stored on ${host}.`,
+      })
       assert.ok(await page.getByText(/This page cannot open editor settings/).isVisible())
       assert.ok(
         await page.getByRole('button', { name: 'Usage settings', exact: true }).isDisabled(),
       )
       await page.getByRole('radio', { name: '7 days', exact: true }).check()
-      await waitForUsageReady(page)
+      await assertUsageContent(page, {
+        title: `companion/${host}`,
+        scenario: 'empty',
+        hostLine: `History is stored on ${host}.`,
+      })
       await page.getByRole('button', { name: 'Export', exact: true }).click()
       const downloading = page.waitForEvent('download')
       await page.getByRole('button', { name: 'Versioned JSON', exact: true }).click()
