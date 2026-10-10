@@ -68,6 +68,18 @@ function testWindow(directory: string, state: Map<string, unknown>) {
   }
 }
 
+function offlineFeatures(directory: string, secrets = secretStore()) {
+  return createSubscriptionFeatures({
+    ...testWindow(directory, new Map()),
+    secrets,
+    isConfidential: () => false,
+    access: { canSendRequest: () => false, onDidChange: () => ({ dispose: vi.fn() }) },
+    fetch: () => Promise.reject(new Error('No HTTP')),
+    connected: vi.fn(() => Promise.resolve()),
+    disconnected: vi.fn(() => Promise.resolve()),
+  })
+}
+
 async function observedTurn(
   session: AgentSession,
   watch: ReturnType<typeof watchSessionTurns>,
@@ -218,18 +230,37 @@ async function exerciseHost(
 }
 
 describe('M95b production subscription integration', () => {
+  it.each([false, true])(
+    'keeps a native Meta resolver when no BYO providers are configured (subscription-only: %s)',
+    async (hasSubscription) => {
+      const directory = await mkdtemp(path.join(tmpdir(), 'm95c-meta-only-'))
+      try {
+        if (hasSubscription)
+          await writeProvidersFileAtomic(
+            path.join(directory, 'providers.json'),
+            providersFileSchema.parse({ v: 1, providers: [ENTRY] }),
+          )
+        const features = offlineFeatures(directory)
+        const meta = fakeModelApiClient(fakeModelApi(), new FakeLogOutputChannel())
+        const client = await features.createClient(meta)
+        expect(await features.seam.store.list()).toHaveLength(hasSubscription ? 1 : 0)
+        const resolved = await client.models?.resolve('muse-spark-1.3')
+        expect(resolved).toMatchObject({
+          ref: 'muse-spark-1.3',
+          policy: { identity: { provider: 'meta' }, pricing: { kind: 'priced' } },
+        })
+        expect(resolved?.price.settle({ inputTokens: 20, outputTokens: 10 })).toBe(
+          Usd.from('0.0000675').toAmount(),
+        )
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    },
+  )
   it('sanitizes corrupted own-store identity records before a host can expose their parse detail', async () => {
     const secrets = secretStore()
     secrets.values.set('museSpark.provider.chatgpt', 'synthetic-private-grant')
-    const features = createSubscriptionFeatures({
-      ...testWindow(tmpdir(), new Map()),
-      secrets,
-      isConfidential: () => false,
-      access: { canSendRequest: () => false, onDidChange: () => ({ dispose: vi.fn() }) },
-      fetch: () => Promise.reject(new Error('No HTTP')),
-      connected: vi.fn(() => Promise.resolve()),
-      disconnected: vi.fn(() => Promise.resolve()),
-    })
+    const features = offlineFeatures(tmpdir(), secrets)
     await expect(features.accountId()).rejects.toThrow(EN.acpChatGpt.failure)
     await expect(features.planAccount()).rejects.toThrow(EN.acpChatGpt.failure)
   })

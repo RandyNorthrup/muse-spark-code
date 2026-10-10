@@ -15,6 +15,8 @@ import {
 } from '../../src/host/models/modelsPanelEntry'
 import { readProviderCredential } from '../../src/host/providers/credentialRecords'
 import { EN } from '../../src/shared/l10n/en'
+import { SECRET_KEYS, MODEL_API_PRICED_MODELS } from '../../src/shared/constants'
+import { parseHostToPanelMessage } from '../../src/shared/modelsPanel'
 import { scannedTwoModels, seamBase } from './helpers/m95kFixtures'
 import { FakeWebviewPanel, memoryProvidersStore, memorySecrets } from './helpers/fakes'
 import { FakeUri } from './mocks/vscode'
@@ -97,6 +99,53 @@ beforeEach(() => {
 })
 
 describe('createModelsPanelFeatures', () => {
+  it('offers native Meta editor-chat rows without configured BYO providers', async () => {
+    const toggle = vi.fn(() => Promise.resolve())
+    const { host, secrets } = hostDeps({
+      editorChat: {
+        available: () => true,
+        selected: () => false,
+        toggle,
+      },
+    })
+    await secrets.store(SECRET_KEYS.modelApiKey, 'synthetic-meta-credential')
+    const features = createModelsPanelFeatures(host, seam().seam)
+    features.openPanel()
+    const panel = fakeWindow.createWebviewPanel.mock.results[0]?.value
+    if (!(panel instanceof FakeWebviewPanel)) throw new Error('Missing panel')
+    panel.webview.messages.fire({ type: 'modelsPanel/ready' })
+    await vi.waitFor(() => {
+      const raw = panel.webview.postMessage.mock.calls.at(-1)?.[0]
+      const parsed = parseHostToPanelMessage(raw)
+      if (!parsed.ok || parsed.message.type !== 'modelsPanel/state')
+        throw new Error('Missing state')
+      expect(parsed.message.state.providers).toEqual([])
+      expect(parsed.message.state.models.map((row) => row.ref)).toEqual(
+        MODEL_API_PRICED_MODELS.standard.map((id) => `meta/${id}`),
+      )
+      expect(parsed.message.state.models).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ref: 'meta/muse-spark-1.3',
+            editorChat: false,
+            ticked: true,
+            priceNote: 'priced',
+            inputPerMillion: 1.25,
+            outputPerMillion: 4.25,
+          }),
+        ]),
+      )
+    })
+    panel.webview.messages.fire({
+      type: 'models/tick',
+      scope: { scope: 'editorChat' },
+      ref: 'meta/muse-spark-1.3',
+      ticked: true,
+    })
+    await vi.waitFor(() => {
+      expect(toggle).toHaveBeenCalledWith('meta/muse-spark-1.3')
+    })
+  })
   it('rejects a void model refusal and restores the surface post method', async () => {
     const surface = fakeSurface('receipt')
     const previous = surface.post

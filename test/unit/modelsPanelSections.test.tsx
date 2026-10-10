@@ -83,6 +83,40 @@ it('disables editor-chat opt-in for unpriced or unselected models', async () => 
     ).toBeDisabled()
 })
 
+it('exposes native Muse editor chat without pretending its built-in row is a configurable provider', async () => {
+  const post = vi.fn()
+  const row = makeRow({
+    ref: 'meta/muse-spark-1.3',
+    providerId: 'meta',
+    modelId: 'muse-spark-1.3',
+    ticked: true,
+    priceNote: 'priced',
+    editorChat: false,
+  })
+  render(<ModelsSection {...props(makeState({ models: [row], totalModels: 1 }), post)} />)
+  expect(
+    screen.getByRole('checkbox', { name: fill(UI_TEXT.tickModel, { model: row.ref }) }),
+  ).toBeDisabled()
+  expect(
+    screen.getByRole('checkbox', { name: fill(UI_TEXT.pinModel, { model: row.ref }) }),
+  ).toBeDisabled()
+  const control = await screen.findByRole('checkbox', {
+    name: fill(UI_TEXT.editorChatModel, { model: row.ref }),
+  })
+  expect(control).toBeEnabled()
+  const grid = screen.getByRole('grid')
+  fireEvent.keyDown(grid, { key: 'ArrowDown' })
+  fireEvent.keyDown(grid, { key: 'Enter' })
+  expect(post).not.toHaveBeenCalled()
+  fireEvent.click(control)
+  expect(post).toHaveBeenCalledExactlyOnceWith({
+    type: 'models/tick',
+    scope: { scope: 'editorChat' },
+    ref: row.ref,
+    ticked: true,
+  })
+})
+
 it('keeps revocation available after an opted-in model is unselected or loses its price', async () => {
   const row = makeRow({ ticked: false, priceNote: 'unpriced', editorChat: true })
   render(<ModelsSection {...props(makeState({ models: [row], totalModels: 1 }), vi.fn())} />)

@@ -1,5 +1,16 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**C-M95c-2 review repairs (2026-10-10, win11).** Fix all seven RVCM95C2
+findings and their siblings: require private recorded price-and-budget
+confirmation before admission, disclose every supported price, carry the
+image-inclusive settlement into M102, observe durable settlement success and
+retain liability on failure, select reasoning only from model capabilities,
+serve Meta-only installations and their native Models rows, and repair the
+mandatory control-chunk budget fixtures. Add regression tests and byte-exact
+red/restored drills for each finding in `docs/certification/m95c.md`. Preserve
+all gates, bundle caps, dependencies and repository test deadlines. No merge,
+push, subagents or live/paid calls; aggregate quality remains lead-owned.
+
 **CIR4WIN hosted Windows round 4 (2026-10-09, win11).** Root-cause the
 M117 estimator browser harness's first navigation exceeding its unchanged
 two-second bound in run 38018090551, job 114112783549. Reproduce under bounded
@@ -28889,12 +28900,17 @@ release acceptance are still pending.
 
 C-M95c-2 implements part 2 for VS Code-family hosts exposing the stable
 provider API (1.104+), on Windows, macOS and Linux. Opt-in references and
-the shared daily USD cap are machine-scoped; the Models section asks with
-the selected model's prices before enabling it. A separate first-use bundle
+the shared daily USD cap are machine-scoped; native Standard Muse rows need
+no configured BYO provider. Recorded private consent binds the model, origin,
+complete price card and daily cap; Settings alone asks before spending.
+Removal or a cap change revokes the grant. Reasoning uses a supported level
+from the model's capability evidence. A separate first-use bundle
 reuses the captured provider transports and M94's durable cross-window
 ledger in its own `editor-chat-spend` directory. Reservations price the
 full advertised input/output bounds; failures without terminal usage retain
-the reservation. Each dispatched attempt is recorded as M102 `vscodeChat`.
+the reservation, as does a failed durable settlement. Each dispatched attempt
+is recorded as M102 `vscodeChat`, including image units and every supported
+cache charge, with retained liability explicit on uncertainty.
 Unsupported input fails explicitly before dispatch. Confidential or untrusted
 workspaces refuse requests. Activation loads no engine while the opt-in list
 is empty; a model's first opt-in action or editor call loads it. Older hosts

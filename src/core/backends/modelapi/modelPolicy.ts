@@ -52,6 +52,7 @@ export interface ModelPolicy {
   readonly input: { readonly images: Known<true> }
   readonly tools: { readonly calling: Known<true>; readonly parallel: Known<true> }
   readonly reasoning: {
+    readonly supported: Known<true>
     readonly effortLevels: Known<readonly string[]>
     readonly canDisable: Known<true>
   }
@@ -107,6 +108,7 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
       parallel: knownFlag(capabilities?.parallelToolCalls),
     },
     reasoning: {
+      supported: knownFlag(capabilities?.reasoning),
       effortLevels: levels === undefined ? { state: 'unknown' } : { state: 'yes', value: levels },
       canDisable: knownFlag(isMeta || evidence.canDisableReasoning),
     },

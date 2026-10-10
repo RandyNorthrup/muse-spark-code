@@ -2021,6 +2021,7 @@ async function activateWindow(
     },
   })
   const editorChat = registerEditorChat({
+    globalState: context.globalState,
     extensionPath: context.extensionPath,
     storagePath: context.globalStorageUri.fsPath,
     windowId: crypto.randomUUID(),

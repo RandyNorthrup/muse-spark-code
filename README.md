@@ -5826,22 +5826,28 @@ Containment-helper compilation uses heavy bootstrap admission, a bounded deadlin
 ## Editor chat
 
 In VS Code-family editors with the stable language-model provider API (VS Code
-1.104 or later), open **Models & Agents**, select a configured model for the
-composer, then check **Editor chat** on its Models row. Only priced or local
+1.104 or later), open **Models & Agents** and check **Editor chat** on the
+chosen Models row. A stored Meta key also adds native Muse Standard rows
+without a BYO provider. Only priced or local
 models with known input and output limits can be offered. Enter a positive
-daily USD cap and confirm the displayed rates. Any installed extension can
-call an exposed model using your provider key; the subscription pays none of
-these API calls. Uncheck the row to withdraw access.
+daily USD cap and confirm the displayed input, output (including reasoning),
+cache-read/write, request, image and long-context rates. Any installed
+extension can call an exposed model using your provider key; the subscription
+pays none of these API calls. Uncheck the row to withdraw access.
 
 `museSpark.editorChatModels` stores the opted-in qualified model references;
 `museSpark.editorChatDailyBudgetUsd` stores the shared daily dollar cap. Both
 are machine-scoped, default to off (empty models and zero cap), and cannot
-be enabled by workspace settings. The cap covers all exposed models and all
-editor windows using this installation’s global storage. Each request reserves
-the model’s full input and output bounds before dispatch. That conservative
+be enabled by workspace settings. Editing these settings alone requires
+confirmation before the first charge; the extension privately records the
+accepted model, origin, price card and cap. Price or cap changes require new confirmation. Turning a
+model off or setting the cap to zero revokes that evidence. The cap covers all
+exposed models and editor windows using this installation’s global storage.
+Each request reserves the model’s full input and output bounds before dispatch. That conservative
 reservation can refuse a short request that would have fit at its final cost.
-Reported usage replaces the reservation; interrupted or uncertain calls retain
-it. The local-day reservation stays on its original day across midnight.
+Reported usage replaces the reservation only after a durable settlement succeeds;
+interrupted or uncertain calls retain it. The local-day reservation stays on its
+original day across midnight.
 
 Calls are counted as **Editor chat** in **Usage & cost**, including failures
 with retained liability; the page shows the separate daily cap. Usage history
@@ -5849,8 +5855,11 @@ can be switched off without disabling the budget ledger. The provider loads
 on the first opt-in action or editor request. It refuses untrusted or confidential workspaces, unsupported
 message parts or options, and requests exceeding the input bound. Text, native
 tool calls and results, and supported inline images use the existing captured
-provider transport. Image and tool capabilities follow the chosen model. Tool
-execution belongs to the calling editor, whose permissions still apply.
+provider transport. Images, tools and reasoning options follow the chosen model’s
+capabilities; native callers may choose a supported level with
+`modelOptions.reasoningEffort`. Models without evidence for a valid reasoning
+choice are withdrawn. Tool execution belongs to the calling editor, whose
+permissions still apply.
 
 This integration is scoped to the VS Code family on Windows, macOS and Linux.
 JetBrains, Visual Studio, Eclipse, Zed, Xcode, Neovim, Emacs, Sublime and the

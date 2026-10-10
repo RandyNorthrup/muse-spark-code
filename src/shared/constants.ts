@@ -322,6 +322,7 @@ export const GLOBAL_STATE_KEYS = {
    * used, and turning a setting off removes its entry.
    */
   paidConfirmations: 'museSpark.paidConfirmations',
+  editorChatConfirmations: 'museSpark.editorChatConfirmations',
   subagentPriceAcceptance: 'museSpark.subagentPriceAcceptance',
   /**
    * Each paid feature's grant generation (M58): every change to its price

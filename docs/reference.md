@@ -41,7 +41,7 @@ Commands: `museSpark.startWithOwnModel`, `museSpark.modelsAndAgents`, `museSpark
 
 ### Editor chat
 
-Opt chosen priced or local models into VS Code chat under a shared daily USD cap; calls appear in Usage & cost. Requires VS Code 1.104+ and a trusted, non-confidential workspace.
+Opt chosen priced or local models into VS Code chat under a shared daily USD cap; calls appear in Usage & cost. Requires VS Code 1.104+ and a trusted, non-confidential workspace. Native Muse needs no BYO provider; recorded confirmation covers all rates and the cap before spending.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 

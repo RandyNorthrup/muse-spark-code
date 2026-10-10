@@ -14,6 +14,11 @@ import { modelPolicyFor, type ResolvedModel } from '../../src/core/backends/mode
 import type { CreateResponseBody, StreamEvent } from '../../src/core/backends/modelapi/schemas'
 import type { ModelPricing } from '../../src/core/providers/priceCard'
 import { reserveRequestAmount, settleUsageAmount } from '../../src/core/providers/priceCard'
+import { createProviderRegistry } from '../../src/core/providers/providerRegistry'
+import { createUsageRecord } from '../../src/core/usage/journalRecord'
+import * as atomic from '../../src/host/fsAtomic'
+import { encodeGeminiRequest } from '../../src/core/backends/modelapi/codecs/gemini'
+import { resolveModelCapabilities } from '../../src/core/providers/capabilityRecord'
 import { Usd } from '../../src/shared/usd'
 import { EN } from '../../src/shared/l10n/en'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -71,6 +76,7 @@ const folders: string[] = []
 afterEach(async () => {
   await Promise.all(folders.splice(0).map((folder) => removeFolder(folder)))
   vi.clearAllMocks()
+  vi.restoreAllMocks()
   host.config.clear()
   host.workspace.isTrusted = true
 })
@@ -115,7 +121,7 @@ const completed: StreamEvent = {
 }
 const messages = [{ role: 1, content: [{ value: 'hello' }] }]
 const defaultPricing: ModelPricing = { kind: 'priced', card }
-async function fixture(pricing: ModelPricing = defaultPricing) {
+async function fixture(pricing: ModelPricing = defaultPricing, isConfirmed = true) {
   const directory = await mkdtemp(path.join(tmpdir(), 'muse-editor-chat-'))
   folders.push(directory)
   const now = { value: new Date(2026, 9, 10, 12).getTime() }
@@ -153,7 +159,7 @@ async function fixture(pricing: ModelPricing = defaultPricing) {
     isCurrent: () => settings.current,
     policy: modelPolicyFor(ref, {
       pricing,
-      capabilities: { toolCalling: true, vision: true },
+      capabilities: { toolCalling: true, vision: true, reasoning: false },
       maxOutputTokens: 100,
     }),
     price: {
@@ -226,8 +232,21 @@ async function fixture(pricing: ModelPricing = defaultPricing) {
       settings.cap = Number(amount)
       return Promise.resolve()
     },
+    confirmations: () => confirmations,
+    saveConfirmation: (id, evidence) => {
+      if (evidence === undefined) Reflect.deleteProperty(confirmations, id)
+      else confirmations[id] = evidence
+      return Promise.resolve()
+    },
   }
+  const confirmations: Record<string, string> = {}
   const engine = createEditorChat(deps)
+  if (isConfirmed && (pricing.kind === 'priced' || pricing.kind === 'local')) {
+    settings.selected = []
+    host.window.showWarningMessage.mockResolvedValue(UI_TEXT.editorChatEnable)
+    await engine.toggle(ref)
+    host.window.showWarningMessage.mockClear()
+  }
   const progress = { report: vi.fn() }
   const cancellation = token()
   const run = (provider: EditorChatProvider = engine.provider) =>
@@ -251,6 +270,7 @@ async function fixture(pricing: ModelPricing = defaultPricing) {
     cancellation,
     directory,
     now,
+    confirmations,
     run,
   }
 }
@@ -261,7 +281,380 @@ function isProvider(value: unknown): value is EditorChatProvider {
   )
 }
 
+async function expectRetainedReservation(f: Awaited<ReturnType<typeof fixture>>, usage?: unknown) {
+  expect(f.note).toHaveBeenCalledExactlyOnceWith(
+    usage,
+    expect.objectContaining({
+      outcome: 'failed',
+      uncertain: true,
+      retainedLiabilityUsd: Usd.from(0.032).toAmount(),
+    }),
+  )
+  expect(await f.ledger.todayUsage()).toMatchObject({
+    totalUsd: Usd.from(0.032).toAmount(),
+    uncertainUsd: Usd.from(0.032).toAmount(),
+  })
+}
+
 describe('editor chat exposure and admission', () => {
+  it('settings alone require recorded consent before any admission or dispatch', async () => {
+    const f = await fixture(defaultPricing, false)
+    host.window.showWarningMessage.mockResolvedValue(undefined)
+    await expect(f.run()).rejects.toThrow(UI_TEXT.editorChatRefused)
+    expect(host.window.showWarningMessage).toHaveBeenCalledOnce()
+    expect(f.sent).toHaveLength(0)
+    expect(await f.ledger.todayTotal()).toMatchObject({ totalUsd: Usd.from(0).toAmount() })
+    host.window.showWarningMessage.mockResolvedValue(UI_TEXT.editorChatEnable)
+    await f.run()
+    await f.run()
+    expect(host.window.showWarningMessage).toHaveBeenCalledTimes(2)
+    expect(f.confirmations[ref]).toBeDefined()
+    f.settings.cap = 2
+    host.window.showWarningMessage.mockResolvedValue(undefined)
+    await expect(f.run()).rejects.toThrow()
+    expect(f.sent).toHaveLength(2)
+    expect(host.window.showWarningMessage).toHaveBeenCalledTimes(3)
+  })
+  it('a confirmation persistence failure cannot admit a charge', async () => {
+    const f = await fixture(defaultPricing, false)
+    host.window.showWarningMessage.mockResolvedValue(UI_TEXT.editorChatEnable)
+    const engine = createEditorChat({
+      ...f.deps,
+      saveConfirmation: () => Promise.reject(new Error('storage failed')),
+    })
+    await expect(f.run(engine.provider)).rejects.toThrow()
+    expect(f.sent).toHaveLength(0)
+    expect(await f.ledger.todayTotal()).toMatchObject({ totalUsd: Usd.from(0).toAmount() })
+  })
+  it('changed prices require fresh confirmation and mandatory reasoning without known levels is withdrawn', async () => {
+    const f = await fixture()
+    const changed = {
+      ...f.model,
+      policy: modelPolicyFor(ref, {
+        maxOutputTokens: 100,
+        pricing: { kind: 'priced', card: { ...card, input: 0.000011 } },
+        capabilities: { reasoning: false },
+      }),
+    }
+    const engine = createEditorChat({
+      ...f.deps,
+      models: { resolve: () => Promise.resolve(changed) },
+    })
+    host.window.showWarningMessage.mockResolvedValue(undefined)
+    await expect(f.run(engine.provider)).rejects.toThrow()
+    expect(host.window.showWarningMessage.mock.calls[0]?.[0]).toContain('$11.00 input')
+    expect(f.sent).toHaveLength(0)
+    const mandatory = createEditorChat({
+      ...f.deps,
+      models: {
+        resolve: () =>
+          Promise.resolve({
+            ...f.model,
+            policy: modelPolicyFor(ref, {
+              pricing: defaultPricing,
+              maxOutputTokens: 100,
+              capabilities: { reasoning: true },
+              canDisableReasoning: false,
+              effortLevels: [],
+            }),
+          }),
+      },
+    })
+    expect(
+      await mandatory.provider.provideLanguageModelChatInformation({}, f.cancellation.value),
+    ).toEqual([])
+    await expect(f.run(mandatory.provider)).rejects.toThrow()
+    expect(host.window.showWarningMessage).toHaveBeenCalledOnce()
+    expect(f.sent).toHaveLength(0)
+  })
+  it('keeps a known non-reasoning model available without allowing an effort option', async () => {
+    const f = await fixture()
+    const model = {
+      ...f.model,
+      policy: modelPolicyFor(ref, {
+        pricing: defaultPricing,
+        maxOutputTokens: 100,
+        capabilities: { reasoning: false },
+        canDisableReasoning: false,
+        effortLevels: [],
+      }),
+    }
+    const engine = createEditorChat({
+      ...f.deps,
+      models: { resolve: () => Promise.resolve(model) },
+    })
+    await f.run(engine.provider)
+    expect(f.sent[0]?.reasoning.effort).toBe('none')
+    await expect(
+      engine.provider.provideLanguageModelChatResponse(
+        { id: ref },
+        messages,
+        { modelOptions: { reasoningEffort: 'high' } },
+        f.progress,
+        f.cancellation.value,
+      ),
+    ).rejects.toThrow()
+    expect(f.sent).toHaveLength(1)
+  })
+  it('withdraws unknown reasoning without evidence that it can be disabled', async () => {
+    const f = await fixture()
+    const engine = createEditorChat({
+      ...f.deps,
+      models: {
+        resolve: () =>
+          Promise.resolve({
+            ...f.model,
+            policy: modelPolicyFor(ref, {
+              pricing: defaultPricing,
+              maxOutputTokens: 100,
+            }),
+          }),
+      },
+    })
+    expect(
+      await engine.provider.provideLanguageModelChatInformation({}, f.cancellation.value),
+    ).toEqual([])
+    await expect(f.run(engine.provider)).rejects.toThrow()
+    expect(host.window.showWarningMessage).not.toHaveBeenCalled()
+    expect(f.sent).toHaveLength(0)
+  })
+  it('quotes every base, cache, request, image, reasoning and long-context rate', async () => {
+    const f = await fixture(
+      {
+        kind: 'priced',
+        card: {
+          input: 0,
+          output: 0,
+          cachedInput: 0.000001,
+          cacheWrite: 0.000002,
+          cacheWrite1h: 0.000003,
+          request: 0.5,
+          image: 0.6,
+          source: 'user',
+          longContextTier: {
+            fromTokens: 2000,
+            input: 0.000004,
+            output: 0.000005,
+            cachedInput: 0.000006,
+            cacheWrite: 0.000007,
+            cacheWrite1h: 0.000008,
+          },
+        },
+      },
+      false,
+    )
+    f.settings.selected = []
+    host.window.showWarningMessage.mockResolvedValue(UI_TEXT.editorChatEnable)
+    await f.engine.toggle(ref)
+    const quote = host.window.showWarningMessage.mock.calls[0]?.[0]
+    for (const text of [
+      '$0.00 input',
+      '$0.00 output (including reasoning)',
+      '$1.00 cache read',
+      '$2.00 cache write',
+      '$3.00 1-hour cache write',
+      '$0.50 per request',
+      '$0.60 per image',
+      'From 2,000 input tokens',
+      '$4.00 input',
+      '$5.00 output',
+      '$6.00 cache read',
+      '$7.00 cache write',
+      '$8.00 1-hour cache write',
+      'Shared daily cap: $1.00',
+    ])
+      expect(quote).toContain(text)
+  })
+  it.each([
+    { hasCache: false, reported: undefined, expected: 1.1007 },
+    { hasCache: true, reported: undefined, expected: 1.100712 },
+    { hasCache: true, reported: 1.12, expected: 1.12 },
+  ])(
+    'records the complete production settlement, including images and caches ($hasCache, $reported)',
+    async ({ hasCache, reported, expected }) => {
+      const pricing: ModelPricing = {
+        kind: 'priced',
+        card: {
+          ...card,
+          request: 0.5,
+          image: 0.6,
+          cachedInput: 0.000001,
+          cacheWrite1h: 0.00004,
+          longContextTier: { fromTokens: 15, input: 0.00002, output: 0.00003 },
+        },
+      }
+      const f = await fixture(pricing, false)
+      f.settings.cap = 4
+      f.script.events = [
+        {
+          ...completed,
+          response: {
+            ...completed.response,
+            usage: {
+              input_tokens: 20,
+              output_tokens: 10,
+              ...(reported !== undefined && { provider_cost_usd: reported }),
+              output_tokens_details: { reasoning_tokens: 4 },
+              ...(hasCache && {
+                input_tokens_details: {
+                  cached_tokens: 2,
+                  cache_write_tokens: 4,
+                  cache_write_tokens_1h: 1,
+                },
+              }),
+            },
+          },
+        },
+      ]
+      const resolver = createProviderRegistry({
+        models: () =>
+          Promise.resolve([
+            {
+              ref,
+              origin: f.model.origin,
+              pricing,
+              contextTokens: 1000,
+              evidence: {
+                maxOutputTokens: 100,
+                capabilities: { vision: true, reasoning: false },
+              },
+            },
+          ]),
+        createClient: () => Promise.resolve(f.model.client),
+        isCurrent: () => true,
+      })
+      const engine = createEditorChat({ ...f.deps, models: resolver })
+      host.window.showWarningMessage.mockResolvedValue(UI_TEXT.editorChatEnable)
+      await engine.provider.provideLanguageModelChatResponse(
+        { id: ref },
+        [...messages, { role: 1, content: [{ data: new Uint8Array([1]), mimeType: 'image/png' }] }],
+        {},
+        f.progress,
+        f.cancellation.value,
+      )
+      const call = f.note.mock.calls[0]
+      if (call === undefined || call[1].units?.images !== 1) throw new Error('Missing settlement')
+      const record = createUsageRecord(call[0], {
+        id: 'record',
+        at: f.now.value,
+        client: 'test',
+        model: ref,
+        backend: 'modelApi',
+        kind: 'vscodeChat',
+        pricing,
+        units: call[1].units,
+        ...(call[1].providerCostUsd !== undefined && { providerCostUsd: call[1].providerCostUsd }),
+        provider: 'chosen',
+        startedAt: f.now.value,
+        outcome: 'completed',
+      })
+      const total = await f.ledger.todayTotal()
+      if (!total.ok) throw new Error('Missing ledger')
+      expect(record.cost.usd).toBe(Number(total.totalUsd))
+      expect(record.cost.usd).toBe(expected)
+      expect(record.cost.certainty).toBe(reported === undefined ? 'computed' : 'reported')
+      expect(record.tokens.reasoning).toBe(4)
+    },
+  )
+  it('reports real durable settlement failure with its retained reservation', async () => {
+    const f = await fixture()
+    const original = atomic.writeFileAtomically
+    vi.spyOn(atomic, 'writeFileAtomically').mockImplementation(async (file, text, options) => {
+      const row: unknown = JSON.parse(
+        typeof text === 'string' ? text : Buffer.from(text).toString('utf8'),
+      )
+      if (
+        typeof row === 'object' &&
+        row !== null &&
+        'reportedUsd' in row &&
+        row.reportedUsd !== '0'
+      )
+        throw new Error('settlement write failed')
+      await original(file, text, options)
+    })
+    await expect(f.run()).rejects.toThrow(UI_TEXT.editorChatRefused)
+    await expectRetainedReservation(f, expect.anything())
+  })
+  it('retains liability and refuses success when terminal usage cannot be settled', async () => {
+    const f = await fixture()
+    f.script.events = [{ ...completed, response: { ...completed.response, usage: undefined } }]
+    await expect(f.run()).rejects.toThrow(UI_TEXT.editorChatRefused)
+    await expectRetainedReservation(f)
+  })
+  it.each([undefined, 'high'])(
+    'uses only a supported mandatory Gemini reasoning level (%s)',
+    async (requested) => {
+      const f = await fixture(defaultPricing, false)
+      const nativeRecord = resolveModelCapabilities(
+        { provider: 'gemini', nativeModel: 'gemini-3.5-flash-lite', format: 'gemini' },
+        [
+          {
+            source: { kind: 'user' },
+            fields: {
+              reasoning: {
+                modes: { state: 'yes', value: ['level'] },
+                forced: { state: 'yes', value: true },
+                canDisable: { state: 'no' },
+                effortLevels: { state: 'yes', value: ['low', 'high'] },
+              },
+            },
+          },
+        ],
+      )
+      const model: ResolvedModel = {
+        ...f.model,
+        policy: modelPolicyFor(ref, {
+          pricing: defaultPricing,
+          maxOutputTokens: 100,
+          capabilities: { reasoning: true },
+          canDisableReasoning: false,
+          effortLevels: ['low', 'high'],
+        }),
+        client: {
+          ...f.model.client,
+          streamResponse: async function* (body, signal, retry, budget, guard) {
+            const native = encodeGeminiRequest(body, 'gemini-3.5-flash-lite', nativeRecord)
+            expect(native.body['generationConfig']).toMatchObject({
+              thinkingConfig: { thinkingLevel: requested ?? 'low' },
+            })
+            yield* f.model.client.streamResponse(body, signal, retry, budget, guard)
+          },
+        },
+      }
+      const engine = createEditorChat({
+        ...f.deps,
+        models: { resolve: () => Promise.resolve(model) },
+      })
+      host.window.showWarningMessage.mockResolvedValue(UI_TEXT.editorChatEnable)
+      expect(
+        await engine.provider.provideLanguageModelChatInformation({}, f.cancellation.value),
+      ).toHaveLength(1)
+      const options =
+        requested === undefined ? {} : { modelOptions: { reasoningEffort: requested } }
+      await engine.provider.provideLanguageModelChatResponse(
+        { id: ref },
+        messages,
+        options,
+        f.progress,
+        f.cancellation.value,
+      )
+      expect(f.sent[0]?.reasoning.effort).toBe(requested ?? 'low')
+      expect(f.note).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ outcome: 'completed', uncertain: false }),
+      )
+      await expect(
+        engine.provider.provideLanguageModelChatResponse(
+          { id: ref },
+          messages,
+          { modelOptions: { reasoningEffort: 'none' } },
+          f.progress,
+          f.cancellation.value,
+        ),
+      ).rejects.toThrow()
+      expect(f.sent).toHaveLength(1)
+    },
+  )
   it('uses the native Meta model reference and supported reasoning effort', async () => {
     const f = await fixture()
     const native = 'muse-spark-1.3'
@@ -462,16 +855,7 @@ describe('editor chat exposure and admission', () => {
     const f = await fixture()
     f.script.retry = true
     await expect(f.run()).rejects.toThrow()
-    expect(f.note).toHaveBeenCalledOnce()
-    expect(f.note).toHaveBeenCalledWith(
-      undefined,
-      expect.objectContaining({
-        outcome: 'failed',
-        uncertain: true,
-        retainedLiabilityUsd: Usd.from(0.032).toAmount(),
-      }),
-    )
-    expect(await f.ledger.todayUsage()).toMatchObject({ uncertainUsd: Usd.from(0.032).toAmount() })
+    await expectRetainedReservation(f)
   })
   it('fails closed on corrupt durable history', async () => {
     const f = await fixture()
@@ -628,7 +1012,15 @@ describe('editor chat exposure and admission', () => {
   it('keeps activation lazy, registers a fake vscode.lm caller only after opt-in', async () => {
     const f = await fixture()
     const loader = vi.fn(() => ({ createEditorChat, createTabLedger, setUiText: vi.fn() }))
+    const state = new Map<string, unknown>()
     const handle = registerEditorChat({
+      globalState: {
+        get: (key) => state.get(key),
+        update: (key, value) => {
+          state.set(key, value)
+          return Promise.resolve()
+        },
+      },
       extensionPath: 'C:/extension',
       storagePath: f.directory,
       windowId: 'lazy',
@@ -659,6 +1051,8 @@ describe('editor chat exposure and admission', () => {
       f.cancellation.value,
     )
     expect(f.note).toHaveBeenCalledOnce()
+    expect(host.window.showWarningMessage).toHaveBeenCalledOnce()
+    expect(state.get('museSpark.editorChatConfirmations')).toHaveProperty(ref)
     host.config.set('editorChatDailyBudgetUsd', 0)
     host.change.run?.({ affectsConfiguration: (key) => key.endsWith('editorChatDailyBudgetUsd') })
     expect(host.dispose).toHaveBeenCalledOnce()
@@ -666,8 +1060,28 @@ describe('editor chat exposure and admission', () => {
     host.config.set('editorChatDailyBudgetUsd', 1)
     host.change.run?.({ affectsConfiguration: (key) => key.endsWith('editorChatDailyBudgetUsd') })
     expect(host.register).toHaveBeenCalledTimes(2)
+    await provider.provideLanguageModelChatResponse(
+      { id: ref },
+      messages,
+      {},
+      f.progress,
+      f.cancellation.value,
+    )
+    expect(host.window.showWarningMessage).toHaveBeenCalledTimes(2)
+    host.config.set('editorChatModels', [])
+    host.change.run?.({ affectsConfiguration: (key) => key.endsWith('editorChatModels') })
+    host.config.set('editorChatModels', [ref])
+    host.change.run?.({ affectsConfiguration: (key) => key.endsWith('editorChatModels') })
+    await provider.provideLanguageModelChatResponse(
+      { id: ref },
+      messages,
+      {},
+      f.progress,
+      f.cancellation.value,
+    )
+    expect(host.window.showWarningMessage).toHaveBeenCalledTimes(3)
     handle.dispose()
-    expect(host.dispose).toHaveBeenCalledTimes(2)
+    expect(host.dispose).toHaveBeenCalledTimes(3)
     await expect(
       provider.provideLanguageModelChatResponse(
         { id: ref },

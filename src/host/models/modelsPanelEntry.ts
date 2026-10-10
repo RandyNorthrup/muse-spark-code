@@ -6,7 +6,14 @@
 // suggestions) arrives as parameters, read from `dist/providers.js`.
 
 import * as vscode from 'vscode'
-import { GLOBAL_STATE_KEYS, PROVIDER_IMPORT_MAX_BYTES, UI_TEXT } from '../../shared/constants'
+import {
+  GLOBAL_STATE_KEYS,
+  PROVIDER_IMPORT_MAX_BYTES,
+  UI_TEXT,
+  MODEL_API_PRICED_MODELS,
+  MODEL_API_PRICES_PER_MILLION,
+  MODEL_API_CONTEXT_WINDOW,
+} from '../../shared/constants'
 import { providerSetupSchema } from '../../shared/providerSetup'
 import type { ChatSurface } from '../views/chatSurface'
 import { fill, setUiText } from '../../shared/l10n/text'
@@ -312,6 +319,23 @@ export function createModelsPanelFeatures(
         log: host.log,
         providers,
         editorChat: host.editorChat,
+        metaModels: async () =>
+          (await credentials.getApiKey()) === undefined
+            ? []
+            : MODEL_API_PRICED_MODELS.standard.map((id) => ({
+                id,
+                label: id,
+                toolCapable: true,
+                vision: true,
+                reasoning: true,
+                context: MODEL_API_CONTEXT_WINDOW,
+                inputPerMillion: Number(MODEL_API_PRICES_PER_MILLION.standard.input),
+                outputPerMillion: Number(MODEL_API_PRICES_PER_MILLION.standard.output),
+                cachedPerMillion: Number(MODEL_API_PRICES_PER_MILLION.standard.cachedInput),
+                isFree: false,
+                isLocal: false,
+                priceFingerprint: JSON.stringify(MODEL_API_PRICES_PER_MILLION.standard),
+              })),
         connectChatGpt: host.connectChatGpt,
         connectCopilot: host.connectCopilot,
         removeSubscription: host.removeSubscription,

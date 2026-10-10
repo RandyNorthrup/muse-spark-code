@@ -1,0 +1,161 @@
+{
+  "machine": "win11",
+  "date": "2026-10-10",
+  "repositoryTimeouts": true,
+  "receipts": [
+    {
+      "id": "R1",
+      "file": "test/unit/bundleSize.test.mjs",
+      "tests": ["test/unit/bundleSize.test.mjs"],
+      "namedTest": "requires exactly one editor chat control chunk and preserves its 2 KiB cap",
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "cee2572966299d17173dbae871fad30a397dd49a2ad61f5f62dcded57cf543a4",
+      "restoredSha256": "cee2572966299d17173dbae871fad30a397dd49a2ad61f5f62dcded57cf543a4",
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/bundleSize.test.mjs --maxWorkers=3"
+    },
+    {
+      "id": "R4",
+      "file": "src/core/usage/journalRecord.ts",
+      "tests": ["test/unit/lmProvider.test.ts", "test/unit/journalRecord.test.ts"],
+      "namedTest": "records the complete production settlement",
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "894ab2b2ec20d7512d0349d5cf2efe62ccbb90de81bc6947459e4937469def84",
+      "restoredSha256": "894ab2b2ec20d7512d0349d5cf2efe62ccbb90de81bc6947459e4937469def84",
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/lmProvider.test.ts test/unit/journalRecord.test.ts --maxWorkers=3"
+    },
+    {
+      "id": "R7a",
+      "file": "src/host/providers/subscriptionFeatures.ts",
+      "tests": ["test/unit/subscriptionIntegration.test.ts"],
+      "namedTest": "keeps a native Meta resolver when no BYO providers are configured",
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "35e8cedd2926527e48e39720d9708a876734e7608558c84de8a8ff83c6e5ee39",
+      "restoredSha256": "35e8cedd2926527e48e39720d9708a876734e7608558c84de8a8ff83c6e5ee39",
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/subscriptionIntegration.test.ts --maxWorkers=3"
+    },
+    {
+      "id": "R7b",
+      "file": "src/host/models/modelsPanel.ts",
+      "tests": ["test/unit/modelsPanelEntry.test.ts"],
+      "namedTest": "offers native Meta editor-chat rows without configured BYO providers",
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "d6bedf3112c9fab35da31f41774317ccd6fc62e3ae28f03490e8d47f5c003777",
+      "restoredSha256": "d6bedf3112c9fab35da31f41774317ccd6fc62e3ae28f03490e8d47f5c003777",
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/modelsPanelEntry.test.ts --maxWorkers=3"
+    },
+    {
+      "id": "R7c",
+      "file": "src/webview/models/ModelsSection.tsx",
+      "tests": ["test/unit/modelsPanelSections.test.tsx"],
+      "namedTest": "exposes native Muse editor chat without pretending its built-in row is a configurable provider",
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "3a5d4a859b55ef756c6c55fa990270843ca6a08c42a47323e93e73b198b92ee7",
+      "restoredSha256": "3a5d4a859b55ef756c6c55fa990270843ca6a08c42a47323e93e73b198b92ee7",
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/modelsPanelSections.test.tsx --maxWorkers=3"
+    },
+    {
+      "id": "R7d",
+      "file": "src/webview/models/ModelsSection.tsx",
+      "tests": ["test/unit/modelsPanelSections.test.tsx"],
+      "namedTest": "exposes native Muse editor chat without pretending its built-in row is a configurable provider",
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "3a5d4a859b55ef756c6c55fa990270843ca6a08c42a47323e93e73b198b92ee7",
+      "restoredSha256": "3a5d4a859b55ef756c6c55fa990270843ca6a08c42a47323e93e73b198b92ee7",
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/modelsPanelSections.test.tsx --maxWorkers=3"
+    },
+    {
+      "id": "R4-cache",
+      "file": "src/core/providers/providerRegistry.ts",
+      "tests": ["test/unit/lmProvider.test.ts", "test/unit/modelPolicy.test.ts"],
+      "namedTest": "settles the supported one-hour-write subset without discarding its charge",
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "ed49ebdf8ab7376c5b11ddf559eb89fcf34079f36099140b3bc12ae84fb71e33",
+      "restoredSha256": "ed49ebdf8ab7376c5b11ddf559eb89fcf34079f36099140b3bc12ae84fb71e33",
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/lmProvider.test.ts test/unit/modelPolicy.test.ts --maxWorkers=3"
+    },
+    {
+      "id": "R2",
+      "file": "src/host/models/lmProvider.ts",
+      "tests": ["test/unit/lmProvider.test.ts"],
+      "namedTest": "settings alone require recorded consent before any admission or dispatch",
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "11d3de29fe59261fc8be9852b9120756d47857304345d7caa086342bb611c38c",
+      "restoredSha256": "11d3de29fe59261fc8be9852b9120756d47857304345d7caa086342bb611c38c",
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/lmProvider.test.ts --maxWorkers=3"
+    },
+    {
+      "id": "R3",
+      "file": "src/host/models/lmProvider.ts",
+      "tests": ["test/unit/lmProvider.test.ts"],
+      "namedTest": "quotes every base, cache, request, image, reasoning and long-context rate",
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "11d3de29fe59261fc8be9852b9120756d47857304345d7caa086342bb611c38c",
+      "restoredSha256": "11d3de29fe59261fc8be9852b9120756d47857304345d7caa086342bb611c38c",
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/lmProvider.test.ts --maxWorkers=3"
+    },
+    {
+      "id": "R6",
+      "file": "src/host/models/lmProvider.ts",
+      "tests": ["test/unit/lmProvider.test.ts"],
+      "namedTest": "uses only a supported mandatory Gemini reasoning level",
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "11d3de29fe59261fc8be9852b9120756d47857304345d7caa086342bb611c38c",
+      "restoredSha256": "11d3de29fe59261fc8be9852b9120756d47857304345d7caa086342bb611c38c",
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/lmProvider.test.ts --maxWorkers=3"
+    },
+    {
+      "id": "R4-reported",
+      "file": "src/host/models/lmProvider.ts",
+      "tests": ["test/unit/lmProvider.test.ts"],
+      "namedTest": "records the complete production settlement",
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "11d3de29fe59261fc8be9852b9120756d47857304345d7caa086342bb611c38c",
+      "restoredSha256": "11d3de29fe59261fc8be9852b9120756d47857304345d7caa086342bb611c38c",
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/lmProvider.test.ts --maxWorkers=3"
+    },
+    {
+      "id": "R6-unknown",
+      "file": "src/host/models/lmProvider.ts",
+      "tests": ["test/unit/lmProvider.test.ts"],
+      "namedTest": "withdraws unknown reasoning without evidence that it can be disabled",
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "11d3de29fe59261fc8be9852b9120756d47857304345d7caa086342bb611c38c",
+      "restoredSha256": "11d3de29fe59261fc8be9852b9120756d47857304345d7caa086342bb611c38c",
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/lmProvider.test.ts --maxWorkers=3"
+    },
+    {
+      "id": "R5",
+      "file": "src/host/tab/tabLedger.ts",
+      "tests": ["test/unit/lmProvider.test.ts", "test/unit/tabLedger.test.ts"],
+      "namedTest": "reports real durable settlement failure with its retained reservation",
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "3a3e6ba75e8493d82da6c625ab7528262252b2bdffab6e756daba47d35a21d50",
+      "restoredSha256": "3a3e6ba75e8493d82da6c625ab7528262252b2bdffab6e756daba47d35a21d50",
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/lmProvider.test.ts test/unit/tabLedger.test.ts --maxWorkers=3"
+    },
+    {
+      "id": "R7-all",
+      "file": "src/host/providers/subscriptionFeatures.ts",
+      "tests": ["test/unit/subscriptionIntegration.test.ts"],
+      "namedTest": "keeps a native Meta resolver when no BYO providers are configured",
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "0c482bd2d9d675a089b3e61c44ee6e2795134a53714b128e8382cc096b5757fc",
+      "restoredSha256": "0c482bd2d9d675a089b3e61c44ee6e2795134a53714b128e8382cc096b5757fc",
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/subscriptionIntegration.test.ts --maxWorkers=3"
+    }
+  ]
+}

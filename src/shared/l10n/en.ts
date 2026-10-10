@@ -23,11 +23,14 @@ export const EN = {
   editorChatEnable: 'Enable',
   editorChatBudgetPrompt:
     'Enter a positive daily budget in USD, shared by all models and editor windows.',
-  editorChatRates: '{input} input / {output} output per million tokens',
+  editorChatRates:
+    '{input} input / {output} output (including reasoning) per million tokens; {cached} cache read / {write} cache write / {write1h} 1-hour cache write per million tokens',
+  editorChatFees: '{request} per request / {image} per image',
+  editorChatTier: 'From {tokens} input tokens: {rates}',
   editorChatConsent:
     'Offer {model} to editor chat? {rates}. All installed extensions can call this model using your key. Shared daily cap: {cap}. Interrupted calls retain their reservation. The subscription pays none of this.',
   referenceEditorChat:
-    'Opt chosen priced or local models into VS Code chat under a shared daily USD cap; calls appear in Usage & cost. Requires VS Code 1.104+ and a trusted, non-confidential workspace.',
+    'Opt chosen priced or local models into VS Code chat under a shared daily USD cap; calls appear in Usage & cost. Requires VS Code 1.104+ and a trusted, non-confidential workspace. Native Muse needs no BYO provider; recorded confirmation covers all rates and the cap before spending.',
   // M107 / D87: resource surfaces and manifest-ready settings text.
   resourceTitle: 'Resources',
   resourceHarnessInTree:
