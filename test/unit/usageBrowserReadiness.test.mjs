@@ -4,6 +4,8 @@
 // RVCM1141D P3: a post-load error keeps the marker under the alert, so every
 // success wait must also refuse the alert (assertUsageContent), and the
 // harness http page must carry the companion theme nonce or it never mounts.
+// RVCM1141E P3: a page-level error beside the section alert keeps the marker
+// too, so both alert assertions count the page and refuse the pair.
 //
 // Part 1 drives the shared helper (test/harness/usageReadiness.mjs) with a
 // stub page through each shell. Part 2 pins the whole class: every Usage
@@ -67,7 +69,10 @@ function stubPage(state) {
           throw new Error(`waiting for heading "${options.name}" found nothing`)
       },
       count: async () => {
-        if (role === 'alert') return state.alert === null && state.sectionAlert === null ? 0 : 1
+        // Like Playwright, a page-level alert query sees every alert on
+        // the page: the page shell's plus the Resources section's.
+        if (role === 'alert')
+          return (state.alert === null ? 0 : 1) + (state.sectionAlert === null ? 0 : 1)
         return state.headings.includes(options.name) ? 1 : 0
       },
       textContent: async () => state.alert ?? state.sectionAlert,
@@ -146,6 +151,18 @@ const RESOURCE_INVALID_SHELL = {
   section: true,
   sectionAlert: RESOURCE_INVALID,
 }
+// RVCM1141E P3: a page-level `usage/error` delivered on top of the
+// unreadable resource journal. The marker stays and the section alert
+// matches, so only an outside-section rejection fails this shell.
+const COMBINED_FAILURE_SHELL = {
+  marker: true,
+  busy: false,
+  alert: READ_FAILED,
+  texts: [USAGE_HOST_LINE],
+  headings: [],
+  section: true,
+  sectionAlert: RESOURCE_INVALID,
+}
 
 describe('usage browser readiness', () => {
   it('refuses an initial error shell: the marker wait names readiness', async () => {
@@ -219,6 +236,26 @@ describe('usage browser readiness', () => {
       }),
     ).rejects.toThrow('data-usage-ready')
     // And the page-level success assertion refuses the section alert too.
+    await expect(
+      assertUsageContent(page, { title: 'probe', scenario: 'one-provider' }),
+    ).rejects.toThrow('must not show an error alert')
+  })
+
+  it('rejects a page-level error riding alongside the resource failure', async () => {
+    const page = stubPage(COMBINED_FAILURE_SHELL)
+    // The marker stays and the section alert matches, so neither bare
+    // wait nor section-text check fails this shell on its own.
+    await expect(waitForUsageReady(page)).resolves.toBeUndefined()
+    // The resource assertion names the outside-section alert instead of
+    // certifying the scene, and the error assertion refuses the pair
+    // instead of reading past the section alert.
+    await expect(
+      assertUsageResourceInvalid(page, { title: 'probe', message: RESOURCE_INVALID }),
+    ).rejects.toThrow('unexpected page-level error')
+    await expect(assertUsageError(page, { title: 'probe', message: READ_FAILED })).rejects.toThrow(
+      'expected one page error',
+    )
+    // The success assertion refuses the pair as well.
     await expect(
       assertUsageContent(page, { title: 'probe', scenario: 'one-provider' }),
     ).rejects.toThrow('must not show an error alert')

@@ -46,6 +46,13 @@ export async function waitForUsageSettled(page) {
 export async function assertUsageError(page, { title, message }) {
   const alert = page.getByRole('alert')
   await alert.waitFor()
+  // RVCM1141E P3: a page-level `usage/error` and a section-level resource
+  // failure are different alerts on one page (`UsageApp.tsx:161` beside
+  // `ResourcesSection.tsx:162`). Either assertion must see exactly the
+  // alert it certifies, never a same-role alert from the other scope.
+  const total = await alert.count()
+  if (total !== 1)
+    throw new Error(`${title}: expected one page error "${message}", saw ${String(total)} alerts`)
   const text = await alert.textContent()
   if (text === null || !text.includes(message))
     throw new Error(`${title}: expected error "${message}", saw "${text ?? ''}"`)
@@ -63,6 +70,14 @@ export async function assertUsageResourceInvalid(page, { title, message }) {
   const text = await alert.textContent()
   if (text === null || !text.includes(message))
     throw new Error(`${title}: expected resource error "${message}", saw "${text ?? ''}"`)
+  // RVCM1141E P3: a page-level `usage/error` keeps the same marker under
+  // its own alert, so the section alert alone must not certify the scene:
+  // reject any alert outside the Resources section.
+  const total = await page.getByRole('alert').count()
+  if (total !== 1)
+    throw new Error(
+      `${title}: unexpected page-level error alongside the resource failure (${String(total)} alerts)`,
+    )
 }
 
 export async function assertUsageContent(page, { title, scenario, hostLine = USAGE_HOST_LINE }) {

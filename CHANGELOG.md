@@ -108,7 +108,10 @@ happened, not what was planned; superseded entries are kept.
   certifications asserts rendered content with no alert (a post-load read
   failure keeps the marker under the alert), the real-companion run asserts
   its own editor host line, and the unreadable-resource scene asserts the
-  marker plus the section's own alert (RVCM1141D).
+  marker plus the section's own alert (RVCM1141D). Both alert assertions now
+  count the page's alerts, so a page-level read failure delivered alongside
+  the resource failure fails the scene instead of passing on the section
+  alert alone (RVCM1141E).
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
