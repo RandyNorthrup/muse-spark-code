@@ -70,6 +70,10 @@ import { JudgeResultCache } from '../../src/core/judge/same/resultCache'
 import { judgeJob, judgeOnce, SpyJudgeStore, startJudgeEntry } from './helpers/judgeSameRig'
 import * as z from 'zod/mini'
 import { CONSERVATIVE_CAPABILITIES } from '../../src/core/providers/capabilities'
+import {
+  metaArgumentPreviewCapabilities,
+  metaOutputMaxTokens,
+} from '../../src/core/backends/modelapi/modelCapabilities'
 import { FORMAT_QUIRKS } from '../../src/core/providers/presets'
 
 const ROOT = '/ws'
@@ -105,6 +109,8 @@ async function baseSetup(
     readonly teamSource?: () => TeamDecisionSource | undefined
     readonly store?: ReturnType<typeof memorySessionStore>
     readonly idPrefix?: string
+    /** M106 R2: the bundle entry's production suppliers instead of the legacy defaults. */
+    readonly shouldUseProductionDefaults?: boolean
   } = {},
 ): Promise<Harness> {
   const api = fakeModelApi()
@@ -151,6 +157,13 @@ async function baseSetup(
         supportsStrictTools: options.shouldUseStrictTools === true,
       },
       quirks: FORMAT_QUIRKS.responses,
+    }),
+    // M106 R2: the production suppliers the bundle entry installs. Bare
+    // models never reach the entry's resolver stash, so these shared
+    // selectors read exactly what production reads for this model.
+    ...(options.shouldUseProductionDefaults === true && {
+      argumentPreviewCapabilities: metaArgumentPreviewCapabilities,
+      modelOutputMaxTokens: metaOutputMaxTokens,
     }),
     ...(options.paidSubagents === true && {
       isPaidFeatureOn: () => true,
@@ -895,5 +908,41 @@ describe('M98-G judge invariance (Model API)', () => {
     expect(main).toEqual(before)
     expect(rig.errors).toEqual([])
     await harness.host.close()
+  })
+})
+
+describe('M106 production-default golden byte diff', () => {
+  it('changes only max_output_tokens between legacy and production defaults', async () => {
+    // RVCM1062 P3: golden evidence runs through the production defaults.
+    // A plain turn on the uncaptured muse-spark-1.3 model withholds previews
+    // in both arms, so D86.1's required default-on byte diff is exactly the
+    // cap: 32768 off, 131072 on. Any other byte change fails this test, and
+    // the checked-in M91 fixtures above stay untouched.
+    const run = async (shouldUseProductionDefaults: boolean): Promise<readonly string[]> => {
+      const harness = await baseSetup({}, { shouldUseProductionDefaults })
+      try {
+        harness.api.script({ text: 'Hello back.' })
+        await runTurn(harness, 'Hello.')
+        expect(harness.api.responseBodies()).toHaveLength(1)
+        return [...harness.rawBodies]
+      } finally {
+        await harness.host.close()
+      }
+    }
+    const off = await run(false)
+    const on = await run(true)
+    expect(off.length).toBeGreaterThan(0)
+    expect(on).toHaveLength(off.length)
+    for (const [index, offRaw] of off.entries()) {
+      const onRaw = on[index]
+      if (onRaw === undefined) throw new Error('the production run sent fewer requests')
+      expect(offRaw).toContain('"max_output_tokens":32768')
+      expect(onRaw).toContain('"max_output_tokens":131072')
+      expect(onRaw).toBe(
+        offRaw.replaceAll('"max_output_tokens":32768', '"max_output_tokens":131072'),
+      )
+      expect(offRaw).not.toContain('argumentPreview')
+      expect(onRaw).not.toContain('argumentPreview')
+    }
   })
 })
