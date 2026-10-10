@@ -264,9 +264,9 @@ describe('ModelApiBackendManager', () => {
     )
     try {
       await manager.ensureHost()
-      const host = create.mock.calls.at(-1)?.[0].host
-      expect(host.argumentPreviewCapabilities).toBe(previews)
-      expect(host.modelOutputMaxTokens).toBe(cap)
+      const host = create.mock.calls.at(-1)?.[0]?.host
+      expect(host?.argumentPreviewCapabilities).toBe(previews)
+      expect(host?.modelOutputMaxTokens).toBe(cap)
     } finally {
       await manager.dispose()
       create.mockRestore()

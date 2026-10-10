@@ -806,60 +806,45 @@ async function productionRig(modelId: string) {
   return { host, client, session, write, ...watchSessionTurns(session) }
 }
 
+/** One production turn through the entry's Meta defaults, observed mid-stream and settled. */
+async function productionTurn(modelId: string) {
+  const h = await productionRig(modelId)
+  const stream = controlledStream(h.client, DELTAS)
+  const done = h.turnDone()
+  try {
+    await h.session.sendTurn(WRITE_PROMPT)
+    await stream.reached.promise
+    expect(h.write).not.toHaveBeenCalled()
+    const previews = previewEvents(h.events)
+    stream.gate.resolve(undefined)
+    await done
+    return { previews, bodies: stream.bodies, writes: h.write.mock.calls.length }
+  } finally {
+    stream.gate.resolve(undefined)
+    await h.host.close()
+  }
+}
+
 /** The production binding (C-M106-2): the entry's Meta defaults on each selected model. */
 describe('Model API selected-record production binding', () => {
   it('streams previews and requests the selected cap on the captured model', async () => {
-    const h = await productionRig(M106_CAPTURED_META_MODEL)
-    const stream = controlledStream(h.client, DELTAS)
-    const done = h.turnDone()
-    try {
-      await h.session.sendTurn(WRITE_PROMPT)
-      await stream.reached.promise
-      expect(h.write).not.toHaveBeenCalled()
-      expect(previewEvents(h.events).at(-1)?.item.argumentPreview.text).toContain('new.txt')
-      stream.gate.resolve(undefined)
-      await done
-      expect(h.write).toHaveBeenCalledOnce()
-      expect(stream.bodies[0]).toContain('"max_output_tokens":131072')
-      expect(stream.bodies.join('')).not.toContain('argumentPreview')
-    } finally {
-      stream.gate.resolve(undefined)
-      await h.host.close()
-    }
+    const turn = await productionTurn(M106_CAPTURED_META_MODEL)
+    expect(turn.previews.at(-1)?.item.argumentPreview.text).toContain('new.txt')
+    expect(turn.writes).toBe(1)
+    expect(turn.bodies[0]).toContain('"max_output_tokens":131072')
+    expect(turn.bodies.join('')).not.toContain('argumentPreview')
   })
 
   it('withholds previews on an uncaptured Meta model while keeping its selected cap', async () => {
-    const h = await productionRig('muse-spark-1.2')
-    const stream = controlledStream(h.client, DELTAS)
-    const done = h.turnDone()
-    try {
-      await h.session.sendTurn(WRITE_PROMPT)
-      await stream.reached.promise
-      expect(previewEvents(h.events)).toEqual([])
-      stream.gate.resolve(undefined)
-      await done
-      expect(h.write).toHaveBeenCalledOnce()
-      expect(stream.bodies[0]).toContain('"max_output_tokens":131072')
-    } finally {
-      stream.gate.resolve(undefined)
-      await h.host.close()
-    }
+    const turn = await productionTurn('muse-spark-1.2')
+    expect(turn.previews).toEqual([])
+    expect(turn.writes).toBe(1)
+    expect(turn.bodies[0]).toContain('"max_output_tokens":131072')
   })
 
   it('keeps an unobserved model on the legacy cap with no previews', async () => {
-    const h = await productionRig('future-model')
-    const stream = controlledStream(h.client, DELTAS)
-    const done = h.turnDone()
-    try {
-      await h.session.sendTurn(WRITE_PROMPT)
-      await stream.reached.promise
-      expect(previewEvents(h.events)).toEqual([])
-      stream.gate.resolve(undefined)
-      await done
-      expect(stream.bodies[0]).toContain('"max_output_tokens":32768')
-    } finally {
-      stream.gate.resolve(undefined)
-      await h.host.close()
-    }
+    const turn = await productionTurn('future-model')
+    expect(turn.previews).toEqual([])
+    expect(turn.bodies[0]).toContain('"max_output_tokens":32768')
   })
 })
