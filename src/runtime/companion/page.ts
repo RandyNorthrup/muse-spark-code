@@ -83,6 +83,9 @@ export function launchPage(nonce: string): string {
     const page = new DOMParser().parseFromString(html, 'text/html');
     // Keep the original document's CSP nonce when installing the trusted renderer.
     for (const element of page.querySelectorAll('script[nonce], style[nonce]')) element.setAttribute('nonce', '${nonce}');
+    // The theme consumer reads its style nonce from the served document, so it
+    // must name this document's nonce, never the session render's.
+    for (const element of page.querySelectorAll('[data-theme-nonce]')) element.setAttribute('data-theme-nonce', '${nonce}');
     window.fetch = (input, init) => {
       const request = new Request(input instanceof Request ? input : new URL(input, location.href), init);
       if (new URL(request.url).origin !== location.origin) return Promise.reject(new Error('EPANEL_ORIGIN'));
@@ -92,6 +95,52 @@ export function launchPage(nonce: string): string {
     };
     // Native script/link loads cannot carry Authorization. Fetch packaged bundles
     // explicitly and install them inline under the existing nonce CSP.
+    const fonts = new Map();
+    async function fontUrl(reference, base) {
+      const resolved = new URL(reference, base);
+      if (resolved.origin !== location.origin) return resolved.href;
+      const key = resolved.href;
+      const cached = fonts.get(key);
+      if (cached !== undefined) return cached;
+      // A native font load cannot carry Authorization either, so the
+      // authenticated bootstrap fetches each packaged font itself and hands
+      // the installed sheet a page-owned object URL (see font-src in guard).
+      const file = await window.fetch(key);
+      if (!file.ok) throw new Error('EPANEL_LAUNCH');
+      const object = URL.createObjectURL(
+        new Blob([await file.arrayBuffer()], {
+          type: file.headers.get('Content-Type') ?? 'font/woff2',
+        }),
+      );
+      fonts.set(key, object);
+      return object;
+    }
+    async function installSheet(text, base) {
+      // A bare reference rides its sheet's own directory: resolve it there so
+      // it never escapes to the server root, and serve packaged fonts through
+      // the authenticated fetch above instead of a bare native load.
+      const pattern = /url\(\s*(?:"([^"]+)"|'([^']+)'|([^)"'\s]+))\s*\)/g;
+      let output = '';
+      let cursor = 0;
+      for (;;) {
+        const match = pattern.exec(text);
+        if (match === null) break;
+        const reference = match[1] ?? match[2] ?? match[3] ?? '';
+        output += text.slice(cursor, match.index);
+        cursor = match.index + match[0].length;
+        if (reference === '' || /^(?:[a-z][a-z\d+.-]*:|#|\/)/i.test(reference)) {
+          output += match[0];
+        } else {
+          const resolved = new URL(reference, base).href;
+          if (/\.(?:woff2?|ttf|otf)(?:[?#]|$)/i.test(resolved)) {
+            output += 'url("' + (await fontUrl(reference, base)) + '")';
+          } else {
+            output += 'url("' + resolved + '")';
+          }
+        }
+      }
+      return output + text.slice(cursor);
+    }
     for (const element of page.querySelectorAll('script[src], link[rel="stylesheet"]')) {
       const source = element.getAttribute('src') || element.getAttribute('href');
       const asset = await window.fetch(source);
@@ -101,7 +150,9 @@ export function launchPage(nonce: string): string {
         if (!['src', 'href', 'rel'].includes(attribute.name)) inline.setAttribute(attribute.name, attribute.value);
       }
       inline.setAttribute('nonce', '${nonce}');
-      inline.textContent = await asset.text();
+      const text = await asset.text();
+      inline.textContent =
+        element.tagName === 'SCRIPT' ? text : await installSheet(text, new URL(source, location.href).href);
       element.replaceWith(inline);
     }
     page.documentElement.dataset.launch = 'ready';
