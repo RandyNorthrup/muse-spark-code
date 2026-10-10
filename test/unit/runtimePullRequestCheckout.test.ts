@@ -33,6 +33,9 @@ import {
 } from '../../src/core/worktreeConversations'
 import { createFileExclusively } from '../../src/host/fsAtomic'
 import { PENDING_CHECKOUT_RECOVERY_MS, UI_TEXT } from '../../src/shared/constants'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText } from '../../src/shared/l10n/text'
+import ES from '../../l10n/ui.es.json'
 import {
   CleanupPendingError,
   createNodePullRequestCheckoutGit,
@@ -1337,41 +1340,66 @@ describe('runtime pull request checkout (M123 lane P)', () => {
   })
 
   it.each([
-    { failing: [2], case: 'the sweep after the claim cannot list' },
-    { failing: [1, 2], case: 'whether the claim landed cannot be known' },
-  ])('leaves no pending record, and opens again at once, when $case', async ({ failing }) => {
-    // RVM123P7 finding 1: the claim's generation lands, then a listing
-    // fails (EACCES). A landed claim is never undone: the checkout goes
-    // on with its new fence; or, not knowing, it drops whichever of its
-    // reservations the record is. Either way nothing stays pending and an
-    // immediate open succeeds.
-    const listings = failingListingsAfterLink(failing)
-    let hasArmed = false
-    const setup = await checkoutSetup({
-      headSha: CAPTURED_PULL_FORK.head.sha,
-      records: (dataFolder) =>
-        recordsAround(
-          createFileWorktreeRecordStore(dataFolder, process.platform, recordingLogger(), {
-            fs: listings.fs,
-          }),
-          async (name, call) => {
-            if (name === 'claim' && !hasArmed) {
-              hasArmed = true
-              listings.arm()
-            }
-            return await call()
-          },
-        ),
-    })
-    await setup.checkout.open('51', OWN_REMOTES, 'origin')
-    expect(listings.failed()).toBe(failing.length)
-    const left = await setup.records.list()
-    expect(left.filter((record) => record.isCheckoutPending === true)).toEqual([])
-    const again = await setup.checkout.open('51', OWN_REMOTES, 'origin')
-    expect(again.ok).toBe(true)
-    const [record] = await setup.records.list()
-    expect(record?.isCheckoutPending).toBeUndefined()
-  })
+    { failing: [2], case: 'the sweep after the claim cannot list', locale: 'en' },
+    { failing: [1, 2], case: 'whether the claim landed cannot be known', locale: 'en' },
+    { failing: [1, 2], case: 'whether the claim landed cannot be known', locale: 'es' },
+  ])(
+    'leaves no pending record, and opens again at once, when $case ($locale)',
+    async ({ failing, locale }) => {
+      // RVM123P7 finding 1: the claim's generation lands, then a listing
+      // fails (EACCES). A landed claim is never undone: the checkout goes
+      // on with its new fence; or, not knowing, it drops whichever of its
+      // reservations the record is. Either way nothing stays pending and an
+      // immediate open succeeds.
+      const listings = failingListingsAfterLink(failing)
+      let hasArmed = false
+      const setup = await checkoutSetup({
+        headSha: CAPTURED_PULL_FORK.head.sha,
+        records: (dataFolder) =>
+          recordsAround(
+            createFileWorktreeRecordStore(dataFolder, process.platform, recordingLogger(), {
+              fs: listings.fs,
+            }),
+            async (name, call) => {
+              if (name === 'claim' && !hasArmed) {
+                hasArmed = true
+                listings.arm()
+              }
+              return await call()
+            },
+          ),
+      })
+      const table = locale === 'es' ? ES : EN
+      setUiText(
+        {
+          ...EN,
+          worktreeAddFailed: table.worktreeAddFailed,
+          worktreeRecordsWriteUnknown: table.worktreeRecordsWriteUnknown,
+        },
+        locale,
+      )
+      try {
+        const result = await setup.checkout.open('51', OWN_REMOTES, 'origin')
+        if (failing.length === 1) {
+          expect(result.ok).toBe(true)
+        } else {
+          expect(result).toEqual({
+            ok: false,
+            reason: `${table.worktreeAddFailed}: ${table.worktreeRecordsWriteUnknown}`,
+          })
+        }
+      } finally {
+        setUiText(EN, 'en')
+      }
+      expect(listings.failed()).toBe(failing.length)
+      const left = await setup.records.list()
+      expect(left.filter((record) => record.isCheckoutPending === true)).toEqual([])
+      const again = await setup.checkout.open('51', OWN_REMOTES, 'origin')
+      expect(again.ok).toBe(true)
+      const [record] = await setup.records.list()
+      expect(record?.isCheckoutPending).toBeUndefined()
+    },
+  )
 
   it('keeps the bearer out of every result and log', async () => {
     const { checkout, log } = await checkoutSetup({ headSha: CAPTURED_PULL_FORK.head.sha })
