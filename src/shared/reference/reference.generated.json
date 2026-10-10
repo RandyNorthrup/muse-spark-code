@@ -1690,10 +1690,10 @@
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#paid-features",
       "backends": ["modelApi"],
       "paid": false,
-      "surfaces": ["vscode:modelApi"],
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
       "details": [{ "ui": "referenceBudget" }],
       "facts": {},
-      "editors": ["vscode"]
+      "editors": ["vscode", "acp"]
     },
     {
       "id": "tab",

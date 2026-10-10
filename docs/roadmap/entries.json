@@ -700,9 +700,10 @@
     {
       "id": "M96",
       "title": "Agent roles and teams",
-      "summary": "Agent roles with charters, tools, model pools and task limits, and teams of workers in isolated workspaces whose work is reviewed before it merges.",
+      "summary": "Configure agent roles with charters, tools, model pools and task limits, while teams of workers in isolated workspaces cannot be created yet.",
       "area": "agents",
-      "release": "0.15.0"
+      "release": "0.15.0",
+      "labels": ["not available yet"]
     },
     {
       "id": "M96b",
@@ -786,7 +787,7 @@
     {
       "id": "M106",
       "title": "Stronger agent-loop guarantees",
-      "summary": "On the Model API the agent loop uses strict tool contracts, validated side answers, live tool-argument previews and concurrent read-only calls wherever the selected model supports them.",
+      "summary": "On the Model API the agent loop uses strict tool contracts, validated side answers and concurrent read-only calls where the selected model supports them, with tool rows streaming while arguments arrive but the argument text not shown yet.",
       "area": "agents",
       "release": "0.16.0"
     },
@@ -808,9 +809,10 @@
     {
       "id": "M109",
       "title": "Credential vault for agents",
-      "summary": "One encrypted vault for API keys, tokens, SSH keys, passwords and website logins, protected by hardware where available, from which agents get approved, logged uses of a secret but never its value.",
+      "summary": "The vault commands refuse closed until the broker-backed panel service lands, while first-party keys keep working and agent uses of stored secrets are refused.",
       "area": "security",
-      "release": "0.17.0"
+      "release": "0.17.0",
+      "labels": ["not available yet"]
     },
     {
       "id": "M110",
@@ -848,9 +850,10 @@
     {
       "id": "M115",
       "title": "Scheduled prompts v2",
-      "summary": "Schedule prompts to run once, repeatedly or on a cron expression, each with its own delivery mode, and run them unattended under a hard budget cap, so far from the terminal and ACP editors.",
+      "summary": "Schedule prompts to run once, repeatedly or on a cron expression, each with its own delivery mode and a hard budget cap, with fires running in live panel, terminal and ACP sessions while firing with all editors closed stays refused.",
       "area": "agents",
-      "release": "0.17.0"
+      "release": "0.17.0",
+      "labels": ["not available yet"]
     },
     {
       "id": "M116",

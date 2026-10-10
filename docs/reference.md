@@ -1360,7 +1360,7 @@ Shared daily budget for interactive paid extras: USD.
 
 Shared daily budget for interactive paid extras: museSpark.paidDailyBudgetUsd. Tab has its own separate budget.
 
-Surfaces: vscode:modelApi. Paid: no extra feature charge; model usage still applies.
+Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: `museSpark.paidDailyBudgetUsd`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#paid-features)
 
