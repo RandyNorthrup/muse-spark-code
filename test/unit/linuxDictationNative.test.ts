@@ -39,9 +39,12 @@ describe.skipIf(process.platform !== 'linux')(
       args: string[],
       commands: string,
       shouldQuitAfterStop: boolean,
+      env?: NodeJS.ProcessEnv,
     ): Promise<{ lines: HelperLine[]; code: number | null }> {
       return new Promise((resolve, reject) => {
-        const child = spawn(helper, args, { env: { PULSE_SERVER: 'unix:/nonexistent-m9-pulse' } })
+        const child = spawn(helper, args, {
+          env: env ?? { PULSE_SERVER: 'unix:/nonexistent-m9-pulse' },
+        })
         children.push(child)
         const lines: HelperLine[] = []
         const splitter = new LineSplitter()
@@ -103,6 +106,20 @@ describe.skipIf(process.platform !== 'linux')(
       const capture = await run(['--model', 'fake'], 'start\n', true)
       expect(capture.lines).toContainEqual({ type: 'error', reason: 'pulse-capture' })
       expect(capture.lines.some((line) => line.type === 'text')).toBe(false)
+    })
+    it('a network audio server is refused before any connection (RVCM9LNX P2)', async () => {
+      // No listener is started: refusal happens before connecting, so this
+      // also runs where loopback servers are unavailable.
+      for (const server of ['tcp:127.0.0.1:47139', 'tcp:audio.example:4713', 'audio.example']) {
+        const refused = await run(['--model', 'fake'], 'start\n', true, {
+          PULSE_SERVER: server,
+        })
+        expect(refused.lines, server).toContainEqual({ type: 'error', reason: 'remote-server' })
+        expect(
+          refused.lines.some((line) => line.type === 'text'),
+          server,
+        ).toBe(false)
+      }
     })
     it('an immediate stop drains capture and acknowledges once', async () => {
       const result = await run(

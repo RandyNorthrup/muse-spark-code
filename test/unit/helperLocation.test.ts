@@ -202,6 +202,43 @@ describe('helperEnvironment', () => {
     expect(env).toEqual({ Path: 'x', PSModulePath: String.raw`C:\Windows\Modules` })
   })
 
+  it('drops audio-server selectors from a Linux helper so capture stays local (RVCM9LNX P2)', () => {
+    const base = {
+      PULSE_SERVER: 'tcp:audio.example:4713',
+      PULSE_SINK: 'tunnel',
+      PULSE_SOURCE: 'tunnel.monitor',
+      PIPEWIRE_REMOTE: 'pipewire-0',
+      PIPEWIRE_CORE: 'remote',
+      PULSE_COOKIE: 'local-auth',
+      XDG_RUNTIME_DIR: '/run/user/1000',
+      HOME: '/home/user',
+      PATH: '/usr/bin',
+    }
+    const env = helperEnvironment(base, { command: 'muse-dictate', args: [] }, 'linux')
+    for (const name of [
+      'PULSE_SERVER',
+      'PULSE_SINK',
+      'PULSE_SOURCE',
+      'PIPEWIRE_REMOTE',
+      'PIPEWIRE_CORE',
+    ] as const) {
+      expect(env[name], name).toBeUndefined()
+    }
+    expect(env).toMatchObject({
+      PULSE_COOKIE: 'local-auth',
+      XDG_RUNTIME_DIR: '/run/user/1000',
+      HOME: '/home/user',
+      PATH: '/usr/bin',
+    })
+    expect(base.PULSE_SERVER).toBe('tcp:audio.example:4713')
+  })
+
+  it('leaves audio-server selectors alone off Linux', () => {
+    const base = { PULSE_SERVER: 'tcp:audio.example:4713' }
+    expect(helperEnvironment(base, { command: 'helper', args: [] }, 'darwin')).toMatchObject(base)
+    expect(helperEnvironment(base, { command: 'helper', args: [] }, 'win32')).toMatchObject(base)
+  })
+
   it('matches names exactly elsewhere, and leaves the base untouched', () => {
     const base = { PATH: 'x', PSMODULEPATH: 'keep' }
     expect(helperEnvironment(base, invocation, 'darwin')).toEqual({

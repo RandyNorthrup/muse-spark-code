@@ -21,7 +21,11 @@ import {
   WINDOWS_POWERSHELL_RELATIVE_PATH,
   WINDOWS_PSMODULEPATH_VARIABLE,
 } from '../../shared/constants'
-import { setEnvironmentVariable, windowsPowerShellModulePath } from '../backends/musecode/launch'
+import {
+  deleteEnvironmentVariable,
+  setEnvironmentVariable,
+  windowsPowerShellModulePath,
+} from '../backends/musecode/launch'
 import { resolveExecutable } from '../executables'
 import type { HelperInvocation } from './dictation'
 
@@ -189,6 +193,18 @@ export function helperEnvironment(
   const variables = Object.entries(invocation.environment ?? {})
   for (const [name, value] of variables) {
     setEnvironmentVariable(env, platform, name, value)
+  }
+  if (platform === 'linux') {
+    // The offline Linux helper must capture from this computer only: drop
+    // every audio-server selector it could inherit (RVCM9LNX P2), so a
+    // `PULSE_SERVER=tcp:…` on the editor cannot move capture to the network.
+    // The helper itself refuses a non-local server as well. Local
+    // authentication (PULSE_COOKIE), the runtime directory (which names the
+    // local socket) and HOME stay: the explicit local server overrides
+    // client.conf, and proxy variables are never read by the audio client.
+    for (const name of LINUX_DICTATION.audioServerVariables) {
+      deleteEnvironmentVariable(env, platform, name)
+    }
   }
   return env
 }
