@@ -70,9 +70,10 @@ hash verification and migrate when read.
   replacing a limit someone changed meanwhile.
 - **Title Case labels.** English buttons, menus, tabs and titles capitalize
   every major word; sentences and messages keep sentence case.
-- **Smaller fixes.** DeepSeek's Thinking off sends DeepSeek's own switch, and
-  a Muse Code older than 1.4.3 that hits its approval-record fault now gets
-  the update command.
+- **Smaller fixes.** A question's own-answer field no longer overlaps the
+  options and buttons around it, DeepSeek's Thinking off sends DeepSeek's own
+  switch, and a Muse Code older than 1.4.3 that hits its approval-record fault
+  now gets the update command.
 
 ### Earlier in 0.17.0
 
