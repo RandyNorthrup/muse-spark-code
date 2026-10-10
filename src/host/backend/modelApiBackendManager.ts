@@ -72,6 +72,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly getAccountId?: (() => Promise<string | undefined>) | undefined
   readonly createProviders?: (() => Promise<ModelResolver>) | undefined
   readonly hasMetaCredential?: (() => boolean) | undefined
+  /** C-M95-SUB: the host's answer, from the same resolver as its key. */
+  readonly isSubscriptionBilling?: (() => Promise<boolean>) | undefined
   readonly workspaceRoot: string | undefined
   readonly io: ToolIo
   /** Existing file-listing adapter rooted in each actual attempt worktree. */
@@ -370,6 +372,9 @@ export class ModelApiBackendManager {
         hasExternalPaidRecording: this.deps.hasExternalPaidRecording,
         usageKind: variant.usageKind,
         hasMetaCredential: this.deps.hasMetaCredential,
+        ...(this.deps.isSubscriptionBilling !== undefined && {
+          isSubscriptionBilling: this.deps.isSubscriptionBilling,
+        }),
         ...(variant.budgetScope !== undefined && { budgetScope: variant.budgetScope }),
         describeEnvironment: variant.describeEnvironment,
         isPaidFeatureOn: variant.isPaidFeatureOn,

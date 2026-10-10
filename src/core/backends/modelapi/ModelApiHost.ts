@@ -617,6 +617,11 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly client: ProviderClient
   readonly models?: ModelResolver | undefined
   readonly hasMetaCredential?: (() => boolean) | undefined
+  /**
+   * C-M95-SUB: true while the opted-in subscription key pays for Meta
+   * models, so their turns price as plan instead of pay-as-you-go.
+   */
+  readonly isSubscriptionBilling?: (() => Promise<boolean>) | undefined
   readonly autoCompaction?: (() => boolean) | undefined
   /** Lane E's bounded evaluation override; production uses the certified latch. */
   readonly autoCompactionEvaluated?: (() => boolean) | undefined
@@ -3646,7 +3651,7 @@ export class ModelApiSession implements ScheduledAgentSession {
    * reported, but their separately consented requests are not reserved
    * against the parent's cap (M82 owner decision).
    */
-  private budgeted(body: CreateResponseBody): CreateResponseBody {
+  private budgeted(body: CreateResponseBody, isSubscriptionBilling = false): CreateResponseBody {
     const searchBound = this.webSearchBound()
     if (
       searchBound !== undefined &&
@@ -3655,7 +3660,14 @@ export class ModelApiSession implements ScheduledAgentSession {
       body = { ...body, max_tool_calls: searchBound }
     }
     this.openReservation = undefined
-    if (this.isSubagent || this.deps.client.isPlanModel?.(body.model) === true) return body
+    // A subscription-billed Meta call draws on the plan, never on a dollar
+    // reservation: like a plan model, it skips the session budget's hold.
+    if (
+      this.isSubagent ||
+      this.deps.client.isPlanModel?.(body.model) === true ||
+      (isSubscriptionBilling && body.model.startsWith(MODEL_API_MODEL_PREFIX))
+    )
+      return body
     const capUsd = this.currentBudgetCap()
     if (Usd.from(capUsd).compare(Usd.from(0)) <= 0 && this.budgetJournal() === undefined) {
       return body
@@ -3733,7 +3745,10 @@ export class ModelApiSession implements ScheduledAgentSession {
    * The request about to be sent (M82): its model, which prices its usage,
    * and its reservation, as the log keeps it.
    */
-  private sending(body: CreateResponseBody): OpenReservation | undefined {
+  private sending(
+    body: CreateResponseBody,
+    isSubscriptionBilling = false,
+  ): OpenReservation | undefined {
     this.sendingImageCount = requestImageCount(body)
     this.sendingModel = this.selectedModel(body.model)
     this.sendingModelId = body.model
@@ -3746,17 +3761,19 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.packedBaseline = this.packing?.savings() ?? 0
     const parentKind = this.isSideChat ? 'sideChat' : (this.deps.usageKind ?? 'turn')
     const kind = this.isSubagent ? 'subagent' : parentKind
+    const provider = this.sendingModel.policy.identity.provider
+    // C-M95-SUB: a subscription-billed Meta call prices as plan, so the
+    // usage and cost surfaces label it "Muse Code plan" with no dollar price.
+    const planPricing: typeof this.sendingModel.policy.pricing | undefined =
+      provider === 'meta' && isSubscriptionBilling ? { kind: 'plan' } : undefined
     this.recordedCall = {
       backend: 'modelApi',
-      provider: this.sendingModel.policy.identity.provider,
+      provider,
       model: body.model,
       session: this.sessionId,
       startedAt: this.deps.now(),
       kind,
-      pricing:
-        this.sendingModel.policy.identity.provider === 'meta'
-          ? undefined
-          : this.sendingModel.policy.pricing,
+      pricing: planPricing ?? (provider === 'meta' ? undefined : this.sendingModel.policy.pricing),
       outcome: 'failed',
     }
     const reservation = this.openReservation
@@ -4687,6 +4704,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     isCompaction = false,
     turnId?: string,
     mediaAccounting?: MediaRequestAccounting,
+    isSubscriptionBilling = false,
   ): ResponseAttemptGuard {
     const token = this.owner.token()
     const instructionMaterial = this.instructionMaterial()
@@ -4762,6 +4780,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       } else if (
         reservation === undefined &&
         this.deps.client.isPlanModel?.(body.model) !== true &&
+        // C-M95-SUB: no dollar reservation exists for a subscription-billed
+        // Meta call, so the durable preflight cannot require one.
+        !(isSubscriptionBilling && body.model.startsWith(MODEL_API_MODEL_PREFIX)) &&
         Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0
       ) {
         this.active?.abort.abort()
@@ -5896,7 +5917,17 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
     this.assertContextFits(this.body())
     await this.refreshSearchConsent(signal)
-    await this.beforeModelCall(turnId, this.budgeted(this.body()), requestId, attempt, step, signal)
+    // Resolved fresh on every attempt from the same cache the request's own
+    // credential read uses, so the recorded billing matches the key sent.
+    const isSubscriptionBilling = (await this.deps.isSubscriptionBilling?.()) === true
+    await this.beforeModelCall(
+      turnId,
+      this.budgeted(this.body(), isSubscriptionBilling),
+      requestId,
+      attempt,
+      step,
+      signal,
+    )
     const requiredAfterPreHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
     if (requiredAfterPreHook !== undefined) {
       throw requiredAfterPreHook
@@ -5932,9 +5963,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       signal,
     )
     if (run !== undefined) await this.checkScheduledReplay(run, this.body())
-    const body = this.budgeted(this.body())
+    const body = this.budgeted(this.body(), isSubscriptionBilling)
     this.lastJudgeBody = body
-    const reservation = this.sending(body)
+    const reservation = this.sending(body, isSubscriptionBilling)
     if (confirmedRequest !== undefined && this.recordedCall !== undefined)
       this.recordedCall = { ...this.recordedCall, kind: 'schedule' }
     const requestReplay = this.requestReplay()
@@ -5994,6 +6025,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         false,
         turnId,
         mediaAccounting,
+        isSubscriptionBilling,
       )
       const responseStream = (
         this.getScheduledRun() === undefined || resolved.client !== this.deps.client
@@ -14183,10 +14215,18 @@ export class ModelApiSession implements ScheduledAgentSession {
             isRateLimited: false,
             usage: undefined,
           }
-        const reservation = this.sending(body)
+        const isSubscriptionBilling = (await this.deps.isSubscriptionBilling?.()) === true
+        const reservation = this.sending(body, isSubscriptionBilling)
         if (this.recordedCall !== undefined)
           this.recordedCall = { ...this.recordedCall, kind: 'compaction' }
-        const admitAttempt = this.responseAttemptGuard(body, undefined, true)
+        const admitAttempt = this.responseAttemptGuard(
+          body,
+          undefined,
+          true,
+          undefined,
+          undefined,
+          isSubscriptionBilling,
+        )
         const guarded: ResponseAttemptGuard = Object.assign(
           (keyDigest: string | undefined) => {
             if (revision !== this.modelRevision) throw new AbortedError()
@@ -14638,7 +14678,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     const wasBudgetLimited = this.goal?.status === GOAL_STATUS.budgetLimited
     let tail: readonly ReplayItem[] = []
     let snapshot = ''
-    const makeBody = (canUseTools: boolean, attempt: SideCallAttempt): CreateResponseBody => {
+    const makeBody = (
+      canUseTools: boolean,
+      attempt: SideCallAttempt,
+      isSubscriptionBilling: boolean,
+    ): CreateResponseBody => {
       // collectText calls again after hooks and budget refresh. Capture all model
       // decisions together, with no await between this projection and reservation.
       const modelId = this.modelId
@@ -14702,10 +14746,13 @@ export class ModelApiSession implements ScheduledAgentSession {
         include: ['reasoning.encrypted_content'],
       })
       const formatted = this.keyed(sideCallBody(body, attempt, this.deps.forceSideCallTool))
-      const reserved = this.budgeted({
-        ...formatted,
-        max_output_tokens: Math.min(formatted.max_output_tokens, summaryBudget),
-      })
+      const reserved = this.budgeted(
+        {
+          ...formatted,
+          max_output_tokens: Math.min(formatted.max_output_tokens, summaryBudget),
+        },
+        isSubscriptionBilling,
+      )
       return { ...reserved, max_output_tokens: Math.min(reserved.max_output_tokens, summaryBudget) }
     }
     const postContexts: string[] = []
@@ -14720,8 +14767,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.emit({ type: 'backendNotice', level: 'warning', text })
       },
       request: async (attempt) => {
+        const isSubscriptionBilling = (await this.deps.isSubscriptionBilling?.()) === true
         let collected = await this.collectText(
-          () => makeBody(true, attempt),
+          () => makeBody(true, attempt, isSubscriptionBilling),
           signal,
           extraAdmission,
           settleExtra,
@@ -14734,7 +14782,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           if (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited)
             throw new SessionBudgetExceededError(MODEL_API_MODEL_TEXT.goalBudgetReached)
           collected = await this.collectText(
-            () => makeBody(false, attempt),
+            () => makeBody(false, attempt, isSubscriptionBilling),
             signal,
             extraAdmission,
             settleExtra,
