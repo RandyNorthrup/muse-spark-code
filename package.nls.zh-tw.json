@@ -196,6 +196,7 @@
   "config.modelApiParallelReads.description": "並行執行安全的唯讀工具呼叫，每次最多四個。其他工具呼叫依序執行。",
   "config.webSearchMaxPerRequest.description": "每次回答允許的服務端網頁搜尋次數上限（1–20，預設 5）。首次收費前會顯示價格和共用每日預算。",
   "config.modelApiTeamWorkers.description": "付費，預設為開啟；首次收費時會詢問一次。在 Model API 後端，團隊工作在計入您 Model API 金鑰的模型上執行；在 Muse Code 後端，有儲存的金鑰時執行。啟用時需要接受權杖價格。啟動金鑰計費工作的首次 delegate 呼叫會在所有權限模式下請求核准（包括略過權限），並列出每個模型的價格和每項工作的上限，除非您在此工作區中一律允許團隊代理。訂閱工作和本機工作從不收費。",
+  "config.team.description": "代理團隊：預設開啟。開啟時，若工作區的團隊有第二個模型且可確認已載入，新對話會取得團隊工具；只有一個模型時，每個對話都與現在的聊天相同。關閉時，任何地方都不載入團隊。變更從下一個對話起生效。",
   "config.legalHeaderPolicy.description": "用於法律掃描的版權與 SPDX 標頭檢查：必要會標記每個缺少相符標頭的專案自有原始檔，選用僅標記與偵測到的專案風格或其 REUSE 聲明相矛盾的標頭，關閉則略過標頭檢查。預設為選用；產生的檔案一律排除。",
   "config.legalHeaderPolicy.enumDescriptions.required": "每個專案自有原始檔都需要相符的版權與 SPDX 標頭。",
   "config.legalHeaderPolicy.enumDescriptions.optional": "僅與偵測到的專案風格或其 REUSE 聲明相矛盾的標頭才算發現。預設值。",

@@ -35,7 +35,8 @@ import type {
  * never probes: the decision reads the latest probe results already known.
  */
 export interface TeamHostSeams {
-  readonly teamDecisionSource: () => TeamDecisionSource | undefined
+  /** The conversation passes its own model: the orchestrator it compares entries with. */
+  readonly teamDecisionSource: (orchestratorModelId?: string) => TeamDecisionSource | undefined
   readonly teamRosterData: () =>
     { readonly stable: readonly TeamStableRole[]; readonly live?: TeamRosterLive } | undefined
   readonly teamRunner: TeamToolRunner
@@ -107,8 +108,11 @@ export interface TeamOrchestratorPort {
   readonly modelId: () => string
   /** The backend the orchestrator runs on, as the tree names it. */
   readonly backend: () => string
-  /** Lane R's `sameModel`: one model whatever serves it. */
-  readonly isSameModel: (a: string, b: string) => boolean
+  /**
+   * What a pool's Default entry runs on: the slot's model on the slot's
+   * backend, or undefined where this editor runs no worker on it.
+   */
+  readonly defaultAgent?: ((orchestratorModelId: string) => TeamAgentRef | undefined) | undefined
 }
 
 /** One task as the service hands it to the editor's worker port. */

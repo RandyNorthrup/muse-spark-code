@@ -4661,6 +4661,12 @@ export const EN = {
   // keeps its tools; from the next turn `delegate` is refused.
   teamSingleModelAgain: 'Only one model is ready: the team applies from a new conversation.',
   teamRunnerUnavailable: '{tool} is unavailable: the team runner has not loaded in this window.',
+  // The team host service (M96 lane X): its tool answers and refused actions.
+  teamPlanShown: 'Team plan shown; nothing started.',
+  teamTasksStarted: 'Team tasks started: {count}',
+  teamMergeRework: 'The merge met conflicts: the task went back for rework.',
+  teamTaskUnknown: 'That team task is not open in this window.',
+  teamWaitingUnknown: 'Nothing is waiting for this answer any more.',
   webSearchFailed: 'The search failed',
   // Under a reply that cites web pages (M33).
   citationsHeading: 'Sources',

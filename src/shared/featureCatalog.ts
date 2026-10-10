@@ -356,7 +356,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'paidTeamWorkersName' },
       { setting: 'modelApiTeamWorkers' },
       [],
-      ['modelApiTeamWorkers'],
+      ['modelApiTeamWorkers', 'team'],
       'the-panel',
       ['modelApi'],
       true,

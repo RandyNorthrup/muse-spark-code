@@ -40,6 +40,7 @@ import type { PermissionSettings } from '../../core/permissionSettings'
 import type { WebFetcher } from '../../core/web/webFetch'
 import type { BrowserCheckHost } from '../../core/browser/browserTool'
 import type { SubagentUsage } from '../../shared/paid'
+import type { TeamHostSeams } from '../../core/team/teamHostService'
 import { BestOfNError } from '../../core/bestOfN/bestOfNError'
 import { WorkspaceEdits, type WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
 import type { AgentSession } from '../../core/agent/agentBackend'
@@ -62,6 +63,8 @@ import {
 } from './modelApiBundle'
 
 export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
+  /** M96 lane X: the window's team host seams; the window's host only, never an attempt's. */
+  readonly team?: TeamHostSeams | undefined
   readonly paidAuthority?: ModelApiClientDeps['paidAuthority']
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly judge?: ModelApiHostDeps['judge']
@@ -226,6 +229,7 @@ interface HostVariant {
   readonly beforeTurnRuns: ModelApiBackendManagerDeps['beforeTurnRuns']
   readonly afterTurnRuns: ModelApiBackendManagerDeps['afterTurnRuns']
   readonly createMcpServers: ModelApiBundleDeps['createMcpServers']
+  readonly team?: TeamHostSeams | undefined
   readonly readyMessage: string
 }
 
@@ -431,6 +435,12 @@ export class ModelApiBackendManager {
         verify: variant.verify,
         workspaceEdits: variant.workspaceEdits,
         sessionWorkspaceRoot: variant.sessionWorkspaceRoot,
+        ...(variant.team !== undefined && {
+          teamDecisionSource: variant.team.teamDecisionSource,
+          teamRosterData: variant.team.teamRosterData,
+          teamRunner: variant.team.teamRunner,
+          isTeamInPlaceActive: variant.team.isTeamInPlaceActive,
+        }),
       },
       hookSettingsPath: this.deps.hookSettingsPath,
       createMcpServers: variant.createMcpServers,
@@ -472,6 +482,7 @@ export class ModelApiBackendManager {
         createMcpServers === undefined
           ? undefined
           : (newPool) => createMcpServers(workspaceRoot, newPool),
+      team: this.deps.team,
       readyMessage: 'Model API backend ready (api.meta.ai/v1, stateless reasoning replay)',
     })
   }

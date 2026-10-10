@@ -102,6 +102,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiBestOfN: boolean
   /** Team tasks billed to a key (M96 lane A, PLAN.md D75): on only with the price accepted too. */
   readonly modelApiTeamWorkers: boolean
+  /** Agent teams (M96, PLAN.md D75): off, no team loads anywhere. */
+  readonly team: boolean
   /** Configured hooks are enabled by default (D78), in trusted workspaces only. */
   readonly modelApiHooks: boolean
   /** The Model API shell keeps its directory between calls (M91 lane S): on until turned off. */
@@ -245,6 +247,7 @@ const settingSchemas = {
   modelApiSubagents: z.boolean(),
   modelApiBestOfN: z.boolean(),
   modelApiTeamWorkers: z.boolean(),
+  team: z.boolean(),
   modelApiHooks: z.boolean(),
   modelApiShellKeepsDirectory: z.boolean(),
   modelApiHookModels: z.boolean(),
@@ -424,6 +427,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiSubagents: readSetting(config, 'modelApiSubagents', log),
     modelApiBestOfN: readSetting(config, 'modelApiBestOfN', log),
     modelApiTeamWorkers: readSetting(config, 'modelApiTeamWorkers', log),
+    team: readSetting(config, 'team', log),
     modelApiHooks: readSetting(config, 'modelApiHooks', log),
     modelApiShellKeepsDirectory: readSetting(config, 'modelApiShellKeepsDirectory', log),
     modelApiHookModels: readSetting(config, 'modelApiHookModels', log),
