@@ -1,5 +1,23 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**CIR4WIN hosted Windows round 4 (2026-10-09, win11).** Root-cause the
+M117 estimator browser harness's first navigation exceeding its unchanged
+two-second bound in run 38018090551, job 114112783549. Reproduce under bounded
+CPU/memory pressure before repairing the fixture; retain every theme, width,
+keyboard, accessibility, lazy-chunk and application assertion. Prove the fix
+with a deliberately failing drill and SHA-256 byte-exact restoration; certify
+complete owning suites at repository deadlines and scoped static/build gates
+in `docs/certification/cifix017.md`, Round 4, Windows. Aggregate quality and
+hosted replay remain lead-owned under the rig/common brief; no merge, push,
+rebase, subagents or paid/live calls.
+Loaded reproduction delivers every static asset within 400 ms but cold raw
+English/Intl module work delays the load event past two seconds. Apply the
+existing standalone `compactBrowserEnglish` transform and Chrome 128 target;
+preserve the whole canonical fallback and the separate two-second readiness
+check. The shared chunk falls from 332,804 to 148,995 bytes. Certify the same
+loaded first-navigation failure before repair and after a deliberate transform
+removal; restore the repaired suite byte-exact and rerun its complete matrix.
+
 **ACPM118 hosted macOS release repair (2026-10-09, macmini).** Diagnose the
 M118 real-stdio prompt/sharing timeout in runs 37992331755 and 37992331263.
 Reproduce under load before changing the responsible product or fixture;

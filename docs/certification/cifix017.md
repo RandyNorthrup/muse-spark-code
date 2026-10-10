@@ -619,3 +619,129 @@ Final repository-default receipts (no test-name filter or timeout override):
 All 17 changed tracked files are staged explicitly for an installed-hooks
 commit; the original ACP stdio test remains byte-exact. Full hosted Actions,
 aggregate quality and an actual installed universal tarball remain lead-owned.
+
+## Round 4, Windows
+
+Authority: `C:/lanes/_ctx/CIR4WIN.rig.md` and `codex/common.md`;
+lane `rel017/cir4win`, Windows 11, base/head before repair
+`249218f4ee85b6d43dc5c61dcf283ea6d297527b`, 2026-10-09.
+No test, assertion, deadline, threshold, tolerance, hook or dependency changes.
+No paid/live calls, subagents, merge, rebase or push. Aggregate quality and
+hosted replay remain lead-owned under the rig/common brief.
+
+### Hosted evidence and loaded reproduction
+
+Run [38018090551](https://github.com/RandyNorthrup/muse-spark-code/actions/runs/38018090551),
+job [114112783549](https://github.com/RandyNorthrup/muse-spark-code/actions/runs/38018090551/job/114112783549),
+Windows shard 5, Node 22.23.3. `gh api .../jobs/114112783549/logs` could
+not run because `gh` is absent on this rig; the installed GitHub connector's
+read-only job-log endpoint retrieved the same decoded log, saved to ignored
+`temp/cir4win/hosted-job.log`. No credential was read or installed.
+The first wide/light estimator case times out at `page.goto(ORIGIN)`, waiting
+for `load` at the unchanged 2,000 ms limit. The other seven browser cases
+pass (875–1,797 ms each); the full suite has 10 passes and one failure.
+
+The harness already builds once in `beforeAll`, launches Chrome once, and
+serves every page/script/style directly from its in-memory Playwright route.
+There is no HTTP server start or network resource to wait for. It bundles
+the raw English table, unlike independent production browser pages.
+The shared chunk is **332,804 bytes**, including **295,657 bytes** from
+`src/shared/l10n/en.ts`. Cold parsing/evaluation and the localization module's
+initial `Intl` constructors run before the load event.
+
+On this rig (Node 24.21.0/libuv 1.52.1, Chrome 153.0.8010.53,
+ten logical CPUs, 32 GiB RAM), the unmodified
+complete suite passes 11/11 in 28.63 s. An initial eight-worker memory/CPU
+stress run also passes 11/11 in 305.31 s; its excessive setup contention was
+reduced by limiting only the pressure process to four CPUs. This run did
+not reproduce the navigation failure and is not a repaired-source receipt.
+
+The controlled reproduction holds **4 GiB** in four real CPU workers and
+uses Chrome's CDP **16× CPU throttling only for the first cold navigation**.
+The throttling ends after that navigation; sustained worker/memory pressure
+continues through every assertion. The complete file then reproduces the
+exact hosted failure: **one failed, ten passed**, 25.16 s. Its route trace
+delivers all static assets by 392 ms, but no `DOMContentLoaded` or `load`
+arrives before the navigation times out at 2,006 ms. A CPU-profile replay
+also fails at the same bound (24.90 s); it attributes about 788 ms to the
+shared chunk's top-level work and 528 ms to its function constructing the
+initial `Intl` formatters. Its assets arrive by 468 ms, with the load event
+only at 2,146 ms after navigation begins. No timeout override is used.
+The earlier 8× exploratory run passes; its load event arrives in 1,178 ms.
+
+### Repair and byte-exact drill
+
+`test/e2e/estimator.e2e.test.ts` now applies the existing
+`compactBrowserEnglish` build plugin and targets Chrome 128, matching the
+standalone production fallback. `scripts/lib/uiTextRegions.d.mts` declares
+that existing plugin for the typed fixture. The complete canonical English
+table remains inline; native DEFLATE/JSON decoding precedes dependent module
+evaluation. That asynchronous initialization avoids blocking navigation on
+the raw table and cold localization setup. The separate estimator-ready
+wait still has its original **2,000 ms** bound, as do all browser actions.
+The shared chunk falls to **148,995 bytes** (183,809 fewer; 55% smaller).
+The panel remains lazy; all four themes, both widths, axe, keyboard flow,
+overflow, drift, disabled provisioning and page-error assertions remain.
+
+Under the same four workers, 4 GiB and first-navigation 16× throttling,
+the repaired complete file passes **11/11**, 26.20 s. Its first navigation
+finishes in **504 ms**, and readiness follows before its separate deadline.
+Receipt: `loaded-throttled16-fixed.log` and
+`timeline-throttled16-fixed.log`; original receipts:
+`loaded-throttled16-original.log`, `timeline-throttled16-original.log`,
+`profile-original.log`, `profile-original.json`.
+
+Deliberately replace only `plugins: [compactBrowserEnglish]` with
+`plugins: []`, then repeat the complete loaded reproduction. It fires the
+original `page.goto: Timeout 2000ms exceeded`: **one failed, ten passed**,
+25.35 s. Restore the repaired suite from its exact original bytes in
+`finally`, and compare SHA-256 before/after:
+`e6596c6a9934181e657a4a630254e8a02c519bdd57b840d3743d5d876c86c814`.
+The hashes match and the buffers compare equal. Receipt: `drill.log` and
+`drill-red.log`. Diagnostic instrumentation and pressure helpers stay in
+ignored `temp/cir4win/`; none is shipped or committed.
+
+The final **uninstrumented** repaired file passes **11/11**, 24.73 s, under
+four continuously busy CPU workers and 4 GiB held memory, with about 12.1 GB
+free at launch. Pressure is active before Vitest starts and remains until
+it exits; the watchdog does not fire and all workers retire in `finally`.
+This final run uses the repository's test/hook defaults and the unchanged
+Playwright bounds, with no test-name filter, CDP throttling or override.
+Receipt: `final-loaded.log` (`--maxWorkers=3`, one complete owning file).
+
+### Scoped qualification
+
+All checks ran directly in this Windows lane, one heavy command at a time:
+
+| Check                                                                  | Result              | Receipt in `temp/cir4win/`                  |
+| ---------------------------------------------------------------------- | ------------------- | ------------------------------------------- |
+| `npm.cmd run typecheck` (five projects)                                | exit 0              | `typecheck.log`                             |
+| Changed-file ESLint, `--max-warnings=0`                                | exit 0              | `lint.log`                                  |
+| Changed-file Prettier check                                            | exit 0              | `prettier.log`                              |
+| `npm.cmd run deadcode` (plain knip)                                    | exit 0              | `deadcode.log`                              |
+| `npx.cmd jscpd`                                                        | exit 0, zero clones | `duplication.log`                           |
+| Localization, host API, reference                                      | all exit 0          | `l10n.log`, `host-api.log`, `reference.log` |
+| Plan, regenerated roadmap, cycles                                      | all exit 0          | `plan.log`, `roadmap.log`, `cycles.log`     |
+| Direct complete estimator suite, repository defaults, `--maxWorkers=3` | 11/11, 23.94 s      | `final-direct.log`                          |
+| Production build (tokens, size, split, host globals, notices)          | exit 0              | `build.log`                                 |
+
+The final test command has no filter or timeout flag; the repository's Windows
+defaults are 15 s per test and 30 s per hook. The Playwright navigation,
+readiness and action bounds remain two seconds. `roadmap:generate` ran and
+produced no tracked byte changes; milestone statuses and catalog features
+are unchanged. No dependency or tool was installed.
+
+Production sizes at the existing caps: activation **550.1/600 KiB**, Model
+API **515.8/525 KiB**, checkpoint **87.3/225 KiB**, webview startup
+**742.2/900 KiB**, deferred JS **31.9/50 KiB**, surface English
+**24.3/25 KiB**, estimator engine **67.0/75 KiB**, estimator panel
+**24.9/25 KiB**. No cap was changed by this lane.
+
+Before the first commit, the worktree had Husky's original stubs without
+the required fail-closed marker. The repository's unchanged
+`npm.cmd run prepare` installer succeeded and installed its exact prescribed
+stubs; `core.hooksPath` remains `.husky/_`. Receipt: `hooks-install.log`.
+Explicit staging and the normal hooks apply to this five-file repair; commit
+output is retained in `commit.log`, and the staged/committed diffs are reread
+after the hook. These local Windows receipts do not claim a hosted Actions
+replay or aggregate-quality result; both remain with the lead.
