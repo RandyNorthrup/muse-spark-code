@@ -1,10 +1,12 @@
 // The capacity estimator's headless bindings (M117, PLAN.md D97): the same
 // ports the extension assembles, with this machine as the fleet. The
-// snapshot reads the working directory's PLAN.md with its git and `gh`
-// evidence through the shared core adapter; the board, broker and catalog
-// bindings belong to unmerged milestones (M96, M109, M110) and refuse with
-// their handoff names until those merge; price lookups stay off outside the
-// editor (M80, D65). History appends arrive with M115's lane-finished trigger.
+// snapshot reads the requesting session's workspace root (one cached
+// estimator per root, never the process working directory) with its git
+// evidence through the shared core adapter; networked `gh` reads stay off
+// headless. The board, broker and catalog bindings belong to unmerged
+// milestones (M96, M109, M110) and refuse with their handoff names until
+// those merge; price lookups stay off outside the editor (M80, D65).
+// History appends arrive with M115's lane-finished trigger.
 import path from 'node:path'
 import { createAcpEstimate, type AcpEstimatePort } from '../../acp/estimate'
 import { lazyEstimator, type EstimatorSourcePorts } from '../../host/estimator/estimatorBundle'
@@ -31,7 +33,9 @@ export interface RuntimeEstimatorPortsDeps {
 }
 
 /** The milestone bindings; board, broker and catalog refuse until they merge. */
-export function runtimeEstimatorPorts(deps: RuntimeEstimatorPortsDeps): EstimatorSourcePorts {
+export function runtimeEstimatorPorts(
+  deps: RuntimeEstimatorPortsDeps & { readonly root: string },
+): EstimatorSourcePorts {
   return estimatorSourcePorts(
     () => ({
       enabled: false,
@@ -42,38 +46,71 @@ export function runtimeEstimatorPorts(deps: RuntimeEstimatorPortsDeps): Estimato
     planSnapshotLoader({
       bundlePath: deps.snapshotBundlePath,
       log: deps.log,
-      root: process.cwd(),
+      root: deps.root,
+      // Headless runs never do networked reads (M80, PLAN.md D65).
+      networkAllowed: false,
       ...(deps.loadBundle !== undefined && { loadBundle: deps.loadBundle }),
     }),
   )
 }
 
 /** The snapshot bundle beside the estimator engine bundle. */
-function portsWith(deps: RuntimeEstimatorDeps): () => EstimatorSourcePorts {
+function portsWith(deps: RuntimeEstimatorDeps, root: string): () => EstimatorSourcePorts {
   return () =>
     runtimeEstimatorPorts({
       snapshotBundlePath: path.join(path.dirname(deps.bundlePath), PLAN_SNAPSHOT_BUNDLE_FILE),
       log: deps.log,
+      root,
       ...(deps.loadBundle !== undefined && { loadBundle: deps.loadBundle }),
     })
 }
 
-/** The ACP agent's `/estimate`: headless estimates over the local fleet. */
-export function createRuntimeEstimate(deps: RuntimeEstimatorDeps): AcpEstimatePort {
+/** An estimator bound to one workspace root; one lives per root. */
+function estimatorFor(
+  deps: RuntimeEstimatorDeps,
+  root: string,
+  cache: Map<string, ReturnType<typeof lazyEstimator>>,
+): ReturnType<typeof lazyEstimator> {
+  const known = cache.get(root)
+  if (known !== undefined) return known
   const estimator = lazyEstimator({
     bundlePath: deps.bundlePath,
     log: deps.log,
-    ports: portsWith(deps),
+    ports: portsWith(deps, root),
     ...(deps.loadBundle !== undefined && { loadBundle: deps.loadBundle }),
   })
+  cache.set(root, estimator)
+  return estimator
+}
+
+/** The ACP agent's `/estimate`: headless estimates over the local fleet. */
+export function createRuntimeEstimate(deps: RuntimeEstimatorDeps): AcpEstimatePort {
+  // Each requesting session reads its own workspace root: an editor that
+  // opened workspace B never estimates workspace A's plan, and each root's
+  // estimator is built once and reused.
+  const estimators = new Map<string, ReturnType<typeof lazyEstimator>>()
+  // Price formatting is root-independent, but it still runs through the
+  // requesting session's own estimator: nothing here reads process.cwd().
+  let active: ReturnType<typeof lazyEstimator> | undefined
+  const forSession = (cwd: string): ReturnType<typeof lazyEstimator> =>
+    estimatorFor(deps, cwd, estimators)
   return createAcpEstimate({
     // Outside the editor there is no workspace preference: headless runs
     // optimize for cost under their budget (M80, PLAN.md D65).
     context: () => ({ asOf: new Date().toISOString(), optimize: 'cost' }),
-    runner: () => ({
-      estimate: (request, signal) => estimator.estimate(request, signal),
+    runner: (cwd) => ({
+      estimate: (request, signal) => {
+        const estimator = forSession(cwd)
+        active = estimator
+        return estimator.estimate(request, signal)
+      },
     }),
-    money: { price: (price) => estimator.price(price) },
+    money: {
+      price: (price) => {
+        if (active === undefined) throw new Error('estimate has not run yet')
+        return active.price(price)
+      },
+    },
   })
 }
 
@@ -82,7 +119,10 @@ export async function runRuntimeEstimateCommand(
   argv: readonly string[],
   deps: RuntimeEstimatorDeps & { write(text: string): void; error(text: string): void },
 ): Promise<number> {
-  const runner = lazyEstimator({ ...deps, ports: portsWith(deps) })
+  // The standalone command runs in the requesting workspace: its own
+  // invocation directory is the session root, read once at entry.
+  const root = process.cwd()
+  const runner = lazyEstimator({ ...deps, ports: portsWith(deps, root) })
   return await runEstimateCommand(argv, {
     context: () => ({ asOf: new Date().toISOString(), optimize: 'cost' }),
     runner,

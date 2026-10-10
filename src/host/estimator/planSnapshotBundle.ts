@@ -8,22 +8,26 @@
 // There is no fallback without it: an estimate without its snapshot refuses
 // with the reason, the log has the cause, and the next estimate tries again.
 import type { EstimateGoal } from '../../shared/estimate'
-import { UI_TEXT } from '../../shared/constants'
+import { UI_TEXT, uiLocale } from '../../shared/l10n/text'
 import { forgetFile, requireFile } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type * as PlanSnapshotSource from './planSnapshotSource'
 
 type SnapshotSource = typeof PlanSnapshotSource.createPlanSnapshotSource
+type SnapshotTextInstaller = typeof PlanSnapshotSource.installPlanSnapshotText
 
 /** Whether a required module is the snapshot bundle (PLAN.md §8). */
 export function isPlanSnapshotBundle(value: unknown): value is {
   readonly createPlanSnapshotSource: SnapshotSource
+  readonly installPlanSnapshotText: SnapshotTextInstaller
 } {
   return (
     typeof value === 'object' &&
     value !== null &&
     'createPlanSnapshotSource' in value &&
-    typeof value.createPlanSnapshotSource === 'function'
+    typeof value.createPlanSnapshotSource === 'function' &&
+    'installPlanSnapshotText' in value &&
+    typeof value.installPlanSnapshotText === 'function'
   )
 }
 
@@ -33,6 +37,8 @@ export interface PlanSnapshotLoaderDeps {
   readonly log: Logger
   /** The workspace root holding PLAN.md; empty refuses every snapshot. */
   readonly root: string
+  /** Whether the networked `gh` collection may run; defaults to false. */
+  readonly networkAllowed?: boolean | undefined
   /** How the bundle is loaded: Node's `require` unless a test hands in the module. */
   readonly loadBundle?: ((file: string) => unknown) | undefined
 }
@@ -49,9 +55,10 @@ function describe(error: unknown): string {
  */
 export function planSnapshotLoader(
   deps: PlanSnapshotLoaderDeps,
-): (goal: EstimateGoal, asOf: string) => Promise<unknown> {
-  let source: ((goal: EstimateGoal, asOf: string) => Promise<unknown>) | undefined
-  return async (goal, asOf) => {
+): (goal: EstimateGoal, asOf: string, signal?: AbortSignal) => Promise<unknown> {
+  let source:
+    ((goal: EstimateGoal, asOf: string, signal?: AbortSignal) => Promise<unknown>) | undefined
+  return async (goal, asOf, signal) => {
     if (source === undefined) {
       const { bundlePath, loadBundle = requireFile } = deps
       let bundle: unknown
@@ -68,8 +75,14 @@ export function planSnapshotLoader(
         }
         throw new Error(UI_TEXT.estimateUnavailable)
       }
-      source = bundle.createPlanSnapshotSource({ root: deps.root })
+      // Each bundle keeps its own language state: the snapshot bundle gets
+      // the caller's table before it reads anything.
+      bundle.installPlanSnapshotText(UI_TEXT, uiLocale())
+      source = bundle.createPlanSnapshotSource({
+        root: deps.root,
+        ...(deps.networkAllowed !== undefined && { networkAllowed: deps.networkAllowed }),
+      })
     }
-    return await source(goal, asOf)
+    return await source(goal, asOf, signal)
   }
 }

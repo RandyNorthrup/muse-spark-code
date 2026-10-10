@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
-import { fleetFromHost } from '../../src/host/estimator/localFleet'
+import { fleetFromHost, localFleet } from '../../src/host/estimator/localFleet'
 import { chainLanes } from './helpers/estimator/fixtures'
 
 const AS_OF = '2026-10-06T12:00:00.000Z'
@@ -78,5 +78,9 @@ describe('M117 local fleet', () => {
       { platform: 'linux', arch: 'x64', cores: 8, ramGiB: 0 },
     ])
       expect(() => fleetFromHost(host, kinds, AS_OF)).toThrow(/unsupported-platform/)
+  })
+  it('stamps the passed asOf instead of a second clock', () => {
+    const fleet = localFleet(chainLanes(), AS_OF)
+    expect(fleet.asOf).toBe(AS_OF)
   })
 })
