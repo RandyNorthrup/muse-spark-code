@@ -2040,6 +2040,7 @@ export const EN = {
   openPullRequestConfirm: 'Open pull request #{number} in a new window?',
   openPullRequestBy: 'By {author}',
   openPullRequestBranches: 'From {head} into {base}',
+  openPullRequestRepository: 'Repository: {repository}',
   openPullRequestOwnDetail:
     'Your own pull request: checked out at its head commit in a worktree beside the repository.',
   openPullRequestHeldDetail:

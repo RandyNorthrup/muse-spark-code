@@ -1667,6 +1667,7 @@
   "openPullRequestConfirm": "プル リクエスト #{number} を新しいウィンドウで開きますか?",
   "openPullRequestBy": "作成者: {author}",
   "openPullRequestBranches": "{head} から {base} へ",
+  "openPullRequestRepository": "リポジトリ: {repository}",
   "openPullRequestOwnDetail": "自分のプル リクエスト: リポジトリの隣のワークツリーに、最新のコミットでチェックアウトされます。",
   "openPullRequestHeldDetail": "他のユーザーが作成したものです: Muse Spark 専用のストレージにチェックアウトされます。新しいウィンドウでは、そこで信頼するまで会話がプランモードで保留され、このワークツリーのプロジェクトのルール、スキル、フック、MCP サーバーはオフのままです。",
   "openPullRequestUnfilteredDetail": "Git ではチェックアウトしません。ファイルはコミットに保存されているとおりに書き込まれるため、Git のフィルター、フック、変換は実行されません。LFS ファイルはポインターのまま、改行はコミットされたままです。リンクはリンク先を内容とするファイルに、サブモジュールは空のフォルダーになります。ワークツリーを信頼しても書き直されません。",

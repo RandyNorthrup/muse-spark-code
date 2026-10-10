@@ -1723,6 +1723,7 @@
   "openPullRequestConfirm": "Ouvrir la pull request #{number} dans une nouvelle fenêtre ?",
   "openPullRequestBy": "Par {author}",
   "openPullRequestBranches": "De {head} vers {base}",
+  "openPullRequestRepository": "Dépôt : {repository}",
   "openPullRequestOwnDetail": "Votre propre pull request : extraite à son dernier commit dans une arborescence de travail à côté du dépôt.",
   "openPullRequestHeldDetail": "Une autre personne l’a écrite : elle est extraite dans le stockage propre à Muse Spark, et la nouvelle fenêtre maintient la conversation en mode Planification, avec les règles du projet, compétences, hooks et serveurs MCP de cette arborescence de travail désactivés, jusqu’à ce que vous l’y approuviez.",
   "openPullRequestUnfilteredDetail": "Git ne l’extrait pas : ses fichiers sont écrits exactement tels que le commit les stocke, donc aucun filtre, hook ni conversion de Git ne s’exécute. Les fichiers LFS restent des pointeurs et les fins de ligne restent telles qu’elles ont été validées ; les liens deviennent des fichiers contenant leur cible, et les sous-modules des dossiers vides. Approuver l’arborescence de travail ne les réécrit pas.",

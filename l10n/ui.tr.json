@@ -1695,6 +1695,7 @@
   "openPullRequestConfirm": "#{number} numaralı çekme isteği yeni bir pencerede açılsın mı?",
   "openPullRequestBy": "Yazan: {author}",
   "openPullRequestBranches": "{head} dalından {base} dalına",
+  "openPullRequestRepository": "Depo: {repository}",
   "openPullRequestOwnDetail": "Kendi çekme isteğiniz: deponun yanındaki bir çalışma ağacında son işlemesinde kullanıma alınır.",
   "openPullRequestHeldDetail": "Başka biri yazdı: Muse Spark'ın kendi depolama alanında kullanıma alınır ve yeni pencere, siz orada güvenene kadar konuşmayı Planlama modunda, bu çalışma ağacının proje kuralları, becerileri, kancaları ve MCP sunucuları kapalı olarak tutar.",
   "openPullRequestUnfilteredDetail": "Git onu kullanıma almaz: dosyaları commit’in sakladığı haliyle aynen yazılır, bu yüzden hiçbir Git filtresi, kancası veya dönüşümü çalışmaz. LFS dosyaları işaretçi olarak, satır sonları commit edildiği gibi kalır; bağlantılar hedeflerini içeren dosyalara, alt modüller boş klasörlere dönüşür. Çalışma ağacına güvenmek onları yeniden yazmaz.",

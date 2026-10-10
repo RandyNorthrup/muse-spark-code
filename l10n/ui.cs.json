@@ -1751,6 +1751,7 @@
   "openPullRequestConfirm": "Otevřít žádost o přijetí změn #{number} v novém okně?",
   "openPullRequestBy": "Od {author}",
   "openPullRequestBranches": "Z {head} do {base}",
+  "openPullRequestRepository": "Úložiště: {repository}",
   "openPullRequestOwnDetail": "Vaše vlastní žádost o přijetí změn: rezervovaná na svém posledním potvrzení v pracovním stromu vedle úložiště.",
   "openPullRequestHeldDetail": "Napsal ji někdo jiný: rezervuje se ve vlastním úložišti Muse Spark a nové okno drží konverzaci v režimu Plán, s vypnutými pravidly projektu, dovednostmi, hooky a servery MCP tohoto pracovního stromu, dokud mu tam neudělíte důvěru.",
   "openPullRequestUnfilteredDetail": "Git ho neotevírá: jeho soubory se zapíší přesně tak, jak je commit ukládá, takže neproběhne žádný filtr, hook ani převod Gitu. Soubory LFS zůstanou ukazateli a konce řádků zůstanou, jak byly zapsány; odkazy se stanou soubory s cílem odkazu a submoduly prázdnými složkami. Udělení důvěry pracovnímu stromu je nepřepíše.",
