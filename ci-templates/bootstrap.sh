@@ -4,7 +4,12 @@
 set +x
 set -efu
 umask 077
-muse_setup="$(
+# Parent holders own paths, never credentials. Reserve their namespace before
+# assigning the bootstrap result, so declared bindings cannot be overwritten.
+for muse_ci_internal_alias in ${MUSE_CI_KEY_ALIASES:-}; do
+  case "$muse_ci_internal_alias" in ''|[0-9]*|*[!A-Za-z0-9_]*|muse_ci_internal_*|MUSE_CI_*|MUSE_INPUT_*|MUSE_AGENT_*) echo 'muse-spark: invalid or reserved key alias name' >&2; exit 1;; esac
+done
+muse_ci_internal_setup="$(
   unset @MUSE_KEY_NAMES@
   # Extra bindings must be declared by NAME, never by value. The launcher
   # reads this same name list and also scrubs every copy of the value.
@@ -26,12 +31,9 @@ muse_setup="$(
   printf '%s:%s' "$muse_start_ms" "$muse_dir"
   trap - EXIT HUP INT TERM
 )"
-muse_start_ms="${muse_setup%%:*}"
-muse_dir="${muse_setup#*:}"
-# An exec failure still belongs to this shell, using the same sanitized
-# subshell; successful exec belongs to ci-entry from its first statement.
-# The trap copies the temp path first: the unset below clears muse_dir, so
-# expanding it afterwards trips set -u and skips the removal (RVCM80CI4 P2).
-muse_cleanup_dir="$muse_dir"
-trap '(muse_rm_dir="$muse_cleanup_dir"; unset @MUSE_KEY_NAMES@; for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do unset "$muse_alias"; done; timeout -s KILL 5 rm -rf "$muse_rm_dir" 2>/dev/null || rm -rf "$muse_rm_dir")' EXIT HUP INT TERM
-MUSE_CI_TEMP="$muse_dir" MUSE_CI_BOOTSTRAP_START_MS="$muse_start_ms" MUSE_INPUT_AGENT_PACKAGE="$muse_dir/agent.tgz" exec node "$muse_dir/launcher/package/ci/lib/ci-entry.mjs" @MUSE_SYSTEM@
+muse_ci_internal_start_ms="${muse_ci_internal_setup%%:*}"
+muse_ci_internal_dir="${muse_ci_internal_setup#*:}"
+# An exec failure still belongs to this shell; successful exec belongs to
+# ci-entry. The reserved holders survive both generated and alias unsets.
+trap '(muse_ci_internal_rm_dir="$muse_ci_internal_dir"; unset @MUSE_KEY_NAMES@; for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do unset "$muse_alias"; done; timeout -s KILL 5 rm -rf "$muse_ci_internal_rm_dir" 2>/dev/null || rm -rf "$muse_ci_internal_rm_dir")' EXIT HUP INT TERM
+MUSE_CI_TEMP="$muse_ci_internal_dir" MUSE_CI_BOOTSTRAP_START_MS="$muse_ci_internal_start_ms" MUSE_INPUT_AGENT_PACKAGE="$muse_ci_internal_dir/agent.tgz" exec node "$muse_ci_internal_dir/launcher/package/ci/lib/ci-entry.mjs" @MUSE_SYSTEM@

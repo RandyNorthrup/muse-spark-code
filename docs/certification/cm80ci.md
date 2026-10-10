@@ -169,8 +169,9 @@ exact-template suite needs a POSIX shell and runs on Linux and macOS.
 
 ## R4: shell never touches the key (CM80CIR4, 2026-10-10)
 
-This is the current design and supersedes the R2/R3 transport and lifecycle
-claims above. The shell's download subshell removes the single generated
+This transport design supersedes the R2/R3 transport and lifecycle claims
+above. R6 below supersedes its Azure timing and parent-holder ownership.
+The shell's download subshell removes the single generated
 key-name/alias list without reading values. Only the Node launcher reads the
 vendor credential source; it strips names and all value copies, refuses
 conflicts and keeps the value in memory for the trusted private stdin and
@@ -246,6 +247,9 @@ with 126; restored byte-exact.
 
 ## R5: RVCM80CI4 findings fixed (lane CM80CIR5, 2026-10-10)
 
+Historical receipt: R6 below replaces the Azure time expression and cleanup
+holder policy. The `system` help condition remains current.
+
 Review RVCM80CI4 at `8b38be1ef` (kubuntu) confirmed 1 P1, 1 P2, 1 P3. All
 three are fixed below with a regression test each; every fix sweeps the
 lane for siblings of the same kind. Fakes only; no real CI runs, no live
@@ -276,3 +280,109 @@ launcher keeps its bootstrap-start fallback for any value it cannot parse.
 - `referenceGenerator`: 117 passed (includes the new R5-P3 condition test).
 - Typecheck, eslint and prettier on changed files, `check:l10n`,
   `check:reference` and `npm run build`: see the R5 lane report.
+
+## R6: all RVCM80CI5 findings fixed (CM80CIR6 in CM80CIR4, 2026-10-10)
+
+Reviewed baseline: `1f0e7dc052e86a88f2b000284296cf55346beddc`.
+The lead directed removal of Azure's vendor time expression and protection of
+parent cleanup holders with a dedicated prefix. Both P2 findings and the P3
+acceptance gap are fixed; the sweep includes every old parent holder and all
+four generated templates. No dependency, widened gate, paid/live call, hosted
+vendor run, merge, push or subagent. No installation was needed.
+
+| Finding                                                                                    | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Regression                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Red drill                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 P2: Azure's literal Z asserts UTC for a non-UTC organization and loses real elapsed time | Delete the template's vendor time expression and the launcher's reader. Azure uses measured bootstrap epoch time minus `CI_AZURE_SETUP_MS` (600,000 ms); default job and fixture are 45 minutes. An earlier explicit measured job start can only reduce remaining time. Missing bootstrap refuses.                                                                                                                                                                                                                                                            | `ciRun` R6-P2-1 checks east/west-offset and malformed legacy times cannot influence admission, the 35-minute job refuses, 45 admits, six measured bootstrap minutes refuse, missing/future bootstrap refuses and an earlier job start remains conservative. `ciTemplates` checks declared/job timeout equality and admission after the full download bound.                                                                                                                                                                                                                                                | D1: setup reserve set to zero, named R6-P2-1 and two sibling deadline tests fail (3 failures). D7: future-start check removed, the same named test fails (1).                                                                                                                                                                                                                                                                                                                                                                                         |
+| 2 P2: declared aliases can overwrite credential bindings and unset cleanup paths           | Every parent holder uses reserved `muse_ci_internal_` names. Shell and Node also reserve `MUSE_CI_`, `MUSE_INPUT_`, `MUSE_AGENT_`, covering temp/start/package bindings assigned at exec and configuration overwritten by wrappers. Shell refuses them before download; Node refuses them too. Ordinary aliases matching `muse_cleanup_dir`, `muse_rm_dir`, `muse_setup`, `muse_dir`, `muse_start_ms`, `muse_sum` and `muse_alias` preserve their original credential values until Node takes them. Subshell holders are already sanitized before assignment. | `ciTemplatesRun` successful exact-script alias runs for all four systems prove trusted exec stdin, child env/argv/log scrubbing and temp removal. Twenty reserved-alias refusal cases (five names × four systems) prove the alias guard refuses before any bootstrap child, including the temp/start/package and agent-version siblings. Exact generated parent slices apply the real unset list and aliases under sh -e, dash -e and bash -e; all 12 runs remove the directory and retain missing-exec exit 127. The prefix test guards the generated unset list; `ciRun` guards independent Node intake. | D2: R5 bootstrap restored and regenerated, 13 failures including all four successful alias and cleanup cases. D3: Node prefix check removed, named intake test fails (1). D4: shell prefix check removed and regenerated, all four before-child cases fail (4). D5: reserved removal holder added to generated unset list, prefix guard and all four cleanup cases fail (5). D8: shell configuration-prefix guards removed, sixteen transport/configuration cases fail. D9: Node configuration-prefix guard removed, the named intake case fails (1). |
+| 3 P3: word/specifier tests accept an unmatched parenthesis in the vendor time expression   | Final Azure template must contain no runtime time expression or vendor-time variable; obsolete formatter tests are replaced by this absence guard. Existing condition-word checks remain.                                                                                                                                                                                                                                                                                                                                                                     | `ciTemplates` R6-P3 reads the final generated template and its parsed variables.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | D6: reinsert `$[ format('…', pipeline.startTime)) ]`, YAML remains valid but R6-P3 fails (1).                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+
+### Azure allowance and qualification boundary
+
+The selected allowance is **10 minutes (600,000 ms)** for job initialization,
+full-history checkout and cold UseNode setup before the bootstrap's timestamp.
+It is a conservative policy reserve for a qualified Linux runner, deliberately
+separate from the measured bootstrap and its 120-second download bound; it is
+not a measured hosted maximum or a universal Azure guarantee. The default
+20-minute run's full post-admission tail is 1,764,000 ms (29.4 minutes).
+Ten minutes setup + two minutes bootstrap download + 29.4 minutes launcher
+and tails = 41.4 minutes, leaving 3.6 minutes inside the new 45-minute job.
+Admission always deducts actual bootstrap elapsed time; a slow download or
+unpack is not replaced by the two-minute figure. The runner owner must prove
+all pre-bootstrap setup fits the ten-minute allowance before qualification.
+A runner exceeding that requirement must not use this template; merely raising
+job timeout is not proof. PLAN D65/M80, the guide, README, changelog and roadmap
+state the same number and boundary. Organization timezone is irrelevant.
+
+### Drills and restoration
+
+Each drill ran its whole owning file with `npx vitest run <file> --maxWorkers=3`
+and repository timeouts. Each mutated source and generated copy was restored
+from saved bytes in a finally block, then compared with its original SHA-256.
+All nine restorations passed. The final P3 drill used the review's extra closing
+parenthesis, so this is proof of the previously missed malformed expression.
+
+The first green attempt exposed an outdated 35-minute Azure fixture and a
+cleanup-test extractor that selected the inner timestamp assignment. The
+fixture now follows the 45-minute template; the extractor selects the quoted
+parent result assignment. D2 then reproduced the real old trap failure with
+that corrected extractor. No timeout, assertion or gate was relaxed. Linux
+runs dash explicitly; macOS runs its shipped sh/bash without adding a dash
+installation requirement. Windows retains the existing POSIX-suite boundary.
+All editors use this same headless runtime; there is no editor-specific change.
+The duplication gate exposed 16 lines of repeated per-test temp lifecycle in
+the two owning suites. They now call one lifecycle factory in the existing
+`ciFixtures.ts`; `jscpd` reports zero clones with its unchanged zero threshold.
+Creation, cleanup and the missing-layout refusal keep the same behavior.
+
+### Verification (kubuntu, directly in this worktree)
+
+- Three complete owning files: `ciTemplates.test.ts` (31),
+  `ciTemplatesRun.test.ts` (43), `ciRun.test.ts` (39): **113 passed** before
+  the last transport/configuration drills; the initial guard set passed 97.
+  Repository timeouts throughout, no `--testTimeout`.
+- Final restored-tree checks and production sizes are recorded in the closing
+  receipt below.
+- Full quality and hosted/live qualification remain lead-owned under the rig
+  brief. Existing external boundaries remain hosted vendor validation,
+  GitLab/Bitbucket external-temp artifact transport, Bitbucket automatic-process
+  isolation/timeout receipts and M80 release/live receipts. These fake tests
+  close all three owned review findings and do not close those boundaries.
+
+Restored implementation and regression bytes:
+
+| File                                   | SHA-256                                                            |
+| -------------------------------------- | ------------------------------------------------------------------ |
+| `action/lib/ci-run.mjs`                | `8b95793460449e931368fb0156545c1bf4ec9fe72e5df39d95fc42619db79458` |
+| `action/lib/ci-key.mjs`                | `3e0dd3c2056f7fe185e40b690ee76b061bf08c7da8452428f12c96c92356dc31` |
+| `ci-templates/bootstrap.sh`            | `ce0bee8d4069929c8cc55cf7ef84b52ec8d5af6bbe42dae9d516766db84c86c6` |
+| `ci-templates/gitlab-ci.yml`           | `3ebdee5298a8e0b7a23708c7be1f2e634ac8a47d5be57dbcebba44bd67a9974e` |
+| `ci-templates/azure-pipelines.yml`     | `bfd960aeeafee0c8b684ed9a8a22fb2a7be9d98b299e4ab8d8b079e7ec2aff92` |
+| `ci-templates/Jenkinsfile`             | `c8c7a37f31f362a0d92d80a928f8467766ddc11f8c8ff357c534b859adbbeb5e` |
+| `ci-templates/bitbucket-pipelines.yml` | `d21c214f53b5acf96cb4930cc900eb5f014c56c6ec19d92e3aa343fd20c4b51a` |
+| `test/unit/ciRun.test.ts`              | `46c3e01676c9df491ebc2bc94fb0e5ed004ddbae6a883f594bb6e346a7249556` |
+| `test/unit/ciTemplates.test.ts`        | `646c33307f07cd514f81a483e62e0bb503ece10eb2324a372d8ac23e38c3ec29` |
+| `test/unit/ciTemplatesRun.test.ts`     | `b62dec6f5fc9d0eacc3b997cf23f76f8c4139ed5777531c1d72930738f943a9e` |
+| `test/unit/helpers/ciFixtures.ts`      | `1b0d36ef4ad301494f4ab3c6642375089d70034fb551ef59ce45155f5a8d1029` |
+
+### Closing receipt (2026-10-10, kubuntu)
+
+- Final restored source: owning files **113/113 passed** (31 templates,
+  43 exact-script cases, 39 launcher cases), then reference generator
+  **117/117 passed**: **230 tests**, repository timeouts, maxWorkers=3,
+  at most three files in a run. No raised timeout or filtered test.
+- All five TypeScript projects passed via `npm run typecheck`; the final
+  helper/tests then passed `npm run typecheck:unit`. Targeted ESLint (zero
+  warnings), Prettier on all supported changed files, plain knip, jscpd
+  (zero clones), localization (14 UI/14 usage tables, 252 manifest strings,
+  1512 source files, zero problems), host API, reference and roadmap gates
+  all exited 0. Bootstrap shell syntax and `git diff --check` passed.
+  Jenkinsfile/bootstrap.sh have no inferred Prettier parser; their exact
+  generated shell is exercised by the POSIX suite instead.
+- `npm run build` exited 0 with every existing budget/split/global/notice
+  gate intact. Bytes/KiB: extension 563,348 / 550.14 (cap 600), Model API
+  528,186 / 515.81 (cap 525), checkpoint store 89,366 / 87.27 (cap 225),
+  reference 57,689 / 56.34 (cap 125). No cap or bundle-layout change.
+- All nine deliberate drills failed their named regressions and restored
+  every mutated file byte-exact. No new deferral, dependency, installation,
+  daemon or background service. Full aggregate quality and hosted/live
+  receipts remain lead-owned as the rig/common brief directs.

@@ -10,46 +10,27 @@ import { spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
 import { CI_BOOTSTRAP_UNSET, CI_OUT_DIR } from '../../action/lib/ci-run.mjs'
-import {
-  completedResult,
-  NODE,
-  PROCESS_SUITE,
-  REPO_ROOT,
-  tempLayout,
-  type TempLayout,
-} from './helpers/actionFixtures'
+import { completedResult, NODE, PROCESS_SUITE } from './helpers/actionFixtures'
 import {
   agentReports,
   CI_KEY,
   ciPackage,
+  ciTestLayout,
   cloneFor,
   hasKey,
   REPO_VERSION,
   systemEnv,
   type CiPackage,
 } from './helpers/ciFixtures'
-import { scriptOf, templateText } from './helpers/ciTemplateText'
+import { bootstrapOf, scriptOf, templateText } from './helpers/ciTemplateText'
 
 const SYSTEMS = ['gitlab', 'azure', 'jenkins', 'bitbucket'] as const
 const SHIMMED = ['date', 'curl', 'sha256sum', 'tar', 'mktemp', 'mkdir', 'git', 'cp']
 const isPosix = process.platform !== 'win32'
-const state: { layout?: TempLayout } = {}
-
-beforeEach(() => {
-  state.layout = tempLayout()
-})
-
-afterEach(() => {
-  state.layout?.cleanup()
-})
-
-function layout(): TempLayout {
-  if (state.layout === undefined) throw new Error('no layout')
-  return state.layout
-}
+const layout = ciTestLayout()
 
 /** Recording shims ahead of the real programs: each logs its env and argv, then runs the real one. */
 function shims(): { dir: string; log: string } {
@@ -221,7 +202,13 @@ describe.runIf(isPosix)('the exact template scripts', PROCESS_SUITE, () => {
       const pkg = ciPackage(layout().root, { exec: { result: completedResult() } })
       const run = runTemplate(system, pkg, {
         MUSE_SPARK_MODEL_API_KEY: CI_KEY,
-        MUSE_CI_KEY_ALIASES: 'RENAMED_BINDING ARBITRARY_ALIAS',
+        MUSE_CI_KEY_ALIASES:
+          'RENAMED_BINDING ARBITRARY_ALIAS muse_cleanup_dir muse_rm_dir muse_setup muse_dir muse_start_ms muse_sum muse_alias',
+        muse_cleanup_dir: CI_KEY,
+        muse_rm_dir: CI_KEY,
+        muse_dir: CI_KEY,
+        muse_start_ms: CI_KEY,
+        muse_sum: CI_KEY,
         RENAMED_BINDING: CI_KEY,
         ARBITRARY_ALIAS: CI_KEY,
         META_API_KEY: CI_KEY,
@@ -235,6 +222,33 @@ describe.runIf(isPosix)('the exact template scripts', PROCESS_SUITE, () => {
       const exec = agentReports(pkg).find((line) => line['command'] === 'exec' && 'keyLine' in line)
       expect(exec?.['keyLine']).toBe(CI_KEY)
       for (const entry of shimLogs(run.log)) expect(hasKey(entry.text), entry.name).toBe(false)
+      expect(hasKey(run.output)).toBe(false)
+      expect(existsSync(tempOf(run.log))).toBe(false)
+    },
+  )
+
+  it.each(
+    SYSTEMS.flatMap((system) =>
+      [
+        'muse_ci_internal_dir',
+        'MUSE_CI_TEMP',
+        'MUSE_CI_BOOTSTRAP_START_MS',
+        'MUSE_INPUT_AGENT_PACKAGE',
+        'MUSE_AGENT_VERSION',
+      ].map((alias) => ({ system, alias })),
+    ),
+  )(
+    'R6-P2-2: $system refuses reserved alias $alias before a bootstrap child starts',
+    ({ system, alias }) => {
+      const pkg = ciPackage(layout().root)
+      const run = runTemplate(system, pkg, {
+        MUSE_CI_KEY_ALIASES: alias,
+        [alias]: CI_KEY,
+      })
+      expect(run.status).toBe(1)
+      expect(run.output).toContain('muse-spark: invalid or reserved key alias name')
+      expect(shimLogs(run.log)).toEqual([])
+      expect(agentReports(pkg)).toEqual([])
       expect(hasKey(run.output)).toBe(false)
     },
   )
@@ -328,50 +342,74 @@ describe.runIf(isPosix)('the exact template scripts', PROCESS_SUITE, () => {
     expect(existsSync(tempOf(run.log))).toBe(false)
   })
 
-  it('R5-P2: the parent trap removes the temp dir after its unset runs, under sh and bash', () => {
-    // The exact parent assignment and trap from the bootstrap source, with
-    // the generated key-name list expanded as the templates carry it. An
-    // exec failure (a Node tool missing from PATH on a persistent agent)
-    // fires the trap; unsetting muse_dir before expanding it tripped set -u
-    // and left the 0700 directory behind (RVCM80CI4 P2).
-    const source = readFileSync(path.join(REPO_ROOT, 'ci-templates', 'bootstrap.sh'), 'utf8')
-      .split('@MUSE_KEY_NAMES@')
-      .join(CI_BOOTSTRAP_UNSET.join(' '))
-    const lines = source.split('\n')
-    const start = lines.findIndex((line) => line.startsWith('muse_start_ms="${muse_setup'))
-    let trap = -1
-    for (let index = lines.length - 1; index >= 0; index -= 1) {
-      if (lines[index]?.startsWith("trap '(") === true) {
-        trap = index
-        break
-      }
-    }
-    expect(start).toBeGreaterThan(-1)
-    expect(trap).toBeGreaterThan(start)
-    const parent = lines.slice(start, trap + 1).join('\n')
-    expect(parent).toContain('muse_rm_dir="$muse_cleanup_dir"')
-    expect(parent).toContain('rm -rf "$muse_rm_dir"')
-    for (const shell of ['sh', 'bash']) {
-      const dir = path.join(layout().root, `trap-temp-${shell}`)
-      mkdirSync(dir, { mode: 0o700 })
-      const result = spawnSync(
-        shell,
-        [
-          '-e',
-          '-c',
+  it.each([...SYSTEMS])(
+    'R6-P2-2: %s parent cleanup survives alias unsetting under sh, dash and bash',
+    (system) => {
+      const lines = bootstrapOf(system)
+        .split('\n')
+        .map((line) => line.trim())
+      const start = lines.findIndex((line) => /^muse_(?:ci_internal_)?start_ms="\$\{/.test(line))
+      const trap = lines.findLastIndex((line) => line.startsWith("trap '("))
+      expect(start).toBeGreaterThan(-1)
+      expect(trap).toBeGreaterThan(start)
+      const parent = lines.slice(start, trap + 1).join('\n')
+      const setupName = /\$\{([A-Za-z_][A-Za-z0-9_]*)%%:\*\}/.exec(parent)?.[1]
+      if (setupName === undefined) throw new Error('missing bootstrap result holder')
+      // dash is a Linux runner check; macOS ships sh/bash without dash.
+      const shells = process.platform === 'linux' ? ['sh', 'dash', 'bash'] : ['sh', 'bash']
+      for (const shell of shells) {
+        const dir = path.join(layout().root, `trap-temp-${shell}`)
+        mkdirSync(dir, { mode: 0o700 })
+        const aliases = [
+          'muse_cleanup_dir',
+          'muse_rm_dir',
+          'muse_setup',
+          'muse_dir',
+          'muse_start_ms',
+          'muse_sum',
+          'muse_alias',
+        ]
+        const result = spawnSync(
+          shell,
           [
-            'set -eu',
-            `muse_setup="1700000000000:${dir}"`,
-            parent,
-            'exec muse-spark-exec-probe-missing-binary',
-          ].join('\n'),
-        ],
-        { encoding: 'utf8' },
+            '-e',
+            '-c',
+            [
+              'set -eu',
+              `${setupName}="1700000000000:${dir}"`,
+              parent,
+              'exec muse-spark-exec-probe-missing-binary',
+            ].join('\n'),
+          ],
+          {
+            encoding: 'utf8',
+            env: {
+              PATH: process.env['PATH'],
+              MUSE_MODEL_API_KEY: CI_KEY,
+              MUSE_CI_KEY_ALIASES: aliases.join(' '),
+              ...Object.fromEntries(aliases.map((name) => [name, CI_KEY])),
+            },
+          },
+        )
+        expect(result.status).toBe(127)
+        expect(`${result.stdout}${result.stderr}`).not.toMatch(/unbound variable|parameter not set/)
+        expect(existsSync(dir), `${shell} left ${dir} behind`).toBe(false)
+      }
+    },
+  )
+
+  it('R6-P2-2: generated unset names cannot touch reserved parent holders', () => {
+    expect(CI_BOOTSTRAP_UNSET.some((name: string) => name.startsWith('muse_ci_internal_'))).toBe(
+      false,
+    )
+    for (const system of SYSTEMS) {
+      const body = bootstrapOf(system)
+      const holders = Array.from(
+        body.matchAll(/\b(muse_ci_internal_[a-z_]+)=/g),
+        (match) => match[1],
       )
-      expect(result.status).not.toBe(0)
-      const output = `${result.stdout}${result.stderr}`
-      expect(output).not.toMatch(/unbound variable|parameter not set/)
-      expect(existsSync(dir), `${shell} left ${dir} behind`).toBe(false)
+      expect(holders.length).toBeGreaterThan(0)
+      for (const name of holders) expect(CI_BOOTSTRAP_UNSET).not.toContain(name)
     }
   })
 

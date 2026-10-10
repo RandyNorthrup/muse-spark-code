@@ -28,7 +28,11 @@ const ACTION_KEY_MAX_BYTES = 4096
 
 export function readCiKey(env) {
   const aliases = (env[CI_KEY_ALIASES_VARIABLE] ?? '').split(/\s+/).filter(Boolean)
-  const aliasesValid = aliases.every((name) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name))
+  const aliasesValid = aliases.every(
+    (name) =>
+      /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) &&
+      !/^(?:muse_ci_internal_|MUSE_(?:CI|INPUT|AGENT)_)/.test(name),
+  )
   const names = [...CI_KEY_VARIABLES, ...aliases]
   const values = names
     .map((name) => env[name])

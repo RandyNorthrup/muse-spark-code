@@ -9,12 +9,14 @@ import { createHash } from 'node:crypto'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { afterEach, beforeEach } from 'vitest'
 import {
   ACTION_DIR,
   FAKE_AGENT,
   fixtureRepo,
   plainGit,
   REPO_ROOT,
+  tempLayout,
   type FixtureRepo,
   type TempLayout,
 } from './actionFixtures'
@@ -24,6 +26,21 @@ export const PACKAGE_NAME = 'muse-spark-code-acp'
 export const REPO_VERSION = (
   JSON.parse(readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8')) as { version: string }
 ).version
+
+/** The owning suites share per-test temp creation and cleanup. */
+export function ciTestLayout(): () => TempLayout {
+  let current: TempLayout | undefined
+  beforeEach(() => {
+    current = tempLayout()
+  })
+  afterEach(() => {
+    current?.cleanup()
+  })
+  return () => {
+    if (current === undefined) throw new Error('no layout')
+    return current
+  }
+}
 
 export interface CiPackage {
   readonly tarball: string
@@ -151,8 +168,7 @@ export function systemEnv(
         SYSTEM_PULLREQUEST_ISFORK: 'False',
         SYSTEM_PULLREQUEST_PULLREQUESTID: '13',
         MUSE_INPUT_TRUST_PULL_REQUESTS: 'True',
-        MUSE_CI_JOB_TIMEOUT_MINUTES: '35',
-        MUSE_CI_PIPELINE_STARTED_AT: new Date().toISOString(),
+        MUSE_CI_JOB_TIMEOUT_MINUTES: '45',
       }
     }
     case 'jenkins': {
