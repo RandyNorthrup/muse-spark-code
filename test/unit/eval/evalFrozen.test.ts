@@ -1,7 +1,7 @@
 // The frozen M75 harness (M101 lane C-M101-2): the arms and tasks the
 // counted run uses, named exactly, with the digest of their frozen bytes
-// (including the arms' source closure: every helper and value the arms
-// draw, discovered through the import graph in src/core/eval/armSources).
+// (including the arms' source closure: every file the arms reach, by
+// bytes, resolved by the real bundler in src/core/eval/armSources).
 // Changing any arm or task breaks this file on purpose: re-freeze by
 // recording the new digest here and in docs/certification/m101-eval-arms.md,
 // never by weakening the comparison.
@@ -68,7 +68,7 @@ describe('the frozen evaluation harness', () => {
 
   it('keeps the frozen digest', () => {
     expect(evalHarnessDigest()).toBe(
-      '80d6fd0028a04bdad33af83a042bfa2f365500dd348de584260d85909ea95959',
+      '8e4bdefa01d029ca999267ef970c6191528bdb86f3000981a5951f733c6c227c',
     )
   })
 
