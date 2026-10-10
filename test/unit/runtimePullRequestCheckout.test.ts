@@ -405,6 +405,20 @@ function stagedReleaseRecords() {
   }
 }
 
+/** A release refused because `ending` happened: its reason, and the hold still on `folder`. */
+async function expectReleaseRefused(
+  setup: CheckoutSetup,
+  folder: string,
+  released: Awaited<ReturnType<RuntimePullRequestCheckout['releaseHold']>>,
+  ending: 'trust revoked' | 'window stopped',
+): Promise<void> {
+  expect(released.ok).toBe(false)
+  if (ending === 'trust revoked') expect(released.reason).toBe(UI_TEXT.gitRestricted)
+  expect(
+    holdForRoots([folder], setup.heldRoots, await setup.records.list(), process.platform)?.folder,
+  ).toBe(slashedPath(folder))
+}
+
 async function ticketFor(checkout: RuntimePullRequestCheckout, folder: string) {
   const ticket = await checkout.trustTicket(folder)
   if (ticket === undefined) {
@@ -1015,12 +1029,7 @@ describe('runtime pull request checkout (M123 lane P)', () => {
       const ticket = await ticketFor(setup.checkout, result.folder)
       releaseChecks = 0
       const released = await setup.checkout.releaseHold(ticket)
-      expect(released.ok).toBe(false)
-      if (ending === 'trust revoked') expect(released.reason).toBe(UI_TEXT.gitRestricted)
-      expect(
-        holdForRoots([result.folder], setup.heldRoots, await setup.records.list(), process.platform)
-          ?.folder,
-      ).toBe(slashedPath(result.folder))
+      await expectReleaseRefused(setup, result.folder, released, ending)
     },
   )
 
@@ -1079,12 +1088,7 @@ describe('runtime pull request checkout (M123 lane P)', () => {
       }
       files.resume()
       const released = await release
-      expect(released.ok).toBe(false)
-      if (ending === 'trust revoked') expect(released.reason).toBe(UI_TEXT.gitRestricted)
-      expect(
-        holdForRoots([result.folder], setup.heldRoots, await setup.records.list(), process.platform)
-          ?.folder,
-      ).toBe(slashedPath(result.folder))
+      await expectReleaseRefused(setup, result.folder, released, ending)
     },
   )
 
