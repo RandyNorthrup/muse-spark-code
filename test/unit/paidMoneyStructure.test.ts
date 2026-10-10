@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { analyzeFixtures, analyzeSource, MONEY_KEY } from './helpers/moneyTypeGuard'
+import { analyzeFixtures, analyzeSource, MAX_TYPE_DEPTH, MONEY_KEY } from './helpers/moneyTypeGuard'
 
 // Exact-money guard (M121, replacing the PORTS017D runtime walk and text scan).
 //
@@ -176,6 +176,11 @@ const SOURCE = analyzeSource(
     .map((name) => path.join(ROOT, 'src', name)),
 )
 
+/** `Box<Box<…<inner>…>>`, `count` boxes deep. */
+function boxed(count: number, inner: string): string {
+  return `${'Box<'.repeat(count)}${inner}${'>'.repeat(count)}`
+}
+
 // The reviewer's probes (RVPORTS017D) and the 0.17 bypass forms, each its own
 // module so a finding names the probe that caused it.
 const FIXTURES: Readonly<Record<string, string>> = {
@@ -263,6 +268,54 @@ export type B<T> = { a?: A<T>; costUsd: number }`,
   'recursiveGenericInterface.ts': `export interface Chain<T> {
   next?: Chain<T[]>
   data: Record<'fooUsd', number>
+}`,
+  // M121F round 3 (RVM121F2): finite nesting of one generic, sibling order,
+  // the depth bound itself, branching recursion and recursive holdings.
+  'nestedFinite.ts': `export type Box<T> = { data: T }
+export type Holding = { nested: Box<Box<Record<'fooUsd', number>>> }`,
+  'siblingDeepFirst.ts': `export type Box<T> = { data: T }
+export type Holding = {
+  deep: Box<Box<Record<'fooUsd', number>>>
+  shallow: Box<Record<'fooUsd', number>>
+}`,
+  'siblingShallowFirst.ts': `export type Box<T> = { data: T }
+export type Holding = {
+  shallow: Box<Record<'fooUsd', number>>
+  deep: Box<Box<Record<'fooUsd', number>>>
+}`,
+  'siblingInterfaceFirst.ts': `export interface Box<T> {
+  next?: Box<number>
+  data: Record<'fooUsd', T>
+}
+export type Holding = { first: Box<string>; second: Box<number> }`,
+  'siblingInterfaceSecond.ts': `export interface Box<T> {
+  next?: Box<number>
+  data: Record<'fooUsd', T>
+}
+export type Holding = { second: Box<number>; first: Box<string> }`,
+  // `Money` sits exactly at the bound through `far` and one level down
+  // through `near`: a walk that let the first path it met decide would lose
+  // `fooUsd` when `far` comes first.
+  'boundShared.ts': `export type Box<T> = { data: T }
+export type Money = { inner: { fooUsd: number } }`,
+  'boundFarFirst.ts': `import type { Box, Money } from './boundShared'
+export type Holding = { far: ${boxed(MAX_TYPE_DEPTH - 1, 'Money')}; near: Money }`,
+  'boundNearFirst.ts': `import type { Box, Money } from './boundShared'
+export type Holding = { near: Money; far: ${boxed(MAX_TYPE_DEPTH - 1, 'Money')} }`,
+  'depthAtBound.ts': `export type Box<T> = { data: T }
+export type Holding = { nested: ${boxed(MAX_TYPE_DEPTH - 1, "Record<'fooUsd', number>")} }`,
+  'depthPastBound.ts': `export type Box<T> = { data: T }
+export type Holding = { nested: ${boxed(MAX_TYPE_DEPTH, "Record<'fooUsd', number>")} }`,
+  'branchingGeneric.ts': `export type Tree<T> = {
+  left?: Tree<T[]>
+  right?: Tree<[T]>
+  data: Record<'fooUsd', number>
+}`,
+  'recursiveHolding.ts': `export type Chain<T> = { next?: Chain<T[]>; label: string }
+export type Tally<T> = { next?: Tally<T[]>; count: number }
+export interface Totals {
+  fooUsd: Chain<string>
+  barUsd: Tally<string>
 }`,
   'exactNestedMapped.ts': `import type { UsdAmount } from '../../../src/shared/usdSchema'
 export type Totals = {
@@ -432,6 +485,34 @@ describe('exact-money type guard', () => {
 
   it('terminates on a recursive generic interface and still flags its money (RVM121F)', () => {
     expect(probe('recursiveGenericInterface.ts')).toEqual(['recursiveGenericInterface.ts:fooUsd'])
+  })
+
+  it('judges finite nesting of one generic (RVM121F2)', () => {
+    expect(probe('nestedFinite.ts')).toEqual(['nestedFinite.ts:fooUsd'])
+  })
+
+  it.each([
+    'siblingDeepFirst.ts',
+    'siblingShallowFirst.ts',
+    'siblingInterfaceFirst.ts',
+    'siblingInterfaceSecond.ts',
+    'boundFarFirst.ts',
+    'boundNearFirst.ts',
+  ])('flags money whichever sibling comes first in %s (RVM121F2)', (file) => {
+    expect(probe(file)).toEqual([`${file}:fooUsd`])
+  })
+
+  it('judges money at MAX_TYPE_DEPTH and stops past it (the documented limit)', () => {
+    expect(probe('depthAtBound.ts')).toEqual(['depthAtBound.ts:fooUsd'])
+    expect(probe('depthPastBound.ts')).toEqual([])
+  })
+
+  it('terminates on a branching recursive generic and still flags its money', () => {
+    expect(probe('branchingGeneric.ts')).toEqual(['branchingGeneric.ts:fooUsd'])
+  })
+
+  it('terminates when a money key holds a recursive generic, judging its numbers', () => {
+    expect(probe('recursiveHolding.ts')).toEqual(['recursiveHolding.ts:barUsd'])
   })
 
   it('leaves nested and generic mapped exact money alone', () => {

@@ -20314,6 +20314,7 @@ owning usage/money suites, one unit-project typecheck, lint, formatting and
 scoped production measurements retain every cap, including usagePanel's.
 Aggregate quality and the inherited build blocker remain with the lead.
 **RVM121DC P3 (2026-10-09, M121F): closed.** The guard resolves remapped (`as`) mapped keys through the checker's base constraint and walks ordinary wrapper properties to lib-declared mapped money, judging schemas by output only; receipts in `docs/certification/m121.md`.
+**RVM121F and RVM121F2 P3 (2026-10-10, M121F round 3): closed by redesign.** Every guard type walk is one breadth-first pass bounded at `MAX_TYPE_DEPTH` (12) edges, replacing declaration pruning: recursive generics terminate, finite nesting of one generic is judged and sibling order cannot change a finding; receipts in `docs/certification/m121.md`.
 
 ### INT0180B — Complete the 0.18.0 integration (2026-10-07, linuxlt)
 
