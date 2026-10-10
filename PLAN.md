@@ -19196,6 +19196,16 @@ path (§3). **Planned; docs only.** D106 belongs to the MCP connector draft;
 its absence here does not release the number. The design, catalogue,
 numbers, wizard and probe are in `docs/design/judge-fast-path.md`, revised
 2026-10-10 after the third review (`RVJUDGEFAST3`) and the owner's answer.
+**Engine decision (lead, 2026-10-10; `docs/certification/judge-bench.md`
+§8, lane JEVBENCH2).** Under the owner's rule (local only if faster AND
+as accurate AND free), Jev online stays the Judge engine: on the Win11
+GPU both local sizes fit the 5 s veto window (0.8b p95 311 ms, 4b p95
+2,989 ms) but score 0.376/0.375 accuracy against Jev's 0.794 on the
+full 170, and 4b approved 9 must-refuse cases. Local engines are not
+offered as the veto engine until a calibrated local engine shows ~0
+unsafe-approves and accuracy within 2 points of Jev on the full 170.
+Rows provisional: the raw files never reached the lane; re-check on
+delivery.
 
 **Why phase 1 misses** (confirmed against `647f75dfb` and `m98/p2-r4` at
 `f131ffc88`). `auto` resolves to the user's own chat model, 8–14 s per
@@ -20529,7 +20539,15 @@ lane F is planned work. Design: `docs/design/judge-fast-path.md`, revised
 after the third, fourth and fifth reviews (`RVJUDGEFAST3` to
 `RVJUDGEFAST5`). Lane F is split by the lead's ruling of 2026-10-10: F1
 (B1) ships when its review is clean; F2 (B2, default-deny) never blocks
-it.
+it. **Lead decisions 2026-10-10 (lane JEVBENCH2):** Jev online stays the
+Judge engine (local GPU sizes fast enough but 0.376/0.375 vs 0.794, 4b
+with 9 unsafe-approves); local veto engines wait for ~0 unsafe-approves
+and accuracy within 2 points of Jev on the full 170; lanes L/V retune
+the deny question first (no signal on either local model), then
+calibrate per engine; the full 170 cases with seed 42 are the standing
+regression set, the 40-case prefix the smoke check. Evidence and rows:
+`docs/certification/judge-bench.md` §§3/8 (rows provisional pending the
+raw files).
 
 - **Goal.** D107: the judge is our own Jev. A batched, calibrated decision
   engine makes the agent faster (decisions the big model spends a turn or
