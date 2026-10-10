@@ -1,6 +1,6 @@
 // Node's file operations for a file lease (fileLease.ts): exclusive
 // creates (flushed to disk when asked), hard links that fail while the name is taken,
-// exact native ids, and an in-place note rewrite bound to the open file.
+// exact native ids, and an in-place note rewrite of the very file opened.
 
 import { lstatSync, readdirSync, readFileSync } from 'node:fs'
 import {
@@ -14,7 +14,6 @@ import {
   unlink,
   writeFile,
 } from 'node:fs/promises'
-import { sameFile } from '../fs/fileIdentity'
 import type { LeasePort } from './fileLease'
 
 export const nodeLeasePort: LeasePort = {
@@ -29,7 +28,7 @@ export const nodeLeasePort: LeasePort = {
   rename: (from, to) => rename(from, to),
   unlink: (file) => unlink(file),
   lstat: (file) => lstat(file, { bigint: true }),
-  rewriteOwn: async (file, identity, content) => {
+  rewriteOwn: async (file, isOwn, content) => {
     let handle
     try {
       handle = await open(file, 'r+')
@@ -37,9 +36,11 @@ export const nodeLeasePort: LeasePort = {
       return false
     }
     try {
-      // The file opened is the one named: a replacement is never written.
+      // Judged on the opened file itself, its stats and its content: a
+      // replacement at the name is never written, whatever its file id.
       const opened = await handle.stat({ bigint: true })
-      if (!sameFile(opened, identity)) {
+      const current = await handle.readFile()
+      if (!isOwn(opened, current)) {
         return false
       }
       await handle.truncate(0)

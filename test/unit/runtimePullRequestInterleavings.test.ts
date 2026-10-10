@@ -144,6 +144,11 @@ interface Budget {
   revocations: number
   /** Windows whose wall clock may step an hour forward. */
   steps: number
+  /**
+   * Publishes that land and then fail (an I/O error after the link: the
+   * write is in, its caller is told only that something failed).
+   */
+  faults?: number
 }
 
 interface Window {
@@ -189,6 +194,8 @@ class World {
   public readonly revoked = new Set<string>()
   /** The holds whose work is still running, a stale one (run out, still inside) included. */
   public readonly active = new Set<Hold>()
+  /** Windows whose next link lands and then fails. */
+  public readonly faulty = new Set<string>()
 
   public constructor(
     public readonly sched: Scheduler,
@@ -212,7 +219,10 @@ class World {
         return true
       }
     }
-    return this.budget.expiries > 0 && (this.expiring === undefined || this.expiring.includes(id))
+    return (
+      (this.budget.faults ?? 0) > 0 ||
+      (this.budget.expiries > 0 && (this.expiring === undefined || this.expiring.includes(id)))
+    )
   }
 
   public seen(id: string, what: string): void {
@@ -268,6 +278,7 @@ class World {
                 await this.sched.point(id, 'link')
               }
               // The link: only onto the head it read.
+              const isFaulty = this.faulty.delete(id)
               if (this.generation !== head.generation) {
                 this.seen(id, 'link:lost')
                 return 'lost'
@@ -275,6 +286,13 @@ class World {
               this.generation += 1
               this.setRecords(next)
               this.headFence = hold.fence
+              if (isFaulty) {
+                // Landed; then the I/O after it failed.
+                this.seen(id, 'link:landed-then-failed')
+                throw Object.assign(new Error('EACCES: injected after the write landed'), {
+                  code: 'EACCES',
+                })
+              }
               this.seen(id, 'link:written')
               return 'written'
             },
@@ -391,7 +409,10 @@ class World {
       JSON.stringify([...this.registrations].map(([key, value]) => `${String(key)}=${value}`)),
       JSON.stringify([...this.trusted]),
       JSON.stringify([...this.offsets]),
-      `${String(this.budget.expiries)}/${String(this.budget.revocations)}/${String(this.budget.steps)}`,
+      `${String(this.budget.expiries)}/${String(this.budget.revocations)}/${String(this.budget.steps)}/${String(this.budget.faults ?? 0)}`,
+      Array.from(this.faulty, (id) => id)
+        .toSorted((left, right) => left.localeCompare(right))
+        .join(','),
       ...windows,
     ].join('|')
   }
@@ -428,6 +449,7 @@ type Step =
   | { readonly kind: 'expire' }
   | { readonly kind: 'revoke'; readonly id: string }
   | { readonly kind: 'step'; readonly id: string }
+  | { readonly kind: 'fault'; readonly id: string }
 
 interface Run {
   readonly outcome: 'finished' | 'pruned'
@@ -589,6 +611,13 @@ function stepsOf(config: Config, world: World): Step[] {
     if (world.budget.steps > 0 && world.offsets.get(id) === 0) {
       steps.push({ kind: 'step', id })
     }
+    if (
+      (world.budget.faults ?? 0) > 0 &&
+      sched.parked.get(id)?.label === 'link' &&
+      !world.faulty.has(id)
+    ) {
+      steps.push({ kind: 'fault', id })
+    }
   }
   return steps
 }
@@ -631,6 +660,11 @@ async function take(step: Step, world: World): Promise<void> {
     case 'step': {
       world.offsets.set(step.id, PENDING_CHECKOUT_RECOVERY_MS + 1)
       world.budget.steps -= 1
+      return
+    }
+    case 'fault': {
+      world.faulty.add(step.id)
+      world.budget.faults = (world.budget.faults ?? 0) - 1
     }
   }
 }
@@ -674,7 +708,8 @@ function violationsOf(config: Config, run: Run): string[] {
   }
   const wasDisturbed =
     world.budget.expiries < config.budget.expiries ||
-    world.budget.revocations < config.budget.revocations
+    world.budget.revocations < config.budget.revocations ||
+    (world.budget.faults ?? 0) < (config.budget.faults ?? 0)
   if (!wasDisturbed && config.expectOneOwner && winners.length !== 1) {
     found.push(`${String(winners.length)} windows succeeded`)
   }
@@ -833,6 +868,45 @@ describe('pull request checkout interleavings (M123 lane P)', () => {
     })
     expect(result.violations).toEqual([])
     expect(result.states).toBeGreaterThan(2000)
+  })
+
+  it.each([
+    { faults: 1, minimum: 200 },
+    { faults: 2, minimum: 600 },
+  ])(
+    'leaves nothing pending and no folder unnamed when $faults writes land and then fail',
+    async ({ faults, minimum }) => {
+      // RVM123P7 finding 1's shape: a publish lands, then the I/O after it
+      // fails (a listing, a proof), so its caller does not know it landed.
+      // A landed claim is never undone; a write not known to have landed
+      // is dropped by every fence it may hold.
+      const result = await explore({
+        windows: STALE_JUDGE,
+        budget: { expiries: 0, revocations: 0, steps: 0, faults },
+        expectOneOwner: true,
+      })
+      expect(result.violations).toEqual([])
+      expect(result.states).toBeGreaterThan(minimum)
+    },
+  )
+
+  it('leaves nothing pending when a write lands and then fails, own or replacing', async () => {
+    const own = await explore(
+      {
+        windows: STALE_JUDGE,
+        budget: { expiries: 0, revocations: 0, steps: 0, faults: 1 },
+        expectOneOwner: true,
+      },
+      false,
+    )
+    const replacing = await explore({
+      windows: [{ id: 'A' }, { id: 'B' }],
+      budget: { expiries: 0, revocations: 0, steps: 0, faults: 1 },
+      seedReady: true,
+      expectOneOwner: true,
+    })
+    expect([...own.violations, ...replacing.violations]).toEqual([])
+    expect(own.states + replacing.states).toBeGreaterThan(400)
   })
 
   it('settles a wall clock stepped at any point to one owner', async () => {
