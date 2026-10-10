@@ -3,6 +3,7 @@ package io.musespark.eclipse;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
@@ -76,7 +77,14 @@ public final class RuntimeProcess implements AutoCloseable {
             // npm puts its Windows shim in the prefix and its package beneath
             // node_modules. Never read the shim or ask a shell to interpret it.
             Path prefix = executable.getParent();
-            Path script = agentScript(prefix.resolve("node_modules").resolve(AGENT_PACKAGE).resolve("dist/acp.js"));
+            Path expectedPackage = prefix.resolve("node_modules").resolve(AGENT_PACKAGE);
+            // toRealPath also detects Windows junctions that NOFOLLOW_LINKS may
+            // report as directories. Nothing below the canonical prefix relocates.
+            for (Path directory = expectedPackage.resolve("dist"); !directory.equals(prefix); directory = directory.getParent()) {
+                if (!Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS) || !directory.toRealPath().equals(directory))
+                    throw new IllegalArgumentException(RUNTIME_PATH_INVALID);
+            }
+            Path script = agentScript(expectedPackage.resolve("dist/acp.js"));
             List<Path> nodeDirectories = new ArrayList<>();
             nodeDirectories.add(prefix); nodeDirectories.addAll(pathDirectories(searchPath));
             for (Path directory : nodeDirectories) {

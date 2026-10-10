@@ -701,6 +701,8 @@ and [macOS qualification](docs/certification/m104-pf.md).
 
 Eclipse's experimental native host discovers the Windows npm shim and resolves
 it to Node plus the verified installed ACP script without starting a shell.
+Discovery refuses linked package directories or ancestors below the canonical
+npm prefix.
 `MUSE_SPARK_RUNTIME` accepts an absolute native/shim path or a JSON pair of
 absolute Node and ACP script paths. See [the Eclipse launch contract](hosts/eclipse/README.md)
 for layout validation and override examples; installed Windows qualification remains open.

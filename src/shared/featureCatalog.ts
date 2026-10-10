@@ -1241,7 +1241,7 @@ export const FEATURE_CATALOG = [
   {
     command: 'Eclipse: MUSE_SPARK_RUNTIME',
     behavior:
-      'Native panel launch uses absolute PATH directories or an absolute override. Windows npm shims resolve to a native node.exe and prefix/node_modules/muse-spark-code-acp/dist/acp.js; package name and real in-package script/manifest paths are checked before launch. The override also accepts a strict JSON pair of absolute native Node and installed ACP script paths on every platform. Native .exe installs remain supported. Fixed panel and --stdio arguments are passed separately, with no shell or shim interpretation. Installed Windows qualification remains pending.',
+      'Native panel launch uses absolute PATH directories or an absolute override. Windows npm shims resolve to a native node.exe and prefix/node_modules/muse-spark-code-acp/dist/acp.js; package name and real in-package script/manifest paths are checked before launch. Discovery refuses symbolic links or junctions below the canonical prefix through the package dist directory. The override also accepts a strict JSON pair of absolute native Node and installed ACP script paths on every platform, retaining canonical package resolution through linked ancestors. Native .exe installs remain supported. Fixed panel and --stdio arguments are passed separately, with no shell or shim interpretation. Installed Windows qualification remains pending.',
   },
   {
     command: 'lsp',

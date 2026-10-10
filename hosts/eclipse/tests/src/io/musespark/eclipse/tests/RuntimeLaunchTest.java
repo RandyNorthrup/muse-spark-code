@@ -74,6 +74,48 @@ public class RuntimeLaunchTest {
             assertEquals(List.of(node.toString(), script.toString(), "panel", "--stdio"), RuntimeProcess.panelCommand(shim.toString(), "", true));
         } finally { remove(root); }
     }
+    private static void directoryLink(Path link, Path target) throws Exception {
+        if (File.separatorChar != '\\') {
+            Files.createSymbolicLink(link, target);
+            return;
+        }
+        Process junction = new ProcessBuilder("cmd.exe", "/c", "mklink", "/J", link.toString(), target.toString()).redirectErrorStream(true).start();
+        try {
+            assertTrue("fixture junction did not finish", junction.waitFor(2, TimeUnit.SECONDS));
+            assertEquals(new String(junction.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8), 0, junction.exitValue());
+        } finally { junction.destroyForcibly(); junction.waitFor(2, TimeUnit.SECONDS); }
+    }
+    private static void assertLinkedNpmDirectoryRefused(Path relative) throws Exception {
+        Path root = temporaryDirectory();
+        Path link = null;
+        try {
+            Path prefix = Files.createDirectory(root.resolve("npm prefix"));
+            Path outside = Files.createDirectory(root.resolve("outside prefix"));
+            Path script = npmScript(outside);
+            Path shim = Files.writeString(prefix.resolve("muse-spark-code-acp.cmd"), "fixture only");
+            Path node = executable(prefix.resolve("node.exe"));
+            link = prefix.resolve(relative);
+            Files.createDirectories(link.getParent());
+            directoryLink(link, outside.resolve(relative));
+            assertEquals("MHP_RUNTIME_PATH_INVALID", assertThrows(IllegalArgumentException.class,
+                () -> RuntimeProcess.panelCommand(shim.toString(), "", true)).getMessage());
+            assertEquals("MHP_RUNTIME_PATH_INVALID", assertThrows(IllegalArgumentException.class,
+                () -> RuntimeProcess.panelCommand(null, prefix.toString(), true)).getMessage());
+            // Explicit pairs retain their documented canonical package semantics.
+            Path linkedScript = prefix.resolve("node_modules/muse-spark-code-acp/dist/acp.js");
+            assertEquals(List.of(node.toString(), script.toString(), "panel", "--stdio"), RuntimeProcess.panelCommand(pair(node, linkedScript), "", true));
+        } finally {
+            // Remove the junction itself before walking either owned fixture tree.
+            if (link != null) Files.deleteIfExists(link);
+            remove(root);
+        }
+    }
+    @Test public void windowsShimRefusesLinkedPackageDirectory() throws Exception {
+        assertLinkedNpmDirectoryRefused(Path.of("node_modules", "muse-spark-code-acp"));
+    }
+    @Test public void windowsShimRefusesLinkedNodeModulesAncestor() throws Exception {
+        assertLinkedNpmDirectoryRefused(Path.of("node_modules"));
+    }
     @Test public void explicitNodeScriptPairPreservesAbsolutePathsAndFixedArguments() throws Exception {
         Path root = temporaryDirectory();
         try {

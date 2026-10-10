@@ -38,15 +38,20 @@ On Windows, discovery accepts a native `muse-spark-code-acp.exe` or npm's
 shim's contents are never read or executed. Node must be a regular executable
 beside the shim or in an absolute PATH directory. The script and package.json
 must resolve inside that package, and package.json must name
-`muse-spark-code-acp`. A missing or spoofed layout refuses before launch.
+`muse-spark-code-acp`. Discovery requires the package at its expected path
+under the canonical shim prefix, with no symbolic link or junction from that
+prefix through the package's `dist` directory. A missing, relocated or spoofed
+layout refuses before launch.
 
 `MUSE_SPARK_RUNTIME` overrides discovery with an absolute native executable
 or npm shim path. It also accepts a strict JSON array of exactly two absolute
 paths, Node followed by the installed ACP script; for example,
 `["C:/Program Files/nodejs/node.exe","C:/Users/you/AppData/Roaming/npm/node_modules/muse-spark-code-acp/dist/acp.js"]`.
 Forward slashes avoid JSON backslash escaping on Windows. The same pair form
-works on Linux/macOS with the native `node` executable. Script/package identity
-checks still apply, and the host appends `panel`, `--stdio`. Command strings,
+works on Linux/macOS with the native `node` executable. The explicit pair
+keeps canonical package resolution, including linked package ancestors;
+script/package identity checks still apply, and the host appends `panel`,
+`--stdio`. Command strings,
 extra arguments and arbitrary batch files are refused; no shell is started.
 Release lane I supplies the installed runtime and platform Node fragments;
 lane B supplies panel mode and lane D the embedded UI bridge.

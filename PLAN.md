@@ -38219,7 +38219,28 @@ keeping its detailed native qualification catalogue generated too.
 Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
 in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
 
-**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. M104 F2 repairs the sixteen reported SAST sites with regressions and an offline 16-to-zero reproduction; its review follow-up restores shell-free Windows npm-agent discovery and absolute Node/script overrides in Eclipse. The unchanged registry SAST rescan remains lead-owned under the lane's network restriction. Verification still retains the portable graph cap, duplication, four ACP fixture failures, native bridge contract checks, installed qualification and the next resource-chip parity lane as blockers. Retained requirements and receipts follow.
+**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. M104 F2 repairs the sixteen reported SAST sites with regressions and an offline 16-to-zero reproduction; its review follow-ups restore shell-free Windows npm-agent discovery and absolute Node/script overrides in Eclipse, and confine discovered packages beneath the canonical npm prefix. The unchanged registry SAST rescan remains lead-owned under the lane's network restriction. Verification still retains the portable graph cap, duplication, four ACP fixture failures, native bridge contract checks, installed qualification and the next resource-chip parity lane as blockers. Retained requirements and receipts follow.
+
+**M104 F2 follow-up round 2 / RVM104F2D (2026-10-09, before code).**
+Confine Windows npm-shim discovery to the expected package root beneath the
+canonical shim prefix. Require each directory from that prefix through
+`node_modules/muse-spark-code-acp/dist` to be a real directory whose canonical
+path equals its expected path, refusing symbolic links and Windows junctions
+with the existing layout-failure word. Keep the explicit JSON Node/script
+pair's documented canonical package semantics. Add package-directory and
+`node_modules` ancestor regressions, retain the launcher and SAST suites, and
+remove the confinement guard in a byte-exact red/restored drill. Scoped rig
+checks replace aggregate quality; registry SAST, installed Windows qualification
+and the existing integration blockers remain lead-owned. No merge, push,
+paid/live call, dependency, hook, deadline or gate change.
+
+**Round-two receipt (2026-10-09).** Both linked-ancestor regressions refuse
+discovery and retain explicit-pair acceptance. Removing confinement fails
+both cases; byte-exact restoration passes all eleven launcher cases. The
+87 retained SAST tests and four-rule offline scan pass, as do scoped static
+checks. Full Eclipse retains 71 schema errors, the embedded suite one contract
+assertion, duplication twelve clones and the build its portable graph overage.
+Receipts: `docs/certification/m104.md`, F2 follow-up round 2; M104 stays waiting.
 
 **M104 F2 follow-up / RVM104F2C (2026-10-09, before code).** Repair
 Windows Eclipse discovery for the npm-installed ACP agent. Resolve the prefix's
@@ -39000,7 +39021,9 @@ the fixed `panel`/`--stdio` arguments stay separate. The RVM104F2C follow-up
 also resolves Windows npm shims to verified native Node and the installed ACP
 script, retaining `.exe` installs and refusing shell-command strings. All sixteen plugin Java
 sources compile against cached target jars, and the portable launcher JUnit
-regressions pass. JetBrains page generation emits no executable bridge
+regressions pass. RVM104F2D additionally confines discovered npm packages to
+the canonical shim prefix without links or junctions below it; explicit JSON
+pairs retain their canonical package semantics. JetBrains page generation emits no executable bridge
 placeholder; the existing native insertion path supplies its reviewed script
 and nonce. Its seven frozen panel/state patterns are literal-only, with unknown
 source refused and contract-inventory/acceptance/refusal tests. Keep the existing
