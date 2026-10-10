@@ -1,4 +1,8 @@
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
+import type * as ChildProcess from 'node:child_process'
+import { once } from 'node:events'
+import { fileURLToPath } from 'node:url'
+import { DarwinMemoryReader } from '../../src/core/resources/sampler/darwinMemory'
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -27,6 +31,8 @@ import { outputWriter, resultRecord } from './helpers/execContract'
 import { runtimeResources } from './helpers/resources/runtime'
 import { removeFolder } from './helpers/temporaryFolders'
 
+vi.mock('node:child_process', { spy: true })
+const { spawn: realSpawn } = await vi.importActual<typeof ChildProcess>('node:child_process')
 const hosts: RuntimeResources[] = []
 const folders: string[] = []
 afterEach(async () => {
@@ -48,13 +54,6 @@ function sinkScene(format: 'text' | 'json' | 'jsonl' = 'jsonl') {
     onStalled: stalled,
   })
   return { sink, out, summary, stalled }
-}
-
-function ignoreSignals() {
-  return undefined
-}
-function noSignals() {
-  return ignoreSignals
 }
 
 describe('M107 H headless flags and v2 egress', () => {
@@ -189,116 +188,158 @@ describe('M107 H headless flags and v2 egress', () => {
     expect(s.out.chunks).toHaveLength(1)
   })
 
-  it('routes actual runExec resource changes to v2 output and stderr, forces relocation off, and cleans up', async () => {
-    const options = parseCommandLine(['exec', '--output', 'jsonl', 'fake task'])
-    if (options.command !== 'exec') throw new Error('bad options')
-    const backend = new FakeAgentHost()
-    const start = backend.startSession.getMockImplementation()
-    if (start === undefined) throw new Error('missing fake start')
-    const fixture = await runtimeResources({ relocate: 'off' })
-    hosts.push(fixture.host)
-    let lateNotice: Parameters<RuntimeResources['subscribeEvents']>[0] | undefined
-    let lateStatus: ReturnType<typeof resourceStatusSchema.parse> | undefined
-    const subscribe = fixture.host.subscribeEvents.bind(fixture.host)
-    const unsubscribe = vi.fn()
-    vi.spyOn(fixture.host, 'subscribeEvents').mockImplementation((listener) => {
-      lateNotice = listener
-      const stop = subscribe(listener)
-      return () => {
-        stop()
-        unsubscribe()
-      }
-    })
-    const factory = vi.fn(() => fixture.host)
-    backend.startSession.mockImplementation(async (options) => {
-      const session = await start(options)
-      const fake = backend.sessions.at(-1)
-      if (fake === undefined) throw new Error('missing fake session')
-      fake.sendTurn.mockImplementation(async () => {
-        const admission = await fixture.host.admit(
-          { kind: 'check', class: 'background', priority: 0 },
-          { sessionId: session.sessionId },
-        )
-        const permit = await admission.ready
-        fixture.reading.memoryAvailableBytes = 1
-        lateStatus = await fixture.host.status()
-        permit.release()
-        fake.emit({ type: 'turnCompleted', turnId: 'fake-turn', terminal: 'completed' })
-        return { turnId: 'fake-turn', disposition: 'started' }
+  it.each(['completed', 'error', 'SIGINT', 'SIGTERM'] as const)(
+    'routes actual runExec resource changes to v2 output and stderr, forces relocation off, and retires the helper after %s',
+    async (outcome) => {
+      const options = parseCommandLine(['exec', '--output', 'jsonl', 'fake task'])
+      if (options.command !== 'exec') throw new Error('bad options')
+      const backend = new FakeAgentHost()
+      const start = backend.startSession.getMockImplementation()
+      if (start === undefined) throw new Error('missing fake start')
+      const fixture = await runtimeResources({ relocate: 'off' })
+      hosts.push(fixture.host)
+      const child = realSpawn(
+        process.execPath,
+        [fileURLToPath(new URL('../fixtures/darwin-memory.mjs', import.meta.url)), 'normal'],
+        { env: {}, stdio: 'pipe' },
+      )
+      const closed = once(child, 'close')
+      const reader = new DarwinMemoryReader(
+        { timeoutMs: 500, maxOutputBytes: 128 },
+        process.execPath,
+      )
+      // A real owned helper; the host and headless runner must carry its disposal through.
+      vi.mocked(spawn).mockImplementation((file, args, options) =>
+        args[0] === '--memory-headroom' ? child : realSpawn(file, args, options),
+      )
+      fixture.sampler.dispose.mockImplementation(() => {
+        reader.dispose()
       })
-      return session
-    })
-    const realRuntime = runtimeBackends.createRuntimeBackend
-    vi.spyOn(runtimeBackends, 'createRuntimeBackend').mockImplementation((options) => ({
-      ...realRuntime(options),
-      backend: {
-        kind: 'museCode',
-        readiness: () => Promise.resolve({ state: 'ready' }),
-        hostFor: () => Promise.resolve(backend),
-      },
-      close() {
-        if (lateStatus !== undefined)
-          lateNotice?.(
-            { type: 'override', atMs: 0, untilMs: 1 },
-            lateStatus,
-            'late-resource-canary',
+      const sample = fixture.sampler.sample.getMockImplementation()
+      if (sample === undefined) throw new Error('missing sample')
+      fixture.sampler.sample.mockImplementation(async () => {
+        expect(await reader.read()).toBe(6000)
+        return await sample()
+      })
+      const signals = new Map<string, () => void>()
+      let lateNotice: Parameters<RuntimeResources['subscribeEvents']>[0] | undefined
+      let lateStatus: ReturnType<typeof resourceStatusSchema.parse> | undefined
+      const subscribe = fixture.host.subscribeEvents.bind(fixture.host)
+      const unsubscribe = vi.fn()
+      vi.spyOn(fixture.host, 'subscribeEvents').mockImplementation((listener) => {
+        lateNotice = listener
+        const stop = subscribe(listener)
+        return () => {
+          stop()
+          unsubscribe()
+        }
+      })
+      const factory = vi.fn(() => fixture.host)
+      backend.startSession.mockImplementation(async (options) => {
+        const session = await start(options)
+        const fake = backend.sessions.at(-1)
+        if (fake === undefined) throw new Error('missing fake session')
+        fake.sendTurn.mockImplementation(async () => {
+          const admission = await fixture.host.admit(
+            { kind: 'check', class: 'background', priority: 0 },
+            { sessionId: session.sessionId },
           )
-        return Promise.resolve()
-      },
-    }))
-    const out = outputWriter()
-    const err = outputWriter()
-    const lifecycle = createLifecycle({
-      processStartMs: 0,
-      timeoutMs: options.options.timeoutMs,
-      now: () => fixture.clock.now(),
-      setTimer: (ms, callback) => fixture.clock.setTimeout(callback, ms),
-      onSignal: noSignals,
-      forceFinish: vi.fn(),
-      exit: () => {
-        throw new Error('unexpected force exit')
-      },
-    })
-    const dispose = vi.spyOn(fixture.host, 'dispose')
-    try {
-      const code = await runExec(lifecycle, {
-        options: options.options,
-        version: 'test',
-        distDir: '/unused',
-        platform: process.platform,
-        env: {},
-        homeDir: '/unused',
-        processCwd: process.cwd(),
-        stdin: new PassThrough(),
-        stdout: out,
-        stderr: err,
-        storeSecrets: memorySecrets(),
-        runGit: () => Promise.resolve(''),
-        fetch: vi.fn(() => Promise.reject(new Error('network forbidden'))),
-        sleep: () => Promise.resolve(),
+          const permit = await admission.ready
+          fixture.reading.memoryAvailableBytes = 1
+          lateStatus = await fixture.host.status()
+          permit.release()
+          if (outcome === 'error') throw new Error('fixture turn failure')
+          if (outcome === 'completed')
+            fake.emit({ type: 'turnCompleted', turnId: 'fake-turn', terminal: 'completed' })
+          else signals.get(outcome)?.()
+          return { turnId: 'fake-turn', disposition: 'started' }
+        })
+        return session
+      })
+      const realRuntime = runtimeBackends.createRuntimeBackend
+      vi.spyOn(runtimeBackends, 'createRuntimeBackend').mockImplementation((options) => ({
+        ...realRuntime(options),
+        backend: {
+          kind: 'museCode',
+          readiness: () => Promise.resolve({ state: 'ready' }),
+          hostFor: () => Promise.resolve(backend),
+        },
+        close() {
+          if (lateStatus !== undefined)
+            lateNotice?.(
+              { type: 'override', atMs: 0, untilMs: 1 },
+              lateStatus,
+              'late-resource-canary',
+            )
+          return Promise.resolve()
+        },
+      }))
+      const out = outputWriter()
+      const err = outputWriter()
+      const lifecycle = createLifecycle({
+        processStartMs: 0,
+        timeoutMs: options.options.timeoutMs,
         now: () => fixture.clock.now(),
-        readFile: () => Promise.reject(new Error('unused')),
-        randomHex: () => 'fixed',
-        log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-        createResources: factory,
-        resourceOverrides: { relocate: 'paired' },
+        setTimer: (ms, callback) => fixture.clock.setTimeout(callback, ms),
+        onSignal: (signal, receive) => {
+          signals.set(signal, receive)
+          return () => {
+            signals.delete(signal)
+          }
+        },
+        forceFinish: vi.fn(),
+        exit: () => {
+          throw new Error('unexpected force exit')
+        },
       })
-      expect(code).toBe(0)
-      expect(factory).toHaveBeenCalledWith({ relocate: 'off' })
-      const events = out.chunks.map((chunk) => execEventV2Schema.parse(JSON.parse(chunk)))
-      expect(events.find((event) => event.type === 'resource')).toMatchObject({
-        event: { type: 'levelChanged', to: 'pause' },
-      })
-      expect(events.filter((event) => event.type === 'resource')).toHaveLength(1)
-      expect(events.at(-1)?.type).toBe('result')
-      expect(err.chunks.join('')).toContain(UI_TEXT.resourcePauseNotice.split(':', 1)[0])
-      expect(dispose).toHaveBeenCalledTimes(1)
-      expect(unsubscribe).toHaveBeenCalledTimes(1)
-      expect(err.chunks.join('')).not.toContain('late-resource-canary')
-    } finally {
-      lifecycle.dispose()
-    }
-  })
+      const dispose = vi.spyOn(fixture.host, 'dispose')
+      try {
+        const code = await runExec(lifecycle, {
+          options: options.options,
+          version: 'test',
+          distDir: '/unused',
+          platform: process.platform,
+          env: {},
+          homeDir: '/unused',
+          processCwd: process.cwd(),
+          stdin: new PassThrough(),
+          stdout: out,
+          stderr: err,
+          storeSecrets: memorySecrets(),
+          runGit: () => Promise.resolve(''),
+          fetch: vi.fn(() => Promise.reject(new Error('network forbidden'))),
+          sleep: () => Promise.resolve(),
+          now: () => fixture.clock.now(),
+          readFile: () => Promise.reject(new Error('unused')),
+          randomHex: () => 'fixed',
+          log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+          createResources: factory,
+          resourceOverrides: { relocate: 'paired' },
+        })
+        expect(code === 0).toBe(outcome === 'completed')
+        const pid = child.pid
+        if (pid === undefined) throw new Error('missing helper PID')
+        await vi.waitFor(() => {
+          expect(() => process.kill(pid, 0)).toThrow(expect.objectContaining({ code: 'ESRCH' }))
+        })
+        expect(factory).toHaveBeenCalledWith({ relocate: 'off' })
+        const events = out.chunks.map((chunk) => execEventV2Schema.parse(JSON.parse(chunk)))
+        expect(events.find((event) => event.type === 'resource')).toMatchObject({
+          event: { type: 'levelChanged', to: 'pause' },
+        })
+        expect(events.filter((event) => event.type === 'resource')).toHaveLength(1)
+        expect(events.at(-1)?.type).toBe('result')
+        expect(err.chunks.join('')).toContain(UI_TEXT.resourcePauseNotice.split(':', 1)[0])
+        expect(dispose).toHaveBeenCalledTimes(1)
+        expect(unsubscribe).toHaveBeenCalledTimes(1)
+        expect(err.chunks.join('')).not.toContain('late-resource-canary')
+      } finally {
+        lifecycle.dispose()
+        child.kill('SIGKILL')
+        await closed
+      }
+    },
+  )
 
   it('runs terminal resources against the real lazy entry without any key-store or model access', async () => {
     const folder = await mkdtemp(path.join(tmpdir(), 'm107h-cli-'))

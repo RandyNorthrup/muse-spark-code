@@ -1,0 +1,72 @@
+[
+  {
+    "name": "runtime-wrapper-disposal",
+    "file": "src/runtime/resources/host.ts",
+    "exitCode": 1,
+    "originalSha256": "3bc1533b0a994437f88c8791fc030208c84112198458bae717f19c2d1caaa953",
+    "failures": [
+      "Test Files  2 failed (2)",
+      "Tests  10 failed | 11 passed (21)",
+      "FAIL  test/unit/darwinMemoryLifecycle.test.ts > RVCM1072 helper ownership through host shutdown > retires the real entry sampler on runtime disposal",
+      "FAIL  test/unit/darwinMemoryLifecycle.test.ts > RVCM1072 helper ownership through host shutdown > retires a sampled runtime host that finishes loading after facade disposal",
+      "FAIL  test/unit/darwinMemoryLifecycle.test.ts > RVCM1072 helper ownership through host shutdown > settles and retires an in-flight runtime sample on disposal",
+      "FAIL  test/unit/darwinMemoryLifecycle.test.ts > RVCM1072 helper ownership through host shutdown > retires the helper after CLI normal",
+      "FAIL  test/unit/darwinMemoryLifecycle.test.ts > RVCM1072 helper ownership through host shutdown > retires the helper after CLI error",
+      "FAIL  test/unit/darwinMemoryLifecycle.test.ts > RVCM1072 helper ownership through host shutdown > retires the helper after ACP EOF",
+      "FAIL  test/unit/execResources.test.ts > M107 H headless flags and v2 egress > routes actual runExec resource changes to v2 output and stderr, forces relocation off, and retires the helper after completed",
+      "FAIL  test/unit/execResources.test.ts > M107 H headless flags and v2 egress > routes actual runExec resource changes to v2 output and stderr, forces relocation off, and retires the helper after error",
+      "FAIL  test/unit/execResources.test.ts > M107 H headless flags and v2 egress > routes actual runExec resource changes to v2 output and stderr, forces relocation off, and retires the helper after SIGINT",
+      "FAIL  test/unit/execResources.test.ts > M107 H headless flags and v2 egress > routes actual runExec resource changes to v2 output and stderr, forces relocation off, and retires the helper after SIGTERM"
+    ],
+    "restoredSha256": "3bc1533b0a994437f88c8791fc030208c84112198458bae717f19c2d1caaa953"
+  },
+  {
+    "name": "window-governor-disposal",
+    "file": "src/core/resources/governor.ts",
+    "exitCode": 1,
+    "originalSha256": "364d762ac0c9975626b53bc6208f68c14e7e20ecc74b56b3df66070c073e5f19",
+    "failures": [
+      "Test Files  2 failed (2)",
+      "Tests  11 failed | 10 passed (21)",
+      "FAIL  test/unit/darwinMemoryLifecycle.test.ts > RVCM1072 helper ownership through host shutdown > retires the real entry sampler on runtime disposal",
+      "FAIL  test/unit/darwinMemoryLifecycle.test.ts > RVCM1072 helper ownership through host shutdown > retires a sampled runtime host that finishes loading after facade disposal",
+      "FAIL  test/unit/darwinMemoryLifecycle.test.ts > RVCM1072 helper ownership through host shutdown > retires the window sampler through the extension subscription disposal callback",
+      "FAIL  test/unit/darwinMemoryLifecycle.test.ts > RVCM1072 helper ownership through host shutdown > settles and retires an in-flight runtime sample on disposal",
+      "FAIL  test/unit/darwinMemoryLifecycle.test.ts > RVCM1072 helper ownership through host shutdown > retires the helper after CLI normal",
+      "FAIL  test/unit/darwinMemoryLifecycle.test.ts > RVCM1072 helper ownership through host shutdown > retires the helper after CLI error",
+      "FAIL  test/unit/darwinMemoryLifecycle.test.ts > RVCM1072 helper ownership through host shutdown > retires the helper after ACP EOF",
+      "FAIL  test/unit/execResources.test.ts > M107 H headless flags and v2 egress > routes actual runExec resource changes to v2 output and stderr, forces relocation off, and retires the helper after completed",
+      "FAIL  test/unit/execResources.test.ts > M107 H headless flags and v2 egress > routes actual runExec resource changes to v2 output and stderr, forces relocation off, and retires the helper after error",
+      "FAIL  test/unit/execResources.test.ts > M107 H headless flags and v2 egress > routes actual runExec resource changes to v2 output and stderr, forces relocation off, and retires the helper after SIGINT",
+      "FAIL  test/unit/execResources.test.ts > M107 H headless flags and v2 egress > routes actual runExec resource changes to v2 output and stderr, forces relocation off, and retires the helper after SIGTERM"
+    ],
+    "restoredSha256": "364d762ac0c9975626b53bc6208f68c14e7e20ecc74b56b3df66070c073e5f19"
+  },
+  {
+    "name": "late-runtime-factory-disposal",
+    "file": "src/runtime/resources/load.ts",
+    "exitCode": 1,
+    "originalSha256": "b2673fb3a4ca981afdfac2c64f543af17f11a109e88145c521f511ea629296cf",
+    "failures": [
+      "Test Files  1 failed | 1 passed (2)",
+      "Tests  1 failed | 20 passed (21)",
+      "FAIL  test/unit/darwinMemoryLifecycle.test.ts > RVCM1072 helper ownership through host shutdown > retires a sampled runtime host that finishes loading after facade disposal"
+    ],
+    "restoredSha256": "b2673fb3a4ca981afdfac2c64f543af17f11a109e88145c521f511ea629296cf"
+  },
+  {
+    "name": "headless-disposal",
+    "file": "src/runtime/exec/runExec.ts",
+    "exitCode": 1,
+    "originalSha256": "d22f8ba862dfb387adca72e0fa7f57f6ba291054b447b7d83a8a12459c13640b",
+    "failures": [
+      "Test Files  1 failed | 1 passed (2)",
+      "Tests  4 failed | 17 passed (21)",
+      "FAIL  test/unit/execResources.test.ts > M107 H headless flags and v2 egress > routes actual runExec resource changes to v2 output and stderr, forces relocation off, and retires the helper after completed",
+      "FAIL  test/unit/execResources.test.ts > M107 H headless flags and v2 egress > routes actual runExec resource changes to v2 output and stderr, forces relocation off, and retires the helper after error",
+      "FAIL  test/unit/execResources.test.ts > M107 H headless flags and v2 egress > routes actual runExec resource changes to v2 output and stderr, forces relocation off, and retires the helper after SIGINT",
+      "FAIL  test/unit/execResources.test.ts > M107 H headless flags and v2 egress > routes actual runExec resource changes to v2 output and stderr, forces relocation off, and retires the helper after SIGTERM"
+    ],
+    "restoredSha256": "d22f8ba862dfb387adca72e0fa7f57f6ba291054b447b7d83a8a12459c13640b"
+  }
+]

@@ -793,7 +793,7 @@
     {
       "id": "M107",
       "title": "Resource limits for your machine",
-      "summary": "CPU, memory and disk limits pause new background work without stopping running work; macOS headroom includes reclaimable pages on older runtimes through the signed helper, while relocation and native editor chips await qualification.",
+      "summary": "CPU, memory and disk limits pause new background work; older macOS runtimes read reclaimable headroom through a signed helper retired at shutdown, while relocation and native editor chips await qualification.",
       "area": "platform",
       "release": "0.16.0",
       "labels": ["not available yet"]
