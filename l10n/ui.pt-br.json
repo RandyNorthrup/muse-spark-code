@@ -5220,8 +5220,6 @@
     "commandUsage": "Uso: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   },
   "vault": {
-    "secretServiceUnavailable": "O cofre não consegue acessar o Secret Service. Entre em uma sessão da área de trabalho e desbloqueie seu chaveiro. Depois, tente novamente.",
-    "keychainUnavailable": "O cofre não consegue acessar as Chaves de início de sessão. Desbloqueie-as no Acesso às Chaves e tente novamente.",
     "title": "Cofre",
     "locked": "Bloqueado",
     "unlocked": "Desbloqueado",

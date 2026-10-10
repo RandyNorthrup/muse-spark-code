@@ -5220,8 +5220,6 @@
     "commandUsage": "Uso: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   },
   "vault": {
-    "secretServiceUnavailable": "La bóveda no puede acceder a Secret Service. Inicia sesión en el escritorio y desbloquea su llavero; después, inténtalo de nuevo.",
-    "keychainUnavailable": "La bóveda no puede acceder al llavero de inicio de sesión. Desbloquéalo en Acceso a Llaveros e inténtalo de nuevo.",
     "title": "Bóveda",
     "locked": "Bloqueada",
     "unlocked": "Desbloqueada",

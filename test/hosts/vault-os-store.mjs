@@ -31,8 +31,10 @@ const slot = new OsStoreVaultSlot({
 let hasWritten = false
 try {
   if (process.argv.includes('--unavailable')) {
-    await assert.rejects(slot.wrap(key), { name: 'VaultOsStoreUnavailableError' })
-    process.stdout.write('PASS: absent Secret Service refuses with a fixed actionable error\n')
+    await assert.rejects(slot.wrap(key), { name: 'VaultStoreUnavailableError' })
+    process.stdout.write(
+      'PASS: absent Secret Service refuses with VaultStoreUnavailableError (no native text)\n',
+    )
   } else {
     const record = await slot.wrap(key)
     hasWritten = true
