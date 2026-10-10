@@ -181,9 +181,13 @@ journal read that never resolves still passed certification on the
   consumed the upload, with assertions on the server-side uploads array;
   lifecycle/upload/media suites wait on server events or rendered props,
   never on page copy. None assert Usage content on a shell wait, so none
-  needed the marker. Harness `usage-*.mjs` `aria-busy` waits are
-  screenshot drivers, not certifications, and one flow asserts error
-  paths where the marker never appears; left untouched.
+  needed the marker. (Round 4 correction, RVCM1141C: the sentence that
+  stood here called the harness `usage-*.mjs` `aria-busy` waits "screenshot
+  drivers, not certifications" and left them untouched. That exemption was
+  wrong — `usage-check.mjs` runs WCAG axe, overflow and script-error
+  assertions and supplies M102's browser/accessibility certification — and
+  is struck: every harness Usage wait now keys on the marker. See the
+  Round 4 record at the end of this file.)
 
 Red drill: broke the guard (`data-usage-ready={undefined}`) —
 `usageReadyMarker` failed exactly the settled-state case (1 failed,
@@ -200,3 +204,65 @@ cannot run here — `listen EPERM` on 127.0.0.1 in `beforeAll`, the same
 sandbox denial the lane already records. No workaround built, per the
 2026-10-08 rule; the lead runs the four-mode browser certification
 unsandboxed.
+
+## Round 4 — RVCM1141C P2: Usage browser certification accepts only the ready marker
+
+Finding: the remaining Usage browser certification still accepted an error
+shell before any host state rendered. `test/harness/usage-check.mjs`
+(which runs WCAG axe, overflow and script-error assertions and supplies
+M102's browser/accessibility certification) waited only on
+`aria-busy="false"`, without the marker or state-backed content: an initial
+`usage/error` reply leaves an idle shell with no marker and no headings,
+and the certification reported zero failures. The same idle-only predicate
+survived in the Usage siblings and the central harness.
+
+Fix (shared helper `test/harness/usageReadiness.mjs`, new): success paths
+use `waitForUsageReady` (the `main.usage-page[data-usage-ready="true"]`
+`[aria-busy="false"]` marker) plus `assertUsageContent` (no error alert,
+the state-backed host line, and the rendered empty/history-off headings).
+Migrated the whole class: `usage-check.mjs` (initial load plus every
+re-query/refresh wait; the native-transport failure path asserts the alert
+through `assertUsageError`), `usage-accounts.mjs`,
+`usage-companion.mjs`, `usage-resource-scenes.mjs`, the central harness
+`test/harness/index.html` usage-scene predicate, and the
+`usage-page-narrow` shot predicate in `scripts/lib/harnessServer.mjs`.
+Correction mid-fix: `usage/error` never clears `state`
+(`src/webview/usage/UsageApp.tsx`), so a post-load error keeps the
+rendered marker under the alert — the error assertion checks the alert
+text only, and the success assertion refuses a post-load error via the
+alert rather than by expecting the marker to clear. The round-3
+"left untouched" exemption above is struck. Swept and left unchanged:
+`usage-contrast.mjs` (static `setContent`, no live readiness wait),
+`index.html:5817` (chat review-pane scenario driver, not a readiness
+certification), and the other views' certifications (`resources-check`,
+`playbook-axe`, `resource-history-check`, `SCENARIO_READY` entries), which
+already wait on state-rendered content (status line, playbook record,
+named table/dialog), never an idle shell.
+
+Regression (`test/unit/usageBrowserReadiness.test.mjs`, 8 cases): stub-page
+refusals of the initial-error, loading and empty shells with the marker
+named; rendered-state acceptance; alert-text error path; post-load error
+refused via the alert while the marker stays; shipped-copy pin
+(`USAGE_HOST_LINE` against `usageEn` + `usageStateFor('empty')`, headings
+against the table); whole-class sweep (the four harness scripts must use
+the shared helper; any `.usage-page[aria-busy` line anywhere in the Usage
+certifications must carry `data-usage-ready`).
+
+Red drills (both restored byte-exact, `sha256sum -c` OK): broke the guard
+(idle selector as the ready selector) — the three shell-refusal cases
+failed (3 failed, 5 passed). Reintroduced one bare idle wait in
+`usage-companion.mjs` — the sweep case failed with the named reason
+("accepts an idle shell"). File hashes at drill time:
+`usageReadiness.mjs` `f1243152…`, `usageBrowserReadiness` `bb9d37f1…`
+(pre-lint; final `9e414696…`), `usage-check.mjs` `bb4f0c72…`,
+`usage-companion.mjs` `2d5f3ba0…`.
+
+Verification (repository timeouts, no `--testTimeout`): the new
+regression 8/8 pass on this rig; neighbours `usageReadyMarker` +
+`UsageApp` + `companionThemedPage` 45/45 pass. ESLint and prettier clean
+on all touched files. Blocked in this sandbox (2026-10-08 rule, no
+workaround built): never launched a browser here, so the lead runs
+unsandboxed `test/harness/usage-check.mjs`, `usage-accounts.mjs`,
+`usage-companion.mjs`, `usage-resource-scenes.mjs` and
+`test/unit/companionThemedBrowser.test.mjs` (touched predicate files:
+`test/harness/index.html`, `scripts/lib/harnessServer.mjs`).

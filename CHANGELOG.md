@@ -95,7 +95,14 @@ happened, not what was planned; superseded entries are kept.
   Usage view sets only after rendering real host state, with the settled
   host line, empty state and idle busy flag asserted in every mode, so a
   journal read that never resolves fails the wait instead of passing the
-  loading page (RVCM1141B).
+  loading page (RVCM1141B). Every remaining Usage browser certification
+  (`usage-check`, `usage-accounts`, `usage-companion`,
+  `usage-resource-scenes`, the central harness usage scenes and the narrow
+  Usage shot) now waits on that same marker plus the rendered host copy
+  through one shared helper, so an error, empty or loading shell fails the
+  certification with a named reason instead of passing an idle page; the
+  native-transport failure path keeps its explicit error assertion
+  (RVCM1141C).
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
