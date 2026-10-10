@@ -7,6 +7,7 @@ import { teamPanelExportSchema } from '../../src/shared/teamPanel'
 import { parsePanelToHostMessage } from '../../src/shared/modelsPanel'
 import { TEAM_WORKSPACE_KEYS, readTeamWorkspaceHint } from '../../src/shared/teamConversation'
 import { TEAM_EXPORT_FORMAT, TEAM_PANEL_EXPORT_VERSION, UI_TEXT } from '../../src/shared/constants'
+import type { TeamCap } from '../../src/shared/teamConfig'
 
 async function pairSlice(rig: ReturnType<typeof panelRig>) {
   await rig.read()
@@ -384,43 +385,32 @@ describe('M96 U1 portable panel', () => {
     for (const entry of pool)
       if (entry.agent === undefined) expect(entry.concurrent).toBeLessThanOrEqual(1)
   })
-  it('switches the preview off an entry a dollar cap prices out', async () => {
-    const rig = panelRig()
-    await rig.read()
-    await rig.controller.handle({ type: 'roles/template', template: 'pair' })
-    const before = await rig.read()
-    const primary = before.document.roles.find((role) => role.role === 'engineering')?.pool[0]
-    if (primary === undefined) throw new Error('No primary entry')
-    await rig.controller.handle({
-      type: 'roles/cap',
-      role: 'engineering',
-      entryId: primary.id,
-      index: primary.caps.length,
-      cap: { measure: 'spendUsd', window: 'day', amount: 0.000001 },
-    })
-    const slice = await rig.read()
-    const step = slice.preview.steps.find((item) => item.role === 'engineering')
-    expect(step?.switched).toBe(true)
-    expect(step?.model).toBe(slice.defaultRef)
-    expect(slice.preview.unstaffed).not.toContain('engineering')
-  })
-  it('switches the preview off an entry a one-token output cap blocks', async () => {
-    const rig = panelRig()
-    await rig.read()
-    await rig.controller.handle({ type: 'roles/template', template: 'pair' })
-    const before = await rig.read()
-    const primary = before.document.roles.find((role) => role.role === 'engineering')?.pool[0]
-    if (primary === undefined) throw new Error('No primary entry')
-    await rig.controller.handle({
-      type: 'roles/cap',
-      role: 'engineering',
-      entryId: primary.id,
-      index: primary.caps.length,
-      cap: { measure: 'outputTokens', window: 'task', amount: 1 },
-    })
-    const slice = await rig.read()
-    expect(slice.preview.steps.find((item) => item.role === 'engineering')?.switched).toBe(true)
-  })
+  it.each([
+    { measure: 'spendUsd', window: 'day', amount: 0.000001 },
+    { measure: 'outputTokens', window: 'task', amount: 1 },
+  ] satisfies TeamCap[])(
+    'switches the preview off an entry a non-token cap prices out (%j)',
+    async (cap) => {
+      const rig = panelRig()
+      await rig.read()
+      await rig.controller.handle({ type: 'roles/template', template: 'pair' })
+      const before = await rig.read()
+      const primary = before.document.roles.find((role) => role.role === 'engineering')?.pool[0]
+      if (primary === undefined) throw new Error('No primary entry')
+      await rig.controller.handle({
+        type: 'roles/cap',
+        role: 'engineering',
+        entryId: primary.id,
+        index: primary.caps.length,
+        cap,
+      })
+      const slice = await rig.read()
+      const step = slice.preview.steps.find((item) => item.role === 'engineering')
+      expect(step?.switched).toBe(true)
+      expect(step?.model).toBe(slice.defaultRef)
+      expect(slice.preview.unstaffed).not.toContain('engineering')
+    },
+  )
   it('splits an accepted role budget across the priced entries', async () => {
     const rig = panelRig()
     const slice = await pairSlice(rig)
