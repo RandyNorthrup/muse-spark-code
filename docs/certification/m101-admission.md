@@ -366,3 +366,69 @@ Each fails with ACP `RequestError: Internal error` while setting up a Muse Code
 session. Both baseline and repaired runs exit 1; no full E2E pass is claimed.
 The F1-errors drill adds exactly the named help regression to those four.
 No browser, GUI, server daemon or sandbox workaround was started.
+
+## R4 final verification and committed output
+
+Source commit: `eebf84c32e0a4fd49054084d33aef43a926afbab`.
+The installed `.husky/_` hooks ran staged ESLint with fixes, Prettier and
+staged gitleaks (170,003 bytes scanned; no leaks). All 54 working-file hashes
+match their pre-hook values. The saved staged diff and re-read committed diff
+are byte-identical, SHA-256
+`04bea58be8cbe0481db3ffd31b12ea1f0af45cde81bc25a814d96b35ede40d63`.
+
+Complete-file final runs, default repository timeouts, three workers, macmini:
+
+| Files (`test/unit/` unless stated)                                                                | Result                                                            |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `autoCompactionAdmission.test.ts`, `modelApiAutoCompact.test.ts`, `autoCompactionBundle.test.mjs` | 88 passed                                                         |
+| `acpPaid.test.ts`, `manifest.test.ts`, `referenceEntry.test.ts`                                   | 89 passed                                                         |
+| `paidConsent.test.ts`, `paidFeatures.test.ts`, `paidHost.test.ts`                                 | 111 passed                                                        |
+| `runtimeAccounting.test.ts`, `acpRuntime.test.ts`, `modelApiBackendManager.test.ts`               | 82 passed                                                         |
+| `referenceGenerator.test.mjs`, `cliUsage.test.ts`, `autoCompact.test.ts`                          | 153 passed                                                        |
+| `test/e2e/acpStdio.e2e.test.ts`                                                                   | 9 passed; the same 4 baseline session-setup failures listed above |
+
+Total: **523 unit tests passed in 15 complete files**. The first final help
+rerun hit the unchanged five-second timeout because it reconstructed the
+large generated reference inside every option lookup. Reading the inventory
+once fixes the slow test; the complete three-file group then passed 89/89 at
+the repository timeout. No timeout flag, per-test extension or test filter
+was introduced.
+
+- Final `npm run typecheck`: exit 0 for host, webview, unit, e2e and integration.
+- Changed-file `npx eslint --max-warnings=0`: exit 0, 16 source/test files.
+- Changed-file `npx prettier --check`: exit 0, all 54 files; no hook rewrites.
+- `node scripts/check-l10n.mjs`: 14 UI + 14 usage tables, 252 manifest strings, 1513 sources, 0 problems.
+- `npm run reference:generate` and `npm run check:reference`: current, 77 features / 71 commands / 100 settings / 29 slash / 263 CLI.
+- `npm run roadmap:generate` and `npm run check:roadmap`: current, 207 entries.
+- `npm run check:plan`: 207 milestones, zero drift.
+- `npm run check:host-api`: 375 APIs, zero problems.
+- `npm run deadcode`: exit 0, only the inherited vendor/axe-core hints.
+- `git diff --check`: exit 0.
+
+**Inherited gate blockers, unchanged:** `npx jscpd` exits 1 for only the
+six-line `windowsTrustedPath.test.ts` clone at 206–211 / 279–284. That file is
+byte-identical to base, SHA-256
+`4064b9255e70105861f66ce1ee381c6065613193912be21c84bd3855882594df`.
+`npm run build` exits 1 before bundling at `encodeWhatsNewContent`'s 75 KiB
+decoded-content bound. Its released content is 79,510 decoded bytes on both
+base `9aaef8c99` and R4. Tokens pass before that stop; no bound, threshold,
+ignore or guard was changed. The ACP E2E baseline failures above also remain
+outside these help/admission/description repairs. No assigned finding remains
+open; aggregate quality and those existing blockers are reported to the lead.
+
+Production-option measurements evaluate the repository's real production
+esbuild configurations with `write: false`; they do not claim the blocked full
+build, bundle gates or package passed:
+
+| Bundle             |  Bytes | Existing cap | Admission copies |
+| ------------------ | -----: | -----------: | ---------------: |
+| extension          | 569213 |       614400 |                1 |
+| Model API          | 529438 |       537600 |                0 |
+| ACP startup        | 241241 |       870400 |                0 |
+| runtime accounting |  36801 |        51200 |                0 |
+| runtime engine     | 650312 |       896000 |                1 |
+
+All measured bundles fit their unchanged caps. The backend-only
+`autoCompact.ts` engine stays absent from activation, ACP startup and runtime
+accounting; it remains in the lazy Model API bundle. No copies of admission
+were added to the Model API bundle.
