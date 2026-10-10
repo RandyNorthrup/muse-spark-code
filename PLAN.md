@@ -31325,17 +31325,22 @@ entry supplies `argumentPreviewCapabilities` and `modelOutputMaxTokens` from
 the captured Meta record when no caller provides them
 (`modelCapabilities.ts`, `modelApiEntry.ts`), so the single binding serves
 VS Code, ACP and exec through their shared entry: previews stream on the
-U9-captured `muse-spark-1.3-contributor` model, Meta turns request the
-documented 131,072-token cap, and unobserved models keep today's stream and
-the legacy 32,768-token cap. No caller edits were needed in `extension.ts`,
-`runtime/backends.ts` or `src/acp/translate.ts`: neither host passes these
-deps (the only two manager construction sites), and the ACP translator
-already renders record-emitted previews. Acceptance 1, 6 and 8 hold at the
+U9-captured `muse-spark-1.3-contributor` model in VS Code and ACP, Meta turns
+in all three hosts request the documented 131,072-token cap, and unobserved
+models keep today's stream and the legacy 32,768-token cap. Headless `exec`
+drops every `tool_call`/`tool_call_update` before its sink, so it records
+completed tools only and never shows live previews. Both production manager
+callers now supply the M95 registry resolver (`extension.ts` builds it from
+the configured provider services, `runtime/backends.ts` reuses the provider
+run's), and the entry's default cap supplier reads the resolved selected
+record before M95's own policy; the ACP translator already renders
+record-emitted previews. Acceptance 1, 6 and 8 hold at the
 host level with feature-off bytes unchanged; the execute-on-a-delta drill and
 the guard-removal red drill (SHA-256 byte-exact restore) are recorded in
 `docs/certification/m106-capability-binding.md`. Open for the lead: live
 Meta receipts from the collector, per-model U9 rows beyond the contributor
-model, the C-M95-8 registry follow-up for BYO records, and Codex/Grok review.
+model, qualified-model preview records once a streaming-argument capture
+attests one, and Codex/Grok review.
 
 **M106W continuation 3 (2026-10-06, macmini).** Resolve the 15 full-suite
 blockers recorded by W: reconcile only D86-authorized behavior changes, repair
