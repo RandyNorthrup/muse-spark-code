@@ -49,6 +49,41 @@ happened, not what was planned; superseded entries are kept.
   adapter when the shared panel route lands (M104, lane U); nothing there
   is wired yet.
 
+- **Pull requests in the runtime, in every editor** (M123 lane P, PLAN.md
+  D104). Draft and open a pull request (draft or ready, a fork onto its
+  parent) after the user confirms what goes out, link it to the session
+  instead of opening a second one, read its status and checks, and check it
+  out into its own worktree (the user's own beside the repository as
+  `pr-<n>`, anyone else's held under the runtime data folder), all through
+  M71's REST client with a credential from lane 0's token-source port. The
+  held checkout refuses exactly as in VS Code, the hold spans VS Code's
+  storage and the runtime data folder, and the trust card releases it. The
+  bearer travels only in the `Authorization` header; credential-shaped
+  strings are masked, never sent. No new setting; the panel wiring follows
+  in lane U. The device-flow sign-in still waits for Q-M123. Windows share
+  the worktree records through one fenced lock (each hold gets a number no
+  other hold ever had) and numbered record generations, so a window that
+  lost the lock without knowing it never writes over another's, and a
+  delayed window can never bring back a trust confirmation; the trust card
+  confirms only the very checkout it showed, once. A checkout claims its
+  folder under the same lock that records the claim, starts each git only
+  while the project is still trusted, Cancel was not pressed and its claim
+  still stands, and when its claim was taken over removes exactly what it
+  made: at most one window ends up with the checkout, and a folder is
+  never left without its record (checked over every interleaving of two
+  and three windows). A cancelled or timed-out held checkout is cleaned up
+  (after any file write in flight has stopped), removing only the folder
+  it made itself, never one another program put there. A clock change
+  cannot stretch or cut the records lock, a waiting window takes over a
+  stuck lock only after watching it for its whole lease (and never removes
+  one it cannot prove is that one), and a checkout left behind by a crashed
+  window is taken over even when the system has reused that window's
+  process id. A record write that landed is never reported as failed
+  because of a later housekeeping step, and one whose landing cannot be
+  known is cleaned up by every number it may carry, so a failed listing
+  never leaves a checkout blocked; a lock renewal writes only the very
+  lock it holds, never one another window took over.
+
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
