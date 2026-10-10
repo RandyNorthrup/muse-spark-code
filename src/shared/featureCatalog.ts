@@ -30,6 +30,7 @@ const UI_CONDITIONS: Readonly<
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
   resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold',
   providerOpenRouterServices: 'openRouterServices=absent',
+  privacyNoRetentionDetail: 'provider=openrouter&privacy=zdr',
   referenceSandbox: 'platform=win32&shellSandbox',
   autoCompactionAwaitingEvaluation: 'autoCompactionEvaluation',
   referenceBrowser: 'workspaceTrust',
@@ -988,7 +989,7 @@ export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
 const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
-  providers: ['providerOpenRouterServices'],
+  providers: ['providerOpenRouterServices', 'pricePerMillion', 'privacyNoRetentionDetail'],
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],

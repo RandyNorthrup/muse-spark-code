@@ -61,6 +61,15 @@
           "conditions": [
             { "when": "openRouterServices=absent", "text": { "ui": "providerOpenRouterServices" } }
           ]
+        },
+        { "ui": "pricePerMillion" },
+        {
+          "conditions": [
+            {
+              "when": "provider=openrouter&privacy=zdr",
+              "text": { "ui": "privacyNoRetentionDetail" }
+            }
+          ]
         }
       ],
       "facts": {

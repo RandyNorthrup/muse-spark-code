@@ -37,6 +37,7 @@ import type {
 } from '../providers/providerPorts'
 import type { ProvidersHost } from '../providers/providersHost'
 import type { WizardSaveOutcome } from '../providers/wizardSave'
+import type { ScanOutcome } from '../providers/modelScans'
 import { OPENROUTER_ORIGIN } from '../providers/openRouter'
 import { Usd } from '../../shared/usd'
 import { redactSecrets } from '../../shared/redact'
@@ -112,9 +113,9 @@ function newDraft(preset?: PresetInfo, entry?: ProviderEntry): PanelDraft {
     models: [...(entry?.models ?? [])],
     ...(entry?.modelLimits !== undefined && { modelLimits: entry.modelLimits }),
     ...(format.success && { customFormat: format.data }),
-    privacy: 'no-training',
-    providerOrder: [],
-    allowFallbacks: false,
+    privacy: entry?.routing?.privacy ?? 'zdr',
+    providerOrder: [...(entry?.routing?.order ?? [])],
+    allowFallbacks: entry?.routing?.allowFallbacks ?? false,
     privateConfirmed: false,
     privateAsked: false,
     errors: [],
@@ -516,10 +517,21 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   const scan = async (entry: ProviderEntry, draft?: PanelDraft, id?: string): Promise<void> => {
     state.scans[entry.id] = { providerId: entry.id, status: 'scanning' }
     publish()
-    const outcome =
-      draft === undefined
-        ? await providers.scan(entry, { refresh: true })
-        : await providers.scanDraft(entry, draftSecret(entry, id))
+    let outcome: ScanOutcome
+    try {
+      outcome =
+        draft === undefined
+          ? await providers.scan(entry, { refresh: true })
+          : await providers.scanDraft(entry, draftSecret(entry, id))
+    } catch (error: unknown) {
+      state.scans[entry.id] = {
+        providerId: entry.id,
+        status: 'failed',
+        detail: UI_TEXT.providerProbeUnparseable,
+      }
+      publish()
+      throw error
+    }
     rows.set(entry.id, outcome.rows)
     const added = outcome.diff?.added ?? []
     for (const model of added) {
@@ -631,6 +643,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         break
       }
       case 'providers/edit': {
+        if (state.drafts.edits[message.providerId] !== undefined) break
         const entry = await entryOf(message.providerId)
         const draft = newDraft(providers.preset(entry.preset), entry)
         let secret: string | undefined

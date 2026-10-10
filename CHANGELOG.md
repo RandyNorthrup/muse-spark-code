@@ -49,6 +49,27 @@ happened, not what was planned; superseded entries are kept.
   the subscription's credits, not pay-as-you-go billing. The Copilot sign-in
   has its own sentence (VS Code's granted models, billed to the Copilot plan
   or AI credits) instead of repeating ChatGPT's notice.
+
+- Editing an OpenRouter provider or changing its key preserves its saved
+  privacy, provider order and fallback choice through Test and Save, including
+  Change key followed by Edit. New providers still default to no data retention.
+- A failed model scan stops showing Scanning and offers Refresh with a clear
+  reason. Previous model rows remain available; cancelled scans keep their
+  existing behavior.
+- Change key in Models & Agents keeps the replacement when Edit opens.
+  Test uses that draft key; Save keeps it, and Cancel leaves the stored key.
+- OpenRouter's key test checks its key endpoint before saying the key works.
+  The panel and CLI share the same free-check contract, so a successful public
+  model list cannot stand in for a credential check.
+- New OpenRouter setups in Models & Agents default to no data retention,
+  matching the shared setup flow and saved privacy routing.
+- Models & Agents shows captured provider prices and recognizes free cloud
+  models. Free and price filters include the right rows, and a refreshed
+  cache price counts as a price change. Routing metadata updates do not count
+  as price changes.
+- Models & Agents can scan Gemini and Ollama after ordinary setup, and
+  Anthropic's scans and key tests send its required version header. Presets
+  supply the wire format when it is absent from saved configuration.
 - Models & Agents: the provider picker works again. In 0.16.0 it showed only
   "That did not work" and listed no provider, Anthropic included, because
   Mistral's plan key carried the Subscription sign-in category the panel's

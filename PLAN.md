@@ -19894,6 +19894,51 @@ These shared webview/host repairs retain the existing editor bridge; ACP's
 provider file reads the same stored custom limits. No runtime command changes.
 No merge, push, live/paid call or dependency change is authorized in this lane.
 
+### PROVWIRE — Provider setup through the real transport and panel (2026-10-09)
+
+Close RVWIRING F2–F7 for 0.17.1 with the production panel catalogue,
+configured-provider service and checked-in M95 captures; fake only pinned
+dispatch, DNS and host storage/UI. Resolve format as `entry.format ??
+preset.format` without changing the persisted schema: ordinary presets retain
+their canonical format and custom servers retain their explicit override.
+Preserve captured prices/free flags and stable price fingerprints, share the
+preset key-test contract between CLI and panel, default OpenRouter to ZDR,
+retain replacement keys in edit drafts, and settle failed scans with a safe
+localized reason and retry. Keep panel changes small for PROVWIZ2; leave F10's
+logging to its owning lane. No live/paid calls, dependencies, merges or pushes.
+Run failing-first tests and byte-exact red/restored drills, scoped lint/format,
+five typechecks, provider/models suites, localization and reference checks.
+The lane rules reserve aggregate quality for the lead. Receipts:
+`docs/certification/provcat.md`, PROVWIRE section.
+
+Completed: F2–F7 are capture-backed through the real facade, with 14
+byte-exact red/restored drills. Final macmini verification passes 44 complete
+provider/models files (739 tests at repository deadlines), five typechecks,
+changed-file ESLint/formatting, localization (0), reference, host API, plain
+knip, zero-clone duplication and the production build within all existing caps.
+The optional persisted format remains unchanged. Full quality, hosted CI and
+installed-editor/live certification remain with the lead under the lane brief.
+
+Round 2 (RVPROVWIREG finding 1, P2): seed every saved-provider edit draft,
+including Change key and Change key followed by Edit, with the saved routing's
+privacy, provider order and fallback choice. Save uses that seeded draft;
+new OpenRouter providers still default to ZDR. Regressions replay the saved
+`any`/ordered/fallback-enabled row through replacement key, Edit, Test and
+Save, and cover plain Edit and direct Change key, including `no-training`
+and disabled fallbacks. Record failing-first and byte-exact routing drills
+in the PROVWIRE certification, then run provider/models suites at repository
+deadlines, changed-file lint/format and all five typechecks before a normal-hook
+local commit. No new feature, wire shape, dependency or live/paid call.
+
+Round 2 completed: saved routing and the replacement key survive every edit
+flow; new providers remain ZDR. Macmini passes 44 complete provider/models
+files (746 tests, default deadlines), all five typechecks, changed-file
+ESLint/formatting, localization/reference/host-API checks, plain Knip,
+zero-clone duplication and the production build within unchanged caps.
+Four deliberate routing breaks fail and restore SHA-256-exact bytes; see
+the round-2 PROVWIRE certification. Aggregate quality and hosted/editor/live
+qualification remain lead-owned under the lane rules.
+
 ### FIX0160X — Repair release CI composition (2026-10-07, macmini)
 
 Preserve M106/M107, pinned questions and agent outcomes while repairing the
@@ -44725,6 +44770,12 @@ remaining prior-round test setup/interaction and wizard-footer duplication
 is deferred to the lead's broader quality cleanup, outside these five fixes.
 No ignore, threshold, assertion or check is changed; do not claim quality
 green. G66 records freezing worktree edits during hook execution.
+
+PROVWIRE (2026-10-09): the lane brief/common rules reserve aggregate
+`npm run quality` for the lead and prohibit running it in the lane. Scoped
+provider/models tests and all requested static checks, plain knip, duplication,
+host API and production build pass; no threshold, ignore or deadline changes.
+This is a qualification handoff, not a full-quality or installed-editor claim.
 
 **FIX0160W2 scoped Windows qualification (2026-10-07).** The named lane
 brief and shared common rules prohibit aggregate quality and delegate it to
