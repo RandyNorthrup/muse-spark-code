@@ -57,7 +57,11 @@ import type { VaultTaint } from '../../../shared/vault'
 // Sessions live for the host's lifetime (this VS Code window).
 
 import { Buffer } from 'node:buffer'
-import { ArgumentPreview, type ArgumentPreviewCapabilities } from './argumentPreview'
+import {
+  ArgumentPreview,
+  declaredPreviewFields,
+  type ArgumentPreviewCapabilities,
+} from './argumentPreview'
 import { createHash, randomUUID } from 'node:crypto'
 import { prepareShellSidecar, removeShellSidecar } from '../../shellSidecar'
 import { homedir, tmpdir } from 'node:os'
@@ -5575,12 +5579,20 @@ export class ModelApiSession implements ScheduledAgentSession {
             ourId: this.deps.newId(),
             kind: 'argumentPreview',
             call: item,
+            // Host tools name their preview fields; an offered IDE or MCP
+            // tool declares its own (RVCM1062B: the captured get_weather
+            // call's city/unit render from its declaration). A tool the
+            // request never offered stays textless, as before.
             preview: new ArgumentPreview(
               toolDefinitions(this.deps.platform, {
                 hasShell: true,
                 hasSkills: false,
                 hasWebFetch: true,
-              }).find((tool) => tool.name === item.name)?.previewFields,
+              }).find((tool) => tool.name === item.name)?.previewFields ??
+                declaredPreviewFields(
+                  this.ideDefinitions().find((tool) => tool.name === item.name) ??
+                    this.deps.mcpServers?.definitions().find((tool) => tool.name === item.name),
+                ),
             ),
             text: '',
             summary: [],

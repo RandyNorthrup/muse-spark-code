@@ -1,5 +1,6 @@
 // Synthetic events exercise the existing StreamEvent contract, not a live
 // U9 receipt: lane 0's supplied capture explicitly lacks the raw deltas.
+import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
@@ -20,6 +21,7 @@ import {
   streamEventSchema,
 } from '../../src/core/backends/modelapi/schemas'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import { fakeMcpSource } from './helpers/fakeMcpSource'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { memoryToolIo, hookResult } from './helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
@@ -824,6 +826,153 @@ async function productionTurn(modelId: string) {
     await h.host.close()
   }
 }
+
+/** The raw 2026-10-10 lead capture: all 16 strict-stream frames, scrubbed. */
+function rawU9Capture() {
+  const capture = z
+    .object({
+      request: z.object({
+        body: z.object({
+          tools: z.array(
+            z.object({
+              type: z.literal('function'),
+              name: z.string(),
+              description: z.string(),
+              parameters: z.record(z.string(), z.unknown()),
+            }),
+          ),
+        }),
+      }),
+      frames: z.array(z.object({ event: z.string(), data: z.record(z.string(), z.unknown()) })),
+    })
+    .parse(
+      JSON.parse(
+        readFileSync(
+          new URL('../fixtures/m106/u9-raw-strict-stream.json', import.meta.url),
+          'utf8',
+        ),
+      ),
+    )
+  // The collector's own invariant: the raw deltas concatenate byte-exact to
+  // the done arguments (scripts/capture-m106-meta.mjs checkCapture).
+  const deltaTexts = capture.frames
+    .map((frame) => frame.data)
+    .filter((data) => data['type'] === 'response.function_call_arguments.delta')
+    .map((data) => {
+      const delta = data['delta']
+      if (typeof delta !== 'string') throw new Error('the U9 capture names no delta text')
+      return delta
+    })
+  const done = capture.frames
+    .map((frame) => frame.data)
+    .find((data) => data['type'] === 'response.function_call_arguments.done')
+  const doneName = done?.['name']
+  const doneArguments = done?.['arguments']
+  if (typeof doneName !== 'string' || typeof doneArguments !== 'string')
+    throw new Error('the U9 capture names no completed call')
+  return {
+    tools: capture.request.body.tools,
+    frames: capture.frames,
+    deltaTexts,
+    doneName,
+    doneArguments,
+  }
+}
+
+describe('Model API captured declared-tool preview', () => {
+  it('renders declared-tool preview TEXT from the raw captured U9 frames', async () => {
+    // RVCM1062B external blocker closed: the captured strict get_weather
+    // call streams its RAW delta payloads (captured split point, not the
+    // test's), and the tool is declared to the host through its MCP
+    // catalogue with the captured schema, so its declared string fields
+    // render TEXT. A tool the request never offered stays textless.
+    const capture = rawU9Capture()
+    expect(capture.frames).toHaveLength(16)
+    expect(capture.doneName).toBe('get_weather')
+    expect(capture.deltaTexts).toHaveLength(2)
+    expect(capture.deltaTexts.join('')).toBe(capture.doneArguments)
+    // The production codec passes additive frames through untranslated
+    // (src/core/backends/modelapi/codecs/responses.ts): the host receives
+    // the other 13 raw frames, including every argument byte.
+    const events: StreamEvent[] = []
+    const skipped: string[] = []
+    for (const frame of capture.frames) {
+      const parsed = streamEventSchema.safeParse(frame.data)
+      if (parsed.success) events.push(parsed.data)
+      else skipped.push(frame.event)
+    }
+    expect(skipped).toEqual([
+      'response.content_part.added',
+      'response.output_text.done',
+      'response.content_part.done',
+    ])
+    expect(events).toHaveLength(13)
+    const declared = capture.tools.find((tool) => tool.name === capture.doneName)
+    if (declared === undefined) throw new Error('the U9 capture declares no weather tool')
+    const servers = {
+      ...fakeMcpSource([]),
+      definitions: () => [
+        {
+          type: 'function' as const,
+          name: declared.name,
+          description: declared.description,
+          parameters: declared.parameters,
+          strict: false,
+        },
+      ],
+      find: (name: string) =>
+        name === declared.name
+          ? { server: 'weather', tool: 'get_weather', isReadOnly: true }
+          : undefined,
+    }
+    const io = memoryToolIo({}, ROOT)
+    const log = new FakeLogOutputChannel()
+    const client = fakeModelApiClient(fakeModelApi(), log)
+    const host = new ModelApiHost({
+      ...fakeModelApiHostDeps({ client, workspaceRoot: ROOT, io, log }),
+      mcpServers: servers,
+      argumentPreviewCapabilities: metaArgumentPreviewCapabilities,
+      modelOutputMaxTokens: metaOutputMaxTokens,
+    })
+    const session = await host.startSession({
+      workspaceRoot: ROOT,
+      modelId: M106_CAPTURED_META_MODEL,
+      approvalMode: 'allowAll',
+    })
+    if (!(session instanceof ModelApiSession)) throw new TypeError('expected a Model API session')
+    const watched = watchSessionTurns(session)
+    const bodies: string[] = []
+    let attempt = 0
+    vi.spyOn(client, 'streamResponse').mockImplementation(async function* (body) {
+      bodies.push(JSON.stringify(body))
+      attempt += 1
+      await Promise.resolve()
+      if (attempt > 1) {
+        yield terminal([])
+        return
+      }
+      yield* events
+    })
+    try {
+      await session.sendTurn([{ type: 'text', text: 'check the weather' }])
+      await watched.turnDone()
+      const previews = previewEvents(watched.events)
+      expect(previews.length).toBeGreaterThan(0)
+      // The captured bytes render the declared values, not placeholders.
+      expect(previews.at(-1)?.item.argumentPreview.text).toContain('Oslo')
+      expect(previews.at(-1)?.item.argumentPreview.text).toContain('celsius')
+      expect(previews.at(-1)?.item.argumentPreview.bytes).toBe(
+        Buffer.byteLength(capture.doneArguments),
+      )
+      expect(bodies[0]).toContain('"max_output_tokens":131072')
+      expect(bodies[0]).toContain('get_weather')
+      expect(bodies.join('')).not.toContain('argumentPreview')
+      expect(servers.calls).toEqual([{ name: 'get_weather', args: capture.doneArguments }])
+    } finally {
+      await host.close()
+    }
+  })
+})
 
 /** The production binding (C-M106-2): the entry's Meta defaults on each selected model. */
 describe('Model API selected-record production binding', () => {

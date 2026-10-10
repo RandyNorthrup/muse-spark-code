@@ -129,6 +129,16 @@ describe('M106 key-dependent capture collector (fake only)', () => {
     expect(result.stdout).toContain(flag === '--help' ? 'billing applies' : 'u9-raw-strict-stream')
     expect(CAPTURE_PLAN).toHaveLength(6)
   })
+  it('probes the output limit at the documented 16-token minimum', () => {
+    // RVCM1062B external blocker: Meta refused max_output_tokens: 1
+    // (HTTP 400, test/fixtures/m106/output-incomplete.json), so the next
+    // live run probes the server's own minimum with a prompt that needs
+    // far more, observing a genuine incomplete stop instead of a refusal.
+    const probe = CAPTURE_PLAN.find((step) => step.name === 'output-incomplete')
+    expect(probe?.method).toBe('POST')
+    expect(probe?.body).toMatchObject({ max_output_tokens: 16 })
+    expect(JSON.stringify(probe?.body)).toContain('1 through 100')
+  })
   it('refuses a live run without explicit opt-in', () => {
     const env = { PATH: process.env['PATH'], SystemRoot: process.env['SystemRoot'] }
     const refused = spawnSync(process.execPath, [script, 'some-directory'], {
