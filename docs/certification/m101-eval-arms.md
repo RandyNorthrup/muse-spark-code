@@ -16,22 +16,30 @@ Sixteen tasks (`src/core/eval/tasks.ts`): nine accept, seven held-out —
 the twelve previous tasks unchanged, plus per split one long-context
 compaction task (`isLongContext`) and one two-defect multi-edit task.
 
-Frozen digest (`evalHarnessDigest`, SHA-256 over arm names and mechanisms
-with every task id, split, title, prompt, file, verifier and long flag, in
-run order):
+Frozen digest (`evalHarnessDigest`, SHA-256 over each arm's name,
+mechanism and change source with every task id, split, title, prompt,
+file, verifier, long flag and resolved window, in run order, beside the
+verifier prelude, the window rule's source, the held-deps list and the
+frozen window and approval-mode defaults):
 
-`7f6241a64823916d1e9b6c2abf9ff5f7181688a0eaea3f33b679580e70645b26`
+`dc3f6372cdfea74e244cb35e2fc19b4fce03d6d706372eb04e1e0bacd3cdd15f`
 
 `test/unit/eval/evalFrozen.test.ts` pins the arm list, the task list and
 the digest. Any arm or task change breaks it on purpose; re-freeze by
 recording the new digest here and in that test, never by weakening it.
 Lane E's counted run recomputes the digest and compares it to this value.
+(2026-10-10 R2 re-freeze: review RVCM1012 findings 1–3; the previous
+digest `7f6241a6…45b26` covered names and descriptions only.
+Details in `docs/certification/m101.md`.)
 
 ## Why the compaction tasks carry their log in the prompt
 
-Measured on this rig: with the arm's 26,000-token window, `read_file` is
-capped at half a window in characters (13,000), while near-window needs
-nine tenths in tokens — a single file read can never trip compaction.
+Measured on this rig: with the evaluation window of 26,000 tokens (harness
+condition, shared by both arms since the R2 repair — never part of an
+arm's mechanism, because a window override would also move `read_file`
+truncation), `read_file` is capped at half a window in characters
+(13,000), while near-window needs nine tenths in tokens — a single file
+read can never trip compaction.
 The task prompt therefore carries a generated 2,200-line log (~90 KB), so
 the first request lands at ~102 KB, between 90% of the window and the
 preflight limit, and the arm compacts at its first settled tool boundary.
@@ -40,13 +48,17 @@ measures that difference with real calls.
 
 ## Evidence (fake pairs, all green at repository timeouts)
 
-- `evalCompaction.test.ts` (9 tests): both long-context tasks compact at
+- `evalCompaction.test.ts` (11 tests): both long-context tasks compact at
   the first boundary — the second request carries the compaction prompt,
   every later one the hidden follow-up replaying the full byte-exact host
   todo list — and the judged fix lands byte-exact. The baseline sends no
-  compaction. A refused `add_memory` write neither blocks the turn nor the
-  compaction. Stop during a stream dispatches nothing; cancelling an
-  in-flight summary dispatches no continuation (terminal `cancelled`).
+  compaction under the same window. Both arms of a long-output task see
+  byte-identical evidence, record included. A real memory store proves the
+  automatic flush both ways: allowed, the labelled snapshot lands and the
+  host's `add_memory` call rides the turn; refused (`denyUnmatched`), the
+  store stays empty while the turn compacts and completes. Stop during a
+  stream dispatches nothing; cancelling an in-flight summary dispatches no
+  continuation (terminal `cancelled`).
   A classified 400 overflow recovers through compaction on a small task
   (all bodies stay below near-window, so only the overflow path could
   have compacted) and the turn still passes.
@@ -76,6 +88,19 @@ measures that difference with real calls.
 | R3    | Window 20,000             | 5 tests fail (preflight refuses first send)  | constants.ts `44f85608…4bb3fe0acf8` |
 | R4    | Strict capability `false` | strict-tools pair fails (no `"strict":true`) | mechanisms.ts `1365718e…d140ac`     |
 | R5    | Arm renamed               | arm list and digest tests fail               | all four files `sha256sum -c` OK    |
+
+### R2 repairs (2026-10-10, kubuntu; review RVCM1012 findings 1–3)
+
+Each drill broke the guard, watched the named test fail, and restored the
+file byte-exact (SHA-256 verified against the pre-drill value). Full record
+in `docs/certification/m101.md`.
+
+| Drill | Deliberate break                           | Assertion that fires                                               | Restored                             |
+| ----- | ------------------------------------------ | ------------------------------------------------------------------ | ------------------------------------ |
+| D1    | Arm regains a 26,000-token window override | arm-config diff and frozen digest fail                             | mechanisms.ts `27988688…f808b8d`     |
+| D2    | Arm latch `false`, text unchanged          | frozen digest fails; arm-list comparison stays green (as reviewed) | mechanisms.ts `27988688…f808b8d`     |
+| D3    | `flushCompactionMemory` call removed       | both memory tests fail (snapshot; parsed flush call)               | ModelApiHost.ts `eee1b2eb…346fe762a` |
+| D4    | Window 20,000                              | frozen digest fails (resolved per-task windows)                    | constants.ts `44f85608…4bb3fe0acf8`  |
 
 ## Gates
 

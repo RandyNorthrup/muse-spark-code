@@ -29859,6 +29859,17 @@ receipts remain the lead's checks under the rig brief.
   task-level (no host seam exists). Production stays inactive; lane E owns
   the counted run, the D78 binding and the window-size decision.
 
+  **CM1012R2 repair of review RVCM1012 (2026-10-10, kubuntu).** All three
+  P2s fixed, no residuals. The window is harness condition shared by both
+  arms (`driver.ts` holds `contextModel`/`memory` fixed, `tasks.ts`
+  resolves the per-task window, `runner.ts` passes it); the auto-compaction
+  arm carries compaction alone. The digest now covers arm implementation
+  sources, per-task windows, the verifier prelude, the window rule, the
+  held-deps list and the frozen defaults, re-frozen as `dc3f6372…dd15f`.
+  The memory proof drives the real automatic flush through a fake store
+  (allowed and refused). Record: `docs/certification/m101.md`; updated
+  evidence in `docs/certification/m101-eval-arms.md`.
+
   **C2 final-review accounting correction.** If shared settlement throws during
   an HTTP retry notice, mark that attempt consumed before invoking settlement
   so cleanup cannot settle it a second time. A complete-file regression must
