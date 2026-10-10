@@ -3,6 +3,7 @@
 // comes from the registry too: the panel root is a container, and the
 // table reflows to cards under 340 px (models.css).
 
+import { loadTeamPanelSchemas } from './teamPanelBrowser'
 import { UI_TEXT } from '../../shared/constants'
 import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
 import {
@@ -32,8 +33,13 @@ export function ModelsApp({
 }) {
   const [ui, dispatch] = useReducer(panelUiReducer, INITIAL_PANEL_UI)
   const [panelState, setPanelState] = useState<ModelsPanelState | undefined>(undefined)
+  const [hasLoadFailure, setLoadFailure] = useState(false)
   useEffect(() => {
-    const onMessage = (event: MessageEvent): void => {
+    let isClosed = false
+    const isDocumentOpen = () => !isClosed
+    const receive = async (event: MessageEvent): Promise<void> => {
+      await loadTeamPanelSchemas(event.data)
+      if (!isDocumentOpen()) return
       const parsed = parseHostToPanelMessage(event.data)
       if (!parsed.ok) {
         report('hostMessage', new Error(parsed.error))
@@ -47,13 +53,37 @@ export function ModelsApp({
         dispatch({ type: 'host-navigate', section: message.section, itemId: message.itemId })
       }
     }
+    let pending = Promise.resolve()
+    const enqueue = async (previous: Promise<void>, event: MessageEvent): Promise<void> => {
+      await previous
+      if (!isDocumentOpen()) return
+      try {
+        await receive(event)
+      } catch (error) {
+        report('hostMessage', error)
+        if (isDocumentOpen()) setLoadFailure(true)
+      }
+    }
+    const onMessage = (event: MessageEvent): void => {
+      pending = enqueue(pending, event)
+    }
     host.messages.addEventListener('message', onMessage)
     // Subscribe before ready: the host may reply in the same task.
     host.post({ type: 'modelsPanel/ready' })
     return () => {
+      isClosed = true
       host.messages.removeEventListener('message', onMessage)
     }
   }, [host, report])
+  if (hasLoadFailure)
+    return (
+      <div role="alert">
+        <p>{UI_TEXT.surfaceLoadFailed}</p>
+        <button type="button" onClick={reloadPanel}>
+          {UI_TEXT.surfaceLoadRetry}
+        </button>
+      </div>
+    )
   const post = (message: PanelToHostMessage): void => {
     host.post(message)
   }
@@ -86,15 +116,22 @@ function useWizardLife(ui: PanelUiState): WizardLife {
 
 export function ModelsPanel({ panelState, ui, post, dispatch }: ModelsPanelProps) {
   const wizardLife = useWizardLife(ui)
-  const active = MODEL_SECTIONS.find((section) => section.id === ui.section) ?? MODEL_SECTIONS[0]
+  const sections = MODEL_SECTIONS.filter(
+    (section) =>
+      (section.id !== 'roles' && section.id !== 'agents') || panelState?.roles !== undefined,
+  )
+  const active = sections.find((section) => section.id === ui.section) ?? sections[0]
   if (active === undefined) {
     return null
   }
   const Section = active.Component
   return (
     <div className="models-panel">
-      <nav className="models-nav" aria-label={UI_TEXT.modelsPanelTitle}>
-        {MODEL_SECTIONS.map((section) => {
+      <nav
+        className={panelState?.roles === undefined ? 'models-nav' : 'models-nav models-nav-team'}
+        aria-label={UI_TEXT.modelsPanelTitle}
+      >
+        {sections.map((section) => {
           const Icon = section.icon
           const isActive = section.id === active.id
           return (

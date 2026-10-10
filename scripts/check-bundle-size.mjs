@@ -9,6 +9,7 @@ import {
   webviewPacingOutputs,
   webviewStartupOutputs,
   webviewPanelOutputs,
+  webviewTeamPanelOutputs,
 } from './lib/webviewBundles.mjs'
 
 const BYTES_PER_KIB = 1024
@@ -111,6 +112,8 @@ const BUDGETS = [
   { path: 'dist/reviewer.js', budgetKiB: 75 },
   // M96INT: tools and roster, loaded only for a team conversation. 44.6 KiB
   // measured; plus 15%, rounded up to 25 KiB (the approved D6 rule).
+  // U1: new standalone editor, 74.9 KiB measured +15%, rounded to 100 KiB.
+  { path: 'dist/teamPanel.js', budgetKiB: 100 },
   { path: 'dist/team.js', budgetKiB: 75 },
   // M96c X2: runner adapters 44.6 KiB; D6's 15%, rounded to 25 KiB.
   { path: 'dist/teamRunners.js', budgetKiB: 75 },
@@ -362,6 +365,21 @@ for (const { entry, budgetKiB } of WEBVIEW_SURFACE_BUDGETS) {
       `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} ${file} (${entry}): ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
     )
   }
+}
+for (const [name, source] of [
+  ['Roles section', 'src/webview/models/sections/roles/RolesSection.tsx'],
+  ['Agents section', 'src/webview/models/sections/agents/AgentsSection.tsx'],
+  ['team validators', 'src/shared/teamPanelDefinition.ts'],
+]) {
+  const meta = JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8'))
+  const files = webviewTeamPanelOutputs(meta, source)
+  const sizeKiB = files.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
+  // U1: 17.4 / 35.5 / 3.4 KiB, +15%, rounded to the 25 KiB scale.
+  const budgetKiB = name === 'Agents section' ? 50 : 25
+  if (sizeKiB > budgetKiB) hasFailure = true
+  console.log(
+    `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} dist/webview ${name}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
+  )
 }
 for (const { name, budgetKiB, outputs } of webviewDeferredBudgetGroups(
   webview,

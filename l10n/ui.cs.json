@@ -5536,5 +5536,45 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
-  }
+  },
+  "teamEditor": {
+    "purpose": "Účel",
+    "done": "Kritéria dokončení",
+    "guidance": "Pokyny",
+    "roleId": "ID role",
+    "pools": "Fondy",
+    "concurrent": "Limit souběhu",
+    "caps": "Limity",
+    "task": "Úkol",
+    "day": "Den",
+    "lifetime": "Celkem",
+    "addCap": "Přidat limit",
+    "reapply": "Znovu použít úroveň",
+    "empty": "Žádný tým neběží",
+    "save": "Uložit tým",
+    "saved": "Tým uložen.",
+    "invalid": "Před uložením zkontrolujte neplatné nebo chybějící hodnoty týmu.",
+    "moveLabel": "{entry} přesunut na pozici {position}.",
+    "noCalls": "Tento náhled nevolá model a nic nestojí.",
+    "settings": "Nastavení modelu",
+    "agents": "Agenti",
+    "workspace": "Pracovní prostor",
+    "poolKeys": "Alt+Nahoru / Alt+Dolů přesune tuto položku ve skupině.",
+    "toolSearch": "Hledat nástroje",
+    "transcript": "Otevřít přepis",
+    "diff": "Zkontrolovat rozdíl",
+    "editRole": "Upravit v sekci Rolí",
+    "stopAll": "Zastavit všechny úkoly týmu"
+  },
+  "teamEditorRoles": {
+    "research": "Výzkum",
+    "design": "Návrh",
+    "marketing": "Propagace",
+    "engineering": "Vývoj",
+    "qa": "Zajištění kvality",
+    "code-review": "Revize kódu",
+    "docs": "Dokumentace"
+  },
+  "referenceTeamConfiguration": "Sekce Role a Agenti zůstanou skryté, dokud nejsou nainstalována propojení týmových agentů a konfigurace.",
+  "referenceTeamPoolKeys": "Alt+Nahoru / Alt+Dolů přesune tuto položku ve skupině."
 }

@@ -111,6 +111,30 @@ function withWorkers(
 }
 
 describe('TeamTree', () => {
+  it('uses the section action labels without changing chat defaults', () => {
+    setup()
+    render(
+      <TeamTree
+        tree={tree}
+        actions={{
+          ...actions(),
+          labels: {
+            transcript: EN.teamEditor.transcript,
+            diff: EN.teamEditor.diff,
+            editRole: EN.teamEditor.editRole,
+            stopAll: EN.teamEditor.stopAll,
+          },
+        }}
+      />,
+    )
+    for (const name of [
+      EN.teamEditor.transcript,
+      EN.teamEditor.diff,
+      EN.teamEditor.editRole,
+      EN.teamEditor.stopAll,
+    ])
+      expect(screen.getAllByRole('button', { name }).length).toBeGreaterThan(0)
+  })
   it('renders the hierarchy with caps, headroom and the budget', () => {
     setup()
     render(<TeamTree tree={tree} actions={actions()} />)

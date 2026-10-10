@@ -7879,3 +7879,6 @@ export const VAULT_HOST_BUDGET_KIB = 50
 export const VAULT_UI_TICK_MS = 1000
 export const VAULT_ID_BYTES = 16
 export const VAULT_TOTP_PERIOD_SECONDS = 30
+
+/** U1 exports preserve charter text, model settings and intensity without setup secrets. */
+export const TEAM_PANEL_EXPORT_VERSION = 2

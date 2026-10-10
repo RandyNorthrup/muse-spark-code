@@ -5077,5 +5077,45 @@
     "grantsCount": {
       "other": "{count} 개 권한"
     }
-  }
+  },
+  "teamEditor": {
+    "purpose": "목적",
+    "done": "완료 기준",
+    "guidance": "지침",
+    "roleId": "역할 ID",
+    "pools": "풀",
+    "concurrent": "동시 실행 한도",
+    "caps": "한도",
+    "task": "작업",
+    "day": "일",
+    "lifetime": "누적",
+    "addCap": "한도 추가",
+    "reapply": "수준 다시 적용",
+    "empty": "실행 중인 팀 없음",
+    "save": "팀 저장",
+    "saved": "팀이 저장되었습니다.",
+    "invalid": "저장하기 전에 팀의 잘못되거나 누락된 값을 확인하세요.",
+    "moveLabel": "{entry}을(를) {position}번째 위치로 이동했습니다.",
+    "noCalls": "이 미리보기는 모델을 호출하지 않으며 비용이 들지 않습니다.",
+    "settings": "모델 설정",
+    "agents": "에이전트",
+    "workspace": "작업 영역",
+    "poolKeys": "Alt+위 / Alt+아래로 풀 안에서 이 항목을 이동합니다.",
+    "toolSearch": "도구 검색",
+    "transcript": "트랜스크립트 열기",
+    "diff": "diff 검토",
+    "editRole": "역할 섹션에서 편집",
+    "stopAll": "팀 작업 모두 중지"
+  },
+  "teamEditorRoles": {
+    "research": "연구",
+    "design": "설계",
+    "marketing": "마케팅",
+    "engineering": "개발",
+    "qa": "품질 보증",
+    "code-review": "코드 검토",
+    "docs": "문서"
+  },
+  "referenceTeamConfiguration": "팀 에이전트와 구성 연결이 설치될 때까지 역할과 에이전트는 숨겨집니다.",
+  "referenceTeamPoolKeys": "Alt+위 / Alt+아래로 풀 안에서 이 항목을 이동합니다."
 }

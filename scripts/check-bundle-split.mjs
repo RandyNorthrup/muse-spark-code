@@ -1043,7 +1043,7 @@ const TEXT_BLOCKS = [
   {
     block: 'TEAM_MODEL_TEXT',
     sentinels: ['toolTheRoleToRunEG'],
-    readers: ['dist/team.js', 'dist/teamScheduler.js'],
+    readers: ['dist/team.js', 'dist/teamScheduler.js', 'dist/teamPanel.js'],
   },
   {
     block: 'TEAM_BOOTSTRAP_MODEL_TEXT',

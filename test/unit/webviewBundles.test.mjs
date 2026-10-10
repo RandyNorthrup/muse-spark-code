@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
+import path from 'node:path'
 import {
   webviewDeferredBudgetGroups,
   webviewStartupOutputs,
   checkResourceWebview,
   webviewEntryMetafile,
   webviewPanelOutputs,
+  webviewTeamPanelOutputs,
+  teamPanelBrowserValidation,
 } from '../../scripts/lib/webviewBundles.mjs'
 
 const MAIN = 'dist/webview/main.js'
@@ -40,6 +43,51 @@ function metafile() {
 }
 
 describe('webview import budgets', () => {
+  it('resolves the browser team validator shim with either path separator', () => {
+    const registrations = []
+    teamPanelBrowserValidation.setup({
+      onResolve: (options, resolve) => {
+        registrations.push({ options, resolve })
+      },
+    })
+    const registration = registrations[0]
+    expect(registration).toBeDefined()
+    for (const relative of ['../../shared/teamPanel', String.raw`..\..\shared\teamPanel.ts`]) {
+      expect(registration.options.filter.test(relative)).toBe(true)
+      expect(
+        registration.resolve({ path: relative, resolveDir: path.resolve('src/webview/models') }),
+      ).toEqual({ path: path.resolve('src/webview/models/teamPanelBrowser.ts') })
+    }
+    expect(
+      registration.resolve({ path: './teamPanel', resolveDir: path.resolve('test') }),
+    ).toBeUndefined()
+  })
+  it('charges a team surface and its CSS independently of the Models body on Windows paths', () => {
+    const page = 'dist/webview/models.js'
+    const body = 'dist/webview/chunks/panel.js'
+    const role = 'dist/webview/chunks/roles.js'
+    const css = 'dist/webview/chunks/roles.css'
+    const source = 'src/webview/models/sections/roles/RolesSection.tsx'
+    const meta = {
+      outputs: {
+        [page]: output([edge(CORE), edge(body, 'dynamic-import')]),
+        [CORE]: output(),
+        [body]: output([edge(CORE), edge(role, 'dynamic-import')], 'src/webview/models/panel.tsx'),
+        [role]: {
+          ...output([edge(CORE), edge(SHARED), edge(SHARED)]),
+          inputs: { [source.replaceAll('/', '\\')]: {} },
+          cssBundle: css,
+        },
+        [SHARED]: output(),
+        [css]: output(),
+      },
+    }
+    expect(webviewTeamPanelOutputs(meta, source)).toEqual([role, SHARED, css])
+    Reflect.deleteProperty(meta.outputs, role)
+    expect(() => webviewTeamPanelOutputs(meta, source)).toThrow(
+      'Missing or duplicated team surface',
+    )
+  })
   it('charges nested panel dependencies once and excludes its shared bootstrap', () => {
     const meta = metafile()
     const panel = 'dist/webview/chunks/panel.js'

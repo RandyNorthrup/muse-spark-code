@@ -9,6 +9,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Roles and Agents editor** (M96 U1, C-M96-2), kept hidden behind the team
+  worker availability gate. Strict workspace drafts support guided Pair
+  setup, editable charters, ordered pools, caps, model capability checks,
+  intensity, local suggestions and estimates, and credential-free import
+  and export. The shared Agent map forwards actions through the existing
+  team host. All 14 translations are included. Production worker/model
+  bindings and cross-editor certification remain prerequisites for exposing
+  the sections. New code and English text load lazily; the unchanged Models
+  panel body budget still needs the lead's integration repair.
+
 - **The team host service** (M96, C-M96-3). One service per window now
   answers the Model API conversation's team seams (the decision a new
   conversation reads, the roster, and `delegate`, `collect`, `cancel` and

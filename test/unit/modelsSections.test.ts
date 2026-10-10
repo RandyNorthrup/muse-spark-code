@@ -10,7 +10,12 @@ import { makeState } from './modelsPanelFixtures'
 
 describe('MODEL_SECTIONS', () => {
   it('registers providers and models, each with a title, icon and Component', () => {
-    expect(MODEL_SECTIONS.map((section) => section.id)).toEqual(['providers', 'models'])
+    expect(MODEL_SECTIONS.map((section) => section.id)).toEqual([
+      'providers',
+      'models',
+      'roles',
+      'agents',
+    ])
     for (const section of MODEL_SECTIONS) {
       expect(section.getTitle().length).toBeGreaterThan(0)
       expect(typeof section.icon).toBe('function')
@@ -21,8 +26,9 @@ describe('MODEL_SECTIONS', () => {
     expect(sectionById('models')?.getTitle()).toBe(UI_TEXT.modelsSectionTitle)
   })
 
-  it('finds nothing for a section this build has none of', () => {
-    expect(sectionById('roles' as 'providers')).toBe(undefined)
+  it('finds the gated team sections by their deep-link IDs', () => {
+    expect(sectionById('roles')?.getTitle()).toBe(UI_TEXT.teamRolesTitle)
+    expect(sectionById('agents')?.getTitle()).toBe(UI_TEXT.teamEditor.agents)
   })
 
   it('folds each section only over its own overlay actions', () => {

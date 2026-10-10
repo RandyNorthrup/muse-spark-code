@@ -39,6 +39,7 @@ const UI_CONDITIONS: Readonly<
   referenceBestOfNRequirements: 'bestOfNAdmission',
   referenceSecretPrompt: 'secretDetected',
   referenceTabMenu: 'copilotYield',
+  referenceTeamConfiguration: 'teamWorkerBinding=absent|teamConfigurationBinding=absent',
   referenceConversationActions: 'turnState',
   referencePermissionLimits: 'backend&permissionMode&autoReviewer',
   museCodeReviewerNotice: 'permissionMode=auto&museCodeAutoReviewer=true',
@@ -350,6 +351,15 @@ export function featureCatalog(): readonly Feature[] {
       ['museCode', 'modelApi'],
       false,
       ['vscode', 'acp'],
+    ),
+    feature(
+      'team-configuration',
+      { ui: 'teamRolesTitle' },
+      { ui: 'referenceTeamConfiguration' },
+      ['modelsAndAgents'],
+      ['team'],
+      'team-configuration',
+      ['modelApi'],
     ),
     feature(
       'team-workers',
