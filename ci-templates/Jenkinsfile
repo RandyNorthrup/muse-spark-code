@@ -1,0 +1,77 @@
+// Muse Spark Code (Unofficial): Jenkins declarative template (lane CM80CI, PLAN.md M80/D65).
+//
+// Use this Jenkinsfile (or its stages) next to a vendored copy of
+// ci-templates/muse-spark-run.mjs. It runs one headless Model API review
+// (or fix) through the same runner, inputs and exit codes as the GitHub
+// Action (action/action.yml). Requires a Node 22 tool named `node-22`
+// (Manage Jenkins > Tools) and a Linux agent.
+//
+// Secret setup: store the Meta Model API key as a Secret text credential
+// with id `muse-model-api-key`. `withCredentials` masks it in the build log
+// and the binding below lives only around the single run step: install,
+// checkout and archive steps never see it. Never echo it.
+//
+// Fork rule: in a multibranch pipeline CHANGE_FORK is set for pull requests
+// from forks and unset otherwise. Fork PRs are refused (exit 0, nothing
+// runs) before any key is read. Same-repo change requests are trusted only
+// when MUSE_TRUST_PRS is true: keep it false unless the job restricts PR
+// discovery to trusted sources or gates runs behind an `input` approval.
+// Branch builds are trusted: only writers can change this file, the same
+// trust the Action places in OWNER/MEMBER/COLLABORATOR.
+//
+// This template never comments on the change and never pushes: artifacts only.
+
+pipeline {
+  agent { label 'linux' }
+  tools { nodejs 'node-22' }
+  options { timeout(time: 25, unit: 'MINUTES') } // MUSE_TIMEOUT_MINUTES plus overhead and install margin.
+  parameters {
+    choice(name: 'MUSE_MODE', choices: ['review', 'fix'], description: 'review (plan, no edits) or fix (accept edits).')
+    string(name: 'MUSE_MAX_BUDGET_USD', defaultValue: '2.00', description: 'Required: hard USD cap, more than 0, at most 20.')
+    string(name: 'MUSE_MAX_REQUESTS', defaultValue: '30', description: 'Billable HTTP attempts allowed (1-500).')
+    string(name: 'MUSE_TIMEOUT_MINUTES', defaultValue: '20', description: 'Run deadline in minutes (1-360).')
+    string(name: 'MUSE_MODEL', defaultValue: '', description: 'Model API model id; empty uses the agent default.')
+    string(name: 'MUSE_EFFORT', defaultValue: '', description: 'Reasoning effort; empty uses the default.')
+    booleanParam(name: 'MUSE_IMAGE_GENERATION', defaultValue: false, description: 'Paid images; needs fix mode.')
+    booleanParam(name: 'MUSE_ALLOW_CONTRIBUTOR_MODELS', defaultValue: false, description: 'Opt into a contributor model.')
+    string(name: 'MUSE_MAX_DIFF_BYTES', defaultValue: '262144', description: 'Untrusted-file bound mirror.')
+    string(name: 'MUSE_PROMPT', defaultValue: 'Review the latest changes in this workspace and report findings.', description: 'The one-turn prompt.')
+    string(name: 'MUSE_EXTRA_INSTRUCTIONS', defaultValue: '', description: 'Trusted author instructions (4000 chars max).')
+    string(name: 'MUSE_AGENT_VERSION', defaultValue: '0.17.0', description: 'Exact registry pin for the agent.')
+    booleanParam(name: 'MUSE_TRUST_PRS', defaultValue: false, description: 'Trust same-repo change requests.')
+  }
+  environment {
+    MUSE_PROMPT_FILE = ''
+    MUSE_AGENT_TARBALL = ''
+    MUSE_AGENT_TARBALL_SHA256 = ''
+    MUSE_OUT_DIR = 'muse-spark-out'
+  }
+  stages {
+    stage('Install the agent') {
+      steps {
+        // No secret in this step: install first, exactly like the Action.
+        sh 'node ci-templates/muse-spark-run.mjs --install-only'
+      }
+    }
+    stage('Run Muse Spark') {
+      steps {
+        script {
+          // Fork PRs are always untrusted; same-repo PRs need the explicit opt-in above.
+          env.MUSE_UNTRUSTED = (env.CHANGE_FORK != null || (env.CHANGE_ID != null && params.MUSE_TRUST_PRS != true)).toString()
+        }
+        // Only this step receives the key, piped over private stdin by the runner. Never echo it.
+        withCredentials([string(credentialsId: 'muse-model-api-key', variable: 'MUSE_MODEL_API_KEY')]) {
+          sh '''
+            export MUSE_SPARK_MODEL_API_KEY="$MUSE_MODEL_API_KEY"
+            node ci-templates/muse-spark-run.mjs
+          '''
+        }
+      }
+    }
+  }
+  post {
+    always {
+      archiveArtifacts artifacts: 'muse-spark-out/**', allowEmptyArchive: true
+    }
+  }
+}

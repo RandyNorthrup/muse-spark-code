@@ -1,0 +1,67 @@
+# Muse Spark Code (Unofficial): Azure Pipelines template (lane CM80CI, PLAN.md M80/D65).
+#
+# Copy this job into your azure-pipelines.yml next to a vendored copy of
+# ci-templates/muse-spark-run.mjs. It runs one headless Model API review
+# (or fix) through the same runner, inputs and exit codes as the GitHub
+# Action (action/action.yml).
+#
+# Secret setup: make MUSE_MODEL_API_KEY a secret pipeline variable (the
+# padlock) or a secret in a linked variable group. Secrets are not passed to
+# builds of forks unless "Make secrets available to builds of forks" is
+# turned on: keep it OFF. Only the run step receives
+# MUSE_SPARK_MODEL_API_KEY, mapped in its own `env:` block. Never echo it;
+# Azure masks secrets that do leak into logs, but the template never prints
+# it in the first place.
+#
+# Fork rule: System.PullRequest.IsFork is True for fork PRs (GitHub and
+# Azure Repos sources). Fork builds get no secret and the runner refuses
+# (exit 0, nothing runs) before any key is read. Same-repo runs are trusted:
+# only writers can change this file, the same trust the Action places in
+# OWNER/MEMBER/COLLABORATOR. For PR runs that also need a human gate, target
+# an Environment with an approval check instead of the pool below.
+#
+# This template never comments on the PR and never pushes: artifacts only.
+
+variables:
+  MUSE_MODE: 'review' # review (plan, no edits) or fix (accept edits in the workspace).
+  MUSE_MAX_BUDGET_USD: '2.00' # Required: hard USD cap, more than 0, at most 20, six decimals max.
+  MUSE_MAX_REQUESTS: '30' # Billable HTTP attempts allowed, retries included (1-500).
+  MUSE_TIMEOUT_MINUTES: '20' # Run deadline in minutes (1-360); the job timeout adds a margin.
+  MUSE_MODEL: '' # Model API model id; empty uses the agent default.
+  MUSE_EFFORT: '' # Reasoning effort (minimal|low|medium|high|xhigh|max); empty uses the default.
+  MUSE_IMAGE_GENERATION: 'false' # true only with MUSE_MODE=fix, inside the budget.
+  MUSE_ALLOW_CONTRIBUTOR_MODELS: 'false' # true opts into a contributor model (training-eligible).
+  MUSE_MAX_DIFF_BYTES: '262144' # Untrusted-file bound mirror (1-1048576).
+  MUSE_PROMPT: 'Review the latest changes in this workspace and report findings.' # Or set MUSE_PROMPT_FILE.
+  MUSE_PROMPT_FILE: ''
+  MUSE_EXTRA_INSTRUCTIONS: '' # Trusted author instructions appended to the prompt (4000 chars max).
+  MUSE_AGENT_VERSION: '0.17.0' # Exact registry pin, or MUSE_AGENT_TARBALL plus MUSE_AGENT_TARBALL_SHA256.
+  MUSE_AGENT_TARBALL: ''
+  MUSE_AGENT_TARBALL_SHA256: ''
+  MUSE_OUT_DIR: 'muse-spark-out'
+  # True exactly for fork pull requests; empty for CI/manual/scheduled runs.
+  MUSE_UNTRUSTED: $[eq(variables['System.PullRequest.IsFork'], 'True')]
+
+jobs:
+  - job: muse_spark_review
+    displayName: 'Muse Spark review'
+    pool:
+      vmImage: 'ubuntu-latest'
+    timeoutInMinutes: 25 # MUSE_TIMEOUT_MINUTES plus the runner's one-minute overhead and install margin.
+    steps:
+      - task: NodeTool@0
+        displayName: 'Use Node 22'
+        inputs:
+          versionSpec: '22.x'
+      # No secret in this step: install first, exactly like the Action.
+      - bash: node ci-templates/muse-spark-run.mjs --install-only
+        displayName: 'Install the agent'
+      # Only this step receives the key, piped over private stdin by the runner. Never echo it.
+      - bash: node ci-templates/muse-spark-run.mjs
+        displayName: 'Run Muse Spark'
+        env:
+          MUSE_SPARK_MODEL_API_KEY: $(MUSE_MODEL_API_KEY)
+      - publish: $(MUSE_OUT_DIR)
+        artifact: muse-spark-out
+        displayName: 'Publish the run outputs'
+        condition: always()
