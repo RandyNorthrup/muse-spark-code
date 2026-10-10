@@ -957,3 +957,31 @@ opens two cold pages at once, each parsing the full fixture script. Like the
 estimator, a separate `beforeAll` (its own hook limit; the build-heavy first
 hook keeps its budget) opens and closes one page first; every case keeps the
 default five seconds and all assertions. Mac mini: 70/70, the case 811 ms.
+
+**Hosted macOS runs files one at a time (class fix).** Run 38025649553 added
+three more single-case deadline misses: macOS `vault/channel` (its
+`beforeAll` at 10 s), macOS `m114ConversationReview` "light jump … forced-color
+pressed feedback" (5 s), and Windows `pageConverter` (below). Every hosted
+macOS failure in rounds 3-5 was a deadline in a browser or native-process
+suite, a different case each run, while two files ran at once on the 3-vCPU
+arm64 runner beside their Chrome processes and coverage. Windows already runs
+files one at a time for the same reason. `vitest.config.ts` now does so on
+hosted macOS (`GITHUB_ACTIONS` on darwin; rigs and developer Macs keep
+parallel files), and the unit job gives macOS six shards like Windows. Sizing:
+the per-file times of run 38022741513's four macOS shards sum to 2,239 s
+(about 2,870 s with import and setup), about eight minutes per serial shard
+and about eleven for the largest, inside the 20-minute job limit; four serial
+shards would not fit. No deadline changes. The required checks are the per-OS
+aggregates, which already need every shard. The manifest test pins the new
+layout; drill: restoring the old `fileParallelism` expression fails it
+(1 failed), restored and verified with `sha256sum -c`. Kubuntu: manifest and
+pageConverter 46/46.
+
+**Windows pageConverter.** "runs at most two conversions at once; a waiting
+one ends with its fetch" received `{ ok: false, kind: 'timeout' }` for its
+fourth page. The case builds its converter with the 500 ms limit so its two
+slow pages time out; the fourth page only shows a freed slot lets the next
+page through, yet inherited that limit, cold worker start included. It now
+converts through a second converter with the normal limits over the same
+slots and worker watcher; the slow pages keep 500 ms and every assertion
+stays. win11 6/6.

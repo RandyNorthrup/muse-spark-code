@@ -38044,7 +38044,7 @@ Git Bash fake remote runs the job unniced, as it already stubs `getconf` and
 launchd reaps the root's unreaped `detached` child; the case now waits out
 that reap and reports the raw `ps`/helper reads if it recurs. Neither hosted
 failure reproduced on the rigs (macOS 15 x86_64 rigs against hosted macOS 26
-arm64), so hosted loops on a probe branch supply the evidence.
+arm64), so hosted loops on a probe branch supply the evidence. A sweep of recent CI history added Windows cleanup holds (three suites now use `removeFolder`), the m114Panel first case (the same first-page warm-up) and Windows pageConverter (its fourth page gets the normal converter limits). Hosted macOS, failing only on deadlines in browser/process suites, now runs files one at a time over six shards, as Windows does.
 
 **ACPM118 scoped rig qualification (2026-10-09, macmini).** The explicit
 rig/common brief prohibits aggregate quality and delegates hosted replay to

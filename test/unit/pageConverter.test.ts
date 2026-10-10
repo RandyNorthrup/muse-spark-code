@@ -203,9 +203,18 @@ describe("web fetch's page converter on a worker thread (M69)", () => {
     expect(workers.started).toHaveLength(2)
     stopThird.abort()
     expect(await third).toEqual({ ok: false, kind: 'failed', detail: 'STOPPED' })
-    // A slot freed by the first two lets the next page through.
+    // A slot freed by the first two lets the next page through. The short limit
+    // exists to time the slow pages out; this page, a cold worker start on a
+    // busy runner included, gets the normal limit over the same slots.
     await Promise.all([first, second])
-    const fourth = await convert(job('<p>four'), NOT_STOPPED)
+    const normal = pageConverter(
+      workerPath,
+      new FakeLogOutputChannel(),
+      LIMITS,
+      workers.start,
+      slots,
+    )
+    const fourth = await normal(job('<p>four'), NOT_STOPPED)
     expect(fourth).toMatchObject({ ok: true, page: { markdown: 'four' } })
     expect(workers.started).toHaveLength(3)
   })
