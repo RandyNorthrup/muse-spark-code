@@ -178,4 +178,34 @@ describe('fetchLoopback (M95 step 1)', () => {
       'loopback fetch refuses a body past',
     )
   })
+
+  // C-M95-4 R2: a 204/304 answer settles with its status and no body. The
+  // probe used to throw building a `Response` with an (empty) body past
+  // `isSettled = true`, so the promise never settled and the scan timed
+  // out reporting the port unanswered.
+  for (const status of [204, 304]) {
+    it(`settles a null-body ${String(status)} answer instead of hanging`, async () => {
+      const target = await listen((_request, reply) => {
+        reply(status, '')
+      })
+      const response = await fetchLoopback(`http://127.0.0.1:${String(target.port)}/v1/models`)
+      expect(response.status).toBe(status)
+      expect(await response.text()).toBe('')
+    })
+  }
+
+  // C-M95-4 R2: Node keeps the brackets in an IPv6 URL hostname (`[::1]`),
+  // which used to miss the allowlist. This asserts past the allowlist only:
+  // port 9 is closed, so the failure is a refused connection (or a sandbox
+  // proxy answer), never the pre-connect refusal.
+  it('accepts bracketed ::1 past the allowlist', async () => {
+    let outcome: string
+    try {
+      const response = await fetchLoopback('http://[::1]:9/v1/models')
+      outcome = `status ${String(response.status)}`
+    } catch (error: unknown) {
+      outcome = error instanceof Error ? error.message : String(error)
+    }
+    expect(outcome).not.toContain('non-loopback host')
+  })
 })
