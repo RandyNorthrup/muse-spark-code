@@ -1,0 +1,64 @@
+# Muse Spark Code (Unofficial): Bitbucket Pipelines template (lane CM80CI, PLAN.md M80/D65).
+#
+# Copy this step into your bitbucket-pipelines.yml next to a vendored copy
+# of ci-templates/muse-spark-run.mjs. It runs one headless Model API review
+# (or fix) through the same runner, inputs and exit codes as the GitHub
+# Action (action/action.yml).
+#
+# Secret setup (Repository settings > Pipelines > Repository variables):
+#   MUSE_MODEL_API_KEY = <Meta Model API key>, ticked Secured.
+# Secured values are masked in logs and are NOT passed to builds triggered
+# by pull requests from forks. Only the run command receives
+# MUSE_SPARK_MODEL_API_KEY. Never echo it.
+#
+# Fork rule: BITBUCKET_PR_ID is set for every pull-request build. The step
+# marks all PR builds untrusted, so a fork PR is refused (exit 0, nothing
+# runs) even before the missing key matters. Branch builds are trusted: only
+# writers can change this file, the same trust the Action places in
+# OWNER/MEMBER/COLLABORATOR. To review same-repo pull requests, run the
+# branch's custom pipeline by hand, or set MUSE_TRUST_SAME_REPO_PRS to true
+# only while branch permissions keep untrusted writers out.
+#
+# This template never comments on the PR and never pushes: artifacts only.
+
+definitions:
+  steps:
+    - step: &muse-spark-review
+      name: Muse Spark review
+      image: node:22
+      max-time: 25 # MUSE_TIMEOUT_MINUTES plus the runner's one-minute overhead and install margin.
+      script:
+        - export MUSE_MODE="${MUSE_MODE:-review}"
+        - export MUSE_MAX_BUDGET_USD="${MUSE_MAX_BUDGET_USD:-2.00}"
+        - export MUSE_MAX_REQUESTS="${MUSE_MAX_REQUESTS:-30}"
+        - export MUSE_TIMEOUT_MINUTES="${MUSE_TIMEOUT_MINUTES:-20}"
+        - export MUSE_MODEL="${MUSE_MODEL:-}"
+        - export MUSE_EFFORT="${MUSE_EFFORT:-}"
+        - export MUSE_IMAGE_GENERATION="${MUSE_IMAGE_GENERATION:-false}"
+        - export MUSE_ALLOW_CONTRIBUTOR_MODELS="${MUSE_ALLOW_CONTRIBUTOR_MODELS:-false}"
+        - export MUSE_MAX_DIFF_BYTES="${MUSE_MAX_DIFF_BYTES:-262144}"
+        - export MUSE_PROMPT="${MUSE_PROMPT:-Review the latest changes in this workspace and report findings.}"
+        - export MUSE_PROMPT_FILE="${MUSE_PROMPT_FILE:-}"
+        - export MUSE_EXTRA_INSTRUCTIONS="${MUSE_EXTRA_INSTRUCTIONS:-}"
+        - export MUSE_AGENT_VERSION="${MUSE_AGENT_VERSION:-0.17.0}"
+        - export MUSE_AGENT_TARBALL="${MUSE_AGENT_TARBALL:-}"
+        - export MUSE_AGENT_TARBALL_SHA256="${MUSE_AGENT_TARBALL_SHA256:-}"
+        - export MUSE_OUT_DIR="${MUSE_OUT_DIR:-muse-spark-out}"
+        - export MUSE_TRUST_SAME_REPO_PRS="${MUSE_TRUST_SAME_REPO_PRS:-false}"
+        # Pull-request builds stay untrusted unless the override above says so.
+        - if [ -n "${BITBUCKET_PR_ID:-}" ] && [ "$MUSE_TRUST_SAME_REPO_PRS" != "true" ]; then export MUSE_UNTRUSTED="pull-request-build"; else export MUSE_UNTRUSTED="false"; fi
+        # No secret in this step: install first, exactly like the Action.
+        - node ci-templates/muse-spark-run.mjs --install-only
+        # Only this command receives the key, piped over private stdin by the runner. Never echo it.
+        - export MUSE_SPARK_MODEL_API_KEY="$MUSE_MODEL_API_KEY"
+        - node ci-templates/muse-spark-run.mjs
+      artifacts:
+        - muse-spark-out/**
+
+pipelines:
+  branches:
+    '{main,master}':
+      - step: *muse-spark-review
+  pull-requests:
+    '**':
+      - step: *muse-spark-review

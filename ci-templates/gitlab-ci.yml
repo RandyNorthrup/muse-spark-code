@@ -1,0 +1,62 @@
+# Muse Spark Code (Unofficial): GitLab CI template (lane CM80CI, PLAN.md M80/D65).
+#
+# Copy this job into your .gitlab-ci.yml next to a vendored copy of
+# ci-templates/muse-spark-run.mjs, or `include:` this file from the release
+# tag. It runs one headless Model API review (or fix) through the same
+# runner, inputs and exit codes as the GitHub Action (action/action.yml).
+#
+# Secret setup (Settings > CI/CD > Variables), exactly one variable:
+#   MUSE_MODEL_API_KEY = <Meta Model API key>, flags: Masked AND Protected.
+# Masked keeps the value out of job logs; Protected withholds it from
+# unprotected branches and tags. Fork merge requests run without it: the
+# rules below mark them untrusted and the runner refuses (exit 0, nothing
+# runs, nothing is spent) before any key is read. Only the run script line
+# receives MUSE_SPARK_MODEL_API_KEY, scoped to that one command.
+#
+# Fork rule: same-project pipelines are trusted (only writers can change
+# this file, the same trust the Action places in OWNER/MEMBER/COLLABORATOR).
+# A fork MR has a different CI_MERGE_REQUEST_SOURCE_PROJECT_PATH and is
+# refused. To also run same-project MRs only on protected branches, add a
+# rule matching $CI_MERGE_REQUEST_SOURCE_BRANCH_PROTECTED == "false".
+#
+# This template never comments on the MR and never pushes: artifacts only.
+
+variables:
+  MUSE_MODE: 'review' # review (plan, no edits) or fix (accept edits in the workspace).
+  MUSE_MAX_BUDGET_USD: '2.00' # Required: hard USD cap, more than 0, at most 20, six decimals max.
+  MUSE_MAX_REQUESTS: '30' # Billable HTTP attempts allowed, retries included (1-500).
+  MUSE_TIMEOUT_MINUTES: '20' # Run deadline in minutes (1-360); the job timeout adds a margin.
+  MUSE_MODEL: '' # Model API model id; empty uses the agent default.
+  MUSE_EFFORT: '' # Reasoning effort (minimal|low|medium|high|xhigh|max); empty uses the default.
+  MUSE_IMAGE_GENERATION: 'false' # true only with MUSE_MODE=fix, inside the budget.
+  MUSE_ALLOW_CONTRIBUTOR_MODELS: 'false' # true opts into a contributor model (training-eligible).
+  MUSE_MAX_DIFF_BYTES: '262144' # Untrusted-file bound mirror (1-1048576).
+  MUSE_PROMPT: 'Review the latest changes in this workspace and report findings.' # Or set MUSE_PROMPT_FILE.
+  MUSE_PROMPT_FILE: ''
+  MUSE_EXTRA_INSTRUCTIONS: '' # Trusted author instructions appended to the prompt (4000 chars max).
+  MUSE_AGENT_VERSION: '0.17.0' # Exact registry pin, or MUSE_AGENT_TARBALL plus MUSE_AGENT_TARBALL_SHA256.
+  MUSE_AGENT_TARBALL: ''
+  MUSE_AGENT_TARBALL_SHA256: ''
+  MUSE_OUT_DIR: 'muse-spark-out'
+
+muse-spark-review:
+  image: node:22
+  timeout: 25m # MUSE_TIMEOUT_MINUTES plus the runner's one-minute overhead and install margin.
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_SOURCE_PROJECT_PATH != $CI_PROJECT_PATH
+      variables:
+        MUSE_UNTRUSTED: 'fork-merge-request'
+      when: on_success
+    - when: on_success
+      variables:
+        MUSE_UNTRUSTED: 'false'
+  script:
+    # No secret in this step: install first, exactly like the Action.
+    - node ci-templates/muse-spark-run.mjs --install-only
+    # Only this command receives the key, piped over private stdin by the runner. Never echo it.
+    - MUSE_SPARK_MODEL_API_KEY="$MUSE_MODEL_API_KEY" node ci-templates/muse-spark-run.mjs
+  artifacts:
+    when: always
+    paths:
+      - $MUSE_OUT_DIR/
+    expire_in: 1 week
