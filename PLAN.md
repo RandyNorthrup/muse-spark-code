@@ -20313,6 +20313,7 @@ Regression tests and byte-exact red drills cover all three review findings;
 owning usage/money suites, one unit-project typecheck, lint, formatting and
 scoped production measurements retain every cap, including usagePanel's.
 Aggregate quality and the inherited build blocker remain with the lead.
+**RVM121DC P3 (2026-10-09, M121F): closed.** The guard resolves remapped (`as`) mapped keys through the checker's base constraint and walks ordinary wrapper properties to lib-declared mapped money, judging schemas by output only; receipts in `docs/certification/m121.md`.
 
 ### INT0180B — Complete the 0.18.0 integration (2026-10-07, linuxlt)
 

@@ -84,7 +84,8 @@ happened, not what was planned; superseded entries are kept.
 - Unproved version 1 monthly rollup dollars are refused before money validation,
   preserving the other usage days and the translated precision notice even for
   overflow or negative literals (M121A round 4). Changes that round to zero show
-  `0%`; the money guard also checks nested and generic mapped keys.
+  `0%`; the money guard also checks nested and generic mapped keys, including
+  remapped (`as`) names and lib-declared records beneath ordinary wrappers.
 - Legacy money reads fail closed on overflow, underflow, negative zero and
   unconvertible exponents (M121A round 3), preserving the precision-refusal
   notice instead of accepting a rounded zero.
