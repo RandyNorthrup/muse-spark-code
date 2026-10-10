@@ -92,7 +92,7 @@ imports` 392.6 KiB (500), `dist/webview/usage.css` 14.1 KiB (25, baseline
 
 ## Byte-exact red drills (break, watch fail, restore, `sha256sum -c` OK)
 
-Source SHAs at drill time (`temp/drill-sha.txt`):
+Source SHAs at drill time (production `theme.css` identical in dev):
 
 - `dist/webview/theme.css`: `3be69b5f…7e3b4872`
 - `scripts/check-bundle-size.mjs`: `fa6aa426…5ddacfc96`
