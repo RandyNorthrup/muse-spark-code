@@ -451,11 +451,11 @@ export class RequestTransport {
   }
 
   /** Read authorization fresh for every attempt. */
-  private async headers(url: string): Promise<AuthHeaders> {
-    if (this.deps.auth !== undefined) {
+  private async headers(url: string, authKey?: string): Promise<AuthHeaders> {
+    if (authKey === undefined && this.deps.auth !== undefined) {
       return await this.deps.auth.headers(url)
     }
-    const key = await this.deps.apiKey?.()
+    const key = authKey ?? (await this.deps.apiKey?.())
     if (key === undefined) {
       throw new MissingApiKeyError()
     }
@@ -737,6 +737,12 @@ export class RequestTransport {
        * so it is not.
        */
       readonly headers?: Readonly<Record<string, string>>
+      /**
+       * An explicit credential for this request (a paid image on the
+       * stored key while chat bills the subscription): exact redaction and
+       * the digest follow the override, never the default key.
+       */
+      readonly authKey?: string
       readonly retries?: 'all' | 'rateLimitOnly'
       readonly paid?: {
         readonly claim: PaidRequestClaim
@@ -799,7 +805,7 @@ export class RequestTransport {
       }
       let credentials: Awaited<ReturnType<RequestTransport['headers']>>
       try {
-        credentials = await this.headers(url)
+        credentials = await this.headers(url, init.authKey)
       } catch (error: unknown) {
         if (isAborted(signal)) {
           throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)

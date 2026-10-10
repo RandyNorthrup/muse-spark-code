@@ -5381,9 +5381,10 @@
     }
   },
   "subscriptionKey": {
-    "signInAgain": "L’abonnement Muse Code est activé, mais la CLI Muse Code ne détient ici aucune clé d’abonnement. Connectez-vous à nouveau (`muse login`, ou `muse auth set` avec votre clé d’API d’abonnement), puis réessayez — ou utilisez plutôt une clé de Model API.",
+    "signInAgain": "L’abonnement Muse Code est activé, mais la CLI Muse Code ne détient ici aucune connexion d’abonnement. Une clé à l’usage (`muse auth set`) ne compte pas. Connectez-vous avec votre compte Muse (`muse login`), puis réessayez — ou utilisez plutôt une clé de Model API.",
     "cannotRead": "L’abonnement Muse Code est activé, mais le fichier de connexion de la CLI Muse Code est illisible. Reconnectez la CLI Muse Code, puis réessayez — ou utilisez plutôt une clé de Model API.",
-    "keychainBacked": "L’abonnement Muse Code est activé, mais cette connexion se trouve dans le trousseau de session, illisible ici. Utilisez plutôt une clé de Model API."
+    "keychainBacked": "L’abonnement Muse Code est activé, mais cette connexion se trouve dans le trousseau de session, illisible ici. Utilisez plutôt une clé de Model API.",
+    "paidNeedsKey": "L’abonnement Muse Code couvre le clavardage. Cette option payante exige une clé de Model API enregistrée : enregistrez-en une, puis réessayez."
   },
   "acpSubscriptionNeedsModelApi": "{argument} nécessite --backend modelApi : l’abonnement Muse Code paie les appels Model API.",
   "execSubscriptionStdin": "--subscription et --key-stdin ne peuvent pas être combinés : un identifiant par exécution.",

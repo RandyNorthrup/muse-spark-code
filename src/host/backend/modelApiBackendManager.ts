@@ -69,6 +69,11 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly getProviderAccountId?: () => Promise<string | undefined>
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
+  /**
+   * C-M95-SUB: the stored pay-as-you-go key for paid extras. While the
+   * subscription pays for chat, billed images authenticate as this key.
+   */
+  readonly getPaidApiKey?: (() => Promise<string | undefined>) | undefined
   readonly getAccountId?: (() => Promise<string | undefined>) | undefined
   readonly createProviders?: (() => Promise<ModelResolver>) | undefined
   readonly hasMetaCredential?: (() => boolean) | undefined
@@ -336,6 +341,7 @@ export class ModelApiBackendManager {
         ...(this.deps.streamIdleMs !== undefined && { streamIdleMs: this.deps.streamIdleMs }),
         baseUrl: MODEL_API_BASE_URL,
         apiKey: this.deps.getApiKey,
+        ...(this.deps.getPaidApiKey !== undefined && { paidApiKey: this.deps.getPaidApiKey }),
         sleep: this.deps.sleep,
         now: this.deps.now,
         random: this.deps.random,
@@ -361,10 +367,26 @@ export class ModelApiBackendManager {
         scheduleStore: variant.scheduleStore,
         getAccountId: async () => {
           if (this.deps.getAccountId !== undefined) return await this.deps.getAccountId()
-          const key = await this.deps.getApiKey()
-          return key === undefined
-            ? await this.deps.getProviderAccountId?.()
-            : createHash('sha256').update(key).digest('hex')
+          let key: string | undefined
+          let refusal: Error | undefined
+          try {
+            key = await this.deps.getApiKey()
+          } catch (error: unknown) {
+            // A refused subscription key reads as no key here, so an
+            // unrelated provider's own account can still make the host
+            // ready; the turn path surfaces the refusal itself.
+            refusal = error instanceof Error ? error : new Error(String(error))
+            key = undefined
+          }
+          if (key === undefined) {
+            const fallback = await this.deps.getProviderAccountId?.()
+            if (fallback !== undefined) return fallback
+            // No provider account behind it: Meta-only use keeps the
+            // refusal (with its fix) instead of a bare missing key.
+            if (refusal !== undefined) throw refusal
+            return
+          }
+          return createHash('sha256').update(key).digest('hex')
         },
         admitResponseAttempt: variant.admitResponseAttempt,
         noteResponseUsage: variant.noteResponseUsage,

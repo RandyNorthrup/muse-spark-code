@@ -5075,9 +5075,10 @@
     }
   },
   "subscriptionKey": {
-    "signInAgain": "已啟用 Muse Code 訂閱，但 Muse Code CLI 在此處沒有訂閱金鑰。請重新登入（`muse login`，或使用訂閱 API 金鑰執行 `muse auth set`）後重試，或改用 Model API 金鑰。",
+    "signInAgain": "已啟用 Muse Code 訂閱，但 Muse Code CLI 在此處沒有訂閱登入。按量付費金鑰（`muse auth set`）不適用。請使用 Muse 帳戶登入（`muse login`）後重試，或改用 Model API 金鑰。",
     "cannotRead": "已啟用 Muse Code 訂閱，但無法讀取 Muse Code CLI 的登入檔案。請重新登入 Muse Code CLI 後重試，或改用 Model API 金鑰。",
-    "keychainBacked": "已啟用 Muse Code 訂閱，但此次登入儲存在登入鑰匙圈中，此處無法讀取。請改用 Model API 金鑰。"
+    "keychainBacked": "已啟用 Muse Code 訂閱，但此次登入儲存在登入鑰匙圈中，此處無法讀取。請改用 Model API 金鑰。",
+    "paidNeedsKey": "Muse Code 訂閱僅涵蓋聊天。此付費功能需要已儲存的 Model API 金鑰：請儲存金鑰後重試。"
   },
   "acpSubscriptionNeedsModelApi": "{argument} 需要 --backend modelApi：Muse Code 訂閱支付 Model API 呼叫費用。",
   "execSubscriptionStdin": "--subscription 與 --key-stdin 不能組合使用：每次執行只能使用一個憑證。",

@@ -5534,9 +5534,10 @@
     }
   },
   "subscriptionKey": {
-    "signInAgain": "Subskrypcja Muse Code jest włączona, ale interfejs Muse Code CLI nie ma tutaj klucza subskrypcji. Zaloguj się ponownie (`muse login` lub `muse auth set` z kluczem API subskrypcji) i spróbuj ponownie albo użyj klucza Model API.",
+    "signInAgain": "Subskrypcja Muse Code jest włączona, ale interfejs Muse Code CLI nie ma tutaj logowania subskrypcji. Klucz pay-as-you-go (`muse auth set`) się nie liczy. Zaloguj się na swoje konto Muse (`muse login`) i spróbuj ponownie albo użyj klucza Model API.",
     "cannotRead": "Subskrypcja Muse Code jest włączona, ale nie można odczytać pliku logowania Muse Code CLI. Zaloguj się ponownie do Muse Code CLI i spróbuj ponownie albo użyj klucza Model API.",
-    "keychainBacked": "Subskrypcja Muse Code jest włączona, ale to logowanie znajduje się w pęku kluczy logowania, którego nie można tutaj odczytać. Użyj klucza Model API."
+    "keychainBacked": "Subskrypcja Muse Code jest włączona, ale to logowanie znajduje się w pęku kluczy logowania, którego nie można tutaj odczytać. Użyj klucza Model API.",
+    "paidNeedsKey": "Subskrypcja Muse Code obejmuje czat. Ten płatny dodatek wymaga zapisanego klucza Model API: zapisz go i spróbuj ponownie."
   },
   "acpSubscriptionNeedsModelApi": "{argument} wymaga --backend modelApi: subskrypcja Muse Code opłaca wywołania Model API.",
   "execSubscriptionStdin": "Opcji --subscription i --key-stdin nie można łączyć: jedne dane logowania na uruchomienie.",

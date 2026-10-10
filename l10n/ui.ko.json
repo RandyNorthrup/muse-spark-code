@@ -5075,9 +5075,10 @@
     }
   },
   "subscriptionKey": {
-    "signInAgain": "Muse Code 구독이 켜져 있지만 Muse Code CLI에 구독 키가 없습니다. 다시 로그인한 뒤(`muse login` 또는 구독 API 키로 `muse auth set`) 다시 시도하세요. 또는 Model API 키를 사용하세요.",
+    "signInAgain": "Muse Code 구독이 켜져 있지만 Muse Code CLI에 구독 로그인이 없습니다. 종량제 키(`muse auth set`)는 인정되지 않습니다. Muse 계정으로 로그인한 뒤(`muse login`) 다시 시도하세요. 또는 Model API 키를 사용하세요.",
     "cannotRead": "Muse Code 구독이 켜져 있지만 Muse Code CLI 로그인 파일을 읽을 수 없습니다. Muse Code CLI에 다시 로그인한 뒤 다시 시도하세요. 또는 Model API 키를 사용하세요.",
-    "keychainBacked": "Muse Code 구독이 켜져 있지만 이 로그인은 로그인 키체인에 있어 여기서 읽을 수 없습니다. Model API 키를 사용하세요."
+    "keychainBacked": "Muse Code 구독이 켜져 있지만 이 로그인은 로그인 키체인에 있어 여기서 읽을 수 없습니다. Model API 키를 사용하세요.",
+    "paidNeedsKey": "Muse Code 구독은 채팅을 포함합니다. 이 유료 기능에는 저장된 Model API 키가 필요합니다. 키를 저장한 뒤 다시 시도하세요."
   },
   "acpSubscriptionNeedsModelApi": "{argument}에는 --backend modelApi가 필요합니다. Muse Code 구독이 Model API 호출 요금을 냅니다.",
   "execSubscriptionStdin": "--subscription과 --key-stdin은 함께 쓸 수 없습니다. 실행당 하나의 자격 증명입니다.",

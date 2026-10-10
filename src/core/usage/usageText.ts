@@ -19,7 +19,11 @@ import type { UsageCertainty, UsageLimitSnapshot } from '../../shared/usageJourn
 import type { UsagePageState, UsageTotals } from '../../shared/usagePage'
 
 export type UsageTextFormat = 'markdown' | 'plain'
-function certaintyLabel(certainty: UsageCertainty): string {
+function certaintyLabel(certainty: UsageCertainty, provider?: string): string {
+  // A Meta plan row bills the Muse Code plan (C-M95-SUB: the subscription);
+  // any other plan row keeps the shared label, as do older rows, which
+  // name no provider.
+  if (certainty === 'plan' && provider === 'meta') return USAGE_TEXT.certaintyMuseCodePlan
   const keys = {
     reported: 'certaintyReported',
     computed: 'certaintyComputed',
@@ -131,7 +135,7 @@ export function usageText(
   heading(USAGE_TEXT.certainty)
   for (const cost of state.totals.costs) {
     row(
-      certaintyLabel(cost.certainty),
+      certaintyLabel(cost.certainty, cost.provider),
       `${amount(cost.usd)} · ${plural(USAGE_TEXT.recordCount, cost.records)}`,
     )
     if (cost.apiEquivalentUsd !== undefined)

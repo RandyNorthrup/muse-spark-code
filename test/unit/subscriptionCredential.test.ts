@@ -2,6 +2,7 @@
 // key and an in-memory CLI auth file. No real auth file is ever read here.
 import { describe, expect, it } from 'vitest'
 import { SubscriptionKeySource } from '../../src/core/backends/modelapi/subscriptionKey'
+import { redactSecrets } from '../../src/shared/redact'
 import { SubscriptionCredential } from '../../src/host/auth/subscriptionCredential'
 import { CredentialStore } from '../../src/host/auth/credentialStore'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -65,11 +66,21 @@ describe('SubscriptionCredential', () => {
     const wrapper = credential({
       enabled: true,
       pasted: PASTED,
-      text: fileText({ api_key: SUB }),
+      text: fileText({ access_token: SUB }),
     })
     await expect(wrapper.getApiKey()).resolves.toBe(SUB)
     await expect(wrapper.isSubscriptionBilling()).resolves.toBe(true)
     await expect(wrapper.hasCredential()).resolves.toBe(true)
+  })
+  it('refuses a pay-as-you-go file while on, even with a pasted key stored', async () => {
+    const wrapper = credential({
+      enabled: true,
+      pasted: PASTED,
+      text: fileText({ api_key: SUB }),
+    })
+    await expect(wrapper.getApiKey()).rejects.toThrow(UI_TEXT.subscriptionKey.signInAgain)
+    await expect(wrapper.isSubscriptionBilling()).resolves.toBe(false)
+    await expect(wrapper.hasCredential()).resolves.toBe(false)
   })
   it('throws the refusal, without the key, while on and signed out', async () => {
     const wrapper = credential({ enabled: true, pasted: PASTED, text: undefined })
@@ -112,6 +123,39 @@ function store(options: { pasted: string | undefined; subscribed: boolean }) {
     () => Promise.resolve(options.subscribed),
   )
 }
+
+describe('SubscriptionCredential redaction', () => {
+  it('registers the key it sends, so shared redaction covers it', async () => {
+    const wrapper = credential({
+      enabled: true,
+      pasted: PASTED,
+      text: fileText({ access_token: SUB }),
+    })
+    await wrapper.getApiKey()
+    expect(redactSecrets(`saw ${SUB} in a log line`)).not.toContain(SUB)
+  })
+  it('hands both credentials to persistence boundaries, never throwing', async () => {
+    const wrapper = credential({
+      enabled: true,
+      pasted: PASTED,
+      text: fileText({ access_token: SUB }),
+    })
+    await expect(wrapper.redactionKeys()).resolves.toEqual([PASTED, SUB])
+    const refusing = credential({ enabled: true, pasted: PASTED, text: undefined })
+    await expect(refusing.redactionKeys()).resolves.toEqual([PASTED])
+    const failing = new SubscriptionCredential({
+      credentials: {
+        getApiKey: () => Promise.reject(new Error('store down')),
+      },
+      isEnabled: () => true,
+      platform: 'linux',
+      homeDir: '/home/u',
+      xdgConfigHome: undefined,
+      source: sourceFor(undefined),
+    })
+    await expect(failing.redactionKeys()).resolves.toEqual([])
+  })
+})
 
 describe('CredentialStore with a subscription', () => {
   it('counts the opted-in subscription as a Model API credential', async () => {

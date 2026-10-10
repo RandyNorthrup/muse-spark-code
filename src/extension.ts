@@ -2575,6 +2575,8 @@ async function activateWindow(
     afterTurnRuns: (sessionId, turnId, end) =>
       finishCheckpointTurn(checkpoints, turnRecorder, sessionId, turnId, end),
     getApiKey: () => subscription.getApiKey(),
+    // Paid extras bill the stored key even while chat bills the plan.
+    getPaidApiKey: () => credentials.getApiKey(),
     isSubscriptionBilling: () => subscription.isSubscriptionBilling(),
     workspaceRoot,
     io: checkpointedIo,
@@ -4307,7 +4309,13 @@ async function activateWindow(
       // life, and the backend choice is made per host: drop them so the next
       // message spawns afresh (and resumes the conversation, D25).
       const isBackendSetting = event.affectsConfiguration(BACKEND_SETTING)
-      if (isBackendSetting) {
+      // C-M95-SUB: switching the subscription opt-in swaps the credential
+      // source, so the host restarts and re-reads auth like a backend
+      // change: the running host keeps the old key's account identity.
+      if (
+        isBackendSetting ||
+        event.affectsConfiguration(`${SETTINGS_SECTION}.useMuseCodeSubscription`)
+      ) {
         if (isSubscriptionConnecting) return
         void restartBackend('the backend setting changed')
           .then(() => auth.refresh())

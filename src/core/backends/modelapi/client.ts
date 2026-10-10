@@ -148,6 +148,13 @@ export interface ModelApiClientDeps {
   readonly baseUrl: string
   /** Read per request so a key pasted later applies without a restart. */
   readonly apiKey: () => Promise<string | undefined>
+  /**
+   * The stored pay-as-you-go key for paid extras (C-M95-SUB): while chat
+   * bills the subscription, a billed image POST still authenticates as the
+   * stored key. Undefined while no key is stored; image requests then
+   * refuse instead of charging the subscription.
+   */
+  readonly paidApiKey?: () => Promise<string | undefined>
   readonly sleep: (ms: number) => Promise<void>
   /** Epoch ms, for a `Retry-After` given as a date. */
   readonly now: () => number
@@ -229,6 +236,13 @@ export class ModelApiClient implements TransportProviderClient {
     admitAttempt?: ResponseAttemptGuard,
   ): Promise<ImagesResponse> {
     const active = AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)])
+    // A paid extra never rides the subscription credential: while chat
+    // bills the plan, the image POST authenticates as the stored
+    // pay-as-you-go key, and refuses with the fix when none is stored.
+    const paidKey = await this.deps.paidApiKey?.()
+    if (paidKey === undefined && this.deps.paidApiKey !== undefined) {
+      throw new Error(UI_TEXT.subscriptionKey.paidNeedsKey)
+    }
     const paid = await this.paidReservation(body, 'imageGeneration', active, admitAttempt)
     const claim = paid?.claim
     try {
@@ -240,6 +254,7 @@ export class ModelApiClient implements TransportProviderClient {
           modelId: body.model,
           accept: JSON_MEDIA_TYPE,
           retries: 'rateLimitOnly',
+          ...(paidKey !== undefined && { authKey: paidKey }),
           ...(paid !== undefined && { paid }),
         },
         active,

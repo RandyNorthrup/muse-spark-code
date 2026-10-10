@@ -114,6 +114,7 @@ export const USAGE_EN = {
   certaintyComputed: 'Computed',
   certaintyUncertain: 'Uncertain',
   certaintyPlan: 'Plan',
+  certaintyMuseCodePlan: 'Muse Code plan',
   certaintyLocal: 'Local',
   certaintyUnpriced: 'Unpriced',
   certaintyEstimated: 'Estimated',
