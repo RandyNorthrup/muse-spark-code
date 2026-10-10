@@ -16,7 +16,7 @@ import { listFiles } from '@vscode/vsce/out/package.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   webviewDeferredBudgetGroups,
-  webviewStartupOutputs,
+  portableWebviewBudgetGroups,
 } from '../../scripts/lib/webviewBundles.mjs'
 import { buildProductionPackage } from './helpers/productionPackage'
 
@@ -73,6 +73,9 @@ beforeAll(() => {
   built.fixture = mkdtempSync(path.resolve('temp/fix78w-size-'))
   mkdirSync(path.join(built.fixture, 'dist/meta'), { recursive: true })
   mkdirSync(path.join(built.fixture, 'dist/webview'), { recursive: true })
+  mkdirSync(path.join(built.fixture, 'src/webview/bridges'), { recursive: true })
+  for (const source of ['src/webview/portable.tsx', 'src/webview/bridges/select.ts'])
+    cpSync(outputFile(source), path.join(built.fixture, source))
   for (const match of readFileSync(SIZE_GATE, 'utf8').matchAll(/path: '(dist\/[^']+\.js)'/g)) {
     const file = path.join(built.fixture, match[1])
     mkdirSync(path.dirname(file), { recursive: true })
@@ -271,18 +274,12 @@ describe('the production webview chunks (FIX78W)', () => {
   })
 
   it.each([
-    ['startup JS', 1100, 'dist/webview/portable/loader.js'],
+    ['native startup JS', 1100, 'dist/webview/portable/loader.js'],
+    ['companion startup JS', 1100, 'dist/webview/portable/loader.js'],
     ['total JS', 1486, 'dist/webview/portable/whatsNew.js'],
   ])('the split check rejects a one-byte portable %s overflow', (name, cap, target) => {
     const meta = JSON.parse(readFileSync(outputFile('dist/meta/portable.json'), 'utf8'))
-    const startup = new Set(
-      ['dist/webview/portable/main.js', 'dist/webview/portable/loader.js'].flatMap((root) =>
-        webviewStartupOutputs(meta, root),
-      ),
-    )
-    const outputs = Object.keys(meta.outputs)
-      .map((file) => file.replaceAll('\\', '/'))
-      .filter((file) => file.endsWith('.js') && (name === 'total JS' || startup.has(file)))
+    const outputs = portableWebviewBudgetGroups(meta).find((group) => group.name === name).outputs
     const bytes = outputs.reduce((sum, file) => sum + statSync(outputFile(file)).size, 0)
     const file = outputFile(target)
     const original = readFileSync(file)
@@ -294,7 +291,52 @@ describe('the production webview chunks (FIX78W)', () => {
       })
       expect(result.status).toBe(1)
       expect(result.stderr).toContain(`portable ${name} exceeds ${cap} KiB`)
-      if (name === 'total JS') expect(result.stderr).not.toContain('portable startup JS exceeds')
+      if (name === 'total JS')
+        expect(result.stderr).not.toMatch(/portable (native|companion) startup JS exceeds/)
+    } finally {
+      writeFileSync(file, original)
+    }
+    expect(readFileSync(file).equals(original)).toBe(true)
+  })
+
+  it('both gates reject the real optional closures awaited before mount while total stays within cap', () => {
+    const meta = JSON.parse(readFileSync(outputFile('dist/meta/portable.json'), 'utf8'))
+    const imports = Object.values(meta.outputs)
+      .map((output) => output.entryPoint)
+      .filter(
+        (source) => source?.startsWith('src/webview/') && source !== 'src/webview/portable.tsx',
+      )
+      .slice(0, 64)
+      .map(
+        (source) =>
+          `bootImport(() => import(${JSON.stringify(`./${path.posix.relative('src/webview', source)}`)}))`,
+      )
+      .join(',')
+    const file = outputFile('src/webview/portable.tsx')
+    const original = readFileSync(file)
+    try {
+      writeFileSync(
+        file,
+        original
+          .toString()
+          .replace(
+            'async function mount(): Promise<void> {',
+            () => `async function mount(): Promise<void> { await Promise.all([${imports}]);`,
+          ),
+      )
+      for (const gate of ['size', 'split']) {
+        const result = spawnSync(process.execPath, [`scripts/check-bundle-${gate}.mjs`], {
+          cwd: built.production,
+          encoding: 'utf8',
+        })
+        expect(result.status).toBe(1)
+        expect(result.stdout + result.stderr).toMatch(
+          /(?:OVER portable (?:native|companion) startup JS|portable (?:native|companion) startup JS exceeds)/,
+        )
+        expect(result.stdout + result.stderr).not.toMatch(
+          /(?:OVER portable total JS|portable total JS exceeds)/,
+        )
+      }
     } finally {
       writeFileSync(file, original)
     }

@@ -8,7 +8,7 @@ import {
 } from '../shared/protocol'
 import { mountChat } from './chat'
 import type { HostBridge, MessageSource } from './hostBridge'
-import type { PanelBridge } from './bridges/types'
+import { bootImport, type PanelBridge } from './bridges/types'
 import { showBridgeFailure } from './bridges/failure'
 import { installEmbeddedTable } from './installTable'
 import './portableTokens.css'
@@ -22,14 +22,16 @@ declare global {
 }
 
 async function mount(): Promise<void> {
-  const { selectBridge } = await import('./bridges/select')
+  const { selectBridge } = await bootImport(() => import('./bridges/select'))
   const surface = document.body.dataset['surface']
   const rootElement = document.querySelector(`#${WEBVIEW_ROOT_ELEMENT_ID}`)
   if (rootElement === null) {
     throw new Error(`Webview root element #${WEBVIEW_ROOT_ELEMENT_ID} is missing`)
   }
   const isTasks = surface === 'tasks'
-  const tasks = isTasks ? await import('../shared/tasksProtocol') : undefined
+  const tasks = isTasks
+    ? await bootImport(() => import('../shared/tasksProtocol'), 'tasks')
+    : undefined
   const host = await selectBridge(
     {
       outgoing: tasks?.tasksWebviewMessageSchema ?? webviewToHostMessageSchema,
@@ -47,13 +49,16 @@ async function mount(): Promise<void> {
       },
     })
   if (document.body.dataset['bridge'] === 'companion') {
-    const { connectCompanionUi } = await import('./bridges/companionUi')
+    const { connectCompanionUi } = await bootImport(
+      () => import('./bridges/companionUi'),
+      'companion',
+    )
     await connectCompanionUi(host, reportBridgeFailure)
   }
   if (isTasks) {
     const tableError = installEmbeddedTable(document)
     if (tableError !== undefined) throw tableError
-    const { TasksApp } = await import('./TasksApp')
+    const { TasksApp } = await bootImport(() => import('./TasksApp'), 'tasks')
     createRoot(rootElement).render(
       <TasksApp
         messages={host.messages}

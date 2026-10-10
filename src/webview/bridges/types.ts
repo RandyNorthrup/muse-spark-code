@@ -18,6 +18,14 @@ export interface PanelBridge {
   dispose(): void
 }
 
+/** Source marker for imports awaited before chat mounts; both bundle gates read it. */
+export function bootImport<T>(
+  load: () => Promise<T>,
+  _variant: 'both' | 'native' | 'companion' | 'tasks' = 'both',
+): Promise<T> {
+  return load()
+}
+
 export async function loadFallbacks() {
   return await import('../fallbacks')
 }

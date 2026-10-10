@@ -573,6 +573,17 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**M104 F4 round 3 (2026-10-10, RVM104F4C).** Startup includes the static
+closures of source-marked dynamic imports awaited before `mountChat`, as well
+as chat and the authenticated loader. Each native/companion variant counts
+shared outputs once; enforcing both against 1,100 KiB enforces the worst boot.
+Unmarked imports in the pre-mount boot functions fail the shared guard.
+Measured native startup is **782,149 bytes**, companion is **804,007 bytes**;
+both remain below 1,126,400 bytes. Total is **1,323,637 bytes**, below the
+unchanged 1,486 KiB cap. The round-two static-only 777,108-byte number below
+is historical and undercounted awaited bridge imports. Source marker glue adds
+301 delivery bytes; no optional feature enters boot on the production path.
+
 **M104 F4 round 2 (2026-10-09, lead decision).** Separate the portable
 startup and total JavaScript caps in both size and split checks. Startup
 retains **1,100 KiB** and charges chat's static import closure plus the
@@ -37923,6 +37934,18 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**M104 F4 round 3 — awaited boot closures (2026-10-10, RVM104F4C).**
+Derive mandatory pre-mount dynamic imports from `bootImport` markers in the
+portable mount and bridge selector. Guard unmarked imports before `mountChat`;
+measure native and companion startup separately, charging each marked import's
+static closure plus chat and the authenticated loader once, and enforce the
+larger variant against the unchanged 1,100 KiB cap. Total retains the measured
+plus 15% cap (1,486 KiB). Regress an awaited optional import before mount and a
+deferred import after mount; prove both accounting and guard fire, restore
+byte-exact, remeasure, and record scoped verification under F4 round 3.
+The production variants measure 782,149 / 804,007 bytes (native / companion),
+below the unchanged 1,126,400-byte cap; full qualification remains lead-owned.
+
 **M104 F4 round 2 — independent portable caps (2026-10-09, lead decision).**
 Size and split gates enforce D6's separate 1,100 KiB startup and 1,486 KiB
 total caps. They count all static startup imports and the authenticated
@@ -38260,7 +38283,7 @@ keeping its detailed native qualification catalogue generated too.
 Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
 in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
 
-**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. Verification retains the portable graph cap (F3: 1292.3/1100 KiB) and SAST findings, native bridge contract checks, installed qualification and the next resource-chip parity lane as blockers. M104 F3 repairs the four ACP resource fixtures and the twelve recorded duplication findings; their complete touched suites and the zero-clone gate pass. Retained requirements and receipts follow.
+**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. F4 round 3 qualifies separate startup/total caps, including awaited native/companion boot closures. SAST findings, native bridge contract checks, installed qualification and the next resource-chip parity lane remain blockers. M104 F3 repairs the four ACP resource fixtures and the twelve recorded duplication findings; their complete touched suites and the zero-clone gate pass. Retained requirements and receipts follow.
 
 **FIXM104PB / RVM104PB (2026-10-06).** Repair all four P2 findings and the
 P3 evidence error inside B's paid engines and their shared guards. One
@@ -38903,6 +38926,15 @@ and are not transferred or accepted as complete by these launcher repairs.
 ---
 
 ## 7. Gates
+
+**M104 F4 round-3 qualification (2026-10-10).** The shared startup helper
+derives marked boot imports and guards unmarked pre-mount imports in `mount`
+and `selectBridge`, including `Promise.all`. Native and companion closures
+are measured separately; both gates enforce the unchanged startup cap for
+each variant, equivalent to enforcing their maximum. Optional placement
+checks use their union; mandatory bridges are boot dependencies, not optional
+surfaces. Round-two static-only measurements are superseded. Gate-fire and
+byte-exact restoration receipts: `docs/certification/m104.md`, F4 round 3.
 
 **M104INT final-verification fixture repairs (2026-10-09).** Keep every
 changed lane file and bridge/companion suite in the default-deadline inventory.

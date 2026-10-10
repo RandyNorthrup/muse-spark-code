@@ -43,7 +43,19 @@ function mockWebviewMeta(meta, models, whatsNew, portable) {
       },
     },
   }
-  readFileSync.mockImplementation((file) => JSON.stringify(pageMetafiles[file] ?? meta))
+  readFileSync.mockImplementation((file) => {
+    switch (file) {
+      case 'src/webview/portable.tsx': {
+        return 'function mount() { mountChat() }'
+      }
+      case 'src/webview/bridges/select.ts': {
+        return 'function selectBridge() {}'
+      }
+      default: {
+        return JSON.stringify(pageMetafiles[file] ?? meta)
+      }
+    }
+  })
 }
 
 beforeEach(() => {
@@ -123,7 +135,8 @@ describe('independent portable startup and total budgets', () => {
     await import('../../scripts/check-bundle-size.mjs')
     expect(process.exit).not.toHaveBeenCalled()
     for (const [name, cap] of [
-      ['startup JS', 1100],
+      ['native startup JS', 1100],
+      ['companion startup JS', 1100],
       ['total JS', 1486],
     ])
       expect(console.log).toHaveBeenCalledWith(
@@ -136,7 +149,7 @@ describe('independent portable startup and total budgets', () => {
     }))
     await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
     expect(console.log).toHaveBeenCalledWith(
-      'OVER portable startup JS: 1100.0 KiB (budget 1100 KiB)',
+      'OVER portable native startup JS: 1100.0 KiB (budget 1100 KiB)',
     )
     expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('OVER portable total'))
   })
@@ -145,7 +158,9 @@ describe('independent portable startup and total budgets', () => {
     statSync.mockImplementation((file) => ({ size: sizes[file] ?? 0 }))
     await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
     expect(console.log).toHaveBeenCalledWith('OVER portable total JS: 1486.0 KiB (budget 1486 KiB)')
-    expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('OVER portable startup'))
+    expect(console.log).not.toHaveBeenCalledWith(
+      expect.stringMatching(/OVER portable (native|companion) startup/),
+    )
   })
   it('charges an eagerly re-imported lazy feature to startup while total stays the same', async () => {
     const sizes = { [portable]: startupBudget - 1, [chunk]: 2 }
@@ -156,9 +171,33 @@ describe('independent portable startup and total budgets', () => {
     meta.outputs[portable].imports.push({ path: chunk, kind: 'import-statement' })
     await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
     expect(console.log).toHaveBeenCalledWith(
-      'OVER portable startup JS: 1100.0 KiB (budget 1100 KiB)',
+      'OVER portable native startup JS: 1100.0 KiB (budget 1100 KiB)',
     )
     expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('OVER portable total'))
+  })
+  it('rejects an awaited optional boot import above startup, but admits the same import after mount', async () => {
+    meta.outputs[chunk].entryPoint = 'src/webview/optional.tsx'
+    const readMeta = readFileSync.getMockImplementation()
+    let body = "mountChat(); await import('./optional')"
+    readFileSync.mockImplementation((file) =>
+      file === 'src/webview/portable.tsx' ? `async function mount() { ${body} }` : readMeta(file),
+    )
+    const sizes = { [portable]: startupBudget - 1, [chunk]: 2 }
+    statSync.mockImplementation((file) => ({ size: sizes[file] ?? 0 }))
+    await import('../../scripts/check-bundle-size.mjs')
+    expect(process.exit).not.toHaveBeenCalled()
+    vi.resetModules()
+    body = "await bootImport(() => import('./optional')); mountChat()"
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+    expect(console.log).toHaveBeenCalledWith(
+      'OVER portable native startup JS: 1100.0 KiB (budget 1100 KiB)',
+    )
+    expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('OVER portable total'))
+    vi.resetModules()
+    body = "await Promise.all([import('./optional')]); mountChat()"
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow(
+      'Unmarked portable boot import',
+    )
   })
   it.each([chunk, loader])('rejects a missing portable output %s', async (missing) => {
     existsSync.mockImplementation((file) => file !== missing)

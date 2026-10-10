@@ -104,6 +104,7 @@ import {
   webviewStartupOutputs,
   webviewTeamOutputs,
   portableWebviewBudgetGroups,
+  portableWebviewStartupVariants,
 } from './lib/webviewBundles.mjs'
 import { UI_TEXT_REGIONS } from './lib/uiTextRegions.mjs'
 
@@ -1552,7 +1553,9 @@ for (const source of Object.keys(webviewMeta.inputs)) {
     problems.push(`VS Code's webview carries portable-only source ${normal}`)
 }
 const portableMeta = normalWebviewMeta(JSON.parse(readFileSync('dist/meta/portable.json', 'utf8')))
-const eagerPortable = new Set(webviewStartupOutputs(portableMeta, 'dist/webview/portable/main.js'))
+const eagerPortable = new Set(
+  portableWebviewStartupVariants(portableMeta).flatMap(({ outputs }) => outputs),
+)
 for (const file of eagerPortable) {
   const sources = Object.keys(portableMeta.outputs[file].inputs)
   for (const source of sources) {
@@ -1584,8 +1587,6 @@ const portableDeferredSources = [
   ),
   ...PORTABLE_PRESENTATION_BUDGETS.flatMap(({ entries }) => entries),
   ...FALLBACK_COMPONENTS.map((component) => `src/webview/fallbacks/${component}.tsx`),
-  'src/webview/bridges/native.ts',
-  'src/webview/bridges/companion.ts',
 ]
 for (const source of portableDeferredSources) {
   const outputs = Object.entries(portableMeta.outputs).filter(([, output]) =>
