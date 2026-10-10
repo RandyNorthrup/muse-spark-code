@@ -32,6 +32,7 @@ export { pinnedHttpsRequest, pinnedPostRequest } from '../web/pinnedRequest'
 import type { ExtensionHookDefinition } from '../../core/backends/modelapi/extensionHooks'
 import type { HookDefinition, HookLoadDeps } from '../../core/backends/modelapi/hooks'
 import type { ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
+import { metaResolvedModel } from '../../core/backends/modelapi/modelPolicy'
 import {
   metaModelFacts,
   metaSideCallFormats,
@@ -131,10 +132,25 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   mcp?.setUiText(deps.uiText, deps.uiLocale)
   // The selected record's policy, stashed as the host resolves it (session
   // start and model switch): the synchronous per-request suppliers below read
-  // the registry record for the selected model instead of naming model ids.
-  // Bare Meta models never reach the resolver (the host answers them from
-  // M95's own policy), so they fall through to the shared Meta default.
+  // the resolved record for the selected model instead of naming model ids.
+  // The session client's own resolver is authoritative in every production
+  // path (RVCM1062B P1/P2): the runtime's accounting-wrapped headless client
+  // keeps its daily reservation and run-ledger admission, and the
+  // subscription-aware extension/ACP client keeps its plan routing and
+  // shared usage ownership. A standalone registry is only the fallback for
+  // a client without one; a plan ref it cannot name still resolves against
+  // the session client, as it did before any registry was supplied. Bare
+  // Meta models never reach the resolver (the host answers them from M95's
+  // own policy), so they fall through to the shared Meta default.
   const selectedPolicies = new Map<string, ModelPolicy>()
+  const stash = <T extends { policy: ModelPolicy }>(ref: string, resolved: T): T => {
+    selectedPolicies.set(ref, resolved.policy)
+    return resolved
+  }
+  // The `in` narrowings (not truthiness reads) carry the optional
+  // members off the ModelApiClient | ProviderClient union.
+  const clientModels = 'models' in client ? client.models : undefined
+  const isPlanModel = 'isPlanModel' in client ? client.isPlanModel : undefined
   const host = new ModelApiHost({
     ...hostDeps,
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,
@@ -147,20 +163,32 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
       ((modelId) =>
         selectedPolicies.get(modelId)?.output.maxTokens ?? metaOutputMaxTokens(modelId)),
     client,
-    ...('models' in client && { models: client.models }),
-    ...(deps.createProviders !== undefined && {
+    ...((clientModels !== undefined || deps.createProviders !== undefined) && {
       models: {
         resolve: async (ref: string) => {
+          if (clientModels !== undefined) {
+            return stash(ref, await clientModels.resolve(ref))
+          }
           const registry = await resolveProviders()
-          const resolved = await registry.resolve(ref)
-          selectedPolicies.set(ref, resolved.policy)
-          return resolved
+          try {
+            return stash(ref, await registry.resolve(ref))
+          } catch (error: unknown) {
+            if (isPlanModel?.(ref) === true) {
+              return stash(ref, metaResolvedModel(ref, client))
+            }
+            throw error
+          }
         },
-        list: async () => {
-          const { list } = await resolveProviders()
-          if (list === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
-          return await list()
-        },
+        // A client without a list keeps the host's client-only catalogue:
+        // always defining list would turn that absence into a failure.
+        ...((clientModels?.list !== undefined || deps.createProviders !== undefined) && {
+          list: async () => {
+            if (clientModels?.list !== undefined) return await clientModels.list()
+            const { list } = await resolveProviders()
+            if (list === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
+            return await list()
+          },
+        }),
       },
     }),
     mcpServers:

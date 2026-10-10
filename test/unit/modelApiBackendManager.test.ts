@@ -108,6 +108,63 @@ function scriptReadDone(target: FakeModelApi) {
   )
 }
 
+/** A started session on the fake API, for production-path binding tests. */
+async function boundSession(
+  log: FakeLogOutputChannel,
+  extra: Partial<ModelApiBackendManagerDeps> = {},
+) {
+  const { manager } = managerOn('/ws', undefined, log, undefined, extra)
+  const host = await manager.ensureHost()
+  const session = await host.startSession({
+    workspaceRoot: '/ws',
+    modelId: 'muse-spark-1.3',
+    approvalMode: 'allowAll',
+  })
+  return { manager, host, session }
+}
+
+/** One read_file turn's request bodies through the serving fake. */
+async function readTurnBodies(
+  session: Parameters<typeof watchSessionTurns>[0],
+  provider: FakeModelApi,
+) {
+  const watched = watchSessionTurns(session)
+  scriptReadDone(provider)
+  await session.sendTurn([{ type: 'text', text: 'read it' }])
+  await watched.turnDone()
+  return provider.responseBodies()
+}
+
+/** One qualified BYO record with a session client resolving through it. */
+function resolvingClient(
+  provider: FakeModelApi,
+  log: FakeLogOutputChannel,
+  ref: string,
+  options: { readonly maxOutputTokens?: number; readonly withList: boolean },
+) {
+  const registry = byoRegistry(ref, provider, log, {
+    capabilities: { toolCalling: true },
+    ...(options.maxOutputTokens !== undefined && { maxOutputTokens: options.maxOutputTokens }),
+  })
+  const resolve = vi.fn((name: string) => registry.resolve(name))
+  const client = Object.assign(fakeModelApiClient(provider, log), {
+    models: {
+      resolve,
+      ...(options.withList && { list: registry.list }),
+    },
+  })
+  return { registry, resolve, client }
+}
+
+/** Every request body carries the selected record's cap, never preview bytes. */
+function expectSelectedCap(bodies: readonly Record<string, unknown>[], cap: number) {
+  expect(bodies.length).toBeGreaterThan(0)
+  for (const body of bodies) {
+    expect(body['max_output_tokens']).toBe(cap)
+  }
+  expect(JSON.stringify(bodies)).not.toContain('argumentPreview')
+}
+
 /** A manager on the fake API with no waits, over the given root and store. */
 function managerOn(
   workspaceRoot: string | undefined,
@@ -291,6 +348,110 @@ describe('ModelApiBackendManager', () => {
         expect(body['max_output_tokens']).toBe(65_536)
       }
       expect(JSON.stringify(bodies)).not.toContain('argumentPreview')
+    } finally {
+      await manager.dispose()
+    }
+  })
+
+  it('resolves qualified records through the session client, never a standalone registry', async () => {
+    // RVCM1062B P1 (headless accounting) and P2 (plan usage): the session
+    // client already resolves qualified refs — accounting-wrapped on a
+    // provider run, usage-owning where subscriptions live — so the entry
+    // must bind its record without consulting a standalone registry. A
+    // standalone resolve would bypass the daily reservation/run-ledger
+    // admission and record plan usage where no reader looks.
+    const provider = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const ref = 'team/small'
+    const { registry, resolve, client } = resolvingClient(provider, log, ref, {
+      maxOutputTokens: 65_536,
+      withList: true,
+    })
+    const createProviders = vi.fn(() => Promise.resolve(registry))
+    const { manager, session } = await boundSession(log, {
+      createProviderClient: () => Promise.resolve(client),
+      createProviders,
+    })
+    try {
+      await session.setModel(ref)
+      expect(resolve).toHaveBeenCalledWith(ref)
+      expect(createProviders).not.toHaveBeenCalled()
+      expectSelectedCap(await readTurnBodies(session, provider), 65_536)
+    } finally {
+      await manager.dispose()
+    }
+  })
+
+  it('keeps subscription models selectable beside a subscription-blind registry', async () => {
+    // RVCM1062B P1 (extension): a standalone registry names no
+    // auth:'subscription' entry, so a plan ref it rejects must still
+    // resolve against the session client, as before any registry existed.
+    const api = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const client = Object.assign(fakeModelApiClient(api, log), {
+      isPlanModel: (name: string) => name.startsWith('chatgpt/'),
+    })
+    const blind = byoRegistry('team/small', fakeModelApi(), log, {
+      capabilities: { toolCalling: true },
+    })
+    const { manager, session } = await boundSession(log, {
+      createProviderClient: () => Promise.resolve(client),
+      createProviders: () => Promise.resolve(blind),
+    })
+    try {
+      await session.setModel('chatgpt/gpt-6-astra')
+      const watched = watchSessionTurns(session)
+      await session.sendTurn([{ type: 'text', text: 'hi' }])
+      await watched.turnDone()
+      expect(api.responseBodies().length).toBeGreaterThan(0)
+    } finally {
+      await manager.dispose()
+    }
+  })
+
+  it('binds the selected record cap through the session client resolver alone', async () => {
+    // RVCM1062B P2 (interactive ACP): no createProviders is supplied there;
+    // the configured resolver arrives on client.models, and the selected
+    // record's output maximum must reach the request through the entry
+    // stash, not the legacy cap.
+    const provider = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const ref = 'team/small'
+    const { resolve, client } = resolvingClient(provider, log, ref, {
+      maxOutputTokens: 65_536,
+      withList: true,
+    })
+    const { manager, session } = await boundSession(log, {
+      createProviderClient: () => Promise.resolve(client),
+    })
+    try {
+      await session.setModel(ref)
+      expect(resolve).toHaveBeenCalledWith(ref)
+      expectSelectedCap(await readTurnBodies(session, provider), 65_536)
+    } finally {
+      await manager.dispose()
+    }
+  })
+
+  it('keeps the client-only catalogue when the session resolver lists nothing', async () => {
+    // The accounting-wrapped runtime client resolves but does not list; the
+    // entry must not turn that absence into a failure (the ACP agent lists
+    // models on every session/new).
+    const provider = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const ref = 'team/small'
+    const { client } = resolvingClient(provider, log, ref, {
+      maxOutputTokens: 65_536,
+      withList: false,
+    })
+    const { manager, host, session } = await boundSession(log, {
+      createProviderClient: () => Promise.resolve(client),
+    })
+    try {
+      await session.setModel(ref)
+      const listed = await host.listModels(session.sessionId)
+      expect(listed.map((row) => row.modelId)).toContain('muse-spark-1.3')
+      expectSelectedCap(await readTurnBodies(session, provider), 65_536)
     } finally {
       await manager.dispose()
     }
