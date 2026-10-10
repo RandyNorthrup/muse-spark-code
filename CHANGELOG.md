@@ -37,6 +37,11 @@ happened, not what was planned; superseded entries are kept.
   landing writes and process-ID reuse. The design keeps uncertain resources
   excluded and specifies a window-scoped fallback before enrolment. This
   change adds design/test certification; it ships no machine coordinator.
+- Correct M96d's Windows qualification contract: native Job/WMI experiments
+  show that service-created writers escape a no-breakaway Job. Unknown scope
+  coverage retains every reservation, refuses a finished outcome and selects
+  the window-scoped fallback before enrolment. Restricted tokens and process
+  tracing are evaluated as evidence, without claiming complete containment.
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did

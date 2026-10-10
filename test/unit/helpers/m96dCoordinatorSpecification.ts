@@ -17,6 +17,7 @@ interface Grant {
   readonly resources: readonly string[]
   phase: 'reserved' | 'intent' | 'spawned' | 'registered' | 'running' | 'terminal'
   reference: NativeReference | undefined
+  scopeCoverage: 'complete' | 'unknown'
   pendingRename: boolean
 }
 
@@ -48,6 +49,7 @@ export class CoordinatorSpecification {
       resources: [...resources],
       phase: 'reserved',
       reference: undefined,
+      scopeCoverage: 'unknown',
       pendingRename: false,
     })
     return true
@@ -56,6 +58,12 @@ export class CoordinatorSpecification {
   public held(id: string): readonly string[] {
     const record = this.grants.get(id)
     return record === undefined || record.phase === 'terminal' ? [] : [...record.resources]
+  }
+
+  public retirementState(id: string): 'active' | 'unknown' | 'finished' {
+    const record = this.grants.get(id)
+    if (record?.phase === 'terminal') return 'finished'
+    return record?.scopeCoverage === 'complete' ? 'active' : 'unknown'
   }
 
   public endpointFailed(_error: string): void {
@@ -84,10 +92,15 @@ export class CoordinatorSpecification {
     return true
   }
 
-  public register(id: string, reference: NativeReference): void {
+  public register(
+    id: string,
+    reference: NativeReference,
+    scopeCoverage: 'complete' | 'unknown',
+  ): void {
     const record = this.grants.get(id)
     if (record?.phase !== 'spawned') throw new Error('Not spawned')
     record.reference = { ...reference }
+    record.scopeCoverage = scopeCoverage
     record.phase = 'registered'
   }
 
@@ -127,6 +140,7 @@ export class CoordinatorSpecification {
       record?.reference === undefined ||
       record.phase === 'terminal' ||
       record.pendingRename ||
+      record.scopeCoverage !== 'complete' ||
       !proof.treeEmpty ||
       !proof.effectsDrained ||
       !proof.reference.exited ||
@@ -145,6 +159,7 @@ export class CoordinatorSpecification {
         ...record,
         resources: [...record.resources],
         reference: undefined,
+        scopeCoverage: 'unknown',
       })
     return recovered
   }
@@ -188,12 +203,15 @@ export function chooseMode(
     readonly platform: NativeReference['platform']
     readonly filesystem: string
     readonly nativeQualified: boolean
+    readonly scopeQualified: boolean
     readonly storeValid: boolean
   },
   hasUnresolvedGrants: boolean,
 ): 'machine' | 'windowScoped' | 'blocked' {
   if (hasUnresolvedGrants || !prerequisites.storeValid) return 'blocked'
-  return prerequisites.filesystem === 'local' && prerequisites.nativeQualified
+  return prerequisites.filesystem === 'local' &&
+    prerequisites.nativeQualified &&
+    prerequisites.scopeQualified
     ? 'machine'
     : 'windowScoped'
 }
