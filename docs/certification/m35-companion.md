@@ -221,6 +221,28 @@ file was changed for this; hosted CI with a healthy npm cache is unaffected.
 No browser was started: the browser suites covering these paths stay with
 the lead.
 
+### RVCMICCOMP3 fix (2026-10-10, macbook rig, no browser)
+
+The single P3 is fixed, with a regression test and a red drill at the
+repository's own timeout (no `--testTimeout` raised). Source bytes were
+restored to the before-drill SHA-256.
+
+| Finding                                                                                          | Fix                                                                                                                                                    | Regression test                                                                      | Red drill                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Receipt test accepted any well-formed digest (finding-4 row with 64 `a` characters stayed green) | `test/unit/companionDrills.test.ts` now also requires the three lane-recorded `rvcmiccomp-*` receipts to equal the live SHA-256 of the file each names | New `records the current restoration receipts as the live SHA-256 of the named file` | Replaced the finding-4 digest with 64 `a`s: the old shape test passed (the reported gap) while the new test failed naming the row (`rvcmiccomp-4-permission-cancellation-signal: expected 'aaaa…' to be '5f6c…'`); the drills file restored byte-exact (`0752e876…b2a80bc4d` before and after) |
+
+Scope note: checking every recorded digest against HEAD was rejected as the
+repair. Older rows are point-in-time history, and several recorded digests
+never matched committed history: `voiceSystem.ts` is `ba33…` at every commit
+but recorded as `87c8…`, `main.ts` is `d7f1…` but recorded as `f3f2…`, the
+stereo fix superseded the `wav-*` rows' digest, and the `dist` bundles rebuild.
+The live check therefore covers exactly the three current receipts. Sibling
+sweep: the lane's other 64-hex shape assertions (`judgeEntries`,
+`ideMcpServer` Bearer, `developerOptionsMachineId`, `m105CaptureScrub`,
+`machineId.ts`) assert formats of function outputs, not restoration records,
+so they are unchanged. No browser was started: the browser suites covering
+these paths stay with the lead.
+
 ### Local commit and handoff
 
 `674c83bb2` contains the guarded implementation and certification hold;
