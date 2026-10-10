@@ -1,7 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { execFileSync, spawn, type SpawnOptions } from 'node:child_process'
 import { mkdtemp, rm, stat, writeFile, symlink, chmod } from 'node:fs/promises'
+import type * as nodeFsPromises from 'node:fs/promises'
 import { createServer, createConnection, type Socket } from 'node:net'
+import type * as nodeNet from 'node:net'
 import { once } from 'node:events'
 import path from 'node:path'
 import process from 'node:process'
@@ -21,6 +23,7 @@ import { VAULT_BROKER_MAX_CONNECTIONS } from '../../../src/shared/constants'
 import { VaultBrokerDiscovery } from '../../../src/core/vault/broker/discovery'
 import { brokerFixture } from './brokerFixture'
 import { fakeManagement } from '../helpers/vault/fakeManagement'
+import { brokerRaceGates } from '../helpers/vault/brokerRaceGates'
 
 // Test protocol/lifecycle over real kernel peers and flock; containment/admission have their own suites.
 vi.mock('../../../src/core/resources/launcher', async () => {
@@ -35,6 +38,75 @@ vi.mock('../../../src/core/resources/launcher', async () => {
       options: SpawnOptions,
       extra: readonly number[] = [],
     ) => fixtureResourceProcess(profile, file, args, options, ['pipe', 'pipe', 'pipe', ...extra]),
+  }
+})
+// Race-test gates: every other test keeps the real network and filesystem
+// through these passthroughs; the error-window test enables the fake server
+// and the chmod gate to hold the permission-fix window deterministically open.
+vi.mock('node:net', async (importOriginal) => {
+  const original = await importOriginal<typeof nodeNet>()
+  const { brokerRaceGates } = await import('../helpers/vault/brokerRaceGates')
+  // A real but never-bound server behind a proxy: the event surface stays
+  // genuine while readiness, bound state and failures are test-driven, so no
+  // kernel socket is needed (sandbox-proof). No method is overridden, so the
+  // overload set needs no cast.
+  function fakeServer() {
+    const target = original.createServer()
+    let isBound = false
+    let listenCallback: (() => void) | undefined
+    const entry = {
+      server: new Proxy(target, {
+        get(
+          targetInner: nodeNet.Server,
+          property: string | symbol,
+          receiver: nodeNet.Server,
+        ): unknown {
+          if (property === 'listening') return isBound
+          if (property === 'listen')
+            return (path: string, listeningListener?: () => void) => {
+              if (path.length === 0) throw new Error('test fake server needs a path')
+              isBound = true
+              if (listeningListener !== undefined) listenCallback = listeningListener
+              return receiver
+            }
+          if (property === 'close')
+            return (listeningListener?: () => void) => {
+              isBound = false
+              listeningListener?.()
+              return receiver
+            }
+          const value: unknown = Reflect.get(targetInner, property, receiver)
+          return typeof value === 'function' ? value.bind(targetInner) : value
+        },
+      }),
+      notifyListening() {
+        listenCallback?.()
+      },
+      emitTestError(error: Error) {
+        const count = target.listenerCount('error')
+        if (count > 0) target.emit('error', error)
+        return count
+      },
+    }
+    return entry
+  }
+  function createServer(
+    ...args: Parameters<typeof original.createServer>
+  ): ReturnType<typeof original.createServer> {
+    if (!brokerRaceGates.fakeServer) return original.createServer(...args)
+    const fake = fakeServer()
+    brokerRaceGates.servers.push(fake)
+    return fake.server
+  }
+  return { ...original, createServer }
+})
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const original = await importOriginal<typeof nodeFsPromises>()
+  const { gatedChmod } = await import('../helpers/vault/brokerRaceGates')
+  return {
+    ...original,
+    chmod: (...args: Parameters<typeof original.chmod>) =>
+      gatedChmod(() => original.chmod(...args)),
   }
 })
 const heldLocks = new Set<Awaited<ReturnType<typeof holdVaultStartupLock>>>()
@@ -419,6 +491,52 @@ describe.skipIf(process.platform === 'win32')('POSIX vault broker lifecycle', ()
       expect(notified).toBe(1)
     } finally {
       await held.release()
+    }
+  })
+  it('shuts down when the server fails during the socket permission fix', async () => {
+    const f = await fixture('error-during-chmod', 1000)
+    // A channel double that never binds: the fake server reports readiness
+    // and failures without a kernel socket, so this test is sandbox-proof.
+    brokerRaceGates.fakeServer = true
+    brokerRaceGates.chmodGated = true
+    try {
+      const started = start({
+        ...f.options,
+        channel: (_location, listener) => ({
+          listen: async (file) => {
+            await listener.listen(file, () => undefined)
+          },
+          close: () => Promise.resolve(),
+        }),
+      })
+      await vi.waitFor(() => {
+        expect(brokerRaceGates.servers.length).toBe(1)
+      })
+      const server = brokerRaceGates.servers[0]
+      if (!server) throw new Error('expected a fake broker server')
+      server.notifyListening()
+      await vi.waitFor(() => {
+        expect(brokerRaceGates.chmodEntered).toBe(true)
+      })
+      // The chmod await is now in flight: a server failure here must still
+      // reach the shutdown handler subscribed before that await.
+      expect(server.emitTestError(new Error('test server failed during chmod'))).toBeGreaterThan(0)
+      await vi.waitFor(() => {
+        expect(f.locked).toHaveBeenCalled()
+      })
+      brokerRaceGates.releaseChmod()
+      await expect(started).rejects.toThrow()
+      const discovery = new VaultBrokerDiscovery(f.options.runDirectory, f.options.userSession)
+      await expect(stat(path.join(discovery.directory, 'broker.sock'))).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+    } finally {
+      // Always let the permission fix settle: with a broken guard the startup
+      // below would otherwise stay pending on the gate and strand its kernel
+      // lock past teardown.
+      brokerRaceGates.releaseChmod()
+      await f.f.broker.dispose()
+      brokerRaceGates.reset()
     }
   })
   it('refuses startup when the guardian died by signal before lock-loss subscribes', async () => {

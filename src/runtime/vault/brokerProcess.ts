@@ -150,6 +150,11 @@ export async function startVaultBrokerProcess(options: VaultBrokerProcessOptions
   const assertHeld = (): void => {
     if (lifecycle.isClosing || lifecycle.hasLostLock) throw new Error(UI_TEXT.vault.noAccess)
   }
+  // The socket server's shutdown handler: subscribed before the chmod await
+  // inside listen, so a failure during the permission fix still closes here.
+  const onServerError = (): void => {
+    void close().catch(done.reject)
+  }
   held.onLost(() => {
     lifecycle.hasLostLock = true
     if (!lifecycle.isStarting) void close().catch(done.reject)
@@ -186,6 +191,9 @@ export async function startVaultBrokerProcess(options: VaultBrokerProcessOptions
               resolve()
             })
           })
+          // A server failure during the permission fix must still shut the
+          // broker down: subscribe before the chmod await, not after it.
+          server.on('error', onServerError)
           await chmod(file, constants.S_IRUSR | constants.S_IWUSR)
         } catch (error: unknown) {
           if (server.listening)
@@ -196,9 +204,6 @@ export async function startVaultBrokerProcess(options: VaultBrokerProcessOptions
             )
           throw error
         }
-        server.on('error', () => {
-          void close().catch(done.reject)
-        })
         return async () => {
           for (const stream of sockets) stream.destroy()
           await new Promise<void>((resolve, reject) =>
