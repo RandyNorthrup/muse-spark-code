@@ -5962,6 +5962,13 @@ export const EN = {
         'not checked: {count} Python requirements have no resolved version; their transitive licenses are unknown',
     }),
     m196: 'not checked: no Python manifests, locks or distribution metadata found',
+    m197: forms({
+      one: '{v0} differs from the canonical {v1} text by {count} word; its modified terms need human review',
+      other:
+        '{v0} differs from the canonical {v1} text by {count} words; its modified terms need human review',
+    }),
+    m198: 'not checked: {v0} declares a malformed license expression ({v1}); its terms need human review',
+    m199: 'not checked: license text for {v0} at {v1} differs from its canonical wording',
     unknown: 'unknown',
     unresolved: 'unresolved',
     noLicense: 'no license',

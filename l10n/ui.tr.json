@@ -4930,6 +4930,12 @@
       "other": "İncelenmedi: {count} Python gereksiniminde çözümlenmiş sürüm yok; geçişli lisanslar bilinmiyor."
     },
     "m196": "İncelenmedi: Python bildirgesi, kilit veya dağıtım meta verisi yok.",
+    "m197": {
+      "one": "{v0}, standart {v1} metninden {count} sözcük farklıdır; değiştirilen koşullar insan incelemesi gerektirir",
+      "other": "{v0}, standart {v1} metninden {count} sözcük farklıdır; değiştirilen koşullar insan incelemesi gerektirir"
+    },
+    "m198": "İncelenmedi: {v0} bozuk bir lisans ifadesi ({v1}) bildirir; koşulları insan incelemesi gerektirir.",
+    "m199": "İncelenmedi: {v1} konumundaki {v0} lisans metni standart metinden farklıdır.",
     "unknown": "bilinmiyor",
     "unresolved": "çözümlenmemiş",
     "noLicense": "lisans yok",

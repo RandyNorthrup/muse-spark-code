@@ -5077,6 +5077,13 @@
       "many": "Non vérifié : {count} exigences Python sans version résolue ; licences transitives inconnues."
     },
     "m196": "Non vérifié : aucun manifeste Python, verrou ou métadonnée de distribution.",
+    "m197": {
+      "one": "{v0} diffère du texte canonique {v1} de {count} mot ; ses termes modifiés exigent une révision humaine",
+      "other": "{v0} diffère du texte canonique {v1} de {count} mots ; ses termes modifiés exigent une révision humaine",
+      "many": "{v0} diffère du texte canonique {v1} de {count} mots ; ses termes modifiés exigent une révision humaine"
+    },
+    "m198": "Non vérifié : {v0} déclare une expression de licence mal formée ({v1}) ; ses termes exigent une révision humaine.",
+    "m199": "Non vérifié : la licence de {v0} à {v1} diffère de sa formulation canonique.",
     "unknown": "inconnu",
     "unresolved": "non résolu",
     "noLicense": "aucune licence",

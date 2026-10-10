@@ -1,8 +1,8 @@
 [
   {
     "id": "AGPL-3.0",
-    "hash": "7bc3eb0fa805521396dd858075c136bcfc16ee182bf79041b96102fe898a6d09",
-    "words": 5547,
+    "hash": "4852776855bb71387e360d4f37fd80ec81760e340bd51e973e21c218545fdbed",
+    "words": 5564,
     "phrases": [
       "gnu affero general public license version 3",
       "if you modify the program your modified version must prominently offer",
@@ -12,8 +12,8 @@
   },
   {
     "id": "Apache-2.0",
-    "hash": "594673f8fe0542761280c31fa6f0d1eca9f491e533af6c2c1fef40b1c4229b47",
-    "words": 1558,
+    "hash": "e87dea5078ce2faaea46d3475af18d30a5c0ac0f09425b60b3e0c6569f72f8d2",
+    "words": 1602,
     "phrases": [
       "apache license version 2 0",
       "licensed under the apache license version 2 0",
@@ -52,8 +52,8 @@
   },
   {
     "id": "CC0-1.0",
-    "hash": "c9fc766f3657f72225d157a552169fb6bc0ba652f321dd55458ae0b62f996a32",
-    "words": 1075,
+    "hash": "96bdc7f63190fb4bd1ae584b890300ed7517d858b34c945642a3b9b2f1612a5f",
+    "words": 1088,
     "phrases": ["cc0 1 0 universal", "statement of purpose", "waiver"]
   },
   {
@@ -68,8 +68,8 @@
   },
   {
     "id": "GPL-2.0",
-    "hash": "6f39a68618bd6079226800eb792e361c1f4c98acbdf46c4e9fb6c080e3af8358",
-    "words": 2863,
+    "hash": "5cb6370ac80145bff27a54858e51a973da8c42e030e5803cfe2c3953ae0150ac",
+    "words": 2923,
     "phrases": [
       "gnu general public license version 2",
       "everyone is permitted to copy and distribute",
@@ -79,8 +79,8 @@
   },
   {
     "id": "GPL-3.0",
-    "hash": "5a196c412ec2528b5e3b01cce9fbd7def6962b94424ae87926aa1da1542d5c87",
-    "words": 5660,
+    "hash": "45d55e6a1f1db973422ccbae8d15b1ad6389e7c384bfc422b46f5e230b86ecaf",
+    "words": 5684,
     "phrases": [
       "gnu general public license version 3",
       "everyone is permitted to copy and distribute",
@@ -111,8 +111,8 @@
   },
   {
     "id": "LGPL-3.0",
-    "hash": "958ce41d551ff4eee67cbffc9fe7d3928220dccb0dc8dd53fcc0d759a1ca4c73",
-    "words": 6891,
+    "hash": "71a84d7000883b202a7de82c1422d30cd2887378b01c588025f9f728e34bf7f8",
+    "words": 6915,
     "phrases": [
       "gnu lesser general public license version 3",
       "supplemented by the additional permissions",
@@ -132,8 +132,8 @@
   },
   {
     "id": "MPL-2.0",
-    "hash": "3dacd2c104719e7227969cbdcc7d581518827199e830b9379627eec0a32f8ab7",
-    "words": 2414,
+    "hash": "9eab7902f21bef0326dee4ed0cae1402c781cbf1f8e3dbeed6fbe176d641bb13",
+    "words": 2426,
     "phrases": [
       "mozilla public license version 2 0",
       "this source code form is subject to the terms of the mozilla public license",

@@ -4930,6 +4930,12 @@
       "other": "Nicht geprüft: {count} Python-Anforderungen haben keine aufgelöste Version; transitive Lizenzen unbekannt."
     },
     "m196": "Nicht geprüft: Python-Manifeste, Sperrdateien und Distributionsmetadaten fehlen.",
+    "m197": {
+      "one": "{v0} weicht um {count} Wort vom kanonischen {v1}-Text ab; die geänderten Bedingungen brauchen menschliche Prüfung",
+      "other": "{v0} weicht um {count} Wörter vom kanonischen {v1}-Text ab; die geänderten Bedingungen brauchen menschliche Prüfung"
+    },
+    "m198": "Nicht geprüft: {v0} nennt einen fehlerhaften Lizenzausdruck ({v1}); seine Bedingungen brauchen menschliche Prüfung.",
+    "m199": "Nicht geprüft: Lizenztext für {v0} bei {v1} weicht vom kanonischen Wortlaut ab.",
     "unknown": "unbekannt",
     "unresolved": "nicht aufgelöst",
     "noLicense": "keine Lizenz",

@@ -5224,6 +5224,14 @@
       "many": "Nie sprawdzono: {count} wymagań Python bez rozwiązanej wersji; licencje przechodnie nieznane."
     },
     "m196": "Nie sprawdzono: brak manifestów Python, blokad i metadanych dystrybucji.",
+    "m197": {
+      "one": "{v0} różni się od kanonicznego tekstu {v1} o {count} słowo; zmienione warunki wymagają przeglądu przez człowieka",
+      "other": "{v0} różni się od kanonicznego tekstu {v1} o {count} słów; zmienione warunki wymagają przeglądu przez człowieka",
+      "few": "{v0} różni się od kanonicznego tekstu {v1} o {count} słowa; zmienione warunki wymagają przeglądu przez człowieka",
+      "many": "{v0} różni się od kanonicznego tekstu {v1} o {count} słów; zmienione warunki wymagają przeglądu przez człowieka"
+    },
+    "m198": "Nie sprawdzono: {v0} deklaruje wadliwe wyrażenie licencji ({v1}); jego warunki wymagają przeglądu przez człowieka.",
+    "m199": "Nie sprawdzono: licencja {v0} w {v1} różni się od brzmienia kanonicznego.",
     "unknown": "nieznane",
     "unresolved": "nierozwiązane",
     "noLicense": "brak licencji",
