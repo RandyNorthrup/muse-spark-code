@@ -54,7 +54,13 @@ happened, not what was planned; superseded entries are kept.
   are refused with the same typed error. Snapshot arrays are rebuilt from
   their indexed entries, so own `map`/`constructor` shadows cannot reach
   native dispatch, and title formatting reuses the entry snapshot instead of
-  copying the input twice.
+  copying the input twice. The hand-written input checks are replaced by one
+  strict parse per builder: unknown keys fail, every array element is
+  validated exactly, required strings are non-empty where the contract needs
+  them, and every refusal — including anything a hostile getter or trap
+  throws while the parse reads — is the same typed error naming the rejected
+  path; each builder runs only on the parsed value, so the snapshot clone and
+  indexed rebuild are gone.
 
 ### Changed
 
