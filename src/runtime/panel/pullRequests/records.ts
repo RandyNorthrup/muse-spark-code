@@ -224,9 +224,15 @@ export interface WorktreeRecordStore {
   discard(reservation: Reservation): Promise<boolean>
   /**
    * ready → trusted, only for the very checkout the ticket names, once.
-   * Never a pending checkout, never one already trusted.
+   * Never a pending checkout, never one already trusted. `isCurrent` (the
+   * caller's trust and lifetime) is asked under the hold and again just
+   * before the publish lands; false refuses the release.
    */
-  release(ticket: TrustTicket, now: number): Promise<WorktreeRecord | undefined>
+  release(
+    ticket: TrustTicket,
+    now: number,
+    isCurrent?: () => boolean,
+  ): Promise<WorktreeRecord | undefined>
   /**
    * Synchronously, for a gate with no await before it acts: whether the
    * record is still exactly `reservation`'s. False when it cannot be read.
@@ -253,9 +259,10 @@ export interface RegistryHold {
   /**
    * Publishes `records` as the next head: a compare-and-swap on the head
    * read, refused (`lost`) once another publish landed or this hold is no
-   * longer current (`GenerationWrite`).
+   * longer current (`GenerationWrite`), or once `isCurrent` (asked just
+   * before it lands) is false.
    */
-  publish(records: readonly WorktreeRecord[]): Promise<GenerationWrite>
+  publish(records: readonly WorktreeRecord[], isCurrent?: () => boolean): Promise<GenerationWrite>
 }
 
 /** Where the records live: a lease-held, fenced head. */
@@ -495,6 +502,7 @@ export function createWorktreeRecordStore(
   const mutate = <T>(
     change: (records: readonly WorktreeRecord[], fence: number) => Mutation<T>,
     whileHeld?: (result: T) => Promise<void>,
+    isCurrent?: () => boolean,
   ): Promise<T> =>
     enqueue(async () => {
       // What attempts whose landing is not known would have written.
@@ -509,7 +517,7 @@ export function createWorktreeRecordStore(
               return { result: changed.result }
             }
             unknown.push(changed.result)
-            const outcome = await hold.publish(changed.records)
+            const outcome = await hold.publish(changed.records, isCurrent)
             // Published, and its place could not be proven (its successor
             // swept, or the proof unreadable): in effect while the head
             // still holds exactly what it wrote. Applying it again would
@@ -609,9 +617,14 @@ export function createWorktreeRecordStore(
       mutate((records) =>
         apply.discard(records, { ...reservation, folder: slashed(reservation.folder) }),
       ),
-    release: (ticket, at) =>
-      mutate((records, fence) =>
-        apply.release(records, { ...ticket, folder: slashed(ticket.folder) }, at, fence),
+    release: (ticket, at, isCurrent) =>
+      mutate(
+        (records, fence) =>
+          isCurrent?.() === false
+            ? { records, result: undefined }
+            : apply.release(records, { ...ticket, folder: slashed(ticket.folder) }, at, fence),
+        undefined,
+        isCurrent,
       ),
     holdsSync: (reservation) => {
       const records = registry.readSync()
@@ -644,8 +657,8 @@ export function createMemoryRecordRegistry(): RecordRegistry {
         return await work({
           fence: fences,
           records,
-          publish: (changed) => {
-            if (generation !== read) {
+          publish: (changed, isCurrent) => {
+            if (generation !== read || isCurrent?.() === false) {
               return Promise.resolve('lost')
             }
             records = changed
@@ -760,13 +773,18 @@ export function createFileRecordRegistry(
         return await work({
           fence: lease.fence,
           records: read.records,
-          publish: async (records) => {
+          publish: async (records, isCurrent) => {
             if (hasPublished) {
               throw new Error('One hold publishes once')
             }
             hasPublished = true
-            const outcome = await writeNextGeneration(fs, folder, read, records, lease.fence, () =>
-              lease.isHeldSync(),
+            const outcome = await writeNextGeneration(
+              fs,
+              folder,
+              read,
+              records,
+              lease.fence,
+              () => lease.isHeldSync() && isCurrent?.() !== false,
             )
             if (outcome === 'written') {
               // Best effort, and never past the landed write it follows.

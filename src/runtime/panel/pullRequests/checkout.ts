@@ -1732,19 +1732,34 @@ export class RuntimePullRequestCheckout {
     if ((await folderIdentityOf(ticket.folder)) !== ticket.folderIdentity) {
       return { ok: false, reason: UI_TEXT.gitOperationChanged }
     }
+    // Trust or the window may have ended during that read (RVINTM123):
+    // asked again now, under the store's hold, and just before the
+    // release lands. One that landed stays a success.
+    const isLive = (): boolean => this.deps.isTrusted() && !this.deps.signal.aborted
+    const ended = (): { readonly ok: false; readonly reason: string } | undefined => {
+      try {
+        this.checkTrust()
+        return undefined
+      } catch (error: unknown) {
+        return { ok: false, reason: failureText(error) }
+      }
+    }
+    const endedBefore = ended()
+    if (endedBefore !== undefined) {
+      return endedBefore
+    }
     // A release the store cannot persist, or one that no longer matches
     // the record, reads as changed: the card shows the checkout again.
     let released: WorktreeRecord | undefined
     try {
-      released = await this.deps.records.release(ticket, this.deps.now())
+      released = await this.deps.records.release(ticket, this.deps.now(), isLive)
     } catch {
-      return { ok: false, reason: UI_TEXT.gitOperationChanged }
+      return ended() ?? { ok: false, reason: UI_TEXT.gitOperationChanged }
     }
-    if (released !== undefined) {
-      this.deps.log.info('The held worktree was trusted in the card')
+    if (released === undefined) {
+      return ended() ?? { ok: false, reason: UI_TEXT.gitOperationChanged }
     }
-    return released === undefined
-      ? { ok: false, reason: UI_TEXT.gitOperationChanged }
-      : { ok: true }
+    this.deps.log.info('The held worktree was trusted in the card')
+    return { ok: true }
   }
 }
