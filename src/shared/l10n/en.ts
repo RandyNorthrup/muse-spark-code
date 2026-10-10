@@ -2299,6 +2299,8 @@ export const EN = {
     sessionApprovalsUnavailable: 'The session history records no approval decisions.',
     toolBreakdownUnavailable: 'Per-tool usage is not recorded in the usage journal.',
     rolledUpBreakdownExcluded: 'Rolled-up history is included in totals but not in this breakdown.',
+    rolledUpSessionExcluded:
+      'Rolled-up history is excluded from this session’s totals and breakdown.',
   },
   reportRowsMore: forms({ one: '{count} more', other: '{count} more' }),
   reportCliUsage:

@@ -47,6 +47,9 @@ const usageSchema = z.object({
         used: z.number().check(z.nonnegative()),
         limit: z.number().check(z.nonnegative()),
         resetsAt: z.nullable(z.iso.datetime({ offset: true })),
+        // Dollars render in dollar fields, percentages in percent fields
+        // (RVCM1132B finding 5); the scrub must carry the unit, not strip it.
+        unit: z.optional(z.enum(['percent', 'usd'])),
       }),
     )
     .check(z.maxLength(REPORT_MAX_ROWS)),
@@ -118,6 +121,14 @@ export function scrubUsage(usage: unknown, scrub: SourceScrub): ReportSourcePayl
   return {
     ...parsed,
     breakdown: parsed.breakdown.toSorted((a, b) => codeUnitCompare(a.key, b.key)),
-    limits: parsed.limits.toSorted((a, b) => codeUnitCompare(a.key, b.key)),
+    limits: parsed.limits
+      .toSorted((a, b) => codeUnitCompare(a.key, b.key))
+      .map((entry) => ({
+        key: entry.key,
+        used: entry.used,
+        limit: entry.limit,
+        resetsAt: entry.resetsAt,
+        ...(entry.unit !== undefined && { unit: entry.unit }),
+      })),
   }
 }
