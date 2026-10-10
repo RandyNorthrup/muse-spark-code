@@ -37998,6 +37998,18 @@ lane A's first step.
 
 ## 7. Gates
 
+**CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
+round 4's macOS target-size deadline and palette failure-render ordering
+under bounded CPU/memory pressure before repairing their causes. Keep all
+themes, targets, assertions, repository deadlines and gate limits. Profile
+scene setup and lazy rejection delivery; run the complete owning files,
+five type projects, changed-file lint/format, plain knip, duplication,
+localization, host API and production build. Record byte-exact red/restored
+drills and load receipts in `docs/certification/cifix017.md`, Round 4,
+macOS. The explicit rig/common brief prohibits aggregate quality and
+delegates full hosted qualification to the lead. Requested hosted log
+downloads return HTTP 403; no merge, push, rebase or paid/live model call.
+
 **ACPM118 scoped rig qualification (2026-10-09, macmini).** The explicit
 rig/common brief prohibits aggregate quality and delegates hosted replay to
 the lead. All five type projects, changed-file lint/format, plain knip,

@@ -619,3 +619,125 @@ Final repository-default receipts (no test-name filter or timeout override):
 All 17 changed tracked files are staged explicitly for an installed-hooks
 commit; the original ACP stdio test remains byte-exact. Full hosted Actions,
 aggregate quality and an actual installed universal tarball remain lead-owned.
+
+## Round 4, macOS (CIR4MAC)
+
+Authority: `/Users/randy/lanes/_ctx/CIR4MAC.rig.md` and shared
+`codex/common.md`; macmini, branch `rel017/cir4mac`, starting head
+`249218f4ee85b6d43dc5c61dcf283ea6d297527b`. No deadline, tolerance,
+assertion, theme, target, gate, hook or budget is weakened. The final changes
+are test synchronization and case isolation; production source and visuals
+are unchanged. Aggregate quality and hosted replay remain lead-owned under
+the explicit rig brief. No subagent, merge, push, rebase, credential access
+or paid/live model call; no tool or dependency installation.
+
+Both requested read-only job-log endpoints for run `38018090551`, jobs
+`114112783499` and `114112783564`, return HTTP 403, "Must have admin rights
+to Repository". The alternate run-log read also returns 403. Hosted failure
+names come from the brief; local evidence below does not claim a green
+hosted release. Ignored logs, complete Vitest JSON and pressure samples are
+under `temp/cir4mac/`.
+
+### Target-size case cost and reproduction
+
+The six theme cases each created three independent browser contexts/pages,
+navigated and mounted the real production React harness, played the scenario,
+waited for deferred rows, then measured every visible target. They run no axe
+scan. Under twelve CPU workers and 1,342,177,280 held memory bytes, profiling
+all eighteen pages gives these mean costs: new context/page **430 ms**,
+initial React render **542 ms**, navigation **85 ms**, media/route/clock
+**30 ms**, theme **26 ms**, scenario render **158 ms**, deferred paint
+**64 ms**. Context creation and first render dominate; the three setups share
+one five-second deadline. Temporary instrumentation was restored byte-exact
+before repair (`cmp` and SHA-256
+`6163fe6ad68dbee3a1f022dba01299a5aecd6672f55135f18110318fe3bad365`).
+
+The unchanged source passes 126/126 with eight CPU workers in 236.67 seconds;
+its target cases take 3.61–4.03 seconds. With twenty CPU workers and the same
+held memory, **six target cases fail at 5,000–5,004 ms**, exactly the timeout
+class in the brief; the other **120 tests pass**, 340.57 seconds overall.
+Every complete file runs at repository deadlines with `--maxWorkers=3`;
+no `--testTimeout`, filtering or skipped-test change. Pressure workers belong
+to one foreground supervisor and terminate in its `finally` after Vitest.
+The rig uses Node 24.21.0 and Chrome 155.0.8059.39; hosted Node 22 execution
+still requires the lead's replay.
+
+Repair: each theme/scene pair owns a case (eighteen instead of six). The
+three scenes, all five selector kinds, visible-target waits, nonzero counts,
+every target's bounding box and both 24 px assertions remain verbatim.
+The existing forced-colour and contrast tests are unchanged.
+
+### Palette lazy rejection ordering
+
+App starts the registry request independently of the lazy Palette view.
+Rejecting the registry and awaiting one microtask does not finish the view's
+cold module loading or React's error-boundary render. The previous test then
+spent Testing Library's one-second lookup window waiting for `role="alert"`.
+The original case passed locally even with twenty CPU workers (1.47 seconds
+for the whole test); its exact unmodified hosted failure is not reproduced.
+
+A controlled view-import barrier establishes the ordering: keep the view
+pending, reject the already requested registry, then perform the old alert
+lookup. It fails with the matching missing-alert error under twelve-worker
+pressure (**one failed, 125 passed**, 277.01 seconds with the review file).
+This reproduces the transient state without a sleep or widened timeout.
+
+Repair: retain that controlled barrier, explicitly release it after the
+registry rejection, and await the actual Palette import's rejection inside
+`act`. React can commit its existing error boundary before the alert lookup.
+All first-use, loading, dismissal, reopen, failure wording and saved-state
+retry assertions remain. This changes the test's synchronization, not App's
+failure handling. The repaired palette passes under twenty-worker pressure
+(1.52 seconds for the whole test).
+
+### Loaded replay and byte-exact drills
+
+The repaired complete files pass **138/138** under the same twenty CPU
+workers and 1,342,177,280 held memory bytes, **340.97 seconds** overall.
+All eighteen size cases take **1,505–2,054 ms**, leaving their existing
+five-second deadline intact. Before/after free-page minima are
+413,589,504 / 413,241,344 bytes; available-memory minima are
+13,067,345,920 / 13,078,949,888 bytes. These are matched workload settings
+and measured system readings, not a claim of identical scheduler state.
+
+Both deliberate mutations run together over the complete files under the
+same load: **seven failed, 131 passed**. No test is filtered.
+
+| Drill | Break                                                                | Observed failure                                           | Byte-exact restored SHA-256                                                                    |
+| ----- | -------------------------------------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| R4M1  | Attachment minimum width/height token changed from 24 px to 16 px    | All six theme/`chips` cases: expected 16 to be at least 24 | `e546b30b35aae47762bc1260746ac2883463f0f5d2e988f257096f248807275e` (`styles.css`)              |
+| R4M2  | Remove view-barrier release and the awaited Palette import rejection | Palette test cannot find `role="alert"`                    | `12fde1de6a1a15796d9143b88a642a8766b6d38935ddc26781cb0f88fb6f3838` (`AppPaletteLazy.test.tsx`) |
+
+`cmp` also confirms the review test is unchanged by the drills:
+`2c27085d9bcb2eae03feb54bdabf560ff254bdc2ee062720e1502ee7c0337318`.
+The temporary CSS mutation leaves no production-source diff.
+
+### Final verification and qualification scope
+
+After the byte-exact restoration, the final complete-file replay under the
+same twenty-worker/held-memory load passes **138/138**, **338.90 seconds**;
+slowest size case **2,093 ms**. Both loaded green runs use the repository's
+five-second test deadline. The related complete `AppPaletteLazy`,
+`AppPaletteEnglish` and `DeferredSurface` files pass **20/20**, **8.71 seconds**.
+Tracked summary: `docs/certification/cifix017r4-macos.json`; full logs,
+per-test JSON and pressure samples remain in ignored `temp/cir4mac/`.
+
+All five typecheck projects pass. Changed-file ESLint (zero warnings) and
+Prettier pass; both test files retain their tested hashes after formatting.
+Plain knip passes with its two existing configuration hints; duplication
+finds zero clones. Localization reports zero problems across all fourteen
+tables; host API, reference, plan and roadmap are current; cycle detection
+finds none. Production build, token validation, all bundle caps/splits,
+host globals and third-party notices pass. Measured extension **550.1 KiB /
+600 KiB**, Model API **515.8 KiB / 525 KiB**, chat startup JavaScript
+**742.2 KiB / 900 KiB**, original deferred JavaScript **31.9 KiB / 50 KiB**;
+no cap changes. The planned installed-hook local commit uses explicit paths,
+with full commit output captured to `temp/cir4mac/commit.log`; re-read the
+staged and committed diffs afterward.
+
+The scoped lane is qualified locally. Aggregate `npm run quality`, complete
+coverage and hosted Node 22/three-platform qualification remain with the
+lead under the explicit brief. Both requested hosted logs remain inaccessible
+(HTTP 403), and the unmodified palette failure was not observed locally;
+its controlled rejection-order reproduction and red/restored drill are
+recorded separately above. No stronger release qualification is claimed.
