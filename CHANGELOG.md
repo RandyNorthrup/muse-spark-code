@@ -105,6 +105,22 @@ happened, not what was planned; superseded entries are kept.
   stamps the build its quirks were proven against (llama.cpp b11541, LM
   Studio llmster 0.0.25-1).
 
+- Local-model context windows end to end (M95 C-M95-4 R3, review
+  RVCM954B). A scanned local model now carries its server's reported
+  window in `providers.json` `modelLimits`: the quick pick, the Models
+  panel wizard save and the panel tick all write it (output bounded by
+  the window, which is the only cap the server reports), so the
+  composer's context limit is set from the save instead of staying
+  empty. A local model from a captured preset with no known window
+  refuses the request with a plain reason before anything is sent. The
+  configured registry exposes its last listing's window to the host's
+  context seam, so manual compact sizes the summary to the live window
+  and automatic compact sees it (the legacy Meta window still applies
+  where it did). The closed-scan and save refusal reasons moved into
+  the translated UI table. Note: the LM Studio list reports no window,
+  so a saved LM Studio model refuses until a window is known; entering
+  one by hand has no UI yet.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
