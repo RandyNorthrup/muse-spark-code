@@ -228,7 +228,6 @@
   "config.accountSwap.description": "Po osiągnięciu progu przełącza na następne konto z wolną pojemnością, na granicy kolejnego żądania. Każde konto zachowuje własne limity. Domyślnie włączone; używane jest tylko ustawienie tego komputera.",
   "config.accountParallel.description": "Rozdziela pracę w tle między konta według wolnej pojemności; każdy proces roboczy pozostaje na swoim koncie. Domyślnie włączone; używane jest tylko ustawienie tego komputera.",
   "config.accounts.severalOnThisDevice.description": "Zezwala na wiele kont jednego dostawcy na tym komputerze do testów, każde we własnym izolowanym profilu lokalnym. Włączenie najpierw prosi o potwierdzenie warunków dostawcy. Domyślnie wyłączone; używane jest tylko ustawienie tego komputera.",
-  "config.github.useGhLogin.description": "Pozwala pull requestom używać istniejącego logowania GitHub CLI (`gh auth token`), próbowanego jako ostatnie, po logowaniu do GitHuba w edytorze i logowaniu Muse Spark. Token jest odczytywany tylko na jedno żądanie i nigdy nie jest zapisywany. Domyślnie wyłączone; tylko w ustawieniach użytkownika, więc repozytorium nie może tego włączyć.",
   "command.vault.title": "Sejf",
   "command.lockVault.title": "Zablokuj sejf teraz",
   "config.vault.description": "Włącz sejf poświadczeń użytkownika współdzielony przez edytory.",

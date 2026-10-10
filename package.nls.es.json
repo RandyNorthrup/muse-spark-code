@@ -228,7 +228,6 @@
   "config.accountSwap.description": "Cambiar a la siguiente cuenta con capacidad cuando una alcance un umbral, en el límite de la siguiente solicitud. Cada cuenta conserva sus propios límites. Activado por defecto; solo se usa el ajuste de esta máquina.",
   "config.accountParallel.description": "Distribuir el trabajo en segundo plano entre las cuentas según la capacidad disponible; cada trabajador permanece en su cuenta. Activado por defecto; solo se usa el ajuste de esta máquina.",
   "config.accounts.severalOnThisDevice.description": "Permitir varias cuentas de un proveedor en este PC para pruebas, cada una en su propio perfil local aislado. Activarlo pide primero la confirmación de los términos del proveedor. Desactivado por defecto; solo se usa el ajuste de esta máquina.",
-  "config.github.useGhLogin.description": "Permite que las solicitudes de incorporación de cambios usen tu sesión existente de GitHub CLI (`gh auth token`), probada en último lugar, después de la sesión de GitHub del editor y la de Muse Spark. El token se lee para una sola solicitud cada vez y nunca se guarda. Desactivado de forma predeterminada; solo en la configuración de usuario, así que un repositorio no puede activarlo.",
   "command.vault.title": "Bóveda",
   "command.lockVault.title": "Bloquear la bóveda ahora",
   "config.vault.description": "Activar la bóveda de credenciales por usuario compartida entre editores.",

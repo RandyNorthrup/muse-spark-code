@@ -1623,12 +1623,6 @@
           "description": "%config.accounts.severalOnThisDevice.description%",
           "scope": "machine"
         },
-        "museSpark.github.useGhLogin": {
-          "type": "boolean",
-          "default": false,
-          "description": "%config.github.useGhLogin.description%",
-          "scope": "machine"
-        },
         "museSpark.vault.enabled": {
           "type": "boolean",
           "default": true,
