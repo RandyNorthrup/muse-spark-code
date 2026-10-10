@@ -17,6 +17,7 @@ import { describe, expect, it } from 'vitest'
 import {
   acquireFileLease,
   LeaseBusyError,
+  type FileLease,
   type FileLeaseEnv,
   type LeasePort,
 } from '../../src/core/locks/fileLease'
@@ -29,89 +30,7 @@ import {
   type ProcessOwner,
 } from '../../src/core/locks/processOwner'
 import { FILE_LEASE_FENCES_KEPT } from '../../src/shared/constants'
-
-interface Pause {
-  /** Settles when the paused call is reached, before it runs. */
-  readonly reached: Promise<void>
-  readonly resume: () => void
-}
-
-type AsyncOp =
-  'mkdir' | 'readdir' | 'readFile' | 'createExclusive' | 'link' | 'rename' | 'unlink' | 'lstat'
-
-/** Node's lease port, with one-shot pauses a test arms per call. */
-function pausingPort(base: LeasePort = nodeLeasePort) {
-  const traps: {
-    readonly op: AsyncOp
-    readonly isMatch: (args: readonly string[]) => boolean
-    readonly hit: () => void
-    readonly gate: Promise<void>
-  }[] = []
-  const pass = async (op: AsyncOp, args: readonly string[]): Promise<void> => {
-    const index = traps.findIndex((trap) => trap.op === op && trap.isMatch(args))
-    const trap = traps[index]
-    if (trap === undefined) {
-      return
-    }
-    traps.splice(index, 1)
-    trap.hit()
-    await trap.gate
-  }
-  const port: LeasePort = {
-    ...base,
-    mkdir: async (folder) => {
-      await pass('mkdir', [folder])
-      await base.mkdir(folder)
-    },
-    readdir: async (folder) => {
-      await pass('readdir', [folder])
-      return await base.readdir(folder)
-    },
-    readFile: async (file) => {
-      await pass('readFile', [file])
-      return await base.readFile(file)
-    },
-    createExclusive: async (file, content, durability) => {
-      await pass('createExclusive', [file, content])
-      await base.createExclusive(file, content, durability)
-    },
-    link: async (existing, target) => {
-      await pass('link', [existing, target])
-      await base.link(existing, target)
-    },
-    rename: async (from, to) => {
-      await pass('rename', [from, to])
-      await base.rename(from, to)
-    },
-    unlink: async (file) => {
-      await pass('unlink', [file])
-      await base.unlink(file)
-    },
-    lstat: async (file) => {
-      await pass('lstat', [file])
-      return await base.lstat(file)
-    },
-  }
-  const pauseAt = (op: AsyncOp, isMatch: (args: readonly string[]) => boolean): Pause => {
-    const reached = Promise.withResolvers<undefined>()
-    const gate = Promise.withResolvers<undefined>()
-    traps.push({
-      op,
-      isMatch,
-      hit: () => {
-        reached.resolve(undefined)
-      },
-      gate: gate.promise,
-    })
-    return {
-      reached: reached.promise,
-      resume: () => {
-        gate.resolve(undefined)
-      },
-    }
-  }
-  return { port, pauseAt }
-}
+import { deferred, exitedProcessId, nextTurn, pausingPort } from './helpers/leaseFs'
 
 /** A lock instance's stats as inode reuse looks: one inode number for all. */
 function reused<T extends { ino: bigint }>(file: string, stats: T): T {
@@ -130,24 +49,6 @@ function reusingInodes(base: LeasePort): LeasePort {
     rewriteOwn: (file, isOwn, content) =>
       base.rewriteOwn(file, (opened, bytes) => isOwn(reused(file, opened), bytes), content),
   }
-}
-
-/** Something to resolve from outside: a step a test waits for. */
-function deferred(): { readonly promise: Promise<undefined>; readonly resolve: () => void } {
-  const { promise, resolve } = Promise.withResolvers<undefined>()
-  return {
-    promise,
-    resolve: () => {
-      resolve(undefined)
-    },
-  }
-}
-
-/** One turn of the event loop: other holders' steps run in it. */
-async function nextTurn(): Promise<void> {
-  await new Promise((resolve) => {
-    setImmediate(resolve)
-  })
 }
 
 async function leaseEnv(overrides: Partial<FileLeaseEnv> = {}): Promise<FileLeaseEnv> {
@@ -186,18 +87,6 @@ function lockNote(owner: ProcessOwner, leaseMs: number, id = 'someone-else') {
 /** A wall clock stepped an hour forward. */
 function anHourAhead(): number {
   return Date.now() + 3_600_000
-}
-
-/** The id of a process that has exited: provably gone on this host. */
-async function exitedProcessId(): Promise<number> {
-  const child = spawn(process.execPath, ['-e', ''], { windowsHide: true })
-  await new Promise((resolve) => {
-    child.once('exit', resolve)
-  })
-  if (child.pid === undefined) {
-    throw new Error('the process never started')
-  }
-  return child.pid
 }
 
 /** A live process for the test's length; `stop` ends it and waits. */
@@ -260,6 +149,94 @@ function isAside(name: string | undefined): boolean {
 async function asideNames(folder: string): Promise<string[]> {
   const names = await readdir(folder)
   return names.filter((name) => isAside(name))
+}
+
+/** A lock held by a live owner of this host whose lease has already run out. */
+async function expiredLock(): Promise<string> {
+  const { lockPath } = await lockFolder()
+  await writeFile(lockPath, lockNote(await currentProcessOwner(), 0))
+  return lockPath
+}
+
+/** A takes `lockPath` over at once, honouring no lease (through `port`). */
+async function takeOverAtOnce(lockPath: string, port: LeasePort = nodeLeasePort) {
+  return await acquireFileLease(
+    lockPath,
+    await leaseEnv({ port, honoredLeaseMs: 0, watches: new Map() }),
+  )
+}
+
+/** A's 100 ms hold, left to expire, then taken over by B. */
+async function expiredAndTakenOver() {
+  const { lockPath } = await lockFolder()
+  const a = await acquireFileLease(lockPath, await leaseEnv({ leaseMs: 100, watches: new Map() }))
+  await delay(200)
+  const b = await acquireFileLease(
+    lockPath,
+    await leaseEnv({ honoredLeaseMs: 100, watches: new Map() }),
+  )
+  return { lockPath, a, b }
+}
+
+/** B acquiring `lockPath` through `window`, paused just before it moves the lock aside. */
+async function movingTaker(lockPath: string, window: ReturnType<typeof pausingPort>) {
+  const beforeMove = window.pauseAt('rename', ([from]) => from === lockPath)
+  let isBHolding = false
+  const bEnv = await leaseEnv({ port: window.port, watches: new Map() })
+  const bAcquire = (async () => {
+    const lease = await acquireFileLease(lockPath, bEnv)
+    isBHolding = true
+    return lease
+  })()
+  return { beforeMove, bAcquire, isBHolding: () => isBHolding }
+}
+
+/**
+ * B resumed: it put A's fresh lock back, so A still holds and B waits; once
+ * A releases, B holds. B's lease.
+ */
+async function takerWaitsForRelease(
+  beforeMove: { readonly resume: () => void },
+  a: FileLease,
+  bAcquire: Promise<FileLease>,
+  isBHolding: () => boolean,
+): Promise<FileLease> {
+  beforeMove.resume()
+  await delay(150)
+  expect(a.isHeldSync()).toBe(true)
+  expect(isBHolding()).toBe(false)
+  await a.release()
+  const b = await bAcquire
+  expect(await b.isHeld()).toBe(true)
+  return b
+}
+
+/** `base`, failing every read of a moved-aside instance (EACCES). */
+function asideUnreadable(base: LeasePort): LeasePort {
+  return {
+    ...base,
+    readFile: async (file) => {
+      if (isAside(file)) {
+        throw eacces(file)
+      }
+      return await base.readFile(file)
+    },
+  }
+}
+
+/** A lease env on a monotonic clock that steps a second per sleep. */
+async function steppingClock(timeoutMs: number) {
+  let elapsed = 0
+  const env = await leaseEnv({
+    monotonic: () => elapsed,
+    sleep: async () => {
+      elapsed += 1000
+      await nextTurn()
+    },
+    timeoutMs,
+    watches: new Map(),
+  })
+  return { env, elapsed: () => elapsed }
 }
 
 describe('process owners (M123 lane P)', () => {
@@ -355,13 +332,7 @@ describe('file lease: fences (M123 LOCKLIB)', () => {
   })
 
   it('is no longer held, synchronously, once another hold has a later fence', async () => {
-    const { lockPath } = await lockFolder()
-    const a = await acquireFileLease(lockPath, await leaseEnv({ leaseMs: 100, watches: new Map() }))
-    await delay(200)
-    const b = await acquireFileLease(
-      lockPath,
-      await leaseEnv({ honoredLeaseMs: 100, watches: new Map() }),
-    )
+    const { a, b } = await expiredAndTakenOver()
     expect(b.fence).toBeGreaterThan(a.fence)
     expect(a.isHeldSync()).toBe(false)
     expect(await a.isHeld()).toBe(false)
@@ -749,16 +720,8 @@ describe('file lease: waiting and takeover (M123 LOCKLIB)', () => {
     // 30 s lease is waited out and the lock taken over.
     const { lockPath } = await lockFolder()
     await writeFile(lockPath, lockNote(await currentProcessOwner(), 30_000))
-    let elapsed = 0
-    const env = await leaseEnv({
-      monotonic: () => elapsed,
-      sleep: async () => {
-        elapsed += 1000
-        await nextTurn()
-      },
-      timeoutMs: 10_000,
-      watches: new Map(),
-    })
+    const clock = await steppingClock(10_000)
+    const { env } = clock
     const outcomes: string[] = []
     for (let attempt = 1; attempt <= 5 && !outcomes.includes('acquired'); attempt += 1) {
       try {
@@ -771,30 +734,22 @@ describe('file lease: waiting and takeover (M123 LOCKLIB)', () => {
     }
     // Two 10 s attempts give up; the third reaches 30 s watched and takes over.
     expect(outcomes).toEqual(['busy', 'busy', 'acquired'])
-    expect(elapsed).toBeGreaterThanOrEqual(30_000)
+    expect(clock.elapsed()).toBeGreaterThanOrEqual(30_000)
   })
 
   it('starts the watch again when the instance changes between attempts', async () => {
     const { lockPath } = await lockFolder()
     await writeFile(lockPath, lockNote(await currentProcessOwner(), 30_000))
-    let elapsed = 0
-    const env = await leaseEnv({
-      monotonic: () => elapsed,
-      sleep: async () => {
-        elapsed += 1000
-        await nextTurn()
-      },
-      timeoutMs: 20_000,
-      watches: new Map(),
-    })
+    const clock = await steppingClock(20_000)
+    const { env } = clock
     await expect(acquireFileLease(lockPath, env)).rejects.toBeInstanceOf(LeaseBusyError)
     // Another holder now: 20 s already watched of the old one count for nothing.
     await rm(lockPath, { force: true })
     await writeFile(lockPath, lockNote(await currentProcessOwner(), 30_000, 'another-holder'))
-    const started = elapsed
+    const started = clock.elapsed()
     await expect(acquireFileLease(lockPath, env)).rejects.toBeInstanceOf(LeaseBusyError)
     const lease = await acquireFileLease(lockPath, env)
-    expect(elapsed - started).toBeGreaterThanOrEqual(30_000)
+    expect(clock.elapsed() - started).toBeGreaterThanOrEqual(30_000)
     await lease.release()
   })
 
@@ -885,32 +840,14 @@ describe('file lease: waiting and takeover (M123 LOCKLIB)', () => {
   it('never lets two waiters on one expired lock delete each other’s fresh lock', async () => {
     // RVM123P3 finding 1: both judge the same expired instance; A takes it
     // over first, then B's already-authorized move reaches A's fresh lock.
-    const { lockPath } = await lockFolder()
-    await writeFile(lockPath, lockNote(await currentProcessOwner(), 0))
-    const windowB = pausingPort()
-    const beforeMove = windowB.pauseAt('rename', ([from]) => from === lockPath)
-    let isBHolding = false
-    const bEnv = await leaseEnv({ port: windowB.port, watches: new Map() })
-    const bAcquire = (async () => {
-      const lease = await acquireFileLease(lockPath, bEnv)
-      isBHolding = true
-      return lease
-    })()
+    const lockPath = await expiredLock()
+    const { beforeMove, bAcquire, isBHolding } = await movingTaker(lockPath, pausingPort())
     await beforeMove.reached
-    const a = await acquireFileLease(
-      lockPath,
-      await leaseEnv({ honoredLeaseMs: 0, watches: new Map() }),
-    )
+    const a = await takeOverAtOnce(lockPath)
     expect(await a.isHeld()).toBe(true)
-    beforeMove.resume()
-    await delay(150)
-    // B moved A's lock aside, saw it was not the instance it judged, and
-    // put it back: A still holds, B still waits.
-    expect(a.isHeldSync()).toBe(true)
-    expect(isBHolding).toBe(false)
-    await a.release()
-    const b = await bAcquire
-    expect(await b.isHeld()).toBe(true)
+    // B moves A's lock aside, sees it is not the instance it judged, and
+    // puts it back: A still holds, B still waits.
+    const b = await takerWaitsForRelease(beforeMove, a, bAcquire, isBHolding)
     expect(b.fence).toBeGreaterThan(a.fence)
     expect(await a.isHeld()).toBe(false)
     await b.release()
@@ -922,29 +859,14 @@ describe('file lease: waiting and takeover (M123 LOCKLIB)', () => {
     // Found natively on Linux (FIXM123P6): ext4 gave A's fresh lock the
     // stale lock's freed inode number. This port reports one inode number
     // for every lock instance, as such reuse looks.
-    const { lockPath } = await lockFolder()
-    await writeFile(lockPath, lockNote(await currentProcessOwner(), 0))
-    const windowB = pausingPort(reusingInodes(nodeLeasePort))
-    const beforeMove = windowB.pauseAt('rename', ([from]) => from === lockPath)
-    let isBHolding = false
-    const bEnv = await leaseEnv({ port: windowB.port, watches: new Map() })
-    const bAcquire = (async () => {
-      const lease = await acquireFileLease(lockPath, bEnv)
-      isBHolding = true
-      return lease
-    })()
-    await beforeMove.reached
-    const a = await acquireFileLease(
+    const lockPath = await expiredLock()
+    const { beforeMove, bAcquire, isBHolding } = await movingTaker(
       lockPath,
-      await leaseEnv({ port: reusingInodes(nodeLeasePort), honoredLeaseMs: 0, watches: new Map() }),
+      pausingPort(reusingInodes(nodeLeasePort)),
     )
-    beforeMove.resume()
-    await delay(150)
-    expect(a.isHeldSync()).toBe(true)
-    expect(isBHolding).toBe(false)
-    await a.release()
-    const b = await bAcquire
-    expect(await b.isHeld()).toBe(true)
+    await beforeMove.reached
+    const a = await takeOverAtOnce(lockPath, reusingInodes(nodeLeasePort))
+    const b = await takerWaitsForRelease(beforeMove, a, bAcquire, isBHolding)
     await b.release()
   })
 
@@ -953,17 +875,8 @@ describe('file lease: waiting and takeover (M123 LOCKLIB)', () => {
     // first, and B's move reached A's fresh lock; B's read of the moved
     // file failed (EACCES). Unproven, it goes back under its name: A still
     // holds, and B waits for A's lease instead of acquiring at once.
-    const { lockPath } = await lockFolder()
-    await writeFile(lockPath, lockNote(await currentProcessOwner(), 0))
-    const windowB = pausingPort({
-      ...nodeLeasePort,
-      readFile: async (file) => {
-        if (isAside(file)) {
-          throw eacces(file)
-        }
-        return await nodeLeasePort.readFile(file)
-      },
-    })
+    const lockPath = await expiredLock()
+    const windowB = pausingPort(asideUnreadable(nodeLeasePort))
     const beforeMove = windowB.pauseAt('rename', ([from]) => from === lockPath)
     const bOutcome = within(
       acquireFileLease(
@@ -973,10 +886,7 @@ describe('file lease: waiting and takeover (M123 LOCKLIB)', () => {
       5000,
     )
     await beforeMove.reached
-    const a = await acquireFileLease(
-      lockPath,
-      await leaseEnv({ honoredLeaseMs: 0, watches: new Map() }),
-    )
+    const a = await takeOverAtOnce(lockPath)
     const aNote = await noteIdAt(lockPath)
     beforeMove.resume()
     // B never acquires over A's live lease: busy at its timeout.
@@ -991,16 +901,9 @@ describe('file lease: waiting and takeover (M123 LOCKLIB)', () => {
     // The restore itself fails (its name was taken meanwhile, or the link
     // is refused): the moved file stays aside, never removed, and the
     // taker does not acquire.
-    const { lockPath } = await lockFolder()
-    await writeFile(lockPath, lockNote(await currentProcessOwner(), 0))
+    const lockPath = await expiredLock()
     const windowB = pausingPort({
-      ...nodeLeasePort,
-      readFile: async (file) => {
-        if (isAside(file)) {
-          throw eacces(file)
-        }
-        return await nodeLeasePort.readFile(file)
-      },
+      ...asideUnreadable(nodeLeasePort),
       link: async (existing, target) => {
         if (target === lockPath && isAside(path.basename(existing))) {
           throw Object.assign(new Error('EPERM: link refused'), { code: 'EPERM' })
@@ -1014,10 +917,7 @@ describe('file lease: waiting and takeover (M123 LOCKLIB)', () => {
       5000,
     )
     await beforeMove.reached
-    const a = await acquireFileLease(
-      lockPath,
-      await leaseEnv({ honoredLeaseMs: 0, watches: new Map() }),
-    )
+    const a = await takeOverAtOnce(lockPath)
     const aNote = await noteIdAt(lockPath)
     beforeMove.resume()
     const outcome = await bOutcome
@@ -1030,13 +930,7 @@ describe('file lease: waiting and takeover (M123 LOCKLIB)', () => {
   })
 
   it('releases only its own instance, never a lock taken over from it', async () => {
-    const { lockPath } = await lockFolder()
-    const a = await acquireFileLease(lockPath, await leaseEnv({ leaseMs: 100, watches: new Map() }))
-    await delay(200)
-    const b = await acquireFileLease(
-      lockPath,
-      await leaseEnv({ honoredLeaseMs: 100, watches: new Map() }),
-    )
+    const { a, b } = await expiredAndTakenOver()
     expect(await a.isHeld()).toBe(false)
     await a.release()
     expect(await b.isHeld()).toBe(true)

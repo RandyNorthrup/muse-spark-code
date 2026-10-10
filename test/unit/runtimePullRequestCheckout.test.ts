@@ -5,6 +5,7 @@
 // with the real git runner, every git it starts through the dispatch gate.
 
 import { execFileSync, spawn } from 'node:child_process'
+import { once } from 'node:events'
 import {
   existsSync,
   mkdirSync,
@@ -25,7 +26,7 @@ import { fileIdentityKey } from '../../src/core/fs/fileIdentity'
 import { isSamePath } from '../../src/core/paths'
 import { BlobAnswers } from '../../src/core/git/heldCheckoutCore'
 import type { HeldEntry } from '../../src/core/git/heldTree'
-import { currentProcessOwner } from '../../src/core/locks/processOwner'
+import { currentProcessOwner, type ProcessOwner } from '../../src/core/locks/processOwner'
 import {
   heldWorktreeFolder,
   heldWorktreesRoot,
@@ -67,8 +68,14 @@ import {
   nodeRecordStoreFs,
   type RecordStoreFs,
 } from '../../src/runtime/panel/pullRequests/recordStoreFs'
-import type { CoreLogger } from '../../src/core/logging'
 import { fakeGitHub } from './helpers/fakeGitHub'
+import {
+  deferred,
+  exitedProcessId,
+  failingListingsAfterLink,
+  GENERATION_FILE,
+} from './helpers/leaseFs'
+import { recordingLogger } from './helpers/recordingLogger'
 import { CAPTURED_PULL_FORK, CAPTURED_PULL_OWN } from './helpers/githubCapture'
 import { fakeRuntimeGitDeps, fakeTokenSource } from './helpers/github/fakes'
 import { createFixtureRepositories, type FixtureRepositories } from './helpers/github/repositories'
@@ -78,7 +85,6 @@ const OWN = { owner: 'RandyNorthrup', name: 'muse-spark-code' }
 const OWN_PULLS = '/repos/RandyNorthrup/muse-spark-code/pulls/56'
 const FORK_PULLS = '/repos/RandyNorthrup/muse-spark-code/pulls/51'
 const FOREIGN_TEXT = 'not this checkout’s'
-const GENERATION_FILE = /\d+\.json$/u
 
 /** A held destination under a fresh data folder, and a foreign file's place in it. */
 async function raceFolder(): Promise<{ readonly folder: string; readonly foreign: string }> {
@@ -105,26 +111,6 @@ const CAPTURED_ORIGIN = {
 /** Where the service checks pull request `number` of OWN out, held. */
 function heldFolderOf(dataFolder: string, number: number): string {
   return heldWorktreeFolder(dataFolder, OWN, number, process.platform)
-}
-
-/** The id of a process that has exited: provably gone on this host. */
-async function exitedProcessId(): Promise<number> {
-  const child = spawn(process.execPath, ['-e', ''], { windowsHide: true })
-  await new Promise((resolve) => {
-    child.once('exit', resolve)
-  })
-  if (child.pid === undefined) {
-    throw new Error('the process never started')
-  }
-  return child.pid
-}
-
-function recordingLogger(): CoreLogger & { readonly lines: string[] } {
-  const lines: string[] = []
-  const record = (line: string) => {
-    lines.push(line)
-  }
-  return { lines, trace: record, info: record, warn: record, error: record }
 }
 
 interface GitCalls {
@@ -266,17 +252,6 @@ function recordingGit(
   }
 }
 
-/** Something to resolve from outside, as a paused writer or a late cleanup is. */
-function deferred(): { readonly promise: Promise<undefined>; readonly resolve: () => void } {
-  const { promise, resolve } = Promise.withResolvers<undefined>()
-  return {
-    promise,
-    resolve: () => {
-      resolve(undefined)
-    },
-  }
-}
-
 /** A held checkout that waits for the test before it claims, then checks out. */
 function claimingAfter(waiting: () => void, gate: Promise<undefined>): HeldBehavior {
   return async (_folder, gates, claim) => {
@@ -321,47 +296,6 @@ function resolvedPath(target: string): string {
     } catch {
       return target
     }
-  }
-}
-
-/**
- * The node file operations, failing chosen listings (EACCES), counted from
- * the first generation published after `arm()`: 1 is that publish's own
- * proof, 2 the sweep after it (or, unproven, the reconciliation read).
- */
-function failingListingsAfterLink(failing: readonly number[]) {
-  let isArmed = false
-  let listings: number | undefined
-  let failed = 0
-  const fs: RecordStoreFs = {
-    ...nodeRecordStoreFs,
-    link: async (existing, target) => {
-      await nodeRecordStoreFs.link(existing, target)
-      if (!isArmed || !GENERATION_FILE.test(target)) {
-        return
-      }
-      isArmed = false
-      listings = 0
-    },
-    readdir: async (folder) => {
-      if (listings !== undefined) {
-        listings += 1
-        if (failing.includes(listings)) {
-          failed += 1
-          throw Object.assign(new Error(`EACCES: permission denied, scandir '${folder}'`), {
-            code: 'EACCES',
-          })
-        }
-      }
-      return await nodeRecordStoreFs.readdir(folder)
-    },
-  }
-  return {
-    fs,
-    arm: () => {
-      isArmed = true
-    },
-    failed: () => failed,
   }
 }
 
@@ -457,14 +391,84 @@ async function settled<T>(work: Promise<T>): Promise<T | Error> {
   }
 }
 
+/** Signed in through the device flow, with the canary bearer, on `github`. */
+function signedIn(github: { readonly fetch: typeof fetch }) {
+  return [fakeTokenSource('deviceFlow', { bearer: CANARY, isSignedIn: true, fetch: github.fetch })]
+}
+
+/** Pull request 51 opened over `remotes`, which must succeed held under the data folder. */
+async function heldOpen(
+  checkout: RuntimePullRequestCheckout,
+  remotes: Parameters<RuntimePullRequestCheckout['open']>[1],
+  dataFolder: string,
+) {
+  const result = await checkout.open('51', remotes, 'origin')
+  if (!result.ok) {
+    throw new Error('checkout failed')
+  }
+  expect(result.held).toBe(true)
+  expect(result.folder.startsWith(path.join(dataFolder, 'pr-worktrees', '51-'))).toBe(true)
+  return result
+}
+
+/** Pull request 51 opened over OWN_REMOTES, which must succeed (`what` names it if not). */
+async function opened51(checkout: RuntimePullRequestCheckout, what: string) {
+  const result = await checkout.open('51', OWN_REMOTES, 'origin')
+  if (!result.ok) {
+    throw new Error(`${what} failed`)
+  }
+  return result
+}
+
+/** A first checkout of 51, confirmed in the card, whose folder was then removed by hand. */
+async function trustedThenRemoved(checkout: RuntimePullRequestCheckout) {
+  const first = await opened51(checkout, 'first checkout')
+  expect(await isTrustedInCard(checkout, first.folder)).toBe(true)
+  await rm(first.folder, { recursive: true, force: true })
+  return first
+}
+
+type CheckoutSetup = Awaited<ReturnType<typeof checkoutSetup>>
+
+/** A pending held reservation of pull request 51, as a crashed or stalled checkout leaves it. */
+async function reservedPending(
+  setup: CheckoutSetup,
+  checkoutId: string,
+  createdAt: number,
+  pendingOwner: ProcessOwner,
+): Promise<string> {
+  const folder = heldFolderOf(setup.dataFolder, 51)
+  const reserved = await setup.records.reserve({
+    folder,
+    repositoryRoot: setup.repositoryRoot,
+    createdAt,
+    checkoutId,
+    pendingOwner,
+    pullRequest: CAPTURED_ORIGIN,
+    isHeld: true,
+    isCheckoutPending: true,
+  })
+  expect(reserved.ok).toBe(true)
+  return folder
+}
+
+/** Pull request 51 opened again, successfully: the record it left at `folder`. */
+async function reopenedRecord(setup: CheckoutSetup, folder: string) {
+  const result = await setup.checkout.open('51', OWN_REMOTES, 'origin')
+  expect(result.ok).toBe(true)
+  return await setup.records.recordFor(folder)
+}
+
 /**
  * A batch root that answers the first of two blobs and then goes quiet,
- * so its deadline fires while the first blob's writer is in flight.
+ * so its deadline fires while the first blob's writer is in flight. Ready
+ * once its answer is readable (nothing read yet): a loaded machine's node
+ * start-up never runs out the deadline before the answer exists.
  */
-function oneAnswerBatch(): {
+async function oneAnswerBatch(): Promise<{
   readonly child: ReturnType<typeof spawn>
   readonly blobs: HeldEntry[]
-} {
+}> {
   const blobs: HeldEntry[] = [
     { path: 'first.txt', kind: 'file', oid: 'a'.repeat(40), size: 5 },
     { path: 'second.txt', kind: 'file', oid: 'b'.repeat(40), size: 5 },
@@ -479,6 +483,7 @@ function oneAnswerBatch(): {
     detached: process.platform !== 'win32',
   })
   child.stderr.resume()
+  await once(child.stdout, 'readable')
   return { child, blobs }
 }
 
@@ -648,13 +653,7 @@ describe('runtime pull request checkout (M123 lane P)', () => {
     const { checkout, git, confirms, opened, dataFolder, repositoryRoot } = await checkoutSetup({
       headSha: CAPTURED_PULL_FORK.head.sha,
     })
-    const result = await checkout.open('51', OWN_REMOTES, 'origin')
-    expect(result.ok).toBe(true)
-    if (!result.ok) {
-      return
-    }
-    expect(result.held).toBe(true)
-    expect(result.folder.startsWith(path.join(dataFolder, 'pr-worktrees', '51-'))).toBe(true)
+    const result = await heldOpen(checkout, OWN_REMOTES, dataFolder)
     expect(git.calls.checkedOutHeld).toEqual([
       { folder: result.folder, sha: CAPTURED_PULL_FORK.head.sha, cwd: repositoryRoot },
     ])
@@ -774,9 +773,7 @@ describe('runtime pull request checkout (M123 lane P)', () => {
         ...deps,
         repositoryRoot,
         dataFolder,
-        tokenSources: [
-          fakeTokenSource('deviceFlow', { bearer: CANARY, isSignedIn: true, fetch: github.fetch }),
-        ],
+        tokenSources: signedIn(github),
         platform: process.platform,
         now: () => 2000,
         confirm: () => Promise.resolve(true),
@@ -907,10 +904,7 @@ describe('runtime pull request checkout (M123 lane P)', () => {
 
   it('holds the foreign worktree under either root until the card releases it', async () => {
     const setup = await checkoutSetup({ headSha: CAPTURED_PULL_FORK.head.sha })
-    const result = await setup.checkout.open('51', OWN_REMOTES, 'origin')
-    if (!result.ok) {
-      throw new Error('checkout failed')
-    }
+    const result = await opened51(setup.checkout, 'checkout')
     const records = await setup.records.list()
     expect(holdForRoots([result.folder], setup.heldRoots, records, process.platform)?.folder).toBe(
       slashedPath(result.folder),
@@ -955,10 +949,7 @@ describe('runtime pull request checkout (M123 lane P)', () => {
 
   it('consumes a trust ticket once, for the very folder the checkout finished in', async () => {
     const setup = await checkoutSetup({ headSha: CAPTURED_PULL_FORK.head.sha })
-    const result = await setup.checkout.open('51', OWN_REMOTES, 'origin')
-    if (!result.ok) {
-      throw new Error('checkout failed')
-    }
+    const result = await opened51(setup.checkout, 'checkout')
     const ticket = await ticketFor(setup.checkout, result.folder)
     // The folder made again at the same path is not the folder the user saw.
     await rm(result.folder, { recursive: true, force: true })
@@ -983,10 +974,7 @@ describe('runtime pull request checkout (M123 lane P)', () => {
         return stamp
       },
     })
-    const first = await setup.checkout.open('51', OWN_REMOTES, 'origin')
-    if (!first.ok) {
-      throw new Error('first checkout failed')
-    }
+    const first = await opened51(setup.checkout, 'first checkout')
     const cardForA = await ticketFor(setup.checkout, first.folder)
     await rm(first.folder, { recursive: true, force: true })
     const second = await setup.checkout.open('51', OWN_REMOTES, 'origin')
@@ -1031,12 +1019,7 @@ describe('runtime pull request checkout (M123 lane P)', () => {
         throw new Error('cancelled after the first file')
       },
     })
-    const first = await setup.checkout.open('51', OWN_REMOTES, 'origin')
-    if (!first.ok) {
-      throw new Error('first checkout failed')
-    }
-    expect(await isTrustedInCard(setup.checkout, first.folder)).toBe(true)
-    await rm(first.folder, { recursive: true, force: true })
+    const first = await trustedThenRemoved(setup.checkout)
     failures.cleanup = true
     const replacement = await setup.checkout.open('51', OWN_REMOTES, 'origin')
     expect(replacement.ok).toBe(false)
@@ -1065,12 +1048,7 @@ describe('runtime pull request checkout (M123 lane P)', () => {
         await added(await claim())
       },
     })
-    const first = await setup.checkout.open('51', OWN_REMOTES, 'origin')
-    if (!first.ok) {
-      throw new Error('first checkout failed')
-    }
-    expect(await isTrustedInCard(setup.checkout, first.folder)).toBe(true)
-    await rm(first.folder, { recursive: true, force: true })
+    const first = await trustedThenRemoved(setup.checkout)
     isFailing = true
     const replacement = await setup.checkout.open('51', OWN_REMOTES, 'origin')
     expect(replacement.ok).toBe(false)
@@ -1116,39 +1094,19 @@ describe('runtime pull request checkout (M123 lane P)', () => {
   it('takes over a pending checkout whose process is gone', async () => {
     const setup = await checkoutSetup({ headSha: CAPTURED_PULL_FORK.head.sha })
     const gonePid = await exitedProcessId()
-    const folder = heldFolderOf(setup.dataFolder, 51)
-    const stranded = await setup.records.reserve({
-      folder,
-      repositoryRoot: setup.repositoryRoot,
-      createdAt: 1000,
-      checkoutId: 'crashed-checkout',
-      pendingOwner: { host: hostnameOf(), pid: gonePid, processStart: 1 },
-      pullRequest: CAPTURED_ORIGIN,
-      isHeld: true,
-      isCheckoutPending: true,
+    const folder = await reservedPending(setup, 'crashed-checkout', 1000, {
+      host: hostnameOf(),
+      pid: gonePid,
+      processStart: 1,
     })
-    expect(stranded.ok).toBe(true)
-    const result = await setup.checkout.open('51', OWN_REMOTES, 'origin')
-    expect(result.ok).toBe(true)
-    const record = await setup.records.recordFor(folder)
+    const record = await reopenedRecord(setup, folder)
     expect(record?.checkoutId).not.toBe('crashed-checkout')
     expect(record?.isCheckoutPending).toBeUndefined()
   })
 
   it('never takes over a pending checkout whose process still runs', async () => {
     const setup = await checkoutSetup({ headSha: CAPTURED_PULL_FORK.head.sha })
-    const folder = heldFolderOf(setup.dataFolder, 51)
-    const live = await setup.records.reserve({
-      folder,
-      repositoryRoot: setup.repositoryRoot,
-      createdAt: 1000,
-      checkoutId: 'live-checkout',
-      pendingOwner: await currentProcessOwner(),
-      pullRequest: CAPTURED_ORIGIN,
-      isHeld: true,
-      isCheckoutPending: true,
-    })
-    expect(live.ok).toBe(true)
+    await reservedPending(setup, 'live-checkout', 1000, await currentProcessOwner())
     expect(await setup.checkout.open('51', OWN_REMOTES, 'origin')).toEqual({
       ok: false,
       reason: UI_TEXT.gitOperationChanged,
@@ -1168,21 +1126,13 @@ describe('runtime pull request checkout (M123 lane P)', () => {
       live.once('exit', resolve)
     })
     try {
-      const stranded = await setup.records.reserve({
-        folder,
-        repositoryRoot: setup.repositoryRoot,
-        createdAt: 1000,
-        checkoutId: 'crashed-checkout',
-        // Born a minute before the id's live process, in this boot (Linux).
-        pendingOwner: { ...(await currentProcessOwner()), pid: live.pid ?? 0, processStart: 1 },
-        pullRequest: CAPTURED_ORIGIN,
-        isHeld: true,
-        isCheckoutPending: true,
+      // Born a minute before the id's live process, in this boot (Linux).
+      await reservedPending(setup, 'crashed-checkout', 1000, {
+        ...(await currentProcessOwner()),
+        pid: live.pid ?? 0,
+        processStart: 1,
       })
-      expect(stranded.ok).toBe(true)
-      const result = await setup.checkout.open('51', OWN_REMOTES, 'origin')
-      expect(result.ok).toBe(true)
-      const record = await setup.records.recordFor(folder)
+      const record = await reopenedRecord(setup, folder)
       expect(record?.checkoutId).not.toBe('crashed-checkout')
       expect(record?.isCheckoutPending).toBeUndefined()
     } finally {
@@ -1195,21 +1145,13 @@ describe('runtime pull request checkout (M123 lane P)', () => {
     // RVM123P4 finding 4's bound: however alive its process id looks, a
     // checkout pending this long without its folder crashed long ago.
     const setup = await checkoutSetup({ headSha: CAPTURED_PULL_FORK.head.sha })
-    const folder = heldFolderOf(setup.dataFolder, 51)
-    const stranded = await setup.records.reserve({
-      folder,
-      repositoryRoot: setup.repositoryRoot,
-      createdAt: 2000 - PENDING_CHECKOUT_RECOVERY_MS - 1,
-      checkoutId: 'stranded-checkout',
-      pendingOwner: await currentProcessOwner(),
-      pullRequest: CAPTURED_ORIGIN,
-      isHeld: true,
-      isCheckoutPending: true,
-    })
-    expect(stranded.ok).toBe(true)
-    const result = await setup.checkout.open('51', OWN_REMOTES, 'origin')
-    expect(result.ok).toBe(true)
-    const record = await setup.records.recordFor(folder)
+    const folder = await reservedPending(
+      setup,
+      'stranded-checkout',
+      2000 - PENDING_CHECKOUT_RECOVERY_MS - 1,
+      await currentProcessOwner(),
+    )
+    const record = await reopenedRecord(setup, folder)
     expect(record?.checkoutId).not.toBe('stranded-checkout')
   })
 
@@ -1894,7 +1836,7 @@ describe('pull request batch child (M123 lane P)', () => {
   it('invalidates the writer in flight at the deadline and waits for it before failing', async () => {
     // RVM123P3 finding 4: the deadline must retire an in-flight writer
     // before cleanup, so it can never publish after the failure.
-    const { child, blobs } = oneAnswerBatch()
+    const { child, blobs } = await oneAnswerBatch()
     const writers = new HeldWriters()
     const writerHeld = deferred()
     const events: string[] = []
@@ -1944,7 +1886,7 @@ describe('pull request batch child (M123 lane P)', () => {
   })
 
   it('hands the cleanup to a writer that outlives its grace', async () => {
-    const { child, blobs } = oneAnswerBatch()
+    const { child, blobs } = await oneAnswerBatch()
     const writers = new HeldWriters()
     const writerHeld = deferred()
     const published: string[] = []
@@ -2121,9 +2063,7 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
       ...deps,
       repositoryRoot,
       dataFolder,
-      tokenSources: [
-        fakeTokenSource('deviceFlow', { bearer: CANARY, isSignedIn: true, fetch: github.fetch }),
-      ],
+      tokenSources: signedIn(github),
       platform: process.platform,
       now: () => options.now ?? 2000,
       confirm: () => Promise.resolve(true),
@@ -2435,13 +2375,7 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
 
   it('checks out someone else’s pull request held, byte for byte', async () => {
     const { checkout, opened, dataFolder, sha } = await fixtureSetup('held')
-    const result = await checkout.open('51', FORK_REMOTES, 'origin')
-    expect(result.ok).toBe(true)
-    if (!result.ok) {
-      return
-    }
-    expect(result.held).toBe(true)
-    expect(result.folder.startsWith(path.join(dataFolder, 'pr-worktrees', '51-'))).toBe(true)
+    const result = await heldOpen(checkout, FORK_REMOTES, dataFolder)
     expect(git(result.folder, 'rev-parse', 'HEAD')).toBe(sha)
     expect(isListedWorktree(result.folder)).toBe(true)
     const expected = await readFile(path.join(fixtures.fork, 'README.md'), 'utf8')
