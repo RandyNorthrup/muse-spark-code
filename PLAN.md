@@ -31330,14 +31330,20 @@ in all three hosts request the documented 131,072-token cap, and unobserved
 models keep today's stream and the legacy 32,768-token cap. Headless `exec`
 drops every `tool_call`/`tool_call_update` before its sink, so it records
 completed tools only and never shows live previews. The entry's default cap
-supplier reads the resolved selected record before M95's own policy; the ACP
+supplier provides the bare Meta default, while the host reads a qualified
+request's output maximum directly from its resolved record; the ACP
 translator already renders record-emitted previews. R3 (RVCM1062B, same day)
 withdrew both standalone registry suppliers: the entry binds the selected
 record through the session client's own resolver (accounting-wrapped
 headless, subscription-aware extension/ACP, with the registry as fallback),
 keeping budget admission, subscription models, plan usage and the interactive
 ACP cap; offered IDE/MCP tools render preview text from their declared
-string fields; the preview reference names VS Code and ACP. The lead's
+string fields; the preview reference names VS Code and ACP. R4 (RVCM1062C)
+limited preview fields to offered tools and resolved before compaction
+builders. R5 (RVCM1062D) preserves host preview metadata through strict
+conversion and carries one resolved record through each response or count
+request, including caps, tools, admission and accounting; stale same-ref
+records refuse, and a switched selection rebuilds from its new record. The lead's
 2026-10-10 live run closed the receipts blocker (raw 16-frame U9 stream
 proves declared-tool TEXT; the 1-token refusal documents the 16-token
 minimum the collector probes next run). Acceptance 1, 6 and 8 hold at the
@@ -31347,6 +31353,24 @@ restores) are recorded in
 `docs/certification/m106-capability-binding.md`. Open for the lead:
 per-model U9 rows beyond the contributor model, qualified-model preview
 records once a streaming-argument capture attests one, and Codex/Grok
+review.
+
+**C-M106-2 R5 review repairs (RVCM1062D, 2026-10-10, kubuntu).** Close both
+P2 findings and their siblings today. Strict-tool conversion preserves the
+host's curated preview-field descriptor, including an explicitly absent
+field list, without serializing host metadata. Every host definition carries
+that marker, including recall and injected vault/schedule tools with no
+curated fields, so none is mistaken for a declared external tool. Each response and token-count
+request resolves its selected record before building its body; that exact
+object supplies policy, output limits, admission and accounting. Hook-time
+configuration invalidation refuses the stale request; a changed selection
+rebuilds the whole request from its new record. No second resolution may
+replace a record underneath an existing body. Add strict-on/off hidden-field,
+same-ref replacement and count-order regressions, break each guard and restore
+byte-exact, and record results in `docs/certification/m106-capability-binding.md`.
+The shared core serves VS Code, ACP and exec without changing preview surfaces,
+consent, defaults, wire shapes or dependencies. The rig brief forbids aggregate
+quality and integration here; the lead retains those gates and independent
 review.
 
 **M106W continuation 3 (2026-10-06, macmini).** Resolve the 15 full-suite
@@ -38895,6 +38919,15 @@ key is supplied here. The CLI probes use ephemeral empty workspaces and no
 model turn; only the explicitly scoped synthetic note is uploaded, with
 both disclosures off. No guard, hook, timeout, cap or dependency is changed.
 Evidence: `docs/certification/m106-completion-captures.md`.
+**C-M106-2 R5 bounded repair certification (2026-10-10).** The rig/shared
+brief forbids aggregate quality, full-suite runs and branch integration.
+Run the owning whole test files at repository timeouts with at most three
+workers/files per invocation, all five typechecks, changed-file lint and
+format, deadcode, duplication, localization, reference, host API, plan,
+roadmap and production build. Every new guard must fail its regression in a
+deliberate drill and be restored byte-exact. The lead retains aggregate
+quality, independent review and the multi-OS release matrix; no gate is
+weakened. Evidence: `docs/certification/m106-capability-binding.md`.
 **REDM106L1 scoped certification (2026-10-06).** The rig lane brief and
 shared rules prohibit aggregate `npm run quality`; the lead owns the full
 integration gate. Run all required scoped typechecks, changed-file lint and

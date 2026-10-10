@@ -1,5 +1,5 @@
 import * as z from 'zod/mini'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ModelApiHost, ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import {
@@ -11,7 +11,10 @@ import {
   metaResolvedModel,
   modelPolicyFor,
   type ModelPolicy,
+  type ResolvedModel,
 } from '../../src/core/backends/modelapi/modelPolicy'
+import { Usd } from '../../src/shared/usd'
+import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 import {
   MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
   M106_CAPTURED_META_MODEL,
@@ -30,8 +33,9 @@ import {
   responseOutputsByCall,
 } from './helpers/fakeModelApi'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
-import { memoryToolIo } from './helpers/fakeToolIo'
+import { hookResult, memoryToolIo } from './helpers/fakeToolIo'
 import { watchSessionTurns } from './helpers/sessionTurns'
+import { toolDefinitions } from '../../src/core/backends/modelapi/tools'
 
 async function harness(isStrict: boolean | undefined) {
   const api = fakeModelApi()
@@ -111,13 +115,116 @@ it.each([true, false, undefined])(
 )
 
 describe('resolved-record cap ordering (RVCM1062C P2)', () => {
+  it.each([false, true])(
+    'binds one record per compaction and resolves before counting after same-ref replacement (hook invalidation %s)',
+    async (invalidateInHook) => {
+      const api = fakeModelApi()
+      const replacementApi = fakeModelApi()
+      const log = new FakeLogOutputChannel()
+      const io = memoryToolIo({}, '/ws')
+      const client = new ModelApiClient({ ...fakeModelApiClientSettings(log), fetch: api.fetch })
+      const replacementClient = new ModelApiClient({
+        ...fakeModelApiClientSettings(log),
+        fetch: replacementApi.fetch,
+      })
+      const ref = 'team/small'
+      let isFirstCurrent = true
+      const settle = vi.fn(() => Usd.from('0.01').toAmount())
+      const first: ResolvedModel = {
+        ...metaResolvedModel(ref, client),
+        policy: modelPolicyFor(ref, {
+          capabilities: { toolCalling: true },
+          maxOutputTokens: 65_536,
+          effortLevels: ['none', 'high'],
+        }),
+        price: { reserve: () => Usd.from('0.01').toAmount(), settle },
+        isCurrent: () => isFirstCurrent,
+      }
+      const replacement: ResolvedModel = {
+        ...metaResolvedModel(ref, replacementClient),
+        policy: modelPolicyFor(ref, {
+          capabilities: { toolCalling: false },
+          maxOutputTokens: 1024,
+          effortLevels: ['none'],
+        }),
+      }
+      const resolve = vi.fn((name: string) => {
+        if (name !== ref) return Promise.resolve(metaResolvedModel(name, client))
+        if (resolve.mock.calls.length === 1) return Promise.resolve(first)
+        isFirstCurrent = false
+        return Promise.resolve(replacement)
+      })
+      const hooks = parseHookConfig(
+        JSON.stringify({
+          hooks: { PreLLMCall: [{ hooks: [{ type: 'command', command: 'observe' }] }] },
+        }),
+        'project',
+        'linux',
+      ).hooks
+      const runHook = vi.fn(() => {
+        if (invalidateInHook && resolve.mock.calls.length > 0) isFirstCurrent = false
+        return Promise.resolve(hookResult('{}'))
+      })
+      io.runHook = runHook
+      const host = new ModelApiHost({
+        ...fakeModelApiHostDeps({ client, io, workspaceRoot: '/ws', log }),
+        models: { resolve },
+        loadHooks: () => Promise.resolve(hooks),
+        isHooksEnabled: () => true,
+      })
+      try {
+        const session = await host.startSession({
+          workspaceRoot: '/ws',
+          modelId: 'muse-spark-1.3',
+          approvalMode: 'allowAll',
+        })
+        const watched = watchSessionTurns(session)
+        api.script({ text: 'seed' })
+        await session.sendTurn([{ type: 'text', text: 'hello' }])
+        await watched.turnDone()
+        const fork = await host.forkSession(session.sessionId, ref)
+        if (!(fork.session instanceof ModelApiSession))
+          throw new TypeError('expected a Model API session')
+        api.script({ text: 'first summary' })
+        replacementApi.script({ text: 'replacement summary' })
+        if (invalidateInHook) {
+          const before = JSON.stringify(fork.session.snapshot().replay)
+          await expect(fork.session.compact()).rejects.toThrow()
+          expect(resolve).toHaveBeenCalledTimes(1)
+          expect(api.responseBodies()).toHaveLength(1)
+          expect(replacementApi.responseBodies()).toHaveLength(0)
+          expect(JSON.stringify(fork.session.snapshot().replay)).toBe(before)
+        }
+        await expect(fork.session.compact()).resolves.toMatchObject({ status: 'accepted' })
+        const sent = invalidateInHook ? replacementApi.responseBodies()[0] : api.responseBodies()[1]
+        expect(sent).toMatchObject({
+          model: ref,
+          max_output_tokens: invalidateInHook ? 1024 : 8192,
+          reasoning: { effort: invalidateInHook ? 'none' : 'high' },
+        })
+        expect(resolve).toHaveBeenCalledTimes(invalidateInHook ? 3 : 2)
+        expect(runHook).toHaveBeenCalled()
+        expect(settle).toHaveBeenCalledTimes(invalidateInHook ? 0 : 1)
+        const count = replacementApi.requests.find((request) =>
+          request.path.endsWith('/input_tokens'),
+        )
+        expect(count?.body).toMatchObject({
+          model: ref,
+          max_output_tokens: 1024,
+          reasoning: { effort: 'none' },
+          tools: [],
+        })
+      } finally {
+        await host.close()
+      }
+    },
+  )
+
   it('compacts a forked qualified model before any switch at its resolved cap', async () => {
-    // The entry stash (src/host/backend/modelApiEntry.ts) starts empty
-    // and fills only as the resolver runs. A fork copies history but
-    // resolves nothing, so its compaction is the first request on the
-    // qualified record — built before the stash fills. It must bind the
-    // resolved record's maximum (65536), never the legacy 32768 it would
-    // compute and cache first, and neither may any later turn.
+    // This optional cap supplier starts empty and fills only as the
+    // resolver runs. A fork copies history but resolves nothing, so its
+    // first compaction must bind the resolved record's maximum (65536),
+    // never the legacy 32768 it could compute and cache before resolving.
     const api = fakeModelApi()
     const log = new FakeLogOutputChannel()
     const io = memoryToolIo({ 'a.txt': 'one\ntwo\n' }, '/ws')
@@ -202,6 +309,48 @@ it('executes strict nullable optional arguments through the existing tool parser
     await h.host.close()
   }
 })
+
+it.each([true, false])(
+  'preserves every host preview descriptor through strict conversion (%s)',
+  (strict) => {
+    const tools = toolDefinitions('linux', {
+      hasShell: true,
+      hasSkills: true,
+      hasWebFetch: true,
+      hasPackedRecall: true,
+      hasMemory: true,
+      hasSubagents: true,
+      hasImageGeneration: true,
+      hasCodeIntel: true,
+      hasBrowserCheck: true,
+      hasLegalScan: true,
+      vaultTools: [
+        {
+          name: 'vault_unpreviewed',
+          description: 'fixture',
+          inputSchema: { type: 'object', properties: { text: { type: 'string' } } },
+          call: () => Promise.reject(new Error('catalogue fixture must not execute')),
+        },
+      ],
+      scheduleTools: [
+        {
+          type: 'function',
+          name: 'schedule_unpreviewed',
+          description: 'fixture',
+          strict: false,
+          parameters: { type: 'object', properties: { text: { type: 'string' } } },
+        },
+      ],
+    })
+    const converted = withStrictTools(tools, strict)
+    for (const [index, tool] of tools.entries()) {
+      const descriptor = Object.getOwnPropertyDescriptor(tool, 'previewFields')
+      expect(descriptor).toBeDefined()
+      expect(Object.getOwnPropertyDescriptor(converted[index], 'previewFields')).toEqual(descriptor)
+      expect(JSON.stringify(converted[index])).not.toContain('previewFields')
+    }
+  },
+)
 
 describe('optional-null restoration', () => {
   const tool: FunctionToolDefinition = {

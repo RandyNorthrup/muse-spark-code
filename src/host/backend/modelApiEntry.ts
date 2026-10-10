@@ -31,7 +31,6 @@ export { streamEventSchema, usageSchema } from '../../core/backends/modelapi/sch
 export { pinnedHttpsRequest, pinnedPostRequest } from '../web/pinnedRequest'
 import type { ExtensionHookDefinition } from '../../core/backends/modelapi/extensionHooks'
 import type { HookDefinition, HookLoadDeps } from '../../core/backends/modelapi/hooks'
-import type { ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
 import { metaResolvedModel } from '../../core/backends/modelapi/modelPolicy'
 import {
   metaModelFacts,
@@ -130,9 +129,7 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
       ? undefined
       : await import('../../core/backends/modelapi/modelApiMcpEntry.js')
   mcp?.setUiText(deps.uiText, deps.uiLocale)
-  // The selected record's policy, stashed as the host resolves it (session
-  // start and model switch): the synchronous per-request suppliers below read
-  // the resolved record for the selected model instead of naming model ids.
+  // The host carries the exact resolved record through each request.
   // The session client's own resolver is authoritative in every production
   // path (RVCM1062B P1/P2): the runtime's accounting-wrapped headless client
   // keeps its daily reservation and run-ledger admission, and the
@@ -142,11 +139,6 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   // the session client, as it did before any registry was supplied. Bare
   // Meta models never reach the resolver (the host answers them from M95's
   // own policy), so they fall through to the shared Meta default.
-  const selectedPolicies = new Map<string, ModelPolicy>()
-  const stash = <T extends { policy: ModelPolicy }>(ref: string, resolved: T): T => {
-    selectedPolicies.set(ref, resolved.policy)
-    return resolved
-  }
   // The `in` narrowings (not truthiness reads) carry the optional
   // members off the ModelApiClient | ProviderClient union.
   const clientModels = 'models' in client ? client.models : undefined
@@ -158,23 +150,20 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
     modelCapabilities: hostDeps.modelCapabilities ?? metaHostedCapabilities,
     argumentPreviewCapabilities:
       hostDeps.argumentPreviewCapabilities ?? metaArgumentPreviewCapabilities,
-    modelOutputMaxTokens:
-      hostDeps.modelOutputMaxTokens ??
-      ((modelId) =>
-        selectedPolicies.get(modelId)?.output.maxTokens ?? metaOutputMaxTokens(modelId)),
+    modelOutputMaxTokens: hostDeps.modelOutputMaxTokens ?? metaOutputMaxTokens,
     client,
     ...((clientModels !== undefined || deps.createProviders !== undefined) && {
       models: {
         resolve: async (ref: string) => {
           if (clientModels !== undefined) {
-            return stash(ref, await clientModels.resolve(ref))
+            return await clientModels.resolve(ref)
           }
           const registry = await resolveProviders()
           try {
-            return stash(ref, await registry.resolve(ref))
+            return await registry.resolve(ref)
           } catch (error: unknown) {
             if (isPlanModel?.(ref) === true) {
-              return stash(ref, metaResolvedModel(ref, client))
+              return metaResolvedModel(ref, client)
             }
             throw error
           }
