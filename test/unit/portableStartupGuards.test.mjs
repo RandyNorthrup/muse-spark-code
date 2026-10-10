@@ -4,12 +4,56 @@
 // and acknowledgement must travel over a sender captured before application
 // code runs, and blob identity must ignore a fragment annotation.
 import { readFileSync } from 'node:fs'
+import { runInNewContext } from 'node:vm'
 import { describe, expect, it } from 'vitest'
 import { portableUrlIdentity, WORKER_GUARD } from '../../scripts/lib/portableStartup.mjs'
 
 const helper = readFileSync(
   new URL('../../scripts/lib/portableStartup.mjs', import.meta.url),
   'utf8',
+)
+
+it.each(['constructor', 'url getter'])(
+  'the worker probe refuses a non-built Request behind a %s wrapper before dispatch',
+  async (kind) => {
+    // CSP can also refuse a data fetch in Chrome. Observe native dispatch here
+    // without CSP so the Request-brand guard must independently do its job.
+    class NativeRequest extends globalThis.Request {}
+    Object.defineProperty(NativeRequest.prototype, 'url', {
+      get: Object.getOwnPropertyDescriptor(globalThis.Request.prototype, 'url').get,
+      configurable: true,
+    })
+    class ProbeUrl extends URL {}
+    let dispatched = 0
+    const context = {
+      Request: NativeRequest,
+      URL: ProbeUrl,
+      Event: globalThis.Event,
+      location: { href: 'http://127.0.0.1/assets/portable/worker.js' },
+      postMessage: () => {
+        // The thrown refusal is observed below; no receiver is needed.
+      },
+      addEventListener: () => {
+        // This fixture deliberately injects no CSP or flush events.
+      },
+      importScripts: () => {
+        // Only fetch is exercised in this fixture.
+      },
+      fetch: async () => {
+        dispatched += 1
+        return { ok: true }
+      },
+    }
+    runInNewContext(WORKER_GUARD, context)
+    const input = new NativeRequest('data:text/plain,unbuilt')
+    if (kind === 'constructor') context.Request = class extends NativeRequest {}
+    else
+      Object.defineProperty(NativeRequest.prototype, 'url', {
+        get: () => 'http://127.0.0.1/assets/portable/main.js',
+      })
+    await expect(context.fetch(input)).rejects.toThrow('PORTABLE_STARTUP_UNBUILT_REQUEST')
+    expect(dispatched).toBe(0)
+  },
 )
 
 describe('the worker probe delivers over its captured sender', () => {

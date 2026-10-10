@@ -772,7 +772,7 @@
     {
       "id": "M104",
       "title": "Every feature in every editor",
-      "summary": "Native and companion panels and LSP await qualification: startup counts built bytes and rejects unsupported boot transports even when caught; delivery, security, native contracts, editor receipts and resource parity remain open.",
+      "summary": "Native and companion panels and LSP await qualification: startup counts built bytes through request wrappers and refuses caught unsupported transports; delivery, security, native contracts, editor receipts and resource parity remain open.",
       "area": "editors",
       "labels": ["experimental", "untested"]
     },

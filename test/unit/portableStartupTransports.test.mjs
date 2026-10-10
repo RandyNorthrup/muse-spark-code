@@ -230,33 +230,171 @@ it('refuses page activity when application code reassigns the reporting global',
   ).rejects.toThrow('PORTABLE_STARTUP_UNBUILT_REQUEST')
 })
 
-it.each(['http://127.0.0.1/not-built', 'https://unbuilt.invalid/boot.js'])(
-  'refuses a non-built HTTP fetch before native dispatch: %s',
-  async (url) => {
-    // A rejected native fetch can beat CSP reporting under concurrent boots.
-    // Observe dispatch deterministically without a network or scheduling race.
-    const dispatchBrowser = {
-      newContext: async (options) => {
-        const context = await fixture.browser.newContext(options)
-        await context.addInitScript((blockedUrl) => {
-          const fetch = globalThis.fetch.bind(globalThis)
-          Object.assign(globalThis, {
-            fetch: (input, init) => {
-              const url = new URL(
-                input instanceof globalThis.Request ? input.url : input,
-                globalThis.location.href,
-              )
-              if (url.href === blockedUrl) throw new Error('Non-built native fetch dispatched')
-              return fetch(input, init)
-            },
-          })
-        }, url)
-        return context
-      },
+const FETCH_INPUTS = [
+  [
+    'constructor wrapper',
+    `const NativeRequest = Request; const input = new NativeRequest(url); globalThis.Request = class extends NativeRequest {};`,
+  ],
+  [
+    'prototype wrapper',
+    `const input = new Request(url); Object.defineProperty(Request.prototype, 'url', { get: () => 'http://127.0.0.1/not-built' });`,
+  ],
+  ['URL object', `const input = new URL(url);`],
+  [
+    'string conversion',
+    `const input = { url: 'http://127.0.0.1/not-built', toString: () => url };`,
+  ],
+]
+it.each(
+  ['page', 'worker'].flatMap((target) =>
+    FETCH_INPUTS.map(([kind, source]) => [target, kind, source]),
+  ),
+)(
+  'admits a built query fetch through a %s %s with exact resource accounting',
+  async (target, kind, source) => {
+    const graph = boot('')
+    const resource = addResource(graph, 'payload.json', '{"built":true}')
+    const fetchSource = `const url = ${JSON.stringify('http://127.0.0.1' + resource + '?input=wrapped')}; ${source}
+      const response = await fetch(input); if (!response.ok || await response.text() !== '{"built":true}') throw new Error('built response');`
+    const prefix =
+      target === 'worker'
+        ? `await new Promise((resolve, reject) => {
+          const worker = new Worker(${JSON.stringify(addResource(graph, 'request-worker.js', `(async () => { ${fetchSource} postMessage('ready'); })();`))});
+          worker.onmessage = () => { worker.terminate(); resolve(); }; worker.onerror = reject;
+        });`
+        : fetchSource
+    graph.files.set(ROOT + 'main.js', Buffer.from(prefix + MARK))
+    const variants = await measurePortableStartup(
+      graph.meta,
+      (file) => graph.files.get(file),
+      fixture.browser,
+    )
+    for (const { outputs, resources } of variants) {
+      expect(outputs).toEqual(
+        graph.files
+          .keys()
+          .toArray()
+          .toSorted((a, b) => a.localeCompare(b, 'en')),
+      )
+      expect(resources).toEqual(
+        outputs.map((file) => ({
+          file,
+          bytes: graph.files.get(file).byteLength,
+          sha256: createHash('sha256').update(graph.files.get(file)).digest('hex'),
+        })),
+      )
     }
-    const graph = boot(`await fetch(${JSON.stringify(url)}); ${MARK}`)
+  },
+)
+
+it.each(['parent', 'frame'])(
+  'admits a cross-frame Request fetched in the %s with exact built bytes',
+  async (target) => {
+    const graph = boot('')
+    const resource = addResource(graph, 'payload.json', '{"built":true}')
+    const frame = addResource(graph, 'request-frame.html', '<!doctype html>')
+    graph.files.set(
+      ROOT + 'main.js',
+      Buffer.from(`
+      const frame = document.createElement('iframe');
+      const ready = new Promise(resolve => { frame.onload = resolve; });
+      frame.src = ${JSON.stringify(frame)}; document.body.append(frame); await ready;
+      const Request = ${target === 'parent' ? 'frame.contentWindow.Request' : 'globalThis.Request'};
+      const input = new Request('http://127.0.0.1' + ${JSON.stringify(resource + '?input=frame')});
+      const response = await ${target === 'parent' ? 'fetch(input)' : 'frame.contentWindow.fetch(input)'};
+      if (!response.ok || await response.text() !== '{"built":true}') throw new Error('built response');
+      frame.remove(); ${MARK}`),
+    )
+    const variants = await measurePortableStartup(
+      graph.meta,
+      (file) => graph.files.get(file),
+      fixture.browser,
+    )
+    for (const { outputs } of variants)
+      expect(outputs).toEqual(
+        graph.files
+          .keys()
+          .toArray()
+          .toSorted((a, b) => a.localeCompare(b, 'en')),
+      )
+  },
+)
+
+it.each(
+  ['http://127.0.0.1/not-built', 'https://unbuilt.invalid/boot.js'].flatMap((url) =>
+    [
+      ['string', 'const input = url;'],
+      [
+        'constructor wrapper',
+        'const NativeRequest = Request; const input = new NativeRequest(url); globalThis.Request = class extends NativeRequest {};',
+      ],
+      [
+        'prototype wrapper',
+        "const input = new Request(url); Object.defineProperty(Request.prototype, 'url', { get: () => 'http://127.0.0.1/assets/portable/main.js' });",
+      ],
+      [
+        'string conversion',
+        "const input = { url: 'http://127.0.0.1/assets/portable/main.js', toString: () => url };",
+      ],
+    ].map(([kind, source]) => [url, kind, source]),
+  ),
+)('refuses a non-built HTTP fetch before native dispatch: %s (%s)', async (url, kind, source) => {
+  // A rejected native fetch can beat CSP reporting under concurrent boots.
+  // Observe dispatch deterministically without a network or scheduling race.
+  const dispatchBrowser = {
+    newContext: async (options) => {
+      const context = await fixture.browser.newContext(options)
+      await context.addInitScript((blockedUrl) => {
+        const requestUrl = Object.getOwnPropertyDescriptor(globalThis.Request.prototype, 'url').get
+        const fetch = globalThis.fetch.bind(globalThis)
+        Object.assign(globalThis, {
+          fetch: (input, init) => {
+            let address = input
+            try {
+              address = requestUrl.call(input)
+            } catch {
+              /* Native string/URL input. */
+            }
+            const url = new URL(address, globalThis.location.href)
+            if (url.href === blockedUrl) throw new Error('Non-built native fetch dispatched')
+            return fetch(input, init)
+          },
+        })
+      }, url)
+      return context
+    },
+  }
+  const graph = boot(`const url = ${JSON.stringify(url)}; ${source} await fetch(input); ${MARK}`)
+  await expect(
+    measurePortableStartup(graph.meta, (file) => graph.files.get(file), dispatchBrowser),
+  ).rejects.toThrow('PORTABLE_STARTUP_UNBUILT_REQUEST')
+})
+
+it.each(['constructor', 'prototype'])(
+  'refuses a caught worker data Request behind a %s wrapper even on self-close',
+  async (kind) => {
+    const graph = boot('')
+    const wrapper =
+      kind === 'constructor'
+        ? 'const NativeRequest = Request; const input = new NativeRequest(url); globalThis.Request = class extends NativeRequest {};'
+        : "const input = new Request(url); Object.defineProperty(Request.prototype, 'url', { get: () => 'http://127.0.0.1/assets/portable/main.js' });"
+    const worker = addResource(
+      graph,
+      'request-worker.js',
+      `(async () => {
+      const url = 'data:text/plain,unbuilt'; ${wrapper}
+      try { await fetch(input); } catch {} postMessage('ready'); self.close();
+    })();`,
+    )
+    graph.files.set(
+      ROOT + 'main.js',
+      Buffer.from(`await new Promise((resolve, reject) => {
+      const worker = new Worker(${JSON.stringify(worker)});
+      worker.onmessage = resolve; worker.onerror = reject;
+    }); ${MARK}`),
+    )
     await expect(
-      measurePortableStartup(graph.meta, (file) => graph.files.get(file), dispatchBrowser),
+      measurePortableStartup(graph.meta, (file) => graph.files.get(file), fixture.browser),
     ).rejects.toThrow('PORTABLE_STARTUP_UNBUILT_REQUEST')
   },
 )

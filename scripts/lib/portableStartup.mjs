@@ -64,9 +64,12 @@ export const WORKER_GUARD = `if (typeof globalThis.document === 'undefined' && !
     nativePostMessage({ museStartupRefusal: 'worker nonbuilt request' });
     throw new Error('PORTABLE_STARTUP_UNBUILT_REQUEST: worker nonbuilt request');
   };
+  const nativeRequestUrl = Object.getOwnPropertyDescriptor(globalThis.Request.prototype, 'url').get;
   const fetch = globalThis.fetch.bind(globalThis);
   globalThis.fetch = async (input, init) => {
-    const url = new URL(input instanceof Request ? input.url : input, location.href);
+    let address = input;
+    try { address = nativeRequestUrl.call(input); } catch { /* Other fetch inputs use native string conversion. */ }
+    const url = new URL(address, location.href);
     if (!['http:', 'https:'].includes(url.protocol)) refuse();
     return fetch(input, init);
   };
@@ -265,13 +268,23 @@ export async function measurePortableStartup(
               void nativeRegister({ url, path: candidates[0].path })
               return url
             }
+            // The native getter checks the Request brand across realms. Capture
+            // it before constructor/prototype wrappers, and let other fetch
+            // inputs retain the browser's URL/string conversion.
+            const nativeRequestUrl = Object.getOwnPropertyDescriptor(
+              globalThis.Request.prototype,
+              'url',
+            ).get
             const fetch = globalThis.fetch.bind(globalThis)
             Object.assign(globalThis, {
               fetch: async (input, init) => {
-                const url = new URL(
-                  input instanceof globalThis.Request ? input.url : input,
-                  globalThis.location.href,
-                )
+                let address = input
+                try {
+                  address = nativeRequestUrl.call(input)
+                } catch {
+                  // Other fetch inputs use native string conversion.
+                }
+                const url = new URL(address, globalThis.location.href)
                 // A fragment annotates the same bytes, so blob identity ignores
                 // it: a fetch of `import.meta.url + '#...'` still matches the
                 // admitted module URL. Unrelated blob URLs stay refused.

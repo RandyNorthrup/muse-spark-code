@@ -13,7 +13,7 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import { runInThisContext } from 'node:vm'
-import { build, transform } from 'esbuild'
+import { build, context as buildContext, transform } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { compactBrowserUiText } from '../../scripts/lib/uiTextRegions.mjs'
@@ -32,23 +32,6 @@ import { buildProductionPackage } from './helpers/productionPackage'
 
 const ENTRY = 'dist/webview/main.js'
 const SIZE_GATE = path.resolve('scripts/check-bundle-size.mjs')
-// Bounded parallel preparation: independent esbuild builds and browser boots
-// share one pool so this hook fits its unchanged 120-second deadline under
-// rig load. Every task keeps its measurement and assertion; only the
-// serialization is removed.
-async function runBounded(tasks, limit) {
-  const results = Array.from({ length: tasks.length })
-  const cursor = { value: 0 }
-  const consume = async () => {
-    const index = cursor.value
-    if (index >= tasks.length) return
-    cursor.value = index + 1
-    results[index] = await tasks[index]()
-    await consume()
-  }
-  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, () => consume()))
-  return results
-}
 const built = {
   outputs: {},
   fixture: '',
@@ -58,6 +41,7 @@ const built = {
   graphs: new Map(),
   failures: new Map(),
   browser: undefined,
+  contexts: { active: 0, peak: 0 },
   sizeGate: '',
   splitGate: '',
 }
@@ -144,6 +128,18 @@ beforeAll(async () => {
     channel: 'chrome',
     headless: true,
   })
+  // Real contexts compete for the same browser and five-second boot deadline.
+  // Observe the fixture's concurrency rather than relying on machine speed.
+  const newContext = built.browser.newContext.bind(built.browser)
+  built.browser.newContext = async (options) => {
+    const context = await newContext(options)
+    built.contexts.active += 1
+    built.contexts.peak = Math.max(built.contexts.peak, built.contexts.active)
+    context.on('close', () => {
+      built.contexts.active -= 1
+    })
+    return context
+  }
   const portableMeta = JSON.parse(readFileSync(outputFile('dist/meta/portable.json'), 'utf8'))
   built.startup = await measurePortableStartup(
     portableMeta,
@@ -250,67 +246,94 @@ beforeAll(async () => {
       ),
     ],
   ]
-  const regressionGraphTasks = scenarioSources.map(([scenario, contents]) => async () => {
-    const graph = await build({
-      ...options,
-      write: false,
-      plugins: [
-        {
-          name: 'boot-regression',
+  // Only the portable entry changes. Incremental rebuilds retain esbuild's
+  // dependency parsing cache without reusing any scenario's emitted bytes.
+  let scenarioSource = original
+  const regressionBuild = await buildContext({
+    ...options,
+    write: false,
+    plugins: [
+      {
+        name: 'boot-regression',
+        setup(build) {
+          build.onLoad({ filter: /[/\\]portable\.tsx$/ }, (args) => ({
+            contents: scenarioSource,
+            loader: 'tsx',
+            resolveDir: path.dirname(args.path),
+          }))
+        },
+      },
+      ...options.plugins.map((plugin) => {
+        if (![compactBrowserUiText, lazyBrowserKeybindings].includes(plugin)) return plugin
+        // These scenarios change boot order only. Both reader surveys inspect
+        // the same unchanged files on disk, so prepare their real data once in
+        // this context; emitted scenario graphs are still rebuilt independently.
+        return {
+          ...plugin,
           setup(build) {
-            build.onLoad({ filter: /[/\\]portable\.tsx$/ }, (args) => ({
-              contents,
-              loader: 'tsx',
-              resolveDir: path.dirname(args.path),
-            }))
+            plugin.setup({
+              ...build,
+              onStart(callback) {
+                let prepared
+                build.onStart(() => {
+                  prepared ??= Promise.resolve(callback())
+                  return prepared
+                })
+              },
+            })
           },
-        },
-        ...options.plugins,
-      ],
-    })
-    const files = new Map(
-      graph.outputFiles.map((file) => [
-        path.relative(process.cwd(), file.path).replaceAll('\\', '/'),
-        file.contents,
-      ]),
-    )
-    const loader = 'dist/webview/portable/loader.js'
-    files.set(loader, readFileSync(outputFile(loader)))
-    graph.metafile.outputs[loader] = portableMeta.outputs[loader]
-    if (scenario === 'baseline') {
-      // The owned clone's dependency junction changes esbuild chunk hashes.
-      // Compare source ownership and emitted byte lengths, independent of that root.
-      const inventory = (meta) =>
-        Object.values(meta.outputs)
-          .map((output) => [
-            Object.keys(output.inputs)
-              .map((file) =>
-                file.replaceAll('\\', '/').replaceAll(/(?:\.\.\/)+(?=node_modules\/)/gu, ''),
-              )
-              .toSorted((a, b) => a.localeCompare(b, 'en')),
-            output.bytes,
-          ])
-          .toSorted((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b), 'en'))
-      expect(inventory(graph.metafile)).toEqual(inventory(portableMeta))
-    }
-    built.graphs.set(scenario, { meta: graph.metafile, files })
-    if (scenario === 'baseline')
-      built.graphs.set('windows', {
-        files,
-        meta: {
-          ...graph.metafile,
-          outputs: Object.fromEntries(
-            Object.entries(graph.metafile.outputs).map(([file, output]) => [
-              file.replaceAll('/', '\\'),
-              output,
-            ]),
-          ),
-        },
-      })
+        }
+      }),
+    ],
   })
-  // Gate bundles and regression graphs are independent esbuild work; the pool
-  // keeps three at a time so preparation fits the unchanged hook deadline.
-  await runBounded([...gateTasks, ...regressionGraphTasks], 3)
+  try {
+    for (const [scenario, contents] of scenarioSources) {
+      scenarioSource = contents
+      const graph = await regressionBuild.rebuild()
+      const files = new Map(
+        graph.outputFiles.map((file) => [
+          path.relative(process.cwd(), file.path).replaceAll('\\', '/'),
+          file.contents,
+        ]),
+      )
+      const loader = 'dist/webview/portable/loader.js'
+      files.set(loader, readFileSync(outputFile(loader)))
+      graph.metafile.outputs[loader] = portableMeta.outputs[loader]
+      if (scenario === 'baseline') {
+        // The owned clone's dependency junction changes esbuild chunk hashes.
+        // Compare source ownership and emitted byte lengths, independent of that root.
+        const inventory = (meta) =>
+          Object.values(meta.outputs)
+            .map((output) => [
+              Object.keys(output.inputs)
+                .map((file) =>
+                  file.replaceAll('\\', '/').replaceAll(/(?:\.\.\/)+(?=node_modules\/)/gu, ''),
+                )
+                .toSorted((a, b) => a.localeCompare(b, 'en')),
+              output.bytes,
+            ])
+            .toSorted((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b), 'en'))
+        expect(inventory(graph.metafile)).toEqual(inventory(portableMeta))
+      }
+      built.graphs.set(scenario, { meta: graph.metafile, files })
+      if (scenario === 'baseline')
+        built.graphs.set('windows', {
+          files,
+          meta: {
+            ...graph.metafile,
+            outputs: Object.fromEntries(
+              Object.entries(graph.metafile.outputs).map(([file, output]) => [
+                file.replaceAll('/', '\\'),
+                output,
+              ]),
+            ),
+          },
+        })
+    }
+  } finally {
+    await regressionBuild.dispose()
+  }
+  for (const task of gateTasks) await task()
   // The baseline boot stays sequential: the resource scenarios below derive
   // their eager set from its observed variants.
   {
@@ -322,8 +345,8 @@ beforeAll(async () => {
     )
     built.memoryStartup = graph.variants
   }
-  // Independent boots share one bounded pool (three at a time); every
-  // scenario keeps its measurement and every assertion below stays.
+  // One boot at a time avoids renderer/route contention on smaller machines.
+  // Each scenario still owns a fresh context and its full measurement.
   const bootTasks = ['windows', 'argument', 'helper', 'deferred'].map((scenario) => async () => {
     const graph = built.graphs.get(scenario)
     graph.variants = await measurePortableStartup(
@@ -383,6 +406,7 @@ beforeAll(async () => {
   )
   // Negative boots own fresh contexts too. Share this expensive preparation
   // in the existing production hook; each test keeps the default body deadline.
+  const baseline = built.graphs.get('baseline')
   const cases = [
     ...NON_BUILT_REQUESTS.map(([variant, url]) => {
       const worker = `fetch(${JSON.stringify(url)}).then(() => postMessage('ready'), () => postMessage('ready'));`
@@ -396,17 +420,25 @@ beforeAll(async () => {
   ]
   bootTasks.push(
     ...cases.map(([key, prefix, worker]) => async () => {
-      const { meta: baselineMeta, files: baseline } = built.graphs.get('baseline')
-      const meta = { ...baselineMeta, outputs: { ...baselineMeta.outputs } }
-      const files = new Map(baseline)
+      // Refusal occurs before chat mounts. Keep the real production loader
+      // and its guards without evaluating React's full graph first.
+      const files = new Map([
+        ['dist/webview/portable/loader.js', baseline.files.get('dist/webview/portable/loader.js')],
+        ['dist/webview/portable/main.css', Buffer.alloc(0)],
+        [
+          'dist/webview/portable/main.js',
+          Buffer.from(prefix + "performance.mark('muse:chat-mounted');"),
+        ],
+      ])
+      const meta = {
+        outputs: Object.fromEntries(files.keys().map((file) => [file, { imports: [] }])),
+      }
       if (worker !== undefined) {
         const file = 'dist/webview/portable/negative-worker.js'
         const bytes = Buffer.from(worker)
         files.set(file, bytes)
         meta.outputs[file] = { bytes: bytes.byteLength, inputs: {}, imports: [] }
       }
-      const main = 'dist/webview/portable/main.js'
-      files.set(main, Buffer.concat([Buffer.from(prefix), files.get(main)]))
       try {
         await measurePortableStartup(meta, (file) => files.get(file), built.browser)
       } catch (error) {
@@ -427,7 +459,6 @@ beforeAll(async () => {
       return context
     },
   }
-  const baseline = built.graphs.get('baseline')
   bootTasks.push(async () => {
     try {
       await measurePortableStartup(baseline.meta, (file) => baseline.files.get(file), timingBrowser)
@@ -435,7 +466,7 @@ beforeAll(async () => {
       built.failures.set('untimed', error)
     }
   })
-  await runBounded(bootTasks, 3)
+  for (const task of bootTasks) await task()
 }, 120_000)
 
 afterAll(async () => {
@@ -522,6 +553,10 @@ function questionSizeFixture(bytes) {
 }
 
 describe('the production webview chunks (FIX78W)', () => {
+  it('keeps qualification contexts from competing for the five-second boot deadline', () => {
+    expect(built.contexts.peak).toBe(1)
+    expect(built.contexts.active).toBe(0)
+  })
   it('keeps the question renderer and dock in one independently budgeted lazy closure', () => {
     for (const name of ['QuestionCard', 'QuestionUi', 'OpenQuestionsChip']) {
       const source = `src/webview/components/${name}.tsx`

@@ -221,6 +221,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Portable startup fetch accounting recognizes Requests from other frames and
+  ordinary constructor/prototype wrappers through the captured native URL getter.
+  Built queries, URL objects and string-convertible inputs retain their exact
+  resource identities; non-built requests still refuse before dispatch.
+  Production qualification reuses incremental build parsing and invariant reader
+  surveys, avoids competing browser contexts and uses small real-loader refusal
+  fixtures while retaining all assertions and the existing boot/setup deadlines.
 - Portable startup measurement now delivers every worker refusal and flush
   acknowledgement over senders captured before application code runs, so an
   ordinary postMessage protocol wrapper or reassigned reporting global cannot

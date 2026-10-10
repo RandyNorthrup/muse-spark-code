@@ -573,6 +573,19 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**M104 F4 round 8 (2026-10-10, RVM104F4H).** Within round 7's
+ordinary-wrapper threat model, classify fetch inputs through the native Request
+URL getter captured before application scripts, including cross-frame Requests
+and constructor/prototype wrappers. Sweep page and worker probes; retain string,
+URL, authenticated blob and built query inputs and every non-built refusal.
+Reduce production fixture preparation and browser contention within the existing
+five-second boot and 120-second setup deadlines, retaining all production,
+negative-path and accounting assertions. Each finding gets a failing regression
+and a byte-exact red drill in `docs/certification/m104.md`. No dependency,
+production runtime, cap, support-status or unrelated guard change. Scoped tests
+and builds run directly on Kubuntu; aggregate and installed-editor qualification
+remain lead-owned.
+
 **M104 F4 round 7 (2026-10-10, RVM104F4G; lead threat-model boundary).**
 The startup measurement's threat model is accidental activity by our own built
 code and dependencies, including ordinary application wrappers (a postMessage
@@ -37998,6 +38011,17 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**M104 F4 round 8 (2026-10-10, RVM104F4H).** Repair Request input
+classification across page, frame and worker probes with the captured native URL
+getter, preserving ordinary constructor/prototype wrappers and cross-frame
+brands without weakening non-built refusals. The production fixture reuses one
+incremental esbuild context with invariant reader surveys prepared once, boots
+one browser context at a time and tests
+pre-mount refusals with the real built loader in small graphs; all existing
+production/accounting assertions and deadlines stay intact. New regressions and
+byte-exact guard drills are recorded in `docs/certification/m104.md`. M104 remains
+waiting, experimental and untested pending the existing joined qualification.
+
 **M104 F4 round 6 (2026-10-10, RVM104F4F; lead transport boundary).**
 Before the synchronous render mark, deny every non-HTTP transport and every
 non-built fetch/import, independently of application error handling. Cover
@@ -38393,7 +38417,7 @@ keeping its detailed native qualification catalogue generated too.
 Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
 in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
 
-**Status 2026-10-10: waiting.** All five phase-2 lanes are joined locally on Kubuntu. F4 round 6 preserves separate startup/total caps, counts source-served resources through the first-render mark, and denies unsupported transports and non-loader data/blob activity across pages, frames and workers even when caught. SAST findings, native bridge contract checks, installed qualification and the next resource-chip parity lane remain blockers. M104 F3 repairs the four ACP resource fixtures and the twelve recorded duplication findings; their complete touched suites and the zero-clone gate pass. Retained requirements and receipts follow.
+**Status 2026-10-10: waiting.** All five phase-2 lanes are joined locally on Kubuntu. F4 round 8 preserves separate startup/total caps, counts source-served resources through the first-render mark across ordinary Request wrappers and frame brands, and denies unsupported transports and non-loader data/blob activity across pages, frames and workers even when caught. Production qualification keeps its existing deadlines; MacBook execution remains an external qualification requirement. SAST findings, native bridge contract checks, installed qualification and the next resource-chip parity lane remain blockers. M104 F3 repairs the four ACP resource fixtures and the twelve recorded duplication findings; their complete touched suites and the zero-clone gate pass. Retained requirements and receipts follow.
 
 **FIXM104PB / RVM104PB (2026-10-06).** Repair all four P2 findings and the
 P3 evidence error inside B's paid engines and their shared guards. One
@@ -39036,6 +39060,21 @@ and are not transferred or accepted as complete by these launcher repairs.
 ---
 
 ## 7. Gates
+
+**M104 F4 round-8 scoped qualification (2026-10-10, RVM104F4H).**
+Native Request-brand regressions cover page/worker constructor and URL-getter
+wrappers, cross-frame fetches in both directions, native string conversion and
+non-built refusals before dispatch. Worker dispatch is also observed without CSP,
+so its native-brand guard must independently fire. Production qualification uses
+one incremental build context with invariant reader surveys prepared once, one
+active browser context, and small real-loader negative graphs; all existing
+production/accounting assertions and the five-second boot/120-second setup
+limits remain. Captured profiling observes 54.8-second preparation on Kubuntu.
+Byte-exact red drills and final scoped results are in
+`docs/certification/m104.md`. The reviewed MacBook is unavailable to this lane:
+its unchanged-deadline replay remains an external hardware qualification
+requirement, not a claimed pass. Aggregate quality and installed-editor/native
+qualification remain lead-owned; M104 is still waiting/experimental/untested.
 
 **M104 F4 round-6 scoped qualification (2026-10-10).** All review-class
 regressions use the real authenticated loader and browser at repository body
