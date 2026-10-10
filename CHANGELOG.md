@@ -32,6 +32,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Hidden M96 team-host implementation: setup probes now retain per-entry
+  generations; stale results cannot replace a newer model's readiness, and
+  a finishing probe cannot start queued work after disposal. Teams remain
+  unavailable pending the milestone's remaining bindings and certification.
+
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did

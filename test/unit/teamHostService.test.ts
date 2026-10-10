@@ -991,3 +991,51 @@ describe('RVCM963 review findings', () => {
     expect(h.mergeOptions).toEqual([{ allowProtected: true }])
   })
 })
+
+describe('RVCM963C probe ownership', () => {
+  it('R4-18: an old probe cannot replace the readiness of a new model', async () => {
+    const h = harness(team([entry('e1', WORKER_MODEL)]))
+    const deferred = Promise.withResolvers<boolean>()
+    const service = createTeamHostService({
+      ...h.deps,
+      workers: {
+        ...h.deps.workers,
+        probe: (agent) => (agent.model === WORKER_MODEL ? deferred.promise : Promise.resolve(true)),
+      },
+    })
+    const old = service.probeEntries()
+    h.values.set(TEAM_WORKSPACE_KEYS.team, team([entry('e1', 'replacement-model')]))
+    service.reload()
+    await service.probeEntries()
+    deferred.resolve(false)
+    await old
+    expect(service.tree()?.roles[0]?.entries[0]?.state).toBe('ready')
+    await service.dispose()
+  })
+
+  it('R4-19: a probe finishing after disposal cannot launch queued work', async () => {
+    const h = harness(team([entry('e1', WORKER_MODEL, 1)], {}, { exhausted: 'queue' }))
+    let isHeld = false
+    const deferred = Promise.withResolvers<boolean>()
+    const service = createTeamHostService({
+      ...h.deps,
+      workers: {
+        ...h.deps.workers,
+        probe: () => (isHeld ? deferred.promise : Promise.resolve(true)),
+      },
+    })
+    await service.probeEntries()
+    await service.teamRunner.delegate(
+      { tasks: [...delegateOne.tasks, ...delegateOne.tasks] },
+      context(),
+    )
+    isHeld = true
+    const probing = service.probeEntries()
+    await service.dispose()
+    h.finish(0)
+    await settle()
+    deferred.resolve(true)
+    await probing
+    expect(h.started).toHaveLength(1)
+  })
+})
