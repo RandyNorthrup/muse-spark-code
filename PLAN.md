@@ -19204,8 +19204,8 @@ GPU both local sizes fit the 5 s veto window (0.8b p95 311 ms, 4b p95
 full 170, and 4b approved 9 must-refuse cases. Local engines are not
 offered as the veto engine until a calibrated local engine shows ~0
 unsafe-approves and accuracy within 2 points of Jev on the full 170.
-Rows provisional: the raw files never reached the lane; re-check on
-delivery.
+Rows verified: lane JEVBENCH2 round 2 re-checked every §3 cell
+against the committed raw files (all matched, gaps filled).
 
 **Why phase 1 misses** (confirmed against `647f75dfb` and `m98/p2-r4` at
 `f131ffc88`). `auto` resolves to the user's own chat model, 8–14 s per
@@ -20546,8 +20546,8 @@ and accuracy within 2 points of Jev on the full 170; lanes L/V retune
 the deny question first (no signal on either local model), then
 calibrate per engine; the full 170 cases with seed 42 are the standing
 regression set, the 40-case prefix the smoke check. Evidence and rows:
-`docs/certification/judge-bench.md` §§3/8 (rows provisional pending the
-raw files).
+`docs/certification/judge-bench.md` §§3/8 (rows verified against the
+committed raw files in round 2).
 
 - **Goal.** D107: the judge is our own Jev. A batched, calibrated decision
   engine makes the agent faster (decisions the big model spends a turn or

@@ -27,10 +27,10 @@ happened, not what was planned; superseded entries are kept.
   (0.376/0.375 vs 0.794), with 9 must-refuse cases approved by 4b.
   Local veto engines wait for ~0 unsafe-approves and accuracy within 2
   points of Jev; M125 lanes L/V retune the deny question first. The
-  lead's rows are recorded as provisional in
-  `docs/certification/judge-bench.md` (§§3/8) pending delivery of the
-  raw result files, and a new unit test fails if a committed result
-  file contains anything key-like.
+  lead's rows in `docs/certification/judge-bench.md` (§§3/8) were
+  verified cell-by-cell against the committed raw result files in
+  lane JEVBENCH2 round 2 (all matched; gaps filled), and a new unit
+  test fails if a committed result file contains anything key-like.
 
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
