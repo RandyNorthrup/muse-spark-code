@@ -6668,6 +6668,13 @@
     },
     {
       "route": "exec",
+      "name": "exec: --team",
+      "description": "--team: Ask for a team run (Model API backend, acceptEdits and a hard budget).",
+      "text": { "cli": "team" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false, "purpose": "team" }
+    },
+    {
+      "route": "exec",
       "name": "exec: --effort <value>",
       "description": "Choose how much effort Muse puts into each reply.",
       "text": { "cli": "effort" },
