@@ -28408,23 +28408,24 @@ release acceptance are still pending.
   its own capture is recorded (AGENTS.md rule 13). The captured frames are
   in `docs/certification/m95-captures/<provider>/`:
 
-  | Codec       | Preset                                     | Wire capture                                                                                             |
-  | ----------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-  | `responses` | OpenAI                                     | captured 2026-10-04 (`gpt-5.6-luna`)                                                                     |
-  | `responses` | Azure OpenAI (v1 API)                      | not yet: needs the owner's resource and deployment                                                       |
-  | `responses` | xAI                                        | captured 2026-10-04 (`grok-4.3`)                                                                         |
-  | `chat`      | OpenRouter                                 | captured 2026-10-04 (`openai/gpt-oss-20b` with ZDR; cache pass-through on `anthropic/claude-sonnet-5.5`) |
-  | `chat`      | Groq                                       | captured 2026-10-04 (`openai/gpt-oss-20b`)                                                               |
-  | `chat`      | DeepSeek                                   | captured 2026-10-04 (`deepseek-flash`)                                                                   |
-  | `chat`      | Mistral                                    | captured 2026-10-04 (`ministral-3b-latest`)                                                              |
-  | `chat`      | Together                                   | captured 2026-10-04 (`openai/gpt-oss-120b`)                                                              |
-  | `chat`      | Fireworks                                  | captured 2026-10-04 (`gpt-oss-120b`)                                                                     |
-  | `chat`      | Hugging Face (token, router)               | captured 2026-10-04 (`openai/gpt-oss-20b`, routed to Groq)                                               |
-  | `chat`      | Z.ai (pay-as-you-go; moved from M95c)      | captured 2026-10-04 (`glm-5.3-flash`, `tool_stream`; Anthropic route compared, not used)                 |
-  | `chat`      | LM Studio, vLLM, llama.cpp server          | not yet: step 1 on the rigs                                                                              |
-  | `anthropic` | Anthropic                                  | captured 2026-10-04 (Haiku 4.5, Sonnet 5.5 with thinking and a breakpoint, Opus 5.5)                     |
-  | `gemini`    | Google Gemini (API key, `generateContent`) | captured 2026-10-04 (`gemini-3.5-flash-lite`)                                                            |
-  | `ollama`    | Ollama (local)                             | not yet: step 1 on the rigs                                                                              |
+  | Codec       | Preset                                     | Wire capture                                                                                                                   |
+  | ----------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+  | `responses` | OpenAI                                     | captured 2026-10-04 (`gpt-5.6-luna`)                                                                                           |
+  | `responses` | Azure OpenAI (v1 API)                      | not yet: needs the owner's resource and deployment                                                                             |
+  | `responses` | xAI                                        | captured 2026-10-04 (`grok-4.3`)                                                                                               |
+  | `chat`      | OpenRouter                                 | captured 2026-10-04 (`openai/gpt-oss-20b` with ZDR; cache pass-through on `anthropic/claude-sonnet-5.5`)                       |
+  | `chat`      | Groq                                       | captured 2026-10-04 (`openai/gpt-oss-20b`)                                                                                     |
+  | `chat`      | DeepSeek                                   | captured 2026-10-04 (`deepseek-flash`)                                                                                         |
+  | `chat`      | Mistral                                    | captured 2026-10-04 (`ministral-3b-latest`)                                                                                    |
+  | `chat`      | Together                                   | captured 2026-10-04 (`openai/gpt-oss-120b`)                                                                                    |
+  | `chat`      | Fireworks                                  | captured 2026-10-04 (`gpt-oss-120b`)                                                                                           |
+  | `chat`      | Hugging Face (token, router)               | captured 2026-10-04 (`openai/gpt-oss-20b`, routed to Groq)                                                                     |
+  | `chat`      | Z.ai (pay-as-you-go; moved from M95c)      | captured 2026-10-04 (`glm-5.3-flash`, `tool_stream`; Anthropic route compared, not used)                                       |
+  | `chat`      | LM Studio, llama.cpp server                | captured 2026-10-10 on `linuxlt` (C-M95-4: llmster 0.0.25-1 with Qwen3-0.6B; llama.cpp b11541 with Qwen3-0.6B-Q8_0)            |
+  | `chat`      | vLLM                                       | not yet: blocked on `linuxlt` (C-M95-4: the 0.31 engine's ZMQ IPC needs AF_UNIX, denied by the rig sandbox; retry off-sandbox) |
+  | `anthropic` | Anthropic                                  | captured 2026-10-04 (Haiku 4.5, Sonnet 5.5 with thinking and a breakpoint, Opus 5.5)                                           |
+  | `gemini`    | Google Gemini (API key, `generateContent`) | captured 2026-10-04 (`gemini-3.5-flash-lite`)                                                                                  |
+  | `ollama`    | Ollama (local)                             | not yet: step 1 on the rigs                                                                                                    |
 
   The **Custom server** preset speaks any of the `chat`, `responses` and
   `anthropic` formats. M95b adds the subscription sign-ins and plan keys;
