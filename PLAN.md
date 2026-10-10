@@ -36592,6 +36592,23 @@ single-rig milestone forecasts P50/P90 deterministically. Receipts in
 `docs/certification/m117-snapshot.md`. Still waiting: board, catalog,
 history, multi-machine fleets, and issue lane linkage (M113 N).
 
+**C-M117-1R3 strict redesign (2026-10-10, macmini; review RVCM1171B).**
+Repair all thirteen P2 and two P3 findings within the snapshot lane. Validate
+all declared lane prerequisites, milestone references, release members and
+unfinished rig names before selecting a goal; aggregate every unresolved
+reference in a named refusal. Duplicate identities refuse instead of merging
+work. Completed lanes retain goal/prerequisite identity with zero remaining
+work and require no placement. Origin's symbolic default branch determines
+merge evidence; current branch evidence takes precedence over historical PRs.
+Evidence failures and bounded incomplete collections refuse explicitly. Reports
+network/sign-in/egress admission is read for every estimate and rechecked before
+dispatch; remove unused issue collection. Preserve named safe diagnostics in
+ACP and CLI. Hermetic fleets and exact M103/M104 forecast goldens certify every
+host at repository timeouts. Each finding receives a failing baseline regression
+and byte-exact red drill in `docs/certification/m117.md`. No dependencies, paid
+calls, network probes, merges, pushes or gate changes. Full quality is lead-owned
+under the scoped rig brief.
+
 **C-M117-1R2 review fixes (2026-10-10, Kubuntu).** Every RVCM1171 finding is
 fixed in the lane's files: one `asOf` captured once and passed through to the
 fleet; ACP/headless snapshots read the requesting session's root (cached per

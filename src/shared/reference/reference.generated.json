@@ -1864,7 +1864,11 @@
       "summary": { "ui": "referenceEstimate" },
       "description": { "ui": "referenceEstimate" },
       "commands": ["museSpark.estimate"],
-      "settings": ["museSpark.estimator.optimize", "museSpark.estimator.priceLookup"],
+      "settings": [
+        "museSpark.estimator.optimize",
+        "museSpark.estimator.priceLookup",
+        "museSpark.reports.network"
+      ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#estimates",
       "backends": ["museCode", "modelApi"],
       "paid": false,

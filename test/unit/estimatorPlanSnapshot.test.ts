@@ -42,7 +42,7 @@ const PLAN = `## 3. Questions
 | Lane | Items | Own files | Starts | Rig | Hours |
 | ---- | ----- | --------- | ------ | --- | ----- |
 | S | 1 | \`src/s.ts\` | after M112's lane U, with M112 merged | Kubuntu | 4 |
-| T | 2 | \`os/arm64/kernel.c\` | after S | Buildertown | 2 |
+| T | 2 | \`os/arm64/kernel.c\` | after S | Kubuntu | 2 |
 
 ### Delivery order (2026-10-10)
 
@@ -276,9 +276,14 @@ describe('M117 plan snapshot adapter', () => {
   it('refuses an unknown rig instead of scheduling it locally', () => {
     const goal = parseEstimateGoal('M113:T')
     if (goal === undefined) throw new Error('unparseable goal')
-    expect(() => buildPlanSnapshot(PLAN, goal, ESTIMATOR_AS_OF, EVIDENCE)).toThrow(
-      /unknown-rig: buildertown/,
-    )
+    expect(() =>
+      buildPlanSnapshot(
+        PLAN.replace('| after S | Kubuntu |', '| after S | Buildertown |'),
+        goal,
+        ESTIMATOR_AS_OF,
+        EVIDENCE,
+      ),
+    ).toThrow(/unknown-rig:.*buildertown/)
   })
 
   it('keeps current work when an old merged PR shares the lane', async () => {
@@ -327,14 +332,14 @@ describe('M117 plan snapshot adapter', () => {
       branches: [{ name: 'm114/0', merged: true }],
     }
     // Lane 0 is done with zero remaining work: its unknown past must not
-    // block Q, and the lane stays out of the snapshot.
+    // block Q, and the lane retains its prerequisite identity.
     const snapshot = buildPlanSnapshot(plan, goal, ESTIMATOR_AS_OF, evidence)
-    expect(snapshot.lanes.map((entry) => entry.lane.id)).toEqual(['M114:Q'])
+    expect(snapshot.lanes.map((entry) => entry.lane.id)).toEqual(['M114:0', 'M114:Q'])
     const lanes = await resolveEstimateGoal(goal, ESTIMATOR_AS_OF, {
       snapshot: () => Promise.resolve(snapshot),
     })
-    expect(lanes.map((lane) => lane.id)).toEqual(['M114:Q'])
-    expect(lanes[0]).toMatchObject({ dependencies: [] })
+    expect(lanes.map((lane) => lane.id)).toEqual(['M114:0', 'M114:Q'])
+    expect(lanes[1]).toMatchObject({ dependencies: ['M114:0'] })
   })
 
   it('refuses a named prerequisite the plan does not contain', () => {
@@ -442,18 +447,22 @@ describe('M117 plan snapshot adapter', () => {
     expect(files.some((file) => file.includes('drop'))).toBe(false)
   })
 
-  it('expands milestone Starts refs to unfinished lanes and ignores prose', async () => {
+  it('expands milestone Starts refs while retaining completed prerequisite identity', async () => {
     const lanes = await resolve('M113:S')
     const ids = lanes.map((lane) => lane.id)
     expect(ids).toContain('M112:U')
     // Finished lanes bind nothing further: with M112:0 merged, S depends on
-    // the unfinished lanes only, and the merged lane stays as evidence.
+    // every named lane, with merged lanes carrying no remaining work.
     const mergedEvidence: PlanSnapshotEvidence = {
       ...EVIDENCE,
       branches: [{ name: 'm112/0', merged: true }],
     }
     const merged = await resolve('M113:S', mergedEvidence)
-    expect(merged.find((lane) => lane.id === 'M113:S')?.dependencies).toEqual(['M112:Q', 'M112:U'])
+    expect(merged.find((lane) => lane.id === 'M113:S')?.dependencies).toEqual([
+      'M112:0',
+      'M112:Q',
+      'M112:U',
+    ])
     expect(merged.find((lane) => lane.id === 'M112:0')).toMatchObject({
       state: 'merged',
       dependencies: [],
@@ -463,6 +472,7 @@ describe('M117 plan snapshot adapter', () => {
   it('maps merged PR evidence to merged lanes with no remaining work', async () => {
     const evidence: PlanSnapshotEvidence = {
       ...EVIDENCE,
+      branches: [{ name: 'm112/0', merged: false }],
       pullRequests: [{ branch: 'm112/q', number: 12, state: 'merged' }],
     }
     const lanes = await resolve('pr:12', evidence)

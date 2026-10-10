@@ -1539,7 +1539,7 @@ Estimate a goal using linked machines, agent slots, accounts and CI; no model ca
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.estimate`. Settings: `museSpark.estimator.optimize`, `museSpark.estimator.priceLookup`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#estimates)
+Commands: `museSpark.estimate`. Settings: `museSpark.estimator.optimize`, `museSpark.estimator.priceLookup`, `museSpark.reports.network`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#estimates)
 
 ### Support
 

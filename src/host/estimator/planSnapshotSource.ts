@@ -5,15 +5,9 @@
 // absolute path on absolute PATH entries only (PLAN.md D24), run with no
 // credential in the environment, a timeout and no console window.
 //
-// Evidence gaps stay conservative, never invented: a git failure leaves
-// that evidence empty, so lanes count as planned rather than merged (an
-// overestimate, never done-ness from nothing). Only an unreadable plan
-// refuses the read: there is nothing to estimate without it. A PR goal
-// without PR evidence refuses instead of misreporting not found. Issue and
-// label goals refuse: issue evidence carries no lane linkage yet (M113 N's
-// association is a later lane). The networked `gh` collection runs only
-// while the host's networkAllowed says so, and every step honors the
-// estimate's cancellation signal before starting new reads.
+// Evidence reads are strict: failed or incomplete sources refuse by name.
+// Reports admission is acquired on every estimate and rechecked at dispatch.
+// Issue/label goals refuse before IO until their explicit associations exist.
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
@@ -21,7 +15,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import * as z from 'zod/mini'
 import { withoutCredentials } from '../../core/credentialEnvironment'
-import { buildPlanSnapshot, type PlanSnapshotEvidence } from '../../core/estimator/planSnapshot'
+import { buildPlanSnapshot, EstimateDiagnosticError } from '../../core/estimator/planSnapshot'
 import { resolveExecutable } from '../../core/executables'
 import type { EstimateGoal } from '../../shared/estimate'
 import type { UiText } from '../../shared/l10n/en'
@@ -29,26 +23,28 @@ import {
   ESTIMATE_MAX_ITEMS,
   ESTIMATE_SOURCE_TIMEOUT_MS,
   GIT_OUTPUT_MAX_BYTES,
+  GITHUB_API_BASE_URL,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, setUiText } from '../../shared/l10n/text'
 
+import {
+  isReportNetworkAllowed,
+  type ReportNetworkPolicy,
+} from '../../core/reporting/sources/cache'
+
 const runFile = promisify(execFile)
 
-const ghPullSchema = z.array(
-  z.strictObject({
-    number: z.number().check(z.positive()),
-    headRefName: z.string(),
-    state: z.string(),
-    mergedAt: z.nullable(z.string()),
-  }),
-)
-const ghIssueSchema = z.array(
-  z.strictObject({
-    number: z.number().check(z.positive()),
-    labels: z.array(z.union([z.string(), z.strictObject({ name: z.string() })])),
-  }),
-)
+const ghPullSchema = z
+  .array(
+    z.strictObject({
+      number: z.int().check(z.positive()),
+      headRefName: z.string().check(z.minLength(1)),
+      state: z.enum(['OPEN', 'CLOSED', 'MERGED']),
+      mergedAt: z.nullable(z.iso.datetime({ offset: true })),
+    }),
+  )
+  .check(z.refine((pulls) => new Set(pulls.map((pull) => pull.number)).size === pulls.length))
 
 export interface PlanSnapshotSourceIo {
   /** The plan text; rejects when the plan cannot be read. */
@@ -64,10 +60,8 @@ export interface PlanSnapshotSourceDeps {
   readonly root: string
   /** How the source reads; the default runs the machine's own git and `gh`. */
   readonly io?: PlanSnapshotSourceIo | undefined
-  /** Whether the networked `gh` PR/issue collection may run. Hosts pass
-   * their network posture (the editor sandbox setting; always off
-   * headless). Defaults to false: no network unless the host opts in. */
-  readonly networkAllowed?: boolean | undefined
+  /** Fresh Reports policy; absent means no network. Rechecked before dispatch. */
+  readonly networkPolicy?: (() => Promise<ReportNetworkPolicy>) | undefined
 }
 
 /** Installs the caller's language table in the snapshot bundle: each bundle
@@ -126,20 +120,25 @@ function lines(output: string): string[] {
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line !== '')
-    .slice(0, ESTIMATE_MAX_ITEMS)
 }
 
-/** A failed evidence read degrades to nothing; only the plan itself refuses.
- * Cancellation is never degraded: an aborted read rethrows. */
-async function optional<T>(
-  run: () => Promise<T>,
+function refuseSource(detail: string): never {
+  throw new EstimateDiagnosticError(detail, fill(UI_TEXT.estimateFailed, { detail }))
+}
+
+async function required(
+  source: string,
+  run: () => Promise<string>,
   signal: AbortSignal | undefined,
-): Promise<T | null> {
+): Promise<string> {
+  signal?.throwIfAborted()
   try {
-    return await run()
+    const output = await run()
+    signal?.throwIfAborted()
+    return output
   } catch {
     signal?.throwIfAborted()
-    return null
+    refuseSource(`source-unavailable: ${source}`)
   }
 }
 
@@ -153,16 +152,13 @@ export function createPlanSnapshotSource(
   deps: PlanSnapshotSourceDeps,
 ): (goal: EstimateGoal, asOf: string, signal?: AbortSignal) => Promise<unknown> {
   const io = deps.io ?? defaultIo(deps.root)
-  const isNetworkAllowed = deps.networkAllowed ?? false
   return async (goal, asOf, signal) => {
     if (deps.root === '') refuseMissingPlan(deps.root)
     // Issue and label goals need lane associations the plan source cannot
     // supply yet (M113 N's linkage is a later lane): refusing names the gap
     // instead of reporting a goal that exists as not found.
     if (goal.kind === 'issues' || goal.kind === 'label') {
-      throw new Error(
-        fill(UI_TEXT.estimateFailed, { detail: `missing-associations: ${goal.kind}` }),
-      )
+      refuseSource(`missing-associations: ${goal.kind}`)
     }
     signal?.throwIfAborted()
     let planText: string
@@ -173,83 +169,88 @@ export function createPlanSnapshotSource(
       refuseMissingPlan(path.join(deps.root, 'PLAN.md'))
     }
     signal?.throwIfAborted()
-    const branchOutput = await optional(
+    const branchOutput = await required(
+      'branches',
       () => io.runGit(['for-each-ref', '--format=%(refname:short)', 'refs/heads'], signal),
       signal,
     )
-    let branchEvidence: PlanSnapshotEvidence['branches']
-    if (branchOutput !== null) {
-      const mergedOutput = await optional(
-        () => io.runGit(['branch', '--merged', 'HEAD', '--format=%(refname:short)'], signal),
+    const branches = lines(branchOutput)
+    if (branches.length > ESTIMATE_MAX_ITEMS) refuseSource('source-incomplete: branches')
+    const defaultOutput = await required(
+      'default-branch',
+      () => io.runGit(['symbolic-ref', '--quiet', 'refs/remotes/origin/HEAD'], signal),
+      signal,
+    )
+    const defaultRef = defaultOutput.trim()
+    if (!/^refs\/remotes\/origin\/[\w./-]+$/.test(defaultRef))
+      refuseSource('source-unavailable: default-branch')
+    const mergedOutput = await required(
+      'merged-branches',
+      () => io.runGit(['branch', '--merged', defaultRef, '--format=%(refname:short)'], signal),
+      signal,
+    )
+    const mergedNames = lines(mergedOutput)
+    if (mergedNames.length > ESTIMATE_MAX_ITEMS) refuseSource('source-incomplete: merged-branches')
+    const merged = new Set(mergedNames)
+    const branchEvidence = branches.map((name) => ({ name, merged: merged.has(name) }))
+    signal?.throwIfAborted()
+    const policy = await deps.networkPolicy?.()
+    const context = {
+      asOf,
+      workspaceKey: deps.root,
+      signal: signal ?? new AbortController().signal,
+      options: {
+        kind: 'estimate' as const,
+        asOf,
+        scope: deps.root,
+        full: false,
+        network: false,
+        failOn: [],
+      },
+    }
+    const isAdmitted =
+      policy !== undefined &&
+      isReportNetworkAllowed(policy, context, 'api.github.com') &&
+      (await policy.allowEgress(GITHUB_API_BASE_URL, context.signal)) &&
+      isReportNetworkAllowed(policy, context, 'api.github.com')
+    signal?.throwIfAborted()
+    let pulls: z.infer<typeof ghPullSchema> | null = null
+    if (isAdmitted) {
+      const output = await required(
+        'pull-requests',
+        () =>
+          io.runGh(
+            [
+              'pr',
+              'list',
+              '--state',
+              'all',
+              '--limit',
+              String(ESTIMATE_MAX_ITEMS),
+              '--json',
+              'number,headRefName,state,mergedAt',
+            ],
+            signal,
+          ),
         signal,
       )
-      const merged = new Set(mergedOutput === null ? [] : lines(mergedOutput))
-      branchEvidence = lines(branchOutput).map((name) => ({ name, merged: merged.has(name) }))
+      const parsed = ghPullSchema.safeParse(safeJson(output))
+      if (!parsed.success) refuseSource('source-unavailable: pull-requests')
+      pulls = parsed.data
+      // gh's capped list has no completeness receipt at the cap. Refuse all
+      // goals rather than infer nonexistence or completion from partial data.
+      if (pulls.length >= ESTIMATE_MAX_ITEMS) refuseSource('source-incomplete: pull-requests')
     }
+    if (pulls === null && goal.kind === 'pullRequest')
+      refuseSource('source-unavailable: pull-requests')
     signal?.throwIfAborted()
-    const pullOutput = isNetworkAllowed
-      ? await optional(
-          () =>
-            io.runGh(
-              [
-                'pr',
-                'list',
-                '--state',
-                'all',
-                '--limit',
-                String(ESTIMATE_MAX_ITEMS),
-                '--json',
-                'number,headRefName,state,mergedAt',
-              ],
-              signal,
-            ),
-          signal,
-        )
-      : null
-    const parsedPulls = pullOutput === null ? null : ghPullSchema.safeParse(safeJson(pullOutput))
-    const pulls = parsedPulls?.success === true ? parsedPulls.data : null
-    // A PR goal without PR evidence cannot tell "no such PR" from "GitHub
-    // is unreachable": the read refuses instead of misreporting not found.
-    if (pulls === null && goal.kind === 'pullRequest') {
-      throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'source-unavailable: pull-requests' }))
-    }
-    signal?.throwIfAborted()
-    const issueOutput = isNetworkAllowed
-      ? await optional(
-          () =>
-            io.runGh(
-              [
-                'issue',
-                'list',
-                '--state',
-                'all',
-                '--limit',
-                String(ESTIMATE_MAX_ITEMS),
-                '--json',
-                'number,labels',
-              ],
-              signal,
-            ),
-          signal,
-        )
-      : null
-    const parsedIssues =
-      issueOutput === null ? null : ghIssueSchema.safeParse(safeJson(issueOutput))
-    const found = parsedIssues?.success === true ? parsedIssues.data : null
     return buildPlanSnapshot(planText, goal, asOf, {
-      ...(branchEvidence !== undefined && { branches: branchEvidence }),
+      branches: branchEvidence,
       ...(pulls !== null && {
         pullRequests: pulls.map((pull) => ({
           branch: pull.headRefName,
           number: pull.number,
           state: pullState(pull),
-        })),
-      }),
-      ...(found !== null && {
-        issues: found.map((issue) => ({
-          number: issue.number,
-          labels: issue.labels.map((label) => (typeof label === 'string' ? label : label.name)),
-          laneIds: [],
         })),
       }),
     })
@@ -265,5 +266,5 @@ function safeJson(output: string): unknown {
 }
 
 function refuseMissingPlan(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail: `missing-plan: ${detail}` }))
+  refuseSource(`missing-plan: ${detail === '' ? 'workspace' : 'PLAN.md'}`)
 }

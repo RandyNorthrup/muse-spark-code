@@ -42,6 +42,8 @@ import {
   WHATS_NEW_CLAIMS_DIR,
   WHATS_NEW_CONTENT_FILE,
   OUTPUT_CHANNEL_SCHEME,
+  GITHUB_AUTH_PROVIDER,
+  GITHUB_AUTH_SCOPES,
   CHECKPOINT_STORE_BUNDLE_FILE,
   BROWSER_CHECK_BUNDLE_FILE,
   BROWSER_RUNTIME_BUNDLE_FILE,
@@ -2320,22 +2322,58 @@ async function activateWindow(
     'dist',
     PLAN_SNAPSHOT_BUNDLE_FILE,
   ).fsPath
+  let estimatorAuthenticationRevision = 0
+  context.subscriptions.push(
+    vscode.authentication.onDidChangeSessions((event) => {
+      if (event.provider.id === GITHUB_AUTH_PROVIDER) estimatorAuthenticationRevision += 1
+    }),
+  )
   const estimator = lazyEstimator({
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', ESTIMATOR_BUNDLE_FILE).fsPath,
     log,
     ports: () => {
-      const settings = currentSettings()
+      let signedInRevision = -1
       const snapshot = planSnapshotLoader({
         bundlePath: snapshotBundlePath,
         log,
         root: firstFolderPath() ?? '',
-        networkAllowed: settings.sandboxNetwork !== SANDBOX_NETWORK_DENIED,
+        networkPolicy: async () => {
+          const revision = estimatorAuthenticationRevision
+          const session =
+            currentSettings()['reports.network'] === 'off'
+              ? undefined
+              : await vscode.authentication.getSession(
+                  GITHUB_AUTH_PROVIDER,
+                  [...GITHUB_AUTH_SCOPES],
+                  { silent: true },
+                )
+          signedInRevision = session === undefined ? -1 : revision
+          return {
+            surface: 'editor',
+            get mode() {
+              return currentSettings()['reports.network']
+            },
+            get githubSignedIn() {
+              return session !== undefined && revision === estimatorAuthenticationRevision
+            },
+            allowEgress: () =>
+              Promise.resolve(
+                vscode.workspace.isTrusted &&
+                  currentSettings().sandboxNetwork !== SANDBOX_NETWORK_DENIED,
+              ),
+          }
+        },
       })
       return estimatorSourcePorts(
         () => ({
           // No catalogs are pinned until M113 merges its Reports catalogs.
-          enabled: settings['estimator.priceLookup'],
-          networkAllowed: settings.sandboxNetwork !== SANDBOX_NETWORK_DENIED,
+          enabled: currentSettings()['estimator.priceLookup'],
+          networkAllowed:
+            vscode.workspace.isTrusted &&
+            currentSettings().sandboxNetwork !== SANDBOX_NETWORK_DENIED &&
+            (currentSettings()['reports.network'] === 'always' ||
+              (currentSettings()['reports.network'] === 'whenSignedIn' &&
+                signedInRevision === estimatorAuthenticationRevision)),
           maxAgeMs: 0,
           catalogUrls: [],
         }),

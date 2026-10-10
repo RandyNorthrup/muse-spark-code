@@ -223,7 +223,11 @@ export async function resolveEstimateGoal(
     snapshot.pullRequests
       .filter((pr) => pr.state === 'merged')
       .flatMap((pr) => pr.laneIds)
-      .filter((id) => !open.has(id)),
+      .filter(
+        (id) =>
+          !open.has(id) &&
+          snapshot.lanes.find((entry) => entry.lane.id === id)?.lane.state !== 'running',
+      ),
   )
   const lanes = new Map(snapshot.lanes.map((entry) => [entry.lane.id, entry]))
   const included = new Map<string, EstimateLane>()

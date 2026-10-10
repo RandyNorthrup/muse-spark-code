@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { buildPlanSnapshot } from '../../src/core/estimator/planSnapshot'
 import { fitCalibration } from '../../src/core/estimator/calibration/fit'
-import { resolveEstimateGoal } from '../../src/core/estimator/goal'
-import { localFleet } from '../../src/host/estimator/localFleet'
+import { compareEstimateIds, resolveEstimateGoal } from '../../src/core/estimator/goal'
+import { fleetFromHost } from '../../src/host/estimator/localFleet'
 import { simulateEstimate, type EstimateDurationPort } from '../../src/core/estimator/simulate'
 import {
   estimateInputsSchema,
@@ -51,7 +51,7 @@ async function forecastPlan(
   })
   // One clock: the fleet is stamped with the request's asOf, so the inputs'
   // fleet/request equality holds without overwriting timestamps in-test.
-  const fleet = localFleet(lanes, AS_OF)
+  const fleet = fleetFromHost({ platform: 'linux', arch: 'x64', cores: 4, ramGiB: 8 }, lanes, AS_OF)
   const inputs = estimateInputsSchema.parse({
     // An explicit seed keeps the golden byte-identical on every machine: the
     // default seed fingerprints the measured local fleet.
@@ -91,8 +91,8 @@ async function forecastPlan(
  * (the original plan carries none, so the estimate would refuse without
  * them). Lane A carries the heaviest estimate, matching the DAG golden's
  * critical path through it. */
-function historyPlan(): string {
-  const records = repository.lanes.filter((lane) => lane.laneId.startsWith('M103:'))
+function historyPlan(mid = 'M103'): string {
+  const records = repository.lanes.filter((lane) => lane.laneId.startsWith(`${mid}:`))
   const rows = records.map((record) => {
     const short = record.laneId.split(':', 2)[1] ?? record.laneId
     const deps = record.dependencies.map((id) => id.split(':', 2)[1] ?? id)
@@ -101,11 +101,11 @@ function historyPlan(): string {
         ? 'First'
         : `after ${deps.slice(0, -1).join(', ')}${deps.length > 1 ? ' and ' : ''}${deps.at(-1) ?? ''}`
     const hours = short === 'A' ? 4 : 2
-    return `| ${short} | 1 | \`src/m103/${short.toLowerCase()}.ts\` | ${starts} | Kubuntu | ${String(hours)} |`
+    return `| ${short} | 1 | \`src/${mid.toLowerCase()}/${short.toLowerCase()}.ts\` | ${starts} | Kubuntu | ${String(hours)} |`
   })
   return `## 6. Milestones
 
-### M103 — Captured work (2026-10-06)
+### ${mid} — Captured work (2026-10-06)
 
 **Status 2026-10-06: built.**
 
@@ -120,7 +120,7 @@ ${rows.join('\n')}
 }
 
 describe('M117 plan snapshot to forecast', () => {
-  it('forecasts a milestone from plan text with disclosed unknown limits', async () => {
+  it('F13 forecasts a milestone from plan text with disclosed unknown limits', async () => {
     const result = await forecastPlan(PLAN, 'M112', {
       branches: [{ name: 'm112/0', merged: true }],
     })
@@ -169,5 +169,53 @@ describe('M117 plan snapshot to forecast', () => {
       'M103:W',
       'M103:E',
     ])
+  })
+  it('forecasts a completed hour-less goal without rig or capacity placement', async () => {
+    const plan = PLAN.replace('First | Kubuntu | 8', 'First | Buildertown | —')
+    const result = await forecastPlan(
+      plan,
+      'M112:0',
+      { branches: [{ name: 'm112/0', merged: true }] },
+      'completed-golden',
+    )
+    expect(result.p50).toBe(AS_OF)
+    expect(result.p90).toBe(AS_OF)
+    expect(result.schedule).toEqual([])
+    expect(result.inputs.lanes[0]?.id).toBe('M112:0')
+  })
+
+  it('F14 goldens the historical M104 projection to exact forecast dates', async () => {
+    const first = await forecastPlan(historyPlan('M104'), 'M104', { branches: [] }, 'm104-golden')
+    const second = await forecastPlan(historyPlan('M104'), 'M104', { branches: [] }, 'm104-golden')
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first))
+    expect(first.inputs.lanes.map((lane) => lane.id)).toEqual(
+      repository.lanes
+        .filter((lane) => lane.laneId.startsWith('M104:'))
+        .map((lane) => lane.laneId)
+        .toSorted(compareEstimateIds),
+    )
+    expect({
+      p50: first.p50,
+      p90: first.p90,
+      schedule: first.schedule,
+      criticalPath: first.criticalPath,
+    }).toEqual({
+      p50: '2026-10-11T14:44:25.719Z',
+      p90: '2026-10-11T21:13:17.064Z',
+      criticalPath: ['M104:0', 'M104:B'],
+      schedule: [
+        'M104:0',
+        'M104:B',
+        'M104:C',
+        'M104:A',
+        'M104:G',
+        'M104:H',
+        'M104:D',
+        'M104:I',
+        'M104:F',
+        'M104:E',
+        'M104:J',
+      ],
+    })
   })
 })

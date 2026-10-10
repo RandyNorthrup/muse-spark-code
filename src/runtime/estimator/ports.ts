@@ -47,8 +47,7 @@ export function runtimeEstimatorPorts(
       bundlePath: deps.snapshotBundlePath,
       log: deps.log,
       root: deps.root,
-      // Headless runs never do networked reads (M80, PLAN.md D65).
-      networkAllowed: false,
+      // No Reports policy: headless runs never do networked reads (D65).
       ...(deps.loadBundle !== undefined && { loadBundle: deps.loadBundle }),
     }),
   )

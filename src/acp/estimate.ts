@@ -1,6 +1,7 @@
-import { fill, UI_TEXT } from '../shared/l10n/text'
+import { UI_TEXT } from '../shared/l10n/text'
 import {
   collectEstimate,
+  estimateFailureText,
   estimateSlashArguments,
   parseEstimateOptions,
   renderEstimate,
@@ -33,9 +34,9 @@ export function createAcpEstimate(deps: {
           signal,
         )
         return renderEstimate(section, parsed.options.format, deps.money)
-      } catch {
+      } catch (error: unknown) {
         signal.throwIfAborted()
-        return fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' })
+        return estimateFailureText(error)
       }
     },
   }

@@ -2185,6 +2185,16 @@ current|minimum|optimum]`, ACP `/estimate`, **Open Estimator**, and standalone
 `muse-spark-code-acp estimate` use one lazy engine. The snapshot reads your
 workspace `PLAN.md` with its git and `gh` evidence: lane hours, Starts
 dependencies, rigs, file affinities, the delivery order and §10 releases.
+Every declared prerequisite and release member must resolve, including references
+outside the selected goal; duplicate lane identities and unknown unfinished rigs
+refuse with all unresolved references named. Completed lanes remain addressable
+with zero remaining work and require no placement. Merge evidence uses origin's
+default branch; a current replacement branch overrides older merged PRs.
+Failed or incomplete enabled evidence collection refuses by source name. Git-only
+forecasts remain available while network reads are disabled; PR goals then refuse.
+Editor network reads follow the current Reports network/sign-in policy and trust
+admission on every estimate. ACP/headless network reads remain disabled.
+ACP, CLI and TUI preserve the named refusal so the plan or source can be repaired.
 `muse-spark-code-acp estimate --help` shows the
 standalone syntax without starting a model or asking for credentials.
 
