@@ -30,5 +30,8 @@ muse_start_ms="${muse_setup%%:*}"
 muse_dir="${muse_setup#*:}"
 # An exec failure still belongs to this shell, using the same sanitized
 # subshell; successful exec belongs to ci-entry from its first statement.
-trap '(unset @MUSE_KEY_NAMES@; for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do unset "$muse_alias"; done; timeout -s KILL 5 rm -rf "$muse_dir" 2>/dev/null || rm -rf "$muse_dir")' EXIT HUP INT TERM
+# The trap copies the temp path first: the unset below clears muse_dir, so
+# expanding it afterwards trips set -u and skips the removal (RVCM80CI4 P2).
+muse_cleanup_dir="$muse_dir"
+trap '(muse_rm_dir="$muse_cleanup_dir"; unset @MUSE_KEY_NAMES@; for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do unset "$muse_alias"; done; timeout -s KILL 5 rm -rf "$muse_rm_dir" 2>/dev/null || rm -rf "$muse_rm_dir")' EXIT HUP INT TERM
 MUSE_CI_TEMP="$muse_dir" MUSE_CI_BOOTSTRAP_START_MS="$muse_start_ms" MUSE_INPUT_AGENT_PACKAGE="$muse_dir/agent.tgz" exec node "$muse_dir/launcher/package/ci/lib/ci-entry.mjs" @MUSE_SYSTEM@
