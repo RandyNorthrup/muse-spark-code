@@ -387,7 +387,12 @@ export const SIZED_SCENARIOS = {
   ),
   'share-narrow': { width: 320, ready: '[role="dialog"]' },
   'team-tree-320': { width: 320, ready: '[role="dialog"]' },
-  'usage-page-narrow': { width: 320, ready: '.usage-page[aria-busy="false"]' },
+  // RVCM1141C: the narrow Usage shot waits on the ready marker set after
+  // real host state renders, never a merely idle shell.
+  'usage-page-narrow': {
+    width: 320,
+    ready: 'main.usage-page[data-usage-ready="true"][aria-busy="false"]',
+  },
   'prompt-menu-narrow': { width: 320, ready: '.popover-pointer' },
   'prompt-library-narrow': { width: 320, ready: '.prompt-library' },
   'chat-sharing-narrow': { width: 320, ready: '.chat-share-preview' },

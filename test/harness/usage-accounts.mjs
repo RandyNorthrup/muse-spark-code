@@ -4,6 +4,7 @@ import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
+import { assertUsageContent } from './usageReadiness.mjs'
 
 await build({
   entryPoints: ['test/harness/usageHost.mjs'],
@@ -26,7 +27,12 @@ try {
           await page.goto(
             `http://127.0.0.1:${String(port)}/test/harness/usage.html?bridge=${bridge}&theme=${theme}`,
           )
-          await page.locator('.usage-page[aria-busy="false"]').waitFor()
+          // RVCM1141C: only the ready marker set after real host state
+          // renders certifies the page (default scenario one-provider).
+          await assertUsageContent(page, {
+            title: `${bridge}/${theme}/${String(width)}`,
+            scenario: 'one-provider',
+          })
           await page.evaluate(() => {
             globalThis.usageHarness.addAccount()
           })

@@ -5,6 +5,7 @@ import path from 'node:path'
 import assert from 'node:assert/strict'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
+import { waitForUsageReady } from './usageReadiness.mjs'
 
 const requireFile = createRequire(import.meta.url)
 const { createUsageAccess } = requireFile(path.resolve('dist/usageService.js'))
@@ -62,13 +63,16 @@ try {
     })
     try {
       await page.goto(companion.launchUrl())
-      await page.locator('.usage-page[aria-busy="false"]').waitFor()
+      // RVCM1141C: only the ready marker set after real host state renders
+      // certifies the page; the real companion serves the same Usage view,
+      // so its empty journal renders the marker too.
+      await waitForUsageReady(page)
       assert.ok(await page.getByText(/This page cannot open editor settings/).isVisible())
       assert.ok(
         await page.getByRole('button', { name: 'Usage settings', exact: true }).isDisabled(),
       )
       await page.getByRole('radio', { name: '7 days', exact: true }).check()
-      await page.locator('.usage-page[aria-busy="false"]').waitFor()
+      await waitForUsageReady(page)
       await page.getByRole('button', { name: 'Export', exact: true }).click()
       const downloading = page.waitForEvent('download')
       await page.getByRole('button', { name: 'Versioned JSON', exact: true }).click()

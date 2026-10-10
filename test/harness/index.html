@@ -6704,8 +6704,14 @@
               readinessLater(Math.max(0, deadline - performance.now()), resolve)
             }),
           ])
+        // RVCM1141C: a Usage scene is ready only after real host state
+        // renders (the view's marker), never on a merely idle shell: the
+        // header and aria-busy settle on error and loading shells too.
         const scenarioReady = name.startsWith('usage-page-')
-          ? () => document.querySelector('.usage-page[aria-busy="false"]') !== null
+          ? () =>
+              document.querySelector(
+                'main.usage-page[data-usage-ready="true"][aria-busy="false"]',
+              ) !== null
           : (SCENARIO_READY[name] ?? (() => true))
         const isReady = () =>
           hasPageLoaded &&
