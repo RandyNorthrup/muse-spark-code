@@ -9,16 +9,20 @@
 # reviews (or proposes a fix for) the change and writes muse-spark-out/.
 # It never comments and never pushes.
 #
-# Secret (Repository settings > Repository variables): MUSE_MODEL_API_KEY,
-# Secured. Set MUSE_AGENT_VERSION (a release that carries ci/, the first
+# Secret (Repository settings > Repository variables, not workspace
+# variables): MUSE_MODEL_API_KEY, Secured. That is the narrowest scope
+# Bitbucket offers: a repository variable is masked in logs, and this
+# pipeline's only script is the step below, so no other job process holds
+# the value. Set MUSE_AGENT_VERSION (a release that carries ci/, the first
 # after 0.17.0) and MUSE_INPUT_AGENT_PACKAGE_SHA256 (that tarball's SHA-256)
 # there too, and any other MUSE_INPUT_* value to change. Bitbucket does not
 # start this repository's pipelines for pull requests from forks. The step
 # is listed only under branches (main) and custom (run by hand by someone
 # with write access), never under pull-requests: add it there yourself only
 # with MUSE_INPUT_TRUST_PULL_REQUESTS set to true, or the launcher refuses
-# the pull request build. The step unsets the variable before any other
-# command and passes the value only on the exec line.
+# the pull request build. The bootstrap unsets every key name and alias
+# first, copies the value into a private key file (never an exported
+# variable), and the launcher reads the key from its stdin alone.
 #
 # Inputs, as repository variables (empty or unset takes the default; an
 # explicitly empty MUSE_INPUT_MAX_BUDGET_USD stays empty and is refused):
@@ -49,18 +53,44 @@ definitions:
           - export MUSE_INPUT_MAX_BUDGET_USD="${MUSE_INPUT_MAX_BUDGET_USD-2.00}"
           - export MUSE_CI_JOB_TIMEOUT_MINUTES=35
           - |
+            # BEGIN MUSE BOOTSTRAP (generated from ci-templates/bootstrap.sh - do not edit)
+            # Muse Spark Code (Unofficial): the one POSIX bootstrap for the other-CI
+            # templates (PLAN.md M80/D65). This file is the source of truth:
+            # scripts/sync-ci-bootstrap.mjs copies it into gitlab-ci.yml,
+            # azure-pipelines.yml, Jenkinsfile and bitbucket-pipelines.yml (stamping in
+            # the template's system name), and the template tests refuse any drift.
+            # POSIX sh only.
+            #
+            # Key handling: the two holders below are unset before they are assigned,
+            # so an exported holder arriving from the environment cannot keep its
+            # export attribute; every secret name is unset before any child runs;
+            # the key lands in a private file, never an exported variable, and the
+            # launcher reads it from its stdin alone.
             set +x
             set -eu
+            umask 077
+            unset muse_key muse_key_file
             muse_key="${MUSE_MODEL_API_KEY:-}"
-            unset MUSE_MODEL_API_KEY
+            muse_key_file="${MUSE_MODEL_API_KEY_FILE:-}"
+            unset MUSE_MODEL_API_KEY MUSE_MODEL_API_KEY_FILE MUSE_SPARK_MODEL_API_KEY META_API_KEY
+            muse_start_ms=$(($(date +%s) * 1000))
             if [ -z "${MUSE_AGENT_VERSION:-}" ] || [ -z "${MUSE_INPUT_AGENT_PACKAGE_SHA256:-}" ]; then echo 'muse-spark: pin MUSE_AGENT_VERSION and MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
             muse_dir="$(mktemp -d)"
+            trap 'rm -rf "$muse_dir"' EXIT HUP INT TERM
+            if [ -n "$muse_key_file" ] && [ -f "$muse_key_file" ]; then
+              cp "$muse_key_file" "$muse_dir/key" || { echo 'muse-spark: cannot read the key file' >&2; exit 1; }
+            else
+              printf '%s' "$muse_key" > "$muse_dir/key"
+            fi
+            unset muse_key muse_key_file
+            chmod 600 "$muse_dir/key"
             curl --fail --silent --show-error --location --max-time 120 --output "$muse_dir/agent.tgz" "${MUSE_AGENT_URL:-https://registry.npmjs.org/muse-spark-code-acp/-/muse-spark-code-acp-$MUSE_AGENT_VERSION.tgz}"
             muse_sum="$(sha256sum "$muse_dir/agent.tgz")"
             if [ "${muse_sum%% *}" != "$MUSE_INPUT_AGENT_PACKAGE_SHA256" ]; then echo 'muse-spark: the agent package does not match MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
             mkdir "$muse_dir/launcher"
             tar -xzf "$muse_dir/agent.tgz" -C "$muse_dir/launcher" --no-same-owner
-            MUSE_SPARK_MODEL_API_KEY="$muse_key" MUSE_CI_TEMP="$muse_dir" MUSE_INPUT_AGENT_PACKAGE="$muse_dir/agent.tgz" exec node "$muse_dir/launcher/package/ci/lib/ci-run.mjs" bitbucket
+            MUSE_CI_TEMP="$muse_dir" MUSE_CI_BOOTSTRAP_START_MS="$muse_start_ms" MUSE_INPUT_AGENT_PACKAGE="$muse_dir/agent.tgz" exec node "$muse_dir/launcher/package/ci/lib/ci-run.mjs" bitbucket < "$muse_dir/key"
+            # END MUSE BOOTSTRAP
         artifacts:
           - muse-spark-out/**
 
