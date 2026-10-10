@@ -46,8 +46,10 @@ async function* watchEvents(
       await session.watch((event) => {
         stream.push(event)
       }, signal)
-    } finally {
       stream.push(null)
+    } catch (error: unknown) {
+      // A broken watch fails `vault watch` instead of ending it as success (F7).
+      stream.destroy(error instanceof Error ? error : new Error(UI_TEXT.vault.noAccess))
     }
   })()
   for await (const event of stream) yield vaultBrokerEventSchema.parse(event)
@@ -119,6 +121,8 @@ export async function openHeadlessVault(
 ): Promise<ExecVaultSession> {
   const client = await connect()
   try {
+    // Cancelled while connecting: the late connection is closed, never registered (F8).
+    if (context.signal.aborted) throw new Error(UI_TEXT.vault.noAccess)
     const requester: VaultRequester = vaultRequesterSchema.parse({
       id: newId(),
       hostId,

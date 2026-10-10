@@ -25,14 +25,22 @@ export class MemoryVaultFiles implements VaultFilePort {
   readonly data = new Map<'vault.v1' | 'slots.v1' | 'pending.v1', Buffer>()
   readonly quarantined: Buffer[] = []
   fail: 'vault.v1' | 'slots.v1' | 'pending.v1' | null = null
+  /** A test may hold a write after staging, before its commit check (RVCM1091A F2). */
+  hold: ((name: 'vault.v1' | 'slots.v1' | 'pending.v1') => Promise<void>) | null = null
   read(name: 'vault.v1' | 'slots.v1' | 'pending.v1'): Promise<Buffer | null> {
     const bytes = this.data.get(name)
     return Promise.resolve(bytes ? ownedBytes(bytes) : null)
   }
-  writeAtomic(name: 'vault.v1' | 'slots.v1' | 'pending.v1', bytes: Uint8Array): Promise<void> {
-    if (this.fail === name) return Promise.reject(new VaultError('io'))
+  async writeAtomic(
+    name: 'vault.v1' | 'slots.v1' | 'pending.v1',
+    bytes: Uint8Array,
+    commit?: () => void,
+  ): Promise<void> {
+    if (this.fail === name) throw new VaultError('io')
+    await this.hold?.(name)
+    // As the Node port: the commit check runs immediately before publication.
+    commit?.()
     this.data.set(name, ownedBytes(bytes))
-    return Promise.resolve()
   }
   remove(name: 'vault.v1' | 'slots.v1' | 'pending.v1'): Promise<void> {
     this.data.delete(name)

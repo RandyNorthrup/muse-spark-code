@@ -1,22 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
 import { randomBytes } from 'node:crypto'
 import { VAULT_APPROVAL_TTL_MS, KEYRING_SERVICE } from '../../../src/shared/constants'
-import { type VaultSlotRecord } from '../../../src/shared/vault'
-import { type VaultStatus } from '../../../src/shared/vaultProtocol'
 import { VaultStore } from '../../../src/core/vault/store'
 import { VaultError } from '../../../src/core/vault/crypto'
 import { VaultManagementError } from '../../../src/core/vault/broker/ports'
-import { VaultManagement } from '../../../src/core/vault/broker/management'
-import {
-  VaultSlotUnlock,
-  VaultStoreRepository,
-  type VaultAnchorPort,
-} from '../../../src/core/vault/broker/repository'
+import type { VaultManagement } from '../../../src/core/vault/broker/management'
 import { KeyringVaultAnchor, VAULT_ANCHOR_ACCOUNT } from '../../../src/runtime/vault/keyringAnchor'
 import { type KeyringEntryFactory } from '../../../src/runtime/keyStore'
-import { FakeVaultClock, FakeVaultSlot } from '../helpers/vault/core'
 import { approval, grant, metadata } from '../helpers/vault/fixtures'
-import { MemoryVaultFiles, MemoryVaultAnchor, freshVault } from './storeFixtures'
+import { freshVault } from './storeFixtures'
+import { managementFixture, stateOf } from './managementFixture'
 
 /** The OS store as a map; values are generated anchor records, never credentials. */
 function memoryKeyring() {
@@ -31,29 +24,6 @@ function memoryKeyring() {
   })
   return { entries, factory }
 }
-class AnchorWithId extends MemoryVaultAnchor implements VaultAnchorPort {
-  vaultId(): Promise<string | null> {
-    const [first] = this.states.keys()
-    return Promise.resolve(first ?? null)
-  }
-}
-const lockedStatus: VaultStatus = {
-  state: 'locked',
-  lockEpoch: 0,
-  tier: null,
-  provider: null,
-  silentUnlock: true,
-  itemCount: 0,
-  reason: null,
-}
-
-const noUnsubscribe = (): void => {
-  /* The fake platform reports no screen lock. */
-}
-async function stateOf(management: VaultManagement): Promise<string> {
-  const snapshot = await management.snapshot()
-  return snapshot.status.state
-}
 async function itemsOf(management: VaultManagement) {
   const snapshot = await management.snapshot()
   return snapshot.items
@@ -63,54 +33,6 @@ async function confirmNew(management: VaultManagement): Promise<void> {
   shown.code.fill(0)
   await management.confirmSetup(shown.setupId)
 }
-function managementFixture() {
-  const clock = new FakeVaultClock()
-  const files = new MemoryVaultFiles()
-  const anchor = new AnchorWithId()
-  const repository = new VaultStoreRepository(files, anchor)
-  const osStore = new FakeVaultSlot('osStore')
-  const slots = {
-    slotFor: (record: VaultSlotRecord) => (record.tier === 'osStore' ? osStore : null),
-    osStore: (vaultId: string, slotId: string) => ({
-      tier: 'osStore' as const,
-      wrap: async (key: Uint8Array) => {
-        const record = await osStore.wrap(key)
-        return { ...record, vaultId, id: slotId }
-      },
-      unwrap: (slot: VaultSlotRecord, use: string) => osStore.unwrap(slot, use),
-    }),
-    presence: () => Promise.resolve(false),
-    onScreenLock: () => noUnsubscribe,
-  }
-  const unlock = new VaultSlotUnlock(files, anchor, slots)
-  let status: VaultStatus = { ...lockedStatus }
-  const broker = {
-    status: vi.fn(() => Promise.resolve(status)),
-    unlock: vi.fn(async (slotId: string | null) => {
-      const { key } = await unlock.unlock(slotId)
-      try {
-        await repository.open(key)
-      } finally {
-        key.fill(0)
-      }
-      status = { ...status, state: 'unlocked', tier: 'osStore' }
-    }),
-    policyChanged: vi.fn(() => Promise.resolve()),
-  }
-  const importFile = vi.fn(() => Promise.resolve())
-  const management = new VaultManagement({
-    files,
-    anchor,
-    repository,
-    unlock,
-    slots,
-    broker,
-    clock,
-    importFile,
-  })
-  return { clock, files, anchor, repository, osStore, unlock, broker, management, importFile }
-}
-
 describe('C-M109-1 store v2 grants', () => {
   it('saves, spends to its limit, refuses an unknown item and drops grants with their item', async () => {
     const { store } = await freshVault()

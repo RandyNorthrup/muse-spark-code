@@ -25,10 +25,20 @@ type RepositoryChange = Parameters<Parameters<VaultBrokerRepository['subscribe']
 export class VaultStoreRepository implements VaultBrokerRepository {
   private store: VaultStore | undefined
   private readonly listeners = new Set<(change: RepositoryChange) => void>()
+  private readonly committed = new Set<() => void>()
   constructor(
     private readonly files: VaultFilePort,
     private readonly anchor: VaultAnchorPort,
   ) {}
+  private notifyCommitted(): void {
+    for (const listener of this.committed) {
+      try {
+        listener()
+      } catch {
+        /* One failing view cannot hide the change from the rest. */
+      }
+    }
+  }
   async open(key: Uint8Array): Promise<VaultStore> {
     const vaultId = await this.anchor.vaultId()
     if (vaultId === null) throw new VaultError('invalid')
@@ -47,11 +57,14 @@ export class VaultStoreRepository implements VaultBrokerRepository {
   }
   async saveGrant(grant: VaultGrant, authorize: () => void): Promise<void> {
     await this.current().saveGrant(grant, authorize)
-    this.notify({ kind: 'grant', id: grant.id })
+    // A new grant revokes nothing: subscribe() carries revocations only, which
+    // the broker applies as revoked (RVCM1091A F3). Views still hear of it.
+    this.notifyCommitted()
   }
   async removeGrant(id: string): Promise<void> {
     await this.current().removeGrant(id)
     this.notify({ kind: 'grant', id })
+    this.notifyCommitted()
   }
   async consumeGrant(id: string, now: number): Promise<boolean> {
     return await this.current().consumeGrant(id, now)
@@ -62,7 +75,14 @@ export class VaultStoreRepository implements VaultBrokerRepository {
       this.listeners.delete(listener)
     }
   }
-  /** Committed item or grant changes; each listener is isolated from the others. */
+  /** Every committed grant change, for views; never a revocation signal. */
+  subscribeCommitted(listener: () => void): () => void {
+    this.committed.add(listener)
+    return () => {
+      this.committed.delete(listener)
+    }
+  }
+  /** Revocations and policy changes the broker must apply; each listener is isolated. */
   notify(change: RepositoryChange): void {
     for (const listener of this.listeners) {
       try {
