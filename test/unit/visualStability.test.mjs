@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { chromium } from 'playwright-core'
-import { afterAll, beforeAll, expect, inject, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import {
   CAPTURE_CONTEXT,
   captureMatrix,
@@ -156,74 +156,87 @@ it('repeats the mounted scene prefix and focus raster within the lead tolerance'
     ).not.toThrow()
 })
 
-it('keeps the 320 px checkpoint Rewind submenu clear of its opener with tooltip ellipses', async () => {
-  const page = await openMenuScene('checkpoint-restore', 320)
-  await page.getByRole('menuitem', { name: 'Rewind', exact: true }).click()
-  await page.clock.runFor(100)
-  const measured = await page.evaluate(() => {
-    const button = globalThis.document
-      .querySelector('.message-user .row-actions-button')
-      .getBoundingClientRect()
-    return {
-      button: {
-        left: button.left,
-        right: button.right,
-        top: button.top,
-        bottom: button.bottom,
-      },
-      pills: [...globalThis.document.querySelectorAll('.gooey-menu-pill')].map((pill) => {
-        const box = pill.getBoundingClientRect()
-        const label = pill.querySelector('.gooey-menu-pill-label')
-        const style = globalThis.getComputedStyle(label)
-        return {
-          left: box.left,
-          right: box.right,
-          top: box.top,
-          bottom: box.bottom,
-          label: label.textContent,
-          title: pill.title,
-          clipped: label.scrollWidth > label.clientWidth,
-          whiteSpace: style.whiteSpace,
-          textOverflow: style.textOverflow,
-        }
-      }),
+// Each menu case below opens its own fresh scene in a hook and measures it in
+// the case: the scene (its bundle and the harness's frozen-clock run) is the
+// setup, the measurement is the test.
+describe('the 320 px checkpoint Rewind submenu', () => {
+  beforeAll(async () => {
+    await openMenuScene('checkpoint-restore', 320)
+  })
+  it('stays clear of its opener with tooltip ellipses', async () => {
+    const { page } = menu
+    await page.getByRole('menuitem', { name: 'Rewind', exact: true }).click()
+    await page.clock.runFor(100)
+    const measured = await page.evaluate(() => {
+      const button = globalThis.document
+        .querySelector('.message-user .row-actions-button')
+        .getBoundingClientRect()
+      return {
+        button: {
+          left: button.left,
+          right: button.right,
+          top: button.top,
+          bottom: button.bottom,
+        },
+        pills: [...globalThis.document.querySelectorAll('.gooey-menu-pill')].map((pill) => {
+          const box = pill.getBoundingClientRect()
+          const label = pill.querySelector('.gooey-menu-pill-label')
+          const style = globalThis.getComputedStyle(label)
+          return {
+            left: box.left,
+            right: box.right,
+            top: box.top,
+            bottom: box.bottom,
+            label: label.textContent,
+            title: pill.title,
+            clipped: label.scrollWidth > label.clientWidth,
+            whiteSpace: style.whiteSpace,
+            textOverflow: style.textOverflow,
+          }
+        }),
+      }
+    })
+    expect(measured.pills).toHaveLength(4)
+    for (const [index, pill] of measured.pills.entries()) {
+      expect(pill.right, `${pill.label}: clears opener`).toBeLessThanOrEqual(measured.button.left)
+      expect(pill.left).toBeGreaterThanOrEqual(8)
+      expect(pill.bottom - pill.top).toBe(40)
+      expect(pill.right - pill.left).toBeCloseTo(measured.pills[0].right - measured.pills[0].left)
+      const next = measured.pills[index + 1]
+      if (next !== undefined) expect(next.top - pill.bottom).toBeCloseTo(6, 1)
+      if (!pill.clipped) continue
+      expect(pill.title).toContain(pill.label)
+      expect(pill.whiteSpace).toBe('nowrap')
+      expect(pill.textOverflow).toBe('ellipsis')
+    }
+    expect(measured.pills.some((pill) => pill.clipped)).toBe(true)
+  })
+})
+
+describe('an open selection fan', () => {
+  beforeAll(async () => {
+    await openMenuScene('quote-menu', 320)
+  })
+  it('moves with its button when the panel widens and narrows', async () => {
+    const { page } = menu
+    await expectSelectionFan(page)
+    await addScrollRoom(page)
+    // Real panels flow with the viewport. Fixed capture widths would briefly
+    // put the opener outside a shrinking viewport before the next script ran.
+    await page.evaluate(() => {
+      globalThis.document.documentElement.style.width = '100%'
+      globalThis.document.body.style.width = '100%'
+    })
+    for (const width of [690, 320]) {
+      await page.setViewportSize({ width, height: 760 })
+      await page.clock.runFor(100)
+      await expectSelectionFan(page)
     }
   })
-  expect(measured.pills).toHaveLength(4)
-  for (const [index, pill] of measured.pills.entries()) {
-    expect(pill.right, `${pill.label}: clears opener`).toBeLessThanOrEqual(measured.button.left)
-    expect(pill.left).toBeGreaterThanOrEqual(8)
-    expect(pill.bottom - pill.top).toBe(40)
-    expect(pill.right - pill.left).toBeCloseTo(measured.pills[0].right - measured.pills[0].left)
-    const next = measured.pills[index + 1]
-    if (next !== undefined) expect(next.top - pill.bottom).toBeCloseTo(6, 1)
-    if (!pill.clipped) continue
-    expect(pill.title).toContain(pill.label)
-    expect(pill.whiteSpace).toBe('nowrap')
-    expect(pill.textOverflow).toBe('ellipsis')
-  }
-  expect(measured.pills.some((pill) => pill.clipped)).toBe(true)
 })
 
-it('moves an open selection fan with its button when the panel widens and narrows', async () => {
-  const page = await openMenuScene('quote-menu', 320)
-  await expectSelectionFan(page)
-  await addScrollRoom(page)
-  // Real panels flow with the viewport. Fixed capture widths would briefly
-  // put the opener outside a shrinking viewport before the next script ran.
-  await page.evaluate(() => {
-    globalThis.document.documentElement.style.width = '100%'
-    globalThis.document.body.style.width = '100%'
-  })
-  for (const width of [690, 320]) {
-    await page.setViewportSize({ width, height: 760 })
-    await page.clock.runFor(100)
-    await expectSelectionFan(page)
-  }
-})
-
-// Each case opens one real scene on the shared page at the repository's
-// five-second deadline.
+// Each case measures one real scene opened fresh for it, on its own page of
+// the shared context, at the repository's five-second deadline.
 const menuScenes = [
   'rewind',
   'assistant-menu',
@@ -289,11 +302,12 @@ async function forceAndMeasure(cdp, forced, view) {
   return result.value
 }
 
-it.each(menuCases)(
-  'keeps adjacent outlines clear in %s / %s px / %s',
-  async (scene, width, theme) => {
-    const page = await openMenuScene(scene, width, theme)
-    const { cdp } = menu
+describe.each(menuCases)('%s / %s px / %s', (scene, width, theme) => {
+  beforeAll(async () => {
+    await openMenuScene(scene, width, theme)
+  })
+  it('keeps adjacent outlines clear', async () => {
+    const { page, cdp } = menu
     expect(await page.locator('.gooey-menu-pill').count()).toBeGreaterThan(0)
     await page.evaluate(() => globalThis.document.activeElement.blur())
     const { root: document } = await cdp.send('DOM.getDocument')
@@ -362,8 +376,8 @@ it.each(menuCases)(
       nodeIds.map((nodeId) => [nodeId, []]),
       { neighbours: [] },
     )
-  },
-)
+  })
+})
 
 async function expectFanAtAnchor(fan, point) {
   const position = await point()
@@ -375,16 +389,18 @@ async function expectFanAtAnchor(fan, point) {
   }
 }
 
-it.each(
+describe.each(
   [
     ['quote-menu', '.message-assistant'],
     ['chat-tool-menu', '[data-entry-id="ed1"]'],
     ['checkpoint-restore', '.message-user'],
   ].flatMap(([scene, selector]) => [320, 480, 900].map((width) => [scene, selector, width])),
-)(
-  'follows real ancestor scrolling/reflow and dismisses offscreen %s at %s / %s px',
-  async (scene, selector, width) => {
-    const page = await openMenuScene(scene, width)
+)('%s at %s / %s px', (scene, selector, width) => {
+  beforeAll(async () => {
+    await openMenuScene(scene, width)
+  })
+  it('follows real ancestor scrolling/reflow and dismisses offscreen', async () => {
+    const { page } = menu
     // Add genuine scroll room beneath the real row without altering its menu.
     await addScrollRoom(page)
     const anchor = page.locator(`${selector} .row-actions-button`).first()
@@ -437,5 +453,5 @@ it.each(
     })
     await page.clock.runFor(100)
     expect(await page.locator('.gooey-menu').count()).toBe(0)
-  },
-)
+  })
+})
