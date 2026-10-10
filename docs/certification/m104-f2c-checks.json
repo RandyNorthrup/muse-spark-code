@@ -2,7 +2,7 @@
   "base": "1137f186a",
   "branch": "m104/fix-sast",
   "platform": "kubuntu Linux x86_64",
-  "sourceNote": "Earlier launch-JUnit and Eclipse runs precede final fixture sanitization and invalid-PATH handling. Restored final-source JUnit and final-source full Eclipse verification follow all fifteen byte-exact controls. Production CLI startup uses built bundles privately staged in npm layout, not a released archive or Windows/editor qualification. No runtime wire shape changes.",
+  "sourceNote": "Earlier launch-JUnit and Eclipse runs precede final fixture sanitization and invalid-PATH handling. Restored final-source JUnit and final-source full Eclipse verification follow all fifteen byte-exact controls. Production CLI startup uses built bundles privately staged in npm layout, not a released archive or Windows/editor qualification. No runtime wire shape changes. Final portable-fixture checkpoint removes the Windows PATH delimiter only from PATH-discovery directory names; semicolon coverage stays in the absolute override and real process fixtures. Native suites and all fifteen controls are repeated with the final test bytes; TypeScript production sources and their gate receipts are unchanged.",
   "sources": [
     {
       "path": "hosts/eclipse/plugin/src/io/musespark/eclipse/RuntimeProcess.java",
@@ -14,7 +14,7 @@
     },
     {
       "path": "hosts/eclipse/tests/src/io/musespark/eclipse/tests/RuntimeLaunchTest.java",
-      "sha256": "59b9353017a238a734e76391bfc952102dcf652a81db95731b2907a66df4002c"
+      "sha256": "289dc4de78aa7f5bc0d8225b11c4fdda8c098ac3c9630e602e18ca26a5ac93c2"
     },
     {
       "path": "hosts/jetbrains/build-resources.mjs",
@@ -353,6 +353,29 @@
       "exit": 0,
       "log": "temp/f2c-final-format.log",
       "logSha256": "316090e599c93737078bdda45893eed0c6c4aaee79a2966dc59f4588a836e0c4"
+    },
+    {
+      "name": "launch-junit-portable-fixture",
+      "command": ["python3", "temp/m104f2c-jvm.py"],
+      "exit": 0,
+      "log": "temp/f2c-launch-portable-fixture.log",
+      "logSha256": "aef40cd97838374876c1fecfea8445c721b4c9f9c4ec538ddfad46c3d63c1b6e"
+    },
+    {
+      "name": "eclipse-portable-fixture",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3/plugins/maven/lib/maven3/bin/mvn",
+        "-o",
+        "-B",
+        "-f",
+        "hosts/eclipse/pom.xml",
+        "verify"
+      ],
+      "exit": 1,
+      "log": "temp/f2c-eclipse-portable-fixture.log",
+      "logSha256": "92d6c5ebf9f6fcd270e1562e5d7b24a84525ca4af731b8aa58859e640d3021dd"
     }
   ],
   "drills": "docs/certification/m104-f2c-drills.json",

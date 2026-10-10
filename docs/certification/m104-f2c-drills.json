@@ -8,11 +8,11 @@
       "beforeSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
       "mutatedSha256": "ef224d28b490c864353fbf87fd8673decaf8425626fb76f03e8b7340de4b080c",
       "restoredSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
-      "testSourceSha256": "59b9353017a238a734e76391bfc952102dcf652a81db95731b2907a66df4002c",
+      "testSourceSha256": "289dc4de78aa7f5bc0d8225b11c4fdda8c098ac3c9630e602e18ca26a5ac93c2",
       "exit": 1,
-      "seconds": 1.72,
+      "seconds": 1.6,
       "log": "temp/f2c-red-exact-base-with-platform-test-seam.log",
-      "logSha256": "69896265ed4888afa77e49c38d8acf5d9d4cbdd1287babcd2210ad31e949cada",
+      "logSha256": "8f885acff2b78828043020bc4e87580255fea6095bb6219f6c230d2aa1646a22",
       "failures": [
         "1) windowsNpmShimUsesItsAdjacentNodeWithoutPath(io.musespark.eclipse.tests.RuntimeLaunchTest)",
         "2) windowsNpmShimDiscoversNodeInSeparateAbsolutePathDirectory(io.musespark.eclipse.tests.RuntimeLaunchTest)",
@@ -28,11 +28,11 @@
       "beforeSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
       "mutatedSha256": "6f385effba2c81147dfd4098db9ea3eb9bd653261cc05745bb7946b0004fdef0",
       "restoredSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
-      "testSourceSha256": "59b9353017a238a734e76391bfc952102dcf652a81db95731b2907a66df4002c",
+      "testSourceSha256": "289dc4de78aa7f5bc0d8225b11c4fdda8c098ac3c9630e602e18ca26a5ac93c2",
       "exit": 1,
-      "seconds": 2.18,
+      "seconds": 2.08,
       "log": "temp/f2c-red-package-name.log",
-      "logSha256": "b80c1b850a1caf9c1e5c34f39e3085172bb6bd88166fd4d30183bb3d8a287e95",
+      "logSha256": "9f605b656cd10d2852168f50ed3c4579ea16166d4aeb018ea469122bf888aa88",
       "failures": [
         "1) windowsShimRefusesSpoofedPackageOrMissingNodeAndScript(io.musespark.eclipse.tests.RuntimeLaunchTest)"
       ]
@@ -43,11 +43,11 @@
       "beforeSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
       "mutatedSha256": "a931b2d714517feb7b61166181a535c2817d6659ed2cc06d577e9e6a8900ffb8",
       "restoredSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
-      "testSourceSha256": "59b9353017a238a734e76391bfc952102dcf652a81db95731b2907a66df4002c",
+      "testSourceSha256": "289dc4de78aa7f5bc0d8225b11c4fdda8c098ac3c9630e602e18ca26a5ac93c2",
       "exit": 1,
-      "seconds": 2.16,
+      "seconds": 2.11,
       "log": "temp/f2c-red-script-inside-package.log",
-      "logSha256": "0a1d1c57ece00ea40cefefb201cf8a2d263285d9e9be9b087bc17fbdf350ad9a",
+      "logSha256": "d164b00e8e5da8269f0eea27cc472cbce7317724665d4a94785e0652508f20b9",
       "failures": [
         "1) windowsShimRefusesSpoofedPackageOrMissingNodeAndScript(io.musespark.eclipse.tests.RuntimeLaunchTest)"
       ]
@@ -58,11 +58,11 @@
       "beforeSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
       "mutatedSha256": "bd93ab486f97153aaddfff7461e5a6241583cad2560af1dc08d0031984a713a0",
       "restoredSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
-      "testSourceSha256": "59b9353017a238a734e76391bfc952102dcf652a81db95731b2907a66df4002c",
+      "testSourceSha256": "289dc4de78aa7f5bc0d8225b11c4fdda8c098ac3c9630e602e18ca26a5ac93c2",
       "exit": 1,
-      "seconds": 2.2,
+      "seconds": 2.09,
       "log": "temp/f2c-red-manifest-inside-package.log",
-      "logSha256": "7c5296c104d7b7aad723793d4aa9c80e639c4a8cc035fd87912c270ef5e8c3aa",
+      "logSha256": "66f0ac0e9bcb93fb08c8ab472bc7845f8348a1212382181ee09bd47e10807290",
       "failures": [
         "1) windowsShimRefusesSpoofedPackageOrMissingNodeAndScript(io.musespark.eclipse.tests.RuntimeLaunchTest)"
       ]
@@ -73,11 +73,11 @@
       "beforeSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
       "mutatedSha256": "d9c0b3b41b3bcd20bc3f043ec2235b5d96a1e92451f09abe64b7b2fea407d52f",
       "restoredSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
-      "testSourceSha256": "59b9353017a238a734e76391bfc952102dcf652a81db95731b2907a66df4002c",
+      "testSourceSha256": "289dc4de78aa7f5bc0d8225b11c4fdda8c098ac3c9630e602e18ca26a5ac93c2",
       "exit": 1,
-      "seconds": 2.14,
+      "seconds": 2.1,
       "log": "temp/f2c-red-regular-script.log",
-      "logSha256": "70b18522cb14a44f6dcb48804971efee128449b17bfa178bec71ab0e309b0f19",
+      "logSha256": "4b40017aa64e8095f1c9bae2c32fe7ef5c0a7413417b0d27c16cbda1487d5db7",
       "failures": [
         "1) windowsShimRefusesSpoofedPackageOrMissingNodeAndScript(io.musespark.eclipse.tests.RuntimeLaunchTest)"
       ]
@@ -88,11 +88,11 @@
       "beforeSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
       "mutatedSha256": "84b8bb1ebf13e5fdbebb2e5b2854deb43567be59fdcc8c1fc3730b9531056af5",
       "restoredSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
-      "testSourceSha256": "59b9353017a238a734e76391bfc952102dcf652a81db95731b2907a66df4002c",
+      "testSourceSha256": "289dc4de78aa7f5bc0d8225b11c4fdda8c098ac3c9630e602e18ca26a5ac93c2",
       "exit": 1,
-      "seconds": 2.14,
+      "seconds": 2.11,
       "log": "temp/f2c-red-regular-manifest.log",
-      "logSha256": "27896387b005f5675c198d153bc2d3a1497cfb17568eece307f1465ac6fc5a8d",
+      "logSha256": "ff5d44f9c303a9240c880d10592d5c2f8a9236dfb78fdd699dc7ec8a85b5dd24",
       "failures": [
         "1) windowsShimRefusesSpoofedPackageOrMissingNodeAndScript(io.musespark.eclipse.tests.RuntimeLaunchTest)"
       ]
@@ -103,11 +103,11 @@
       "beforeSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
       "mutatedSha256": "868dd0ff9eb3a8b2692362f440193e1a05aa9430ad297b89fc2f48ce366d7089",
       "restoredSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
-      "testSourceSha256": "59b9353017a238a734e76391bfc952102dcf652a81db95731b2907a66df4002c",
+      "testSourceSha256": "289dc4de78aa7f5bc0d8225b11c4fdda8c098ac3c9630e602e18ca26a5ac93c2",
       "exit": 1,
-      "seconds": 2.12,
+      "seconds": 2.18,
       "log": "temp/f2c-red-native-node-regular-file.log",
-      "logSha256": "8d22326ae7803ace6c7dbce309932bdf96e5de0219cf3a5e2aa5b27816a8af65",
+      "logSha256": "5156d423f9bd5b7c9552e5f73aed6944e13d911971b31e62dc5f5324043e7395",
       "failures": [
         "1) explicitNodeScriptPairPreservesAbsolutePathsAndFixedArguments(io.musespark.eclipse.tests.RuntimeLaunchTest)"
       ]
@@ -118,11 +118,11 @@
       "beforeSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
       "mutatedSha256": "cbdd76391591921efd38a689e30f0d519f19d011efc1f2a2b9c96a0612325891",
       "restoredSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
-      "testSourceSha256": "59b9353017a238a734e76391bfc952102dcf652a81db95731b2907a66df4002c",
+      "testSourceSha256": "289dc4de78aa7f5bc0d8225b11c4fdda8c098ac3c9630e602e18ca26a5ac93c2",
       "exit": 1,
-      "seconds": 2.15,
+      "seconds": 2.17,
       "log": "temp/f2c-red-invalid-path-entry.log",
-      "logSha256": "9ec90be1c990134eab84b63394a7a3de7b986e50977c8b85603cacdd54bacdc3",
+      "logSha256": "a2f54f2399074c11c00b4bb6b688e09e87d14668e474dde4128a2bceeb79b6d4",
       "failures": [
         "1) pathDiscoveryIgnoresRelativeAndEmptyDirectoriesAndValidatesTheFile(io.musespark.eclipse.tests.RuntimeLaunchTest)"
       ]
@@ -133,11 +133,11 @@
       "beforeSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
       "mutatedSha256": "4b98499177e47404644f6b41b33ab82a462a606768c8456d93633244fd8c3a5b",
       "restoredSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
-      "testSourceSha256": "59b9353017a238a734e76391bfc952102dcf652a81db95731b2907a66df4002c",
+      "testSourceSha256": "289dc4de78aa7f5bc0d8225b11c4fdda8c098ac3c9630e602e18ca26a5ac93c2",
       "exit": 1,
-      "seconds": 2.16,
+      "seconds": 2.13,
       "log": "temp/f2c-red-pair-size.log",
-      "logSha256": "c54ff8a371699110d843e3da924c9af1676d925476c4797f8d2947f5ef6aef66",
+      "logSha256": "e889f54c7033416cb914212277e24d9ff25c6486677105cd8052b8a4653ddc7b",
       "failures": [
         "1) explicitNodeScriptPairPreservesAbsolutePathsAndFixedArguments(io.musespark.eclipse.tests.RuntimeLaunchTest)"
       ]
@@ -148,11 +148,11 @@
       "beforeSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
       "mutatedSha256": "3c9ba294e8f2bae97508c4becdce050337e5794233cbafd592dec563763b4db0",
       "restoredSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
-      "testSourceSha256": "59b9353017a238a734e76391bfc952102dcf652a81db95731b2907a66df4002c",
+      "testSourceSha256": "289dc4de78aa7f5bc0d8225b11c4fdda8c098ac3c9630e602e18ca26a5ac93c2",
       "exit": 1,
-      "seconds": 2.16,
+      "seconds": 2.1,
       "log": "temp/f2c-red-pair-type.log",
-      "logSha256": "a9277e470ab50768fa2dd91e8502a6d9b2016cd12dde330a5d04275dc83448ef",
+      "logSha256": "e03bb3870a5a7f9f66212a31163ef5684f63c282d7342760f6e8b495486ed22e",
       "failures": [
         "1) explicitNodeScriptPairPreservesAbsolutePathsAndFixedArguments(io.musespark.eclipse.tests.RuntimeLaunchTest)"
       ]
@@ -163,11 +163,11 @@
       "beforeSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
       "mutatedSha256": "8517854dbda7cfaa65b7955b5296cab499b0b80ad324bd3a15599465bb7d1f76",
       "restoredSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
-      "testSourceSha256": "59b9353017a238a734e76391bfc952102dcf652a81db95731b2907a66df4002c",
+      "testSourceSha256": "289dc4de78aa7f5bc0d8225b11c4fdda8c098ac3c9630e602e18ca26a5ac93c2",
       "exit": 1,
-      "seconds": 2.15,
+      "seconds": 2.1,
       "log": "temp/f2c-red-native-node-executable.log",
-      "logSha256": "a6ef2218e78443e70f204dfa54b7b30f8da18c5f9b6fffa0d263da4bc8f41af1",
+      "logSha256": "f61f8eb8c47c18a46c071391d4507cfb2aaeafea1467e8e4f3ca781839818b93",
       "failures": [
         "1) explicitNodeScriptPairPreservesAbsolutePathsAndFixedArguments(io.musespark.eclipse.tests.RuntimeLaunchTest)"
       ]
@@ -178,11 +178,11 @@
       "beforeSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
       "mutatedSha256": "4fd01df6ce136c84fe3d165e4c94c8622e9294dd092b78ad38f27e22bcf84433",
       "restoredSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
-      "testSourceSha256": "59b9353017a238a734e76391bfc952102dcf652a81db95731b2907a66df4002c",
+      "testSourceSha256": "289dc4de78aa7f5bc0d8225b11c4fdda8c098ac3c9630e602e18ca26a5ac93c2",
       "exit": 1,
-      "seconds": 2.25,
+      "seconds": 2.16,
       "log": "temp/f2c-red-native-node-identity.log",
-      "logSha256": "d89df123df14d870c6c1bad446cc7c8d4f22ef789cd8450846d72bdb40f2ef6e",
+      "logSha256": "0377263e09c342bfa88f8ad76dffae0a0283d5d6c5be4b93f9410c46d3a0af24",
       "failures": [
         "1) explicitNodeScriptPairPreservesAbsolutePathsAndFixedArguments(io.musespark.eclipse.tests.RuntimeLaunchTest)"
       ]
@@ -193,11 +193,11 @@
       "beforeSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
       "mutatedSha256": "3c04c5215190245323da7578c8f778b8d616ee9a5bfc2f9a4cc3bc7a1206513d",
       "restoredSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
-      "testSourceSha256": "59b9353017a238a734e76391bfc952102dcf652a81db95731b2907a66df4002c",
+      "testSourceSha256": "289dc4de78aa7f5bc0d8225b11c4fdda8c098ac3c9630e602e18ca26a5ac93c2",
       "exit": 1,
-      "seconds": 2.17,
+      "seconds": 2.08,
       "log": "temp/f2c-red-absolute-node.log",
-      "logSha256": "38e62cdfee2ddc9e62a45a227ebc0b57cda7ea70ae33aae7acffb33d71b972ba",
+      "logSha256": "9c2ce35dce0240ec0912beaa2a24b91aaf3fe3f9802feafaf6abedcc143b83b3",
       "failures": [
         "1) explicitNodeScriptPairPreservesAbsolutePathsAndFixedArguments(io.musespark.eclipse.tests.RuntimeLaunchTest)"
       ]
@@ -208,11 +208,11 @@
       "beforeSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
       "mutatedSha256": "055bea78a0311b63899aa5d316b21a969a7a6281ced6a97ce4676e4f92b5d34d",
       "restoredSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
-      "testSourceSha256": "59b9353017a238a734e76391bfc952102dcf652a81db95731b2907a66df4002c",
+      "testSourceSha256": "289dc4de78aa7f5bc0d8225b11c4fdda8c098ac3c9630e602e18ca26a5ac93c2",
       "exit": 1,
-      "seconds": 2.2,
+      "seconds": 2.11,
       "log": "temp/f2c-red-absolute-script.log",
-      "logSha256": "f0ea02851aa3ea10b7f98cdca40481e4ac94624598d0b807fe7fec0914d52289",
+      "logSha256": "06fc4df01e20c575f0ffc735086425c4f78dd101bd3984bf2bf6ead7e7b9ac47",
       "failures": [
         "1) explicitNodeScriptPairPreservesAbsolutePathsAndFixedArguments(io.musespark.eclipse.tests.RuntimeLaunchTest)"
       ]
@@ -223,11 +223,11 @@
       "beforeSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
       "mutatedSha256": "0029d829706397bbbe929821e30633485c9df76e7a5a5380dd5a0cf380e325dd",
       "restoredSha256": "e7dba231f32bc657b5cd40476fe0d1c16c8d14dedecfd2ca1de71d2ae4613e36",
-      "testSourceSha256": "59b9353017a238a734e76391bfc952102dcf652a81db95731b2907a66df4002c",
+      "testSourceSha256": "289dc4de78aa7f5bc0d8225b11c4fdda8c098ac3c9630e602e18ca26a5ac93c2",
       "exit": 1,
-      "seconds": 1.71,
+      "seconds": 1.67,
       "log": "temp/f2c-red-shim-is-never-executed.log",
-      "logSha256": "5c698443efce03d547e188e7fca463c3984697dc00e33bc789d9536c96aa04a8",
+      "logSha256": "aedb0afd2e9bcbb2c0e742421d61d8872298a2898974826e68e0f31f295c2bed",
       "failures": [
         "1) windowsNpmShimUsesItsAdjacentNodeWithoutPath(io.musespark.eclipse.tests.RuntimeLaunchTest)",
         "2) windowsNpmShimDiscoversNodeInSeparateAbsolutePathDirectory(io.musespark.eclipse.tests.RuntimeLaunchTest)",

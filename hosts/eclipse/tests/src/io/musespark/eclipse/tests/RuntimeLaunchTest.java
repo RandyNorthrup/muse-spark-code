@@ -55,10 +55,10 @@ public class RuntimeLaunchTest {
     @Test public void windowsNpmShimDiscoversNodeInSeparateAbsolutePathDirectory() throws Exception {
         Path root = temporaryDirectory();
         try {
-            Path prefix = Files.createDirectory(root.resolve("npm space & $marker;"));
+            Path prefix = Files.createDirectory(root.resolve("npm space & $marker"));
             Files.writeString(prefix.resolve("muse-spark-code-acp.cmd"), "@echo malicious shim contents must never be read");
             Path script = npmScript(prefix);
-            Path nodeDirectory = Files.createDirectory(root.resolve("node space & $marker;"));
+            Path nodeDirectory = Files.createDirectory(root.resolve("node space & $marker"));
             Path node = executable(nodeDirectory.resolve("node.exe"));
             String search = String.join(File.pathSeparator, "", ".", prefix.toString(), nodeDirectory.toString());
             assertEquals(List.of(node.toString(), script.toString(), "panel", "--stdio"), RuntimeProcess.panelCommand(null, search, true));
@@ -178,7 +178,8 @@ public class RuntimeLaunchTest {
             Files.writeString(pkg.resolve("package.json"), manifest.toString());
             List<String> shimCommand = RuntimeProcess.panelCommand(shim.toString(), "", true);
             List<String> directCommand = RuntimeProcess.panelCommand(pair(node, script), "", true);
-            assertEquals(shimCommand, directCommand); installed.command(directCommand);            child = installed.start(); child.getOutputStream().close();
+            assertEquals(shimCommand, directCommand); installed.command(directCommand);
+            child = installed.start(); child.getOutputStream().close();
             assertTrue("production panel did not retire on EOF", child.waitFor(2, TimeUnit.SECONDS));
             assertEquals(new String(child.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8), 0, child.exitValue());
         } finally {
