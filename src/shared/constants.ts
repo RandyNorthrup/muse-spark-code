@@ -4538,6 +4538,9 @@ export const MSP_LONG_COMMANDS: ReadonlySet<string> = new Set([
 // Windows now and then since 1.3.0, meta-models/muse-code-sdk#29).
 export const MUSE_APPROVAL_REPLAY_FAULT = 'approval replay failed'
 export const MUSE_APPROVAL_LEDGER_FAULT = 'approval ledger durability fence'
+// Upstream's #29 fix floor; the owner-authorized live probe accepted a
+// decision without the ledger fault (docs/certification/muse143.md).
+export const MUSE_APPROVAL_LEDGER_FIXED_VERSION = '1.4.3'
 // A Stop under a part-decided approval rejects its waiting stage first
 // (MuseSession.cancel); a stage that moved on is rejected once more there.
 // Each try waits this long at most, then the Stop goes on: a decision takes

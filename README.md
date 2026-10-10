@@ -4761,16 +4761,19 @@ stopped and the next message resumes the same session.
   1.3.0 and 1.4.0 started them in PowerShell's folder. 1.4.2 ran them in
   the project on one machine, but on a freshly set-up machine a sandboxed
   command there never finished, even after the worker above had run
-  (2026-10-04). With `museSpark.shellSandbox` at `auto` the extension
+  (2026-10-04). On 1.4.3-R5018.1 the owner's prepared machine again printed
+  the project directory, but its approved shell file write was denied
+  (2026-10-05); a fresh setup has not been retested. With
+  `museSpark.shellSandbox` at `auto` the extension
   starts Muse Code without the sandbox for such workspaces: commands run
   directly as you, in the project, still gated by the approval cards, but
   Muse Code's file tools can then write anywhere without asking, and the
   panel warns once per window. A workspace outside your user profile (such
   as `C:\code`) keeps the sandbox. `muse` keeps the sandbox regardless
-  (worth trying on 1.4.2 if commands run for you); `off` never sandboxes.
+  (worth trying if commands run for you); `off` never sandboxes.
 - **No Rename, conversation rewind or Side chat with Muse Code on Windows** —
   Muse Code refuses `session/rename` and `session/fork` on Windows (1.3.0,
-  1.4.0 and 1.4.2-R4684.1, retested October 2;
+  1.4.0, 1.4.2-R4684.1 and 1.4.3-R5018.1, retested October 5;
   [#30](https://github.com/meta-models/muse-code-sdk/issues/30),
   [#31](https://github.com/meta-models/muse-code-sdk/issues/31)), so the
   panel does not offer fork-based actions there, whatever the version, until
@@ -4780,11 +4783,20 @@ stopped and the next message resumes the same session.
 - **"Muse Code applies your approvals in this conversation but reports an
   error for each one"** — Muse Code on Windows can fail its own approval
   ledger after applying a decision ("approval ledger durability fence",
-  [#29](https://github.com/meta-models/muse-code-sdk/issues/29)). Since
-  1.4.2 it does this for every decision of a conversation that went through
+  [#29](https://github.com/meta-models/muse-code-sdk/issues/29)). On
+  1.4.2 this affected every decision of a conversation that went through
   the fault below. The panel says so once. The card follows what Muse Code
-  does next and is never offered again, because the decision applied. **New
-  conversation** avoids the fault.
+  does next and is never offered again, because the decision applied.
+  Upstream reports #29 fixed in **1.4.3 or later**; a 1.4.3-R5018.1 shell
+  approval returned `accepted`, `terminal: true` without the fault on
+  October 5. On older versions the notice includes the update command:
+  Windows PowerShell `irm https://dev.meta.ai/install.ps1 | iex`
+  (macOS/Linux: `curl -fsSL https://dev.meta.ai/install.sh | sh`). Restart
+  Muse Code after updating. The extension still detects and reports an
+  actual ledger fault on newer or unknown versions. **New Conversation**
+  also avoids the older fault. This check did not certify recovery of an
+  already damaged session; [the live receipt](docs/certification/muse143.md)
+  records its scope.
 - **"Muse Code refuses every message in this conversation"** — Muse Code 1.4
   ("approval replay failed: decision stage evidence contains an unrecorded
   human resolution") fails every message of a conversation whose turn

@@ -2292,10 +2292,18 @@ describe('MuseSession: one decision per approval stage (D26, captured 2026-10-02
 
 describe('MuseCodeHost: the handshake facts (D26)', () => {
   it('offers rename and fork except on Windows, any version, and says so before forking', async () => {
-    // 1.3.0 and 1.4.0 both refuse them there (#30, #31); a later version is
+    // 1.3.0, 1.4.0, 1.4.2 and 1.4.3 all refuse them there (#30, #31); a later version is
     // limited too until one is verified, so a new CLI never brings back
     // actions that fail (0.9.1).
-    for (const version of ['1.3.0-R3401.1', '1.4.0-R4302.1', '1.5.0', 'dev']) {
+    for (const version of [
+      '1.3.0-R3401.1',
+      '1.4.0-R4302.1',
+      '1.4.2-R4684.1',
+      '1.4.3',
+      '1.4.3-R5018.1',
+      '1.5.0',
+      'dev',
+    ]) {
       expect(hostOn('windows', version).host.info.canEditSessions, version).toBe(false)
     }
     expect(hostOn('linux', '1.3.0').host.info.canEditSessions).toBe(true)

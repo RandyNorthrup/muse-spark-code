@@ -92,6 +92,7 @@ import {
   CONVERSATION_MODEL_TEXT,
   LEGAL_RESULT_VERSION,
   MSP_READ_OUTPUT_CONCURRENCY,
+  MUSE_INSTALL_COMMANDS,
   REVIEW_MODEL_TEXT,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
   PLAN_FILE_MAX_BYTES,
@@ -6896,7 +6897,7 @@ describe('ConversationController (M15)', () => {
   })
 
   it('says the captured ledger fault once, as Muse Code’s, and keeps the card waiting (D26)', async () => {
-    const t = setup()
+    const t = setup({ platform: 'win32' })
     await t.send('l1', 'hi')
     t.server.handle('approval/decide', ledgerFault)
     const before = t.surface.posted.length
@@ -6913,7 +6914,7 @@ describe('ConversationController (M15)', () => {
       {
         type: 'notice',
         level: 'warning',
-        text: UI_TEXT.approvalLedgerFault,
+        text: fill(UI_TEXT.approvalLedgerFaultUpdate, { command: MUSE_INSTALL_COMMANDS.win32 }),
         actions: ['newConversation'],
       },
     ])
@@ -6925,6 +6926,42 @@ describe('ConversationController (M15)', () => {
       'Muse Code fault approvalLedger again (said once in the panel)',
     )
   })
+
+  it.each([
+    ['1.4.2-R4684.1', true],
+    ['1.4.3', false],
+    ['1.4.3-R5018.1', false],
+    ['1.4.4', false],
+    ['2.0.0', false],
+    ['dev', false],
+  ])(
+    'keeps ledger fault detection on %s and offers an update only below 1.4.3',
+    async (version, needsUpdate) => {
+      const t = setup({
+        platform: 'win32',
+        handshake: { platformOs: 'windows', serverInfo: { name: 'muse', version } },
+      })
+      await t.send('l1', 'hi')
+      t.server.handle('approval/decide', ledgerFault)
+      await t.controller.handle({
+        type: 'decideApproval',
+        approvalId: 'ap-1',
+        choiceId: 'allow_once',
+        requirementId: { approvalId: 'ap-1', sourceIndex: 0 },
+      })
+      expect(t.surface.posted.at(-1)).toMatchObject({
+        type: 'notice',
+        level: 'warning',
+        text: needsUpdate
+          ? fill(UI_TEXT.approvalLedgerFaultUpdate, { command: MUSE_INSTALL_COMMANDS.win32 })
+          : UI_TEXT.approvalLedgerFault,
+        actions: ['newConversation'],
+      })
+      expect(t.surface.posted).not.toContainEqual(
+        expect.objectContaining({ type: 'approvalReopened' }),
+      )
+    },
+  )
 
   it('says the captured replay fault once with Restart and New Conversation, and restarts on the click (D26)', async () => {
     const t = setup()

@@ -1125,6 +1125,11 @@
       "note": "exact-money and scheduled-media integration port after the 0.17.0 merge; goal tracked by M121"
     },
     {
+      "id": "MUSE143",
+      "public": false,
+      "note": "Muse Code 1.4.3 verification; the update hint for older hosts ships in 0.17.1"
+    },
+    {
       "id": "PORTS017",
       "public": false,
       "note": "exact-money type ports; goal tracked by M121"

@@ -90,6 +90,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Muse Code approval-ledger fault notices now give the update command on
+  versions older than 1.4.3. A live Windows 1.4.3 check accepted the approval
+  without that fault; detection remains active on every version. Rename and
+  fork still fail on 1.4.3, so their Windows limits remain. The sandbox cwd
+  was correct on the prepared host, but a shell write was denied; the
+  profile-workspace workaround remains until fresh-setup reliability is proven.
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
