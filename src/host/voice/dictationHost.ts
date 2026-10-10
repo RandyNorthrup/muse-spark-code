@@ -56,9 +56,12 @@ export function createDictationSetup(
     const remove = async (): Promise<void> => {
       try {
         await voice().removeLinuxDictationModel(directory)
-      } catch {
+      } catch (error: unknown) {
         log.warn('Linux dictation model removal failed')
-        await window.showErrorMessage(UI_TEXT.linuxDictationRemoveFailed)
+        // The reason is technical (permissions, a live download lock), so it
+        // stays spliced onto the translated sentence (RVCM9LNX P3).
+        const reason = error instanceof Error && error.message !== '' ? error.message : 'unknown'
+        await window.showErrorMessage(`${UI_TEXT.linuxDictationRemoveFailed}: ${reason}`)
       }
     }
     if (!isEnabled() && existsSync(directory)) void remove()
@@ -73,7 +76,14 @@ export function createDictationSetup(
     )
   }
   if (directory !== undefined && probe.platform === 'linux' && !isEnabled()) {
-    return { isAvailable: false, reason: UI_TEXT.linuxDictationRemoved }
+    // 'Removed' only when nothing is left to remove; otherwise removal was
+    // just launched above and its outcome is still unknown (RVCM9LNX P3).
+    return {
+      isAvailable: false,
+      reason: existsSync(directory)
+        ? UI_TEXT.linuxDictationRemovalPending
+        : UI_TEXT.linuxDictationRemoved,
+    }
   }
   const location = locateDictationHelper({
     ...probe,

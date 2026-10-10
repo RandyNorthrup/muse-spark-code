@@ -122,16 +122,37 @@ describe('Linux editor dictation binding', () => {
     const disabled = setup()
     expect(disabled.result).toEqual({ isAvailable: false, reason: UI_TEXT.linuxDictationRemoved })
   })
-  it('an unsuccessful removal shows an honest error and disabled startup retries existing weights', async () => {
+  it('disabled startup says removed only when nothing is left, pending while files remain (RVCM9LNX P3)', async () => {
+    host.enabled = false
+    const absent = setup()
+    expect(absent.result).toEqual({ isAvailable: false, reason: UI_TEXT.linuxDictationRemoved })
+    expect(absent.remove).not.toHaveBeenCalled()
+    await mkdir(path.join(state.directory, LINUX_DICTATION.directory))
+    const pending = setup()
+    expect(pending.result).toEqual({
+      isAvailable: false,
+      reason: UI_TEXT.linuxDictationRemovalPending,
+    })
+    await vi.waitFor(() => {
+      expect(pending.remove).toHaveBeenCalledTimes(1)
+    })
+  })
+  it('an unsuccessful removal shows the reason and never claims removal (RVCM9LNX P3)', async () => {
     await mkdir(path.join(state.directory, LINUX_DICTATION.directory))
     const test = setup()
     test.remove.mockRejectedValue(new Error('permissions'))
     host.enabled = false
     host.onChange.mock.calls[0]?.[0]({ affectsConfiguration: () => true })
     await vi.waitFor(() => {
-      expect(host.showErrorMessage).toHaveBeenCalledWith(UI_TEXT.linuxDictationRemoveFailed)
+      expect(host.showErrorMessage).toHaveBeenCalledWith(
+        `${UI_TEXT.linuxDictationRemoveFailed}: permissions`,
+      )
     })
     const restarted = setup()
+    expect(restarted.result).toEqual({
+      isAvailable: false,
+      reason: UI_TEXT.linuxDictationRemovalPending,
+    })
     await vi.waitFor(() => {
       expect(restarted.remove).toHaveBeenCalledTimes(1)
     })

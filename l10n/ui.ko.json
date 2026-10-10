@@ -2428,6 +2428,8 @@
   "linuxDictationIntegrity": "받아쓰기 도우미 또는 모델의 크기 또는 SHA-256 검증에 실패했습니다. 인식을 시작하지 않았습니다.",
   "linuxDictationBusy": "다른 창이 받아쓰기 도우미 또는 모델을 사용 중입니다. 해당 녹음이나 다운로드를 중지하고 다시 시도하세요.",
   "linuxDictationRemoved": "Linux 받아쓰기가 꺼졌으며 도우미와 모델이 삭제되었습니다. linuxDictationModel을 켜고 창을 다시 로드하세요.",
+  "linuxDictationRemovalPending": "Linux 받아쓰기가 꺼졌으며 도우미와 모델을 삭제하는 중입니다. 삭제를 다시 시도하려면 창을 다시 로드하고, 사용하려면 linuxDictationModel을 켜고 창을 다시 로드하세요.",
+  "linuxDictationDisabled": "Linux 받아쓰기가 꺼져 있습니다. linuxDictationModel을 켜고 창을 다시 로드하면 사용할 수 있습니다.",
   "linuxDictationRemoveFailed": "오프라인 받아쓰기 도우미 또는 모델을 삭제할 수 없습니다. 저장소 권한을 확인하고 다른 창의 다운로드를 중지한 뒤 이 창을 다시 로드하세요.",
   "linuxDictationFailed": "Linux 받아쓰기 실패",
   "linuxDictationDownloadFailed": "받아쓰기 도우미 또는 모델을 다운로드할 수 없습니다. 마이크를 눌러 다시 시도하세요. 중단된 다운로드는 이어받을 수 있습니다.",

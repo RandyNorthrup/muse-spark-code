@@ -2428,6 +2428,8 @@
   "linuxDictationIntegrity": "ヘルパーまたはモデルのサイズまたは SHA-256 検証に失敗しました。認識は開始していません。",
   "linuxDictationBusy": "別のウィンドウがヘルパーまたはモデルを使用しています。その録音またはダウンロードを停止して再試行してください。",
   "linuxDictationRemoved": "Linux の音声入力はオフで、ヘルパーとモデルは削除済みです。linuxDictationModel をオンにしてウィンドウを再読み込みしてください。",
+  "linuxDictationRemovalPending": "Linux の音声入力はオフで、ヘルパーとモデルの削除中です。削除を再試行するにはウィンドウを再読み込みし、有効にするには linuxDictationModel をオンにしてウィンドウを再読み込みしてください。",
+  "linuxDictationDisabled": "Linux の音声入力はオフです。linuxDictationModel をオンにしてウィンドウを再読み込みすると有効になります。",
   "linuxDictationRemoveFailed": "オフライン音声入力のヘルパーまたはモデルを削除できませんでした。保存先の権限を確認し、他のウィンドウのダウンロードを停止して、このウィンドウを再読み込みしてください。",
   "linuxDictationFailed": "Linux の音声入力に失敗しました",
   "linuxDictationDownloadFailed": "ヘルパーまたはモデルをダウンロードできませんでした。マイクを押して再試行してください。中断したダウンロードは再開できます。",

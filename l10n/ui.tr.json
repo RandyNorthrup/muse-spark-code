@@ -2482,6 +2482,8 @@
   "linuxDictationIntegrity": "Dikte yardımcısı veya modeli boyut ya da SHA-256 denetiminden geçemedi. Tanıma başlamadı.",
   "linuxDictationBusy": "Başka bir pencere dikte yardımcısını veya modelini kullanıyor. Oradaki kaydı veya indirmeyi durdurup yeniden deneyin.",
   "linuxDictationRemoved": "Linux diktesi kapalı; yardımcı ve model kaldırıldı. linuxDictationModel ayarını açıp pencereyi yeniden yükleyin.",
+  "linuxDictationRemovalPending": "Linux diktesi kapalı; yardımcı ve model kaldırılıyor. Kaldırmayı yeniden denemek için pencereyi yeniden yükleyin ya da etkinleştirmek için linuxDictationModel ayarını açıp pencereyi yeniden yükleyin.",
+  "linuxDictationDisabled": "Linux diktesi kapalı. Etkinleştirmek için linuxDictationModel ayarını açıp pencereyi yeniden yükleyin.",
   "linuxDictationRemoveFailed": "Çevrimdışı dikte yardımcısı veya modeli kaldırılamadı. Depolama izinlerini kontrol edin, diğer pencerelerdeki indirmeleri durdurun ve bu pencereyi yeniden yükleyin.",
   "linuxDictationFailed": "Linux diktesi başarısız oldu",
   "linuxDictationDownloadFailed": "Dikte yardımcısı veya modeli indirilemedi. Yeniden denemek için mikrofona basın; kesilen indirme sürdürülebilir.",

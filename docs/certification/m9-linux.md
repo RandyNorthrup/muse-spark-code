@@ -230,3 +230,89 @@ assets. Hosted x64/arm64 native builds, the first real release with helper
 assets, the complete universal package and the lead's full aggregate
 quality remain publication receipts; this lane cannot push or launch that
 workflow. No Linux-enabled VSIX was produced or published.
+
+## RVCM9LNX findings fixed (lane CM9LNX3, kubuntu, 2026-10-10)
+
+Both review findings are fixed by class, each with a regression test and a
+red drill (guard broken, named test observed failing, file restored
+byte-exact by SHA-256). No new dependency, no widened guard, no gate
+weakened. All vitest runs used at most three files, `--maxWorkers=3`, and
+the repository's own timeouts (no `--testTimeout`).
+
+### P2 — the offline helper refuses any non-local audio server
+
+- `native/dictation-linux/helper.cpp`: live capture now reads `PULSE_SERVER`
+  first. A value that is not a local `unix:` socket throws `remote-server`
+  before any connection is opened; an unset value connects through an
+  explicit `unix:$XDG_RUNTIME_DIR/pulse/native` server (fallback
+  `/run/user/<euid>/pulse/native`), which also overrides client.conf's
+  `default-server`. `PULSE_SERVER/SINK/SOURCE` and
+  `PIPEWIRE_REMOTE/PIPEWIRE_CORE` are scrubbed from the helper's environment
+  after reading. Deliberately kept: `PULSE_COOKIE` (local authentication),
+  `XDG_RUNTIME_DIR` (names the local socket), `HOME` (local cookie/config;
+  the explicit server wins). Proxy variables are never read by the audio
+  client. Failure with only a network server available is explicit
+  (`remote-server`, then `stopped`), never a silent fallback.
+- `src/core/voice/helperLocation.ts` (`helperEnvironment`, Linux only) plus
+  `LINUX_DICTATION.audioServerVariables` (`src/shared/constants.ts`): the
+  launcher deletes the same five selectors from the helper's inherited
+  environment, after applying the invocation's own variables, so a
+  `PULSE_SERVER=tcp:…` on the editor cannot reach the child. Other platforms
+  are untouched (covered by test).
+- Sibling sweep: the only other audio spawn in the lane,
+  `startRecorder` (`src/host/voice/voiceProcesses.ts`, Muse Voice's
+  `arecord`/`parec`), makes no offline-only claim and is M35's surface, so
+  it is unchanged. No other `PULSE_SERVER`/server-selection path exists in
+  `src`, `test` or `native`.
+- Regression tests: `test/unit/linuxDictationNative.test.ts` —
+  `a network audio server is refused before any connection` (`tcp:` address,
+  `tcp:` hostname, bare hostname each yield `remote-server` and no text);
+  `test/unit/helperLocation.test.ts` — Linux drops all five selectors while
+  keeping cookie/runtime-dir/HOME/PATH, and other platforms keep them.
+  Refusal happens before connecting, so no loopback listener is needed and
+  these tests run inside the sandbox.
+
+### P3 — disabling dictation reports exactly what happened to the files
+
+- `src/host/voice/dictationHost.ts`: disabled startup returns
+  `linuxDictationRemoved` only when the directory is verified absent;
+  otherwise it returns the new `linuxDictationRemovalPending` (removal is
+  launched, outcome unknown). A failed removal shows
+  `{linuxDictationRemoveFailed}: {reason}` — the reason is technical, so it
+  stays spliced — and the next startup still says pending and retries, never
+  `removed`.
+- `src/core/voice/linuxDictation.ts`: a press while disabled reports the new
+  `linuxDictationDisabled` (no claim about the files; cleanup is owned
+  elsewhere).
+- New keys in `src/shared/l10n/en.ts` and all 14 `l10n/ui.*.json` tables;
+  `node scripts/check-l10n.mjs` reports 14 UI tables and 0 problems.
+- Regression tests: `test/unit/linuxDictationHost.test.ts` — absent files
+  say removed without launching removal, present files say pending and
+  launch it, a `permissions` rejection shows the reason and the next startup
+  still says pending; `test/unit/linuxDictation.test.ts` — a disabled press
+  reports disabled, never removed.
+
+### Red drills (all restored byte-exact, `sha256sum -c` OK)
+
+| Guard (fixed SHA-256, first 8) | Break                                      | Observed failure                                                        |
+| ------------------------------ | ------------------------------------------ | ----------------------------------------------------------------------- |
+| helper.cpp (`e41a18d2`)        | `if (!local)` → `if (false)`               | `a network audio server is refused…` fails (no `remote-server`), 5 pass |
+| helperLocation.ts (`83b300b7`) | `if (platform === 'linux')` → `if (false)` | `drops audio-server selectors…` fails, 15 pass                          |
+| dictationHost.ts (`1407eb80`)  | pending branch → always `Removed`          | both P3 host tests fail, 2 pass                                         |
+| linuxDictation.ts (`1df7875a`) | `Disabled` → `Removed`                     | disabled-press test fails, 8 pass                                       |
+
+### Verification on this rig
+
+- Focused suites: native helper 6 passed; helperLocation 16 passed;
+  linuxDictationHost 4 passed; linuxDictation 9 passed; helper+model+driver
+  33 passed; dictationHost+voiceBundle+pins 27 passed, 1 pre-existing
+  Windows-only skip.
+- `npm run typecheck` clean; `eslint --max-warnings=0` and `prettier
+--check` clean on all changed files (one `unicorn/no-object-as-default-parameter`
+  and one formatting warning in the new native test were fixed, not waived).
+- `npm run build` exits 0: activation 553.2 / 600 KiB, voice 45,142 bytes /
+  51,200 bytes, Model API 515.8 KiB unchanged.
+- No test in this change needs a browser, microphone, loopback server or
+  network: there is nothing the lead must run outside the sandbox for these
+  findings. Real-helper recognition with the pinned model still awaits the
+  release assets (unchanged from the review).

@@ -2536,6 +2536,8 @@
   "linuxDictationIntegrity": "Il componente o il modello non ha superato la verifica delle dimensioni o SHA-256. Il riconoscimento non è iniziato.",
   "linuxDictationBusy": "Un’altra finestra usa il componente o il modello. Ferma la registrazione o il download e riprova.",
   "linuxDictationRemoved": "La dettatura Linux è disattivata e il componente e il modello sono eliminati. Attiva linuxDictationModel e ricarica la finestra.",
+  "linuxDictationRemovalPending": "La dettatura Linux è disattivata e il componente e il modello sono in fase di rimozione. Ricarica la finestra per riprovare la rimozione, oppure attiva linuxDictationModel e ricarica la finestra per attivarla.",
+  "linuxDictationDisabled": "La dettatura Linux è disattivata. Attiva linuxDictationModel e ricarica la finestra per attivarla.",
   "linuxDictationRemoveFailed": "Impossibile rimuovere il componente o il modello di dettatura offline. Controlla i permessi, ferma i download nelle altre finestre e ricarica questa finestra.",
   "linuxDictationFailed": "Dettatura Linux non riuscita",
   "linuxDictationDownloadFailed": "Impossibile scaricare il componente o il modello. Premi il microfono per riprovare; un download interrotto può riprendere.",

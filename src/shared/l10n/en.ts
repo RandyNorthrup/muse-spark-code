@@ -2969,6 +2969,10 @@ export const EN = {
     'Another window is using the dictation helper or model. Stop its recording or download and try again.',
   linuxDictationRemoved:
     'Linux dictation is off and its helper and model are removed. Turn linuxDictationModel on and reload the window to enable it.',
+  linuxDictationRemovalPending:
+    'Linux dictation is off and its helper and model are being removed. Reload the window to retry removal, or turn linuxDictationModel on and reload the window to enable it.',
+  linuxDictationDisabled:
+    'Linux dictation is off. Turn linuxDictationModel on and reload the window to enable it.',
   linuxDictationRemoveFailed:
     'The offline dictation helper or model could not be removed. Check storage permissions and stop downloads in other windows, then reload this window to retry.',
   linuxDictationFailed: 'Linux dictation failed',

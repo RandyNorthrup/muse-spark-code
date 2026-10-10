@@ -2590,6 +2590,8 @@
   "linuxDictationIntegrity": "Pomocnik lub model nie przeszedł sprawdzenia rozmiaru lub SHA-256. Rozpoznawanie nie rozpoczęło się.",
   "linuxDictationBusy": "Inne okno używa pomocnika lub modelu. Zatrzymaj w nim nagrywanie lub pobieranie i spróbuj ponownie.",
   "linuxDictationRemoved": "Dyktowanie w Linuksie jest wyłączone, a pomocnik i model usunięte. Włącz linuxDictationModel i załaduj okno ponownie.",
+  "linuxDictationRemovalPending": "Dyktowanie w Linuksie jest wyłączone, a pomocnik i model są właśnie usuwane. Załaduj okno ponownie, aby ponowić usuwanie, lub włącz linuxDictationModel i załaduj okno ponownie, aby je włączyć.",
+  "linuxDictationDisabled": "Dyktowanie w Linuksie jest wyłączone. Włącz linuxDictationModel i załaduj okno ponownie, aby je włączyć.",
   "linuxDictationRemoveFailed": "Nie można usunąć pomocnika ani modelu dyktowania offline. Sprawdź uprawnienia, zatrzymaj pobieranie w innych oknach i przeładuj to okno.",
   "linuxDictationFailed": "Dyktowanie w Linuksie nie powiodło się",
   "linuxDictationDownloadFailed": "Nie można pobrać pomocnika ani modelu. Naciśnij mikrofon, aby ponowić próbę; przerwane pobieranie można wznowić.",

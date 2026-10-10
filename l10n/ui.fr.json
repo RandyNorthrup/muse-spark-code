@@ -2536,6 +2536,8 @@
   "linuxDictationIntegrity": "L’auxiliaire ou le modèle a échoué à la vérification de taille ou SHA-256. La reconnaissance n’a pas démarré.",
   "linuxDictationBusy": "Une autre fenêtre utilise l’auxiliaire ou le modèle. Arrêtez son enregistrement ou téléchargement et réessayez.",
   "linuxDictationRemoved": "La dictée Linux est désactivée et l’auxiliaire et le modèle sont supprimés. Activez linuxDictationModel et rechargez la fenêtre.",
+  "linuxDictationRemovalPending": "La dictée Linux est désactivée et l’auxiliaire et le modèle sont en cours de suppression. Rechargez la fenêtre pour réessayer la suppression, ou activez linuxDictationModel et rechargez la fenêtre pour l’activer.",
+  "linuxDictationDisabled": "La dictée Linux est désactivée. Activez linuxDictationModel et rechargez la fenêtre pour l’activer.",
   "linuxDictationRemoveFailed": "L’auxiliaire ou le modèle de dictée hors ligne n’a pas pu être supprimé. Vérifiez les permissions, arrêtez les téléchargements des autres fenêtres, puis rechargez cette fenêtre.",
   "linuxDictationFailed": "Échec de la dictée Linux",
   "linuxDictationDownloadFailed": "L’auxiliaire ou le modèle n’a pas pu être téléchargé. Appuyez sur le microphone pour réessayer ; un téléchargement interrompu peut reprendre.",
