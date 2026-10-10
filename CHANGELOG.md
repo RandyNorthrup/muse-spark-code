@@ -49,7 +49,10 @@ happened, not what was planned; superseded entries are kept.
   - The Models & Agents panel mounts the vault section (Set Up Vault, lock
     state, items, grants, recovery) behind the broker gate (C-M109-1 P1):
     it stays hidden until the broker process and per-OS connections land,
-    so nothing new appears on screen yet.
+    so nothing new appears on screen yet. Its navigation gap clears the
+    focus ring, its actions keep button chrome in dark and high-contrast
+    themes, its protection summary names the tier and provider in plain
+    words, and every action label is Title Case.
   - `dist/vaultRuntime.js` carries the vault for the ACP agent, the CLI and
     headless runs, without `vscode`.
   - The SecretStorage slot is dropped for the OS-store slot every editor
