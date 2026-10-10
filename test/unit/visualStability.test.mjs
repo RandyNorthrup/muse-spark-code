@@ -35,8 +35,14 @@ for (const index of [0, 1, 2, 3])
               .querySelector('.message-assistant .message-body p')
               .getBoundingClientRect()
             const pill = globalThis.document.querySelector('.gooey-menu-pill')
+            // The harness opens the menu with a contextmenu at the passage's
+            // centre; Chrome carries a MouseEvent's client coordinates in whole
+            // pixels (170.5 arrives as 170 under Windows font metrics). Compare
+            // with that centre as the event carried it.
             return {
-              passageY: passage.top + passage.height / 2,
+              passageY: new globalThis.MouseEvent('contextmenu', {
+                clientY: passage.top + passage.height / 2,
+              }).clientY,
               menuY:
                 Number(pill.style.top.replace('px', '')) +
                 Number(pill.style.transformOrigin.split(' ', 2)[1].replace('px', '')),
