@@ -29,47 +29,69 @@ import path from 'node:path'
 import process from 'node:process'
 import { promisify } from 'node:util'
 import { renderPackageReadme } from './check-badges.mjs'
+import {
+  DARWIN_HELPER,
+  JOB_SOURCES,
+  LINUX_HELPERS,
+  RUNNER_HELPERS,
+} from './lib/acpNativeSources.mjs'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
 
 const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
   'acp.js',
+  'estimator.js',
   'headless.js',
   'sharingRuntime.js',
   'acpQuestions.js',
+  'acpPlaybook.js',
   'runtimeQuestions.js',
+  'runtimeAccounts.js',
   'questionNotes.js',
   'mcpPool.js',
   'exec.js',
   'modelApiCodeIntel.js',
   'structuredSchema.js',
+  'fontsInstall.js',
+  'scheduleBackground.js',
   'modelApi.js',
   'resourceAdmission.js',
   'resourceGovernor.js',
+  'resourceProcess.js',
+  'resourceJournal.js',
   'modelApiHooks.js',
   'modelApiMcp.js',
   'runtimeAccounting.js',
   'providerPolicy.js',
   'runtimeEngine.js',
   'modelApiBoundaries.js',
+  'vault.js',
+  'vaultBoundaries.js',
+  'estimateContracts.js',
   'legalScan.js',
   'providers.js',
   'subscriptions.js',
   'configuredProviders.js',
   'providerCatalog.json',
   'providerCatalog.js',
+  'media.js',
   'reviewer.js',
   'team.js',
   'teamRunners.js',
   'teamScheduler.js',
+  'schedules.js',
   'foreignHooks.js',
   'hookRuntime.js',
   'recorder.js',
+  'reporting.js',
+  'reportingNetwork.js',
+  'reportingDestinations.js',
   'reference.js',
   'uiText.js',
   'uiTextRuntime.js',
   'uiTextHooks.js',
   'uiTextSurfaces.js',
+  'uiTextMedia.js',
   'extensionHooks.js',
   'validation.js',
   'wire.js',
@@ -79,19 +101,6 @@ const BUNDLES = [
   'usageService.js',
   'usageCompanion.js',
 ]
-// The C# of the shell tool's Windows job (M27), compiled on first use, as
-// the extension ships it (PLAN.md D6): its own file and the half it shares.
-// No MuseSparkMcpLauncher.cs: ACP forwards MCP servers to Muse Code's own
-// process (src/acp/agent.ts forwardedMcp); its Model API backend runs none.
-// src/runtime/backends.ts composes only shellJobAssembly, never mcpJobExecutable.
-const JOB_SOURCES = [
-  path.join('native', 'windows', 'MuseSparkJob.cs'),
-  path.join('native', 'windows', 'MuseSparkMcpJob.cs'),
-]
-const DARWIN_HELPER = path.join('native', 'darwin', 'muse-dictate')
-const LINUX_HELPERS = ['x64', 'arm64'].map((arch) =>
-  path.join('native', 'linux', arch, 'muse-created'),
-)
 const NATIVE_DEPENDENCY = '@napi-rs/keyring'
 const SCHEMAS = [
   'exec-result-v1.schema.json',
@@ -99,6 +108,7 @@ const SCHEMAS = [
   'exec-result-v2.schema.json',
   'exec-event-v2.schema.json',
   'share-v1.schema.json',
+  'report-v1.schema.json',
 ]
 // Standalone full Help reads the manifest's labels beside package.json.
 const NLS_FILES = readdirSync('.').filter((file) => /^package\.nls(?:\.[\w-]+)?\.json$/.test(file))
@@ -203,7 +213,19 @@ for (const source of [...JOB_SOURCES, DARWIN_HELPER, ...LINUX_HELPERS]) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
   copyFileSync(source, path.join(STAGE, source))
 }
-cpSync('native/runner', path.join(STAGE, 'native/runner'), { recursive: true })
+// Keep every signed resource and executable mode when macOS CI supplied it.
+// Linux-only packages retain the runtime's honest missing-helper refusal.
+const screenBundle = path.join('native', 'darwin', 'muse-dictate-screen.app')
+if (existsSync(screenBundle)) {
+  cpSync(screenBundle, path.join(STAGE, screenBundle), { recursive: true })
+}
+const vaultHelper = path.join('dist', 'native', 'darwin', 'muse-vault')
+if (existsSync(vaultHelper)) {
+  const target = path.join(STAGE, vaultHelper)
+  mkdirSync(path.dirname(target), { recursive: true })
+  copyFileSync(vaultHelper, target)
+}
+cpSync(RUNNER_HELPERS, path.join(STAGE, RUNNER_HELPERS), { recursive: true })
 const tables = readdirSync('l10n')
   .filter((file) => /^ui\.[^/]+\.json$/.test(file))
   .map((file) => [
@@ -220,6 +242,8 @@ execFileSync(process.execPath, ['scripts/check-l10n.mjs', '--packaged-acp', STAG
   stdio: 'inherit',
 })
 for (const file of NLS_FILES) copyFileSync(file, path.join(STAGE, file))
+mkdirSync(path.join(STAGE, 'design', 'fonts'), { recursive: true })
+copyFileSync('design/fonts/manifest.json', path.join(STAGE, 'design', 'fonts', 'manifest.json'))
 copyFileSync('LICENSE', path.join(STAGE, 'LICENSE'))
 writeFileSync(
   path.join(STAGE, 'README.md'),
@@ -261,7 +285,17 @@ const agentManifest = {
     'llm',
   ],
   bin: { [PACKAGE_NAME]: 'dist/acp.js' },
-  files: ['dist', 'native', 'l10n', 'schemas', ...NLS_FILES, 'README.md', 'LICENSE', NOTICES],
+  files: [
+    'dist',
+    'design',
+    'native',
+    'l10n',
+    'schemas',
+    ...NLS_FILES,
+    'README.md',
+    'LICENSE',
+    NOTICES,
+  ],
   engines: { node: manifest.engines.node },
   dependencies: { [NATIVE_DEPENDENCY]: keyringVersion },
 }

@@ -21,11 +21,11 @@ import {
   BASE_LOCALE,
   fill,
   formatNumber,
-  formatUsd,
   plural,
   setUiText,
   UI_TEXT,
 } from '../../src/shared/l10n/text'
+import { formatUsd } from '../../src/shared/l10n/exactUsd'
 
 afterEach(() => {
   setUiText(EN, BASE_LOCALE)

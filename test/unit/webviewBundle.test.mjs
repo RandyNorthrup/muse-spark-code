@@ -13,12 +13,18 @@ import {
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { listFiles } from '@vscode/vsce/out/package.js'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { webviewDeferredBudgetGroups } from '../../scripts/lib/webviewBundles.mjs'
-import { buildProductionPackage } from './helpers/productionPackage'
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
+import {
+  webviewDeferredBudgetGroups,
+  webviewStartupOutputs,
+} from '../../scripts/lib/webviewBundles.mjs'
+import { PRODUCTION_BUILD_KEY, buildProductionPackage } from './helpers/productionPackage'
 
 const ENTRY = 'dist/webview/main.js'
 const SIZE_GATE = path.resolve('scripts/check-bundle-size.mjs')
+// A fresh Node running the whole bundle-split gate: it loads TypeScript and
+// reads every production metafile (2.4 s on Linux, over 5 s on hosted macOS).
+const SPLIT_GATE_TIMEOUT_MS = 20_000
 const built = { outputs: {}, fixture: '', production: '' }
 const outputFile = (file) => path.join(built.production, file)
 
@@ -32,7 +38,7 @@ beforeAll(() => {
   )
   // Own the complete production graph: Node and policy checks must work in a
   // cold checkout, and deliberate metafile mutations must not race other suites.
-  buildProductionPackage(process.cwd(), built.production)
+  buildProductionPackage(process.cwd(), built.production, inject(PRODUCTION_BUILD_KEY))
   // The owned build shares the read-only dependency install through a junction.
   // esbuild records those inputs relative to its real location. Canonicalize
   // that fixture prefix while retaining every source and byte contribution.
@@ -251,12 +257,45 @@ describe('the production webview chunks (FIX78W)', () => {
     }
   })
 
+  it('keeps usage, action dialogs and estimator within their existing closure caps', () => {
+    const groups = webviewDeferredBudgetGroups({ outputs: built.outputs })
+    for (const name of [
+      'UsageDialogContent',
+      'action dialogs',
+      'estimator panel',
+      'account English',
+    ]) {
+      const group = groups.find((entry) => entry.name === name)
+      expect(group.budgetKiB).toBe(25)
+      expect(group.outputs.length).toBeGreaterThan(0)
+      expect(
+        group.outputs.reduce((sum, file) => sum + statSync(outputFile(file)).size, 0),
+        name,
+      ).toBeLessThanOrEqual(25 * 1024)
+    }
+  })
+
+  it('loads exact USD arithmetic and display only with lazy media pricing', () => {
+    for (const source of ['src/shared/usd.ts', 'src/shared/l10n/exactUsd.ts']) {
+      const owners = Object.entries(built.outputs).filter(([, output]) =>
+        Object.hasOwn(output.inputs, source),
+      )
+      expect(owners).toHaveLength(1)
+      expect(initialOutputs().has(owners[0][0])).toBe(false)
+    }
+  })
+
   it('keeps FIXDIET1 startup and original deferred bytes within their review baseline', () => {
     const bytes = [...initialOutputs()].reduce(
       (sum, output) => sum + statSync(outputFile(output)).size,
       0,
     )
-    expect(bytes).toBeLessThanOrEqual(733.8 * 1024)
+    // INT0170 lead decision (PLAN §8): 0.17.0's measured first paint, 760,059 B,
+    // plus 0.16.0's margin of about 1.4 KB. FIXDIET1's pin was 733.8 KiB.
+    expect(bytes).toBeLessThanOrEqual(743.7 * 1024)
+  })
+
+  it('keeps original deferred bytes within the unchanged FIXDIET1 baseline', () => {
     const legacy = webviewDeferredBudgetGroups({ outputs: built.outputs }).find(
       (group) => group.name === 'deferred JS',
     )
@@ -267,7 +306,21 @@ describe('the production webview chunks (FIX78W)', () => {
   })
 
   it.each([
+    'src/shared/estimate.ts',
+    'src/shared/estimatorProtocol.ts',
+    'src/shared/palette.ts',
+    'src/shared/slashCommands.ts',
+  ])('keeps %s out of chat startup while retaining its validated lazy implementation', (source) => {
+    const owners = Object.entries(built.outputs).filter(([, output]) =>
+      Object.hasOwn(output.inputs, source),
+    )
+    expect(owners.length).toBeGreaterThan(0)
+    for (const [output] of owners) expect(initialOutputs().has(output)).toBe(false)
+  })
+
+  it.each([
     'ToolBodies',
+    'ToolRow',
     'ReviewFindings',
     'HistoryPromptRow',
     'GitPanel',
@@ -284,6 +337,12 @@ describe('the production webview chunks (FIX78W)', () => {
     'ServiceStatusRow',
     'LegalReport',
     'ReviewCommentForm',
+    // FIXM116I: the startup diet's directly-imported on-demand bodies. (The
+    // task list and effort control share one merged chunk, so the named
+    // closure below — not this per-entry assertion — locks their placement.)
+    'SlashMenu',
+    'MentionMenu',
+    'DiffTally',
   ])('loads %s only through its dynamic import', (name) => {
     const source = `src/webview/components/${name}.tsx`
     const owners = Object.entries(built.outputs).filter(([, output]) =>
@@ -378,49 +437,57 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(initialOutputs().has(owners[0][0])).toBe(true)
   })
 
-  it('refuses resource policy leaking into activation’s emitted inputs', () => {
-    const file = outputFile('dist/meta/extension.json')
-    const original = readFileSync(file)
-    try {
-      const meta = JSON.parse(original.toString('utf8'))
-      const output = Object.entries(meta.outputs).find(
-        ([file]) => file.replaceAll('\\', '/') === 'dist/extension.js',
-      )?.[1]
-      if (output === undefined) throw new Error('Missing activation output')
-      output.inputs['src/core/resources/governor.ts'] = { bytesInOutput: 1 }
-      writeFileSync(file, JSON.stringify(meta))
+  it(
+    'refuses resource policy leaking into activation’s emitted inputs',
+    { timeout: SPLIT_GATE_TIMEOUT_MS },
+    () => {
+      const file = outputFile('dist/meta/extension.json')
+      const original = readFileSync(file)
+      try {
+        const meta = JSON.parse(original.toString('utf8'))
+        const output = Object.entries(meta.outputs).find(
+          ([file]) => file.replaceAll('\\', '/') === 'dist/extension.js',
+        )?.[1]
+        if (output === undefined) throw new Error('Missing activation output')
+        output.inputs['src/core/resources/governor.ts'] = { bytesInOutput: 1 }
+        writeFileSync(file, JSON.stringify(meta))
+        const result = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
+          cwd: built.production,
+          encoding: 'utf8',
+        })
+        expect(result.status).toBe(1)
+        expect(result.stderr).toContain(
+          'dist/extension.js carries resource policy src/core/resources/governor.ts outside the lazy governor',
+        )
+      } finally {
+        writeFileSync(file, original)
+      }
+      expect(readFileSync(file).equals(original)).toBe(true)
+    },
+  )
+
+  it(
+    'keeps provider pacing in its lazy Model API inventory',
+    { timeout: SPLIT_GATE_TIMEOUT_MS },
+    () => {
       const result = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
         cwd: built.production,
         encoding: 'utf8',
       })
-      expect(result.status).toBe(1)
-      expect(result.stderr).toContain(
-        'dist/extension.js carries resource policy src/core/resources/governor.ts outside the lazy governor',
-      )
-    } finally {
-      writeFileSync(file, original)
-    }
-    expect(readFileSync(file).equals(original)).toBe(true)
-  })
-
-  it('keeps provider pacing in its lazy Model API inventory', () => {
-    const result = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
-      cwd: built.production,
-      encoding: 'utf8',
-    })
-    expect(result.status, result.stdout + result.stderr).toBe(0)
-    const source = 'src/core/backends/modelapi/pacing.ts'
-    for (const [meta, present] of [
-      ['dist/meta/modelApi.json', true],
-      ['dist/meta/extension.json', false],
-      ['dist/meta-acp/acp.json', false],
-    ]) {
-      const inputs = Object.keys(JSON.parse(readFileSync(outputFile(meta), 'utf8')).inputs).map(
-        (file) => file.replaceAll('\\', '/'),
-      )
-      expect(inputs.includes(source)).toBe(present)
-    }
-  })
+      expect(result.status, result.stdout + result.stderr).toBe(0)
+      const source = 'src/core/backends/modelapi/pacing.ts'
+      for (const [meta, present] of [
+        ['dist/meta/modelApi.json', true],
+        ['dist/meta/extension.json', false],
+        ['dist/meta-acp/acp.json', false],
+      ]) {
+        const inputs = Object.keys(JSON.parse(readFileSync(outputFile(meta), 'utf8')).inputs).map(
+          (file) => file.replaceAll('\\', '/'),
+        )
+        expect(inputs.includes(source)).toBe(present)
+      }
+    },
+  )
 
   it('shares production libraries between chat and Models without importing either app', () => {
     const models = JSON.parse(readFileSync(outputFile('dist/meta/modelsWebview.json'), 'utf8'))
@@ -564,4 +631,50 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(result.stderr).toContain('stat ')
     expect(result.stderr.replaceAll('\\', '/')).toContain('dist/webview/shared.js')
   })
+
+  // Moved from slashCommandsBundle.test.mjs, whose own full production build
+  // outlasted its 10 s hook on macOS: this suite's build serves both.
+  it('certifies lazy slash-command registration without increasing activation bytes', () => {
+    const source = 'src/shared/slashCommands.ts'
+    const startup = new Set(webviewStartupOutputs({ outputs: built.outputs }))
+    const owners = Object.entries(built.outputs).filter(([, output]) =>
+      Object.keys(output.inputs).includes(source),
+    )
+    expect(owners).toHaveLength(1)
+    expect(startup.has(owners[0][0])).toBe(false)
+    // a704f711c: the "/" list is no surface of its own; it loads with the
+    // palette registry, whose deferred import App already makes.
+    const registry = 'src/shared/paletteRegistry.ts'
+    const entry = Object.entries(built.outputs).find(([, output]) => output.entryPoint === registry)
+    expect(entry).toBeDefined()
+    expect(startup.has(entry[0])).toBe(false)
+    // It loads with the registry: in its entry chunk or a chunk that entry
+    // imports statically (a chunk esbuild shares with another lazy surface).
+    const withRegistry = new Set()
+    const queue = [entry[0]]
+    while (queue.length > 0) {
+      const file = queue.pop()
+      if (withRegistry.has(file)) continue
+      withRegistry.add(file)
+      const imports = built.outputs[file]?.imports ?? []
+      for (const edge of imports) if (edge.kind === 'import-statement') queue.push(edge.path)
+    }
+    expect(withRegistry.has(owners[0][0])).toBe(true)
+    expect(statSync(outputFile('dist/extension.js')).size).toBeLessThanOrEqual(587_451)
+  })
+})
+
+it('assigns a non-entry optional input with Windows path separators to its lazy budget', () => {
+  const meta = {
+    outputs: {
+      'dist\\webview\\main.js': { imports: [], inputs: {} },
+      'dist\\webview\\chunks\\optional.js': {
+        imports: [],
+        inputs: { 'src\\webview\\components\\SignIn.tsx': { bytesInOutput: 1 } },
+      },
+    },
+  }
+  expect(
+    webviewDeferredBudgetGroups(meta, 25).find((group) => group.name === 'SignIn').outputs,
+  ).toEqual(['dist/webview/chunks/optional.js'])
 })

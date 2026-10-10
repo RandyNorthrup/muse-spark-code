@@ -1,0 +1,3 @@
+"NSMicrophoneUsageDescription" = "Muse Spark Code používá mikrofon k přepisu vaší řeči do editoru zprávy. Pokud je zapnutá placená funkce Muse Voice, odešle zvuk do služby Meta Muse Voice Transcribe; jinak jej rozpoznává macOS. Záznam obrazovky obsahuje zvuk mikrofonu pouze tehdy, když jej vyberete. Každý záznam obrazovky si před přiložením prohlédnete.";
+"NSScreenCaptureUsageDescription" = "Muse Spark Code zaznamenává obrazovku pouze tehdy, když spustíte nahrávání obrazovky. Záznam může obsahovat cokoli na vybraném displeji. Než se cokoli odešle, prohlédnete si záznam a zvolíte Přiložit nebo Zahodit.";
+"NSSpeechRecognitionUsageDescription" = "Muse Spark Code převádí vaši řeč na text pomocí rozpoznávání řeči integrovaného v macOS.";

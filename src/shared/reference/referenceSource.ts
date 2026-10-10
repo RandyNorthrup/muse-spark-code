@@ -1,8 +1,8 @@
 // The generator's build entry: its imports are visible to the dead-code gate.
 export { featureCatalog, COMMAND_REFERENCE, referenceDescription } from '../featureCatalog'
 export { COMMAND_IDS } from '../constants'
-export { buildPalette } from '../palette'
-export { slashCommandsOf } from '../slashCommands'
+export { buildPalette } from '../paletteRegistry'
+export { slashCommandsOf } from './slashReference'
 export { cliCommands } from '../cliCommands'
 export { EN } from '../l10n/en'
 export { permissionModeDetail } from '../permissionModes'
@@ -143,6 +143,16 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ),
   // M112: ACP asks through forms or text and answers with /questions and /answer.
   ['questions', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  ['reports', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M116: the playbook journal and settings ride no model call.
+  ['orchestrator-playbook', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M108/W: several accounts per provider on Settings, the CLI and ACP alike.
+  ['accounts', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M109: the vault panel and lock in VS Code, /vault and permission mapping
+  // in ACP, on either backend; values never reach either surface.
+  ['vault', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M117: the estimator runs the same engine on every surface.
+  ['estimator', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ...['web-fetch', 'images'].map((id): [string, readonly string[]] => [
     id,
     ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
@@ -168,6 +178,10 @@ export const REFERENCE_ACTION_FEATURES = {
   requestLegalExplanation: 'legal-explanation',
   exportLegalReport: 'legal',
   sharingAction: 'prompt-library',
+  runReport: 'reports',
+  resourceAction: 'resources',
+  resourcePull: 'resources',
+  resourceOpenAck: 'resources',
   openSettings: 'support',
   openKeybindings: 'support',
   openLog: 'support',
@@ -224,6 +238,8 @@ export const REFERENCE_ACTION_FEATURES = {
   scheduleList: 'schedules',
   scheduleCancel: 'schedules',
   scheduleRun: 'schedules',
+  schedulesRequest: 'schedules',
+  openSchedules: 'schedules',
   exportConversation: 'conversation-actions',
   importSession: 'conversation-actions',
   openShareFile: 'exports',
@@ -237,6 +253,8 @@ export const REFERENCE_ACTION_FEATURES = {
   hostAction: 'chat',
   decideApproval: 'chat',
   cancelQuestion: 'questions',
+  estimateRun: 'estimator',
+  estimateSpinUp: 'estimator',
   elicitationAnswer: 'mcp-elicitation',
   answerQuestion: 'questions',
   clarifyQuestion: 'questions',
@@ -369,7 +387,7 @@ export const REFERENCE_TOOL_FEATURES: Readonly<Record<string, string>> = {
 export { LINUX_RECORDERS } from '../constants'
 
 export { CLI_OPTION_REGISTRY, CLI_OPTION_TEXT } from '../../runtime/cliOptions'
-export { SLASH_REFERENCE } from '../slashCommands'
+export { SLASH_REFERENCE } from './slashReference'
 
 export { PAID_USE_REGISTRY, isPaidSettingOn } from '../paid'
 

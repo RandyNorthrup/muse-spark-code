@@ -1,6 +1,6 @@
 import { UI_TEXT } from '../../shared/constants'
 import { formatNumber, plural, templateParts } from '../../shared/l10n/text'
-import type { DiffTallyCounts } from '../diffTally'
+import type { DiffTallyCounts } from '../../shared/diffTally'
 
 export interface DiffTallyProps {
   readonly counts: DiffTallyCounts | undefined
@@ -43,7 +43,7 @@ export function DiffTally({ counts, onReview }: DiffTallyProps) {
       </span>
       {onReview !== undefined && (
         <button
-          className="button-secondary diff-tally-review"
+          className="button-secondary diff-tally-review chat-control"
           type="button"
           title={UI_TEXT.diffTallyReviewTitle}
           onClick={() => {

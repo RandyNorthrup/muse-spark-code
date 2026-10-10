@@ -143,16 +143,99 @@
         window.postMessage(message, '*')
       }
       let pendingScenarioEvents = 0
-      const later = (ms, fn) => {
+      // A scene says when it is finished: its final continuation, the last
+      // thing it waits for, calls scenarioDone(). <html data-scenario-played>
+      // is set by that call alone, as soon as nothing counted is outstanding
+      // (`later`, `whenFound`, `whenEvent` and `track` for the scene;
+      // `hostLater` and `hostTrack` for the fake host and the page), and never
+      // after a failure. A scene helper called after scenarioDone() fails the
+      // scene. A failure at any time removes the mark for good and records
+      // itself in <html data-scenario-failed>. Tests wait for the mark only on
+      // PLAYED_SCENARIOS (scripts/lib/harnessServer.mjs), whose browser
+      // coverage in teamHarness.test.mjs checks that each scene really ends.
+      let playingScenario
+      let isScenarioDone = false
+      let hasScenarioFailed = false
+      const SCENARIO_FAILURE_LIMIT = 300
+      const markOf = () => globalThis.document?.documentElement.dataset
+      const notePlayed = () => {
+        if (playingScenario === undefined || !isScenarioDone || hasScenarioFailed) return
+        if (pendingScenarioEvents > 0 || pendingFinds > 0) return
+        markOf().scenarioPlayed = playingScenario
+      }
+      const failScene = (error) => {
+        hasScenarioFailed = true
+        const mark = markOf()
+        if (mark === undefined) return
+        delete mark.scenarioPlayed
+        mark.scenarioFailed = String(error).slice(0, SCENARIO_FAILURE_LIMIT)
+      }
+      const refuse = (message) => {
+        const error = new Error(message)
+        failScene(error)
+        throw error
+      }
+      const scenarioDone = () => {
+        if (playingScenario === undefined) refuse('scenarioDone() outside a playing scene')
+        if (isScenarioDone) refuse(`scenarioDone() twice in ${playingScenario}`)
+        // A browser test sets this to prove a failed final step never leaves the mark.
+        if (globalThis.harnessFailFinalStep === true) refuse('injected final-step failure')
+        isScenarioDone = true
+        notePlayed()
+      }
+      // One counted unit of work: started now, settled when fn has run.
+      const beginStep = (isHostWork) => {
+        if (isScenarioDone && !isHostWork)
+          refuse(`scene work after scenarioDone() in ${playingScenario}`)
         pendingScenarioEvents += 1
-        return setTimeout(() => {
+        return (fn) => {
           try {
             fn()
+          } catch (error) {
+            failScene(error)
+            throw error
           } finally {
             pendingScenarioEvents -= 1
           }
+          notePlayed()
+        }
+      }
+      const scheduler = (isHostWork) => (ms, fn) => {
+        const settle = beginStep(isHostWork)
+        return setTimeout(() => {
+          settle(fn)
         }, ms)
       }
+      const later = scheduler(false)
+      const hostLater = scheduler(true)
+      // Runs fn on target's next `type` event; until then the scene is not done.
+      const whenEvent = (target, type, fn) => {
+        const settle = beginStep(false)
+        target.addEventListener(
+          type,
+          (nativeEvent) => {
+            settle(() => fn(nativeEvent))
+          },
+          { once: true },
+        )
+      }
+      // An awaited promise counts until it settles; its rejection fails the scene.
+      const tracker = (isHostWork) => (promise) => {
+        const settle = beginStep(isHostWork)
+        return promise.then(
+          (value) => {
+            settle(() => undefined)
+            return value
+          },
+          (error) => {
+            settle(() => {
+              throw error
+            })
+          },
+        )
+      }
+      const track = tracker(false)
+      const hostTrack = tracker(true)
       const readinessLater = (ms, fn) => setTimeout(fn, ms)
       // Runs fn with the first element matching selector once one renders:
       // after the settle time the scenarios have always given, then every
@@ -164,25 +247,28 @@
       const FIND_TIMEOUT_MS = 3000
       let pendingFinds = 0
       const whenFound = (selector, fn) => {
+        if (isScenarioDone) refuse(`scene work after scenarioDone() in ${playingScenario}`)
         pendingFinds += 1
         const look = (waited) => {
           const element = document.querySelector(selector)
-          if (element !== null) {
-            try {
-              fn(element)
-            } finally {
-              pendingFinds -= 1
-            }
-          } else if (waited >= FIND_TIMEOUT_MS) {
-            pendingFinds -= 1
-            throw new Error(`never rendered: ${selector}`)
-          } else {
+          if (element === null && waited < FIND_TIMEOUT_MS) {
             // kept-timing: bounded readiness polling retries until the requested control renders.
-            later(FIND_INTERVAL_MS, () => look(waited + FIND_INTERVAL_MS))
+            setTimeout(() => look(waited + FIND_INTERVAL_MS), FIND_INTERVAL_MS)
+            return
           }
+          try {
+            if (element === null) throw new Error(`never rendered: ${selector}`)
+            fn(element)
+          } catch (error) {
+            failScene(error)
+            throw error
+          } finally {
+            pendingFinds -= 1
+          }
+          notePlayed()
         }
         // kept-timing: host-message delivery and React paints settle before the first readiness probe.
-        later(SETTLE_MS, () => look(0))
+        setTimeout(() => look(0), SETTLE_MS)
       }
       const files = [
         'src/extension.ts',
@@ -206,7 +292,9 @@
         allowDangerouslySkipPermissions: false,
         archiveInactiveSessions: 14,
         modelApiReplyUsage: false,
+        schedules: true,
         museCodeAutoReviewer: true,
+        'estimator.optimize': 'cost',
       }
       const models = [
         {
@@ -405,6 +493,7 @@
       // checked in English as if it were translated.
       const webviewErrors = []
       let hasWebviewReady = false
+      let hasScheduleHarnessMounted = false
       const scenarioName = new URLSearchParams(location.search).get('scenario')
       // M95b: deterministic notice state, before the app reads its store.
       if (scenarioName?.startsWith('plan-') || scenarioName?.startsWith('copilot-plan')) {
@@ -500,6 +589,8 @@
         postMessage: (message) => {
           outbox.push(message)
           document.title = `harness: ${message.type}`
+          // M107 pull model: the body's host-issued id, as the chip's pull echoes it.
+          if (message.type === 'resourcePull') window.harnessDocumentNonce = message.nonce
           switch (message.type) {
             case 'usage/ready':
             case 'usage/query':
@@ -554,7 +645,7 @@
                 }
               if (message.action === 'chatConfirm') value = 'shared'
               // kept-timing: the fake host replies asynchronously to the sharing request.
-              later(0, () => send({ type: 'sharingResult', id: message.id, value }))
+              hostLater(0, () => send({ type: 'sharingResult', id: message.id, value }))
               break
             }
             case 'hostAction': {
@@ -562,17 +653,18 @@
               break
             }
             case 'readReference': {
-              Promise.all([
-                fetch('../../src/shared/reference/reference.generated.json').then((response) =>
-                  response.json(),
-                ),
-                fetch(
-                  harnessL10n.lang === undefined || harnessL10n.lang === 'pseudo'
-                    ? '../../package.nls.json'
-                    : `../../package.nls.${harnessL10n.lang}.json`,
-                ).then((response) => response.json()),
-              ])
-                .then(([model, nls]) =>
+              // The scene is not done until the reference reply has been sent.
+              void hostTrack(
+                Promise.all([
+                  fetch('../../src/shared/reference/reference.generated.json').then((response) =>
+                    response.json(),
+                  ),
+                  fetch(
+                    harnessL10n.lang === undefined || harnessL10n.lang === 'pseudo'
+                      ? '../../package.nls.json'
+                      : `../../package.nls.${harnessL10n.lang}.json`,
+                  ).then((response) => response.json()),
+                ]).then(([model, nls]) =>
                   send({
                     type: 'referenceValues',
                     model: JSON.stringify(model),
@@ -586,10 +678,8 @@
                       ]),
                     ),
                   }),
-                )
-                .catch((error) => {
-                  throw error
-                })
+                ),
+              )
               break
             }
             case 'tasksReady': {
@@ -682,7 +772,7 @@
                 ),
               ]
               // kept-timing: the fake legal host returns its preview asynchronously after the request.
-              later(50, () =>
+              hostLater(50, () =>
                 send({
                   type: 'legalFixPreview',
                   requestId: message.requestId,
@@ -700,7 +790,7 @@
             }
             case 'listSkills': {
               // kept-timing: the fake host replies asynchronously to the skill-list request.
-              later(50, () => send({ type: 'skillList', skills }))
+              hostLater(50, () => send({ type: 'skillList', skills }))
               break
             }
             case 'searchMentions': {
@@ -709,12 +799,14 @@
                 .filter((file) => file.toLowerCase().includes(query))
                 .map((path) => ({ path, isFolder: false }))
               // kept-timing: mention search results arrive asynchronously from the fake host.
-              later(30, () => send({ type: 'mentionResults', requestId: message.requestId, items }))
+              hostLater(30, () =>
+                send({ type: 'mentionResults', requestId: message.requestId, items }),
+              )
               break
             }
             case 'attachImageData': {
               // kept-timing: attachment decoding completes asynchronously after the paste request.
-              later(20, () =>
+              hostLater(20, () =>
                 send({
                   type: 'attachmentAdded',
                   attachment: attachment(message.name, message.mediaType),
@@ -724,7 +816,7 @@
             }
             case 'pickFile': {
               // kept-timing: the fake file picker returns its attachment asynchronously.
-              later(20, () =>
+              hostLater(20, () =>
                 send({ type: 'attachmentAdded', attachment: attachment('image.png', 'image/png') }),
               )
               break
@@ -766,7 +858,7 @@
                 },
               })
               // kept-timing: streaming exposes the pending reply before its first text delta.
-              later(300, () =>
+              hostLater(300, () =>
                 send({
                   type: 'agentEvent',
                   event: {
@@ -778,7 +870,7 @@
                 }),
               )
               // kept-timing: streaming keeps the reply in progress before its terminal events.
-              later(4000, () => {
+              hostLater(4000, () => {
                 send({
                   type: 'agentEvent',
                   event: {
@@ -811,7 +903,7 @@
               pen.fillStyle = '#e8b04a'
               pen.fillRect(146, 48, 28, 14)
               // kept-timing: image output arrives asynchronously after the tool-image request.
-              later(30, () =>
+              hostLater(30, () =>
                 send({
                   type: 'toolImage',
                   itemId: message.itemId,
@@ -828,7 +920,7 @@
                 const half = Math.floor(whole.length / 2)
                 const isFirst = message.offsetBytes === 0
                 // kept-timing: each requested patch page arrives as a separate asynchronous host reply.
-                later(30, () =>
+                hostLater(30, () =>
                   send({
                     type: 'outputPage',
                     itemId: message.itemId,
@@ -842,7 +934,7 @@
                 break
               }
               // kept-timing: the fake host returns the requested patch asynchronously.
-              later(30, () =>
+              hostLater(30, () =>
                 send({
                   type: 'outputPage',
                   itemId: message.itemId,
@@ -875,7 +967,7 @@
             }
             case 'decideApproval': {
               // kept-timing: approval resolution arrives after the submitted decision.
-              later(30, () =>
+              hostLater(30, () =>
                 send({
                   type: 'agentEvent',
                   event: {
@@ -892,7 +984,9 @@
             // --- Session history (M6) ---
             case 'listSessions': {
               // kept-timing: History receives its session list as an asynchronous host reply.
-              later(40, () => send({ type: 'sessionList', sessions: storedSessions, archivedIds }))
+              hostLater(40, () =>
+                send({ type: 'sessionList', sessions: storedSessions, archivedIds }),
+              )
               break
             }
             case 'setSessionArchived': {
@@ -907,7 +1001,7 @@
             case 'resumeSession': {
               const row = storedSessions.find((s) => s.sessionId === message.sessionId)
               // kept-timing: resume delivers history and session state after its host request.
-              later(60, () => {
+              hostLater(60, () => {
                 send({ type: 'historyLoaded', ...storedHistory(message.sessionId, row) })
                 send({ type: 'notice', level: 'info', text: `Resumed ${row?.title ?? ''}` })
                 send({
@@ -921,7 +1015,7 @@
             }
             case 'forkSession': {
               // kept-timing: fork delivers history and session state after its host request.
-              later(60, () => {
+              hostLater(60, () => {
                 send({
                   type: 'historyLoaded',
                   ...storedHistory('forked', undefined, message.lastTurnId),
@@ -942,7 +1036,7 @@
             }
             case 'renameSession': {
               // kept-timing: renaming is confirmed by a later host notification.
-              later(40, () =>
+              hostLater(40, () =>
                 send({ type: 'agentEvent', event: { type: 'sessionNamed', name: message.name } }),
               )
               break
@@ -953,12 +1047,12 @@
               if (message.action === 'start') {
                 send({ type: 'dictationState', status: 'starting' })
                 // kept-timing: dictation passes through its listening state after recording starts.
-                later(40, () => send({ type: 'dictationState', status: 'listening' }))
+                hostLater(40, () => send({ type: 'dictationState', status: 'listening' }))
                 break
               }
               send({ type: 'dictationState', status: 'idle' })
               // kept-timing: dictation inserts the transcript after recording stops.
-              later(40, () => send({ type: 'insertText', text: 'open the settings file ' }))
+              hostLater(40, () => send({ type: 'insertText', text: 'open the settings file ' }))
               break
             }
             // --- Paid features (M33): the palette's toggles, confirmed at once ---
@@ -971,13 +1065,13 @@
               }
               window.harnessPaid = { ...window.harnessPaid, features: [...features] }
               // kept-timing: paid settings are confirmed by a later host state update.
-              later(40, () => send({ type: 'paidState', state: window.harnessPaid }))
+              hostLater(40, () => send({ type: 'paidState', state: window.harnessPaid }))
               break
             }
             // --- Account & usage (M8) ---
             case 'readUsage': {
               // kept-timing: Account and usage receives its report asynchronously.
-              later(40, () =>
+              hostLater(40, () =>
                 send(
                   window.harnessBackend === 'modelApi'
                     ? {
@@ -1042,7 +1136,7 @@
             }
             case 'answerQuestion': {
               // kept-timing: question settlement arrives after its answer is submitted.
-              later(30, () =>
+              hostLater(30, () =>
                 send({
                   type: 'agentEvent',
                   event: {
@@ -1143,7 +1237,7 @@
               const goal = goals[message.verb]()
               window.harnessGoal = goal ?? undefined
               // kept-timing: goal commands receive their result after the host request.
-              later(30, () => {
+              hostLater(30, () => {
                 send({ type: 'agentEvent', event: { type: 'goalChanged', goal } })
                 send({
                   type: 'notice',
@@ -1187,7 +1281,7 @@
                 ],
               }
               // kept-timing: a review stays running before its findings arrive.
-              later(200, () => {
+              hostLater(200, () => {
                 send({
                   type: 'agentEvent',
                   event: {
@@ -1210,7 +1304,7 @@
             }
             case 'readReviewChanges': {
               // kept-timing: review changes arrive asynchronously after the changes request.
-              later(60, () =>
+              hostLater(60, () =>
                 send({
                   type: 'reviewChanges',
                   requestId: message.requestId,
@@ -1260,7 +1354,7 @@
             }
             case 'revertReviewHunk': {
               // kept-timing: a hunk revert completes after its host request.
-              later(60, () =>
+              hostLater(60, () =>
                 send({
                   type: 'reviewHunkResult',
                   itemId: message.itemId,
@@ -1277,13 +1371,14 @@
           }
           if (['ready', 'modelsPanel/ready', 'tasksReady'].includes(message.type)) {
             hasWebviewReady = true
-            playScenario()
+            window.dispatchEvent(new Event('webviewReady'))
           }
         },
       })
     </script>
   </head>
-  <body>
+  <!-- M107: the document id the host's HTML writes (webviewSetup.ts); the chip echoes it. -->
+  <body data-document-id="harness-document">
     <div id="root"></div>
     <script>
       const surfaceScenario = new URLSearchParams(location.search).get('scenario') ?? ''
@@ -1322,6 +1417,10 @@
         })
         import('../../dist/traffic-harness/main.js').then(({ mountTrafficHarness }) => {
           mountTrafficHarness(document, scenarioName)
+        })
+      } else if (scenarioName?.startsWith('schedules-v2')) {
+        import('./schedules.mjs').then(() => {
+          window.dispatchEvent(new Event('schedule-harness-mounted'))
         })
       } else {
         import(`../../dist/webview/${harnessBundle}.js`)
@@ -2148,7 +2247,7 @@
           case 'providers/test': {
             modelsSend()
             // kept-timing: a provider test publishes its asynchronous completion after its initial state.
-            later(300, () => modelsSend())
+            hostLater(300, () => modelsSend())
             break
           }
           case 'models/scan': {
@@ -2158,7 +2257,7 @@
               },
             })
             // kept-timing: the fake model scan transitions from scanning to its later result.
-            later(600, () =>
+            hostLater(600, () =>
               modelsSend({
                 scans: {
                   [message.providerId]: {
@@ -2524,6 +2623,41 @@
             }
           },
         )
+      }
+      // The question card waiting for an answer; scenes that go on from it reuse it.
+      const questionFixture = () => {
+        transcriptFixture()
+        event({
+          type: 'itemStarted',
+          item: {
+            itemId: 'q1',
+            kind: 'toolCall',
+            status: 'inProgress',
+            tool: 'request_user_input',
+            args: '{"questions":[]}',
+          },
+        })
+        event({
+          type: 'questionRequested',
+          userInputId: 'u1',
+          itemId: 'q1',
+          questions: [
+            {
+              id: 'colour',
+              header: 'Colour',
+              question: 'Which colour do you prefer, red or blue?',
+              selection: { mode: 'single' },
+              options: [{ label: 'Red' }, { label: 'Blue', description: 'The cool one' }],
+            },
+            {
+              id: 'toppings',
+              header: 'Toppings',
+              question: 'Pick up to two toppings.',
+              selection: { mode: 'multiple', minSelections: 1, maxSelections: 2 },
+              options: [{ label: 'Ham' }, { label: 'Olives' }, { label: 'Corn' }],
+            },
+          ],
+        })
       }
       const steps = {
         'prompt-menu': () => promptMenuScene(),
@@ -3092,38 +3226,8 @@
         'questions-dismissed': () => questionScene('dismissed'),
         'questions-expired': () => questionScene('expired'),
         question: () => {
-          transcriptFixture()
-          event({
-            type: 'itemStarted',
-            item: {
-              itemId: 'q1',
-              kind: 'toolCall',
-              status: 'inProgress',
-              tool: 'request_user_input',
-              args: '{"questions":[]}',
-            },
-          })
-          event({
-            type: 'questionRequested',
-            userInputId: 'u1',
-            itemId: 'q1',
-            questions: [
-              {
-                id: 'colour',
-                header: 'Colour',
-                question: 'Which colour do you prefer, red or blue?',
-                selection: { mode: 'single' },
-                options: [{ label: 'Red' }, { label: 'Blue', description: 'The cool one' }],
-              },
-              {
-                id: 'toppings',
-                header: 'Toppings',
-                question: 'Pick up to two toppings.',
-                selection: { mode: 'multiple', minSelections: 1, maxSelections: 2 },
-                options: [{ label: 'Ham' }, { label: 'Olives' }, { label: 'Corn' }],
-              },
-            ],
-          })
+          questionFixture()
+          scenarioDone()
         },
         elicitation: () => {
           transcriptFixture()
@@ -3197,6 +3301,71 @@
           steps.todo()
           whenFound('.todo-title', (button) => button.click())
         },
+        'schedules-v2-background': () => {},
+        'schedules-v2-background-narrow': () => {},
+        'schedules-v2-list': () => {},
+        'schedules-v2-list-narrow': () => {},
+        'schedules-v2-editor': () => {},
+        'schedules-v2-editor-narrow': () => {},
+        'schedules-v2-timeline': () => {},
+        'schedules-v2-timeline-narrow': () => {},
+        'schedule-settlements': () => {
+          window.harnessSilent = true
+          setDraft('Review the schedule settlements')
+          key({ key: 'Enter' })
+          const atMs = Date.parse('2026-10-06T12:00:00Z')
+          for (const outcome of ['ran', 'refused', 'missed']) {
+            event({
+              type: 'itemCompleted',
+              item: {
+                itemId: `schedule-${outcome}`,
+                kind: 'toolCall',
+                status: 'completed',
+                tool: 'scheduled_prompt',
+                args: '{}',
+                visibleOutput: JSON.stringify({
+                  type: 'scheduleFire',
+                  fire: {
+                    scheduleId: 'schedule-1',
+                    runId: `schedule-1:${outcome}`,
+                    workspaceKey: 'workspace-1',
+                    occurrenceMs: atMs,
+                    observedAtMs: atMs,
+                    target: { kind: 'conversation', backend: 'modelApi', sessionId: 'build' },
+                    delivery: 'whenIdle',
+                    outcome,
+                    reason: outcome === 'missed' ? 'Target closed' : undefined,
+                    refusedActions:
+                      outcome === 'refused'
+                        ? [
+                            {
+                              actionClass: 'physical',
+                              tool: 'device',
+                              reason: 'Physical actions always refused',
+                            },
+                          ]
+                        : [],
+                    cost: { usd: 0.25, certainty: 'unknown', retainedLiabilityUsd: 1 },
+                  },
+                }),
+              },
+            })
+          }
+          event({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' })
+          whenFound('.steps-toggle', (summary) => summary.click())
+          whenFound('.tool-toggle[aria-expanded="false"]', () => {
+            for (const toggle of document.querySelectorAll('.tool-toggle[aria-expanded="false"]')) {
+              toggle.click()
+            }
+          })
+        },
+        'schedule-settlements-narrow': () => {
+          if (window.innerWidth !== 320)
+            throw new Error('schedule-settlements-narrow requires 320 px')
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          steps['schedule-settlements']()
+        },
         'tasks-tab': () => {},
         'tasks-tab-ended': () => {},
         'tasks-tab-plain': () => {},
@@ -3234,12 +3403,14 @@
                   pendingScenarioEvents -= 1
                   report(`long: ${String(chunks.length)} deltas rendered`)
                   close()
+                  notePlayed()
                   return
                 }
                 deliver({ type: 'textDelta', itemId: 'long', field: 'text', delta: chunk })
               }
               continuation.port2.postMessage(null)
             } catch (error) {
+              failScene(error)
               pendingScenarioEvents -= 1
               close()
               throw error
@@ -3255,8 +3426,11 @@
             window.removeEventListener('message', beginStream)
             runBatch()
           }
+          // The stream holds one pending event from here until runBatch
+          // dispatches its completion frame or a frame fails.
           continuation.port1.onmessage = runBatch
           pendingScenarioEvents += 1
+          // The same pending event covers the wait for the stream's start.
           window.addEventListener('message', beginStream)
           event({
             type: 'itemStarted',
@@ -3710,7 +3884,10 @@
         'team-tree': () => {
           transcriptFixture()
           send({ type: 'teamTree', tree: teamTreeFixture() })
-          whenFound('.agents-pill[title]', (control) => control.click())
+          whenFound('.agents-pill[title]', (control) => {
+            control.click()
+            scenarioDone()
+          })
         },
         'team-tree-320': () => {
           document.documentElement.style.width = '320px'
@@ -3809,6 +3986,7 @@
               },
             },
           })
+          scenarioDone()
         },
         // --- M82: a Model API reply with its tokens and cost under it, and
         // the session budget's notices after it ---
@@ -4395,34 +4573,30 @@
             whenFound('main', (main) => {
               const scrollUp = () => {
                 // A native scroll must record the old transcript before new content arrives.
-                main.addEventListener(
-                  'scroll',
-                  () => {
-                    whenFound('main', () => {
-                      if (main.scrollTop !== 0) {
-                        scrollUp()
-                        return
-                      }
-                      event({
-                        type: 'itemStarted',
-                        item: {
-                          itemId: 'more',
-                          kind: 'agentMessage',
-                          status: 'inProgress',
-                          text: '',
-                        },
-                      })
-                      event({
-                        type: 'textDelta',
+                whenEvent(main, 'scroll', () => {
+                  whenFound('main', () => {
+                    if (main.scrollTop !== 0) {
+                      scrollUp()
+                      return
+                    }
+                    event({
+                      type: 'itemStarted',
+                      item: {
                         itemId: 'more',
-                        field: 'text',
-                        delta: 'One more thing: the folder also holds a hidden .git directory.',
-                      })
-                      whenFound('.jump-latest', () => {})
+                        kind: 'agentMessage',
+                        status: 'inProgress',
+                        text: '',
+                      },
                     })
-                  },
-                  { once: true },
-                )
+                    event({
+                      type: 'textDelta',
+                      itemId: 'more',
+                      field: 'text',
+                      delta: 'One more thing: the folder also holds a hidden .git directory.',
+                    })
+                    whenFound('.jump-latest', () => scenarioDone())
+                  })
+                })
                 // Queue the native event even if the lazy reply already left main at zero.
                 if (main.scrollTop === 0) main.scrollTop = 1
                 main.scrollTop = 0
@@ -4502,7 +4676,7 @@
         },
         // --- M16: the question card filled in, on its second tab ---
         'question-filled': () => {
-          steps.question()
+          questionFixture()
           // The question controls load in their own chunk: wait for them, never a fixed delay.
           whenFound('.question input[type="radio"]', () => {
             document.querySelectorAll('.question input[type="radio"]')[1].click()
@@ -5237,7 +5411,7 @@
         },
         // --- M46: a question answered with an explanation, and one being explained ---
         'question-explain': () => {
-          steps.question()
+          questionFixture()
           event({
             type: 'itemStarted',
             item: {
@@ -5723,6 +5897,8 @@
                   button.textContent === (harnessL10n.table?.legalPreviewFixes ?? 'Preview fixes'),
               )
               ?.click()
+            // The scene ends once the host's fix preview is on screen.
+            whenFound('.legal-paths', () => scenarioDone())
           })
         },
         'legal-narrow': () => {
@@ -6101,6 +6277,58 @@
             )
           })
         },
+        // --- M107 U–C1/W: the window governor's chip from a real host status
+        // (bounded JSON text on the strict wire), opened as Show resources does;
+        // the README's resources shot ---
+        'resources-throttle': () => {
+          window.harnessSilent = true
+          setDraft('Run the parser tests')
+          key({ key: 'Enter' })
+          send({
+            type: 'resourceStatus',
+            status: JSON.stringify({
+              level: 'throttle',
+              sample: {
+                atMs: 1_783_400_000_000,
+                cpuPercent: 93,
+                memoryUsedPercent: 71,
+                memoryAvailableBytes: 4_939_212_390,
+                memoryTotalBytes: 17_179_869_184,
+                gpuPercent: null,
+                diskBusyPercent: null,
+                pressure: null,
+              },
+              settings: {
+                enabled: true,
+                cpuMaxPercent: 85,
+                memoryMaxPercent: 90,
+                memoryMinFreeGiB: 2,
+                gpuMaxPercent: null,
+                diskBusyMaxPercent: null,
+                diskMinFreeGiB: null,
+                relocate: 'paired',
+              },
+              queued: [
+                { kind: 'check', class: 'background', count: 2 },
+                { kind: 'worker', class: 'background', count: 1 },
+              ],
+              overrideUntilMs: null,
+              relocation: 'noRoute',
+            }),
+          })
+          // The chip is a deferred chunk: Show resources once it has mounted
+          // beside the heartbeat. SCENARIO_READY waits for the open popover.
+          const openWhenMounted = () => {
+            if (
+              document.querySelector('.status-line .resource-chip') === null ||
+              window.harnessDocumentNonce === undefined
+            )
+              // kept-timing: bounded readiness polling retries until the deferred chip renders and the host has issued its document nonce, which no selector shows.
+              readinessLater(FIND_INTERVAL_MS, openWhenMounted)
+            else send({ type: 'resourceOpen', seq: 1, nonce: window.harnessDocumentNonce })
+          }
+          openWhenMounted()
+        },
         'readme-help': () => {
           steps.help()
           whenFound('#reference-search', (search) => {
@@ -6138,18 +6366,33 @@
       const playScenario = () => {
         if (
           !hasPageLoaded ||
-          !hasWebviewReady ||
+          !(
+            hasWebviewReady ||
+            (scenario?.startsWith('schedules-v2') && hasScheduleHarnessMounted)
+          ) ||
           hasPlayedScenario ||
           scenario === null ||
           !(scenario in steps)
         )
           return
         hasPlayedScenario = true
+        playingScenario = scenario
         const surface =
-          harnessBundle === 'models' ? '.models-panel section' : '.composer textarea, .todo-surface'
+          harnessBundle === 'models'
+            ? '.models-panel section'
+            : '.composer textarea, .todo-surface, .schedule-v2-surface'
         whenFound(surface, () => steps[scenario]())
       }
       let hasPageLoaded = false
+      window.addEventListener('webviewReady', playScenario)
+      window.addEventListener(
+        'schedule-harness-mounted',
+        () => {
+          hasScheduleHarnessMounted = true
+          playScenario()
+        },
+        { once: true },
+      )
       window.addEventListener(
         'DOMContentLoaded',
         () => {
@@ -6353,8 +6596,13 @@
       // A window in the background paints no frames: a frame is also over
       // when this much time has passed.
       const FRAME_FALLBACK_MS = 50
+      const scheduleNarrowFits = () =>
+        window.innerWidth === 320 && document.documentElement.scrollWidth <= window.innerWidth
       const SCENARIO_READY = {
         jump: () => document.querySelector('.jump-latest') !== null,
+        'resources-throttle': () =>
+          document.querySelector('.resource-popover footer') !== null &&
+          document.activeElement?.closest('.resource-popover') !== null,
         'prompt-menu': () => document.querySelector('.popover-pointer [role="menuitem"]') !== null,
         'prompt-menu-narrow': () =>
           document.querySelector('.popover-pointer [role="menuitem"]') !== null,
@@ -6389,6 +6637,35 @@
         'paid-usage': () => document.querySelector('.usage-facts') !== null,
         help: () => document.querySelector('#reference-search') !== null,
         'help-narrow': () => document.querySelector('#reference-search') !== null,
+        'schedule-settlements': () => document.querySelectorAll('.schedule-v2-fire').length === 3,
+        'schedule-settlements-narrow': () =>
+          scheduleNarrowFits() && document.querySelectorAll('.schedule-v2-fire').length === 3,
+        'schedules-v2-background': () =>
+          document.querySelector('.schedule-v2-consent button') !== null,
+        'schedules-v2-background-narrow': () => {
+          const buttons = [...document.querySelectorAll('.schedule-v2-consent button')]
+          const boxes = buttons.map((button) => button.getBoundingClientRect())
+          return (
+            scheduleNarrowFits() &&
+            boxes.length === 3 &&
+            boxes.every(
+              (box) => Math.abs(box.width - boxes[0].width) < 1 && Math.abs(box.y - boxes[0].y) < 1,
+            )
+          )
+        },
+        'schedules-v2-list': () =>
+          document.querySelector('.schedule-v2-card details[open] ul li') !== null,
+        'schedules-v2-list-narrow': () =>
+          scheduleNarrowFits() &&
+          document.querySelector('.schedule-v2-card details[open] ul li') !== null,
+        'schedules-v2-editor': () =>
+          document.querySelector('[data-schedule-ready] .schedule-v2-editor') !== null,
+        'schedules-v2-editor-narrow': () =>
+          scheduleNarrowFits() &&
+          document.querySelector('[data-schedule-ready] .schedule-v2-editor') !== null,
+        'schedules-v2-timeline': () => document.querySelector('.schedule-v2-timeline li') !== null,
+        'schedules-v2-timeline-narrow': () =>
+          scheduleNarrowFits() && document.querySelector('.schedule-v2-timeline li') !== null,
         // The "/" list for "/co", rendered with its options (M87's tips too).
         'slash-commands': () => document.querySelector('.slash-menu [role="option"]') !== null,
         'slash-tips': () => document.querySelector('.slash-menu [role="option"]') !== null,
@@ -6432,6 +6709,9 @@
           : (SCENARIO_READY[name] ?? (() => true))
         const isReady = () =>
           hasPageLoaded &&
+          (!(name in steps) ||
+            ((hasWebviewReady || (name.startsWith('schedules-v2') && hasScheduleHarnessMounted)) &&
+              hasPlayedScenario)) &&
           pendingFinds === 0 &&
           pendingScenarioEvents === 0 &&
           document.querySelector('[data-deferred-loading]') === null &&
@@ -6486,7 +6766,10 @@
           document.removeEventListener('visibilitychange', onVisibility)
         }
       }
-      const themed = params.has('theme') ? applyTheme(params.get('theme')) : Promise.resolve()
+      // A scene is not marked played on a page whose theme is still loading.
+      const themed = params.has('theme')
+        ? hostTrack(applyTheme(params.get('theme')))
+        : Promise.resolve()
       if (params.get('axe') === '1') {
         themed
           .then(() => whenReady(params.get('scenario') ?? 'none'))

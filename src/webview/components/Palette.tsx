@@ -22,7 +22,7 @@ import { UI_TEXT, PALETTE_LISTBOX_ID } from '../../shared/constants'
 import { effortAt, effortIndex } from '../../shared/effort'
 import { fill } from '../../shared/l10n/text'
 import {
-  contextWindowLabel,
+  type PaletteContext,
   filterPalette,
   formatTokenWindow,
   type PaletteAction,
@@ -30,8 +30,10 @@ import {
   type PaletteItem,
   type PaletteWidget,
 } from '../../shared/palette'
+import { contextWindowLabel } from '../../shared/paletteFormatting'
+import { buildPalette } from '../../shared/paletteRegistry'
 import type { ModelOption } from '../../shared/protocol'
-import { formatUsd } from '../../core/usage/insights'
+import { MoneyUnavailable, useMoneyDisplay, usePriceOf } from '../money'
 import { scrollRowIntoView, wrapIndex } from '../listNavigation'
 import { EffortSlider } from './EffortSlider'
 import { BackIcon, CheckIcon } from './icons'
@@ -43,6 +45,7 @@ export type PaletteView = 'actions' | 'models'
 export interface PaletteProps {
   readonly view: PaletteView
   readonly groups: readonly PaletteGroup[]
+  readonly context?: PaletteContext | undefined
   readonly models: readonly ModelOption[]
   readonly currentModelId: string | undefined
   readonly onAction: (action: PaletteAction) => void
@@ -55,6 +58,11 @@ export interface PaletteProps {
   readonly keys?: Ref<PaletteKeys>
   /** The active row's element id, for the prompt's aria-activedescendant. */
   readonly onActiveRowChange?: (elementId: string | undefined) => void
+  /**
+   * The document retry for prices that failed to load (STARTUP017): said
+   * inside the palette, since pressing a notice outside it closes it first.
+   */
+  readonly onRetryMoney?: () => void
 }
 
 /** The palette's keyboard, for a prompt that keeps the focus (M38). */
@@ -141,16 +149,24 @@ export function layoutActions(
   return { entries, rows }
 }
 
-/** How a price reads in the picker: the pair, `unpriced`, `local` or `plan`. */
-function priceText(model: ModelOption): string | undefined {
+/**
+ * How a price reads in the picker: the pair, `unpriced`, `local` or `plan`.
+ * The formatter is the lazy money chunk's (STARTUP017): unknown while it
+ * loads, so priced rows read without prices rather than with guessed ones.
+ */
+function priceText(
+  model: ModelOption,
+  formatPrice: (amount: number | string) => string | undefined,
+): string | undefined {
   switch (model.pricing) {
     case 'priced': {
-      return model.inputUsdPerMTokens === undefined || model.outputUsdPerMTokens === undefined
+      const input =
+        model.inputUsdPerMTokens === undefined ? undefined : formatPrice(model.inputUsdPerMTokens)
+      const output =
+        model.outputUsdPerMTokens === undefined ? undefined : formatPrice(model.outputUsdPerMTokens)
+      return input === undefined || output === undefined
         ? undefined
-        : fill(UI_TEXT.pickerPricePair, {
-            input: formatUsd(model.inputUsdPerMTokens),
-            output: formatUsd(model.outputUsdPerMTokens),
-          })
+        : fill(UI_TEXT.pickerPricePair, { input, output })
     }
     case 'unpriced': {
       return UI_TEXT.modelUnpriced
@@ -168,9 +184,12 @@ function priceText(model: ModelOption): string | undefined {
 }
 
 /** "{window} context · {price}", either half alone, or nothing to say. */
-function modelDetail(model: ModelOption): string | undefined {
+function modelDetail(
+  model: ModelOption,
+  formatPrice: (amount: number | string) => string | undefined,
+): string | undefined {
   const { contextLimit } = model
-  const price = priceText(model)
+  const price = priceText(model, formatPrice)
   if (contextLimit === undefined) {
     return price
   }
@@ -197,11 +216,12 @@ export function modelSections(
   models: readonly ModelOption[],
   currentModelId: string | undefined,
   onSelectModel: (modelId: string) => void,
+  formatPrice: (amount: number | string) => string | undefined,
 ): readonly ModelSection[] {
   const rowFor = (model: ModelOption): PaletteRow => ({
     id: `model:${model.modelId}`,
     label: model.displayLabel,
-    detail: modelDetail(model),
+    detail: modelDetail(model, formatPrice),
     tip: UI_TEXT.paletteTips.switchModel,
     widget: undefined,
     isCurrent: model.modelId === currentModelId,
@@ -365,6 +385,7 @@ function layoutModels(
   currentModelId: string | undefined,
   onSelectModel: (modelId: string) => void,
   onAction: (action: PaletteAction) => void,
+  formatPrice: (amount: number | string) => string | undefined,
 ): { readonly entries: readonly PaletteEntry[]; readonly rows: readonly PaletteRow[] } {
   const needle = filter.toLowerCase()
   const isMatch = (text: string | undefined): boolean =>
@@ -373,7 +394,7 @@ function layoutModels(
     (model) =>
       isMatch(model.displayLabel) || isMatch(model.providerLabel) || isMatch(model.modelId),
   )
-  const sections = modelSections(matching, currentModelId, onSelectModel)
+  const sections = modelSections(matching, currentModelId, onSelectModel, formatPrice)
   const isGrouped = sections.length > 1
   const rows: PaletteRow[] = []
   const entries: PaletteEntry[] = []
@@ -404,7 +425,13 @@ function layoutModels(
 }
 
 export function Palette(props: PaletteProps) {
-  const { view, groups, models, currentModelId, onAction, onSelectModel, onBack, onClose } = props
+  const { view, models, currentModelId, onAction, onSelectModel, onBack, onClose } = props
+  const money = useMoneyDisplay()
+  const priceOf = usePriceOf()
+  const groups = useMemo(
+    () => (props.context === undefined ? props.groups : buildPalette(props.context, priceOf)),
+    [props.groups, props.context, priceOf],
+  )
   const { isAttached = false, keys, onActiveRowChange } = props
   const [filter, setFilter] = useState('')
   const filterBox = useRef<HTMLInputElement>(null)
@@ -413,9 +440,11 @@ export function Palette(props: PaletteProps) {
   const layout = useMemo(
     () =>
       view === 'models'
-        ? layoutModels(models, filter, currentModelId, onSelectModel, onAction)
+        ? layoutModels(models, filter, currentModelId, onSelectModel, onAction, (amount) =>
+            money?.formatConservativeUsd(amount),
+          )
         : layoutActions(filterPalette(groups, filter), onAction),
-    [view, filter, models, currentModelId, onSelectModel, groups, onAction],
+    [view, filter, models, currentModelId, onSelectModel, groups, onAction, money],
   )
   const { entries, rows } = layout
 
@@ -602,6 +631,7 @@ export function Palette(props: PaletteProps) {
           />
         </div>
       )}
+      {props.onRetryMoney === undefined ? null : <MoneyUnavailable onRetry={props.onRetryMoney} />}
       <ListBody>{body}</ListBody>
     </div>
   )

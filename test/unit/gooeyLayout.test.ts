@@ -44,15 +44,24 @@ const bows = ({ side, pills }: GooeyPillLayout) =>
   pills.map((pill) => side * (pill.left - (pills[0]?.left ?? 0)))
 
 describe('gooeyLayout (a fan of uniform pills, 2026-10-04)', () => {
-  it('gives every pill one width: the widest that keeps the whole fan in 320 px', () => {
-    expect(gooeyPillWidth(narrow)).toBe(WIDTH)
-    expect(gooeyPillWidth(wide)).toBe(WIDTH)
-    expect(gooeyPillWidth({ width: 200, height: 760 })).toBe(184)
-    expect(gooeyPillWidth({ width: 10, height: 10 })).toBe(0)
+  it('gives every pill the widest label’s width, cut only by a panel too narrow for it', () => {
+    expect(gooeyPillWidth(narrow, 143)).toBe(143)
+    expect(gooeyPillWidth(wide, 400)).toBe(400)
+    expect(gooeyPillWidth(narrow, 400)).toBe(304)
+    expect(gooeyPillWidth({ width: 10, height: 10 }, 143)).toBe(0)
+  })
+
+  it('never widens a pill past its longest label: one width, the natural one', () => {
+    for (const natural of [96, 143, 210]) {
+      const { pills } = gooeyLayout({ x: 40, y: 380 }, 4, narrow, natural)
+      expect(new Set(pills.map((pill) => pill.width))).toEqual(new Set([natural]))
+      expectInside(pills, narrow)
+      expectApart(pills, `natural ${String(natural)}`)
+    }
   })
 
   it('stacks the pills 20 px apart, centred on the origin, on an arc that bows out', () => {
-    const { origin, side, pills } = gooeyLayout({ x: 600, y: 380 }, 3, wide)
+    const { origin, side, pills } = gooeyLayout({ x: 600, y: 380 }, 3, wide, WIDTH)
     expect(origin).toEqual({ x: 600, y: 380 })
     expect(side).toBe(-1)
     expect(pills.map((pill) => pill.top)).toEqual([300, 360, 420])
@@ -70,7 +79,7 @@ describe('gooeyLayout (a fan of uniform pills, 2026-10-04)', () => {
     [346, -1],
     [682, -1],
   ])('reaches away from the nearer side edge from x = %s', (x, side) => {
-    const result = gooeyLayout({ x, y: 380 }, 3, wide)
+    const result = gooeyLayout({ x, y: 380 }, 3, wide, WIDTH)
     expect(result.side).toBe(side)
     for (const pill of result.pills) {
       if (side === 1) {
@@ -85,9 +94,9 @@ describe('gooeyLayout (a fan of uniform pills, 2026-10-04)', () => {
     'keeps the whole arc for %s pills at 320 px, from any origin, moving it back whole',
     (count) => {
       for (const y of [0, 40, 380, 700, 760]) {
-        const shape = bows(gooeyLayout({ x: 600, y }, count, wide))
+        const shape = bows(gooeyLayout({ x: 600, y }, count, wide, WIDTH))
         for (const x of [0, 40, 159, 161, 250, 300, 320]) {
-          const layout = gooeyLayout({ x, y }, count, narrow)
+          const layout = gooeyLayout({ x, y }, count, narrow, WIDTH)
           const at = `(${String(x)}, ${String(y)})`
           expect(layout.pills).toHaveLength(count)
           expectInside(layout.pills, narrow)
@@ -104,8 +113,8 @@ describe('gooeyLayout (a fan of uniform pills, 2026-10-04)', () => {
   )
 
   it('tightens the arc only in a panel too narrow for the whole fan', () => {
-    const roomy = bows(gooeyLayout({ x: 280, y: 380 }, 3, { width: 320, height: 760 }))
-    const tight = gooeyLayout({ x: 280, y: 380 }, 3, { width: 290, height: 760 })
+    const roomy = bows(gooeyLayout({ x: 280, y: 380 }, 3, { width: 320, height: 760 }, WIDTH))
+    const tight = gooeyLayout({ x: 280, y: 380 }, 3, { width: 290, height: 760 }, WIDTH)
     expectInside(tight.pills, { width: 290, height: 760 })
     const tightBows = bows(tight)
     // Still a fan: the middle pill reaches farthest, by less than at 320 px.
@@ -113,16 +122,16 @@ describe('gooeyLayout (a fan of uniform pills, 2026-10-04)', () => {
     expect(tightBows[1]).toBeLessThan(roomy[1] ?? 0)
     expect(tightBows[2]).toBeCloseTo(0)
     // A panel narrower than a pill plus padding: one straight column, inside.
-    const column = gooeyLayout({ x: 180, y: 380 }, 4, { width: 200, height: 760 })
+    const column = gooeyLayout({ x: 180, y: 380 }, 4, { width: 200, height: 760 }, WIDTH)
     expectInside(column.pills, { width: 200, height: 760 })
     expect(new Set(column.pills.map((pill) => pill.left))).toEqual(new Set([8]))
     expectApart(column.pills, '200 px')
   })
 
   it('opens down from a top corner and up from a bottom one, curving back to the origin', () => {
-    const down = gooeyLayout({ x: 680, y: 20 }, 4, wide)
+    const down = gooeyLayout({ x: 680, y: 20 }, 4, wide, WIDTH)
     expect(down.pills[0]?.top).toBe(8)
-    const up = gooeyLayout({ x: 680, y: 750 }, 4, wide)
+    const up = gooeyLayout({ x: 680, y: 750 }, 4, wide, WIDTH)
     expect((up.pills.at(-1)?.top ?? 0) + HEIGHT).toBe(752)
     // The pill level with the origin reaches farthest; the far end curves back.
     const downBows = bows(down)
@@ -134,19 +143,19 @@ describe('gooeyLayout (a fan of uniform pills, 2026-10-04)', () => {
   it('shares out a short panel’s height, still inside and apart while the rows fit', () => {
     // Six 40 px rows in 280 px of room: 8 px gaps instead of 20.
     const short = { width: 320, height: 296 }
-    const { pills } = gooeyLayout({ x: 312, y: 150 }, 6, short)
+    const { pills } = gooeyLayout({ x: 312, y: 150 }, 6, short, WIDTH)
     expect(pills.map((pill) => pill.top)).toEqual([8, 56, 104, 152, 200, 248])
     expectInside(pills, short)
     expectApart(pills, 'short panel')
   })
 
   it('opens a second burst from a group pill, on the same side, inside the panel', () => {
-    const layout = gooeyLayout({ x: 312, y: 740 }, 3, narrow)
+    const layout = gooeyLayout({ x: 312, y: 740 }, 3, narrow, WIDTH)
     const group = layout.pills[1]
     if (group === undefined) {
       throw new Error('missing group pill')
     }
-    const burst = gooeySecondBurst(layout, 1, 4, narrow)
+    const burst = gooeySecondBurst(layout, 1, 4, narrow, WIDTH)
     expect(burst?.origin).toEqual({ x: group.left + group.width / 2, y: group.top + HEIGHT / 2 })
     expect(burst?.side).toBe(layout.side)
     expect(burst?.pills).toHaveLength(4)
@@ -154,9 +163,15 @@ describe('gooeyLayout (a fan of uniform pills, 2026-10-04)', () => {
     expectApart(burst?.pills ?? [], 'second burst')
     // Centred on the group's own pill (top 240, middle 260), not the origin
     // (380), unless the panel's edge moves it, as at the foot above.
-    const first = gooeySecondBurst(gooeyLayout({ x: 312, y: 380 }, 5, narrow), 0, 3, narrow)
+    const first = gooeySecondBurst(
+      gooeyLayout({ x: 312, y: 380 }, 5, narrow, WIDTH),
+      0,
+      3,
+      narrow,
+      WIDTH,
+    )
     expect(first?.pills.map((pill) => pill.top)).toEqual([180, 240, 300])
-    expect(gooeySecondBurst(layout, 3, 1, narrow)).toBeUndefined()
-    expect(gooeyLayout({ x: 0, y: 0 }, 0, narrow).pills).toEqual([])
+    expect(gooeySecondBurst(layout, 3, 1, narrow, WIDTH)).toBeUndefined()
+    expect(gooeyLayout({ x: 0, y: 0 }, 0, narrow, WIDTH).pills).toEqual([])
   })
 })

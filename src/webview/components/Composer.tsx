@@ -1,5 +1,4 @@
 import type { PromptLibraryProps } from '../prompts/PromptLibrary'
-import { deferred } from './DeferredSurface'
 import { webviewKey } from '../../shared/keybindings'
 // The prompt box: textarea with Claude-Code key semantics (Enter sends,
 // Shift+Enter newline, optional Ctrl/Cmd+Enter-to-send, Shift+Tab cycles the
@@ -63,9 +62,9 @@ import {
 import { fill } from '../../shared/l10n/text'
 import { hasPdfHeader } from '../../shared/pdfHeader'
 import { isPrivateFileName } from '../../shared/privateFiles'
-import { paidFeaturePrice } from '../../shared/paid'
 import type { AttachmentSummary, MentionItem, SettingsSnapshot } from '../../shared/protocol'
-import { rankSlashCommands, type SlashCommand } from '../../shared/slashCommands'
+import type { SlashCommand } from '../../shared/slashCommands'
+import { rankSlashCommands } from '../../shared/slashRank'
 import { blobToBase64, parseUriList } from '../base64'
 import { type DictationPress, pressAction, releaseAction } from '../dictationGesture'
 import { scrollRowIntoView, wrapIndex } from '../listNavigation'
@@ -83,12 +82,27 @@ import {
   SlashIcon,
   StopIcon,
 } from './icons'
-import { MENTION_OPTION_ID_PREFIX, MentionMenu, mentionOptionId } from './MentionMenu'
+import { deferred } from './DeferredSurface'
+import { MENTION_OPTION_ID_PREFIX, mentionOptionId } from './menuIds'
 import { modeIcon } from './modeIcons'
 import type { PaletteKeys } from './Palette'
 import type { MenuEntry } from './PopoverMenu'
 import { PALETTE_LISTBOX_ID } from '../../shared/constants'
-import { SLASH_LISTBOX_ID, SLASH_OPTION_ID_PREFIX, SlashMenu, slashOptionId } from './SlashMenu'
+import { usePaidFeaturePrice } from '../moneyHooks'
+import { retrySurface } from '../surfaceRetry'
+import { SLASH_LISTBOX_ID, SLASH_OPTION_ID_PREFIX, slashOptionId } from './menuIds'
+
+// The completion menus load on first open: keyboard handling stays in the
+// composer (the textarea keeps focus), so the boundary never takes it.
+const SlashMenu = deferred(async () => {
+  const { SlashMenu } = await import('./SlashMenu')
+  return { default: SlashMenu }
+}, false)
+
+const MentionMenu = deferred(async () => {
+  const { MentionMenu } = await import('./MentionMenu')
+  return { default: MentionMenu }
+}, false)
 
 export interface ImageData {
   readonly name: string
@@ -131,7 +145,7 @@ export interface ComposerProps {
   /** The reported context usage the meter draws (M87); no window, no meter. */
   readonly context: ContextMeterProps['context']
   /** The paid features that are on (M33, PLAN.md D30); undefined hides the badge. */
-  readonly paidBadge: { readonly label: string; readonly title: string } | undefined
+  readonly paidBadge: { readonly label: string; readonly title: string | undefined } | undefined
   /** The badge opens Account & usage, where this window's tally is. */
   readonly onOpenUsage: () => void
   readonly focusRequests: number
@@ -177,6 +191,7 @@ export interface ComposerProps {
   readonly onDismissBanner: () => void
   /** The prompt's "/" list (M38): the palette's slash commands and skills. */
   readonly slashCommands: readonly SlashCommand[]
+  readonly slashLoadState?: 'loading' | 'failed' | 'ready'
   /** Another menu or dialog is open: the "/" menus stay closed. */
   readonly isMenuOpen: boolean
   /** The palette, attached above the box, for a prompt that is just `/`. */
@@ -193,6 +208,9 @@ const MIN_ROWS = 1
 const URI_LIST_TYPE = 'text/uri-list'
 const IMAGE_TYPE_PREFIX = 'image/'
 const PASTED_IMAGE_NAME = 'pasted-image'
+
+// The toolbar icon buttons share one class string (M114 startup compaction).
+const ICON_BUTTON = 'icon-button chat-control'
 
 /** How the box was measured: its content height and the height of one row. */
 export interface RowMetrics {
@@ -258,14 +276,40 @@ function fileExtension(name: string): string {
   return dot === -1 ? '' : name.slice(dot).toLowerCase()
 }
 
+function isStreamedMedia(file: File): boolean {
+  return (
+    /^(?:video|audio)\//u.test(file.type) || /\.(?:mp4|mov|webm|mkv|mp3|wav|m4a)$/iu.test(file.name)
+  )
+}
+
+function parseHostUris(text: string): readonly string[] {
+  return parseUriList(text).filter((uri) => /^(?:file|vscode-remote):/iu.test(uri))
+}
+
 function attachableFiles(list: FileList | undefined, shouldIncludeText = false): readonly File[] {
   return [...(list ?? [])].filter(
     (file) =>
       file.type.startsWith(IMAGE_TYPE_PREFIX) ||
       file.type === PDF_MEDIA_TYPE ||
       file.name.toLowerCase().endsWith(PDF_EXTENSION) ||
+      isStreamedMedia(file) ||
       (shouldIncludeText && TEXT_ATTACHMENT_EXTENSIONS.has(fileExtension(file.name))),
   )
+}
+
+/** URI-backed files go to the host; an unrelated clipboard screenshot keeps its legacy path. */
+function filesWithoutUris(files: readonly File[], uris: readonly string[]): readonly File[] {
+  const names = new Set(
+    uris.map((uri) => {
+      try {
+        return decodeURIComponent(new URL(uri).pathname).split(/[/\\]/u).at(-1)
+      } catch {
+        // Malformed host URIs do not suppress unrelated clipboard files.
+        return
+      }
+    }),
+  )
+  return files.filter((file) => file.name === '' || !names.has(file.name))
 }
 
 /** The same conservative data-URL budget the host checks after decoding. */
@@ -292,16 +336,21 @@ function isDictationRelease(event: KeyboardEvent<HTMLElement>): boolean {
   return webviewKey('composer.dictation', event, 'up') === 'release'
 }
 
-function dictationTitle(dictation: DictationUiState): string {
+function dictationTitle(
+  dictation: DictationUiState,
+  voicePrice: string | undefined,
+): string | undefined {
   switch (dictation.status) {
     case 'unavailable': {
       return dictation.reason ?? UI_TEXT.dictationUnavailable
     }
     case 'idle': {
-      // The paid engine says so, with its price (M35, PLAN.md D30).
-      return dictation.engine === 'museVoice'
-        ? fill(UI_TEXT.dictationPaidTitle, { price: paidFeaturePrice('voice') })
-        : UI_TEXT.dictationTitle
+      // The paid engine says so, with its price (M35, PLAN.md D30). The
+      // tooltip waits for the lazy money chunk rather than showing a guess.
+      if (dictation.engine !== 'museVoice') return UI_TEXT.dictationTitle
+      return voicePrice === undefined
+        ? undefined
+        : fill(UI_TEXT.dictationPaidTitle, { price: voicePrice })
     }
     case 'starting':
     case 'listening': {
@@ -389,6 +438,7 @@ export function Composer(props: ComposerProps) {
     banner,
     onDismissBanner,
     slashCommands,
+    slashLoadState = 'ready',
     isMenuOpen,
     renderSlashPalette,
     slashPaletteKeys,
@@ -415,6 +465,9 @@ export function Composer(props: ComposerProps) {
     const settled = new Set(attachmentSettlements)
     pendingFiles.current = pendingFiles.current.filter((pending) => !settled.has(pending.requestId))
   }, [attachmentSettlements])
+  // The dictate tooltip's exact voice price arrives with the lazy money
+  // chunk; only the paid engine states one, so the free one loads nothing.
+  const voicePrice = usePaidFeaturePrice(dictation.engine === 'museVoice' ? 'voice' : undefined)
   const [caret, setCaret] = useState(0)
   const [mentionIndex, setMentionIndex] = useState(0)
   const [dismissedMention, setDismissedMention] = useState<number | undefined>(undefined)
@@ -486,7 +539,9 @@ export function Composer(props: ComposerProps) {
       ? slashMenuOf(draft, caret)
       : undefined
   const slashItems =
-    slashMenu === 'commands' ? rankSlashCommands(slashCommands, draft.slice(1)) : []
+    slashMenu === 'commands' && slashLoadState === 'ready'
+      ? rankSlashCommands(slashCommands, draft.slice(1))
+      : []
   const activeSlash = slashIndex < slashItems.length ? slashIndex : 0
   const isSlashMenuOpen = slashMenu !== undefined
   // The textarea keeps the focus and points at the active row with
@@ -845,7 +900,7 @@ export function Composer(props: ComposerProps) {
         current.reduce(
           (total, attachment) =>
             total +
-            (attachment.mediaType === TEXT_ATTACHMENT_MEDIA_TYPE
+            (attachment.media !== undefined || attachment.mediaType === TEXT_ATTACHMENT_MEDIA_TYPE
               ? 0
               : encodedMediaChars(attachment.sizeBytes, attachment.mediaType)),
           0,
@@ -898,6 +953,13 @@ export function Composer(props: ComposerProps) {
         onRefuseFile(name, UI_TEXT.textFilePrivate)
         continue
       }
+      // Browser File objects expose no approved host path. A URI transfer
+      // takes the host route below; bytes-only media needs the native picker.
+      // Refused, not unreadable: nothing was opened (M105 E1 review).
+      if (isStreamedMedia(file)) {
+        onRefuseFile(name, UI_TEXT.textFilePrivate)
+        continue
+      }
       const isDocument = file.type === PDF_MEDIA_TYPE || name.toLowerCase().endsWith(PDF_EXTENSION)
       if (isDocument) {
         admit(file, name, PDF_MEDIA_TYPE)
@@ -928,6 +990,18 @@ export function Composer(props: ComposerProps) {
   }
 
   const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    // A synthetic clipboard may carry files without a reader; that reads as
+    // an empty URI list, never a throw.
+    const clipboard = event.clipboardData
+    const readClipboard = (type: string): string =>
+      typeof clipboard.getData === 'function' ? clipboard.getData(type) : ''
+    const uris = parseHostUris(readClipboard(URI_LIST_TYPE))
+    if (uris.length > 0) {
+      event.preventDefault()
+      onDroppedUris(uris)
+      attachFiles(filesWithoutUris(attachableFiles(event.clipboardData.files, true), uris))
+      return
+    }
     const files = attachableFiles(event.clipboardData.files, true)
     if (files.length === 0) {
       return
@@ -936,7 +1010,7 @@ export function Composer(props: ComposerProps) {
     // file with no text representation can be probed for PDF bytes instead.
     if (
       attachableFiles(event.clipboardData.files).length === 0 &&
-      event.clipboardData.getData(TEXT_ATTACHMENT_MEDIA_TYPE) !== ''
+      readClipboard(TEXT_ATTACHMENT_MEDIA_TYPE) !== ''
     ) {
       return
     }
@@ -946,11 +1020,11 @@ export function Composer(props: ComposerProps) {
 
   const handleDrop = (event: DragEvent<HTMLElement>) => {
     event.preventDefault()
-    attachFiles(attachableFiles(event.dataTransfer.files, true))
-    const uris = parseUriList(event.dataTransfer.getData(URI_LIST_TYPE))
+    const uris = parseHostUris(event.dataTransfer.getData(URI_LIST_TYPE))
     if (uris.length > 0) {
       onDroppedUris(uris)
     }
+    attachFiles(filesWithoutUris(attachableFiles(event.dataTransfer.files, true), uris))
   }
 
   // What the box's aria-controls and aria-activedescendant point at.
@@ -1023,7 +1097,7 @@ export function Composer(props: ComposerProps) {
           <span>{banner}</span>
           <button
             type="button"
-            className="icon-button"
+            className={ICON_BUTTON}
             title={UI_TEXT.bannerDismiss}
             aria-label={UI_TEXT.bannerDismiss}
             onClick={onDismissBanner}
@@ -1038,8 +1112,23 @@ export function Composer(props: ComposerProps) {
             onActiveRowChange: setPaletteRowId,
           })
         : null}
-      {slashMenu === 'commands' ? (
+      {slashMenu === 'commands' && slashLoadState !== 'ready' ? (
+        <div className="mention-menu slash-menu">
+          {slashLoadState === 'loading' ? (
+            <p role="status">{UI_TEXT.loadingOutput}</p>
+          ) : (
+            <div role="alert">
+              <p>{UI_TEXT.surfaceLoadFailed}</p>
+              <button type="button" onClick={retrySurface}>
+                {UI_TEXT.surfaceLoadRetry}
+              </button>
+            </div>
+          )}
+        </div>
+      ) : null}
+      {slashMenu === 'commands' && slashLoadState === 'ready' ? (
         <SlashMenu
+          keepFocus
           items={slashItems}
           activeIndex={activeSlash}
           onSelect={(command) => {
@@ -1050,6 +1139,7 @@ export function Composer(props: ComposerProps) {
       ) : null}
       {isMentionOpen ? (
         <MentionMenu
+          keepFocus
           items={mentionItems}
           activeIndex={mentionIndex}
           onSelect={selectMention}
@@ -1125,7 +1215,7 @@ export function Composer(props: ComposerProps) {
         <div className="composer-toolbar-group">
           <button
             type="button"
-            className="icon-button"
+            className={ICON_BUTTON}
             title={UI_TEXT.attachTitle}
             aria-label={UI_TEXT.attachTitle}
             onMouseDown={keepMenuFocus}
@@ -1135,7 +1225,7 @@ export function Composer(props: ComposerProps) {
           </button>
           <button
             type="button"
-            className="icon-button"
+            className={ICON_BUTTON}
             title={UI_TEXT.commandsTitle}
             aria-label={UI_TEXT.commandsTitle}
             onMouseDown={keepMenuFocus}
@@ -1166,7 +1256,7 @@ export function Composer(props: ComposerProps) {
           )}
           <button
             type="button"
-            className="pill"
+            className="pill chat-control"
             title={UI_TEXT.modelPillTitle}
             aria-label={UI_TEXT.modelPillLabel}
             onMouseDown={keepMenuFocus}
@@ -1186,7 +1276,7 @@ export function Composer(props: ComposerProps) {
               <span className="editor-chip-label">{editorContextLabel}</span>
               <button
                 type="button"
-                className="chip-remove"
+                className="chip-remove chat-control"
                 title={UI_TEXT.editorContextRemove}
                 aria-label={`${UI_TEXT.editorContextRemove}: ${editorContextLabel}`}
                 onMouseDown={keepMenuFocus}
@@ -1202,7 +1292,7 @@ export function Composer(props: ComposerProps) {
               <span className="editor-chip-label">{referenceLabel}</span>
               <button
                 type="button"
-                className="chip-remove"
+                className="chip-remove chat-control"
                 title={UI_TEXT.referenceRemove}
                 aria-label={`${UI_TEXT.referenceRemove}: ${referenceLabel}`}
                 onMouseDown={keepMenuFocus}
@@ -1217,7 +1307,7 @@ export function Composer(props: ComposerProps) {
           {paidBadge === undefined ? null : (
             <button
               type="button"
-              className="paid-badge"
+              className="paid-badge chat-control"
               title={paidBadge.title}
               onMouseDown={keepMenuFocus}
               onClick={onOpenUsage}
@@ -1228,7 +1318,7 @@ export function Composer(props: ComposerProps) {
           <ContextMeter context={context} onCompact={onCompact} />
           <button
             type="button"
-            className="mode-button"
+            className="mode-button chat-control"
             title={
               onOpenModeMenu === undefined ? UI_TEXT.sideChatPlanOnly : UI_TEXT.permissionModeTitle
             }
@@ -1246,8 +1336,8 @@ export function Composer(props: ComposerProps) {
           </button>
           <button
             type="button"
-            className={`icon-button mic-button mic-${dictation.status}${dictation.engine === 'museVoice' ? ' mic-paid' : ''}`}
-            title={dictationTitle(dictation)}
+            className={`icon-button mic-button mic-${dictation.status}${dictation.engine === 'museVoice' ? ' mic-paid' : ''} chat-control`}
+            title={dictationTitle(dictation, voicePrice)}
             aria-label={
               dictation.engine === 'museVoice' ? UI_TEXT.dictationPaidLabel : UI_TEXT.dictationLabel
             }
@@ -1262,7 +1352,7 @@ export function Composer(props: ComposerProps) {
           {isRunning ? (
             <button
               type="button"
-              className="send-button send-button-stop"
+              className="send-button send-button-stop chat-control"
               title={UI_TEXT.stopTitle}
               aria-label={UI_TEXT.stopTitle}
               onClick={onStop}
@@ -1272,7 +1362,7 @@ export function Composer(props: ComposerProps) {
           ) : (
             <button
               type="button"
-              className="send-button"
+              className="send-button chat-control"
               title={sendTitle(canSend, isShellMode)}
               aria-label={isShellMode ? UI_TEXT.runCommandTitle : UI_TEXT.sendTitle}
               disabled={!canSend}

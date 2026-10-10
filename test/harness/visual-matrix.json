@@ -1,0 +1,538 @@
+{
+  "version": 1,
+  "themes": ["light", "dark", "hc-dark", "hc-light", "one-dark-pro", "dracula"],
+  "widths": [320, 690],
+  "height": 760,
+  "deviceScaleFactor": 1,
+  "states": ["default", "hover", "focus-visible", "pressed", "disabled", "selected"],
+  "goldenPath": "test/harness/goldens/{surface}/{component}/{state}/{theme}/{width}.png",
+  "surfaces": [
+    "panel",
+    "tasks",
+    "whats-new",
+    "companion",
+    "native",
+    "node",
+    "desktop",
+    "installer",
+    "tui"
+  ],
+  "componentAuditInputs": [
+    "src/webview/App.tsx",
+    "src/webview/TasksApp.tsx",
+    "src/webview/components/AccountChip.tsx",
+    "src/webview/components/AgentMap.tsx",
+    "src/webview/components/AgentMapContent.tsx",
+    "src/webview/components/AgentReceiptBody.tsx",
+    "src/webview/components/ApprovalCard.tsx",
+    "src/webview/components/AttachmentChips.tsx",
+    "src/webview/components/AttachmentMediaCost.tsx",
+    "src/webview/components/AttachmentSound.tsx",
+    "src/webview/components/AttentionDock.tsx",
+    "src/webview/components/AudioAttachmentActions.tsx",
+    "src/webview/components/BestOfNDialog.tsx",
+    "src/webview/components/CodeBlock.tsx",
+    "src/webview/components/Composer.tsx",
+    "src/webview/components/ContextMeter.tsx",
+    "src/webview/components/DeferredQuestionUi.tsx",
+    "src/webview/components/DeferredReportDialog.tsx",
+    "src/webview/components/DeferredSurface.tsx",
+    "src/webview/components/DiffTally.tsx",
+    "src/webview/components/EffortSlider.tsx",
+    "src/webview/components/ElicitationCard.tsx",
+    "src/webview/components/EmptyState.tsx",
+    "src/webview/components/ErrorBoundary.tsx",
+    "src/webview/components/ExternalLink.tsx",
+    "src/webview/components/FactRows.tsx",
+    "src/webview/components/GitPanel.tsx",
+    "src/webview/components/GoalPanel.tsx",
+    "src/webview/components/GoalParts.tsx",
+    "src/webview/components/GooeyMenu.tsx",
+    "src/webview/components/GooeyMenuContent.tsx",
+    "src/webview/components/HandoffDialog.tsx",
+    "src/webview/components/Header.tsx",
+    "src/webview/components/HeartbeatTrace.tsx",
+    "src/webview/components/HighlightedCode.tsx",
+    "src/webview/components/HistoryDialog.tsx",
+    "src/webview/components/HistoryPromptRow.tsx",
+    "src/webview/components/JudgeStatusLine.tsx",
+    "src/webview/components/LegalReport.tsx",
+    "src/webview/components/ListBody.tsx",
+    "src/webview/components/MarkdownView.tsx",
+    "src/webview/components/MentionMenu.tsx",
+    "src/webview/components/MenuOption.tsx",
+    "src/webview/components/Modal.tsx",
+    "src/webview/components/Onboarding.tsx",
+    "src/webview/components/OpenQuestionsChip.tsx",
+    "src/webview/components/PaidBadge.tsx",
+    "src/webview/components/PaidUsageSection.tsx",
+    "src/webview/components/Palette.tsx",
+    "src/webview/components/PlanUi.tsx",
+    "src/webview/components/PopoverMenu.tsx",
+    "src/webview/components/ProviderUsageSection.tsx",
+    "src/webview/components/QuestionCard.tsx",
+    "src/webview/components/QuestionSurface.tsx",
+    "src/webview/components/QuestionUi.tsx",
+    "src/webview/components/QuoteMenu.tsx",
+    "src/webview/components/ReasoningRow.tsx",
+    "src/webview/components/ReferencePage.tsx",
+    "src/webview/components/ReportDialog.tsx",
+    "src/webview/components/ReviewCommentForm.tsx",
+    "src/webview/components/ReviewFindings.tsx",
+    "src/webview/components/ReviewPane.tsx",
+    "src/webview/components/SchedulePanel.tsx",
+    "src/webview/components/SecretPromptDialog.tsx",
+    "src/webview/components/ServiceStatusRow.tsx",
+    "src/webview/components/SessionBoardDialog.tsx",
+    "src/webview/components/SetupBanner.tsx",
+    "src/webview/components/ShareView.tsx",
+    "src/webview/components/SignIn.tsx",
+    "src/webview/components/SlashMenu.tsx",
+    "src/webview/components/StatusLine.tsx",
+    "src/webview/components/StatusMark.tsx",
+    "src/webview/components/TeamCards.tsx",
+    "src/webview/components/TeamTree.tsx",
+    "src/webview/components/TeamUi.tsx",
+    "src/webview/components/TodoPanel.tsx",
+    "src/webview/components/ToolArgumentPreview.tsx",
+    "src/webview/components/ToolBlocks.tsx",
+    "src/webview/components/ToolBodies.tsx",
+    "src/webview/components/ToolRow.tsx",
+    "src/webview/components/Transcript.tsx",
+    "src/webview/components/UsageDialog.tsx",
+    "src/webview/components/UsageDialogContent.tsx",
+    "src/webview/components/UsageProviderSections.tsx",
+    "src/webview/components/UserShellRow.tsx",
+    "src/webview/components/VaultApprovalCard.tsx",
+    "src/webview/components/VerifyParts.tsx",
+    "src/webview/components/WorkflowRun.tsx",
+    "src/webview/components/icons.tsx",
+    "src/webview/components/modeIcons.tsx",
+    "src/webview/components/paletteDialog.tsx",
+    "src/webview/components/traffic/TrafficBoard.tsx",
+    "src/webview/components/traffic/TrafficConflicts.tsx",
+    "src/webview/components/traffic/TrafficLanes.tsx",
+    "src/webview/components/traffic/TrafficLeases.tsx",
+    "src/webview/components/traffic/TrafficMergeQueue.tsx",
+    "src/webview/components/traffic/TrafficMetrics.tsx",
+    "src/webview/components/traffic/TrafficParts.tsx",
+    "src/webview/components/traffic/TrafficRecovery.tsx",
+    "src/webview/components/traffic/TrafficSurface.tsx",
+    "src/webview/components/traffic/TrafficView.tsx",
+    "src/webview/components/traffic/TrafficWindows.tsx",
+    "src/webview/developer/DeveloperOptionsPage.tsx",
+    "src/webview/estimator/EstimatorPanel.tsx",
+    "src/webview/main.tsx",
+    "src/webview/media/CompanionMedia.tsx",
+    "src/webview/media/ToolVideo.tsx",
+    "src/webview/media/entry.tsx",
+    "src/webview/media/recorder/CompanionRecorder.tsx",
+    "src/webview/media/toolEntry.tsx",
+    "src/webview/models/ModelsSection.tsx",
+    "src/webview/models/ProvidersSection.tsx",
+    "src/webview/models/Wizard.tsx",
+    "src/webview/models/components/Badge.tsx",
+    "src/webview/models/components/CostNotice.tsx",
+    "src/webview/models/components/DataTable.tsx",
+    "src/webview/models/components/FilterBar.tsx",
+    "src/webview/models/components/InlineError.tsx",
+    "src/webview/models/components/KeyState.tsx",
+    "src/webview/models/components/ScanStatus.tsx",
+    "src/webview/models/components/SearchableSelect.tsx",
+    "src/webview/models/components/SuggestionCard.tsx",
+    "src/webview/models/components/UndoBar.tsx",
+    "src/webview/models/models.tsx",
+    "src/webview/models/panel.tsx",
+    "src/webview/models/sections/accounts/AccountEditor.tsx",
+    "src/webview/models/sections/accounts/AccountNotices.tsx",
+    "src/webview/models/sections/accounts/AccountsConfirmationDialog.tsx",
+    "src/webview/models/sections/accounts/AccountsSection.tsx",
+    "src/webview/models/sections/accounts/PolicyDetails.tsx",
+    "src/webview/models/sections/accounts/ThresholdEditor.tsx",
+    "src/webview/models/sections/runners/RunnerForm.tsx",
+    "src/webview/models/sections/runners/RunnersSection.tsx",
+    "src/webview/models/sections/vault/VaultGrantEditor.tsx",
+    "src/webview/models/sections/vault/VaultSection.tsx",
+    "src/webview/models/sections/vault/VaultSurface.tsx",
+    "src/webview/models/sections/vault/vaultPresentation.tsx",
+    "src/webview/money.tsx",
+    "src/webview/playbook/DeferredPlaybook.tsx",
+    "src/webview/playbook/PlaybookMap.tsx",
+    "src/webview/playbook/PlaybookPanel.tsx",
+    "src/webview/playbook/PlaybookRows.tsx",
+    "src/webview/prompts/PromptLibrary.tsx",
+    "src/webview/prompts/PromptLibraryBridge.tsx",
+    "src/webview/reporting/ReportApp.tsx",
+    "src/webview/reporting/UsageReportAction.tsx",
+    "src/webview/reporting/destinations/DestinationPicker.tsx",
+    "src/webview/reporting/main.tsx",
+    "src/webview/resources/ResourceSurface.tsx",
+    "src/webview/resources/ResourceTaskRow.tsx",
+    "src/webview/schedules/CapabilityOptions.tsx",
+    "src/webview/schedules/DeferredReportActionEditor.tsx",
+    "src/webview/schedules/GrantFields.tsx",
+    "src/webview/schedules/ReportActionEditor.tsx",
+    "src/webview/schedules/ScheduleCard.tsx",
+    "src/webview/schedules/ScheduleEditor.tsx",
+    "src/webview/schedules/ScheduleRunBody.tsx",
+    "src/webview/schedules/ScheduleSurface.tsx",
+    "src/webview/schedules/ScheduleSurfaceView.tsx",
+    "src/webview/schedules/ScheduleTimeline.tsx",
+    "src/webview/schedules/TriggerFields.tsx",
+    "src/webview/schedules/TriggerSummary.tsx",
+    "src/webview/sharing/ChatShareBridge.tsx",
+    "src/webview/sharing/ChatShareDialog.tsx",
+    "src/webview/usage/AccountsSection.tsx",
+    "src/webview/usage/AttemptsSection.tsx",
+    "src/webview/usage/BreakdownTable.tsx",
+    "src/webview/usage/EmptyStates.tsx",
+    "src/webview/usage/FeaturesTable.tsx",
+    "src/webview/usage/Header.tsx",
+    "src/webview/usage/KpiTiles.tsx",
+    "src/webview/usage/LazyResourcesSection.tsx",
+    "src/webview/usage/LimitsSection.tsx",
+    "src/webview/usage/ModelDetail.tsx",
+    "src/webview/usage/ResourcesSection.tsx",
+    "src/webview/usage/SavingsSection.tsx",
+    "src/webview/usage/UsageApp.tsx",
+    "src/webview/usage/charts/BurnLine.tsx",
+    "src/webview/usage/charts/ChartFrame.tsx",
+    "src/webview/usage/charts/MirroredColumns.tsx",
+    "src/webview/usage/charts/ShareBar.tsx",
+    "src/webview/usage/charts/StackedColumns.tsx",
+    "src/webview/usage/charts/StepLines.tsx",
+    "src/webview/usage/usage.tsx",
+    "src/webview/whatsNew/whatsNewPage.ts"
+  ],
+  "capture": {
+    "locale": "en",
+    "timezone": "UTC",
+    "reducedMotion": true,
+    "animations": "disabled",
+    "reviewedUpdatesOnly": true
+  },
+  "pendingSurfaceOwners": {
+    "companion": "C",
+    "native": "C",
+    "node": "N",
+    "desktop": "D",
+    "installer": "D",
+    "tui": "N / TD"
+  },
+  "themeCaptures": {
+    "one-dark-pro": {
+      "fixture": "test/harness/themes/one-dark-pro.json",
+      "contrastScope": "archive colours and captured VS Code 1.130.0 registered defaults; AA failures retained for A/P1/P2",
+      "contrastPairs": [
+        {
+          "foreground": "--vscode-editor-foreground",
+          "background": "--vscode-editor-background",
+          "usage": "text",
+          "ratio": 6.568,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-descriptionForeground",
+          "background": "--vscode-sideBar-background",
+          "usage": "text",
+          "ratio": 7.222,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-foreground",
+          "background": "--vscode-sideBar-background",
+          "usage": "text",
+          "ratio": 9.586,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-foreground",
+          "background": "--vscode-editorWidget-background",
+          "usage": "text",
+          "ratio": 9.586,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-foreground",
+          "background": "--vscode-list-hoverBackground",
+          "usage": "text",
+          "ratio": 8.135,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-button-foreground",
+          "background": "--vscode-button-background",
+          "usage": "text",
+          "ratio": 9.344,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-button-foreground",
+          "background": "--vscode-button-hoverBackground",
+          "usage": "text",
+          "ratio": 7.492,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-badge-foreground",
+          "background": "--vscode-badge-background",
+          "usage": "text",
+          "ratio": 13.999,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-input-placeholderForeground",
+          "background": "--vscode-input-background",
+          "usage": "text",
+          "ratio": 3.604,
+          "passesAA": false
+        },
+        {
+          "foreground": "--vscode-errorForeground",
+          "background": "--vscode-editorWidget-background",
+          "usage": "text",
+          "ratio": 6.268,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-descriptionForeground",
+          "background": "--vscode-editorWidget-background",
+          "usage": "text",
+          "ratio": 7.222,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-descriptionForeground",
+          "background": "--vscode-list-hoverBackground",
+          "usage": "text",
+          "ratio": 6.129,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-input-foreground",
+          "background": "--vscode-input-background",
+          "usage": "text",
+          "ratio": 7.742,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-button-secondaryForeground",
+          "background": "--vscode-button-secondaryBackground",
+          "usage": "text",
+          "ratio": 6.753,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-list-activeSelectionForeground",
+          "background": "--vscode-list-activeSelectionBackground",
+          "usage": "text",
+          "ratio": 9.328,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-textLink-foreground",
+          "background": "--vscode-sideBar-background",
+          "usage": "text",
+          "ratio": 6.514,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-editorWarning-foreground",
+          "background": "--vscode-editorWidget-background",
+          "usage": "text",
+          "ratio": 6.249,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-focusBorder",
+          "background": "--vscode-sideBar-background",
+          "usage": "ui",
+          "ratio": 1.579,
+          "passesAA": false
+        },
+        {
+          "foreground": "--vscode-focusBorder",
+          "background": "--vscode-editorWidget-background",
+          "usage": "ui",
+          "ratio": 1.579,
+          "passesAA": false
+        },
+        {
+          "foreground": "--vscode-focusBorder",
+          "background": "--vscode-input-background",
+          "usage": "ui",
+          "ratio": 1.692,
+          "passesAA": false
+        },
+        {
+          "foreground": "--vscode-focusBorder",
+          "background": "--vscode-button-background",
+          "usage": "ui",
+          "ratio": 1.044,
+          "passesAA": false
+        },
+        {
+          "foreground": "--vscode-panel-border",
+          "background": "--vscode-sideBar-background",
+          "usage": "ui",
+          "ratio": 1.579,
+          "passesAA": false
+        }
+      ]
+    },
+    "dracula": {
+      "fixture": "test/harness/themes/dracula.json",
+      "contrastScope": "archive colours and captured VS Code 1.130.0 registered defaults; AA failures retained for A/P1/P2",
+      "contrastPairs": [
+        {
+          "foreground": "--vscode-descriptionForeground",
+          "background": "--vscode-sideBar-background",
+          "usage": "text",
+          "ratio": 7.93,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-descriptionForeground",
+          "background": "--vscode-editorWidget-background",
+          "usage": "text",
+          "ratio": 7.93,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-editor-foreground",
+          "background": "--vscode-editor-background",
+          "usage": "text",
+          "ratio": 13.359,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-foreground",
+          "background": "--vscode-sideBar-background",
+          "usage": "text",
+          "ratio": 14.814,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-foreground",
+          "background": "--vscode-editorWidget-background",
+          "usage": "text",
+          "ratio": 14.814,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-foreground",
+          "background": "--vscode-list-hoverBackground",
+          "canvas": "--vscode-sideBar-background",
+          "usage": "text",
+          "ratio": 11.722,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-input-foreground",
+          "background": "--vscode-input-background",
+          "usage": "text",
+          "ratio": 13.359,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-input-placeholderForeground",
+          "background": "--vscode-input-background",
+          "usage": "text",
+          "ratio": 3.026,
+          "passesAA": false
+        },
+        {
+          "foreground": "--vscode-button-foreground",
+          "background": "--vscode-button-background",
+          "usage": "text",
+          "ratio": 8.585,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-button-secondaryForeground",
+          "background": "--vscode-button-secondaryBackground",
+          "usage": "text",
+          "ratio": 13.359,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-button-secondaryForeground",
+          "background": "--vscode-button-secondaryHoverBackground",
+          "usage": "text",
+          "ratio": 11.062,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-badge-foreground",
+          "background": "--vscode-badge-background",
+          "usage": "text",
+          "ratio": 8.585,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-list-activeSelectionForeground",
+          "background": "--vscode-list-activeSelectionBackground",
+          "usage": "text",
+          "ratio": 8.585,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-editorWarning-foreground",
+          "background": "--vscode-editorWidget-background",
+          "usage": "text",
+          "ratio": 11.409,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-errorForeground",
+          "background": "--vscode-editorWidget-background",
+          "usage": "text",
+          "ratio": 5.025,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-focusBorder",
+          "background": "--vscode-sideBar-background",
+          "usage": "ui",
+          "ratio": 3.356,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-focusBorder",
+          "background": "--vscode-editorWidget-background",
+          "usage": "ui",
+          "ratio": 3.356,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-focusBorder",
+          "background": "--vscode-input-background",
+          "usage": "ui",
+          "ratio": 3.026,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-focusBorder",
+          "background": "--vscode-button-background",
+          "usage": "ui",
+          "ratio": 1.945,
+          "passesAA": false
+        },
+        {
+          "foreground": "--vscode-input-border",
+          "background": "--vscode-input-background",
+          "usage": "ui",
+          "ratio": 1.218,
+          "passesAA": false
+        },
+        {
+          "foreground": "--vscode-panel-border",
+          "background": "--vscode-sideBar-background",
+          "usage": "ui",
+          "ratio": 6.546,
+          "passesAA": true
+        }
+      ]
+    }
+  }
+}

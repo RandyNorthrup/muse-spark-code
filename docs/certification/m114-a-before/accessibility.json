@@ -1,0 +1,174 @@
+{
+  "kind": "scoped-before-observation-not-full-a11y-certification",
+  "command": "npm run test:a11y -- <scene>",
+  "themes": ["light", "dark", "hc-dark", "hc-light"],
+  "pages": 72,
+  "allExitedZero": true,
+  "unmeasuredContrastElements": 504,
+  "glyphOnlyElements": 4,
+  "results": [
+    {
+      "scene": "column-narrow",
+      "exit": 0,
+      "summary": [
+        "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+      ],
+      "unmeasuredContrastElements": 4,
+      "glyphOnlyElements": 0
+    },
+    {
+      "scene": "approval-narrow",
+      "exit": 0,
+      "summary": [
+        "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+      ],
+      "unmeasuredContrastElements": 12,
+      "glyphOnlyElements": 0
+    },
+    {
+      "scene": "chat-tool-menu-narrow",
+      "exit": 0,
+      "summary": [
+        "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+      ],
+      "unmeasuredContrastElements": 0,
+      "glyphOnlyElements": 0
+    },
+    {
+      "scene": "elicitation-narrow",
+      "exit": 0,
+      "summary": [
+        "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+      ],
+      "unmeasuredContrastElements": 0,
+      "glyphOnlyElements": 0
+    },
+    {
+      "scene": "report-narrow",
+      "exit": 0,
+      "summary": [
+        "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+      ],
+      "unmeasuredContrastElements": 2,
+      "glyphOnlyElements": 0
+    },
+    {
+      "scene": "share-narrow",
+      "exit": 0,
+      "summary": [
+        "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+      ],
+      "unmeasuredContrastElements": 10,
+      "glyphOnlyElements": 0
+    },
+    {
+      "scene": "modes",
+      "exit": 0,
+      "summary": [
+        "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+      ],
+      "unmeasuredContrastElements": 36,
+      "glyphOnlyElements": 0
+    },
+    {
+      "scene": "palette",
+      "exit": 0,
+      "summary": [
+        "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+      ],
+      "unmeasuredContrastElements": 364,
+      "glyphOnlyElements": 0
+    },
+    {
+      "scene": "history",
+      "exit": 0,
+      "summary": [
+        "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+      ],
+      "unmeasuredContrastElements": 24,
+      "glyphOnlyElements": 0
+    },
+    {
+      "scene": "bestofn",
+      "exit": 0,
+      "summary": [
+        "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+      ],
+      "unmeasuredContrastElements": 4,
+      "glyphOnlyElements": 0
+    },
+    {
+      "scene": "board",
+      "exit": 0,
+      "summary": [
+        "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+      ],
+      "unmeasuredContrastElements": 8,
+      "glyphOnlyElements": 0
+    },
+    {
+      "scene": "tasks-tab",
+      "exit": 0,
+      "summary": [
+        "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+      ],
+      "unmeasuredContrastElements": 0,
+      "glyphOnlyElements": 4
+    },
+    {
+      "scene": "markdown",
+      "exit": 0,
+      "summary": [
+        "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+      ],
+      "unmeasuredContrastElements": 0,
+      "glyphOnlyElements": 0
+    },
+    {
+      "scene": "git-pr-narrow",
+      "exit": 0,
+      "summary": [
+        "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+      ],
+      "unmeasuredContrastElements": 32,
+      "glyphOnlyElements": 0
+    },
+    {
+      "scene": "agents-details",
+      "exit": 0,
+      "summary": [
+        "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+      ],
+      "unmeasuredContrastElements": 0,
+      "glyphOnlyElements": 0
+    },
+    {
+      "scene": "context-meter-full",
+      "exit": 0,
+      "summary": [
+        "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+      ],
+      "unmeasuredContrastElements": 4,
+      "glyphOnlyElements": 0
+    },
+    {
+      "scene": "review-pane-narrow",
+      "exit": 0,
+      "summary": [
+        "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+      ],
+      "unmeasuredContrastElements": 0,
+      "glyphOnlyElements": 0
+    },
+    {
+      "scene": "paid-usage",
+      "exit": 0,
+      "summary": [
+        "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+      ],
+      "unmeasuredContrastElements": 4,
+      "glyphOnlyElements": 0
+    }
+  ],
+  "limits": "The unchanged gate uses its regular 690x673 viewport or its existing SIZED_SCENARIOS viewport. CSS-only narrow scenarios do not imply a true 320 px axe scan. Before PNGs independently use true 320/690x760 viewports. Focus/non-text contrast and offscreen/obscured text are not certified by this scoped axe observation."
+}

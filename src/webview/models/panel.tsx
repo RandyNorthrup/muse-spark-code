@@ -4,7 +4,7 @@
 // table reflows to cards under 340 px (models.css).
 
 import { UI_TEXT } from '../../shared/constants'
-import { useEffect, useReducer, useState } from 'react'
+import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
 import {
   parseHostToPanelMessage,
   type ModelsPanelState,
@@ -12,9 +12,15 @@ import {
 } from '../../shared/modelsPanel'
 import type { ErrorReporter } from '../errorReport'
 import type { HostBridge } from '../hostBridge'
-import type { PanelUiAction, PanelUiState } from './reducer'
+import type { PanelUiAction, PanelUiState, WizardLife } from './reducer'
 import { INITIAL_PANEL_UI, panelUiReducer } from './reducer'
 import { MODEL_SECTIONS } from './sections'
+import { MoneyUnavailable } from '../money'
+
+/** The panel's document retry, as its crash screen's Reload. */
+function reloadPanel(): void {
+  window.location.reload()
+}
 
 /** The live app uses the same strict contract as the panel host. */
 export function ModelsApp({
@@ -62,7 +68,24 @@ export interface ModelsPanelProps {
   readonly dispatch: (action: PanelUiAction) => void
 }
 
+/**
+ * The open wizard's generation as pending work sees it when it settles:
+ * the latest one this panel rendered, or none once the wizard closed.
+ */
+function useWizardLife(ui: PanelUiState): WizardLife {
+  const openGeneration = ui.wizardOpen ? ui.wizardGeneration : undefined
+  const latest = useRef(openGeneration)
+  useLayoutEffect(() => {
+    latest.current = openGeneration
+  })
+  return {
+    generation: ui.wizardGeneration,
+    isCurrent: (generation) => latest.current === generation,
+  }
+}
+
 export function ModelsPanel({ panelState, ui, post, dispatch }: ModelsPanelProps) {
+  const wizardLife = useWizardLife(ui)
   const active = MODEL_SECTIONS.find((section) => section.id === ui.section) ?? MODEL_SECTIONS[0]
   if (active === undefined) {
     return null
@@ -90,6 +113,9 @@ export function ModelsPanel({ panelState, ui, post, dispatch }: ModelsPanelProps
           )
         })}
       </nav>
+      {/* A failed money load (costs, budgets, rates, key usage) is said once
+          for every section, with Retry; Accept stays unavailable meanwhile. */}
+      <MoneyUnavailable buttonClassName="models-button" onRetry={reloadPanel} />
       {panelState === undefined ? (
         <p className="models-hint" role="status">
           {UI_TEXT.connecting}
@@ -103,6 +129,7 @@ export function ModelsPanel({ panelState, ui, post, dispatch }: ModelsPanelProps
           }}
           dispatch={dispatch}
           wizardOpen={ui.wizardOpen}
+          wizardLife={wizardLife}
           importOpen={ui.importOpen}
           highlightedItem={ui.highlighted?.itemId}
         />

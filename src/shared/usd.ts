@@ -1,6 +1,5 @@
 // Exact decimal USD arithmetic for hosted-search admission and durable claims.
 // Numbers enter once at the boundary; persisted amounts use decimal strings.
-import * as z from 'zod/mini'
 import {
   USD_DECIMAL_RADIX,
   USD_DECIMAL_ZERO,
@@ -8,19 +7,15 @@ import {
   USD_LIABILITY_DECIMALS,
 } from './usdConstants'
 
-/** Canonical exact amounts on new money ports. Numbers are accepted only at legacy parse edges. */
-// Schema builders are pure; unrelated constant readers need no money runtime.
-export const usdAmountSchema = /* @__PURE__ */ (() =>
-  z
-    .string()
-    .check(z.regex(/^-?(?:0|[1-9]\d*)(?:\.\d*[1-9])?$/))
-    .brand<'Usd'>())()
-export const nonnegativeUsdSchema = /* @__PURE__ */ (() =>
-  z
-    .string()
-    .check(z.regex(/^(?:0|[1-9]\d*)(?:\.\d*[1-9])?$/))
-    .brand<'Usd'>())()
-export type UsdAmount = z.infer<typeof usdAmountSchema>
+import { usdAmountSchema, type UsdAmount } from './usdSchema'
+export {
+  compareUsdAmounts,
+  usdAmountSchema,
+  nonnegativeUsdSchema,
+  usdInputSchema,
+  legacyUsdSchema,
+  type UsdAmount,
+} from './usdSchema'
 
 const DECIMAL = /^(-?\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/i
 function radix(): bigint {
@@ -145,25 +140,28 @@ export class Usd {
   }
 }
 
-/** New user input is decimal text; canonicalize exactly once, without Number. */
-export const usdInputSchema = /* @__PURE__ */ (() =>
-  z.pipe(
-    z.string().check(z.regex(/^\d+(?:\.\d+)?$/)),
-    z.transform((amount) => Usd.from(amount).toAmount()),
-  ))()
-
-/** Historical numeric records parse once; new serialized amounts stay canonical and exact. */
-export const legacyUsdSchema = /* @__PURE__ */ (() =>
-  z.pipe(
-    z.union([z.number().check(z.nonnegative()), nonnegativeUsdSchema]),
-    z.transform((amount) => Usd.from(amount).toAmount()),
-  ))()
-
 /** Legacy values normalize once; every arithmetic result remains an exact branded string. */
 export function sumUsd(...amounts: readonly UsdAmount[]): UsdAmount {
   let sum = Usd.from(0)
   for (const amount of amounts) sum = sum.add(Usd.from(amount))
   return sum.toAmount()
+}
+
+function extremeUsd(first: UsdAmount, rest: readonly UsdAmount[], isMinimum: boolean): UsdAmount {
+  let result = first
+  for (const amount of rest) {
+    const comparison = Usd.from(amount).compare(Usd.from(result))
+    if (comparison !== 0 && comparison < 0 === isMinimum) result = amount
+  }
+  return result
+}
+
+export function minUsd(first: UsdAmount, ...rest: readonly UsdAmount[]): UsdAmount {
+  return extremeUsd(first, rest, true)
+}
+
+export function maxUsd(first: UsdAmount, ...rest: readonly UsdAmount[]): UsdAmount {
+  return extremeUsd(first, rest, false)
 }
 
 export function multiplyUsd(amount: UsdAmount, count: number): UsdAmount {
@@ -176,4 +174,67 @@ export function negateUsd(amount: UsdAmount): UsdAmount {
 
 export function isPositiveUsd(amount: UsdAmount): boolean {
   return Usd.from(amount).compare(Usd.from(0)) > 0
+}
+
+const DECIMAL_RADIX = 10n
+const ZERO = 0n
+const ONE = 1n
+const NANO_USD_DECIMALS = 9
+const NANOS_PER_USD = DECIMAL_RADIX ** BigInt(NANO_USD_DECIMALS)
+
+/** Exact nano-USD fraction. Retain sub-nano charges until display, never
+ * round each rental or duration before comparing complete candidate costs.
+ */
+export interface UsdNanos {
+  numerator: bigint
+  denominator: bigint
+}
+
+function decimal(value: number): UsdNanos {
+  if (!Number.isFinite(value) || value < 0) throw new RangeError('invalid-usd')
+  // The boundary is a JSON number. Interpret its canonical decimal spelling,
+  // including scientific notation, without floating-point multiplication.
+  const [mantissa = '0', exponent = '0'] = String(value).split('e', 2)
+  const [whole = '0', fraction = ''] = mantissa.split('.', 2)
+  const scale = fraction.length - Number(exponent)
+  const digits = BigInt(whole + fraction)
+  return scale >= 0
+    ? { numerator: digits, denominator: DECIMAL_RADIX ** BigInt(scale) }
+    : { numerator: digits * DECIMAL_RADIX ** BigInt(-scale), denominator: ONE }
+}
+
+export function usdNanos(value: number): UsdNanos {
+  const units = decimal(value)
+  return { ...units, numerator: units.numerator * NANOS_PER_USD }
+}
+
+export function addUsdNanos(a: UsdNanos, b: UsdNanos): UsdNanos {
+  return {
+    numerator: a.numerator * b.denominator + b.numerator * a.denominator,
+    denominator: a.denominator * b.denominator,
+  }
+}
+
+export function scaleUsdNanos(value: UsdNanos, factor: number): UsdNanos {
+  const multiplier = decimal(factor)
+  return {
+    numerator: value.numerator * multiplier.numerator,
+    denominator: value.denominator * multiplier.denominator,
+  }
+}
+
+export function compareUsdNanos(a: UsdNanos, b: UsdNanos): number {
+  const difference = a.numerator * b.denominator - b.numerator * a.denominator
+  if (difference === ZERO) return 0
+  return difference < ZERO ? -1 : 1
+}
+
+/** Only the JSON/display projection rounds upward to the next nano-USD.
+ * This number must never be used for cost arithmetic or selection.
+ */
+export function displayUsdNanos(value: UsdNanos): number {
+  const ceiling = (value.numerator + value.denominator - ONE) / value.denominator
+  const whole = ceiling / NANOS_PER_USD
+  const fraction = (ceiling % NANOS_PER_USD).toString().padStart(NANO_USD_DECIMALS, '0')
+  return Number(`${String(whole)}.${fraction}`)
 }

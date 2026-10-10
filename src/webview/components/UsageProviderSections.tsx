@@ -1,6 +1,6 @@
 import { UI_TEXT, type ModelPricing } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { backendLabel } from '../../shared/palette'
+import { backendLabel } from '../../shared/l10n/text'
 import { planLabel, type AccountFacts } from '../../shared/usage'
 import type { UsageReport } from '../state/uiState'
 export { PlanUsageSection } from './PlanUi'

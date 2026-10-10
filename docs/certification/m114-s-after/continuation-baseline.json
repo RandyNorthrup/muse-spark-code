@@ -1,0 +1,28 @@
+{
+  "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+  "review": "M114-S-mounted-native-layout-and-lead-tolerance-2026-10-06",
+  "archive": "/home/randy/archive/m114-s-settled-c4f37c6f7-complete",
+  "browser": "150.0.7871.186",
+  "platform": "linux",
+  "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+  "environment": {
+    "locale": "en",
+    "timezone": "UTC",
+    "deviceScaleFactor": 1,
+    "reducedMotion": true,
+    "animations": "disabled",
+    "network": "loopback-only"
+  },
+  "policy": {
+    "threshold": 0.1,
+    "includeAA": false,
+    "maxChangedPixelRatio": 0.0001,
+    "maxChangedPixels": 12
+  },
+  "totalBytes": 246807746,
+  "manifestSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6",
+  "captures": 4824,
+  "components": 65,
+  "budgetBytes": 536870912,
+  "status": "unaccepted-complete-candidate-blocked-by-comparison-mount-timeout"
+}

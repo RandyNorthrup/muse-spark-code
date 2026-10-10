@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { buildLinuxHelper } from './build-linux-helper.mjs'
 import { resourceBrowserValidation, webviewEntryMetafile } from './lib/webviewBundles.mjs'
+import { listIntegrationTests } from './lib/integrationTests.mjs'
 // Bundles the extension host entry, the Model API backend, the review, the search worker,
 // web fetch's page converter worker (M69: parse5 and the HTML converter,
 // loaded on a worker thread started for each page, never at activation), the
@@ -53,22 +54,13 @@ import { resourceBrowserValidation, webviewEntryMetafile } from './lib/webviewBu
 // backend is built once for both.
 
 import { execFileSync } from 'node:child_process'
-import {
-  cpSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs'
+import { cpSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
   UI_TEXT_REGIONS,
   regionalUiText,
   compressedEnglish,
   compactBrowserUiText,
-  compressedReference,
 } from './lib/uiTextRegions.mjs'
 
 import { lazyBrowserKeybindings } from './lib/browserKeybindings.mjs'
@@ -78,14 +70,18 @@ import * as esbuild from 'esbuild'
 import { copyCatalogToDist } from './sync-provider-catalog.mjs'
 import { sharedHighlightGrammar } from './lib/highlightGrammar.mjs'
 import { deferredTeamView } from './lib/deferredTeamView.mjs'
+import { HOST_PLUGINS } from './lib/hostPlugins.mjs'
 import {
   sharedUiText,
   sharedValidation,
+  nodeReferenceData,
   deferredCohort,
   sharedWire,
   sharedResourceAdmission,
   sharedStructuredSchema,
   sharedModelApiBoundaries,
+  englishZodLocales,
+  sharedRedaction,
 } from './lib/deferredBundles.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
@@ -125,7 +121,13 @@ const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const RESOURCE_ENTRY = 'src/core/resources/resourceGovernorEntry.ts'
 const RESOURCE_OUTFILE = 'dist/resourceGovernor.js'
-const RESOURCE_ADMISSION_ENTRY = 'src/core/resources/admission.ts'
+// POSTSPAWN: the governed launcher, beside (never inside) the governor.
+const RESOURCE_PROCESS_ENTRY = 'src/core/resources/resourceProcessEntry.ts'
+const RESOURCE_PROCESS_OUTFILE = 'dist/resourceProcess.js'
+// POSTSPAWN: the vault MCP launch (scrubber, leases), on the first vault-backed server.
+const MCP_VAULT_ENTRY = 'src/host/backend/mcpVaultEntry.ts'
+const MCP_VAULT_OUTFILE = 'dist/mcpVault.js'
+const RESOURCE_ADMISSION_ENTRY = 'src/core/resources/admissionEntry.ts'
 const RESOURCE_ADMISSION_OUTFILE = 'dist/resourceAdmission.js'
 const PROVIDERS_ENTRY = 'src/host/backend/providersEntry.ts'
 const PROVIDERS_OUTFILE = 'dist/providers.js'
@@ -141,6 +143,9 @@ const TEAM_SCHEDULER_ENTRY = 'src/core/team/teamSchedulerEntry.ts'
 const TEAM_SCHEDULER_OUTFILE = 'dist/teamScheduler.js'
 const TEAM_RUNNERS_ENTRY = 'src/host/runners/teamRunnersEntry.ts'
 const TEAM_RUNNERS_OUTFILE = 'dist/teamRunners.js'
+// M115 W: v1's Model API schedules re-exported beside the v2 runtime binding.
+const SCHEDULES_ENTRY = 'src/runtime/schedules/schedulesBundle.ts'
+const SCHEDULES_OUTFILE = 'dist/schedules.js'
 const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
 const REVIEWER_OUTFILE = 'dist/reviewer.js'
 // M91 lane W: the adapters for hooks imported in another agent's format,
@@ -166,10 +171,20 @@ const AGENT_IMPORT_ENTRY = 'src/host/agentImportEntry.ts'
 const AGENT_IMPORT_OUTFILE = 'dist/agentImport.js'
 const CONVERSATION_GIT_ENTRY = 'src/host/git/conversationGitEntry.ts'
 const CONVERSATION_GIT_OUTFILE = 'dist/conversationGit.js'
+const MODEL_API_SESSIONS_ENTRY = 'src/host/backend/fileSessionStoreEntry.ts'
+const MODEL_API_SESSIONS_OUTFILE = 'dist/modelApiSessions.js'
 const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
 const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
+// M105 lane W: the attachment path (attach port with the portable sniffers,
+// limits and modality gate), loaded on first use.
+const MEDIA_ENTRY = 'src/host/media/mediaEntry.ts'
+const MEDIA_OUTFILE = 'dist/media.js'
+// M105 lane W: the screen-recording command with the R1-R3 platform drivers,
+// loaded the first time a recording command runs.
+const SCREEN_RECORD_ENTRY = 'src/host/media/screenRecordEntry.ts'
+const SCREEN_RECORD_OUTFILE = 'dist/screenRecord.js'
 // The browser check's own bundle (M81): the pipe, the run, the browser's processes.
 const BROWSER_CHECK_ENTRY = 'src/host/browser/browserCheckEntry.ts'
 const BROWSER_CHECK_OUTFILE = 'dist/browserCheck.js'
@@ -191,6 +206,12 @@ const USAGE_COMPANION_ENTRY = 'src/runtime/usage/usageCompanionEntry.ts'
 const USAGE_PANEL_ENTRY = 'src/host/usage/usagePanelEntry.ts'
 const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
 const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
+// M109 lane W: the vault's window (the panel host and the native editor),
+// loaded on the first vault command. `vscode` stays external, provided by
+// the host, as for the import. The broker client joins it once the
+// broker-backed service lands (docs/certification/m109.md).
+const VAULT_ENTRY = 'src/host/vault/vaultPanelEntry.ts'
+const VAULT_OUTFILE = 'dist/vault.js'
 const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
 const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
 const JUDGE_ENTRY = 'src/host/judge/judgeEntry.ts'
@@ -201,6 +222,8 @@ const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const REPORT_ENTRY = 'src/host/support/reportEntry.ts'
 const REPORT_OUTFILE = 'dist/report.js'
+const ESTIMATOR_ENTRY = 'src/host/estimator/estimatorEntry.ts'
+const ESTIMATOR_OUTFILE = 'dist/estimator.js'
 const RECORDER_ENTRY = 'src/host/support/recorderEntry.ts'
 const RECORDER_OUTFILE = 'dist/recorder.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
@@ -212,13 +235,20 @@ const USAGE_WEBVIEW_ENTRY = 'src/webview/usage/usage.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
 const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
+const FONT_INSTALL_ENTRY = 'src/runtime/fonts/fontsEntry.ts'
+const FONT_INSTALL_OUTFILE = 'dist/fontsInstall.js'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
+const SCHEDULE_BACKGROUND_ENTRY = 'src/runtime/schedules/backgroundEntry.ts'
+const SCHEDULE_BACKGROUND_OUTFILE = 'dist/scheduleBackground.js'
 const ACP_QUESTIONS_ENTRY = 'src/acp/questionDeferralEntry.ts'
 const ACP_QUESTIONS_OUTFILE = 'dist/acpQuestions.js'
 const RUNTIME_QUESTIONS_ENTRY = 'src/runtime/questions/questionRegistryEntry.ts'
 const RUNTIME_QUESTIONS_OUTFILE = 'dist/runtimeQuestions.js'
-const INTEGRATION_TEST_DIR = 'test/integration'
+const PLAYBOOK_ENTRY = 'src/runtime/playbook/playbookEntry.ts'
+const PLAYBOOK_OUTFILE = 'dist/acpPlaybook.js'
+const RUNTIME_ACCOUNTS_ENTRY = 'src/runtime/providers/accountsEntry.ts'
+const RUNTIME_ACCOUNTS_OUTFILE = 'dist/runtimeAccounts.js'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // M95 (PLAN.md D74): exact catalogue values, with no provider runtime logic.
 // The data module uses the same verified solid archive loader as lazy bundles.
@@ -247,15 +277,7 @@ const common = {
 /** @type {import('esbuild').BuildOptions} */
 const hostOptions = {
   ...common,
-  plugins: [
-    sharedUiText,
-    sharedValidation,
-    deferredCohort,
-    sharedWire,
-    sharedResourceAdmission,
-    deferredTeamView,
-    sharedModelApiBoundaries,
-  ],
+  plugins: [...HOST_PLUGINS],
   entryPoints: [HOST_ENTRY],
   outfile: HOST_OUTFILE,
   platform: 'node',
@@ -274,7 +296,13 @@ const conversationOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const sharingRuntimeOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedModelApiBoundaries,
+  ],
   entryPoints: [SHARING_RUNTIME_ENTRY],
   outfile: SHARING_RUNTIME_OUTFILE,
   platform: 'node',
@@ -308,15 +336,41 @@ const modelApiOptions = {
 
 const referenceOptions = {
   ...modelApiOptions,
+  plugins: [...modelApiOptions.plugins, nodeReferenceData],
   entryPoints: ['src/shared/reference/referenceEntry.ts'],
   outfile: 'dist/reference.js',
-  plugins: [...modelApiOptions.plugins, compressedReference(isProduction)],
+}
+
+const reportingOptions = {
+  ...modelApiOptions,
+  // Report Git/gh reads launch through the window's one admission
+  // configuration (dist/resourceAdmission.js); an inline copy would be
+  // unconfigured and carry the whole governor.
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedResourceAdmission, sharedRedaction],
+  entryPoints: ['src/runtime/reporting/reportsEntry.ts'],
+  outfile: 'dist/reporting.js',
+}
+const reportingNetworkOptions = {
+  ...reportingOptions,
+  entryPoints: ['src/runtime/reporting/network.ts'],
+  outfile: 'dist/reportingNetwork.js',
+}
+const reportingDestinationsOptions = {
+  ...reportingOptions,
+  entryPoints: ['src/runtime/reporting/destinationsEntry.ts'],
+  outfile: 'dist/reportingDestinations.js',
+}
+const reportingPanelOptions = {
+  ...hostOptions,
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedRedaction],
+  entryPoints: ['src/host/reporting/reportPanelEntry.ts'],
+  outfile: 'dist/reportingPanel.js',
 }
 
 /** @type {import('esbuild').BuildOptions} */
 const modelApiBoundariesOptions = {
   ...modelApiOptions,
-  entryPoints: ['src/shared/modelApiBoundariesEntry.ts'],
+  entryPoints: ['src/core/nodeBoundariesEntry.ts'],
   outfile: 'dist/modelApiBoundaries.js',
   plugins: [sharedUiText, sharedValidation, compressedModelText(isProduction)],
 }
@@ -326,6 +380,17 @@ const resourceGovernorOptions = {
   ...modelApiOptions,
   entryPoints: [RESOURCE_ENTRY],
   outfile: RESOURCE_OUTFILE,
+}
+const resourceProcessOptions = {
+  ...modelApiOptions,
+  entryPoints: [RESOURCE_PROCESS_ENTRY],
+  outfile: RESOURCE_PROCESS_OUTFILE,
+}
+// INT0170: M107 W2's resource journal, shared by the governor and the usage service.
+const resourceJournalOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/runtime/resources/resourceJournalEntry.ts'],
+  outfile: 'dist/resourceJournal.js',
 }
 const resourceAdmissionOptions = {
   ...modelApiOptions,
@@ -377,6 +442,13 @@ const teamRunnersOptions = {
   ...teamOptions,
   entryPoints: [TEAM_RUNNERS_ENTRY],
   outfile: TEAM_RUNNERS_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const schedulesOptions = {
+  ...modelApiOptions,
+  entryPoints: [SCHEDULES_ENTRY],
+  outfile: SCHEDULES_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -443,6 +515,20 @@ const reportOptions = {
   ],
   entryPoints: [REPORT_ENTRY],
   outfile: REPORT_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+// The capacity estimator's engine (M117, PLAN.md D97), loaded the first
+// time an estimate runs; it reads no `vscode` and no backend, so a stray
+// import fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const estimatorOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [ESTIMATOR_ENTRY],
+  outfile: ESTIMATOR_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
@@ -516,6 +602,13 @@ const webFetchOptions = {
   ...planMarkdownOptions,
   entryPoints: [WEB_FETCH_ENTRY],
   outfile: WEB_FETCH_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const mcpVaultOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [MCP_VAULT_ENTRY],
+  outfile: MCP_VAULT_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -609,6 +702,18 @@ const agentImportOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const vaultOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
+  entryPoints: [VAULT_ENTRY],
+  outfile: VAULT_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const tabOptions = {
   ...agentImportOptions,
   entryPoints: [TAB_ENTRY],
@@ -673,6 +778,15 @@ const conversationGitOptions = {
   target: HOST_NODE_TARGET,
 }
 
+// The Model API backend's session store (D14), required when its host is
+// first built: the store, its budget journal and the stored-session schemas.
+/** @type {import('esbuild').BuildOptions} */
+const modelApiSessionsOptions = {
+  ...conversationGitOptions,
+  entryPoints: [MODEL_API_SESSIONS_ENTRY],
+  outfile: MODEL_API_SESSIONS_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const checkpointStoreOptions = {
   ...common,
@@ -688,6 +802,29 @@ const checkpointStoreOptions = {
   entryPoints: [CHECKPOINT_STORE_ENTRY],
   outfile: CHECKPOINT_STORE_OUTFILE,
   platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const mediaOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [MEDIA_ENTRY],
+  outfile: MEDIA_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const screenRecordOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [SCREEN_RECORD_ENTRY],
+  outfile: SCREEN_RECORD_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
   format: 'cjs',
   target: HOST_NODE_TARGET,
 }
@@ -744,6 +881,7 @@ const acpOptions = {
     sharedStructuredSchema,
     deferredTeamView,
     sharedModelApiBoundaries,
+    englishZodLocales,
   ],
   entryPoints: [ACP_ENTRY],
   outfile: ACP_OUTFILE,
@@ -795,6 +933,31 @@ const structuredSchemaOptions = {
   entryPoints: ['src/shared/structuredSchemaEntry.ts'],
   outfile: 'dist/structuredSchema.js',
 }
+const fontInstallOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: [FONT_INSTALL_ENTRY],
+  outfile: FONT_INSTALL_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: AGENT_NODE_TARGET,
+}
+const scheduleBackgroundOptions = {
+  ...modelApiOptions,
+  entryPoints: [SCHEDULE_BACKGROUND_ENTRY],
+  outfile: SCHEDULE_BACKGROUND_OUTFILE,
+  target: AGENT_NODE_TARGET,
+}
+const playbookOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [PLAYBOOK_ENTRY],
+  outfile: PLAYBOOK_OUTFILE,
+}
+const runtimeAccountsOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [RUNTIME_ACCOUNTS_ENTRY],
+  outfile: RUNTIME_ACCOUNTS_OUTFILE,
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -829,9 +992,23 @@ const validationOptions = {
   outfile: VALIDATION_OUTFILE,
 }
 
+const vaultBoundariesOptions = {
+  ...modelApiOptions,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: ['src/shared/vaultBoundariesEntry.ts'],
+  outfile: 'dist/vaultBoundaries.js',
+}
+
+const estimateContractsOptions = {
+  ...modelApiOptions,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: ['src/shared/estimateContractsEntry.ts'],
+  outfile: 'dist/estimateContracts.js',
+}
+
 const wireOptions = {
   ...modelApiOptions,
-  plugins: [sharedUiText, sharedValidation, deferredTeamView],
+  plugins: [sharedUiText, sharedValidation, deferredTeamView, sharedModelApiBoundaries],
   entryPoints: ['src/shared/wireEntry.ts'],
   outfile: 'dist/wire.js',
 }
@@ -906,6 +1083,8 @@ const webviewOptions = {
     usage: USAGE_WEBVIEW_ENTRY,
     referencePage: 'src/webview/components/ReferencePage.tsx',
     [WHATS_NEW_PAGE_NAME]: WHATS_NEW_PAGE_ENTRY,
+    reportingPage: 'src/webview/reporting/main.tsx',
+    reportingDestinations: 'src/webview/reporting/destinations/DestinationPicker.tsx',
   },
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
@@ -917,16 +1096,6 @@ const webviewOptions = {
   jsx: 'automatic',
 }
 
-function resourceWebviewMetafile(metafile, entry) {
-  const graphs = [entry, 'dist/webview/resourceSurface.js', 'dist/webview/resourceHistory.js'].map(
-    (root) => webviewEntryMetafile(metafile, root),
-  )
-  return {
-    inputs: Object.assign({}, ...graphs.map((graph) => graph.inputs)),
-    outputs: Object.assign({}, ...graphs.map((graph) => graph.outputs)),
-  }
-}
-
 function writeWebviewMetafiles(metafile) {
   const pages = {
     webview: 'dist/webview/main.js',
@@ -936,24 +1105,28 @@ function writeWebviewMetafiles(metafile) {
     referencePage: 'dist/webview/referencePage.js',
     resourceSurface: 'dist/webview/resourceSurface.js',
     resourceHistory: 'dist/webview/resourceHistory.js',
+    reportingPageWebview: 'dist/webview/reportingPage.js',
+    reportingDestinationsWebview: 'dist/webview/reportingDestinations.js',
   }
   for (const [page, entry] of Object.entries(pages)) {
     writeFileSync(
       path.join(METAFILE_DIR, `${page}.json`),
       JSON.stringify(
-        page === 'webview'
-          ? resourceWebviewMetafile(metafile, entry)
-          : webviewEntryMetafile(metafile, entry),
+        webviewEntryMetafile(
+          metafile,
+          entry,
+          page === 'webview'
+            ? [
+                'dist/webview/reportingPage.js',
+                'dist/webview/reportingDestinations.js',
+                'dist/webview/resourceSurface.js',
+                'dist/webview/resourceHistory.js',
+              ]
+            : [],
+        ),
       ),
     )
   }
-}
-
-function listIntegrationTests() {
-  return readdirSync(INTEGRATION_TEST_DIR, { recursive: true })
-    .map(String)
-    .filter((name) => name.endsWith('.test.ts'))
-    .map((name) => path.join(INTEGRATION_TEST_DIR, name))
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -999,6 +1172,10 @@ if (isWatch) {
     esbuild.context(execOptions),
     esbuild.context(modelApiCodeIntelOptions),
     esbuild.context(structuredSchemaOptions),
+    esbuild.context(reportingOptions),
+    esbuild.context(reportingNetworkOptions),
+    esbuild.context(reportingDestinationsOptions),
+    esbuild.context(reportingPanelOptions),
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
     esbuild.context(tabOptions),
@@ -1006,6 +1183,8 @@ if (isWatch) {
     esbuild.context(sharingRuntimeOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(resourceGovernorOptions),
+    esbuild.context(resourceProcessOptions),
+    esbuild.context(resourceJournalOptions),
     esbuild.context(resourceAdmissionOptions),
     esbuild.context(providersOptions),
     esbuild.context(subscriptionsOptions),
@@ -1013,6 +1192,7 @@ if (isWatch) {
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
     esbuild.context(referenceOptions),
+    esbuild.context(schedulesOptions),
     esbuild.context(reviewerOptions),
     esbuild.context(teamOptions),
     esbuild.context(teamRunnersOptions),
@@ -1047,13 +1227,17 @@ if (isWatch) {
     esbuild.context(pluginHooksOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
+    esbuild.context(mediaOptions),
+    esbuild.context(screenRecordOptions),
     esbuild.context(agentImportOptions),
     esbuild.context(conversationGitOptions),
+    esbuild.context(modelApiSessionsOptions),
     esbuild.context(bundledSkillsOptions),
     esbuild.context(legalScanOptions),
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
     esbuild.context(webFetchOptions),
+    esbuild.context(mcpVaultOptions),
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(modelsPanelOptions),
     esbuild.context(usageServiceOptions),
@@ -1061,14 +1245,19 @@ if (isWatch) {
     esbuild.context(usageCompanionOptions),
     esbuild.context(usagePanelOptions),
     esbuild.context(extensionHooksOptions),
+    esbuild.context(vaultOptions),
     esbuild.context(reportOptions),
+    esbuild.context(estimatorOptions),
     esbuild.context(recorderOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
+    esbuild.context(scheduleBackgroundOptions),
     esbuild.context(uiTextOptions),
     ...uiTextRegionOptions.map((options) => esbuild.context(options)),
     esbuild.context(validationOptions),
     esbuild.context(wireOptions),
+    esbuild.context(estimateContractsOptions),
+    esbuild.context(vaultBoundariesOptions),
     esbuild.context(modelApiBoundariesOptions),
     esbuild.context(acpQuestionsOptions),
     esbuild.context({
@@ -1083,6 +1272,7 @@ if (isWatch) {
     esbuild.context(pageWorkerOptions),
     esbuild.context(imageResizeWorkerOptions),
     esbuild.context(webviewOptions),
+    esbuild.context(fontInstallOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -1103,13 +1293,20 @@ if (isWatch) {
     sharingRuntime: esbuild.build(sharingRuntimeOptions),
     modelApi: esbuild.build(modelApiOptions),
     resourceGovernor: esbuild.build(resourceGovernorOptions),
+    resourceProcess: esbuild.build(resourceProcessOptions),
+    resourceJournal: esbuild.build(resourceJournalOptions),
     resourceAdmission: esbuild.build(resourceAdmissionOptions),
     providers: esbuild.build(providersOptions),
     subscriptions: esbuild.build(subscriptionsOptions),
     configuredProviders: esbuild.build(configuredOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
+    reporting: esbuild.build(reportingOptions),
+    reportingNetwork: esbuild.build(reportingNetworkOptions),
+    reportingDestinations: esbuild.build(reportingDestinationsOptions),
+    reportingPanel: esbuild.build(reportingPanelOptions),
     reference: esbuild.build(referenceOptions),
+    schedules: esbuild.build(schedulesOptions),
     reviewer: esbuild.build(reviewerOptions),
     team: esbuild.build(teamOptions),
     teamRunners: esbuild.build(teamRunnersOptions),
@@ -1144,23 +1341,30 @@ if (isWatch) {
     pluginHooks: esbuild.build(pluginHooksOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
+    media: esbuild.build(mediaOptions),
+    screenRecord: esbuild.build(screenRecordOptions),
     agentImport: esbuild.build(agentImportOptions),
     conversationGit: esbuild.build(conversationGitOptions),
+    modelApiSessions: esbuild.build(modelApiSessionsOptions),
     bundledSkills: esbuild.build(bundledSkillsOptions),
     legalScan: esbuild.build(legalScanOptions),
     codeIntel: esbuild.build(codeIntelOptions),
     voice: esbuild.build(voiceOptions),
     webFetch: esbuild.build(webFetchOptions),
+    mcpVault: esbuild.build(mcpVaultOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     modelsPanel: esbuild.build(modelsPanelOptions),
     usageService: esbuild.build(usageServiceOptions),
     usageCompanion: esbuild.build(usageCompanionOptions),
     usagePanel: esbuild.build(usagePanelOptions),
     extensionHooks: esbuild.build(extensionHooksOptions),
+    vault: esbuild.build(vaultOptions),
     report: esbuild.build(reportOptions),
+    estimator: esbuild.build(estimatorOptions),
     recorder: esbuild.build(recorderOptions),
     whatsNew: esbuild.build(whatsNewOptions),
     judge: esbuild.build(judgeOptions),
+    scheduleBackground: esbuild.build(scheduleBackgroundOptions),
     uiText: esbuild.build(uiTextOptions),
     ...Object.fromEntries(
       UI_TEXT_REGIONS.map((region, index) => [
@@ -1170,6 +1374,8 @@ if (isWatch) {
     ),
     validation: esbuild.build(validationOptions),
     wire: esbuild.build(wireOptions),
+    estimateContracts: esbuild.build(estimateContractsOptions),
+    vaultBoundaries: esbuild.build(vaultBoundariesOptions),
     modelApiBoundaries: esbuild.build(modelApiBoundariesOptions),
     browserCheck: esbuild.build(browserCheckOptions),
     browserRuntime: esbuild.build(browserRuntimeOptions),
@@ -1182,8 +1388,21 @@ if (isWatch) {
   const headless = esbuild.build(headlessOptions)
   const acpQuestions = esbuild.build(acpQuestionsOptions)
   const runtimeQuestions = esbuild.build(runtimeQuestionsOptions)
+  const fontInstall = esbuild.build(fontInstallOptions)
+  const playbook = esbuild.build(playbookOptions)
   const exec = esbuild.build(execOptions)
-  const builds = [...Object.values(shipped), acp, exec, headless, acpQuestions, runtimeQuestions]
+  const runtimeAccounts = esbuild.build(runtimeAccountsOptions)
+  const builds = [
+    ...Object.values(shipped),
+    acp,
+    exec,
+    headless,
+    acpQuestions,
+    runtimeQuestions,
+    fontInstall,
+    playbook,
+    runtimeAccounts,
+  ]
   if (!isProduction) {
     builds.push(esbuild.build(integrationTestOptions))
   }
@@ -1200,15 +1419,23 @@ if (isWatch) {
       } else writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
     }
     mkdirSync(ACP_METAFILE_DIR, { recursive: true })
+    const { metafile: fontsMetafile } = await fontInstall
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'fontsInstall.json'), JSON.stringify(fontsMetafile))
     const { metafile } = await acp
     const { metafile: headlessMetafile } = await headless
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acp.json'), JSON.stringify(metafile))
     writeFileSync(path.join(ACP_METAFILE_DIR, 'headless.json'), JSON.stringify(headlessMetafile))
     const { metafile: questionsMetafile } = await acpQuestions
     const { metafile: runtimeQuestionsMetafile } = await runtimeQuestions
+    const { metafile: playbookMetafile } = await playbook
+    const { metafile: runtimeAccountsMetafile } = await runtimeAccounts
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimeQuestions.json'),
       JSON.stringify(runtimeQuestionsMetafile, null, 2),
+    )
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'runtimeAccounts.json'),
+      JSON.stringify(runtimeAccountsMetafile, null, 2),
     )
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'acpQuestions.json'),
@@ -1216,9 +1443,11 @@ if (isWatch) {
     )
     const execBuild = await exec
     writeFileSync(path.join(ACP_METAFILE_DIR, 'exec.json'), JSON.stringify(execBuild.metafile))
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'acpPlaybook.json'), JSON.stringify(playbookMetafile))
   }
   console.log('bundle sizes:')
   reportSize(ACP_QUESTIONS_OUTFILE)
+  reportSize(PLAYBOOK_OUTFILE)
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
   reportSize(TAB_OUTFILE)
@@ -1241,8 +1470,11 @@ if (isWatch) {
   reportSize(HOOK_RUNTIME_OUTFILE)
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
+  reportSize(MEDIA_OUTFILE)
+  reportSize(SCREEN_RECORD_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)
   reportSize(CONVERSATION_GIT_OUTFILE)
+  reportSize(MODEL_API_SESSIONS_OUTFILE)
   reportSize(BUNDLED_SKILLS_OUTFILE)
   reportSize(LEGAL_SCAN_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)
@@ -1254,7 +1486,9 @@ if (isWatch) {
   reportSize('dist/usageCompanion.js')
   reportSize('dist/usagePanel.js')
   reportSize(EXTENSION_HOOKS_OUTFILE)
+  reportSize(VAULT_OUTFILE)
   reportSize(REPORT_OUTFILE)
+  reportSize(ESTIMATOR_OUTFILE)
   reportSize(RECORDER_OUTFILE)
   reportSize(WHATS_NEW_OUTFILE)
   reportSize(WHATS_NEW_CONTENT_OUTFILE)
@@ -1281,4 +1515,5 @@ if (isWatch) {
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))
   reportSize(ACP_OUTFILE)
   reportSize('dist/headless.js')
+  reportSize(SCHEDULE_BACKGROUND_OUTFILE)
 }

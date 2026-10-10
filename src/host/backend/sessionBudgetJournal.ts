@@ -544,24 +544,32 @@ export function createSessionBudgetJournal(
     }
   }
 
+  const withReservationLock = async <T>(scope: Scope, operation: () => Promise<T>): Promise<T> => {
+    const lock = `${scope.intent}.lock`
+    await mkdir(path.dirname(lock), { recursive: true })
+    let hasLock = false
+    for (let attempt = 0; attempt < DAILY_BUDGET_LOCK_ATTEMPTS; attempt += 1) {
+      try {
+        await mkdir(lock)
+        hasLock = true
+        break
+      } catch (error: unknown) {
+        if (storeErrorCode(error) !== EXISTS) throw unavailable(error)
+        await deps.sleep(DAILY_BUDGET_LOCK_WAIT_MS)
+      }
+    }
+    if (!hasLock) throw unavailable()
+    try {
+      return await operation()
+    } finally {
+      await rmdir(lock)
+    }
+  }
+
   return {
     async reserveAdmitted(sessionId, accountId, costUsd, capUsd) {
       const scope = scopeFor(sessionId, accountId)
-      const lock = `${scope.intent}.lock`
-      await mkdir(path.dirname(lock), { recursive: true })
-      let hasLock = false
-      for (let attempt = 0; attempt < DAILY_BUDGET_LOCK_ATTEMPTS; attempt += 1) {
-        try {
-          await mkdir(lock)
-          hasLock = true
-          break
-        } catch (error: unknown) {
-          if (storeErrorCode(error) !== EXISTS) throw unavailable(error)
-          await deps.sleep(DAILY_BUDGET_LOCK_WAIT_MS)
-        }
-      }
-      if (!hasLock) throw unavailable()
-      try {
+      return await withReservationLock(scope, async () => {
         assertCost(capUsd)
         if (Usd.from(capUsd).compare(Usd.from(0)) <= 0) throw unavailable()
         const seed = await ensure(scope)
@@ -573,9 +581,7 @@ export function createSessionBudgetJournal(
           await claim.settle(Usd.from(0).toAmount())
           throw error
         }
-      } finally {
-        await rmdir(lock)
-      }
+      })
     },
     async readExisting(sessionId, accountId) {
       const scope = scopeFor(sessionId, accountId)
@@ -604,12 +610,14 @@ export function createSessionBudgetJournal(
     },
     async reserve(sessionId, accountId, costUsd, flags = {}) {
       const scope = scopeFor(sessionId, accountId)
-      const seed = await ensure(scope)
-      return claimFor(
-        scope,
-        seed,
-        await writeClaim(scope, seed, costUsd, true, claimFlagsSchema.parse(flags)),
-      )
+      return await withReservationLock(scope, async () => {
+        const seed = await ensure(scope)
+        return claimFor(
+          scope,
+          seed,
+          await writeClaim(scope, seed, costUsd, true, claimFlagsSchema.parse(flags)),
+        )
+      })
     },
     async record(sessionId, accountId, actualCostUsd, hasUnknownCost = false) {
       const scope = scopeFor(sessionId, accountId)

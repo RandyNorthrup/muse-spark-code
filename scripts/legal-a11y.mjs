@@ -39,7 +39,7 @@ const receipts = []
 let browser
 try {
   browser = await chromium.launchPersistentContext(profile, {
-    executablePath: chrome,
+    ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),
     headless: true,
     viewport: { width: WIDTHS[0], height: HEIGHT },
     timeout: PAGE_TIMEOUT_MS,

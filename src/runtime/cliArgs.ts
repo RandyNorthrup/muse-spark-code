@@ -1,3 +1,4 @@
+import type { UsdAmount } from '../shared/usdSchema'
 // The agent's command line (PLAN.md D62): serve ACP on stdio, or one of the
 // sign-in commands the editors' terminal sign-ins run (D61). Pure: the
 // arguments in, what to do out, with the reason when they make no sense.
@@ -6,6 +7,7 @@ import { parseArgs } from 'node:util'
 import * as z from 'zod/mini'
 import { CLI_OPTION_REGISTRY } from './cliOptions'
 import {
+  ACCOUNT_DEFAULT_ID,
   ACP_AGENT_NAME,
   ACP_BACKENDS,
   ACP_DEFAULT_BACKEND,
@@ -17,12 +19,14 @@ import {
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
   UI_TEXT,
+  REPORT_KINDS,
 } from '../shared/constants'
 import { modelRef } from '../host/backend/providerPolicyEntry'
 const { isProviderId } = modelRef
 import type { OpenRouterPrivacy } from '../core/providers/presets'
+import { accountIdSchema } from '../shared/accounts'
 import { fill } from '../shared/l10n/text'
-import { parseExec, type ExecOptions } from './exec/execArgs'
+import { parseExec } from './exec/execArgs'
 import { resourceFlagOverrides } from './resources/args'
 import type { ResourceSettings } from '../shared/resources'
 import type { ResourceCommandAction } from './resources/port'
@@ -41,6 +45,25 @@ export type UsageCommand =
     }
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
 import { questionDeferSeconds } from '../shared/questionDeadline'
+import { parsePlaybookCommand } from './playbook/command'
+
+/** U's CLI route; the runtime entry owner binds runPlaybookCommand to P's
+ * journal before the general ACP/auth parser. No model process is needed. */
+export function parsePlaybookCommandLine(argv: readonly string[]) {
+  return argv[0] === 'playbook' ? parsePlaybookCommand(argv.slice(1)) : undefined
+}
+import {
+  parseScheduleCommand,
+  scheduleBudgetUsd,
+  type ScheduleCommandOptions,
+} from './schedules/args'
+import { parseAttachArgs, type ExecAttachmentOptions } from './exec/attachArgs'
+import {
+  parseAccountsCommand,
+  type AccountsCommand,
+  type AccountTarget,
+} from './providers/accountArgs'
+import { parseVaultCommand, vaultUsage, type VaultCommandOptions } from './vault/vaultCommand'
 
 export interface ServeOptions {
   readonly usageHistory?: boolean
@@ -60,6 +83,8 @@ export interface ServeOptions {
   /** Interactive ACP questions; no forms still defer at once. */
   readonly questionsDeferAfterSeconds?: number
   readonly autoCompaction?: boolean | undefined
+  readonly scheduledPrompts?: boolean
+  readonly maxBudgetUsd?: UsdAmount
 }
 
 /** What `report` prints: the scrubbed draft as text, or its exact bytes in a file. */
@@ -95,10 +120,12 @@ export interface ProvidersAddOptions {
 
 export type RuntimeCommand =
   | { readonly command: 'usage'; readonly options: UsageCommand }
+  | { readonly command: 'schedule'; readonly options: ScheduleCommandOptions }
+  | { readonly command: 'vault'; readonly options: VaultCommandOptions }
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
   | {
       readonly command: 'exec'
-      readonly options: ExecOptions
+      readonly options: ExecAttachmentOptions
       readonly resourceOverrides: Partial<ResourceSettings>
     }
   | {
@@ -110,18 +137,30 @@ export type RuntimeCommand =
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
   | { readonly command: 'report'; readonly options: ReportOptions }
   | { readonly command: 'legal'; readonly options: LegalOptions }
+  | { readonly command: 'reports'; readonly args: readonly string[] }
+  | { readonly command: 'fontsInstall'; readonly sourceDirectory: string | undefined }
+  | { readonly command: 'playbook'; readonly argv: readonly string[] }
+  | { readonly command: 'estimate'; readonly argv: readonly string[] }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
   | {
-      readonly command: 'authSet' | 'authStatus' | 'authClear'
+      readonly command: 'authStatus' | 'authClear'
       readonly provider?: string | undefined
     }
   | { readonly command: 'providersList' }
   | { readonly command: 'providersAdd'; readonly options: ProvidersAddOptions }
   | { readonly command: 'providersTest'; readonly provider: string }
   | { readonly command: 'providersRemove'; readonly provider: string }
+  | {
+      readonly command: 'authSet'
+      readonly provider?: string | undefined
+      readonly target?: AccountTarget
+    }
+  | { readonly command: 'accounts'; readonly options: AccountsCommand }
+  | { readonly command: 'developer'; readonly args: readonly string[] }
   | { readonly command: 'help'; readonly all?: boolean }
   | { readonly command: 'version' }
+  | { readonly command: 'vaultHelp' }
   | { readonly command: 'invalid'; readonly reason: string; readonly exitCode?: number }
 
 /** The commands that own their process with no backend and no sign-in. */
@@ -246,13 +285,42 @@ export function parseCommandLine<T>(
       ? { command: 'help', all: argv[1] === '--all' }
       : invalid(argv.join(' '))
   }
+  if (argv[0] === 'schedule') {
+    const parsed = parseScheduleCommand(argv.slice(1))
+    return parsed.ok
+      ? { command: 'schedule', options: parsed.options }
+      : { command: 'invalid', reason: parsed.reason, exitCode: 2 }
+  }
+  if (argv[0] === 'providers' && argv[1] === 'accounts') {
+    const options = parseAccountsCommand(argv.slice(2))
+    return options === undefined
+      ? { command: 'invalid', reason: fill(UI_TEXT.accounts.cliUsage, { command: ACP_AGENT_NAME }) }
+      : { command: 'accounts', options }
+  }
+  // The developer words stay raw here: the strict parser would reject them,
+  // and the terminal owner validates them (X-D4, lane X's strict table).
+  if (argv[0] === 'developer') return { command: 'developer', args: argv }
+  if (argv[0] === 'vault') {
+    if (argv.length === 1 || (argv.length === 2 && (argv[1] === '--help' || argv[1] === 'help')))
+      return { command: 'vaultHelp' }
+    const options = parseVaultCommand(argv.slice(1))
+    return options === undefined
+      ? { command: 'invalid', reason: vaultUsage(), exitCode: 2 }
+      : { command: 'vault', options }
+  }
+  if (argv[0] === 'estimate') return { command: 'estimate', argv: argv.slice(1) }
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
-  if (argv[0] === 'report') return parseReport(argv.slice(1))
+  if (argv[0] === 'report')
+    return parseReport(argv.slice(argv[1] === 'problem' ? 2 : 1), argv[1] !== 'problem')
   if (argv[0] === 'legal') return parseLegalCommand(argv)
+  if (argv[0] === 'fonts') return parseFonts(argv.slice(1))
+  if (argv[0] === 'playbook') return { command: 'playbook', argv: argv.slice(1) }
   let parsed: ReturnType<typeof parseCommandLineStrictly>
   try {
     parsed = parseCommandLineStrictly(argv)
   } catch (error: unknown) {
+    if (argv.includes('auth'))
+      return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
     return { command: 'invalid', reason: error instanceof Error ? error.message : String(error) }
   }
   const { values, positionals } = parsed
@@ -264,11 +332,15 @@ export function parseCommandLine<T>(
   }
   const backend = values.backend ?? ACP_DEFAULT_BACKEND
   if (!isOneOf(ACP_BACKENDS, backend)) {
-    return invalid(`--backend ${backend}`)
+    return positionals[0] === 'auth'
+      ? { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
+      : invalid(`--backend ${backend}`)
   }
   const shellSandbox = values['shell-sandbox'] ?? SETTING_DEFAULTS.shellSandbox
   if (!isOneOf(SHELL_SANDBOX_MODES, shellSandbox)) {
-    return invalid(`--shell-sandbox ${shellSandbox}`)
+    return positionals[0] === 'auth'
+      ? { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
+      : invalid(`--shell-sandbox ${shellSandbox}`)
   }
   const paidFeatures = paidFeaturesOf(values)
   if (values['usage-history'] !== undefined && !['on', 'off'].includes(values['usage-history']))
@@ -288,6 +360,10 @@ export function parseCommandLine<T>(
       reason: fill(UI_TEXT.acpPaidNeedsModelApi, { argument: `--${ACP_PAID_FLAGS[firstPaid]}` }),
     }
   }
+  const budget =
+    values['max-budget-usd'] === undefined ? undefined : scheduleBudgetUsd(values['max-budget-usd'])
+  if (budget === undefined && values['max-budget-usd'] !== undefined)
+    return { command: 'invalid', reason: UI_TEXT.scheduleV2.runtime.usage }
   const options: ServeOptions = {
     ...(values['usage-history'] !== undefined && {
       usageHistory: values['usage-history'] === 'on',
@@ -302,9 +378,16 @@ export function parseCommandLine<T>(
     isVerbose: values.verbose === true,
     questionsDeferAfterSeconds,
     autoCompaction: values['no-auto-compaction'] !== true,
+    ...(values['scheduled-prompts'] !== undefined && {
+      scheduledPrompts: values['scheduled-prompts'],
+    }),
+    ...(budget !== undefined && { maxBudgetUsd: budget }),
   }
   const [first, second, ...rest] = positionals
+  if (values.account !== undefined && (first !== 'auth' || second !== 'set' || rest.length > 0))
+    return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
   if (first === 'setup' && second === undefined) {
+    if (values.provider !== undefined) return invalid('setup')
     return options.trustWorkspace
       ? { command: 'setup', options, maintenance: values.maintenance === true }
       : { command: 'invalid', reason: UI_TEXT.hooksNotRunnable }
@@ -324,20 +407,28 @@ export function parseCommandLine<T>(
   if (first === 'providers') {
     return parseProviders(values, second, rest)
   }
-  if (first !== 'auth' || rest.length > 0) {
-    return invalid(positionals.join(' '))
-  }
+  if (first !== 'auth') return invalid(positionals.join(' '))
+  if (rest.length > 0) return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
   if (PROVIDER_AUTH_OPTIONS.some((name) => values[name] !== undefined)) {
-    return invalid(positionals.join(' '))
+    return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
   }
   const auth = authCommand(second)
   if (auth === undefined) {
-    return invalid(positionals.join(' '))
+    return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
   }
   const provider = values.provider
+  const hasTarget = values.account !== undefined
+  if (auth === 'authSet' && hasTarget) {
+    const targetProvider = accountIdSchema.safeParse(provider ?? 'meta')
+    const targetAccount = accountIdSchema.safeParse(values.account ?? ACCOUNT_DEFAULT_ID)
+    return targetProvider.success && targetAccount.success
+      ? { command: auth, target: { provider: targetProvider.data, account: targetAccount.data } }
+      : { command: 'invalid', reason: UI_TEXT.accounts.invalidAccount }
+  }
   if (provider !== undefined && !isProviderId(provider)) {
     return { command: 'invalid', reason: fill(UI_TEXT.providerUnknown, { provider }) }
   }
+
   return provider === undefined ? { command: auth } : { command: auth, provider }
 }
 
@@ -540,17 +631,14 @@ function parseUsage(argv: readonly string[]): RuntimeCommand {
 
 function parseHeadless(argv: readonly string[]): RuntimeCommand {
   try {
-    const isScan = argv[0] === 'scan-secrets'
-    const { values, positionals } = parseArgs({
-      args: argv.slice(1),
-      allowPositionals: true,
-      strict: true,
-      options: isScan
-        ? CLI_OPTION_REGISTRY['scan-secrets'].options
-        : CLI_OPTION_REGISTRY.exec.options,
-    })
-    if (values.help === true) return { command: 'help', all: true }
-    if (isScan)
+    if (argv[0] === 'scan-secrets') {
+      const { values, positionals } = parseArgs({
+        args: argv.slice(1),
+        allowPositionals: true,
+        strict: true,
+        options: CLI_OPTION_REGISTRY['scan-secrets'].options,
+      })
+      if (values.help === true) return { command: 'help', all: true }
       return positionals.length === 1 && positionals[0] !== undefined
         ? {
             command: 'scan-secrets',
@@ -558,15 +646,35 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
             keyFromStdin: values['key-stdin'] === true,
           }
         : { command: 'invalid', reason: UI_TEXT.execScanUsage, exitCode: 2 }
-    const resourceOverrides = resourceFlagOverrides(values)
+    }
+    const { values, positionals } = parseArgs({
+      args: argv.slice(1),
+      allowPositionals: true,
+      strict: true,
+      options: CLI_OPTION_REGISTRY.exec.options,
+    })
+    if (values.help === true) return { command: 'help', all: true }
+    const { help: _help, attach, record, ...execValues } = values
+    if (record === true)
+      return { command: 'invalid', reason: UI_TEXT.media.recordingUserOnly, exitCode: 2 }
+    const attachments = parseAttachArgs(attach)
+    if (!attachments.ok) return { command: 'invalid', reason: attachments.reason, exitCode: 2 }
+    const resourceOverrides = resourceFlagOverrides(execValues)
     const options = Object.fromEntries(
-      Object.entries(values).filter(
-        ([key]) => !['help', 'resource-governor', 'cpu-max', 'memory-max'].includes(key),
+      Object.entries(execValues).filter(
+        ([key]) => !['resource-governor', 'cpu-max', 'memory-max'].includes(key),
       ),
     )
     const parsed = parseExec(options, positionals)
     return parsed.ok
-      ? { command: 'exec', options: parsed.options, resourceOverrides }
+      ? {
+          command: 'exec',
+          options: {
+            ...parsed.options,
+            ...(attachments.files.length > 0 && { attachFiles: attachments.files }),
+          },
+          resourceOverrides,
+        }
       : { command: 'invalid', reason: parsed.reason, exitCode: 2 }
   } catch (error: unknown) {
     return invalidHeadlessCause(error)
@@ -630,7 +738,32 @@ function parseResources(argv: readonly string[]): RuntimeCommand {
 }
 
 /** `report [options]`: the standalone problem report (M93 lane A, PLAN.md D72). */
-function parseReport(argv: readonly string[]): RuntimeCommand {
+function parseReport(argv: readonly string[], canUseNamed = true): RuntimeCommand {
+  // M113 owns named reports; M93's bare command and option parser stay intact.
+  if (
+    canUseNamed &&
+    argv.some((argument) => !argument.startsWith('-') || /^--from(?:=|$)/.test(argument))
+  ) {
+    // Values of M93 options are positionals only after parseArgs; try that
+    // unchanged parser first before delegating to the lazy reports engine.
+    try {
+      const legacy = parseArgs({
+        args: [...argv],
+        allowPositionals: true,
+        strict: true,
+        options: CLI_OPTION_REGISTRY.report.options,
+      })
+      const namedKinds: readonly string[] = REPORT_KINDS
+      if (
+        legacy.positionals.some(
+          (argument) => argument === 'history' || namedKinds.includes(argument),
+        )
+      )
+        return { command: 'reports', args: argv }
+    } catch {
+      return { command: 'reports', args: argv }
+    }
+  }
   try {
     const { values, positionals } = parseArgs({
       args: [...argv],
@@ -667,4 +800,28 @@ function parseCommandLineStrictly(argv: readonly string[]) {
     strict: true,
     options: CLI_OPTION_REGISTRY.serve.options,
   })
+}
+
+/** Installation is an explicit command; none of the serve flags can trigger it. */
+function parseFonts(argv: readonly string[]): RuntimeCommand {
+  try {
+    const { values, positionals } = parseArgs({
+      args: [...argv],
+      allowPositionals: true,
+      strict: true,
+      options: CLI_OPTION_REGISTRY.fontsInstall.options,
+    })
+    if (values.help === true) return { command: 'help' }
+    if (positionals.length === 1 && positionals[0] === 'install' && values.from !== '')
+      return { command: 'fontsInstall', sourceDirectory: values.from }
+  } catch {
+    /* Invalid font arguments get the localized usage below. */
+  }
+  return {
+    command: 'invalid',
+    // main installs the display language after parsing, before printing usage.
+    get reason() {
+      return fill(UI_TEXT.acpFontsUsage, { command: ACP_AGENT_NAME })
+    },
+  }
 }

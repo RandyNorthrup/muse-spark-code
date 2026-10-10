@@ -1,7 +1,5 @@
-// One headless-Chrome screenshot of a harness page, shared by the scripts
-// that render test/harness/index.html (harness-shots.mjs, readme-shots.mjs)
-// so the capture flags live in one place.
-
+// The harness settles in real time: Chrome's CLI virtual clock can deadlock
+// while the native-DEFLATE English fallback awaits its stream's first bytes.
 import path from 'node:path'
 import { chromium } from 'playwright-core'
 import { PAGE_TIMEOUT_MS } from './harnessServer.mjs'

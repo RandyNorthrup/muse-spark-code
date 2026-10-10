@@ -12,6 +12,14 @@ import {
 import { runProgram } from '../processTree'
 import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
 import type { ShellJobDeps } from './shellJob'
+import { isResourceHelperChanged, sealHelper, wasHelperChanged } from './helperIntegrity'
+
+/** A self-tested helper and its per-use check (SPAWN017C): never run once changed. */
+export interface SealedMcpJob {
+  readonly path: string
+  /** Hashes the helper before each launch; throws ResourceHelperChangedError for changed bytes. */
+  readonly verify: () => Promise<void>
+}
 
 // The C# is the shipped native/windows/MuseSparkMcpLauncher.cs with the
 // shared Win32 half (`jobSource.ts`).
@@ -56,26 +64,60 @@ async function verify(executable: string, deps: McpJobExecutableDeps): Promise<v
   }
 }
 
+/**
+ * Undefined means unavailable. The bytes are sealed around the self-test; a
+ * changed helper is refused with a typed error, and the next call recompiles.
+ */
+export function sealedMcpJobExecutable(
+  deps: McpJobExecutableDeps,
+): () => Promise<SealedMcpJob | undefined> {
+  let ready: Promise<SealedMcpJob | undefined> | undefined
+  const prepare = async (): Promise<SealedMcpJob | undefined> => {
+    try {
+      const csharp = await deps.readJobSource('mcpLauncher')
+      let executable = path.join(deps.storageDir, SHELL_JOB_FOLDER, mcpJobExecutableName(csharp))
+      let didCompile = false
+      if (wasHelperChanged(executable) || !(await isPresent(executable))) {
+        await compileJob(EXECUTABLE, executable, csharp, deps.systemRoot, deps.run)
+        didCompile = true
+      }
+      executable = await nativeJobPath(executable)
+      const check = await sealHelper(executable, () => verify(executable, deps))
+      if (didCompile) await removeStaleJobs(EXECUTABLE, executable, deps.log)
+      return {
+        path: executable,
+        verify: async () => {
+          try {
+            await check()
+          } catch (error: unknown) {
+            // Re-prepare on the next call; this launch is refused.
+            if (isResourceHelperChanged(error)) ready = undefined
+            throw error
+          }
+        },
+      }
+    } catch (error: unknown) {
+      deps.log(`Windows MCP job executable is unavailable (${String(error)})`)
+      // Fail closed for this binding, as before; only a changed helper is rebuilt.
+      if (isResourceHelperChanged(error)) ready = undefined
+      return
+    }
+  }
+  return () => (ready ??= prepare())
+}
+
 /** Undefined means stdio MCP must fail closed on this Windows machine. */
 export function mcpJobExecutable(deps: McpJobExecutableDeps): () => Promise<string | undefined> {
-  let ready: Promise<string | undefined> | undefined
-  return () =>
-    (ready ??= (async () => {
-      try {
-        const csharp = await deps.readJobSource('mcpLauncher')
-        let executable = path.join(deps.storageDir, SHELL_JOB_FOLDER, mcpJobExecutableName(csharp))
-        let didCompile = false
-        if (!(await isPresent(executable))) {
-          await compileJob(EXECUTABLE, executable, csharp, deps.systemRoot, deps.run)
-          didCompile = true
-        }
-        executable = await nativeJobPath(executable)
-        await verify(executable, deps)
-        if (didCompile) await removeStaleJobs(EXECUTABLE, executable, deps.log)
-        return executable
-      } catch (error: unknown) {
-        deps.log(`Windows MCP job executable is unavailable (${String(error)})`)
-        return
-      }
-    })())
+  const sealed = sealedMcpJobExecutable(deps)
+  return async () => {
+    const helper = await sealed()
+    if (helper === undefined) return
+    try {
+      await helper.verify()
+    } catch (error: unknown) {
+      deps.log(`Windows MCP job executable changed and is refused (${String(error)})`)
+      return
+    }
+    return helper.path
+  }
 }

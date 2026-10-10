@@ -2,8 +2,12 @@
 // the SDK's Connection speaks to, plus a scriptable request table and a way
 // to push notifications and server requests at the client.
 
-import { Connection, type DuplexTransport } from '@muse-code/sdk'
-import type { MspHost } from '../../../src/core/backends/musecode/MuseCodeHost'
+import { type DuplexTransport } from '@muse-code/sdk'
+import {
+  MuseCodeCommandOwner,
+  type MspHost,
+} from '../../../src/core/backends/musecode/MuseCodeHost'
+import type { MuseCodeAccountHome } from '../../../src/core/backends/musecode/accountHomes'
 
 /** M4's captured patch/output shapes, with a child-owned path for receipt regressions. */
 export function childPatchOutput(params: Record<string, unknown>): Record<string, unknown> {
@@ -140,6 +144,11 @@ export class FakeMspServer implements DuplexTransport {
     this.silenced.add(method)
   }
 
+  /** Resume automatic replies after a held command is explicitly answered. */
+  public unsilence(method: string): void {
+    this.silenced.delete(method)
+  }
+
   /**
    * The answer to `method` arrives in one chunk with these frames after it,
    * as `muse serve` writes the prompts it re-issues after a resume (D26).
@@ -219,13 +228,18 @@ export interface FakeHostHandle {
   readonly closeCalls: () => number
 }
 
-export function fakeMspHost(initializeResult: unknown = fakeInitializeResult): FakeHostHandle {
+export function fakeMspHost(
+  initializeResult: unknown = fakeInitializeResult,
+  accountHome?: MuseCodeAccountHome,
+): FakeHostHandle {
   const server = new FakeMspServer()
-  const connection = new Connection(server)
+  const commandOwner = new MuseCodeCommandOwner(accountHome)
+  const connection = commandOwner.connect(server)
   const exited = Promise.withResolvers<{ code: number | null; signal: string | null }>()
   let closeCount = 0
   const host: MspHost = {
     connection,
+    commandOwner,
     initializeResult,
     exited: exited.promise,
     close: () => {

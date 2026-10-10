@@ -9,7 +9,7 @@ export {
   renameRefused,
   runCodeIntelRead,
 } from './codeIntelCalls'
-export { CodeIntelRefusal } from '../../codeIntel/codeIntelQuery'
+export { CodeIntelRefusal, bareName } from '../../codeIntel/codeIntelQuery'
 export { repoMapSection } from '../../codeIntel/repoMap'
 /** Node bundles each own their language state; install the caller before use. */
 export function installLanguage(table: UiText, locale: string): void {

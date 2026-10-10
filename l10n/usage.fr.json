@@ -226,5 +226,10 @@
   "exportTooLarge": "Cette exportation est trop volumineuse pour le navigateur. Choisissez une période plus courte ou exportez avec la CLI.",
   "exportBound": "Les exportations du navigateur sont limitées à {limit}, encodage JSON compris.",
   "editorActionsUnavailable": "Cette page ne peut pas ouvrir les paramètres de l’éditeur, afficher le dossier d’historique ni modifier les prix des modèles. Utilisez les paramètres de l’éditeur et les commandes Modèles et agents. La lecture, les filtres, les graphiques et les exportations restent disponibles ici.",
-  "readOnlyActions": "Cette interface textuelle est en lecture seule. Ouvrez la page compagnon pour les graphiques, la gestion de l’historique et les téléchargements."
+  "readOnlyActions": "Cette interface textuelle est en lecture seule. Ouvrez la page compagnon pour les graphiques, la gestion de l’historique et les téléchargements.",
+  "deleteConfirmResources": {
+    "one": "Cela supprime aussi {count} entrée de l’historique des ressources.",
+    "many": "Cela supprime aussi {count} entrées de l’historique des ressources.",
+    "other": "Cela supprime aussi {count} entrées de l’historique des ressources."
+  }
 }

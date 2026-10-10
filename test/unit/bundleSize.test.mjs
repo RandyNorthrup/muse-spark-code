@@ -72,6 +72,24 @@ describe('bundled What’s New content budget', () => {
       `OVER dist/webview ${name} body: ${budget.toFixed(1)} KiB (budget ${budget} KiB)`,
     )
   })
+  it('bounds the native schedules runtime chunk at 50 KiB', async () => {
+    statSync.mockImplementation((file) => ({
+      size: file === 'dist/scheduleBackground.js' ? 50 * 1024 + 1 : 0,
+    }))
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+  })
+  it('counts eager chunks against the unchanged startup cap', async () => {
+    readFileSync.mockReturnValue(
+      JSON.stringify({
+        outputs: {
+          'dist/webview/main.js': {
+            imports: [{ path: 'dist/webview/chunks/eager.js', kind: 'import-statement' }],
+          },
+          'dist/webview/chunks/eager.js': { imports: [] },
+        },
+      }),
+    )
+  })
   it('bounds reachable deferred chat chunks while allowing the separately budgeted usage page', async () => {
     mockWebviewMeta({
       outputs: {
@@ -206,6 +224,9 @@ describe('bundled What’s New content budget', () => {
     ['LegalReport', 25, 'src/webview/components/LegalReport.tsx'],
     ['ReviewCommentForm', 25, 'src/webview/components/ReviewCommentForm.tsx'],
     ['surface English', 25, 'browser-surface-english:browser-surface-english'],
+    ['account English', 25, 'browser-account-english:browser-account-english'],
+    ['schedule English', 25, 'browser-schedule-english:browser-schedule-english'],
+    ['help reference', 50, 'browser-reference-english:browser-reference-english'],
   ])(
     'enforces the %s cap without widening the original deferred allowance',
     async (name, cap, entryPoint) => {

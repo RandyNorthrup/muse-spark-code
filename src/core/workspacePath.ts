@@ -7,6 +7,13 @@
 // without carrying the backend that loads on first use (M57, PLAN.md D6).
 
 import { pathModule } from './workspaceRoot'
+import {
+  isUncPath,
+  normalWindowsPath,
+  unprovenUncPathReason,
+  windowsPathProblem,
+} from './windowsPathSpelling'
+import { pathIdentityRelation } from './pathIdentity'
 
 export type PathResolution =
   | {
@@ -37,10 +44,6 @@ export interface RealPathIo {
 }
 
 const PARENT_SEGMENT = '..'
-// Device names Windows resolves in every directory (`NUL`, `CON`, `COM1.txt`):
-// reading one can block on a console, writing one goes nowhere.
-const WINDOWS_RESERVED_NAME = /^(?:con|prn|aux|nul|conin\$|conout\$|com\d|lpt\d)(?:\..*)?$/i
-const WINDOWS_TRAILING_DOT_OR_SPACE = /[. ]$/
 
 /** Whether a `path.relative` result stays below its base. */
 export function isBelow(relative: string, p: ReturnType<typeof pathModule>): boolean {
@@ -50,23 +53,6 @@ export function isBelow(relative: string, p: ReturnType<typeof pathModule>): boo
     !relative.startsWith(`${PARENT_SEGMENT}${p.sep}`) &&
     !p.isAbsolute(relative)
   )
-}
-
-/**
- * Why a Windows path segment is refused, if it is: an alternate data stream
- * (`a.txt:hidden`), a device name, or a trailing dot or space, which Windows
- * strips (so `.git.` would be `.git`).
- */
-function windowsSegmentProblem(segment: string): string | undefined {
-  if (segment.includes(':')) {
-    return 'names an alternate data stream'
-  }
-  if (WINDOWS_RESERVED_NAME.test(segment)) {
-    return 'names a Windows device'
-  }
-  return WINDOWS_TRAILING_DOT_OR_SPACE.test(segment)
-    ? 'ends a name with a dot or a space, which Windows drops'
-    : undefined
 }
 
 /**
@@ -132,21 +118,26 @@ export function resolveWorkspacePath(
   if (!normalized.ok) {
     return normalized
   }
+  const problem = windowsPathProblem(normalized.path, platform, workspaceRoot)
+  if (problem !== undefined) return { ok: false, reason: `path ${given} ${problem}` }
   const p = pathModule(platform)
-  const absolute = p.resolve(workspaceRoot, normalized.path)
-  const relative = p.relative(workspaceRoot, absolute)
+  const root = platform === 'win32' ? normalWindowsPath(workspaceRoot) : workspaceRoot
+  const absolute = p.resolve(
+    root,
+    platform === 'win32' ? normalWindowsPath(normalized.path) : normalized.path,
+  )
+  const relative = p.relative(root, absolute)
   if (!isBelow(relative, p)) {
     return { ok: false, reason: `path ${given} is outside the workspace` }
   }
-  const segments = relative.split(p.sep)
-  if (platform === 'win32') {
-    for (const segment of segments) {
-      const problem = windowsSegmentProblem(segment)
-      if (problem !== undefined) {
-        return { ok: false, reason: `path ${given} ${problem}` }
-      }
-    }
+  if (
+    platform === 'win32' &&
+    isUncPath(absolute) &&
+    pathIdentityRelation(absolute, workspaceRoot, platform) !== 'inside'
+  ) {
+    return { ok: false, reason: unprovenUncPathReason(given) }
   }
+  const segments = relative.split(p.sep)
   const forward = segments.join('/')
   return { ok: true, absolute, relative: forward, canonical: forward }
 }

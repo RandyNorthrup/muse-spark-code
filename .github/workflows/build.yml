@@ -1,10 +1,11 @@
 # The shared build (CIFLOW, PLAN.md §7). `fast: true` (ci.yml, pull requests
 # once the merge queue is on) runs the Ubuntu static gates, the production
 # build and every unit/process-e2e test; the full tier (merge groups, manual
-# runs, release.yml) runs every gate on three platforms, four coverage shards
-# per OS merged before the unchanged thresholds apply, the accessibility and
-# integration runs, the macOS helper and the universal packages. The required
-# check names come from the `required` aggregate below on both tiers.
+# runs, release.yml) runs every gate on three platforms, coverage shards (four
+# on Ubuntu and macOS, six on Windows) merged per OS before the unchanged
+# thresholds apply, the accessibility and integration runs, the macOS helper
+# and the universal packages. The required check names come from the
+# `required` aggregate below on both tiers.
 # Releases can reuse these exact-tree packages after verifying the CI receipt.
 #
 # Every job has a timeout and every checkout leaves no token in the git
@@ -24,15 +25,26 @@ permissions:
 
 jobs:
   checks:
-    name: static gates (${{ matrix.os }})
+    name: static gates (${{ matrix.os }}, ${{ matrix.part.name }})
     runs-on: ${{ matrix.os }}
-    # macOS reaches the unit typecheck about 13 minutes in (format, lint, host and
-    # webview typechecks); the single unit program adds about 3 (2026-10-07).
+    # One serial job outgrew its 25 minutes on macOS (CIFIX017R3, run
+    # 37992331755: 21.8 min in round 2, cancelled at 25 in round 3 during
+    # check:host-api, no hang): type-aware ESLint alone took 17.7 min there
+    # (lint:js:main 7.0, lint:js:unit 10.2) against 6.5 on Ubuntu, and 5.1 GB
+    # per ESLint process rules out ESLint's threads on a 7 GB runner. Three
+    # parts run every gate on every OS; macOS' slowest measured is ~11 min.
     timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
+        part:
+          - name: lint
+            gates: 'format:check lint:js:main lint:js:tests lint:css lint:ps'
+          - name: unit lint
+            gates: 'lint:js:unit'
+          - name: build
+            gates: 'typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan check:roadmap deadcode cycles duplication build security:audit'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -52,7 +64,7 @@ jobs:
       # Gallery's package endpoint, checked against the SHA-512 lint-ps.mjs
       # pins, and unpacked into the user's module path. Each failure is named.
       - name: PSScriptAnalyzer (windows, pinned)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.part.name == 'lint'
         shell: pwsh
         run: |
           $version = node scripts/lint-ps.mjs --print-version
@@ -91,18 +103,102 @@ jobs:
           Remove-Item -Force -Path (Join-Path $target '*.nuspec') -ErrorAction SilentlyContinue
           Import-Module PSScriptAnalyzer -RequiredVersion $version -ErrorAction Stop
           Write-Host "PSScriptAnalyzer $version installed from the checked package"
-      # Same static/build/audit gates as quality:gates; tests run separately.
-      - run: npx run-s format:check lint typecheck check:badges check:l10n check:reference check:host-api deadcode cycles duplication build security:audit
+      # Same static/build/audit gates as quality:gates, across the parts; tests and
+      # pixel replay have required jobs.
+      - run: npx run-s ${{ matrix.part.gates }}
         env:
           # check:badges lists public main through the GitHub API; the job token
           # keeps hosted runners off the shared unauthenticated rate limit.
           GITHUB_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: matrix.os == 'ubuntu-latest' && !inputs.fast
+        if: matrix.os == 'ubuntu-latest' && matrix.part.name == 'build' && !inputs.fast
         with:
           name: production-webview
-          path: dist/webview
+          # The whole production dist, minus the VSIX stage and build metadata:
+          # a hand list drifted once (wire.js gained a lazy chunk the list lacked).
+          path: |
+            dist
+            !dist/vsix-package
+            !dist/meta
           if-no-files-found: error
+
+  # M114: rebuild the reviewed Git source in this runner's browser/fonts;
+  # only the size-bounded manifest is tracked, never a downloaded PNG set.
+  visual-shards:
+    name: visual regression (shard ${{ matrix.shard }}/6)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: require the reviewed baseline source object
+        shell: bash
+        run: |
+          revision="$(node --input-type=module <<'JS'
+          import { readFileSync } from 'node:fs'
+          import { validateManifest } from './scripts/lib/visualManifest.mjs'
+          const read = (file) => JSON.parse(readFileSync(file, 'utf8'))
+          const manifest = validateManifest(read('test/harness/goldens/manifest.json'), read('docs/certification/m114-audit.json'), read('test/harness/visual-matrix.json'))
+          console.log(manifest.revision)
+          JS
+          )"
+          if ! git cat-file -e "$revision^{commit}"; then
+            git fetch --no-tags origin "$revision"
+          fi
+          git cat-file -e "$revision^{commit}"
+      - name: compare every capture under the 512 MiB archive budget
+        run: npm run check:visual -- --shard=${{ matrix.shard }}/6
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: visual-comparison-shard-${{ matrix.shard }}
+          path: temp/m114-visual-result-${{ matrix.shard }}-of-6.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  visual:
+    name: visual regression (six themes, all states)
+    if: always()
+    needs: visual-shards
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: visual-comparison-shard-*
+          path: temp/visual-shards
+          merge-multiple: true
+      - name: require every shard and the combined archive budget
+        env:
+          SHARDS: ${{ needs.visual-shards.result }}
+        run: |
+          test "$SHARDS" = success
+          npm run check:visual -- --merge-shards=temp/visual-shards
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: visual-comparison-receipt
+          path: temp/m114-visual-result.json
+          if-no-files-found: error
+          retention-days: 30
 
   unit:
     name: tests (${{ matrix.os }}, shard ${{ matrix.shard }})
@@ -112,11 +208,19 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
-        shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4]') }}
+        shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6,7,8]') }}
+        # Windows splits its slower serial run eight ways: with six, shard 1 ran
+        # 16-17 min (952 s of tests; modelApiHost alone 207 s) and crossed the
+        # 20-minute limit in run 38027675949, as hosted Windows varies ~60%
+        # between runs (PLAN.md §8). macOS also runs files one at a time
+        # (vitest.config.ts) over six; Ubuntu keeps four.
+        exclude: ${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8},{"os":"macos-latest","shard":7},{"os":"macos-latest","shard":8}]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # Historical visual receipts verify their immutable capture sources.
+          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
@@ -129,11 +233,12 @@ jobs:
         env:
           FAST: ${{ inputs.fast }}
           SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || matrix.os == 'macos-latest' && 6 || 8 }}
         run: |
           if [ "$FAST" = true ]; then
             npx vitest run
           else
-            npx vitest run --coverage --shard="$SHARD/4" --reporter=default --reporter=blob --outputFile="blob-reports/shard-$SHARD.json"
+            npx vitest run --coverage --shard="$SHARD/$SHARDS" --reporter=default --reporter=blob --outputFile="blob-reports/shard-$SHARD.json"
           fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ !inputs.fast }}
@@ -168,8 +273,10 @@ jobs:
           merge-multiple: true
       - name: every shard and the original coverage thresholds are required
         shell: bash
+        env:
+          SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || matrix.os == 'macos-latest' && 6 || 8 }}
         run: |
-          for shard in 1 2 3 4; do
+          for shard in $(seq 1 "$SHARDS"); do
             test -s "blob-reports/shard-$shard.json"
           done
           npx vitest run --merge-reports=blob-reports --coverage
@@ -192,7 +299,7 @@ jobs:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: production-webview
-          path: dist/webview
+          path: dist
       # Every scenario/theme; identical browser bundle. Measured Ubuntu 4m54s,
       # Windows 8m11s (run 37211362498). Platform behavior stays in native tests.
       - run: npm run test:a11y
@@ -245,6 +352,7 @@ jobs:
     needs:
       [
         checks,
+        visual,
         unit,
         coverage,
         accessibility,
@@ -272,6 +380,7 @@ jobs:
         env:
           FAST: ${{ inputs.fast }}
           CHECKS: ${{ needs.checks.result }}
+          VISUAL: ${{ needs.visual.result }}
           UNIT: ${{ needs.unit.result }}
           COVERAGE: ${{ needs.coverage.result }}
           ACCESSIBILITY: ${{ needs.accessibility.result }}
@@ -283,6 +392,7 @@ jobs:
           SAST: ${{ needs.sast.result }}
         run: |
           test "$CHECKS" = success
+          test "$VISUAL" = success
           test "$UNIT" = success
           test "$SECRETS" = success
           test "$SAST" = success
@@ -313,10 +423,25 @@ jobs:
       # disclaims the responsibility of the app that started it, and a
       # SIGTERM to the first process ends the copy (M28).
       - run: bash native/darwin/check-disclaim.sh
+      - name: permission-free screen recorder and signed resource checks
+        run: |
+          bash test/native/darwin/run-screen-record.sh
+          bash test/native/darwin/check-screen-resources.sh
+          bash native/darwin/check-disclaim.sh --screen-only
+      # Archive on macOS: artifact upload otherwise discards executable modes.
+      - run: tar -czf native/darwin/muse-dictate-screen.tgz -C native/darwin muse-dictate-screen.app
+      - run: bash native/darwin/check-vault.sh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: muse-vault-darwin
+          path: dist/native/darwin/muse-vault
+          if-no-files-found: error
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: muse-dictate-darwin
-          path: native/darwin/muse-dictate
+          path: |
+            native/darwin/muse-dictate
+            native/darwin/muse-dictate-screen.tgz
           if-no-files-found: error
 
   # The .vsix with both helpers: what release.yml publishes.
@@ -373,8 +498,14 @@ jobs:
         with:
           name: muse-created-linux-arm64
           path: native/linux/arm64
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: muse-vault-darwin
+          path: dist/native/darwin
       - run: chmod +x native/linux/x64/muse-created native/linux/arm64/muse-created
+      - run: chmod +x dist/native/darwin/muse-vault
       - run: chmod +x native/darwin/muse-dictate
+      - run: tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin
       - run: npm ci
       - run: npm run package
         env:
@@ -396,10 +527,18 @@ jobs:
             extension/native/windows/dictate.ps1 extension/native/windows/capture.ps1 \
             extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs \
             extension/native/windows/MuseSparkMcpLauncher.cs extension/native/darwin/muse-dictate \
+            extension/native/windows/MuseSparkScreenRecord.cs \
+            extension/native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate \
+            extension/native/darwin/muse-dictate-screen.app/Contents/_CodeSignature/CodeResources \
+            extension/dist/vault.js extension/dist/vaultBoundaries.js extension/dist/estimator.js extension/dist/estimateContracts.js \
+            extension/dist/native/darwin/muse-vault \
+            extension/native/windows/MuseSparkVault.cs extension/native/windows/MuseSparkVaultCng.cs \
+            extension/native/windows/MuseSparkVaultHello.cs extension/native/windows/MuseSparkVaultLock.cs \
             extension/dist/extension.js extension/dist/conversation.js extension/dist/prompts.js extension/dist/modelApi.js extension/dist/searchWorker.js \
             extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js \
             extension/dist/review.js extension/dist/agentImport.js extension/dist/conversationGit.js extension/dist/bundledSkills.js \
             extension/dist/uiTextRuntime.js extension/dist/uiTextHooks.js extension/dist/uiTextSurfaces.js \
+            extension/dist/uiTextMedia.js extension/dist/media.js extension/dist/screenRecord.js \
             extension/dist/uiText.js extension/dist/validation.js extension/dist/wire.js extension/dist/browserCheck.js extension/dist/browserRuntime.js \
             extension/dist/legalScan.js extension/dist/legal-data/NOTICE.md extension/dist/legal-data/provenance.json \
             extension/dist/sessionBoard.js extension/dist/reviewer.js \
@@ -429,8 +568,12 @@ jobs:
       - name: the agent's package carries its bundles, tables, notices and manifest
         run: |
           listing="$(tar -tzf dist/muse-spark-code-acp-*.tgz)"
-          for entry in package/package.json package/dist/uiTextRuntime.js package/dist/uiTextHooks.js package/dist/uiTextSurfaces.js \
-            package/dist/acp.js package/dist/sharingRuntime.js package/dist/modelApi.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \
+          for entry in package/package.json package/dist/uiTextRuntime.js package/dist/uiTextHooks.js package/dist/uiTextSurfaces.js package/dist/uiTextMedia.js \
+            package/dist/vault.js package/dist/vaultBoundaries.js package/dist/estimator.js package/dist/estimateContracts.js \
+            package/native/windows/MuseSparkVault.cs package/native/windows/MuseSparkVaultCng.cs \
+            package/native/windows/MuseSparkVaultHello.cs package/native/windows/MuseSparkVaultLock.cs \
+            package/dist/native/darwin/muse-vault \
+            package/dist/acp.js package/dist/sharingRuntime.js package/dist/modelApi.js package/dist/media.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \
             package/dist/providers.js package/dist/subscriptions.js package/dist/configuredProviders.js package/dist/providerCatalog.js \
             package/dist/foreignHooks.js package/dist/hookRuntime.js package/dist/extensionHooks.js \
             package/dist/recorder.js package/dist/resourceGovernor.js package/dist/resourceAdmission.js \
@@ -439,6 +582,7 @@ jobs:
             package/native/darwin/muse-dictate \
             package/native/linux/x64/muse-created package/native/linux/arm64/muse-created \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
+            package/native/windows/MuseSparkMcpLauncher.cs \
             package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \
             package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json \
             package/schemas/exec-result-v2.schema.json package/schemas/exec-event-v2.schema.json \

@@ -5,6 +5,7 @@
 // in through its own credential store; provider keys are read at use time.
 
 import { isCredentialVariable, withoutCredentials } from '../core/credentialEnvironment'
+import { vaultFenceEnvironment } from '../core/vault/exec/fence'
 export { withoutCredentials } from '../core/credentialEnvironment'
 import {
   EXEC_CHILD_ENV_DROP,
@@ -83,5 +84,5 @@ export function withoutKeyringRoutes(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv 
   for (const name of Object.keys(copy)) {
     if (names.includes(name.toUpperCase())) Reflect.deleteProperty(copy, name)
   }
-  return copy
+  return vaultFenceEnvironment(copy)
 }

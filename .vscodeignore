@@ -2,11 +2,15 @@
 !dist/extension.js
 !dist/resourceAdmission.js
 !dist/resourceGovernor.js
+!dist/resourceProcess.js
+!dist/resourceJournal.js
+!dist/mcpVault.js
 !dist/questionNotes.js
 !dist/conversation.js
 !dist/tab.js
 !dist/prompts.js
 !dist/modelApi.js
+!dist/modelApiSessions.js
 !dist/modelApiCodeIntel.js
 !dist/mcpPool.js
 !dist/structuredSchema.js
@@ -22,6 +26,7 @@
 !dist/team.js
 !dist/teamRunners.js
 !dist/teamScheduler.js
+!dist/schedules.js
 !dist/foreignHooks.js
 !dist/hookRuntime.js
 !dist/extensionHooks.js
@@ -57,6 +62,9 @@
 !dist/imageResizeWorker.js
 !dist/report.js
 !dist/recorder.js
+!dist/media.js
+!dist/screenRecord.js
+!dist/uiTextMedia.js
 !dist/reference.js
 !dist/webview/main.js
 !dist/webview/resourceSurface.js
@@ -84,7 +92,9 @@
 !native/windows/MuseSparkMcpLauncher.cs
 !native/linux/x64/muse-created
 !native/linux/arm64/muse-created
+!native/windows/MuseSparkScreenRecord.cs
 !native/darwin/muse-dictate
+!native/darwin/muse-dictate-screen.app/**
 !package.json
 !package.nls.json
 !package.nls.*.json
@@ -105,3 +115,30 @@
 
 !dist/modelApiHooks.js
 !dist/modelApiMcp.js
+
+!dist/reporting.js
+!dist/reportingPanel.js
+!dist/webview/reportingPage.js
+!dist/webview/reportingPage.css
+!dist/reportingDestinations.js
+!dist/webview/reportingDestinations.js
+!dist/webview/reportingDestinations.css
+!dist/reportingNetwork.js
+!dist/vault.js
+!dist/vaultBoundaries.js
+!dist/estimator.js
+!dist/estimateContracts.js
+!dist/native/darwin/muse-vault
+!native/windows/MuseSparkVault.cs
+!native/windows/MuseSparkVaultCng.cs
+!native/windows/MuseSparkVaultHello.cs
+!native/windows/MuseSparkVaultLock.cs
+
+# M114 F: optional WOFF2 pack and runtime installer belong to standalone installs.
+design/fonts/**
+dist/fontsInstall.js
+**/*.woff
+**/*.woff2
+**/*.ttf
+**/*.otf
+**/*.eot

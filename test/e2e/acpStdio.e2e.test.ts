@@ -11,17 +11,18 @@
 // credential file as the panel reads it (D26, PR #49).
 
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Writable } from 'node:stream'
 import * as acp from '@agentclientprotocol/sdk'
 import { EXPECTED_SCHEMA_FINGERPRINT } from '@muse-code/sdk'
 import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, onTestFailed, vi } from 'vitest'
 import { z } from 'zod'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { createRuntimeBackend } from '../../src/runtime/backends'
+import { agentDataFolder } from '../../src/runtime/dataFolder'
 import { formatAcpUsage } from '../../src/runtime/cliOptions'
 import { webReadable } from '../../src/runtime/webStreams'
 import { ACP_AGENT_NAME, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
@@ -80,6 +81,17 @@ const dataHome = mkdtempSync(path.join(tmpdir(), 'acp-e2e-data-'))
 const children: ChildProcessWithoutNullStreams[] = []
 
 beforeAll(async () => {
+  // Ubuntu's default umask (002) leaves the agent's data folder group-writable;
+  // the governor's private creation registry must not depend on its mode.
+  if (process.platform !== 'win32') {
+    const machine = agentDataFolder({
+      platform: process.platform,
+      env: { XDG_DATA_HOME: dataHome },
+      homeDir: dataHome,
+    })
+    mkdirSync(machine, { recursive: true })
+    chmodSync(machine, 0o775)
+  }
   if (INSTALLED !== undefined) {
     return
   }
@@ -97,9 +109,12 @@ beforeAll(async () => {
   for (const [entry, file] of [
     ['src/acp/questionDeferralEntry.ts', 'acpQuestions.js'],
     ['src/runtime/questions/questionRegistryEntry.ts', 'runtimeQuestions.js'],
+    ['src/runtime/providers/accountsEntry.ts', 'runtimeAccounts.js'],
+    // The real package ships the schedule host; without it every session
+    // opened with "The schedule host could not start" (rel017ci).
+    ['src/runtime/schedules/schedulesBundle.ts', 'schedules.js'],
   ]) {
-    if (entry === undefined || file === undefined)
-      throw new Error('Missing question bundle fixture')
+    if (entry === undefined || file === undefined) throw new Error('Missing lazy bundle fixture')
     await build({
       entryPoints: [path.join(ROOT, entry)],
       outfile: path.join(path.dirname(AGENT), file),
@@ -118,7 +133,7 @@ afterAll(async () => {
 })
 
 function agentEnvironment(configHome: string): NodeJS.ProcessEnv {
-  return {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
     NODE_PATH,
     XDG_CONFIG_HOME: configHome,
@@ -129,6 +144,22 @@ function agentEnvironment(configHome: string): NodeJS.ProcessEnv {
     LANG: 'C',
     LC_ALL: '',
   }
+  // Proxy lookups read the process environment, so an ambient sandbox proxy
+  // would leak into every spawned agent (Q66 names exactly the vars it sets).
+  // Tests that need a proxy set it through startAgent's extraEnv instead.
+  // Literal keys: the dynamic form trips no-dynamic-delete.
+  delete env['HTTP_PROXY']
+  delete env['HTTPS_PROXY']
+  delete env['ALL_PROXY']
+  delete env['FTP_PROXY']
+  delete env['http_proxy']
+  delete env['https_proxy']
+  delete env['all_proxy']
+  delete env['ftp_proxy']
+  delete env['NO_PROXY']
+  delete env['no_proxy']
+  delete env['NODE_USE_ENV_PROXY']
+  return env
 }
 
 interface Session {
@@ -254,18 +285,19 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
             }
           ).version
     expect(version.stdout.trim()).toBe(expected)
-    const usage = fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME })
     const help = spawnSync(process.execPath, [AGENT, '--help'], { encoding: 'utf8', env })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    expect(help.stdout.trim()).toBe(formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
+    const helpUsage = formatAcpUsage(UI_TEXT, ACP_AGENT_NAME)
+    expect(help.stdout.trim()).toBe(helpUsage)
     expect(help.stdout).toContain(`${ACP_AGENT_NAME} help --all\n`)
     expect(help.stdout).toContain('muse-spark-code-acp auth set|status|clear')
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
     const wrong = spawnSync(process.execPath, [AGENT, '--colour'], { encoding: 'utf8', env })
     expect(wrong.status).toBe(1)
     expect(wrong.stderr).toContain('--colour')
-    expect(wrong.stderr).toContain(`${usage}\n`)
+    // Usage errors print the short usage block, not the full help.
+    expect(wrong.stderr).toContain(`${fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME })}\n`)
   })
 
   it('prints the complete translated usage and reference hint from the installed table', async () => {
@@ -278,6 +310,7 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
           'memory-max': z.string(),
         }),
         acpChatGpt: z.object({ usage: z.string() }),
+        scheduleV2: z.object({ runtime: z.object({ usage: z.string() }) }),
         helpReferenceTitle: z.string(),
         referenceIntro: z.string(),
         promptLibrary: z.string(),
@@ -298,19 +331,32 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
         shareConfirm: z.string(),
       })
       .parse(unpackUiTable(JSON.parse(await readUiTableFile(PACKAGE, ['l10n', 'ui.de.json']))))
+    const accountTranslation = z
+      .object({
+        acpUsage: z.string(),
+        helpReferenceTitle: z.string(),
+        accounts: z.object({ cliUsage: z.string(), execHelp: z.string() }),
+      })
+      .parse(unpackUiTable(JSON.parse(await readUiTableFile(PACKAGE, ['l10n', 'ui.de.json']))))
     const table = {
       ...UI_TEXT,
       ...translation,
+      accounts: { ...UI_TEXT.accounts, ...accountTranslation.accounts },
       acpChatGpt: { ...UI_TEXT.acpChatGpt, ...translation.acpChatGpt },
       referenceCliOptions: { ...UI_TEXT.referenceCliOptions, ...translation.referenceCliOptions },
+      scheduleV2: {
+        ...UI_TEXT.scheduleV2,
+        runtime: { ...UI_TEXT.scheduleV2.runtime, ...translation.scheduleV2.runtime },
+      },
     }
+    const verwendung = formatAcpUsage(table, ACP_AGENT_NAME)
     const help = spawnSync(process.execPath, [AGENT, '--help'], {
       encoding: 'utf8',
       env: { ...process.env, NODE_PATH, LC_ALL: 'de_DE.UTF-8' },
     })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    expect(help.stdout.trim()).toBe(formatAcpUsage(table, ACP_AGENT_NAME))
+    expect(help.stdout.trim()).toBe(verwendung)
     expect(help.stdout).toContain(table.helpReferenceTitle)
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
   })
@@ -318,27 +364,42 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
   it('binds saved prompts and sharing help over real ACP stdio without a model send (M118)', async () => {
     mkdirSync(path.join(workspace, 'empty'), { recursive: true })
     const agent = startAgent(signedIn, [], { XDG_DATA_HOME: dataHome, LOCALAPPDATA: dataHome })
+    let stage = 'initialize'
+    // Hosted timeout stacks identify only this case. Fixed stage words show
+    // whether macOS waits for a request or stdio close, without dumping frames.
+    onTestFailed(() => {
+      process.stderr.write(`M118 ACP last awaited stage: ${stage}\n`)
+    })
     await agent.run(async (client) => {
-      const sessionId = await newSession(client)
+      await initialize(client)
+      stage = 'session/new (first workspace)'
+      const { sessionId } = await client.request('session/new', { cwd: workspace, mcpServers: [] })
       const ask = (id: string, prompt: string) =>
         client.request('session/prompt', {
           sessionId: id,
           prompt: [{ type: 'text', text: prompt }],
         })
+      stage = 'save user prompt'
       await ask(sessionId, '/prompt save --title Shared --scope user --   Exact\r\nbody  ')
       const id = /\(([^()]*)\)$/.exec(text(agent.updates))?.[1]
       expect(id).toBeDefined()
+      stage = 'session/new (second workspace)'
       const { sessionId: fresh } = await client.request('session/new', {
         cwd: path.join(workspace, 'empty'),
         mcpServers: [],
       })
+      stage = 'list user prompts'
       await ask(fresh, '/prompt list')
+      stage = 'use user prompt'
       await ask(fresh, `/prompt use ${id ?? ''}`)
+      stage = 'sharing help'
       await ask(fresh, '/help')
       expect(text(agent.updates)).toContain('  Exact\r\nbody  ')
       expect(text(agent.updates)).toContain('/share chat')
       expect(text(agent.updates)).not.toContain('echo:')
+      stage = 'stdio disconnect'
     })
+    stage = 'completed'
   })
 
   it('streams a reply, runs an allowed tool call and skips a denied one, on Muse Code', async () => {
@@ -354,6 +415,10 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
       { stopReason: 'end_turn' },
       { stopReason: 'end_turn' },
     ])
+    // A host that cannot start names its cause in the agent's log.
+    expect(text(agent.updates), agent.stderr.join('')).not.toContain(
+      UI_TEXT.scheduleV2.runtime.hostUnavailable,
+    )
     expect(text(agent.updates)).toContain('echo: hello')
     const toolCalls = agent.updates.filter((update) => update.sessionUpdate === 'tool_call')
     expect(toolCalls).toHaveLength(2)
@@ -402,7 +467,15 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
 
   it('says at start that a proxy will not be used by the Model API backend, until Node’s switch is on (Q66)', async () => {
     // A port nothing is asked on: the agent sends no request before a session.
-    const proxy = { HTTPS_PROXY: 'http://127.0.0.1:9', NODE_USE_ENV_PROXY: '' }
+    // The other proxy spellings are cleared so the warning names exactly the
+    // variable under test whatever the runner's own environment sets.
+    const proxy = {
+      HTTPS_PROXY: 'http://127.0.0.1:9',
+      NODE_USE_ENV_PROXY: '',
+      https_proxy: '',
+      HTTP_PROXY: '',
+      http_proxy: '',
+    }
     const unused = startAgent(signedIn, ['--backend', 'modelApi'], proxy)
     await unused.run(initialize)
     const said = unused.stderr.join('')

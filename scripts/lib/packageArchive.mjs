@@ -1,3 +1,4 @@
+import { tableLayout, packTable } from './packedL10n.mjs'
 // Independent solid archives of canonical tables and exact lazy CommonJS bytes.
 // Source/build files stay intact; English keeps its independent inline fallback.
 import { createHash } from 'node:crypto'
@@ -32,6 +33,7 @@ const compressBrotli = promisify(brotliCompress)
 export async function packRuntimeArchive(root, stage, files, tables) {
   const orderedTables = tables.toSorted(([left], [right]) => left.localeCompare(right, 'en'))
   const {
+    EN,
     L10N_TABLE_MAX_BYTES,
     L10N_COMPRESSION_QUALITY,
     L10N_TABLE_ARCHIVE_FILE,
@@ -44,11 +46,12 @@ export async function packRuntimeArchive(root, stage, files, tables) {
     orderedTables.some(([, table]) => JSON.stringify(Object.keys(table)) !== JSON.stringify(keys))
   )
     throw new Error('Translation tables have inconsistent key order')
+  const layout = tableLayout(EN)
   const archive = {
     version: 1,
-    keys,
+    format: 1,
     locales: orderedTables.map(([locale]) => locale),
-    values: orderedTables.map(([, table]) => keys.map((key) => table[key])),
+    values: orderedTables.map(([, table]) => packTable(layout, table).values),
     english: {},
   }
   const codeArchive = { version: 1, bundles: {} }
@@ -98,9 +101,9 @@ export async function packRuntimeArchive(root, stage, files, tables) {
     })
     const english = JSON.stringify(module.exports.EN)
     if (english === undefined) throw new Error(`Missing English region: ${region.output}`)
-    archive.english[region.name] = english
     // Preflight reads runtime errors before it needs any archived table.
     if (EAGER.has(path.basename(region.output))) continue
+    archive.english[region.name] = english
     writeFileSync(
       path.join(stage, region.output),
       `try{const packedRequire=require('node:module').createRequire(__filename);exports.EN=JSON.parse((packedRequire('./uiText.js'),packedRequire.cache[packedRequire.resolve('./uiText.js')].readPackedRuntime('english','${region.name}','${digest(english)}')));}catch{\n${source}\n}\n`,

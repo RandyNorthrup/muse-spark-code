@@ -16,7 +16,14 @@ const embeddedTableSchema = z.object({ locale: z.string(), table: z.unknown() })
 
 /** Whether the table has English's keys, slots and plural forms (the non-strict check). */
 function isUiText(table: unknown, locale: string): table is UiText {
-  return tableProblems(EN, table, { locale, isStrict: false }).length === 0
+  return (
+    tableProblems(EN, table, {
+      locale,
+      isStrict: false,
+      deferredGroups:
+        Object.getOwnPropertyDescriptor(EN, 'vault')?.get === undefined ? [] : ['vault'],
+    }).length === 0
+  )
 }
 
 function refused(reason: string): Error {
@@ -53,7 +60,14 @@ export function installEmbeddedTable(page: ParentNode): Error | undefined {
     return refused(`"${locale}" is not a language tag`)
   }
   if (!isUiText(table, locale)) {
-    return refused(tableProblems(EN, table, { locale, isStrict: false }).join('; '))
+    return refused(
+      tableProblems(EN, table, {
+        locale,
+        isStrict: false,
+        deferredGroups:
+          Object.getOwnPropertyDescriptor(EN, 'vault')?.get === undefined ? [] : ['vault'],
+      }).join('; '),
+    )
   }
   setUiText(table, locale)
   return undefined

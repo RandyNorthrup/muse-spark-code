@@ -502,15 +502,32 @@ describe('M95b shared subscription UI', () => {
   it('renders requests, reported and estimated tokens separately and marks unknown requests', () => {
     const onOpenExternal = vi.fn()
     render(<PlanUsageSection rows={tallies} models={[model]} onOpenExternal={onOpenExternal} />)
-    expect(screen.getByText('4')).toBeTruthy()
+    expect(screen.getByText('4 requests')).toBeTruthy()
     expect(screen.getByText(UI_TEXT.planUi.reportedTokens)).toBeTruthy()
     expect(screen.getByText(UI_TEXT.planUi.estimatedTokens)).toBeTruthy()
     expect(screen.getByText(UI_TEXT.planUi.unknownTokens)).toBeTruthy()
-    expect(screen.getByText(UI_TEXT.planUi.unknownTokens).nextElementSibling?.textContent).toBe('1')
+    expect(screen.getByText(UI_TEXT.planUi.unknownTokens).nextElementSibling?.textContent).toBe(
+      '1 request',
+    )
     expect(screen.getByText('1,234 input · 56 output · requests: 1')).toBeTruthy()
     expect(screen.getByText('2,000 input · 300 output · requests: 2')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.planUi.manage }))
     expect(onOpenExternal).toHaveBeenCalledWith(CHATGPT_MANAGE_USAGE_URL)
+  })
+
+  it('reads localized singular and plural request counts when the usage section renders', () => {
+    setUiText(
+      {
+        ...EN,
+        bestOfNRequests: { one: '{count} Anfrage', other: '{count} Anfragen' },
+      },
+      'de',
+    )
+    render(<PlanUsageSection rows={tallies} models={[model]} onOpenExternal={vi.fn()} />)
+    expect(screen.getByText('4 Anfragen')).toBeTruthy()
+    expect(screen.getByText(UI_TEXT.planUi.unknownTokens).nextElementSibling?.textContent).toBe(
+      '1 Anfrage',
+    )
   })
 
   it.each(['chatgpt', 'copilot'])(
@@ -531,7 +548,7 @@ describe('M95b shared subscription UI', () => {
       deliver({ type: 'modelList', models: [] })
       deliver({ type: 'usageReport', backend: 'modelApi', plans: tallies })
       fireEvent.click(screen.getByRole('button', { name: UI_TEXT.commandsTitle }))
-      const filter = screen.getByRole('combobox')
+      const filter = await screen.findByRole('combobox')
       fireEvent.change(filter, { target: { value: '/usage' } })
       fireEvent.keyDown(filter, { key: 'Enter' })
       const dialog = await screen.findByRole('dialog', { name: UI_TEXT.usageLabel })

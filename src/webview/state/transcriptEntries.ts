@@ -1,4 +1,4 @@
-import { legacyUsdSchema } from '../../shared/usd'
+import { legacyUsdSchema } from '../../shared/usdSchema'
 // The transcript rows the webview keeps, as zod schemas with the types
 // inferred from them (M25, PLAN.md D28). The schemas exist because the rows
 // outlive the document: the panel saves its conversation in VS Code's webview

@@ -420,9 +420,32 @@ export class ResourceGovernor {
     this.expiredOverrideAt = null
   }
 
-  refresh(): Promise<void> {
+  /**
+   * The caller's signal ends only the caller's wait. The sample is shared and
+   * bounded by RESOURCE_SAMPLE_MS; aborting it would record an all-unknown
+   * reading for every waiter.
+   */
+  refresh(signal?: AbortSignal): Promise<void> {
     if (this.disposed) return Promise.reject(new Error('Resource governor disposed'))
+    const reason = () =>
+      signal?.reason instanceof Error
+        ? signal.reason
+        : new DOMException('Resource refresh cancelled', 'AbortError')
+    if (signal?.aborted === true) return Promise.reject(reason())
     this.pending ??= this.read()
-    return this.pending
+    if (signal === undefined) return this.pending
+    const shared = this.pending
+    return new Promise<void>((resolve, reject) => {
+      const abort = () => {
+        reject(reason())
+      }
+      signal.addEventListener('abort', abort, { once: true })
+      void shared
+        .then(resolve)
+        .catch(reject)
+        .finally(() => {
+          signal.removeEventListener('abort', abort)
+        })
+    })
   }
 }

@@ -16,6 +16,7 @@ import type {
   TurnSubmission,
 } from '../../../src/core/agent/agentBackend'
 import type { AgentEvent, ItemSnapshot, TodoItem } from '../../../src/shared/agentEvents'
+import type { AcpAgentDeps } from '../../../src/acp/agent'
 
 function resolved(): Promise<void> {
   return Promise.resolve()
@@ -215,5 +216,14 @@ export class FakeAgentHost implements AgentHost {
 
   public close(): Promise<void> {
     return Promise.resolve()
+  }
+}
+
+/** A ready Muse Code backend double that always resolves the same host. */
+export function museCodeTestBackend(host: AgentHost): AcpAgentDeps['backend'] {
+  return {
+    kind: 'museCode',
+    readiness: () => Promise.resolve({ state: 'ready' }),
+    hostFor: () => Promise.resolve(host),
   }
 }

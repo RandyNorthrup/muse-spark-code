@@ -8,7 +8,7 @@ import ts from 'typescript'
 const SOURCE = 'src/shared/constants.ts'
 const BLOCKS = new Set(['MODEL_TEXT', 'MODEL_API_MODEL_TEXT', 'CODE_INTEL_MODEL_TEXT'])
 
-/** @returns {import('esbuild').Plugin} */
+/** @param {boolean} isProduction @returns {import('esbuild').Plugin} */
 export function compressedModelText(isProduction) {
   return {
     name: 'compressed-model-text',

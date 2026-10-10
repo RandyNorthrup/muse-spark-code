@@ -2,6 +2,7 @@ import type { UsageRecording } from '../../core/usage/recording'
 import type { ProviderUsageRow, AccountFacts, SubscriptionUsage } from '../../shared/usage'
 import type { ChatShareSource } from '../../core/sharing/chatShare'
 import { recoveryStamp } from '../../shared/agentRecovery'
+import type { ReportQuestionsReader } from '../../core/reporting/sources/questions'
 import { QuestionRegistry } from '../../core/questions/registry'
 import type { QuestionAnswerText } from '../../core/questions/lateAnswer'
 import type {
@@ -21,14 +22,19 @@ import type {
 } from '../../shared/paid'
 
 import { startApprovalJudge, type JudgeAdvisory, type JudgeFence } from '../../core/judge/use'
+import { reportCommandArguments } from '../reporting/reportCommand'
 // One conversation per surface: owns the MSP session for that surface, turns
 // webview requests into backend calls, and streams AgentEvents back. Also the
 // source of truth for the composer settings that outlive a webview reload
 // (permission mode, effort, thinking) and for the images waiting to be sent.
 
+import type { EstimateSection } from '../../shared/estimate'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { AttachmentStore } from '../../core/attachments'
+import type { MediaAttachmentPort } from '../media/mediaAttach'
+import type { RecordingCommandDeps } from '../media/screenRecordBundle'
+import type { ScreenRecordingPreview } from '../../core/media/record/driver'
 import { isProtectedPath } from '../../core/protectedPaths'
 import {
   type AgentHost,
@@ -92,6 +98,7 @@ import type {
   PlanModeRestore,
 } from '../../core/review/planModeHold'
 import type { ReviewMaterial } from '../../core/review/reviewMaterial'
+import type { PanelPlaybookPort, PanelPlaybookReview } from '../../core/orchestration/panelPlaybook'
 import { isPrivateFileName } from '../../shared/privateFiles'
 import { isGitReview, type ReviewRequest } from '../../shared/reviewCommand'
 import type {
@@ -166,6 +173,7 @@ import {
   LEGAL_MARKDOWN_EXPORT_FILE,
   UI_TEXT,
   QUESTION_DEFER_DEFAULT_SECONDS,
+  SCHEDULE_PROTOCOL_VERSION,
   USER_SHELL_ITEM_KIND,
   USER_SHELL_SANDBOX_FAILURE_MARKER,
   TEAM_MCP_SERVER_NAME,
@@ -173,19 +181,28 @@ import {
 // M96 lane T (LANE-T-SEAM, lane 0): from shared constants at integration.
 
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
-import type { AgentEvent, ApprovalChoice, ItemSnapshot, TodoItem } from '../../shared/agentEvents'
+import {
+  isChildTurn,
+  type AgentEvent,
+  type ApprovalChoice,
+  type ItemSnapshot,
+  type TodoItem,
+} from '../../shared/agentEvents'
 import { fill, plural, uiLocale } from '../../shared/l10n/text'
 import type { GitDraftOutputPort } from '../../core/git/gitText'
 import type { GitAction, GitDraftKind } from '../../shared/git'
-import { backendLabel } from '../../shared/palette'
+import { backendLabel } from '../../shared/paletteFormatting'
 
 import type { ScheduleCadence, ScheduledPrompt } from '../../shared/schedule'
+import type { SchedulesBridge } from '../schedules/schedulesBridge'
+import { parseScheduleHostMessage } from '../../shared/scheduleProtocol'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor, untrustedStartMode } from '../../shared/permissionModes'
 import type { MuseCodeReviewerPort } from '../review/museCodeReviewerBundle'
 
 import type { ReviewedApprovals } from '../review/reviewedApprovals'
 import type {
+  AttachmentSummary,
   ChatReference,
   EditRef,
   HostAction,
@@ -198,9 +215,13 @@ import type {
   ReportWebviewError,
   ReviewFile,
   SkillOption,
+  WebviewToHostMessage,
 } from '../../shared/protocol'
 
 import type { UsageInsightsReport } from '../../runtime/usage/traceLogs'
+import type { EstimateInputs } from '../../shared/estimate'
+import type { EstimatorRun } from '../estimator/estimatorBundle'
+import { uploadedFilesReportSchema, type UploadedFilesReport } from '../../shared/media'
 import type { AuthPort } from '../auth/authService'
 import type { CheckpointPort } from '../checkpoints/checkpointHost'
 import type { DescribedFile, EditReviewActions, ReviewNotice } from '../editor/editReview'
@@ -331,7 +352,9 @@ export interface PickedFile {
 
 export interface FileAccess {
   /** Native open dialog; resolves to [] when cancelled. */
-  showOpenDialog(): Promise<readonly PickedFile[]>
+  showOpenDialog(
+    filters?: Readonly<Record<string, readonly string[]>>,
+  ): Promise<readonly PickedFile[]>
   /** Reads no file that is already over the attachment limit. */
   readFile(
     fsPath: string,
@@ -402,6 +425,8 @@ export interface SessionMemory {
 
 export interface ConversationDeps {
   readonly usageRecording?: UsageRecording | undefined
+  /** Local reports: native hosts inject the same operation; absent means unavailable. */
+  readonly showDeterministicReport?: (argumentsText: string) => Promise<void>
   readonly surface: ChatSurface
   readonly auth: AuthPort
   readonly ensureHost: () => Promise<AgentHost>
@@ -416,6 +441,10 @@ export interface ConversationDeps {
   readonly openSideChat?: (sessionId: string) => void
   readonly mentions: MentionSearch
   readonly files: FileAccess
+  /** Lazy E1/M1/M2 binding; no media implementation enters conversation startup. */
+  readonly mediaAttachments?: () => Promise<MediaAttachmentPort>
+  /** R1–R3 and the Files lifecycle supply this window's user recording port. */
+  readonly recordingCommandDeps?: () => Promise<RecordingCommandDeps>
   /** The `allowDangerouslySkipPermissions` setting: whether Bypass is offered. */
   readonly isBypassAllowed: () => boolean
   /**
@@ -469,6 +498,11 @@ export interface ConversationDeps {
    * scan (M70's hold, D76); from the scanner's bundle with the scan.
    */
   readonly createLegalHold?: ((holdDeps: PlanModeHoldDeps) => PlanModeHold) | undefined
+  /** M116 I/W binding: lazy shared-core policy plus the trusted host registry.
+   * Absent until the host installs the integration; a configured factory fails closed. */
+  readonly playbook?: (() => PanelPlaybookPort) | undefined
+  /** `/estimate` (M117, PLAN.md D97): the run, from the estimator's own bundle. */
+  readonly estimator?: EstimatorRun
   /** A tool output as a read-only editor tab named `title` (M15). */
   readonly openDocument: (title: string, content: string) => Promise<void>
   /** A file in an editor, `path` absolute or workspace-relative, the lines (1-based) selected (M16). */
@@ -511,6 +545,8 @@ export interface ConversationDeps {
   /** The usage modal's Account section (M14). */
   readonly readServiceStatus?: (() => Promise<unknown>) | undefined
   readonly accountFacts: (backend: BackendKind) => Promise<AccountFacts>
+  /** Lazy media account bridge, also bound by the runtime/companion integration. */
+  readonly uploadedFiles?: ConversationUploadedFilesPort
   /** The usage modal's insights from the CLI's trace logs (M14); undefined without logs. */
   readonly usageInsights: () => Promise<UsageInsightsReport | undefined>
   /** Whether this surface resumes its last session when it reopens (the sidebar). */
@@ -561,12 +597,13 @@ export interface ConversationDeps {
    * running here (M46): the keybinding's context key follows.
    */
   readonly onForegroundTasksChanged: () => void
-  /**
-   * A separate yes for each due Model API turn, naming prompt and token price
-   * (M52): the paid-use popup (M58).
-   */
+  /** W binds the v2 scheduler: consent is collected at creation, never per fire. */
+  readonly runScheduledOccurrence?: (id: string, occurrenceMs: number) => Promise<void>
+  /** M52 compatibility, removed when W binds all entry points to v2. */
   readonly confirmScheduledRun?: (job: ScheduledPrompt, modelId: string) => Promise<boolean>
   readonly isScheduledPaidOn?: () => boolean
+  /** The v2 schedules panel bridge (M115, PLAN.md D95); absent while disabled. */
+  readonly schedulesBridge?: SchedulesBridge
   /** The paid-use popup (M58, PLAN.md D48): before each Muse Voice recording. */
   readonly allowsPaidUse: (request: PaidUseRequest) => Promise<PaidUseDecision>
   /** Turn checkpoints (M72): captured around each turn, restored from a user card. */
@@ -662,6 +699,18 @@ export interface ConversationDeps {
   readonly museCodeReviewer?: MuseCodeReviewerPort
   readonly now: () => number
   readonly log: Logger
+}
+
+/** Lane W supplies the validated webview/MHP messages and the account-scoped ledger. */
+export interface ConversationUploadedFilesPort {
+  read(): Promise<unknown>
+  post(report: UploadedFilesReport): void
+  deleteFile(
+    fileId: string,
+    isForeignDeletionConfirmed: (name: string) => Promise<boolean>,
+  ): Promise<void>
+  deleteAllOurs(): Promise<void>
+  confirmForeign(question: string): Promise<boolean>
 }
 
 const IDLE_STATUS = 'idle'
@@ -1139,6 +1188,10 @@ export class ConversationController {
   private accountStopsInFlight = 0
   /** The latest composer generation seen on this surface's file messages. */
   private webviewAttachmentEpoch = 0
+  /** The last estimate's inputs on this surface: what Spin it up submits. */
+  private lastEstimateInputs: EstimateInputs | undefined
+  private lastEstimateSection: EstimateSection | undefined
+  private estimatePending: AbortController | undefined
 
   /** User cards whose file bytes rewind cannot restore across every backend/history path. */
   private readonly fileMessageIds = new Set<string>()
@@ -1325,6 +1378,8 @@ export class ConversationController {
   private legalScanStop: AbortController | undefined
   private legalScanSequence = 0
   /** Preparation and acknowledgement still belong to a model send before activeTurnId is set. */
+  private playbookPort: PanelPlaybookPort | undefined
+  private readonly playbookReviews = new Map<PanelPlaybookReview, () => void>()
   /** Mode choices and revocation wait for the outstanding owned request; the newest wins. */
   private reviewModeSettling: Promise<void> | undefined
   private permissionModeSelection = 0
@@ -1391,6 +1446,17 @@ export class ConversationController {
    * open for this surface's conversation.
    */
   private tasksTabFor: { readonly sessionId: string | undefined } | undefined
+  /** One v2 channel request from the panel over the workspace control. */
+  private schedulesRevision = 0
+  private mediaAttachments: MediaAttachmentPort | undefined
+  private mediaLoading: Promise<MediaAttachmentPort> | undefined
+  /** In-progress screen recordings' cancels; clear/dispose cancels them. */
+  private recordingCancels = new Set<() => Promise<void>>()
+  /** Admitted recordings' temp-file disposals, by attachment id. */
+  private recordingDisposals = new Map<
+    string,
+    { readonly generation: number; readonly dispose: () => Promise<void> }
+  >()
 
   /**
    * M96 lane T: whether this conversation's sessions carry the `team`
@@ -1828,8 +1894,11 @@ export class ConversationController {
   private dropSession(isTurnCancelled = true, isOwnedRecovery = false): void {
     this.shareDiffs.clear()
     this.shareDecisions.clear()
+    this.invalidateEstimate()
     this.attachmentGeneration += 1
+    this.mediaAttachments?.clear()
     this.sessionOpening = undefined
+    for (const stop of this.playbookReviews.values()) stop()
     // A review's Plan mode goes with its session (M70): the next session
     // starts, resumes or is adopted in the mode the user had.
     this.releasePlanHold(true)
@@ -2490,12 +2559,7 @@ export class ConversationController {
    * a Model API child's turn ids prefix it, as the panel already reads them.
    */
   private isChildTurn(turnId: string): boolean {
-    for (const childSessionId of this.childSessionIds) {
-      if (turnId === childSessionId || turnId.startsWith(`${childSessionId}:`)) {
-        return true
-      }
-    }
-    return false
+    return isChildTurn(turnId, this.childSessionIds)
   }
 
   /** Remember a subagent row's child session, live or from a loaded history. */
@@ -3433,7 +3497,7 @@ export class ConversationController {
   /**
    * "Rewind code to here": the edits after a message, reverted newest first
    * (M13), after the same confirmation as a file restore (M72). With `fork`
-   * ("Fork conversation and rewind code") the fork follows the rewind in
+   * ("Fork and Rewind") the fork follows the rewind in
    * this one action, so neither can overtake the other; declining the
    * confirmation does neither.
    */
@@ -3999,8 +4063,11 @@ export class ConversationController {
       this.deps.log.info(`${NOTICE_PREFIX}${offer.text}`)
       this.post({ type: 'notice', level: 'info', text: offer.text, actions: [...offer.actions] })
     } catch (error: unknown) {
-      // Nothing to offer is better than a wrong offer; the log says why.
+      // A broken package is said, not swallowed: without the read there is
+      // no offer, and the conversation would otherwise continue silently on
+      // stale links (GROK-m116k P2).
       this.deps.log.warn(`The bundled skills could not be offered: ${describeForLog(error)}`)
+      this.say('warning', fill(UI_TEXT.bundledSkillsOfferFailed, { reason: describe(error) }))
     }
   }
 
@@ -4493,7 +4560,15 @@ export class ConversationController {
         return
       }
       const manager = await this.bestOfN()
-      await manager.start({ prompt, attempts, requestCeilingPerAttempt }, host.info.kind)
+      const start = async () =>
+        await manager.start({ prompt, attempts, requestCeilingPerAttempt }, host.info.kind)
+      const playbook = this.playbook()
+      if (playbook) {
+        await playbook.dispatch('bestOfN', this.session?.sessionId, undefined, async (signal) => {
+          signal.throwIfAborted()
+          return await start()
+        })
+      } else await start()
     } catch (error: unknown) {
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
@@ -6952,6 +7027,7 @@ export class ConversationController {
           generation,
           isGitReview(request),
           isMaterialCurrent,
+          material ? [...material.changedFiles, ...material.untracked] : [],
         )
       })
       // A dropped session's pending command may still acknowledge its turn.
@@ -7122,6 +7198,59 @@ export class ConversationController {
   }
 
   /** The review turn on the session: the Reviewer's where the backend has one, else in Plan mode. */
+  private playbook(): PanelPlaybookPort | undefined {
+    this.playbookPort ??= this.deps.playbook?.()
+    return this.playbookPort
+  }
+
+  private async withPlaybookReview(
+    session: AgentSession,
+    parts: readonly TurnPart[],
+    files: readonly string[],
+    submit: (parts: readonly TurnPart[]) => Promise<TurnSubmission>,
+  ): Promise<TurnSubmission> {
+    const ticket = this.playbook()?.review(session.sessionId, files)
+    if (!ticket) return await submit(parts)
+    let unsubscribe: (() => void) | undefined
+    const stop = () => {
+      unsubscribe?.()
+      this.playbookReviews.delete(ticket)
+      try {
+        ticket.cancel()
+      } catch (error) {
+        this.notice('error', UI_TEXT.playbookUnavailable, undefined, error)
+      }
+    }
+    const failed = (error: unknown) => {
+      stop()
+      this.notice('error', UI_TEXT.playbookUnavailable, undefined, error)
+    }
+    this.playbookReviews.set(ticket, stop)
+    try {
+      unsubscribe = session.onEvent((event) => {
+        try {
+          ticket.observe(event)
+          if (ticket.isClosed) stop()
+        } catch (error) {
+          failed(error)
+        }
+      })
+      const submission = await submit(ticket.parts(parts))
+      // An accepted turn still belongs in the transcript even if its result cannot certify.
+      try {
+        ticket.bind(submission.turnId)
+        if (ticket.isClosed) stop()
+      } catch (error) {
+        failed(error)
+      }
+      return submission
+    } catch (error) {
+      stop()
+      throw error
+    }
+  }
+
+  /** The review turn on the session: the Reviewer's where the backend has one, else in Plan mode. */
   private async submitReview(
     session: AgentSession,
     parts: readonly TurnPart[],
@@ -7129,6 +7258,7 @@ export class ConversationController {
     generation: number,
     requiresWorkspaceTrust: boolean,
     isMaterialCurrent: (() => boolean) | undefined,
+    reviewFiles: readonly string[],
   ): Promise<TurnSubmission> {
     const isCurrent = () =>
       this.isCurrentSessionAction(session, generation) &&
@@ -7142,13 +7272,24 @@ export class ConversationController {
       throw new Error(UI_TEXT.turnStoppedByRestart)
     }
     this.requireNonConfidentialModel(session.modelId)
-    if (session.review !== undefined) {
-      return await session.review(parts, text)
+    const review = session.review
+    if (review !== undefined) {
+      return await this.withPlaybookReview(
+        session,
+        parts,
+        reviewFiles,
+        async (admitted) => await review.call(session, admitted, text),
+      )
     }
     this.notice('info', UI_TEXT.reviewPlanModeNotice)
     const previousMode = this.permissionMode
     if (previousMode === 'plan') {
-      return await session.sendTurn(parts, text)
+      return await this.withPlaybookReview(
+        session,
+        parts,
+        reviewFiles,
+        async (admitted) => await session.sendTurn(admitted, text),
+      )
     }
     const bypassEpoch = this.bypassRevocationEpoch
     const hold = this.takePlanHold(
@@ -7161,10 +7302,16 @@ export class ConversationController {
     // Auto is left for the review turn: what the Auto reviewer holds is the user's (M90).
     this.reviews?.release()
     try {
-      return await hold.send(session, parts, text, () => {
-        this.requireNonConfidentialModel(session.modelId)
-        return isCurrent()
-      })
+      return await this.withPlaybookReview(
+        session,
+        parts,
+        reviewFiles,
+        async (admitted) =>
+          await hold.send(session, admitted, text, () => {
+            this.requireNonConfidentialModel(session.modelId)
+            return isCurrent()
+          }),
+      )
     } catch (error: unknown) {
       // Plan mode was refused (nothing to put back), or the send failed and
       // the hold put the mode back already.
@@ -7801,6 +7948,68 @@ export class ConversationController {
     }
   }
 
+  private async answerSchedules(input: unknown): Promise<void> {
+    const bridge = this.deps.schedulesBridge
+    const workspaceRoot = this.deps.workspaceRoot
+    if (bridge === undefined || workspaceRoot === undefined) return
+    try {
+      const answer = await bridge.message(input, workspaceRoot)
+      const parsed = parseScheduleHostMessage(answer)
+      if (!parsed.ok) return
+      this.post({ type: 'schedulesMessage', message: parsed.message })
+      if (
+        parsed.message.type === 'schedulesResponse' &&
+        parsed.message.response.kind === 'accepted'
+      ) {
+        this.schedulesRevision += 1
+        this.post({
+          type: 'schedulesMessage',
+          message: {
+            type: 'scheduleChanged',
+            version: SCHEDULE_PROTOCOL_VERSION,
+            workspaceKey: bridge.keyFor(workspaceRoot),
+            revision: this.schedulesRevision,
+          },
+        })
+      }
+    } catch (error: unknown) {
+      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
+    }
+  }
+
+  /** A schedule command's panel: the v2 surface over this workspace. */
+  private openSchedules(initialView: 'list' | 'timeline' | 'editor'): void {
+    const bridge = this.deps.schedulesBridge
+    const workspaceRoot = this.deps.workspaceRoot
+    if (bridge === undefined || workspaceRoot === undefined) {
+      this.notice('warning', UI_TEXT.noWorkspaceReason)
+      return
+    }
+    const session =
+      this.session === undefined || this.sessionKind === undefined
+        ? undefined
+        : {
+            sessionId: this.session.sessionId,
+            backend: this.sessionKind,
+            label: UI_TEXT.scheduleV2.targets.conversation,
+          }
+    const nowMs = this.deps.now()
+    this.post({
+      type: 'schedulesSurface',
+      workspaceKey: bridge.keyFor(workspaceRoot),
+      targets: [...bridge.targets(session)],
+      // The session's backend first; 'modelApi' only before any session, for
+      // the fallback target the draft needs when no conversation is open.
+      defaultDraft: bridge.defaultDraft(
+        nowMs,
+        session,
+        this.sessionKind ?? this.deps.auth.current.backend ?? 'modelApi',
+      ),
+      nowMs,
+      initialView,
+    })
+  }
+
   private scheduleRunChanged(): void {
     this.notice(
       'warning',
@@ -7813,6 +8022,10 @@ export class ConversationController {
   private async runSchedule(id: string, occurrenceMs: number): Promise<void> {
     const generation = this.sendInvalidationEpoch
     try {
+      if (this.deps.runScheduledOccurrence !== undefined) {
+        await this.deps.runScheduledOccurrence(id, occurrenceMs)
+        return
+      }
       const session = await this.scheduleSession()
       if (!this.isCurrentSessionAction(session, generation) || session.schedules === undefined) {
         return
@@ -8198,6 +8411,10 @@ export class ConversationController {
     // New Conversation (it spends the echo) or a keybinding (M25, D28).
     this.post({ type: 'conversationCleared' })
     this.attachments.clear()
+    // A new conversation cancels in-progress recordings and drops admitted
+    // temp files: both belonged to the old one (M105 E1 review).
+    this.cancelRecordingRuns()
+    void this.disposeRecordings()
     this.git.sessionChanged(undefined)
     this.setTitle(undefined)
     // No session any more: the webview forgets the id it keeps for the
@@ -8395,7 +8612,21 @@ export class ConversationController {
     const generation = this.attachmentGeneration
     let picked: readonly PickedFile[]
     try {
-      picked = await this.deps.files.showOpenDialog()
+      picked = await this.deps.files.showOpenDialog({
+        [UI_TEXT.attachTitle]: [
+          ...Object.keys(IMAGE_EXTENSIONS).map((extension) => extension.slice(1)),
+          'pdf',
+          'mp4',
+          'mov',
+          'webm',
+          'mkv',
+          'mp3',
+          'wav',
+          'm4a',
+          ...Array.from(TEXT_ATTACHMENT_EXTENSIONS, (extension) => extension.slice(1)),
+        ],
+        [UI_TEXT.mentionFile]: ['*'],
+      })
     } catch (error: unknown) {
       if (!this.isCurrentAttachmentGeneration(generation)) {
         return
@@ -8405,13 +8636,28 @@ export class ConversationController {
     if (!this.isCurrentAttachmentGeneration(generation)) {
       return
     }
+    await this.attachPickedFiles(picked, generation)
+  }
+
+  private async attachPickedFiles(
+    picked: readonly PickedFile[],
+    generation: number,
+  ): Promise<void> {
     for (const file of picked) {
       if (!this.isCurrentAttachmentGeneration(generation)) {
         return
       }
-      const extension = path.extname(file.name).toLowerCase()
+      const extension = path.extname(file.name.replaceAll('\\', '/')).toLowerCase()
       if (isPrivateFileName(file.name)) {
         this.post({ type: 'attachmentRejected', name: file.name, reason: UI_TEXT.textFilePrivate })
+        continue
+      }
+      if (this.isMediaExtension(extension)) {
+        // A picked file skips the drop path's checks, so it is confined here:
+        // the dialog can name anything (M105 E1 review).
+        if (await this.confinePickedMedia(file, generation)) {
+          await this.addMediaAttachment(file, generation)
+        }
         continue
       }
       const isTextFile = TEXT_ATTACHMENT_EXTENSIONS.has(extension)
@@ -8499,6 +8745,216 @@ export class ConversationController {
     }
   }
 
+  private isMediaExtension(extension: string): boolean {
+    return ['.mp4', '.mov', '.webm', '.mkv', '.mp3', '.wav', '.m4a'].includes(extension)
+  }
+
+  /**
+   * The drop path's confinement for a picked media file: outside the
+   * workspace, unresolvable, protected or private is a refusal
+   * (`textFilePrivate`), never an unreadable file (M105 E1 review).
+   */
+  private async confinePickedMedia(file: PickedFile, generation: number): Promise<boolean> {
+    const refused = () => {
+      if (this.isCurrentAttachmentGeneration(generation)) {
+        this.post({ type: 'attachmentRejected', name: file.name, reason: UI_TEXT.textFilePrivate })
+      }
+    }
+    if (file.relativePath === undefined || this.deps.workspaceRoot === undefined) {
+      refused()
+      return false
+    }
+    let checked: Awaited<ReturnType<FileAccess['canonicalRelativePath']>>
+    try {
+      checked = await this.deps.files.canonicalRelativePath(file.fsPath)
+    } catch (error: unknown) {
+      this.deps.log.warn(`media attachment path check failed: ${describeForLog(error)}`)
+      if (!this.isCurrentAttachmentGeneration(generation)) {
+        return false
+      }
+      refused()
+      return false
+    }
+    if (!this.isCurrentAttachmentGeneration(generation)) {
+      return false
+    }
+    if (
+      checked === undefined ||
+      isProtectedPath(checked.canonical) ||
+      isPrivateFileName(checked.canonical)
+    ) {
+      refused()
+      return false
+    }
+    return true
+  }
+
+  private async addMediaAttachment(
+    file: PickedFile | undefined,
+    generation: number,
+    token?: string,
+    requestId?: string,
+    requestEpoch?: number,
+    isScreenRecording = false,
+  ): Promise<AttachmentSummary | undefined> {
+    const isCurrent = () =>
+      this.isCurrentAttachmentGeneration(generation) &&
+      (requestEpoch === undefined || requestEpoch === this.webviewAttachmentEpoch)
+    const rejected = (reason: string): void => {
+      if (isCurrent())
+        this.post({
+          type: 'attachmentRejected',
+          name: file?.name ?? UI_TEXT.attachTitle,
+          reason,
+          ...(requestId !== undefined && { requestId }),
+        })
+    }
+    if (!isCurrent()) return undefined
+    try {
+      const host = await this.deps.ensureHost()
+      if (!isCurrent()) return undefined
+      if (host.info.kind !== 'modelApi') {
+        rejected(UI_TEXT.media.museCodeRefusal)
+        return
+      }
+      const loading =
+        this.mediaAttachments === undefined
+          ? (this.mediaLoading ?? this.deps.mediaAttachments?.())
+          : undefined
+      this.mediaLoading = loading
+      let port: MediaAttachmentPort | undefined
+      try {
+        port = this.mediaAttachments ?? (await loading)
+      } finally {
+        if (this.mediaLoading === loading) this.mediaLoading = undefined
+      }
+      if (!isCurrent()) return undefined
+      if (port === undefined) {
+        // No port is an unbound pipeline, not an unreadable file (M105 E1 review).
+        rejected(UI_TEXT.media.uploadStorageUnknown)
+        return
+      }
+      this.mediaAttachments = port
+      const pathToken = token ?? (file === undefined ? undefined : port.issue(file))
+      if (pathToken === undefined) {
+        rejected(UI_TEXT.attachmentUnreadable)
+        return
+      }
+      const prepared = await port.prepare(pathToken, host.info.kind, this.modelId)
+      if (!isCurrent()) return undefined
+      if (!prepared.ok) {
+        rejected(prepared.reason)
+        return
+      }
+      // The chip labels sound; the warning itself is said (M105 E1 review).
+      if (prepared.soundtrackWarning !== undefined) {
+        this.notice('warning', prepared.soundtrackWarning)
+      }
+      this.attachments.installMediaPort(prepared.attachment.store)
+      const result = this.attachments.addMedia(
+        prepared.attachment.name,
+        prepared.attachment.info,
+        isScreenRecording,
+      )
+      if (result.ok) {
+        this.post({
+          type: 'attachmentAdded',
+          attachment: result.attachment,
+          ...(requestId !== undefined && { requestId }),
+        })
+        return result.attachment
+      }
+      rejected(result.reason)
+      return
+    } catch (error: unknown) {
+      // The unbound pipeline (W's throwing bind until U6c) keeps its own
+      // words; only a genuine read failure is unreadable (M105 E1 review).
+      rejected(
+        error instanceof Error && error.message === UI_TEXT.media.uploadStorageUnknown
+          ? UI_TEXT.media.uploadStorageUnknown
+          : UI_TEXT.attachmentUnreadable,
+      )
+      return
+    }
+  }
+
+  /**
+   * The preview's Attach admission (E1 recording binding): the trusted
+   * driver's owner-only temp file skips the picker's workspace confinement
+   * (open() still rechecks identity at prepare). True only when the chip
+   * was installed; the temp file's cleanup transfers to the upload
+   * lifecycle then, and is disposed with the attachment otherwise.
+   */
+  private async admitRecording(preview: ScreenRecordingPreview): Promise<boolean> {
+    const file: PickedFile = {
+      name: path.posix.basename(preview.path.replaceAll('\\', '/')),
+      fsPath: preview.path,
+      relativePath: undefined,
+    }
+    const generation = this.attachmentGeneration
+    const summary = await this.addMediaAttachment(
+      file,
+      generation,
+      undefined,
+      undefined,
+      undefined,
+      true,
+    )
+    if (summary === undefined || !this.isCurrentAttachmentGeneration(generation)) {
+      return false
+    }
+    this.recordingDisposals.set(summary.id, { generation, dispose: () => preview.dispose() })
+    return true
+  }
+
+  /** Drop one recording's temp file: remove, clear, dispose or failed admission. */
+  private async disposeRecording(id: string): Promise<void> {
+    const entry = this.recordingDisposals.get(id)
+    if (entry === undefined) return
+    this.recordingDisposals.delete(id)
+    try {
+      await entry.dispose()
+    } catch (error: unknown) {
+      this.deps.log.warn(`Recording cleanup failed: ${describeForLog(error)}`)
+    }
+  }
+
+  /**
+   * Drop every recording of an ended conversation. Entries carry the
+   * generation that admitted them, so one the new conversation admits
+   * mid-drain survives; a disposed controller drops everything.
+   */
+  private async disposeRecordings(): Promise<void> {
+    const current = this.attachmentGeneration
+    for (const [id, entry] of this.recordingDisposals) {
+      if (!this.isDisposed && entry.generation === current) continue
+      this.recordingDisposals.delete(id)
+      try {
+        await entry.dispose()
+      } catch (error: unknown) {
+        this.deps.log.warn(`Recording cleanup failed: ${describeForLog(error)}`)
+      }
+    }
+  }
+
+  private trackRecordingRun(cancel: () => Promise<void>): () => void {
+    this.recordingCancels.add(cancel)
+    return () => {
+      this.recordingCancels.delete(cancel)
+    }
+  }
+
+  /** Clear/dispose cancels in-progress recordings: their conversation is gone. */
+  private cancelRecordingRuns(): void {
+    const runs = [...this.recordingCancels]
+    this.recordingCancels.clear()
+    for (const cancel of runs) {
+      void cancel().catch((error: unknown) => {
+        this.deps.log.warn(`Recording cancel failed: ${describeForLog(error)}`)
+      })
+    }
+  }
+
   private async pickMentionFile(): Promise<void> {
     const generation = this.attachmentGeneration
     let relativePath: string | undefined
@@ -8515,11 +8971,57 @@ export class ConversationController {
     }
   }
 
-  private droppedUris(uris: readonly string[]): void {
-    const mentions = uris
-      .map((uri) => this.deps.files.toRelativePath(uri))
-      .filter((relativePath) => relativePath !== undefined)
-      .map((relativePath) => `${formatMention(relativePath)} `)
+  private async droppedUris(uris: readonly string[]): Promise<void> {
+    const generation = this.attachmentGeneration
+    const mentions: string[] = []
+    for (const uri of uris) {
+      if (!this.isCurrentAttachmentGeneration(generation)) return
+      const relativePath = this.deps.files.toRelativePath(uri)
+      let name: string
+      try {
+        name = path.posix.basename(decodeURIComponent(new URL(uri).pathname).replaceAll('\\', '/'))
+      } catch {
+        continue
+      }
+      const extension = path.extname(name).toLowerCase()
+      const isMedia =
+        this.isMediaExtension(extension) ||
+        extension === PDF_EXTENSION ||
+        Object.hasOwn(IMAGE_EXTENSIONS, extension)
+      if (!isMedia) {
+        if (relativePath !== undefined) mentions.push(`${formatMention(relativePath)} `)
+        continue
+      }
+      // A refused URI was never read: it is private, not unreadable (M105
+      // E1 review). A confinement check that itself throws refuses too.
+      if (relativePath === undefined || this.deps.workspaceRoot === undefined) {
+        this.post({ type: 'attachmentRejected', name, reason: UI_TEXT.textFilePrivate })
+        continue
+      }
+      let checked: Awaited<ReturnType<FileAccess['canonicalRelativePath']>>
+      try {
+        checked = await this.deps.files.canonicalRelativePath(
+          path.join(this.deps.workspaceRoot, relativePath),
+        )
+      } catch {
+        if (this.isCurrentAttachmentGeneration(generation))
+          this.post({ type: 'attachmentRejected', name, reason: UI_TEXT.textFilePrivate })
+        continue
+      }
+      if (!this.isCurrentAttachmentGeneration(generation)) return
+      if (
+        checked === undefined ||
+        isProtectedPath(checked.canonical) ||
+        isPrivateFileName(checked.canonical)
+      ) {
+        this.post({ type: 'attachmentRejected', name, reason: UI_TEXT.textFilePrivate })
+        continue
+      }
+      await this.attachPickedFiles(
+        [{ name, fsPath: checked.checkedAbsolute, relativePath }],
+        generation,
+      )
+    }
     if (mentions.length > 0) {
       this.post({ type: 'insertText', text: mentions.join('') })
     }
@@ -8594,7 +9096,13 @@ export class ConversationController {
       await this.postUsage(host, subscription)
     } catch (error: unknown) {
       this.notice('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`, undefined, error)
+    } finally {
+      await this.readUploadedFiles()
     }
+  }
+
+  private canPostUploadedFiles(): boolean {
+    return !this.isDisposed
   }
 
   private async postUsage(
@@ -8728,7 +9236,16 @@ export class ConversationController {
       return
     }
     try {
-      await session.messageSubagent(subagentId, body.trim(), isFollowup)
+      const send = async () => {
+        await session.messageSubagent(subagentId, body.trim(), isFollowup)
+      }
+      const playbook = isFollowup ? this.playbook() : undefined
+      if (playbook) {
+        await playbook.dispatch('delegate', session.sessionId, subagentId, async (signal) => {
+          signal.throwIfAborted()
+          await send()
+        })
+      } else await send()
     } catch (error: unknown) {
       if (this.isCurrentSessionAction(session, generation)) {
         this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`, undefined, error)
@@ -8808,6 +9325,71 @@ export class ConversationController {
    * and local facts alone. A webview failure is journalled here directly;
    * the dialog's handler loads with dist/report.js on first use.
    */
+  /**
+   * `/estimate` (M117, PLAN.md D97): run the estimate in the estimator's own
+   * bundle and forward the section, or start the audited first wave. Every
+   * refusal names its missing binding; nothing runs without the bundle.
+   */
+  private invalidateEstimate(): void {
+    this.estimatePending?.abort()
+    this.estimatePending = undefined
+    this.lastEstimateInputs = undefined
+    this.lastEstimateSection = undefined
+  }
+
+  private async handleEstimateMessage(
+    message: Extract<WebviewToHostMessage, { type: 'estimateRun' | 'estimateSpinUp' }>,
+  ): Promise<void> {
+    const estimator = this.deps.estimator
+    const generation = this.sendInvalidationEpoch
+    const correlation = message.requestId === undefined ? {} : { requestId: message.requestId }
+    if (message.type === 'estimateRun') {
+      this.invalidateEstimate()
+      const pending = new AbortController()
+      this.estimatePending = pending
+      try {
+        if (estimator === undefined) throw new Error(UI_TEXT.estimateUnavailable)
+        const section = await estimator.estimate(message.request, pending.signal)
+        if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
+          return
+        this.lastEstimateInputs = section.inputs
+        this.lastEstimateSection = section
+        this.post({ type: 'estimatorSection', ...correlation, section })
+      } catch (error: unknown) {
+        if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
+          return
+        const reason = describe(error)
+        this.deps.log.error(`The estimate failed: ${reason}`)
+        this.post({ type: 'estimatorFailure', ...correlation, reason })
+        this.notice('warning', reason)
+      } finally {
+        if (this.estimatePending === pending) this.estimatePending = undefined
+      }
+      return
+    }
+    try {
+      if (estimator === undefined) throw new Error(UI_TEXT.estimateUnavailable)
+      const section = this.lastEstimateSection
+      const kind = message.setup ?? 'current'
+      const setup = section?.setups.find((setup) => setup.kind === kind)
+      const fleet = section?.setupFleets?.find((row) => row.kind === kind)?.fleet
+      let inputs = this.lastEstimateInputs
+      if (fleet) inputs = { ...section.inputs, fleet }
+      else if (kind !== 'current') inputs = undefined
+      if (inputs === undefined || setup === undefined) throw new Error(UI_TEXT.estimateUsage)
+      if (setup.provisioning !== 'existing') throw new Error(UI_TEXT.estimateAdvice)
+      const started = await estimator.startWave(inputs)
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) return
+      this.post({ type: 'estimatorStarted', ...correlation })
+      this.notice('info', fill(UI_TEXT.estimateWaveStarted, { lanes: started.join(', ') }))
+    } catch (error: unknown) {
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) return
+      this.deps.log.error(`The first wave failed: ${describe(error)}`)
+      this.post({ type: 'estimatorStarted', ...correlation, error: describe(error) })
+      this.notice('warning', describe(error))
+    }
+  }
+
   private async handleReportMessage(message: ReportProblemMessage): Promise<void> {
     const reports = this.deps.reports
     if (reports === undefined) {
@@ -9255,6 +9837,33 @@ export class ConversationController {
 
   /** One message from the webview, routed; `handle` catches what it throws. */
   private async dispatch(message: ConversationMessage): Promise<void> {
+    if (message.type === 'runReport') {
+      let isAccepted = false
+      try {
+        if (this.deps.showDeterministicReport === undefined)
+          throw new Error(UI_TEXT.reportUi.generationFailed)
+        await this.showDeterministicReport(message.argumentsText)
+        isAccepted = true
+      } catch {
+        this.notice('warning', UI_TEXT.reportUi.generationFailed)
+      }
+      this.post({ type: 'reportCommandResult', requestId: message.requestId, accepted: isAccepted })
+      return
+    }
+    // Reports are host commands, even while signed out or while a model turn is running.
+    if (message.type === 'sendMessage') {
+      const argumentsText = reportCommandArguments(message.text)
+      if (argumentsText !== undefined) {
+        this.post({
+          type: 'sendFailed',
+          localId: message.localId,
+          reason: UI_TEXT.reportSlashDescription,
+          attachmentsKept: true,
+        })
+        await this.showDeterministicReport(argumentsText)
+        return
+      }
+    }
     if (!this.isAuthAdmitted() && AUTH_REQUIRED_SESSION_ACTIONS.has(message.type)) {
       this.notice('warning', UI_TEXT.notSignedInReason)
       // A command the panel waits on hears the refusal too (M45, M74, M87),
@@ -9610,6 +10219,14 @@ export class ConversationController {
         await this.runSchedule(message.id, message.occurrenceMs)
         break
       }
+      case 'schedulesRequest': {
+        await this.answerSchedules(message.message)
+        break
+      }
+      case 'openSchedules': {
+        this.openSchedules(message.view)
+        break
+      }
       case 'exportConversation': {
         await this.exportConversation(message.format)
         break
@@ -9654,12 +10271,28 @@ export class ConversationController {
         )
         break
       }
+      case 'attachMedia': {
+        if (message.attachmentEpoch !== undefined) {
+          if (message.attachmentEpoch < this.webviewAttachmentEpoch) break
+          this.webviewAttachmentEpoch = message.attachmentEpoch
+        }
+        await this.addMediaAttachment(
+          undefined,
+          this.attachmentGeneration,
+          message.pathToken,
+          message.requestId,
+          message.attachmentEpoch,
+        )
+        break
+      }
       case 'removeAttachment': {
         this.attachments.remove(message.id)
+        // A removed recording's temp file goes with its chip.
+        void this.disposeRecording(message.id)
         break
       }
       case 'droppedUris': {
-        this.droppedUris(message.uris)
+        await this.droppedUris(message.uris)
         break
       }
       case 'hostAction': {
@@ -9795,6 +10428,11 @@ export class ConversationController {
         await this.handleReportMessage(message)
         break
       }
+      case 'estimateRun':
+      case 'estimateSpinUp': {
+        await this.handleEstimateMessage(message)
+        break
+      }
     }
   }
 
@@ -9918,6 +10556,46 @@ export class ConversationController {
     this.readWaitingBrief()
     void this.warmModels()
     this.postStartupNotice()
+  }
+
+  /** Kept independent of backend sign-in so a removed key still shows retained expiry. */
+  public async readUploadedFiles(): Promise<void> {
+    const port = this.deps.uploadedFiles
+    if (port === undefined || !this.canPostUploadedFiles()) return
+    try {
+      const report = uploadedFilesReportSchema.parse(await port.read())
+      if (this.canPostUploadedFiles()) port.post(report)
+    } catch (error: unknown) {
+      if (this.canPostUploadedFiles())
+        this.say('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`)
+    }
+  }
+
+  /** Called only by the integration's explicit account UI/command action. */
+  public async deleteUploadedFiles(fileId?: string): Promise<void> {
+    if (!this.canPostUploadedFiles()) return
+    const port = this.deps.uploadedFiles
+    if (port === undefined) {
+      this.say('error', UI_TEXT.usageUnavailable)
+      return
+    }
+    try {
+      if (fileId === undefined) await port.deleteAllOurs()
+      else
+        await port.deleteFile(fileId, (name) =>
+          port.confirmForeign(fill(UI_TEXT.media.otherAppFileConfirmation, { name })),
+        )
+      await this.readUploadedFiles()
+    } catch (error: unknown) {
+      if (this.canPostUploadedFiles())
+        this.say(
+          'error',
+          fill(UI_TEXT.media.uploadDeleteFailed, {
+            name: fileId ?? UI_TEXT.media.uploadedFiles,
+            reason: describe(error),
+          }),
+        )
+    }
   }
 
   /**
@@ -10235,6 +10913,7 @@ export class ConversationController {
     try {
       // Invalidate a pending send before a running turn's cancel can await.
       this.sendInvalidationEpoch += 1
+      this.invalidateEstimate()
       if (isConversationEnding) {
         this.accountStopEpoch = this.sendInvalidationEpoch
       }
@@ -10251,6 +10930,7 @@ export class ConversationController {
       this.deps.pendingPrompts.clear()
       if (isConversationEnding) {
         this.attachmentGeneration += 1
+        this.mediaAttachments?.clear()
         this.webviewAttachmentEpoch += 1
         this.attachments.clear()
         this.post({ type: 'conversationCleared', accountBoundary: true })
@@ -10317,6 +10997,66 @@ export class ConversationController {
     await this.handleReportMessage({ type: 'openReport' })
   }
 
+  public reportingQuestions(): ReportQuestionsReader {
+    return {
+      read: (context) => {
+        const registry = this.session === undefined ? undefined : sessionQuestions.get(this.session)
+        if (registry === undefined)
+          return Promise.reject(new Error(UI_TEXT.reportSourceReasons.unbound))
+        const snapshot = registry.snapshot()
+        return Promise.resolve({
+          observedAt: context.asOf,
+          questions: snapshot.questions.map((entry) => {
+            const settledState =
+              entry.state.startsWith('answered') || entry.state === 'clarified'
+                ? ('answered' as const)
+                : ('dismissed' as const)
+            return {
+              id: entry.userInputId,
+              text: entry.questions.map((question) => question.question).join('\n'),
+              milestoneIds: [],
+              state:
+                entry.state === 'open' || entry.state === 'waiting'
+                  ? ('open' as const)
+                  : settledState,
+            }
+          }),
+        })
+      },
+    }
+  }
+
+  /** W binds the composer's dedicated command action to this host-only entry. */
+  public async showDeterministicReport(argumentsText = ''): Promise<void> {
+    if (this.deps.showDeterministicReport === undefined) {
+      this.notice('warning', UI_TEXT.reportUi.generationFailed)
+      return
+    }
+    await this.deps.showDeterministicReport(argumentsText)
+  }
+
+  /** Attach the reviewed Markdown to the draft; spending still needs the user's Send. */
+  public attachReportMarkdown(text: string): void {
+    this.post({ type: 'insertText', text: `${text}\n` })
+    this.deps.surface.reveal()
+  }
+
+  /** Loader-only command seam; no tool or model event calls this. */
+  public async recordingCommandDeps(): Promise<RecordingCommandDeps | undefined> {
+    if (this.isDisposed) return
+    const generation = this.attachmentGeneration
+    const deps = await this.deps.recordingCommandDeps?.()
+    if (deps === undefined || !this.isCurrentAttachmentGeneration(generation)) return undefined
+    // The run belongs to this conversation: liveness, cancel tracking and
+    // Attach admission close over it (M105 E1 review).
+    return {
+      ...deps,
+      isLive: () => !this.isDisposed && this.isCurrentAttachmentGeneration(generation),
+      trackRun: (cancel) => this.trackRecordingRun(cancel),
+      attach: (preview) => this.admitRecording(preview),
+    }
+  }
+
   /**
    * The host process ended. The extension's own close is not news; a crash
    * ends the running turn and is resumed by the next message, unless the
@@ -10358,6 +11098,10 @@ export class ConversationController {
     clearTimeout(this.deltaTimer)
     this.deltaTimer = undefined
     this.pendingDelta = undefined
+    // A closed chat cancels in-progress recordings and drops admitted temp
+    // files instead of previewing them later (M105 E1 review).
+    this.cancelRecordingRuns()
+    void this.disposeRecordings()
     this.dropSession()
     this.endTasksTab()
     this.forgetModels()

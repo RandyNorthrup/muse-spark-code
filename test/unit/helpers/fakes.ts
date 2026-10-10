@@ -231,7 +231,9 @@ export const testSettings: SettingsSnapshot = {
   allowDangerouslySkipPermissions: false,
   archiveInactiveSessions: 14,
   modelApiReplyUsage: false,
+  schedules: true,
   museCodeAutoReviewer: true,
+  'estimator.optimize': 'cost',
 }
 
 export interface FakeHostContext extends WebviewHostContext {
@@ -269,6 +271,7 @@ export function fakeSurface(id: string, isSideChat = false): FakeSurface {
   return {
     id,
     isSideChat,
+    documentId: `${id}-document`,
     posted,
     post(message) {
       posted.push(message)

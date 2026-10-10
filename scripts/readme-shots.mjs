@@ -16,7 +16,8 @@
 //   CHROME_PATH=/path/to/chrome node scripts/readme-shots.mjs
 
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
+import { spawn } from 'node:child_process'
+import { mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -39,6 +40,14 @@ export const THEMES = new Set(['dark', 'light', 'hc-dark', 'hc-light'])
 // Keep the screenshot mapping’s existing minimum width; narrow scenarios
 // use the dedicated harness-shot mappings. The exported name stays stable.
 export const MIN_CLI_WIDTH = 500
+
+export const README_MEDIA_BUDGET = 2 * 1024 * 1024
+export function checkReadmeBudget(sizes) {
+  const total = sizes.reduce((sum, size) => sum + size, 0)
+  if (total > README_MEDIA_BUDGET)
+    throw new Error(`README media exceeds its 2 MiB budget: ${total} bytes`)
+  return total
+}
 const LANG_ID = /^[a-z]{2,3}(?:-[a-z\d]+)*$/
 const SHOT_IMAGE = /^media\/readme\/[^/]+\.png$/
 const README_IMAGE = /media\/readme\/[A-Za-z0-9][\w.-]*\.png/g
@@ -57,7 +66,10 @@ function checkShot(shot, index) {
   if (typeof file !== 'string' || !SHOT_IMAGE.test(file)) {
     fail(what, 'needs a file like "media/readme/<name>.png"')
   }
-  if (typeof scenario !== 'string' || !SCENARIOS.includes(scenario)) {
+  if (
+    typeof scenario !== 'string' ||
+    (scenario !== 'deterministic-report' && !SCENARIOS.includes(scenario))
+  ) {
     fail(what, `names an unknown harness scenario: ${String(scenario)}`)
   }
   if (typeof theme !== 'string' || !THEMES.has(theme)) {
@@ -187,7 +199,9 @@ export function checkCoverage({ shots, excluded }, refs) {
 
 /** The harness URL a shot captures. */
 export function shotUrl(port, shot) {
-  return `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${shot.scenario}&theme=${shot.theme}${langQuery(shot.lang)}`
+  const harnessPath =
+    shot.scenario === 'deterministic-report' ? 'test/harness/reporting/index.html' : HARNESS_PATH
+  return `http://${LOOPBACK}:${String(port)}/${harnessPath}?scenario=${shot.scenario}&theme=${shot.theme}${langQuery(shot.lang)}`
 }
 
 /** One mapping row for --list. */
@@ -209,11 +223,18 @@ export async function captureShot(chrome, port, shot, outDir, profileDir) {
       await page.setViewportSize({ width: shot.width, height: shot.height })
       const session = await page.context().newCDPSession(page)
       await session.send('Emulation.setFocusEmulationEnabled', { enabled: true })
-      const result = page.locator('#axe-result')
-      await result.waitFor({ state: 'attached' })
-      const scan = JSON.parse(await result.textContent())
-      if (scan.error !== undefined || scan.harnessErrors?.length > 0) {
-        throw new Error(`${shot.file}: ${scan.error ?? scan.harnessErrors.join('; ')}`)
+      if (shot.scenario === 'deterministic-report') {
+        await page.locator('.reporting-document').waitFor({ state: 'attached' })
+        const inner = page.frameLocator('.reporting-document')
+        await inner.locator('.table').first().waitFor({ state: 'attached' })
+        await inner.locator('body').evaluate(() => globalThis.document.fonts.ready)
+      } else {
+        const result = page.locator('#axe-result')
+        await result.waitFor({ state: 'attached' })
+        const scan = JSON.parse(await result.textContent())
+        if (scan.error !== undefined || scan.harnessErrors?.length > 0) {
+          throw new Error(`${shot.file}: ${scan.error ?? scan.harnessErrors.join('; ')}`)
+        }
       }
       await page.screenshot({ path: file, animations: 'disabled' })
     },
@@ -268,12 +289,33 @@ async function shootShots(list, { only, out }) {
   }
   const outDir = path.resolve(repoRoot, out)
   const profileDir = await mkdtemp(path.join(tmpdir(), 'muse-readme-'))
+  if (shots.some((shot) => shot.scenario === 'deterministic-report')) {
+    const code = await new Promise((resolve, reject) => {
+      const child = spawn(
+        process.execPath,
+        ['test/harness/reporting/verify.mjs', '--shipping', '--prepare'],
+        { stdio: 'inherit' },
+      )
+      child.once('error', reject)
+      child.once('exit', resolve)
+    })
+    if (code !== 0) throw new Error('Report screenshot preparation failed')
+  }
   const { server, port } = await serveRepo(repoRoot)
   try {
     for (const shot of shots) {
       const file = await captureShot(chrome, port, shot, outDir, profileDir)
       console.log(`${shot.scenario}: ${path.relative(repoRoot, file)}`)
     }
+    const sizes = await Promise.all(
+      readmeImageRefs(await readFile(path.join(repoRoot, README_FILE), 'utf8')).map(
+        async (file) => {
+          const facts = await stat(path.join(repoRoot, file))
+          return facts.size
+        },
+      ),
+    )
+    console.log(`README media: ${checkReadmeBudget(sizes)} / ${README_MEDIA_BUDGET} bytes`)
   } finally {
     server.close()
     await rm(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })

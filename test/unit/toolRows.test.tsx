@@ -152,7 +152,7 @@ describe('shell previews (M87)', () => {
 })
 
 describe('memory rows (M43)', () => {
-  it('shows the note saved, where it lives, and the path beside the label', () => {
+  it('shows the note saved, where it lives, and the path beside the label', async () => {
     renderTranscript([
       tool({
         tool: 'add_memory',
@@ -163,7 +163,7 @@ describe('memory rows (M43)', () => {
     ])
     expect(screen.getByText('palette.md')).toBeTruthy()
     const row = openRow('Save memory')
-    expect(within(row).getByText('Your memory for this project')).toBeTruthy()
+    expect(await within(row).findByText('Your memory for this project')).toBeTruthy()
     expect(within(row).getByText('The favourite colour is teal.')).toBeTruthy()
     expect(within(row).queryByText(/memory note written/)).toBeNull()
   })
@@ -257,9 +257,9 @@ describe('schedule rows (M43)', () => {
       }),
     ])
     const row = openRow('Schedule prompt')
-    await within(row).findByText('59 23 31 12 * · Once')
-    expect(within(row).getAllByText('say hi').length).toBeGreaterThan(0)
-    expect(within(row).getByText('59 23 31 12 * · Once')).toBeTruthy()
+    const prompts = await within(row).findAllByText('say hi')
+    expect(prompts.length).toBeGreaterThan(0)
+    expect(await within(row).findByText('59 23 31 12 * · Once')).toBeTruthy()
     expect(within(row).getByText('Scheduled 2ef46218 (59 23 31 12 *, once)')).toBeTruthy()
   })
 

@@ -18,9 +18,13 @@ const HOST_BUNDLES = [
   'dist/uiTextRuntime.js',
   'dist/uiTextHooks.js',
   'dist/uiTextSurfaces.js',
+  'dist/uiTextMedia.js',
   'dist/extension.js',
   'dist/resourceAdmission.js',
   'dist/resourceGovernor.js',
+  'dist/resourceProcess.js',
+  'dist/resourceJournal.js',
+  'dist/mcpVault.js',
   'dist/conversation.js',
   'dist/tab.js',
   'dist/usageService.js',
@@ -47,6 +51,7 @@ const HOST_BUNDLES = [
   'dist/team.js',
   'dist/teamRunners.js',
   'dist/teamScheduler.js',
+  'dist/schedules.js',
   // M91: the imported hooks' adapters, the hook and MCP-form runtime, and
   // the window's extension hook runner.
   'dist/foreignHooks.js',
@@ -59,10 +64,13 @@ const HOST_BUNDLES = [
   'dist/browserRuntime.js',
   'dist/agentImport.js',
   'dist/conversationGit.js',
+  'dist/modelApiSessions.js',
   'dist/bundledSkills.js',
   'dist/legalScan.js',
   'dist/codeIntel.js',
   'dist/voice.js',
+  'dist/media.js',
+  'dist/screenRecord.js',
   'dist/webFetch.js',
   'dist/museCodeReviewer.js',
   'dist/report.js',
@@ -72,6 +80,7 @@ const HOST_BUNDLES = [
   'dist/searchWorker.js',
   'dist/pageWorker.js',
   'dist/imageResizeWorker.js',
+  'dist/scheduleBackground.js',
 ]
 const NAVIGATOR = /\bnavigator\b/g
 

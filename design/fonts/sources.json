@@ -1,0 +1,79 @@
+{
+  "subsetter": {
+    "fonttools": "4.60.1",
+    "brotli": "1.1.0"
+  },
+  "unicodeRange": "U+0000-052F,U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2100-214F,U+2190-22FF,U+2300-23FF,U+2500-259F",
+  "fonts": [
+    {
+      "family": "JetBrains Mono",
+      "cssFamily": "Muse Code JB",
+      "repo": "JetBrains/JetBrainsMono",
+      "tag": "v2.304",
+      "sourceCommit": "cd5227bd1f61dff3bbd6c814ceaf7ffd95e947d9",
+      "archive": "JetBrainsMono-2.304.zip",
+      "archiveUrl": "https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip",
+      "archiveSha256": "6f6376c6ed2960ea8a963cd7387ec9d76e3f629125bc33d1fdcd7eb7012f7bbf",
+      "member": "fonts/variable/JetBrainsMono[wght].ttf",
+      "memberSha256": "662a196d58f1183bf2d77428b6d5283fe3f45161ab021bea4036bc98e5cac016",
+      "noticeSha256": "30f0c136e3c88e422d0791acd97238870f9054a9729bc34cf2ff0d4ed8cac4ad",
+      "fontFile": "jetbrains-mono.woff2",
+      "noticeFile": "jetbrains-mono-ofl.txt",
+      "weight": "100 800",
+      "noticeMember": "OFL.txt"
+    },
+    {
+      "family": "Fira Code",
+      "cssFamily": "Muse Code FC",
+      "repo": "tonsky/FiraCode",
+      "tag": "6.2",
+      "sourceCommit": "eee6db993696aba61ff4eef03698e2987d79910c",
+      "archive": "Fira_Code_v6.2.zip",
+      "archiveUrl": "https://github.com/tonsky/FiraCode/releases/download/6.2/Fira_Code_v6.2.zip",
+      "archiveSha256": "0949915ba8eb24d89fd93d10a7ff623f42830d7c5ffc3ecbf960e4ecad3e3e79",
+      "member": "variable_ttf/FiraCode-VF.ttf",
+      "memberSha256": "04149681350f161aca538858b88d17443c586cacca83c165939a13423fe91a26",
+      "noticeSha256": "1d41e10031ab125302780a05ec4c91d218e47db0c7e37cf315cce5e608cdc25c",
+      "fontFile": "fira-code.woff2",
+      "noticeFile": "fira-code-ofl.txt",
+      "weight": "300 700",
+      "noticeSeed": "FiraCode-OFL.txt",
+      "noticeUrl": "https://raw.githubusercontent.com/tonsky/FiraCode/eee6db993696aba61ff4eef03698e2987d79910c/LICENSE"
+    },
+    {
+      "family": "Cascadia Code",
+      "cssFamily": "Muse Code CC",
+      "repo": "microsoft/cascadia-code",
+      "tag": "v2407.24",
+      "sourceCommit": "56bcca3f2c1e4cb19458954f0e2bb4635960df91",
+      "archive": "CascadiaCode-2407.24.zip",
+      "archiveUrl": "https://github.com/microsoft/cascadia-code/releases/download/v2407.24/CascadiaCode-2407.24.zip",
+      "archiveSha256": "e67a68ee3386db63f48b9054bd196ea752bc6a4ebb4df35adce6733da50c8474",
+      "member": "ttf/CascadiaCode.ttf",
+      "memberSha256": "54eae6e26961e980eb3e1ec4ee30f6d3ba7a932a2028832baceb91cc65844a65",
+      "noticeSha256": "51882cd3cdba4e16f220f44ddb08a635c38c44ea6e0975db2574f4be6f958238",
+      "fontFile": "cascadia-code.woff2",
+      "noticeFile": "cascadia-code-ofl.txt",
+      "weight": "200 700",
+      "noticeSeed": "cascadia-code-OFL.txt",
+      "noticeUrl": "https://raw.githubusercontent.com/microsoft/cascadia-code/56bcca3f2c1e4cb19458954f0e2bb4635960df91/LICENSE"
+    },
+    {
+      "family": "Inter",
+      "cssFamily": "Muse UI",
+      "repo": "rsms/inter",
+      "tag": "v4.1",
+      "sourceCommit": "e3a3d4c57d5ecc01453a575621882a384c1995a3",
+      "archive": "Inter-4.1.zip",
+      "archiveUrl": "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip",
+      "archiveSha256": "9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e",
+      "member": "InterVariable.ttf",
+      "memberSha256": "4989b125924991b90d05b2d16e0e388c48f7d5bb8b30539bbf9c755278d0ccaf",
+      "noticeSha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a",
+      "fontFile": "inter.woff2",
+      "noticeFile": "inter-ofl.txt",
+      "weight": "100 900",
+      "noticeMember": "LICENSE.txt"
+    }
+  ]
+}

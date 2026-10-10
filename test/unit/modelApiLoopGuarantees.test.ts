@@ -22,6 +22,7 @@ import {
   type ScriptedReply,
 } from './helpers/fakeModelApi'
 import { memoryToolIo } from './helpers/fakeToolIo'
+import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { startWatchedSession } from './helpers/sessionTurns'
@@ -33,7 +34,26 @@ const read = (id: number) => ({
   callId: `c${String(id)}`,
 })
 
-async function setup(overrides: Partial<ModelApiHostDeps> = {}) {
+// The session wraps its tool ports once (scheduledIo, 01f2bc002) and keeps
+// the hook runner it saw then. Cases that set `rig.io.runHook` after setup
+// ask for a port that forwards to whichever runner they installed last.
+function forwardHookRunner(io: ToolIo): void {
+  let current: ToolIo['runHook']
+  const forward: NonNullable<ToolIo['runHook']> = async (...args) => {
+    if (current === undefined) throw new Error('No hook runner installed')
+    return await current(...args)
+  }
+  Object.defineProperty(io, 'runHook', {
+    configurable: true,
+    enumerable: true,
+    get: () => forward,
+    set: (runner: ToolIo['runHook']) => {
+      current = runner
+    },
+  })
+}
+
+async function setup(overrides: Partial<ModelApiHostDeps> = {}, { hookRunner = false } = {}) {
   const log = new FakeLogOutputChannel()
   const api = fakeModelApi()
   const rawBodies: string[] = []
@@ -52,6 +72,7 @@ async function setup(overrides: Partial<ModelApiHostDeps> = {}) {
     { '0.txt': 'first', '1.txt': 'second', '2.txt': 'third', '3.txt': 'fourth' },
     ROOT,
   )
+  if (hookRunner) forwardHookRunner(io)
   const host = new ModelApiHost({
     ...fakeModelApiHostDeps({ client, workspaceRoot: ROOT, io, log }),
     ...overrides,
@@ -60,24 +81,35 @@ async function setup(overrides: Partial<ModelApiHostDeps> = {}) {
   return { api, io, host, log, rawBodies, ...watched }
 }
 
+async function setupCommandHooks(hooks: Record<string, unknown>) {
+  const parsed = parseHookConfig(JSON.stringify({ hooks }), 'project', 'linux').hooks
+  return await setup(
+    { loadHooks: () => Promise.resolve(parsed), isHooksEnabled: () => true },
+    { hookRunner: true },
+  )
+}
+
 async function setupSkillSteering() {
   const hooks = parseSparkHooksConfig(
     '{"hooks":{"UserPromptExpansion":[{"hooks":[{"type":"command","command":"veto"}]}]}}',
     'project',
     'linux',
   ).hooks
-  return await setup({
-    contextIo: memoryContextIo(
-      new Map([
-        [
-          '/ws/.agents/skills/shout/SKILL.md',
-          '---\nname: shout\ndescription: Repeat in caps\n---\nUPPER CASE.',
-        ],
-      ]),
-    ),
-    loadExtensionHooks: () => Promise.resolve(hooks),
-    isHooksEnabled: () => true,
-  })
+  return await setup(
+    {
+      contextIo: memoryContextIo(
+        new Map([
+          [
+            '/ws/.agents/skills/shout/SKILL.md',
+            '---\nname: shout\ndescription: Repeat in caps\n---\nUPPER CASE.',
+          ],
+        ]),
+      ),
+      loadExtensionHooks: () => Promise.resolve(hooks),
+      isHooksEnabled: () => true,
+    },
+    { hookRunner: true },
+  )
 }
 
 async function beginHeldReply(
@@ -710,17 +742,10 @@ describe('M106 loop guarantees', () => {
   })
 
   it('settles pre and post hooks, writes and shell barriers in call order', async () => {
-    const hooks = parseHookConfig(
-      JSON.stringify({
-        hooks: {
-          PreToolUse: [{ hooks: [{ type: 'command', command: 'pre' }] }],
-          PostToolUse: [{ hooks: [{ type: 'command', command: 'post' }] }],
-        },
-      }),
-      'project',
-      'linux',
-    ).hooks
-    const rig = await setup({ loadHooks: () => Promise.resolve(hooks), isHooksEnabled: () => true })
+    const rig = await setupCommandHooks({
+      PreToolUse: [{ hooks: [{ type: 'command', command: 'pre' }] }],
+      PostToolUse: [{ hooks: [{ type: 'command', command: 'post' }] }],
+    })
     const phases: string[] = []
     rig.io.runHook = (command, payload) => {
       const parsed: unknown = JSON.parse(payload)
@@ -782,11 +807,14 @@ describe('M106 loop guarantees', () => {
       ).hooks
       expect(hooks).toHaveLength(1)
       const capture = async (isParallel: boolean) => {
-        const rig = await setup({
-          parallelReads: () => isParallel,
-          loadHooks: () => Promise.resolve(hooks),
-          isHooksEnabled: () => true,
-        })
+        const rig = await setup(
+          {
+            parallelReads: () => isParallel,
+            loadHooks: () => Promise.resolve(hooks),
+            isHooksEnabled: () => true,
+          },
+          { hookRunner: true },
+        )
         rig.io.files.set('/ws/0.txt', 'OLD')
         rig.io.files.set('/ws/1.txt', 'OLD')
         rig.io.runHook = (_command, payload) => {
@@ -854,16 +882,9 @@ describe('M106 loop guarantees', () => {
   })
 
   it('does not overlap a hook-forced asking read with reads on either side', async () => {
-    const hooks = parseHookConfig(
-      JSON.stringify({
-        hooks: {
-          PreToolUse: [{ hooks: [{ type: 'command', command: 'pre' }] }],
-        },
-      }),
-      'project',
-      'linux',
-    ).hooks
-    const rig = await setup({ loadHooks: () => Promise.resolve(hooks), isHooksEnabled: () => true })
+    const rig = await setupCommandHooks({
+      PreToolUse: [{ hooks: [{ type: 'command', command: 'pre' }] }],
+    })
     rig.io.runHook = (_command, payload) =>
       Promise.resolve(
         hookResult(

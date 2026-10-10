@@ -119,16 +119,20 @@ import {
 import {
   indexFileInstance,
   isInShadowRepository,
-  isWithinFolder,
   ShadowGit,
   ShadowPathTooLongError,
   ShadowStorageInWorkspaceError,
 } from './shadowGit'
+import { pathIdentityRelation } from '../../core/pathIdentity'
+import { windowsPathProblem } from '../../core/windowsPathSpelling'
 import { isLegacyWindow, WindowPresence } from './windowPresence'
 import { WriteJournal } from './writeJournal'
 import { innermostFolders, type WriteLanes } from './writeRecorder'
 
 export { turnKey } from '../../core/checkpoints/turnKey'
+
+/** Why a tool may not write a path (`storagePathProblem`); the host words it. */
+export type StoragePathProblem = 'spelling' | 'storage' | 'uncertain'
 
 /**
  * Why a restore or a Redo did nothing: no unit to restore from (any more); a
@@ -1964,11 +1968,27 @@ export class CheckpointStore {
 
   /** Whether a path is in the checkpoint storage of any namespace (tools never write there). */
   public isStoragePath(absolutePath: string): boolean {
-    return (
-      isInShadowRepository(absolutePath) ||
-      isWithinFolder(absolutePath, this.deps.storageDir) ||
-      (this.deps.storageRoot !== undefined && isWithinFolder(absolutePath, this.deps.storageRoot))
-    )
+    return this.storagePathProblem(absolutePath) !== undefined
+  }
+
+  /**
+   * Why tools may not write a path: a refused Windows spelling, proven
+   * storage, or a native identity that cannot prove it is outside storage.
+   */
+  public storagePathProblem(absolutePath: string): StoragePathProblem | undefined {
+    // Workspace confinement owns UNC admission; a share alone is not storage.
+    if (windowsPathProblem(absolutePath, process.platform, absolutePath) !== undefined) {
+      return 'spelling'
+    }
+    if (isInShadowRepository(absolutePath)) return 'storage'
+    const relations = new Set([
+      pathIdentityRelation(absolutePath, this.deps.storageDir),
+      ...(this.deps.storageRoot === undefined
+        ? []
+        : [pathIdentityRelation(absolutePath, this.deps.storageRoot)]),
+    ])
+    if (relations.has('inside')) return 'storage'
+    return relations.has('unknown') ? 'uncertain' : undefined
   }
 
   /** Reverses the model's own writes from the turn on, where each file still holds what they left. */

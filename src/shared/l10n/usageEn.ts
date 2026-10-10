@@ -52,6 +52,10 @@ export const USAGE_EN = {
     other:
       'Delete {count} usage records on this machine? Spend ledgers and paid permissions are kept.',
   }),
+  deleteConfirmResources: forms({
+    one: 'It also deletes {count} resource history entry.',
+    other: 'It also deletes {count} resource history entries.',
+  }),
   deleteAction: 'Delete history',
   deleteComplete: 'Usage history deleted.',
   cancel: 'Cancel',

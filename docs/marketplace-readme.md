@@ -22,10 +22,26 @@ Code” are Meta trademarks. You bring your own credentials.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0160) · [Get started](#get-started) ·
+**Contents:** [What's new](#whats-new-in-0170) · [Get started](#get-started) ·
 [Work in the panel](#work-in-the-panel)
 
-## What's new in 0.16.0
+## What's new in 0.17.0
+
+- **Deterministic reports.** `/report` builds project, quality, milestone,
+  release and change reports from local facts, in Markdown, HTML, JSON or text,
+  with saved history and comparisons; nothing is sent to a model.
+- **Capacity estimates (preview).** `/estimate <goal>` and the Estimator are in
+  place and verified with test data. Real forecasts need the plan reader that
+  comes later; until then they say so instead of guessing.
+- **Several accounts per provider.** List provider accounts, see the current
+  one and its thresholds; a vendor limit blocks only the affected account.
+- **Orchestrator playbook.** The nine orchestration rules ship as a first-party
+  skill. In the ACP agent and the CLI, `/playbook status`, `record` and
+  `settings` answer locally; the VS Code panel follows.
+- **Refreshed design.** Shared design tokens and generated palettes style every
+  panel surface; an optional pinned OFL font pack serves standalone installs.
+
+### Earlier in 0.16.0
 
 - **Loop guarantees.** Strict tool contracts, bounded hosted search and streamed
   argument previews help you follow Model API tool calls. Independent reads can
@@ -167,6 +183,14 @@ Requires VS Code engine 1.99 or newer. Muse Code signs in independently; a key
 pasted into this extension is stored in VS Code SecretStorage and never given
 to the CLI. Linux users can use the Model API if the CLI is unavailable.
 
+The project ships from four places: the
+[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code),
+[Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code),
+[npm](https://www.npmjs.com/package/muse-spark-code-acp) (the ACP agent, for
+editors beyond VS Code) and
+[GitHub Releases](https://github.com/RandyNorthrup/muse-spark-code/releases)
+(both the `.vsix` and the agent's `.tgz`).
+
 ## Work in the panel
 
 - Open Usage & cost for journal totals, provider limits and budgets; ACP and CLI
@@ -201,7 +225,7 @@ to the CLI. Linux users can use the Model API if the CLI is unavailable.
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/quote.png" alt="A reply right-clicked in its highlighted passage: three blue pills, Copy, Ask about this and Comment on this, fanned out from the pointer"><br><sub>Highlight, right-click: <b>Copy</b>, <b>Ask about this</b> or <b>Comment on this</b></sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/rewind.png" alt="A sent message's menu with three blue pills: Fork conversation from here, Fork conversation and rewind code, and Rewind"><br><sub>Every sent message's ⋯: fork, fork and rewind code, or open <b>Rewind</b></sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/rewind.png" alt="A sent message's menu with three blue pills: Fork Conversation, Fork and Rewind, and Rewind"><br><sub>Every sent message's ⋯: fork, fork and rewind code, or open <b>Rewind</b></sub></td>
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/modes.png" alt="The Modes menu: Manual, Edit automatically, Plan and Auto, with descriptions and the effort row"><br><sub>Permission modes and effort; <code>Shift+Tab</code> cycles modes</sub></td>

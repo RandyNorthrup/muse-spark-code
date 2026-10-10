@@ -281,8 +281,8 @@ describe('registry dispatch through the real host', () => {
       'linux',
     )
     expect(hooks.hooks).toHaveLength(1)
-    const h = await setup({ loadHooks: () => Promise.resolve(hooks.hooks) }, model, () => isCurrent)
-    h.io.runHook = (_command, payload) => {
+    const io = memoryToolIo({ 'a.txt': 'actual workspace contents' }, '/ws')
+    io.runHook = (_command, payload) => {
       expect(payload).toContain('"model_provider":"team"')
       isCurrent = false
       return Promise.resolve({
@@ -293,8 +293,14 @@ describe('registry dispatch through the real host', () => {
         isCancelled: false,
       })
     }
+    const h = await setup(
+      { io, loadHooks: () => Promise.resolve(hooks.hooks) },
+      model,
+      () => isCurrent,
+    )
     try {
       await h.send()
+      expect(isCurrent).toBe(false)
       expect(h.provider.responseBodies()).toHaveLength(0)
     } finally {
       await h.host.close()

@@ -1,5 +1,5 @@
 import { UI_TEXT } from '../../shared/constants'
-import { formatTokenWindow } from '../../shared/palette'
+import { formatTokenWindow } from '../../shared/l10n/text'
 import type { ProviderUsageRow } from '../../shared/usage'
 import { formatUsd } from '../../core/usage/insights'
 import { FactRows } from './FactRows'

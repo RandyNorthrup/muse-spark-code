@@ -12,12 +12,15 @@ import {
 } from '../../src/shared/constants'
 import type { SlashCommand } from '../../src/shared/slashCommands'
 import type { PaletteKeys } from '../../src/webview/components/Palette'
+import { AttachmentChips } from '../../src/webview/components/AttachmentChips'
+import type { MediaInfo } from '../../src/shared/media'
 import {
   Composer,
   type ComposerProps,
   rowsFor,
   type SlashPaletteSlot,
 } from '../../src/webview/components/Composer'
+import { installSurfaceRetry } from '../../src/webview/surfaceRetry'
 import { testSettings } from './helpers/fakes'
 
 beforeEach(() => {
@@ -272,7 +275,7 @@ it('closes the attached slash list while the prompt menu is open', async () => {
   const { props, view, textarea } = renderComposer({ onUseSavedPrompt: vi.fn() })
   textarea.focus()
   const typed = type(view, props, '/co')
-  expect(screen.getByRole('listbox', { name: 'Slash commands' })).toBeInTheDocument()
+  expect(await screen.findByRole('listbox', { name: 'Slash commands' })).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.promptLibrary }))
   await screen.findByRole('menu', { name: UI_TEXT.promptLibrary })
   expect(screen.queryByRole('listbox', { name: 'Slash commands' })).toBeNull()
@@ -292,6 +295,112 @@ function pasteOrDropFile(
     })
   }
 }
+
+describe('M105 E1 media gestures and chips', () => {
+  it.each(['paste', 'drop'] as const)(
+    'forwards %s URI tokens without reading or duplicating file bytes',
+    (gesture) => {
+      const { textarea, props } = renderComposer()
+      const file = new File(['private canary'], 'clip.mov', { type: 'video/quicktime' })
+      const slice = vi.spyOn(file, 'slice')
+      const transfer = {
+        files: [file],
+        getData: () => '# file\r\nfile:///ws/clip.mov\r\nfile:///ws/report.pdf',
+      }
+      if (gesture === 'paste') fireEvent.paste(textarea, { clipboardData: transfer })
+      else fireEvent.drop(screen.getByRole('contentinfo'), { dataTransfer: transfer })
+      expect(props.onDroppedUris).toHaveBeenCalledExactlyOnceWith([
+        'file:///ws/clip.mov',
+        'file:///ws/report.pdf',
+      ])
+      expect(slice).not.toHaveBeenCalled()
+      expect(props.onAttachImage).not.toHaveBeenCalled()
+      expect(props.onRefuseFile).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(['clip.mp4', 'clip.mov', 'clip.webm', 'clip.mkv', 'sound.mp3', 'sound.wav', 'sound.m4a'])(
+    'names a bytes-only %s refusal without reading its header',
+    (name) => {
+      const { textarea, props } = renderComposer()
+      const file = new File(['canary'], name)
+      const slice = vi.spyOn(file, 'slice')
+      pasteOrDropFile('paste', textarea, file)
+      pasteOrDropFile('drop', textarea, file)
+      expect(props.onRefuseFile).toHaveBeenCalledWith(name, UI_TEXT.textFilePrivate)
+      expect(props.onRefuseFile).toHaveBeenCalledTimes(2)
+      expect(slice).not.toHaveBeenCalled()
+      expect(props.onAttachImage).not.toHaveBeenCalled()
+    },
+  )
+
+  it('shows video/audio metadata and unknowns rather than labelling them PDF', async () => {
+    const info: MediaInfo = {
+      kind: 'video',
+      mediaType: 'video/quicktime',
+      sizeBytes: 3000,
+      durationSeconds: null,
+      hasSoundtrack: null,
+    }
+    const remove = vi.fn()
+    const view = render(
+      <AttachmentChips
+        attachments={[
+          {
+            id: 'video',
+            name: 'clip.mov',
+            mediaType: info.mediaType,
+            sizeBytes: info.sizeBytes,
+            media: { info },
+          },
+        ]}
+        onRemove={remove}
+      />,
+    )
+    expect(await screen.findByText(/Duration unknown.*Sound unknown/)).toBeInTheDocument()
+    expect(screen.queryByText('PDF')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove clip.mov' }))
+    expect(remove).toHaveBeenCalledWith('video')
+    for (const [hasSoundtrack, label] of [
+      [true, 'Sound'],
+      [false, 'No sound'],
+    ] as const) {
+      view.rerender(
+        <AttachmentChips
+          attachments={[
+            {
+              id: 'video',
+              name: 'clip.mov',
+              mediaType: info.mediaType,
+              sizeBytes: info.sizeBytes,
+              media: { info: { ...info, durationSeconds: 12, hasSoundtrack } },
+            },
+          ]}
+          onRemove={remove}
+        />,
+      )
+      expect(await screen.findByText(`12s · 3 kB · ${label}`)).toBeInTheDocument()
+    }
+    view.rerender(
+      <AttachmentChips
+        attachments={[
+          {
+            id: 'audio',
+            name: 'sound.wav',
+            mediaType: 'audio/wav',
+            sizeBytes: 3000,
+            media: {
+              info: { kind: 'audio', mediaType: 'audio/wav', sizeBytes: 3000, durationSeconds: 12 },
+            },
+          },
+        ]}
+        onRemove={remove}
+      />,
+    )
+    expect(screen.queryByText(/Sound unknown/)).not.toBeInTheDocument()
+    expect(await screen.findByText(/12s.*3 kB/)).toBeInTheDocument()
+  })
+})
 
 /**
  * Simulates the parent applying `text` as the draft and the caret landing at
@@ -419,20 +528,22 @@ function withResults(paths: readonly string[], requestId = 1) {
 }
 
 describe('Composer mention menu', () => {
-  it('asks the host for matches while typing an @ token and lists them', () => {
+  it('asks the host for matches while typing an @ token and lists them', async () => {
     const { props, view } = renderComposer()
     type(view, props, 'see @ap')
     expect(props.onSearchMentions).toHaveBeenLastCalledWith(1, 'ap')
     type(view, props, 'see @ap', { mentionResults: withResults(['src/app.ts', 'src/']) })
-    const options = screen.getAllByRole('option')
+    // The menu body loads on first open; later assertions run against it.
+    const options = await screen.findAllByRole('option')
     expect(options.map((node) => node.textContent)).toEqual(['src/app.ts', 'src/'])
     expect(options[0]).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('navigates with the arrows and applies the choice on Enter or Tab', () => {
+  it('navigates with the arrows and applies the choice on Enter or Tab', async () => {
     const { props, view } = renderComposer()
     type(view, props, '@a')
     const textarea = type(view, props, '@a', { mentionResults: withResults(['a.ts', 'b/a.ts']) })
+    await screen.findByRole('listbox')
     expect(fireEvent.keyDown(textarea, { key: 'ArrowDown' })).toBe(false)
     expect(screen.getAllByRole('option')[1]).toHaveAttribute('aria-selected', 'true')
     fireEvent.keyDown(textarea, { key: 'ArrowUp' })
@@ -442,28 +553,28 @@ describe('Composer mention menu', () => {
     expect(props.onSubmit).not.toHaveBeenCalled()
   })
 
-  it('selects a row by click and dismisses on Escape', () => {
+  it('selects a row by click and dismisses on Escape', async () => {
     const { props, view } = renderComposer()
     type(view, props, '@a')
     const textarea = type(view, props, '@a', { mentionResults: withResults(['a.ts']) })
-    fireEvent.click(screen.getByRole('option'))
+    fireEvent.click(await screen.findByRole('option'))
     expect(props.onDraftChange).toHaveBeenLastCalledWith('@a.ts ')
     expect(fireEvent.keyDown(textarea, { key: 'Escape' })).toBe(false)
     expect(screen.queryByRole('listbox')).toBeNull()
   })
 
-  it('searches a quoted name with its space and inserts a spaced path quoted (D27)', () => {
+  it('searches a quoted name with its space and inserts a spaced path quoted (D27)', async () => {
     const { props, view } = renderComposer()
     type(view, props, 'see @"my no')
     expect(props.onSearchMentions).toHaveBeenLastCalledWith(1, 'my no')
     type(view, props, 'see @"my no', { mentionResults: withResults(['my notes/a b.md']) })
-    fireEvent.click(screen.getByRole('option'))
+    fireEvent.click(await screen.findByRole('option'))
     expect(props.onDraftChange).toHaveBeenLastCalledWith('see @"my notes/a b.md" ')
   })
 
   // The box keeps the focus (aria-activedescendant), so the list never
   // scrolls by itself: the active row must be brought into view (WCAG 2.1.1).
-  it('scrolls the active match into view as the arrows move', () => {
+  it('scrolls the active match into view as the arrows move', async () => {
     const scroll = vi.spyOn(Element.prototype, 'scrollIntoView')
     try {
       const { props, view } = renderComposer()
@@ -471,6 +582,7 @@ describe('Composer mention menu', () => {
       const textarea = type(view, props, '@a', {
         mentionResults: withResults(['a.ts', 'b/a.ts', 'c/a.ts']),
       })
+      await screen.findByRole('listbox')
       expect(scroll.mock.contexts.at(-1)).toBe(screen.getAllByRole('option')[0])
       // Up wraps to the last row, the one a short list hides first.
       fireEvent.keyDown(textarea, { key: 'ArrowUp' })
@@ -534,7 +646,9 @@ describe('Composer attachments', () => {
     const pdf = new File([new TextEncoder().encode('%PDF-1.4')], 'report.pdf', {
       type: 'application/pdf',
     })
-    expect(fireEvent.paste(textarea, { clipboardData: { files: [pdf] } })).toBe(false)
+    expect(fireEvent.paste(textarea, { clipboardData: { files: [pdf], getData: () => '' } })).toBe(
+      false,
+    )
     await act(async () => {
       await Promise.resolve()
     })
@@ -547,8 +661,28 @@ describe('Composer attachments', () => {
     })
     const huge = new File([new Uint8Array([1])], 'huge.pdf', { type: 'application/pdf' })
     Object.defineProperty(huge, 'size', { value: MAX_DOCUMENT_BYTES + 1 })
-    fireEvent.paste(textarea, { clipboardData: { files: [huge] } })
+    fireEvent.paste(textarea, { clipboardData: { files: [huge], getData: () => '' } })
     expect(props.onRefuseFile).toHaveBeenCalledWith('huge.pdf', UI_TEXT.documentTooLarge)
+  })
+
+  it('attaches a pasted PDF whose clipboard carries no getData', async () => {
+    // App.test.tsx pastes with `{ files }` only; a missing reader is an
+    // empty URI list, never a throw (M105W merge fallout).
+    const { props, textarea } = renderComposer()
+    const pdf = new File([new TextEncoder().encode('%PDF-1.4')], 'plain.pdf', {
+      type: 'application/pdf',
+    })
+    fireEvent.paste(textarea, { clipboardData: { files: [pdf] } })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(props.onAttachImage).toHaveBeenCalledWith({
+      name: 'plain.pdf',
+      mediaType: 'application/pdf',
+      base64: Buffer.from('%PDF-1.4').toString('base64'),
+      requestId: expect.any(String),
+      attachmentEpoch: 0,
+    })
   })
 
   it.each(['paste', 'drop'] as const)(
@@ -581,7 +715,7 @@ describe('Composer attachments', () => {
     const file = new File([bytes], 'oversize.png', { type: 'image/png' })
     const headerRead = vi.spyOn(file, 'slice')
     const fullRead = vi.spyOn(file, 'arrayBuffer')
-    fireEvent.paste(textarea, { clipboardData: { files: [file] } })
+    fireEvent.paste(textarea, { clipboardData: { files: [file], getData: () => '' } })
     await vi.waitFor(() => {
       expect(props.onRefuseFile).toHaveBeenCalledWith('oversize.png', UI_TEXT.attachmentTooLarge)
     })
@@ -665,7 +799,7 @@ describe('Composer attachments', () => {
     Object.defineProperty(first, 'size', { value: MAX_DOCUMENT_BYTES })
     Object.defineProperty(second, 'size', { value: MAX_DOCUMENT_BYTES })
     const secondFullRead = vi.spyOn(second, 'arrayBuffer')
-    fireEvent.paste(textarea, { clipboardData: { files: [first] } })
+    fireEvent.paste(textarea, { clipboardData: { files: [first], getData: () => '' } })
     fireEvent.drop(screen.getByRole('contentinfo'), {
       dataTransfer: { files: [second], getData: () => '' },
     })
@@ -691,7 +825,7 @@ describe('Composer attachments', () => {
     vi.spyOn(header, 'arrayBuffer').mockImplementation(() => peek.promise)
     vi.spyOn(file, 'slice').mockReturnValue(header)
     const fullRead = vi.spyOn(file, 'arrayBuffer')
-    fireEvent.paste(textarea, { clipboardData: { files: [file] } })
+    fireEvent.paste(textarea, { clipboardData: { files: [file], getData: () => '' } })
     view.rerender(<Composer {...props} attachmentEpoch={1} />)
     peek.resolve(new TextEncoder().encode('%PDF-1.4').buffer)
     await act(async () => {
@@ -715,7 +849,7 @@ describe('Composer attachments', () => {
     vi.spyOn(first, 'arrayBuffer').mockImplementation(() => heldRead.promise)
     const secondRead = vi.spyOn(second, 'arrayBuffer')
     const thirdRead = vi.spyOn(third, 'arrayBuffer')
-    fireEvent.paste(textarea, { clipboardData: { files: [first, second] } })
+    fireEvent.paste(textarea, { clipboardData: { files: [first, second], getData: () => '' } })
     fireEvent.drop(screen.getByRole('contentinfo'), {
       dataTransfer: { files: [third], getData: () => '' },
     })
@@ -729,7 +863,7 @@ describe('Composer attachments', () => {
       await Promise.resolve()
     })
     const fourthRead = vi.spyOn(fourth, 'arrayBuffer')
-    fireEvent.paste(textarea, { clipboardData: { files: [fourth] } })
+    fireEvent.paste(textarea, { clipboardData: { files: [fourth], getData: () => '' } })
     expect(fourthRead).not.toHaveBeenCalled()
     expect(props.onRefuseFile).toHaveBeenCalledWith('fourth.pdf', UI_TEXT.mediaTotalTooLarge)
   })
@@ -744,13 +878,42 @@ describe('Composer attachments', () => {
       return file
     })
     const rejectedReads = files.slice(1).map((file) => vi.spyOn(file, 'arrayBuffer'))
-    fireEvent.paste(textarea, { clipboardData: { files } })
+    fireEvent.paste(textarea, { clipboardData: { files, getData: () => '' } })
     expect(rejectedReads.every((read) => read.mock.calls.length === 0)).toBe(true)
     expect(props.onRefuseFile).toHaveBeenCalledTimes(MAX_ATTACHMENTS_PER_MESSAGE - 1)
     await act(async () => {
       await Promise.resolve()
     })
     expect(props.onAttachImage).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps streamed host media out of the browser base64 budget', async () => {
+    const { props, textarea } = renderComposer({
+      attachments: [
+        {
+          id: 'movie',
+          name: 'clip.mp4',
+          mediaType: 'video/mp4',
+          sizeBytes: MAX_DOCUMENT_BYTES,
+          media: {
+            info: {
+              kind: 'video',
+              mediaType: 'video/mp4',
+              sizeBytes: MAX_DOCUMENT_BYTES,
+              durationSeconds: null,
+              hasSoundtrack: null,
+            },
+          },
+        },
+      ],
+    })
+    const next = new File([Uint8Array.from([1])], 'next.pdf', { type: 'application/pdf' })
+    Object.defineProperty(next, 'size', { value: MAX_DOCUMENT_BYTES })
+    fireEvent.paste(textarea, { clipboardData: { files: [next], getData: () => '' } })
+    await vi.waitFor(() => {
+      expect(props.onAttachImage).toHaveBeenCalledOnce()
+    })
+    expect(props.onRefuseFile).not.toHaveBeenCalled()
   })
 
   it('counts an existing PDF before reading another pasted PDF', () => {
@@ -768,7 +931,7 @@ describe('Composer attachments', () => {
     const next = new File([Uint8Array.from([1])], 'next.pdf', { type: 'application/pdf' })
     Object.defineProperty(next, 'size', { value: MAX_DOCUMENT_BYTES })
     const read = vi.spyOn(next, 'arrayBuffer')
-    fireEvent.paste(textarea, { clipboardData: { files: [next] } })
+    fireEvent.paste(textarea, { clipboardData: { files: [next], getData: () => '' } })
     expect(read).not.toHaveBeenCalled()
     expect(props.onRefuseFile).toHaveBeenCalledWith('next.pdf', UI_TEXT.mediaTotalTooLarge)
   })
@@ -777,7 +940,7 @@ describe('Composer attachments', () => {
     const { props, view, textarea } = renderComposer()
     const first = new File([Uint8Array.from([1])], 'first.pdf', { type: 'application/pdf' })
     Object.defineProperty(first, 'size', { value: MAX_DOCUMENT_BYTES })
-    fireEvent.paste(textarea, { clipboardData: { files: [first] } })
+    fireEvent.paste(textarea, { clipboardData: { files: [first], getData: () => '' } })
     await act(async () => {
       await Promise.resolve()
     })
@@ -795,7 +958,7 @@ describe('Composer attachments', () => {
     )
     const next = new File([Uint8Array.from([2])], 'next.pdf', { type: 'application/pdf' })
     Object.defineProperty(next, 'size', { value: MAX_DOCUMENT_BYTES })
-    fireEvent.paste(textarea, { clipboardData: { files: [next] } })
+    fireEvent.paste(textarea, { clipboardData: { files: [next], getData: () => '' } })
     await act(async () => {
       await Promise.resolve()
     })
@@ -804,18 +967,20 @@ describe('Composer attachments', () => {
 
   it('does not release a posted file when a same-name paste is refused locally', async () => {
     const { props, view, textarea } = renderComposer()
-    fireEvent.paste(textarea, { clipboardData: { files: [largePdf('same.pdf')] } })
+    fireEvent.paste(textarea, {
+      clipboardData: { files: [largePdf('same.pdf')], getData: () => '' },
+    })
     await act(async () => {
       await Promise.resolve()
     })
     const refused = largePdf('same.pdf')
     const refusedRead = vi.spyOn(refused, 'arrayBuffer')
-    fireEvent.paste(textarea, { clipboardData: { files: [refused] } })
+    fireEvent.paste(textarea, { clipboardData: { files: [refused], getData: () => '' } })
     expect(refusedRead).not.toHaveBeenCalled()
     view.rerender(<Composer {...props} banner={`same.pdf: ${UI_TEXT.mediaTotalTooLarge}`} />)
     const third = largePdf('third.pdf')
     const thirdRead = vi.spyOn(third, 'arrayBuffer')
-    fireEvent.paste(textarea, { clipboardData: { files: [third] } })
+    fireEvent.paste(textarea, { clipboardData: { files: [third], getData: () => '' } })
     expect(thirdRead).not.toHaveBeenCalled()
   })
 
@@ -826,7 +991,7 @@ describe('Composer attachments', () => {
       Object.defineProperty(file, 'size', { value: MAX_IMAGE_BYTES })
       return file
     }
-    fireEvent.paste(textarea, { clipboardData: { files: [image(), image()] } })
+    fireEvent.paste(textarea, { clipboardData: { files: [image(), image()], getData: () => '' } })
     await act(async () => {
       await Promise.resolve()
     })
@@ -838,7 +1003,7 @@ describe('Composer attachments', () => {
     const next = new File([Uint8Array.from([2])], 'next.pdf', { type: 'application/pdf' })
     Object.defineProperty(next, 'size', { value: MAX_DOCUMENT_BYTES })
     const read = vi.spyOn(next, 'arrayBuffer')
-    fireEvent.paste(textarea, { clipboardData: { files: [next] } })
+    fireEvent.paste(textarea, { clipboardData: { files: [next], getData: () => '' } })
     expect(read).toHaveBeenCalledOnce()
     await act(async () => {
       await Promise.resolve()
@@ -849,7 +1014,9 @@ describe('Composer attachments', () => {
   it('attaches pasted images and lets text pastes through', async () => {
     const { props, textarea } = renderComposer()
     const image = new File([Uint8Array.from([1, 2, 3])], 'clip.png', { type: 'image/png' })
-    const isDefaultAllowed = fireEvent.paste(textarea, { clipboardData: { files: [image] } })
+    const isDefaultAllowed = fireEvent.paste(textarea, {
+      clipboardData: { files: [image], getData: () => '' },
+    })
     expect(isDefaultAllowed).toBe(false)
     await act(async () => {
       await Promise.resolve()
@@ -861,7 +1028,9 @@ describe('Composer attachments', () => {
       requestId: expect.any(String),
       attachmentEpoch: 0,
     })
-    expect(fireEvent.paste(textarea, { clipboardData: { files: [] } })).toBe(true)
+    expect(fireEvent.paste(textarea, { clipboardData: { files: [], getData: () => '' } })).toBe(
+      true,
+    )
   })
 
   it('accepts dropped images and editor resources', async () => {
@@ -907,7 +1076,7 @@ describe('Composer attachments', () => {
     const { props, view, textarea } = renderComposer()
     const huge = new File([Uint8Array.from([1])], 'huge.png', { type: 'image/png' })
     Object.defineProperty(huge, 'size', { value: MAX_IMAGE_BYTES + 1 })
-    fireEvent.paste(textarea, { clipboardData: { files: [huge] } })
+    fireEvent.paste(textarea, { clipboardData: { files: [huge], getData: () => '' } })
     await act(async () => {
       await Promise.resolve()
     })
@@ -921,7 +1090,7 @@ describe('Composer attachments', () => {
       })),
     })
     const extra = new File([Uint8Array.from([2])], 'extra.png', { type: 'image/png' })
-    fireEvent.paste(full.textarea, { clipboardData: { files: [extra] } })
+    fireEvent.paste(full.textarea, { clipboardData: { files: [extra], getData: () => '' } })
     await act(async () => {
       await Promise.resolve()
     })
@@ -940,13 +1109,13 @@ describe('Composer input methods (M25)', () => {
     expect(props.onSubmit).toHaveBeenCalledOnce()
   })
 
-  it('does not pick a mention with the Enter that ends a composition', () => {
+  it('does not pick a mention with the Enter that ends a composition', async () => {
     const { props, view } = renderComposer()
     type(view, props, '@a')
     const textarea = type(view, props, '@a', { mentionResults: withResults(['a.ts']) })
     expect(fireEvent.keyDown(textarea, { key: 'Enter', isComposing: true })).toBe(true)
     expect(props.onDraftChange).not.toHaveBeenCalled()
-    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    expect(await screen.findByRole('listbox')).toBeInTheDocument()
   })
 })
 
@@ -1000,7 +1169,7 @@ describe('Composer chrome', () => {
     expect(props.onCompact).toHaveBeenCalledOnce()
   })
 
-  it('gives slash rows the same pointer and accessible tip (M87)', () => {
+  it('gives slash rows the same pointer and accessible tip (M87)', async () => {
     const { view, props, textarea } = renderComposer({
       slashCommands: [
         {
@@ -1013,7 +1182,7 @@ describe('Composer chrome', () => {
     })
     textarea.focus()
     type(view, props, '/co')
-    const row = screen.getByRole('option', { name: /compact/ })
+    const row = await screen.findByRole('option', { name: /compact/ })
     expect(row).toHaveAttribute('title', 'Free context now.')
     expect(row).toHaveAttribute('aria-describedby', 'slash-option-0-tip')
     expect(row).toHaveAccessibleDescription('Free context now.')
@@ -1188,9 +1357,9 @@ describe('Composer reference chip (M17)', () => {
   })
 })
 
-/** The "/" list's command names, in order. */
-function slashNames(): readonly (string | undefined)[] {
-  const list = screen.getByRole('listbox', { name: 'Slash commands' })
+/** The "/" list's command names, in order (the menu body loads on first open). */
+async function slashNames(): Promise<readonly (string | undefined)[]> {
+  const list = await screen.findByRole('listbox', { name: 'Slash commands' })
   return within(list)
     .getAllByRole('option')
     .map((option) => option.querySelector('.palette-item-label')?.textContent)
@@ -1198,6 +1367,39 @@ function slashNames(): readonly (string | undefined)[] {
 
 // M38: "/" alone shows the palette; a character more, the slash commands.
 describe('Composer "/" menus (M38)', () => {
+  it('announces loading without exposing stale commands or dangling listbox references', async () => {
+    const { props, view, textarea } = renderComposer({ slashLoadState: 'loading' })
+    textarea.focus()
+    const typed = type(view, props, '/co')
+    expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.loadingOutput)
+    expect(screen.queryByRole('listbox')).toBeNull()
+    expect(typed).not.toHaveAttribute('aria-controls')
+    expect(typed).not.toHaveAttribute('aria-activedescendant')
+    fireEvent.keyDown(typed, { key: 'Tab' })
+    expect(props.onSlashCommand).not.toHaveBeenCalled()
+    view.rerender(<Composer {...props} draft="/co" slashLoadState="ready" />)
+    expect(await screen.findByRole('listbox')).toBeInTheDocument()
+    expect(await slashNames()).toContain('/compact')
+  })
+  it('announces a failed registry load and retries after saving the draft', () => {
+    const save = vi.fn()
+    const rebuild = vi.fn()
+    installSurfaceRetry(save, rebuild)
+    try {
+      const { props, view, textarea } = renderComposer({ slashLoadState: 'failed' })
+      textarea.focus()
+      type(view, props, '/co')
+      expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.surfaceLoadFailed)
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.surfaceLoadRetry }))
+      expect(save).toHaveBeenCalledOnce()
+      expect(rebuild).toHaveBeenCalledOnce()
+      expect(props.onSubmit).not.toHaveBeenCalled()
+      expect(props.onSlashCommand).not.toHaveBeenCalled()
+    } finally {
+      installSurfaceRetry(vi.fn(), vi.fn())
+    }
+  })
+
   it('types the "/" and shows the palette above the box while the prompt is just "/"', () => {
     const seen: string[] = []
     const { props, view, textarea } = renderComposer({ renderSlashPalette: slashPalette(seen) })
@@ -1222,25 +1424,26 @@ describe('Composer "/" menus (M38)', () => {
     expect(document.activeElement).toBe(typed)
   })
 
-  it('turns into the command list once a character follows, ranked as the name is typed', () => {
+  it('turns into the command list once a character follows, ranked as the name is typed', async () => {
     const { props, view, textarea } = renderComposer()
     textarea.focus()
     const typed = type(view, props, '/co')
     expect(screen.queryByRole('dialog')).toBeNull()
     // Name matches first; "Clear conversation" holds "co" in its description.
-    expect(slashNames()).toEqual(['/code-review', '/compact', '/clear'])
+    expect(await slashNames()).toEqual(['/code-review', '/compact', '/clear'])
     expect(typed).toHaveAttribute('aria-controls', 'slash-listbox')
     expect(typed).toHaveAttribute('aria-activedescendant', 'slash-option-0')
     type(view, props, '/com')
-    expect(slashNames()).toEqual(['/compact'])
+    expect(await slashNames()).toEqual(['/compact'])
     type(view, props, '/cl')
-    expect(slashNames()).toEqual(['/clear'])
+    expect(await slashNames()).toEqual(['/clear'])
   })
 
-  it('runs a command with Enter, completes a skill for its arguments, and completes a name with Tab', () => {
+  it('runs a command with Enter, completes a skill for its arguments, and completes a name with Tab', async () => {
     const { props, view, textarea } = renderComposer()
     textarea.focus()
     const typed = type(view, props, '/co')
+    await screen.findByRole('listbox')
     // Enter on a skill completes it; nothing runs and nothing is sent.
     expect(fireEvent.keyDown(typed, { key: 'Enter' })).toBe(false)
     expect(props.onDraftChange).toHaveBeenLastCalledWith('/code-review ')
@@ -1268,12 +1471,13 @@ describe('Composer "/" menus (M38)', () => {
 
   // The list outgrows its height (M70 added /review): the box keeps the
   // focus, so the active command is scrolled into view (WCAG 2.1.1).
-  it('scrolls the active command into view as the arrows move, and only then', () => {
+  it('scrolls the active command into view as the arrows move, and only then', async () => {
     const scroll = vi.spyOn(Element.prototype, 'scrollIntoView')
     try {
       const { props, view, textarea } = renderComposer()
       textarea.focus()
       const typed = type(view, props, '/co')
+      await screen.findByRole('listbox')
       expect(scroll.mock.contexts.at(-1)).toBe(screen.getAllByRole('option')[0])
       // Up wraps to the last row, the one a full list hides first.
       fireEvent.keyDown(typed, { key: 'ArrowUp' })
@@ -1289,14 +1493,14 @@ describe('Composer "/" menus (M38)', () => {
     }
   })
 
-  it('leaves `/handoff ` in the prompt for its goal (M74)', () => {
+  it('leaves `/handoff ` in the prompt for its goal (M74)', async () => {
     const commands: readonly SlashCommand[] = [
       { name: 'handoff', detail: 'Distil this conversation', action: { type: 'startHandoff' } },
     ]
     const { props, view, textarea } = renderComposer({ slashCommands: commands })
     textarea.focus()
     const typed = type(view, props, '/han')
-    expect(slashNames()).toEqual(['/handoff'])
+    expect(await slashNames()).toEqual(['/handoff'])
     // Enter and Tab both ready the command for its goal; nothing runs.
     expect(fireEvent.keyDown(typed, { key: 'Enter' })).toBe(false)
     expect(props.onDraftChange).toHaveBeenLastCalledWith('/handoff ')
@@ -1308,10 +1512,11 @@ describe('Composer "/" menus (M38)', () => {
     expect(props.onSubmit).not.toHaveBeenCalled()
   })
 
-  it('closes on Escape keeping the text, and with no match Enter sends the text', () => {
+  it('closes on Escape keeping the text, and with no match Enter sends the text', async () => {
     const { props, view, textarea } = renderComposer()
     textarea.focus()
     let typed = type(view, props, '/co')
+    await screen.findByRole('listbox')
     fireEvent.keyDown(typed, { key: 'Escape' })
     expect(screen.queryByRole('listbox')).toBeNull()
     expect(props.onDraftChange).not.toHaveBeenCalled()
@@ -1319,16 +1524,16 @@ describe('Composer "/" menus (M38)', () => {
     expect(props.onSubmit).toHaveBeenCalledOnce()
     // Typing on brings it back.
     type(view, props, '/com')
-    expect(slashNames()).toEqual(['/compact'])
+    expect(await slashNames()).toEqual(['/compact'])
     // A dismissal holds for its draft only: the same "/com" later opens again.
     fireEvent.keyDown(typed, { key: 'Escape' })
     expect(screen.queryByRole('listbox')).toBeNull()
     type(view, props, '')
     type(view, props, '/com')
-    expect(slashNames()).toEqual(['/compact'])
+    expect(await slashNames()).toEqual(['/compact'])
     typed = type(view, props, '/zzz')
     expect(
-      screen.getByText('No matching commands; Enter sends the text as it is'),
+      await screen.findByText('No matching commands; Enter sends the text as it is'),
     ).toBeInTheDocument()
     expect(typed).not.toHaveAttribute('aria-controls')
     expect(typed).not.toHaveAttribute('aria-activedescendant')
@@ -1337,7 +1542,7 @@ describe('Composer "/" menus (M38)', () => {
     expect(props.onSubmit).toHaveBeenCalledTimes(2)
   })
 
-  it('stays closed without the focus, under another menu, with the caret inside, or with text after the name', () => {
+  it('stays closed without the focus, under another menu, with the caret inside, or with text after the name', async () => {
     const { props, view, textarea } = renderComposer()
     type(view, props, '/co')
     expect(screen.queryByRole('listbox')).toBeNull()
@@ -1351,7 +1556,7 @@ describe('Composer "/" menus (M38)', () => {
     type(view, props, '/compact now')
     expect(screen.queryByRole('listbox')).toBeNull()
     type(view, props, '/co')
-    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    expect(await screen.findByRole('listbox')).toBeInTheDocument()
     fireEvent.blur(typed, { relatedTarget: document.body })
     expect(screen.queryByRole('listbox')).toBeNull()
     // Each opening says so (the list opened twice above); App asks for the
@@ -1378,14 +1583,17 @@ describe('Composer: the paid badge (M33, PLAN.md D30)', () => {
 })
 
 describe('Composer: the microphone on Muse Voice (M35, PLAN.md D30)', () => {
-  it('names the paid engine and its price, and marks the button', () => {
+  it('names the paid engine and its price, and marks the button', async () => {
     renderComposer({ dictation: { status: 'idle', reason: undefined, engine: 'museVoice' } })
     const button = screen.getByRole('button', { name: 'Record voice with Muse Voice (paid)' })
-    expect(button).toHaveAttribute(
-      'title',
+    // The exact price arrives with the lazy money chunk (STARTUP017): the
+    // button marks itself at once, the tooltip fills in exactly, never guessed.
+    expect(button).toHaveClass('mic-paid')
+    expect(button).not.toHaveAttribute('title')
+    const titled = await screen.findByTitle(
       'Muse Voice, paid: $0.18 per hour of audio, billed to your Model API key. Tap or hold to record (Ctrl+D)',
     )
-    expect(button).toHaveClass('mic-paid')
+    expect(titled).toBe(button)
   })
 
   it('keeps the free engine’s name and look', () => {

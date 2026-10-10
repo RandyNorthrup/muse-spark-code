@@ -24,6 +24,37 @@ accessible loading, an honest failure and retry, and a measured budget of their
 own (D6). Keep startup and the original deferred aggregate for first paint and
 retain their existing caps; chat, composer and approvals remain eager.
 
+## Design tokens and visual changes
+
+Read [the token contract](design/tokens/README.md). Edit only
+`design/tokens/muse.tokens.json`, then run `npm run build:tokens` and
+`npm run check:tokens`. Generated CSS is not hand edited. Colours belong
+only in that source: stylelint and ESLint reject raw paint elsewhere. Use
+`--ms-radius-xs/sm/md/lg/xl/pill` and the flat/raised/popover/overlay elevation
+scale; host colours and fonts come through the mapped roles. High contrast
+must remain opaque and shadowless, with contrast borders. Never blur a control.
+Use the 120/180/240 ms motion tokens only for meaningful changes, inside
+`prefers-reduced-motion: no-preference`; streamed text stays still.
+
+Run `npm run check:visual` for a visual change. The complete audited component
+inventory is rendered in six themes at 320 and 690 px. Pixelmatch uses colour
+threshold **0.1** and antialiasing detection (`includeAA: false`). The dated
+lead decision (2026-10-06) permits per image at most **0.01% of pixels or 12
+pixels**, whichever is smaller, rounded down. Goldens are
+PNG archives outside git, capped at 512 MiB; only the reviewed source revision,
+hashes, dimensions, render/state coverage and environment are tracked.
+On CI or another rasterization environment the recorded Git revision is
+rendered beside the candidate. Fetch that revision if a shallow checkout does
+not have it; a missing source or screenshot fails, never skips.
+
+Commit capture inputs, run an update with a named review and a fresh external
+archive directory, inspect the candidate images, then commit the manifest.
+Normal checks never rewrite it. Keep full-resolution capture sets out of git;
+README media comes only from the existing curated `scripts/readme-shots.mjs`
+list (2 MiB total budget, banner included). The
+[visual contract](test/harness/goldens/README.md) explains grouped scenes,
+CSS pseudo-states and the real-interaction/accessibility companion checks.
+
 ## Before you open a pull request
 
 Use this order for a candidate branch:
@@ -101,14 +132,33 @@ Use this order for a candidate branch:
 - A visible change gets a harness scenario (`test/harness/index.html`, its
   name listed in `scripts/lib/harnessServer.mjs` beside the related one),
   rendered with `npm run harness:shots -- <names>` (`--theme=dark`, `light`,
-  `hc-dark` or `hc-light`; `--lang=pseudo` for clipping) and checked with
+  `hc-dark`, `hc-light`, `one-dark-pro` or `dracula`; `--lang=pseudo` for clipping) and checked with
   `node scripts/a11y.mjs <names>` in the four themes. Scenes wait with
   `whenFound`, never fixed delays; nest waits when one control reveals the
-  next. Keep `later` only for intentional host-event timing or readiness
-  polling, with a `// kept-timing: <reason>` comment immediately before it.
+  next. Keep `later` (and the fake host's `hostLater`) only for intentional
+  host-event timing or readiness polling, with a `// kept-timing: <reason>`
+  comment immediately before it.
   The source guard in `test/unit/harnessWaits.test.ts` checks every timer,
   including DOM work through helpers. Axe waits for outstanding control
-  waits before scanning. The M87 scenarios:
+  waits before scanning. A scene a test waits on must schedule all of its
+  work through the counted helpers (`later`, `whenFound`,
+  `whenEvent(target, type, fn)`, `track(promise)`; the fake host uses
+  `hostLater` / `hostTrack`) and call `scenarioDone()` from its final
+  continuation, the last thing it waits for. Only that call sets
+  `<html data-scenario-played="<name>">`, once nothing counted is outstanding.
+  Counted scene work after `scenarioDone()` fails the scene; any counted failure
+  removes the mark for good and records it in `<html data-scenario-failed>`. A
+  scene that others reuse keeps its steps in a fixture and calls
+  `scenarioDone()` only in its own entry. Such scenes are listed in
+  `PLAYED_SCENARIOS` (`scripts/lib/harnessServer.mjs`). For each, a browser
+  test verifies the ordering (marked once, at its own end), a quiet window
+  with no logged move after the mark, no page or console error, and no mark
+  when its final step fails. Work started outside the helpers (raw timers,
+  detached promises) is not detected; keeping it out of scenes is a
+  code-review rule for scene authors, not something the harness proves. A
+  browser test starts the deadline for what the scene renders
+  at that mark, not at page load (`test/unit/teamHarness.test.mjs`). The M87
+  scenarios:
   `context-meter`, `context-meter-warning`, `context-meter-full`,
   `palette-tips`, `slash-tips`, `stop-running`, `tool-io`,
   `tool-io-expanded`, `status-heartbeat`, `status-heartbeat-narrow`,
@@ -138,6 +188,12 @@ Use this order for a candidate branch:
 - The pre-commit hook runs staged lint and format tasks serially to limit
   concurrent child processes on a developer's machine. It still runs every
   configured check.
+- `npm run prepare` (run by `npm ci`) installs the hooks through
+  `scripts/install-git-hooks.mjs`: husky, then stubs that keep a failing
+  hook's status even when nothing reads Git's output any more (on Windows a
+  broken pipe used to turn a failed hook into a pass). Run it once in every
+  new worktree; the pre-commit hook refuses to run on husky's bare stubs and
+  says so.
 - `main` is protected: changes land through a pull request with the CI
   checks green, it cannot be force-pushed or deleted, and release tags
   (`v*`) cannot be moved or deleted, except by a repository admin (both
@@ -148,16 +204,20 @@ Use this order for a candidate branch:
 `ci.yml` calls `build.yml` with `fast: true` only for a `pull_request` while
 the repository variable `CI_MERGE_QUEUE` is `on`. That tier runs formatting,
 ESLint/stylelint, all five compiler projects, localization, host API, knip,
-cycles, duplication, the production build and its size/split/host-global/
+cycles, duplication, token checks, the production build and its size/split/host-global/
 notices checks, audit, and every unit/process-e2e test on Ubuntu (no
-coverage). Gitleaks and semgrep also run. Expected wall time is at most about
-12 minutes, pending hosted measurement.
+coverage). Gitleaks and semgrep also run. Both tiers require the six-theme visual job:
+its validated manifest supplies the reviewed Git revision, fetched explicitly
+if absent from the full checkout history. It rebuilds baseline PNGs in the
+runner's Chrome/font environment under the 512 MiB limit, compares every
+scene/state/width, and uploads only the receipt. A failed, cancelled or skipped
+visual job fails the required aggregate. Visual replay adds a bounded browser job (45-minute deadline); hosted wall time awaits measurement.
 
 Everything else selects the full tier: `merge_group`, manual dispatch, the
 release workflow's fallback build, and every PR while `CI_MERGE_QUEUE` is not
-`on`. Static gates run on all three OSes. Each OS runs four Vitest shards
-(Windows files stay serial within a shard), uploads blob reports, checks that
-all four arrived, then merges them and enforces the unchanged coverage
+`on`. Static gates run on all three OSes. Ubuntu and macOS run four Vitest
+shards, Windows six (its files stay serial within a shard); each uploads blob
+reports, checks that every shard arrived, then merges them and enforces the unchanged coverage
 thresholds once per OS. The 448-page a11y harness runs once on Ubuntu against
 the production webview from the static gate; its pages, themes and scenarios
 do not depend on the OS. Linux/Windows VS Code integration, the macOS helper
@@ -188,6 +248,52 @@ and this one belongs to a user account: until the owner decides otherwise,
 PRs keep the full tier. Settings and evidence:
 [`docs/certification/ciflow.md`](docs/certification/ciflow.md).
 
+## The public roadmap (M122)
+
+[`ROADMAP.md`](ROADMAP.md) is generated; never edit it by hand. Its inputs:
+
+- **`PLAN.md`** gives every milestone id and its current status line, read
+  by the same parser as `npm run check:plan`. §10's records decide which
+  changelog versions are still being prepared, and so listed as the next
+  release: each version with an `X.Y.Z preparation (…)` record and no
+  `X.Y.Z released (…)` record, in its own section, oldest first.
+- **`CHANGELOG.md`** gives the releases: every dated `## [X.Y.Z] - date`
+  heading.
+- **`docs/roadmap/entries.json`** gives the words: one entry per PLAN
+  milestone, each with:
+  - `id`, spelled exactly as PLAN.md's heading;
+  - `title`, a few user-facing words;
+  - `summary`, one plain sentence ending with a period, with no milestone,
+    decision or working ids in any case (`M19`, `m19`, `SECWINPATH`; the
+    generator adds the `M…` tag itself);
+  - `area`: one of `chat`, `agents`, `editors`, `models-providers`,
+    `usage-billing`, `security`, `voice-media`, `devices` or `platform`;
+  - `release` (optional), the changelog version that first shipped the
+    milestone's user-facing work;
+  - `labels` (optional): `experimental`, `untested`, `preview` or
+    `not available yet`, used only when PLAN, the changelog or the
+    certification says so.
+
+  Internal or tooling work (release trains, CI repairs, test infrastructure,
+  review-fix rounds, size budgets) is `{ "id": …, "public": false, "note": … }`
+  and is listed in no section. Superseded milestones must be internal.
+
+When you add a milestone, change a status line, ship a release or change a
+user-facing limit, update the entry in the same change and run
+`npm run roadmap:generate`. `npm run check:roadmap` (part of `quality:gates`
+and CI's static gates) fails when `ROADMAP.md` is stale, when a PLAN
+milestone has no entry, when an entry names a milestone PLAN.md does not have,
+and on malformed entries. `ROADMAP.md` carries a fingerprint of every fact it
+is built from (each milestone's id, heading, status and status date, each §10
+record, each changelog heading and every entry, internal notes included), so
+the check also fails after such a change when the listing would read the
+same. The rules live in `scripts/lib/roadmap.mjs`, tested by
+`test/unit/genRoadmap.test.mjs`. It also prints a note for each planned milestone
+whose entry names a release, a sign that its PLAN status line is behind.
+Write for users: no lane, machine, agent or review-round names, no
+credentials, and nothing PLAN or the certification does not support. When
+unsure, say less.
+
 ## Style
 
 Prettier and ESLint decide formatting and style; the hooks apply them on
@@ -217,6 +323,28 @@ restore byte-exact and record the drill. Headless execution declines at once
 with no clock; scheduled/unattended prompts defer at once, even when the
 interactive setting is 0. See [M112's contracts](docs/certification/m112-contracts.md)
 and [lane A's record](docs/certification/m112-a.md) for integration ownership.
+
+## The orchestrator playbook (M116)
+
+Orchestrated work on this repository follows nine rules: eight the team can
+configure (never to off for safety, never above their ceiling) plus the
+safety rule that always applies. A classifier or permission block is never
+retried or rerouted; only the user's pre-named fallback reviewer may take a
+blocked review, and only the user decides otherwise. Dispatch briefs render
+structurally and record their hash first; shared configuration drift reports
+after the job; residuals stay open per milestone until a lead or owner
+accepts them, and release refuses while any are open.
+
+Use the shared contracts in `src/shared/playbook.ts` and the policy in
+`src/core/orchestration/playbook/` (lanes L0/P), the brief and reports in
+`src/core/orchestration/` (lane I), the settings/record surfaces in
+`src/webview/playbook/` (lane U) and `src/runtime/playbook/` (lane W), and
+the reviewer charter in `first-party-skills/orchestrator_playbook/` (lane K).
+User-initiated surfaces stamp actor and time from trusted context; P
+re-checks authority on every change, and an agent-supplied actor never
+grants one. Certify each amendment with a red drill and record it; see
+[the milestone record](docs/certification/m116.md) for what is bound and
+the install checklist that remains.
 
 ## Text the user reads
 
@@ -464,8 +592,9 @@ missing descriptions, invalid relationships and stale generated references.
 ## Resource delivery checks
 
 M107 keeps policy in `dist/resourceGovernor.js`, shared process admission in
-`dist/resourceAdmission.js`, and controls/history in independent browser
-entries. Reuse the injected ports when their owning milestone is absent;
+`dist/resourceAdmission.js`, the governed launcher in `dist/resourceProcess.js`
+(the split gate fails a governor that carries it again), and controls/history
+in independent browser entries. Reuse the injected ports when their owning milestone is absent;
 record its binding rather than supplying a fake production implementation.
 The browser entries share the caller's React and installed-language runtime.
 

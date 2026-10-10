@@ -16,9 +16,12 @@ import {
   MCP_TRANSPORTS,
   MILLISECONDS_PER_SECOND,
   MCP_POOL_MODEL_TEXT,
+  UI_TEXT,
 } from '../../../../shared/constants'
 import type { CoreLogger } from '../../../logging'
 import { withDeadline } from '../../../timeouts'
+import type { McpVaultPoolPort } from '../../../vault/mcpSecrets'
+import { mcpSecretReferences } from '../../../vault/mcpReferences'
 import type { McpSettingsEntries } from '../../musecode/museConfigView'
 import type { FunctionToolDefinition } from '../schemas'
 import { McpConnection, McpTimeoutError, type McpTransport } from './connection'
@@ -132,6 +135,8 @@ export interface McpToolSource {
 }
 
 export interface McpPoolDeps {
+  /** O routes: missing bindings refuse secret references before any process or request starts. */
+  readonly vault?: McpVaultPoolPort
   /** The settings file read by M31's reader; may throw when the file cannot be read. */
   readonly readSettings: () => McpSettingsEntries
   /** The extension host's environment, for `${VAR}`. */
@@ -267,21 +272,35 @@ export class McpServerPool implements McpToolSource {
     isCancelled: () => boolean,
     signal: AbortSignal,
   ): Promise<McpTransport> {
-    if (launch.transport === MCP_TRANSPORTS.stdio) {
-      return new McpStdioTransport(
-        await this.deps.spawn(launch, this.cwdOf(launch), isCancelled, signal),
-        {
-          name: spec.name,
-          framing: launch.framing,
-          log: this.deps.log,
-        },
-      )
+    const references = mcpSecretReferences(launch)
+    if (references.size > 0 && this.deps.vault === undefined) {
+      throw new McpError(UI_TEXT.vault.noAccess)
     }
+    if (launch.transport === MCP_TRANSPORTS.stdio) {
+      // The vault port has no signal of its own: Stop counts as cancellation there.
+      const child =
+        references.size > 0 && this.deps.vault !== undefined
+          ? await this.deps.vault.startStdio(
+              spec.name,
+              launch,
+              this.cwdOf(launch),
+              () => isCancelled() || signal.aborted,
+            )
+          : await this.deps.spawn(launch, this.cwdOf(launch), isCancelled, signal)
+      return new McpStdioTransport(child, {
+        name: spec.name,
+        framing: launch.framing,
+        log: this.deps.log,
+      })
+    }
+    const guardedFetch = this.deps.vault?.fetchFor(spec.name, launch.url, launch.headers)
+    if (guardedFetch === undefined && references.size > 0)
+      throw new McpError(UI_TEXT.vault.noAccess)
     return new McpHttpTransport({
       name: spec.name,
       url: launch.url,
       headers: launch.headers,
-      fetch: this.deps.fetch,
+      fetch: guardedFetch ?? this.deps.fetch,
       log: this.deps.log,
     })
   }

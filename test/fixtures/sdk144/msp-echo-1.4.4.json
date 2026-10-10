@@ -1,0 +1,25 @@
+{
+  "provenance": {
+    "timestamp": "2026-10-09T07:29:06.393Z",
+    "workspace": "$TMPDIR/probe/ws2 (kubuntu rig, lane SDKUP017C)",
+    "binary": "muse-bin-1.4.4-R5419.1",
+    "provider": "echo",
+    "modelAttempts": 0,
+    "sourceSha256": "3e730099e8b31fd611c7a1a6564143073265fb4bf9dae5adb08d646edf39973c",
+    "projection": true
+  },
+  "initialize": {
+    "serverInfo": {
+      "name": "muse",
+      "version": "1.4.4"
+    },
+    "schema": {
+      "version": 1,
+      "fingerprint": "sha256:7c94f153c41659cb3f1bd3c3e04438be254644cb2a97d65d48edc7449b74858a"
+    },
+    "grantedCapabilities": ["userShell", "sessionMcp", "sessionListStream"]
+  },
+  "modelList": {
+    "models": []
+  }
+}

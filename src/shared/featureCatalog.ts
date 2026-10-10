@@ -26,9 +26,12 @@ export type ReferenceText =
 const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
+  referenceScreenRecording: 'nativeRecorder=absent',
+  referenceVaultPanel: 'vaultBroker=absent',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
-  resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold',
+  resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold&memoryHeadroom=available',
+  resourceMemoryMinFreeGiBDescription: 'memoryHeadroom=available',
   providerOpenRouterServices: 'openRouterServices=absent',
   referenceSandbox: 'platform=win32&shellSandbox',
   autoCompactionAwaitingEvaluation: 'autoCompactionEvaluation',
@@ -46,6 +49,7 @@ const UI_CONDITIONS: Readonly<
   mcpRestartDetail: 'turnState',
 }
 const NLS_CONDITIONS: Readonly<Partial<Record<string, string>>> = {
+  'config.reports.network.enumDescriptions.whenSignedIn': 'reportsNetwork&githubSignIn',
   'config.backend.enumDescriptions.auto': 'backendAvailability',
   'config.resourceRelocate.enumDescriptions.paired': 'resourceRelocation',
   'config.browserCheckRuntime.enumDescriptions.download': 'browserRuntimeAcquisition',
@@ -59,6 +63,7 @@ const SETTING_CONDITIONS: Readonly<
       | keyof typeof SETTING_DEFAULTS
       | 'resourceCpuMaxPercent'
       | 'resourceMemoryMaxPercent'
+      | 'resourceMemoryMinFreeGiB'
       | 'resourceGpuMaxPercent'
       | 'resourceDiskBusyMaxPercent'
       | 'resourceDiskMinFreeGiB'
@@ -67,6 +72,7 @@ const SETTING_CONDITIONS: Readonly<
     >
   >
 > = {
+  'reports.network': 'reportsNetwork&githubSignIn',
   preferredLocation: 'activeConversation',
   archiveInactiveSessions: 'sessionIdle',
   cleanupPeriodDays: 'sessionList',
@@ -87,13 +93,18 @@ const SETTING_CONDITIONS: Readonly<
   tabTrigger: 'tabTrigger',
   'shell.passEnvironmentVariables': 'backend=modelApi&shellOrigin=interactive',
   resourceCpuMaxPercent: 'resourceThreshold',
-  resourceMemoryMaxPercent: 'resourceThreshold',
+  resourceMemoryMaxPercent: 'resourceThreshold&memoryHeadroom=available',
+  resourceMemoryMinFreeGiB: 'memoryHeadroom=available',
   resourceGpuMaxPercent: 'resourceThreshold',
   resourceDiskBusyMaxPercent: 'resourceThreshold',
   resourceDiskMinFreeGiB: 'resourceDiskThreshold',
   resourceRelocate: 'resourceRelocation',
   modelApiVoice: 'voiceAdmission',
   bundledSkills: 'backend&skillInstallation',
+  // M109: the fence description names the off state (workers stay fenced),
+  // and the screen-lock description the reported-lock state.
+  'vault.agentFence': 'shellOrigin=interactive&agentFence',
+  'vault.lockOnScreenLock': 'screenLock',
 }
 
 /** The generator uses these explicit selectors on every description surface. */
@@ -156,6 +167,9 @@ interface CommandReference {
 
 export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> = {
   openUsagePage: { description: { ui: 'paletteUsagePage' }, canRun: true },
+  // M107 U–C1/W: Show opens the chat's chip popover; Resume changes the governor, so no Run.
+  showResources: { description: { command: COMMAND_IDS.showResources }, canRun: true },
+  resumeResources: { description: { command: COMMAND_IDS.resumeResources }, canRun: false },
   legalScan: { description: { ui: 'legalScanItemDetail' }, canRun: false },
   connectChatGpt: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
   connectCopilot: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
@@ -170,6 +184,8 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   showLogs: { description: { tip: 'log' }, canRun: true },
   diagnostics: { description: { ui: 'referenceDiagnostics' }, canRun: true },
   reportProblem: { description: { ui: 'referenceReport' }, canRun: true },
+  showReport: { description: { ui: 'reportSlashDescription' }, canRun: true },
+  estimate: { description: { ui: 'referenceEstimate' }, canRun: true },
   newConversation: { description: { tip: 'clear' }, canRun: false },
   signOut: { description: { tip: 'signOut' }, canRun: false },
   openInTerminal: { description: { ui: 'referenceTerminal' }, canRun: false },
@@ -212,8 +228,16 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   sharePrompt: { description: { ui: 'shareReviewPrivacy' }, canRun: false },
   shareChat: { description: { ui: 'shareReviewPrivacy' }, canRun: false },
   openHelp: { description: { ui: 'referenceIntro' }, canRun: true },
+  attachScreenRecording: { description: { ui: 'referenceScreenRecording' }, canRun: false },
+  attachLatestScreenRecording: { description: { ui: 'referenceLatestRecording' }, canRun: false },
+  deleteUploadedFiles: { description: { ui: 'referenceUploadedFiles' }, canRun: false },
   nextOpenQuestion: { description: { ui: 'questionNextOpen' }, canRun: false },
   previousOpenQuestion: { description: { ui: 'questionPreviousOpen' }, canRun: false },
+  schedulePrompt: { description: { tip: 'schedulePrompt' }, canRun: true },
+  showSchedules: { description: { tip: 'schedule' }, canRun: true },
+  showScheduleTimeline: { description: { tip: 'scheduleTimeline' }, canRun: true },
+  vault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
+  lockVault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
 }
 
 function feature(
@@ -250,7 +274,7 @@ export function featureCatalog(): readonly Feature[] {
       'resources',
       { ui: 'resourceTitle' },
       { ui: 'referenceResources' },
-      [],
+      ['showResources', 'resumeResources'],
       [
         'resourceGovernor',
         'resourceCpuMaxPercent',
@@ -290,6 +314,17 @@ export function featureCatalog(): readonly Feature[] {
       ],
       ['suggestedProvider'],
       'backends',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'reports',
+      { ui: 'reportShowCommand' },
+      { ui: 'reportSlashDescription' },
+      ['showReport'],
+      ['reports.network', 'reports.keepHistory', 'reports.agentSources'],
+      'report',
       ['museCode', 'modelApi'],
       false,
       ['vscode', 'acp'],
@@ -410,8 +445,13 @@ export function featureCatalog(): readonly Feature[] {
       'attachments',
       { ui: 'attachmentsLabel' },
       { ui: 'referenceAttachments' },
-      [],
-      [],
+      ['attachScreenRecording', 'attachLatestScreenRecording', 'deleteUploadedFiles'],
+      [
+        'mediaMaxUploadMiB',
+        'mediaUploadExpiryDays',
+        'screenRecordingMaxSeconds',
+        'mediaAudioAction',
+      ],
       'the-panel',
     ),
     feature(
@@ -526,6 +566,7 @@ export function featureCatalog(): readonly Feature[] {
       'the-panel',
     ),
     feature('code-output', { ui: 'copyCode' }, { ui: 'referenceCodeOutput' }, [], [], 'the-panel'),
+    // ACP queued late answers retire only at model start (request admission on Model API).
     feature(
       'questions',
       { ui: 'questionSubmit' },
@@ -652,6 +693,20 @@ export function featureCatalog(): readonly Feature[] {
       ],
       'get-started',
     ),
+    {
+      ...feature(
+        'accounts',
+        { ui: 'referenceAccountsTitle' },
+        { ui: 'referenceAccounts' },
+        [],
+        ['accountSwap', 'accountParallel', 'accounts.severalOnThisDevice'],
+        'several-accounts-per-provider',
+        undefined,
+        false,
+        ['vscode', 'acp'],
+      ),
+      details: [{ ui: 'referenceDeveloper' }] as const,
+    },
     feature(
       'permissions',
       { ui: 'permissionModeItem' },
@@ -833,17 +888,25 @@ export function featureCatalog(): readonly Feature[] {
       undefined,
       true,
     ),
-    feature(
-      'schedules',
-      { ui: 'loopItem' },
-      { tip: 'loop' },
-      [],
-      ['modelApiScheduledPrompts'],
-      'scheduled-prompts-model-api',
-      ['modelApi'],
-      true,
-      ['vscode'],
-    ),
+    {
+      ...feature(
+        'schedules',
+        { ui: 'loopItem' },
+        { tip: 'loop' },
+        ['schedulePrompt', 'showSchedules', 'showScheduleTimeline'],
+        [
+          'modelApiScheduledPrompts',
+          'schedules',
+          'scheduleDefaultDelivery',
+          'scheduleAgentCreation',
+        ],
+        'scheduled-prompts-model-api',
+        ['modelApi'],
+        true,
+        ['vscode'],
+      ),
+      details: [{ ui: 'referenceAttachments' }, { ui: 'scheduledMediaSupport' }] as const,
+    },
     feature(
       'subagents',
       { ui: 'agentsCommand' },
@@ -940,12 +1003,51 @@ export function featureCatalog(): readonly Feature[] {
       ['vscode'],
     ),
     feature(
+      'orchestrator-playbook',
+      { ui: 'playbookTitle' },
+      { ui: 'playbookRecordHelp' },
+      [],
+      [],
+      'orchestrator-playbook-policy-m116',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'estimator',
+      { ui: 'estimateTitle' },
+      { ui: 'referenceEstimate' },
+      ['estimate'],
+      ['estimator.optimize', 'estimator.priceLookup'],
+      'estimates',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'support',
       { ui: 'groupSupport' },
       { tip: 'issue' },
       ['showLogs', 'diagnostics', 'reportProblem', 'openWalkthrough', 'showWhatsNew', 'openHelp'],
       ['showWhatsNewOnUpdate'],
       'help-and-reference',
+    ),
+    feature(
+      'vault',
+      { command: COMMAND_IDS.vault },
+      { ui: 'referenceVaultPanel' },
+      ['vault', 'lockVault'],
+      [
+        'vault.enabled',
+        'vault.protection',
+        'vault.agentFence',
+        'vault.lockAfterIdleMinutes',
+        'vault.lockOnScreenLock',
+      ],
+      'the-vault',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
     ),
   ].map((entry) => {
     const surfaces = REFERENCE_SURFACES[entry.id] ?? entry.surfaces
@@ -967,13 +1069,16 @@ export function featureCatalog(): readonly Feature[] {
         ),
       ],
       paid: Object.values(PAID_USE_REGISTRY).some((paid) => paid.featureId === entry.id),
-      details: (REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui })),
+      // Feature-level details (schedules, accounts) and REFERENCE_DETAILS
+      // combine: neither source may silently erase the other.
+      details: [...entry.details, ...(REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui }))],
       facts: {},
     }
   })
 }
 
 export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
+  estimator: ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'],
   'web-fetch': ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
   search: ['vscode:modelApi', 'acp:modelApi'],
   images: ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
@@ -984,6 +1089,7 @@ const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
   providers: ['providerOpenRouterServices'],
+  estimator: ['estimateCliHelp'],
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],

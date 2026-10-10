@@ -16,10 +16,13 @@ export function buildPromptShare(
   privacy: SharePrivacyPort,
 ) {
   if (request.target !== 'prompt') throw new Error(UI_TEXT.promptFileInvalid)
+  const original = savedPromptSchema.parse(prompt)
   const clean = savedPromptSchema.parse(
     JSON.parse(
-      JSON.stringify(prompt, (_key, value: unknown) =>
-        typeof value === 'string' ? scrubShareText(value, privacy) : value,
+      // Scope is a validated protocol tag, not user text; a username such as
+      // "user" must not turn it into a redaction marker. Free text still scrubs.
+      JSON.stringify(original, (key, value: unknown) =>
+        key !== 'scope' && typeof value === 'string' ? scrubShareText(value, privacy) : value,
       ),
     ),
   )

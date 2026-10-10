@@ -11,7 +11,7 @@ import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { SteerRefusedError, type TurnSubmission } from '../../src/core/agent/agentBackend'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
-import { FakeAgentHost } from './helpers/fakeAgent'
+import { FakeAgentHost, museCodeTestBackend } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { until } from './helpers/acpWaits'
 import { FakeQuestionAcpClient } from './helpers/questions/acpClient'
@@ -472,11 +472,7 @@ function agentHarness(
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const questionBundle = vi.fn(() => questionFactories)
   const agent = createAcpAgent({
-    backend: {
-      kind: 'museCode',
-      readiness: () => Promise.resolve({ state: 'ready' }),
-      hostFor: () => Promise.resolve(host),
-    },
+    backend: museCodeTestBackend(host),
     version: 'test',
     options: {
       canBypass: false,
@@ -714,23 +710,27 @@ describe('M112 through the pinned ACP SDK client', () => {
     })
   })
 
-  it('a Stop during queue loading starts no turn and restores the leased queue prefix', async () => {
+  it('a Stop during queue loading starts no turn and releases the lease without committing', async () => {
     const h = agentHarness()
     await h.run(async (client) => {
-      const gate = Promise.withResolvers<readonly never[]>()
-      h.registries[0]?.queuedParts.mockReturnValueOnce(gate.promise)
+      const gate =
+        Promise.withResolvers<Awaited<ReturnType<FakeAcpQuestionRegistry['peekQueued']>>>()
+      h.registries[0]?.peekQueued.mockReturnValueOnce(gate.promise)
       const response = h.prompt(client, 'work')
-      await until(() => h.registries[0]?.queuedParts.mock.calls.length === 1)
+      await until(() => h.registries[0]?.peekQueued.mock.calls.length === 1)
       await client.notify('session/cancel', { sessionId: h.session.sessionId })
       await until(() =>
         h.log.info.mock.calls.some((call) =>
           String(call[0]).includes('cancelled before its turn started'),
         ),
       )
-      gate.resolve([])
+      const token = Symbol()
+      h.registries[0]?.releaseQueued.mockResolvedValueOnce(undefined)
+      gate.resolve({ token, parts: [] })
       expect(await response).toEqual({ stopReason: 'cancelled' })
       expect(h.session.sendTurn).not.toHaveBeenCalled()
-      expect(h.registries[0]?.acknowledgeQueued).toHaveBeenCalledExactlyOnceWith('notTaken')
+      expect(h.registries[0]?.releaseQueued).toHaveBeenCalledExactlyOnceWith(token)
+      expect(h.registries[0]?.commitQueued).not.toHaveBeenCalled()
     })
   })
 
@@ -845,6 +845,21 @@ describe('M112 through the pinned ACP SDK client', () => {
     })
   })
 
+  it('commits a sent answer once when its turn finishes before turn/start answers', async () => {
+    const h = agentHarness()
+    await h.run(async (client) => {
+      await queueIdleAnswer(h, client)
+      // A fast backend (the e2e fake CLI) completes the turn before its start reply.
+      h.session.sendTurn.mockImplementationOnce(() => {
+        h.finish('turn-2')
+        return Promise.resolve({ turnId: 'turn-2', disposition: 'started' })
+      })
+      await h.prompt(client, 'continue')
+      expect(h.registries[0]?.commitQueued).toHaveBeenCalledOnce()
+      expect(h.registries[0]?.queued).toHaveLength(0)
+    })
+  })
+
   it('manual compaction returns a leased late answer for the next ordinary prompt', async () => {
     const h = agentHarness()
     await h.run(async (client) => {
@@ -852,7 +867,8 @@ describe('M112 through the pinned ACP SDK client', () => {
       await h.prompt(client, '/compact')
       expect(h.session.compact).toHaveBeenCalledOnce()
       expect(h.session.sendTurn).toHaveBeenCalledTimes(1)
-      expect(h.registries[0]?.acknowledgeQueued).toHaveBeenLastCalledWith('notTaken')
+      // 0170 replaced acknowledgeQueued with leases: compaction commits no queued answer.
+      expect(h.registries[0]?.commitQueued).not.toHaveBeenCalled()
       expect(h.registries[0]?.queued).toHaveLength(1)
       const next = h.prompt(client, 'continue')
       await until(() => h.session.sendTurn.mock.calls.length === 2)
@@ -918,13 +934,50 @@ describe('M112 through the pinned ACP SDK client', () => {
   it('failed queue acknowledgements report the submission error and keep the started turn stoppable', async () => {
     const h = agentHarness()
     await h.run(async (client) => {
-      h.registries[0]?.acknowledgeQueued.mockRejectedValue(new Error('PRIVATE-QUEUE-CANARY'))
-      await expect(h.prompt(client, 'work')).rejects.toThrow(UI_TEXT.questionAnswerUncertain)
+      await h.registries[0]?.queue({
+        sessionId: h.session.sessionId,
+        userInputId: 'q-1',
+        text: 'late blue',
+        displayText: undefined,
+      })
+      h.registries[0]?.commitQueued.mockRejectedValue(new Error('PRIVATE-QUEUE-CANARY'))
+      await expect(h.prompt(client, 'work')).rejects.toThrow(UI_TEXT.questionQueueCommitFailed)
       await client.notify('session/cancel', { sessionId: h.session.sessionId })
       await until(() => h.session.cancel.mock.calls.length === 1)
-      expect(h.registries[0]?.acknowledgeQueued.mock.calls).toEqual([['taken'], ['uncertain']])
+      expect(h.registries[0]?.commitQueued).toHaveBeenCalledTimes(1)
+      expect(h.registries[0]?.releaseQueued).not.toHaveBeenCalled()
       expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain('PRIVATE-QUEUE-CANARY')
       h.finish()
+    })
+  })
+
+  it('send failure releases queued answers and a concurrent prompt cannot take them twice', async () => {
+    const h = agentHarness()
+    await h.run(async (client) => {
+      const registry = h.registries[0]!
+      await registry.queue({
+        sessionId: h.session.sessionId,
+        userInputId: 'q-1',
+        text: 'late blue',
+        displayText: undefined,
+      })
+      const starting = Promise.withResolvers<TurnSubmission>()
+      h.session.sendTurn.mockReturnValueOnce(starting.promise)
+      const response = h.prompt(client, 'first')
+      const rejection = expect(response).rejects.toThrow('Internal error')
+      await until(() => h.session.sendTurn.mock.calls.length === 1)
+      await expect(h.prompt(client, 'concurrent')).rejects.toThrow(UI_TEXT.acpPromptBusy)
+      starting.reject(new Error('send failed'))
+      await rejection
+      expect(registry.releaseQueued).toHaveBeenCalledTimes(1)
+      expect(registry.commitQueued).not.toHaveBeenCalled()
+      const retry = h.prompt(client, 'retry')
+      await until(() => h.session.sendTurn.mock.calls.length === 2)
+      await until(() => registry.commitQueued.mock.calls.length === 1)
+      expect(h.session.sendTurn.mock.calls[1]?.[0][0]).toEqual({ type: 'text', text: 'late blue' })
+      h.finish()
+      await retry
+      expect(registry.queued).toEqual([])
     })
   })
 
@@ -946,6 +999,7 @@ describe('M112 through the pinned ACP SDK client', () => {
       expect(commands.map((command) => command.name)).toEqual([
         'help',
         'compact',
+        'report',
         'agents',
         'answer',
         'questions',
@@ -953,6 +1007,7 @@ describe('M112 through the pinned ACP SDK client', () => {
       expect(commands.map((command) => command.description)).toEqual([
         UI_TEXT.referenceIntro,
         UI_TEXT.compactDetail,
+        UI_TEXT.reportSlashDescription,
         UI_TEXT.referenceAgentOutcomes,
         UI_TEXT.acpAnswerHelp,
         UI_TEXT.acpQuestionsHelp,

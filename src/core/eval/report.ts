@@ -5,7 +5,7 @@ import { Usd, legacyUsdSchema, type UsdAmount } from '../../shared/usd'
 // docs/certification/.
 
 import * as z from 'zod/mini'
-import { formatUsd } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import { EVAL_COST_DECIMALS, EVAL_REPORT_VERSION, EVAL_SPLITS } from '../../shared/constants'
 
 export const EVAL_VERDICTS = ['pass', 'fail', 'incomplete'] as const

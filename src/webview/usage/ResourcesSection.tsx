@@ -6,7 +6,10 @@ import {
 } from '../../shared/constants'
 import { fill, formatBytes, formatNumber, formatPercent, formatUnit } from '../../shared/l10n/text'
 import {
+  isResourceHistoryCurrentMinute,
   resourceHistoryBucket,
+  resourceHistoryDayCpuSeconds,
+  resourceHistoryLevelMinutes,
   resourceHistoryDateTime,
   resourceHistoryEventDetail,
   resourceHistoryEventName,
@@ -19,6 +22,8 @@ import './ResourcesSection.css'
 export interface ResourcesSectionProps {
   /** The shared usage bridge supplies the validated aggregate, never raw trees. */
   readonly history: unknown
+  /** The state's generation time: the minute segment containing it is this minute so far. */
+  readonly now?: number
 }
 
 const percent = (value: number | null) =>
@@ -145,10 +150,11 @@ function ResourceChart({
 }
 
 /** Shared usage page section for VS Code, MHP and the companion; no editor API. */
-export default function ResourcesSection({ history: raw }: ResourcesSectionProps) {
+export default function ResourcesSection({ history: raw, now }: ResourcesSectionProps) {
   const parsed = useMemo(() => resourceHistorySchema.safeParse(raw), [raw])
   const [minutePageIndex, setMinutePage] = useState(0)
   const [eventPageIndex, setEventPage] = useState(0)
+  const [dayPageIndex, setDayPage] = useState(0)
   if (!parsed.success)
     return (
       <section className="usage-resources">
@@ -159,6 +165,8 @@ export default function ResourcesSection({ history: raw }: ResourcesSectionProps
   const history = parsed.data
   const minutePage = historyPage(history.minutes, minutePageIndex)
   const eventPage = historyPage(history.events, eventPageIndex)
+  const days = history.days ?? []
+  const dayPage = historyPage(days, dayPageIndex)
   const visibleHistory = { ...history, minutes: minutePage.entries }
   const nextAtMs = history.minutes[minutePage.end]?.atMs ?? Infinity
   const spans = intervals(visibleHistory, nextAtMs)
@@ -171,7 +179,7 @@ export default function ResourcesSection({ history: raw }: ResourcesSectionProps
       {history.minutes.length + history.events.length === 0 ? null : (
         <p>{UI_TEXT.resourceHistoryDetailNotice}</p>
       )}
-      {history.minutes.length === 0 && history.events.length === 0 ? (
+      {history.minutes.length === 0 && history.events.length === 0 && days.length === 0 ? (
         <p>{UI_TEXT.resourceHistoryEmpty}</p>
       ) : null}
       {history.minutes.length === 0 ? null : (
@@ -205,40 +213,74 @@ export default function ResourcesSection({ history: raw }: ResourcesSectionProps
             aria-label={UI_TEXT.resourceHistory}
             tabIndex={0}
           >
-            <table>
+            <table role="table">
               <caption>{UI_TEXT.resourceHistory}</caption>
-              <thead>
-                <tr>
-                  <th scope="col">{UI_TEXT.resourceHistoryTime}</th>
-                  <th scope="col">{UI_TEXT.resourceHistoryLevel}</th>
-                  <th scope="col">
+              <thead role="rowgroup">
+                <tr role="row">
+                  <th scope="col" role="columnheader">
+                    {UI_TEXT.resourceHistoryTime}
+                  </th>
+                  <th scope="col" role="columnheader">
+                    {UI_TEXT.resourceHistoryLevel}
+                  </th>
+                  <th scope="col" role="columnheader">
                     {UI_TEXT.resourceCpu} / {UI_TEXT.resourceHistoryThreshold}
                   </th>
-                  <th scope="col">
+                  <th scope="col" role="columnheader">
                     {UI_TEXT.resourceMemory} / {UI_TEXT.resourceHistoryThreshold}
                   </th>
-                  <th scope="col">{UI_TEXT.resourceAvailableMemory}</th>
-                  <th scope="col">{UI_TEXT.resourceGpu}</th>
-                  <th scope="col">{UI_TEXT.resourceDisk}</th>
+                  <th scope="col" role="columnheader">
+                    {UI_TEXT.resourceAvailableMemory}
+                  </th>
+                  <th scope="col" role="columnheader">
+                    {UI_TEXT.resourceGpu}
+                  </th>
+                  <th scope="col" role="columnheader">
+                    {UI_TEXT.resourceDisk}
+                  </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody role="rowgroup">
                 {minutePage.entries.map((record, index) =>
                   record.minute === null ? null : (
-                    <tr key={`${String(record.atMs)}:${String(index)}`}>
-                      <th scope="row">{resourceHistoryDateTime(record.atMs)}</th>
-                      <td>{resourceHistoryLevel(record.minute.level)}</td>
-                      <td>
+                    <tr role="row" key={`${String(record.atMs)}:${String(index)}`}>
+                      <th scope="row" role="rowheader" data-label={UI_TEXT.resourceHistoryTime}>
+                        {resourceHistoryDateTime(record.atMs)}
+                        {now !== undefined && isResourceHistoryCurrentMinute(record.atMs, now) ? (
+                          <>
+                            {' '}
+                            <span className="usage-resource-current">
+                              {UI_TEXT.resourceHistoryCurrentMinute}
+                            </span>
+                          </>
+                        ) : null}
+                      </th>
+                      <td role="cell" data-label={UI_TEXT.resourceHistoryLevel}>
+                        {resourceHistoryLevel(record.minute.level)}
+                      </td>
+                      <td
+                        role="cell"
+                        data-label={`${UI_TEXT.resourceCpu} / ${UI_TEXT.resourceHistoryThreshold}`}
+                      >
                         {percent(record.minute.cpuPercent)} /{' '}
                         {formatPercent(record.minute.thresholds.cpuMaxPercent)}
                       </td>
-                      <td>
+                      <td
+                        role="cell"
+                        data-label={`${UI_TEXT.resourceMemory} / ${UI_TEXT.resourceHistoryThreshold}`}
+                      >
                         {percent(record.minute.memoryUsedPercent)} /{' '}
                         {formatPercent(record.minute.thresholds.memoryMaxPercent)}
                       </td>
-                      <td>{resourceHistoryBucket(record.minute.availableMemory)}</td>
-                      <td>{percent(record.minute.gpuPercent)}</td>
-                      <td>{percent(record.minute.diskBusyPercent)}</td>
+                      <td role="cell" data-label={UI_TEXT.resourceAvailableMemory}>
+                        {resourceHistoryBucket(record.minute.availableMemory)}
+                      </td>
+                      <td role="cell" data-label={UI_TEXT.resourceGpu}>
+                        {percent(record.minute.gpuPercent)}
+                      </td>
+                      <td role="cell" data-label={UI_TEXT.resourceDisk}>
+                        {percent(record.minute.diskBusyPercent)}
+                      </td>
                     </tr>
                   ),
                 )}
@@ -260,19 +302,25 @@ export default function ResourcesSection({ history: raw }: ResourcesSectionProps
           aria-label={UI_TEXT.resourceHistoryEvents}
           tabIndex={0}
         >
-          <table>
+          <table role="table">
             <caption>{UI_TEXT.resourceHistoryEvents}</caption>
-            <thead>
-              <tr>
-                <th scope="col">{UI_TEXT.resourceHistoryTime}</th>
-                <th scope="col">{UI_TEXT.resourceHistoryEvents}</th>
+            <thead role="rowgroup">
+              <tr role="row">
+                <th scope="col" role="columnheader">
+                  {UI_TEXT.resourceHistoryTime}
+                </th>
+                <th scope="col" role="columnheader">
+                  {UI_TEXT.resourceHistoryEvents}
+                </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {eventPage.entries.map((event, index) => (
-                <tr key={index}>
-                  <th scope="row">{resourceHistoryDateTime(event.atMs)}</th>
-                  <td>
+                <tr role="row" key={index}>
+                  <th scope="row" role="rowheader" data-label={UI_TEXT.resourceHistoryTime}>
+                    {resourceHistoryDateTime(event.atMs)}
+                  </th>
+                  <td role="cell" data-label={UI_TEXT.resourceHistoryEvents}>
                     {resourceHistoryEventName(event.type)}: {resourceHistoryEventDetail(event)}
                   </td>
                 </tr>
@@ -285,21 +333,33 @@ export default function ResourcesSection({ history: raw }: ResourcesSectionProps
             onPage={setEventPage}
             label={UI_TEXT.resourceHistoryEvents}
           />
-          <table>
+          <table role="table">
             <caption>{UI_TEXT.resourceHistoryCount}</caption>
-            <thead>
-              <tr>
-                <th scope="col">{UI_TEXT.resourceHistoryEvents}</th>
-                <th scope="col">{UI_TEXT.resourceHistoryKind}</th>
-                <th scope="col">{UI_TEXT.resourceHistoryCount}</th>
+            <thead role="rowgroup">
+              <tr role="row">
+                <th scope="col" role="columnheader">
+                  {UI_TEXT.resourceHistoryEvents}
+                </th>
+                <th scope="col" role="columnheader">
+                  {UI_TEXT.resourceHistoryKind}
+                </th>
+                <th scope="col" role="columnheader">
+                  {UI_TEXT.resourceHistoryCount}
+                </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {history.counts.map((row) => (
-                <tr key={`${row.type}:${row.kind ?? ''}`}>
-                  <th scope="row">{resourceHistoryEventName(row.type)}</th>
-                  <td>{row.kind ?? UI_TEXT.resourceTitle}</td>
-                  <td>{formatNumber(row.count)}</td>
+                <tr role="row" key={`${row.type}:${row.kind ?? ''}`}>
+                  <th scope="row" role="rowheader" data-label={UI_TEXT.resourceHistoryEvents}>
+                    {resourceHistoryEventName(row.type)}
+                  </th>
+                  <td role="cell" data-label={UI_TEXT.resourceHistoryKind}>
+                    {row.kind ?? UI_TEXT.resourceTitle}
+                  </td>
+                  <td role="cell" data-label={UI_TEXT.resourceHistoryCount}>
+                    {formatNumber(row.count)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -313,27 +373,114 @@ export default function ResourcesSection({ history: raw }: ResourcesSectionProps
           aria-label={UI_TEXT.resourceHarness}
           tabIndex={0}
         >
-          <table>
+          <table role="table">
             <caption>{UI_TEXT.resourceHarness}</caption>
-            <thead>
-              <tr>
-                <th scope="col">{UI_TEXT.resourceHistoryKind}</th>
-                <th scope="col">{UI_TEXT.resourceCpuTime}</th>
-                <th scope="col">{UI_TEXT.resourcePeakMemory}</th>
+            <thead role="rowgroup">
+              <tr role="row">
+                <th scope="col" role="columnheader">
+                  {UI_TEXT.resourceHistoryKind}
+                </th>
+                <th scope="col" role="columnheader">
+                  {UI_TEXT.resourceCpuTime}
+                </th>
+                <th scope="col" role="columnheader">
+                  {UI_TEXT.resourcePeakMemory}
+                </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {history.work.map((row) => (
-                <tr key={row.kind}>
-                  <th scope="row">
+                <tr role="row" key={row.kind}>
+                  <th scope="row" role="rowheader" data-label={UI_TEXT.resourceHistoryKind}>
                     <code>{row.kind}</code>
                   </th>
-                  <td>{formatUnit(row.cpuSeconds, 'second')}</td>
-                  <td>{formatBytes(row.peakMemoryBytes)}</td>
+                  <td role="cell" data-label={UI_TEXT.resourceCpuTime}>
+                    {formatUnit(row.cpuSeconds, 'second')}
+                  </td>
+                  <td role="cell" data-label={UI_TEXT.resourcePeakMemory}>
+                    {formatBytes(row.peakMemoryBytes)}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      {days.length === 0 ? null : (
+        <div
+          className="usage-resource-table"
+          role="region"
+          aria-label={UI_TEXT.resourceHistoryDaily}
+          tabIndex={0}
+        >
+          <p>{UI_TEXT.resourceHistoryDailyNotice}</p>
+          <table role="table">
+            <caption>{UI_TEXT.resourceHistoryDaily}</caption>
+            <thead role="rowgroup">
+              <tr role="row">
+                <th scope="col" role="columnheader">
+                  {UI_TEXT.resourceHistoryDay}
+                </th>
+                <th scope="col" role="columnheader">
+                  {UI_TEXT.resourceCpu} ({UI_TEXT.resourceHistoryAverage})
+                </th>
+                <th scope="col" role="columnheader">
+                  {UI_TEXT.resourceMemory} ({UI_TEXT.resourceHistoryAverage})
+                </th>
+                <th scope="col" role="columnheader">
+                  {UI_TEXT.resourceHistoryMinutes}
+                </th>
+                <th scope="col" role="columnheader">
+                  {UI_TEXT.resourceHistoryLevelMinutes}
+                </th>
+                <th scope="col" role="columnheader">
+                  {UI_TEXT.resourceHistoryEvents}
+                </th>
+                <th scope="col" role="columnheader">
+                  {UI_TEXT.resourceHarness}
+                </th>
+              </tr>
+            </thead>
+            <tbody role="rowgroup">
+              {dayPage.entries.map((day) => (
+                <tr role="row" key={day.day}>
+                  <th scope="row" role="rowheader" data-label={UI_TEXT.resourceHistoryDay}>
+                    {day.day}
+                  </th>
+                  <td
+                    role="cell"
+                    data-label={`${UI_TEXT.resourceCpu} (${UI_TEXT.resourceHistoryAverage})`}
+                  >
+                    {percent(day.cpuPercent)}
+                  </td>
+                  <td
+                    role="cell"
+                    data-label={`${UI_TEXT.resourceMemory} (${UI_TEXT.resourceHistoryAverage})`}
+                  >
+                    {percent(day.memoryUsedPercent)}
+                  </td>
+                  <td role="cell" data-label={UI_TEXT.resourceHistoryMinutes}>
+                    {formatNumber(day.minutes)}
+                  </td>
+                  <td role="cell" data-label={UI_TEXT.resourceHistoryLevelMinutes}>
+                    {resourceHistoryLevelMinutes(day.levels)}
+                  </td>
+                  <td role="cell" data-label={UI_TEXT.resourceHistoryEvents}>
+                    {formatNumber(day.events)}
+                  </td>
+                  <td role="cell" data-label={UI_TEXT.resourceHarness}>
+                    {formatUnit(resourceHistoryDayCpuSeconds(day), 'second')}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <HistoryPager
+            length={days.length}
+            page={dayPage.page}
+            onPage={setDayPage}
+            label={UI_TEXT.resourceHistoryDaily}
+          />
         </div>
       )}
     </section>

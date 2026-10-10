@@ -61,6 +61,28 @@ beforeAll(async () => {
 })
 
 describe('browser keyboard dispatch with optional contexts deferred', () => {
+  it('keeps a standalone entry limited to its own canonical contexts', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'browser-keyboard-entry-'))
+    const entry = path.join(root, 'src/webview/keys.ts')
+    mkdirSync(path.dirname(entry), { recursive: true })
+    const table = path.resolve('src/shared/keybindings').replaceAll('\\', '/')
+    writeFileSync(
+      entry,
+      `import { WEBVIEW_KEYBINDINGS, webviewKey } from ${JSON.stringify(table)};
+export { WEBVIEW_KEYBINDINGS };
+export const dispatch = (event) => webviewKey('composer.send', event);`,
+    )
+    try {
+      const module = await moduleOf({ entryPoints: [entry], plugins: [lazyBrowserKeybindings] })
+      expect(Object.keys(module.WEBVIEW_KEYBINDINGS)).toEqual(['composer.send'])
+      expect(module.WEBVIEW_KEYBINDINGS['composer.send']).toEqual(
+        runtime.canonical.WEBVIEW_KEYBINDINGS['composer.send'],
+      )
+    } finally {
+      await removeFolder(root)
+    }
+  })
+
   it('loads the real lazy history row with its directly read archive gesture', async () => {
     const row = await moduleOf({
       entryPoints: ['src/webview/components/HistoryPromptRow.tsx'],

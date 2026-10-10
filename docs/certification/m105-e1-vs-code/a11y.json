@@ -1,0 +1,250 @@
+[
+  {
+    "mode": "preview",
+    "theme": "light",
+    "width": 320,
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "video-caption",
+        "nodes": [["video"]]
+      }
+    ],
+    "fit": true,
+    "errors": [],
+    "messages": [
+      {
+        "type": "attach"
+      }
+    ],
+    "disabled": true
+  },
+  {
+    "mode": "preview",
+    "theme": "light",
+    "width": 960,
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "video-caption",
+        "nodes": [["video"]]
+      }
+    ],
+    "fit": true,
+    "errors": [],
+    "messages": [
+      {
+        "type": "attach"
+      }
+    ],
+    "disabled": true
+  },
+  {
+    "mode": "preview",
+    "theme": "dark",
+    "width": 320,
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "video-caption",
+        "nodes": [["video"]]
+      }
+    ],
+    "fit": true,
+    "errors": [],
+    "messages": [
+      {
+        "type": "attach"
+      }
+    ],
+    "disabled": true
+  },
+  {
+    "mode": "preview",
+    "theme": "dark",
+    "width": 960,
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "video-caption",
+        "nodes": [["video"]]
+      }
+    ],
+    "fit": true,
+    "errors": [],
+    "messages": [
+      {
+        "type": "attach"
+      }
+    ],
+    "disabled": true
+  },
+  {
+    "mode": "preview",
+    "theme": "hc-dark",
+    "width": 320,
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "video-caption",
+        "nodes": [["video"]]
+      }
+    ],
+    "fit": true,
+    "errors": [],
+    "messages": [
+      {
+        "type": "attach"
+      }
+    ],
+    "disabled": true
+  },
+  {
+    "mode": "preview",
+    "theme": "hc-dark",
+    "width": 960,
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "video-caption",
+        "nodes": [["video"]]
+      }
+    ],
+    "fit": true,
+    "errors": [],
+    "messages": [
+      {
+        "type": "attach"
+      }
+    ],
+    "disabled": true
+  },
+  {
+    "mode": "preview",
+    "theme": "hc-light",
+    "width": 320,
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "video-caption",
+        "nodes": [["video"]]
+      }
+    ],
+    "fit": true,
+    "errors": [],
+    "messages": [
+      {
+        "type": "attach"
+      }
+    ],
+    "disabled": true
+  },
+  {
+    "mode": "preview",
+    "theme": "hc-light",
+    "width": 960,
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "video-caption",
+        "nodes": [["video"]]
+      }
+    ],
+    "fit": true,
+    "errors": [],
+    "messages": [
+      {
+        "type": "attach"
+      }
+    ],
+    "disabled": true
+  },
+  {
+    "mode": "chips",
+    "theme": "light",
+    "width": 320,
+    "violations": [],
+    "incomplete": [],
+    "fit": true,
+    "errors": [],
+    "messages": [],
+    "disabled": true
+  },
+  {
+    "mode": "chips",
+    "theme": "light",
+    "width": 960,
+    "violations": [],
+    "incomplete": [],
+    "fit": true,
+    "errors": [],
+    "messages": [],
+    "disabled": true
+  },
+  {
+    "mode": "chips",
+    "theme": "dark",
+    "width": 320,
+    "violations": [],
+    "incomplete": [],
+    "fit": true,
+    "errors": [],
+    "messages": [],
+    "disabled": true
+  },
+  {
+    "mode": "chips",
+    "theme": "dark",
+    "width": 960,
+    "violations": [],
+    "incomplete": [],
+    "fit": true,
+    "errors": [],
+    "messages": [],
+    "disabled": true
+  },
+  {
+    "mode": "chips",
+    "theme": "hc-dark",
+    "width": 320,
+    "violations": [],
+    "incomplete": [],
+    "fit": true,
+    "errors": [],
+    "messages": [],
+    "disabled": true
+  },
+  {
+    "mode": "chips",
+    "theme": "hc-dark",
+    "width": 960,
+    "violations": [],
+    "incomplete": [],
+    "fit": true,
+    "errors": [],
+    "messages": [],
+    "disabled": true
+  },
+  {
+    "mode": "chips",
+    "theme": "hc-light",
+    "width": 320,
+    "violations": [],
+    "incomplete": [],
+    "fit": true,
+    "errors": [],
+    "messages": [],
+    "disabled": true
+  },
+  {
+    "mode": "chips",
+    "theme": "hc-light",
+    "width": 960,
+    "violations": [],
+    "incomplete": [],
+    "fit": true,
+    "errors": [],
+    "messages": [],
+    "disabled": true
+  }
+]

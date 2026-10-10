@@ -36,15 +36,23 @@ describe('C2 team process registry hook', () => {
     await Promise.resolve()
     expect(h.scheduler.acquire).toHaveBeenCalledTimes(1)
     expect(h.release).not.toHaveBeenCalled()
+    expect(h.queue.counts()).toEqual([{ kind: 'worker', class: 'background', count: 1 }])
+    // SPAWN017C: at pause the queued worker is refused at once, typed; the
+    // killed tree keeps its reservation until its retirement is proved.
+    const refused = expect(next.ready).rejects.toMatchObject({
+      name: 'ResourcePausedError',
+      code: 'paused',
+    })
     await h.read({ memoryAvailableBytes: 0 })
     expect(await lease.kill?.()).toBe(true)
-    expect(h.queue.counts()).toEqual([{ kind: 'worker', class: 'background', count: 1 }])
+    await refused
+    expect(h.queue.counts()).toEqual([])
     expect(h.release).not.toHaveBeenCalled()
     lease.complete(true)
     lease.complete(true)
     expect(h.release).toHaveBeenCalledTimes(1)
     h.governor.resumeNow()
-    const following = await next.ready
+    const following = await h.slots.request({ kind: 'worker', priority: 0 }).ready
     following.release()
   })
 

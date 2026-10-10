@@ -1,5 +1,7 @@
 # Certification records
 
+- [FIXCYCLES](fixcycles.md): complete cycle-root inventory, worker environment dependency fix, red/restored drills and fresh-clone gates.
+
 - [SDK142](sdk142.md): Muse Code 1.4.1/1.4.2 fingerprints, CLI documentation corrections and regression drill; SDK stays 1.3.0.
 
 [0.10.0 release preparation](release-0.10.0.md) tracks the current candidate

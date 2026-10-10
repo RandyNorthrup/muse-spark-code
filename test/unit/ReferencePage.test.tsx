@@ -336,3 +336,10 @@ describe('RVHELPREF2 presentation truth', () => {
     }
   })
 })
+
+it('gives every Help element a unique document ID', () => {
+  page()
+  const ids = Array.from(document.querySelectorAll('[id]'), (element) => element.id)
+  expect(ids.length).toBeGreaterThan(0)
+  expect(new Set(ids).size).toBe(ids.length)
+})

@@ -1,5 +1,4 @@
-import type * as VSCode from 'vscode'
-import { UI_TEXT } from '../../shared/constants'
+import { COMMAND_IDS, UI_TEXT } from '../../shared/constants'
 import { fill, formatBytes, formatNumber, formatPercent } from '../../shared/l10n/text'
 import {
   resourceMemoryFloorBytes,
@@ -26,17 +25,43 @@ export interface ResourceStatusDeps {
   readonly notice: (text: string, actions: readonly ResourceStatusAction[]) => void
   readonly invalidStatus: () => void
   readonly createItem: () => ResourceStatusItem
-  readonly registerShow: (run: () => void) => { dispose(): void }
+  /**
+   * For a host that registers Show resources only once the governor loads (MHP).
+   * VS Code contributes and registers it at activation, so it omits this.
+   */
+  readonly registerShow?: (run: () => void) => { dispose(): void }
+}
+
+/**
+ * The slice of VS Code's namespace the item uses. The window injects the real
+ * namespace; this module loads with the portable governor, so it never
+ * imports `vscode`, even as a type.
+ */
+export interface VsCodeStatusBar<Alignment> {
+  readonly window: {
+    createStatusBarItem(alignment: Alignment): {
+      name: unknown
+      command: unknown
+      text: string
+      tooltip: unknown
+      backgroundColor: unknown
+      show(): void
+      hide(): void
+      dispose(): void
+    }
+  }
+  readonly StatusBarAlignment: { readonly Left: Alignment }
+  readonly ThemeColor: new (id: string) => unknown
 }
 
 /** Inject VS Code only in its window; native MHP hosts use their own item factory. */
-export function createVsCodeResourceStatusItem(
-  vscode: Pick<typeof VSCode, 'window' | 'StatusBarAlignment' | 'ThemeColor'>,
+export function createVsCodeResourceStatusItem<Alignment>(
+  vscode: VsCodeStatusBar<Alignment>,
 ): ResourceStatusItem {
   const item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left)
   item.name = UI_TEXT.resourceTitle
-  // W registers this command with the manifest/NLS entries at first governor load.
-  item.command = 'museSpark.showResources'
+  // Contributed in package.json and registered at activation (src/host/resources/resourceWindow.ts).
+  item.command = COMMAND_IDS.showResources
   return {
     update: (text, warning) => {
       item.text = `$(dashboard) ${text}`
@@ -117,7 +142,7 @@ function pauseText(status: ResourceStatus): string {
 /** Called only after the first governed spawn. MHP supplies createItem for its native widget. */
 export function createResourceStatus(deps: ResourceStatusDeps): { dispose(): void } {
   const item = deps.createItem()
-  const command = deps.registerShow(() => {
+  const command = deps.registerShow?.(() => {
     deps.port.show()
   })
   const noticed = new Set<string>()
@@ -175,7 +200,7 @@ export function createResourceStatus(deps: ResourceStatusDeps): { dispose(): voi
       if (isDisposed) return
       isDisposed = true
       unsubscribe()
-      command.dispose()
+      command?.dispose()
       item.dispose()
       noticed.clear()
     },

@@ -1,6 +1,20 @@
 /** Move cold transforms outside Testing Library's default findBy deadline. */
 export async function warmDeferredSurfaces(): Promise<void> {
   await Promise.all([
+    import('../../../src/shared/paletteRegistry'),
+    import('../../../src/webview/components/DiffTally'),
+    import('../../../src/webview/components/MentionMenu'),
+    import('../../../src/webview/components/SlashMenu'),
+    import('../../../src/webview/components/TodoPanel'),
+    import('../../../src/webview/playbook/PlaybookMap'),
+    import('../../../src/webview/playbook/PlaybookPanel'),
+    import('../../../src/webview/playbook/PlaybookRows'),
+    import('../../../src/webview/schedules/channel'),
+    // STARTUP017: `/schedule` prompt mapping loads on first submit.
+    import('../../../src/webview/schedules/prompt'),
+    import('../../../src/webview/schedules/ScheduleRunBody'),
+    import('../../../src/webview/schedules/ScheduleSurfaceView'),
+    import('../../../src/webview/reporting/UsageReportAction'),
     import('../../../src/webview/components/SignIn'),
     import('../../../src/webview/components/GoalPanel'),
     import('../../../src/webview/components/SchedulePanel'),
@@ -29,6 +43,8 @@ export async function warmDeferredSurfaces(): Promise<void> {
     import('../../../src/webview/components/ReviewFindings'),
     import('../../../src/webview/components/ToolBodies'),
     import('../../../src/webview/components/ToolArgumentPreview'),
+    import('../../../src/webview/components/ToolRow'),
+    import('../../../src/webview/playbook/DeferredPlaybook'),
     import('../../../src/webview/components/LegalReport'),
     import('../../../src/webview/components/PlanUi'),
     import('../../../src/webview/components/ReviewCommentForm'),
@@ -37,5 +53,7 @@ export async function warmDeferredSurfaces(): Promise<void> {
     import('../../../src/webview/prompts/PromptLibrary'),
     import('../../../src/webview/prompts/PromptLibraryBridge'),
     import('../../../src/webview/sharing/ChatShareBridge'),
+    import('../../../src/webview/estimator/composer'),
+    import('../../../src/webview/estimator/EstimatorPanel'),
   ])
 }

@@ -98,8 +98,12 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly isConfidentialWorkspace: () => boolean
   /** One explicit yes before a contributor-tier agent model is used (M76). */
   readonly confirmContributorModel: (modelId: string) => Promise<boolean>
-  /** Sessions between windows (PLAN.md D14); undefined without workspace storage. */
-  readonly store: SessionStore | undefined
+  /**
+   * Sessions between windows (PLAN.md D14); undefined without workspace
+   * storage. A function is called when the host is built, so a store in a
+   * lazy bundle (dist/modelApiSessions.js) loads with the backend.
+   */
+  readonly store: SessionStore | (() => SessionStore) | undefined
   readonly scheduleStore?: ScheduleStore | undefined
   /** The git facts for the prompt's environment section (D15). */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
@@ -451,7 +455,7 @@ export class ModelApiBackendManager {
       codeIntel: this.deps.codeIntel,
       isRepoMapInPrompt: this.deps.isRepoMapInPrompt,
       io: this.deps.io,
-      store: this.deps.store,
+      store: typeof this.deps.store === 'function' ? this.deps.store() : this.deps.store,
       scheduleStore: this.deps.scheduleStore,
       describeEnvironment: this.deps.describeEnvironment,
       isPaidFeatureOn: this.deps.isPaidFeatureOn,

@@ -3,8 +3,9 @@
 // are junctions (Windows, no privilege needed) or symbolic links (elsewhere),
 // one leading inside the workspace, one out of it, one from the personal root.
 
+import { createHash } from 'node:crypto'
 import { realpathSync } from 'node:fs'
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -90,6 +91,35 @@ afterAll(async () => {
 })
 
 describe('fileContextIo', () => {
+  it('captures the original canonical source and exact raw-byte hash on the held native read', async () => {
+    const alias = path.join(paths.skills, 'kept', 'SKILL.md')
+    const canonical = realpathSync.native(alias)
+    const sample = await stat(canonical, { bigint: true })
+    const read = await fileContextIo.readSource?.(alias, 1)
+    if (read === undefined) throw new Error('Expected captured bytes')
+    expect(read.bytes).toEqual(Buffer.from(skillFile('kept')).subarray(0, 2))
+    expect(read.source).toEqual({
+      kind: 'file',
+      contentHash: createHash('sha256').update(read.bytes).digest('hex'),
+      file: {
+        path: canonical.replaceAll('\\', '/'),
+        dev: sample.dev.toString(),
+        ino: sample.ino.toString(),
+        size: Number(sample.size),
+        mtime: sample.mtimeNs.toString(),
+      },
+    })
+    const utf16 = await fileContextIo.readSource?.(path.join(paths.workspace, 'AGENTS.md'))
+    expect(utf16?.bytes).toEqual(encoded.utf16le('Réponds en français.\r\n'))
+    expect(utf16?.source.contentHash).toBe(
+      createHash('sha256').update(encoded.utf16le('Réponds en français.\r\n')).digest('hex'),
+    )
+    await expect(
+      fileContextIo.readSource?.(path.join(paths.workspace, 'absent.md'), 1),
+    ).resolves.toBeUndefined()
+    await expect(fileContextIo.readSource?.(paths.skills, 1)).rejects.toThrow('not a regular file')
+  })
+
   it('lists directories and links, not files, and nothing for a missing directory', async () => {
     const names = await fileContextIo.listDirectory(paths.skills)
     expect(names.toSorted((a, b) => a.localeCompare(b))).toEqual(['escape', 'kept', 'plain'])

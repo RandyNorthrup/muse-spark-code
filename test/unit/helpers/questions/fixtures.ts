@@ -42,6 +42,11 @@ export function expectedQuestionCommandsUpdate(
       { name: 'help', description: UI_TEXT.referenceIntro, input: null },
       { name: 'compact', description: UI_TEXT.compactDetail, input: null },
       {
+        name: 'report',
+        description: UI_TEXT.reportSlashDescription,
+        input: { hint: '<kind> [args] | history' },
+      },
+      {
         name: 'agents',
         description: UI_TEXT.referenceAgentOutcomes,
         input: { hint: '[receipt|continue|retry] [ID]' },

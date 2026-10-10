@@ -11,7 +11,8 @@ import {
   SUGGEST_REFERENCE_SESSION_INPUT_TOKENS,
   SUGGEST_REFERENCE_SESSION_OUTPUT_TOKENS,
 } from '../../shared/constants'
-import { fill, formatUsd, UI_TEXT } from '../../shared/l10n/text'
+import { fill, UI_TEXT } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import { reserveRequestUsd, type PriceCard } from './priceCard'
 
 /** The suggestion kinds M95 implements (M96 adds role kinds beside them). */

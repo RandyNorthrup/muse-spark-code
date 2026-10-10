@@ -77,6 +77,7 @@ function quoteConsentWith(store: {
 }
 
 const SEARCH: PaidUseRequest = { feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() }
+const VOICE: PaidUseRequest = { feature: 'voice' }
 
 describe('paidUseQuestion: verified hosted-search tariffs', () => {
   it('discloses a positive sub-cent per-thousand search price', async () => {
@@ -238,6 +239,32 @@ describe('PaidUseConsent (M58)', () => {
       expect(await t.consent.allows(second)).toMatchObject({ id: second.quote.id })
       expect(t.ask).toHaveBeenCalledTimes(2)
     })
+  })
+
+  it('ends a signaled wait on Stop while preserving the shared unanswered popup', async () => {
+    const answer = Promise.withResolvers<PaidUseAnswer>()
+    const t = consentWith({ on: ['voice'], answer: () => answer.promise })
+    const stop = new AbortController()
+    const remove = vi.spyOn(stop.signal, 'removeEventListener')
+    const waiting = t.consent.allows(VOICE, false, undefined, stop.signal)
+    const failed = expect(waiting).rejects.toThrow('stopped')
+    stop.abort(new Error('stopped'))
+    await failed
+    expect(remove).toHaveBeenCalledWith('abort', expect.any(Function))
+    expect(t.writes).toEqual([])
+    answer.resolve('always')
+    await expect(t.consent.allows(VOICE)).resolves.toBe(true)
+    expect(t.grants()).toEqual(new Set(['voice']))
+  })
+
+  it('does not open a popup for an already stopped caller', async () => {
+    const t = consentWith()
+    const stop = new AbortController()
+    stop.abort(new Error('already stopped'))
+    await expect(t.consent.allows(SEARCH, false, undefined, stop.signal)).rejects.toThrow(
+      'already stopped',
+    )
+    expect(t.ask).not.toHaveBeenCalled()
   })
 
   it('refuses a feature that is off without asking', async () => {

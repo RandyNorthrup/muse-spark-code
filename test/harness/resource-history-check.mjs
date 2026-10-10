@@ -87,7 +87,7 @@ try {
       const variables = Object.entries(captured.variables)
         .map(([key, value]) => `${key}: ${value};`)
         .join(' ')
-      const html = `<!doctype html><html lang="en"><head><title>Resources</title><style>:root { ${variables} } body { background: var(--vscode-editor-background); color: var(--vscode-foreground); font: 14px sans-serif; margin: 8px; } h2 { font-size: 20px; }</style><link rel="stylesheet" href="/temp/m107-j/harness/resource-history-entry.css"></head><body><div id="root"></div><script type="module" src="/temp/m107-j/harness/resource-history-entry.js"></script><script src="/node_modules/axe-core/axe.min.js"></script></body></html>`
+      const html = `<!doctype html><html lang="en"><head><title>Resources</title><style>:root { ${variables} } body { background: var(--vscode-editor-background); color: var(--vscode-foreground); font: 14px sans-serif; margin: 8px; } h2 { font-size: 20px; }</style><link rel="stylesheet" href="/temp/m107-j/harness/resource-history-entry.css"></head><body class="${captured.bodyClass}"><div id="root"></div><script type="module" src="/temp/m107-j/harness/resource-history-entry.js"></script><script src="/node_modules/axe-core/axe.min.js"></script></body></html>`
       await page.route('**/resource-history.html', async (route) => {
         await route.fulfill({ contentType: 'text/html', body: html })
       })
@@ -96,6 +96,8 @@ try {
       const result = await page.evaluate(async () => {
         const audit = await globalThis.axe.run()
         return {
+          // Class-dependent theme styles need the captured body class (W1 RVM107W1E P3).
+          bodyClass: globalThis.document.body.className,
           axe: audit.violations.map((issue) => ({
             id: issue.id,
             nodes: issue.nodes.map((node) => node.target),
@@ -115,7 +117,11 @@ try {
         path: path.join(output, `${theme}-${String(width)}.png`),
         fullPage: true,
       })
-      results.push({ theme, width, errors, ...result })
+      const identityProblems =
+        result.bodyClass === captured.bodyClass
+          ? []
+          : [`body class "${result.bodyClass}", expected "${captured.bodyClass}"`]
+      results.push({ theme, width, errors, identityProblems, ...result })
       await page.close()
     }
   }
@@ -130,5 +136,13 @@ await writeFile(
   JSON.stringify({ sectionBytes, results }, null, 2),
 )
 console.log(JSON.stringify({ sectionBytes, results }, null, 2))
-if (results.some((result) => result.errors.length > 0 || result.axe.length > 0 || result.overflow))
+if (
+  results.some(
+    (result) =>
+      result.errors.length > 0 ||
+      result.identityProblems.length > 0 ||
+      result.axe.length > 0 ||
+      result.overflow,
+  )
+)
   throw new Error('Resource history browser acceptance failed')

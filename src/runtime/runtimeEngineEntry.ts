@@ -2,7 +2,7 @@
 export { createAcpAgent } from '../acp/agent'
 export { createRuntimeBackend } from './backends'
 export { createExecClient } from './exec/execClient'
-export { PROTOCOL_VERSION, ndJsonStream } from '@agentclientprotocol/sdk'
+export { PROTOCOL_VERSION, ndJsonStream, RequestError } from '@agentclientprotocol/sdk'
 export { setUiText } from '../shared/l10n/text'
 import { MuseCodeHost } from '../core/backends/musecode/MuseCodeHost'
 import { ModelApiBackendManager } from '../host/backend/modelApiBackendManager'

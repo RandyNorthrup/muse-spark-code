@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, mkdir, writeFile, readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { usagePageStateSchema } from '../../src/shared/usagePage'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
@@ -34,7 +34,7 @@ import { removeFolder } from './helpers/temporaryFolders'
 import { call, headers, login } from './helpers/companion'
 
 const folders: string[] = []
-afterEach(async () => {
+afterAll(async () => {
   for (const folder of folders.splice(0)) await removeFolder(folder)
 })
 async function folder() {
@@ -70,7 +70,137 @@ function accessDeps(root: string) {
   }
 }
 
+async function prepareRecordedUsage() {
+  const root = await folder()
+  const log = new FakeLogOutputChannel()
+  const writer = await createUsageWriter({
+    dataFolder: root,
+    writerId: randomUUID(),
+    now: Date.now,
+    isEnabled: () => true,
+    onWriteError: () => {
+      throw new Error('journal write failed')
+    },
+  })
+  const recording = createUsageRecording({
+    client: 'Zed',
+    now: Date.now,
+    newId: randomUUID,
+    isEnabled: () => true,
+    writer: () => Promise.resolve(writer),
+    log,
+  })
+  const api = fakeModelApi()
+  const client = fakeModelApiClient(api, log)
+  const card: PriceCard = {
+    input: 0.000002,
+    cachedInput: 0.000001,
+    output: 0.000008,
+    source: 'user',
+  }
+  const host = new ModelApiHost({
+    ...fakeModelApiHostDeps({
+      client,
+      workspaceRoot: '/workspace',
+      io: memoryToolIo({}, '/workspace'),
+      log,
+    }),
+    now: Date.now,
+    usageRecording: recording,
+    models: {
+      resolve: (ref) =>
+        Promise.resolve({
+          ref,
+          client,
+          origin: 'https://fake.invalid',
+          policy: modelPolicyFor(ref, { pricing: { kind: 'priced', card } }),
+          price: {
+            reserve: (usage) => reserveRequestAmount(card, usage),
+            settle: (usage) => settleUsageAmount(card, usage),
+          },
+          isCurrent: () => true,
+        }),
+    },
+  })
+  try {
+    for (const modelId of ['muse-spark-1.3', 'openai/model']) {
+      const session = await host.startSession({
+        workspaceRoot: '/workspace',
+        modelId,
+        approvalMode: 'promptUnmatched',
+      })
+      const turns = watchSessionTurns(session)
+      api.script({ text: 'answer', usage: { input: 100, output: 10, cached: 20 } })
+      const done = turns.turnDone()
+      await session.sendTurn([{ type: 'text', text: 'private prompt must not be stored' }])
+      await done
+    }
+  } finally {
+    await host.close()
+  }
+  const msp = fakeMspHost(fakeInitializeResult)
+  msp.server.handle('session/start', () => ({
+    session: { sessionId: 'subscription', modelId: 'muse-spark-1.3', status: 'idle' },
+    viewCursor: '',
+  }))
+  msp.server.handle('turn/start', (params) => ({
+    commandId: params['commandId'],
+    turnId: 'turn',
+    status: 'accepted',
+    disposition: 'started',
+    startedNewTurn: true,
+  }))
+  const muse = new MuseCodeHost(msp.host, log, undefined, {}, recording)
+  try {
+    const session = await muse.startSession({
+      workspaceRoot: '/workspace',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'promptUnmatched',
+    })
+    await session.sendTurn([{ type: 'text', text: 'private subscription prompt' }])
+    msp.server.notify('turn/started', {
+      sessionId: session.sessionId,
+      turnId: 'turn',
+      viewCursor: 'v',
+    })
+    msp.server.notify('session/tokenUsage', {
+      sessionId: session.sessionId,
+      cumulative: { promptTokens: 50, outputTokens: 5 },
+    })
+    msp.server.notify('turn/completed', {
+      sessionId: session.sessionId,
+      turnId: 'turn',
+      terminal: 'completed',
+    })
+    msp.server.notify('usage/changed', {
+      observedAtMs: Date.now(),
+      tier: 'opaque',
+      window: { usedPercent: 62, resetsAtMs: Date.now() + 100_000, windowDurationMins: 300 },
+      weekly: { usedPercent: 80, resetsAtMs: Date.now() + 200_000 },
+    })
+    await settle()
+  } finally {
+    await muse.close()
+  }
+  await recording.flush()
+  const journal = await writer.read()
+  const access = createUsageAccess({
+    dataFolder: root,
+    packageRoot: path.resolve('.'),
+    host: 'win11',
+    locale: 'en',
+    uiText: EN,
+    log,
+  })
+  const state = await access.read(query)
+  return { root, log, journal, access, state }
+}
+
 describe('M102 integrated surfaces', () => {
+  let prepared: Awaited<ReturnType<typeof prepareRecordedUsage>> | undefined
+  beforeAll(async () => {
+    prepared = await prepareRecordedUsage()
+  })
   it('refuses to publish a partial read while its recorder cannot settle', async () => {
     const root = await folder()
     const access = createUsageAccess({
@@ -80,119 +210,8 @@ describe('M102 integrated surfaces', () => {
     await expect(access.read(query)).rejects.toThrow('unsettled recorder')
   })
   it('settles two vendor host turns and one MSP subscription turn into exactly three calls, shared totals and an authenticated page', async () => {
-    const root = await folder()
-    const log = new FakeLogOutputChannel()
-    const writer = await createUsageWriter({
-      dataFolder: root,
-      writerId: randomUUID(),
-      now: Date.now,
-      isEnabled: () => true,
-      onWriteError: () => {
-        throw new Error('journal write failed')
-      },
-    })
-    const recording = createUsageRecording({
-      client: 'Zed',
-      now: Date.now,
-      newId: randomUUID,
-      isEnabled: () => true,
-      writer: () => Promise.resolve(writer),
-      log,
-    })
-    const api = fakeModelApi()
-    const client = fakeModelApiClient(api, log)
-    const card: PriceCard = {
-      input: 0.000002,
-      cachedInput: 0.000001,
-      output: 0.000008,
-      source: 'user',
-    }
-    const host = new ModelApiHost({
-      ...fakeModelApiHostDeps({
-        client,
-        workspaceRoot: '/workspace',
-        io: memoryToolIo({}, '/workspace'),
-        log,
-      }),
-      now: Date.now,
-      usageRecording: recording,
-      models: {
-        resolve: (ref) =>
-          Promise.resolve({
-            ref,
-            client,
-            origin: 'https://fake.invalid',
-            policy: modelPolicyFor(ref, { pricing: { kind: 'priced', card } }),
-            price: {
-              reserve: (usage) => reserveRequestAmount(card, usage),
-              settle: (usage) => settleUsageAmount(card, usage),
-            },
-            isCurrent: () => true,
-          }),
-      },
-    })
-    try {
-      for (const modelId of ['muse-spark-1.3', 'openai/model']) {
-        const session = await host.startSession({
-          workspaceRoot: '/workspace',
-          modelId,
-          approvalMode: 'promptUnmatched',
-        })
-        const turns = watchSessionTurns(session)
-        api.script({ text: 'answer', usage: { input: 100, output: 10, cached: 20 } })
-        const done = turns.turnDone()
-        await session.sendTurn([{ type: 'text', text: 'private prompt must not be stored' }])
-        await done
-      }
-    } finally {
-      await host.close()
-    }
-    const msp = fakeMspHost(fakeInitializeResult)
-    msp.server.handle('session/start', () => ({
-      session: { sessionId: 'subscription', modelId: 'muse-spark-1.3', status: 'idle' },
-      viewCursor: '',
-    }))
-    msp.server.handle('turn/start', (params) => ({
-      commandId: params['commandId'],
-      turnId: 'turn',
-      status: 'accepted',
-      disposition: 'started',
-      startedNewTurn: true,
-    }))
-    const muse = new MuseCodeHost(msp.host, log, undefined, {}, recording)
-    try {
-      const session = await muse.startSession({
-        workspaceRoot: '/workspace',
-        modelId: 'muse-spark-1.3',
-        approvalMode: 'promptUnmatched',
-      })
-      await session.sendTurn([{ type: 'text', text: 'private subscription prompt' }])
-      msp.server.notify('turn/started', {
-        sessionId: session.sessionId,
-        turnId: 'turn',
-        viewCursor: 'v',
-      })
-      msp.server.notify('session/tokenUsage', {
-        sessionId: session.sessionId,
-        cumulative: { promptTokens: 50, outputTokens: 5 },
-      })
-      msp.server.notify('turn/completed', {
-        sessionId: session.sessionId,
-        turnId: 'turn',
-        terminal: 'completed',
-      })
-      msp.server.notify('usage/changed', {
-        observedAtMs: Date.now(),
-        tier: 'opaque',
-        window: { usedPercent: 62, resetsAtMs: Date.now() + 100_000, windowDurationMins: 300 },
-        weekly: { usedPercent: 80, resetsAtMs: Date.now() + 200_000 },
-      })
-      await settle()
-    } finally {
-      await muse.close()
-    }
-    await recording.flush()
-    const journal = await writer.read()
+    if (prepared === undefined) throw new Error('Usage fixture did not prepare')
+    const { root, log, journal, access, state } = prepared
     expect(journal.records).toHaveLength(3)
     expect(
       journal.records.map((row) => row.provider).toSorted((a, b) => a.localeCompare(b)),
@@ -206,15 +225,6 @@ describe('M102 integrated surfaces', () => {
       certainty: 'plan',
     })
     expect(JSON.stringify(journal)).not.toContain('private prompt')
-    const access = createUsageAccess({
-      dataFolder: root,
-      packageRoot: path.resolve('.'),
-      host: 'win11',
-      locale: 'en',
-      uiText: EN,
-      log,
-    })
-    const state = await access.read(query)
     expect(state.unreportedLimits).toContainEqual({
       provider: 'openai',
       consoleUrl: 'https://platform.openai.com/api-keys',
@@ -372,7 +382,12 @@ describe('M102 integrated surfaces', () => {
         if (prompt.type !== 'confirm') throw new Error('missing confirmation')
         expect(prompt.count).toBe(state.history.recordCount)
         const otherToken = await login(panel)
-        const answer = { type: 'confirm', id: prompt.id, count: prompt.count, approved: isApproved }
+        const answer = {
+          type: 'confirm',
+          id: prompt.id,
+          count: prompt.count,
+          approved: isApproved,
+        }
         expect(
           await call(panel, '/post', 'POST', JSON.stringify(answer), headers(panel, otherToken)),
         ).toHaveProperty('status', 500)

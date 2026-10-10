@@ -18,6 +18,7 @@ import {
   type McpTool,
 } from '../../core/mcp'
 import {
+  UI_TEXT,
   CLI_OUTPUT_MAX_BYTES,
   HTTP_STATUS,
   IDE_MCP_LOOPBACK_HOST,
@@ -53,6 +54,11 @@ export class IdeMcpServer {
     /** The tools offered now, asked on every request. */
     private readonly tools: () => readonly McpTool[],
     private readonly log: Logger,
+    /** B authenticates and pins a requester-specific transport before supplying vault tools. */
+    private readonly vaultTools?: (
+      request: IncomingMessage,
+      signal: AbortSignal,
+    ) => Promise<readonly McpTool[]>,
   ) {}
 
   /**
@@ -74,6 +80,7 @@ export class IdeMcpServer {
     body: string,
     key: McpRequestKey | undefined,
     response: ServerResponse,
+    request: IncomingMessage,
   ): Promise<McpOutcome> {
     const controller = new AbortController()
     const onClose = () => {
@@ -88,7 +95,20 @@ export class IdeMcpServer {
       this.inFlight.set(key, calls)
     }
     try {
-      return await handleMcpMessage(body, this.tools(), IDE_MCP_SERVER_INFO, controller.signal)
+      let vault: readonly McpTool[]
+      try {
+        vault = (await this.vaultTools?.(request, controller.signal)) ?? []
+      } catch {
+        // Requester bindings can fail privately; their exception text is never logged.
+        throw new Error(UI_TEXT.vault.noAccess)
+      }
+      controller.signal.throwIfAborted()
+      return await handleMcpMessage(
+        body,
+        [...this.tools(), ...vault],
+        IDE_MCP_SERVER_INFO,
+        controller.signal,
+      )
     } finally {
       response.off('close', onClose)
       if (key !== undefined && calls !== undefined) {
@@ -132,7 +152,7 @@ export class IdeMcpServer {
     if (keys.cancelled !== undefined) {
       this.cancel(keys.cancelled)
     }
-    const outcome = await this.handleInFlight(body, keys.request, response)
+    const outcome = await this.handleInFlight(body, keys.request, response, request)
     if (response.destroyed) {
       return
     }

@@ -16,6 +16,12 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { removeFolder } from './helpers/temporaryFolders'
 
+// The real job helper compiles under the bootstrap runner; only its admission is a fixture.
+vi.mock('../../src/core/resources/admission', async (original) => {
+  const { withFixtureBootstrap } = await import('./helpers/resources/fixtureLaunch')
+  return withFixtureBootstrap(await original())
+})
+
 const ticket: ResourceTicket = {
   id: 'windows',
   root: { pid: 810, startTime: '134040000000000000' },

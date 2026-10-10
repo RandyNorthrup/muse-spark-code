@@ -3,11 +3,17 @@ import { estimateCostUsd } from '../core/usage/insights'
 import {
   MODEL_API_PRICED_MODELS,
   ACP_TOOL_OUTPUT_MAX_CHARS,
+  BASE64_INPUT_BLOCK_BYTES,
+  BASE64_OUTPUT_BLOCK_CHARS,
+  BYTES_PER_MIB,
   FILE_EDIT_TOOLS,
   FILE_READ_TOOLS,
   IDE_CONTEXT_TAGS,
   IMAGE_MAKING_TOOLS,
   MAX_IMAGE_BYTES,
+  MAX_DOCUMENT_BYTES,
+  MEDIA_MAX_UPLOAD_DEFAULT_MIB,
+  PDF_MEDIA_TYPE,
   MODEL_API_WEB_SEARCH_TOOL,
   SELECTION_TEXT_MAX_CHARS,
   SHELL_TOOLS,
@@ -41,6 +47,7 @@ import type {
 import type { SessionMcpServer, TurnPart } from '../core/agent/agentBackend'
 import { resolveWorkspacePath } from '../core/workspacePath'
 import { readImageInfo } from '../core/imageDimensions'
+import { isPdf, pdfPageCount } from '../core/pdf'
 import type {
   AgentEvent,
   ApprovalChoice,
@@ -600,6 +607,11 @@ export type PromptResult =
   | { readonly ok: true; readonly parts: TurnPart[]; readonly displayText: string }
   | { readonly ok: false; readonly reason: string }
 
+/** Installed on first media use; each session binds its current model and approved sources. */
+export interface PromptMediaPort {
+  readonly block: (block: ContentBlock, signal: AbortSignal) => Promise<TurnPart | string>
+}
+
 /** A file the client attached, as context the model reads (clipped like a selection). */
 function attachedContext(uri: string, text: string): string {
   const body =
@@ -627,12 +639,33 @@ function linkText(uri: string, cwd: string): string {
     : formatMention(relative.split(path.sep).join('/'))
 }
 
-function imagePart(base64Data: string): TurnPart | string {
-  const bytes = Buffer.from(base64Data, 'base64')
-  if (bytes.byteLength > MAX_IMAGE_BYTES) {
-    return UI_TEXT.attachmentTooLarge
-  }
+/** Check the encoded cap before allocating; malformed base64 is never decoded lossily. */
+export function decodeAcpBlob(
+  data: string,
+  maxBytes: number,
+  mime: string,
+  tooLarge: string,
+): Uint8Array | string {
+  if (data.length > BASE64_OUTPUT_BLOCK_CHARS * Math.ceil(maxBytes / BASE64_INPUT_BLOCK_BYTES))
+    return tooLarge
+  const bytes = Buffer.from(data, 'base64')
+  if (bytes.length > maxBytes) return tooLarge
+  return bytes.toString('base64') === data
+    ? bytes
+    : fill(UI_TEXT.media.attachmentUnknownType, { type: mime })
+}
+
+function imagePart(base64Data: string, mime?: string): TurnPart | string {
+  const bytes = decodeAcpBlob(
+    base64Data,
+    MAX_IMAGE_BYTES,
+    mime ?? 'image',
+    UI_TEXT.attachmentTooLarge,
+  )
+  if (typeof bytes === 'string') return bytes
   const info = readImageInfo(bytes)
+  if (info !== undefined && mime !== undefined && mime !== info.mediaType)
+    return fill(UI_TEXT.media.attachmentUnknownType, { type: mime })
   return info === undefined
     ? UI_TEXT.attachmentUnsupported
     : {
@@ -645,27 +678,96 @@ function imagePart(base64Data: string): TurnPart | string {
 }
 
 /** One content block as a turn part; a string is why it was refused. */
-function blockPart(block: ContentBlock, cwd: string): TurnPart | string {
+async function blockPart(
+  block: ContentBlock,
+  cwd: string,
+  signal: AbortSignal,
+  media?: PromptMediaPort,
+  canAcceptDocuments = false,
+): Promise<TurnPart | string> {
   switch (block.type) {
     case 'text': {
       return { type: 'text', text: block.text }
     }
     case 'image': {
-      return imagePart(block.data)
+      return imagePart(block.data, block.mimeType)
     }
     case 'resource_link': {
-      return { type: 'text', text: linkText(block.uri, cwd) }
+      // Only media links reach the port: an ordinary context link must not
+      // become a file open once the factory binds (M105 E2 review).
+      if (!isMediaLink(block)) return { type: 'text', text: linkText(block.uri, cwd) }
+      if (media !== undefined) return await media.block(block, signal)
+      // No port on the Model API backend is an unbound pipeline, not a
+      // reason to switch backends (M105 E2 review).
+      return canAcceptDocuments ? UI_TEXT.media.uploadStorageUnknown : UI_TEXT.media.museCodeRefusal
     }
     case 'resource': {
       const { resource } = block
-      return 'text' in resource
-        ? { type: 'text', text: attachedContext(resource.uri, resource.text) }
-        : imagePart(resource.blob)
+      if ('text' in resource)
+        return { type: 'text', text: attachedContext(resource.uri, resource.text) }
+      const bytes = decodeAcpBlob(
+        resource.blob,
+        resource.mimeType === PDF_MEDIA_TYPE
+          ? MAX_DOCUMENT_BYTES
+          : MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB,
+        resource.mimeType ?? 'blob',
+        resource.mimeType === PDF_MEDIA_TYPE ? UI_TEXT.documentTooLarge : UI_TEXT.execFileTooLarge,
+      )
+      if (typeof bytes === 'string') return bytes
+      if (isPdf(bytes)) {
+        if (resource.mimeType != null && resource.mimeType !== PDF_MEDIA_TYPE)
+          return fill(UI_TEXT.media.attachmentUnknownType, { type: resource.mimeType })
+        if (!canAcceptDocuments) return UI_TEXT.pdfNeedsModelApi
+        if (bytes.length > MAX_DOCUMENT_BYTES) return UI_TEXT.documentTooLarge
+        return {
+          type: 'file',
+          name: resourceName(resource.uri),
+          mediaType: PDF_MEDIA_TYPE,
+          base64Data: resource.blob,
+          sizeBytes: bytes.length,
+          pageCount: pdfPageCount(bytes),
+        }
+      }
+      const image = readImageInfo(bytes)
+      if (image !== undefined) {
+        return resource.mimeType != null && resource.mimeType !== image.mediaType
+          ? fill(UI_TEXT.media.attachmentUnknownType, { type: resource.mimeType })
+          : imagePart(resource.blob)
+      }
+      return media === undefined
+        ? fill(UI_TEXT.media.attachmentUnknownType, { type: resource.mimeType ?? 'blob' })
+        : await media.block(block, signal)
+    }
+    case 'audio': {
+      if (media !== undefined) return await media.block(block, signal)
+      return canAcceptDocuments ? UI_TEXT.media.uploadStorageUnknown : UI_TEXT.media.museCodeRefusal
     }
     default: {
-      return UI_TEXT.attachmentUnsupported
+      return fill(UI_TEXT.media.attachmentUnknownType, { type: 'content' })
     }
   }
+}
+
+/** Only a display name; URI never grants access to a local file. */
+export function resourceName(uri: string): string {
+  try {
+    return path.posix.basename(decodeURIComponent(new URL(uri).pathname).replaceAll('\\', '/'))
+  } catch {
+    return path.posix.basename(uri.replaceAll('\\', '/'))
+  }
+}
+
+/**
+ * Whether a prompt link names media (M105 E2 review): only these route to
+ * the media port. Ordinary context links and URLs stay mentions/text even
+ * when the port is bound; binding the port must not file-open them.
+ */
+export function isMediaLink(block: Extract<ContentBlock, { type: 'resource_link' }>): boolean {
+  return (
+    /^(?:image|audio|video)\//u.test(block.mimeType ?? '') ||
+    block.mimeType === PDF_MEDIA_TYPE ||
+    /\.(?:pdf|png|jpe?g|gif|webp|mp4|mov|mp3|wav|webm|mkv|m4a)$/iu.test(resourceName(block.uri))
+  )
 }
 
 /**
@@ -673,10 +775,18 @@ function blockPart(block: ContentBlock, cwd: string): TurnPart | string {
  * take refuses the whole prompt, so nothing is sent half. `displayText` is
  * what the user typed, for the stored transcript.
  */
-export function promptParts(blocks: readonly ContentBlock[], cwd: string): PromptResult {
+export async function promptParts(
+  blocks: readonly ContentBlock[],
+  cwd: string,
+  media?: PromptMediaPort,
+  canAcceptDocuments = false,
+  signal: AbortSignal = new AbortController().signal,
+): Promise<PromptResult> {
   const parts: TurnPart[] = []
   for (const block of blocks) {
-    const part = blockPart(block, cwd)
+    signal.throwIfAborted()
+    const part = await blockPart(block, cwd, signal, media, canAcceptDocuments)
+    signal.throwIfAborted()
     if (typeof part === 'string') {
       return { ok: false, reason: part }
     }
