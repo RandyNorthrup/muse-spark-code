@@ -31320,6 +31320,23 @@ row remain waiting for the named key or local runtime. Durable History's
 live receipts and M106's release checklist remain open; details are in
 `docs/certification/m106-completion-captures.md`.
 
+**C-M106-2 production binding (2026-10-10, kubuntu).** The Model API bundle
+entry supplies `argumentPreviewCapabilities` and `modelOutputMaxTokens` from
+the captured Meta record when no caller provides them
+(`modelCapabilities.ts`, `modelApiEntry.ts`), so the single binding serves
+VS Code, ACP and exec through their shared entry: previews stream on the
+U9-captured `muse-spark-1.3-contributor` model, Meta turns request the
+documented 131,072-token cap, and unobserved models keep today's stream and
+the legacy 32,768-token cap. No caller edits were needed in `extension.ts`,
+`runtime/backends.ts` or `src/acp/translate.ts`: neither host passes these
+deps (the only two manager construction sites), and the ACP translator
+already renders record-emitted previews. Acceptance 1, 6 and 8 hold at the
+host level with feature-off bytes unchanged; the execute-on-a-delta drill and
+the guard-removal red drill (SHA-256 byte-exact restore) are recorded in
+`docs/certification/m106-capability-binding.md`. Open for the lead: live
+Meta receipts from the collector, per-model U9 rows beyond the contributor
+model, the C-M95-8 registry follow-up for BYO records, and Codex/Grok review.
+
 **M106W continuation 3 (2026-10-06, macmini).** Resolve the 15 full-suite
 blockers recorded by W: reconcile only D86-authorized behavior changes, repair
 stale fake package/capability/lazy UI fixtures, and fix shipped frame coverage.
