@@ -2,6 +2,7 @@ import { Server, type RequestListener } from 'node:http'
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { startCompanionServer } from '../../src/runtime/companion/server'
+import { settlesBeforeIdle } from './helpers/companion'
 
 /**
  * Socket-free transport: a real Server whose bind never touches the network,
@@ -74,29 +75,6 @@ function startHeld(signal?: AbortSignal) {
     },
   )
   return { started, servers }
-}
-
-/**
- * RVCOMPSUB finding 1 guard: `closed` must settle promptly from the asserted
- * cause, never from the 5000 ms idle timer. A background timer that settles
- * the same promise would otherwise let the test pass with the cause removed.
- */
-async function settlesBeforeIdle(closed: Promise<void>): Promise<void> {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  try {
-    let isSettled = false
-    const watch = (async (): Promise<void> => {
-      await closed
-      isSettled = true
-    })()
-    const waitIdle = new Promise<void>((resolve) => {
-      timer = setTimeout(resolve, 1000)
-    })
-    await Promise.race([watch, waitIdle])
-    expect(isSettled).toBe(true)
-  } finally {
-    clearTimeout(timer)
-  }
 }
 
 describe('companion startup races', () => {
