@@ -31,6 +31,12 @@ export interface BundleEvidence {
   readonly outputs: readonly string[]
   /** Listed inputs or outputs outside the workspace, by name. */
   readonly outside: readonly string[]
+  /**
+   * Modules a build plugin generated (`namespace:name`): attributed only
+   * by the hash the build recorded for the contents it handed esbuild.
+   */
+  readonly generated?: readonly string[]
+  readonly generatedHashes?: Readonly<Record<string, string>>
   /** Build-captured SHA-256 per path; absent when no build record exists. */
   readonly inputHashes?: Readonly<Record<string, string>>
   readonly outputHashes?: Readonly<Record<string, string>>
@@ -217,8 +223,8 @@ export function normalizeEvidencePath(entry: string): string {
  * in-memory snapshot's text is its bytes. `undefined` when unreadable.
  */
 function currentContentHash(snapshot: LegalFileSnapshot, file: string): string | undefined {
-  const text = snapshot.readFile(file)
   if (snapshot.readFileHash !== undefined) return snapshot.readFileHash(file)
+  const text = snapshot.readFile(file)
   return text === undefined ? undefined : fingerprint(text)
 }
 
@@ -240,7 +246,7 @@ function digestOf(
  * exists and matches its hash, and no two records disagree about one
  * input.
  */
-function bundleFreshnessProblems(
+export function bundleFreshnessProblems(
   snapshot: LegalFileSnapshot,
   fileSet: ReadonlySet<string>,
   bundles: readonly BundleEvidence[],
@@ -267,6 +273,11 @@ function bundleFreshnessProblems(
         currentContentHash(snapshot, input) !== expected
       )
         problems.push(fill(UI_TEXT.legalScanner.m206, { v0: bundle.name, v1: input }))
+    }
+    const generatedModules = bundle.generated ?? []
+    for (const module of generatedModules) {
+      if (bundle.generatedHashes?.[module] === undefined)
+        problems.push(fill(UI_TEXT.legalScanner.m206, { v0: bundle.name, v1: module }))
     }
     for (const listed of bundle.outputs) {
       const output = normalizeEvidencePath(listed)

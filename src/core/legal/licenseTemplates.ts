@@ -20,6 +20,7 @@ import {
   LEGAL_TEMPLATE_ORIGINAL_SLACK_CHARS,
   LEGAL_TEMPLATE_SIMILARITY_MIN,
   LEGAL_TEMPLATE_SPAN_MAX_CHARS,
+  LEGAL_TEMPLATE_TITLE_LINES_MAX,
   LEGAL_TEMPLATE_VARIABLE_MAX_CHARS,
 } from '../../shared/constants'
 import { bytesFingerprint } from '../verify/fingerprint'
@@ -135,6 +136,26 @@ const NAME_CONNECTORS: ReadonlySet<string> = new Set(
     ' ',
   ),
 )
+
+/**
+ * Restriction vocabulary (M97 CM971-R3, lead ruling): words that limit
+ * use, audience, purpose or price. They are never part of a holder's or
+ * party's name, in any case, so a notice that carries one (`Example
+ * Nonprofit Projects Only`) keeps human review. The list only ever forces
+ * review; it never makes a text match.
+ */
+const RESTRICTION_WORDS: ReadonlySet<string> = new Set(
+  'noncommercial commercial nonprofit non profit educational education academic personal only solely exclusively strictly no not never without except excluding unless prohibited prohibit forbidden restricted restriction restrictions permitted permission allowed require requires required must shall paid pay payment fee fees royalty royalties charge use usage purpose purposes training evaluation military internal hobby hobbyist demo trial'.split(
+    ' ',
+  ),
+)
+
+/** Whether a word, or any hyphen-joined piece of it, is restriction vocabulary. */
+function isRestrictionWord(lower: string): boolean {
+  return (
+    RESTRICTION_WORDS.has(lower) || lower.split('-').some((piece) => RESTRICTION_WORDS.has(piece))
+  )
+}
 
 function normalizePunctuation(token: string): readonly string[] {
   if (token === '©') return ['(', 'c', ')']
@@ -568,8 +589,9 @@ function isNameWord(word: string, lower: string, vocabulary: ReadonlySet<string>
  * Whether text reads only as a name: capitalised words, initials,
  * numbers, contacts, a lone handle and a closed set of particles, with
  * periods only after an initial or an abbreviation, or closing the name.
- * A terminator, lowercase prose, a sentence after an abbreviation or
- * text in a script without letter case never passes.
+ * A terminator, lowercase prose, a sentence after an abbreviation,
+ * restriction vocabulary in any case, or text in a script without letter
+ * case never passes.
  */
 function isNameShaped(text: string, vocabulary: ReadonlySet<string>): boolean {
   const body = collapse(text)
@@ -593,6 +615,7 @@ function isNameShaped(text: string, vocabulary: ReadonlySet<string>): boolean {
     const lower = word.toLowerCase()
     if (word === '' || /[^\p{L}\p{N}\p{M}._'’-]/u.test(word)) return false
     if (isAfterAbbreviation && /^\p{Lu}/u.test(word)) return false
+    if (isRestrictionWord(lower)) return false
     // Capitals-only words in a row outside the variable's own wording
     // read as a clause (`NO COMMERCIAL USE`), not a name.
     const isShout =
@@ -737,6 +760,9 @@ function isAligned(
       failure.variableStart = pos
       failure.variableEnd = end
     }
+    // No acceptable end at all (the text stops, or what follows is not
+    // the template's next word): the difference starts at the variable.
+    note(pos, pc)
     return false
   }
   const isRunMatched = (startPc: number, startPos: number): boolean => {
@@ -801,18 +827,29 @@ function differenceOf(
     : { templateId: template.id, span: bound(token.start, lineEnd(text, token.start)), expected }
 }
 
-/** Tokens of a first line made only of the template's title words, else 0. */
-function titleSkip(template: LicenseTemplate, tokens: readonly Token[]): number {
-  const firstLine = tokens[0]?.line
-  let count = 0
-  let words = 0
-  for (const token of tokens) {
-    if (token.line !== firstLine) break
-    if (token.isWord && !template.titleVocabulary.has(token.norm)) return 0
-    if (token.isWord) words += 1
-    count += 1
-  }
-  return words > 0 && count < tokens.length ? count : 0
+/**
+ * The tokens without title lines: among the first few lines, a line made
+ * only of the template's title words (`The MIT License (MIT)`, or `MIT
+ * License` written after the copyright line) carries no terms. Undefined
+ * when there is no such line.
+ */
+function withoutTitleLines(
+  template: LicenseTemplate,
+  tokens: readonly Token[],
+): readonly Token[] | undefined {
+  const lines = [...new Set(tokens.map((token) => token.line))].slice(
+    0,
+    LEGAL_TEMPLATE_TITLE_LINES_MAX,
+  )
+  const titles = new Set(
+    lines.filter((line) => {
+      const words = tokens.filter((token) => token.line === line && token.isWord)
+      return words.length > 0 && words.every((token) => template.titleVocabulary.has(token.norm))
+    }),
+  )
+  if (titles.size === 0) return undefined
+  const kept = tokens.filter((token) => !titles.has(token.line))
+  return kept.length > 0 ? kept : undefined
 }
 
 /**
@@ -860,10 +897,11 @@ export function readLicenseText(
   // match; the others are never walked for exactness.
   for (const { template, similarity, recall } of ranked) {
     if (recall < 1) continue
-    const skip = titleSkip(template, tokens)
+    const untitled = withoutTitleLines(template, tokens)
     if (
       isAligned(template, input, 0, newFailure()) ||
-      (skip > 0 && isAligned(template, input, skip, newFailure()))
+      (untitled !== undefined &&
+        isAligned(template, { ...input, tokens: untitled }, 0, newFailure()))
     )
       return { key: template.key, exact: true, similarity }
   }

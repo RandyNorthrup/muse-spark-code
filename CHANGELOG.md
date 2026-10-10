@@ -99,6 +99,13 @@ happened, not what was planned; superseded entries are kept.
   proven per bundle from SHA-256 hashes the production build captures from
   the exact bytes it compiles; every listed output must exist and match,
   conflicting records fail, and inputs outside the workspace are named.
+  Plugin-generated modules, binary inputs and esbuild's disabled stand-ins
+  are hashed where the build hands them over, and `npm run build` now ends
+  by scanning this repository's own build records with the production
+  scanner (`scripts/check-legal-build-records.mjs`), failing on any
+  unverified input. Restriction words (noncommercial, nonprofit,
+  educational, only, personal, no, …) are never read as part of a
+  copyright holder's name, so such a notice keeps human review.
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which

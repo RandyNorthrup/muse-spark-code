@@ -15,6 +15,15 @@ export function fingerprint(raw: string): string {
   return createHash(FINGERPRINT_HASH).update(raw).digest('hex')
 }
 
+/**
+ * The SHA-256 of exact bytes, text or not (M97 CM971-R3: build evidence
+ * covers images and other binary inputs). Equal to `bytesFingerprint`
+ * for UTF-8 bytes, since that digest keeps any byte-order mark.
+ */
+export function rawBytesFingerprint(bytes: Uint8Array): string {
+  return createHash(FINGERPRINT_HASH).update(bytes).digest('hex')
+}
+
 /** The digest of a file's bytes, read as the tools read text; undefined for bytes that are not UTF-8. */
 export function bytesFingerprint(bytes: Uint8Array): string | undefined {
   try {

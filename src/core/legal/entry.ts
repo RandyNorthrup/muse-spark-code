@@ -11,7 +11,7 @@ import type { LegalPreparedPatch } from '../../shared/legalScanEntry'
 import { prepareLegalHeaderPatches } from './headerFix'
 import { readNpm } from './ecosystems/npm'
 import { readPython } from './ecosystems/python'
-import { scanLegal } from './scan'
+import { buildRecordProblems, scanLegal } from './scan'
 import { createLegalSnapshot } from './workspace'
 
 export async function runLegalScan(request: LegalScanRequest): Promise<LegalScanHandle> {
@@ -47,6 +47,16 @@ export async function runLegalScan(request: LegalScanRequest): Promise<LegalScan
   })
   request.signal?.throwIfAborted()
   return { result, registryTargets }
+}
+
+/**
+ * The release build's check of its own bundle records (M97 CM971-R3):
+ * every enumeration and build-evidence problem, unbounded. Empty only when
+ * every input, generated module and output is attributed and fresh.
+ */
+export function verifyLegalBuildRecords(workspaceRoot: string): readonly string[] {
+  const snapshot = createLegalSnapshot(workspaceRoot)
+  return [...snapshot.incompleteChecks, ...buildRecordProblems(snapshot)]
 }
 
 export function prepareLegalFixes(
