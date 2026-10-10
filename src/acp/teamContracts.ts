@@ -8,6 +8,7 @@
 import * as z from 'zod/mini'
 import type {
   PermissionOption,
+  PermissionOptionKind,
   PlanEntry,
   RequestPermissionRequest,
   ToolCallContent,
@@ -48,8 +49,18 @@ export function isTeamToolCallId(toolCallId: string): boolean {
   return toolCallId.startsWith(TEAM_TOOL_CALL_PREFIX)
 }
 
+/** The agent/detail delimiter of the installed title template (`{agent}: {detail}`). */
+const AGENT_DETAIL_SEPARATOR = ': '
+/** Every line break the permission-title parser cannot round-trip. */
+const TITLE_LINE_BREAK = /[\r\n\u{2028}\u{2029}]/u
+
 function checkedTitlePart(kind: 'role' | 'agent', value: string): string {
-  if (value === '' || value.includes(TITLE_SEPARATOR.trim()) || value.includes('\n'))
+  if (
+    value === '' ||
+    value.includes(TITLE_SEPARATOR.trim()) ||
+    value.includes(AGENT_DETAIL_SEPARATOR) ||
+    TITLE_LINE_BREAK.test(value)
+  )
     throw new Error(`M96b: the team ${kind} cannot start a permission title`)
   return value
 }
@@ -123,7 +134,11 @@ export function parseTeamPermissionTitle(
     agent === '' ||
     detail === '' ||
     role.includes(separator) ||
-    agent.includes(separator)
+    agent.includes(separator) ||
+    role.includes(AGENT_DETAIL_SEPARATOR) ||
+    agent.includes(AGENT_DETAIL_SEPARATOR) ||
+    TITLE_LINE_BREAK.test(role) ||
+    TITLE_LINE_BREAK.test(agent)
     ? undefined
     : { role, agent, detail }
 }
@@ -185,16 +200,30 @@ export function teamTaskToolCall(input: {
   }
 }
 
-/** A finished task: its report is the call's content. */
+/**
+ * A finished task: its report is the call's content, after the diffs it
+ * already showed. ACP updates replace content, so the completion re-sends
+ * the displayed diffs or the final display loses the task's changes.
+ */
 export function teamTaskReportUpdate(input: {
   readonly taskId: string
   readonly report: string
+  readonly diffs?: readonly ToolCallContent[]
 }): ToolCallUpdate {
   return {
     toolCallId: teamTaskToolCallId(input.taskId),
     status: 'completed',
-    content: [teamReportContent(input.report)],
+    content: [teamReportContent(input.report), ...(input.diffs ?? [])],
   }
+}
+
+/**
+ * A permission or diff update shows a patch: at least one entry is a real
+ * diff, so no accepted update asks for or shows a merge without its patch.
+ */
+function checkedDiffs(diffs: readonly ToolCallContent[], message: string): ToolCallContent[] {
+  if (diffs.every((entry) => entry.type !== 'diff')) throw new Error(message)
+  return [...diffs]
 }
 
 /** A working task's file changes: its diffs are the call's content. */
@@ -202,11 +231,10 @@ export function teamTaskDiffUpdate(input: {
   readonly taskId: string
   readonly diffs: readonly ToolCallContent[]
 }): ToolCallUpdate {
-  if (input.diffs.length === 0) throw new Error('M96b: a team diff update carries its diffs')
   return {
     toolCallId: teamTaskToolCallId(input.taskId),
     status: 'in_progress',
-    content: [...input.diffs],
+    content: checkedDiffs(input.diffs, 'M96b: a team diff update carries its diffs'),
   }
 }
 
@@ -250,10 +278,28 @@ export const teamPlanEntrySchema = z.looseObject({
   status: z.enum(['pending', 'in_progress', 'completed']),
 })
 
+/**
+ * Exactly the SDK `PermissionOptionKind` (`zPermissionOptionKind` in the
+ * installed SDK's generated schema): the frozen contract accepts no option
+ * kind the editor would reject.
+ */
+export const TEAM_PERMISSION_OPTION_KINDS = [
+  'allow_once',
+  'allow_always',
+  'reject_once',
+  'reject_always',
+] as const
+
+function checkedOptionKind(kind: string): PermissionOptionKind {
+  const found = TEAM_PERMISSION_OPTION_KINDS.find((candidate) => candidate === kind)
+  if (found === undefined) throw new Error('M96b: a team merge offers options the editor can show')
+  return found
+}
+
 const teamPermissionOptionSchema = z.looseObject({
   optionId: z.string().check(z.minLength(1)),
   name: z.string(),
-  kind: z.string(),
+  kind: z.enum(TEAM_PERMISSION_OPTION_KINDS),
 })
 
 /**
@@ -271,8 +317,12 @@ export function teamMergeRequest(input: {
   readonly options: readonly PermissionOption[]
 }): RequestPermissionRequest {
   if (input.sessionId === '') throw new Error('M96b: a team merge needs its session')
-  if (input.diffs.length === 0) throw new Error('M96b: a team merge carries its diff')
+  const diffs = checkedDiffs(input.diffs, 'M96b: a team merge carries its diff')
   if (input.options.length === 0) throw new Error('M96b: a team merge offers its options')
+  const options = input.options.map((option) => ({
+    ...option,
+    kind: checkedOptionKind(option.kind),
+  }))
   return {
     sessionId: input.sessionId,
     toolCall: {
@@ -280,9 +330,9 @@ export function teamMergeRequest(input: {
       title: formatTeamPermissionTitle(input),
       kind: TEAM_TASK_TOOL_KIND,
       status: 'pending',
-      content: [...input.diffs],
+      content: diffs,
     },
-    options: [...input.options],
+    options,
   }
 }
 
@@ -294,22 +344,33 @@ export function teamMergeCompletedCall(input: {
   readonly detail: string
   readonly diffs: readonly ToolCallContent[]
 }): ToolCallUpdate {
-  if (input.diffs.length === 0) throw new Error('M96b: a team merge carries its diff')
   return {
     toolCallId: teamMergeToolCallId(input.mergeId),
     title: formatTeamPermissionTitle(input),
     kind: TEAM_TASK_TOOL_KIND,
     status: 'completed',
-    content: [...input.diffs],
+    content: checkedDiffs(input.diffs, 'M96b: a team merge carries its diff'),
   }
 }
+
+/**
+ * What a merge permission carries: the report-free content with at least one
+ * real diff, so the editor never asks for a merge without showing its patch.
+ * (The frozen task content above stays the SDK's own text-or-diff subset:
+ * `ToolCallContent` is `content` | `diff` | `terminal`, and nothing frozen
+ * here sends a terminal.)
+ */
+const teamMergeContentSchema = z.array(teamToolContentSchema).check(
+  z.minLength(1),
+  z.refine((content) => content.some((entry) => entry.type === 'diff')),
+)
 
 /** A merge permission request, as the agent sends it and the editor answers. */
 export const teamMergeRequestSchema = z.looseObject({
   sessionId: z.string().check(z.minLength(1)),
   toolCall: z.looseObject({
     ...teamToolCallFields,
-    content: z.array(teamToolContentSchema).check(z.minLength(1)),
+    content: teamMergeContentSchema,
   }),
   options: z.array(teamPermissionOptionSchema).check(z.minLength(1)),
 })

@@ -1,7 +1,8 @@
 // M96b contracts (C-M96b-0, PLAN.md D75): the frozen ACP team mapping.
-import type { PermissionOption } from '@agentclientprotocol/sdk'
+import type { PermissionOption, ToolCallContent } from '@agentclientprotocol/sdk'
 import { describe, expect, it } from 'vitest'
 import {
+  TEAM_PERMISSION_OPTION_KINDS,
   TEAM_PLAN_PRIORITY,
   TEAM_TASK_TOOL_KIND,
   TEAM_TOOL_CALL_PREFIX,
@@ -74,6 +75,24 @@ describe('M96b permission titles', () => {
     expect(() => formatTeamPermissionTitle({ role: 'a · b', agent: 'a', detail: 'd' })).toThrow()
     expect(() => formatTeamPermissionTitle({ role: 'a', agent: 'a', detail: '' })).toThrow()
   })
+  // RVCM96B0 finding 3: every delimiter the parser uses is refused in role
+  // and agent, so a built title always parses back to exactly one triple.
+  it('rejects every parser delimiter in role and agent', () => {
+    const delimiters = ['·', ' · ', ': ', '\n', '\r', '\u{2028}', '\u{2029}']
+    for (const delimiter of delimiters) {
+      expect(() =>
+        formatTeamPermissionTitle({ role: `a${delimiter}b`, agent: 'c', detail: 'd' }),
+      ).toThrow()
+      expect(() =>
+        formatTeamPermissionTitle({ role: 'a', agent: `c${delimiter}d`, detail: 'e' }),
+      ).toThrow()
+    }
+  })
+  it('parses no title the builder refuses to make', () => {
+    expect(parseTeamPermissionTitle('a: b · c: d')).toBe(undefined)
+    expect(parseTeamPermissionTitle('a\rb · c: d')).toBe(undefined)
+    expect(parseTeamPermissionTitle('a\u{2028}b · c: d')).toBe(undefined)
+  })
 })
 
 describe('M96b task tool calls', () => {
@@ -98,6 +117,17 @@ describe('M96b task tool calls', () => {
     expect(update).toMatchObject({ toolCallId: 'team/task/t1', status: 'in_progress' })
     expect(teamTaskUpdateSchema.safeParse(update).success).toBe(true)
     expect(() => teamTaskDiffUpdate({ taskId: 't1', diffs: [] })).toThrow()
+  })
+  // RVCM96B0 finding 2: ACP updates replace content, so the normal
+  // announce → diff → report sequence keeps the shown diffs on the final
+  // completed call instead of losing them.
+  it('keeps the displayed diffs on the completed call', () => {
+    teamTaskToolCall({ taskId: 't1', role: 'coder', agent: 'zed', detail: 'Write x' })
+    const diffUpdate = teamTaskDiffUpdate({ taskId: 't1', diffs: [DIFF] })
+    const shown: ToolCallContent[] = [...(diffUpdate.content ?? [])]
+    const completed = teamTaskReportUpdate({ taskId: 't1', report: 'done', diffs: shown })
+    expect(completed.content?.map((entry) => entry.type)).toEqual(['content', 'diff'])
+    expect(teamTaskUpdateSchema.safeParse(completed).success).toBe(true)
   })
   it('normalises Windows separators before comparing paths', () => {
     expect(normalizeTeamPath(String.raw`C:\repo\a.ts`)).toBe('C:/repo/a.ts')
@@ -171,6 +201,54 @@ describe('M96b merge permission request', () => {
     expect(
       teamMergeRequestSchema.safeParse({ sessionId: 's', toolCall: {}, options: [] }).success,
     ).toBe(false)
+  })
+  // RVCM96B0 finding 1: a merge permission carries at least one real diff —
+  // never a text-only content list — in the Bypass completed call too.
+  it('refuses a merge that shows no real diff', () => {
+    const textOnly = [teamReportContent('Merge now')]
+    expect(() => teamMergeRequest({ ...input, diffs: textOnly })).toThrow()
+    expect(() => teamMergeCompletedCall({ ...input, diffs: textOnly })).toThrow()
+    expect(() => teamTaskDiffUpdate({ taskId: 't1', diffs: textOnly })).toThrow()
+    const mixed = [teamReportContent('note'), DIFF]
+    expect(teamMergeRequest({ ...input, diffs: mixed }).toolCall.content).toEqual(mixed)
+    expect(
+      teamMergeRequestSchema.safeParse(teamMergeRequest({ ...input, diffs: mixed })).success,
+    ).toBe(true)
+  })
+  it('refuses a merge schema with text-only content', () => {
+    const request = teamMergeRequest(input)
+    expect(
+      teamMergeRequestSchema.safeParse({
+        ...request,
+        toolCall: { ...request.toolCall, content: [teamReportContent('Merge now')] },
+      }).success,
+    ).toBe(false)
+  })
+  // RVCM96B0 finding 4: the frozen option kinds are exactly the SDK's own
+  // `PermissionOptionKind` — every valid kind passes, anything else fails.
+  it('accepts only the SDK option kinds', () => {
+    const request = teamMergeRequest(input)
+    for (const kind of TEAM_PERMISSION_OPTION_KINDS) {
+      expect(
+        teamMergeRequestSchema.safeParse({
+          ...request,
+          options: [{ optionId: 'yes', name: 'Yes', kind }],
+        }).success,
+      ).toBe(true)
+    }
+    const invalidKinds = ['approved', 'allow', 'ALLOW_ONCE', '', 'allow_once ', 'deny_always']
+    for (const kind of invalidKinds) {
+      expect(
+        teamMergeRequestSchema.safeParse({
+          ...request,
+          options: [{ optionId: 'yes', name: 'Yes', kind }],
+        }).success,
+      ).toBe(false)
+      // The probe below smuggles a string past the typed port on purpose so
+      // the builder's own runtime refusal still executes (PLAN.md §8).
+      const smuggled = { optionId: 'yes', name: 'Yes', kind } as unknown as PermissionOption
+      expect(() => teamMergeRequest({ ...input, options: [smuggled] })).toThrow()
+    }
   })
   it('shows the merge as one completed call where asking is off', () => {
     const call = teamMergeCompletedCall({ ...input })
