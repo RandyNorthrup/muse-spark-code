@@ -12,7 +12,7 @@
     "exitCode": 1,
     "command": ["npm", "run", "duplication"],
     "restored": {
-      "src/host/vscode/paid/paidDailyBudget.ts": "52ba338227833a2b66f76b1d8ba1356768406c4c06c4e193034a469f4a02c2e0",
+      "src/host/vscode/paid/paidDailyBudget.ts": "2631b99bce908ef460419aef5b05bd60735298f153cad9f0e757b7ecc6713435",
       "src/runtime/features/paidBudget.ts": "bd4913de322a7abb01c3fb489a177f14e9812698316274c03626649c9f698b20",
       "test/e2e/panelProcess.ts": "273a57a8dd7d5ced28dc6b546e70bfe7184de0fb9b18a173cb4004605fc59a6e",
       "test/unit/companionUpload.test.ts": "22893a8ed8b0abd18a3342354b4cf48e20710b8318f6d859b188eceb8b5a6a91",
