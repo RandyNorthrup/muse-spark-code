@@ -92,14 +92,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- **Other-CI review findings** (CM80CI-R5, RVCM80CI4): the Azure start
-  variable formats with documented `format()` specifiers only
-  (`{0:yyyy}-{0:MM}-{0:dd}T{0:HH}:{0:mm}:{0:ss}Z` from `pipeline.startTime`),
-  so the pipeline accepts the expression and the launcher keeps real vendor
-  time; the parent trap copies the temp path before unsetting names, so an
-  exec failure still removes the bootstrap directory under `set -u`; the
-  Other CI systems help states the launcher's `system` dimension instead of
-  an invented selector. Fake-tested only; hosted/live receipts remain open.
+- **Other-CI review findings** (CM80CIR6, RVCM80CI5): remove Azure's
+  timezone-sensitive vendor start expression. Admission uses measured bootstrap
+  time with a 10-minute worst-case pre-bootstrap setup reserve; the default job
+  is 45 minutes. Qualification must prove setup fits the reserve. Parent holders
+  and cleanup copies use the reserved `muse_ci_internal_` prefix, so ordinary
+  aliases cannot overwrite paths or unset cleanup ownership. Reserved aliases
+  refuse before download and in Node; bootstrap configuration prefixes
+  `MUSE_CI_`, `MUSE_INPUT_` and `MUSE_AGENT_` are reserved too, protecting the
+  exec-time transport bindings. Tests reject any Azure vendor time
+  expression, including malformed syntax, and exercise alias cleanup under sh,
+  dash and bash. Other CI systems help retains the launcher's `system` dimension.
+  Fake-tested only; hosted/live receipts remain open.
 - **Other-CI credential and publication boundaries** (CM80CI-R4,
   RVCM80CI3): the shell never reads/copies the key. A generated name list
   and declared aliases are unset in the download subshell; Node reads the
@@ -111,8 +115,9 @@ happened, not what was planned; superseded entries are kept.
   scope/isolation claim; its automatic processes remain unqualified.
   Cleanup ownership precedes launcher loading and facts/workspace validation.
   AbortSignals terminate filesystem workers for publication, stale removal
-  and cleanup; elapsed-time admission uses Azure pipeline time instead of a
-  fixed setup allowance. Fake-tested only; hosted/live receipts remain open.
+  and cleanup; elapsed-time admission measures vendor/bootstrap starts.
+  Azure's timing policy is superseded by CM80CIR6 above. Fake-tested only;
+  hosted/live receipts remain open.
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.

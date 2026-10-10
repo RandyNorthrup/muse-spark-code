@@ -601,6 +601,8 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['acp'],
     ),
+    // The linked guide owns the per-system contract: Azure's measured bootstrap,
+    // 10-minute setup reserve/45-minute job and the reserved alias namespaces.
     feature(
       'ci-other-systems',
       { ui: 'referenceCiOtherTitle' },

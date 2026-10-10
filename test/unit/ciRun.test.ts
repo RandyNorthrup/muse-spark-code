@@ -19,7 +19,7 @@ import {
 import { setTimeout as delay } from 'node:timers/promises'
 import { boundedFiles, fileOperation } from '../../action/lib/ci-files.mjs'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { azureBoolean, ciFacts, decideCi } from '../../action/lib/ci-adapters.mjs'
 import {
   bootstrapStartMs,
@@ -45,14 +45,13 @@ import {
   FAST_BOUNDS,
   NODE,
   PROCESS_SUITE,
-  tempLayout,
   testOwner,
-  type TempLayout,
 } from './helpers/actionFixtures'
 import {
   agentReports,
   CI_KEY,
   ciPackage,
+  ciTestLayout,
   cloneFor,
   hasKey,
   systemEnv,
@@ -77,20 +76,7 @@ interface CiRun {
   env: Record<string, string | undefined>
 }
 
-const state: { layout?: TempLayout } = {}
-
-beforeEach(() => {
-  state.layout = tempLayout()
-})
-
-afterEach(() => {
-  state.layout?.cleanup()
-})
-
-function layout(): TempLayout {
-  if (state.layout === undefined) throw new Error('no layout')
-  return state.layout
-}
+const layout = ciTestLayout()
 
 function runEnv(
   system: string,
@@ -337,19 +323,83 @@ describe('key intake, inputs and the job deadline', () => {
     expect(conflict).toEqual({})
   })
 
-  it('R4-P2-5: Azure pipeline time includes slow checkout and UseNode; fallback measures real elapsed time', () => {
-    const now = Date.now()
-    const env = {
-      MUSE_CI_JOB_TIMEOUT_MINUTES: '35',
-      MUSE_CI_BOOTSTRAP_START_MS: String(now),
-      MUSE_CI_PIPELINE_STARTED_AT: new Date(now - 16 * 60_000).toISOString(),
+  it('R6-P2-1: Azure reserves ten minutes before measured bootstrap, regardless of vendor timezone', () => {
+    const now = Date.parse('2026-10-10T14:20:00Z')
+    const setupMs = 10 * 60_000
+    for (const vendorTime of ['2026-10-10T16:04:00Z', '2026-10-10T09:04:00-05:00', 'invalid']) {
+      const env = {
+        MUSE_CI_JOB_TIMEOUT_MINUTES: '35',
+        MUSE_CI_BOOTSTRAP_START_MS: String(now),
+        MUSE_CI_PIPELINE_STARTED_AT: vendorTime,
+      }
+      expect(jobStartMs(env, 'azure', now)).toBe(now - setupMs)
+      expect(() => {
+        checkJobDeadline(env, 'azure', { timeoutMinutes: 20 }, now)
+      }).toThrow('only 25 of 35 remain')
+      expect(() => {
+        checkJobDeadline(
+          { ...env, MUSE_CI_JOB_TIMEOUT_MINUTES: '45' },
+          'azure',
+          { timeoutMinutes: 20 },
+          now,
+        )
+      }).not.toThrow()
+      expect(() => {
+        checkJobDeadline(
+          {
+            ...env,
+            MUSE_CI_JOB_TIMEOUT_MINUTES: '45',
+            MUSE_CI_BOOTSTRAP_START_MS: String(now - 6 * 60_000),
+          },
+          'azure',
+          { timeoutMinutes: 20 },
+          now,
+        )
+      }).toThrow('only 29 of 45 remain')
     }
-    expect(() => {
-      checkJobDeadline(env, 'azure', { timeoutMinutes: 20 }, now)
-    }).toThrow('only 19 of 35 remain')
+    expect(() =>
+      jobStartMs({ MUSE_CI_BOOTSTRAP_START_MS: String(now + 60_000) }, 'azure', now),
+    ).toThrow('a measured job or bootstrap start is required')
+    expect(() => jobStartMs({ MUSE_CI_JOB_START_MS: String(now) }, 'azure', now)).toThrow(
+      'MUSE_CI_BOOTSTRAP_START_MS',
+    )
+    expect(
+      jobStartMs(
+        {
+          MUSE_CI_BOOTSTRAP_START_MS: String(now),
+          MUSE_CI_JOB_START_MS: String(now - 16 * 60_000),
+        },
+        'azure',
+        now,
+      ),
+    ).toBe(now - 16 * 60_000)
     expect(
       jobStartMs({ MUSE_CI_BOOTSTRAP_START_MS: String(now - 7 * 60_000) }, 'bitbucket', now),
     ).toBe(now - 7 * 60_000)
+  })
+
+  it('R6-P2-2: Node refuses aliases in the bootstrap ownership namespace and scrubs their values', () => {
+    for (const name of [
+      'muse_ci_internal_dir',
+      'muse_ci_internal_rm_dir',
+      'muse_ci_internal_alias',
+      'MUSE_CI_TEMP',
+      'MUSE_CI_BOOTSTRAP_START_MS',
+      'MUSE_INPUT_AGENT_PACKAGE',
+      'MUSE_AGENT_VERSION',
+    ]) {
+      const env = {
+        MUSE_MODEL_API_KEY: CI_KEY,
+        MUSE_CI_KEY_ALIASES: name,
+        [name]: CI_KEY,
+        COPY: `Bearer ${CI_KEY}`,
+      }
+      expect(takeCiKey(env), name).toBeUndefined()
+      expect(
+        Object.values(env).some((value) => hasKey(value)),
+        name,
+      ).toBe(false)
+    }
   })
 
   it('uses the Action’s grammar, refuses GitHub-only inputs and reads Azure booleans', () => {
@@ -410,7 +460,7 @@ describe('key intake, inputs and the job deadline', () => {
       MUSE_CI_BOOTSTRAP_START_MS: String(now),
       MUSE_CI_JOB_TIMEOUT_MINUTES: '35',
     }
-    expect(jobStartMs(bootstrap, 'azure', now)).toBe(now)
+    expect(jobStartMs(bootstrap, 'azure', now)).toBe(now - 10 * 60_000)
     expect(() => {
       checkJobDeadline(bootstrap, 'bitbucket', { timeoutMinutes: 20 }, now)
     }).not.toThrow()

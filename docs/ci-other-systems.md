@@ -21,7 +21,13 @@ with `node scripts/sync-ci-bootstrap.mjs`; tests reject drift.
    `ci-run.mjs`), and additional binding
    names declared in `MUSE_CI_KEY_ALIASES`, before its first child (`date`).
    Declare additional bindings as space-separated variable **names**, never
-   values. Do not put undeclared credential copies in the job environment:
+   values. Names beginning `muse_ci_internal_`, `MUSE_CI_`, `MUSE_INPUT_`
+   or `MUSE_AGENT_` are reserved for parent ownership and bootstrap configuration,
+   including the temp/start/package transport bindings assigned at exec.
+   Declaring one refuses before download, and Node refuses it too. Ordinary
+   aliases, including old bootstrap
+   holder names, retain their original values until Node reads them.
+   Do not put undeclared credential copies in the job environment:
    POSIX shell cannot identify an arbitrary copied value without reading it.
 2. The sanitized subshell records bootstrap time, creates private scratch
    under `TMPDIR`, downloads the pinned package with `curl --max-time 120`,
@@ -52,7 +58,7 @@ does not erase that record or guarantee memory zeroization.
 | System    | Secret and trust                                                                                                                                                                                                                    | Elapsed job time                                                                              | Upload                                                                                                                                                   |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | GitLab    | Protected, Masked/Hidden **File-type** `MUSE_MODEL_API_KEY_FILE`. Rules exclude fork/untrusted merge requests, unprotected refs and tags; launcher checks again. Automatic source preparation sees the path.                        | `CI_JOB_STARTED_AT`, `CI_JOB_TIMEOUT`; earliest timestamp wins.                               | Built-in artifacts require paths inside `CI_PROJECT_DIR`; no repository fallback is configured. External-temp transport remains unqualified.             |
-| Azure     | Secret pipeline/variable-group `MUSE_MODEL_API_KEY`, mapped only into the run step. Keep fork secret access OFF. Job condition excludes forks and untrusted PRs; `True`/`False` are read without case.                              | Conservative `pipeline.startTime`, before checkout/UseNode, plus bootstrap time; 35 minutes.  | Job-temp output, enabled only by the launcher's `MUSE_CI_OUTPUT_READY` marker after successful publication. Early failures select nothing.               |
+| Azure     | Secret pipeline/variable-group `MUSE_MODEL_API_KEY`, mapped only into the run step. Keep fork secret access OFF. Job condition excludes forks and untrusted PRs; `True`/`False` are read without case.                              | Measured bootstrap time minus a 10-minute pre-bootstrap setup reserve; 45-minute job.         | Job-temp output, enabled only by the launcher's `MUSE_CI_OUTPUT_READY` marker after successful publication. Early failures select nothing.               |
 | Jenkins   | Secret text credential `muse-model-api-key`, bound around the guarded launcher step only. Multibranch fork discovery must use the target Jenkinsfile for untrusted forks.                                                           | `currentBuild.startTimeInMillis`, plus bootstrap time; 35 minutes.                            | Fresh UUID under `pwd(tmp: true)`, manifest checked, five fixed publisher filenames, `followSymlinks: false`. No checkout artifact path.                 |
 | Bitbucket | Secured **deployment** `MUSE_MODEL_API_KEY` in deployment environment `muse-spark`, with trusted-ref/user restrictions. Deployment scope is narrower than repository/workspace. Branch `main` and custom only, no fork PR pipeline. | Bootstrap elapsed time, or an explicitly supplied earlier `MUSE_CI_JOB_START_MS`; 35 minutes. | Built-in artifacts are clone-relative; no repository fallback is configured. External-temp transport and automatic process isolation remain unqualified. |
 
@@ -63,7 +69,21 @@ confirmed nor refuted without a hosted or runner receipt. Deployment scoping
 reduces exposure but does not close that gap. Bootstrap-only timing on a
 vendor with no earlier timestamp cannot prove coverage of its automatic
 preparation: qualification requires an earlier timestamp or a verified
-vendor timeout boundary. No fixed two-minute setup allowance is assumed.
+vendor timeout boundary.
+
+Azure uses no vendor date expression, so organization timezone cannot change
+admission. Its bootstrap measures epoch milliseconds before download; admission
+subtracts a fixed **10-minute worst-case setup allowance** for job initialization,
+full-history checkout and UseNode before that measurement, plus every measured
+millisecond since bootstrap. The 45-minute default job covers the 20-minute
+turn, all launcher tails, the 120-second bootstrap download bound and this
+10-minute reserve. Ten minutes is an explicit runner qualification requirement,
+not an Azure guarantee or a measured hosted receipt: the runner owner must prove
+that all pre-bootstrap setup fits it. A runner that cannot meet it must not use
+this template. Increasing job timeout does not prove that setup requirement.
+This allowance replaces the timezone-sensitive pipeline timestamp entirely;
+GitLab/Jenkins retain their measured vendor starts. Hosted Azure timing and
+upload qualification remain open.
 
 The templates require Linux, Node 22, curl, sha256sum, tar, mktemp and GNU
 `timeout`; no package-manager lifecycle scripts run during bootstrap. Full
@@ -76,6 +96,7 @@ The launcher refuses unsupported events, forks, untrusted PRs, unprotected
 GitLab refs and images in review mode before installation/spending. Admission
 uses job duration minus measured elapsed time from the earliest supplied
 vendor or bootstrap start, reserving install, checkout, exec and every tail.
+Azure also subtracts its required 10-minute pre-bootstrap setup reserve.
 
 The pinned tarball is checked again and installed with lifecycle scripts off,
 private npm config and a package identity/bin check. A fresh private repository

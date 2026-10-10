@@ -92,14 +92,18 @@ export const CI_PUBLISHED_FILES = Object.freeze([
   'manifest.json',
 ])
 // The bootstrap's own start (milliseconds since the epoch), recorded by the
-// template before anything else can spend job time.
+// template before its download, digest check and unpacking.
 export const CI_BOOTSTRAP_START_VARIABLE = 'MUSE_CI_BOOTSTRAP_START_MS'
 // A vendor-measured job start where one reaches the launcher as a plain
 // number (Jenkins: currentBuild.startTimeInMillis, set by the template).
 export const CI_JOB_START_VARIABLE = 'MUSE_CI_JOB_START_MS'
-// Before the launcher: the system's image and clone, then the template's
-// download (curl --max-time 120), digest check and unpacking.
+// The template's download bound (curl --max-time 120). Admission measures
+// all bootstrap elapsed time, including digest verification and unpacking.
 export const CI_BOOTSTRAP_MS = 120_000
+// Azure has no vendor date expression: reserve the qualified runner's
+// worst-case initialization, full-history checkout and UseNode before bootstrap.
+// docs/ci-other-systems.md records this required bound, not a vendor guarantee.
+export const CI_AZURE_SETUP_MS = 600_000
 const MILLISECONDS_PER_MINUTE = 60_000
 const SECONDS_PER_MINUTE = 60
 const PRIVATE_DIR = 0o700
@@ -189,7 +193,7 @@ export function ownerTotalMs(inputs) {
   )
 }
 
-/** The whole job's minutes for `inputs`: setup, bootstrap, the owner, its stop and cleanup, the final writes. */
+/** Bootstrap and launcher bounds in minutes; admission also deducts Azure's pre-bootstrap reserve. */
 export function requiredJobMinutes(inputs) {
   const total =
     CI_BOOTSTRAP_MS +
@@ -230,13 +234,16 @@ export function bootstrapStartMs(env) {
 
 /**
  * Milliseconds since the epoch when the job started: the vendor's own start
- * time the vendor exposes (including Azure's conservative pipeline start),
- * otherwise the bootstrap timestamp. Never assume a setup duration.
+ * time the vendor exposes, otherwise the bootstrap timestamp. Azure reserves
+ * its documented pre-bootstrap setup bound; no vendor date expression is read.
  */
 export function jobStartMs(env, system, nowMs = Date.now()) {
   const starts = []
   if (system === 'gitlab') starts.push(Date.parse(env.CI_JOB_STARTED_AT ?? ''))
-  else if (system === 'azure') starts.push(Date.parse(env.MUSE_CI_PIPELINE_STARTED_AT ?? ''))
+  else if (system === 'azure') {
+    const measured = bootstrapStartMs(env)
+    if (measured <= nowMs) starts.push(measured - CI_AZURE_SETUP_MS)
+  }
   const raw = env[CI_JOB_START_VARIABLE] ?? ''
   if (/^[1-9][0-9]{9,}$/.test(raw)) starts.push(Number(raw))
   if (env[CI_BOOTSTRAP_START_VARIABLE] !== undefined) starts.push(bootstrapStartMs(env))
@@ -258,9 +265,9 @@ export function requiredRunMs(inputs) {
 
 /**
  * Admits a run only on the time REMAINING: the job timeout minus what the
- * job already spent, measured from the vendor's start where one exists
- * (RVCM80CI2 finding 5). A run admitted this way still fits when the
- * system's own preparation ate into the job.
+ * job already spent, measured from the vendor start or bootstrap. Azure also
+ * reserves its required worst-case setup allowance before bootstrap. Coverage
+ * on Azure is conditional on the qualified runner meeting that setup bound.
  */
 export function checkJobDeadline(env, system, inputs, nowMs = Date.now()) {
   const need = requiredRunMs(inputs)

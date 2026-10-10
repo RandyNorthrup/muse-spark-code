@@ -5140,6 +5140,27 @@ handoff and R3's private key transport file. Vendor-managed secret-file
 creation and automatic phases remain vendor boundaries, not launcher
 children; their qualification limits are explicit in M80's record.
 
+**CM80CIR6 review repair (2026-10-10, RVCM80CI5).** Remove Azure's
+pipeline start-time expression and reader entirely: admission uses the
+bootstrap's measured epoch time with a fixed 10-minute pre-bootstrap setup
+allowance. This allowance covers job initialization, full-history checkout
+and UseNode on a qualified runner; it is a required worst-case setup bound,
+not a universal Azure guarantee. The Azure job becomes 45 minutes so its
+20-minute turn, measured bootstrap, 10-minute setup reserve and all launcher
+tails fit. Hosted qualification must prove setup stays within 10 minutes;
+runners that cannot meet that bound must not use this template. No organization
+timezone or vendor date expression participates in admission. Parent bootstrap
+holders and cleanup copies use the reserved `muse_ci_internal_` prefix;
+declared aliases using that prefix or the bootstrap configuration prefixes
+`MUSE_CI_`, `MUSE_INPUT_`, `MUSE_AGENT_` refuse before download and in Node,
+covering the temp/start/package transport bindings assigned at exec. Tests
+check the prefix against the generated unset list,
+exercise ordinary aliases matching every old holder, and prove missing-exec
+cleanup under sh, dash and bash with unsetting applied. Azure's final template
+test rejects vendor time expressions, including malformed ones. Every finding
+gets a regression and a byte-exact red drill in `docs/certification/cm80ci.md`.
+No new dependency, wider guard, paid/live call or hosted-support claim.
+
 Local OS-store authentication is unchanged. Stdin CI uses neither `auth set`
 nor a throwaway keyring nor an environment-key fallback inside the agent.
 One bounded launcher owns diff generation, exec, extraction, patch Git,
@@ -23349,9 +23370,15 @@ RVCM80CI3's redesign supersedes R2/R3 credential transport:
   validation. Publication, stale-output removal and final cleanup receive
   AbortSignals and terminate their filesystem worker at the deadline, so
   timed-out work cannot resume later. Admission measures actual elapsed time
-  from the earliest available vendor start (Azure pipeline.startTime,
-  GitLab job start, Jenkins build start), otherwise bootstrap start; no fixed
-  two-minute setup assumption.
+  from GitLab job start or Jenkins build start, otherwise bootstrap start.
+  CM80CIR6 removes Azure vendor time expressions: Azure uses measured bootstrap
+  time minus a 10-minute worst-case pre-bootstrap setup allowance and a
+  45-minute job (20-minute turn). Hosted qualification must prove initialization,
+  full-history checkout and UseNode fit that allowance; it is not a universal
+  vendor guarantee. Parent holders use a reserved prefix that aliases cannot
+  unset or overwrite; sh/dash/bash cleanup and every old-holder alias are tested.
+  The owning CI suites share temporary-directory lifecycle in their existing
+  fixture helper, retaining per-test cleanup without duplicate setup.
 - Bitbucket's single-script claim did not prove isolation of vendor-managed
   clone/setup/upload. Deployment variables are narrower than repository
   variables. Without a hosted or runner receipt, process isolation remains

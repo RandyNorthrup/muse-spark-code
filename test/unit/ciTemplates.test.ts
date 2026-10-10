@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
-import { parseCiInputs, requiredJobMinutes } from '../../action/lib/ci-run.mjs'
+import { checkJobDeadline, parseCiInputs, requiredJobMinutes } from '../../action/lib/ci-run.mjs'
 import { CI_LAUNCHER_SOURCES } from '../../scripts/lib/acpNativeSources.mjs'
 import { byText, REPO_ROOT } from './helpers/actionFixtures'
 import { bootstrapOf, bootstrapSource, jenkinsStage, templateText } from './helpers/ciTemplateText'
@@ -69,7 +69,7 @@ describe('one bootstrap, generated from one source into every template', () => {
     '%s: R4 shell never reads or copies a key; download children lose aliases',
     (system) => {
       const body = bootstrapOf(system)
-      expect(body).toContain('muse_setup="$(')
+      expect(body).toContain('muse_ci_internal_setup="$(')
       expect(body).toContain(
         'unset MUSE_MODEL_API_KEY MUSE_SPARK_MODEL_API_KEY META_API_KEY MUSE_MODEL_API_KEY_FILE muse_key muse_key_file',
       )
@@ -81,7 +81,9 @@ describe('one bootstrap, generated from one source into every template', () => {
       const digest = body.indexOf('if [ "${muse_sum%% *}"')
       expect(body.indexOf('tar -xzf')).toBeGreaterThan(digest)
       expect(body).toContain('trap - EXIT HUP INT TERM')
-      expect(body).toContain(`exec node "$muse_dir/launcher/package/ci/lib/ci-entry.mjs" ${system}`)
+      expect(body).toContain(
+        `exec node "$muse_ci_internal_dir/launcher/package/ci/lib/ci-entry.mjs" ${system}`,
+      )
     },
   )
 
@@ -184,7 +186,19 @@ describe('job timeouts cover the launcher’s bounds (finding 12)', () => {
     const job = record((document['jobs'] as unknown[])[0])
     const declared = Number(record(document['variables'])['MUSE_CI_JOB_TIMEOUT_MINUTES'])
     expect(job['timeoutInMinutes']).toBe(declared)
-    expect(declared).toBeGreaterThanOrEqual(needed)
+    expect(declared).toBe(45)
+    const now = Date.now()
+    expect(() => {
+      checkJobDeadline(
+        {
+          MUSE_CI_JOB_TIMEOUT_MINUTES: String(declared),
+          MUSE_CI_BOOTSTRAP_START_MS: String(now - 120_000),
+        },
+        'azure',
+        { timeoutMinutes: 20 },
+        now,
+      )
+    }).not.toThrow()
   })
 
   it('Jenkins: options timeout equals the declared MUSE_CI_JOB_TIMEOUT_MINUTES', () => {
@@ -338,98 +352,26 @@ describe('each system’s own mechanism keeps untrusted runs from the credential
   })
 })
 
-describe('Azure expressions use only documented syntax (RVCM80CI4 P1)', () => {
-  // https://learn.microsoft.com/en-us/azure/devops/pipelines/process/expressions?view=azure-devops
-  // documents format()'s date specifiers (yyyy, yy, MM, M, dd, d, HH, H, m,
-  // mm, ss, s, f, ff, ffff, K) with the example
-  // format('{0:yyyyMMdd}', pipeline.startTime), where pipeline.startTime is
-  // "a special date time object variable" in UTC. Separators stay outside
-  // the {index:specifier} items; anything else inside one item (as in
-  // {0:yyyy-MM-ddTHH:mm:ss.fffZ}) is not a documented form and the pipeline
-  // rejects it, leaving the launcher without a vendor start.
-  const DOCUMENTED_SPECIFIERS = new Set([
-    'yyyy',
-    'ffff',
-    'yy',
-    'MM',
-    'dd',
-    'HH',
-    'mm',
-    'ss',
-    'ff',
-    'M',
-    'd',
-    'H',
-    'm',
-    's',
-    'f',
-    'K',
-  ])
-  // Every function and dotted variable the template's runtime ($[]) and
-  // condition expressions use, each documented on the same page.
-  const DOCUMENTED_EXPRESSION_WORDS = new Set([
-    'format',
-    'and',
-    'or',
-    'ne',
-    'eq',
-    'succeeded',
-    'always',
-    'variables',
-    'pipeline',
-    'startTime',
-  ])
-
-  it('the pipeline-start variable formats with documented specifiers only', () => {
-    const line = templateText('azure')
-      .split('\n')
-      .find((text) => text.includes('MUSE_CI_PIPELINE_STARTED_AT:'))
-    const expression = /\$\[(.*)\]/.exec(line ?? '')?.[1] ?? ''
-    expect(expression).toContain('pipeline.startTime')
-    const formatString = /format\('([^']*)'/.exec(expression)?.[1] ?? ''
-    expect(formatString).not.toBe('')
-    const items = formatString.match(/\{\d+:([^}]*)\}/g) ?? []
-    const specs = items.map((item) => {
-      const spec = /\{\d+:([^}]*)\}/.exec(item)?.[1]
-      if (spec === undefined) throw new Error('expected a format specifier')
-      return spec
-    })
-    expect(specs.length).toBeGreaterThan(0)
-    for (const spec of specs) expect(DOCUMENTED_SPECIFIERS, spec).toContain(spec)
-    // Only ISO separators live outside the items.
-    expect(formatString.replaceAll(/\{\d+:[^}]*\}/g, '')).toMatch(/^[-T:Z]+$/)
-    // The whole date and clock ship, so the launcher reads real vendor time.
-    for (const spec of ['yyyy', 'MM', 'dd', 'HH', 'mm', 'ss']) {
-      expect(specs, spec).toContain(spec)
-    }
-    // What the template emits parses as the launcher parses it.
-    const digits: Record<string, string> = {
-      yyyy: '2026',
-      MM: '10',
-      dd: '10',
-      HH: '07',
-      mm: '08',
-      ss: '09',
-    }
-    const sample = formatString.replaceAll(
-      /\{\d+:([^}]*)\}/g,
-      (_, spec: string) => digits[spec] ?? '',
+describe('Azure expressions', () => {
+  it('R6-P3: the final Azure template contains no vendor time expression', () => {
+    const text = templateText('azure')
+    expect(text).not.toMatch(
+      /\$\[|pipeline\.startTime|system\.pipelineStartTime|MUSE_CI_PIPELINE_STARTED_AT/,
     )
-    expect(sample).toBe('2026-10-10T07:08:09Z')
-    expect(Number.isFinite(Date.parse(sample))).toBe(true)
+    expect(record(yamlOf('azure')['variables'])).not.toHaveProperty('MUSE_CI_PIPELINE_STARTED_AT')
   })
 
-  it('every Azure runtime and condition expression uses documented words only', () => {
-    const text = templateText('azure')
-    const expressions = [
-      ...text.matchAll(/\$\[(.*?)\]/g),
-      ...text.matchAll(/^\s*condition:\s*(.+)$/gm),
-    ].map((match) => match[1] ?? '')
+  it('every Azure condition expression uses documented words only', () => {
+    const wordsAllowed = new Set(['and', 'or', 'ne', 'eq', 'succeeded', 'always', 'variables'])
+    const expressions = Array.from(
+      templateText('azure').matchAll(/^\s*condition:\s*(.+)$/gm),
+      (match) => match[1] ?? '',
+    )
     expect(expressions.length).toBeGreaterThan(0)
     for (const expression of expressions) {
       const words = expression.replaceAll(/'[^']*'/g, '').match(/[A-Za-z][A-Za-z0-9]*/g) ?? []
       expect(words.length).toBeGreaterThan(0)
-      for (const word of words) expect(DOCUMENTED_EXPRESSION_WORDS, word).toContain(word)
+      for (const word of words) expect(wordsAllowed, word).toContain(word)
     }
   })
 })

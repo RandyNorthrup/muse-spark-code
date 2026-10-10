@@ -4951,7 +4951,11 @@ budgeted review/fix engine. The shell downloads and verifies the pinned
 package without reading or copying the key; Node reads the vendor source,
 strips key names and value copies before children, and sends the key only
 through trusted private stdin. Declare extra secret binding names in
-`MUSE_CI_KEY_ALIASES`. Output is created outside the checkout under job temp;
+`MUSE_CI_KEY_ALIASES`; `muse_ci_internal_`, `MUSE_CI_`, `MUSE_INPUT_` and
+`MUSE_AGENT_` are reserved prefixes and refuse.
+Azure uses measured bootstrap time with a 10-minute worst-case setup reserve
+and a 45-minute job; runner qualification must prove setup fits that reserve.
+Output is created outside the checkout under job temp;
 Azure/Jenkins upload those publisher files. GitLab/Bitbucket built-in
 artifact paths cannot upload external temp, so their templates omit that
 transport. Bitbucket's automatic-process secret isolation remains
