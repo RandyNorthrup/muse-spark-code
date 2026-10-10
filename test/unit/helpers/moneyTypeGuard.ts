@@ -179,6 +179,31 @@ function analyzeProgram(
     const visit = (node: ts.Node): void => {
       if (ts.isTypeAliasDeclaration(node) || ts.isInterfaceDeclaration(node))
         checkAlias(checker, node, file, flagged, numeric)
+      if (
+        ts.isMappedTypeNode(node) &&
+        node.type !== undefined &&
+        node.typeParameter.constraint !== undefined &&
+        hasNumber(checker, checker.getTypeFromTypeNode(node.type), new Set())
+      ) {
+        // Mapped keys have no property declaration, including beneath an
+        // ordinary name or inside an array/Promise. A generic key may expose
+        // no resolved properties yet: judge its possible literal keys.
+        const seen = new Set<ts.Type>()
+        const checkKey = (type: ts.Type): void => {
+          if (seen.has(type)) return
+          seen.add(type)
+          if (type.isUnionOrIntersection()) {
+            for (const member of type.types) checkKey(member)
+          } else if ((type.flags & ts.TypeFlags.TypeParameter) !== 0) {
+            const constraint = checker.getBaseConstraintOfType(type)
+            if (constraint !== undefined) checkKey(constraint)
+          } else if (type.isStringLiteral() && MONEY_HINT.test(type.value)) {
+            numeric.add(`${file}:${type.value}`)
+            if (MONEY_KEY.test(type.value)) flagged.add(`${file}:${type.value}`)
+          }
+        }
+        checkKey(checker.getTypeFromTypeNode(node.nameType ?? node.typeParameter.constraint))
+      }
       const name = declarationName(checker, node)
       const key = name === undefined ? undefined : keyOf(checker, name)
       if (name !== undefined && key !== undefined && MONEY_HINT.test(key)) {

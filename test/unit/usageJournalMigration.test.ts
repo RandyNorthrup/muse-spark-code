@@ -2,15 +2,16 @@ import { cp, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, it, onTestFinished, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { USAGE_JOURNAL_ROOT, UsageJournalStore } from '../../src/core/usage/journalStore'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { withholdReviverSource } from './helpers/withholdReviverSource'
 import { INEXACT_MONEY_LITERALS } from './helpers/inexactMoneyLiterals'
 import { createUsageAccess } from '../../src/runtime/usage/usageServiceEntry'
 import { EN } from '../../src/shared/l10n/en'
-import { plural } from '../../src/shared/l10n/text'
-import { USAGE_TEXT } from '../../src/shared/l10n/usageTable'
+import { plural, setUiText } from '../../src/shared/l10n/text'
+import { USAGE_TEXT, setUsageText } from '../../src/shared/l10n/usageTable'
+import { USAGE_EN } from '../../src/shared/l10n/usageEn'
 import { FakeLogOutputChannel } from './helpers/fakes'
 
 // M121: the usage journal moves from version 1 (JSON-number dollars) to
@@ -23,6 +24,22 @@ const NOW = new Date(2026, 9, 5, 12).getTime()
 const RAW_DAY = `${USAGE_JOURNAL_ROOT}/days/2026-10-04/w017.jsonl`
 const OLD_DAY = `${USAGE_JOURNAL_ROOT}/days/2026-08-25/w017.jsonl`
 const ROLLUP = `${USAGE_JOURNAL_ROOT}/rollups/2026-08.json`
+
+afterEach(() => {
+  setUiText(EN, 'en')
+  setUsageText(USAGE_EN)
+})
+
+function accessFor(root: string, locale = 'en') {
+  return createUsageAccess({
+    dataFolder: root,
+    packageRoot: fileURLToPath(new URL('../../', import.meta.url)),
+    host: 'M121',
+    locale,
+    uiText: EN,
+    log: new FakeLogOutputChannel(),
+  })
+}
 
 async function rig() {
   const root = await realpath(await mkdtemp(path.join(tmpdir(), 'm121-usage-')))
@@ -73,14 +90,7 @@ describe('usage journal version 1 to version 2 (M121)', () => {
       invalidLines: 0,
     })
     expect(journal.records.some((record) => record.id.startsWith('exotic-'))).toBe(false)
-    const access = createUsageAccess({
-      dataFolder: root,
-      packageRoot: fileURLToPath(new URL('../../', import.meta.url)),
-      host: 'M121',
-      locale: 'en',
-      uiText: EN,
-      log: new FakeLogOutputChannel(),
-    })
+    const access = accessFor(root)
     const state = await access.read({ range: '30d', groupBy: 'provider', metric: 'cost' })
     expect(state.history.inexactRecords).toBe(INEXACT_MONEY_LITERALS.length)
     expect(access.usageText(state, 'plain', 'summary')).toContain(
@@ -88,6 +98,36 @@ describe('usage journal version 1 to version 2 (M121)', () => {
     )
     expect(await readFile(path.join(root, RAW_DAY), 'utf8')).toBe(bytes)
   })
+
+  it.each(
+    ['"usd":0.000162', '"apiEquivalentUsd":0.000838'].flatMap((field) =>
+      ['1e400', '-1e-3', '1e-324', '-0'].map((literal) => [field, literal]),
+    ),
+  )(
+    'refuses rollup %s replaced by %s before money validation (RVM121CG)',
+    async (field, literal) => {
+      const { root, store } = await rig()
+      const file = path.join(root, ROLLUP)
+      const original = await readFile(file, 'utf8')
+      const bytes = original.replace(field, () => `${field.split(':', 2)[0]!}:${literal}`)
+      expect(bytes).not.toBe(original)
+      await writeFile(file, bytes)
+      const journal = await store.read()
+      expect(journal).toMatchObject({ inexactRecords: 9, invalidLines: 0 })
+      expect(journal.rollups).toEqual([])
+      expect(journal.records).toHaveLength(16)
+      // Cached reads and retention also refuse the month without losing days.
+      expect(await store.read()).toEqual(journal)
+      expect(await store.retain()).toBe(false)
+      const access = accessFor(root, 'de')
+      const state = await access.read({ range: '30d', groupBy: 'provider', metric: 'cost' })
+      expect(state.history.inexactRecords).toBe(9)
+      const notice = plural(USAGE_TEXT.inexactRecords, 9)
+      expect(notice).not.toBe(plural(USAGE_EN.inexactRecords, 9))
+      expect(access.usageText(state, 'plain', 'summary')).toContain(notice)
+      expect(await readFile(file, 'utf8')).toBe(bytes)
+    },
+  )
 
   it('reads every 0.17 dollar as the exact decimal it was written as, without touching the files', async () => {
     const { root, store } = await rig()

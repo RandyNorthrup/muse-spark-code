@@ -26,10 +26,11 @@ describe('usage text in every editor', () => {
       state.previousTotals = usageTotals('reported')
       state.totals.costs[0]!.usd = Usd.from(current).toAmount()
       state.previousTotals.costs[0]!.usd = Usd.from(previous).toAmount()
-      for (const format of ['plain', 'markdown'] as const)
-        expect(usageText(state, format)).toContain(
-          `${formatPercent(percent)} compared with the previous period`,
-        )
+      for (const format of ['plain', 'markdown'] as const) {
+        const text = usageText(state, format)
+        expect(text).toContain(`${formatPercent(percent)} compared with the previous period`)
+        if (percent === 0) expect(text).not.toContain('-0% compared with the previous period')
+      }
     },
   )
 

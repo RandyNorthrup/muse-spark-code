@@ -20302,6 +20302,18 @@ The generated comparison extremes exposed a money-label failure beyond Intl's
 fraction-digit limit: reuse its localized currency pattern with at most two
 fraction digits, then substitute the original exact fractional digits as before.
 
+**RVM121CG repair scope (2026-10-09, M121A round 4).** Decide legacy monthly
+rollup exactness before validating money, refuse the entire unproved month
+without aborting the remaining journal read, preserve its bytes and show the
+installed-language refusal notice. Count refused records using validated
+non-money metadata. Whole-percent changes that round to zero return positive
+zero. The type-checker guard examines mapped declarations beneath ordinary
+names, arrays and promises, and resolves generic mapped key constraints.
+Regression tests and byte-exact red drills cover all three review findings;
+owning usage/money suites, one unit-project typecheck, lint, formatting and
+scoped production measurements retain every cap, including usagePanel's.
+Aggregate quality and the inherited build blocker remain with the lead.
+
 ### INT0180B — Complete the 0.18.0 integration (2026-10-07, linuxlt)
 
 **Status 2026-10-07: built.** Linux receipts in `docs/certification/int0180.md`; the package job stays red without genuine macOS artifacts.
@@ -37964,7 +37976,7 @@ lane A's first step.
 
 ## 7. Gates
 
-**M121A round 3 gate ownership (2026-10-09, kubuntu).** The rig brief and
+**M121A rounds 3–4 gate ownership (2026-10-09, kubuntu).** The rig brief and
 shared lane rules forbid aggregate quality in this worktree; the lead owns
 that gate before integration. This lane runs the owning usage/money/schedule
 files at repository timeouts, typecheck, changed-file lint/format, localization
@@ -37979,6 +37991,8 @@ duplicate setup is consolidated without dropping assertions. The lead owns
 the remaining Windows-test repair and the full artifact size/split replay:
 the refused build removes stale browser chunks before stopping, so those
 artifact checks cannot certify a complete current build. No gate is weakened.
+Round 4 replays the owning usage/money files, one unit-project typecheck and
+the scoped static checks and production measurements at the unchanged caps.
 
 **CIFIXM macOS CI repair scope (2026-10-09).** Reproduce the reporting
 journals/cache/engine, schedule-runtime and M114 panel/conversation failures

@@ -337,6 +337,8 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['vscode', 'acp'],
     ),
+    // M121: exact costs and period changes; unproved historical months are
+    // withheld with a translated notice in editor and portable usage views.
     feature(
       'usage',
       { ui: 'usagePageTitle' },

@@ -196,6 +196,11 @@ const rollupReadSchema = z.union([
     })),
   ),
 ])
+// Refusal counts need only metadata, never validation of the unproved money.
+const rollupCountSchema = z.object({
+  rows: z.array(z.object({ records: usageCountSchema })),
+  limits: z.array(z.unknown()),
+})
 /** Dollar fields version 1 wrote as JSON numbers (records, limits and rollups). */
 const USAGE_LEGACY_MONEY_KEYS: ReadonlySet<string> = new Set([
   'usd',
@@ -484,16 +489,22 @@ export class UsageJournalStore {
         this.rollupCache.set(file, { ...stat, rollup: undefined, inexact: 0 })
         continue
       }
-      const rollup = rollupReadSchema.parse(value)
-      if (`${rollup.month}.json` !== name) throw new Error('invalidRollupMonth')
       if (!isExact) {
         // The whole month is refused, and kept untouched for a later reader.
-        const count =
-          rollup.rows.reduce((total, row) => total + row.records, 0) + rollup.limits.length
+        const metadata = rollupCountSchema.safeParse(value)
+        const count = metadata.success
+          ? Math.max(
+              1,
+              metadata.data.rows.reduce((total, row) => total + row.records, 0) +
+                metadata.data.limits.length,
+            )
+          : 1
         inexact += count
         this.rollupCache.set(file, { ...stat, rollup: undefined, inexact: count })
         continue
       }
+      const rollup = rollupReadSchema.parse(value)
+      if (`${rollup.month}.json` !== name) throw new Error('invalidRollupMonth')
       this.rollupCache.set(file, { ...stat, rollup, inexact: 0 })
       rollups.push(rollup)
     }

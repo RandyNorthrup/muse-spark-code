@@ -221,6 +221,28 @@ export interface Totals extends Base {}`,
   'nestedUnion.ts': `export interface Totals {
   fooUsd: { value: number } | { kind: 'none' }
 }`,
+  'nestedMapped.ts': `export type Totals = {
+  data: { [K in 'fooUsd']: number } | { kind: 'none' }
+}`,
+  'arrayMapped.ts': `export type Totals = {
+  data: ReadonlyArray<{ [K in 'fooUsd']: number }>
+}`,
+  'promiseMapped.ts': `export type Totals = {
+  data: Promise<{ [K in 'fooUsd']: number }>
+}`,
+  'genericMapped.ts': `export type Wrap<K extends 'fooUsd'> = { [P in K]: number }`,
+  'genericUnionMapped.ts': `export type Wrap<K extends 'fooUsd' | 'barUsd'> = {
+  [P in K]: number
+}`,
+  'recursiveMapped.ts': `export type Totals = {
+  next?: Totals
+  data: { [K in 'fooUsd']: number }
+}`,
+  'exactNestedMapped.ts': `import type { UsdAmount } from '../../../src/shared/usdSchema'
+export type Totals = {
+  data: ReadonlyArray<{ [K in 'fooUsd']: UsdAmount }> | Promise<{ [K in 'barUsd']: UsdAmount }>
+}
+export type Wrap<K extends 'fooUsd'> = { [P in K]: UsdAmount }`,
   'exactMapped.ts': `import type { UsdAmount } from '../../../src/shared/usdSchema'
 export type Totals = Record<'fooUsd', UsdAmount> | { kind: 'none' }
 export type Both = Record<'barUsd', UsdAmount> & { kind: 'money' }
@@ -338,6 +360,27 @@ describe('exact-money type guard', () => {
 
   it('leaves exact mapped unions, intersections and inherited interfaces alone', () => {
     expect(probe('exactMapped.ts')).toEqual([])
+  })
+
+  it.each([
+    'nestedMapped.ts',
+    'arrayMapped.ts',
+    'promiseMapped.ts',
+    'genericMapped.ts',
+    'recursiveMapped.ts',
+  ])('flags money mapped beneath ordinary names or generic keys in %s (RVM121CG)', (file) => {
+    expect(probe(file)).toEqual([`${file}:fooUsd`])
+  })
+
+  it('flags each possible generic mapped money key', () => {
+    expect(probe('genericUnionMapped.ts')).toEqual([
+      'genericUnionMapped.ts:barUsd',
+      'genericUnionMapped.ts:fooUsd',
+    ])
+  })
+
+  it('leaves nested and generic mapped exact money alone', () => {
+    expect(probe('exactNestedMapped.ts')).toEqual([])
   })
 
   it('flags numeric pipe aliases, imported schemas and numeric constants', () => {

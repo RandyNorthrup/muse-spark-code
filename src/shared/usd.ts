@@ -191,7 +191,8 @@ export function usdPeriodDelta(
   // Round the exact ratio half away from zero before projecting to a number;
   // neither operand passes through a double.
   const doubled = magnitude.times(100).times(2).floorDivide(prior)
-  return Number((doubled + USD_DECIMAL_ONE) / (USD_DECIMAL_ONE + USD_DECIMAL_ONE)) * direction
+  const rounded = (doubled + USD_DECIMAL_ONE) / (USD_DECIMAL_ONE + USD_DECIMAL_ONE)
+  return rounded === USD_DECIMAL_ZERO ? 0 : Number(rounded) * direction
 }
 
 const DECIMAL_RADIX = 10n
