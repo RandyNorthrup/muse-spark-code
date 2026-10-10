@@ -185,6 +185,16 @@ export function CodeIcon(props: IconProps) {
   )
 }
 
+/** The vault section's padlock (C-M109-1 P1). */
+export function LockIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />
+      <path d="M5.5 7V5.2a2.5 2.5 0 0 1 5 0V7" />
+    </Svg>
+  )
+}
+
 export function SendIcon(props: IconProps) {
   return (
     <Svg {...props}>
