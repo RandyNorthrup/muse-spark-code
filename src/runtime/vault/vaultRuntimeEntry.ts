@@ -62,7 +62,11 @@ export function vaultCommandPort(session: VaultManageSession): VaultCommandPort 
     return item
   }
   return {
-    status: async () => await session.status(),
+    // The management view knows "uncreated" and "setupPending"; the broker alone does not.
+    status: async () => {
+      const snapshot = await session.snapshot()
+      return snapshot.status
+    },
     list: async () => {
       const snapshot = await session.snapshot()
       return snapshot.items

@@ -1313,7 +1313,8 @@ async function main(): Promise<number> {
           readMaterial: (signal) => readVaultMaterial(process.stdin, process.stderr, signal),
           readLine: (prompt, signal) =>
             readVaultLine(process.stdin, process.stderr, prompt, signal),
-          isInteractive: process.stdin.isTTY,
+          // The one-time recovery code must reach a person, never a redirected file.
+          isInteractive: process.stdin.isTTY && process.stdout.isTTY,
           choose: (title, choices, signal) =>
             chooseVaultDecision(process.stdin, process.stderr, title, choices, signal),
           print: (text) => {

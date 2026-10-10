@@ -282,7 +282,12 @@ export class VaultManagement implements VaultManagementPort {
       throw new VaultManagementError('invalid')
     }
     this.deps.unlock.offerRecovery(slot.id, key)
-    await this.deps.broker.unlock(slot.id)
+    try {
+      await this.deps.broker.unlock(slot.id)
+    } finally {
+      // A failed unlock never leaves the recovered key waiting in memory.
+      this.deps.unlock.discardRecovery()
+    }
     this.changed()
   }
   subscribe(listener: (event: VaultBrokerEvent) => void): () => void {

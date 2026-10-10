@@ -287,6 +287,23 @@ describe('C-M109-1 setup flow and management', () => {
     expect(await stateOf(f.management)).toBe('unlocked')
     code.fill(0)
   })
+  it('erases the recovered key when the broker refuses the unlock', async () => {
+    const f = managementFixture()
+    const shown = await f.management.setup()
+    const code = Buffer.from(shown.code)
+    await f.management.confirmSetup(shown.setupId)
+    const offered: Buffer[] = []
+    const offer = f.unlock.offerRecovery.bind(f.unlock)
+    vi.spyOn(f.unlock, 'offerRecovery').mockImplementation((slotId, key) => {
+      offered.push(key)
+      offer(slotId, key)
+    })
+    f.broker.unlock.mockRejectedValueOnce(new Error('generated broker refusal'))
+    await expect(f.management.recover(code)).rejects.toThrow('generated broker refusal')
+    expect(offered).toHaveLength(1)
+    expect(offered[0]?.every((byte) => byte === 0)).toBe(true)
+    code.fill(0)
+  })
   it('lists pending approvals until they expire or the vault locks', async () => {
     const f = managementFixture()
     await confirmNew(f.management)
