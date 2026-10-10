@@ -191,6 +191,14 @@ describe('parseChangelog', () => {
         REPOSITORY,
       ),
     ).toThrow('two "### Highlights" sections')
+    // CX1R4 F6: an archived first list still counts as seen for the duplicate check.
+    expect(() =>
+      parseChangelog(
+        '## [1.0.0] - 2026-10-05\n\n### Highlights\n\n- A\n  <!-- whats-new: historical -->\n\n### Highlights\n\n- B\n',
+        ALLOWED,
+        REPOSITORY,
+      ),
+    ).toThrow('two "### Highlights" sections')
     expect(() =>
       parseChangelog(
         '## [1.0.0] - 2026-10-05\n\n- A\n\n## [1.0.0] - 2026-10-05\n\n- B\n',
