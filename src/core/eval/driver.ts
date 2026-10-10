@@ -17,6 +17,7 @@ import type { ModelApiClient } from '../backends/modelapi/client'
 import { ModelApiHost, type ModelApiHostDeps } from '../backends/modelapi/ModelApiHost'
 import { APPROVAL_CHOICE_IDS } from '../backends/modelapi/permissions'
 import type { ToolIo } from '../backends/modelapi/tools'
+import type { MemoryStore } from '../memory/memoryStore'
 import type { AgentEvent, ItemSnapshot } from '../../shared/agentEvents'
 import {
   EVAL_APPROVAL_MODE,
@@ -24,10 +25,12 @@ import {
   EVAL_TURN_COMPLETED,
   EVAL_TURN_TIMED_OUT,
   EVAL_TURN_TIMEOUT_MS,
+  MODEL_API_CONTEXT_WINDOW,
   MODEL_API_MODEL_TEXT,
   MODEL_API_TOOLS,
   SETTING_DEFAULTS,
 } from '../../shared/constants'
+import type { ApprovalMode } from '../../shared/permissionModes'
 
 /** A mechanism: the change it makes to the harness's dependencies. */
 export type EvalHostChange = (deps: ModelApiHostDeps) => ModelApiHostDeps
@@ -45,6 +48,12 @@ export interface EvalTurnDeps {
   readonly newId: () => string
   /** How long the turn may run; the constant unless a test shortens it. */
   readonly turnTimeoutMs?: number | undefined
+  /**
+   * A memory store for the turn; absent unless a test supplies a fake one.
+   * Never owner data: the counted run runs without memory, as the harness
+   * certifies. A mechanism must not change it (it is held fixed below).
+   */
+  readonly memory?: MemoryStore | undefined
 }
 
 export interface EvalTurnOptions {
@@ -52,6 +61,19 @@ export interface EvalTurnOptions {
   readonly workspace: string
   readonly prompt: string
   readonly change?: EvalHostChange | undefined
+  /**
+   * The context window both arms of the turn share (M101 R2: the window is
+   * harness condition, never a mechanism — a mechanism that changed it
+   * would also change file-read truncation). The runner resolves it per
+   * task; a test passes it directly. The default is the shipped window.
+   */
+  readonly windowTokens?: number | undefined
+  /**
+   * The approval mode for the turn; the frozen constant unless a test needs
+   * a refusing disposition (denied automatic memory flush) on the same
+   * harness. The counted run never overrides it.
+   */
+  readonly approvalMode?: ApprovalMode | undefined
 }
 
 export interface EvalTurnOutcome {
@@ -87,10 +109,14 @@ function describe(error: unknown): string {
 
 /**
  * What a mechanism may not change: the client (every request must pass the
- * trace), the workspace (the empty folder) and the paid-use hooks (the run
- * refuses and counts every paid use).
+ * trace), the workspace (the empty folder), the paid-use hooks (the run
+ * refuses and counts every paid use), the shared context window (M101 R2:
+ * a mechanism that changed it would also change file-read truncation, so
+ * the pair would not isolate the mechanism) and the memory store (absent
+ * unless a test supplies one; the counted run certifies memory absent).
+ * Exported so the frozen digest pins exactly what the harness holds fixed.
  */
-const HELD_DEPS = [
+export const EVAL_HELD_DEPS = [
   'client',
   'workspaceRoot',
   'allowsPaidUse',
@@ -98,6 +124,8 @@ const HELD_DEPS = [
   'notePaidUse',
   'noteSubagentUsage',
   'noteReviewerUsage',
+  'contextModel',
+  'memory',
 ] as const satisfies readonly (keyof ModelApiHostDeps)[]
 
 /** The mechanism's harness; one that moves a held dependency does not run. */
@@ -106,7 +134,7 @@ function applyChange(deps: ModelApiHostDeps, change: EvalHostChange | undefined)
     return deps
   }
   const changed = change(deps)
-  const moved = HELD_DEPS.filter((name) => changed[name] !== deps[name])
+  const moved = EVAL_HELD_DEPS.filter((name) => changed[name] !== deps[name])
   if (moved.length > 0) {
     throw new Error(`the mechanism changed ${moved.join(', ')}, which the evaluation holds fixed`)
   }
@@ -144,10 +172,20 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
     newId: deps.newId,
     now: deps.now,
     log: deps.log,
-    // Nothing from the owner's profile: no personal skills, agents, memory or hooks.
+    // The window is harness condition, shared by both arms of a pair (M101
+    // R2): the evaluation window for a long-context task, the shipped
+    // window otherwise. A mechanism that overrode it would also move
+    // file-read truncation, so the held-deps check above refuses one.
+    contextModel: () => ({
+      format: 'responses',
+      contextTokens: options.windowTokens ?? MODEL_API_CONTEXT_WINDOW,
+    }),
+    // Nothing from the owner's profile: no personal skills or agents, no
+    // owner memory or hooks. A test may supply a fake memory store to
+    // exercise the automatic memory flush path; the counted run has none.
     personalSkillsRoot: undefined,
     personalAgentsRoot: undefined,
-    memory: undefined,
+    memory: deps.memory,
     isWorkspaceTrusted: () => true,
     isConfidentialWorkspace: () => false,
     // The run already opts into the contributor model; its paid-use hook still refuses children.
@@ -189,7 +227,7 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
     const session = await host.startSession({
       workspaceRoot: options.workspace,
       modelId: EVAL_MODEL_ID,
-      approvalMode: EVAL_APPROVAL_MODE,
+      approvalMode: options.approvalMode ?? EVAL_APPROVAL_MODE,
     })
     session.onEvent((event) => {
       switch (event.type) {

@@ -17,6 +17,7 @@ import {
   EVAL_COMPACT_BULK_LINE_CHARS,
   EVAL_COMPACT_BULK_LINES,
   EVAL_COMPACT_VALUE_LINE,
+  EVAL_COMPACT_WINDOW_TOKENS,
   EVAL_LONG_EVIDENCE_LINE_CHARS,
   EVAL_LONG_EVIDENCE_LINES,
   EVAL_LONG_EVIDENCE_MIDDLE_LINE,
@@ -453,4 +454,17 @@ export const EVAL_TASKS: readonly EvalTask[] = [
 /** The task set's slice for one split, in task-set order. */
 export function evalTasksOfSplit(split: EvalSplit): readonly EvalTask[] {
   return EVAL_TASKS.filter((task) => task.split === split)
+}
+
+/**
+ * The context window a task runs under, on every arm alike (M101 R2): the
+ * evaluation window for a long-context task, so the first request fills it
+ * and the arm can compact at its first settled tool boundary; undefined
+ * elsewhere, so the driver keeps the shipped window (a long-output task's
+ * evidence needs whole file reads). The window is harness condition, never
+ * a mechanism: the frozen digest pins this rule's source and each task's
+ * resolved window beside the arm behaviour.
+ */
+export function evalWindowTokens(task: EvalTask): number | undefined {
+  return task.isLongContext === true ? EVAL_COMPACT_WINDOW_TOKENS : undefined
 }

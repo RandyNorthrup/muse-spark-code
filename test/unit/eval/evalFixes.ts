@@ -241,6 +241,42 @@ export function readReply(path: string, callId: string): ScriptedReply {
 
 const COMPACTION_SUMMARY = 'Summary of the long-log turn [untrusted].'
 
+/**
+ * A small task as the classified-overflow flow runs it: read the file,
+ * take the 400 overflow, take the summary it compacts into, write the fix
+ * and close. Only the closing text varies per test.
+ */
+export function overflowFixReplies(fix: EvalFix, closing: string): ScriptedReply[] {
+  return [
+    {
+      calls: [
+        {
+          name: MODEL_API_TOOLS.readFile,
+          arguments: JSON.stringify({ path: fix.path }),
+          callId: 'r1',
+        },
+      ],
+    },
+    {
+      httpError: {
+        status: 400,
+        body: { error: { message: 'maximum context length exceeded' } },
+      },
+    },
+    { text: COMPACTION_SUMMARY },
+    {
+      calls: [
+        {
+          name: MODEL_API_TOOLS.writeFile,
+          arguments: JSON.stringify(fix),
+          callId: 'w1',
+        },
+      ],
+    },
+    { text: closing },
+  ]
+}
+
 export const COMPACTION_TODOS_OPEN = [
   { text: 'Recover the record from the log', status: 'inProgress' },
   { text: 'Write the fix file', status: 'pending' },

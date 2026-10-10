@@ -32,7 +32,7 @@ import type {
   EvalSplitSummary,
   EvalTaskResult,
 } from './report'
-import type { EvalTask } from './tasks'
+import { evalWindowTokens, type EvalTask } from './tasks'
 import { createEvalWire, wireTotals, type EvalBudget, type EvalWire } from './wire'
 import {
   createEvalWorkspace,
@@ -125,6 +125,10 @@ async function runInFolders(
       workspace: folders.workspace,
       prompt: task.prompt,
       change: arm.change,
+      // The window is harness condition, shared by both arms of the pair
+      // (M101 R2): the evaluation window on a long-context task, the
+      // shipped window otherwise.
+      windowTokens: evalWindowTokens(task),
     }),
   )
   await wire.settle()

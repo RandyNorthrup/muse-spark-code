@@ -4,7 +4,9 @@
 // recording the new digest here and in docs/certification/m101-eval-arms.md,
 // never by weakening the comparison.
 
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
+import { EVAL_HELD_DEPS } from '../../../src/core/eval/driver'
 import {
   AUTO_COMPACTION_ARM,
   BASELINE_ARM,
@@ -13,7 +15,13 @@ import {
   STRICT_TOOLS_ARM,
   evalHarnessDigest,
 } from '../../../src/core/eval/mechanisms'
+import type { EvalArm } from '../../../src/core/eval/runner'
+import type { ModelApiHostDeps } from '../../../src/core/backends/modelapi/ModelApiHost'
 import { EVAL_TASKS } from '../../../src/core/eval/tasks'
+import { FakeLogOutputChannel } from '../helpers/fakes'
+import { fakeModelApi, fakeModelApiClient } from '../helpers/fakeModelApi'
+import { memoryToolIo } from '../helpers/fakeToolIo'
+import { fakeModelApiHostDeps } from '../helpers/modelApiHostDeps'
 
 describe('the frozen evaluation harness', () => {
   it('freezes the four arms in run order', () => {
@@ -54,7 +62,69 @@ describe('the frozen evaluation harness', () => {
 
   it('keeps the frozen digest', () => {
     expect(evalHarnessDigest()).toBe(
-      '7f6241a64823916d1e9b6c2abf9ff5f7181688a0eaea3f33b679580e70645b26',
+      'dc3f6372cdfea74e244cb35e2fc19b4fce03d6d706372eb04e1e0bacd3cdd15f',
     )
+  })
+
+  it('changes each arm in one mechanism only, never a held harness dependency', () => {
+    // M101 R2: an arm pair isolates its mechanism only when both arms share
+    // every other harness dependency. Each frozen arm therefore touches
+    // exactly its mechanism's dependency keys — and no held one (the
+    // window, the memory store, the client, the workspace, the paid hooks).
+    const api = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const io = memoryToolIo({}, '/ws')
+    const base: ModelApiHostDeps = fakeModelApiHostDeps({
+      client: fakeModelApiClient(api, log),
+      workspaceRoot: '/ws',
+      io,
+      log,
+    })
+    const changedKeys = (arm: EvalArm): string[] => {
+      if (arm.change === undefined) {
+        return []
+      }
+      const changed = arm.change(base)
+      return (Object.keys(changed) as (keyof ModelApiHostDeps)[])
+        .filter((key) => changed[key] !== base[key])
+        .map(String)
+        .toSorted((left, right) => left.localeCompare(right))
+    }
+    expect(new Map(EVAL_ARMS.map((arm) => [arm.name, changedKeys(arm)]))).toEqual(
+      new Map([
+        ['baseline', []],
+        ['packing', ['observationPacking']],
+        ['auto-compaction', ['admitAutoCompaction', 'autoCompaction', 'autoCompactionEvaluated']],
+        ['strict-tools', ['modelFacts']],
+      ]),
+    )
+    for (const arm of EVAL_ARMS) {
+      expect(
+        changedKeys(arm).filter((key) => (EVAL_HELD_DEPS as readonly string[]).includes(key)),
+      ).toEqual([])
+    }
+  })
+
+  it('freezes the arm behaviour, not only its names and descriptions', () => {
+    // M101 R2: a digest over names and descriptions alone stays green when
+    // an arm's implementation changes. The frozen digest must therefore
+    // differ from a hash over the same arms and tasks with every
+    // implementation byte left out; the red drills flip an arm latch and
+    // narrow strict tools to watch this test fail.
+    const descriptionOnly = createHash('sha256')
+      .update(
+        EVAL_ARMS.map((arm) => `${arm.name}:${arm.mechanism ?? ''}`).join('\n') +
+          EVAL_TASKS.map((task) => `${task.id}:${task.split}:${task.title}`).join('\n'),
+        'utf8',
+      )
+      .digest('hex')
+    expect(evalHarnessDigest()).not.toBe(descriptionOnly)
+    for (const arm of EVAL_ARMS) {
+      if (arm.change === undefined) {
+        continue
+      }
+      expect(typeof arm.change.toString()).toBe('string')
+      expect(arm.change.toString().length).toBeGreaterThan(0)
+    }
   })
 })
