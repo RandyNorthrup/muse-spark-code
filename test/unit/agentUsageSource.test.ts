@@ -268,6 +268,7 @@ describe('captured, opt-in external agent usage', () => {
         path.join(root, '.claude/projects/fixture/subagents/notes.md'),
         'Synthetic fixture marker',
       )
+      await mkdir(path.join(root, '.claude/projects/fixture/directory.jsonl'))
       const result = await createRuntimeReportSources({
         workspaceRoot: root,
         homeDir: root,
@@ -288,6 +289,19 @@ describe('captured, opt-in external agent usage', () => {
     } finally {
       await rm(root, { recursive: true, force: true })
     }
+  })
+  it('produces byte-identical file order with Windows and POSIX path separators', async () => {
+    const source = file('claudeCode', JSON.stringify(claude()))
+    const first = { ...source, file: String.raw`projects\fixture\a.jsonl` }
+    const second = { ...source, file: 'projects/fixture/z.jsonl' }
+    const result = await agentUsageSource(['claudeCode'], [second, first], clean).read(context())
+    expect(result.record.status).toBe('ok')
+    const normalized = { ...first, file: first.file.replaceAll('\\', '/') }
+    expect(
+      JSON.stringify(
+        await agentUsageSource(['claudeCode'], [normalized, second], clean).read(context()),
+      ),
+    ).toBe(JSON.stringify(result))
   })
   it('does not double-count duplicate file selections', async () => {
     const source = file('codex', JSON.stringify(codex()))
