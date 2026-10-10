@@ -32,6 +32,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Shared schedule polling retains each workspace holder, so closing one panel
+  cannot stop another panel's scheduler. The last release stops the watch.
+
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did

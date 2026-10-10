@@ -848,7 +848,7 @@
     {
       "id": "M115",
       "title": "Scheduled prompts v2",
-      "summary": "Schedule prompts to run once, repeatedly or on a cron expression, each with its own delivery mode, and run them unattended under a hard budget cap, so far from the terminal and ACP editors.",
+      "summary": "The schedule list, editor and timeline share durable records across hosts; prompt delivery is withheld until the host bindings are certified.",
       "area": "agents",
       "release": "0.17.0"
     },

@@ -6,7 +6,8 @@ import process from 'node:process'
 import * as z from 'zod/mini'
 import { createScheduleStore, type ScheduleRunIntent } from '../../core/schedules/store'
 import { createScheduler } from '../../core/schedules/scheduler'
-import { ScheduleDelivery } from '../../core/schedules/delivery'
+import { ScheduleDelivery, type ScheduleDeliveryDeps } from '../../core/schedules/delivery'
+import type { ScheduleAuthorityStore } from '../../core/schedules/grantAudit'
 import { RuntimeScheduleHost } from './host'
 import { ScheduleRuntime } from './runtime'
 import { ScheduleSurface } from './surface'
@@ -39,6 +40,10 @@ import { scheduleTimePlan } from './timePlan'
 import type { ScheduleControlPort } from './command'
 
 export interface ScheduleEngineOptions {
+  /** A host installs complete unattended delivery; absent hosts stay refused. */
+  readonly delivery?: (
+    authority: ScheduleAuthorityStore,
+  ) => Pick<ScheduleDeliveryDeps, 'targets' | 'runs' | 'prompt'>
   readonly fs: ScheduleFsPort
   readonly queue: ScheduleQueuePort
   readonly now?: () => number
@@ -70,6 +75,7 @@ function unavailableTarget(): Promise<never> {
 export function createScheduleEngine(options: ScheduleEngineOptions) {
   const now = options.now ?? Date.now
   const store = createScheduleStore(options.fs)
+  const authority = createAuthorityStore(store, options.fs, 'runtime/grant-audits.json')
   const late: { delivery?: ScheduleDelivery } = {}
   const host: RuntimeScheduleHost = new RuntimeScheduleHost({
     now,
@@ -89,17 +95,19 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     now,
     monotonicNow: () => performance.now(),
     holds: (workspace: string) => host.holds(workspace),
-    targets: {
-      find: () => Promise.resolve(undefined),
-      open: unavailableTarget,
-      fresh: unavailableTarget,
-    },
-    runs: { run: unavailableTarget },
-    prompt: (schedule: ScheduleV2) => {
-      if (schedule.action.kind !== 'prompt')
-        throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
-      return schedule.action.prompt
-    },
+    ...(options.delivery?.(authority) ?? {
+      targets: {
+        find: () => Promise.resolve(undefined),
+        open: unavailableTarget,
+        fresh: unavailableTarget,
+      },
+      runs: { run: unavailableTarget },
+      prompt: (schedule: ScheduleV2) => {
+        if (schedule.action.kind !== 'prompt')
+          throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
+        return schedule.action.prompt
+      },
+    }),
   })
   late.delivery = delivery
   const errors: unknown[] = []
@@ -160,7 +168,6 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
       )
     },
   })
-  const authority = createAuthorityStore(store, options.fs, 'runtime/grant-audits.json')
   const consent = createBackgroundConsentStore(options.fs, 'runtime/background-consent.json')
   const registry = createWorkspaceRegistry(options.fs, 'runtime/workspaces.json')
   const platform = options.platform ?? process.platform
@@ -278,14 +285,14 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
       process.stderr.write(`${reason}\n`)
     },
   })
-  const watched = new Set<string>()
+  const watched = new Map<string, number>()
   let engineTimer: ReturnType<typeof setInterval> | undefined
   const watchWorkspace = (cwd: string): Promise<() => Promise<void>> => {
     const key = workspaceKey(path.resolve(cwd))
-    watched.add(key)
+    watched.set(key, (watched.get(key) ?? 0) + 1)
     if (engineTimer === undefined) {
       const tick = () => {
-        for (const workspace of watched) {
+        for (const workspace of watched.keys()) {
           if (!host.holds(workspace)) continue
           void scheduler
             .recover(workspace)
@@ -310,7 +317,9 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     const release = (): Promise<void> => {
       if (!isReleased) {
         isReleased = true
-        watched.delete(key)
+        const remaining = (watched.get(key) ?? 1) - 1
+        if (remaining === 0) watched.delete(key)
+        else watched.set(key, remaining)
         if (engineTimer !== undefined && watched.size === 0) {
           clearInterval(engineTimer)
           engineTimer = undefined

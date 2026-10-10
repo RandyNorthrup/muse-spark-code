@@ -35873,6 +35873,24 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
 
 ### M115 — Scheduled prompts v2: unattended, stacked, with a delivery mode (D95)
 
+**C-M115-1 completion lane (2026-10-10, win11).** Bind the VS Code workspace
+lifetime and conversation delivery to the existing shared scheduler, unattended
+backend entry points and background targets. Certify D95.6–7 and acceptance
+5–8 with fake backends, real cross-process claims and byte-exact red drills.
+Delivery remains unregistered if any required admission, queue, settlement or
+host safety path cannot be completed. C-M115-2 owns runtime/ACP/CLI delivery;
+C-M115-9 owns JCEF (JetBrains), WebView2 (Visual Studio), SWT (Eclipse), the
+companion/ACP editor rows (Zed, Xcode, Neovim, Emacs, Sublime), TUI and node.
+C-M115-3 owns per-schedule paid consent; C-M115-4 owns production event sources;
+C-M115-6 owns OS wakes; C-M115-8 owns role/team targets. No live/paid calls in
+this lane. Aggregate quality, Linux/macOS receipts and independent Grok/Codex
+reviews remain with the lead under the rig/common rules.
+
+- [x] Shared workspace watches retain every holder; default-timeout regression
+      and deliberate early-retirement drill recorded in `m115-cm1151.md`.
+- [ ] VS Code registration: candidate delivery must pass every binding/safety
+      path before registration; no incomplete delivery is surfaced.
+
 **Status 2026-10-06: planned.** It comes right after M112 in the delivery
 order: it shares M112's deferral and the unattended machinery, and builds on
 M52's store, claim and cron matcher. No model call is needed outside one live
@@ -37977,6 +37995,16 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**C-M115-1 gate ownership (2026-10-10, win11).** The rig brief and shared
+lane rules forbid aggregate quality in this worktree; the lead owns
+`npm run quality` before integration. This lane runs its complete owning
+test files at repository timeouts, the five typecheck projects, changed-file
+lint/format, plain knip, duplication, localization, host API, reference,
+roadmap and production build checks. Caps and gate levels stay unchanged.
+Delivery registration remains absent until the acceptance matrix and the
+independent Grok/fresh-Codex reviews are complete; the lane forbids sub-agents
+and live model calls. See `docs/certification/m115-cm1151.md`.
 
 **M121A rounds 3–4 gate ownership (2026-10-09, kubuntu).** The rig brief and
 shared lane rules forbid aggregate quality in this worktree; the lead owns

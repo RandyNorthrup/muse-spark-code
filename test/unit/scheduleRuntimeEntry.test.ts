@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import path from 'node:path'
 import { parseScheduleCommand } from '../../src/runtime/schedules/args'
 import { createScheduleEngine } from '../../src/runtime/schedules/engine'
 import { memoryScheduleQueue, MemoryScheduleFs } from './helpers/schedules/storage'
@@ -83,6 +84,32 @@ function fixture(input: { fs?: MemoryScheduleFs; clock?: { nowMs: number } } = {
 }
 
 describe('schedule runtime entry over the real store', () => {
+  it('keeps polling after one of two panels releases the same workspace', async () => {
+    vi.useFakeTimers()
+    const { engine } = fixture()
+    const poll = vi.spyOn(engine.scheduler, 'poll').mockResolvedValue()
+    const recover = vi.spyOn(engine.scheduler, 'recover').mockResolvedValue()
+    try {
+      const first = await engine.runtime.holdWorkspace(path.resolve(cwd))
+      const second = await engine.runtime.holdWorkspace(path.resolve(cwd))
+      await vi.advanceTimersByTimeAsync(0)
+      poll.mockClear()
+      recover.mockClear()
+      await first()
+      await first()
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(poll).toHaveBeenCalledOnce()
+      expect(recover).toHaveBeenCalledOnce()
+      await second()
+      poll.mockClear()
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(poll).not.toHaveBeenCalled()
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      await engine.runtime.close()
+      vi.useRealTimers()
+    }
+  })
   it('adds, lists, pauses, resumes, timelines and removes a schedule', async () => {
     const { run, engine, clock } = fixture()
     const empty = await run(['list'])
