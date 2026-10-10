@@ -114,15 +114,16 @@ describe('legal coverage and metadata', () => {
     )
   })
 
-  it('recognizes LGPL 2.0, 2.1 and 3.0 without changing their versions', () => {
+  it('recognizes LGPL 2.0, 2.1 and 3.0 stems without granting a variant', () => {
+    // RVCM971 P2 (finding 5): the body never grants `-or-later`.
     expect(identifyLicenseText('GNU LIBRARY GENERAL PUBLIC LICENSE\nVersion 2\n')?.id).toBe(
-      'LGPL-2.0-only',
+      'LGPL-2.0',
     )
     expect(identifyLicenseText('GNU LESSER GENERAL PUBLIC LICENSE\nVersion 2.1\n')?.id).toBe(
-      'LGPL-2.1-only',
+      'LGPL-2.1',
     )
     expect(identifyLicenseText('GNU LESSER GENERAL PUBLIC LICENSE\nVersion 3\n')?.id).toBe(
-      'LGPL-3.0-only',
+      'LGPL-3.0',
     )
   })
 

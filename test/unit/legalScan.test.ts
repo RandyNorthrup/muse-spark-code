@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { LEGAL_FILES_SCANNED_MAX, LEGAL_FINDINGS_MAX } from '../../src/shared/constants'
+import { fingerprint } from '../../src/core/verify/fingerprint'
 import { formatNumber } from '../../src/shared/l10n/text'
 import { scanLegal } from '../../src/core/legal/scan'
 import { legalScanResultSchema } from '../../src/shared/legal'
@@ -58,8 +59,10 @@ describe('scanLegal', () => {
 
   it('leaves a fully evidenced scan complete with no incomplete checks', () => {
     // C-M97-1 acceptance: a verbatim license file (Windows line endings),
-    // an agreeing manifest, a headed source file and fresh bundle inputs
-    // carry no blanket caveat, so the run exits 0 or 1 downstream, not 2.
+    // an agreeing manifest, a headed source file and hash-proven bundle
+    // inputs carry no blanket caveat, so the run exits 0 or 1 downstream,
+    // not 2. CM971R2: file names alone no longer prove freshness; the
+    // content hashes must match the workspace bytes.
     const files = {
       LICENSE: FULL_MIT_LICENSE.replaceAll('\n', '\r\n'),
       'package.json': JSON.stringify({ name: 'example', version: '1.0.0', license: 'MIT' }),
@@ -67,11 +70,70 @@ describe('scanLegal', () => {
     }
     const result = scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
-      distribution: { bundleInputs: Object.keys(files) },
+      distribution: {
+        bundleInputs: Object.keys(files),
+        bundleInputHashes: Object.fromEntries(
+          Object.entries(files).map(([file, text]) => [file, fingerprint(text)]),
+        ),
+        bundleOutputHashes: {},
+      },
     })
     expect(legalScanResultSchema.safeParse(result).success).toBe(true)
     expect(result.findings).toEqual([])
     expect(result.incompleteChecks).toEqual([])
+  })
+
+  it('keeps a modified dependency license text under human review (RVCM971 P2)', () => {
+    // Finding 3: a dependency declaring MIT whose vendored LICENSE adds a
+    // payment term reads heuristically as MIT with agreeing ids; the scan
+    // must still name the human-review limitation instead of exiting clean.
+    const files = {
+      LICENSE: FULL_MIT_LICENSE,
+      'package.json': JSON.stringify({ name: 'example', version: '1.0.0', license: 'MIT' }),
+      'package-lock.json': JSON.stringify({
+        lockfileVersion: 3,
+        packages: { 'node_modules/leftpad': { version: '1.3.0', license: 'MIT' } },
+      }),
+      'node_modules/leftpad/package.json': JSON.stringify({ version: '1.3.0', license: 'MIT' }),
+      'node_modules/leftpad/LICENSE': `${FULL_MIT_LICENSE}You must also pay the author one dollar per installed copy.\n`,
+      'src/ok.ts': headed,
+    }
+    const result = scanLegal(snapshotFrom(files), {
+      headerPolicy: 'optional',
+      distribution: {
+        bundleInputs: Object.keys(files),
+        bundleInputHashes: Object.fromEntries(
+          Object.entries(files).map(([file, text]) => [file, fingerprint(text)]),
+        ),
+        bundleOutputHashes: {},
+      },
+    })
+    expect(result.incompleteChecks.some((entry) => entry.includes('differs'))).toBe(true)
+    expect(result.incompleteChecks.some((entry) => entry.includes('human review'))).toBe(true)
+  })
+
+  it('reads stale bundle bytes as stale, not as fresh (RVCM971 P2)', () => {
+    // Finding 4: retaining a prior input list while changing a source file
+    // without rebuilding must keep the stale-input and freshness reasons.
+    const files = {
+      LICENSE: FULL_MIT_LICENSE,
+      'package.json': JSON.stringify({ name: 'example', version: '1.0.0', license: 'MIT' }),
+      'src/ok.ts': `${headed}export const extra = 2\n`,
+    }
+    const stale = scanLegal(snapshotFrom(files), {
+      headerPolicy: 'optional',
+      distribution: {
+        bundleInputs: Object.keys(files),
+        bundleInputHashes: {
+          LICENSE: fingerprint(FULL_MIT_LICENSE),
+          'package.json': fingerprint(files['package.json']),
+          'src/ok.ts': fingerprint(headed),
+        },
+        bundleOutputHashes: {},
+      },
+    })
+    expect(stale.incompleteChecks.join(' ')).toContain('stale')
+    expect(stale.incompleteChecks.join(' ')).toContain('freshness')
   })
 
   it('sorts findings deterministically with stable rule ids', () => {

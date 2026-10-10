@@ -173,11 +173,13 @@ describe('RVM97SW scanner regressions', () => {
   })
 
   it('F16 license title outranks incidental license mentions', () => {
+    // RVCM971 P2 (finding 5): the title reads the bare stem, never a
+    // variant from body wording.
     expect(
       identifyLicenseText(
         'GNU GENERAL PUBLIC LICENSE\nVersion 3\n\nCompatibility note mentions MIT License.',
       ),
-    ).toMatchObject({ id: 'GPL-3.0-only' })
+    ).toMatchObject({ id: 'GPL-3.0' })
   })
 
   it('F17 checks every holder and conflicting SPDX declaration', () => {

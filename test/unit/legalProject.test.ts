@@ -5,7 +5,11 @@
 
 import { describe, expect, it } from 'vitest'
 import type { ManifestLicenseDeclaration } from '../../src/core/legal/dependencies'
-import { scanProjectLicense } from '../../src/core/legal/projectLicense'
+import {
+  hasLicenseTextAgreement,
+  resolveGplStemVariant,
+  scanProjectLicense,
+} from '../../src/core/legal/projectLicense'
 import { snapshotFrom } from './legal/helpers'
 
 const MIT_TEXT = `MIT License
@@ -40,7 +44,9 @@ describe('scanProjectLicense', () => {
     expect(result.findings.some((finding) => finding.explanation.includes('disagree'))).toBe(false)
   })
 
-  it('stays silent when the license file and manifest agree', () => {
+  it('agrees on the id while flagging an excerpt file as differing', () => {
+    // RVCM971 P1: the excerpt covers every MIT phrase without matching the
+    // canonical text, so it reads as modified terms, never as exact.
     const result = scanProjectLicense(
       snapshotFrom({
         LICENSE: MIT_TEXT,
@@ -48,8 +54,11 @@ describe('scanProjectLicense', () => {
       }),
       [manifest('MIT')],
     )
-    expect(result.findings).toEqual([])
     expect(result.licenses).toEqual(['MIT'])
+    expect(result.findings).toHaveLength(1)
+    expect(result.findings[0]?.severity).toBe('advice')
+    expect(result.findings[0]?.explanation).toContain('differs from the canonical MIT text')
+    expect(result.incomplete.join(' ')).toContain('heuristic')
   })
 
   it('reports a manifest against file conflict without resolving it', () => {
@@ -111,10 +120,13 @@ describe('scanProjectLicense', () => {
     const result = scanProjectLicense(snapshotFrom({ 'LICENSE.txt': MIT_TEXT }), [
       manifest('SEE LICENSE IN LICENSE.txt'),
     ])
-    expect(result.findings).toEqual([])
+    expect(result.findings).toHaveLength(1)
+    expect(result.findings[0]?.explanation).toContain('differs from the canonical MIT text')
   })
 
-  it('reads GPL versions and or-later clauses from the text', () => {
+  it('reads GPL version stems from the text without granting a variant', () => {
+    // RVCM971 P2 (finding 5): `any later version` in the body never grants
+    // `-or-later`; without a project grant the stem stays `-only`.
     const only = scanProjectLicense(
       snapshotFrom({
         COPYING: 'GNU GENERAL PUBLIC LICENSE\nVersion 2, June 1991\nEveryone is permitted to copy.',
@@ -129,7 +141,58 @@ describe('scanProjectLicense', () => {
       }),
       [],
     )
-    expect(later.licenses).toEqual(['GPL-3.0-or-later'])
+    expect(later.licenses).toEqual(['GPL-3.0-only'])
+  })
+
+  it('resolves the GPL variant from the manifest grant, not the body', () => {
+    const granted = scanProjectLicense(
+      snapshotFrom({
+        COPYING:
+          'GNU GENERAL PUBLIC LICENSE\nVersion 3, 29 June 2007\nor (at your option) any later version.',
+      }),
+      [manifest('GPL-3.0-or-later')],
+    )
+    expect(granted.licenses).toEqual(['GPL-3.0-or-later'])
+    expect(granted.findings).toEqual([])
+  })
+
+  it('resolves the GPL variant from the README grant', () => {
+    const granted = scanProjectLicense(
+      snapshotFrom({
+        COPYING: 'GNU GENERAL PUBLIC LICENSE\nVersion 2, June 1991\nEveryone is permitted to copy.',
+        'README.md': '# Example\n\n## License\n\nGPL-2.0-or-later\n',
+      }),
+      [],
+    )
+    expect(granted.licenses).toEqual(['GPL-2.0-or-later'])
+  })
+
+  it('flags a manifest variant the project grant does not settle', () => {
+    const conflict = scanProjectLicense(
+      snapshotFrom({
+        COPYING: 'GNU GENERAL PUBLIC LICENSE\nVersion 2, June 1991\nEveryone is permitted to copy.',
+      }),
+      [manifest('GPL-2.0-only'), manifest('GPL-2.0-or-later', 'other.json')],
+    )
+    expect(conflict.licenses).toEqual(['GPL-2.0-only'])
+    expect(conflict.findings.some((finding) => finding.explanation.includes('other.json'))).toBe(
+      true,
+    )
+  })
+
+  it('resolves stem variants and agreement without touching other ids', () => {
+    expect(resolveGplStemVariant('MIT', new Set(['MIT']))).toBe('MIT')
+    expect(resolveGplStemVariant('GPL-2.0', new Set(['GPL-2.0-or-later']))).toBe('GPL-2.0-or-later')
+    expect(resolveGplStemVariant('GPL-2.0', new Set())).toBe('GPL-2.0-only')
+    expect(resolveGplStemVariant('GPL-2.0', new Set(['GPL-2.0-only', 'GPL-2.0-or-later']))).toBe(
+      'GPL-2.0-only',
+    )
+    expect(hasLicenseTextAgreement('MIT', 'MIT')).toBe(true)
+    expect(hasLicenseTextAgreement('GPL-2.0-only', 'GPL-2.0')).toBe(true)
+    expect(hasLicenseTextAgreement('GPL-2.0-or-later', 'GPL-2.0')).toBe(true)
+    expect(hasLicenseTextAgreement('GPL-3.0-only', 'GPL-2.0')).toBe(false)
+    expect(hasLicenseTextAgreement('MIT', 'Apache-2.0')).toBe(false)
+    expect(hasLicenseTextAgreement(undefined, 'MIT')).toBe(false)
   })
 
   it('reports manifests that disagree with no file to settle it', () => {
