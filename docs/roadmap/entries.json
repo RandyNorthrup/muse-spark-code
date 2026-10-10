@@ -901,7 +901,7 @@
     {
       "id": "M125",
       "title": "A faster, more accurate agent through a fast judge",
-      "summary": "A fast judge checks the agent's work and small decisions, with a setup wizard and command confinement being certified internally for Linux and macOS before reviewer skips are enabled, while Windows keeps its existing reviewer.",
+      "summary": "A fast judge checks the agent's work and small decisions, with setup and command confinement, including protected paths and cancellation, being certified internally for Linux and macOS before reviewer skips are enabled; Windows keeps its existing reviewer.",
       "area": "agents"
     },
     {

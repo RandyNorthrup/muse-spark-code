@@ -5067,6 +5067,9 @@ component receipts from installed-editor acceptance.
 The internal B1 confinement build is `npm run build:confine` on Linux.
 It writes the native helper, generated privacy policy and portable inspect
 API to `temp/confine/`; these artifacts are excluded from product packages.
+The internal runner checks protected/private paths on canonical operands,
+rejects noncanonical helper input, and lets a cancelled caller detach from
+the shared self-test while session disposal still waits for its cleanup.
 The runner is unbound from editor approvals. Its certification record is
 [`docs/certification/m125-f1a.md`](docs/certification/m125-f1a.md), including
 the Windows exception and the macOS capture requirement. F1b owns approval

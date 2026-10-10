@@ -18,6 +18,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { fileIdentityKey, statIdentity } from '../../src/core/fs/fileIdentity'
 import { InspectRunner } from '../../src/core/judge/fast/inspectExec'
 import { inspectStart } from './helpers/inspectStart'
+import { inspectPathSpellings, inspectProtectedPaths } from './helpers/inspectPaths'
 
 interface Receipt {
   stdout: Buffer
@@ -76,6 +77,7 @@ if (process.platform === 'linux') {
         'Depth',
         'Abi',
         'Root',
+        'Paths',
       ]) {
         const variant = path.join(scratch, name)
         execFileSync(
@@ -213,6 +215,82 @@ if (process.platform === 'linux') {
         const denied = await native(variant('Device'), h.args('cat', [name], [name]), h.root)
         expect(denied.code).toBe(125)
         expect(denied.stdout.length).toBe(0)
+      }
+    })
+    it('canonicalizes seeded spellings of every protected/private path and refuses noncanonical helper operands', async () => {
+      const h = await fixture()
+      const canonicalPaths = [
+        'allowed.txt',
+        ...inspectProtectedPaths.flatMap((name) => [
+          name,
+          name.toUpperCase(),
+          `pkg/${name}/probe.txt`,
+          `pkg/${name.toUpperCase()}/probe.txt`,
+        ]),
+      ]
+      const spellings = canonicalPaths.flatMap((canonical) => inspectPathSpellings(canonical))
+      const result = await native(variant('Paths'), spellings, h.root)
+      expect(result.code).toBe(0)
+      expect(result.stdout.toString()).toBe(
+        canonicalPaths
+          .flatMap((canonical, index) =>
+            inspectPathSpellings(canonical).map(
+              (spelling) =>
+                `${canonical}\t${String(index === 0 && spelling === canonical ? 0 : 1)}\t${String(index === 0 ? 0 : 1)}\n`,
+            ),
+          )
+          .join(''),
+      )
+      for (const operand of [
+        './allowed.txt',
+        'allowed.txt/.',
+        'x/../allowed.txt',
+        'pkg//file',
+        'pkg/',
+        '-n',
+        'C:outside',
+        String.raw`pkg\.github\workflows\probe.txt`,
+      ]) {
+        const denied = await native(binary, h.args('cat', [operand], [operand]), h.root)
+        expect(denied.code, operand).toBe(125)
+        expect(denied.stdout.length).toBe(0)
+        expect(denied.stderr).toContain('privateOperand')
+      }
+    })
+    it('withholds every protected/private descendant through canonical recursive runner operands', async () => {
+      const h = await fixture()
+      mkdirSync(path.join(h.workspace, 'pkg'))
+      writeFileSync(path.join(h.workspace, 'pkg/allowed.txt'), 'ALLOWED_CANARY\n')
+      for (const name of inspectProtectedPaths) {
+        const file = path.join(h.workspace, 'pkg', name, 'probe.txt')
+        mkdirSync(path.dirname(file), { recursive: true })
+        writeFileSync(file, 'FORBIDDEN_CANARY\n')
+      }
+      mkdirSync(path.join(h.workspace, 'pkg/.github/workflows-extra'))
+      writeFileSync(
+        path.join(h.workspace, 'pkg/.github/workflows-extra/probe.txt'),
+        'ALLOWED_CANARY\n',
+      )
+      const runner = new InspectRunner({
+        helper: binary,
+        storage: path.join(h.root, 'storage'),
+        start: inspectStart,
+      })
+      try {
+        for (const operand of ['.', './pkg/.', 'pkg/./.github/.']) {
+          const result = await runner.run(`grep -r -e CANARY ${operand}`, h.binding)
+          expect(result.kind, operand).toBe('output')
+          if (result.kind !== 'output') throw new Error('Missing confined result')
+          expect(result.stdout, operand).not.toContain('FORBIDDEN_CANARY')
+          expect(result.excluded, operand).toBeGreaterThan(0)
+          expect(result.stdout, operand).toContain('ALLOWED_CANARY')
+        }
+        expect(await runner.run('cat pkg/.github/./workflows/probe.txt', h.binding)).toEqual({
+          kind: 'refused',
+          reason: 'grammar',
+        })
+      } finally {
+        await runner.dispose()
       }
     })
     it('B1-1/2 refuses ancestor and leaf swaps both before the open and after grants', async () => {

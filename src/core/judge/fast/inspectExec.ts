@@ -333,8 +333,25 @@ export class InspectRunner {
       ...(signal === undefined ? [] : [signal]),
     ])
     if (isAborted(combined)) return refused('cancelled')
-    this.readiness ??= this.selfTest()
-    if (!(await this.readiness)) return refused(isAborted(combined) ? 'cancelled' : this.offReason)
+    const readiness = (this.readiness ??= this.selfTest())
+    const isReady = await new Promise<boolean>((resolve, reject) => {
+      const aborted = () => {
+        combined.removeEventListener('abort', aborted)
+        resolve(false)
+      }
+      combined.addEventListener('abort', aborted, { once: true })
+      void (async () => {
+        try {
+          resolve(await readiness)
+        } catch (error: unknown) {
+          reject(error instanceof Error ? error : new Error('confinement'))
+        } finally {
+          combined.removeEventListener('abort', aborted)
+        }
+      })()
+      if (isAborted(combined)) aborted()
+    })
+    if (!isReady) return refused(isAborted(combined) ? 'cancelled' : this.offReason)
     let home: string | undefined
     try {
       if (isAborted(combined)) return refused('cancelled')
@@ -362,6 +379,9 @@ export class InspectRunner {
 
   async dispose(): Promise<void> {
     this.lifetime.abort()
-    await Promise.allSettled(this.active)
+    await Promise.allSettled([
+      ...this.active,
+      ...(this.readiness === undefined ? [] : [this.readiness]),
+    ])
   }
 }

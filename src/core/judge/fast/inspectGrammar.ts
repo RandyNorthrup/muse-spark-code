@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { isProtectedPath } from '../../protectedPaths'
 import { isPrivateFileName } from '../../../shared/privateFiles'
 import { countSecretMatches } from '../../../shared/redact'
@@ -24,16 +25,21 @@ function words(line: string): string[] | undefined {
   return result
 }
 
-function isOperand(word: string): boolean {
-  const normalized = word.replaceAll('\\', '/')
-  return (
-    /^[\u{20}-\u{7E}]+$/u.test(normalized) &&
-    !/^(?:\/|[a-z]:|[-!])/iu.test(normalized) &&
-    !/[*?[\]{}]/u.test(normalized) &&
-    normalized.split('/').every((part) => part !== '' && part !== '..') &&
-    !isProtectedPath(normalized) &&
-    normalized.split('/').every((part) => !isPrivateFileName(part))
+function canonicalOperand(word: string): string | undefined {
+  const spelling = word.replaceAll('\\', '/')
+  const canonical = path.posix.normalize(spelling).replace(/\/$/u, '')
+  // Keep the existing lexical/traversal floor even when normalization stays beneath root.
+  if (
+    !/^[\u{20}-\u{7E}]+$/u.test(spelling) ||
+    /^(?:\/|[a-z]:|[-!])/iu.test(spelling) ||
+    /^(?:\/|[a-z]:|[-!])/iu.test(canonical) ||
+    /[*?[\]{}]/u.test(spelling) ||
+    spelling.split('/').some((part) => part === '' || part === '..') ||
+    isProtectedPath(canonical) ||
+    canonical.split('/').some((part) => isProtectedPath(part) || isPrivateFileName(part))
   )
+    return
+  return canonical
 }
 
 /** Positive option grammar; a miss belongs to the existing reviewer. */
@@ -110,8 +116,10 @@ export function parseInspectCommand(
       hasGrepPattern = true
       continue
     }
-    if (!isOperand(word)) return
-    operands.push(word)
+    const operand = canonicalOperand(word)
+    if (operand === undefined) return
+    operands.push(operand)
+    args[i] = operand
   }
   if (!['ls', 'cat', 'head', 'tail', 'wc', 'stat', 'du', 'grep', 'find'].includes(program)) return
   if (program === 'grep' && !hasGrepPattern) return

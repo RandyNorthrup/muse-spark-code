@@ -20783,6 +20783,17 @@ it.
         F1b owns approval integration, the floor's session/mode/rule gates,
         veto races, transcript/audit rows and all editor bindings; F1a
         is portable core and adds no active editor surface.
+        RVCM125F1A repair (2026-10-10): canonicalize operand spelling before
+        component-wise protected/private checks in the grammar and native
+        helper, send canonical operands in both grant and tool argv, and
+        refuse noncanonical helper input. Preserve the lexical/traversal
+        floor; fold policy comparisons for case-insensitive filesystems.
+        Sweep every protected path with seeded dot/dotdot/separator
+        properties and real recursive canaries. Race each request's abort
+        against shared readiness without aborting another caller's probe;
+        disposal must still observe readiness cleanup after all waiters
+        detach. Each finding gets regression failures and byte-exact
+        restoration drills in `docs/certification/m125-f1a.md`.
   - [ ] Lane F2's review clean.
   - [ ] Acceptance 1–17, each with its failing drill and passing receipt.
   - [ ] Per-decision M75 wins and live receipts on each backend before any

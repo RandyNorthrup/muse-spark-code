@@ -741,5 +741,257 @@
       "measured": 87.3,
       "cap": 225
     }
+  },
+  "reviewRepair": {
+    "review": "RVCM125F1A",
+    "baseRevision": "1c4de1a47",
+    "findingsFixed": ["P1", "P2"],
+    "newRegressionTests": 7,
+    "ownedTestFiles": 3,
+    "ownedTestsPassed": 101,
+    "repositoryTimeouts": true,
+    "sourceSha256": {
+      "native/confine/MuseSparkConfine.c": "f24d61884e67a1af9b27a60994400d95a40b7584ac41fd585944474aae529779",
+      "src/core/judge/fast/inspectExec.ts": "b6990c114034f3bdb9ea43fd121b67bfa452c0aa396d6fbdfe5d088c099f92d5",
+      "src/core/judge/fast/inspectGrammar.ts": "3d3386e1c1b469b79a3e2463ef4608bd8bbbf5788d4834c5148a1112454f78f2",
+      "src/shared/constants.ts": "ce86e66142bbd034f212258d039b48dbb87b745e2a6a1f140b4b4f6aeceb5fe0",
+      "scripts/build-confine.mjs": "ae227b57d5956c51b31c6640ba15c16d1d3f1cedbafc5f1217a0973a0f486132",
+      "test/unit/helpers/inspectPaths.c": "8f06f8e9532870f098b1d424fe9add7e55a1b680ac2b26023dd16aaf8f979e26",
+      "test/unit/helpers/inspectPaths.ts": "81391f17f77ebab4c5e0f3c6dfe925be3e607d385cd26278057a4651223c4573",
+      "test/unit/helpers/inspectStart.ts": "58b709ee79d3a55c87c50be796a4759736bfd1939caa45cf22a0348bbf3662a9",
+      "test/fixtures/inspect-helper.mjs": "c4ff831402dac69b1282f6ef2add6cc4e7a7d9f78d0a6bc0ffce958c992a6924",
+      "test/unit/inspectGrammar.test.ts": "d7bf05fda9f98e7805e5cb4755c1fc50c488ea2a20bcaf1d158d9d6ba43c9599",
+      "test/unit/inspectExec.test.ts": "bea56e13beb067d24916df9949486225f451713ec5aa92e93ff6246b4ee0ca96",
+      "test/unit/inspectNative.test.ts": "ad371179ae2c694aa2b2bbe8c8cfed95d2bffd228b75dba193305197dae85f65"
+    },
+    "internalArtifacts": {
+      "temp/confine/muse-confine": {
+        "sha256": "8eed9595dbc88862e7d0f3e523ae9db8a51914286c94fe7d4695fcb82cfa7ee2",
+        "bytes": 35832
+      },
+      "temp/confine/inspectExec.js": {
+        "sha256": "9bb07aebfd8eb9f41a5296fa1d94ad1159edc7aeb49551ec2fa73f907e188edd",
+        "bytes": 334954
+      },
+      "temp/confine/policy.h": {
+        "sha256": "7c3c5942098f10b86c4eacd948bc1a7a8f2513ae8b364cc0948aab1951882315",
+        "bytes": 1264
+      }
+    },
+    "capture": {
+      "name": "m125-f1a-review-repair-linux-kubuntu-2026-10-10",
+      "capturedAt": "2026-10-10T20:03:08.105273+00:00",
+      "workspace": "<lane-private-TMPDIR>/synthetic-workspace",
+      "modelAttempts": 0,
+      "landlockProbe": {
+        "abi": 8,
+        "confined": true
+      },
+      "programCount": 9,
+      "systemFileCount": 16,
+      "programClosuresMatchInitialCapture": true,
+      "systemFileRecordsMatchInitialCapture": true,
+      "method": "Recompiled the original exec-interception fixture with the repaired production helper; reran the actual ABI probe and every system grant/environment capture. Compared all nine normalized program records and all sixteen system-file hashes, sizes, owners and modes in full against the initial capture stored above.",
+      "fixtureSha256": "ba587fe9933cc401f842d226f500e5279564bb73ca3e88f97eb9f3320c41aa61"
+    },
+    "drills": [
+      {
+        "guard": "grammar-canonicalization",
+        "source": "src/core/judge/fast/inspectGrammar.ts",
+        "suite": "test/unit/inspectGrammar.test.ts",
+        "exitCode": 1,
+        "restoredSha256": "3d3386e1c1b469b79a3e2463ef4608bd8bbbf5788d4834c5148a1112454f78f2",
+        "failedTests": [
+          "test/unit/inspectGrammar.test.ts > B1 positive command grammar > refuses every protected/private path under seeded dot, dotdot, separator and case insertions",
+          "test/unit/inspectGrammar.test.ts > B1 positive command grammar > uses canonical operands in grant and tool argv without changing patterns or relaxing the floor"
+        ]
+      },
+      {
+        "guard": "grammar-component-and-prefix",
+        "source": "src/core/judge/fast/inspectGrammar.ts",
+        "suite": "test/unit/inspectGrammar.test.ts",
+        "exitCode": 1,
+        "restoredSha256": "3d3386e1c1b469b79a3e2463ef4608bd8bbbf5788d4834c5148a1112454f78f2",
+        "failedTests": [
+          "test/unit/inspectGrammar.test.ts > B1 positive command grammar > refuses every protected/private path under seeded dot, dotdot, separator and case insertions",
+          "test/unit/inspectGrammar.test.ts > B1 positive command grammar > uses canonical operands in grant and tool argv without changing patterns or relaxing the floor"
+        ]
+      },
+      {
+        "guard": "native-canonical-input",
+        "source": "native/confine/MuseSparkConfine.c",
+        "suite": "test/unit/inspectNative.test.ts",
+        "exitCode": 1,
+        "restoredSha256": "f24d61884e67a1af9b27a60994400d95a40b7584ac41fd585944474aae529779",
+        "failedTests": [
+          "test/unit/inspectNative.test.ts > B1 Linux kernel boundary > canonicalizes seeded spellings of every protected/private path and refuses noncanonical helper operands"
+        ]
+      },
+      {
+        "guard": "native-protected-components",
+        "source": "native/confine/MuseSparkConfine.c",
+        "suite": "test/unit/inspectNative.test.ts",
+        "exitCode": 1,
+        "restoredSha256": "f24d61884e67a1af9b27a60994400d95a40b7584ac41fd585944474aae529779",
+        "failedTests": [
+          "test/unit/inspectNative.test.ts > B1 Linux kernel boundary > canonicalizes seeded spellings of every protected/private path and refuses noncanonical helper operands",
+          "test/unit/inspectNative.test.ts > B1 Linux kernel boundary > withholds every protected/private descendant through canonical recursive runner operands"
+        ]
+      },
+      {
+        "guard": "native-canonical-walk",
+        "source": "native/confine/MuseSparkConfine.c",
+        "suite": "test/unit/inspectNative.test.ts",
+        "exitCode": 1,
+        "restoredSha256": "f24d61884e67a1af9b27a60994400d95a40b7584ac41fd585944474aae529779",
+        "failedTests": [
+          "test/unit/inspectNative.test.ts > B1 Linux kernel boundary > B1-3/4/5/6/7 excludes protected/private descendants, links, devices, hard links and foreign device ids",
+          "test/unit/inspectNative.test.ts > B1 Linux kernel boundary > withholds every protected/private descendant through canonical recursive runner operands",
+          "test/unit/inspectNative.test.ts > B1 Linux kernel boundary > fails closed on traversal budgets, identity mismatch and user-writable executables or ancestry",
+          "test/unit/inspectNative.test.ts > B1 Linux kernel boundary > B1 root binding refuses a workspace retargeted after the session binds it",
+          "test/unit/inspectNative.test.ts > B1 Linux kernel boundary > runs session self-tests once, preserves command failures and withholds secrets before delivery"
+        ]
+      },
+      {
+        "guard": "native-canonical-prefix",
+        "source": "native/confine/MuseSparkConfine.c",
+        "suite": "test/unit/inspectNative.test.ts",
+        "exitCode": 1,
+        "restoredSha256": "f24d61884e67a1af9b27a60994400d95a40b7584ac41fd585944474aae529779",
+        "failedTests": [
+          "test/unit/inspectNative.test.ts > B1 Linux kernel boundary > canonicalizes seeded spellings of every protected/private path and refuses noncanonical helper operands"
+        ]
+      },
+      {
+        "guard": "request-abort-readiness",
+        "source": "src/core/judge/fast/inspectExec.ts",
+        "suite": "test/unit/inspectExec.test.ts",
+        "exitCode": 1,
+        "restoredSha256": "b6990c114034f3bdb9ea43fd121b67bfa452c0aa396d6fbdfe5d088c099f92d5",
+        "failedTests": [
+          "test/unit/inspectExec.test.ts > internal inspect runner failure and lifecycle boundary > detaches a cancelled readiness waiter during admission while a concurrent caller completes the shared probe",
+          "test/unit/inspectExec.test.ts > internal inspect runner failure and lifecycle boundary > detaches a cancelled readiness waiter while the real hangProbe child remains alive for the session",
+          "test/unit/inspectExec.test.ts > internal inspect runner failure and lifecycle boundary > disposal waits for shared readiness cleanup after its only caller has detached"
+        ]
+      },
+      {
+        "guard": "disposal-observes-readiness",
+        "source": "src/core/judge/fast/inspectExec.ts",
+        "suite": "test/unit/inspectExec.test.ts",
+        "exitCode": 1,
+        "restoredSha256": "b6990c114034f3bdb9ea43fd121b67bfa452c0aa396d6fbdfe5d088c099f92d5",
+        "failedTests": [
+          "test/unit/inspectExec.test.ts > internal inspect runner failure and lifecycle boundary > disposal cancels a pending self-test, observes close and cleans its tree",
+          "test/unit/inspectExec.test.ts > internal inspect runner failure and lifecycle boundary > detaches a cancelled readiness waiter while the real hangProbe child remains alive for the session",
+          "test/unit/inspectExec.test.ts > internal inspect runner failure and lifecycle boundary > disposal waits for shared readiness cleanup after its only caller has detached"
+        ]
+      }
+    ],
+    "byteExactRestorations": true,
+    "verification": [
+      {
+        "check": "typecheck-all-five-projects",
+        "exitCode": 0
+      },
+      {
+        "check": "eslint",
+        "exitCode": 0,
+        "seconds": 23.95
+      },
+      {
+        "check": "deadcode",
+        "exitCode": 0,
+        "seconds": 10.48
+      },
+      {
+        "check": "duplication",
+        "exitCode": 0,
+        "seconds": 2.81
+      },
+      {
+        "check": "l10n",
+        "exitCode": 0,
+        "seconds": 4.57
+      },
+      {
+        "check": "host-api-write",
+        "exitCode": 0,
+        "seconds": 39.81
+      },
+      {
+        "check": "host-api",
+        "exitCode": 0,
+        "seconds": 36.91
+      },
+      {
+        "check": "reference",
+        "exitCode": 0,
+        "seconds": 3.37
+      },
+      {
+        "check": "plan",
+        "exitCode": 0,
+        "seconds": 0.61
+      },
+      {
+        "check": "roadmap-generate",
+        "exitCode": 0
+      },
+      {
+        "check": "roadmap",
+        "exitCode": 0
+      },
+      {
+        "check": "owned-tests",
+        "exitCode": 0,
+        "seconds": 16.04
+      },
+      {
+        "check": "host-typecheck-final",
+        "exitCode": 0,
+        "seconds": 26.6
+      },
+      {
+        "check": "unit-typecheck-final",
+        "exitCode": 0,
+        "seconds": 88.02
+      },
+      {
+        "check": "internal-build",
+        "exitCode": 0,
+        "seconds": 0.78
+      },
+      {
+        "check": "product-build",
+        "exitCode": 0,
+        "seconds": 15.26
+      },
+      {
+        "check": "linux-recapture",
+        "exitCode": 0
+      },
+      {
+        "check": "changed-file-prettier",
+        "exitCode": 0
+      },
+      {
+        "check": "diff-check",
+        "exitCode": 0
+      }
+    ],
+    "productionKiBBudgets": {
+      "extension": {
+        "measured": 550.2,
+        "cap": 600
+      },
+      "modelApi": {
+        "measured": 515.8,
+        "cap": 525
+      },
+      "checkpointStore": {
+        "measured": 87.3,
+        "cap": 225
+      }
+    }
   }
 }

@@ -3,7 +3,11 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fileIdentityKey, statIdentity } from '../../src/core/fs/fileIdentity'
-import { InspectRunner, type InspectExecOptions } from '../../src/core/judge/fast/inspectExec'
+import {
+  InspectRunner,
+  type InspectExecOptions,
+  type InspectResult,
+} from '../../src/core/judge/fast/inspectExec'
 import { SHELL_DEFAULT_TIMEOUT_MS } from '../../src/shared/constants'
 import { inspectStart } from './helpers/inspectStart'
 
@@ -23,12 +27,14 @@ async function fixture(mode: string, onStart?: (args: readonly string[]) => void
   const identity = fileIdentityKey(await statIdentity(workspace))
   if (identity === undefined) throw new Error('Missing workspace identity')
   const binding = { root: workspace, identity }
+  const processes: Awaited<ReturnType<InspectExecOptions['start']>>[] = []
   const start = vi.fn<InspectExecOptions['start']>(async (_file, args, options) => {
     const launched = await inspectStart(
       process.execPath,
       [path.resolve('test/fixtures/inspect-helper.mjs'), mode, ...args],
       options,
     )
+    processes.push(launched)
     let hasNotified = false
     const notify = () => {
       if (hasNotified) return
@@ -40,7 +46,15 @@ async function fixture(mode: string, onStart?: (args: readonly string[]) => void
     return launched
   })
   const runner = new InspectRunner({ helper: 'installed-confine-helper', storage, start })
-  return { runner, binding, storage, start }
+  return { runner, binding, storage, start, processes }
+}
+
+async function cancelWaiting(controller: AbortController, run: Promise<InspectResult>) {
+  controller.abort()
+  expect(await Promise.race([run, new Promise<void>((resolve) => setImmediate(resolve))])).toEqual({
+    kind: 'refused',
+    reason: 'cancelled',
+  })
 }
 
 if (process.platform === 'linux') {
@@ -159,6 +173,95 @@ if (process.platform === 'linux') {
         kind: 'refused',
         reason: 'cancelled',
       })
+    })
+    it('detaches a cancelled readiness waiter during admission while a concurrent caller completes the shared probe', async () => {
+      const h = await fixture('normal')
+      const original = h.start.getMockImplementation()
+      if (original === undefined) throw new Error('Missing launcher fixture')
+      const { promise: admitted, resolve: release } = Promise.withResolvers<true>()
+      const { promise: ready, resolve: started } = Promise.withResolvers<true>()
+      h.start.mockImplementationOnce(async (file, args, options) => {
+        started(true)
+        await admitted
+        return await original(file, args, options)
+      })
+      const controller = new AbortController()
+      const cancelled = h.runner.run('cat ordinary.txt', h.binding, controller.signal)
+      const survivor = h.runner.run('cat ordinary.txt', h.binding)
+      try {
+        await ready
+        await cancelWaiting(controller, cancelled)
+        expect(h.start.mock.calls[0]?.[2].signal?.aborted).toBe(false)
+        release(true)
+        expect(await survivor).toMatchObject({ kind: 'output', stdout: 'ordinary output' })
+        expect(h.start.mock.calls.filter((call) => call[1][0] === 'probe')).toHaveLength(1)
+        expect(h.start.mock.calls.filter((call) => call[1][1] === h.binding.root)).toHaveLength(1)
+        expect(await readdir(h.storage)).toEqual([])
+      } finally {
+        release(true)
+        await h.runner.dispose()
+      }
+    })
+    it('detaches a cancelled readiness waiter while the real hangProbe child remains alive for the session', async () => {
+      const { promise: ready, resolve: started } = Promise.withResolvers<true>()
+      const h = await fixture('hangProbe', () => {
+        started(true)
+      })
+      const controller = new AbortController()
+      const run = h.runner.run('cat x', h.binding, controller.signal)
+      try {
+        await ready
+        await cancelWaiting(controller, run)
+        const probe = h.processes[0]
+        expect(probe?.child.exitCode).toBeNull()
+        expect(probe?.child.signalCode).toBeNull()
+        expect(h.start.mock.calls[0]?.[2].signal?.aborted).toBe(false)
+      } finally {
+        await h.runner.dispose()
+      }
+      expect(await readdir(h.storage)).toEqual([])
+    })
+    it('disposal waits for shared readiness cleanup after its only caller has detached', async () => {
+      const h = await fixture('normal')
+      const { promise: ready, resolve: started } = Promise.withResolvers<true>()
+      const { promise: stopping, resolve: stopped } = Promise.withResolvers<true>()
+      const { promise: drained, resolve: release } = Promise.withResolvers<true>()
+      h.start.mockImplementationOnce((_file, _args, options) => {
+        started(true)
+        return new Promise((_resolve, reject) => {
+          options.signal?.addEventListener(
+            'abort',
+            () => {
+              stopped(true)
+              void (async () => {
+                await drained
+                reject(new Error('Synthetic drained admission'))
+              })()
+            },
+            { once: true },
+          )
+        })
+      })
+      const controller = new AbortController()
+      const run = h.runner.run('cat x', h.binding, controller.signal)
+      try {
+        await ready
+        await cancelWaiting(controller, run)
+        let hasDisposed = false
+        const disposal = (async () => {
+          await h.runner.dispose()
+          hasDisposed = true
+        })()
+        await stopping
+        await new Promise<void>((resolve) => setImmediate(resolve))
+        expect(hasDisposed).toBe(false)
+        release(true)
+        await disposal
+        expect(await readdir(h.storage)).toEqual([])
+      } finally {
+        release(true)
+        await h.runner.dispose()
+      }
     })
     it('cancels an active run and times out at the normal tool deadline', async () => {
       for (const isTimeout of [false, true]) {

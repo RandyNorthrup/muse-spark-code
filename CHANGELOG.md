@@ -40,6 +40,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Internal B1 inspect checks protected/private paths after canonicalizing
+  their spelling, sends the same operands to the grant walk and program,
+  and refuses noncanonical native input. A cancelled caller detaches from
+  the shared self-test promptly; session disposal still awaits its cleanup.
+  Regression properties and native canaries cover both review findings
+  (M125 F1a); the component remains unavailable to editor approvals.
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did
