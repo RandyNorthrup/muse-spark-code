@@ -137,7 +137,7 @@ describe('M108 ACP accounts', () => {
           prompt: [{ type: 'text', text: '/accounts' }],
         }),
       ).rejects.toMatchObject({
-        code: acp.RequestError.internalError().code,
+        code: acp.RequestError.invalidRequest().code,
         message: expect.stringContaining(UI_TEXT.accounts.unavailable),
       })
       await expect(
@@ -147,11 +147,24 @@ describe('M108 ACP accounts', () => {
           value: 'work',
         }),
       ).rejects.toMatchObject({
-        code: acp.RequestError.internalError().code,
+        code: acp.RequestError.invalidRequest().code,
         message: expect.stringContaining(UI_TEXT.accounts.unavailable),
       })
       expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
       expect(h.port.read).not.toHaveBeenCalled()
+    })
+  })
+
+  it('fails session setup with the refusal when the account service is dead (DFACPERR)', async () => {
+    const h = connectedAccounts()
+    h.port.read = () => Promise.reject(new Error('account store is down'))
+    await expect(
+      h.run(async () => {
+        // session/new rejects during account startup, so this never runs.
+      }),
+    ).rejects.toMatchObject({
+      code: acp.RequestError.invalidRequest().code,
+      message: expect.stringContaining(UI_TEXT.accounts.unavailable),
     })
   })
 
@@ -636,7 +649,7 @@ describe('M108 ACP accounts', () => {
             await expect(request).rejects.toThrow(UI_TEXT.accounts.unavailable)
             await expect(request).rejects.toHaveProperty(
               'code',
-              acp.RequestError.internalError().code,
+              acp.RequestError.invalidRequest().code,
             )
           }
         }

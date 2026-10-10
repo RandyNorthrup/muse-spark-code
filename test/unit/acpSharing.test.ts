@@ -61,6 +61,23 @@ function localPrompt(client: acp.ClientContext, sessionId: string, text: string)
   return client.request('session/prompt', { sessionId, prompt: [{ type: 'text', text }] })
 }
 
+/** A sharing prompt refused without a model turn, release or backend call. */
+async function refusedPrompt(
+  text: string,
+  expected: { code: number; message?: unknown },
+  setup?: (local: ReturnType<typeof sharingHarness>) => void,
+) {
+  const local = sharingHarness()
+  setup?.(local)
+  const h = acpHarness(createAcpSharing(local.commands, () => local.ui))
+  await h.run(async (client, sessionId) => {
+    await expect(localPrompt(client, sessionId, text)).rejects.toMatchObject(expected)
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+  })
+  expect(local.release).not.toHaveBeenCalled()
+  return local
+}
+
 function confirmationHarness() {
   const local = sharingHarness()
   const answer = Promise.withResolvers<unknown>()
@@ -234,6 +251,43 @@ describe('M118 ACP local commands over the SDK prompt path', () => {
     })
     expect(local.write).not.toHaveBeenCalled()
     expect(local.release).not.toHaveBeenCalled()
+  })
+  describe('sharing refusals read honestly, never as internal error (DFACPERR)', () => {
+    const refused = acp.RequestError.invalidRequest().code
+    const badParams = acp.RequestError.invalidParams().code
+    it('refuses an empty conversation share with the CLI sentence', async () => {
+      await refusedPrompt(
+        '/share chat',
+        { code: refused, message: expect.stringContaining(UI_TEXT.exportNothing) },
+        (local) => {
+          local.renderPreview.mockRejectedValueOnce(new Error(UI_TEXT.exportNothing))
+        },
+      )
+    })
+    it('refuses a share in a confidential workspace as invalid request', async () => {
+      await refusedPrompt(
+        '/share chat',
+        { code: refused, message: expect.stringContaining(UI_TEXT.shareConfidential) },
+        (local) => {
+          local.setConfidential(true)
+        },
+      )
+    })
+    it.each(['/share chat --format pdf', '/prompt run p1', '/prompt save --title Review'])(
+      'refuses bad arguments as invalid params: %s',
+      async (text) => {
+        const local = await refusedPrompt(text, { code: badParams })
+        expect(local.write).not.toHaveBeenCalled()
+      },
+    )
+    it("refuses another session's chat as invalid params", async () => {
+      await refusedPrompt('/share chat other-session', {
+        code: badParams,
+        message: expect.stringContaining(
+          fill(UI_TEXT.acpUnknownArgument, { argument: 'other-session' }),
+        ),
+      })
+    })
   })
   it('rejects mixed/attached content in a local command', async () => {
     const local = sharingHarness()

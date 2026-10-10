@@ -288,18 +288,26 @@ function isContributorModel(modelId: string): boolean {
   return modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
 }
 
+/**
+ * A refusal the product defines, as the ACP error its own message deserves:
+ * invalid request in this state, never -32603 internal error (DFACPERR).
+ */
+function refusalError(message: string): RequestError {
+  return RequestError.invalidRequest(undefined, message)
+}
+
 function accountRequestError(error: unknown): RequestError {
   const text = accountErrorText(error)
   return text === UI_TEXT.accounts.invalidAccount
     ? RequestError.invalidParams(undefined, text)
-    : RequestError.internalError(undefined, text)
+    : refusalError(text)
 }
 
 /** The model a new session starts on: the backend's default, else the first listed. */
 function startingModel(models: readonly ModelSummary[]): string {
   const model = models.find((candidate) => candidate.isDefault) ?? models[0]
   if (model === undefined) {
-    throw RequestError.internalError(undefined, UI_TEXT.acpNoModels)
+    throw refusalError(UI_TEXT.acpNoModels)
   }
   return model.modelId
 }
@@ -1136,7 +1144,7 @@ class AcpSession {
       return 'end_turn'
     } catch {
       if (stop.signal.aborted) return 'cancelled'
-      throw RequestError.internalError(undefined, UI_TEXT.legalScanUnavailable)
+      throw refusalError(UI_TEXT.legalScanUnavailable)
     } finally {
       if (this.legalStop === stop) this.legalStop = undefined
       if (this.preparing === preparing) this.preparing = undefined
@@ -1327,7 +1335,12 @@ class AcpSession {
   }
 
   public async startAccounts(): Promise<void> {
-    await this.accounts?.start()
+    try {
+      await this.accounts?.start()
+    } catch (error: unknown) {
+      // A service the product names reads as its refusal, never -32603.
+      throw accountRequestError(error)
+    }
   }
 
   /** Broker-owned request; Bypass, tools and paid grants never enter this path. */
@@ -1497,8 +1510,7 @@ class AcpSession {
       throw RequestError.invalidParams(undefined, configId)
     }
     if (configId === ACP_CONFIG_IDS.account) {
-      if (this.accounts === undefined)
-        throw RequestError.internalError(undefined, UI_TEXT.accounts.unavailable)
+      if (this.accounts === undefined) throw refusalError(UI_TEXT.accounts.unavailable)
       if (this.pending !== undefined || this.preparing !== undefined)
         throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
       try {
@@ -1607,8 +1619,7 @@ class AcpSession {
     if (slash !== undefined) {
       if (slash === 'invalid' || blocks.length !== 1)
         throw RequestError.invalidParams(undefined, UI_TEXT.vault.noAccess)
-      if (this.deps.vault === undefined)
-        throw RequestError.internalError(undefined, UI_TEXT.vault.brokerBlocked)
+      if (this.deps.vault === undefined) throw refusalError(UI_TEXT.vault.brokerBlocked)
       const preparing: PreparingPrompt | undefined =
         slash === 'lock' ? undefined : { isCancelled: false, abort: new AbortController() }
       if (preparing === undefined) this.cancelVaultRequests()
@@ -1620,7 +1631,7 @@ class AcpSession {
         await this.outbox
         return 'end_turn'
       } catch {
-        throw RequestError.internalError(undefined, UI_TEXT.vault.brokerBlocked)
+        throw refusalError(UI_TEXT.vault.brokerBlocked)
       } finally {
         if (preparing !== undefined && this.preparing === preparing) this.preparing = undefined
       }
@@ -1796,8 +1807,7 @@ class AcpSession {
       }
       const first = parsed.parts[0]
       if (first?.type === 'text' && /^\/accounts(?:\s|$)/.test(first.text)) {
-        if (this.accounts === undefined)
-          throw RequestError.internalError(undefined, UI_TEXT.accounts.unavailable)
+        if (this.accounts === undefined) throw refusalError(UI_TEXT.accounts.unavailable)
         if (parsed.parts.length !== 1)
           throw RequestError.invalidParams(undefined, UI_TEXT.accounts.invalidAccount)
         let text: string | undefined
@@ -1954,7 +1964,7 @@ class AcpSession {
           this.commitAnswers(pending)
         }
         this.noteTurnId(submission.turnId, submission.disposition)
-        if (!isAccepted) throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
+        if (!isAccepted) throw refusalError(UI_TEXT.answerNotAccepted)
       }
     } catch (error: unknown) {
       await this.releaseAnswers(pending)
@@ -2153,7 +2163,7 @@ class AgentState {
       throw RequestError.authRequired(undefined, readiness.message)
     }
     if (readiness.state === 'unavailable') {
-      throw RequestError.internalError(undefined, readiness.message)
+      throw refusalError(readiness.message)
     }
   }
 
