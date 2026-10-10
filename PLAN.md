@@ -38028,6 +38028,17 @@ macOS. The explicit rig/common brief prohibits aggregate quality and
 delegates full hosted qualification to the lead. Requested hosted log
 downloads return HTTP 403; no merge, push, rebase or paid/live model call.
 
+**CIFIX017 round 5 (2026-10-09, lead + CIR5WIN + CIR5MAC).** Run 38022741513
+left four single-test failures, each on one OS. Lead: the M108 two-account case
+read usage on `turnCompleted`, but the fake CLI sends `usage/changed` after it
+and the frames can arrive in separate reads, so it now also waits for
+`onUsageChanged`; the estimator harness pays the browser's first-navigation
+work once in `beforeAll` (only the first matrix case ever missed, at
+navigation in round 3 and readiness in round 4), keeping every case's
+two-second bound. CIR5WIN root-causes the Windows sshRunner exit-75 case
+reaching its unchanged 10 s job budget; CIR5MAC the macOS native lifecycle
+case losing a recorded setsid grandchild after its parents exit.
+
 **ACPM118 scoped rig qualification (2026-10-09, macmini).** The explicit
 rig/common brief prohibits aggregate quality and delegates hosted replay to
 the lead. All five type projects, changed-file lint/format, plain knip,

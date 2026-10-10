@@ -53,6 +53,16 @@ beforeAll(async () => {
   else if (process.platform === 'darwin')
     launch = { executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' }
   state.browser = await chromium.launch(launch)
+  // Only the first matrix case ever missed its bound on hosted Windows (round 3
+  // at navigation, round 4 at readiness): the browser's one-time first-navigation
+  // work. Pay it here under the hook's limit so every case keeps two seconds.
+  const warm = await openScene(state.browser, 'light', 690)
+  try {
+    await warm.page.goto(ORIGIN)
+    await warm.page.locator('[data-estimator-ready="true"]').waitFor({ timeout: 0 })
+  } finally {
+    await warm.page.close()
+  }
 })
 afterAll(async () => {
   await state.browser?.close()
@@ -79,40 +89,7 @@ describe('M117 shared estimator browser harness', () => {
     for (const width of [690, 320]) {
       it(`passes axe and keyboard Gantt/setup flows in ${theme} at ${String(width)} px`, async () => {
         if (state.browser === undefined) throw new Error('browser did not start')
-        const raw: unknown = JSON.parse(await readFile(`test/harness/themes/${theme}.json`, 'utf8'))
-        const variables = themeSchema.parse(raw)
-        const colors = Object.entries(variables.variables)
-          .map(([key, value]) => `${key}:${value}`)
-          .join(';')
-        const page = await state.browser.newPage({ viewport: { width, height: 760 } })
-        page.setDefaultTimeout(2000)
-        const errors: string[] = []
-        page.on('pageerror', (error) => {
-          errors.push(error.message)
-        })
-        await page.route('**/*', async (route) => {
-          const url = new URL(route.request().url())
-          if (url.origin !== ORIGIN) {
-            await route.abort()
-            return
-          }
-          const file = files.get(url.pathname)
-          if (file !== undefined) {
-            await route.fulfill({
-              body: file,
-              contentType: url.pathname.endsWith('.css') ? 'text/css' : 'text/javascript',
-            })
-            return
-          }
-          if (url.pathname === '/') {
-            await route.fulfill({
-              contentType: 'text/html',
-              body: `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Estimator harness</title><style>:root{${colors};--vscode-font-family:sans-serif}body{margin:0}</style><link rel="stylesheet" href="/scene.css"></head><body><div id="root"></div><script type="module" src="/scene.js"></script></body></html>`,
-            })
-            return
-          }
-          await route.abort()
-        })
+        const { page, errors } = await openScene(state.browser, theme, width)
         try {
           await page.goto(ORIGIN)
           await page.locator('[data-estimator-ready="true"]').waitFor()
@@ -148,6 +125,45 @@ describe('M117 shared estimator browser harness', () => {
       })
     }
 })
+
+/** A page serving only the built harness files, themed, with a two-second action bound. */
+async function openScene(browser: Browser, theme: string, width: number) {
+  const raw: unknown = JSON.parse(await readFile(`test/harness/themes/${theme}.json`, 'utf8'))
+  const variables = themeSchema.parse(raw)
+  const colors = Object.entries(variables.variables)
+    .map(([key, value]) => `${key}:${value}`)
+    .join(';')
+  const page = await browser.newPage({ viewport: { width, height: 760 } })
+  page.setDefaultTimeout(2000)
+  const errors: string[] = []
+  page.on('pageerror', (error) => {
+    errors.push(error.message)
+  })
+  await page.route('**/*', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.origin !== ORIGIN) {
+      await route.abort()
+      return
+    }
+    const file = files.get(url.pathname)
+    if (file !== undefined) {
+      await route.fulfill({
+        body: file,
+        contentType: url.pathname.endsWith('.css') ? 'text/css' : 'text/javascript',
+      })
+      return
+    }
+    if (url.pathname === '/') {
+      await route.fulfill({
+        contentType: 'text/html',
+        body: `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Estimator harness</title><style>:root{${colors};--vscode-font-family:sans-serif}body{margin:0}</style><link rel="stylesheet" href="/scene.css"></head><body><div id="root"></div><script type="module" src="/scene.js"></script></body></html>`,
+      })
+      return
+    }
+    await route.abort()
+  })
+  return { page, errors }
+}
 
 /** Fake-only application source: the M113 parser/board bindings are absent.
  * No external process, model, provider or paid resource is used.

@@ -867,3 +867,40 @@ lead under the explicit brief. Both requested hosted logs remain inaccessible
 (HTTP 403), and the unmodified palette failure was not observed locally;
 its controlled rejection-order reproduction and red/restored drill are
 recorded separately above. No stronger release qualification is claimed.
+
+## Round 5, lead (run 38022741513)
+
+Run 38022741513 on `639dbecf3` left four single-test failures in the test
+shards; the package, quality and dictation-helper failures were only their
+"require every selected-tier job" aggregates.
+
+| Job                     | Case                                                 | Owner   |
+| ----------------------- | ---------------------------------------------------- | ------- |
+| ubuntu-latest, shard 4  | M108 two accounts: `observeUsage` not yet called     | lead    |
+| windows-latest, shard 5 | estimator light 690 px: readiness `waitFor` 2000 ms  | lead    |
+| windows-latest, shard 4 | sshRunner exit-75: exit 124 at the 10 s job budget   | CIR5WIN |
+| macos-latest, shard 3   | native lifecycle: recorded setsid grandchild missing | CIR5MAC |
+
+**M108 two accounts.** The fake CLI sends `turn/completed` and then
+`usage/changed`; the test asserted `observeUsage` on `turnCompleted`, so a
+read boundary between the two frames failed it. The host calls
+`observeUsage` synchronously before its usage listeners, so the test now
+also awaits `onUsageChanged`. Drill on kubuntu: with the fake's
+`usage/changed` delayed 200 ms, the fixed case passes (1 passed) and the
+unfixed case fails with the hosted error, `expected "vi.fn()" to be called
+at least once`; both files restored and verified with `sha256sum -c`
+(test `f29b5de8…3a024`, fake unchanged). Full file on kubuntu: 28/28.
+
+**Estimator first navigation.** Only the first matrix case (light, 690 px)
+has ever missed its bound on hosted Windows: at `page.goto` in round 3 and,
+after CIR4WIN's packed-English repair, at the readiness wait in round 4. The
+cost is the browser's one-time first-navigation work, not the flows the case
+checks. `beforeAll` now opens the same scene once and waits for readiness
+under the hook's limit; every matrix case keeps `setDefaultTimeout(2000)`
+and all assertions, and the page setup is shared through `openScene`. On
+win11 under two concurrent Codex lanes: 11/11, first case 2402 ms total with
+every action inside its bound. The hosted failure has not reproduced on the
+rig, so no local red drill is claimed; the hosted run is the evidence.
+
+Host checks: Prettier, ESLint on both files, `typecheck:e2e`,
+`typecheck:unit` exit 0.

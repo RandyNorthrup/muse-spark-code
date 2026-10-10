@@ -74,6 +74,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The two-account Muse Code backend test waits for the usage event that
+  follows a turn instead of assuming both arrive together, and the estimator
+  browser harness pays the browser's first-navigation work once before its
+  matrix, keeping every case's two-second bound.
+
 - The estimator browser harness uses the same packed English fallback as
   independent production pages, avoiding cold Windows navigation timeouts
   while keeping its two-second bound and complete accessibility/keyboard matrix.
