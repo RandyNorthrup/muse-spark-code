@@ -298,7 +298,21 @@ happened, not what was planned; superseded entries are kept.
   other provider's requests are back to byte-identical with 0.17.0,
   which also restores short Claude Haiku replies at the default effort.
 
+- Visual review covers 0.17.1's Title Case labels, provider-picker repair,
+  chat menus and current What's New notes across all six themes at 320 and
+  690 px.
+
+- Visual baseline reconstruction accepts the recorded sentence-case account
+  and vault labels alongside 0.17.1's Title Case labels. Pixel, coverage and
+  readiness checks retain their existing limits.
+
+- The visual harness supplies the canonical conversation budget required by
+  the provider panel, so wizard scenes render through its strict message schema.
+
 ### Documentation
+
+- README screenshots show 0.17.1's current labels, question-field spacing and
+  chat menus, regenerated through the repository's screenshot script.
 
 - Correct the provider-wizard round-3 certification text to the round-4
   contract: provider persistence precedes the spending-limit write, and a

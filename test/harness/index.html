@@ -1936,6 +1936,12 @@
             accepted: false,
           },
         ],
+        // The provider wizard reads the real conversation limit (PROVWIZ9).
+        // Match modelsPanelFixtures.makeState() and the strict host contract.
+        sessionBudget: {
+          effectiveUsd: '0',
+          nowLine: 'This is your setting for every conversation; it is $0.00 now (this computer).',
+        },
         lastChoices: {},
         drafts: { edits: {} },
         pendingRemovals: [],
