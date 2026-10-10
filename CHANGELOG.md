@@ -74,6 +74,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- On macOS 26, a process that `ps` lists with an unknown state (`?`) while
+  it changes no longer voids every resource tree's membership read, which
+  could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
+
 - The two-account Muse Code backend test waits for the usage event that
   follows a turn instead of assuming both arrive together, and the estimator
   browser harness pays the browser's first-navigation work once before its

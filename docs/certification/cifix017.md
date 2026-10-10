@@ -985,3 +985,31 @@ page through, yet inherited that limit, cold worker start included. It now
 converts through a second converter with the normal limits over the same
 slots and worker watcher; the slow pages keep 500 ms and every assertion
 stays. win11 6/6.
+
+**Hosted probe: the macOS lifecycle cause (product fix).** Probe run
+38025731377 on `macos-26-arm64`: the lifecycle file with the reap barrier
+passed 25/25 rounds; the probe, which keeps the old timing and records the
+raw reads, read no members in 3 of 150 rounds. In rounds 3 and 132 the
+`ps` table held `39517 950 933 ?< 0:00.00 0` (`45099 …` in the other), an
+unrelated process mid-transition whose state macOS 26 prints as `?`;
+`parseMacProcessTable` accepted only a capital letter there and returned
+`null` for the whole table, so every tree's read failed closed. In
+production that refuses Stop/kill (`actionMembers` is `null`) for any tree
+while any process on the Mac is in that state. The parser now accepts `?`
+in the state column; helper identity and parent edges still prove
+membership, so a `?` row cannot add a member by itself. In round 130 the
+grandchild had never been enrolled (the probe, unlike the test, does not
+assert enrollment after the fork); the real test asserts it at line 223 and
+passed there. Regression: `treesPosix` parses the hosted row; drill:
+restoring the old pattern returns `null` (fails), restored with
+`sha256sum -c`. Linux, Windows and Ubuntu probe loops: sshRunner and
+estimator 8/8 rounds on windows-latest, M108 25/25 on ubuntu-latest.
+
+**macOS outputSchema "promptly".** Two probes asserted wall time under 50 ms
+and read 82.6 and 55.1 ms on hosted macOS. Exponential expansion costs
+seconds of CPU; the guarded paths cost milliseconds; wall time also counts
+how long a busy runner left the child unscheduled. The probes now report
+the child's CPU time (`process.cpuUsage`) against the same 50 ms. Drill: a
+100 ms CPU spin inside the probe fails it at 124.7 ms; restored byte-exact.
+Mac mini: treesPosix, outputSchema, treesMacNative, treesLifecycleNative
+81 passed.
