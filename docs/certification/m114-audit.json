@@ -10671,7 +10671,7 @@
     },
     {
       "file": "src/webview/components/GooeyMenuContent.tsx",
-      "sha256": "6aa8cbe270613303abd4b1e42fdf766c64159e14f9c59776a186eff1548fb989"
+      "sha256": "006b845370405baf38f5b81b2c0679df6d40b9a456c776b22b1eafdc00df050f"
     },
     {
       "file": "src/webview/components/HandoffDialog.tsx",
@@ -11455,7 +11455,7 @@
     },
     {
       "file": "src/webview/styles.css",
-      "sha256": "ffe58fd4014ffc3010cc551d9929465bdfda32d644ea5a352213a575dec6cad0"
+      "sha256": "7f0d86220b046ebf80c6177ee6b6478e6017f7aeaf28b56771b6c05899dbb53a"
     },
     {
       "file": "src/webview/surfaceRetry.ts",

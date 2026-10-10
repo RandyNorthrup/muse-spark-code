@@ -461,7 +461,7 @@ describe('GooeyMenu', () => {
       />,
     )
     for (const pill of screen.getAllByRole('menuitem')) {
-      expect(pill.style.outlineOffset).toBe(
+      expect(pill.style.getPropertyValue('--ms-gooey-focus-offset')).toBe(
         'min(var(--ms-focus-offset), calc(4px - var(--ms-focus-width) - 2px))',
       )
     }
@@ -477,7 +477,7 @@ describe('GooeyMenu', () => {
     })
     setup(anchor)
     for (const pill of screen.getAllByRole('menuitem')) {
-      expect(pill.style.outlineOffset).toBe(
+      expect(pill.style.getPropertyValue('--ms-gooey-focus-offset')).toBe(
         'min(var(--ms-focus-offset), calc(4px - var(--ms-focus-width) - 2px))',
       )
     }
