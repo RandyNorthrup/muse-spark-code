@@ -98,22 +98,30 @@ function roleCharter(role: TeamEditorRole) {
     tools,
   )
 }
+function isSettingValueValid(control: TeamPanelOffer['controls'][number], value: unknown): boolean {
+  switch (control.kind) {
+    case 'boolean': {
+      return typeof value === 'boolean'
+    }
+    case 'choice': {
+      return typeof value === 'string' && (control.choices?.includes(value) ?? false)
+    }
+    case 'number': {
+      return (
+        typeof value === 'number' &&
+        Number.isFinite(value) &&
+        (control.min === undefined || value >= control.min) &&
+        (control.max === undefined || value <= control.max)
+      )
+    }
+  }
+}
 function settingIssues(offer: TeamPanelOffer, settings: TeamModelSettings | undefined): string[] {
   const issues: string[] = []
   const entries = Object.entries(settings ?? {})
   for (const [key, value] of entries) {
     const control = offer.controls.find((item) => item.key === key)
-    if (
-      control === undefined ||
-      (control.kind === 'boolean'
-        ? typeof value !== 'boolean'
-        : control.kind === 'choice'
-          ? typeof value !== 'string' || !control.choices?.includes(value)
-          : typeof value !== 'number' ||
-            !Number.isFinite(value) ||
-            (control.min !== undefined && value < control.min) ||
-            (control.max !== undefined && value > control.max))
-    )
+    if (control === undefined || !isSettingValueValid(control, value))
       issues.push(UI_TEXT.teamEditor.invalid)
   }
   return issues
