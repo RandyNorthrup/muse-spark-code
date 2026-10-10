@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-// The Models panel's deferred sections paint no placeholder the section
-// later replaces: while a section chunk loads, the content slot holds only
-// a visually hidden loading status (no in-flow box), and the loaded section
-// then commits once, without an intermediate overlay (RVMODELSPLIT P2).
+// The Models panel's deferred sections keep their own box across chunk
+// load: while a section chunk loads, the content slot already holds the
+// `<section>` with its final accessible name (marked busy, announcement
+// visually hidden, no overlay), and after load it holds the same section
+// (RVMODELSPLIT P2).
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { useEffect, useReducer } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -56,32 +57,42 @@ async function releaseChunk(): Promise<void> {
   })
 }
 
-describe('deferred Models sections reserve no visible box', () => {
-  it('announces loading without an overlay while the chunk loads, then commits the section once', async () => {
+describe('deferred Models sections keep their own box across chunk load', () => {
+  it('reserves the section element before load and commits the same section after', async () => {
     const { view, UI_TEXT } = await mountProviders()
+    // Before load the slot already holds the section with its final
+    // accessible name, marked busy — never the shared overlay placeholder.
+    const reserve = view.container.querySelector(':scope .models-panel > section')
+    expect(reserve?.getAttribute('aria-label')).toBe(UI_TEXT.providersSectionTitle)
+    expect(reserve?.getAttribute('aria-busy')).toBe('true')
+    expect(view.container.querySelector(':scope div.palette')).toBeNull()
     // Loading is still announced for assistive tech …
     const status = await screen.findByRole('status')
     expect(status).toHaveTextContent(UI_TEXT.loadingOutput)
     const marker = view.container.querySelector('[data-deferred-loading]')
     expect(marker).not.toBeNull()
     expect(marker).toBe(status)
-    // … but it occupies no in-flow box: the clipped announcement
-    // (models.css: absolute, 1 px, clipped) is the slot's only child
-    // besides the nav, and the shared overlay placeholder never appears.
+    // … but the reserve occupies no visible box: its only in-flow child is
+    // the clipped announcement (models.css: absolute, 1 px, clipped).
     expect(marker?.classList.contains('models-visually-hidden')).toBe(true)
-    expect(view.container.querySelector(':scope div.palette')).toBeNull()
-    expect(view.container.querySelector(':scope .models-panel > section')).toBeNull()
-    const visibleSiblings = [...view.container.querySelectorAll(':scope .models-panel > *')].filter(
-      (element) =>
-        element.tagName !== 'NAV' && !element.classList.contains('models-visually-hidden'),
-    )
-    expect(visibleSiblings).toEqual([])
+    expect(reserve?.querySelector(':scope div.palette')).toBeNull()
+    expect(
+      [...(reserve?.querySelectorAll(':scope > *') ?? [])].filter(
+        (element) => !element.classList.contains('models-visually-hidden'),
+      ),
+    ).toEqual([])
     await releaseChunk()
     expect(await screen.findByText('Ollama')).toBeInTheDocument()
+    // After load the slot holds the same section — same tag, same slot,
+    // same accessible name — with the reserve's marker gone and no overlay.
+    // (jsdom has no layout engine, so pixel equality of the box is measured
+    // in a real browser; see the lead-run procedure in
+    // docs/certification/models-split.md.)
+    const section = view.container.querySelector(':scope .models-panel > section')
+    expect(section?.tagName).toBe(reserve?.tagName)
+    expect(section?.getAttribute('aria-label')).toBe(reserve?.getAttribute('aria-label'))
+    expect(section?.getAttribute('aria-busy')).toBeNull()
     expect(view.container.querySelector('[data-deferred-loading]')).toBeNull()
-    expect(
-      view.container.querySelector(':scope .models-panel > section')?.getAttribute('aria-label'),
-    ).toBe(UI_TEXT.providersSectionTitle)
     expect(view.container.querySelector(':scope div.palette')).toBeNull()
   })
 })
