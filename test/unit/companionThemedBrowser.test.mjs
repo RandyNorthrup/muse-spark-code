@@ -3,10 +3,12 @@
 // Builds the production usage entry, writes the static theme sheets and an
 // installed font pack, starts the real companion server, then drives headless
 // Chrome from the launch URL through /session and the authenticated bootstrap
-// in all four appearance modes. Every mode waits for the Usage body to mount
-// (not just the theme), asserts the mounted theme, the installed UI font and
-// the rendered Usage content, and runs axe. A permanently pending Usage body
-// fails the wait instead of passing an empty page (finding 3).
+// in all four appearance modes. Every mode waits for the readiness marker
+// the Usage view sets only after rendering real host state (not just the
+// theme, not the header shell), asserts the mounted theme, the installed UI
+// font and the rendered Usage values, and runs axe. A permanently pending
+// journal read fails the wait instead of passing the loading page
+// (RVCM1141B).
 //
 // Sandbox note: needs an unsandboxed Chrome launch; the lane rig runs this.
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
@@ -134,15 +136,14 @@ async function open(mode) {
   await page.waitForFunction(
     () => globalThis.document.documentElement.dataset['msTheme'] !== undefined,
   )
-  // The settled Usage body, never the loading fallback: the header's title
-  // and subtitle render only after the lazy app mounts with its table.
+  // The settled Usage view, never the loading fallback: the readiness
+  // marker is set only after UsageApp renders host state. Waiting on the
+  // header title/subtitle passes while state is undefined (RVCM1141B).
   await page.waitForFunction(
-    ({ title, subtitle }) => {
-      const main = globalThis.document.querySelector('main.usage-page')
-      const text = main?.textContent ?? ''
-      return text.includes(title) && text.includes(subtitle)
-    },
-    { title: USAGE_EN.title, subtitle: USAGE_EN.subtitle },
+    () =>
+      globalThis.document.querySelector(
+        'main.usage-page[data-usage-ready="true"][aria-busy="false"]',
+      ) !== null,
   )
   return { context, page }
 }
@@ -157,6 +158,8 @@ async function themeFacts(page) {
       .getPropertyValue('--ms-text')
       .trim(),
     body: globalThis.document.querySelector('main.usage-page')?.textContent ?? '',
+    busy: globalThis.document.querySelector('main.usage-page')?.getAttribute('aria-busy'),
+    ready: globalThis.document.querySelector('main.usage-page')?.dataset['usageReady'],
   }))
 }
 
@@ -196,6 +199,13 @@ describe('companion page over the launch handshake in Chromium', () => {
         expect(theme.font).toContain('Inter')
         expect(theme.body).toContain(USAGE_EN.title)
         expect(theme.body).toContain(USAGE_EN.subtitle)
+        // Rendered from real host state: the empty journal settles idle
+        // with its host line and empty state, never the loading fallback.
+        expect(theme.ready).toBe('true')
+        expect(theme.busy).toBe('false')
+        expect(theme.body).toContain('History is stored on ACP.')
+        expect(theme.body).toContain(USAGE_EN.emptyTitle)
+        expect(theme.body).not.toContain(USAGE_EN.loading)
         expect(await loadedUiFont(page)).toBeGreaterThan(0)
         await page.screenshot({ path: path.join('temp', 'c-m114-1-companion-dark-320.png') })
         expect(await axeViolations(page)).toEqual([])
@@ -217,6 +227,13 @@ describe('companion page over the launch handshake in Chromium', () => {
         expect(theme.font).toContain('Inter')
         expect(theme.body).toContain(USAGE_EN.title)
         expect(theme.body).toContain(USAGE_EN.subtitle)
+        // Rendered from real host state: the empty journal settles idle
+        // with its host line and empty state, never the loading fallback.
+        expect(theme.ready).toBe('true')
+        expect(theme.busy).toBe('false')
+        expect(theme.body).toContain('History is stored on ACP.')
+        expect(theme.body).toContain(USAGE_EN.emptyTitle)
+        expect(theme.body).not.toContain(USAGE_EN.loading)
         expect(await loadedUiFont(page)).toBeGreaterThan(0)
         await page.screenshot({ path: path.join('temp', 'c-m114-1-companion-light-690.png') })
         expect(await axeViolations(page)).toEqual([])
@@ -236,6 +253,13 @@ describe('companion page over the launch handshake in Chromium', () => {
         expect(theme.text).toBe('#fff')
         expect(theme.body).toContain(USAGE_EN.title)
         expect(theme.body).toContain(USAGE_EN.subtitle)
+        // Rendered from real host state: the empty journal settles idle
+        // with its host line and empty state, never the loading fallback.
+        expect(theme.ready).toBe('true')
+        expect(theme.busy).toBe('false')
+        expect(theme.body).toContain('History is stored on ACP.')
+        expect(theme.body).toContain(USAGE_EN.emptyTitle)
+        expect(theme.body).not.toContain(USAGE_EN.loading)
         expect(await loadedUiFont(page)).toBeGreaterThan(0)
         await page.screenshot({ path: path.join('temp', 'c-m114-1-companion-hc-dark-690.png') })
         expect(await axeViolations(page)).toEqual([])
@@ -255,6 +279,13 @@ describe('companion page over the launch handshake in Chromium', () => {
         expect(theme.text).toBe('#000')
         expect(theme.body).toContain(USAGE_EN.title)
         expect(theme.body).toContain(USAGE_EN.subtitle)
+        // Rendered from real host state: the empty journal settles idle
+        // with its host line and empty state, never the loading fallback.
+        expect(theme.ready).toBe('true')
+        expect(theme.busy).toBe('false')
+        expect(theme.body).toContain('History is stored on ACP.')
+        expect(theme.body).toContain(USAGE_EN.emptyTitle)
+        expect(theme.body).not.toContain(USAGE_EN.loading)
         expect(await loadedUiFont(page)).toBeGreaterThan(0)
         await page.screenshot({ path: path.join('temp', 'c-m114-1-companion-hc-light-690.png') })
         expect(await axeViolations(page)).toEqual([])
