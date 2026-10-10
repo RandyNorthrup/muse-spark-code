@@ -89,6 +89,8 @@ import {
   REPORT_ERROR_CODES,
   REPORT_EXIT_CODE,
   UI_TEXT,
+  TEAM_ENGINE_HARD_CEILING,
+  TEAM_MAX_WORKERS_PER_CPU,
   VSCODE_COMMANDS,
   WALKTHROUGH_QUALIFIED_ID,
   WINDOWS_POWERSHELL_TERMINAL_PATH,
@@ -123,7 +125,9 @@ import type { ReportPanel } from './host/reporting/reportPanel'
 
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { homedir, hostname, userInfo } from 'node:os'
+import { availableParallelism } from 'node:os'
 import { usagePanelLoader, isUsageBudgetBundle } from './host/usage/usagePanelBundle'
+import { TeamHostBinding } from './host/teamHostBinding'
 import type { UsagePanel } from './host/usage/usagePanel'
 
 import path from 'node:path'
@@ -2523,7 +2527,68 @@ async function activateWindow(
       log,
       context: { workspaceRoot: root, storageRoot, l10n },
     })
+  // M96 lane X: the window's team host service. A workspace that stores no
+  // team never loads dist/team.js; VS Code runs no team worker yet, so every
+  // custom entry is unavailable and each conversation is today's chat.
+  const teamHost = new TeamHostBinding({
+    ports: {
+      state: {
+        get: (key) => context.workspaceState.get(key),
+        update: async (key, value) => {
+          await context.workspaceState.update(key, value)
+        },
+      },
+      settings: {
+        isTeamOn: () => currentSettings().team,
+        isTeamWorkersOn: () => currentSettings().modelApiTeamWorkers,
+        maxWorkers: () =>
+          Math.min(TEAM_ENGINE_HARD_CEILING, TEAM_MAX_WORKERS_PER_CPU * availableParallelism()),
+        isTrusted: () => vscode.workspace.isTrusted,
+      },
+      orchestrator: {
+        modelId: () => DEFAULT_MODEL_ID,
+        backend: () => currentSettings().backend,
+      },
+      workers: {
+        canRun: () => false,
+        probe: () => Promise.resolve(false),
+        run: () =>
+          Promise.reject(new Error(fill(UI_TEXT.teamRunnerUnavailable, { tool: 'delegate' }))),
+      },
+      merges: {
+        merge: () =>
+          Promise.reject(new Error(fill(UI_TEXT.teamRunnerUnavailable, { tool: 'merge' }))),
+        discard: () =>
+          Promise.reject(new Error(fill(UI_TEXT.teamRunnerUnavailable, { tool: 'cancel' }))),
+      },
+      paid: {
+        allowKeyTasks: async (tasks, dailyBudgetUsd) =>
+          await paid.consent.allows({ feature: 'teamWorkers', tasks, dailyBudgetUsd }, true),
+      },
+      newId: () => crypto.randomUUID(),
+      now: () => Date.now(),
+      log,
+    },
+    loadFactory: async () => {
+      const { createTeamHost } = await import('./core/team/teamEntry')
+      return createTeamHost
+    },
+    uiText: () => UI_TEXT,
+    uiLocale,
+    showTree: (tree) => {
+      for (const controller of controllers.values()) controller.showTeamTree(tree)
+    },
+    openRoles: async () => {
+      await vscode.commands.executeCommand(COMMAND_IDS.modelsAndAgents)
+    },
+  })
+  context.subscriptions.push({
+    dispose: () => {
+      void teamHost.dispose()
+    },
+  })
   const modelApi = new ModelApiBackendManager({
+    team: teamHost.seams,
     onServiceFailure: () => {
       notify(
         Array.from(controllers.values(), (controller) => () => {
@@ -3342,6 +3407,7 @@ async function activateWindow(
           tasksTab,
           auth,
           ensureHost: ensureSelectedHost,
+          team: teamHost,
           workspaceRoot,
           modelId: DEFAULT_MODEL_ID,
           initialPermissionMode: currentSettings().initialPermissionMode,
@@ -3718,6 +3784,13 @@ async function activateWindow(
         uiLocale(),
       )
       controllers.set(surface.id, controller)
+      // A surface that shows the team opened: the declared setup probes run
+      // here, never on a conversation's path (M96 acceptance 47).
+      const opened = controller
+      void teamHost.open().then(() => {
+        const tree = teamHost.tree()
+        if (tree !== undefined) opened.showTeamTree(tree)
+      })
     }
     return controller
   }

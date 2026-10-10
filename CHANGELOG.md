@@ -9,6 +9,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **The team host service** (M96, C-M96-3). One service per window now
+  answers the Model API conversation's team seams (the decision a new
+  conversation reads, the roster, and `delegate`, `collect`, `cancel` and
+  `merge`), the Agent map's team tree, and its Stop, Stop all, Merge, Discard
+  and Reset actions; other editors bind to the same interface
+  (`src/core/team/teamHostService.ts`). A workspace that stores no team never
+  loads it, and the new machine setting `museSpark.team` (on) turns it off
+  entirely. Until a worker binding lands for an agent kind, every entry of
+  that kind counts as unavailable, so each conversation stays today's chat.
+
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

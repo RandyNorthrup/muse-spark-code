@@ -1488,6 +1488,12 @@
           "description": "%config.modelApiTeamWorkers.description%",
           "scope": "machine"
         },
+        "museSpark.team": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.team.description%",
+          "scope": "machine"
+        },
         "museSpark.usageHistory": {
           "type": "boolean",
           "default": true,

@@ -230,6 +230,8 @@ import type { ReviewCollection } from '../review/reviewCollector'
 import type { ReviewTurnFeatures } from '../review/reviewBundle'
 import { errorDetail, type Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/chatSurface'
+import type { TeamSurfacePort } from '../teamHostBinding'
+import type { TeamTreeData } from '../../shared/teamView'
 import type { TasksTabPort, TasksTabView } from '../views/tasksTabPort'
 
 /** The controller's Git adapter contract, portable to hosts without VS Code. */
@@ -528,6 +530,11 @@ export interface ConversationDeps {
         ) => Promise<SessionMcpHttpServer | undefined>
       }
     | undefined
+  /**
+   * M96 lane X: the window's team host service, as the tree and the cards
+   * reach it. Absent, the team's messages are refused and no tree is shown.
+   */
+  readonly team?: TeamSurfacePort | undefined
   /**
    * M96 lane T: the orchestrator slot. A new conversation starts on the
    * workspace override, or the picker's model; the pill then shows the
@@ -10039,6 +10046,20 @@ export class ConversationController {
         await this.stopAllTasks()
         break
       }
+      // The team tree's and cards' actions (M96 lane X): the window's team
+      // host service answers them; without one nothing team-related runs.
+      case 'openTeamTaskTranscript':
+      case 'stopTeamTask':
+      case 'reviewTeamDiff':
+      case 'decideTeamMerge':
+      case 'answerTeamWaiting':
+      case 'openTeamRoles':
+      case 'resetTeamEntry':
+      case 'stopAllTeamTasks': {
+        if (this.deps.team === undefined) throw new Error(UI_TEXT.teamTaskUnknown)
+        await this.deps.team.handle(message)
+        break
+      }
       case 'runUserShell': {
         await this.runUserShell(message.command)
         break
@@ -10821,6 +10842,11 @@ export class ConversationController {
   /** Whether a turn of this conversation runs on that backend (the watchdog's choice, CLI recovery). */
   public isTurnRunningOn(kind: BackendKind): boolean {
     return this.activeTurnId !== undefined && this.sessionKind === kind
+  }
+
+  /** The Agent map's team tree, or today's map when the workspace runs no team (M96). */
+  public showTeamTree(tree: TeamTreeData | undefined): void {
+    this.post(tree === undefined ? { type: 'clearTeamTree' } : { type: 'teamTree', tree })
   }
 
   /**

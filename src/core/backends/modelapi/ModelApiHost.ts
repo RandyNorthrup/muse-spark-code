@@ -883,7 +883,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
    * - `teamRunner` runs delegate/collect/cancel/merge (lanes A/W/I);
    * - `isTeamInPlaceActive` reports a running `in-place` worker task (lane W).
    */
-  readonly teamDecisionSource?: (() => TeamDecisionSource | undefined) | undefined
+  readonly teamDecisionSource?:
+    ((orchestratorModelId?: string) => TeamDecisionSource | undefined) | undefined
   readonly teamRosterData?:
     | (() =>
         { readonly stable: readonly TeamStableRole[]; readonly live?: TeamRosterLive } | undefined)
@@ -4071,7 +4072,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (decided !== undefined) {
       return decided
     }
-    const source = this.deps.teamDecisionSource?.()
+    const source = this.deps.teamDecisionSource?.(this.modelId)
     const mode: TeamConversationMode =
       source === undefined || this.isSubagent
         ? 'single-model'
@@ -9891,7 +9892,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (runner === undefined) {
       return this.unavailableTeamTool(name)
     }
-    const context = { sessionId: this.sessionId, approvalMode: this.approvalMode, signal }
+    const context = {
+      sessionId: this.sessionId,
+      approvalMode: this.approvalMode,
+      signal,
+      orchestratorModelId: this.modelId,
+    }
     if (name === 'collect') {
       // Validated above; the wait is clamped to the backend's bound here.
       const reparsed = this.team.collectArgs.safeParse(parsed.args)
@@ -9950,7 +9956,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       const reason = TEAM_BOOTSTRAP_MODEL_TEXT.invalidDelegateArguments
       return { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
     }
-    const now = this.deps.teamDecisionSource?.()
+    const now = this.deps.teamDecisionSource?.(this.modelId)
     if (now === undefined || decideTeamConversationMode(now).mode !== 'team') {
       return {
         output: this.team.singleModelAgainRefusal(),
@@ -9962,17 +9968,18 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (runner === undefined) {
       return this.unavailableTeamTool('delegate')
     }
-    const context = { sessionId: this.sessionId, approvalMode: this.approvalMode, signal }
+    const context = {
+      sessionId: this.sessionId,
+      approvalMode: this.approvalMode,
+      signal,
+      orchestratorModelId: this.modelId,
+    }
     if (dryRun === true) return await runner.preview(parsed.data, context)
     const commands = this.teamCommands
     if (commands === undefined) throw new Error('team commands were not prepared')
     return await commands.run(commandId, tasks, () => {
       signal.throwIfAborted()
-      return runner.delegate(parsed.data, {
-        sessionId: this.sessionId,
-        approvalMode: this.approvalMode,
-        signal,
-      })
+      return runner.delegate(parsed.data, context)
     })
   }
 

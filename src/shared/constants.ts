@@ -617,6 +617,9 @@ export const SETTING_DEFAULTS = {
   modelApiBestOfN: true,
   // D78: inert without a hooks file; Restricted Mode loads and runs none.
   modelApiTeamWorkers: true,
+  // Agent teams (M96, D75): on, but a workspace runs one only once a role
+  // has a second model, observably loaded (the owner's single-model rule).
+  team: true,
   modelApiHooks: true,
   // The Model API shell keeps its directory between calls (M91 lane S, PLAN.md
   // D70). On by default, the owner's ruling of 2026-10-04 that enhancements
@@ -787,6 +790,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiSubagents',
   'modelApiBestOfN',
   'modelApiTeamWorkers',
+  'team',
   'modelApiHooks',
   'modelApiShellKeepsDirectory',
   'modelApiHookModels',
@@ -6657,6 +6661,20 @@ export const TEAM_MODEL_TEXT = {
     'Only one model is ready: the team applies from a new conversation. Do the work yourself or ask the user.',
   toolErrorIsUnavailableTheTeamRunner:
     'Error: {value1} is unavailable: the team runner is not loaded in this window.',
+  // The team host service's answers (M96 lane X, C-M96-3).
+  hostInvalidArguments: 'invalid arguments for this team tool',
+  hostRoleNotOffered: 'role {role} is not offered in this workspace',
+  hostContinueNotOffered:
+    'continue is not offered in this window; delegate a new task and put the finished task report in its brief',
+  hostNotStaffed: 'role {role} is not staffed',
+  hostExhausted: 'every entry of role {role} is at a limit or unavailable; do the work yourself',
+  hostUntrusted: 'the workspace is in Restricted Mode, so no worker starts',
+  hostMaxWorkers: 'at most {max} workers run at once in this window',
+  hostPaidDeclined: 'the user declined paid team use for these tasks',
+  hostUnknownTask: 'no such task in this conversation',
+  hostMergePlanMode: 'merge is refused in Plan mode',
+  hostMergeNotReady: 'only a finished task with changes on its own branch can be merged, once',
+  hostMergeCancelled: 'the merge was not decided; nothing was written',
   rosterNoCaps: 'no caps',
   rosterNotStaffedPolicy: '  not staffed (policy {value1})',
   rosterUse: '  use: {value1}',
@@ -7264,6 +7282,9 @@ export const TEAM_META_CONTRIBUTOR_TPM = 3_000_000
 // Unknown external agents start at 2, until refusals show their limits.
 // The engine ceiling is also the top of `museSpark.teamMaxWorkers`' default.
 export const TEAM_ENGINE_HARD_CEILING = 20
+// `museSpark.teamMaxWorkers`' default: the lower of the ceiling and twice the
+// logical CPUs (D75).
+export const TEAM_MAX_WORKERS_PER_CPU = 2
 export const TEAM_MUSE_CODE_HOST_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_DEFAULT = 2
