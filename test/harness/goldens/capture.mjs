@@ -435,8 +435,45 @@ export async function prepareScene({ page, errors, root, port, fixtures }, audit
   )
   if (reviewSelector !== undefined)
     await page.locator(reviewSelector).first().scrollIntoViewIfNeeded()
+  if ((await page.locator('.gooey-menu').count()) > 0) await settleMenuPlacement(page)
   if (errors.length > 0) throw new Error(`${scene}: ${errors.join('; ')}`)
   return { rows, components }
+}
+
+const MENU_SETTLE_ATTEMPTS = 10
+
+/**
+ * An open menu follows its opener on animation frames, which the frozen clock
+ * does not run: a row that moves after the menu opened (a lazy part painting)
+ * left the fan where the opener had been, in some captures and not others.
+ * Re-place it through its own resize listener, let React's render task run
+ * (a message posted after it), and repeat until no pill moves.
+ */
+async function settleMenuPlacement(page) {
+  const boxes = () =>
+    page
+      .locator('.gooey-menu-pill')
+      .evaluateAll((pills) =>
+        JSON.stringify(pills.map((pill) => Object.values(pill.getBoundingClientRect().toJSON()))),
+      )
+  for (let attempt = 0; attempt < MENU_SETTLE_ATTEMPTS; attempt += 1) {
+    const before = await boxes()
+    await page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          globalThis.dispatchEvent(new globalThis.Event('resize'))
+          const channel = new globalThis.MessageChannel()
+          channel.port1.addEventListener('message', () => {
+            resolve()
+          })
+          // addEventListener, unlike onmessage, needs the port started.
+          channel.port1.start()
+          channel.port2.postMessage(null)
+        }),
+    )
+    if ((await boxes()) === before) return
+  }
+  throw new Error('Open menu did not settle beside its opener')
 }
 
 /** Streaming comparison avoids retaining thousands of images in memory. */
