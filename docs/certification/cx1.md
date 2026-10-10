@@ -44,9 +44,11 @@ branch `c/x-1`, base `82d50d5e4` (0.17.0 release merge, PR #145).
   `planned` → `building`.
 - **M101/M105/M107/M113/M114/M108/M95 statuses** `planned` → `building`
   with first-parts-shipped parentheticals; each matches its entries.json
-  release (0.15.0/0.16.0/0.17.0) and remaining section lanes. M95b/M95c stay
-  `planned` (nothing shipped). M96c/M103 `built` → `building` (section
-  checklists still open). M109 `released` → `building` (above).
+  release (0.15.0/0.16.0/0.17.0) and remaining section lanes. M95b `planned` →
+  `building` (first parts shipped in the 0.15.0 preview; acceptance 1–10 and
+  live/install receipts remain); M95c stays `planned` (nothing shipped).
+  M96c/M103 `built` → `building` (section checklists still open). M109
+  `released` → `building` (above).
 - **§10 `0.17.0 released` record** added (merge `82d50d5e4`, PR #145, dated
   CHANGELOG section); roadmap `pending` is now empty, so the stale
   "In the next release (0.17.0)" section is gone after regeneration.
@@ -102,7 +104,8 @@ fires were wrong. Evidence chain (all read on this base):
 - **M101 retained `built` (2026-10-06 sub-line) → `building`** with its own
   listed remainders as the reason (acceptance: no built line contradicts
   its checklist). M77/M110 stay `building`; M76 stays archived `built`;
-  M95b/M95c stay `planned` (nothing shipped).
+  M95b `planned` → `building` (RVCX1 F4: first parts shipped in the 0.15.0
+  preview, remainders listed in PLAN); M95c stays `planned` (nothing shipped).
 
 ## Gates (all run directly in this worktree, repo defaults)
 
@@ -150,6 +153,38 @@ byte-exact (SHA-256 match below) and re-ran green.
 - restore check: `sha256sum` after restore prints the identical hash;
   `npm run check:roadmap` green afterwards
   (`Roadmap: 207 entries; ROADMAP.md is current`).
+
+## RVCX1 fixes (same lane, lane CX1R2, commit `b478c929e`)
+
+Every RVCX1 finding fixed, class swept, no residuals. Released CHANGELOG
+highlights keep their history with a plain `today:` qualification; current
+text (README/Help/ROADMAP) states what is true now.
+
+| Finding                                                 | Fix                                                                                                                                                                                                             | Regression test (`test/unit/cx1r2Truth.test.ts`)                         | Red drill                                                                                                     |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| F1 P2: 0.16.0 Loop highlights promise argument previews | CHANGELOG 0.16.0 + README Earlier-0.16.0: rows stream, `Today:` argument text not shown yet (no tool declares preview fields)                                                                                   | What’s New via real `parseChangelog` + README section asserts            | README→pre-fix: `README Earlier-in-0.16.0 highlight matches` fails; restore `1b0112a2…` byte-exact            |
+| F2 P2: Help promises working capacity forecasts         | `referenceEstimate` + `estimateCliHelp` qualified in `en.ts` and all 14 `ui.*.json`; reference regenerated; README 0.17.0 highlight + Estimates say binding (reader on main, unbound)                           | EN strings, generated `docs/reference.md`, README asserts                | en.ts→pre-fix: `reference title says /estimate waits` fails; restore `bb1d792c…` byte-exact                   |
+| F3 P2: playbook row claims panel governance             | entries.json M116 rewritten (skill + CLI/ACP local, panel enforcement pending); ROADMAP regenerated; README 0.17.0 highlight + 0.17.0 CHANGELOG highlight (history kept, today-qualified)                       | entries.json, ROADMAP.md, README, 0.17.0 highlights via `parseChangelog` | entries.json→pre-fix: `no longer says the skill governs` fails; restore `36089f1d…` byte-exact                |
+| F4 P3: M95b `built` contradicts open acceptance 1–10    | PLAN M95b `built`→`building` with remainders (0.15.0 preview shipped; live plan inference, installed-editor receipts, full quality remain); roadmap moves M95b to Being built; both cx1.md statements corrected | PLAN section + cx1.md asserts                                            | PLAN→pre-fix: `M95b is building` fails; restore `d5e6c426…` byte-exact                                        |
+| Sweep: 0.15.0 teams highlights unqualified              | CHANGELOG 0.15.0 + README Earlier-0.15.0 append `Today:` teams cannot be created yet                                                                                                                            | 0.15.0 highlights via `parseChangelog` + README section                  | CHANGELOG→pre-fix: `released 0.15.0 Highlights carry the qualification` fails; restore `3b7b317e…` byte-exact |
+
+### Sweep verdicts (every surface grepped per dormant feature + playbook)
+
+- **M106 previews:** detailed README `## Streamed argument previews` already honest (binding required, byte-count fallback); `docs/reference.md` Argument-preview row is a UI string, no claim. Fixed only the two highlights (F1).
+- **M117 estimator:** Help fixed (F2); README Estimates + 0.17.0 highlight fixed; CHANGELOG 0.17.0 `Capacity estimates` already says the reader is unbound — true as-is.
+- **M116 playbook:** roadmap/README/0.17.0 highlights fixed (F3); `docs/reference.md` playbook section + `playbookRecordHelp` describe the shipped `/playbook` function — true as-is; `hosts.md` M116 table marks panel enforcement open — true as-is.
+- **M95b sign-in:** PLAN/roadmap fixed (F4); roadmap Shipped→Being built move confirms it. README `Subscription Sharing preview` + `ChatGPT sign-in … preview` labels and CHANGELOG 0.15.0 `try … sign-in` history: qualified in current surfaces, history kept — no change.
+- **M96 teams:** 0.15.0 highlights fixed (sweep); entries.json/ROADMAP carry `cannot be created yet` — true as-is; Help has no roles/teams feature section (only the conditional paid-consent row RVCX1 already cleared) — no claim to fix; README `The M96 team feature remains unavailable` + team-runtime `not available as bindings` — true as-is.
+- **M109 vault:** README vault section states both commands refuse without the broker; `referenceVaultPanel` + catalog refuse-closed — true as-is.
+- **M115 schedules:** README (`pending editor delivery binding`, `closing VS Code stops checks`), entries.json (`refused at spend consent`), `hosts.md` M115 table (closed-editor fires refused) — true as-is.
+- **M101 compaction:** 0.15.0 highlights + README state `remains inactive pending its paired evaluation` — true as-is.
+- **M105 media:** README M105 status (`video/audio delivery remains unavailable`, `cannot read video or audio`) + Unreleased `remain unavailable` — true as-is.
+- **M107 relocation:** 0.16.0 highlights + en.ts (`not available yet`, `stays refused`) — true as-is.
+
+### Gates for `b478c929e` (repo defaults, no `--testTimeout`)
+
+- `npm run check:plan` → 207 milestones, 0 drift; `npm run check:roadmap` → 207 entries, current; `npm run check:l10n` → 0 problems; `npm run check:reference` → 77/71/100/29/257, current.
+- `test/unit/cx1r2Truth.test.ts` → 15 pass. Pre-commit hook eslint blocked the first commit attempt on two nested-test-helper scope errors; fixed, hook green on the recorded commit.
 
 ## Hooks
 
