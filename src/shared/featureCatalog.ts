@@ -1114,7 +1114,15 @@ const REFERENCE_DETAILS: Readonly<
   support: ['referenceAcp'],
   cache: ['referenceCache'],
   'custom-agents': ['referencePaidContexts'],
-  'conversation-actions': ['referenceWindowsSessions'],
+  'conversation-actions': [
+    'referenceWindowsSessions',
+    'copyResponse',
+    'replyToOutput',
+    'askAboutThis',
+    'commentOnThis',
+    'promptSave',
+    'sharePrompt',
+  ],
   questions: ['referenceQuestionsDeferral'],
 }
 

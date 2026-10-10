@@ -1472,10 +1472,17 @@ export function App({
         return
       }
       event.preventDefault()
+      // Highlighted-text actions fan from this row's “…” button too.
+      const button = row.querySelector('.row-actions-button')
+      const rect = button?.getBoundingClientRect()
+      const origin =
+        rect === undefined
+          ? { x: event.clientX, y: event.clientY }
+          : { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
       setQuoteMenu({
         entryId,
         role: row.dataset['role'] ?? 'assistant',
-        origin: { x: event.clientX, y: event.clientY },
+        origin,
         text,
         epoch: store.getState().attachmentEpoch,
       })
@@ -2114,7 +2121,7 @@ export function App({
     },
     [store, dispatch, postMessage],
   )
-  // "Rewind code to here": the host reverts the edits after that message,
+  // "Rewind Code to Here": the host reverts the edits after that message,
   // newest first, and says so (or that there was nothing to revert).
   const onRewind = useCallback(
     (entryId: string) => {
@@ -2134,7 +2141,7 @@ export function App({
     },
     [store, dispatch, postMessage],
   )
-  // "Restore files to here" (M72): the host confirms, restores and reports.
+  // "Restore Files to Here" (M72): the host confirms, restores and reports.
   const onRestoreFiles = useCallback(
     (entryId: string) => {
       const current = store.getState()
@@ -2150,7 +2157,7 @@ export function App({
     },
     [store, postMessage],
   )
-  // "Rewind conversation and restore files" (M72): the files first, then M53's rewind.
+  // "Rewind Conversation and Restore Files" (M72): the files first, then M53's rewind.
   const onRestoreBoth = useCallback(
     (entryId: string) => {
       const request = rewindRequest(store.getState(), entryId)

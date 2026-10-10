@@ -32,6 +32,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Chat action menus fan closer around the **…** button, with 6 px gaps and
+  a shallower arc. Highlighted-text actions open at the selected row’s **…**
+  button; rows without an opener use the pointer. English menu labels and
+  titles use Title Case.
+
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did

@@ -5545,6 +5545,22 @@ choices:
     - Record: `docs/certification/m87-f.md`, "A fan of crisp pills, one
       size".
 
+  - **Menus close to the opener (MENUFAN, owner 2026-10-10).** The
+    selected row's text menu opens at its “…” button's viewport centre,
+    using the pointer only when that row has no opener. The same fan in
+    both bursts keeps a 16 px reach, a 16 px bow and 6 px gaps: centred on
+    the button when it fits, shifted whole beside a panel edge. Pills stay
+    crisp, equal in width to the longest label, and apart. English action
+    labels and menu titles use Title Case; translations keep their own
+    casing, and action ids carry behaviour. Regression coverage measures
+    2/3/5-item fans at 320/690 px and the selection menu in the browser;
+    the capture closes an existing menu before reselecting inert row prose;
+    reverting the origin and gap separately must fail their tests and be
+    restored byte-exact. Capture before/after row and selection menus at
+    both widths, update reviewed visual goldens with
+    `owner-2026-10-10-menu-fan`, and regenerate affected README shots and
+    reference/roadmap. Record: `docs/certification/menufan.md`.
+
 - **The chat column (the owner's requests of 2026-10-04).** His four
   requests, word for word, then what was built.
   - **"The chat control stuff box should be centered in the chat not
@@ -23488,6 +23504,10 @@ re-rendered. Evidence: `docs/certification/m87.md`, "Integration on
 
 **Status 2026-10-04: built.**
 
+- **MENUFAN follow-up (2026-10-10).** Tighten both menu bursts around the
+  row opener and anchor highlighted-text actions there; English menu labels
+  use Title Case (D66). Evidence: `docs/certification/menufan.md`.
+
 - **Goal.** The panel can be read at a glance: how full the context is,
   what the agent did (one line per run of steps), what changed, and that it
   is working. The boxes are smaller, and the user controls queued messages
@@ -38015,6 +38035,18 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**MENUFAN scoped verification (2026-10-10, Kubuntu).** Run the brief's
+focused UI and visual suites at repository timeouts, scoped static gates,
+production budgets and the reviewed full visual matrix. The shared rig brief
+prohibits aggregate `quality`; the lead retains full qualification. An extra
+`node test/e2e/webviewDiet.mjs` smoke remains open: its global loading-count
+assertion raced two deferred renderers after GoalPanel appeared. Reusing the
+harness readiness wait passed that point, then its unchanged legacy schedules
+scene timed out waiting for `.local-schedules` at 5 s. The exploratory wait
+was reverted; only the smoke's English opener labels change in this lane.
+No timeout, assertion, scenario, hook or gate is weakened. Evidence:
+`docs/certification/menufan.md` and `temp/menufan/webview-diet.log`.
 
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering

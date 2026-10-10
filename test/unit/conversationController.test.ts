@@ -3402,7 +3402,7 @@ describe('ConversationController: editor integration (M5)', () => {
     expect(notices).toEqual(['opened c1'])
   })
 
-  // D66 item 17: an edit row's Revert is one step of "Rewind code to here".
+  // D66 item 17: an edit row's Revert is one step of "Rewind Code to Here".
   it('reverts one edit after its confirmation, and nothing once it is declined (M87)', async () => {
     const t = setup()
     await t.send('l1', 'edit it')
@@ -13177,7 +13177,7 @@ describe('ConversationController: plans as files (M79)', () => {
   })
 })
 
-/** "Rewind conversation and restore files" on the first turn of `s1` (M72). */
+/** "Rewind Conversation and Restore Files" on the first turn of `s1` (M72). */
 const BOTH_REWIND = {
   type: 'rewindConversation' as const,
   sourceSessionId: 's1',
@@ -13201,7 +13201,7 @@ async function afterFirstTurn(t: ReturnType<typeof setup>): Promise<void> {
   await settle()
 }
 
-/** "Rewind conversation and restore files" from the first card (M72, M86). */
+/** "Rewind Conversation and Restore Files" from the first card (M72, M86). */
 async function restoreAndRewind(
   t: ReturnType<typeof setup>,
   rewind: typeof BOTH_REWIND = BOTH_REWIND,

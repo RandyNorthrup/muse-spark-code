@@ -42,7 +42,7 @@ const PENDING_MARKER = 'pending:'
 
 /**
  * A restore's result: whether it ran, whether every file it meant to
- * change was changed (so "Rewind conversation and restore files" may go
+ * change was changed (so "Rewind Conversation and Restore Files" may go
  * on), and its notices, posted when the caller says (after a fork, so the
  * new transcript shows them).
  */
@@ -413,7 +413,7 @@ export class ConversationCheckpoints {
     }
   }
 
-  /** The confirmation before "Restore files" or "Rewind conversation and restore files". */
+  /** The confirmation before "Restore files" or "Rewind Conversation and Restore Files". */
   public async confirmRestore(isWithRewind: boolean): Promise<boolean> {
     const blocker = this.restoreBlocker()
     if (blocker !== undefined) {

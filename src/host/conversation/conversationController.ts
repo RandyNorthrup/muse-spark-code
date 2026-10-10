@@ -3495,7 +3495,7 @@ export class ConversationController {
   }
 
   /**
-   * "Rewind code to here": the edits after a message, reverted newest first
+   * "Rewind Code to Here": the edits after a message, reverted newest first
    * (M13), after the same confirmation as a file restore (M72). With `fork`
    * ("Fork and Rewind") the fork follows the rewind in
    * this one action, so neither can overtake the other; declining the
@@ -3552,7 +3552,7 @@ export class ConversationController {
 
   /**
    * An edit row's Revert (M87, D66 item 17): the one edit undone after the
-   * same kind of confirmation as "Rewind code to here", whose single step
+   * same kind of confirmation as "Rewind Code to Here", whose single step
    * it is. `reviewEdit` says what was reverted, or why a file was not.
    */
   private async revertEdit(itemId: string, outputRef: string): Promise<void> {
@@ -6096,8 +6096,8 @@ export class ConversationController {
   }
 
   /**
-   * "Restore files to here" (M72, M86), and with `rewind` the conversation
-   * too ("Rewind conversation and restore files"), once the files are
+   * "Restore Files to Here" (M72, M86), and with `rewind` the conversation
+   * too ("Rewind Conversation and Restore Files"), once the files are
    * restored.
    */
   private async restoreFiles(

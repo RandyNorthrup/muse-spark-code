@@ -345,10 +345,10 @@ describe('M112 App commands and shared question delivery', () => {
 
   it('offers Dismiss only for open questions and sends the session-scoped command once', async () => {
     const { host, record, post } = await app()
-    expect(row().queryByRole('button', { name: 'More actions' })).toBeNull()
+    expect(row().queryByRole('button', { name: 'More Actions' })).toBeNull()
     host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [record] } })
     fireEvent.click(row().getByRole('button', { name: 'Answer Open question Colour' }))
-    fireEvent.click(dock().getByRole('button', { name: 'More actions' }))
+    fireEvent.click(dock().getByRole('button', { name: 'More Actions' }))
     const dismissItem = await screen.findByRole('menuitem', { name: 'Dismiss' })
     fireEvent.click(dismissItem)
     // App dispatches through a lazy command module; wait for its observable
@@ -361,7 +361,7 @@ describe('M112 App commands and shared question delivery', () => {
       })
     })
     fireEvent.click(screen.getByRole('button', { name: '1 open question' }))
-    fireEvent.click(dock().getByRole('button', { name: 'More actions' }))
+    fireEvent.click(dock().getByRole('button', { name: 'More Actions' }))
     const dismiss = await screen.findByRole('menuitem', { name: 'Dismiss' })
     expect(dismiss).toHaveAttribute('aria-disabled', 'true')
     fireEvent.click(dismiss)

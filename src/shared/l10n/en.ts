@@ -166,9 +166,9 @@ export const EN = {
   promptLink: 'Import from link or raw gist URL',
   promptFromFile: 'Import from file',
   promptImportConfirm: 'Save imported prompt',
-  promptSave: 'Save prompt',
-  promptUseSaved: 'Use saved prompt…',
-  promptLibrary: 'Prompt library',
+  promptSave: 'Save Prompt',
+  promptUseSaved: 'Use Saved Prompt…',
+  promptLibrary: 'Prompt Library',
   referencePromptMenu:
     'Composer toolbar or right-click: Save, Share, Use saved. Outside VS Code, Shift-right-click keeps native clipboard actions. Prompts are plain text; save no secrets.',
   promptCopyToUser: 'Copy to my prompts',
@@ -184,7 +184,7 @@ export const EN = {
   promptInsert: 'Insert into chat',
   promptFileInvalid: 'The prompt file is invalid or unsupported.',
   shareChat: 'Share chat…',
-  sharePrompt: 'Share prompt…',
+  sharePrompt: 'Share Prompt…',
   shareFull: 'Full transcript',
   shareConversation: 'Conversation only',
   shareCodeBlocks: 'Include code blocks',
@@ -1128,10 +1128,10 @@ export const EN = {
   // Shown while a turn runs: Enter then steers the running turn.
   composerQueuePlaceholder: 'Queue another message…',
   queuedLabel: 'Queued',
-  queuedMenuLabel: 'Queued message actions',
+  queuedMenuLabel: 'Queued Message Actions',
   queuedEdit: 'Edit',
   queuedEditTitle: 'Take the message out of the queue and back into the prompt box',
-  queuedDelivered: 'Already delivered to the running turn',
+  queuedDelivered: 'Already Delivered to the Running Turn',
   queuedTooLate: 'This message already reached the model, so it can no longer be edited.',
   queuedEditUnsupported:
     'This conversation cannot take a queued message back, so it cannot be edited.',
@@ -1210,7 +1210,7 @@ export const EN = {
     'Muse Code reported an error for the decision (the tool may have run anyway)',
   jumpToLatest: 'New messages',
   jumpToLatestTitle: 'Jump to the newest message',
-  copyResponse: 'Copy response',
+  copyResponse: 'Copy Response',
   messageSentAt: 'Sent {time}',
   messageReceivedAt: 'Received {time}',
   openOutputTitle: 'Click to open the output in an editor',
@@ -2677,21 +2677,21 @@ export const EN = {
   openQuestionsTabCount: forms({ one: '{count} open', other: '{count} open' }),
   clarifyNotAccepted: 'The explanation was not accepted',
   /** Replying to an output and quoting a highlighted passage (M17). */
-  messageActions: 'Message actions',
-  rowMoreActions: 'More actions',
+  messageActions: 'Message Actions',
+  rowMoreActions: 'More Actions',
   rowRewindGroup: 'Rewind',
-  rowOpenOutput: 'Open output',
+  rowOpenOutput: 'Open Output',
   // An edit row's Revert (M87, D66 item 17): its label, and the confirmation before it writes.
   rowRevertEdit: 'Revert',
   revertEditConfirmTitle: 'Revert this edit?',
   revertEditConfirmDetail:
     'The lines this edit changed are put back as they were. A file where those lines changed since is left as it is and named. Later edits, and what commands changed, are not undone.',
-  replyToOutput: 'Reply to this output',
+  replyToOutput: 'Reply to This Output',
   // Tokens and the dollar estimate under a Model API reply (M82).
   replyUsage: '{input} in · {output} out · estimated {cost}',
-  quoteMenuLabel: 'Highlighted text',
-  askAboutThis: 'Ask about this',
-  commentOnThis: 'Comment on this',
+  quoteMenuLabel: 'Highlighted Text',
+  askAboutThis: 'Ask About This',
+  commentOnThis: 'Comment on This',
   referenceReply: 'Replying to',
   referenceQuestion: 'Asking about',
   referenceComment: 'Commenting on',
@@ -2806,10 +2806,10 @@ export const EN = {
   renameTitle: 'Rename this conversation',
   renamePlaceholder: 'Conversation name',
   // The user card's menu (Claude Code's rewind button): fork, rewind, both.
-  rewindMenuLabel: 'Fork or rewind',
+  rewindMenuLabel: 'Fork or Rewind',
   forkFromHere: 'Fork Conversation',
-  rewindConversationToHere: 'Rewind conversation to here',
-  rewindCodeToHere: 'Rewind code to here',
+  rewindConversationToHere: 'Rewind Conversation to Here',
+  rewindCodeToHere: 'Rewind Code to Here',
   forkAndRewind: 'Fork and Rewind',
   rewindNothing: 'No edits after this message to rewind.',
   rewindDone: forms({
@@ -2820,14 +2820,14 @@ export const EN = {
   rewindImagesUnavailable: 'Some images from this message could not be restored.',
   rewindBeforeCompaction: 'Cannot rewind before the latest compaction.',
   // Turn checkpoints (M86): the user card's menu, the confirmations, the result.
-  restoreFilesToHere: 'Restore files to here',
+  restoreFilesToHere: 'Restore Files to Here',
   checkpointsModelApiOnly:
     'File restore and Redo require a connected Model API session. Only the model’s own file-tool edits are undone, while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone.',
   checkpointsLegacyReadOnly:
     'This message was recorded by an earlier version of Muse Spark. Its files cannot be restored.',
   checkpointsNativeUnsafe:
     'File restore and Redo are unavailable while a Muse Code session, or a window that does not record its edits, may still change files. Close or reload that window, then try again.',
-  rewindAndRestore: 'Rewind conversation and restore files',
+  rewindAndRestore: 'Rewind Conversation and Restore Files',
   checkpointsRestricted: 'File checkpoints are off in Restricted Mode',
   checkpointsOff: 'File checkpoints are off in settings',
   checkpointsNoGit: 'File checkpoints need git on PATH',

@@ -15,6 +15,50 @@ const frames = new Map()
 const repeated = new Map()
 const inputs = { audit: undefined, matrix: undefined }
 const scenes = ['quote-menu']
+
+async function expectSelectionFan(page) {
+  const measured = await page.evaluate(() => {
+    const button = globalThis.document
+      .querySelector('.message-assistant .row-actions-button')
+      .getBoundingClientRect()
+    return {
+      x: button.left + button.width / 2,
+      y: button.top + button.height / 2,
+      pills: [...globalThis.document.querySelectorAll('.quote-menu .gooey-menu-pill')].map(
+        (pill) => {
+          const box = pill.getBoundingClientRect()
+          return { left: box.left, right: box.right, top: box.top, bottom: box.bottom }
+        },
+      ),
+    }
+  })
+  expect(measured.pills).toHaveLength(3)
+  for (const [index, pill] of measured.pills.entries()) {
+    const near = measured.x - pill.right
+    expect(near, 'selection pills stay beside the row opener').toBeGreaterThanOrEqual(16)
+    expect(near, 'selection pills stay close to the row opener').toBeLessThanOrEqual(32.02)
+    const next = measured.pills[index + 1]
+    if (next !== undefined) expect(next.top - pill.bottom).toBeCloseTo(6, 1)
+  }
+  expect((measured.pills[0].top + measured.pills.at(-1).bottom) / 2).toBeCloseTo(measured.y, 1)
+}
+
+// Capture the wide selection menu too, with the same shared setup and default timeout.
+beforeAll(async () => {
+  const audit = JSON.parse(await readFile('docs/certification/m114-audit.json', 'utf8'))
+  const matrix = JSON.parse(await readFile('test/harness/visual-matrix.json', 'utf8'))
+  await captureMatrix(
+    root,
+    { ...audit, scenes: ['quote-menu'] },
+    { ...matrix, themes: ['light'], widths: [690] },
+    async (capture, _bytes, page) => {
+      if (capture.state === 'default') await expectSelectionFan(page)
+    },
+    undefined,
+    browserEndpoint,
+    rasterization,
+  )
+})
 for (const index of [0, 1, 2, 3])
   beforeAll(async () => {
     const audit = JSON.parse(await readFile('docs/certification/m114-audit.json', 'utf8'))
@@ -30,28 +74,7 @@ for (const index of [0, 1, 2, 3])
       narrow,
       async (capture, bytes, page) => {
         if (capture.scene === 'quote-menu' && capture.state === 'default') {
-          const anchor = await page.evaluate(() => {
-            const passage = globalThis.document
-              .querySelector('.message-assistant .message-body p')
-              .getBoundingClientRect()
-            const pill = globalThis.document.querySelector('.gooey-menu-pill')
-            // The harness opens the menu with a contextmenu at the passage's
-            // centre; Chrome carries a MouseEvent's client coordinates in whole
-            // pixels (170.5 arrives as 170 under Windows font metrics). Compare
-            // with that centre as the event carried it.
-            return {
-              passageY: new globalThis.MouseEvent('contextmenu', {
-                clientY: passage.top + passage.height / 2,
-              }).clientY,
-              menuY:
-                Number(pill.style.top.replace('px', '')) +
-                Number(pill.style.transformOrigin.split(' ', 2)[1].replace('px', '')),
-            }
-          })
-          expect(anchor.menuY, 'quote menu uses the settled passage').toBeCloseTo(
-            anchor.passageY,
-            1,
-          )
+          await expectSelectionFan(page)
         }
         frames.set(`${capture.scene}/${capture.state}`, decodePng(bytes, 320, 760))
       },

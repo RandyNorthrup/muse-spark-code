@@ -710,7 +710,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('openEditDiff'), itemId: stringSchema, outputRef: stringSchema }),
   // An edit row's Revert (M87, PLAN.md D66 item 17): that edit's stored patch
   // reverse-applied after the file-action confirmation, as one step of
-  // "Rewind code to here" is (M13, M72).
+  // "Rewind Code to Here" is (M13, M72).
   z.object({ type: z.literal('revertEdit'), itemId: z.string(), outputRef: z.string() }),
   // A tool row's path: open the file, selecting the changed lines when known (M16, `LineRange`).
   z.object({
@@ -756,9 +756,9 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     hunkIndex: indexSchema,
   }),
   rewindConversationSchema,
-  // "Restore files to here" (M72): the workspace's files back to the
+  // "Restore Files to Here" (M72): the workspace's files back to the
   // checkpoint before this turn; with `rewind`, the conversation rewinds as
-  // well once the files are restored ("Rewind conversation and restore files").
+  // well once the files are restored ("Rewind Conversation and Restore Files").
   z.object({
     type: z.literal('restoreFiles'),
     sourceSessionId: stringSchema.check(z.minLength(1)),
