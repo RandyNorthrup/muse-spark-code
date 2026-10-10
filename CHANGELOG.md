@@ -84,7 +84,10 @@ happened, not what was planned; superseded entries are kept.
   backend session Muse Code evicted read as a missing resource (-32002);
   caller-owned share/save validation names its flag (-32602) in the installed
   language; scanner and broker programming faults stay internal errors
-  (-32603) with a fixed reason and nothing raw on the wire.
+  (-32603) with a fixed reason and nothing raw on the wire. An unexpected
+  sharing or prompt-store fault reads as an internal error with the fixed
+  could-not-complete reason (never as a prompt-file error), and the raw
+  failure is logged server-side.
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which

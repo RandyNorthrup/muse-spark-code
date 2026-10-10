@@ -20180,7 +20180,8 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 **Status 2026-10-10: built.** Certification:
 `docs/certification/dfacperr-acp-refusals.md`. Review RVDFACPERR (round 1)
-and this lane's round-2 repair of all seven findings (1 P1, 4 P2, 2 P3).
+and this lane's round-2 repair of all seven findings (1 P1, 4 P2, 2 P3),
+plus the same-day round-3 repair of review RVDFACPERR2's single P3.
 
 - **Scope.** Every ACP failure maps to the right JSON-RPC error with a
   product-owned, localized, privacy-safe message: defined refusals read as
@@ -20206,6 +20207,9 @@ and this lane's round-2 repair of all seven findings (1 P1, 4 P2, 2 P3).
       in the installed language (P2 privacy, P3 localization).
 - [x] Every fix has a regression test that fails without it and a recorded
       red drill with a byte-exact restore.
+- [x] Unexpected sharing/prompt-store faults read as -32603 with the fixed
+      could-not-complete reason and a server-side log entry, never as a
+      prompt-file error (RVDFACPERR2 P3).
 
 ### M122 — Public roadmap (2026-10-08)
 
