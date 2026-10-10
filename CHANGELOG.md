@@ -78,7 +78,9 @@ happened, not what was planned; superseded entries are kept.
   errors and an early transport close before it finishes starting, instead
   of only afterwards. A stop request, error or close that lands while the
   server is still starting is handled gracefully rather than missed, hung
-  on, or thrown where nothing catches it.
+  on, or thrown where nothing catches it. A caller abort in the same window
+  now rejects startup at once with the signal's reason instead of waiting
+  out the bind.
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which

@@ -98,3 +98,50 @@ restored byte-exact.
   (and any other suite that binds real loopback sockets) could not run here:
   `listen` returns `EPERM` in this sandbox. They are untouched by this change
   except through the startup block they share; please run them outside.
+
+## RVCOMPSUB findings fixed (lane COMPSUB2, same worktree)
+
+Both findings are P3; both are fixed with no residuals. Class sweeps: the
+only test that asserts a signal/abort-driven close is in
+`companionStartup.test.ts` (sibling lifecycle tests assert idle close
+explicitly with short timers and no signals, so no ambiguity there), and the
+only caller-abort subscription in `src/runtime/companion/**` was the
+post-await one (no other module takes a caller signal). No guard was widened;
+no new dependency; no UI/MODEL_TEXT string (`npm run check:l10n` 0 problems).
+
+### Finding 1 — signal test could pass on the idle timer
+
+`settlesBeforeIdle()` (`test/unit/companionStartup.test.ts`): the early-signal
+test and the post-startup-error test (same class — the 5000 ms idle timer
+settles the same `closed` promise there too) must now settle `closed` within
+1000 ms, 4 s before idle could fire, and assert `closedCalls` is 1. With the
+cause removed the tests fail in ~1 s instead of passing at 5 s on Windows CI.
+Drill: with `if (earlySignal.signal.aborted) await close()` removed, the
+signal test fails (`expected false to be true`); with the post-startup
+`onSignal()` routing broken, the error test fails the same way. `server.ts`
+restored byte-exact (SHA-256
+`1997aab9d94ed3872ad00a3348dce8ee37f2fbf20c837cc2fa76e78354374a6286`).
+
+### Finding 2 — caller abort during the bind never settled startup
+
+`options.signal` is now subscribed before the `listen` await
+(`src/runtime/companion/server.ts`: `onCallerAbort` rejects startup with the
+signal's reason via `throwIfAborted`, the same rejection the post-bind
+re-check produces; the pre-await subscription is removed in the `finally` on
+every path, and the post-startup `abort → onSignal` behaviour is unchanged).
+Regression test `rejects at once when the caller aborts while the bind is in
+flight`: aborts with the bind held (never released, so only the new path can
+settle it), expects rejection `This operation was aborted`, `closedCalls` 1,
+and SIGINT/SIGTERM listener counts restored. Drill: with the pre-await
+`addEventListener` line removed, the test fails (startup stays pending to the
+5 s repo default timeout). `server.ts` restored byte-exact (same SHA-256 as
+above); test file SHA-256
+`b31aed6661c5e4b0279e41869d3deeb8d031266b3e54fab6d977d40b1af18780`.
+
+Gates on macmini, repo default timeout, `--maxWorkers=3`:
+`companionStartup.test.ts` 5 passed (~18 ms test time); `npm run typecheck`
+(all five projects) clean; `npx eslint --max-warnings=0` on both changed
+files clean (the first helper draft tripped `unicorn/consistent-boolean-name`,
+`unicorn/prefer-await` and `no-confusing-void-expression`; rewritten, no
+disables); `npx prettier --check` clean; `npm run build` exit 0,
+`dist/usageCompanion.js` 44.5 KiB of its 50 KiB budget.
