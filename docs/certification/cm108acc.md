@@ -190,3 +190,73 @@ existing memory-keyring unit tests.
 - `git restore .jscpd.json` was used once to recover the tracked jscpd
   config after an accidental delete; verified byte-identical via status.
 - Commit trailer uses Muse Code attribution, not the brief's Codex trailer.
+
+## Repair — review RVCM108ACC2 (2026-10-10, same lane)
+
+Every finding fixed, no residuals. Siblings swept by class; each fix has a
+regression that fails without it and a red drill below. Session creation
+stays independent of accounts (the CX1R5 drop is untouched: `startAccounts`
+still drops a failing port and the session continues).
+
+- **F1 (P2, panel stop omits account).**
+  `src/webview/models/sections/accounts/AccountNotices.tsx` now fills
+  `stopped`/`resetUnknown` with `account: names(event.account)` (label,
+  falling back to the id), matching the ACP `accountStopText` copy. Class
+  sweep of every other `fill` of an `{account}` template (`swapNotice`,
+  `usageStop`, `usageSpread`, `summary`, `paidConsent`, `sharedGroup`,
+  `removeConfirm`, `keyPrompt`, `switchUnavailable`, both `accountStopText`
+  copies, `acp/accounts.ts` swap): all pass the account; this was the only
+  omission. The panel test now expects the stopped account's label in both
+  branches and asserts the log never contains the raw `{account}` slot.
+- **F2 (P3, malformed providers file reports a connection problem).** A
+  present-but-invalid file now throws the new `AccountStoreError` code
+  `invalidProvidersFile` (`src/core/providers/accountCredentialRecord.ts`)
+  instead of `unavailable`: invalid JSON, a non-object envelope, a bad
+  `providers` field, and a malformed provider row, on both `read` and
+  `writeAccounts` (`src/runtime/providers/providersFileStore.ts`). The file
+  is still left untouched. The terminal renders the new
+  `accounts.providersInvalid` sentence (en + 14 tables: the file is
+  invalid, its entries were refused, the file was left unchanged) via
+  `commandError` (`src/runtime/providers/accountsCommand.ts`); ACP renders
+  the same sentence via `accountErrorText` (`src/acp/accountText.ts`),
+  brand-checked (`name` + `code`) like the refused-switch guard because
+  each bundle carries its own copy of the store-error constructor — no new
+  import, no new bundle weight. Class sweep: the genuinely-unreadable read
+  (`readFileSync` throws between check and read) keeps `unavailable`, as
+  do the unconfigured-row (`AccountStore.provider`), unknown-provider
+  (`writeAccounts` with no built-in base), muse-code-product and
+  session-read paths — each still names a real unavailability. No guard
+  widened: no schema, threshold, cap or rule changed; the error-code union
+  gains one member consumed by two mappers.
+
+Tests (repository timeouts, never raised): `providersFileStore` 17,
+`accountsCommand` 25, `accountsPanel` 28, `acpAccounts` 36,
+`runtimeServices` + `accountStore` + `cliAccount` 70, `execAccounts` 12/12;
+`acpAgent` 142/143 — the one ChatGPT failure
+(`exposes all three ChatGPT actions…`) is pre-existing: it fails
+identically on a pristine `HEAD` worktree (`cedf19029`, `node_modules`
+symlinked, no other change) and its module (`src/runtime/chatGptHost.ts`)
+imports nothing this repair touches. `check-l10n` 0 problems (14 UI + 14
+usage tables); `check:reference`, `check:host-api` current; `deadcode`
+clean; `tsc` clean; eslint/prettier clean on touched files.
+`npm run build` exit 0: extension 550.1/600 KiB, modelApi 515.8/525 —
+unchanged from R2. No new dependency.
+
+Red drills (break guard, named test fails, restore byte-exact —
+`sha256sum -c` on all four files OK after each restore):
+
+- **D11** P2 guard removed (`resetUnknown` fill back to provider-only):
+  `shows the pool recovery…` fails (1 failed, 27 skipped). Restored.
+- **D12** store `read` malformed-row throw back to `unavailable`:
+  `reports refused file content…: a malformed provider row` fails (1
+  failed, 16 passed); the other four refusal cases still pass. Restored.
+- **D13** `commandError` mapping back to `unavailable`: both
+  `names a refused providers file…` cases fail (2 failed, 23 passed).
+  Restored.
+- **D14** ACP brand check back to `unavailable`:
+  `names a refused providers file by its brand…` fails (1 failed, 35
+  skipped). Restored.
+
+Held for the lead (Muse sandbox cannot run them): the packaged serve/CLI
+account round-trip on both backends, and any browser or socket test. No
+live model calls; installed nothing.

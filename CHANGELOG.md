@@ -88,7 +88,10 @@ happened, not what was planned; superseded entries are kept.
   untouched (the built-in entry applies only with no file); a vendor-limit
   stop names the blocked account and its reset even with no usage page
   bundled; `exec --account-pool` names the missing pool owner instead of
-  the connection text.
+  the connection text. The Models panel stop notice names the blocked
+  account too, and a refused providers file (a malformed row or unparsable
+  JSON) says the file was refused and left unchanged instead of the
+  connection sentence.
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
