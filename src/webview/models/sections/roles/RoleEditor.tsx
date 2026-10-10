@@ -137,7 +137,7 @@ export function RoleEditor({
                   update({ tools: draft })
                 }}
               />
-              {group}
+              {UI_TEXT.teamToolGroups[group]}
             </label>
           ))}
       </fieldset>
@@ -152,7 +152,7 @@ export function RoleEditor({
         >
           {teamReportShapes.map((report) => (
             <option key={report} value={report}>
-              {report}
+              {UI_TEXT.teamReportShapes[report]}
             </option>
           ))}
         </select>

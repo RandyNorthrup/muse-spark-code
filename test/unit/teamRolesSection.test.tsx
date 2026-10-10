@@ -2,11 +2,20 @@
 import { useReducer, useState } from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeAll } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { panelRig } from './helpers/teamPanelRig'
 import { teamOffers } from './helpers/teamPanelOffers'
 import type { TeamPanelMessage } from '../../src/shared/teamPanel'
 import { RoleEditor } from '../../src/webview/models/sections/roles/RoleEditor'
 import { PoolEditor } from '../../src/webview/models/sections/roles/PoolEditor'
+import {
+  isPoolOfferMatch,
+  offerDescription,
+} from '../../src/webview/models/sections/roles/PoolEditor'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText } from '../../src/shared/l10n/text'
+import { installEmbeddedTable } from '../../src/webview/installTable'
+import { WEBVIEW_L10N_ELEMENT_ID } from '../../src/shared/constants'
 import { makeState } from './modelsPanelFixtures'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { TeamPanelSlice } from '../../src/shared/teamPanel'
@@ -363,11 +372,11 @@ describe('M96 U1 Roles UI', () => {
     const rig = await sectionRig('pair')
     const search = screen.getByRole('searchbox', { name: UI_TEXT.teamEditor.toolSearch })
     fireEvent.change(search, { target: { value: 'web' } })
-    expect(screen.getByRole('checkbox', { name: 'webFetch' })).toBeChecked()
-    expect(screen.queryByRole('checkbox', { name: 'read' })).toBeNull()
+    expect(screen.getByRole('checkbox', { name: UI_TEXT.teamToolGroups.webFetch })).toBeChecked()
+    expect(screen.queryByRole('checkbox', { name: UI_TEXT.teamToolGroups.read })).toBeNull()
     expect(rig.posted).toEqual([])
     fireEvent.change(search, { target: { value: '' } })
-    expect(screen.getByRole('checkbox', { name: 'read' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: UI_TEXT.teamToolGroups.read })).toBeChecked()
   })
   it('disables saving a host-reported validation failure', async () => {
     const rig = panelRig()
@@ -487,5 +496,83 @@ describe('M96 U1 Roles UI', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.teamEditor.stopAll }))
     expect(props.post).toHaveBeenCalledWith({ type: 'agents/stopAll' })
+  })
+})
+
+describe('M96 U1 pool catalogue filters', () => {
+  it('shows the catalogue filter bar in the pool picker', async () => {
+    const rig = panelRig()
+    await rig.read()
+    await rig.controller.handle({ type: 'roles/template', template: 'pair' })
+    const slice = await rig.read()
+    render(<RolesSection {...sectionProps(slice)} />)
+    expect(document.querySelector('.team-editor .models-filter-bar')).not.toBeNull()
+  })
+  it.each([
+    [{}, true],
+    [{ toolCalling: true }, true],
+    [{ vision: true }, true],
+    [{ reasoning: true }, true],
+    [{ contextMin: 1000 }, true],
+    [{ contextMin: 200_000 }, false],
+    [{ contextMax: 1000 }, false],
+    [{ maxInputPerMillion: 0.5 }, false],
+    [{ maxInputPerMillion: 5 }, true],
+    [{ freeOrLocal: true }, false],
+    [{ providerId: 'main' }, true],
+    [{ providerId: 'reviewer' }, false],
+    [{ search: 'reviewer' }, false],
+  ])('matches the main fixture offer %j as %j', (filter, expected) => {
+    const [offer] = teamOffers()
+    if (offer === undefined) throw new Error('No offer')
+    expect(isPoolOfferMatch(offer, filter)).toBe(expected)
+  })
+  it('keeps local and capable offers under their facets', () => {
+    const [, reviewer] = teamOffers()
+    if (reviewer === undefined) throw new Error('No reviewer offer')
+    expect(isPoolOfferMatch(reviewer, { search: 'reviewer' })).toBe(true)
+    const local = { ...reviewer, agent: { ...reviewer.agent, pays: 'local' as const } }
+    expect(isPoolOfferMatch(local, { freeOrLocal: true })).toBe(true)
+    const tooless = { ...reviewer, toolCalling: false }
+    expect(isPoolOfferMatch(tooless, { toolCalling: true })).toBe(false)
+    const windowless = { ...reviewer, contextWindow: undefined }
+    expect(isPoolOfferMatch(windowless, { contextMin: 1000 })).toBe(false)
+  })
+  it('describes offers with context and price to compare', () => {
+    const [offer] = teamOffers()
+    if (offer === undefined) throw new Error('No offer')
+    expect(offerDescription(offer)).toContain('Tokens')
+    expect(offerDescription(offer)).toContain('$1/$2')
+  })
+})
+
+describe('M96 U1 localized role labels', () => {
+  it('renders report and tool labels from the installed table', async () => {
+    const rig = panelRig()
+    await rig.read()
+    await rig.controller.handle({ type: 'roles/template', template: 'pair' })
+    const slice = await rig.read()
+    const role = slice.document.roles.find((item) => item.role === 'engineering')
+    if (role === undefined) throw new Error('No engineering role')
+    const element = document.createElement('script')
+    element.type = 'application/json'
+    element.id = WEBVIEW_L10N_ELEMENT_ID
+    element.textContent = JSON.stringify({
+      locale: 'de',
+      table: JSON.parse(readFileSync('l10n/ui.de.json', 'utf8')),
+    })
+    document.body.append(element)
+    expect(installEmbeddedTable(document)).toBeUndefined()
+    try {
+      render(<RoleEditor role={role} slice={slice} post={vi.fn()} />)
+      expect(screen.getByRole('option', { name: 'Zusammenfassung' })).toBeDefined()
+      expect(screen.getByRole('option', { name: 'Prüfung' })).toBeDefined()
+      expect(screen.queryByRole('option', { name: 'summary' })).toBeNull()
+      expect(screen.getByRole('checkbox', { name: 'Lesen' })).toBeDefined()
+      expect(screen.queryByRole('checkbox', { name: 'read' })).toBeNull()
+    } finally {
+      element.remove()
+      setUiText(EN, 'en')
+    }
   })
 })

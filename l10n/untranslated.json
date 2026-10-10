@@ -74,7 +74,10 @@
       "legalUsage",
       "referenceScreenRecording",
       "referenceLatestRecording",
-      "referenceUploadedFiles"
+      "referenceUploadedFiles",
+      "teamToolGroups.shell",
+      "teamToolGroups.skills",
+      "teamReportShapes.qa"
     ],
     "cs": [
       "groupModel",
@@ -233,7 +236,9 @@
       "teamTemplates.solo",
       "teamSetupSteps.pools",
       "teamTemplateSolo",
-      "teamIntensityLevels.minimal"
+      "teamIntensityLevels.minimal",
+      "teamToolGroups.diagnostics",
+      "teamToolGroups.images"
     ],
     "it": [
       "usageAccount",
