@@ -339,7 +339,8 @@
     "estimate-by": "--by <date>: Frist",
     "fleet": "--fleet current|minimum|optimum: Aktueller Gerätebestand / Minimale Ausstattung / Optimale Ausstattung",
     "estimate-format": "--format md|html|json|text: Ausgabeformat",
-    "seed": "--seed <seed>: Startwert der Simulation"
+    "seed": "--seed <seed>: Startwert der Simulation",
+    "muse-voice": "--muse-voice: Kostenpflichtiges Muse Voice auf der Begleitseite zulassen; fragt vor der ersten Gebühr nach Zustimmung und nutzt das gemeinsame Tagesbudget."
   },
   "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert.",
   "referenceVault": "Arbeite im Terminal mit dem benutzereigenen Anmeldeinformations-Tresor: Status, Entsperren, Sperren, Auflisten, Hinzufügen, Freigaben, Prüfung, Import und Beobachtung. Werte werden nie ausgegeben; der Broker hält sie.",
@@ -5225,5 +5226,14 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
-  }
+  },
+  "companionVoiceTitle": "Diktieren",
+  "companionVoiceFailed": "Diktat fehlgeschlagen oder abgelehnt. Prüfen Sie Mikrofonberechtigung, gewählte Erkennung und Tagesbudget, dann nehmen Sie erneut auf. Eine bereits gesendete kostenpflichtige Anfrage kann noch berechnet werden.",
+  "companionVoiceFree": "Betriebssystem (kostenlos)",
+  "companionVoiceReview": "Transkript vor dem Senden prüfen",
+  "companionVoiceLimit": "Höchstens {seconds} Sekunden. Audio wird nach der Transkription gelöscht.",
+  "companionVoicePaidSummary": "Kostenpflichtiges Audio: {duration}.",
+  "companionVoiceOpen": "Diktat-Begleitseite öffnen",
+  "companionVoiceReference": "Im Browser diktieren und den Text vor dem Senden an die eigene ACP-Sitzung oder das Terminal prüfen. Die Systemerkennung ist unter Windows und macOS kostenlos; Muse Voice ist kostenpflichtig, fragt nach Zustimmung und nutzt das gemeinsame Tagesbudget.",
+  "companionVoiceCancel": "Abbrechen"
 }

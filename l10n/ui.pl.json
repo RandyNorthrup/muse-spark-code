@@ -339,7 +339,8 @@
     "estimate-by": "--by <date>: Termin",
     "fleet": "--fleet current|minimum|optimum: Obecna flota / Minimalna konfiguracja / Optymalna konfiguracja",
     "estimate-format": "--format md|html|json|text: Format wyjściowy",
-    "seed": "--seed <seed>: Ziarno symulacji"
+    "seed": "--seed <seed>: Ziarno symulacji",
+    "muse-voice": "--muse-voice: Zezwól na płatny Muse Voice na stronie dyktowania; pyta o zgodę przed pierwszą opłatą i korzysta ze wspólnego budżetu dziennego."
   },
   "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany.",
   "referenceVault": "Pracuj z magazynem poświadczeń użytkownika z terminala: stan, odblokowanie, blokowanie, lista, dodawanie, granty, audyt, import i obserwacja. Wartości nigdy nie są wypisywane; przechowuje je broker.",
@@ -5531,5 +5532,14 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  }
+  },
+  "companionVoiceTitle": "Dyktuj",
+  "companionVoiceFailed": "Dyktowanie nie powiodło się lub zostało odrzucone. Sprawdź uprawnienie mikrofonu, wybrany silnik i dzienny budżet, a następnie nagraj ponownie. Wysłane płatne żądanie może nadal zostać naliczone.",
+  "companionVoiceFree": "System operacyjny (bezpłatnie)",
+  "companionVoiceReview": "Sprawdź transkrypcję przed wysłaniem",
+  "companionVoiceLimit": "Maksymalnie {seconds} sekund. Dźwięk jest usuwany po transkrypcji.",
+  "companionVoicePaidSummary": "Płatny dźwięk: {duration}.",
+  "companionVoiceOpen": "Otwórz stronę towarzyszącą dyktowania",
+  "companionVoiceReference": "Dyktuj w przeglądarce i sprawdź tekst przed wysłaniem do własnej sesji ACP lub terminala. Rozpoznawanie systemowe jest bezpłatne w Windows i macOS; Muse Voice jest płatny, pyta o zgodę i korzysta ze wspólnego budżetu dziennego.",
+  "companionVoiceCancel": "Anuluj"
 }

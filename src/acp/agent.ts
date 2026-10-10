@@ -14,6 +14,7 @@ import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 
 import { randomUUID } from 'node:crypto'
 import type { UsageAdapter } from '../runtime/usage/usageAdapter'
+import type { VoiceCompanion, VoiceCompanionContext } from '../runtime/companion/voiceEntry'
 import { agentListingText, listedAgents, listedAgentId } from '../core/agent/agentListing'
 import { buildAgentReceipt } from '../shared/agentReceipt'
 import { recoveryStamp } from '../shared/agentRecovery'
@@ -183,6 +184,7 @@ export interface AcpAgentDeps {
   readonly onClientName?: (name: string) => void
   /** Shared journal/service, required lazily on the local /usage command. */
   readonly usage?: Pick<UsageAdapter, 'access' | 'openPage'>
+  readonly dictation?: (context: VoiceCompanionContext) => Promise<VoiceCompanion>
   /** I binds P's durable, authorized workspace/team adapter. */
   readonly playbookFor?: (cwd: string, sessionId: string) => PlaybookSurfacePort
   readonly schedules?: AcpSchedulePort
@@ -341,6 +343,8 @@ class AcpSession {
   private isDisposed = false
   private vaultGeneration = 0
   private readonly vaultRequests = new Set<AbortController>()
+  private readonly dictationStop = new AbortController()
+  private readonly dictationPages = new Set<VoiceCompanion>()
   /** A turn being started (`sendTurn` not yet answered): a release waits for it, then stops it. */
   private starting: Promise<unknown> | undefined
   public readonly sessionId: string
@@ -552,6 +556,9 @@ class AcpSession {
                 input: null,
               },
             ]),
+        ...(this.deps.dictation === undefined
+          ? []
+          : [{ name: 'dictate', description: UI_TEXT.companionVoiceOpen, input: null }]),
         ...(this.deps.resources === undefined
           ? []
           : resourceCommands().filter(
@@ -1148,6 +1155,65 @@ class AcpSession {
     preparing: PreparingPrompt,
   ): Promise<boolean> {
     const [block] = blocks
+    if (
+      this.deps.dictation !== undefined &&
+      blocks.length === 1 &&
+      block?.type === 'text' &&
+      block.text.trim() === '/dictate'
+    ) {
+      const page = await this.deps.dictation({
+        cwd: this.cwd,
+        signal: this.dictationStop.signal,
+        isCurrent: () => !this.isDisposed,
+        askPaid: async (title, detail, canRemember, signal) =>
+          await this.askPaidQuestion(title, detail, canRemember, () => !this.isDisposed, signal),
+        send: async (text, signal) => {
+          signal.throwIfAborted()
+          if (
+            this.isDisposed ||
+            this.preparing !== undefined ||
+            this.pending !== undefined ||
+            this.activeTurnId !== undefined
+          )
+            throw new Error('EVOICE_BUSY')
+          let accept!: () => void
+          // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- Host type project targets Node 20; the resolver is assigned synchronously (PLAN.md §8).
+          const accepted = new Promise<void>((resolve) => {
+            accept = resolve
+          })
+          const abort = () => {
+            this.cancelPreparing()
+            void this.cancelTurn()
+          }
+          signal.addEventListener('abort', abort, { once: true })
+          const running = this.prompt([{ type: 'text', text }], accept)
+          // A sent ACP turn outlives the companion's HTTP admission request.
+          void running.catch(() => {
+            this.deps.log.warn('Companion ACP prompt failed')
+          })
+          try {
+            await Promise.race([accepted, running])
+            signal.throwIfAborted()
+            this.send({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text } })
+          } finally {
+            signal.removeEventListener('abort', abort)
+          }
+        },
+      })
+      if (!this.canReplyUsage(preparing)) {
+        await page.close()
+        return true
+      }
+      this.dictationPages.add(page)
+      void page.closed.then(() => {
+        this.dictationPages.delete(page)
+      })
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: `[${UI_TEXT.companionVoiceOpen}](${page.launchUrl()})` },
+      })
+      return true
+    }
     const usage = this.deps.usage
     if (
       usage === undefined ||
@@ -1281,13 +1347,17 @@ class AcpSession {
     return true
   }
 
-  public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
-    const pending = this.pending
-    const preparing = this.preparing
+  private async askPaidQuestion(
+    title: string,
+    detail: string,
+    canRemember: boolean,
+    isOwnerCurrent: () => boolean,
+    signal?: AbortSignal,
+  ): Promise<PaidUseAnswer> {
+    const isCurrent = () => !this.isDisposed && signal?.aborted !== true && isOwnerCurrent()
+    if (!isCurrent()) return 'deny'
     // Unique for the client's lifetime: a session loaded again starts afresh.
     const toolCallId = `${ACP_PAID_TOOL_CALL_PREFIX}${randomUUID()}`
-    const { title, detail } = await paidUseQuestion(request)
-    if (!this.isCurrentPaidPrompt(pending, preparing)) return 'deny'
     const content = [{ type: 'content' as const, content: { type: 'text' as const, text: detail } }]
     this.send({
       sessionUpdate: 'tool_call',
@@ -1300,7 +1370,7 @@ class AcpSession {
     let answer: PaidUseAnswer = 'deny'
     try {
       await this.outbox
-      if (!this.isCurrentPaidPrompt(pending, preparing)) {
+      if (!isCurrent()) {
         return 'deny'
       }
       const params: RequestPermissionRequest = {
@@ -1308,11 +1378,13 @@ class AcpSession {
         toolCall: { toolCallId, title, status: 'pending', content },
         options: paidUseOptions(canRemember),
       }
-      const response = await this.client.request('session/request_permission', params)
+      const request = this.client.request('session/request_permission', params)
+      const response = signal === undefined ? await request : await unlessAborted(request, signal)
       // A session let go while the editor was asked is billed for nothing.
-      answer = this.isCurrentPaidPrompt(pending, preparing)
-        ? paidUseAnswer(permissionResponse(response), canRemember)
-        : 'deny'
+      answer =
+        response !== undefined && isCurrent()
+          ? paidUseAnswer(permissionResponse(response), canRemember)
+          : 'deny'
     } catch (error: unknown) {
       this.deps.log.warn(
         `ACP session ${this.sessionId}: the paid-use question failed, denying: ${failureForLog(error)}`,
@@ -1324,6 +1396,15 @@ class AcpSession {
       status: answer === 'deny' ? 'failed' : 'completed',
     })
     return answer
+  }
+
+  public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
+    const pending = this.pending
+    const preparing = this.preparing
+    const { title, detail } = await paidUseQuestion(request)
+    return await this.askPaidQuestion(title, detail, canRemember, () =>
+      this.isCurrentPaidPrompt(pending, preparing),
+    )
   }
 
   public async startAccounts(): Promise<void> {
@@ -1556,7 +1637,10 @@ class AcpSession {
     })
   }
 
-  public async prompt(blocks: readonly ContentBlock[]): Promise<StopReason> {
+  public async prompt(
+    blocks: readonly ContentBlock[],
+    onAccepted?: () => void,
+  ): Promise<StopReason> {
     this.ensureHeld()
     if (this.deps.resources !== undefined) {
       const update = await acpResourceCommand(blocks, this.deps.resources)
@@ -1940,6 +2024,7 @@ class AcpSession {
         if (submission.userMessageId !== undefined) pending.userMessageId = submission.userMessageId
         const isAccepted =
           submission.disposition === 'started' || submission.disposition === 'queued'
+        if (isAccepted) onAccepted?.()
         // Decide before noting the turn: a turn that already finished settles
         // the prompt there, which must not release the answers it delivered.
         if (
@@ -2057,6 +2142,9 @@ class AcpSession {
       return
     }
     this.isDisposed = true
+    this.dictationStop.abort()
+    await Promise.all([...this.dictationPages].map((page) => page.close()))
+    this.dictationPages.clear()
     this.legalStop?.abort()
     const releasingAnswers = this.releaseAnswers()
     this.questions?.dispose()

@@ -100,6 +100,7 @@ const BUNDLES = [
   'imageResizeWorker.js',
   'usageService.js',
   'usageCompanion.js',
+  'voiceCompanion.js',
 ]
 const NATIVE_DEPENDENCY = '@napi-rs/keyring'
 const SCHEMAS = [
@@ -177,7 +178,11 @@ const NOTICES = 'THIRD_PARTY_NOTICES.txt'
 for (const helper of LINUX_HELPERS)
   if (!existsSync(helper) || !statSync(helper).isFile())
     throw new Error(`Required Linux created-path helper is missing: ${helper}`)
-const pageAssets = usageAssets()
+const pageAssets = [
+  ...usageAssets(),
+  'dist/webview/voiceCompanion.js',
+  'dist/webview/voiceCompanion.css',
+]
 // Every installed display language needs the usage family too (lane L).
 for (const table of readdirSync('l10n')) {
   if (!/^ui\..+\.json$/u.test(table)) continue

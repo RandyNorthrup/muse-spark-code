@@ -5049,6 +5049,20 @@ export const MUSE_VOICE_MODE = 'PUSH_TO_TALK'
 export const MUSE_VOICE_PARTIAL_MODE = 'CUMULATIVE'
 export const MUSE_VOICE_SAMPLE_RATE = 16_000
 export const MUSE_VOICE_BYTES_PER_SECOND = MUSE_VOICE_SAMPLE_RATE * 2
+
+// CMICCOMP: held off until Windows/macOS companion and helper receipts pass.
+export const COMPANION_VOICE_RELEASE = { isReady: false }
+export const COMPANION_VOICE_MAX_SECONDS = 60
+export const COMPANION_VOICE_WAV_HEADER_BYTES = 44
+export const COMPANION_VOICE_MAX_BYTES =
+  COMPANION_VOICE_MAX_SECONDS * MUSE_VOICE_BYTES_PER_SECOND + COMPANION_VOICE_WAV_HEADER_BYTES
+export const COMPANION_VOICE_MAX_BASE64 = Math.ceil(COMPANION_VOICE_MAX_BYTES / 3) * 4
+export const COMPANION_VOICE_BODY_BYTES = COMPANION_VOICE_MAX_BASE64 + 1024
+export const COMPANION_VOICE_REQUEST_MS = 120_000
+export const COMPANION_VOICE_TICKET_MS = 90_000
+export const COMPANION_VOICE_RECORDER_BPS = 32_000
+export const COMPANION_VOICE_PCM_MAX = 32_767
+export const COMPANION_VOICE_PCM_MIN = -32_768
 // Meta closes a stream whose handshake is not sent within 10 s; the answer
 // is waited for as long. After `endStream`, the final text has this long.
 export const MUSE_VOICE_HANDSHAKE_TIMEOUT_MS = 10_000

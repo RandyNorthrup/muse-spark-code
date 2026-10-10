@@ -63,6 +63,7 @@ export function createRuntimeDailyBudget(deps: {
     }
   }
   return {
+    capUsd: () => Usd.from(capUsd()).toAmount(),
     async reserve(costUsd: UsdAmount, signal: AbortSignal): Promise<SessionBudgetClaim> {
       signal.throwIfAborted()
       const scope = day()

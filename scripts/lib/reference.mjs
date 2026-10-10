@@ -1024,6 +1024,8 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     if (exec(['--output', value]).options?.output !== value) errors.push('CLI output mismatch')
   // RuntimeCommand is the parser's closed command inventory; new routes must
   // appear in the public command table as well as being documented.
+  // Held commands remain covered without entering the public Help document.
+  const cliInventory = [...cli, ...source.cliCommands(true)]
   const runtimeTree = ts.createSourceFile('cliArgs.ts', runtimeSource, ts.ScriptTarget.Latest, true)
   // Some switches (help --all) are direct branches rather than parseArgs options.
   // A new literal flag in those branches must also have a public entry.
@@ -1043,7 +1045,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       ts.isStringLiteral(node) &&
       /^--[a-z-]+$/.test(node.text) &&
       !declaredFlags.has(node.text) &&
-      cli.every((entry) => !entry.name.split(/[ :/<>]+/).includes(node.text))
+      cliInventory.every((entry) => !entry.name.split(/[ :/<>[\]]+/).includes(node.text))
     )
       errors.push(`CLI direct flag lacks entry: ${node.text}`)
     ts.forEachChild(node, visitDirectFlags)
@@ -1072,7 +1074,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       return literal.literal.text
     })
   })
-  const names = new Set(cli.map((c) => c.route))
+  const names = new Set(cliInventory.map((c) => c.route))
   for (const name of runtimeNames) {
     if (name !== 'invalid' && !names.has(name)) errors.push(`CLI command lacks entry: ${name}`)
   }
