@@ -25,15 +25,26 @@ permissions:
 
 jobs:
   checks:
-    name: static gates (${{ matrix.os }})
+    name: static gates (${{ matrix.os }}, ${{ matrix.part.name }})
     runs-on: ${{ matrix.os }}
-    # macOS reaches the unit typecheck about 13 minutes in (format, lint, host and
-    # webview typechecks); the single unit program adds about 3 (2026-10-07).
+    # One serial job outgrew its 25 minutes on macOS (CIFIX017R3, run
+    # 37992331755: 21.8 min in round 2, cancelled at 25 in round 3 during
+    # check:host-api, no hang): type-aware ESLint alone took 17.7 min there
+    # (lint:js:main 7.0, lint:js:unit 10.2) against 6.5 on Ubuntu, and 5.1 GB
+    # per ESLint process rules out ESLint's threads on a 7 GB runner. Three
+    # parts run every gate on every OS; macOS' slowest measured is ~11 min.
     timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
+        part:
+          - name: lint
+            gates: 'format:check lint:js:main lint:js:tests lint:css lint:ps'
+          - name: unit lint
+            gates: 'lint:js:unit'
+          - name: build
+            gates: 'typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan check:roadmap deadcode cycles duplication build security:audit'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -53,7 +64,7 @@ jobs:
       # Gallery's package endpoint, checked against the SHA-512 lint-ps.mjs
       # pins, and unpacked into the user's module path. Each failure is named.
       - name: PSScriptAnalyzer (windows, pinned)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.part.name == 'lint'
         shell: pwsh
         run: |
           $version = node scripts/lint-ps.mjs --print-version
@@ -92,14 +103,15 @@ jobs:
           Remove-Item -Force -Path (Join-Path $target '*.nuspec') -ErrorAction SilentlyContinue
           Import-Module PSScriptAnalyzer -RequiredVersion $version -ErrorAction Stop
           Write-Host "PSScriptAnalyzer $version installed from the checked package"
-      # Same static/build/audit gates as quality:gates; tests and pixel replay have required jobs.
-      - run: npx run-s format:check lint typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan check:roadmap deadcode cycles duplication build security:audit
+      # Same static/build/audit gates as quality:gates, across the parts; tests and
+      # pixel replay have required jobs.
+      - run: npx run-s ${{ matrix.part.gates }}
         env:
           # check:badges lists public main through the GitHub API; the job token
           # keeps hosted runners off the shared unauthenticated rate limit.
           GITHUB_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: matrix.os == 'ubuntu-latest' && !inputs.fast
+        if: matrix.os == 'ubuntu-latest' && matrix.part.name == 'build' && !inputs.fast
         with:
           name: production-webview
           path: |

@@ -608,16 +608,29 @@ describe('tiered CI (CIFLOW)', () => {
       expect(job(id)).toContain('["ubuntu-latest","windows-latest","macos-latest"]')
     }
     // Exactly quality:gates without tests and pixels, which have required jobs: a
-    // gate added to quality:gates and not to CI fails here.
+    // gate added to quality:gates and not to CI fails here. The static gates run
+    // in parts (CIFIX017R3): each script quality:gates reaches through run-s
+    // runs in exactly one part, none twice and none dropped.
+    const scripts: Record<string, string | undefined> = manifest.scripts
+    const leaves = (names: readonly string[]): string[] =>
+      names.flatMap((name) => {
+        const script = scripts[name] ?? ''
+        return script.startsWith('run-s ') ? leaves(script.split(' ').slice(1)) : [name]
+      })
     const gates = manifest.scripts['quality:gates'].split(' ')
     expect(gates.slice(0, 1)).toEqual(['run-s'])
     expect(gates).toContain('test:unit')
-    expect(job('checks')).toContain(
-      `      - run: npx run-s ${gates
-        .slice(1)
-        .filter((gate) => gate !== 'test:unit' && gate !== 'check:visual')
-        .join(' ')}\n`,
+    const parts = Array.from(
+      job('checks').matchAll(/\n {12}gates: '([^']+)'\n/g),
+      ([, list = '']) => list.split(' '),
     )
+    expect(parts).toHaveLength(3)
+    expect(leaves(parts.flat()).toSorted((a, b) => a.localeCompare(b))).toEqual(
+      leaves(
+        gates.slice(1).filter((gate) => gate !== 'test:unit' && gate !== 'check:visual'),
+      ).toSorted((a, b) => a.localeCompare(b)),
+    )
+    expect(job('checks')).toContain('      - run: npx run-s ${{ matrix.part.gates }}\n')
     expect(job('unit')).toContain('npx vitest run\n')
     for (const id of [
       'coverage',
