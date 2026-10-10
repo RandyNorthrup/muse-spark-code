@@ -788,6 +788,7 @@
     }
   },
   "scheduledMediaSupport": "Geplante Durchläufe unterstützen Text- und Bildeingaben; Video- und Audioeingaben werden in dieser Version nicht unterstützt.",
+  "referenceSchedules": "Der v2-Planungseditor, die Liste und die Zeitleiste verwalten dauerhafte Einträge. Die automatische Übermittlung von Prompts ist deaktiviert. Model-API-/loop-Aufträge starten, wenn Sie Jetzt ausführen wählen.",
   "media": {
     "recordingScreenPermissionRequired": "Die Berechtigung zur Bildschirmaufnahme wurde nicht erteilt.",
     "recordingMicrophonePermissionDenied": "Die Mikrofonberechtigung wurde verweigert.",

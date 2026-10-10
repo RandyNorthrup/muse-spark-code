@@ -32,6 +32,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **Schedule delivery qualification** (C-M115-1). The lazy engine can accept
+  host-owned unattended targets, safety and authoritative cost settlement.
+  Fake backend tests cover collision order, interrupt, event isolation,
+  background targets and Model API queue withdrawal/parallel runs; a real
+  three-process journal test admits one fire. This composition is unregistered:
+  automatic v2 prompt delivery stays disabled. README and translated Help now
+  state that boundary and distinguish the manual Model API `/loop` flow.
+
 - Shared schedule polling retains each workspace holder, so closing one panel
   cannot stop another panel's scheduler. The last release stops the watch.
 

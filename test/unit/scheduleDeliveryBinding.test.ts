@@ -1,0 +1,268 @@
+import { describe, expect, it, vi } from 'vitest'
+import type { ScheduledAgentSession, ScheduleRunDeps } from '../../src/core/schedules/unattended'
+import type { ScheduleAuthorityStore } from '../../src/core/schedules/grantAudit'
+import {
+  createScheduleDeliveryBinding,
+  type ScheduleEditorDeliveryPorts,
+} from '../../src/host/schedules/deliveryBinding'
+import { noScheduleCost } from '../../src/shared/scheduleV2'
+import path from 'node:path'
+import { workspaceKey } from '../../src/runtime/dataFolder'
+import { FakeAgentHost, FakeAgentSession } from './helpers/fakeAgent'
+import { memoryToolIo } from './helpers/fakeToolIo'
+import { fakeRunContext, fakeSchedule } from './helpers/schedules/fixtures'
+import type { TurnSubmission } from '../../src/core/agent/agentBackend'
+
+function queuedSubmission(): Promise<TurnSubmission> {
+  return Promise.resolve({ turnId: 'admitted', userMessageId: 'message', disposition: 'queued' })
+}
+function unusedSteer(): Promise<never> {
+  return Promise.reject(new Error('unused steer'))
+}
+function unusedPaidPolicy(modelId: string): NonNullable<ScheduleRunDeps['paid']> {
+  return {
+    modelId,
+    accountId: 'test-account',
+    allows: () => false,
+    reserve: () => Promise.reject(new Error('unused reservation')),
+  }
+}
+
+class ScheduledSession extends FakeAgentSession implements ScheduledAgentSession {
+  readonly getScheduledRun = vi.fn<ScheduledAgentSession['getScheduledRun']>()
+  readonly sendScheduledTurn = vi.fn<ScheduledAgentSession['sendScheduledTurn']>(queuedSubmission)
+  readonly steerScheduledTurn = vi.fn<ScheduledAgentSession['steerScheduledTurn']>(unusedSteer)
+}
+
+async function fixture(backend: 'museCode' | 'modelApi' = 'museCode') {
+  const agent = new ScheduledSession('session-1', 'chosen-model')
+  const host = new FakeAgentHost()
+  const schedule = fakeSchedule({
+    workspaceKey: workspaceKey(path.resolve('/test/workspace')),
+    target: { kind: 'conversation', backend, sessionId: agent.sessionId },
+  })
+  const context = fakeRunContext(schedule)
+  const abort = new AbortController()
+  const authority: ScheduleAuthorityStore = {
+    read: vi.fn(() => Promise.resolve(schedule)),
+    commit: vi.fn(() => Promise.resolve(false)),
+    append: vi.fn(() => Promise.resolve()),
+    audit: vi.fn(() => Promise.resolve([])),
+  }
+  const ports: ScheduleEditorDeliveryPorts = {
+    workspaceRoot: '/test/workspace',
+    platform: 'linux',
+    dialect: 'bash',
+    io: memoryToolIo({}, '/test/workspace'),
+    signal: abort.signal,
+    isActive: () => true,
+    host: () => Promise.resolve(host),
+    options: () =>
+      Promise.resolve({
+        workspaceRoot: '/test/workspace',
+        modelId: agent.modelId,
+        approvalMode: 'promptUnmatched',
+      }),
+    publish: vi.fn(() => vi.fn()),
+    findLive: () => ({ agent, status: 'idle' }),
+    row: vi.fn(),
+    deferQuestions: vi.fn(() => Promise.resolve()),
+    safety: () => undefined,
+  }
+  const binding = createScheduleDeliveryBinding(ports, authority)
+  const lease = await binding.targets.find(schedule)
+  if (lease === undefined) throw new Error('missing fake target')
+  const run = () =>
+    binding.runs.run(lease.session, schedule, context, async () => {
+      await lease.session.queue('scheduled prompt', context)
+    })
+  return { agent, schedule, context, abort, authority, ports, binding, lease, run }
+}
+
+async function expectRefused(rig: Awaited<ReturnType<typeof fixture>>) {
+  rig.agent.sendScheduledTurn.mockImplementation(() => {
+    rig.agent.emit({ type: 'turnCompleted', turnId: 'admitted', terminal: 'completed' })
+    return Promise.resolve({ turnId: 'admitted', disposition: 'started' })
+  })
+  try {
+    expect(await rig.run()).toMatchObject({ outcome: 'failed', cost: noScheduleCost() })
+    expect(rig.agent.sendScheduledTurn).not.toHaveBeenCalled()
+    expect(rig.agent.sendTurn).not.toHaveBeenCalled()
+  } finally {
+    await rig.lease.release()
+  }
+}
+
+describe('unregistered schedule delivery factory', () => {
+  it('preserves prototype methods and the owning receiver of background ports', async () => {
+    const rig = await fixture()
+    class OwnedPorts implements ScheduleEditorDeliveryPorts {
+      readonly workspaceRoot = rig.ports.workspaceRoot
+      readonly platform = rig.ports.platform
+      readonly dialect = rig.ports.dialect
+      readonly io = rig.ports.io
+      readonly signal = rig.ports.signal
+      readonly safety = rig.ports.safety
+      readonly row: ScheduleEditorDeliveryPorts['row'] = (...args) => {
+        rig.ports.row(...args)
+      }
+      readonly deferQuestions: ScheduleEditorDeliveryPorts['deferQuestions'] = (...args) =>
+        rig.ports.deferQuestions(...args)
+      readonly findLive: ScheduleEditorDeliveryPorts['findLive'] = (...args) =>
+        rig.ports.findLive(...args)
+      calls = 0
+      isActive() {
+        return rig.ports.isActive()
+      }
+      host(...args: Parameters<ScheduleEditorDeliveryPorts['host']>) {
+        this.calls += 1
+        return rig.ports.host(...args)
+      }
+      options(...args: Parameters<ScheduleEditorDeliveryPorts['options']>) {
+        this.calls += 1
+        return rig.ports.options(...args)
+      }
+      publish(...args: Parameters<ScheduleEditorDeliveryPorts['publish']>) {
+        this.calls += 1
+        return rig.ports.publish(...args)
+      }
+    }
+    const ports = new OwnedPorts()
+    const binding = createScheduleDeliveryBinding(ports, rig.authority)
+    try {
+      const lease = await binding.targets.fresh(
+        fakeSchedule({
+          delivery: 'newConversation',
+          target: { kind: 'newConversation', backend: 'museCode' },
+        }),
+        0,
+      )
+      try {
+        expect(ports.calls).toBe(3)
+      } finally {
+        await lease.release()
+      }
+    } finally {
+      await rig.lease.release()
+    }
+  })
+  it('refuses a different workspace before scheduled admission', async () => {
+    const rig = await fixture()
+    rig.schedule.workspaceKey = workspaceKey(path.resolve('/another/workspace'))
+    await expectRefused(rig)
+  })
+  it('refuses absent paid authority before Model API admission', async () => {
+    await expectRefused(await fixture('modelApi'))
+  })
+  it('settles a promoted short turn whose terminal precedes its admission ack', async () => {
+    const rig = await fixture()
+    rig.agent.sendScheduledTurn.mockImplementation(() => {
+      rig.agent.emit(
+        { type: 'userMessageTurnChanged', userMessageId: 'message', turnId: 'promoted' },
+        { type: 'turnCompleted', turnId: 'promoted', terminal: 'completed' },
+      )
+      return Promise.resolve({
+        turnId: 'admitted',
+        userMessageId: 'message',
+        disposition: 'queued',
+      })
+    })
+    try {
+      expect(await rig.run()).toEqual({
+        outcome: 'ran',
+        refusedActions: [],
+        cost: noScheduleCost(),
+      })
+      expect(rig.agent.sendTurn).not.toHaveBeenCalled()
+    } finally {
+      await rig.lease.release()
+    }
+  })
+
+  it('waits for this message terminal rather than admission or another turn', async () => {
+    const rig = await fixture()
+    let isSettled = false
+    const result = (async () => {
+      const record = await rig.run()
+      isSettled = true
+      return record
+    })()
+    try {
+      await vi.waitFor(() => {
+        expect(rig.agent.sendScheduledTurn).toHaveBeenCalledOnce()
+      })
+      rig.agent.emit({ type: 'turnCompleted', turnId: 'user-turn', terminal: 'completed' })
+      await Promise.resolve()
+      expect(isSettled).toBe(false)
+      rig.agent.emit({ type: 'turnWithdrawn', turnId: 'admitted', reason: 'withdrawn' })
+      expect(await result).toMatchObject({ outcome: 'skipped', cost: noScheduleCost() })
+    } finally {
+      await rig.lease.release()
+    }
+  })
+
+  it('retains recovery ownership after lifecycle abort instead of inventing settlement', async () => {
+    const rig = await fixture()
+    const result = rig.run()
+    const rejected = expect(result).rejects.toThrow()
+    try {
+      await vi.waitFor(() => {
+        expect(rig.agent.sendScheduledTurn).toHaveBeenCalledOnce()
+      })
+      rig.abort.abort()
+      await rejected
+      expect(rig.agent.cancel).not.toHaveBeenCalled()
+      // The user may own another queued turn. The binding cannot cancel it.
+      expect(rig.agent.dispose).not.toHaveBeenCalled()
+    } finally {
+      await rig.lease.release()
+    }
+  })
+
+  it('does not retry a failed authoritative cost read or record a zero bill', async () => {
+    const rig = await fixture()
+    const cost = vi.fn(() => Promise.reject(new Error('ledger unavailable')))
+    rig.ports.paid = () =>
+      Promise.resolve({
+        policy: unusedPaidPolicy(rig.agent.modelId),
+        cost,
+      })
+    const result = rig.run()
+    const rejected = expect(result).rejects.toThrow('ledger unavailable')
+    try {
+      await vi.waitFor(() => {
+        expect(rig.agent.sendScheduledTurn).toHaveBeenCalledOnce()
+      })
+      rig.agent.emit({ type: 'turnCompleted', turnId: 'admitted', terminal: 'completed' })
+      await rejected
+      expect(cost).toHaveBeenCalledOnce()
+    } finally {
+      await rig.lease.release()
+    }
+  })
+
+  it('calls the authoritative ledger with its owning receiver', async () => {
+    const rig = await fixture()
+    class Ledger {
+      readonly policy = unusedPaidPolicy(rig.agent.modelId)
+      reads = 0
+      cost() {
+        this.reads += 1
+        return Promise.resolve(noScheduleCost())
+      }
+    }
+    const accounting = new Ledger()
+    rig.ports.paid = () => Promise.resolve(accounting)
+    const result = rig.run()
+    try {
+      await vi.waitFor(() => {
+        expect(rig.agent.sendScheduledTurn).toHaveBeenCalledOnce()
+      })
+      rig.agent.emit({ type: 'turnCompleted', turnId: 'admitted', terminal: 'completed' })
+      expect(await result).toMatchObject({ outcome: 'ran', cost: noScheduleCost() })
+      expect(accounting.reads).toBe(1)
+    } finally {
+      await rig.lease.release()
+    }
+  })
+})

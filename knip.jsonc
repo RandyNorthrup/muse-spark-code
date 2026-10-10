@@ -160,6 +160,8 @@
     "test/e2e/webviewDiet.mjs",
     "test/e2e/startupMoney.mjs",
     "test/e2e/fake-muse/serve.mjs",
+    // M115's concurrent durable-claim worker is bundled and forked by path.
+    "test/e2e/scheduleClaimWorker.ts",
     // The fake stdio MCP server the M50 tests start as a child process.
     "test/unit/helpers/fakeMcpServer.mjs",
     // The fake stdio ACP agent the M96 lane W tests start as a child process.

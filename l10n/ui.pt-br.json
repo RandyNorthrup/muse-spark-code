@@ -791,6 +791,7 @@
     }
   },
   "scheduledMediaSupport": "Os turnos agendados aceitam entradas de texto e imagem; entradas de vídeo e áudio não são aceitas nesta versão.",
+  "referenceSchedules": "O editor, a lista e a linha do tempo dos agendamentos v2 gerenciam registros persistentes. O envio automático de prompts está desativado. As tarefas /loop da Model API são executadas ao escolher Executar agora.",
   "media": {
     "recordingScreenPermissionRequired": "A permissão para gravar a tela não foi concedida.",
     "recordingMicrophonePermissionDenied": "A permissão do microfone foi negada.",

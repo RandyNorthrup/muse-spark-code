@@ -35888,8 +35888,19 @@ reviews remain with the lead under the rig/common rules.
 
 - [x] Shared workspace watches retain every holder; default-timeout regression
       and deliberate early-retirement drill recorded in `m115-cm1151.md`.
+- [x] Unregistered lazy delivery composition qualified with both fake backends:
+      once, collision order, interrupt, fenced events, closed-target Skip,
+      fresh background conversations, Model API parallel delivery and queue
+      withdrawal; three separate shared-engine processes admit one fire.
 - [ ] VS Code registration: candidate delivery must pass every binding/safety
-      path before registration; no incomplete delivery is surfaced.
+      path before registration; no incomplete delivery is surfaced. Muse Code
+      rejects scheduled queue admission while a user turn runs (`SessionOwner`);
+      the IDE MCP server has no session identity for unattended checks. The
+      controller's workspace lifecycle, History/Agent-map publication, M87
+      composer withdrawal and owner-safe host shutdown remain unbound. Paid
+      ledger/consent binding belongs to C-M115-3; native parallel overlap and
+      steer certification and the full manual/plan/acceptEdits/auto delivery
+      matrix remain open. No new provider wire shape was guessed.
 
 **Status 2026-10-06: planned.** It comes right after M112 in the delivery
 order: it shares M112's deferral and the unattended machinery, and builds on
@@ -38005,6 +38016,13 @@ roadmap and production build checks. Caps and gate levels stay unchanged.
 Delivery registration remains absent until the acceptance matrix and the
 independent Grok/fresh-Codex reviews are complete; the lane forbids sub-agents
 and live model calls. See `docs/certification/m115-cm1151.md`.
+The production build retains the accepted base's What's New decode refusal
+(79,510 bytes against 76,800); no budget is raised. Its artifact size/split
+replay and the visual gate's build prerequisite are deferred to the lead
+after that inherited content is repaired.
+The zero-clone gate also retains the accepted base's unchanged six-line clone
+in `test/unit/windowsTrustedPath.test.ts`; owned clones are removed rather
+than ignored, and that independent Windows-test repair belongs to the lead.
 
 **M121A rounds 3–4 gate ownership (2026-10-09, kubuntu).** The rig brief and
 shared lane rules forbid aggregate quality in this worktree; the lead owns

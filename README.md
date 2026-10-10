@@ -2302,8 +2302,9 @@ is absent. Paid consent and the shared daily budget still apply.
 The Command Palette's **Schedule this prompt…**, **Show schedules** and
 **Show schedule timeline** open the v2 editor, list and timeline in the
 active chat, opening a chat when needed. The schedule surface loads on
-first use. Starting unattended jobs through this editor still requires the
-pending editor delivery binding; the `/loop` flow below remains available.
+first use and manages durable records. Automatic v2 prompt delivery is
+disabled: no workspace delivery binding is registered. The `/loop` flow
+below runs when you choose **Run now**.
 
 On the Model API backend, `/loop 10m Review the build` saves a prompt in the
 current conversation to become due every ten minutes. Use `m`, `h`, or `d`
@@ -2341,17 +2342,16 @@ in that conversation's token estimate. A run admitted just before a crash
 is not replayed, even if its result was never seen. Cancel does not stop a
 turn that already began.
 
-Unattended runs are opt-in per schedule. The `schedule` command manages
+The `schedule` command manages durable
 jobs beyond `/loop`: `schedule add --draft <JSON>` (with
-`--scheduled-prompts --max-budget-usd <USD>` to allow unattended runs under
+`--scheduled-prompts --max-budget-usd <USD>` to validate paid authority under
 that hard cap), `list`, `remove`, `run-now`, `pause`, `resume`, `fire`,
 `timeline`, `run-due` and `background`. Without a positive budget, paid
-authorization for an unattended run is refused; with one, every run still
-passes the paid rule above, naming its price and the shared daily budget.
-Crash accounting holds across restarts: a lost acknowledgement is recovered
-from the delivery ledger without a second run, and even when both the
-acknowledgement and the ledger are lost there is at most one re-run and
-exactly one recorded settlement for the run. The ACP `/schedule` command
+authorization for an unattended run is refused. These flags do not install
+a backend delivery binding. Without one, a due prompt delivery records an explicit
+failure and makes no model request. Runtime/ACP prompt delivery is disabled
+in this build. The durable journal prevents competing holders from dispatching
+the same claimed fire. The ACP `/schedule` command
 offers the same list, except `run-due` and background maintenance, and only
 while the agent runs with `--scheduled-prompts` (again with
 `--max-budget-usd`).

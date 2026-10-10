@@ -343,5 +343,5 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     verifyWake: options.verifyWake ?? (() => Promise.resolve({ scheduledPrompts: false })),
     ...(options.platform !== undefined && { platform: options.platform }),
   })
-  return { runtime, scheduler, store, errors, registry, scanDeferred }
+  return { runtime, scheduler, store, errors, registry, scanDeferred, delivery }
 }

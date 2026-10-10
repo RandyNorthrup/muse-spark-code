@@ -788,6 +788,7 @@
     }
   },
   "scheduledMediaSupport": "Az ütemezett körök szöveges és képes bemeneteket támogatnak; a videó- és hangbemenetek ebben a verzióban nem támogatottak.",
+  "referenceSchedules": "A v2 ütemezésszerkesztő, lista és idővonal tartós rekordokat kezel. A kérések automatikus küldése ki van kapcsolva. A Model API /loop feladatai a Futtatás most választásakor indulnak.",
   "media": {
     "recordingScreenPermissionRequired": "A képernyőfelvétel engedélye nincs megadva.",
     "recordingMicrophonePermissionDenied": "A mikrofon engedélyét megtagadták.",

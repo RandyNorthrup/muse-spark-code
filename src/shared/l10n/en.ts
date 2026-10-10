@@ -963,6 +963,8 @@ export const EN = {
   // scheduled turns support instead of what billing verified.
   scheduledMediaSupport:
     'Scheduled turns support text and image inputs; video and audio inputs are unsupported in this version.',
+  referenceSchedules:
+    'The v2 schedule editor, list and timeline manage durable records. Automatic prompt delivery is disabled. Model API /loop jobs run when you choose Run now.',
   media: {
     recordingScreenPermissionRequired: 'Screen Recording permission has not been granted.',
     recordingMicrophonePermissionDenied: 'Microphone permission was denied.',

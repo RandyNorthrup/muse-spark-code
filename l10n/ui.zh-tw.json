@@ -785,6 +785,7 @@
     }
   },
   "scheduledMediaSupport": "排程回合支援文字與圖像輸入；此版本不支援影片與音訊輸入。",
+  "referenceSchedules": "v2 排程編輯器、清單和時間軸管理持久記錄。提示詞自動傳送已停用。選擇「立即執行」後，Model API 的 /loop 工作才會執行。",
   "media": {
     "recordingScreenPermissionRequired": "尚未授予螢幕錄製權限。",
     "recordingMicrophonePermissionDenied": "麥克風權限遭到拒絕。",

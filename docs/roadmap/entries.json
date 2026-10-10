@@ -848,7 +848,7 @@
     {
       "id": "M115",
       "title": "Scheduled prompts v2",
-      "summary": "The schedule list, editor and timeline share durable records across hosts; prompt delivery is withheld until the host bindings are certified.",
+      "summary": "The VS Code editor, list and timeline manage durable records; automatic prompt delivery is disabled until host bindings are certified.",
       "area": "agents",
       "release": "0.17.0"
     },

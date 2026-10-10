@@ -1518,7 +1518,14 @@
       "backends": ["modelApi"],
       "paid": true,
       "surfaces": ["vscode:modelApi"],
-      "details": [{ "ui": "referenceAttachments" }, { "ui": "scheduledMediaSupport" }],
+      "details": [
+        {
+          "conditions": [
+            { "when": "scheduleDeliveryBinding=absent", "text": { "ui": "referenceSchedules" } }
+          ]
+        },
+        { "ui": "scheduledMediaSupport" }
+      ],
       "facts": {
         "defaultIntervalMs": 600000,
         "minimumIntervalMs": 60000,

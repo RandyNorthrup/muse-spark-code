@@ -9,11 +9,16 @@ import { agentDataFolder } from '../dataFolder'
 import { createNodeScheduleFs, createNodeScheduleQueue } from './nodeScheduleFs'
 import type { RuntimeSchedulesBinding } from './binding'
 import { createScheduleEngine } from './engine'
+import {
+  createScheduleDeliveryBinding,
+  type ScheduleEditorDeliveryPorts,
+} from '../../host/schedules/deliveryBinding'
 import { agentFileBeside, createVerifyWake } from './wake'
 
 export function createRuntimeSchedules(
   table: UiText,
   locale: string,
+  delivery?: ScheduleEditorDeliveryPorts,
 ): Promise<RuntimeSchedulesBinding> {
   setUiText(table, locale)
   const platform = process.platform
@@ -30,6 +35,9 @@ export function createRuntimeSchedules(
     executable: process.execPath,
     agentFile,
     verifyWake: createVerifyWake(process.execPath, agentFile),
+    ...(delivery !== undefined && {
+      delivery: (authority) => createScheduleDeliveryBinding(delivery, authority),
+    }),
   })
   return Promise.resolve(runtime)
 }

@@ -17,8 +17,9 @@ import { UI_TEXT } from '../../shared/constants'
 import { fill, formatDateTime } from '../../shared/l10n/text'
 import { mspApprovalMode } from '../../shared/permissionModes'
 import type { ScheduleRunContext, ScheduleV2 } from '../../shared/scheduleV2'
+import type { ScheduledAgentSession, UnattendedRun } from '../../core/schedules/unattended'
 
-type BackendSession = Pick<
+export type BackendSession = Pick<
   AgentSession,
   | 'sessionId'
   | 'modelId'
@@ -29,7 +30,8 @@ type BackendSession = Pick<
   | 'withdrawQueued'
   | 'dispose'
   | 'rename'
->
+> &
+  Partial<Pick<ScheduledAgentSession, 'sendScheduledTurn' | 'steerScheduledTurn'>>
 
 /** U registers this individual message before the backend admits it. This is
  * required even for a steer sharing an interactive turn or a queued message. */
@@ -37,7 +39,7 @@ export interface ScheduleContextSubmitter {
   submit(
     session: BackendSession,
     context: ScheduleRunContext,
-    dispatch: () => Promise<TurnSubmission>,
+    dispatch: (run?: UnattendedRun) => Promise<TurnSubmission>,
   ): Promise<TurnSubmission>
 }
 
@@ -116,11 +118,15 @@ export class ScheduleAgentSession implements ScheduleDeliverySession {
   ): Promise<TurnSubmission> {
     if (!this.isOpen()) throw new Error(UI_TEXT.scheduleV2.messages.targetClosed)
     const revision = this.eventRevision
-    const submitted = await this.contexts.submit(this.session, context, () => {
+    const submitted = await this.contexts.submit(this.session, context, (run) => {
       // Admission can await consent/governor state; Skip still owns this fire.
       signal?.throwIfAborted()
       if (!this.isOpen()) throw new Error(UI_TEXT.scheduleV2.messages.targetClosed)
-      return this.session.sendTurn([{ type: 'text', text: prompt }], prompt)
+      const parts = [{ type: 'text' as const, text: prompt }]
+      if (run === undefined) return this.session.sendTurn(parts, prompt)
+      if (this.session.sendScheduledTurn === undefined)
+        throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
+      return this.session.sendScheduledTurn(parts, run, prompt)
     })
     // An entire short turn can finish before its admission ack returns.
     if (revision === this.eventRevision && submitted.disposition === 'started') {
@@ -157,9 +163,13 @@ export class ScheduleAgentSession implements ScheduleDeliverySession {
     if (!this.isOpen()) throw new Error(UI_TEXT.scheduleV2.messages.targetClosed)
     const turnId = this.activeTurnId
     if (turnId === undefined) throw new SteerRefusedError(UI_TEXT.scheduleBusy)
-    await this.contexts.submit(this.session, context, () =>
-      this.session.steer(turnId, [{ type: 'text', text: prompt }]),
-    )
+    await this.contexts.submit(this.session, context, (run) => {
+      const parts = [{ type: 'text' as const, text: prompt }]
+      if (run === undefined) return this.session.steer(turnId, parts)
+      if (this.session.steerScheduledTurn === undefined)
+        throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
+      return this.session.steerScheduledTurn(turnId, parts, run)
+    })
   }
 
   async send(prompt: string, context: ScheduleRunContext): Promise<void> {
@@ -185,6 +195,10 @@ export class ScheduleAgentSession implements ScheduleDeliverySession {
     signal: AbortSignal,
   ): Promise<string | undefined> {
     try {
+      signal.throwIfAborted()
+      // MSP's scheduled admission owns an idle session, unlike the Model API
+      // queue which retains per-message authority before promotion.
+      if (this.backend === 'museCode' && !(await this.waitUntilIdle(signal))) return undefined
       signal.throwIfAborted()
       return await this.queue(prompt, context, signal)
     } catch (error: unknown) {

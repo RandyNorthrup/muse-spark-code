@@ -16,6 +16,7 @@ import {
 } from '../../shared/constants'
 import type { ScheduleDraft, ScheduleTarget } from '../../shared/scheduleV2'
 import type { ScheduleTargetChoice } from '../../webview/schedules/ports'
+import type { ScheduleEditorDeliveryPorts } from './deliveryBinding'
 
 export interface SchedulesPanelSession {
   readonly sessionId: string
@@ -24,6 +25,8 @@ export interface SchedulesPanelSession {
 }
 
 export interface SchedulesBridgeDeps {
+  /** Installed only after every delivery/safety path is certified. */
+  readonly delivery?: ScheduleEditorDeliveryPorts
   readonly distDir: string
   readonly log: Logger
   readonly isEnabled: () => boolean
@@ -45,7 +48,12 @@ const targets = (session: SchedulesPanelSession | undefined): readonly ScheduleT
 }
 /** One bridge per conversation panel; the bundle loads on first schedule use. */
 export function createSchedulesBridge(deps: SchedulesBridgeDeps) {
-  const load = runtimeSchedulesBinding(path.join(deps.distDir, 'schedules.js'), deps.log)
+  const load = runtimeSchedulesBinding(
+    path.join(deps.distDir, 'schedules.js'),
+    deps.log,
+    undefined,
+    deps.delivery,
+  )
   const keyFor = (cwd: string): string => workspaceKey(path.resolve(cwd))
   const defaultDraft = (
     nowMs: number,
@@ -76,6 +84,12 @@ export function createSchedulesBridge(deps: SchedulesBridgeDeps) {
     keyFor,
     targets,
     defaultDraft,
+    async holdWorkspace(cwd: string): Promise<() => Promise<void>> {
+      if (!deps.isEnabled() || deps.delivery === undefined)
+        throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+      const binding = await load()
+      return await binding.holdWorkspace(path.resolve(cwd))
+    },
     async message(input: unknown, cwd: string): Promise<unknown> {
       if (!deps.isEnabled()) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
       const binding = await load()

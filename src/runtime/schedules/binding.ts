@@ -7,6 +7,7 @@ import { uiLocale } from '../../shared/l10n/text'
 import type { ScheduleCommandOptions } from './args'
 import type { ScheduleCommandResult } from './settle'
 import type { AcpSchedulePort } from '../../acp/schedules'
+import type { ScheduleEditorDeliveryPorts } from '../../host/schedules/deliveryBinding'
 
 export interface RuntimeSchedulesBinding extends AcpSchedulePort {
   command(
@@ -22,7 +23,11 @@ export interface RuntimeSchedulesBinding extends AcpSchedulePort {
 }
 
 interface RuntimeSchedulesModule {
-  createRuntimeSchedules(table: UiText, locale: string): Promise<RuntimeSchedulesBinding>
+  createRuntimeSchedules(
+    table: UiText,
+    locale: string,
+    delivery?: ScheduleEditorDeliveryPorts,
+  ): Promise<RuntimeSchedulesBinding>
 }
 
 function isSchedulesModule(value: unknown): value is RuntimeSchedulesModule {
@@ -38,6 +43,7 @@ export function runtimeSchedulesBinding(
   bundlePath: string,
   log: Logger,
   loadBundle?: (file: string) => unknown,
+  delivery?: ScheduleEditorDeliveryPorts,
 ): () => Promise<RuntimeSchedulesBinding> {
   const load = lazyBundleLoader({
     bundlePath,
@@ -49,7 +55,10 @@ export function runtimeSchedulesBinding(
   })
   let binding: Promise<RuntimeSchedulesBinding> | undefined
   return async () => {
-    binding ??= load().createRuntimeSchedules(UI_TEXT, uiLocale())
+    binding ??=
+      delivery === undefined
+        ? load().createRuntimeSchedules(UI_TEXT, uiLocale())
+        : load().createRuntimeSchedules(UI_TEXT, uiLocale(), delivery)
     try {
       return await binding
     } catch (error: unknown) {

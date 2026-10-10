@@ -27,6 +27,7 @@ const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
   referenceScreenRecording: 'nativeRecorder=absent',
+  referenceSchedules: 'scheduleDeliveryBinding=absent',
   referenceVaultPanel: 'vaultBroker=absent',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
@@ -904,7 +905,7 @@ export function featureCatalog(): readonly Feature[] {
         true,
         ['vscode'],
       ),
-      details: [{ ui: 'referenceAttachments' }, { ui: 'scheduledMediaSupport' }] as const,
+      details: [{ ui: 'referenceSchedules' }, { ui: 'scheduledMediaSupport' }] as const,
     },
     feature(
       'subagents',

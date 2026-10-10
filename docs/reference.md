@@ -1130,7 +1130,7 @@ Commands: —. Settings: `museSpark.modelApiImageGeneration`. [Documentation](ht
 
 Schedule a prompt in this Model API conversation.
 
-Attach files by selecting or dropping them, and paste images into the composer. PNG, JPEG, GIF and WebP images require a selected model with vision. PDF attachments require Model API. Trusted indexed workspace text files can be attached; protected or confidential files are refused. The limits below apply before sending.
+scheduleDeliveryBinding=absent: The v2 schedule editor, list and timeline manage durable records. Automatic prompt delivery is disabled. Model API /loop jobs run when you choose Run now.
 
 Scheduled turns support text and image inputs; video and audio inputs are unsupported in this version.
 
