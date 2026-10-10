@@ -52,6 +52,24 @@ afterEach(() => {
     owned.remove()
 })
 
+/** Mount with per-case storage; throws when the theme does not install. */
+async function mount(
+  nonce: string,
+  input: Partial<Parameters<typeof loadCompanionTheme>[0]> = {},
+): Promise<() => void> {
+  const dispose = await loadCompanionTheme({
+    root: document.documentElement,
+    nonce,
+    storage: storage(),
+    system: system(false).system,
+    signal: new AbortController().signal,
+    ...input,
+  })
+  if (dispose === undefined) throw new Error('theme did not mount')
+  disposers.push(dispose)
+  return dispose
+}
+
 describe('companion appearance storage', () => {
   it('reads no record as absent, following the operating system', () => {
     const { storedMode, port } = companionPreferencesPort(storage())
@@ -136,9 +154,7 @@ describe('companion font token fallbacks', () => {
 describe('loadCompanionTheme', () => {
   it('mounts the stored mode with stored fonts on the document element', async () => {
     const seen = system(false)
-    const dispose = await loadCompanionTheme({
-      root: document.documentElement,
-      nonce: 'a'.repeat(64),
+    await mount('a'.repeat(64), {
       storage: storage({
         [COMPANION_APPEARANCE_STORAGE_KEY]: JSON.stringify({
           mode: 'dark',
@@ -148,10 +164,7 @@ describe('loadCompanionTheme', () => {
         }),
       }),
       system: seen.system,
-      signal: new AbortController().signal,
     })
-    if (dispose === undefined) throw new Error('theme did not mount')
-    disposers.push(dispose)
     expect(document.documentElement.dataset['msTheme']).toBe('dark')
     const fonts = document.head.querySelector('style[data-ms-companion-fonts]')
     expect(fonts?.textContent).toContain('--ms-font-ui:system-ui, sans-serif')
@@ -163,31 +176,17 @@ describe('loadCompanionTheme', () => {
   })
   it('follows the operating system live without a stored mode', async () => {
     const seen = system(false)
-    const dispose = await loadCompanionTheme({
-      root: document.documentElement,
-      nonce: 'b'.repeat(64),
-      storage: storage(),
-      system: seen.system,
-      signal: new AbortController().signal,
-    })
-    if (dispose === undefined) throw new Error('theme did not mount')
-    disposers.push(dispose)
+    await mount('b'.repeat(64), { system: seen.system })
     expect(document.documentElement.dataset['msTheme']).toBe('light')
     seen.emit(true)
     expect(document.documentElement.dataset['msTheme']).toBe('dark')
   })
   it('falls back to the token stacks on invalid stored preferences', async () => {
-    const dispose = await loadCompanionTheme({
-      root: document.documentElement,
-      nonce: 'c'.repeat(64),
+    await mount('c'.repeat(64), {
       storage: storage({
         [COMPANION_APPEARANCE_STORAGE_KEY]: JSON.stringify({ mode: 'light', ui: 42 }),
       }),
-      system: system(false).system,
-      signal: new AbortController().signal,
     })
-    if (dispose === undefined) throw new Error('theme did not mount')
-    disposers.push(dispose)
     expect(document.documentElement.dataset['msTheme']).toBe('light')
     const fonts = document.head.querySelector('style[data-ms-companion-fonts]')
     expect(fonts?.textContent).toContain('"Inter", "Muse UI"')
@@ -210,14 +209,7 @@ describe('loadCompanionTheme', () => {
   })
   it('disposes the bridge, the font element and the system listener together', async () => {
     const seen = system(false)
-    const dispose = await loadCompanionTheme({
-      root: document.documentElement,
-      nonce: 'e'.repeat(64),
-      storage: storage(),
-      system: seen.system,
-      signal: new AbortController().signal,
-    })
-    if (dispose === undefined) throw new Error('theme did not mount')
+    const dispose = await mount('e'.repeat(64), { system: seen.system })
     dispose()
     expect(document.head.querySelector('style[data-ms-companion-fonts]')).toBeNull()
     expect(document.head.querySelector('style[data-ms-theme-vars]')).toBeNull()
@@ -226,15 +218,7 @@ describe('loadCompanionTheme', () => {
     expect(document.documentElement.dataset['msTheme']).toBeUndefined()
   })
   it('carries the page nonce on the font element for the style policy', async () => {
-    const dispose = await loadCompanionTheme({
-      root: document.documentElement,
-      nonce: 'f'.repeat(64),
-      storage: storage(),
-      system: system(false).system,
-      signal: new AbortController().signal,
-    })
-    if (dispose === undefined) throw new Error('theme did not mount')
-    disposers.push(dispose)
+    await mount('f'.repeat(64))
     expect(
       document.head.querySelector('style[data-ms-companion-fonts]')?.getAttribute('nonce'),
     ).toBe('f'.repeat(64))

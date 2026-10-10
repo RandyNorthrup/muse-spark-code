@@ -152,7 +152,15 @@ export async function openUsageCompanion(deps: {
   const stylesheets = ['/usage.css', '/theme.css']
   for (const name of ['usage.js', 'usage.css', 'theme.css']) {
     const source = path.join(root, name)
-    if ((await realpath(source)) !== source) throw new Error('EPANEL_ASSET')
+    // A missing file realpaths to ENOENT; the page reports a broken install
+    // either way, never a half-asset page.
+    let contained: string | undefined
+    try {
+      contained = await realpath(source)
+    } catch {
+      contained = undefined
+    }
+    if (contained !== source) throw new Error('EPANEL_ASSET')
     assets.set(`/${name}`, {
       content: modules.get(name) ?? (await readFile(source)),
       contentType: name.endsWith('.css') ? 'text/css' : 'text/javascript',

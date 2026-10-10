@@ -114,6 +114,8 @@ hash verification and migrate when read.
   pending the paired evaluation.
 - **Usage & Cost.** Open the local page for provider and team totals, token
   counts, budgets and exports. Reported, estimated and unknown costs stay distinct.
+  The page follows the Muse palettes and your stored fonts, including the
+  installed local fonts once `fonts install` has run.
 
 ### Earlier in 0.14.5
 

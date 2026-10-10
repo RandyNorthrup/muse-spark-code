@@ -1,12 +1,19 @@
-import { mkdtemp, mkdir, symlink, writeFile, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { findCompanionFontPack } from '../../src/runtime/usage/usageCompanionEntry'
+import {
+  findCompanionFontPack,
+  openUsageCompanion,
+} from '../../src/runtime/usage/usageCompanionEntry'
+import { createUsageAccess } from '../../src/runtime/usage/usageServiceEntry'
+import { EN } from '../../src/shared/l10n/en'
+import { FakeLogOutputChannel } from './helpers/fakes'
+import { removeFolder } from './helpers/temporaryFolders'
 
 const roots: string[] = []
 afterEach(async () => {
-  for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
+  for (const root of roots.splice(0)) await removeFolder(root)
 })
 
 async function makeRoot(): Promise<string> {
@@ -68,5 +75,24 @@ describe('companion installed-font discovery', () => {
     await mkdir(version, { recursive: true })
     await symlink(outside, path.join(version, 'fonts.css'))
     await expect(findCompanionFontPack(root)).resolves.toBeUndefined()
+  })
+  it('refuses a broken install missing the theme sheets before listening', async () => {
+    const root = await makeRoot()
+    const assetsFolder = path.join(root, 'dist', 'webview')
+    await mkdir(assetsFolder, { recursive: true })
+    await writeFile(path.join(assetsFolder, 'usage.js'), 'export {}')
+    await writeFile(path.join(assetsFolder, 'usage.css'), '/* entry */')
+    const log = new FakeLogOutputChannel()
+    const usage = createUsageAccess({
+      dataFolder: root,
+      packageRoot: process.cwd(),
+      host: 'ACP',
+      locale: 'en',
+      uiText: EN,
+      log,
+    })
+    await expect(
+      openUsageCompanion({ usage, assetsFolder, locale: 'en', uiText: EN, log }),
+    ).rejects.toThrow('EPANEL_ASSET')
   })
 })
