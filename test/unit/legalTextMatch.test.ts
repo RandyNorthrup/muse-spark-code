@@ -30,6 +30,16 @@ const MIT_BODY_ONLY = FULL_MIT_LICENSE.split('\n')
   .filter((line) => !/mit license/i.test(line))
   .join('\n')
 
+const INSERTED_RESTRICTIONS: readonly string[] = [
+  'You must also pay the author one dollar per installed copy.',
+  'Copyright owners prohibit commercial use without a separate licence.',
+  '© 2026 Example Corp. A fee of $1 per copy is required.',
+  '(c) 2026 Example Corp. All rights reserved for commercial exploitation.',
+  'All rights reserved.',
+  'Commercial use requires a paid licence. Contact the authors.',
+  'THE SOFTWARE MAY NOT BE USED FOR MILITARY PURPOSES.',
+]
+
 describe('normalizeLicenseText', () => {
   it('is stable across line endings, byte-order marks and holder lines', () => {
     const unix = normalizeLicenseText(FULL_MIT_LICENSE)
@@ -76,23 +86,50 @@ describe('matchPinnedLicenseText', () => {
     expect(match?.differs?.canonicalId).toBe('MIT')
   })
 
-  it.each([
-    'You must also pay the author one dollar per installed copy.',
-    'Copyright owners prohibit commercial use without a separate licence.',
-    '© 2026 Example Corp. A fee of $1 per copy is required.',
-    '(c) 2026 Example Corp. All rights reserved for commercial exploitation.',
-    'All rights reserved.',
-    'Commercial use requires a paid licence. Contact the authors.',
-    'THE SOFTWARE MAY NOT BE USED FOR MILITARY PURPOSES.',
-  ])('never reads MIT with an inserted restriction (%s) as exact', (restriction) => {
-    const lines = FULL_MIT_LICENSE.split('\n')
-    const variants = [
-      `${restriction}\n${FULL_MIT_LICENSE}`,
-      `${lines[0] ?? ''}\n${restriction}\n${lines.slice(1).join('\n')}`,
-      `${FULL_MIT_LICENSE}\n${restriction}`,
-    ]
-    for (const variant of variants) {
-      expect(matchPinnedLicenseText(variant)?.exact).not.toBe(true)
+  it.each(INSERTED_RESTRICTIONS)(
+    'never reads MIT with an inserted restriction (%s) as exact',
+    (restriction) => {
+      const lines = FULL_MIT_LICENSE.split('\n')
+      const variants = [
+        `${restriction}\n${FULL_MIT_LICENSE}`,
+        `${lines[0] ?? ''}\n${restriction}\n${lines.slice(1).join('\n')}`,
+        `${FULL_MIT_LICENSE}\n${restriction}`,
+      ]
+      for (const variant of variants) {
+        expect(matchPinnedLicenseText(variant)?.exact).not.toBe(true)
+      }
+    },
+  )
+
+  it('never reads any pinned text with an inserted restriction as exact', () => {
+    // CM971R2 follow-up: the property holds for every pinned record, not
+    // only MIT. Each record's phrases plus neutral filler stand in for its
+    // canonical text (full texts stay out of the repo): the filler text
+    // matches its registered hash exactly, and every restriction-inserted
+    // variant must read as differs, never as exact. A normalizer that
+    // drops restriction lines fails this the same way the old one did.
+    for (const record of SPDX_LICENSE_TEXTS) {
+      const base = `${record.id} terms. ${record.phrases.join('. ')}. Sample neutral wording without distinctive phrases.`
+      const normalized = normalizeLicenseText(base)
+      const records = [
+        { ...record, hash: fingerprint(normalized), words: normalized.split(' ').length },
+      ]
+      const verbatim = matchPinnedLicenseText(base, records)
+      expect(verbatim?.exact, `${record.id} verbatim`).toBe(true)
+      expect(verbatim?.id, `${record.id} verbatim`).toBe(record.id)
+      const sentences = base.split('. ')
+      for (const restriction of INSERTED_RESTRICTIONS) {
+        const variants = [
+          `${restriction} ${base}`,
+          `${sentences[0] ?? ''}. ${restriction} ${sentences.slice(1).join('. ')}`,
+          `${base} ${restriction}`,
+        ]
+        for (const variant of variants) {
+          const match = matchPinnedLicenseText(variant, records)
+          expect(match?.exact, `${record.id} with ${restriction}`).not.toBe(true)
+          expect(match?.differs?.canonicalId, `${record.id} with ${restriction}`).toBe(record.id)
+        }
+      }
     }
   })
 
