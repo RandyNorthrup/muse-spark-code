@@ -22,6 +22,7 @@ import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { build } from 'esbuild'
 import * as z from 'zod/mini'
+import type { VoiceCompanionContext } from '../../src/runtime/companion/voiceEntry'
 import { FakeQuestionClock } from './helpers/questions/clock'
 import { hookResult } from './helpers/fakeToolIo'
 import { queuedAnswerBackend } from './helpers/questions/queuedAnswerBackend'
@@ -103,6 +104,8 @@ interface HarnessOptions {
   readonly backendHost?: AgentHost
   readonly readiness?: BackendReadiness
   readonly answer?: PermissionAnswer
+  /** Observes the incoming permission request's abort signal. */
+  readonly permissionSignal?: (signal: AbortSignal) => void
   /** The client's form answer, or a function answering when the test lets it. */
   readonly elicitation?:
     acp.CreateElicitationResponse | (() => Promise<acp.CreateElicitationResponse>)
@@ -182,6 +185,7 @@ function harness(options: HarnessOptions = {}): Harness {
     })
     .onRequest('session/request_permission', async (context) => {
       permissions.push(context.params)
+      options.permissionSignal?.(context.signal)
       return await (options.answer ?? (() => ({ outcome: { outcome: 'cancelled' } })))(
         context.params,
       )
@@ -683,6 +687,43 @@ describe('the ACP agent (M63)', () => {
     })
     expect(h.updates.filter((update) => update.sessionUpdate === 'user_message_chunk')).toEqual([])
     for (const session of h.host.sessions) expect(session.sendTurn).not.toHaveBeenCalled()
+  })
+
+  it('companion cancellation cancels the editor permission request', async () => {
+    // RVCMICCOMP finding 4: abandoning the paid-consent wait left the
+    // editor's permission RPC outstanding. The signal now travels with the
+    // RPC, and the late answer stays denied.
+    const asks: NonNullable<VoiceCompanionContext['askPaid']>[] = []
+    const signals: AbortSignal[] = []
+    const answer = Promise.withResolvers<acp.RequestPermissionResponse>()
+    const h = harness({
+      dictation: (context) => {
+        if (context.askPaid !== undefined) asks.push(context.askPaid)
+        return Promise.resolve({
+          url: 'http://127.0.0.1/',
+          launchUrl: () => 'http://127.0.0.1/#k=test',
+          close: () => Promise.resolve(),
+          closed: Promise.resolve(),
+        })
+      },
+      answer: () => answer.promise,
+      permissionSignal: (signal) => {
+        signals.push(signal)
+      },
+    })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await prompt(client, sessionId, '/dictate')
+      expect(asks).toHaveLength(1)
+      const stop = new AbortController()
+      const answering = asks[0]!('price', 'budget', false, stop.signal)
+      await until(() => signals.length > 0)
+      stop.abort()
+      await expect(answering).resolves.toBe('deny')
+      await until(() => signals[0]?.aborted === true)
+      answer.resolve({ outcome: { outcome: 'cancelled' } })
+    })
+    expect(h.permissions).toHaveLength(1)
   })
 
   it('reads ACP child patch evidence through the child session without resuming it', async () => {

@@ -3,4 +3,5 @@
 export const JOB_SOURCES: readonly string[]
 export const DARWIN_HELPER: string
 export const LINUX_HELPERS: readonly string[]
+export const VOICE_WINDOWS_HELPERS: readonly string[]
 export const RUNNER_HELPERS: string
