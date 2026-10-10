@@ -125,6 +125,7 @@ export function systemEnv(
         CI_PROJECT_DIR: layout.workspace,
         CI_JOB_ID: '7001',
         CI_JOB_TIMEOUT: '2100',
+        CI_JOB_STARTED_AT: new Date().toISOString(),
         CI_PIPELINE_SOURCE: 'merge_request_event',
         CI_COMMIT_SHA: head,
         CI_MERGE_REQUEST_IID: '12',
@@ -160,6 +161,7 @@ export function systemEnv(
         CHANGE_TITLE: 'Notes',
         MUSE_INPUT_TRUST_PULL_REQUESTS: 'true',
         MUSE_CI_JOB_TIMEOUT_MINUTES: '35',
+        MUSE_CI_JOB_START_MS: String(Date.now()),
       }
     }
     default: {

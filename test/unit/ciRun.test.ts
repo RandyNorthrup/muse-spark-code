@@ -6,17 +6,32 @@
 // no child's environment or argv, no log and no published file may hold it.
 
 import { spawn, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
+import { copyFile, mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { azureBoolean, ciFacts, decideCi } from '../../action/lib/ci-adapters.mjs'
 import {
+  bootstrapStartMs,
   checkJobDeadline,
   CI_OUT_DIR,
+  CI_PUBLISHED_FILES,
   jobMinutes,
+  jobStartMs,
   parseCiInputs,
   privateTemp,
+  refuseExistingOutput,
   requiredJobMinutes,
+  requiredRunMs,
   runCi,
   takeCiKey,
 } from '../../action/lib/ci-run.mjs'
@@ -87,6 +102,7 @@ function runEnv(
     SystemRoot: process.env['SystemRoot'],
     ...systemEnv(system, layout(), clone),
     MUSE_CI_TEMP: mkdtempSync(path.join(layout().root, 'ci-')),
+    MUSE_CI_BOOTSTRAP_START_MS: String(Date.now()),
     MUSE_INPUT_MAX_BUDGET_USD: '1.00',
     MUSE_INPUT_AGENT_PACKAGE: pkg.tarball,
     MUSE_INPUT_AGENT_PACKAGE_SHA256: pkg.sha256,
@@ -101,6 +117,15 @@ async function runOn(
   system: string,
   env: Record<string, string | undefined>,
   onSignal?: (signal: 'SIGINT' | 'SIGTERM', run: () => void) => () => void,
+  extra?: {
+    io?: {
+      mkdir: typeof mkdir
+      copyFile: typeof copyFile
+      writeFile: typeof writeFile
+      rm: typeof rm
+    }
+    finalBounds?: { publishMs?: number; cleanupMs?: number }
+  },
 ): Promise<CiRun> {
   const spawns: Spawned[] = []
   const held = { key: takeCiKey(env) }
@@ -115,6 +140,8 @@ async function runOn(
     log: (text) => {
       if (text !== '') run.logged += `${text}\n`
     },
+    ...(extra?.io !== undefined && { io: extra.io }),
+    ...(extra?.finalBounds !== undefined && { finalBounds: extra.finalBounds }),
     ownerOptions: {
       bounds: FAST_BOUNDS,
       ...(onSignal !== undefined && { onSignal }),
@@ -324,19 +351,70 @@ describe('key intake, inputs and the job deadline', () => {
     )
   })
 
-  it('refuses a timeout the job cannot cover, before anything starts (finding 12)', () => {
+  it('admits on the time remaining, not the configured duration (P1 finding 5)', () => {
+    const now = Date.now()
+    const fresh = {
+      CI_JOB_TIMEOUT: '2100',
+      CI_JOB_STARTED_AT: new Date(now).toISOString(),
+    }
+    expect(jobStartMs(fresh, 'gitlab', now)).toBe(now)
+    expect(() => {
+      checkJobDeadline(fresh, 'gitlab', { timeoutMinutes: 20 }, now)
+    }).not.toThrow()
+    // The review's scenario: a 35-minute job whose checkout took 16 minutes
+    // cannot cover a 20-minute turn, although the configured 35 minutes could.
+    const spent = {
+      CI_JOB_TIMEOUT: '2100',
+      CI_JOB_STARTED_AT: new Date(now - 16 * 60_000).toISOString(),
+    }
+    expect(() => {
+      checkJobDeadline(spent, 'gitlab', { timeoutMinutes: 20 }, now)
+    }).toThrow('timeout-minutes 20 needs a job timeout of at least')
+    // Jenkins measures from the template's vendor start time.
+    expect(jobStartMs({ MUSE_CI_JOB_START_MS: String(now - 60_000) }, 'jenkins', now)).toBe(
+      now - 60_000,
+    )
+    // Azure and Bitbucket have no vendor start: the bootstrap's own start
+    // minus the worst-case setup bound.
+    const bootstrap = {
+      MUSE_CI_BOOTSTRAP_START_MS: String(now),
+      MUSE_CI_JOB_TIMEOUT_MINUTES: '35',
+    }
+    expect(jobStartMs(bootstrap, 'azure', now)).toBe(now - 120_000)
+    expect(() => {
+      checkJobDeadline(bootstrap, 'bitbucket', { timeoutMinutes: 20 }, now)
+    }).not.toThrow()
+    expect(() => {
+      checkJobDeadline(
+        { ...bootstrap, MUSE_CI_BOOTSTRAP_START_MS: String(now - 10 * 60_000) },
+        'bitbucket',
+        { timeoutMinutes: 20 },
+        now,
+      )
+    }).toThrow('needs a job timeout of at least')
+    // A malformed vendor start falls back to the bootstrap; a missing
+    // bootstrap refuses instead of admitting blind.
+    expect(jobStartMs({ ...bootstrap, CI_JOB_STARTED_AT: 'not-a-date' }, 'gitlab', now)).toBe(
+      now - 120_000,
+    )
+    expect(() => bootstrapStartMs({})).toThrow('MUSE_CI_BOOTSTRAP_START_MS')
     expect(requiredJobMinutes({ timeoutMinutes: 20 })).toBeLessThanOrEqual(35)
+    expect(requiredRunMs({ timeoutMinutes: 20 })).toBeLessThan(35 * 60_000)
     expect(jobMinutes({ CI_JOB_TIMEOUT: '2100' }, 'gitlab')).toBe(35)
     expect(jobMinutes({ MUSE_CI_JOB_TIMEOUT_MINUTES: '35' }, 'azure')).toBe(35)
     expect(() => jobMinutes({}, 'jenkins')).toThrow('MUSE_CI_JOB_TIMEOUT_MINUTES')
-    expect(() => {
-      checkJobDeadline({ MUSE_CI_JOB_TIMEOUT_MINUTES: '35' }, 'bitbucket', { timeoutMinutes: 20 })
-    }).not.toThrow()
     for (const minutes of [30, 120, 360]) {
       expect(() => {
-        checkJobDeadline({ MUSE_CI_JOB_TIMEOUT_MINUTES: '35' }, 'bitbucket', {
-          timeoutMinutes: minutes,
-        })
+        checkJobDeadline(
+          {
+            MUSE_CI_JOB_TIMEOUT_MINUTES: '35',
+            MUSE_CI_BOOTSTRAP_START_MS: String(Date.now()),
+          },
+          'bitbucket',
+          {
+            timeoutMinutes: minutes,
+          },
+        )
       }).toThrow(`timeout-minutes ${String(minutes)} needs a job timeout of at least`)
     }
   })
@@ -380,9 +458,8 @@ describe('end to end on each system, in process', PROCESS_SUITE, () => {
       // npm installed the verified tarball (finding 3): git and node children only.
       expect(run.spawns.some((child) => child.args.includes('--ignore-scripts'))).toBe(true)
       expectNoKeyAnywhere(run)
-      // The Action's tidy: the private invocation (checkout, prompt, diff) is gone.
-      const temp = String(run.env['MUSE_CI_TEMP'])
-      expect(readdirSync(path.join(temp, 'muse-spark'))).toEqual([])
+      // The launcher owns the bootstrap's temp directory: nothing survives.
+      expect(existsSync(String(run.env['MUSE_CI_TEMP']))).toBe(false)
     },
   )
 
@@ -460,6 +537,8 @@ describe('end to end on each system, in process', PROCESS_SUITE, () => {
     const run = await runOn('gitlab', runEnv('gitlab', clone, pkg))
     expect(run.code).toBe(0)
     expect(existsSync(sentinel)).toBe(false)
+    // A fresh job workspace for the second run (a stale output refuses first).
+    rmSync(path.join(layout().workspace, CI_OUT_DIR), { recursive: true, force: true })
     const other = ciPackage(layout().root, { exec: { result: completedResult() } })
     const mismatch = runEnv('gitlab', clone, pkg, { MUSE_INPUT_AGENT_PACKAGE_SHA256: other.sha256 })
     const refused = await runOn('gitlab', mismatch)
@@ -500,6 +579,72 @@ describe('end to end on each system, in process', PROCESS_SUITE, () => {
       expect(agentReports(pkg)).toEqual([])
     },
   )
+})
+
+describe('the output destination is refused before any model call (P1 findings 3, 4)', () => {
+  it.each([['planted directory'], ['planted symlink']])(
+    'a %s where muse-spark-out goes is removed and the run refused',
+    async (_name) => {
+      const clone = cloneFor('gitlab', layout())
+      const pkg = ciPackage(layout().root, { exec: { result: completedResult() } })
+      const env = runEnv('gitlab', clone, pkg)
+      const target = path.join(layout().workspace, CI_OUT_DIR)
+      if (_name === 'planted symlink') {
+        symlinkSync(layout().sentinels, target, 'junction')
+      } else {
+        mkdirSync(target)
+        writeFileSync(
+          path.join(target, 'outputs.json'),
+          JSON.stringify({ status: 'completed', 'exit-code': '0' }),
+        )
+      }
+      await expect(runOn('gitlab', env)).rejects.toThrow('already exists in the workspace')
+      expect(agentReports(pkg)).toEqual([])
+      expect(existsSync(target)).toBe(false)
+    },
+  )
+
+  it('refuseExistingOutput passes a clean workspace and publishes only the fixed set', async () => {
+    await expect(refuseExistingOutput(layout().workspace)).resolves.toBeUndefined()
+    expect(CI_PUBLISHED_FILES).toEqual([
+      'outputs.json',
+      'result.json',
+      'events.jsonl',
+      'fix.patch',
+      'manifest.json',
+    ])
+  })
+})
+
+/** Never settles: proves a stalled step cannot hold the run open. */
+function stalled(): Promise<never> {
+  return new Promise<never>(() => undefined)
+}
+
+describe('final publication and cleanup keep their own bounds (P2 finding 7)', () => {
+  it('a stalled copy fails the run instead of holding it open', async () => {
+    const clone = cloneFor('azure', layout())
+    const pkg = ciPackage(layout().root, { exec: { result: completedResult() } })
+    const run = await runOn('azure', runEnv('azure', clone, pkg), undefined, {
+      io: { mkdir, copyFile: stalled, writeFile, rm },
+      finalBounds: { publishMs: 50, cleanupMs: 1000 },
+    })
+    expect(run.code).toBe(1)
+    expect(run.logged).toContain('could not be published')
+    expect(existsSync(String(run.env['MUSE_CI_TEMP']))).toBe(false)
+  })
+
+  it('a stalled cleanup is logged and never changes the run result', async () => {
+    const clone = cloneFor('azure', layout())
+    const pkg = ciPackage(layout().root, { exec: { result: completedResult() } })
+    const run = await runOn('azure', runEnv('azure', clone, pkg), undefined, {
+      io: { mkdir, copyFile, writeFile, rm: stalled },
+      finalBounds: { publishMs: 10_000, cleanupMs: 50 },
+    })
+    expect(run.code).toBe(0)
+    expect(run.logged).toContain('could not be cleaned')
+    expect(outputs()).toMatchObject({ status: 'completed' })
+  })
 })
 
 describe('the installer’s pipes are drained (finding 8)', PROCESS_SUITE, () => {

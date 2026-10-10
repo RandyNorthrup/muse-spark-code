@@ -68,8 +68,21 @@ export function scriptOf(system: string): string {
   }
 }
 
-/** The shared bootstrap: the script from its `set +x` on. */
+/** The source of truth: ci-templates/bootstrap.sh with its trailing newline cut. */
+export function bootstrapSource(): string {
+  return readFileSync(path.join(REPO_ROOT, 'ci-templates', 'bootstrap.sh'), 'utf8').replace(
+    /\n$/,
+    '',
+  )
+}
+
+/** The shared bootstrap: the generated block between the template's markers. */
 export function bootstrapOf(system: string): string {
-  const script = scriptOf(system)
-  return script.slice(script.indexOf('set +x'))
+  const lines = templateText(system).split('\n')
+  const begin = lines.findIndex((line) => line.includes('BEGIN MUSE BOOTSTRAP'))
+  const end = lines.findIndex((line) => line.includes('END MUSE BOOTSTRAP'))
+  if (begin === -1 || end === -1 || end <= begin + 1) {
+    throw new Error(`no generated bootstrap in ${system}`)
+  }
+  return lines.slice(begin + 1, end).join('\n')
 }

@@ -71,7 +71,35 @@ function shims(): { dir: string; log: string } {
     )
     chmodSync(file, 0o755)
   }
+  // mktemp also records every directory it makes: the bootstrap calls it
+  // once, and nothing else in the run shells out to the mktemp binary.
+  const mktemp = path.join(dir, 'mktemp')
+  writeFileSync(
+    mktemp,
+    [
+      '#!/bin/sh',
+      `env > '${log}/mktemp.'$$'.env'`,
+      String.raw`printf '%s\n' "$@" > '${log}/mktemp.'$$'.args'`,
+      'PATH="${PATH#*:}"',
+      'result="$(mktemp "$@")"',
+      `printf '%s\n' "$result" >> '${log}/mktemp-paths'`,
+      String.raw`printf '%s\n' "$result"`,
+      '',
+    ].join('\n'),
+  )
+  chmodSync(mktemp, 0o755)
   return { dir, log }
+}
+
+/** Every temp directory the bootstrap's mktemp made during the run. */
+function madeTemps(log: string): string[] {
+  try {
+    return readFileSync(path.join(log, 'mktemp-paths'), 'utf8')
+      .split('\n')
+      .filter((line) => line !== '')
+  } catch {
+    return []
+  }
 }
 
 /** The template's own variables, as GitLab and Azure put them in the environment. */
@@ -121,6 +149,15 @@ function shimLogs(log: string): { name: string; text: string }[] {
   }))
 }
 
+/** The bootstrap's temp directory: its only mktemp call. */
+function tempOf(log: string): string {
+  const temps = madeTemps(log)
+  if (temps.length !== 1 || temps[0] === undefined) {
+    throw new Error(`expected one bootstrap temp, saw ${String(temps.length)}`)
+  }
+  return temps[0]
+}
+
 describe.runIf(isPosix)('the exact template scripts', PROCESS_SUITE, () => {
   it.each([...SYSTEMS])(
     '%s: the key reaches exec’s stdin and no program’s environment, argv or log',
@@ -151,8 +188,49 @@ describe.runIf(isPosix)('the exact template scripts', PROCESS_SUITE, () => {
       for (const file of files) {
         expect(hasKey(readFileSync(path.join(out, file), 'utf8')), file).toBe(false)
       }
+      // The launcher owns the temp directory now: nothing of it survives.
+      expect(existsSync(tempOf(run.log))).toBe(false)
     },
   )
+
+  it.each([...SYSTEMS])(
+    '%s: aliases and an exported holder never reach a child (P1 finding 2)',
+    (system) => {
+      const pkg = ciPackage(layout().root, { exec: { result: completedResult() } })
+      const run = runTemplate(system, pkg, {
+        MUSE_SPARK_MODEL_API_KEY: CI_KEY,
+        META_API_KEY: CI_KEY,
+        muse_key: 'a-decoy-holder',
+        muse_key_file: '/nonexistent-decoy',
+      })
+      expect(run.status).toBe(0)
+      const exec = agentReports(pkg).find((line) => line['command'] === 'exec' && 'keyLine' in line)
+      expect(exec?.['keyLine']).toBe(CI_KEY)
+      for (const entry of shimLogs(run.log)) expect(hasKey(entry.text), entry.name).toBe(false)
+      expect(hasKey(run.output)).toBe(false)
+    },
+  )
+
+  it('gitlab: a File-type variable reaches the launcher; shells see the path only (P1 finding 1)', () => {
+    const keyFile = path.join(layout().root, 'model-api-key')
+    writeFileSync(keyFile, CI_KEY)
+    const pkg = ciPackage(layout().root, { exec: { result: completedResult() } })
+    const run = runTemplate('gitlab', pkg, {
+      MUSE_MODEL_API_KEY: '',
+      MUSE_MODEL_API_KEY_FILE: keyFile,
+    })
+    expect(run.status).toBe(0)
+    const exec = agentReports(pkg).find((line) => line['command'] === 'exec' && 'keyLine' in line)
+    expect(exec?.['keyLine']).toBe(CI_KEY)
+    for (const entry of shimLogs(run.log)) {
+      expect(hasKey(entry.text), entry.name).toBe(false)
+      // The shells saw the path, never the value.
+      if (entry.name.startsWith('mktemp.') || entry.name.startsWith('curl.')) {
+        expect(entry.text).not.toContain(CI_KEY)
+      }
+    }
+    expect(hasKey(run.output)).toBe(false)
+  })
 
   it('a tarball whose digest differs is never unpacked or run (finding 3)', () => {
     const pkg = ciPackage(layout().root, { exec: { result: completedResult() } })
@@ -162,6 +240,8 @@ describe.runIf(isPosix)('the exact template scripts', PROCESS_SUITE, () => {
     expect(shimLogs(run.log).some((entry) => entry.name.startsWith('tar.'))).toBe(false)
     expect(agentReports(pkg)).toEqual([])
     expect(existsSync(path.join(layout().workspace, CI_OUT_DIR))).toBe(false)
+    // The trap owns the temp directory on the digest failure path too.
+    expect(existsSync(tempOf(run.log))).toBe(false)
   })
 
   it('an unpinned template refuses before downloading', () => {
