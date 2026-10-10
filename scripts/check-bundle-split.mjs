@@ -690,6 +690,21 @@ for (const file of VAULT_ONLY) {
     problems.push(`${VAULT.output} no longer carries ${file}`)
   }
 }
+// C-M109-1b: portable broker composition and POSIX native adapters load in their child only.
+const VAULT_BROKER = { output: 'dist/vaultBroker.js', metafile: 'dist/meta/vaultBroker.json' }
+const vaultBroker = inputsOf(VAULT_BROKER)
+for (const file of [
+  'src/runtime/vault/vaultBrokerEntry.ts',
+  'src/runtime/vault/brokerProcess.ts',
+  'src/runtime/vault/posixNative.ts',
+  'src/runtime/vault/slots/osStoreVaultSlot.ts',
+  'src/runtime/vault/slots/posixVaultSlots.ts',
+]) {
+  if (!vaultBroker.has(file)) problems.push(`${VAULT_BROKER.output} no longer carries ${file}`)
+  for (const [output, inputs] of [...loaders, [BUNDLES.modelApi.output, modelApi]])
+    if (inputs.has(file))
+      problems.push(`${output} carries ${file}, which belongs to the broker child`)
+}
 // M83: the import from other agents loads on the first import.
 const IMPORT_ONLY = [
   'src/host/agentImportEntry.ts',

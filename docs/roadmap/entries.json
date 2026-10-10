@@ -808,7 +808,7 @@
     {
       "id": "M109",
       "title": "Credential vault for agents",
-      "summary": "Credential vault management stays closed in releases until broker bindings are certified, with internal OS-store slots for Linux Secret Service and the macOS login Keychain and approved uses that keep values from agents.",
+      "summary": "Credential vault management stays closed until its bindings are certified; the internal POSIX broker uses Linux Secret Service and the macOS login Keychain, with approved uses that keep values from agents.",
       "area": "security",
       "release": "0.17.0"
     },

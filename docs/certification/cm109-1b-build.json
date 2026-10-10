@@ -1,0 +1,22 @@
+{
+  "rig": "Kubuntu",
+  "date": "2026-10-10",
+  "sourceBase": "b55e306c3",
+  "brokerBytes": 103730,
+  "brokerFirstCapBytes": 119290,
+  "extensionBytes": 563348,
+  "modelApiBytes": 528186,
+  "modelsBodyBytes": 77652,
+  "modelsBodyBaseRevision": "96ded9299",
+  "modelsBodyBaseBytes": 77652,
+  "modelsBodyCapBytes": 76800,
+  "peer": {
+    "architecture": "linux-x64",
+    "bytes": 14464,
+    "sha256": "0475f79329d1edd3267996ca5c4f003e5fc0fde82eb3132d9dc95c79d1fb782f",
+    "source": "src/core/vault/broker/peer.c",
+    "sourceSha256": "6e7dc6cbeb6edf28da36a57b51d9490d020fa7d238e05150f035270a19755b0e",
+    "flags": ["-Os", "-s", "-Wall", "-Wextra", "-Werror"]
+  },
+  "modelAttempts": 0
+}

@@ -5171,16 +5171,20 @@ Settings (all machine-scoped, so no workspace can change them):
 boolean remains effective until the new flag is explicitly configured), `museSpark.vault.protection` (`auto` is available
 hardware plus the OS store, with the recovery code offered at setup),
 `museSpark.vault.agentFence` (on), `museSpark.vault.lockAfterIdleMinutes`
-(240) and `museSpark.vault.lockOnScreenLock` (on). The Secure Enclave
-hardware and presence slots are offered where `SecureEnclave.isAvailable`,
-after the owner's Touch ID capture; the Keychain-biometry path stays off
-until an Apple Developer entitlement exists.
+(240) and `museSpark.vault.lockOnScreenLock` (on). The internal POSIX broker uses Linux Secret Service and the macOS login
+Keychain. Linux needs a signed-in desktop session and an unlocked keyring;
+macOS needs an unlocked login Keychain. Touch ID / Keychain biometry is not
+offered: the required Apple Developer ID is unavailable (M109 decision 10).
+Linux hardware unlock and screen-lock integration remain in C-M109-2.
 
 The terminal/ACP/headless handlers are implemented against the shared vault
 contracts. This branch still needs the installed broker factory and panel
 bindings from M109 W/U/M104. It does not claim a working packaged vault:
 missing bindings report the broker installation failure and refuse access.
-No activation read or broker start is added.
+No activation read or broker start is added. Internal broker composition,
+its installed-runtime contract and the native receipts are documented in
+[the broker process contract](docs/design/vault-broker-process.md) and
+[the POSIX certification](docs/certification/cm109-1b.md).
 
 The terminal grammar is `muse-spark-code-acp vault` followed by `status`,
 `unlock [slot-id]`, `lock`, `list`, `add <metadata-json>`, `remove <item-id>`,

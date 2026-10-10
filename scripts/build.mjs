@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { buildLinuxHelper } from './build-linux-helper.mjs'
+import { buildVaultPeer } from './build-vault-peer.mjs'
 import { resourceBrowserValidation, webviewEntryMetafile } from './lib/webviewBundles.mjs'
 import { listIntegrationTests } from './lib/integrationTests.mjs'
 // Bundles the extension host entry, the Model API backend, the review, the search worker,
@@ -97,6 +98,7 @@ cpSync('src/core/legal/data/provenance.json', 'dist/legal-data/provenance.json',
 
 const args = new Set(process.argv.slice(2))
 buildLinuxHelper()
+buildVaultPeer()
 
 const isProduction = args.has('--production')
 const isWatch = args.has('--watch')
@@ -992,6 +994,13 @@ const validationOptions = {
   outfile: VALIDATION_OUTFILE,
 }
 
+const vaultBrokerOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/runtime/vault/vaultBrokerEntry.ts'],
+  outfile: 'dist/vaultBroker.js',
+  external: ['@napi-rs/keyring'],
+}
+
 const vaultBoundariesOptions = {
   ...modelApiOptions,
   plugins: [sharedUiText, sharedValidation],
@@ -1246,6 +1255,7 @@ if (isWatch) {
     esbuild.context(usagePanelOptions),
     esbuild.context(extensionHooksOptions),
     esbuild.context(vaultOptions),
+    esbuild.context(vaultBrokerOptions),
     esbuild.context(reportOptions),
     esbuild.context(estimatorOptions),
     esbuild.context(recorderOptions),
@@ -1359,6 +1369,7 @@ if (isWatch) {
     usagePanel: esbuild.build(usagePanelOptions),
     extensionHooks: esbuild.build(extensionHooksOptions),
     vault: esbuild.build(vaultOptions),
+    vaultBroker: esbuild.build(vaultBrokerOptions),
     report: esbuild.build(reportOptions),
     estimator: esbuild.build(estimatorOptions),
     recorder: esbuild.build(recorderOptions),
@@ -1487,6 +1498,7 @@ if (isWatch) {
   reportSize('dist/usagePanel.js')
   reportSize(EXTENSION_HOOKS_OUTFILE)
   reportSize(VAULT_OUTFILE)
+  reportSize('dist/vaultBroker.js')
   reportSize(REPORT_OUTFILE)
   reportSize(ESTIMATOR_OUTFILE)
   reportSize(RECORDER_OUTFILE)

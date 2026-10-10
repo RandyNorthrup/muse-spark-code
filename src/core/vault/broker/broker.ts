@@ -406,6 +406,10 @@ export class VaultBroker implements VaultBrokerPort {
       },
     })
   }
+  /** Cold-start synchronization before listening; it never bumps another broker's shared epoch. */
+  async synchronizeEpoch(): Promise<void> {
+    await this.call({ kind: 'lock', bump: false, epoch: await this.deps.epoch.current() })
+  }
   async unlock(slotId: string | null = null): Promise<void> {
     await this.call({ kind: 'unlock', slotId })
   }
