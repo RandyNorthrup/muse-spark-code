@@ -29870,6 +29870,22 @@ receipts remain the lead's checks under the rig brief.
   (allowed and refused). Record: `docs/certification/m101.md`; updated
   evidence in `docs/certification/m101-eval-arms.md`.
 
+  **CM1012R3 repair of review RVCM1012B (2026-10-10, kubuntu).** Both
+  findings fixed, no residuals. The frozen digest is now computed over the
+  transitive static-import closure of the arm modules
+  (`src/core/eval/armSources.ts`), not a hand-kept list: every
+  harness-owned file the arms reach contributes its bytes (so an arm
+  helper such as the admission's `noop` is covered), and every outside
+  binding they draw contributes its canonical value (capabilities, quirks,
+  windows, thresholds); anything the walk cannot cover fails closed. The
+  held-deps list moved to `src/core/eval/heldDeps.ts` so the digest need
+  not depend on the driver, which drives the production host the harness
+  measures rather than freezes. Re-frozen as `80d6fd00…ea95959`. The two
+  dependency-key assertions in `test/unit/eval/evalFrozen.test.ts` are
+  recorded in §8 with their reasons, guarded by a test that fails when the
+  rows go missing. Record: `docs/certification/m101.md`; updated evidence
+  in `docs/certification/m101-eval-arms.md`.
+
   **C2 final-review accounting correction.** If shared settlement throws during
   an HTTP retry notice, mark that attempt consumed before invoking settlement
   so cleanup cannot settle it a second time. A complete-file regression must
@@ -43003,6 +43019,11 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerImportExport.test.ts`      | `as { version: number; providers: ProviderEntry[] }` on this lane's own export text | `JSON.parse` returns `any`; the text is `exportProviders` output, so the cast names its document shape for the field assertions. A foreign shape never reaches this cast: the malformed-import tests exercise `parseProvidersDocument` directly. Test-only. | 2026-10-05 |
 | `test/unit/modelsPanel.test.ts`               | `as { providers: readonly unknown[] }` on this lane's own export text               | `JSON.parse` returns `any`; the text is the round-tripped export, so the cast names its document shape for the count assertion. A foreign shape never reaches this cast: the malformed-import tests exercise `parseProvidersDocument` directly. Test-only.  | 2026-10-05 |
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
+
+| CM1012R3 file                                             | Construct                                                                                | Reason                                                                                                                                                                                                                                                                                                                                                                      | Added      |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/eval/evalFrozen.test.ts:98` (`changedKeys`)    | `(Object.keys(changed) as (keyof ModelApiHostDeps)[])` on the arm's changed dependencies | TypeScript types `Object.keys` as `string[]` and cannot verify the narrowing. It is sound: `changed` is a `ModelApiHostDeps`, so every key is one of its keys, and the same test's exact-key assertion fails on any surprise the cast could hide. `test/unit/eval/evalFrozen.test.ts` (`records the dependency-key assertion`) fails when this row goes missing. Test-only. | 2026-10-10 |
+| `test/unit/eval/evalFrozen.test.ts:116` (held-deps check) | `(EVAL_HELD_DEPS as readonly string[])` on the held-deps tuple                           | TypeScript cannot verify the tuple-to-`string[]` widening. It is sound: the tuple holds dep-key literals, every one a string, so testing membership against a changed key cannot misfire. Same guard test as above. Test-only.                                                                                                                                              | 2026-10-10 |
 
 ## 9. Security assumptions and accepted residual risk
 

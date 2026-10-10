@@ -25,7 +25,8 @@ import {
   OBS_PACK_THRESHOLD_CHARS,
   OBS_PACK_WHOLE_SENDS,
 } from '../../shared/constants'
-import { EVAL_HELD_DEPS } from './driver'
+import { collectArmSources } from './armSources'
+import { EVAL_HELD_DEPS } from './heldDeps'
 import type { EvalArm } from './runner'
 import { EVAL_TASKS, EVAL_VERIFY_PRELUDE, evalWindowTokens } from './tasks'
 
@@ -106,12 +107,15 @@ export const EVAL_ARMS: readonly [EvalArm, ...EvalArm[]] = [
  * flags and resolved window, in run order, beside the harness conditions
  * that decide a run's behaviour (the verifier prelude, the window rule's
  * source, the held-deps list and the frozen window and approval-mode
- * defaults). A run records it beside its report; a changed harness hashes
- * differently, so no counted run can silently run a different set. A
- * behaviour change that keeps every name and description (flipping the
- * arm's latch, narrowing strict tools, shrinking the window) still moves
- * this digest through the change source, the prelude, the rule source or
- * the resolved values.
+ * defaults) and the arms' source closure (`src/core/eval/armSources.ts`):
+ * every harness-owned file the arms reach, by bytes, plus every outside
+ * binding they draw, by canonical value. A run records it beside its
+ * report; a changed harness hashes differently, so no counted run can
+ * silently run a different set. A behaviour change that keeps every name
+ * and description (flipping the arm's latch, narrowing strict tools,
+ * shrinking the window, rewriting an arm helper the callback only
+ * references) still moves this digest through the change source, the
+ * prelude, the rule source, the resolved values or the source closure.
  */
 export function evalHarnessDigest(): string {
   const canonical = JSON.stringify({
@@ -120,6 +124,7 @@ export function evalHarnessDigest(): string {
       mechanism: arm.mechanism ?? null,
       change: arm.change?.toString() ?? null,
     })),
+    armSources: collectArmSources(),
     tasks: EVAL_TASKS.map((task) => ({
       id: task.id,
       split: task.split,

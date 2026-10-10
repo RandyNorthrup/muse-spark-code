@@ -1,12 +1,18 @@
 // The frozen M75 harness (M101 lane C-M101-2): the arms and tasks the
-// counted run uses, named exactly, with the digest of their frozen bytes.
+// counted run uses, named exactly, with the digest of their frozen bytes
+// (including the arms' source closure: every helper and value the arms
+// draw, discovered through the import graph in src/core/eval/armSources).
 // Changing any arm or task breaks this file on purpose: re-freeze by
 // recording the new digest here and in docs/certification/m101-eval-arms.md,
 // never by weakening the comparison.
 
 import { createHash } from 'node:crypto'
+import { existsSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
+import process from 'node:process'
 import { describe, expect, it } from 'vitest'
-import { EVAL_HELD_DEPS } from '../../../src/core/eval/driver'
+import { EVAL_HELD_DEPS } from '../../../src/core/eval/heldDeps'
 import {
   AUTO_COMPACTION_ARM,
   BASELINE_ARM,
@@ -62,7 +68,7 @@ describe('the frozen evaluation harness', () => {
 
   it('keeps the frozen digest', () => {
     expect(evalHarnessDigest()).toBe(
-      'dc3f6372cdfea74e244cb35e2fc19b4fce03d6d706372eb04e1e0bacd3cdd15f',
+      '80d6fd0028a04bdad33af83a042bfa2f365500dd348de584260d85909ea95959',
     )
   })
 
@@ -85,6 +91,10 @@ describe('the frozen evaluation harness', () => {
         return []
       }
       const changed = arm.change(base)
+      // The compiler cannot verify this narrowing (PLAN.md §8): Object.keys
+      // is typed as string[], but `changed` is a ModelApiHostDeps, so every
+      // key is one of its keys; the exact-key assertion below fails on any
+      // surprise the cast could hide.
       return (Object.keys(changed) as (keyof ModelApiHostDeps)[])
         .filter((key) => changed[key] !== base[key])
         .map(String)
@@ -99,10 +109,35 @@ describe('the frozen evaluation harness', () => {
       ]),
     )
     for (const arm of EVAL_ARMS) {
+      // The compiler cannot verify this widening either (PLAN.md §8): the
+      // tuple holds dep-key literals, every one a string, so testing
+      // membership against a changed key is sound.
       expect(
         changedKeys(arm).filter((key) => (EVAL_HELD_DEPS as readonly string[]).includes(key)),
       ).toEqual([])
     }
+  })
+
+  it('records the dependency-key assertion in PLAN.md §8', async () => {
+    // AGENTS.md rule 4: a cast the compiler cannot verify needs an inline
+    // reason (above) and a row in the escape-hatches register. This test
+    // fails when the row goes missing, so the audit record cannot drift
+    // the way review RVCM1012B finding 2 describes.
+    let dir = process.cwd()
+    for (let depth = 0; depth < 32; depth += 1) {
+      const candidate = path.join(dir, 'PLAN.md')
+      if (existsSync(candidate)) {
+        const plan = await readFile(candidate, 'utf8')
+        expect(plan).toContain('test/unit/eval/evalFrozen.test.ts')
+        expect(plan).toContain('keyof ModelApiHostDeps')
+        expect(plan).toContain('EVAL_HELD_DEPS as readonly string')
+        return
+      }
+      const parent = path.dirname(dir)
+      if (parent === dir) throw new Error('PLAN.md not found above the working directory')
+      dir = parent
+    }
+    throw new Error('PLAN.md not found above the working directory')
   })
 
   it('freezes the arm behaviour, not only its names and descriptions', () => {
