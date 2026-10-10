@@ -5,7 +5,17 @@ import path from 'node:path'
 import * as childProcess from 'node:child_process'
 import * as z from 'zod/mini'
 import { buildFixtureRepository } from './helpers/reporting/repository'
-import { reportOptions, REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
+import {
+  availableSource,
+  buildSourceSnapshot,
+  reportOptions,
+  REPORT_FIXTURE_AS_OF,
+  unavailableSource,
+} from './helpers/reporting/snapshot'
+import { createReportCollector } from '../../src/core/reporting/collect'
+import { finalizeReport } from '../../src/core/reporting/render/canonical'
+import { REPORT_EMPTY_HASH } from '../../src/shared/constants'
+import { RENDERERS, REPORT_THEME } from './reportRenderFixtures'
 import { gitSource, type ReportGitIo } from '../../src/core/reporting/sources/git'
 import { REPORT_GIT_MAX_COMMITS } from '../../src/shared/constants'
 import { redactSecrets } from '../../src/core/redact'
@@ -169,6 +179,130 @@ describe('local Git report source', () => {
       const bytes = JSON.stringify(result)
       expected ??= bytes
       expect(bytes).toBe(expected)
+    }
+  })
+  it('renders byte-identical changes and project reports in every format for every commit order', async () => {
+    // RVCM1131 finding 1: the tied-identity test above proves source facts
+    // are stable, but only a rendered report certifies the report. This test
+    // carries permuted Git inputs (distinct post-scrub identities, so every
+    // collector row keeps a distinct key) through the production collector,
+    // finalizer and all four renderers, for both the changes kind (commits)
+    // and the project kind (tags surface as releases). Branches and
+    // worktrees have no collector consumer today, so their order is proven
+    // at the source level only; that boundary is recorded in
+    // docs/certification/m113-s-local-sources.md.
+    const ids = ['a', 'b', 'c']
+    const orders = [
+      [0, 1, 2],
+      [0, 2, 1],
+      [1, 0, 2],
+      [1, 2, 0],
+      [2, 0, 1],
+      [2, 1, 0],
+    ]
+    const collect = createReportCollector({
+      finalize: (draft) =>
+        finalizeReport({
+          ...draft,
+          header: { ...draft.header, contentHash: REPORT_EMPTY_HASH },
+        }),
+      nextStepLimit: 3,
+      selections: {
+        changes: (snapshot) =>
+          snapshot.sources.git.data === null
+            ? unavailableSource('changesRange', 'No range evidence')
+            : availableSource('changesRange', snapshot.sources.git.data.commits),
+        changeBranches: (snapshot) =>
+          snapshot.sources.git.data === null
+            ? unavailableSource('changeBranches', 'No branch ancestry evidence')
+            : availableSource(
+                'changeBranches',
+                snapshot.sources.git.data.commits.map((commit) => ({
+                  commit: commit.sha,
+                  branches: [],
+                })),
+              ),
+        risksSinceRelease: () => unavailableSource('risksSinceRelease', 'No revision evidence'),
+      },
+    })
+    let expectedSource: string | undefined
+    let expectedRenders: Record<string, string> | undefined
+    for (const order of orders) {
+      const fake: ReportGitIo = {
+        run: (args) => {
+          let stdout = ''
+          if (args.includes('--verify')) stdout = 'a'.repeat(40)
+          else if (args.includes('log'))
+            stdout = order
+              .map((step) => {
+                const id = ids[step] ?? 'a'
+                const at = new Date(
+                  Date.parse(REPORT_FIXTURE_AS_OF) + (step + 1) * 1000,
+                ).toISOString()
+                return `\0${id.repeat(40)}\0${at}\0Render subject ${id}\0\n${id}.ts\0`
+              })
+              .join('')
+          else if (args.includes('worktree'))
+            stdout = order
+              .map((step) => {
+                const id = ids[step] ?? 'a'
+                return `worktree /fixture/render-${id}\0HEAD ${id.repeat(40)}\0branch refs/heads/render/${id}\0\0`
+              })
+              .join('')
+          else if (args.includes('refs/tags/'))
+            stdout = order
+              .map((step) => {
+                const id = ids[step] ?? 'a'
+                const at = new Date(
+                  Date.parse(REPORT_FIXTURE_AS_OF) + (step + 1) * 1000,
+                ).toISOString()
+                return `render-tag-${id}\0${id.repeat(40)}\0\0${at}\n`
+              })
+              .join('')
+          else if (args.some((arg) => arg.startsWith('--merged='))) stdout = 'refs/heads/main\n'
+          else if (args.includes('for-each-ref'))
+            stdout =
+              `refs/heads/main\0${'a'.repeat(40)}\n` +
+              order
+                .map(
+                  (step) =>
+                    `refs/heads/render/${ids[step] ?? 'a'}\0${(ids[step] ?? 'a').repeat(40)}\n`,
+                )
+                .join('')
+          return Promise.resolve({ stdout, code: args.includes('symbolic-ref') ? 1 : 0 })
+        },
+      }
+      const result = await gitSource(fake, (text) =>
+        text.replaceAll('private-render-canary', '[redacted]'),
+      ).read(context())
+      expect(result.record.status).toBe('ok')
+      expect(result.data?.commits.map((row) => row.sha)).toEqual([
+        'a'.repeat(40),
+        'b'.repeat(40),
+        'c'.repeat(40),
+      ])
+      const bytes = JSON.stringify(result)
+      expectedSource ??= bytes
+      expect(bytes).toBe(expectedSource)
+      if (result.data === null) throw new Error('Missing test facts')
+      const snapshot = buildSourceSnapshot({
+        git: result,
+        changelog: availableSource('changelog', {
+          sections: [{ version: 'Unreleased', date: null, lines: ['Render change'] }],
+        }),
+      })
+      const rendered: Record<string, string> = {}
+      for (const kind of ['changes', 'project'] as const) {
+        const document = collect(snapshot, reportOptions(kind))
+        expect(document.header.contentHash).toMatch(/^[a-f0-9]{64}$/u)
+        for (const format of ['md', 'html', 'json', 'text'] as const) {
+          const output = RENDERERS[format](document, 'en', REPORT_THEME)
+          expect(output).toContain(document.header.contentHash)
+          rendered[`${kind}/${format}`] = output
+        }
+      }
+      expectedRenders ??= rendered
+      expect(rendered).toEqual(expectedRenders)
     }
   })
   it('shows working-tree paths relative to the workspace before scrubbing', async () => {
