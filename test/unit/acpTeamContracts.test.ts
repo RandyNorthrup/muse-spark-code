@@ -1394,6 +1394,116 @@ describe('RVCM96B0F strict entry parse', () => {
   })
 })
 
+describe('RVCM96B0G JSON shapes and failure paths', () => {
+  const contentBuilders = [
+    (diffs: ToolCallContent[]) => teamTaskDiffUpdate({ taskId: 't1', diffs }).content,
+    (diffs: ToolCallContent[]) =>
+      teamTaskReportUpdate({ taskId: 't1', report: 'done', diffs }).content?.slice(1),
+    (diffs: ToolCallContent[]) =>
+      teamMergeRequest({
+        sessionId: 's1',
+        mergeId: 'm1',
+        role: 'merger',
+        agent: 'zed',
+        detail: 'Land t1',
+        diffs,
+        options: OPTIONS,
+      }).toolCall.content,
+    (diffs: ToolCallContent[]) =>
+      teamMergeCompletedCall({
+        mergeId: 'm1',
+        role: 'merger',
+        agent: 'zed',
+        detail: 'Land t1',
+        diffs,
+      }).content,
+  ]
+
+  it('refuses non-JSON extras at every content layer on every consuming builder', () => {
+    const exotic: readonly unknown[] = [() => 1, Symbol('s'), 1n, undefined, NaN]
+    for (const build of contentBuilders) {
+      for (const future of exotic) {
+        for (const text of [
+          { type: 'content', content: { type: 'text', text: 'report' }, future },
+          { type: 'content', content: { type: 'text', text: 'report', future } },
+          { ...DIFF, future },
+        ]) {
+          expect(() => build([DIFF, atRuntime(text)])).toThrow(TeamContractError)
+        }
+      }
+    }
+  })
+
+  it('preserves and isolates plain JSON extras at every content layer', () => {
+    for (const build of contentBuilders) {
+      const outer = { version: 1 }
+      const inner = { nested: [{ version: 1 }] }
+      const diffExtra = { versions: [1, 2] }
+      const content: ToolCallContent[] = [
+        atRuntime({ ...DIFF, future: diffExtra }),
+        atRuntime({
+          type: 'content',
+          content: { type: 'text', text: 'report', future: inner },
+          future: outer,
+        }),
+      ]
+      const expected = structuredClone(content)
+      const output = build(content)
+      outer.version = 2
+      for (const item of inner.nested) item.version = 2
+      diffExtra.versions.push(1)
+      expect(output).toEqual(expected)
+      expect(JSON.stringify(output)).toBe(JSON.stringify(expected))
+    }
+  })
+
+  // Changing caller accessors are outside the lead's threat model. This pins
+  // branch selection so a content parser never revisits the original diff.
+  it('reads each nested diff getter once and keeps its first value', () => {
+    for (const build of contentBuilders) {
+      let reads = 0
+      const diff = {
+        type: 'diff',
+        path: '/repo/a.ts',
+        get newText() {
+          reads++
+          return reads === 1 ? 'approved' : 'unreviewed'
+        },
+      }
+      expect(build([atRuntime(diff)])).toEqual([
+        { type: 'diff', path: '/repo/a.ts', newText: 'approved' },
+      ])
+      expect(reads).toBe(1)
+    }
+  })
+
+  it('wraps unreadable thrown objects as TeamContractError without inspecting them', () => {
+    const revoked = Proxy.revocable({}, {})
+    revoked.revoke()
+    const thrownValues: readonly unknown[] = [
+      revoked.proxy,
+      new Proxy(
+        {},
+        {
+          getPrototypeOf() {
+            throw new Error('unreadable prototype')
+          },
+        },
+      ),
+    ]
+    for (const thrown of thrownValues) {
+      const input = {
+        role: 'coder',
+        agent: 'zed',
+        get detail(): never {
+          throw thrown
+        },
+      }
+      expect(() => formatTeamPermissionTitle(atRuntime(input))).toThrow(TeamContractError)
+    }
+  })
+})
+
 describe('M96b exec --team admission', () => {
   it('needs the Model API backend, acceptEdits and the runner lane', () => {
     expect(teamExecAdmission({ mode: 'acceptEdits', backend: 'museCode' })).toEqual({
