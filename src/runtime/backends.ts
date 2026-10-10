@@ -213,7 +213,6 @@ interface MuseHomes {
 
 function modelApiManager(
   deps: RuntimeBackendDeps,
-  credentials: CredentialStore,
   subscription: SubscriptionCredential,
   storedWorkspaceRoot: string,
   workspaceRoot: string,
@@ -696,7 +695,6 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     workspaceEdits.set(key, edits)
     const manager = modelApiManager(
       deps,
-      credentials,
       subscription,
       cwd,
       canonical,

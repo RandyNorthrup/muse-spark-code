@@ -75,10 +75,20 @@ describe('subscription billing', () => {
     const turn = await runTurn({ subscriptionBilling: true })
     expect(turn.terminal).toBe('completed')
     expect(turn.contexts).toHaveLength(1)
-    const context = turn.contexts[0]?.context
-    expect(context?.pricing).toEqual({ kind: 'plan' })
-    const record = createUsageRecord(turn.contexts[0]?.usage, {
-      ...context,
+    const first = turn.contexts[0]
+    if (first === undefined) throw new Error('expected the subscription turn to record one call')
+    // RecordedCall's explicit-undefined extras cannot spread into the
+    // journal context under exactOptionalPropertyTypes; the fake turn sets
+    // none of them, so they stay absent while the recorded pricing carries.
+    const { pricing, providerCostUsd, uncertain, retainedLiabilityUsd, ...rest } = first.context
+    expect(pricing).toEqual({ kind: 'plan' })
+    expect(providerCostUsd).toBeUndefined()
+    expect(uncertain).toBeDefined()
+    expect(retainedLiabilityUsd).toBeUndefined()
+    const record = createUsageRecord(first.usage, {
+      ...rest,
+      ...(pricing !== undefined && { pricing }),
+      ...(uncertain !== undefined && { uncertain }),
       id: 'record',
       at: Date.now(),
       client: 'test',

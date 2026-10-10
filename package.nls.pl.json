@@ -250,5 +250,6 @@
   "config.reports.network.enumDescriptions.always": "Zezwól na sieciowe źródła raportów.",
   "config.reports.network.enumDescriptions.off": "Odczytuj wyłącznie lokalne źródła.",
   "config.reports.keepHistory.description": "Przechowuj na tym komputerze 50 najnowszych raportów każdego rodzaju do historii i porównań.",
-  "config.reports.agentSources.description": "Zezwól na odczyt własnych plików użycia i limitów Claude Code lub Codex. Domyślnie: żadne. Tekst rozmów i pliki poświadczeń nigdy nie są odczytywane jako źródła raportów."
+  "config.reports.agentSources.description": "Zezwól na odczyt własnych plików użycia i limitów Claude Code lub Codex. Domyślnie: żadne. Tekst rozmów i pliki poświadczeń nigdy nie są odczytywane jako źródła raportów.",
+  "config.useMuseCodeSubscription.description": "Używanie backendu Model API z subskrypcją Muse Code zamiast klucza pay-as-you-go. Wywołania liczą się do planu Muse Code, nie na kartę, z kluczem subskrypcji przechowywanym przez Muse Code CLI po zalogowaniu. Brak lub nieczytelne logowanie CLI zatrzymuje wywołania Model API zamiast obciążać zapisany klucz."
 }

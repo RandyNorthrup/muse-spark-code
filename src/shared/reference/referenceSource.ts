@@ -158,6 +158,12 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
   ]),
   ...['search'].map((id): [string, readonly string[]] => [id, ['vscode:modelApi', 'acp:modelApi']]),
+  // C-M95-SUB: the subscription credential on the Model API backend, in VS
+  // Code and ACP alike.
+  ...['muse-code-subscription'].map((id): [string, readonly string[]] => [
+    id,
+    ['vscode:modelApi', 'acp:modelApi'],
+  ]),
 ]
 export const REFERENCE_CAPABILITIES = Object.fromEntries<readonly string[]>(capabilityPairs)
 export const REFERENCE_FEATURE_IDS = Object.keys(REFERENCE_CAPABILITIES)

@@ -250,5 +250,6 @@
   "config.reports.network.enumDescriptions.always": "Netzwerkquellen für Berichte erlauben.",
   "config.reports.network.enumDescriptions.off": "Nur lokale Quellen lesen.",
   "config.reports.keepHistory.description": "Die neuesten 50 Berichte je Art auf diesem Rechner für Verlauf und Vergleiche aufbewahren.",
-  "config.reports.agentSources.description": "Das Lesen Ihrer eigenen Claude-Code- oder Codex-Nutzungs- und Limitdateien erlauben. Standard: keine. Gesprächstexte und Zugangsdaten werden niemals als Berichtsquellen gelesen."
+  "config.reports.agentSources.description": "Das Lesen Ihrer eigenen Claude-Code- oder Codex-Nutzungs- und Limitdateien erlauben. Standard: keine. Gesprächstexte und Zugangsdaten werden niemals als Berichtsquellen gelesen.",
+  "config.useMuseCodeSubscription.description": "Das Model API-Backend über das Muse Code-Abonnement statt eines Pay-as-you-go-Schlüssels nutzen. Aufrufe zählen zum Muse Code-Tarif, nicht zur Karte, mit dem Abonnement-Schlüssel, den die Muse Code CLI nach der Anmeldung hält. Eine fehlende oder unlesbare CLI-Anmeldung stoppt Model API-Aufrufe, statt einen gespeicherten Schlüssel zu belasten."
 }

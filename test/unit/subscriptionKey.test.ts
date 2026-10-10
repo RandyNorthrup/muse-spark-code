@@ -11,10 +11,12 @@ import {
   subscriptionKeyRefusal,
   SubscriptionKeyError,
   SubscriptionKeySource,
-  type SubscriptionKeyFileState,
   type SubscriptionKeySourceDeps,
 } from '../../src/core/backends/modelapi/subscriptionKey'
 import { UI_TEXT } from '../../src/shared/constants'
+
+/** What the fake `stat` resolves: the size guard's only input. */
+type FakeStat = Awaited<ReturnType<NonNullable<SubscriptionKeySourceDeps['stat']>>>
 
 const CANARY = 'LLM_SUBSCRIPTION_CANARY_9f8e7d6c5b4a'
 const OTHER = 'LLM_SUBSCRIPTION_OTHER_1a2b3c4d5e6f'
@@ -23,7 +25,7 @@ function fileText(meta: unknown, version = 1): string {
   return JSON.stringify({ schema_version: version, providers: { meta } })
 }
 
-function memoryDeps(files: Map<string, string>, states: Map<string, SubscriptionKeyFileState>) {
+function memoryDeps(files: Map<string, string>, states: Map<string, FakeStat>) {
   let reads = 0
   const deps: SubscriptionKeySourceDeps = {
     platform: 'linux',
@@ -46,13 +48,27 @@ function memoryDeps(files: Map<string, string>, states: Map<string, Subscription
   return { deps, reads: () => reads }
 }
 
-function seed(files: Map<string, string>, states: Map<string, SubscriptionKeyFileState>) {
+function seed(files: Map<string, string>, states: Map<string, FakeStat>) {
   return {
-    write(file: string, text: string, state: SubscriptionKeyFileState) {
+    write(file: string, text: string, state: FakeStat) {
       files.set(file, text)
       states.set(file, state)
     },
   }
+}
+
+/** A source whose resolved auth file holds `text`. */
+function seededSource(text: string): {
+  source: SubscriptionKeySource
+  files: Map<string, string>
+  states: Map<string, FakeStat>
+} {
+  const files = new Map<string, string>()
+  const states = new Map<string, FakeStat>()
+  const { deps } = memoryDeps(files, states)
+  const source = new SubscriptionKeySource(deps)
+  seed(files, states).write(source.path(), text, { size: 10 })
+  return { source, files, states }
 }
 
 describe('readSubscriptionKeyText', () => {
@@ -139,44 +155,33 @@ describe('SubscriptionKeySource', () => {
     expect(await source.read()).toEqual({ status: 'missing', key: undefined })
     expect(reads()).toBe(0)
   })
-  it('caches by size and mtime, and reloads on rotation', async () => {
+  it('reads fresh on every call, so a rotation shows at once', async () => {
     const files = new Map<string, string>()
-    const states = new Map<string, SubscriptionKeyFileState>()
-    const { deps, reads } = memoryDeps(files, states)
+    const states = new Map<string, FakeStat>()
+    const { deps } = memoryDeps(files, states)
     const { write } = seed(files, states)
     const source = new SubscriptionKeySource({ ...deps, homeDir: '/home/u' })
     const file = source.path()
-    write(file, fileText({ api_key: CANARY }), { size: 10, mtimeMs: 1000 })
+    write(file, fileText({ api_key: CANARY }), { size: 10 })
     expect(await source.read()).toEqual({ status: 'ready', key: CANARY })
-    expect(await source.read()).toEqual({ status: 'ready', key: CANARY })
-    expect(reads()).toBe(1)
-    write(file, fileText({ api_key: OTHER }), { size: 11, mtimeMs: 2000 })
+    write(file, fileText({ api_key: OTHER }), { size: 10 })
     expect(await source.read()).toEqual({ status: 'ready', key: OTHER })
-    expect(reads()).toBe(2)
   })
   it('refuses an oversized file without reading it', async () => {
     const files = new Map<string, string>()
-    const states = new Map<string, SubscriptionKeyFileState>()
+    const states = new Map<string, FakeStat>()
     const { deps, reads } = memoryDeps(files, states)
     const source = new SubscriptionKeySource(deps)
-    states.set(source.path(), { size: 64 * 1024 + 1, mtimeMs: 1 })
+    states.set(source.path(), { size: 64 * 1024 + 1 })
     expect(await source.read()).toEqual({ status: 'unreadable', key: undefined })
     expect(reads()).toBe(0)
   })
-  it('redacts the cached key and nothing else', async () => {
-    const files = new Map<string, string>()
-    const states = new Map<string, SubscriptionKeyFileState>()
-    const { deps } = memoryDeps(files, states)
-    const source = new SubscriptionKeySource(deps)
-    expect(source.redact(`holds ${CANARY} here`)).toBe(`holds ${CANARY} here`)
-    seed(files, states).write(source.path(), fileText({ api_key: CANARY }), {
-      size: 10,
-      mtimeMs: 1,
-    })
-    await source.read()
-    expect(source.redact(`holds ${CANARY} and ${CANARY} here ${OTHER}`)).toBe(
-      `holds [redacted] and [redacted] here ${OTHER}`,
-    )
+  it('retains nothing between reads', async () => {
+    const { source, files, states } = seededSource(fileText({ api_key: CANARY }))
+    expect(await source.read()).toEqual({ status: 'ready', key: CANARY })
+    files.delete(source.path())
+    states.delete(source.path())
+    expect(await source.read()).toEqual({ status: 'missing', key: undefined })
   })
 })
 
@@ -186,26 +191,11 @@ function resolver(options: {
   text: string | undefined
 }) {
   const files = new Map<string, string>()
-  const states = new Map<string, SubscriptionKeyFileState>()
-  const source = new SubscriptionKeySource({
-    platform: 'linux',
-    homeDir: '/home/u',
-    xdgConfigHome: undefined,
-    readFile: (file: string) => {
-      const text = files.get(file)
-      return text === undefined
-        ? Promise.reject(Object.assign(new Error('gone'), { code: 'ENOENT' }))
-        : Promise.resolve(text)
-    },
-    stat: (file: string) => {
-      const state = states.get(file)
-      return state === undefined
-        ? Promise.reject(Object.assign(new Error('gone'), { code: 'ENOENT' }))
-        : Promise.resolve(state)
-    },
-  })
+  const states = new Map<string, FakeStat>()
+  const { deps } = memoryDeps(files, states)
+  const source = new SubscriptionKeySource(deps)
   if (options.text !== undefined) {
-    seed(files, states).write(source.path(), options.text, { size: 9, mtimeMs: 7 })
+    seed(files, states).write(source.path(), options.text, { size: 9 })
   }
   return resolveModelApiCredential({
     readPastedKey: () => Promise.resolve(options.pasted),
@@ -252,27 +242,17 @@ describe('refusals carry no key material', () => {
     expect(subscriptionKeyRefusal('keychain')).toBe(UI_TEXT.subscriptionKey.keychainBacked)
   })
   it('scans every output for the planted key', async () => {
-    const files = new Map<string, string>()
-    const states = new Map<string, SubscriptionKeyFileState>()
-    const { deps } = memoryDeps(files, states)
-    const source = new SubscriptionKeySource(deps)
-    seed(files, states).write(source.path(), fileText({ api_key: CANARY }), {
-      size: 10,
-      mtimeMs: 1,
-    })
+    const { source } = seededSource(fileText({ api_key: CANARY }))
     const read = await source.read()
     const outputs = [
       subscriptionKeyRefusal('missing'),
       subscriptionKeyRefusal('unreadable'),
       subscriptionKeyRefusal('keychain'),
-      JSON.stringify({ ...read, key: read.key === undefined ? undefined : 'PRESENT' }),
-      source.redact(`prefix ${CANARY} suffix`),
-      source.digestFor(CANARY),
+      JSON.stringify(read.key === undefined ? read : { status: read.status, key: 'PRESENT' }),
       String(new SubscriptionKeyError('unsigned')),
     ]
     for (const output of outputs) {
       expect(output).not.toContain(CANARY)
     }
-    expect(outputs.some((output) => output.includes('[redacted]'))).toBe(true)
   })
 })

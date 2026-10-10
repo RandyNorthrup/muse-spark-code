@@ -697,6 +697,14 @@ Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model
 
 Commands: `museSpark.signOut`, `museSpark.restartMuseCode`, `museSpark.openInTerminal`. Settings: `museSpark.backend`, `museSpark.museBinaryPath`, `museSpark.environmentVariables`, `museSpark.modelApiReplyUsage`, `museSpark.modelApiSessionBudgetUsd`, `museSpark.confidentialWorkspace`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#get-started)
 
+### Muse Code subscription
+
+Bill Model API calls to the Muse Code plan with the key the Muse Code CLI holds.
+
+Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: `museSpark.useMuseCodeSubscription`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-code-subscription)
+
 ### Several accounts per provider
 
 Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.
@@ -2527,6 +2535,19 @@ Type: `"number"`. Default: `0`. Scope: `machine`.
 }
 ```
 
+### museSpark.useMuseCodeSubscription
+
+Drive the Model API backend with the Muse Code subscription instead of a pay-as-you-go key. Calls count against the Muse Code plan, not the card, using the subscription key the Muse Code CLI holds after sign-in. A missing or unreadable CLI sign-in stops Model API calls instead of billing a stored key.
+
+Type: `"boolean"`. Default: `false`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": false
+}
+```
+
 ### museSpark.modelApiRepoMap
 
 Add a repo map to the Model API backend's system prompt in a trusted workspace: the workspace's most used files and definitions, ranked with VS Code's language services, made once per conversation in about 1,000 tokens. Off by default: it adds those tokens to every request, billed to your Model API key. Either way, the repo_map tool makes a fresh map on request.
@@ -3635,7 +3656,7 @@ These are defaults; editor customizations take precedence.
 - `auth status`: Check whether a Model API key is stored.
 - `auth clear`: Remove the stored Model API key.
 - `setup`: Run Setup hooks for init from spark-hooks.json in a trusted workspace.
-- `exec`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.
+- `exec`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --subscription / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.
 - `scan-secrets`: Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.
 - `schedule`: Usage: schedule add --draft &lt;JSON&gt; [--scheduled-prompts --max-budget-usd &lt;USD&gt;] [--report &lt;kind&gt; --to save:&lt;path&gt;|browser|email:&lt;address&gt; ... --format md|html|json|text] [-- &lt;report args&gt;] | list | remove|run-now|pause|resume|fire &lt;id&gt; | timeline [--hours 24|168] [--cwd &lt;path&gt;] [--json]; schedule run-due [--json]; schedule background off|status [--json]. Exit codes: 0 success, 1 refusal, 2 usage, 3 cleanup warning.
 - `providers accounts`: Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.
@@ -3727,6 +3748,7 @@ These are defaults; editor customizations take precedence.
 - `serve: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --scheduled-prompts`: --scheduled-prompts Offer paid scheduled prompts (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
+- `serve: --subscription`: --subscription Drive the Model API backend with the Muse Code subscription instead of a key (its calls count against the plan) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"maximum":20,"decimals":6,"required":"modelApi","unit":"USD"}`
 - `login: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
 - `login: --as <value>`: --as: Provider `{"type":"string","repeatable":false,"refused":true}`
@@ -3873,11 +3895,12 @@ These are defaults; editor customizations take precedence.
 - `exec: --fail-on-denial`: permission=denied: Stop the run when a permission request is denied. `{"type":"boolean","repeatable":false,"default":false,"purpose":"failOnDenial"}`
 - `exec: --ephemeral`: Keep the session in memory without saving it. `{"type":"boolean","repeatable":false,"default":false,"purpose":"ephemeral"}`
 - `exec: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"default":false,"purpose":"keyFromStdin"}`
+- `exec: --subscription`: --subscription Drive the Model API backend with the Muse Code subscription instead of a key (its calls count against the plan) `{"type":"boolean","repeatable":false,"default":false,"purpose":"subscription"}`
 - `exec: --vault`: --vault Allow headless exec to use vault items covered by unattended grants `{"type":"boolean","repeatable":false,"default":false,"purpose":"vault"}`
 - `exec: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"verbose"}`
-- `exec: --trust-workspace`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"trust-workspace"}`
-- `exec: --allow-dangerously-skip-permissions`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"allow-dangerously-skip-permissions"}`
-- `exec: --web-search`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"web-search"}`
+- `exec: --trust-workspace`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --subscription / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"trust-workspace"}`
+- `exec: --allow-dangerously-skip-permissions`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --subscription / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"allow-dangerously-skip-permissions"}`
+- `exec: --web-search`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --subscription / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"web-search"}`
 - `exec: --resource-governor <value>`: --resource-governor on|off: Keep this machine responsive by throttling or deferring harness work. On by default. `{"type":"string","repeatable":false,"purpose":"resource-governor"}`
 - `exec: --cpu-max <value>`: resourceThreshold: --cpu-max &lt;percent&gt;: Throttle when CPU stays above this percentage for 30 seconds. `{"type":"string","repeatable":false,"purpose":"cpu-max"}`
 - `exec: --memory-max <value>`: resourceThreshold: --memory-max &lt;percent&gt;: Throttle when used memory stays above this percentage for two samples. `{"type":"string","repeatable":false,"purpose":"memory-max"}`
@@ -3898,7 +3921,7 @@ These are defaults; editor customizations take precedence.
 - `estimate: --format <value>`: --format md|html|json|text: Output format `{"type":"string","repeatable":false}`
 - `estimate: --seed <value>`: --seed &lt;seed&gt;: Simulation seed `{"type":"string","repeatable":false}`
 - `estimate: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
-- `exec <prompt> | exec - | exec --prompt-file <file>`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.
+- `exec <prompt> | exec - | exec --prompt-file <file>`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --subscription / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.
 - `scan-secrets <file> [--key-stdin]`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.
 - `playbook <status|record|settings ...>`: Show or change the orchestrator playbook journal for this workspace (starts no backend).
 

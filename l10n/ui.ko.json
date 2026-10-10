@@ -339,7 +339,8 @@
     "estimate-by": "--by <date>: 마감일",
     "fleet": "--fleet current|minimum|optimum: 현재 장비 구성 / 최소 구성 / 최적 구성",
     "estimate-format": "--format md|html|json|text: 출력 형식",
-    "seed": "--seed <seed>: 시뮬레이션 시드"
+    "seed": "--seed <seed>: 시뮬레이션 시드",
+    "subscription": "--subscription                 키 대신 Muse Code 구독으로 Model API 백엔드 사용 (호출은 플랜에 합산)"
   },
   "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다.",
   "referenceVault": "터미널에서 사용자별 자격 증명 Vault로 작업합니다: 상태, 잠금 해제, 잠금, 목록, 추가, 부여, 감사, 가져오기 및 감시. 값은 절대 인쇄되지 않으며 브로커가 보관합니다.",
@@ -358,7 +359,7 @@
   "referenceBrowserDownload": "Chrome for Testing: 다운로드 (설정: museSpark.browserCheckRuntime).",
   "referenceRemoveSkills": "확장 프로그램이 관리하는 Muse Code 스킬 복사본과 링크만 제거하고 다른 스킬은 유지합니다.",
   "referenceInstallSkills": "project_setup, feature_delivery, quality_retrofit을 Muse Code 설정에 복사하고 스킬로 연결합니다.",
-  "referenceExecContract": "헤드리스 실행에서는 작업 영역 신뢰와 권한 우회를 거부합니다. 헤드리스 실행에서는 plan 또는 acceptEdits만 허용합니다. 호스팅 웹 검색에는 보장된 한도가 없어 거부합니다. 이미지 생성에는 acceptEdits가 필요합니다. 프롬프트 입력 소스를 하나만 선택하세요. 프롬프트와 키가 동시에 stdin을 사용할 수 없습니다. Model API에는 --max-budget-usd가 필요합니다. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+  "referenceExecContract": "헤드리스 실행에서는 작업 영역 신뢰와 권한 우회를 거부합니다. 헤드리스 실행에서는 plan 또는 acceptEdits만 허용합니다. 호스팅 웹 검색에는 보장된 한도가 없어 거부합니다. 이미지 생성에는 acceptEdits가 필요합니다. 프롬프트 입력 소스를 하나만 선택하세요. 프롬프트와 키가 동시에 stdin을 사용할 수 없습니다. Model API에는 --max-budget-usd가 필요합니다. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --subscription / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help --all: 명령, 설정, 기능에 대한 설명과 문서입니다.",
   "referenceKeyStdin": "auth set: 터미널에서 키를 읽어 이 컴퓨터의 자격 증명 저장소에 보관합니다. 대화 요금은 이 키로 청구됩니다. exec / scan-secrets --key-stdin: 터미널이 아닌 파이프에서 키를 읽으세요. stdin → memory; prompt stdin + key stdin = 프롬프트와 키가 동시에 stdin을 사용할 수 없습니다.",
   "referenceModalKeys": "대화 상자를 닫거나 내부에서 초점을 이동합니다.",
@@ -3370,7 +3371,7 @@
   "acpFontIntegrity": "글꼴 파일 검증 실패: {file}",
   "acpFontInstallFailed": "글꼴 팩을 설치할 수 없습니다.",
   "acpFontsUsage": "사용법: {command} fonts install [--from <directory>]",
-  "acpUsage": "사용법:\n  {command} [옵션]              stdin과 stdout으로 Agent Client Protocol을 제공합니다\n  {command} [옵션] login        이 터미널에서 Muse Code에 로그인합니다\n  {command} auth set|status|clear  Meta Model API 키를 저장, 확인 또는 제거합니다\n  {command} auth set|status|clear --provider <id>  공급자 키를 저장, 확인 또는 제거합니다(stdin에서 읽음)\n  {command} providers list|add|test|remove  모델 공급자를 관리합니다\n  {command} exec [options] <prompt>  헤드리스 한 턴 실행\n  {command} scan-secrets <file> [--key-stdin]  파일 하나에서 비밀로 보이는 항목 수 세기(개수만 출력)\n  {command} report [options]  정제된 문제 보고서 출력(백엔드를 시작하지 않고 브라우저를 열지 않음)\n  {command} legal [options]  읽기 전용 법률 검사를 실행합니다(백엔드, 로그인 불필요)\n옵션:\n  --backend museCode|modelApi      결제 주체: Muse Code(기본값) 또는 Model API 키\n  --trust-workspace                폴더의 규칙, 스킬, 메모리를 불러옵니다\n  --muse-binary <경로>             실행할 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code의 셸 샌드박스\n  --questions-defer-after <seconds>  기본적으로 60초 후 질문 보류; 0은 보류하지 않음, 1–9는 10으로 처리, 최대 3600\n  --allow-dangerously-skip-permissions  \"권한 우회\" 모드를 제공합니다\n  --allow-contributor-models       기여자 등급 모델을 표시합니다(Meta가 해당 콘텐츠로 학습할 수 있음)\n  --web-search                     유료 웹 검색을 제공합니다(Model API 백엔드, 먼저 요금을 묻습니다)\n  --image-generation               유료 이미지 생성을 제공합니다(Model API 백엔드, 먼저 요금을 묻습니다)\n  --no-auto-compaction             자동 압축 비활성화\n  --verbose                        모든 세부 정보를 stderr에 기록합니다\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Setup 후크를 실행하고 종료합니다",
+  "acpUsage": "사용법:\n  {command} [옵션]              stdin과 stdout으로 Agent Client Protocol을 제공합니다\n  {command} [옵션] login        이 터미널에서 Muse Code에 로그인합니다\n  {command} auth set|status|clear  Meta Model API 키를 저장, 확인 또는 제거합니다\n  {command} auth set|status|clear --provider <id>  공급자 키를 저장, 확인 또는 제거합니다(stdin에서 읽음)\n  {command} providers list|add|test|remove  모델 공급자를 관리합니다\n  {command} exec [options] <prompt>  헤드리스 한 턴 실행\n  {command} scan-secrets <file> [--key-stdin]  파일 하나에서 비밀로 보이는 항목 수 세기(개수만 출력)\n  {command} report [options]  정제된 문제 보고서 출력(백엔드를 시작하지 않고 브라우저를 열지 않음)\n  {command} legal [options]  읽기 전용 법률 검사를 실행합니다(백엔드, 로그인 불필요)\n옵션:\n  --backend museCode|modelApi      결제 주체: Muse Code(기본값) 또는 Model API 키\n  --trust-workspace                폴더의 규칙, 스킬, 메모리를 불러옵니다\n  --muse-binary <경로>             실행할 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code의 셸 샌드박스\n  --questions-defer-after <seconds>  기본적으로 60초 후 질문 보류; 0은 보류하지 않음, 1–9는 10으로 처리, 최대 3600\n  --allow-dangerously-skip-permissions  \"권한 우회\" 모드를 제공합니다\n  --allow-contributor-models       기여자 등급 모델을 표시합니다(Meta가 해당 콘텐츠로 학습할 수 있음)\n  --web-search                     유료 웹 검색을 제공합니다(Model API 백엔드, 먼저 요금을 묻습니다)\n  --image-generation               유료 이미지 생성을 제공합니다(Model API 백엔드, 먼저 요금을 묻습니다)\n  --subscription                   키 대신 Muse Code 구독으로 Model API 백엔드 사용\n  --no-auto-compaction             자동 압축 비활성화\n  --verbose                        모든 세부 정보를 stderr에 기록합니다\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Setup 후크를 실행하고 종료합니다",
   "reportUsage": "사용법:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  정제된 문제 보고서를 stdout에 출력하거나 --out와 함께 <file>에 쓴다.\n  백엔드를 시작하지 않고, 어디에도 로그인하지 않으며, 브라우저를 열지 않는다.\n옵션:\n  --out <file>         stdout 대신 파일에 보고서 쓰기\n  --description <text>  무슨 일이 있었는지 자신의 말로\n  --no-facts           지원 정보 제외\n  --no-events          최근 이벤트 제외",
   "execBudgetRequired": "Model API에는 --max-budget-usd가 필요합니다.",
   "execNumberInvalid": "숫자 또는 한도가 잘못되었습니다. USD 예산은 소수점 이하 여섯 자리까지 허용합니다.",
@@ -5072,5 +5073,14 @@
     "grantsCount": {
       "other": "{count} 개 권한"
     }
-  }
+  },
+  "subscriptionKey": {
+    "signInAgain": "Muse Code 구독이 켜져 있지만 Muse Code CLI에 구독 키가 없습니다. 다시 로그인한 뒤(`muse login` 또는 구독 API 키로 `muse auth set`) 다시 시도하세요. 또는 Model API 키를 사용하세요.",
+    "cannotRead": "Muse Code 구독이 켜져 있지만 Muse Code CLI 로그인 파일을 읽을 수 없습니다. Muse Code CLI에 다시 로그인한 뒤 다시 시도하세요. 또는 Model API 키를 사용하세요.",
+    "keychainBacked": "Muse Code 구독이 켜져 있지만 이 로그인은 로그인 키체인에 있어 여기서 읽을 수 없습니다. Model API 키를 사용하세요."
+  },
+  "acpSubscriptionNeedsModelApi": "{argument}에는 --backend modelApi가 필요합니다. Muse Code 구독이 Model API 호출 요금을 냅니다.",
+  "execSubscriptionStdin": "--subscription과 --key-stdin은 함께 쓸 수 없습니다. 실행당 하나의 자격 증명입니다.",
+  "referenceMuseCodeSubscriptionName": "Muse Code 구독",
+  "referenceMuseCodeSubscriptionSummary": "Muse Code CLI가 보관한 키로 Model API 호출을 플랜에 청구합니다."
 }

@@ -693,6 +693,17 @@ export function featureCatalog(): readonly Feature[] {
       ],
       'get-started',
     ),
+    feature(
+      'muse-code-subscription',
+      { ui: 'referenceMuseCodeSubscriptionName' },
+      { ui: 'referenceMuseCodeSubscriptionSummary' },
+      [],
+      ['useMuseCodeSubscription'],
+      'muse-code-subscription',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
     {
       ...feature(
         'accounts',

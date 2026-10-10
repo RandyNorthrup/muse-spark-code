@@ -140,18 +140,15 @@ export const EN = {
   modelApiStatusOpen: 'Open service status',
   modelApiServiceFailure: 'The service returned an error. Check its status or try again.',
   // C-M95-SUB: the Model API backend on the Muse Code subscription. The
-  // refusals name the fix and never carry the key; the label is Title Case.
+  // refusals name the fix and never carry the key. (The opt-in's Title Case
+  // label comes from its setting id, `museSpark.useMuseCodeSubscription`.)
   subscriptionKey: {
-    settingLabel: 'Use Muse Code Subscription',
-    settingDescription:
-      'Drive the Model API backend with your Muse Code subscription instead of a pay-as-you-go key. Calls count against your Muse Code plan, not your card, and take the subscription key the Muse Code CLI already holds. Off by default.',
     signInAgain:
       'Muse Code subscription is on, but the Muse Code CLI holds no subscription key here. Sign in again (`muse login`, or `muse auth set` with your subscription API key), then try again — or use a Model API key instead.',
     cannotRead:
       'Muse Code subscription is on, but the Muse Code sign-in file cannot be read. Sign the Muse Code CLI in again, then try again — or use a Model API key instead.',
     keychainBacked:
       'Muse Code subscription is on, but this sign-in lives in the login keychain, which cannot be read here. Use a Model API key instead.',
-    planBilling: 'Muse Code plan',
   },
   feedbackFailed: 'Could not submit feedback.',
   // M102: the shared usage page; its full table is a separate lazy family.
@@ -339,6 +336,9 @@ export const EN = {
   estimateWaveStarted: 'Started {lanes}.',
   referenceAgentControls:
     'Agent controls; Interrupt; Stop; Resume; Close agent; Reopen agent; Mark result read; Send message; Follow-up task',
+  referenceMuseCodeSubscriptionName: 'Muse Code subscription',
+  referenceMuseCodeSubscriptionSummary:
+    'Bill Model API calls to the Muse Code plan with the key the Muse Code CLI holds.',
 
   referenceBestOfNRequirements:
     'Candidates require Model API, the paid feature enabled, a trusted Git workspace, Git 2.36 or newer, and no configured Git filter or hook programs. A finite session budget requires an owned parent budget scope shared by candidates. Set attempt and request limits, compare results or cancel, then take selected changes by applying and staging without a commit.',

@@ -139,10 +139,22 @@ decisions consult a lawyer.**
 The agent runs on one backend, chosen when the editor starts it; it never
 switches on its own.
 
-| Backend                             | Arguments            | Who pays                     | Needs                                                    |
-| ----------------------------------- | -------------------- | ---------------------------- | -------------------------------------------------------- |
-| Muse Code (the default)             | (none)               | Your Muse Code subscription  | The Muse Code CLI, signed in                             |
-| Meta Model API (bring your own key) | `--backend modelApi` | Your Model API key, per call | A key stored with `muse-spark-code-acp auth set` (below) |
+| Backend                             | Arguments                           | Who pays                      | Needs                                                    |
+| ----------------------------------- | ----------------------------------- | ----------------------------- | -------------------------------------------------------- |
+| Muse Code (the default)             | (none)                              | Your Muse Code subscription   | The Muse Code CLI, signed in                             |
+| Meta Model API (bring your own key) | `--backend modelApi`                | Your Model API key, per call  | A key stored with `muse-spark-code-acp auth set` (below) |
+| Meta Model API (on your plan)       | `--backend modelApi --subscription` | Your Muse Code plan, per call | The Muse Code CLI, signed in with a subscription key     |
+
+`--subscription` reads the subscription key the Muse Code CLI already holds
+and bills Model API calls to the plan instead of a key: no `auth set`
+needed, nothing extra to store. Usage records these calls as **Plan** with
+no dollar price. A missing or unreadable CLI sign-in refuses with the fix
+instead of billing a stored key; a macOS Keychain-only sign-in cannot be
+read, so use a key there. Paid extras (web search, images, voice) still need
+a stored key. `exec --subscription` refuses with `--key-stdin` (one
+credential per run); a subscription run still needs `--max-budget-usd` and
+`--max-requests`, and its receipt reports `$0` billed for the plan-covered
+chat requests.
 
 Configure two agents in the editor if you want both.
 

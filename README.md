@@ -630,6 +630,22 @@ window runs on. The CLI looks for `muse` through `museSpark.museBinaryPath`,
 then `PATH`, then the platform's install folder (`%LOCALAPPDATA%\Programs\muse`
 on Windows, `~/.local/bin` elsewhere).
 
+### Muse Code subscription
+
+The Model API backend can bill your Muse Code plan instead of a pay-as-you-go
+key. Turn on **Use Muse Code Subscription** (`museSpark.useMuseCodeSubscription`,
+off by default): the extension reads the subscription key the Muse Code CLI
+already holds after sign-in and uses it for Model API calls. Those calls count
+against the plan, never the card; **Account & usage** labels them **Plan**
+with no dollar price. While the setting is on, a missing or unreadable CLI
+sign-in stops Model API calls with the fix instead of billing a stored key.
+The key is held in memory only: it is never shown, logged, copied into
+settings, or stored anywhere. Paid extras (web search, images, voice) still
+bill a stored Model API key. Outside VS Code, pass `--subscription` to
+`serve` or `exec` (Model API backend only); a headless subscription run
+still needs `--max-budget-usd` and `--max-requests`, and its receipt reports
+`$0` billed for the plan-covered chat requests.
+
 Conversations on the Model API backend are saved as they go under VS Code's
 workspace storage for the extension, so the History dialog lists them after
 a reload, and a resumed one continues with its transcript and its edit

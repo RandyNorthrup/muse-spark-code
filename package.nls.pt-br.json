@@ -250,5 +250,6 @@
   "config.reports.network.enumDescriptions.always": "Permitir fontes de rede para relatórios.",
   "config.reports.network.enumDescriptions.off": "Ler apenas fontes locais.",
   "config.reports.keepHistory.description": "Manter os 50 relatórios mais recentes de cada tipo neste computador para histórico e comparação.",
-  "config.reports.agentSources.description": "Permitir a leitura dos seus próprios arquivos de uso e limites do Claude Code ou Codex. Padrão: nenhum. O texto das conversas e arquivos de credenciais nunca são lidos como fontes de relatórios."
+  "config.reports.agentSources.description": "Permitir a leitura dos seus próprios arquivos de uso e limites do Claude Code ou Codex. Padrão: nenhum. O texto das conversas e arquivos de credenciais nunca são lidos como fontes de relatórios.",
+  "config.useMuseCodeSubscription.description": "Usar o backend da Model API com a assinatura do Muse Code em vez de uma chave pré-paga. As chamadas contam para o plano do Muse Code, não para o cartão, com a chave de assinatura que a CLI do Muse Code guarda após o login. Um login da CLI ausente ou ilegível interrompe as chamadas da Model API em vez de cobrar uma chave guardada."
 }
