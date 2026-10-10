@@ -45,16 +45,34 @@ function team(
   }
 }
 
+interface Controls {
+  isTrusted: boolean
+  isTeamWorkersOn: boolean
+  /** The conversation's wire mode a tree Merge reads; undefined is no open surface. */
+  mode: string | undefined
+  isPaidAllowed: boolean
+  isPaidHeld: boolean
+  isMergeHeld: boolean
+  /** The setup probe's answer per model. */
+  isLoaded: (model: string) => boolean
+}
+
 interface Harness {
   readonly deps: TeamHostServiceDeps
+  readonly values: Map<string, unknown>
+  readonly controls: Controls
   readonly started: TeamTaskSpec[]
   readonly signals: AbortSignal[]
   readonly finish: (index: number, outcome?: Partial<TeamWorkerOutcome>) => void
+  readonly fail: (index: number, error: Error) => void
   readonly merged: string[]
+  readonly mergeOptions: { readonly allowProtected: boolean }[]
   readonly discarded: string[]
   readonly paidAsks: number[]
   readonly probes: string[]
   readonly cards: { readonly sessionId: string; readonly item: TeamCardItem }[]
+  readonly releasePaid: (isAllowed: boolean) => void
+  readonly releaseMerge: () => void
 }
 
 function harness(
@@ -65,17 +83,33 @@ function harness(
     readonly canRun?: boolean
     readonly probe?: boolean
     readonly defaultAgent?: boolean
+    readonly values?: Map<string, unknown>
+    readonly maxWorkers?: number
   } = {},
 ): Harness {
-  const values = new Map<string, unknown>([[TEAM_WORKSPACE_KEYS.team, stored]])
+  const values = options.values ?? new Map<string, unknown>()
+  values.set(TEAM_WORKSPACE_KEYS.team, stored)
+  const controls: Controls = {
+    isTrusted: options.trusted ?? true,
+    isTeamWorkersOn: true,
+    mode: undefined,
+    isPaidAllowed: options.paid ?? true,
+    isPaidHeld: false,
+    isMergeHeld: false,
+    isLoaded: () => options.probe ?? true,
+  }
   const started: TeamTaskSpec[] = []
   const signals: AbortSignal[] = []
   const resolvers: ((outcome: TeamWorkerOutcome) => void)[] = []
+  const rejecters: ((error: Error) => void)[] = []
   const merged: string[] = []
+  const mergeOptions: { readonly allowProtected: boolean }[] = []
   const discarded: string[] = []
   const paidAsks: number[] = []
   const probes: string[] = []
   const cards: { readonly sessionId: string; readonly item: TeamCardItem }[] = []
+  const heldPaid: ((isAllowed: boolean) => void)[] = []
+  const heldMerges: (() => void)[] = []
   let id = 0
   const deps: TeamHostServiceDeps = {
     state: {
@@ -87,9 +121,9 @@ function harness(
     },
     settings: {
       isTeamOn: () => true,
-      isTeamWorkersOn: () => true,
-      maxWorkers: () => 4,
-      isTrusted: () => options.trusted ?? true,
+      isTeamWorkersOn: () => controls.isTeamWorkersOn,
+      maxWorkers: () => options.maxWorkers ?? 4,
+      isTrusted: () => controls.isTrusted,
     },
     orchestrator: {
       modelId: () => ORCHESTRATOR,
@@ -98,25 +132,32 @@ function harness(
         options.defaultAgent === true
           ? { kind: 'engine', agentId: 'default', model, pays: 'key' }
           : undefined,
+      approvalMode: () => controls.mode,
     },
     workers: {
       canRun: () => options.canRun ?? true,
       probe: (agent) => {
         probes.push(agent.model)
-        return Promise.resolve(options.probe ?? true)
+        return Promise.resolve(controls.isLoaded(agent.model))
       },
       run: (spec, signal) => {
         started.push(spec)
         signals.push(signal)
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
           resolvers.push(resolve)
+          rejecters.push(reject)
         })
       },
     },
     merges: {
-      merge: (task): Promise<TeamMergeOutcome> => {
+      merge: async (task, _signal, mergeOption): Promise<TeamMergeOutcome> => {
         merged.push(task.taskId)
-        return Promise.resolve({ status: 'merged', written: ['a.ts'], conflicts: [] })
+        mergeOptions.push(mergeOption)
+        if (controls.isMergeHeld)
+          await new Promise<void>((resolve) => {
+            heldMerges.push(resolve)
+          })
+        return { status: 'merged', written: ['a.ts'], conflicts: [] }
       },
       discard: (task) => {
         discarded.push(task.taskId)
@@ -132,7 +173,10 @@ function harness(
     paid: {
       allowKeyTasks: (tasks) => {
         paidAsks.push(tasks.length)
-        return Promise.resolve(options.paid ?? true)
+        if (!controls.isPaidHeld) return Promise.resolve(controls.isPaidAllowed)
+        return new Promise<boolean>((resolve) => {
+          heldPaid.push(resolve)
+        })
       },
     },
     newId: () => {
@@ -144,13 +188,25 @@ function harness(
   }
   return {
     deps,
+    values,
+    controls,
     started,
     signals,
     merged,
+    mergeOptions,
     discarded,
     paidAsks,
     probes,
     cards,
+    releasePaid: (isAllowed) => {
+      for (const resolve of heldPaid.splice(0)) resolve(isAllowed)
+    },
+    releaseMerge: () => {
+      for (const resolve of heldMerges.splice(0)) resolve()
+    },
+    fail: (index, error) => {
+      rejecters[index]?.(error)
+    },
     finish: (index, outcome = {}) => {
       resolvers[index]?.({
         report: { status: 'done', summary: 'did it' },
@@ -563,6 +619,7 @@ function binding(stored: unknown, factory = vi.fn()) {
   const diffs: string[] = []
   const bound = new TeamHostBinding({
     ports: { ...h.deps, engine: UNUSED_ENGINE },
+    canRunKind: (kind) => kind === 'engine',
     loadFactory: () => {
       factory()
       // The fakes stand in for the engine ports dist/team.js would build.
@@ -618,5 +675,319 @@ describe('the window binding', () => {
       bound.handle({ type: 'openTeamTaskTranscript', taskId: 'task-1' }),
     ).rejects.toThrow(UI_TEXT.teamTranscriptNotKept)
     await bound.dispose()
+  })
+})
+
+function keyEntry(
+  id: string,
+  model: string,
+  concurrent = 1,
+  caps: TeamPoolEntry['caps'] = [],
+): TeamPoolEntry {
+  return {
+    id,
+    concurrent,
+    caps,
+    agent: { kind: 'engine', agentId: `agent-${id}`, model, pays: 'key' },
+  }
+}
+
+function usage(input: number, output = 0): TeamWorkerOutcome['usage'] {
+  return { input, cachedInput: 0, output, reasoning: 0, modelCalls: 1, estimated: false }
+}
+
+/** A finished own-branch task, ready for a merge. */
+async function finishedTask(h: Harness) {
+  const service = createTeamHostService(h.deps)
+  await service.probeEntries()
+  await service.teamRunner.delegate(delegateOne, context())
+  h.finish(0)
+  await settle()
+  return service
+}
+
+describe('RVCM963 review findings', () => {
+  it('1+4: a running task asks the service before every request: trust, the paid switch', async () => {
+    const h = harness(team([keyEntry('k', WORKER_MODEL)]))
+    const service = createTeamHostService(h.deps)
+    await service.probeEntries()
+    await service.teamRunner.delegate(delegateOne, context())
+    const meter = h.started[0]?.meter
+    expect(() => meter?.admitRequest()).not.toThrow()
+    h.controls.isTeamWorkersOn = false
+    expect(() => meter?.admitRequest()).toThrow(TEAM_MODEL_TEXT.hostPaidOff)
+    h.controls.isTeamWorkersOn = true
+    h.controls.isTrusted = false
+    expect(() => meter?.admitRequest()).toThrow(TEAM_MODEL_TEXT.hostUntrusted)
+  })
+
+  it('2: token caps stop the next request, mark the entry capped and show what was used', async () => {
+    const capped = {
+      ...entry('e1', WORKER_MODEL),
+      caps: [
+        { measure: 'tokens' as const, window: 'task' as const, amount: 100 },
+        { measure: 'tokens' as const, window: 'day' as const, amount: 150 },
+      ],
+    }
+    const h = harness(team([capped], {}, { exhausted: 'self' }))
+    const service = createTeamHostService(h.deps)
+    await service.probeEntries()
+    await service.teamRunner.delegate(delegateOne, context())
+    const meter = h.started[0]?.meter
+    meter?.noteUsage(usage(60, 30))
+    expect(() => meter?.admitRequest()).not.toThrow()
+    meter?.noteUsage(usage(80, 40))
+    expect(() => meter?.admitRequest()).toThrow(
+      TEAM_MODEL_TEXT.hostCapReached.split('{', 1)[0] ?? '',
+    )
+    h.finish(0, { usage: usage(80, 40) })
+    await settle()
+    const tree = service.tree()
+    expect(tree?.roles[0]?.entries[0]?.caps).toEqual([
+      expect.objectContaining({ label: 'tokens/task', used: 0, amount: 100 }),
+      expect.objectContaining({ label: 'tokens/day', used: 120, amount: 150 }),
+    ])
+    const collected = json(await output(service.teamRunner.collect({}, context())))
+    expect(collected['tasks']).toEqual([expect.objectContaining({ state: 'capped' })])
+    // 120 of 150 used: another task still fits; at 160 the entry is capped.
+    await service.teamRunner.delegate(delegateOne, context())
+    h.started[1]?.meter.noteUsage(usage(40))
+    h.finish(1, { usage: usage(40) })
+    await settle()
+    expect(service.tree()?.roles[0]?.entries[0]?.state).toBe('capped')
+    expect(await output(service.teamRunner.delegate(delegateOne, context()))).toContain(
+      TEAM_MODEL_TEXT.hostExhausted.replace('{role}', 'engineering'),
+    )
+    expect(h.started).toHaveLength(2)
+  })
+
+  it('3: a queued key task is named in the one popup, and never starts on an unapproved model', async () => {
+    const h = harness(
+      team([keyEntry('a', WORKER_MODEL), keyEntry('b', 'third-model')], {}, { exhausted: 'queue' }),
+      { probe: false },
+    )
+    const service = createTeamHostService(h.deps)
+    // Only `a` is loaded when the tasks are delegated.
+    h.controls.isLoaded = (model) => model === WORKER_MODEL
+    await service.probeEntries()
+    const two = { tasks: [delegateOne.tasks[0], delegateOne.tasks[0]] }
+    const answer = json(await output(service.teamRunner.delegate(two, context())))
+    expect(answer['tasks']).toEqual([
+      expect.objectContaining({ entry: 'a', state: 'running' }),
+      expect.objectContaining({ state: 'queued' }),
+    ])
+    expect(h.paidAsks).toEqual([2])
+    // `b` becomes ready later: the queued task's consent never named it.
+    h.controls.isLoaded = () => true
+    await service.probeEntries()
+    await settle()
+    expect(h.started).toHaveLength(1)
+    // When `a` frees up, the approved model runs it.
+    h.finish(0)
+    await settle()
+    expect(h.started.map((spec) => spec.entry.id)).toEqual(['a', 'a'])
+    await service.dispose()
+  })
+
+  it('5: the tree Merge is gated like the model merge and still decided on the card', async () => {
+    const h = harness(team([entry('e1', WORKER_MODEL)]))
+    const service = await finishedTask(h)
+    await expect(service.decideMerge('task-1', 'merge')).rejects.toThrow(
+      UI_TEXT.teamMergeNeedsConversation,
+    )
+    h.controls.mode = 'denyUnmatched'
+    await expect(service.decideMerge('task-1', 'merge')).rejects.toThrow(UI_TEXT.teamMergePlanMode)
+    h.controls.mode = 'promptUnmatched'
+    h.controls.isTrusted = false
+    await expect(service.decideMerge('task-1', 'merge')).rejects.toThrow(UI_TEXT.teamMergeUntrusted)
+    h.controls.isTrusted = true
+    await service.decideMerge('task-1', 'merge')
+    expect(h.merged).toEqual([])
+    expect(h.cards.at(-1)?.item).toMatchObject({ kind: 'teamMerge', status: 'inProgress' })
+    // Trust withdrawn while the card waits: the answer merges nothing.
+    h.controls.isTrusted = false
+    await service.decideMerge('task-1', 'merge')
+    await settle()
+    expect(h.merged).toEqual([])
+    h.controls.isTrusted = true
+    await service.decideMerge('task-1', 'merge')
+    await service.decideMerge('task-1', 'merge')
+    await settle()
+    expect(h.merged).toEqual(['task-1'])
+  })
+
+  it('6: two calls awaiting consent cannot both take one free slot', async () => {
+    const h = harness(team([keyEntry('k', WORKER_MODEL)], {}, { exhausted: 'self' }), {
+      maxWorkers: 1,
+    })
+    const service = createTeamHostService(h.deps)
+    await service.probeEntries()
+    h.controls.isPaidHeld = true
+    const first = service.teamRunner.delegate(delegateOne, context())
+    await settle()
+    const second = service.teamRunner.delegate(delegateOne, context({ sessionId: 's2' }))
+    await settle()
+    h.releasePaid(true)
+    await first
+    expect(await output(second)).toContain(
+      TEAM_MODEL_TEXT.hostExhausted.replace('{role}', 'engineering'),
+    )
+    expect(h.started).toHaveLength(1)
+  })
+
+  it('7: consent answered after disposal starts nothing', async () => {
+    const h = harness(team([keyEntry('k', WORKER_MODEL)]))
+    const service = createTeamHostService(h.deps)
+    await service.probeEntries()
+    h.controls.isPaidHeld = true
+    const pending = service.teamRunner.delegate(delegateOne, context())
+    await settle()
+    await service.dispose()
+    h.releasePaid(true)
+    expect(await output(pending)).toContain(TEAM_MODEL_TEXT.hostStopped)
+    expect(h.started).toEqual([])
+  })
+
+  it('8: Solo, same-model and key entries with teamWorkers off load and probe nothing', async () => {
+    const cases: [unknown, boolean][] = [
+      [{ ...team([entry('e1', WORKER_MODEL)]), template: 'Solo' }, true],
+      [team([entry('same', ORCHESTRATOR)]), true],
+      [team([keyEntry('k', WORKER_MODEL)]), false],
+    ]
+    for (const [stored, isTeamWorkersOn] of cases) {
+      const { bound, factory, h } = binding(stored)
+      h.controls.isTeamWorkersOn = isTeamWorkersOn
+      await bound.open()
+      expect(factory).not.toHaveBeenCalled()
+      expect(h.probes).toEqual([])
+    }
+    // The service itself never probes those entries either.
+    const h = harness(team([entry('same', ORCHESTRATOR), keyEntry('k', WORKER_MODEL)]))
+    h.controls.isTeamWorkersOn = false
+    await createTeamHostService(h.deps).probeEntries()
+    expect(h.probes).toEqual([])
+  })
+
+  it('9: reload loads a first saved team, and a changed model needs a new probe', async () => {
+    const { bound, factory, h } = binding(undefined)
+    await bound.open()
+    expect(factory).not.toHaveBeenCalled()
+    h.values.set(TEAM_WORKSPACE_KEYS.team, team([entry('e1', WORKER_MODEL)]))
+    bound.reload()
+    await settle()
+    expect(factory).toHaveBeenCalledTimes(1)
+    const ready = bound.seams.teamDecisionSource(ORCHESTRATOR)
+    expect(ready === undefined ? undefined : decideTeamConversationMode(ready).mode).toBe('team')
+    const service = createTeamHostService(h.deps)
+    await service.probeEntries()
+    h.values.set(TEAM_WORKSPACE_KEYS.team, team([entry('e1', 'replacement-model')]))
+    service.reload()
+    const changed = service.teamDecisionSource(ORCHESTRATOR)
+    expect(changed === undefined ? undefined : decideTeamConversationMode(changed).reason).toBe(
+      'not-loaded',
+    )
+    await bound.dispose()
+  })
+
+  it('10: a failed writer keeps its copy to discard, and a failed continuation hands the copy back', async () => {
+    const h = harness(team([entry('e1', WORKER_MODEL)]))
+    const service = createTeamHostService(h.deps)
+    await service.probeEntries()
+    await service.teamRunner.delegate(delegateOne, context())
+    h.finish(0, { report: { status: 'failed', summary: 'broke' } })
+    await settle()
+    expect(service.tree()?.roles[0]?.unmerged).toEqual([
+      expect.objectContaining({ taskId: 'task-1', status: 'failed' }),
+    ])
+    await service.stopTask('task-1')
+    expect(h.discarded).toEqual(['task-1'])
+    await service.teamRunner.delegate(delegateOne, context())
+    h.finish(1)
+    await settle()
+    const reopened = { tasks: [{ ...delegateOne.tasks[0], continue: 'task-2' }] }
+    await service.teamRunner.delegate(reopened, context())
+    h.fail(2, new Error('worker crashed'))
+    await settle()
+    expect(service.tree()?.roles[0]?.unmerged.map((task) => task.taskId)).toEqual(['task-2'])
+  })
+
+  it('11: tasks survive a window reload; running ones come back interrupted and discardable', async () => {
+    const values = new Map<string, unknown>()
+    const h = harness(team([entry('e1', WORKER_MODEL)]), { values })
+    const service = await finishedTask(h)
+    await service.teamRunner.delegate(delegateOne, context())
+    h.started[1]?.meter.noteWorkspace({ folder: '/copies/y', baseCommit: 'c'.repeat(40) })
+    await settle()
+    const again = harness(team([entry('e1', WORKER_MODEL)]), { values })
+    const reloaded = createTeamHostService(again.deps)
+    const collected = json(await output(reloaded.teamRunner.collect({}, context())))
+    expect(collected['tasks']).toEqual([
+      expect.objectContaining({ task_id: 'task-1', state: 'done' }),
+      expect.objectContaining({ task_id: 'task-2', state: 'interrupted' }),
+    ])
+    expect(reloaded.tree()?.roles[0]?.interrupted.map((task) => task.taskId)).toEqual(['task-2'])
+    await reloaded.decideMerge('task-2', 'discard')
+    expect(again.discarded).toEqual(['task-2'])
+  })
+
+  it('12: one merge or discard runs on a task at a time', async () => {
+    const h = harness(team([entry('e1', WORKER_MODEL)]))
+    const service = await finishedTask(h)
+    h.controls.mode = 'promptUnmatched'
+    h.controls.isMergeHeld = true
+    await service.decideMerge('task-1', 'merge')
+    await service.decideMerge('task-1', 'merge')
+    await settle()
+    expect(h.merged).toEqual(['task-1'])
+    await expect(service.decideMerge('task-1', 'merge')).rejects.toThrow(UI_TEXT.teamTaskBusy)
+    await expect(service.decideMerge('task-1', 'discard')).rejects.toThrow(UI_TEXT.teamTaskBusy)
+    h.releaseMerge()
+    await settle()
+    expect(h.merged).toEqual(['task-1'])
+    expect(h.discarded).toEqual([])
+  })
+
+  it('13: a configured reviewer with headroom reviews the branch head before the merge', async () => {
+    const stored: TeamSnapshot = {
+      roles: [
+        { role: 'engineering', workspace: 'own-branch', pool: [entry('e1', WORKER_MODEL)] },
+        { role: 'code-review', pool: [entry('r1', 'reviewer-model')] },
+      ],
+      intensity: 'balanced',
+    }
+    const h = harness(stored)
+    const service = await finishedTask(h)
+    expect(await output(service.teamRunner.merge({ task_id: 'task-1' }, context()))).toContain(
+      TEAM_MODEL_TEXT.hostReviewStarted.replace('{task}', 'task-2').split(';', 1)[0] ?? '',
+    )
+    expect(h.started[1]).toMatchObject({ role: { role: 'code-review' }, entry: { id: 'r1' } })
+    expect(h.started[1]?.reviewOf?.head).toBe('b'.repeat(40))
+    h.finish(1, { report: { status: 'done', summary: 'looks right' } })
+    await settle()
+    const merging = service.teamRunner.merge({ task_id: 'task-1' }, context())
+    await settle()
+    expect(h.cards.at(-1)?.item).toMatchObject({
+      kind: 'teamMerge',
+      teamMerge: { review: 'reviewed', reviewerFindings: ['looks right'] },
+    })
+    await service.decideMerge('task-1', 'merge')
+    expect(json(await output(merging))).toMatchObject({ status: 'merged' })
+  })
+
+  it('14: the merge card approves the protected paths it lists', async () => {
+    const h = harness(team([entry('e1', WORKER_MODEL)]))
+    const service = createTeamHostService(h.deps)
+    await service.probeEntries()
+    await service.teamRunner.delegate(delegateOne, context())
+    h.finish(0, { changedFiles: ['.github/workflows/ci.yml'] })
+    await settle()
+    const merging = service.teamRunner.merge({ task_id: 'task-1' }, context())
+    await settle()
+    expect(h.cards.at(-1)?.item).toMatchObject({
+      teamMerge: { protectedPaths: ['.github/workflows/ci.yml'] },
+    })
+    await service.decideMerge('task-1', 'merge')
+    await merging
+    expect(h.mergeOptions).toEqual([{ allowProtected: true }])
   })
 })

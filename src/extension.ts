@@ -2557,6 +2557,10 @@ async function activateWindow(
           currentSettings().backend === 'modelApi'
             ? { kind: 'engine', agentId: 'default', model: modelId, pays: 'key' }
             : undefined,
+        approvalMode: (sessionId) =>
+          Array.from(controllers.values(), (controller) =>
+            controller.teamApprovalMode(sessionId),
+          ).find((mode) => mode !== undefined),
       },
       engine: {
         repositoryRoot: () => workspaceRoot,
@@ -2575,6 +2579,7 @@ async function activateWindow(
           admit,
           noteUsage,
           parentSessionId,
+          fenceIo,
         }) => {
           let budgetScope
           try {
@@ -2582,7 +2587,13 @@ async function activateWindow(
           } catch {
             throw new Error(UI_TEXT.teamBudgetUnavailable)
           }
-          const host = await modelApi.buildTeamWorkerHost(folder, admit, noteUsage, budgetScope)
+          const host = await modelApi.buildTeamWorkerHost(
+            folder,
+            admit,
+            noteUsage,
+            budgetScope,
+            fenceIo,
+          )
           try {
             const session = await host.startSession({
               workspaceRoot: folder,
@@ -2608,13 +2619,16 @@ async function activateWindow(
         },
       },
       paid: {
+        // Not forced to ask: a scoped "Always" for these models answers without a popup.
         allowKeyTasks: async (tasks, dailyBudgetUsd) =>
-          await paid.consent.allows({ feature: 'teamWorkers', tasks, dailyBudgetUsd }, true),
+          await paid.consent.allows({ feature: 'teamWorkers', tasks, dailyBudgetUsd }, false),
       },
       newId: () => crypto.randomUUID(),
       now: () => Date.now(),
       log,
     },
+    // VS Code runs engine workers; Muse Code and external agents come with C-M96-4 and lane W.
+    canRunKind: (kind) => kind === 'engine',
     loadFactory: async () => {
       const { createTeamHost } = await import('./host/team/teamHostEntry')
       return createTeamHost

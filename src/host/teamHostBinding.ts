@@ -7,7 +7,7 @@
 
 import { UI_TEXT } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
-import { readTeamWorkspaceHint } from '../shared/teamConversation'
+import { hasRunnableTeamEntry } from '../shared/teamConversation'
 import type { WebviewToHostMessage } from '../shared/protocol'
 import type { TeamTreeData } from '../shared/teamView'
 import type { UiText } from '../shared/l10n/en'
@@ -45,6 +45,8 @@ export interface TeamHostBindingDeps {
   >
   readonly uiText: () => UiText
   readonly uiLocale: () => string
+  /** The agent kinds this editor has workers for: nothing else loads the team. */
+  readonly canRunKind: (kind: string) => boolean
   /** Every chat surface's Agent map. */
   readonly showTree: (tree: TeamTreeData | undefined) => void
   /** Opens the Models & Agents panel at its Roles section (lane U1 owns the section). */
@@ -90,7 +92,11 @@ export class TeamHostBinding implements TeamSurfacePort {
     if (
       this.isDisposed ||
       !this.deps.ports.settings.isTeamOn() ||
-      !readTeamWorkspaceHint(this.deps.ports.state).hasStoredTeam
+      !hasRunnableTeamEntry(this.deps.ports.state, {
+        orchestratorModelId: this.deps.ports.orchestrator.modelId(),
+        isTeamWorkersOn: this.deps.ports.settings.isTeamWorkersOn(),
+        canRunKind: this.deps.canRunKind,
+      })
     )
       return undefined
     this.loading ??= (async () => {
@@ -171,8 +177,19 @@ export class TeamHostBinding implements TeamSurfacePort {
   }
 
   /** Re-reads the stored team after the Roles section saves it. */
+  /**
+   * The Roles section saved the team: a first team loads the service now, and
+   * a changed one is re-read and probed again (an entry's new model needs a
+   * new probe; the old readiness never carries over).
+   */
   public reload(): void {
-    this.service?.reload()
+    const service = this.service
+    if (service === undefined) {
+      void this.open()
+      return
+    }
+    service.reload()
+    void service.probeEntries()
   }
 
   public async dispose(): Promise<void> {

@@ -6674,6 +6674,18 @@ export const TEAM_MODEL_TEXT = {
   hostNoRepository: 'team workers need the workspace folder to be a git repository',
   hostReadOnlyBreach: 'a read-only worker changed files in its scratch copy, so its task failed:',
   hostNoReport: 'the worker ended without a report',
+  hostStopped: 'the task was stopped or the team service closed, so nothing more was sent',
+  hostPaidOff: 'paid team use is off, so this key-billed task sends nothing more',
+  hostCapReached: 'the task met its {cap} cap, so its next request was not sent',
+  hostMergeNoConversation: 'merge needs the conversation that started the task to be open',
+  hostTaskBusy: 'this task is already being merged or discarded',
+  hostReviewRunning:
+    'a reviewer is checking this branch as task {task}; collect it, then merge again',
+  hostReviewStarted:
+    'a reviewer started checking this branch as task {task}; collect it, then merge again',
+  hostReviewBrief:
+    'Review the changes of team task {task} ({role}) on its branch, checked out at its head. The task was: {brief}',
+  hostReviewReason: 'review before merge by a model that did not write the branch',
   hostNotStaffed: 'role {role} is not staffed',
   hostExhausted: 'every entry of role {role} is at a limit or unavailable; do the work yourself',
   hostUntrusted: 'the workspace is in Restricted Mode, so no worker starts',
