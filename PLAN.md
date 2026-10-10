@@ -24076,6 +24076,26 @@ bound, `TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE` (60 s, golden `08-team-on`
 updated); the Muse Code team server keeps `TEAM_COLLECT_WAIT_MAX_SECONDS`
 (0) until lane P's timeout capture.
 
+**C-M96-3 round 3: the RVCM963 review (2026-10-10).** Every finding is
+fixed on `c/m96-3`; teams stay hidden until all of M96 is complete. An
+engine worker's file tools admit each path against the retained root grant
+and the resolved role policy (`src/core/team/workers/workerToolIo.ts`); the
+task's live admission (trust, the paid team switch, every cap measure from
+reported usage, a stop) runs before each request and each file call. Queued
+key tasks are named in the one popup and start only on an approved model;
+slots are reserved across consent, and consent answered after disposal
+starts nothing. The tree's Merge takes the model merge's gate (trust, Plan,
+the conversation open) and opens the merge card, whose answer is gated
+again; one merge or discard runs per task; a configured reviewer with
+headroom reviews the branch head first; protected paths the card lists
+reach `applyTeamMerge` as approved. Task records persist in workspace state
+(`museSpark.team.tasks`) and come back interrupted after a reload, with
+their copies discardable. Solo, single-model and key-only workspaces with
+`teamWorkers` off load and probe nothing (`hasRunnableTeamEntry`), and
+`TeamHostBinding.reload()` loads a first saved team and drops readiness
+probed for another model. The host API record is regenerated. Receipts and
+drills: `docs/certification/m96-x.md`.
+
 **C-M96-3 round 2 lead decisions (2026-10-10).**
 
 - `collect` waits up to 60 s on the Model API

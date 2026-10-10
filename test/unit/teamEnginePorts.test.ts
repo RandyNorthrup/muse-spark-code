@@ -40,7 +40,7 @@ async function setup(edit: (folder: string) => Promise<void>, message = REPORT) 
   const started: {
     folder: string
     approvalMode: string
-    admit: () => void
+    admit: (keyDigest: string | undefined) => void
     fenceIo: (io: ToolIo) => ToolIo
   }[] = []
   const ports = createEngineTeamPorts({
@@ -246,9 +246,9 @@ describe('the engine worker port after the RVCM963 review', () => {
     )
     expect(workspaces).toEqual([expect.objectContaining({ folder: outcome.folder })])
     const worker = started[0]
-    expect(() => worker?.admit()).not.toThrow()
+    expect(() => worker?.admit(undefined)).not.toThrow()
     isAdmitted = false
-    expect(() => worker?.admit()).toThrow('revoked')
+    expect(() => worker?.admit(undefined)).toThrow('revoked')
     isAdmitted = true
     const writes: string[] = []
     const base: ToolIo = {
