@@ -314,12 +314,15 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
             ? undefined
             : { agent: offerOf(message.modelRef).agent, settings: message.settings }
         draft.orchestratorModel = draft.orchestrator?.agent?.model
-        // Default is live: existing fallback entries follow the newly
-        // resolved model. Only their concurrency is level-owned, so custom
-        // caps and the role's custom flag stay untouched.
+        // Default follows the resolved model's ceiling. A custom role keeps
+        // its manual concurrency unless that ceiling requires lowering it.
         for (const role of draft.roles)
           for (const entry of role.pool)
-            if (entry.agent === undefined) entry.concurrent = defaultConcurrent()
+            if (entry.agent === undefined)
+              entry.concurrent =
+                role.custom === true
+                  ? Math.min(entry.concurrent, defaultCeiling(), deps.maxWorkers())
+                  : defaultConcurrent()
         break
       }
       case 'roles/intensity': {

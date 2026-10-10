@@ -5833,9 +5833,15 @@ workers in the released extension. The saved workspace document is
 `museSpark.team.config`, followed by `TeamHostBinding.reload()`.
 
 For maintainers, `npm run harness:team` runs the standalone
-Roles and Agents scenes through axe in four themes, all 14 translations and
+Roles and Agents scenes through axe in six themes, all 14 translations and
 320 px layouts. PNGs and the JSON receipts stay under
 `temp/cm962-harness/`; only their reviewed hashes and dimensions are tracked
 in the certification record. See [the U1 record](docs/certification/m96-u1.md)
 for the engine, model-registry and other-editor bindings required before
 these sections can be enabled.
+
+The editor keeps pending settings, caps and tool selections across unrelated
+host replies. Manual Default concurrency stays within the resolved model's
+ceiling. Tool search uses translated labels; pool filters include model
+families and fractional price limits, with prices formatted in the display
+language.

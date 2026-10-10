@@ -122,7 +122,9 @@ export function RoleEditor({
           />
         </label>
         {view?.allowedTools
-          .filter((group) => group.toLowerCase().includes(toolQuery.trim().toLowerCase()))
+          .filter((group) =>
+            UI_TEXT.teamToolGroups[group].toLowerCase().includes(toolQuery.trim().toLowerCase()),
+          )
           .map((group) => (
             <label key={group} className="team-editor-tool">
               <input

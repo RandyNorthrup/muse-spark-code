@@ -12,7 +12,7 @@ import type {
   PanelToHostMessage,
 } from '../../shared/modelsPanel'
 
-async function loadTeamEnglish(): Promise<void> {
+export async function loadTeamEnglish(): Promise<void> {
   // The hidden team English travels with its readers, never with the
   // panel's first paint. A dynamic import keeps this loader out of the
   // panel body; in source and tests the module installs nothing.

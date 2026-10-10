@@ -15,7 +15,7 @@ import type { ErrorReporter } from '../errorReport'
 import type { HostBridge } from '../hostBridge'
 import type { PanelUiAction, PanelUiState, WizardLife } from './reducer'
 import { INITIAL_PANEL_UI, panelUiReducer } from './reducer'
-import { MODEL_SECTIONS } from './sections'
+import { MODEL_SECTIONS, loadTeamEnglish } from './sections'
 import { MoneyUnavailable } from '../money'
 
 /** The panel's document retry, as its crash screen's Reload. */
@@ -47,6 +47,10 @@ export function ModelsApp({
       }
       const message = parsed.message
       if (message.type === 'modelsPanel/state') {
+        // Navigation reads the team labels too, before a deferred section
+        // opens. Install them only for a validated enabled-team state.
+        if (message.state.roles !== undefined) await loadTeamEnglish()
+        if (!isDocumentOpen()) return
         setPanelState(message.state)
         dispatch({ type: 'host-state', state: message.state })
       } else {

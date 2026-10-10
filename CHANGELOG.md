@@ -94,6 +94,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The hidden Roles editor preserves pending composite edits across unrelated
+  host replies and manual Default concurrency across orchestrator edits. Tool
+  search matches translated labels; enabled-team navigation waits for its
+  English fallback. Pool filters support model families and fractional-price
+  saves, and option prices use the display language's currency rules. U1-only
+  English travels in its team chunk under the existing surface budget.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.

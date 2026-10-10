@@ -375,6 +375,11 @@ export const compactBrowserUiText = {
           'teamReportShapes',
           'teamToolGroups',
           'teamPoolFree',
+          'teamSetupSteps',
+          'teamToolChecklist',
+          'teamAddEntry',
+          'teamDefaultResolves',
+          'teamResetToDefault',
         ].includes(key),
       )
       const accountKeys = deferredKeys.filter((key) => /^(?:accounts|developer)$/.test(key))

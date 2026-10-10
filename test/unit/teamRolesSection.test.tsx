@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { useReducer, useState } from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi, beforeAll } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { panelRig } from './helpers/teamPanelRig'
@@ -99,6 +99,23 @@ async function sectionRig(template?: 'pair' | 'full') {
   }
   render(<App />)
   return { ...rig, posted }
+}
+
+function numericSettingOffers() {
+  const offers = teamOffers()
+  for (const offer of offers)
+    offer.controls.push(
+      { key: 'outputCap', kind: 'number', label: 'Output Cap', note: '', min: 1 },
+      { key: 'temperature', kind: 'number', label: 'Temperature', note: '' },
+    )
+  return offers
+}
+async function roleEditorRig(overrides?: Parameters<typeof panelRig>[0]) {
+  const { rig, slice } = await pairSlice(overrides)
+  const { posted, post } = collectingPost()
+  const role = engineeringRole(slice)
+  const view = render(<RoleEditor role={role} slice={slice} post={post} />)
+  return { rig, slice, posted, post, role, view }
 }
 
 async function outputCapSlice() {
@@ -267,15 +284,8 @@ describe('M96 U1 Roles UI', () => {
     // A delayed host reply: both edits post before the host answers, so
     // each message must build on the latest local draft. The posted
     // messages are applied to the genuine controller only afterwards.
-    const offers = teamOffers()
-    for (const offer of offers)
-      offer.controls.push(
-        { key: 'outputCap', kind: 'number', label: 'Output Cap', note: '', min: 1 },
-        { key: 'temperature', kind: 'number', label: 'Temperature', note: '' },
-      )
-    const { rig, slice } = await pairSlice({ offers: () => Promise.resolve(offers) })
-    const { posted, post } = collectingPost()
-    render(<RoleEditor role={engineeringRole(slice)} slice={slice} post={post} />)
+    const offers = numericSettingOffers()
+    const { rig, posted } = await roleEditorRig({ offers: () => Promise.resolve(offers) })
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Output Cap' }), {
       target: { value: '1024' },
     })
@@ -360,6 +370,133 @@ describe('M96 U1 Roles UI', () => {
       allowed - 2,
     )
   })
+  it('keeps pending settings through unrelated and partial host replies', async () => {
+    const offers = numericSettingOffers()
+    const { rig, posted, post, role, view } = await roleEditorRig({
+      offers: () => Promise.resolve(offers),
+    })
+    const concurrent = screen.getAllByRole('spinbutton', { name: UI_TEXT.teamEditor.concurrent })[0]
+    const primary = role.pool[0]
+    if (concurrent === undefined || primary === undefined) throw new Error('No primary entry')
+    fireEvent.change(concurrent, {
+      target: { value: '1' },
+    })
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Output Cap' }), {
+      target: { value: '1024' },
+    })
+    const concurrentReply = posted[0]
+    if (concurrentReply === undefined) throw new Error('No concurrency edit')
+    await rig.controller.handle(concurrentReply)
+    const unrelated = structuredClone(await rig.read())
+    view.rerender(<RoleEditor role={engineeringRole(unrelated)} slice={unrelated} post={post} />)
+    // A separate settings field changes while Output Cap is still pending.
+    await rig.controller.handle({
+      type: 'roles/updateEntry',
+      role: role.role,
+      entryId: primary.id,
+      fields: { settings: { effort: 'low' } },
+    })
+    const partial = structuredClone(await rig.read())
+    view.rerender(<RoleEditor role={engineeringRole(partial)} slice={partial} post={post} />)
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Temperature' }), {
+      target: { value: '0.5' },
+    })
+    const last = posted.at(-1)
+    expect(last).toMatchObject({
+      fields: { settings: { effort: 'low', outputCap: 1024, temperature: 0.5 } },
+    })
+    if (last === undefined) throw new Error('No settings edit')
+    await rig.controller.handle(last)
+    expect(engineeringRole(await rig.read()).pool[0]?.settings).toEqual({
+      effort: 'low',
+      outputCap: 1024,
+      temperature: 0.5,
+    })
+  })
+  it('keeps pending cap measures through unrelated and other-entry replies', async () => {
+    const { rig, posted, post, role, view } = await roleEditorRig()
+    const concurrent = screen.getAllByRole('spinbutton', { name: UI_TEXT.teamEditor.concurrent })[0]
+    if (concurrent === undefined) throw new Error('No concurrency control')
+    fireEvent.change(concurrent, { target: { value: '1' } })
+    const block = document.querySelector('.team-editor-cap')
+    if (block === null) throw new Error('No cap')
+    const measure = block.querySelector('select')
+    const amount = block.querySelector('input')
+    if (measure === null || amount === null) throw new Error('No cap controls')
+    fireEvent.change(measure, { target: { value: 'outputTokens' } })
+    const reply = posted[0]
+    if (reply === undefined) throw new Error('No edit')
+    await rig.controller.handle(reply)
+    const unrelated = structuredClone(await rig.read())
+    view.rerender(<RoleEditor role={engineeringRole(unrelated)} slice={unrelated} post={post} />)
+    const fallback = role.pool.at(-1)
+    if (fallback === undefined) throw new Error('No fallback')
+    await rig.controller.handle({
+      type: 'roles/cap',
+      role: role.role,
+      entryId: fallback.id,
+      index: 0,
+      cap: { measure: 'inputTokens', window: 'task', amount: 400_000 },
+    })
+    const primary = role.pool[0]
+    if (primary === undefined) throw new Error('No primary')
+    await rig.controller.handle({
+      type: 'roles/cap',
+      role: role.role,
+      entryId: primary.id,
+      index: 1,
+      cap: { measure: 'tokens', window: 'day', amount: 2_000_000 },
+    })
+    const partial = structuredClone(await rig.read())
+    view.rerender(<RoleEditor role={engineeringRole(partial)} slice={partial} post={post} />)
+    expect(document.querySelectorAll('.team-editor-cap select')[4]).toHaveValue('inputTokens')
+    expect(document.querySelectorAll('.team-editor-cap input')[1]).toHaveValue(2_000_000)
+    fireEvent.change(amount, { target: { value: '10000' } })
+    const last = posted.at(-1)
+    expect(last).toMatchObject({ cap: { measure: 'outputTokens', window: 'task', amount: 10_000 } })
+    if (last === undefined) throw new Error('No cap edit')
+    await rig.controller.handle(last)
+    expect(engineeringRole(await rig.read()).pool[0]?.caps[0]?.measure).toBe('outputTokens')
+  })
+  it('keeps pending tool ticks through unrelated host replies', async () => {
+    const { rig, posted, post, view } = await roleEditorRig()
+    fireEvent.change(screen.getByRole('textbox', { name: UI_TEXT.teamEditor.purpose }), {
+      target: { value: 'Custom purpose' },
+    })
+    fireEvent.click(screen.getByRole('checkbox', { name: UI_TEXT.teamToolGroups.read }))
+    const reply = posted[0]
+    if (reply === undefined) throw new Error('No purpose edit')
+    await rig.controller.handle(reply)
+    const unrelated = structuredClone(await rig.read())
+    view.rerender(<RoleEditor role={engineeringRole(unrelated)} slice={unrelated} post={post} />)
+    expect(screen.getByRole('checkbox', { name: UI_TEXT.teamToolGroups.read })).not.toBeChecked()
+    fireEvent.click(screen.getByRole('checkbox', { name: UI_TEXT.teamToolGroups.write }))
+    const last = posted.at(-1)
+    if (last?.type !== 'roles/updateRole') throw new Error('No tool edit')
+    expect(last.fields.tools).not.toContain('read')
+    expect(last.fields.tools).not.toContain('write')
+    await rig.controller.handle(last)
+    expect(engineeringRole(await rig.read()).tools).toEqual(last.fields.tools)
+  })
+  it('retains more than sixteen outstanding setting edits until their echoes arrive', async () => {
+    const slice = await outputCapSlice()
+    const { posted, post } = collectingPost()
+    const view = render(<RoleEditor role={engineeringRole(slice)} slice={slice} post={post} />)
+    for (let amount = 1001; amount <= 1017; amount++)
+      fireEvent.change(screen.getByRole('spinbutton', { name: 'Output Cap' }), {
+        target: { value: String(amount) },
+      })
+    const echo = structuredClone(slice)
+    const entry = engineeringRole(echo).pool[0]
+    if (entry === undefined) throw new Error('No entry')
+    entry.settings = { ...entry.settings, outputCap: 1001 }
+    view.rerender(<RoleEditor role={engineeringRole(echo)} slice={echo} post={post} />)
+    expect(screen.getByRole('spinbutton', { name: 'Output Cap' })).toHaveValue(1017)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Effort' }), { target: { value: 'low' } })
+    expect(posted.at(-1)).toMatchObject({
+      fields: { settings: { effort: 'low', outputCap: 1017 } },
+    })
+  })
   it('keeps generated charter read-only and edits the user purpose', async () => {
     const rig = await sectionRig('pair')
     const purpose = screen.getByRole('textbox', { name: UI_TEXT.teamEditor.purpose })
@@ -377,9 +514,11 @@ describe('M96 U1 Roles UI', () => {
   it('filters the allowed tools without changing the selected tool set', async () => {
     const rig = await sectionRig('pair')
     const search = screen.getByRole('searchbox', { name: UI_TEXT.teamEditor.toolSearch })
-    fireEvent.change(search, { target: { value: 'web' } })
+    fireEvent.change(search, { target: { value: ' Web Fetch ' } })
     expect(screen.getByRole('checkbox', { name: UI_TEXT.teamToolGroups.webFetch })).toBeChecked()
     expect(screen.queryByRole('checkbox', { name: UI_TEXT.teamToolGroups.read })).toBeNull()
+    fireEvent.change(search, { target: { value: 'Code Intel' } })
+    expect(screen.getByRole('checkbox', { name: UI_TEXT.teamToolGroups.codeIntel })).toBeChecked()
     expect(rig.posted).toEqual([])
     fireEvent.change(search, { target: { value: '' } })
     expect(screen.getByRole('checkbox', { name: UI_TEXT.teamToolGroups.read })).toBeChecked()
@@ -525,10 +664,71 @@ describe('M96 U1 pool catalogue filters', () => {
     [{ providerId: 'main' }, true],
     [{ providerId: 'reviewer' }, false],
     [{ search: 'reviewer' }, false],
+    [{ family: 'main' }, true],
+    [{ family: 'MAIN' }, true],
+    [{ family: 'qwen3' }, false],
   ])('matches the main fixture offer %j as %j', (filter, expected) => {
     const [offer] = teamOffers()
     if (offer === undefined) throw new Error('No offer')
     expect(isPoolOfferMatch(offer, filter)).toBe(expected)
+  })
+  it('offers derived families and filters the picker while keeping Default', async () => {
+    const offers = teamOffers()
+    const [main, reviewer] = offers
+    if (main === undefined || reviewer === undefined) throw new Error('No offers')
+    main.agent.model = 'vendor/qwen3:8b'
+    reviewer.agent.model = 'deepseek-flash'
+    const { slice } = await pairSlice({
+      offers: () => Promise.resolve(offers),
+      defaultRef: () => main.ref,
+    })
+    render(<RolesSection {...sectionProps(slice)} />)
+    const family = screen.getByRole('combobox', { name: UI_TEXT.modelFilterLabels.family })
+    expect(family).toHaveTextContent('qwen3')
+    expect(family).toHaveTextContent('deepseek')
+    fireEvent.change(family, { target: { value: 'qwen3' } })
+    fireEvent.focus(screen.getByRole('combobox', { name: UI_TEXT.teamAddEntry }))
+    const picker = within(screen.getByRole('listbox'))
+    expect(picker.getByRole('option', { name: /^main/ })).toBeDefined()
+    expect(picker.queryByRole('option', { name: /reviewer/ })).toBeNull()
+    expect(picker.getByRole('option', { name: /Default/ })).toBeDefined()
+  })
+  it.each(['maxInput', 'maxOutput', 'maxCached'] as const)(
+    'saves a valid team with a fractional %s price filter',
+    async (label) => {
+      const { slice } = await pairSlice()
+      const post = vi.fn<SectionProps['post']>()
+      render(<RolesSection {...sectionProps(slice, post)} />)
+      const filter = screen.getByRole('spinbutton', { name: UI_TEXT.modelFilterLabels[label] })
+      fireEvent.change(filter, { target: { value: '0.5' } })
+      expect(filter).toBeValid()
+      expect(document.querySelector('form')?.checkValidity()).toBe(true)
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.teamEditor.save }))
+      expect(post).toHaveBeenCalledWith({ type: 'roles/save' })
+    },
+  )
+  it('formats pool prices with the installed French currency rules', async () => {
+    const script = document.createElement('script')
+    script.type = 'application/json'
+    script.id = WEBVIEW_L10N_ELEMENT_ID
+    script.textContent = JSON.stringify({
+      locale: 'fr',
+      table: JSON.parse(readFileSync('l10n/ui.fr.json', 'utf8')),
+    })
+    document.body.append(script)
+    expect(installEmbeddedTable(document)).toBeUndefined()
+    try {
+      const [offer] = teamOffers()
+      if (offer === undefined) throw new Error('No offer')
+      const money = await loadMoneyDisplay()
+      const text = offerDescription({ ...offer, inputRate: 1234.5, outputRate: 0.25 }, money)
+      const currency = new Intl.NumberFormat('fr', { style: 'currency', currency: 'USD' })
+      expect(text).toContain(`${currency.format(1234.5)}/${currency.format(0.25)}`)
+      expect(text).not.toContain('$1234.5')
+    } finally {
+      script.remove()
+      setUiText(EN, 'en')
+    }
   })
   it('keeps local and capable offers under their facets', () => {
     const [, reviewer] = teamOffers()
@@ -541,11 +741,11 @@ describe('M96 U1 pool catalogue filters', () => {
     const windowless = { ...reviewer, contextWindow: undefined }
     expect(isPoolOfferMatch(windowless, { contextMin: 1000 })).toBe(false)
   })
-  it('describes offers with context and price to compare', () => {
+  it('describes offers with context and price to compare', async () => {
     const [offer] = teamOffers()
     if (offer === undefined) throw new Error('No offer')
     expect(offerDescription(offer)).toContain('Tokens')
-    expect(offerDescription(offer)).toContain('$1/$2')
+    expect(offerDescription(offer, await loadMoneyDisplay())).toContain('$1.00/$2.00')
   })
 })
 
@@ -569,6 +769,11 @@ describe('M96 U1 localized role labels', () => {
       expect(screen.queryByRole('option', { name: 'summary' })).toBeNull()
       expect(screen.getByRole('checkbox', { name: 'Lesen' })).toBeDefined()
       expect(screen.queryByRole('checkbox', { name: 'read' })).toBeNull()
+      fireEvent.change(screen.getByRole('searchbox', { name: UI_TEXT.teamEditor.toolSearch }), {
+        target: { value: ' Lesen ' },
+      })
+      expect(screen.getByRole('checkbox', { name: 'Lesen' })).toBeChecked()
+      expect(screen.queryByRole('checkbox', { name: UI_TEXT.teamToolGroups.write })).toBeNull()
     } finally {
       element.remove()
       setUiText(EN, 'en')

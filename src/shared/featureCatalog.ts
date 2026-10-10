@@ -1099,6 +1099,7 @@ const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
   providers: ['providerOpenRouterServices'],
+  'team-configuration': ['referenceTeamPoolKeys'],
   estimator: ['estimateCliHelp'],
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],

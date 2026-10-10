@@ -700,7 +700,7 @@
     {
       "id": "M96",
       "title": "Agent roles and teams",
-      "summary": "Agent roles with charters, tools, model pools and task limits, with the Roles and Agents editor kept hidden until production worker bindings and certification are complete.",
+      "summary": "Agent roles with charters, tools, model pools, localized search and price/family filters, with an editor that preserves pending edits and stays hidden until production worker bindings and certification are complete.",
       "area": "agents",
       "release": "0.15.0"
     },
