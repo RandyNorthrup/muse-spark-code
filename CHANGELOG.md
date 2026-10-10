@@ -158,6 +158,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Native Git transaction leases** (M123G4, PLAN.md D104). A paused
+  transaction can no longer reclaim another window's lock after that
+  window renews it, or run another Git mutation with that lost lock. The
+  service uses the shared fenced lease, renews every third of its lease,
+  and never re-creates a removed lock. Acquisition no longer waits an
+  extra 250 ms. A Git child already running when the lock is removed or
+  expires can still overlap a successor; fencing refuses later mutations.
+
 - Packaged translation tables round-trip byte-exact again: every language
   table lists its keys in English's order, including the resource history
   and Windows path strings merged for 0.17.0.

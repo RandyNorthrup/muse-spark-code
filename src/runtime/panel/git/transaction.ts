@@ -3,19 +3,14 @@
 // mutations across every editor and runtime process, and the seal that
 // carries a revalidated plan to the moment its git starts.
 //
-// - The lock is a file in git's common directory, created exclusively
-//   (`wx`). It names its holder (machine, process, a random nonce). A
-//   waiter polls, and takes a lock over only when its holder is gone: on
-//   the same machine, its process ended; anywhere, silent for
-//   GIT_TRANSACTION_LOCK_STALE_MS. A takeover moves the file aside first and
-//   keeps it only if it is the one judged stale, so a fresh lock is put back.
-// - The holder keeps the lock for the whole transaction, every git it runs
-//   included (RVM123G3G): every GIT_TRANSACTION_LOCK_WATCH_MS it refreshes
-//   its file, and puts its own back when the file is gone (a hook removed
-//   it) or a newcomer's is still settling. A newcomer trusts its new file
-//   only after GIT_TRANSACTION_LOCK_SETTLE_MS, so it never runs beside a
-//   holder that is still alive. A newcomer that outlived the settle time
-//   means the lock was lost, and the old holder's spawn check refuses.
+// - LOCKLIB holds the file in git's common directory: exclusive create,
+//   a process-birth-bound owner, a monotonic lease and an increasing fence.
+//   Renewal runs every third of the lease, only on the owned instance. A
+//   removed, expired or taken lock is lost, never re-made. Takeover uses
+//   LOCKLIB's watched, proven retirement; no newcomer settle wait.
+// - The synchronous dispatch gate checks the instance, lease and highest
+//   fence beside the seal, with no await before spawning. Fencing refuses
+//   later dispatch by a lost holder; it cannot stop an already-running git.
 // - The seal is the state git reads for a payload (HEAD, the index, packed
 //   and loose refs, the reftable list, the configuration files), sampled
 //   synchronously by identity, size and times BEFORE the plan is
@@ -27,120 +22,30 @@
 //   check and the operating system acting on a path: D104's threat boundary
 //   leaves that process out, since it already holds the user's authority.
 
-import { randomUUID } from 'node:crypto'
-import {
-  readFileSync,
-  renameSync,
-  statSync,
-  unlinkSync,
-  utimesSync,
-  writeFileSync,
-  type BigIntStats,
-} from 'node:fs'
-import { link, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
-import { hostname } from 'node:os'
+import { type BigIntStats } from 'node:fs'
 import path from 'node:path'
-import * as z from 'zod/mini'
+import { performance } from 'node:perf_hooks'
 import {
   fileReadIdentity,
   lstatIdentitySync,
   statIdentitySync,
 } from '../../../core/fs/fileIdentity'
+import { acquireFileLease, type FileLeaseEnv } from '../../../core/locks/fileLease'
+import { nodeLeasePort } from '../../../core/locks/nodeLeasePort'
+import { currentProcessOwner, isProcessOwnerGone } from '../../../core/locks/processOwner'
 import { isMissingPath } from '../../../host/canonicalPath'
 import {
   GIT_TRANSACTION_LOCK_FILE,
   GIT_TRANSACTION_LOCK_POLL_MS,
   GIT_TRANSACTION_LOCK_REFRESH_MS,
-  GIT_TRANSACTION_LOCK_SETTLE_MS,
   GIT_TRANSACTION_LOCK_STALE_MS,
-  GIT_TRANSACTION_LOCK_WATCH_MS,
 } from '../../../shared/constants'
 
-const ALREADY_EXISTS = 'EEXIST'
-const NO_SUCH_PROCESS = 'ESRCH'
-
-/** Who holds a lock: written once by its holder, read by waiters. */
-const lockHolderSchema = z.object({
-  host: z.string(),
-  pid: z.number().check(z.int(), z.positive()),
-  nonce: z.string(),
-})
-
-/** A held repository lock. */
+/** A repository lease, checked synchronously at every Git dispatch. */
 export interface RepositoryLock {
-  /** Whether the lock file is still this holder's: checked at each spawn. */
-  readonly isHeld: () => boolean
-  /** Ends the hold; removes the file only while it is still this holder's. */
-  readonly release: () => void
-}
-
-function errorCode(error: unknown): unknown {
-  return typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
-}
-
-function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error: unknown) {
-    // EPERM: it exists, under another user.
-    return errorCode(error) !== NO_SUCH_PROCESS
-  }
-}
-
-/** Whether a lock with this text and age has no live holder. */
-function isStaleLock(text: string, ageMs: number): boolean {
-  if (ageMs > GIT_TRANSACTION_LOCK_STALE_MS) {
-    return true
-  }
-  let holder: z.infer<typeof lockHolderSchema>
-  try {
-    holder = lockHolderSchema.parse(JSON.parse(text))
-  } catch {
-    // Still being written, or not ours to read: only its age can free it.
-    return false
-  }
-  return holder.host === hostname() && holder.pid !== process.pid && !isProcessAlive(holder.pid)
-}
-
-/** The lock's text and age, or undefined when it is gone. */
-async function heldLock(file: string): Promise<{ text: string; ageMs: number } | undefined> {
-  try {
-    const [text, stats] = await Promise.all([readFile(file, 'utf8'), stat(file)])
-    return { text, ageMs: Date.now() - stats.mtimeMs }
-  } catch (error: unknown) {
-    if (isMissingPath(error)) {
-      return undefined
-    }
-    throw error
-  }
-}
-
-/**
- * Moves a stale lock aside and drops it, unless what moved is not the one
- * judged (another waiter's fresh lock): that one goes back, if its name is
- * still free. If it is not, its holder's spawn check refuses.
- */
-async function takeOver(file: string, judged: string, nonce: string): Promise<void> {
-  const aside = `${file}.${nonce}`
-  try {
-    await rename(file, aside)
-  } catch (error: unknown) {
-    if (isMissingPath(error)) {
-      return
-    }
-    throw error
-  }
-  try {
-    const moved = await readFile(aside, 'utf8')
-    if (moved !== judged) {
-      await link(aside, file)
-    }
-  } catch {
-    // The name was taken again meanwhile: the moved holder's spawn check refuses.
-  } finally {
-    await rm(aside, { force: true })
-  }
+  readonly isHeldSync: () => boolean
+  /** Stops renewal, waits for a renewal in flight, then retires only this instance. */
+  readonly release: () => Promise<void>
 }
 
 /** Resolves after `ms`, or as soon as `signal` aborts (the caller's check then throws). */
@@ -156,150 +61,83 @@ function pause(ms: number, signal: AbortSignal): Promise<void> {
   })
 }
 
-/** Creates the lock file with `text` if no lock exists; false when one does. */
-async function isCreated(file: string, text: string): Promise<boolean> {
-  try {
-    await writeFile(file, text, { flag: 'wx' })
-    return true
-  } catch (error: unknown) {
-    if (errorCode(error) !== ALREADY_EXISTS) {
-      throw error
-    }
-    return false
-  }
-}
-
-/** Whether the lock file holds exactly `text`, read now. */
-function isOwnLock(file: string, text: string): boolean {
-  try {
-    return readFileSync(file, 'utf8') === text
-  } catch {
-    return false
-  }
-}
-
-/**
- * A newcomer's own new file, trusted only once it outlived the settle time:
- * a holder whose file was removed puts its own back within
- * GIT_TRANSACTION_LOCK_WATCH_MS, over a newcomer's (RVM123G3G). A Cancel
- * meanwhile removes the newcomer's file again.
- */
-async function isSettled(
-  file: string,
-  text: string,
-  signal: AbortSignal,
-  check: () => void,
-): Promise<boolean> {
-  await pause(GIT_TRANSACTION_LOCK_SETTLE_MS, signal)
-  try {
-    check()
-  } catch (error: unknown) {
-    if (isOwnLock(file, text)) {
-      unlinkSync(file)
-    }
-    throw error
-  }
-  return isOwnLock(file, text)
-}
-
-/**
- * The holder's watch while it holds the lock, through every wait and every
- * git it runs (RVM123G3G): its own file is refreshed; a removed file (a
- * hook of the running git) or a newcomer's still settling is replaced by
- * its own at once; a newcomer's file that outlived the settle time means
- * the lock was lost, and every later spawn check refuses.
- */
-function keepHolding(file: string, text: string, onLost: () => void): () => void {
-  let touchedAt = Date.now()
-  const keep = (): void => {
-    let found: { readonly text: string; readonly ageMs: number } | undefined
-    try {
-      found = { text: readFileSync(file, 'utf8'), ageMs: Date.now() - statSync(file).mtimeMs }
-    } catch (error: unknown) {
-      if (!isMissingPath(error)) {
-        throw error
-      }
-    }
-    if (found?.text === text) {
-      if (Date.now() - touchedAt >= GIT_TRANSACTION_LOCK_REFRESH_MS) {
-        const now = new Date()
-        utimesSync(file, now, now)
-        touchedAt = now.getTime()
-      }
-      return
-    }
-    if (found !== undefined && found.ageMs >= GIT_TRANSACTION_LOCK_SETTLE_MS) {
-      clearInterval(watch)
-      onLost()
-      return
-    }
-    const ours = `${file}.${randomUUID()}`
-    writeFileSync(ours, text)
-    renameSync(ours, file)
-    touchedAt = Date.now()
-  }
-  const watch = setInterval(() => {
-    try {
-      keep()
-    } catch {
-      // Unreadable or unwritable: the spawn check reads the file itself.
-    }
-  }, GIT_TRANSACTION_LOCK_WATCH_MS)
-  watch.unref()
-  return () => {
-    clearInterval(watch)
-  }
-}
-
-/**
- * Takes the repository's transaction lock in `commonDir`, waiting while
- * another holder (this process or any other) has it. `check` runs after
- * every await: Cancel, a lost owner or trust ends the wait.
- */
+/** Takes LOCKLIB's repository lease, waiting until acquired or the operation closes. */
 export async function acquireRepositoryLock(
   commonDir: string,
   signal: AbortSignal,
   check: () => void,
 ): Promise<RepositoryLock> {
-  const file = path.join(commonDir, GIT_TRANSACTION_LOCK_FILE)
-  const nonce = randomUUID()
-  const text = JSON.stringify({ host: hostname(), pid: process.pid, nonce })
-  for (;;) {
+  check()
+  const owner = await currentProcessOwner()
+  check()
+  const env: FileLeaseEnv = {
+    port: nodeLeasePort,
+    now: Date.now,
+    monotonic: () => performance.now(),
+    sleep: async (ms) => {
+      check()
+      await pause(ms, signal)
+      check()
+    },
+    owner,
+    isOwnerGone: async (other) => {
+      const isGone = await isProcessOwnerGone(other)
+      check()
+      return isGone
+    },
+    leaseMs: GIT_TRANSACTION_LOCK_STALE_MS,
+    honoredLeaseMs: GIT_TRANSACTION_LOCK_STALE_MS,
+    unreadableMs: GIT_TRANSACTION_LOCK_STALE_MS,
+    // Preserve the service's wait-until-Cancel contract; the lease itself
+    // and takeover observation remain bounded on the monotonic clock.
+    timeoutMs: Infinity,
+    pollMs: GIT_TRANSACTION_LOCK_POLL_MS,
+  }
+  const lease = await acquireFileLease(path.join(commonDir, GIT_TRANSACTION_LOCK_FILE), env)
+  try {
     check()
-    if (await isCreated(file, text)) {
-      if (await isSettled(file, text, signal, check)) {
-        break
-      }
-      continue
-    }
-    const held = await heldLock(file)
-    check()
-    if (held === undefined) {
-      continue
-    }
-    if (isStaleLock(held.text, held.ageMs)) {
-      await takeOver(file, held.text, nonce)
-      continue
-    }
-    await pause(GIT_TRANSACTION_LOCK_POLL_MS, signal)
+  } catch (error: unknown) {
+    await lease.release()
+    throw error
   }
   let isReleased = false
   let isLost = false
-  const stopWatching = keepHolding(file, text, () => {
+  let renewing: Promise<void> | undefined
+  const lose = (): void => {
     isLost = true
-  })
-  return {
-    isHeld: () => !isReleased && !isLost && isOwnLock(file, text),
-    release: () => {
-      stopWatching()
-      if (!isReleased && isOwnLock(file, text)) {
-        try {
-          unlinkSync(file)
-        } catch {
-          // Already gone: nothing to release.
-        }
+    clearInterval(timer)
+  }
+  const renew = async (): Promise<void> => {
+    try {
+      if (!(await lease.renew())) {
+        lose()
       }
+    } catch {
+      lose()
+    } finally {
+      renewing = undefined
+    }
+  }
+  const timer = setInterval(() => {
+    renewing ??= renew()
+  }, GIT_TRANSACTION_LOCK_REFRESH_MS)
+  timer.unref()
+  return {
+    isHeldSync: () => {
+      if (isReleased || isLost) {
+        return false
+      }
+      if (!lease.isHeldSync()) {
+        lose()
+        return false
+      }
+      return true
+    },
+    release: async () => {
       isReleased = true
+      clearInterval(timer)
+      await renewing
+      await lease.release()
     },
   }
 }
