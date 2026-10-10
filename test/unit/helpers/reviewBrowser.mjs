@@ -1,8 +1,13 @@
 // Start real Chrome once, before test workers compete for hosted CPUs. Each
 // suite connects separately and owns isolated contexts; no profile is shared.
-import { chromium } from 'playwright-core'
-import { findChrome } from '../../../scripts/lib/chrome.mjs'
-import { CAPTURE_CONTEXT, rasterizationFingerprint } from '../../harness/goldens/capture.mjs'
+// The Playwright server runs in reviewBrowserServer.mjs's own process, not in
+// vitest's main process, whose event loop also transforms every worker's
+// modules (CIFIX017R3).
+import { spawn } from 'node:child_process'
+import { once } from 'node:events'
+import process from 'node:process'
+import { createInterface } from 'node:readline'
+import { fileURLToPath } from 'node:url'
 
 export const REVIEW_BROWSER_KEY = 'reviewBrowser'
 export const REVIEW_RASTERIZATION_KEY = 'reviewRasterization'
@@ -12,28 +17,43 @@ const suites = [
   '/m114ConversationReview.test.mjs',
 ]
 
+async function firstLine(child, exited) {
+  const lines = createInterface({ input: child.stdout })
+  const started = (async () => {
+    const [line] = await once(lines, 'line')
+    return line
+  })()
+  const ended = (async () => {
+    await exited
+    return null
+  })()
+  const line = await Promise.race([started, ended])
+  if (line === null) throw new Error('Review browser server exited before it started')
+  return line
+}
+
 export async function startReviewBrowser(project, files) {
   if (files.every((file) => suites.every((suite) => !file.replaceAll('\\', '/').endsWith(suite))))
     return
-  const executablePath = findChrome()
-  if (executablePath === undefined) throw new Error('Chrome is required for visual review tests')
-  const browser = await chromium.launchServer({ executablePath })
+  const child = spawn(
+    process.execPath,
+    [fileURLToPath(new URL('reviewBrowserServer.mjs', import.meta.url))],
+    { stdio: ['pipe', 'pipe', 'inherit'], windowsHide: true },
+  )
+  const exited = once(child, 'exit')
+  // Ending stdin closes the server, its connections and Chrome.
+  const close = async () => {
+    if (child.exitCode !== null || child.signalCode !== null) return
+    child.stdin.end()
+    await exited
+  }
   try {
-    // The capture fingerprint's page is a cold browser's first font fallback
-    // (Segoe UI, Consolas, CJK). It took 5.5 s of the stability suite's first
-    // 10-second hook on a CPU-starved Mac (CIFIX017R3): measure it once here,
-    // before workers, on the same browser with the same context options.
-    const connection = await chromium.connect(browser.wsEndpoint())
-    try {
-      const context = await connection.newContext(CAPTURE_CONTEXT)
-      project.provide(REVIEW_RASTERIZATION_KEY, await rasterizationFingerprint(context))
-    } finally {
-      await connection.close()
-    }
+    const { endpoint, rasterization } = JSON.parse(await firstLine(child, exited))
+    project.provide(REVIEW_RASTERIZATION_KEY, rasterization)
+    project.provide(REVIEW_BROWSER_KEY, endpoint)
   } catch (error) {
-    await browser.close()
+    await close()
     throw error
   }
-  project.provide(REVIEW_BROWSER_KEY, browser.wsEndpoint())
-  return browser
+  return { close }
 }
