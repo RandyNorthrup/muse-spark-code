@@ -35,12 +35,12 @@ happened, not what was planned; superseded entries are kept.
 - Truth pass (C-X-1): the roadmap no longer lists a next release (0.17.0
   shipped); roles/teams, the vault, scheduled prompts v2 and the capacity
   estimator say what they do today (no team can be created, vault commands
-  refuse closed, closed-editor fires stay refused, real forecasts still say
-  so); streamed argument text is no longer claimed; the README's Auto
-  reviewer is on by default with consent before spending; the Help reference
-  lists the shared daily budget on ACP as well as VS Code. Paid schedules on
-  ACP stay VS Code-only in the reference until the lead rules on
-  flag-authorized paid surfaces.
+  refuse closed, fires run only in live VS Code sessions with terminal and
+  ACP fires refused at spend consent, /estimate waits on the plan reader);
+  streamed argument text is no longer claimed; the README's Auto reviewer is
+  on by default with consent before spending; the Help reference lists the
+  shared daily budget on ACP as well as VS Code. The schedules row stays
+  VS Code-only because spend consent denies billed fires elsewhere.
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did

@@ -29720,7 +29720,7 @@ selects Models, but the merged script tag always loads chat. Restore the M95
 dynamic bundle loader while retaining M87's Tasks surface setup, then remeasure
 all 181 scenarios across four themes; do not suppress or filter failed pages.
 
-**Status 2026-10-06: built.**
+**Status 2026-10-06 (retained detail: reviewed A/C1/C2/O/T/P1/P2 mechanisms integrated; live checks and remaining bindings below still required): building.**
 
 Status detail retained: reviewed A/C1/C2/O/T/P1/P2 mechanisms integrated with
 release 0.14.0 on Kubuntu. The five requested merges are complete. Strict
@@ -30608,7 +30608,7 @@ Acceptance and the exact composed gate receipts live in
 
 ### M92 — Muse Gadgets support (D71)
 
-**Status 2026-10-05: building.** Status evidence: `docs/certification/m92.md`.
+**Status 2026-10-10 (corrects 2026-10-05: every section item is checked and the parts shipped in 0.13.0): built.** Status evidence: `docs/certification/m92.md`.
 
 - **Goal.** Firmware and device work with Muse Spark Code is safe, with tokens
   never leaked, and practical, with bounded flash and monitor runs, without
