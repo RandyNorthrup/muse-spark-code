@@ -1,0 +1,200 @@
+// The team host service (M96 lane X, C-M96-3, PLAN.md D75): one service per
+// window and workspace that every surface binds to. The Model API host takes
+// its seams (`TeamHostSeams`); the VS Code chat panel takes its tree and its
+// actions; M96b's ACP agent, headless runs and the other editors' panels bind
+// to the same interface over their own ports. No `vscode` here: every editor
+// supplies the ports below, and nothing in this file runs on its own.
+//
+// Types only: the implementation (`createTeamHostService`, teamHost.ts) loads
+// with the team bundle (dist/team.js), and only for a workspace that stores a
+// team. A workspace without one never loads it (acceptance 1 and 47).
+
+import type { UsdAmount } from '../../shared/usd'
+import type { TeamWorkerConfirmation } from '../../shared/paid'
+import type {
+  TeamAgentRef,
+  TeamPoolEntry,
+  TeamReport,
+  TeamRoleConfig,
+  TeamSnapshot,
+  TeamUsage,
+} from '../../shared/team'
+import type { TeamTreeData } from '../../shared/teamView'
+import type {
+  TeamDecisionSource,
+  TeamRosterLive,
+  TeamStableRole,
+  TeamToolContext,
+  TeamToolRunner,
+} from './teamSeams'
+
+/**
+ * What a conversation engine takes from the service: the Model API host
+ * today (`ModelApiHostDeps`' `team*` fields, PLAN.md M96 lane T), the ACP
+ * engine and headless `exec` in M96b. Each is read when it is needed and
+ * never probes: the decision reads the latest probe results already known.
+ */
+export interface TeamHostSeams {
+  readonly teamDecisionSource: () => TeamDecisionSource | undefined
+  readonly teamRosterData: () =>
+    { readonly stable: readonly TeamStableRole[]; readonly live?: TeamRosterLive } | undefined
+  readonly teamRunner: TeamToolRunner
+  readonly isTeamInPlaceActive: () => boolean
+}
+
+/** The "waiting for you" card's four answers (D75's `ask` policy). */
+export type TeamWaitingChoice = 'queue' | 'self' | 'raise' | 'cancel'
+
+/** The merge card's two answers. */
+export type TeamMergeDecision = 'merge' | 'discard'
+
+/**
+ * The service every surface binds to. The tree is the Agent map's live view
+ * (undefined while the workspace is single-model: today's map, acceptance
+ * 47); the actions are the tree's and the cards' buttons, the same from any
+ * editor. A refused action throws an `Error` whose message is the user's
+ * sentence; the surface shows it.
+ */
+export interface TeamHostService extends TeamHostSeams {
+  /** The Agent map's tree, or undefined when the workspace runs no team. */
+  readonly tree: () => TeamTreeData | undefined
+  /** Called after every change the tree shows; returns the unsubscribe. */
+  readonly onTreeChange: (listener: (tree: TeamTreeData | undefined) => void) => () => void
+  /** Stops one task and its process tree (acceptance 13's `cancel`, from the tree). */
+  readonly stopTask: (taskId: string) => Promise<void>
+  /** Stops every running and queued task; returns how many stopped. */
+  readonly stopAllTasks: () => Promise<number>
+  /** Answers a "waiting for you" card. */
+  readonly answerWaiting: (waitingId: string, choice: TeamWaitingChoice) => Promise<void>
+  /** Answers a merge card, or merges or discards a finished task from the tree. */
+  readonly decideMerge: (taskId: string, decision: TeamMergeDecision) => Promise<void>
+  /** Clears one entry's meters; the ledger keeps the record (acceptance 11). */
+  readonly resetEntry: (entryId: string) => Promise<void>
+  /**
+   * The declared setup probes: each distinct custom entry is checked once for
+   * its model observably loaded. Called when a surface that shows the team
+   * opens, never on a conversation's path (acceptance 47's zero traffic).
+   */
+  readonly probeEntries: () => Promise<void>
+  /** Re-reads the stored team after the Roles section (lane U1) saves it. */
+  readonly reload: () => void
+  /** Stops every task and releases every port. */
+  readonly dispose: () => Promise<void>
+}
+
+// --- Ports: what each editor supplies ---
+
+/** The workspace's state, where the team is stored (D75: not in settings). */
+export interface TeamStatePort {
+  get(key: string): unknown
+  update(key: string, value: unknown): Promise<void>
+}
+
+/** The machine-scoped settings that run or bill (D15), read at each use. */
+export interface TeamSettingsPort {
+  /** `museSpark.team`: off, no team loads anywhere. */
+  readonly isTeamOn: () => boolean
+  /** `museSpark.modelApiTeamWorkers`: the paid feature `teamWorkers`. */
+  readonly isTeamWorkersOn: () => boolean
+  /** `museSpark.teamMaxWorkers`: workers at once in this window. */
+  readonly maxWorkers: () => number
+  /** Restricted Mode: an untrusted workspace starts no worker (acceptance 29). */
+  readonly isTrusted: () => boolean
+}
+
+/** The orchestrator slot: the composer's picker unless the workspace overrides it. */
+export interface TeamOrchestratorPort {
+  readonly modelId: () => string
+  /** The backend the orchestrator runs on, as the tree names it. */
+  readonly backend: () => string
+  /** Lane R's `sameModel`: one model whatever serves it. */
+  readonly isSameModel: (a: string, b: string) => boolean
+}
+
+/** One task as the service hands it to the editor's worker port. */
+export interface TeamTaskSpec {
+  readonly taskId: string
+  readonly role: TeamRoleConfig
+  readonly entry: TeamPoolEntry & { readonly agent: TeamAgentRef }
+  readonly brief: string
+  readonly files: readonly string[]
+  /** The orchestrator's session, for the worker's own cards (D75). */
+  readonly parentSessionId: string
+}
+
+/** What a finished worker hands back. */
+export interface TeamWorkerOutcome {
+  readonly report: TeamReport
+  readonly usage: TeamUsage
+  /** `own-branch` only: the task branch, the base it started from and its head. */
+  readonly branch?: string | undefined
+  readonly baseCommit?: string | undefined
+  readonly head?: string | undefined
+  /** Files the branch changed against its base; empty when nothing changed. */
+  readonly changedFiles?: readonly string[] | undefined
+}
+
+/**
+ * Starts workers (lanes W and I): the working copy, the worker on its agent,
+ * the end-of-task commit. `canRun` answers without any traffic whether this
+ * editor has a worker for the agent's kind at all; an agent it cannot run is
+ * unavailable, never a silent fallback.
+ */
+export interface TeamWorkerPort {
+  readonly canRun: (agent: TeamAgentRef) => boolean
+  /** The declared setup probe: the agent's model observably loaded. */
+  readonly probe: (agent: TeamAgentRef) => Promise<boolean>
+  readonly run: (spec: TeamTaskSpec, signal: AbortSignal) => Promise<TeamWorkerOutcome>
+}
+
+/** What a merge did, in the words the model and the user read. */
+export interface TeamMergeOutcome {
+  readonly status: 'merged' | 'rework'
+  readonly written: readonly string[]
+  readonly conflicts: readonly string[]
+}
+
+/** Lane I's integration: the three-way merge into the working tree, and discard. */
+export interface TeamMergePort {
+  readonly merge: (
+    task: {
+      readonly taskId: string
+      readonly role: TeamRoleConfig
+      readonly outcome: TeamWorkerOutcome
+    },
+    signal: AbortSignal,
+  ) => Promise<TeamMergeOutcome>
+  readonly discard: (task: {
+    readonly taskId: string
+    readonly role: TeamRoleConfig
+    readonly outcome: TeamWorkerOutcome | undefined
+  }) => Promise<void>
+}
+
+/** Paid use (rule 12): one D48 popup per `delegate` call that starts key tasks. */
+export interface TeamPaidPort {
+  readonly allowKeyTasks: (
+    tasks: readonly TeamWorkerConfirmation[],
+    dailyBudgetUsd: UsdAmount | undefined,
+    context: TeamToolContext,
+  ) => Promise<boolean>
+}
+
+/** Everything `createTeamHostService` takes. */
+export interface TeamHostServiceDeps {
+  readonly state: TeamStatePort
+  readonly settings: TeamSettingsPort
+  readonly orchestrator: TeamOrchestratorPort
+  readonly workers: TeamWorkerPort
+  readonly merges: TeamMergePort
+  readonly paid: TeamPaidPort
+  readonly newId: () => string
+  readonly now: () => number
+  readonly log: {
+    readonly info: (message: string) => void
+    readonly warn: (message: string) => void
+  }
+}
+
+/** Reads the stored team; undefined when none is stored or it does not parse. */
+export type TeamSnapshotReader = (state: TeamStatePort) => TeamSnapshot | undefined
