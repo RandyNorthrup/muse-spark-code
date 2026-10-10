@@ -32,7 +32,7 @@ const { isProviderId, parseModelRef } = modelRef
 import type { ServeOptions } from '../cliArgs'
 import { accountIdSchema } from '../../shared/accounts'
 import { ACCOUNT_DEFAULT_ID } from '../../shared/constants'
-import { teamExecAdmission } from '../../acp/teamContracts'
+import { teamExecAdmission } from '../../acp/teamAdmission'
 
 export type ExecMode = 'plan' | 'acceptEdits'
 export type ExecOutput = 'text' | 'json' | 'jsonl'

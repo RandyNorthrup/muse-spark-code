@@ -48,19 +48,18 @@ happened, not what was planned; superseded entries are kept.
   paths, unsupported media/terminal content, empty option ids and plan titles.
   Plan validation covers the complete returned collection and its entry count;
   sparse plans, content and permission-option arrays are refused rather than
-  emitted with missing entries. Every builder snapshots its caller input on
-  entry, so custom iterators, getters and overridden methods cannot change a
-  validated collection; inputs the snapshot cannot copy (proxies, functions)
-  are refused with the same typed error. Snapshot arrays are rebuilt from
-  their indexed entries, so own `map`/`constructor` shadows cannot reach
-  native dispatch, and title formatting reuses the entry snapshot instead of
-  copying the input twice. The hand-written input checks are replaced by one
-  strict parse per builder: unknown keys fail, every array element is
-  validated exactly, required strings are non-empty where the contract needs
-  them, and every refusal — including anything a hostile getter or trap
-  throws while the parse reads — is the same typed error naming the rejected
-  path; each builder runs only on the parsed value, so the snapshot clone and
-  indexed rebuild are gone.
+  emitted with missing entries. Builders parse shape once and build from the
+  parsed values: unknown input keys fail, array elements are validated and
+  required strings are non-empty where the contract needs them. Content and
+  permission-option extras must be JSON, including the outer text wrapper;
+  accepted extras are copied so later caller changes cannot alter a result.
+  Content branches use their type discriminator without revisiting the
+  original nested diff. Parse failures become the same typed error without
+  inspecting arbitrary thrown objects. These builders receive the project's
+  own values from already-validated wire data; hostile JavaScript callers
+  are outside their threat model. The mapping uses only the shipped shared
+  parser API, and CLI/headless admission is separate so ACP schemas do not
+  consume the unchanged headless bundle budget.
 
 ### Changed
 

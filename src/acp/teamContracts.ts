@@ -5,6 +5,11 @@
 // request carrying the diff; the agent map's tree is a `plan` with one entry
 // per running task. Pure: no `vscode`, no backend. C-M96b-1/2 do the wiring;
 // what these build is validated here, and refused loudly where it cannot run.
+// Threat model (lead, RVCM96B0G): builders receive values our own code
+// produced from already-validated wire data. Validate shape once, refuse
+// malformed inputs with TeamContractError, then build from parsed values.
+// Hostile JavaScript callers (getters, proxies, custom iterators) are outside
+// this model; no adversarial object snapshot or custom collection dispatch.
 import * as z from 'zod/mini'
 import type {
   PermissionOption,
@@ -15,6 +20,8 @@ import type {
 } from '@agentclientprotocol/sdk'
 import { UI_TEXT } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
+import { parseInput, TeamContractError } from './teamAdmission'
+export { TeamContractError, teamExecAdmission } from './teamAdmission'
 
 /** Every team tool call id lives under this prefix, so editors can route it. */
 export const TEAM_TOOL_CALL_PREFIX = 'team/'
@@ -26,42 +33,6 @@ export const TEAM_TASK_TOOL_KIND = 'other'
 export const TEAM_PLAN_PRIORITY = 'medium'
 /** The separator between the role and the agent in a permission title. */
 const TITLE_SEPARATOR = ' \u{B7} '
-
-/** A caller value cannot be represented by the frozen team contract. */
-export class TeamContractError extends Error {
-  override readonly name = 'TeamContractError'
-}
-
-/**
- * One strict zod parse per public builder (PLAN.md M96b): the input is
- * parsed once at entry and the builder runs only on the parsed value, never
- * on the caller's object again. The parse reads each property once, ignores
- * overridden iterators and methods (arrays are read by index), and returns a
- * fresh plain value, so validation and the build below cannot disagree about
- * what the caller passed. Every refusal — a `ZodError` or any other value a
- * hostile getter, proxy or revoked handle throws while the parse reads — is
- * a `TeamContractError` naming the rejected path, never a raw `TypeError`
- * and never a partial build.
- */
-function parseInput<Schema extends z.ZodMiniType>(
-  schema: Schema,
-  input: unknown,
-  what: string,
-): z.infer<Schema> {
-  try {
-    const result = schema.safeParse(input)
-    if (!result.success) {
-      const paths = result.error.issues.map((issue) => issue.path.join('.') || '(input)').join(', ')
-      throw new TeamContractError(`M96b: a team builder rejected its ${what} at ${paths}`, {
-        cause: result.error,
-      })
-    }
-    return result.data
-  } catch (error) {
-    if (error instanceof TeamContractError) throw error
-    throw new TeamContractError(`M96b: a team builder cannot read its ${what}`, { cause: error })
-  }
-}
 
 /** A `/` in an id would fake a hierarchy, so task and merge ids never hold one. */
 const idSchema = z.string().check(
@@ -253,30 +224,32 @@ export function teamReportContent(report: string): ToolCallContent {
   })
 }
 
-// Frozen wire shapes (AGENTS.md rule 7): loose, so anything the wire adds
-// later arrives rather than failing the parse (PLAN.md D36). The `z.json`
-// catchall keeps that promise to plain wire data while refusing exotic
-// smuggled values (functions, symbols, `undefined`, `bigint`): those are
-// never wire fields, and keeping them would leak caller state into output.
+// Frozen wire shapes (AGENTS.md rule 7): JSON first, then the discriminated
+// shape. The shipped parser supports both APIs. JSON parsing preserves D36
+// extras as fresh values at every level; shape parsing sees only that copy.
+// Widen the static output to unknown: the next stage validates the shape,
+// whose loose extras are typed unknown even though JSON was checked first.
+const teamJsonSchema: z.ZodMiniType = z.json()
 
 /** Exactly the SDK `Diff`: an absolute path, the original (null for new files), the result. */
-export const teamDiffSchema = z.catchall(
-  z.looseObject({
-    type: z.literal('diff'),
-    path: z.string().check(z.minLength(1)),
-    oldText: z.exactOptional(z.nullable(z.string())),
-    newText: z.string(),
-  }),
-  z.json(),
-)
+const teamDiffShapeSchema = z.looseObject({
+  type: z.literal('diff'),
+  path: z.string().check(z.minLength(1)),
+  oldText: z.exactOptional(z.nullable(z.string())),
+  newText: z.string(),
+})
+export const teamDiffSchema = z.pipe(teamJsonSchema, teamDiffShapeSchema)
 
 const teamTextContentSchema = z.looseObject({
   type: z.literal('content'),
-  content: z.catchall(z.looseObject({ type: z.literal('text'), text: z.string() }), z.json()),
+  content: z.looseObject({ type: z.literal('text'), text: z.string() }),
 })
 
 /** What a team task's tool call may carry: a report, or file diffs. */
-export const teamToolContentSchema = z.union([teamTextContentSchema, teamDiffSchema])
+export const teamToolContentSchema = z.pipe(
+  teamJsonSchema,
+  z.discriminatedUnion('type', [teamTextContentSchema, teamDiffShapeSchema]),
+)
 
 const teamStatusSchema = z.enum(['pending', 'in_progress', 'completed', 'failed'])
 
@@ -430,13 +403,13 @@ export const TEAM_PERMISSION_OPTION_KINDS = [
   'reject_always',
 ] as const
 
-const teamPermissionOptionSchema = z.catchall(
+const teamPermissionOptionSchema = z.pipe(
+  teamJsonSchema,
   z.looseObject({
     optionId: z.string().check(z.minLength(1)),
     name: z.string(),
     kind: z.enum(TEAM_PERMISSION_OPTION_KINDS),
   }),
-  z.json(),
 )
 
 /** A merge permission request's fields: strict, so an unknown key fails rather than rides along. */
@@ -535,28 +508,3 @@ export const teamMergeRequestSchema = z.looseObject({
   }),
   options: z.array(teamPermissionOptionSchema).check(z.minLength(1)),
 })
-
-/** A team exec admission's fields: strict, so an unknown key fails rather than rides along. */
-const teamExecAdmissionInputSchema = z.strictObject({
-  mode: z.string(),
-  backend: z.string(),
-})
-
-/**
- * The `exec --team` flag contract (PLAN.md M96b): a team run needs the Model
- * API backend, `acceptEdits` and the hard budget, and only engine and local
- * workers run. The runner lane (C-M96b-2) admits; until it lands, a valid
- * request is refused out loud, never run as a single session.
- */
-export function teamExecAdmission(input: {
-  readonly mode: string
-  readonly backend: string
-}): { readonly ok: true } | { readonly ok: false; readonly reason: string } {
-  const parsed = parseInput(teamExecAdmissionInputSchema, input, 'team exec admission')
-  if (parsed.backend !== 'modelApi') return { ok: false, reason: UI_TEXT.execModelApiOnly }
-  const isAcceptEdits = parsed.mode === 'acceptEdits'
-  return {
-    ok: false,
-    reason: isAcceptEdits ? UI_TEXT.execTeamNotReady : UI_TEXT.execTeamNeedsEdits,
-  }
-}

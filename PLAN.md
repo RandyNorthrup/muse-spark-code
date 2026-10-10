@@ -26388,6 +26388,20 @@ plans, content and permission options; prove the collection guard with a
 byte-exact restored red drill in `docs/certification/m96b.md`. C-M96b-0 lead
 acceptance remains pending; runtime wiring remains C-M96b-1/2's next slice.
 
+RVCM96B0G round 8 repairs production-parser compatibility, the unchanged
+headless 100 KiB budget, complete JSON validation and isolation of text
+content (including its outer wrapper), repeated nested diff reads and
+non-throwing failure inspection. The lead's threat model is explicit:
+builders receive values our own code produced from already-validated wire
+data, validate shape once and refuse malformed input with TeamContractError;
+hostile caller getters, proxies and custom iterators are out of scope.
+Keep admission separate from ACP mapping schemas, use only the shipped
+shared-parser API, and prove production imports plus every repair with
+regressions and byte-exact restored drills in `docs/certification/m96b.md`.
+Correct superseded round-7 claims. C-M96b-0 acceptance remains pending;
+C-M96b-1/2 wiring, C-M96b-3 single-model proofs and C-M96b-4 editor receipts
+remain subsequent slices.
+
 - **Goal.** The same team, roles, pools and caps work in the ACP agent (D62)
   and in headless `exec` (D65), with each surface's own way of asking.
 - **The ACP agent.**
