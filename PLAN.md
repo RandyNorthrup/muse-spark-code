@@ -38398,7 +38398,7 @@ Owning suites pass 136 of 138 cases; the two retained failures correctly name
 stale audit source hashes and the README input fingerprint. Q-VIS0171-RELEASE-NOTES
 and the inherited 21 duplication clones remain release holds.
 
-**Round 2 in progress.** The lead accepts both harness repairs and approves
+**Round 2 reviewed baseline and drill complete; full replay unqualified.** The lead accepts both harness repairs and approves
 the 120 observed scenes, including 0.17.1's release-note content. The earlier
 stop is historical; Q-VIS0171-RELEASE-NOTES is resolved. Finish the complete
 six-theme comparison and per-frame inspection before the named reviewed
@@ -38420,8 +38420,14 @@ components/target/applied-state row preserved. The additional 1,255 within-polic
 frames are inspected through 830 native regions on 26 sheets; no defect is
 observed. Manifest owners pass 24/24 after update. Baseline commit: `f7243df25`.
 The old-baseline drill exits 1 at 2,075 changed pixels against allowance 12,
-then restores manifest and PNG byte-exact by SHA-256. Full unsharded replay is
-running; zero-changed-scene qualification remains pending until it exits 0.
+then restores manifest and PNG byte-exact by SHA-256. The full unsharded replay
+is intentionally stopped to respect the 90-minute rig time box, after 1,152
+reported captures without an observed visual regression. Its terminal-close
+error is interruption evidence, not a new visual failure. No full result is
+written; zero-changed-scene qualification remains pending. Next: run the full
+`npm run check:visual` in terminal mode with enough time for all 9,792 frames,
+then append its actual receipt. Aggregate quality and inherited duplication
+repair remain lead-owned; retained ignored browser profiles need lead cleanup.
 
 **PROVWIZ10 scoped qualification (2026-10-09, complete).** Both RVPROVWIZ9C
 P2 repairs pass production/shared-form regressions, including genuine concurrent

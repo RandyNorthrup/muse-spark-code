@@ -1593,11 +1593,30 @@ saved bytes, with SHA-256 before = after:
 - Current PNG: `6c8271cdad53f0094b29baf67a2657e132c9a18e33c548dc37d83f59b1c6cf9f`.
 - Injected historical PNG: `02ac868fa768bb8f63c539268e77d6fd4875cd6285c52fe53cd6118562f35fe3`.
 
-The final command, **full and unsharded** `npm run check:visual`, is running
-from baseline head `f7243df25`. It is **unqualified until it exits 0**; a
+The final command, **full and unsharded** `npm run check:visual`, is stopped
+to respect the 90-minute rig-brief time box, after **1,152 reported captures**
+from baseline head `f7243df25`, without an observed visual regression. It is
+**unqualified**; a
 partial capture or diagnostic comparison is not the requested full green
 check. Exact update, parity, owning-test and restoration receipts are retained
 in this lane's ignored `temp/vis0171-round2-*` files; all full PNGs remain
 outside git. Production budgets pass: extension **550.1 / 600 KiB**, Model API
 **516.6 / 525 KiB**, checkpoint store **87.3 / 225 KiB**. Aggregate quality and
 the 21 inherited duplication clones remain lead-owned under the rig brief.
+
+The stop sends SIGINT through the tool terminal. The tool returns exit **1**
+with `browserContext.close: Target page, context or browser has been closed`;
+this is deliberate interruption evidence, not a discovered visual regression.
+No final `temp/m114-visual-result.json` is written. The approved manifest and
+drill PNG remain byte-exact after stopping; no capture or Chrome process from
+this run remains. Explicit termination receipt:
+`temp/vis0171-round2-full-visual-termination.json`, also included in the tracked
+review receipt. **The requested full zero-changed-scene gate is not qualified.**
+
+Next: the lead reruns full, unsharded `npm run check:visual` in terminal mode
+with enough time for all 9,792 comparisons, appends the actual successful
+receipt, then performs aggregate cross-rig release gates and the inherited
+duplication repair. The lane does not weaken or substitute the gate. Retained
+ignored profiles remain for lead cleanup after the earlier automatic command
+review rejected deletion (`rm -f style commands are not permitted`). All
+completed work is locally committed with installed hooks; no merge or push.

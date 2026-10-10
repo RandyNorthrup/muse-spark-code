@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "status": "baseline-and-drill-complete-full-replay-running",
+  "status": "baseline-and-drill-complete-full-replay-unqualified",
   "review": "VIS0171-0.17.1-labels-provider-notes-2026-10-10",
   "sourceRevision": "f8db72798c498dff30f70b83375b2098e202f976",
   "previousRevision": "fb7a3f005b32756f98280988725e0edf0396b424",
@@ -3605,9 +3605,18 @@
     "restored": true
   },
   "fullReplay": {
-    "status": "running-unqualified",
+    "status": "incomplete-unqualified",
     "command": "npm run check:visual",
     "log": "temp/vis0171-round2-full-visual.log",
-    "candidateHead": "f7243df254d74ae2b93c00c3fcee20adf69bec89"
+    "candidateHead": "f7243df254d74ae2b93c00c3fcee20adf69bec89",
+    "reason": "Stopped to respect the 90-minute rig-brief time box and record the handoff",
+    "signalRequested": "SIGINT through the tool terminal",
+    "toolExitCode": 1,
+    "lastReportedCaptures": 1152,
+    "requiredCaptures": 9792,
+    "observedVisualRegressionErrors": 0,
+    "terminalError": "browserContext.close: Target page, context or browser has been closed",
+    "manifestSha256After": "e28ece7b2e5a6bf234713b405ed9a1bd5469cf9a4658e8e5b39caeedebbdbd21",
+    "finalFullResultWritten": false
   }
 }
