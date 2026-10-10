@@ -48,7 +48,10 @@ happened, not what was planned; superseded entries are kept.
   paths, unsupported media/terminal content, empty option ids and plan titles.
   Plan validation covers the complete returned collection and its entry count;
   sparse plans, content and permission-option arrays are refused rather than
-  emitted with missing entries.
+  emitted with missing entries. Every builder snapshots its caller input on
+  entry, so custom iterators, getters and overridden methods cannot change a
+  validated collection; inputs the snapshot cannot copy (proxies, functions)
+  are refused with the same typed error.
 
 ### Changed
 
