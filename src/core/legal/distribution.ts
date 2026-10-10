@@ -9,6 +9,7 @@ import { compareLegalText } from './files'
 // scan never rebuilds or packs to obtain it.
 
 import type { EvaluatedDependency } from './depLicenses'
+import { fingerprint } from '../verify/fingerprint'
 import { parseJson, recordOf, type LegalDependency } from './dependencies'
 import type { LegalFindingDraft } from './finding'
 import type { LegalFileSnapshot } from './files'
@@ -19,6 +20,16 @@ import { LEGAL_PATH_MAX_CHARS, LEGAL_FINDINGS_MAX } from '../../shared/constants
 export interface DistributionEvidence {
   /** Exact bundle inputs (an esbuild metafile's input list), when known. */
   readonly bundleInputs?: readonly string[]
+  /**
+   * SHA-256 content hashes of the bundle inputs, keyed by input path
+   * (M97 CM971R2): file names alone never prove artifact freshness.
+   */
+  readonly bundleInputHashes?: Record<string, string>
+  /**
+   * SHA-256 content hashes of the bundle outputs, keyed by output path
+   * (M97 CM971R2): every emitted artifact must match the build bytes too.
+   */
+  readonly bundleOutputHashes?: Record<string, string>
   /** A package manifest's shipped-file allowlist (`files`, PEP 639). */
   readonly packageFiles?: readonly string[]
   /** The raw text of the workspace's `.vscodeignore`, when present. */
@@ -176,6 +187,65 @@ function noticesMention(
 }
 
 /**
+ * Evidence paths use forward slashes (M97 CM971R2): Windows separators
+ * are normalized before any comparison, so the same evidence matches on
+ * every platform.
+ */
+export function normalizeEvidencePath(entry: string): string {
+  return entry.replaceAll('\\', '/').replace(/^\.\//, '')
+}
+
+/**
+ * The workspace bytes' SHA-256 for a snapshot member: the admitted-bytes
+ * digest when the reader recorded one, else the digest of the text read
+ * now. `undefined` when the file cannot be read as text.
+ */
+function currentContentHash(snapshot: LegalFileSnapshot, file: string): string | undefined {
+  const recorded = snapshot.readFileHash?.(file)
+  if (recorded !== undefined) return recorded
+  const text = snapshot.readFile(file)
+  return text === undefined ? undefined : fingerprint(text)
+}
+
+/**
+ * Whether the build-recorded content hashes prove the artifacts fresh
+ * (M97 CM971R2): every listed input and every recorded output must be
+ * present with matching bytes. Missing hashes, unreadable files and
+ * mismatches all read as stale, never as fresh.
+ */
+function isBundleEvidenceFresh(
+  snapshot: LegalFileSnapshot,
+  fileSet: ReadonlySet<string>,
+  inputs: readonly string[],
+  inputHashes: Record<string, string> | undefined,
+  outputHashes: Record<string, string> | undefined,
+): boolean {
+  if (inputHashes === undefined || outputHashes === undefined) return false
+  const normalizedInputHashes: Record<string, string> = {}
+  for (const [path, digest] of Object.entries(inputHashes)) {
+    normalizedInputHashes[normalizeEvidencePath(path)] = digest
+  }
+  const normalizedOutputHashes: Record<string, string> = {}
+  for (const [path, digest] of Object.entries(outputHashes)) {
+    normalizedOutputHashes[normalizeEvidencePath(path)] = digest
+  }
+  for (const file of inputs) {
+    const expected = normalizedInputHashes[file]
+    if (typeof expected !== 'string' || currentContentHash(snapshot, file) !== expected)
+      return false
+  }
+  for (const [output, expected] of Object.entries(normalizedOutputHashes)) {
+    if (
+      typeof expected !== 'string' ||
+      !fileSet.has(output) ||
+      currentContentHash(snapshot, output) !== expected
+    )
+      return false
+  }
+  return true
+}
+
+/**
  * Work out what ships: the distributed file set from existing bundle
  * inputs or package inventories. Only material in the shipped set counts;
  * scope alone never decides, and a dev dependency can still ship.
@@ -185,20 +255,31 @@ export function computeShipped(
   dependencies: readonly LegalDependency[],
   evidence: DistributionEvidence,
 ): ShippedSet {
-  // Freshness (M97 C-M97-1) is earned, not blanket: bundle inputs that
-  // are all present in the workspace inventory count as fresh, so a fully
-  // evidenced scan can exit without this caveat. Absent or stale inputs
-  // keep both the named stale-input reason and the freshness caveat; the
-  // package-inventory and unknown-distribution branches already carry
-  // their own named freshness reasons (m043, m039).
+  // Freshness (M97 CM971R2) is earned, not blanket: bundle inputs prove
+  // fresh only when the build-recorded content hashes of every input and
+  // every output match the workspace bytes. Names alone, absent hashes,
+  // missing files and mismatches keep both the named stale-input reason
+  // and the freshness caveat; the package-inventory and
+  // unknown-distribution branches already carry their own named freshness
+  // reasons (m043, m039).
   const incomplete: string[] = []
   const fileSet = new Set(snapshot.files)
 
   let shippedFiles: string[] | undefined
   let summary: string
   if (evidence.bundleInputs !== undefined) {
-    shippedFiles = evidence.bundleInputs.filter((file) => fileSet.has(file))
-    if (shippedFiles.length !== evidence.bundleInputs.length) {
+    const listed = evidence.bundleInputs.map((file) => normalizeEvidencePath(file))
+    shippedFiles = listed.filter((file) => fileSet.has(file))
+    const isFresh =
+      shippedFiles.length === listed.length &&
+      isBundleEvidenceFresh(
+        snapshot,
+        fileSet,
+        shippedFiles,
+        evidence.bundleInputHashes,
+        evidence.bundleOutputHashes,
+      )
+    if (!isFresh) {
       incomplete.push(UI_TEXT.legalScanner.m036, UI_TEXT.legalScanner.m035)
     }
     summary = plural(UI_TEXT.legalScanner.m037, shippedFiles.length, { v0: shippedFiles.length })
