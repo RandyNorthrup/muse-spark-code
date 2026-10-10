@@ -276,38 +276,89 @@ Drill driver `temp/cm1131-drill.mjs` (gitignored scratch) breaks/restores
 each guard and prints file hashes; `temp/cm1131-baseline.sha` holds the
 pre-drill hashes the restores were diffed against.
 
-### C-M113-1 review — 2026-10-10
+### C-M113-1 review attempts — 2026-10-10 (historical evidence, not a review)
 
-Codex review was requested (`codex review --commit 8c0e8b569` and
+A Codex review was requested (`codex review --commit 8c0e8b569` and
 `codex exec`, MacBook rig) but is environmentally blocked: this lane runs
 headless under an agent sandbox, and both commands fail before any model
 call with `failed to initialize in-process app-server client: Operation
 not permitted (os error 1)`. No credentials were read or touched, and no
-sandbox workaround was built; the lead should run the Codex review outside
-the sandbox or accept the substitute below.
+sandbox workaround was built. This paragraph records the blocked
+invocation only; it is not review evidence.
 
-Substitute one-pass review by the lane (same four classes, same day):
+The lane author's own pass over the same four classes on the same day
+(comparators on scrubbed schema-parsed rows; no-throw on schema-typed
+fields; pure comparators with `toSorted`; CHANGELOG and this record
+checked against observed outputs; `changelog.ts:36` left alone) is a
+self-check only. A lane never reviews its own work: the self-check found
+no issues, but that verdict carries no review weight.
 
-- Validation/security: the new comparators run only on scrubbed,
-  schema-parsed rows, so no raw secret reaches ordering; the discovery
-  guard strictly narrows selection; separator normalization is
-  comparison-only (reads were already normalized). No findings.
-- Failure paths and honesty: comparators cannot throw on schema-typed
-  fields (`directory: boolean` is required, so no undefined coercion);
-  partial/unavailable semantics are untouched — the discovery drill shows
-  the unguarded tree reports `partial` where the guarded one reports
-  `ok`. No findings.
-- Concurrency/lifecycle: comparators are pure, `toSorted` never mutates,
-  no shared state; permutation tests prove input-order independence at
-  repository timeouts. No findings.
-- Docs: the CHANGELOG entry and this record were checked against observed
-  outputs (37-test count, drill tallies, restored hashes). No findings.
-- Scope audit: the only remaining single-key record sort in reporting
-  sources is `changelog.ts:36` (versions), which is total because duplicate
-  versions are rejected as `invalid` just above it; it is outside this
-  lane's brief and needs no change.
+### Independent review RVCM1131 — 2026-10-10 (MacBook)
 
-Re-verification after the review pass (tree unchanged): the three owned
+The lead commissioned independent review RVCM1131 of `82d50d5e4..c59e6d705`
+(`8c0e8b569`, `c59e6d705`). Verdict: no introduced production P1/P2;
+three P3 findings; report-byte acceptance unproved. All three findings
+are closed by lane CM1131R2 (this lane):
+
+1. **P3 — permutation regressions compared source bytes, not rendered
+   reports** (`test/unit/sessionReportSource.test.ts:149`,
+   `test/unit/gitSource.test.ts:169`, `CHANGELOG.md:77`). Closed: the
+   session, git and agent-usage permutation tests now carry permuted
+   inputs through the production collector, the production finalizer and
+   all four production renderers (Markdown, HTML, JSON, text) and compare
+   the rendered bytes; the CHANGELOG entry claims byte-identical source
+   facts plus rendered-report equality for valid inputs only.
+2. **P3 — this certification offered the author's pass as a review
+   substitute** (line 286 of the prior revision). Closed: the substitute
+   review text above is deleted and retained only as the blocked-invocation
+   record plus a self-check label; this section appends the independent
+   report, its findings and their dispositions.
+3. **P3 — no C-M113-1 record in PLAN M113.** Closed: PLAN.md M113 gains a
+   scoped `C-M113-1` repair/status record linking this certification and
+   RVCM1131, without declaring the whole M113 milestone certified. M113's
+   roadmap entry is unchanged (still planned overall), so no regeneration
+   was needed.
+
+### Recorded limitation — scrub-collapsed identities at the collector
+
+RVCM1131 confirmed in memory with production code that distinct records
+which scrub to the same key (repeated usage breakdown/limit keys,
+question ids that scrub alike, commits sharing a scrubbed sha) finalize
+their source payloads deterministically yet fail at the collector:
+`createReportCollector` derives identical row keys and the report schema
+rejects duplicate row keys with `Invalid report document`. The limitation
+predates this port, is not a regression, and is owned by the collector
+row-identity design (a later K/collector change), not by this lane: no
+collector key derivation is changed here. Siblings swept: Git branches
+and worktrees additionally have no collector consumer at all today, so
+their input order is proven at the source level only. The new
+renderer-level regressions therefore use valid inputs (distinct
+post-scrub identities; checks differ in `at`) and prove end-to-end
+report-byte stability for every report the engine can validly build.
+
+Re-verification after the CM1131R2 fixes (tree unchanged): the owned
 files pass together at repository timeouts, and typecheck, scoped ESLint,
 Prettier and `check:l10n` pass; results are tallied in the lane's final
 report.
+
+### CM1131R2 guard-fire receipts (each guard broken independently, restored byte-exact)
+
+Each mutation disabled the named guard; the named test file ran directly
+on the MacBook with `npx vitest run <file> --maxWorkers=3` at the
+repository default timeout, with no filtered or skipped test. Every
+mutation was restored from the pre-drill bytes and the restored SHA-256
+was diffed against `temp/cm1131r2-baseline.sha`. No production file is
+changed by this lane: `session.ts`, `git.ts` and `agentUsage.ts` restore
+to the C-M113-1 hashes above. Shared test wiring for the three
+renderer-level regressions lives in
+`test/unit/helpers/reporting/render.ts` (production collector with the
+engine's finalizer wiring, all four production renderers).
+
+| Disabled guard                                                                                                           | Named regression                                                                  | Result                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| session check-run `at` term + JSON tail (both removed; each alone stays green because the other still orders these rows) | renders byte-identical session reports in every format                            | 1 failed / 13 passed; exact restore                                                   |
+| git commits JSON tail only                                                                                               | produces byte-identical Git facts when shuffled (pre-existing tied-identity test) | 1 failed / 12 passed; exact restore                                                   |
+| git commits ordering fully removed (`() => 0`)                                                                           | renders byte-identical changes and project reports in every format                | 2 failed / 11 passed (both the render test and the tied-identity test); exact restore |
+| agent file-order Windows-separator normalization                                                                         | renders byte-identical usage reports in every format                              | 2 failed / 11 passed (render test and the separator test); exact restore              |
+| cert substitute-review phrases re-added                                                                                  | certifies the independent RVCM1131 review                                         | 1 failed / 1 passed; exact restore                                                    |
+| PLAN C-M113-1 entry removed                                                                                              | records C-M113-1 in PLAN M113                                                     | 1 failed / 1 passed; exact restore                                                    |

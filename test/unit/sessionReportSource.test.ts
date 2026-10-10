@@ -1,13 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createHostReportSources } from '../../src/host/reporting/sources'
 import { createRuntimeReportSources } from '../../src/runtime/reporting/sources'
-import { createReportCollector } from '../../src/core/reporting/collect'
-import { finalizeReport } from '../../src/core/reporting/render/canonical'
-import { REPORT_EMPTY_HASH } from '../../src/shared/constants'
 import { questionsSource } from '../../src/core/reporting/sources/questions'
 import { sessionSource } from '../../src/core/reporting/sources/session'
-import { RENDERERS, REPORT_THEME } from './reportRenderFixtures'
-import { buildSourceSnapshot, unavailableSource } from './helpers/reporting/snapshot'
+import { buildSourceSnapshot } from './helpers/reporting/snapshot'
+import {
+  renderAllFormats,
+  renderTestCollector,
+  threeIndexOrders,
+  type RenderedReport,
+} from './helpers/reporting/render'
 import {
   codeUnitCompare,
   reportWorkspaceKey,
@@ -22,7 +24,11 @@ import {
 import { REPORT_SOURCE_TIMEOUT_MS, UI_TEXT } from '../../src/shared/constants'
 import type { LocalReportSourceDeps } from '../../src/core/reporting/sources'
 import type { ReportSessionReader } from '../../src/core/reporting/sources/session'
-import type { ReportQuestion } from '../../src/core/reporting/sources/types'
+import type {
+  CheckRunRecord,
+  ReportQuestion,
+  UsageFacts,
+} from '../../src/core/reporting/sources/types'
 
 const context = () => ({
   asOf: REPORT_FIXTURE_AS_OF,
@@ -92,21 +98,44 @@ function permutations<T>(rows: readonly T[]): T[][] {
         permutations(rows.filter((_row, other) => other !== index)).map((rest) => [row, ...rest]),
       )
 }
+async function readSessionFacts(
+  order: readonly number[],
+  checks: readonly CheckRunRecord[],
+  breakdown: UsageFacts['breakdown'],
+  limits: UsageFacts['limits'],
+) {
+  const original = await sessionReader().read(context())
+  if (original === null) throw new Error('Missing test fixture')
+  return await sessionSource(
+    {
+      read: () =>
+        Promise.resolve({
+          ...original,
+          checkRuns: order.flatMap((index) => checks[index] ?? []),
+          usage: {
+            ...original.usage,
+            breakdown: order.flatMap((index) => breakdown[index] ?? []),
+            limits: order.flatMap((index) => limits[index] ?? []),
+          },
+        }),
+    },
+    [],
+    scrub,
+  ).read(context())
+}
 describe('session, registry and shared report adapters', () => {
   it('produces byte-identical session facts for every permutation of tied checks and usage keys', async () => {
-    const original = await sessionReader().read(context())
-    if (original === null) throw new Error('Missing test fixture')
-    const check = {
+    const check: CheckRunRecord = {
       at: '2026-10-06T11:59:59Z',
       check: 'quality',
       commit: 'fixture-a',
       outcome: 'passed',
       durationMs: 1,
-    } satisfies (typeof original.checkRuns)[number]
-    const checks = [
+    }
+    const checks: CheckRunRecord[] = [
       check,
       { ...check, commit: 'fixture-b' },
-      { ...check, outcome: 'failed' } satisfies (typeof original.checkRuns)[number],
+      { ...check, outcome: 'failed' },
       { ...check, durationMs: 2 },
     ]
     const breakdown = checks.map(
@@ -117,33 +146,21 @@ describe('session, registry and shared report adapters', () => {
           outputTokens: row.outcome === 'failed' ? 2 : 1,
           costUsd: null,
           certainty: 'unknown',
-        }) satisfies (typeof original.usage.breakdown)[number],
+        }) satisfies UsageFacts['breakdown'][number],
     )
-    const limits = checks.map((row) => ({
-      key: 'fixture-limit',
-      used: row.durationMs,
-      limit: row.outcome === 'failed' ? 2 : 1,
-      resetsAt: null,
-    }))
+    const limits = checks.map(
+      (row) =>
+        ({
+          key: 'fixture-limit',
+          used: row.durationMs,
+          limit: row.outcome === 'failed' ? 2 : 1,
+          resetsAt: null,
+        }) satisfies UsageFacts['limits'][number],
+    )
     let expected: string | undefined
     const orders = permutations(checks.map((_row, index) => index))
     for (const order of orders) {
-      const result = await sessionSource(
-        {
-          read: () =>
-            Promise.resolve({
-              ...original,
-              checkRuns: order.flatMap((index) => checks[index] ?? []),
-              usage: {
-                ...original.usage,
-                breakdown: order.flatMap((index) => breakdown[index] ?? []),
-                limits: order.flatMap((index) => limits[index] ?? []),
-              },
-            }),
-        },
-        [],
-        scrub,
-      ).read(context())
+      const result = await readSessionFacts(order, checks, breakdown, limits)
       expect(result.record.status).toBe('ok')
       expect(result.data?.checkRuns.map((row) => row.commit)).toEqual([
         'fixture-a',
@@ -182,73 +199,41 @@ describe('session, registry and shared report adapters', () => {
     // usage keys and question ids are distinct), so the document is valid;
     // scrub-collapsed identities still collide at the collector and are
     // recorded as a limitation in docs/certification/m113-s-local-sources.md.
-    const original = await sessionReader().read(context())
-    if (original === null) throw new Error('Missing test fixture')
-    const check = {
-      at: '2026-10-06T11:59:00Z',
-      check: 'quality',
-      commit: 'fixture-commit',
-      outcome: 'passed',
-      durationMs: 1,
-    } satisfies (typeof original.checkRuns)[number]
-    const checks = [0, 1, 2].map((step) => ({
-      ...check,
-      at: `2026-10-06T11:59:0${String(step)}Z`,
-    }))
-    const breakdown = [0, 1, 2].map((step) => ({
-      key: `render-model-${['a', 'b', 'c'][step] ?? 'a'}`,
-      inputTokens: step + 1,
-      outputTokens: 1,
-      costUsd: null,
-      certainty: 'unknown',
-    })) satisfies typeof original.usage.breakdown
-    const limits = [0, 1, 2].map((step) => ({
-      key: `render-limit-${['a', 'b', 'c'][step] ?? 'a'}`,
-      used: step + 1,
-      limit: 10,
-      resetsAt: null,
-    }))
+    const checks: CheckRunRecord[] = []
+    const breakdown: UsageFacts['breakdown'][number][] = []
+    const limits: UsageFacts['limits'][number][] = []
+    for (const [step, suffix] of ['a', 'b', 'c'].entries()) {
+      checks.push({
+        at: `2026-10-06T11:59:0${String(step)}Z`,
+        check: 'quality',
+        commit: 'fixture-commit',
+        outcome: 'passed',
+        durationMs: 1,
+      })
+      breakdown.push({
+        key: `render-model-${suffix}`,
+        inputTokens: step + 1,
+        outputTokens: 1,
+        costUsd: null,
+        certainty: 'unknown',
+      })
+      limits.push({ key: `render-limit-${suffix}`, used: step + 1, limit: 10, resetsAt: null })
+    }
     const questions: ReportQuestion[] = [
       { id: 'render-q-a', text: 'First', milestoneIds: [], state: 'answered' },
       { id: 'render-q-b', text: 'Second', milestoneIds: [], state: 'open' },
       { id: 'render-q-c', text: 'Third', milestoneIds: [], state: 'dismissed' },
     ]
-    const collect = createReportCollector({
-      finalize: (draft) =>
-        finalizeReport({
-          ...draft,
-          header: { ...draft.header, contentHash: REPORT_EMPTY_HASH },
-        }),
-      nextStepLimit: 3,
-      selections: {
-        changes: () => unavailableSource('changesRange', 'No range evidence'),
-        changeBranches: () => unavailableSource('changeBranches', 'No branch ancestry evidence'),
-        risksSinceRelease: () => unavailableSource('risksSinceRelease', 'No revision evidence'),
-      },
-    })
     const options = reportOptions('session')
     let expectedSource: string | undefined
-    let expectedRenders: Record<'md' | 'html' | 'json' | 'text', string> | undefined
-    for (const order of permutations([0, 1, 2])) {
-      const session = await sessionSource(
-        {
-          read: () =>
-            Promise.resolve({
-              ...original,
-              checkRuns: order.flatMap((index) => checks[index] ?? []),
-              usage: {
-                ...original.usage,
-                breakdown: order.flatMap((index) => breakdown[index] ?? []),
-                limits: order.flatMap((index) => limits[index] ?? []),
-              },
-            }),
-        },
-        [],
-        scrub,
-      ).read(context())
+    let expectedRenders: RenderedReport | undefined
+    for (const order of threeIndexOrders) {
+      const session = await readSessionFacts(order, checks, breakdown, limits)
       expect(session.record.status).toBe('ok')
       // Checks tie on check/outcome/commit/durationMs and differ only in
-      // `at`: the serialized-bytes tail alone orders them, oldest first.
+      // `at`: the `at` term orders them oldest first, and the
+      // serialized-bytes tail covers the same rows, so removing either
+      // guard alone stays green while removing both fails this test.
       expect(session.data?.checkRuns.map((row) => row.at)).toEqual([
         '2026-10-06T11:59:00Z',
         '2026-10-06T11:59:01Z',
@@ -270,17 +255,9 @@ describe('session, registry and shared report adapters', () => {
       expect(asked.record.status).toBe('ok')
       if (session.data === null || asked.data === null) throw new Error('Missing test facts')
       const snapshot = buildSourceSnapshot({ session, questions: asked })
-      const document = collect(snapshot, options)
+      const document = renderTestCollector(snapshot, options)
       expect(document.header.contentHash).toMatch(/^[a-f0-9]{64}$/u)
-      const rendered = {
-        md: RENDERERS.md(document, 'en', REPORT_THEME),
-        html: RENDERERS.html(document, 'en', REPORT_THEME),
-        json: RENDERERS.json(document, 'en', REPORT_THEME),
-        text: RENDERERS.text(document, 'en', REPORT_THEME),
-      }
-      for (const output of Object.values(rendered)) {
-        expect(output).toContain(document.header.contentHash)
-      }
+      const rendered = renderAllFormats(document)
       expectedRenders ??= rendered
       expect(rendered).toEqual(expectedRenders)
     }
