@@ -323,3 +323,59 @@ never launched a browser here, so the lead runs unsandboxed
 `test/harness/usage-check.mjs`, `usage-accounts.mjs`,
 `usage-companion.mjs`, `usage-resource-scenes.mjs` and
 `test/unit/companionThemedBrowser.test.mjs`.
+
+## Round 6 — RVCM1141E P3: no alert from the other scope certifies a failure
+
+Finding: `assertUsageResourceInvalid`
+(`test/harness/usageReadiness.mjs:59`) accepted a page-level `usage/error`
+delivered alongside the expected resource-section failure. The marker stays
+in both cases (`UsageApp.tsx` never clears `state`), the section alert
+matches, and the helper never counted the page's alerts — so the combined
+scene certified clean while both “Usage history could not be read.” and
+“Resource history could not be read.” rendered. The final scene filter
+never inspected alerts outside the section either.
+
+Fix (same file, whole class): `assertUsageResourceInvalid` still asserts
+the marker plus the section's own alert text, then requires exactly one
+`alert` on the whole page — any page-level error beside the section alert
+fails with `unexpected page-level error`. The sibling
+`assertUsageError` had the mirror hole (a page-wide role query that could
+read past a section alert), so it now requires exactly one page alert
+before checking the text (`expected one page error`). `assertUsageContent`
+already refused any alert and is unchanged. Swept every caller: the only
+`assertUsageResourceInvalid` caller is `usage-resource-scenes.mjs:57` (the
+`unavailable` scene, which now fails honest on a combined delivery instead
+of certifying it); the `assertUsageError` caller (`usage-check.mjs:117`,
+native-transport failure on a history scene with no section alert) still
+sees exactly one alert. No bare `waitForUsageReady` was reintroduced; the
+no-bare-wait and marker-keyed sweep cases still enumerate the same four
+scripts plus the central predicates.
+
+Regression (`test/unit/usageBrowserReadiness.test.mjs`, now 13 cases): the
+stub's page-level alert count sums the page and section alerts the way
+Playwright does, a new `COMBINED_FAILURE_SHELL` carries both, and the new
+`rejects a page-level error riding alongside the resource failure` case
+proves the marker wait still passes the pair while all three assertions
+refuse it with their named reasons.
+
+Red drills (each restored byte-exact from a backup copy, `sha256sum`
+identical before and after): weakened the resource guard to `void total` —
+exactly the combined case failed (12 passed, 1 failed, at the
+`unexpected page-level error` line). Weakened the error guard the same
+way — exactly the combined case failed (12 passed, 1 failed, at the
+`expected one page error` line). Guard SHAs at drill time:
+`usageReadiness.mjs` `dc6a0dae…` (pre-prettier; final `6fe8f8b8…` after
+`prettier --write` reflowed the long lines, tests re-run green on the
+final bytes), regression `337d290f…` (drill time; final `39f14d33…`).
+
+Verification (repository timeouts, no `--testTimeout`): the regression
+13/13 pass on this rig; neighbours `usageReadyMarker` + `UsageApp` +
+`companionThemedPage` 45/45 pass. `npm run typecheck` clean (all
+projects); eslint `--max-warnings=0` and prettier clean on all touched
+files; `node scripts/check-l10n.mjs` 0 problems (no user-visible string).
+No production code, bundle, setting, dependency or gate touched, so no
+build or reference/roadmap regeneration applies. Blocked in this sandbox
+(2026-10-08 rule, no workaround built): never launched a browser here, so
+the lead runs unsandboxed `test/harness/usage-check.mjs`,
+`usage-accounts.mjs`, `usage-companion.mjs`,
+`usage-resource-scenes.mjs` and `test/unit/companionThemedBrowser.test.mjs`.
