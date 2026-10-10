@@ -1,5 +1,17 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**CX1R5 truth pass (2026-10-10, kubuntu; 0.17.1).** First isolate optional
+account metadata/startup from ACP session creation and certify a normal turn
+through the real SDK router with absent, present and failing metadata. Audit
+schedule, estimator, vault, teams and reports adoption dependencies. Then close
+RVCX1D F2–F7 across every current publication surface, retaining working
+developer, report, strict-tool, parallel-read, cache, legacy loop and manual
+compaction behavior. One glob-backed publication matrix checks dormant claims;
+archive historical claims without publishing them. Record red drills and
+complete owning suites at repository deadlines in docs/certification/cx1.md.
+No accounts implementation, subagents, merge, push or live/paid calls. Aggregate
+quality remains lead-owned under the rig brief.
+
 **CIR4WIN hosted Windows round 4 (2026-10-09, win11).** Root-cause the
 M117 estimator browser harness's first navigation exceeding its unchanged
 two-second bound in run 38018090551, job 114112783549. Reproduce under bounded

@@ -592,3 +592,39 @@ restored byte-exact (SHA-256 verified).
 RVCX1C F1–F6 are closed with no residuals and no external blocker. Next:
 lead review and aggregate release gates for 0.17.1; no push or release is
 claimed by this lane.
+
+# CX1R5 certification — RVCX1D, 2026-10-10, kubuntu
+
+RVCX1D contradicts the blanket closure above: the prior round left the ordinary
+ACP session blocker, an existing unit failure and publication omissions. Its
+receipts remain historical; they do not establish exhaustive current closure.
+
+## Part 1: F1 release blocker
+
+`main.ts` now asks the lazy account service for a binding only when provider
+metadata exists. Metadata/load errors log through `failureForLog` and omit the
+binding. `AcpSession.startAccounts` contains startup/refresh and cleanup errors,
+removes the failed account adapter and retains the ordinary backend session.
+No account management or pooling integration was implemented.
+
+Adoption audit: schedules already catch workspace-start failures;
+estimator, vault, teams and reports are not awaited by adoption. Backend model,
+mode, questions and lifecycle setup retain their existing required contracts.
+
+Regression: `cx1r5Session.test.ts` drives the real SDK router and fake backend:
+absent data path, real metadata, unavailable production refresh, subscription/
+cleanup failures, and schedule startup failure all open `session/new` and finish
+one turn. Absent data stays absent; all cases access credentials zero times.
+The complete session/accounts/runtime-services batch passes 42 tests under
+repository deadlines, three workers, no timeout override.
+
+Red qualification: restoring both production files from `3eeaee199` fails
+(the production refresh returns ACP Internal error). Returning a binding
+unconditionally fails the absent-metadata regression. Removing account-start
+containment fails both optional-owner cases with ACP Internal error. Each drill
+exits 1 and restores SHA-256 bytes exactly:
+`agent.ts` e19e5eb87b991a03df7ebb3b5665a73f56a5f9c76da839a4f0e59b03c3423b09;
+`runtimeServices.ts` 930416956a44814de7e538ceff454bae7efd41b7abfc5f17a690ad364b7180d8.
+
+Part 2 and final gates are recorded below when complete. Aggregate quality and
+hosted release checks remain lead-owned under the brief; no publication is claimed.

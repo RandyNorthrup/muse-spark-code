@@ -317,7 +317,7 @@ class AcpSession {
   private readonly questionBundle: () => AcpQuestionBundle
   private media: Promise<AcpMediaPort> | undefined
   private readonly attachments: AcpAttachment[] = []
-  private readonly accounts: AcpAccounts | undefined
+  private accounts: AcpAccounts | undefined
   private readonly translator: UpdateTranslator
   private unsubscribe: (() => void) | undefined
   private readonly unsubscribeResources: (() => void) | undefined
@@ -1327,7 +1327,18 @@ class AcpSession {
   }
 
   public async startAccounts(): Promise<void> {
-    await this.accounts?.start()
+    try {
+      await this.accounts?.start()
+    } catch (error: unknown) {
+      const accounts = this.accounts
+      this.accounts = undefined
+      this.deps.log.warn(`ACP accounts startup failed: ${failureForLog(error)}`)
+      try {
+        accounts?.dispose()
+      } catch (error: unknown) {
+        this.deps.log.warn(`ACP accounts cleanup failed: ${failureForLog(error)}`)
+      }
+    }
   }
 
   /** Broker-owned request; Bypass, tools and paid grants never enter this path. */
