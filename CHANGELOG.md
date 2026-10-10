@@ -58,6 +58,14 @@ happened, not what was planned; superseded entries are kept.
   `createRequire(…)(…)` and `require.call/apply/bind`) and every `new
   Worker(…)` load, literal or not — none of which the bundler follows.
   No user-facing change; production stays off.
+- **Frozen-digest load-closure rule** (M101 CM1012R6, review RVCM1012E).
+  The shape list becomes one rule: every runtime load the walk finds
+  (dynamic `import()` including `import.defer`, every `require`
+  spelling, every `new Worker(…)` spelling, two-argument `new URL`,
+  `import.meta.resolve`, module-relative file reads, dynamic
+  evaluation) is refused with file and line unless the bundler's own
+  metafile placed its target in the closure. Re-frozen digest
+  `9cfc4744…786278`. No user-facing change; production stays off.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
