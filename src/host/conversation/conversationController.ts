@@ -4,6 +4,7 @@ import type { ChatShareSource } from '../../core/sharing/chatShare'
 import { recoveryStamp } from '../../shared/agentRecovery'
 import type { ReportQuestionsReader } from '../../core/reporting/sources/questions'
 import { QuestionRegistry } from '../../core/questions/registry'
+import { compareVersions, isVersion } from '../../core/whatsNew/whatsNewVersions'
 import type { QuestionAnswerText } from '../../core/questions/lateAnswer'
 import type {
   OpenQuestionAnswer,
@@ -149,6 +150,8 @@ import {
   MSP_READ_OUTPUT_CONCURRENCY,
   MSP_REQUESTED_CAPABILITIES,
   MUSE_EVENT_LOG_FAULT,
+  MUSE_APPROVAL_LEDGER_FIXED_VERSION,
+  MUSE_INSTALL_COMMANDS,
   OUTPUT_DOCUMENT_MAX_PAGES,
   OUTPUT_PAGE_BYTES,
   OUTPUT_TAB_ID_LENGTH,
@@ -1304,6 +1307,8 @@ export class ConversationController {
   private readonly effortSyncs = new WeakMap<AgentSession, EffortSync>()
   /** The backend kind of the attached session (a resume only goes to the same kind). */
   private sessionKind: BackendKind | undefined
+  /** An older Muse Code can fix #29 by updating; actual faults still surface on every version. */
+  private needsApprovalLedgerUpdate = false
   /** Best-of-N runs (M77): one manager per surface, posting to it. */
   private bestOfNManager: BestOfNManager | undefined
   /** The latest run this surface heard of, for the take's branch names. */
@@ -1641,7 +1646,15 @@ export class ConversationController {
     }
     this.shownFaults.add(key)
     const isReplay = error.fault === 'approvalReplay'
-    const text = isReplay ? UI_TEXT.approvalReplayRefused : UI_TEXT.approvalLedgerFault
+    let text = UI_TEXT.approvalLedgerFault
+    if (this.needsApprovalLedgerUpdate) {
+      text = fill(UI_TEXT.approvalLedgerFaultUpdate, {
+        command: MUSE_INSTALL_COMMANDS[this.deps.platform === 'win32' ? 'win32' : 'posix'],
+      })
+    }
+    if (isReplay) {
+      text = UI_TEXT.approvalReplayRefused
+    }
     const actions: readonly NoticeAction[] = isReplay
       ? ['restartMuseCode', 'newConversation']
       : ['newConversation']
@@ -3891,6 +3904,13 @@ export class ConversationController {
     )
     this.session = session
     this.sessionKind = host.info.kind
+    // MSP serves 1.4.3; installed build labels such as 1.4.3-R5018.1 name
+    // the same release, not a semver prerelease. Unknown versions stay defensive.
+    const version = host.info.serverVersion.replace(/-R\d+\.\d+$/, '')
+    this.needsApprovalLedgerUpdate =
+      host.info.kind === 'museCode' &&
+      isVersion(version) &&
+      compareVersions(version, MUSE_APPROVAL_LEDGER_FIXED_VERSION) < 0
     const surfaces = sessionSurfaces.get(session) ?? new Set<ConversationController>()
     surfaces.add(this)
     sessionSurfaces.set(session, surfaces)

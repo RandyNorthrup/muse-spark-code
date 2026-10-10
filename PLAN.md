@@ -2664,6 +2664,21 @@ by a release after a Muse Code version is verified to fix it. Showing an
 action that fails is worse than hiding one that would work.
 `docs/certification/release-0.9.1.md`.
 
+**Amendment 2026-10-05 (MUSE143): #29 has a verified update floor; the
+other Windows limits remain.** On `1.4.3-R5018.1`, one contributor-model
+shell approval returned accepted/terminal with no ledger fault. The
+upstream #29 closure supplied by the owner names 1.4.3 as the fix. An actual
+ledger fault on an older attached host now suggests updating with the
+existing installer command and restarting; newer or unknown hosts keep
+the defensive notice. No warning is shown without an actual fault.
+Rename (#30) still returns `internal` / session naming unavailable; fork
+(#31) still returns `forkBoundaryInvalid` / WriteFailed. Their Windows
+gates therefore retain no version ceiling. The sandbox (#26) printed the
+workspace cwd here but denied a shell file write; this prepared-host
+capture does not certify the fresh-setup non-completion fixed. D12's
+profile workaround remains. One turn, six model attempts; exact scrubbed
+frames and scope in `docs/certification/muse143.md`.
+
 **Amendment 2026-09-27: the CLI's sign-in is read, not assumed**
 (`fix/cli-sign-in-detection`; evidence in `docs/certification/sign-in-detection.md`).
 
@@ -21190,6 +21205,40 @@ train, and those waiting on outside events, keep their own status lines.
 - [ ] Visual milestones: screenshot or manual-check record in
       `docs/certification/<milestone>.md`.
 - [ ] Commit with a message describing what changed and why.
+
+### MUSE143 — Verify Windows upstream fixes on Muse Code 1.4.3 (2026-10-05)
+
+**Status 2026-10-10: built.** Ported onto the 0.17.1 release branch from
+`fix/muse-1.4.3` (`1285eb6f4`, never merged): 0.17.0 still showed the plain
+ledger notice on every version (port note in `docs/certification/muse143.md`).
+
+Scoped maintenance on `fix/muse-1.4.3`: use the owner's signed-in
+1.4.3-R5018.1 CLI, an empty temporary workspace and at most six short
+contributor-model turns to capture #29 approval settlement, #30 rename,
+#31 fork and #26 sandbox working-directory evidence. Never touch credentials.
+Lift a workaround only for a version proven fixed; retain fault detection
+and older-version behavior. A successful sandbox command on this already
+prepared host does not prove the fresh-setup failure fixed (D12).
+
+- [x] Capture scrubbed MSP evidence, count turns/model attempts, stop the
+      owned server and remove the temporary workspace.
+- [x] Apply only evidence-backed compatibility changes in the existing
+      shared core and localized notices; test both version sides and fire
+      the affected guards with byte-exact restoration.
+- [x] Update README, changelog, certification and the upstream research
+      note. Update the feature catalog only if present on this base.
+- [x] Merge the current release candidate, run scoped gates on the rigs,
+      and commit explicit paths with existing hooks enabled.
+
+Evidence and remaining upstream limitations belong in
+`docs/certification/muse143.md` and `docs/research/muse-1.4.3-upstream.md`.
+Mac mini: 676 scoped tests passed, all five typechecks, scoped lint/format,
+deadcode, zero duplication, l10n, host API and production caps passed.
+Both before-fix failures and the version-boundary mutation fired; the
+mutated file was restored byte-exact. Existing commit hooks stay on.
+Shared MSP compatibility serves every extension host; the ACP runtime uses
+the same core. No editor-specific control or new UI is planned. Full
+aggregate quality remains the lead's gate, per the lane's common rules.
 
 ### M26 follow-up — Refresh README badges after publication (BADGES)
 
