@@ -201,6 +201,62 @@ it.each(['nested', 'module'])(
   },
 )
 
+it('refuses worker activity hidden behind an application postMessage wrapper', async () => {
+  const graph = boot('')
+  const transport = TRANSPORTS.find(([name]) => name === 'webtransport')[1]
+  const child = addResource(
+    graph,
+    'worker-wrapper.js',
+    `const send = self.postMessage.bind(self); self.postMessage = message => send({ payload: message }); try { ${transport} } catch {} send({ payload: 'ready' });`,
+  )
+  graph.files.set(
+    ROOT + 'main.js',
+    Buffer.from(`await new Promise(resolve => {
+    const worker = new Worker(${JSON.stringify(child)});
+    worker.onmessage = () => { worker.terminate(); resolve(); };
+  }); ${MARK}`),
+  )
+  await expect(
+    measurePortableStartup(graph.meta, (file) => graph.files.get(file), fixture.browser),
+  ).rejects.toThrow('PORTABLE_STARTUP_UNBUILT_REQUEST')
+})
+
+it('refuses page activity when application code reassigns the reporting global', async () => {
+  const graph = boot(
+    `globalThis.refusePortableStartupRequest = () => {}; try { await fetch('data:text/plain,unbuilt'); } catch {} ${MARK}`,
+  )
+  await expect(
+    measurePortableStartup(graph.meta, (file) => graph.files.get(file), fixture.browser),
+  ).rejects.toThrow('PORTABLE_STARTUP_UNBUILT_REQUEST')
+})
+
+it('admits a fragment reference to an authenticated loader module blob', async () => {
+  const graph = boot(
+    `import { value } from './shared.js'; if(value !== 1) throw new Error('dependency'); await fetch(import.meta.url + '#annotation').then(r => r.text()); ${MARK}`,
+  )
+  addResource(graph, 'shared.js', 'export const value = 1;')
+  const variants = await measurePortableStartup(
+    graph.meta,
+    (file) => graph.files.get(file),
+    fixture.browser,
+  )
+  for (const { outputs, resources } of variants) {
+    expect(outputs).toEqual(
+      graph.files
+        .keys()
+        .toArray()
+        .toSorted((a, b) => a.localeCompare(b, 'en')),
+    )
+    expect(resources).toEqual(
+      outputs.map((file) => ({
+        file,
+        bytes: graph.files.get(file).byteLength,
+        sha256: createHash('sha256').update(graph.files.get(file)).digest('hex'),
+      })),
+    )
+  }
+})
+
 it('admits identical concurrently materialized modules without guessing their path', async () => {
   const graph = boot(`
     const originalFetch = window.fetch; let arrived = 0, release, pendingB;

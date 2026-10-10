@@ -32,6 +32,23 @@ import { buildProductionPackage } from './helpers/productionPackage'
 
 const ENTRY = 'dist/webview/main.js'
 const SIZE_GATE = path.resolve('scripts/check-bundle-size.mjs')
+// Bounded parallel preparation: independent esbuild builds and browser boots
+// share one pool so this hook fits its unchanged 120-second deadline under
+// rig load. Every task keeps its measurement and assertion; only the
+// serialization is removed.
+async function runBounded(tasks, limit) {
+  const results = Array.from({ length: tasks.length })
+  const cursor = { value: 0 }
+  const consume = async () => {
+    const index = cursor.value
+    if (index >= tasks.length) return
+    cursor.value = index + 1
+    results[index] = await tasks[index]()
+    await consume()
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, () => consume()))
+  return results
+}
 const built = {
   outputs: {},
   fixture: '',
@@ -136,7 +153,7 @@ beforeAll(async () => {
   // Padding and unrelated Node/legacy-budget drills do not change boot imports.
   // Reuse the freshly observed resource lists through a fake measurement port;
   // the in-memory scenario tests below exercise the real browser port separately.
-  for (const gate of ['size', 'split']) {
+  const gateTasks = ['size', 'split'].map((gate) => async () => {
     const target = outputFile(`temp/check-bundle-${gate}.mjs`)
     await build({
       entryPoints: [`scripts/check-bundle-${gate}.mjs`],
@@ -160,7 +177,7 @@ beforeAll(async () => {
     })
     if (gate === 'size') built.sizeGate = target
     else built.splitGate = target
-  }
+  })
   // Evaluate the production option declarations, not a second approximate build configuration.
   const source = readFileSync('scripts/build.mjs', 'utf8')
   const declarations = source.slice(
@@ -206,7 +223,7 @@ beforeAll(async () => {
   expect(imports.match(/bootImport/g)).toHaveLength(64)
   const mountCall =
     'mountChat(rootElement, portableChatBridge(host), reportBridgeFailure, markChatMounted)'
-  for (const [scenario, contents] of [
+  const scenarioSources = [
     ['baseline', original],
     [
       'argument',
@@ -232,7 +249,8 @@ beforeAll(async () => {
           `  performance.mark(PORTABLE_CHAT_MOUNTED_MARK)\n  requestIdleCallback(() => { void Promise.all([${imports}]) })`,
       ),
     ],
-  ]) {
+  ]
+  const regressionGraphTasks = scenarioSources.map(([scenario, contents]) => async () => {
     const graph = await build({
       ...options,
       write: false,
@@ -289,63 +307,80 @@ beforeAll(async () => {
           ),
         },
       })
+  })
+  // Gate bundles and regression graphs are independent esbuild work; the pool
+  // keeps three at a time so preparation fits the unchanged hook deadline.
+  await runBounded([...gateTasks, ...regressionGraphTasks], 3)
+  // The baseline boot stays sequential: the resource scenarios below derive
+  // their eager set from its observed variants.
+  {
+    const graph = built.graphs.get('baseline')
+    graph.variants = await measurePortableStartup(
+      graph.meta,
+      (file) => graph.files.get(file),
+      built.browser,
+    )
+    built.memoryStartup = graph.variants
   }
-  for (const scenario of ['baseline', 'windows', 'argument', 'helper', 'deferred']) {
+  // Independent boots share one bounded pool (three at a time); every
+  // scenario keeps its measurement and every assertion below stays.
+  const bootTasks = ['windows', 'argument', 'helper', 'deferred'].map((scenario) => async () => {
     const graph = built.graphs.get(scenario)
     graph.variants = await measurePortableStartup(
       graph.meta,
       (file) => graph.files.get(file),
       built.browser,
     )
-    if (scenario === 'baseline') built.memoryStartup = graph.variants
-  }
-  for (const scenario of ['worker', 'font', 'extensionless']) {
-    const baseline = built.graphs.get('baseline')
-    const files = new Map(baseline.files)
-    const meta = { ...baseline.meta, outputs: { ...baseline.meta.outputs } }
-    const main = 'dist/webview/portable/main.js'
-    const root = 'dist/webview/portable/'
-    const url = (file) => `http://127.0.0.1/assets/portable/${file.slice(root.length)}`
-    let prefix
-    let required
-    if (scenario === 'worker') {
-      const eager = new Set(built.memoryStartup.flatMap(({ outputs }) => outputs))
-      required = files
-        .keys()
-        .filter((file) => file.endsWith('.js') && !eager.has(file))
-        .toArray()
-      const worker = `Promise.all(${JSON.stringify(required.map((file) => url(file)))}.map(async url => {
+  })
+  bootTasks.push(
+    ...['worker', 'font', 'extensionless'].map((scenario) => async () => {
+      const baseline = built.graphs.get('baseline')
+      const files = new Map(baseline.files)
+      const meta = { ...baseline.meta, outputs: { ...baseline.meta.outputs } }
+      const main = 'dist/webview/portable/main.js'
+      const root = 'dist/webview/portable/'
+      const url = (file) => `http://127.0.0.1/assets/portable/${file.slice(root.length)}`
+      let prefix
+      let required
+      if (scenario === 'worker') {
+        const eager = new Set(built.memoryStartup.flatMap(({ outputs }) => outputs))
+        required = files
+          .keys()
+          .filter((file) => file.endsWith('.js') && !eager.has(file))
+          .toArray()
+        const worker = `Promise.all(${JSON.stringify(required.map((file) => url(file)))}.map(async url => {
           const response = await fetch(url); if (!response.ok) throw new Error(url);
           await response.arrayBuffer();
         })).then(() => postMessage('ready'));`
-      const workerFile = root + 'boot-worker.js'
-      const workerBytes = Buffer.from(worker)
-      files.set(workerFile, workerBytes)
-      meta.outputs[workerFile] = { bytes: workerBytes.byteLength, inputs: {}, imports: [] }
-      required.push(workerFile)
-      prefix = `await new Promise((resolve, reject) => {
+        const workerFile = root + 'boot-worker.js'
+        const workerBytes = Buffer.from(worker)
+        files.set(workerFile, workerBytes)
+        meta.outputs[workerFile] = { bytes: workerBytes.byteLength, inputs: {}, imports: [] }
+        required.push(workerFile)
+        prefix = `await new Promise((resolve, reject) => {
           const worker = new Worker(${JSON.stringify(url(workerFile))});
           worker.onmessage = () => { worker.terminate(); resolve(); }; worker.onerror = reject;
         });`
-    } else {
-      const resource = root + (scenario === 'font' ? 'inter.woff2' : 'boot-payload')
-      const bytes =
-        scenario === 'font'
-          ? readFileSync('design/fonts/pack/inter.woff2')
-          : Buffer.alloc(300 * 1024)
-      files.set(resource, bytes)
-      meta.outputs[resource] = { bytes: bytes.byteLength, inputs: {}, imports: [] }
-      required = [resource]
-      prefix =
-        scenario === 'font'
-          ? `await Promise.all([new FontFace('startup-inter', 'url(${url(resource)})').load(), fetch('${url(resource)}?alias').then(r => r.arrayBuffer())]);`
-          : `await Promise.all(['${url(resource)}', '${url(resource)}?alias'].map(async url => (await fetch(url)).arrayBuffer()));`
-    }
-    files.set(main, Buffer.concat([Buffer.from(prefix), files.get(main)]))
-    meta.outputs[main] = { ...meta.outputs[main], bytes: files.get(main).byteLength }
-    const variants = await measurePortableStartup(meta, (file) => files.get(file), built.browser)
-    built.graphs.set(`resource:${scenario}`, { meta, files, required, variants })
-  }
+      } else {
+        const resource = root + (scenario === 'font' ? 'inter.woff2' : 'boot-payload')
+        const bytes =
+          scenario === 'font'
+            ? readFileSync('design/fonts/pack/inter.woff2')
+            : Buffer.alloc(300 * 1024)
+        files.set(resource, bytes)
+        meta.outputs[resource] = { bytes: bytes.byteLength, inputs: {}, imports: [] }
+        required = [resource]
+        prefix =
+          scenario === 'font'
+            ? `await Promise.all([new FontFace('startup-inter', 'url(${url(resource)})').load(), fetch('${url(resource)}?alias').then(r => r.arrayBuffer())]);`
+            : `await Promise.all(['${url(resource)}', '${url(resource)}?alias'].map(async url => (await fetch(url)).arrayBuffer()));`
+      }
+      files.set(main, Buffer.concat([Buffer.from(prefix), files.get(main)]))
+      meta.outputs[main] = { ...meta.outputs[main], bytes: files.get(main).byteLength }
+      const variants = await measurePortableStartup(meta, (file) => files.get(file), built.browser)
+      built.graphs.set(`resource:${scenario}`, { meta, files, required, variants })
+    }),
+  )
   // Negative boots own fresh contexts too. Share this expensive preparation
   // in the existing production hook; each test keeps the default body deadline.
   const cases = [
@@ -359,24 +394,26 @@ beforeAll(async () => {
     }),
     ...UNROUTABLE_TARGETS,
   ]
-  for (const [key, prefix, worker] of cases) {
-    const { meta: baselineMeta, files: baseline } = built.graphs.get('baseline')
-    const meta = { ...baselineMeta, outputs: { ...baselineMeta.outputs } }
-    const files = new Map(baseline)
-    if (worker !== undefined) {
-      const file = 'dist/webview/portable/negative-worker.js'
-      const bytes = Buffer.from(worker)
-      files.set(file, bytes)
-      meta.outputs[file] = { bytes: bytes.byteLength, inputs: {}, imports: [] }
-    }
-    const main = 'dist/webview/portable/main.js'
-    files.set(main, Buffer.concat([Buffer.from(prefix), files.get(main)]))
-    try {
-      await measurePortableStartup(meta, (file) => files.get(file), built.browser)
-    } catch (error) {
-      built.failures.set(key, error)
-    }
-  }
+  bootTasks.push(
+    ...cases.map(([key, prefix, worker]) => async () => {
+      const { meta: baselineMeta, files: baseline } = built.graphs.get('baseline')
+      const meta = { ...baselineMeta, outputs: { ...baselineMeta.outputs } }
+      const files = new Map(baseline)
+      if (worker !== undefined) {
+        const file = 'dist/webview/portable/negative-worker.js'
+        const bytes = Buffer.from(worker)
+        files.set(file, bytes)
+        meta.outputs[file] = { bytes: bytes.byteLength, inputs: {}, imports: [] }
+      }
+      const main = 'dist/webview/portable/main.js'
+      files.set(main, Buffer.concat([Buffer.from(prefix), files.get(main)]))
+      try {
+        await measurePortableStartup(meta, (file) => files.get(file), built.browser)
+      } catch (error) {
+        built.failures.set(key, error)
+      }
+    }),
+  )
   // A cancelled/untimed served request cannot establish the render boundary.
   const timingBrowser = {
     newContext: async (options) => {
@@ -391,11 +428,14 @@ beforeAll(async () => {
     },
   }
   const baseline = built.graphs.get('baseline')
-  try {
-    await measurePortableStartup(baseline.meta, (file) => baseline.files.get(file), timingBrowser)
-  } catch (error) {
-    built.failures.set('untimed', error)
-  }
+  bootTasks.push(async () => {
+    try {
+      await measurePortableStartup(baseline.meta, (file) => baseline.files.get(file), timingBrowser)
+    } catch (error) {
+      built.failures.set('untimed', error)
+    }
+  })
+  await runBounded(bootTasks, 3)
 }, 120_000)
 
 afterAll(async () => {

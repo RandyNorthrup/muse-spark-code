@@ -28,28 +28,40 @@ const workerRefusalSchema = z
     ]),
   })
   .strict()
-// Measurement instrumentation, like addInitScript in frames. Every HTTP worker
-// script (including module dependencies) runs it before its original built bytes.
-// The receipt still identifies/counts the immutable shipped output, not this probe.
-const WORKER_GUARD = `if (typeof globalThis.document === 'undefined' && !globalThis.museStartupGuard) {
+// Measurement threat model: this helper measures ACCIDENTAL startup activity by
+// our own built code and its dependencies, including ordinary wrappers that
+// application code installs (a postMessage protocol wrapper, a reassigned
+// reporting global or prototype method). The page init scripts below and this
+// prepended worker probe run before any application script, so the
+// instrumentation captures the native senders first and delivers every refusal
+// and the flush acknowledgement over that captured path; no later application
+// wrapper can hide or rewrite them. Code that deliberately tampers with the
+// browser before the instrumentation runs is out of scope, because the
+// instrumentation runs first. The receipt still identifies/counts the immutable
+// shipped output, not this probe. A sweep on 2026-10-10 confirmed the helper's
+// only cross-context probe/ack senders are the postMessage family and the four
+// Playwright reporting bindings; no MessageChannel-based probe exists.
+export const WORKER_GUARD = `if (typeof globalThis.document === 'undefined' && !globalThis.museStartupGuard) {
   globalThis.museStartupGuard = true;
+  const nativePostMessage = globalThis.postMessage.bind(globalThis);
+  const nativeStop = globalThis.Event.prototype.stopImmediatePropagation;
   globalThis.addEventListener('securitypolicyviolation', () => {
-    globalThis.postMessage({ museStartupRefusal: 'worker CSP violation' });
+    nativePostMessage({ museStartupRefusal: 'worker CSP violation' });
   });
   globalThis.addEventListener('message', event => {
     if (event.data?.museStartupFlush === true) {
-      globalThis.postMessage({ museStartupFlushed: true });
-      event.stopImmediatePropagation();
+      nativePostMessage({ museStartupFlushed: true });
+      nativeStop.call(event);
     }
   });
   for (const kind of ['Worker', 'WebSocket', 'EventSource', 'WebTransport']) {
     globalThis[kind] = function () {
-      globalThis.postMessage({ museStartupRefusal: kind });
+      nativePostMessage({ museStartupRefusal: kind });
       throw new Error(kind === 'Worker' ? 'PORTABLE_STARTUP_UNROUTABLE_TARGET: nested_worker' : 'PORTABLE_STARTUP_UNBUILT_REQUEST: ' + kind);
     };
   }
   const refuse = () => {
-    globalThis.postMessage({ museStartupRefusal: 'worker nonbuilt request' });
+    nativePostMessage({ museStartupRefusal: 'worker nonbuilt request' });
     throw new Error('PORTABLE_STARTUP_UNBUILT_REQUEST: worker nonbuilt request');
   };
   const fetch = globalThis.fetch.bind(globalThis);
@@ -65,6 +77,10 @@ const WORKER_GUARD = `if (typeof globalThis.document === 'undefined' && !globalT
   };
   URL.createObjectURL = refuse;
 }\n`
+/** Blob request identity ignores a fragment annotation: same bytes, same identity. */
+export function portableUrlIdentity(url) {
+  return url.split('#', 1)[0]
+}
 const CONTENT_TYPES = {
   js: 'text/javascript',
   css: 'text/css',
@@ -176,13 +192,19 @@ export async function measurePortableStartup(
             const admitted = new Set()
             const sources = new Map()
             let modules
+            // Captured before any application script runs: the reporting
+            // bindings are installed by exposeBinding init scripts, which were
+            // registered before this one, so these consts hold the native
+            // functions even when application code later reassigns the globals.
+            const nativeRefuse = globalThis.refusePortableStartupRequest
+            const nativeRegister = globalThis.registerPortableStartupBlob
             const isBooting = () => globalThis.performance.getEntriesByName(mark).length === 0
             const isFromLoader = () => {
               const stack = new Error('loader provenance').stack
               return stack?.includes(`at ${loaderUrl}:`) || stack?.includes(`(${loaderUrl}:`)
             }
             const refuse = (kind) => {
-              void globalThis.refusePortableStartupRequest(kind)
+              void nativeRefuse(kind)
               throw new Error(`PORTABLE_STARTUP_UNBUILT_REQUEST: ${kind}`)
             }
             // Only the loader's exact rewrite of an emitted module is admitted.
@@ -238,7 +260,7 @@ export async function measurePortableStartup(
                 materialized.set(module.path, urls)
               }
               admitted.add(url)
-              void globalThis.registerPortableStartupBlob({ url, path: candidates[0].path })
+              void nativeRegister({ url, path: candidates[0].path })
               return url
             }
             const fetch = globalThis.fetch.bind(globalThis)
@@ -248,10 +270,14 @@ export async function measurePortableStartup(
                   input instanceof globalThis.Request ? input.url : input,
                   globalThis.location.href,
                 )
+                // A fragment annotates the same bytes, so blob identity ignores
+                // it: a fetch of `import.meta.url + '#...'` still matches the
+                // admitted module URL. Unrelated blob URLs stay refused.
+                const identity = url.href.split('#', 1)[0]
                 if (
                   isBooting() &&
                   !['http:', 'https:'].includes(url.protocol) &&
-                  !admitted.has(url.href)
+                  !admitted.has(identity)
                 )
                   refuse(url.protocol)
                 const isLoaderFetch = isFromLoader()
@@ -273,29 +299,38 @@ export async function measurePortableStartup(
                 },
               })
             const Worker = globalThis.Worker
+            // The owner listens and flushes through these captured prototype
+            // methods, so an application wrapper around postMessage,
+            // addEventListener or terminate cannot hide or rewrite probe
+            // traffic on workers it creates after this script runs.
+            const nativeWorkerListen = Worker.prototype.addEventListener
+            const nativeWorkerPost = Worker.prototype.postMessage
+            const nativeWorkerTerminate = Worker.prototype.terminate
+            const nativeStop = globalThis.Event.prototype.stopImmediatePropagation
+            const nativeWorkerRefusal = globalThis.refusePortableStartupWorker
             Object.assign(globalThis, {
               Worker: class extends Worker {
                 constructor(...args) {
                   super(...args)
-                  this.addEventListener('message', (event) => {
+                  nativeWorkerListen.call(this, 'message', (event) => {
                     if (event.data?.museStartupRefusal) {
-                      void globalThis.refusePortableStartupWorker(event.data)
-                      event.stopImmediatePropagation()
+                      void nativeWorkerRefusal(event.data)
+                      nativeStop.call(event)
                     } else if (event.data?.museStartupFlushed === true) {
-                      super.terminate()
-                      event.stopImmediatePropagation()
+                      nativeWorkerTerminate.call(this)
+                      nativeStop.call(event)
                     }
                   })
                 }
                 // Flush queued CSP violations before an application can erase
                 // them by terminating the worker immediately after its reply.
                 terminate() {
-                  this.postMessage({ museStartupFlush: true })
+                  nativeWorkerPost.call(this, { museStartupFlush: true })
                 }
               },
             })
             globalThis.document.addEventListener('securitypolicyviolation', (event) => {
-              if (isBooting()) void globalThis.refusePortableStartupRequest(event.violatedDirective)
+              if (isBooting()) void nativeRefuse(event.violatedDirective)
             })
           },
           {
@@ -310,9 +345,11 @@ export async function measurePortableStartup(
           failBoot(`PORTABLE_STARTUP_UNROUTABLE_TARGET: ${kind}`)
         })
         await context.addInitScript(() => {
+          // Captured before any application script runs; see the note above.
+          const nativeTarget = globalThis.refusePortableStartupTarget
           const refuse = (kind) => {
             const message = `PORTABLE_STARTUP_UNROUTABLE_TARGET: ${kind}`
-            void globalThis.refusePortableStartupTarget(kind)
+            void nativeTarget(kind)
             throw new Error(message)
           }
           Object.assign(globalThis, {
@@ -405,7 +442,10 @@ export async function measurePortableStartup(
         )
         for (const request of blobRequests) {
           await request.response()
-          if (request.timing().startTime < boundary && !moduleBlobs.has(request.url()))
+          if (
+            request.timing().startTime < boundary &&
+            !moduleBlobs.has(portableUrlIdentity(request.url()))
+          )
             refuseRequest('unregistered blob')
         }
         if (errors.length > 0)
