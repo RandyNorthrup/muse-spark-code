@@ -1,0 +1,313 @@
+{
+  "sourceBase": "036b42ec4d259be6049fffd4a1f9206d5e9112e9",
+  "auditCheckpoint": "4dd2a0da9ed8bd20adc2d8f2b5285c8203c55a1d",
+  "machine": "kubuntu",
+  "productionSourceChanged": false,
+  "portableSizeQualified": false,
+  "aggregateQualityRun": false,
+  "aggregateQualityOwner": "lead (shared brief forbids lane aggregate quality)",
+  "vitest": {
+    "files": 19,
+    "passed": 1267,
+    "failed": 0,
+    "skipped": 0,
+    "defaultRepositoryDeadlines": true
+  },
+  "nodeTests": {
+    "files": 6,
+    "passed": 16,
+    "failed": 1,
+    "skipped": 0
+  },
+  "tests": [
+    {
+      "name": "bundle",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/webviewBundle.test.mjs",
+        "test/unit/bundleSize.test.mjs",
+        "test/unit/webviewBundles.test.mjs",
+        "--maxWorkers=3"
+      ],
+      "log": "temp/f4-bundle-tests.log",
+      "logSha256": "65edd6df4a5e24889a74b7b22b7d2c40eb87cc43cc18dc9d969680741e1fade7",
+      "files": 3,
+      "passed": 134,
+      "failed": 0,
+      "exit": 0,
+      "repositoryDeadlines": true
+    },
+    {
+      "name": "portable",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/panelBridges.test.ts",
+        "test/unit/portableAssets.test.ts",
+        "test/unit/panelCompanion.test.ts",
+        "--maxWorkers=3"
+      ],
+      "log": "temp/f4-portable-tests.log",
+      "logSha256": "8a7c7f36d9d738ec3fc1c92270cdabbd7895517d2ab6c84ced316f79b1dd73cf",
+      "files": 2,
+      "passed": 27,
+      "failed": 0,
+      "exit": 0,
+      "repositoryDeadlines": true,
+      "absentRequestedFile": "test/unit/panelCompanion.test.ts"
+    },
+    {
+      "name": "m104-ui-a",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/m104/ui/factory.test.ts",
+        "test/m104/ui/planDiff.test.tsx",
+        "test/m104/ui/interactions.test.tsx",
+        "--maxWorkers=3"
+      ],
+      "log": "temp/f4-m104-ui-a.log",
+      "logSha256": "16ad48c69a4e820bc6a004226ec680a10eb9ed337762491d38031c7f12eaeff4",
+      "files": 3,
+      "passed": 29,
+      "failed": 0,
+      "exit": 0,
+      "repositoryDeadlines": true
+    },
+    {
+      "name": "m104-ui-b",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/m104/ui/tasks.test.ts",
+        "test/m104/ui/whatsNew.test.ts",
+        "test/m104/ui/reports.test.ts",
+        "--maxWorkers=3"
+      ],
+      "log": "temp/f4-m104-ui-b.log",
+      "logSha256": "bbea9401dca2ddb168488faf0596524d074ba02470c75732e3c3ec6a38800d11",
+      "files": 3,
+      "passed": 29,
+      "failed": 0,
+      "exit": 0,
+      "repositoryDeadlines": true
+    },
+    {
+      "name": "m104-browser-native",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/m104/ui/browser.test.ts",
+        "test/m104/runtime/browserBridge.test.ts",
+        "test/m104/runtime/nativeServices.test.ts",
+        "--maxWorkers=3"
+      ],
+      "log": "temp/f4-m104-browser-native.log",
+      "logSha256": "a3edc1fc577ace237414a5e56236147fce8160c4e71f820495775480aa2adafb",
+      "files": 3,
+      "passed": 967,
+      "failed": 0,
+      "exit": 0,
+      "repositoryDeadlines": true
+    },
+    {
+      "name": "presentation-serial",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/m104/runtime/loaders.test.ts",
+        "test/m104/runtime/presentation.test.ts",
+        "test/unit/reactFallbacks.test.tsx",
+        "--maxWorkers=3"
+      ],
+      "log": "temp/f4-m104-presentation-serial.log",
+      "logSha256": "cad9396aa424c8f58ddda13a735f336fca229d48037d01032ab636c1a2a5b961",
+      "files": 3,
+      "passed": 62,
+      "failed": 0,
+      "exit": 0,
+      "repositoryDeadlines": true
+    },
+    {
+      "name": "carriers",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/e2e/panelStdio.e2e.test.ts",
+        "test/e2e/panelCompanion.e2e.test.ts",
+        "--maxWorkers=3"
+      ],
+      "log": "temp/f4-carrier-tests.log",
+      "logSha256": "7a068d367bfefb2985d55f386f7368949ed1fdaf1cbff0a934624e33ee0c39f9",
+      "files": 2,
+      "passed": 19,
+      "failed": 0,
+      "exit": 0,
+      "repositoryDeadlines": true
+    },
+    {
+      "name": "native-modules",
+      "command": [
+        "node",
+        "--test",
+        "test/m104/linux/nativeModules.test.mjs",
+        "hosts/jetbrains/test/embedded.test.mjs",
+        "hosts/jetbrains/test/bundle-size.test.mjs"
+      ],
+      "log": "temp/f4-native-modules.log",
+      "logSha256": "2a0b6e18e3b7aa790efe81aafb9ea7c2a083e59ca9933cddc7caf572c2643d04",
+      "files": 3,
+      "passed": 12,
+      "failed": 1,
+      "exit": 1,
+      "repositoryDeadlines": true
+    },
+    {
+      "name": "native-contracts",
+      "command": [
+        "node",
+        "--test",
+        "test/m104/linux/mhpErrors.test.mjs",
+        "hosts/eclipse/tests/runtime-fixture.test.mjs",
+        "hosts/eclipse/tests/asset-freshness.test.mjs"
+      ],
+      "log": "temp/f4-native-contracts.log",
+      "logSha256": "c7f2966687a06d38665776730f08f864cef9de46c91e5080dd4ff3ad1f2a5ec0",
+      "files": 3,
+      "passed": 4,
+      "failed": 0,
+      "exit": 0,
+      "repositoryDeadlines": true
+    }
+  ],
+  "checks": [
+    {
+      "name": "typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exit": 0,
+      "seconds": 300.3,
+      "log": "temp/f4-final-typecheck.log",
+      "logSha256": "5bacb23bddaaf6facafe98c434a10326a48f8eb0044ebf8bc7244aa719b6e985"
+    },
+    {
+      "name": "deadcode",
+      "command": ["npm", "run", "deadcode"],
+      "exit": 0,
+      "seconds": 6.2,
+      "log": "temp/f4-final-deadcode.log",
+      "logSha256": "3e4a2ced22fb7ecadb6e2f29bdcd8545bce54c761d46af3d40291b582ac320b1"
+    },
+    {
+      "name": "duplication",
+      "command": ["npm", "run", "duplication"],
+      "exit": 0,
+      "seconds": 1.9,
+      "log": "temp/f4-final-duplication.log",
+      "logSha256": "0d5fc31f531f1e5f194079367e562ee7029505ba4f70d5d5dfea5872484b05a5"
+    },
+    {
+      "name": "l10n",
+      "command": ["npm", "run", "check:l10n"],
+      "exit": 0,
+      "seconds": 3.5,
+      "log": "temp/f4-final-l10n.log",
+      "logSha256": "0d0bbe35b49c20c9ba1da849e23ac62130c77661503562d86f041afd37ee71e8"
+    },
+    {
+      "name": "reference",
+      "command": ["npm", "run", "check:reference"],
+      "exit": 0,
+      "seconds": 3.3,
+      "log": "temp/f4-final-reference.log",
+      "logSha256": "73e587c563b307d7fccace5c24e9d14a1ff2e249cbbbd05ec3fb6dea25c0ebcc"
+    },
+    {
+      "name": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exit": 0,
+      "seconds": 37.1,
+      "log": "temp/f4-final-host-api.log",
+      "logSha256": "96bc71dcfe64be71e10321c7d6aaee24813e821e2868b72600c3123ad4f541ee"
+    },
+    {
+      "name": "mhp",
+      "command": ["npm", "run", "check:mhp"],
+      "exit": 0,
+      "seconds": 2.0,
+      "log": "temp/f4-final-mhp.log",
+      "logSha256": "41c891184315e51ea086d2d07abe73c322edabfaef09e9f9a5cb22858d845c70"
+    },
+    {
+      "name": "tokens",
+      "command": ["npm", "run", "check:tokens"],
+      "exit": 0,
+      "seconds": 1.4,
+      "log": "temp/f4-final-tokens.log",
+      "logSha256": "671c9311e2a3e404c6f8d89fadef23ead4fe7a869ef8b077701cc0c0bbbdb303"
+    },
+    {
+      "name": "plan",
+      "command": ["npm", "run", "check:plan"],
+      "exit": 0,
+      "seconds": 0.6,
+      "log": "temp/f4-final-plan.log",
+      "logSha256": "7d92b0a61352418afffc6815b26141a0a3249a0d70bcafae45b1cedad2e85c87"
+    },
+    {
+      "name": "roadmap",
+      "command": ["npm", "run", "check:roadmap"],
+      "exit": 0,
+      "seconds": 0.9,
+      "log": "temp/f4-final-roadmap.log",
+      "logSha256": "e9e415bd9d0fc6e9aea6b4cb90239175b2fecf90ee404a630b88c51b82d8203e"
+    },
+    {
+      "name": "split",
+      "command": ["node", "scripts/check-bundle-split.mjs"],
+      "exit": 0,
+      "seconds": 3.4,
+      "log": "temp/f4-final-split.log",
+      "logSha256": "3f7043ba865fc3ea2d44b6d5920f54859c318df227110f834ff8a9c57a7cbb25"
+    },
+    {
+      "name": "globals",
+      "command": ["node", "scripts/check-host-globals.mjs"],
+      "exit": 0,
+      "seconds": 0.1,
+      "log": "temp/f4-final-globals.log",
+      "logSha256": "3ecbed35abf70ad717fc85f819993ba22ad92576d03ebe32f5e622e975a7eafa"
+    },
+    {
+      "name": "notices",
+      "command": ["node", "scripts/third-party-notices.mjs"],
+      "exit": 0,
+      "seconds": 0.4,
+      "log": "temp/f4-final-notices.log",
+      "logSha256": "ef2d00f3e4f18f45abec6919be243e3119c82a54e878db3581c031227c5407ce"
+    }
+  ],
+  "build": {
+    "command": ["npm", "run", "build"],
+    "exit": 1,
+    "log": "temp/f4-build-restored.log",
+    "logSha256": "6c3bc352421d7655755acd2898147446e36dfc36063727571fc6e3bf06fd5948",
+    "portableBytes": 1323336,
+    "portableCapBytes": 1126400,
+    "overageBytes": 196936
+  },
+  "exploratoryPresentationOverlap": {
+    "log": "temp/f4-m104-presentation.log",
+    "logSha256": "fb17d01893dd48f24a71c2071bc627f06246b034038e017533a98d6455670f68",
+    "passed": 62,
+    "counted": false,
+    "reason": "Initial presentation command started before the long browser cohort completed; repeated separately after it ended."
+  }
+}
