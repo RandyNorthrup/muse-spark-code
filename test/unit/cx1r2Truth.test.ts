@@ -104,13 +104,17 @@ describe('RVCX1B F3: v2 schedule delivery claims are removed on every surface', 
 })
 
 describe('CX1R3 sibling sweep: dormant features have no published usage', () => {
-  it.each(['team-workers', 'vault', 'estimator', 'auto-compaction', 'argument-preview'])(
-    'omits %s from Help and clears its capability inventory',
-    (id) => {
-      expect(help.features.some((feature) => feature.id === id)).toBe(false)
-      expect(featureCatalog().find((feature) => feature.id === id)?.surfaces).toEqual([])
-    },
-  )
+  it.each([
+    'team-workers',
+    'vault',
+    'estimator',
+    'auto-compaction',
+    'argument-preview',
+    'accounts',
+  ])('omits %s from Help and clears its capability inventory', (id) => {
+    expect(help.features.some((feature) => feature.id === id)).toBe(false)
+    expect(featureCatalog().find((feature) => feature.id === id)?.surfaces).toEqual([])
+  })
 
   it('retains only neutral progress text in the dormant source inventory', () => {
     for (const id of [
@@ -119,6 +123,7 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
       'estimator',
       'auto-compaction',
       'argument-preview',
+      'accounts',
     ]) {
       const feature = featureCatalog().find((entry) => entry.id === id)
       expect(feature?.summary).toEqual({ ui: 'referenceInProgress' })
@@ -167,6 +172,7 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
       'M96d',
       'M101',
       'M106',
+      'M108',
       'M109',
       'M113',
       'M115',
@@ -176,7 +182,32 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
       const row = progress.split('\n').find((line) => line.includes(`<sub>${id}</sub>`))
       expect(row).toBeDefined()
       expect(row).toMatch(/(?:is|are) in progress\./)
+    }
+    for (const id of ['M96', 'M96b', 'M96c', 'M96d', 'M108', 'M109', 'M115', 'M117']) {
+      const row = progress.split('\n').find((line) => line.includes(`<sub>${id}</sub>`))
+      expect(row).toBeDefined()
       expect(row).not.toMatch(/shipped|release|Schedule prompts|Configure|commands refuse/)
+    }
+    // CX1R4 F4: mixed milestones retain their working released portions and
+    // release associations; only the dormant portions are in progress.
+    const mixed: Readonly<Record<string, readonly RegExp[]>> = {
+      M101: [
+        /cache-stable/,
+        /First parts shipped in 0\.15\.0/,
+        /automatic compaction is in progress/,
+      ],
+      M106: [
+        /strict tool contracts/,
+        /First parts shipped in 0\.16\.0/,
+        /live tool-argument previews are in progress/,
+      ],
+      M113: [/\/report for project/, /First parts shipped in 0\.17\.0/, /additional report kinds/],
+      M116: [/\/playbook shows status/, /First parts shipped in 0\.17\.0/, /panel integration/],
+    }
+    for (const [id, patterns] of Object.entries(mixed)) {
+      const row = progress.split('\n').find((line) => line.includes(`<sub>${id}</sub>`))
+      expect(row).toBeDefined()
+      for (const pattern of patterns) expect(row).toMatch(pattern)
     }
     expect(roadmap).not.toMatch(/not available yet|while arguments arrive/i)
   })
