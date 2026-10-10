@@ -9,6 +9,7 @@ import {
   vaultItemMetadataSchema,
   vaultItemSchema,
   vaultSlotRecordSchema,
+  type VaultGrant,
   type VaultItem,
   type VaultSlotRecord,
   type VaultStorePort,
@@ -488,6 +489,19 @@ export class VaultStore implements VaultStorePort {
       throw error
     }
   }
+  /** Whether any vault document exists here: the setup flow's "uncreated" test. */
+  static async exists(files: VaultFilePort): Promise<boolean> {
+    return await files.withWriter(async () => {
+      for (const name of ['slots.v1', 'vault.v1', 'pending.v1'] as const) {
+        const bytes = await files.read(name)
+        if (bytes) {
+          bytes.fill(0)
+          return true
+        }
+      }
+      return false
+    })
+  }
   static async open(options: VaultStoreOptions, vaultId: string): Promise<VaultStore> {
     const store = new VaultStore(options, vaultId)
     try {
@@ -841,6 +855,74 @@ export class VaultStore implements VaultStorePort {
         snapshot.slots,
       )
     })
+  }
+
+  async grants(): Promise<readonly VaultGrant[]> {
+    const result = await this.options.files.withWriter(async () => {
+      const loaded = await this.load()
+      return loaded.index.grants
+    })
+    this.active()
+    return structuredClone(result)
+  }
+  /** Adds or replaces a grant for a present item; authorize runs after every load. */
+  async saveGrant(input: VaultGrant, authorize: () => void): Promise<void> {
+    const parsed = vaultGrantSchema.safeParse(input)
+    if (!parsed.success) throw new VaultError('invalid')
+    const grant = parsed.data
+    await this.options.files.withWriter(async () => {
+      const { snapshot, index } = await this.load()
+      const others = index.grants.filter((entry) => entry.id !== grant.id)
+      if (
+        index.items.every((item) => item.metadata.id !== grant.itemId) ||
+        others.length >= VAULT_LIMITS.grants
+      )
+        throw new VaultError('invalid')
+      authorize()
+      await this.publish(
+        { items: index.items, grants: [...others, grant] },
+        snapshot.document.items,
+        snapshot.slots,
+      )
+    })
+  }
+  /** Idempotent: an absent grant is already revoked. */
+  async removeGrant(id: string): Promise<void> {
+    await this.options.files.withWriter(async () => {
+      const { snapshot, index } = await this.load()
+      if (index.grants.every((grant) => grant.id !== id)) return
+      await this.publish(
+        { items: index.items, grants: index.grants.filter((grant) => grant.id !== id) },
+        snapshot.document.items,
+        snapshot.slots,
+      )
+    })
+  }
+  /** Spends one use under the cross-process writer; false without spending when exhausted. */
+  async consumeGrant(id: string, now: number): Promise<boolean> {
+    const isSpent = await this.options.files.withWriter(async () => {
+      const { snapshot, index } = await this.load()
+      const grant = index.grants.find((entry) => entry.id === id)
+      if (
+        grant === undefined ||
+        (grant.expiresAt !== null && now >= grant.expiresAt) ||
+        (grant.maxUses !== null && grant.uses >= grant.maxUses)
+      )
+        return false
+      await this.publish(
+        {
+          items: index.items,
+          grants: index.grants.map((entry) =>
+            entry.id === id ? { ...entry, uses: entry.uses + 1 } : entry,
+          ),
+        },
+        snapshot.document.items,
+        snapshot.slots,
+      )
+      return true
+    })
+    this.active()
+    return isSpent
   }
   async setSlots(records: readonly VaultSlotRecord[]): Promise<void> {
     const parsed = z.array(vaultSlotRecordSchema).safeParse(records)
