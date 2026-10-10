@@ -3,7 +3,8 @@
 Status: design, 2026-10-09, revised the same day after the owner's
 correction (section 1) and again after the second review (`RVJUDGEFAST2`,
 section 15); revised on 2026-10-10 after the third review
-(`RVJUDGEFAST3`) and the owner's answer to Q-D107 (variant B, section 9).
+(`RVJUDGEFAST3`) and the owner's answer to Q-D107 (variant B, section 9),
+and again after the fourth review (`RVJUDGEFAST4`): B2 is now Linux-only.
 Nothing here is built. PLAN.md D107 is the decision of record and M125 the
 milestone; this file holds the reasoning, the catalogue and the numbers
 behind them.
@@ -985,10 +986,10 @@ is off on any platform that cannot give it that enforcement (9.2).
 
 ### 9.2 Where B runs
 
-| Class            | Linux                                                                                                              | macOS                                                                                  | Windows | Muse Code (any OS) | Extension running as root |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- | ------- | ------------------ | ------------------------- |
-| B1 inspect       | Landlock (ABI 3 or later) through lane F's confinement helper, after the self-test                                 | Seatbelt through `/usr/bin/sandbox-exec`, after the capture and the self-test          | Off     | Off                | Off                       |
-| B2 check scripts | bubblewrap 0.11.0 or later, not setuid: namespaces and an overlay at the workspace's own path, after the self-test | An APFS clone of the workspace run under Seatbelt, after the capture and the self-test | Off     | Off                | Off                       |
+| Class            | Linux                                                                                                                               | macOS                                                                         | Windows | Muse Code (any OS) | Extension running as root |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ------- | ------------------ | ------------------------- |
+| B1 inspect       | Landlock (ABI 3 or later) through lane F's confinement helper, after the self-test                                                  | Seatbelt through `/usr/bin/sandbox-exec`, after the capture and the self-test | Off     | Off                | Off                       |
+| B2 check scripts | bubblewrap 0.11.0 or later, not setuid: namespaces, an overlay at the workspace's own path and a socket filter, after the self-test | Off: nothing on macOS owns the lifetime of every descendant (9.5)             | Off     | Off                | Off                       |
 
 - **Muse Code.** The CLI runs an approved command itself, through its own
   shell, `PATH` and environment; the extension only answers the approval.
@@ -1006,7 +1007,7 @@ is off on any platform that cannot give it that enforcement (9.2).
   ownership checks prove nothing. B is off.
 - **A machine that fails a probe** (an older kernel, Landlock not enabled,
   user namespaces restricted, an older bubblewrap, a workspace on a file
-  system that cannot be overlaid or cloned) runs the affected class
+  system that cannot be overlaid) runs the affected class
   nowhere, and the Judge section names the reason and what would enable
   it. The extension never changes a system setting, never installs
   bubblewrap, and never runs a class in place as a fallback.
@@ -1034,11 +1035,18 @@ as today.
    - the network, a paid tool, a spawn (a sub-agent or a background job),
      or a non-read-only MCP tool;
    - a confidential workspace using a non-local judge engine.
-3. **No racing writer that the agent started.** No background job the
-   agent started (D25's shell jobs) is alive in this workspace. A process
-   that swaps a folder for a link, or plants a protected file, while the
-   command runs can only come from one; the user's own tools are the
-   user's.
+3. **No process the agent's session started is alive.** Not only D25's
+   background jobs: any process a command of this session started, the
+   detached child of a foreground command that has finished included, as
+   the harness's process registry sees them (`processTree.ts`, M107's
+   resource tickets; on Linux, where M107's delegated cgroup holds the
+   session's commands, its member list, which a process cannot leave by
+   detaching). Outside such a cgroup the registry is not complete: a
+   process that deliberately detaches (a new session, a double fork) is
+   lost to it, as `processTree.ts` states. So neither class depends on this
+   condition for its guarantee: B1's reads on Linux are confined to the
+   files its walk opened (9.4), B2's run cannot reach any socket (9.5), and
+   the residual is named in each.
 4. **The class's confinement is available** on this machine and passed its
    self-test in this session (9.4, 9.5).
 5. **The judge does not veto within its window**, `JUDGE_FAST_VETO_WINDOW_MS`
@@ -1145,50 +1153,88 @@ operand tree through the same no-follow descriptors, within
 `JUDGE_FAST_B1_WALK_MAX_MS` = 100 ms (over either, not B1). It excludes
 every protected or private entry, every link, every regular file with more
 than one link, every entry on another device (a mount), and every device,
-FIFO or socket. A subtree with nothing excluded is allowed whole; a folder
-that contains an excluded entry is allowed entry by entry.
+FIFO or socket. What remains is the allowed set: a list of the regular
+files the walk opened, and of the folders it walked.
+
+**What B1 guarantees, and what it does not.** The privacy boundary is file
+contents: B1's program reads the bytes of no file outside the allowed set.
+Names and metadata are a narrower matter, per platform:
+
+- **Linux** grants listing a folder only as a hierarchy (a Landlock rule on
+  a folder covers everything below it, and no rule can take a protected
+  descendant back out), and Landlock does not restrict `stat`. So `ls -R`,
+  `find` and `du` over an operand tree list the names, sizes, times and
+  modes of protected and private entries inside it, `.git` included,
+  without reading their contents. That is outside B1's guarantee on Linux,
+  and the design says so rather than claiming a pruned view it cannot
+  build. The agent's own read and list tools run without a card in every
+  mode today (`permissions.ts`).
+- **macOS** denies both data and metadata reads on the protected and
+  private patterns, so a listed folder shows such an entry's name and
+  nothing under or about it.
 
 **Linux: Landlock.** The helper sets `no_new_privs` and creates a Landlock
 ruleset that handles every file-system right of the running ABI (at least
 3, which adds truncation; on ABI 4 or later it also refuses TCP bind and
-connect). It grants read-file and read-directory rights only on the
-allowed set, from the descriptors it already opened (so a name swapped
-afterwards does not move a rule); read and execute on the verified program
-and the loader's library folders; read on `/etc/ld.so.cache`,
-`/etc/nsswitch.conf`, `/etc/passwd`, `/etc/group` and `/etc/localtime`
-(names and times for `ls -l`); and nothing else. A
-seccomp filter refuses sockets other than `AF_UNIX`, and `ptrace`. The
-helper closes every descriptor but the three standard ones and calls
-`execve` on the verified program. Landlock checks each open against the
-hierarchy the path actually reaches, so an ancestor or leaf swapped for a
-link after the rules were made leads outside every allowed hierarchy, and
-the open fails with "Permission denied"; a link met during recursion is
-refused the same way. Writing, creating, removing, truncating and running
-any other program are refused because no rule grants them. Landlock's own
-limits stay: it does not restrict `stat` (B1 names only its operands and
-the entries it lists), and its rules allow whole hierarchies, so a
-protected file created inside an allowed subtree while the command runs
-would be readable; condition 3 excludes the agent as that writer.
+connect). It grants **read-file on each allowed regular file by itself**,
+from the descriptor the walk opened, and never on a folder; read-directory
+on the operand folders; read and execute on the verified program and the
+loader's library folders; read on `/etc/ld.so.cache`, `/etc/nsswitch.conf`,
+`/etc/passwd`, `/etc/group` and `/etc/localtime` (names and times for
+`ls -l`); and nothing else. A seccomp filter refuses sockets other than
+`AF_UNIX`, `ptrace`, and every way of creating a process (B1's programs
+never start one, so none can outlive the run). The helper closes every
+descriptor but the three standard ones and calls `execve` on the verified
+program. Landlock checks each open against the file the path actually
+reaches: an ancestor or leaf swapped for a link after the rules were made
+leads to a file with no rule, and the open fails with "Permission denied";
+so does a link met during recursion. Because read-file is granted per file
+and never through a folder, **a file that appears in a walked folder after
+the walk, by creation, rename, a hard link or a mount, has no rule and
+cannot be read**, whoever put it there. Writing, creating, removing,
+truncating and running any other program are refused because no rule
+grants them.
 
 **macOS: Seatbelt.** The helper runs the verified program through
 `/usr/bin/sandbox-exec` (a root-owned, SIP-protected system file, verified
 like the programs) with a profile it writes for this run: deny by default;
-execute only the verified program; read the allowed set and the system
-part (the dynamic loader and its shared cache, captured on the Mac mini and
-committed); deny reads of any path under the workspace that matches a
-protected or private pattern, which also covers entries created after the
-walk; deny the excluded links, hard links and mounts by literal path; no
-network; service lookups limited to the captured minimum (directory
+execute only the verified program, and no `process-fork`; read data only
+at the literal paths of the allowed files, and list only the walked
+folders; read the system part (the dynamic loader and its shared cache,
+captured on the Mac mini and committed); deny data and metadata reads of
+any path under the workspace that matches a protected or private pattern;
+no network; service lookups limited to the captured minimum (directory
 services for user names). Seatbelt checks the path an open resolves to, so
-a swapped link resolves outside and is refused. Apple marks `sandbox-exec`
-deprecated but ships it; if a release removes it, or the self-test fails,
-B1 is off on that Mac.
+a swapped link resolves to a path with no allow and is refused, and a new
+path that appears after the walk has none either. Seatbelt's rules are
+paths, not files, so an allowed path that is **replaced** after the walk
+(its file removed and a hard link to another file put in its place) would
+be read; see the residual below. Apple marks `sandbox-exec` deprecated but
+ships it; if a release removes it, or the self-test fails, B1 is off on
+that Mac.
+
+**The residual: a process that is already running with the user's
+rights.** Condition 3 refuses B1 while any process the session started is
+alive, as far as the registry sees, but a process that deliberately
+detached itself after an earlier reviewed command is lost to it, and the
+user's own processes are not the session's. Such a process already holds
+every right the user has: it can copy any bytes into an ordinary workspace
+file at any time, before the walk as easily as after it, and B1 then reads
+them as workspace content, exactly as the agent's own read tool would
+without a card today. On macOS it can also replace an allowed path with a
+hard link after the walk. No confinement of B1's program can tell such
+bytes from the workspace's own, so B1's guarantee is about which paths and
+(on Linux) which files its program opens, not about where their bytes came
+from.
 
 **The self-test.** Once per session, before the first B1 run, the helper
 runs `cat` and `grep -r` over a canary tree it writes in the extension's
 storage. The allowed file must be read; a file outside reached through a
-link, a hard-linked outside file, a `.git/config` and a `.env` canary must
-not appear in the output. Any failure turns B1 off, with the reason.
+link, a hard-linked outside file, a `.git/config` and a `.env` canary, and
+(on Linux) a file hard-linked into a walked folder after the rules were
+made, must not appear in the output; and the helper confirms, after
+applying its filter or profile, that creating a process fails. Any failure
+turns B1 off, with the reason.
 
 **What the agent sees.** The program's output, as today. An excluded entry
 shows as the program's own "Permission denied" line, and the transcript
@@ -1199,19 +1245,21 @@ else needs undoing.
 **Red drills (lane F),** each expected to go to the reviewer or to return
 no byte of the forbidden file:
 
-| Drill                      | Case                                                                                                                                                                                    | Expected                                                                                              |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| B1-1 ancestor swap         | `cat src/a.ts`; `src` replaced by a link to another project's `src` before the helper opens it, and again after the rules are made                                                      | Before: refused by the no-follow open (reviewer). After: the open fails. No byte of the other project |
-| B1-2 leaf swap             | The same, with `src/a.ts` replaced by a link to an outside canary                                                                                                                       | As B1-1                                                                                               |
-| B1-3 protected descendants | `grep -r -e url .` over `.git/config`, a nested `pkg/.git/config`, `.claude/settings.json`, `.env`, `config/.env.production`, `certs/dev.pem` and `AGENTS.md`, each holding the pattern | None of their bytes; each counted as not read                                                         |
-| B1-4 hard link             | `notes.txt` a hard link to an outside canary, as an operand and inside a recursive walk                                                                                                 | Operand: reviewer. Walk: not read                                                                     |
-| B1-5 command-line link     | `grep -r x linkdir`, `linkdir` a link to outside                                                                                                                                        | Reviewer (GNU grep would follow it)                                                                   |
-| B1-6 link in recursion     | `ls -R`, `find .` and `grep -r` over a tree with a link to outside and one to a protected folder                                                                                        | Not read                                                                                              |
-| B1-7 mount                 | A mount inside the workspace (where the rig allows one; otherwise a fake device id in unit tests)                                                                                       | Not read                                                                                              |
-| B1-8 racing writer         | An agent-started background job alive in the workspace                                                                                                                                  | Reviewer                                                                                              |
-| B1-9 no confinement        | Landlock below ABI 3 or not enabled; `sandbox-exec` missing; a self-test canary read                                                                                                    | B1 off, with the reason                                                                               |
-| B1-10 inherited descriptor | A descriptor to an outside canary open in the parent                                                                                                                                    | Not inherited; not read                                                                               |
-| B1-11 secret in output     | A workspace file with a secret-shaped line                                                                                                                                              | Output withheld; reviewer                                                                             |
+| Drill                      | Case                                                                                                                                                                                                                          | Expected                                                                                                                             |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| B1-1 ancestor swap         | `cat src/a.ts`; `src` replaced by a link to another project's `src` before the helper opens it, and again after the rules are made                                                                                            | Before: refused by the no-follow open (reviewer). After: the open fails. No byte of the other project                                |
+| B1-2 leaf swap             | The same, with `src/a.ts` replaced by a link to an outside canary                                                                                                                                                             | As B1-1                                                                                                                              |
+| B1-3 protected descendants | `grep -r -e url .` over `.git/config`, a nested `pkg/.git/config`, `.claude/settings.json`, `.env`, `config/.env.production`, `certs/dev.pem` and `AGENTS.md`, each holding the pattern                                       | None of their bytes; each counted as not read                                                                                        |
+| B1-4 hard link             | `notes.txt` a hard link to an outside canary, as an operand and inside a recursive walk                                                                                                                                       | Operand: reviewer. Walk: not read                                                                                                    |
+| B1-5 command-line link     | `grep -r x linkdir`, `linkdir` a link to outside                                                                                                                                                                              | Reviewer (GNU grep would follow it)                                                                                                  |
+| B1-6 link in recursion     | `ls -R`, `find .` and `grep -r` over a tree with a link to outside and one to a protected folder                                                                                                                              | Not read                                                                                                                             |
+| B1-7 mount                 | A mount inside the workspace (where the rig allows one; otherwise a fake device id in unit tests)                                                                                                                             | Not read                                                                                                                             |
+| B1-8 live session process  | A background job, and a detached child of a finished foreground command that the registry tracks, alive                                                                                                                       | Reviewer                                                                                                                             |
+| B1-9 no confinement        | Landlock below ABI 3 or not enabled; `sandbox-exec` missing; a self-test canary read; process creation not refused                                                                                                            | B1 off, with the reason                                                                                                              |
+| B1-10 inherited descriptor | A descriptor to an outside canary open in the parent                                                                                                                                                                          | Not inherited; not read                                                                                                              |
+| B1-11 secret in output     | A workspace file with a secret-shaped line                                                                                                                                                                                    | Output withheld; reviewer                                                                                                            |
+| B1-12 post-walk insertion  | An untracked, detached helper waits for the rules, then hard-links an outside canary into a walked folder, renames a protected file into it, and replaces an allowed file with a hard link to a protected one; `grep -r` runs | Linux: none of their bytes. macOS: the new paths are refused; the replaced path is the named residual                                |
+| B1-13 names and metadata   | `find . -name '*.pem' -size +1 -print` and `ls -R .` over `.git` and `certs/dev.pem`                                                                                                                                          | No contents. Linux lists the names and sizes (outside the guarantee, as stated); macOS shows only `.git` and `certs/dev.pem` by name |
 
 The second review's drills stay: a workspace `bin/cat` first on `PATH`; a
 `cat` reached through a link into a user-writable folder; a user-writable
@@ -1220,40 +1268,67 @@ copy in `/usr/local/bin`; `LD_PRELOAD`, `GREP_OPTIONS` and
 writing `not_match` example (the `find` actions, `tail -f`); any `git` or
 `rg` command; root; a Windows host; a Muse Code approval.
 
-### 9.5 B2, check scripts: a contained, discardable run
+### 9.5 B2, check scripts: a contained, discardable run (Linux only)
 
 **Why a hash is not enough, and what is.** A check script runs repository
 code: the tests, the sources they import, setup files, dependencies in
 `node_modules`. The agent may have edited any of it. Pinning the script's
 definition establishes only that the _command_ is the owner's own; it says
 nothing about what the code does. B2's safety therefore comes from
-containment: the run cannot reach the network, cannot write anything that
-survives it, cannot read the user's secrets outside the workspace, and
-leaves no process behind. Its result is delivered only when the run stayed
-a pure check; otherwise it is thrown away and the reviewer runs as today.
+containment: the run cannot reach the network or any socket, cannot write
+anything that survives it, cannot read the user's secrets outside the
+workspace, and leaves no process behind. Its result is delivered only when
+the run stayed a pure check; otherwise it is thrown away and the reviewer
+decides as today. That containment exists on Linux only (macOS and Windows
+below), so B2 is Linux-only.
 
 **What qualifies.**
 
-- `npm test`, `npm run <script>`, `pnpm <script>`, `pnpm run <script>`,
-  `yarn <script>` or `yarn run <script>`, with `<script>` one of
-  `JUDGE_FAST_B2_SCRIPTS`: `test`, `test:unit`, `lint`, `typecheck`,
-  `type-check`, `check`, `format:check`. No option. After `--`, only plain
-  workspace-relative path operands (a test-file filter), never an option,
-  which could name a setup file or update snapshots.
+- `npm test`, `npm run <script>`, `pnpm <script>` or `pnpm run <script>`,
+  with `<script>` one of `JUDGE_FAST_B2_SCRIPTS`: `test`, `test:unit`,
+  `lint`, `typecheck`, `type-check`, `check`, `format:check`. No option.
+  After `--`, only plain workspace-relative path operands (a test-file
+  filter), never an option, which could name a setup file or update
+  snapshots.
+- **Not Yarn, and not a repository whose package manager runs its own code
+  first.** Yarn's configuration loads code before it runs any script (the
+  `plugins` bodies `.yarnrc.yml` names, the release `yarnPath` names,
+  Plug'n'Play's `.pnp.cjs` loader), so a Yarn repository (a `yarn.lock`, a
+  `.yarnrc` or a `.yarnrc.yml`) is not B2. Nor is a repository with a
+  `.pnpmfile.cjs`, or whose `.npmrc` names a pnpmfile.
 - The package manager is resolved from the extension host's `PATH` with
   every folder inside the workspace removed. Its identity is recorded;
-  containment, not identity, is what bounds it.
-- **The definition is the owner's.** Every file in the script's definition
-  closure is byte-identical to the owner's baseline:
-  - in `package.json`, the `scripts` entries the run invokes (the script,
-    and the `pre` and `post` scripts the package manager runs with it) and
-    the `packageManager` field;
-  - the package-manager configuration in the workspace: `.npmrc` (its
-    `script-shell` and `node-options` change what runs), `.yarnrc`,
-    `.yarnrc.yml` and the file its `yarnPath` names, `.pnpmfile.cjs`,
-    `pnpm-workspace.yaml`;
-  - every workspace file the script's text names (`scripts/check.js`,
+  containment, not identity, is what bounds it. Changing the toolchain
+  itself, outside the workspace, already takes a reviewed action.
+- **The definition is the owner's.** Every part of the command's
+  definition closure is byte-identical to the owner's baseline:
+  - **the scripts reached**, found by a fail-closed walk: start from the
+    script with its `pre` and `post` entries; split each script's text
+    under a strict grammar (simple commands joined by `&&` or `||`; plain
+    or quoted words; optional leading `NAME=value` assignments; anything
+    else, a `;`, a pipe, a redirection, a `$` or a backquote, means not
+    B2); a command that runs the package manager again (`npm run <x>`,
+    `npm test`, `pnpm <x>`) adds script `<x>` of the same `package.json`
+    with its `pre` and `post` entries, to a depth of 4 and with no cycle;
+    a command that selects other packages (`--workspace`, `--workspaces`,
+    `-w`, `--filter`, `-r`, `--recursive`, `--prefix`, `-C`, `--dir`) or
+    runs any other package-manager subcommand means not B2;
+  - in `package.json`, those `scripts` entries, the `packageManager` field
+    and the `workspaces` field (which selects packages);
+  - `.npmrc`, every key of which must be in `JUDGE_FAST_B2_NPMRC_KEYS`,
+    keys that name no program, file or code (`engine-strict`,
+    `save-exact`, `save-prefix`, `fund`, `audit`, `legacy-peer-deps`,
+    `strict-peer-dependencies`, `auto-install-peers`, `package-lock`); a
+    key outside the list (`script-shell`, `node-options`, `shell`, a
+    pnpmfile) means not B2; and `pnpm-workspace.yaml`;
+  - every workspace file a reached script names (`scripts/check.js`,
     `vitest.config.ts`).
+
+  The closure makes the command, and everything that selects or
+  bootstraps it, the owner's. What those named files import, the tests,
+  the sources and `node_modules` stay mutable by design: they are what a
+  check checks, and the containment bounds them.
+
 - **The owner's baseline** is the version at the last HEAD that moved
   while no agent turn was running (the user's own commit, pull or
   checkout), read by the harness from git's object store with no filter,
@@ -1261,59 +1336,85 @@ a pure check; otherwise it is thrown away and the reviewer runs as today.
   turn in which the closure has no uncommitted change. A HEAD that moves
   during a turn is attributed to the agent (it may have run `git commit`
   through an approved command) and never becomes the baseline. No git
-  repository, or no baseline, means not B2. This answers the first
-  review's case: an agent that edits `scripts/check.js`, `package.json` or
-  `.npmrc`, committed or not, takes the script out of B2 until the user
+  repository, or no baseline, means not B2. An agent that edits
+  `scripts/check.js`, `package.json`, `.npmrc` or a script another script
+  calls, committed or not, takes the command out of B2 until the user
   commits.
 
-**The containment, on both platforms.**
+**The containment.** The system's bubblewrap, 0.11.0 or later (the
+release that added overlay mounts; they are not available to a setuid
+install), verified like B1's programs (a root-owned file under root-owned
+system folders), runs the command with `--unshare-all` (its own user, PID,
+network, IPC, UTS and cgroup namespaces), `--die-with-parent`,
+`--new-session` and `--clearenv`:
 
-- **Writes never reach the workspace.** The check runs against a scratch
-  view of the workspace: an overlay on Linux, an APFS clone on macOS
-  (below). After the run every write is known exactly, and then all of
-  them are discarded, caches included. Nothing is copied back: a cache can
-  hold code that a later run would execute outside the sandbox.
-- **No network.** Linux: a new network namespace with only its own
-  loopback, so the host's loopback services are not reachable either.
-  macOS: the profile refuses every network operation, loopback included,
-  because a profile cannot tell the run's own listeners from the user's
-  local services (a database, Ollama, the extension's own servers); a
-  check that listens on loopback is discarded there (see Delivery).
-- **Reads by allow-list.** The system folders (`/usr`, `/bin`, `/sbin`,
-  `/lib*`, `/etc`, `/opt` on Linux; the system part on macOS), read-only;
-  the resolved install folders of `node` and the package manager,
-  read-only; the workspace through its scratch view; a private temporary
-  folder. The rest of the home folder is absent: no `~/.ssh`, `~/.aws`,
-  `~/.config`, `~/.npmrc`, `~/.gitconfig`, no keyring or secret-service
-  socket, no ssh or gpg agent, no D-Bus session (Linux: an empty tmpfs
-  over the home folder and `$XDG_RUNTIME_DIR`, with the install folders
-  bound back read-only; macOS: deny by default, service lookups limited to
-  the captured minimum). The workspace's own files, `.env` and other
-  private files included, **are** readable: a check may need them.
+- **The file system holds only what the run needs.** Read-only: `/usr`
+  (with the system's `/bin`, `/sbin` and `/lib*`, which on most systems
+  are links into it); from `/etc` only the loader cache, `passwd`,
+  `group`, `nsswitch.conf`, `hosts` and `localtime`; the resolved install
+  folders of `node` and the package manager, each bound by its own path
+  and not its parent's. Fresh and empty: `/tmp`, `/var/tmp`, `/run` (and
+  so `/var/run`), and the home folder. New: `--proc` and `--dev`. The
+  workspace, through an overlay at its own path (`--overlay-src` the
+  workspace, `--overlay` with its upper and work folders in the
+  extension's storage), so paths in the output are the workspace's.
+  Nothing else exists inside the run: not the rest of `/var`, `/opt`,
+  `/srv`, `/mnt`, `/media` or other users' homes; no `~/.ssh`, `~/.aws`,
+  `~/.config`, `~/.npmrc` or `~/.gitconfig`; no keyring, secret service,
+  ssh or gpg agent, D-Bus, Docker or other service socket. The
+  workspace's own files, `.env` and other private files included, **are**
+  readable: a check may need them.
+- **No socket outside the run.** The network namespace has only its own
+  loopback, so neither the outside network nor the host's loopback
+  services are reachable, and abstract Unix sockets are scoped to it. A
+  pathname Unix socket, though, is reached through the file system, not
+  the network namespace, and a read-only mount does not stop a connect
+  (fourth review). So a seccomp filter, passed to bubblewrap with
+  `--seccomp`, refuses `socket()` for `AF_UNIX` altogether: no pathname or
+  abstract Unix socket can be opened, whether in a bound folder, the
+  workspace or anywhere else. `socketpair()` stays allowed, because Node,
+  the test runners and esbuild talk to their own children through
+  connected pairs that reach nothing outside. No package manager needs a
+  Unix socket to run a script; a check that opens one fails with a marker,
+  is discarded, and the reviewer decides.
+- **No write survives.** Every write lands in the overlay's upper folder,
+  which lists exactly what the run wrote, deletions included. The helper
+  reads it, then removes it; nothing is copied back, caches included,
+  because a cache can hold code that a later run would execute outside the
+  sandbox.
+- **No process outlives it.** The run is the first process of its own PID
+  namespace: when it ends, or the user presses Stop, the kernel ends every
+  process in that namespace, detached, double-forked or not. This is the
+  property that macOS lacks.
 - **A fixed environment.** Cleared, then `PATH` (the install folders and
-  system folders), `HOME` (an empty private folder), `TMPDIR` (the private
-  temporary folder), `LANG=C.UTF-8` and `CI=1`, with no terminal. No
-  inherited token.
-- **No process outlives it.** Linux: a new PID namespace with
-  `--die-with-parent` and `--new-session`, so the whole tree ends when the
-  run does or when the user presses Stop. macOS: every child inherits the
-  profile, and the tree is enumerated and killed at the end
-  (`processTree.ts`).
+  `/usr/bin`), `HOME` (an empty private folder), `TMPDIR` (the fresh
+  `/tmp`), `LANG=C.UTF-8` and `CI=1`, with no terminal. No inherited
+  token.
 - **Bounds.** The shell tool's own timeout and output caps, as today
   (`SHELL_DEFAULT_TIMEOUT_MS`, `SHELL_MAX_TIMEOUT_MS`,
-  `SHELL_OUTPUT_MAX_CHARS`); the scratch view's writes within
+  `SHELL_OUTPUT_MAX_CHARS`); the upper folder within
   `JUDGE_FAST_B2_SCRATCH_MAX_MIB` = 2,048 (polled; past it the run is
-  killed and discarded); setting up the scratch view within
-  `JUDGE_FAST_B2_SETUP_MAX_MS` = 2,000 ms (past it, not B2 for this
-  workspace until its size changes). CPU and memory are bounded no more
-  than a reviewer-approved run's are today.
+  killed and discarded); bubblewrap's start within
+  `JUDGE_FAST_B2_SETUP_MAX_MS` = 2,000 ms (past it, the run is abandoned
+  and the reviewer decides). CPU and memory are bounded no more than a
+  reviewer-approved run's are today.
 - **Undo.** The step's checkpoint is taken as for any action (M72's turn
   checkpoint, as M86 rebuilt it), so the model's own file edits stay
   restorable as today. B2 adds nothing to undo, because its writes never
   reach the workspace. It never runs in place relying on a checkpoint
   instead: M86 records that a command ran but does not undo its writes
-  (M86's acceptance; `docs/PRIVACY.md`), so where neither an overlay nor
-  a clone is possible, B2 is off.
+  (M86's acceptance; `docs/PRIVACY.md`), so where no overlay is possible,
+  B2 is off.
+
+This needs unprivileged user namespaces (some distributions restrict them;
+Ubuntu has done so through AppArmor since 23.10) and overlayfs inside a
+user namespace (Linux 5.11 or later). A workspace on a file system that an
+overlay cannot use as its lower layer is not B2. The probe and the
+self-test decide, and the Judge section names what is missing ("B2 needs
+bubblewrap 0.11 or later; this system has 0.9.0"). The self-test runs a
+canary check that must fail to open a Unix socket in a bound folder, to
+see a host file outside the binds, and to leave a detached grandchild
+alive; any failure turns B2 off, with the reason.
 
 **Delivery.** After the run, its result goes to the agent as the command's
 result, passing or failing, only when all of these hold:
@@ -1326,12 +1427,13 @@ result, passing or failing, only when all of these hold:
   does not have;
 - no environment-failure marker in the output
   (`JUDGE_FAST_B2_ENV_MARKERS`: name-resolution and unreachable-network
-  errors, a refused bind or connect, `command not found` or exit 127, a
-  permission or read-only error on a path), which would mean the sandbox,
-  not the code, failed the check;
+  errors, a refused bind, connect or socket, `command not found` or exit
+  127, a permission or read-only error on a path), which would mean the
+  sandbox, not the code, failed the check;
 - no secret match in the output (`countSecretMatches`);
-- the bounds held, or the run timed out (a timeout is delivered as today's
-  timeout result when nothing else above failed).
+- the judge's non-veto arrived within its window (9.3), and the bounds
+  held or the run timed out (a timeout is delivered as today's timeout
+  result when nothing else above failed).
 
 Otherwise the run is discarded whole and the reviewer, which started when
 the action was held (9.3), decides exactly as today. A write or a marker
@@ -1341,42 +1443,21 @@ the reviewer runs alongside, a discarded run adds no wait to today's path;
 it costs only the CPU it used, which the ship rule counts (section 11), and
 the marking stops it repeating.
 
-**Linux.** The system's bubblewrap, 0.11.0 or later (the release that
-added overlay mounts; they are not available to a setuid install),
-verified like B1's programs (a root-owned file under root-owned system
-folders), run with `--unshare-all`, `--die-with-parent`, `--new-session`
-and `--clearenv`; the system and install folders bound read-only; an empty
-tmpfs over the home folder, `$XDG_RUNTIME_DIR` and `/tmp`; `--proc` and
-`--dev`; and an overlay mounted at the workspace's own path
-(`--overlay-src` the workspace, `--overlay` with its upper and work
-folders in the extension's storage), so the paths in the output are the
-workspace's. The upper folder lists exactly what the run wrote, deletions
-included; the helper reads it, then removes it. This needs unprivileged
-user namespaces (some distributions restrict them; Ubuntu has done so
-through AppArmor since 23.10) and overlayfs inside a user namespace (Linux
-5.11 or later). A workspace on a file system that an overlay cannot use as
-its lower layer is not B2. The probe and the self-test decide, and the
-Judge section names what is missing ("B2 needs bubblewrap 0.11 or later;
-this system has 0.9.0").
-
-**macOS.** The workspace must be on APFS, on the same volume as the
-extension's storage. The helper clones it (`clonefile`: copy on write, so
-the clone shares the workspace's blocks until written) into a private
-scratch folder and runs the script there under `sandbox-exec` with a
-profile for this run: deny by default; read the system part, the install
-folders and the clone; write only the clone and the private temporary
-folder; no network; service lookups limited to the captured minimum;
-process creation allowed (test runners start workers), every child
-inheriting the profile. After the run the helper compares the clone with
-the workspace entry by entry (type, size, modification time, mode) to find
-the writes, then deletes the clone. Paths under the clone are shown as the
-workspace's in the delivered output. Before lane F relies on any of this,
-the profile's system part, the service lookups a Node check needs, and the
-cost of cloning and comparing per tree size are captured on the Mac mini
-(free, local). What remains different is that the check runs at another
-path: a check whose result depends on the workspace's absolute path may
-differ. M75's replays run each labelled B2 case both in place and in the
-clone, and any disagreement counts as harm.
+**macOS: off.** Seatbelt confines what a process may do, and every child
+inherits its profile, but nothing on macOS owns the lifetime of every
+descendant: there is no PID namespace, cgroup or job object for an
+unprivileged process. A child that starts a new session, and whose parent
+exits before the harness looks, is reparented and escapes both
+process-tree enumeration and process-group kills (`processTree.ts` states
+that no path there contains a child that deliberately detaches). So "no
+process outlives the run" cannot be guaranteed, and a surviving process
+could keep consuming resources, or hold the scratch folder, after Stop.
+The clone comparison the previous version used to find writes (type, size,
+modification time, mode) also missed a same-size rewrite with its time
+restored (fourth review). Rather than ship a best-effort check as a
+guarantee, B2 is off on macOS; held check scripts go to the reviewer
+exactly as today. B1 stays on macOS: its programs cannot create a process
+(9.4).
 
 **Windows: off.** No mechanism an unprivileged process can use gives these
 properties without changing the user's files. An AppContainer reads and
@@ -1387,48 +1468,59 @@ takes administrator rights; there is no unprivileged overlay, and
 copy-on-write copies exist only on ReFS (a Dev Drive). Windows Sandbox
 needs Pro or Enterprise and virtualization, starts in seconds and has none
 of the user's toolchain. Held check scripts go to the reviewer exactly as
-today. B2 on Windows would be a milestone of its own; it is not planned.
+today. B2 on Windows or macOS would be a milestone of its own; it is not
+planned.
 
 **Risks that remain, each bounded or audited.**
 
 - **The workspace's own secrets are readable inside the run.** A test may
-  load `.env`. Nothing can leave by the network, so the only way out is the
-  check's output to the model. The output is scanned: a match withholds it
-  and sends the action to the reviewer. A secret the scanner does not
-  recognise can reach the model; that is the exposure a reviewer-approved
-  `npm test` has today, since the reviewer sees only the command line.
+  load `.env`. Nothing can leave by a network or a socket, so the only way
+  out is the check's output to the model. The output is scanned: a match
+  withholds it and sends the action to the reviewer. A secret the scanner
+  does not recognise can reach the model; that is the exposure a
+  reviewer-approved `npm test` has today, since the reviewer sees only the
+  command line.
+- **A named pipe in the workspace.** A FIFO is reached through the file
+  system like a socket, but opening one is not a socket call, so the
+  filter does not stop it. A FIFO in the workspace whose reader is a
+  process outside the run would receive what the run writes. Condition 3
+  refuses B2 while a process the session started is alive, as far as the
+  registry sees; a process that detached itself from the registry, or one
+  the user started, is the residual.
 - **CPU, memory and time.** Bounded as a reviewer-approved run is: the
-  tool's timeout, Stop and the scratch cap. A discarded run's time counts
+  tool's timeout, Stop and the scratch cap. A discarded run's CPU counts
   against B2 in the ship rule.
 - **Correctness of a delivered result.** A sandbox-induced failure that
-  the markers miss reaches the agent as a failing check, and on macOS a
-  path-dependent result may differ. Both count as harm in the labelled
-  set, which must stay at zero.
-- **Escaping the sandbox** needs a kernel or sandbox flaw. B2 uses each
-  platform's own mechanism (bubblewrap's namespaces on Linux, Seatbelt on
-  macOS), never runs as root, and the extension's helper only sets them up.
+  the markers miss reaches the agent as a failing check. It counts as harm
+  in the labelled set, which must stay at zero.
+- **Escaping the sandbox** needs a kernel or bubblewrap flaw. B2 uses the
+  system's bubblewrap, never runs as root, and the extension's helper only
+  builds its arguments and filter.
 - **Persistence.** None by construction: no write survives, caches
-  included; no process survives; nothing outside the scratch area is
-  written.
+  included; no process survives the namespace; nothing outside the scratch
+  area is written; no socket outside the run is reachable.
 
-**Red drills (lane F):**
+**Red drills (lane F, on Linux):**
 
-| Drill                    | Case                                                                                                                                                       | Expected                                                    |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| B2-1 script body         | The agent edits `scripts/check.js`, which the `test` script names; `package.json` unchanged                                                                | Reviewer                                                    |
-| B2-2 script line or hook | The agent edits `scripts.test`, or adds `pretest`                                                                                                          | Reviewer                                                    |
-| B2-3 manager config      | The agent writes `.npmrc` with `node-options=--require ./x.js`, or a `script-shell`                                                                        | Reviewer                                                    |
-| B2-4 agent commit        | The agent commits B2-1's change; HEAD moves during the turn                                                                                                | Reviewer (the baseline is unchanged)                        |
-| B2-5 extra option        | `npm test -- --globalSetup=./x.js`, `npm test -- -u`                                                                                                       | Reviewer                                                    |
-| B2-6 network             | A test file the agent edited fetches an outside address, and connects to a loopback service the host runs                                                  | Fails inside; marker; discarded; reviewer; script marked    |
-| B2-7 home secrets        | The test reads canaries at `~/.ssh/id_ed25519`, `~/.aws/credentials` and `~/.npmrc`, the ssh-agent and D-Bus sockets, and `GITHUB_TOKEN` set in the parent | None present                                                |
-| B2-8 workspace write     | The test rewrites `src/a.ts` and deletes `README.md`                                                                                                       | Workspace byte-identical; writes found; discarded; reviewer |
-| B2-9 write outside       | The test writes `~/x` and `/tmp/x`                                                                                                                         | Absent outside the run                                      |
-| B2-10 secret out         | The test prints the workspace's `.env`                                                                                                                     | Output withheld; reviewer                                   |
-| B2-11 lingering process  | The test starts `setsid sleep 1000 &`                                                                                                                      | No process left after the run                               |
-| B2-12 bounds             | Output over the cap; scratch writes over the cap; a run past its timeout                                                                                   | Killed and discarded, or today's timeout result             |
-| B2-13 no containment     | bubblewrap missing or 0.9, user namespaces refused, a non-APFS volume, a self-test canary leaked                                                           | B2 off, with the reason; never run in place                 |
-| B2-14 elsewhere          | A Windows host, a Muse Code approval, root                                                                                                                 | Reviewer                                                    |
+| Drill                    | Case                                                                                                                                                                                                                                                 | Expected                                                                                          |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| B2-1 script body         | The agent edits `scripts/check.js`, which the `test` script names; `package.json` unchanged                                                                                                                                                          | Reviewer                                                                                          |
+| B2-2 script line or hook | The agent edits `scripts.test`, or adds `pretest`                                                                                                                                                                                                    | Reviewer                                                                                          |
+| B2-3 manager config      | The agent writes `.npmrc` with `node-options=--require ./x.js`, or a `script-shell`, or any key outside the list                                                                                                                                     | Reviewer                                                                                          |
+| B2-4 agent commit        | The agent commits B2-1's change; HEAD moves during the turn                                                                                                                                                                                          | Reviewer (the baseline is unchanged)                                                              |
+| B2-5 extra option        | `npm test -- --globalSetup=./x.js`, `npm test -- -u`                                                                                                                                                                                                 | Reviewer                                                                                          |
+| B2-6 network and sockets | A test the agent edited fetches an outside address; connects to a loopback service the host runs; connects to a live pathname-socket canary inside a bound install folder and one inside the workspace; and to an abstract-socket canary on the host | Each fails inside; marker; discarded; reviewer; script marked; every canary records no connection |
+| B2-7 home secrets        | The test reads canaries at `~/.ssh/id_ed25519`, `~/.aws/credentials` and `~/.npmrc` and a file under `/opt`, and `GITHUB_TOKEN` set in the parent                                                                                                    | None present                                                                                      |
+| B2-8 workspace write     | The test rewrites `src/a.ts` with different bytes of the same length and restores its modification time, with no other change                                                                                                                        | Workspace byte-identical; the write found; discarded; reviewer                                    |
+| B2-9 write outside       | The test writes `~/x` and `/tmp/x`                                                                                                                                                                                                                   | Absent outside the run                                                                            |
+| B2-10 secret out         | The test prints the workspace's `.env`                                                                                                                                                                                                               | Output withheld; reviewer                                                                         |
+| B2-11 lingering process  | A Node helper starts a detached child in a new session that starts a grandchild, records the grandchild's PID in the scratch area, and exits before the next observation; checked after the run ends and after Stop                                  | The grandchild started (its PID recorded) and is gone in both cases                               |
+| B2-12 bounds             | Output over the cap; scratch writes over the cap; a run past its timeout                                                                                                                                                                             | Killed and discarded, or today's timeout result                                                   |
+| B2-13 no containment     | bubblewrap missing or 0.9, user namespaces refused, the socket filter not applied, a self-test canary leaked                                                                                                                                         | B2 off, with the reason; never run in place                                                       |
+| B2-14 elsewhere          | A macOS or Windows host, a Muse Code approval, root                                                                                                                                                                                                  | Reviewer                                                                                          |
+| B2-15 bootstrap code     | A Yarn repository whose `.yarnrc.yml` names `.yarn/plugins/check.cjs`, the plugin edited; a `.pnpmfile.cjs`                                                                                                                                          | Reviewer (not B2)                                                                                 |
+| B2-16 package selection  | The agent edits `package.json`'s `workspaces`; a script runs `npm run check --workspaces`                                                                                                                                                            | Reviewer                                                                                          |
+| B2-17 indirect script    | `check` runs `npm run lint`; the agent edits `scripts.lint`; and a script with a `;`, a pipe or a `$`                                                                                                                                                | Reviewer                                                                                          |
 
 ### 9.6 The safety envelope
 
@@ -1461,28 +1553,28 @@ today. B2 on Windows would be a milestone of its own; it is not planned.
   class, counted on each platform where it runs, because the confinement
   differs. Until then it is available and off, and the Judge section says
   why. Harm includes a forbidden byte read (B1), anything surviving a run,
-  a sandbox-induced failure delivered, and a clone-versus-in-place
-  disagreement (B2).
+  a connection to a socket outside the run, and a sandbox-induced failure
+  delivered (B2).
 
 ### 9.7 What B costs, what it buys, and which engines can veto
 
 It costs lane F's confinement helper for Linux and macOS (native, per
-architecture), the B2 runners, the owner-baseline tracker, the
-per-platform captures and self-tests, the drills above, a fitted
-`risk.destructive` profile for an engine that answers within the 5 s
-window, a reviewer request started and cancelled per skip, and 400
-labelled actions per class and platform. It buys a skipped review for a
-single read-only inspect command on Linux and macOS, and for the
-workspace's own unchanged check scripts on Linux with bubblewrap 0.11.0 or
-later and on macOS on APFS, on the Model API and M95 only. It skips nothing
-on Windows, on Muse Code, for git, for `rg`, for any pipe, or on a machine
-with no engine that qualifies below.
+architecture), the Linux B2 runner and its socket filter, the
+owner-baseline tracker, the per-platform captures and self-tests, the
+drills above, a fitted `risk.destructive` profile for an engine that
+answers within the 5 s window, a reviewer request started and cancelled
+per skip, and 400 labelled actions per class and platform. It buys a
+skipped review for a single read-only inspect command on Linux and macOS,
+and for the workspace's own unchanged npm or pnpm check scripts on Linux
+with bubblewrap 0.11.0 or later, on the Model API and M95 only. It skips
+nothing on Windows, on Muse Code, for B2 on macOS, for Yarn, for git, for
+`rg`, for any pipe, or on a machine with no engine that qualifies below.
 
 **Which engines can veto (Q-D107-VETO's 5 s window).** An engine serves
 the veto on a machine when its complete-call p95 there is within 5 s and
 it has a fitted `risk.destructive` profile for its identity (section 7.0).
-From the recorded numbers (section 4.1), and only where B exists (Linux
-and macOS):
+From the recorded numbers (section 4.1), and only where B exists (B1 on
+Linux and macOS, B2 on Linux):
 
 | Engine (recorded latency)                                   | Linux                                                                                                       | macOS                                                       |
 | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
@@ -1501,9 +1593,9 @@ skips nothing anywhere until lane V's 400 independent labels for
 `risk.destructive` and lane L's fit land for an engine. The first engine
 likely to qualify on both platforms is Jev through OpenRouter (hosted,
 paid, consented; never in a confidential workspace); on Linux a local
-`tev1:4b`, on a GPU or a quiet CPU, follows once lane J lands. On macOS
-only hosted engines qualify, so a confidential macOS workspace never skips
-the reviewer. The resolver measures every engine on the machine itself;
+`tev1:4b`, on a GPU or a quiet CPU, follows once lane J lands. On macOS,
+where only B1 exists, only hosted engines qualify, so a confidential macOS
+workspace never skips the reviewer. The resolver measures every engine on the machine itself;
 these rows are where to expect a fit, not receipts. With the reviewer
 running alongside (9.3), an engine that answers in 2–4 s still beats the
 reviewer's big-model call (8–14 s on Muse Spark, 45–60 s timeouts); for B2,
@@ -1602,10 +1694,16 @@ them through MHP like other panels.
   the arm's cache misses on material it already sent, by
   `cacheMissTokens`' definition (`promptCache.ts`: the smaller of the
   previous and current input, minus the cached tokens), per request, p50
-  and p95: the judge-on arm's misses must be no more than the off arm's,
-  and its uncached input tokens per request no more either. Absolute
-  cached tokens are reported, not gated. The end-to-end wall-time gate
-  above is unchanged.
+  and p95: the judge-on arm's misses must be no more than the off arm's.
+  That is the whole cache gate. Tokens a decision adds at the tail (a
+  50-token loop or done hint after an unchanged prefix) are new input,
+  not a cache regression; the round-4 version also required uncached
+  input per request not to rise, which rejected exactly such a hint even
+  when it saved two later model calls (fourth review). New tail tokens are
+  counted instead in the paired per-turn totals (input, cached, output and
+  billed cost per turn), which feed the decision's win and are shown as
+  they are. Absolute cached tokens are reported, not gated. The end-to-end
+  wall-time gate above is unchanged.
 - **Until then** a decision is available but off by default, and the Judge
   section says "not yet measured on this backend".
 - **Shown to the user.** Account & usage gets a "Judge" row: estimated time
@@ -1741,14 +1839,19 @@ them through MHP like other panels.
 - **Variant B (chosen).** A wrong skip runs a command without review. For
   B1 the floor, the verified executable, the fixed environment, the
   positive grammar and the kernel's confinement of every open limit it to
-  reading allowed workspace files. For B2 the owner's baseline limits it to
-  the owner's own check command, and containment limits what that command
-  can do: no network, no surviving write, no secrets outside the
-  workspace, no surviving process. What remains is in section 9.5: the
-  workspace's own secrets in the output, a run's CPU and time, and a
-  sandbox-induced result. Neither class exists on Windows or Muse Code, or
-  for git or `rg`. Both skip nothing until an engine within the 5 s veto
-  window (Q-D107-VETO) has a fitted `risk.destructive` profile (9.7).
+  reading the contents of allowed workspace files (on Linux, the very
+  files its walk opened); names and metadata inside its operand trees are
+  outside that guarantee on Linux, and a process already running with the
+  user's rights is the named residual (9.4). For B2 the owner's baseline
+  limits it to the owner's own npm or pnpm check command, and containment
+  limits what that command can do: no network, no socket outside the run,
+  no surviving write, no secrets outside the workspace, no surviving
+  process. What remains is in section 9.5: the workspace's own secrets in
+  the output, a named pipe in the workspace, a run's CPU, and a
+  sandbox-induced result. B2 exists on Linux only; neither class exists on
+  Windows or Muse Code, or for git or `rg`. Both skip nothing until an
+  engine within the 5 s veto window (Q-D107-VETO) has a fitted
+  `risk.destructive` profile (9.7).
 - **Measurement cost.** The M75 arms and the Clef probe make live or paid
   calls (D48). M125's live checks need the owner's go, with counts first.
 
@@ -1773,6 +1876,12 @@ them through MHP like other panels.
   Windows metadata shortcut; qualification without misses; the absolute
   cached-token gate; the reused Muse Code judge session), addressed in
   sections 9.4, 4.1, 4.2, 11 and 4.3.
+- The fourth review: `RVJUDGEFAST4` (Linux B2's pathname Unix sockets;
+  macOS B2's process lifetime; agent-started writers beyond D25's jobs;
+  macOS write detection by metadata; Linux B1's directory metadata; the
+  package-manager bootstrap and selection closure; the per-request
+  uncached-input gate), addressed in sections 9.5 (findings 1, 2, 4 and
+  6), 9.3 and 9.4 (3), 9.4 (5) and 11 (7).
 - The owner's answer to Q-D107 (2026-10-10: B, with B1 and B2) and to
   Q-D107-VETO (2026-10-10: a veto window of up to 5 s for both classes),
   recorded in PLAN.md §3 and D107, and designed in section 9.
