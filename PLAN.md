@@ -20176,6 +20176,239 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
+
+**Status 2026-10-09: built.** On the provider branch for 0.17.1.
+
+Repair both RVPROVWIZ9C P2 findings on `00df4f872`. Edit snapshots and save
+preflight compare the same host-only credential record, including an old key
+refused at the saved origin. Reopening after an address/key-write partial save
+must accept a newly tested replacement while a concurrent credential change
+still conflicts. Confirmed quick-pick limit retries carry completed provider,
+key and default receipts into every later partial outcome, using existing
+translations in all 14 languages. Keep validation before writes, ordered saves,
+no rollback and origin-bound transport security.
+
+Add production/shared-form recovery and conflict regressions and a production
+store/facade/settings retry regression. Revert each fix, observe its complete
+test file fail, restore SHA-256 bytes exactly, then rerun all owning files,
+request goldens, one unit tsc, formatting, ESLint and localization. Inspect the
+inherited surface-English overage; shorten duplicated or verbose existing
+strings if possible without new keys or a cap change. Update certification and
+planning status. Aggregate quality/release gates remain lead-owned under the
+rig brief; no merge, rebase, push, subagents or paid/live calls.
+
+Completed: both P2 repairs and the existing-string surface-English cap fix.
+Macbook passes 46 complete owning files / 833 tests, 152 request goldens and
+141 Help/browser-English tests at repository deadlines, both SHA-256-exact
+reversion drills, one unit tsc, changed-file lint/format, localization/reference/
+host API, plain Knip and the production build. Surface English is 25595 / 25600
+bytes after shortening `referenceQuestionsDeferral` in English and all 14
+translations, with no new keys or cap change. English/German production visuals
+pass at 690/320 px. Plain jscpd retains the inherited 21 clones / 287 lines /
+1970 tokens; no new clone remains. Next slice: lead review and cross-rig release
+gates, including the inherited duplication hold, then PROVSTORE-LOCKLIB after
+M123 for accepted cross-window last-writer-wins. See certification for receipts.
+
+### PROVWIZ9 — Ordered save, honest partial outcomes, no rollback (2026-10-09)
+
+**Status 2026-10-09: built.** On the provider branch for 0.17.1.
+
+Replace PROVWIZ8 recovery after RVPROVWIZ8C's three P2 findings. Validate
+address policy, private consent, provider schema/token limits, credential/default
+snapshots and an edited spending limit before any write. Save changed provider
+fields in one atomic provider-file mutation, then an explicitly entered key
+bound to its origin, an explicitly chosen default, the edited spending limit,
+and finally the current conversation model when requested. Stop on a failed
+step; keep completed writes and name completed, failed and skipped steps in
+all 14 UI languages. Delete rollback and inverse machinery. Every Save outcome
+attempts panel refresh; refresh failure appends information without erasing the
+original outcome. Other partial or stale persisted drafts reopen to finish;
+budget-only partial drafts keep a freshly read comparison baseline for retry.
+
+Prove every failure boundary, same-window snapshot conflicts, the invalid
+inverse and absent-routing review scenarios, and address-change/key-failure
+origin rejection through the production store/shared form. Run complete
+provider/models/capability suites and request goldens at repository deadlines,
+byte-exact red/restored drills, changed-file format/lint, one unit-project tsc,
+localization/reference/host API, static gates, build budgets and visual checks.
+Record receipts in `docs/certification/provcat.md`. Aggregate quality, coverage,
+packages, hosted multi-OS/editor and live qualification remain lead-owned under
+the rig/common brief; inherited duplication hold remains. Schema/default
+preflight stays in the existing lazy provider-store port, keeping provider
+schemas out of the Models host bundle. The unchanged base and this lane both
+produce a 25651-byte surface-English chunk on macbook, over its 25600-byte cap;
+record this inherited build hold without changing the cap. No dependency, gate,
+hook, paid/live call, merge, rebase, push or subagent changes. Shared editor
+bridges receive the same form; ACP's persisted provider schema stays unchanged.
+
+The accepted cross-window residual remains: Two editor windows saving the same
+provider at the same moment: last writer wins for fields both changed; no secret
+is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation
+onto the shared lease after M123 lands on main.
+
+### PROVWIZ8 — Save recovery and refresh honesty (2026-10-09)
+
+**Status 2026-10-09: built.** On the provider branch for 0.17.1.
+
+Repair RVPROVWIZ7C P2-4 and P2-3 on `5f09bc0e2`: a successful provider
+save followed by a snapshot-refresh failure says “Provider saved; the panel
+could not refresh — reopen it” in all 14 languages. Retire the saved draft so
+it cannot retry against an obsolete baseline; still apply a submitted spending
+limit and report its own partial outcome. Rollback applies only the inverse of
+this save's changed fields inside the existing store mutation, preserving
+unrelated providers and later field changes. Prove credential-write and composer
+refusal interleavings through the production store/shared form, with byte-exact
+red drills and complete provider/models suites at repository deadlines.
+
+The lead accepts RVPROVWIZ7C P2-1/P2-2 as a 0.17.1 residual; keep the current
+in-window comparison and add no second lock implementation. Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main.
+
+Run changed-file Prettier/ESLint, one tsc and localization; record receipts in
+`docs/certification/provcat.md`. Shared editor bridges receive the same form;
+ACP's provider schema is unchanged. No subagents, merge, rebase, push, live/paid
+calls, dependency, hook or gate changes. Full quality remains lead-owned under
+the explicit rig/common brief.
+
+### PROVWIZ7 — Save compares changed fields with the edit snapshot (2026-10-09)
+
+**Status 2026-10-09: built.** On the provider branch for 0.17.1.
+
+Repair RVPROVWIZ6C's two P2 findings on `d32349de1`. A saved-provider draft
+records its opening provider/default/credential on the host. Only an explicitly
+entered credential may be written; untouched credentials retain later rotations
+or removals. Apply changed provider fields to the current entry inside the
+production store's protected mutation, after private-network consent. Compare
+each edited field (including individual token limits, routing, default and key)
+with its opening value; a competing change stops Save without overwriting it and offers
+Reload, retaining typed values until the user chooses it.
+
+Prove newer/cleared stored credentials survive limit-only Save, untouched fields
+changed during the consent wait survive, and both-changed fields conflict with
+no overwrite. Keep existing edit/key-change, validation, rollback and partial
+budget-save behavior. Run complete provider/models suites in batches of at most
+three at repository deadlines, changed-file prettier/ESLint, one host typecheck,
+localization/reference and individual static/build checks. Record byte-exact
+guard drills in `docs/certification/provcat.md`. Shared React and editor bridges
+use the same contract; ACP's persisted provider schema is unchanged. No subagents,
+merge, rebase, push, credential access, live/paid calls or gate changes. Aggregate
+quality and inherited duplication cleanup remain lead-owned under the rig brief.
+
+### PROVWIZ6 — Provider wizard/wiring integration and RVPROVWIZ5G (2026-10-09)
+
+**Status 2026-10-09: built.** On the provider branch for 0.17.1.
+
+Use one host-owned full snapshot factory for Edit, Change key and Change key →
+Edit, including routing, models/limits, format, pinned/compat/prices, the saved
+file default and private-network consent. Save overlays only changed draft
+fields on the current entry; an untouched default, secret or optional field is
+never synthesized or rewritten. Keep credential/connection validation and the
+production store transaction. Admit one queued Save per draft and disable both
+shared Save controls until it settles; failures retain the draft for retry.
+Declined private-network consent uses the existing confirmation sentence.
+
+Qualify the merged provider lanes with real host/store and captured transport
+regressions, including the reviewer's unchanged ZDR Edit → Save, second/other/
+absent defaults, duplicate Save and private consent refusal. Supply the wizard
+lane's required spending-limit port in the older capture-backed wiring fixture;
+retain every existing assertion. Run complete named models/provider suites in
+batches of at most three at repository deadlines, changed-file lint/format,
+five typechecks, localization/reference and individual static/build gates.
+Append byte-exact red/restored receipts to `docs/certification/provcat.md`.
+No subagents, merge, push, live/paid call, dependency or gate change. Aggregate
+quality and hosted/editor qualification remain with the lead per the rig brief.
+Shared webview/editor bridges and ACP's stored provider contract remain intact.
+
+### PROVWIZ2R5 — PROVWIZ2 round 5: RVPROVWIZ4G repairs (2026-10-09, macmini)
+
+**Status 2026-10-09: built.** On the provider branch for 0.17.1.
+
+Save a saved provider's limits without requiring a fresh credential test when
+its connection is unchanged. Address, format and key changes
+still require Test. Keep the real Edit form open until the host removes its
+draft after success; failed saves retain typed values and display the specific
+failure with credential redaction. Report successful saves in the panel.
+Prove Edit → host Save → production provider file → re-open Edit, plus failure
+and retry, through the rendered shared form. Correct the round-3 certification
+text to provider-first persistence and explicit partial success on limit failure.
+Run Models suites at repository deadlines, byte-exact red/restored drills,
+five typechecks, changed-file lint/format and the prescribed individual gates.
+Full quality belongs to the lead per the rig brief; no merge, push, live/paid
+call, dependency or gate change. Existing editor bridges and ACP's provider-file
+reader retain the same limits contract. Record receipts in
+`docs/certification/provcat.md`.
+
+### PROVWIZ2R4 — PROVWIZ2 round 4: RVPROVWIZ2 repairs (2026-10-09, macmini)
+
+**Status 2026-10-09: built.** On the provider branch for 0.17.1.
+
+Owner decisions: an untouched spending-limit field writes nothing; an edited
+value writes only while the setting still equals its prefill. A concurrent
+change is shown with a request to confirm the typed value. Save the provider
+first; a subsequent limit failure must say the provider was saved and the
+limit was not changed, with its reason. Keep saved custom model limits in
+edit/key-change drafts, expose their fields, and persist edits. Back from an
+incomplete Models step keeps entered limits and allows returning to Models.
+The native setting stores a number; refuse exact-decimal input that cannot
+round-trip through its non-negative numeric schema without loss.
+
+Use the production provider store and settings writer in regressions, with
+fake VS Code interactions and no service calls. Run complete Models suites
+in batches of at most three at repository deadlines, five typechecks,
+changed-file lint/format, localization/reference and prescribed individual
+static/build gates. Record deliberate failures and byte-exact restores in
+`docs/certification/provcat.md`; commit finished pieces with installed hooks.
+These shared webview/host repairs retain the existing editor bridge; ACP's
+provider file reads the same stored custom limits. No runtime command changes.
+No merge, push, live/paid call or dependency change is authorized in this lane.
+
+### PROVWIRE — Provider setup through the real transport and panel (2026-10-09)
+
+**Status 2026-10-09: built.** On the provider branch for 0.17.1.
+
+Close RVWIRING F2–F7 for 0.17.1 with the production panel catalogue,
+configured-provider service and checked-in M95 captures; fake only pinned
+dispatch, DNS and host storage/UI. Resolve format as `entry.format ??
+preset.format` without changing the persisted schema: ordinary presets retain
+their canonical format and custom servers retain their explicit override.
+Preserve captured prices/free flags and stable price fingerprints, share the
+preset key-test contract between CLI and panel, default OpenRouter to ZDR,
+retain replacement keys in edit drafts, and settle failed scans with a safe
+localized reason and retry. Keep panel changes small for PROVWIZ2; leave F10's
+logging to its owning lane. No live/paid calls, dependencies, merges or pushes.
+Run failing-first tests and byte-exact red/restored drills, scoped lint/format,
+five typechecks, provider/models suites, localization and reference checks.
+The lane rules reserve aggregate quality for the lead. Receipts:
+`docs/certification/provcat.md`, PROVWIRE section.
+
+Completed: F2–F7 are capture-backed through the real facade, with 14
+byte-exact red/restored drills. Final macmini verification passes 44 complete
+provider/models files (739 tests at repository deadlines), five typechecks,
+changed-file ESLint/formatting, localization (0), reference, host API, plain
+knip, zero-clone duplication and the production build within all existing caps.
+The optional persisted format remains unchanged. Full quality, hosted CI and
+installed-editor/live certification remain with the lead under the lane brief.
+
+Round 2 (RVPROVWIREG finding 1, P2): seed every saved-provider edit draft,
+including Change key and Change key followed by Edit, with the saved routing's
+privacy, provider order and fallback choice. Save uses that seeded draft;
+new OpenRouter providers still default to ZDR. Regressions replay the saved
+`any`/ordered/fallback-enabled row through replacement key, Edit, Test and
+Save, and cover plain Edit and direct Change key, including `no-training`
+and disabled fallbacks. Record failing-first and byte-exact routing drills
+in the PROVWIRE certification, then run provider/models suites at repository
+deadlines, changed-file lint/format and all five typechecks before a normal-hook
+local commit. No new feature, wire shape, dependency or live/paid call.
+
+Round 2 completed: saved routing and the replacement key survive every edit
+flow; new providers remain ZDR. Macmini passes 44 complete provider/models
+files (746 tests, default deadlines), all five typechecks, changed-file
+ESLint/formatting, localization/reference/host-API checks, plain Knip,
+zero-clone duplication and the production build within unchanged caps.
+Four deliberate routing breaks fail and restore SHA-256-exact bytes; see
+the round-2 PROVWIRE certification. Aggregate quality and hosted/editor/live
+qualification remain lead-owned under the lane rules.
+
 ### M122 — Public roadmap (2026-10-08)
 
 **Status 2026-10-08: built.** Certification: `docs/certification/roadmap.md`.
@@ -28064,6 +28297,9 @@ OpenCode plugin hooks").
 
 ### M95 — Bring-your-own model providers (D74)
 
+**Provider panel, 0.17.1 residual (PROVWIZ9, lead decision 2026-10-09).**
+Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main.
+
 **M95R5 integration (2026-10-05, Windows 11).** Merge lane T with
 `--no-ff`, then merge a single sanitized squash of X's net changes on its
 merge-base. Remove the scanner-flagged certification line unseen before
@@ -28521,7 +28757,12 @@ release acceptance are still pending.
         this computer, Subscription sign-in, Aggregator), each row naming
         where the code goes and who bills it; **Scan this computer** for
         local servers; or **Custom server** (Chat Completions, Responses
-        or Anthropic Messages).
+        or Anthropic Messages). PROVCAT (2026-10-09): the card's category
+        enum is the contract and the host's `PresetKind` is derived from
+        it (minus `custom`); ChatGPT, Copilot and plan keys sit under
+        Subscription sign-in; a card the contract refuses is left out
+        alone with a value-free log line, never the whole list; a test
+        opens every shipped preset (`docs/certification/provcat.md`).
      2. **Prefilled form.** The preset's address, format, auth mode, key
         hint, docs, data-use and privacy notes, and **Get a key**; editable
         only where the preset allows (Azure's resource and deployment, a
@@ -38016,6 +38257,117 @@ lane A's first step.
 
 ## 7. Gates
 
+**PROVWIZ10 scoped qualification (2026-10-09, complete).** Both RVPROVWIZ9C
+P2 repairs pass production/shared-form regressions, including genuine concurrent
+credential changes and retry notices in all 14 translations. All 46 owning
+files pass 833 tests; request goldens pass 152; Help/browser-English files pass 141. Both deliberate reversions fail and restore source SHA-256 bytes exactly;
+the final restored focused run passes 108. One unit tsc, changed-file ESLint/
+Prettier, localization/reference/host API, plain Knip and production build pass.
+The inherited surface-English hold is closed at 25595 / 25600 bytes by shortening
+existing `referenceQuestionsDeferral` in all tables; no cap or gate changes.
+Production English/German visual checks pass at 690/320 px. A new repeated test
+expectation was shared without losing assertions; plain jscpd remains only the
+inherited 21 clones / 287 lines / 1970 tokens at its unchanged zero threshold.
+Aggregate quality/coverage/release/editor/hosted/live gates remain lead-owned
+under the explicit rig brief; no full quality claim. Next slice is lead review
+and cross-rig release gates, including the inherited duplication hold, then
+PROVSTORE-LOCKLIB after M123. Receipts: `docs/certification/provcat.md`, PROVWIZ10.
+
+**PROVWIZ9 scoped qualification (2026-10-09).** Ordered provider saves remove
+rollback after RVPROVWIZ8C's three P2 findings. All 46 complete owning files
+pass 816 tests at repository deadlines, including the final lazy-store preflight
+move. Request goldens pass 152; deliberate byte-exact source drills prove guards
+fire. Every partial outcome keeps completed writes and refresh warnings append.
+New-origin rows require an origin-bound usable key. Budget-only drafts retain
+fresh retry baselines; quick-pick conflict retries preserve intervening edits.
+English/German production rendering passes at 690/320 px without document
+overflow. Full quality, coverage, packages, hosted/editor and live qualification
+remain lead-owned under the explicit rig/common brief. Plain jscpd retains the
+same inherited 21 clones / 287 lines / 1970 tokens, with no new clone. Full
+production build is held by surface English at 25651 / 25600 bytes: the unchanged
+base built on this same macbook has exactly the same size/failure, and this lane
+adds no surface bytes. Do not raise the cap or claim full quality green. The
+initial schema split failure is fixed by preflight through the existing lazy
+provider-store port; individual final split/global/notices receipts are recorded
+in `docs/certification/provcat.md`. Next slice: lead review and cross-rig release
+gates, including inherited size/duplication holds; then PROVSTORE-LOCKLIB after
+M123 lands on main for the accepted cross-window residual.
+
+**PROVWIZ8 scoped qualification and retained duplication hold (2026-10-09).**
+Repair RVPROVWIZ7C P2-3/P2-4 with a per-field inverse in the existing provider
+mutation and an honest saved-provider notice on refresh failure in all 14
+languages. Complete provider/models/capability suites pass 802 tests; Meta
+request goldens pass 152. All qualifying guard drills fail and restore bytes
+exactly; the final focused run passes 63 tests. The rig/common brief delegates
+aggregate quality, coverage, packages, hosted/editor and live qualification to
+the lead. Plain jscpd remains exit 1 at the unchanged threshold with the same
+21 clones / 287 lines / 1970 tokens as the reviewed base. A new repeated Test/wait
+interaction is shared without dropping assertions; no new clone remains. The
+lead's broader duplication cleanup remains open, and quality is not claimed
+green. P2-1/P2-2 are the explicit 0.17.1 cross-window residual at M95 and §8,
+awaiting PROVSTORE-LOCKLIB after M123. Receipts: `docs/certification/provcat.md`,
+PROVWIZ8 section.
+
+**PROVWIZ7 scoped qualification and retained duplication hold (2026-10-09).**
+Repair both RVPROVWIZ6C P2 findings with host-only edit/credential snapshots,
+changed-field comparisons inside the provider mutation, expected-default
+comparison and a validated Reload action. All 45 complete provider/models files
+pass 788 tests at repository deadlines; 15 deliberate guard failures restore
+source SHA-256 exactly. Changed-file lint/format, compiler, localization/reference,
+host API, plain Knip and production size/split/global/notices checks pass. Keep
+the inherited zero-clone gate's 21 clones / 287 lines / 1970 tokens; this round's
+one repeated assertion sequence is shared, leaving no new clone. The initial
+English surface overflow is repaired by keeping the host sentence off the
+browser's text comparison path, restoring its exact 25597-byte baseline under
+the unchanged 25600-byte cap. Aggregate quality, coverage and hosted/editor/live
+qualification remain lead-owned under the rig brief; do not claim full quality
+green. Receipts: `docs/certification/provcat.md`, PROVWIZ7 section.
+
+**PROVWIZ6 scoped qualification and inherited duplication hold (2026-10-09).**
+The rig/shared brief reserves aggregate quality, coverage and hosted/editor
+qualification for the lead. All 45 complete provider/models files pass 774
+cases at repository deadlines; 18 deliberate failures restore source SHA-256
+exactly. Five typechecks, changed-file lint/format, localization/reference,
+host API, plain Knip and production build pass with unchanged caps. The
+one newly introduced repeated test block is shared without removing assertions.
+A temporary source archive of the exact merge base `40fdfe2fe` and the repaired
+worktree both fail the unchanged zero-clone gate with **21 clones / 287 lines /
+1970 tokens**. None is introduced by this lane. Retain the prior wizard lane's
+lead-owned broader duplication cleanup below; do not claim aggregate quality
+green. The owned temporary baseline is removed. Evidence and per-batch/drill
+receipts: `docs/certification/provcat.md`, PROVWIZ6 section.
+
+**PROVWIZ2 round 5 scoped qualification (2026-10-09).** The rig brief
+reserves aggregate quality for the lead. All 28 owned files pass 511 tests at
+repository deadlines; five typechecks and individual lint, format, deadcode,
+localization, reference, host API and production build checks pass. Ten
+purposeful breaks fail and restore source bytes exactly. Duplication remains
+the inherited 24 clones / 312 lines / 2206 tokens below; no new clone or gate
+change is introduced. Final compiler/lint/format checks include the added
+failed-retest regression. Receipts: `docs/certification/provcat.md`.
+
+**PROVWIZ2 round 4 scoped qualification (2026-10-09).** The explicit lane
+brief and shared rules prohibit aggregate `npm run quality` and reserve it
+for the lead. Run complete owned suites at the repository's default timeout
+and all prescribed individual gates here; do not weaken any gate. Full
+quality, coverage and installed-editor qualification remain with the lead.
+Evidence and deliberate byte-exact drills: `docs/certification/provcat.md`.
+Duplication is an inherited lane hold: a read-only source snapshot of
+`bfbdf3c35` fails the unchanged zero-clone gate with 25 clones (321 lines,
+2,275 tokens). Round 4 removes all newly introduced clones; its scoped
+cleanup reduces the inherited set to 24 (312 lines, 2,206 tokens). The
+remaining prior-round test setup/interaction and wizard-footer duplication
+is deferred to the lead's broader quality cleanup, outside these five fixes.
+No ignore, threshold, assertion or check is changed; do not claim quality
+green. G94 (G66 on the branch, renumbered at the 0.17.1 merge) records
+freezing worktree edits during hook execution.
+
+PROVWIRE (2026-10-09): the lane brief/common rules reserve aggregate
+`npm run quality` for the lead and prohibit running it in the lane. Scoped
+provider/models tests and all requested static checks, plain knip, duplication,
+host API and production build pass; no threshold, ignore or deadline changes.
+This is a qualification handoff, not a full-quality or installed-editor claim.
+
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering
 under bounded CPU/memory pressure before repairing their causes. Keep all
@@ -40735,13 +41087,12 @@ owns a further size-recovery decision and the later continuation/full gate.
   chat `setupComplete`. K tests use M's exact temporary source dependency,
   which is not committed. M must adopt strict `providers/edit` and scoped
   prefill variants. Follow-up: certify the final composed protocol/editor flow.
-- **K-recovery:** rollback compensates ordinary persistence failures; crash
-  atomicity and a different window/process writing during deletion require
-  a shared transaction/generation protocol with lane P. Same-host writes,
-  undo and deadlines are serialized, and replacement ids are rechecked.
-  Remaining risk is credential/setup availability, not credential exfiltration;
-  the origin dispatch guard remains mandatory. Follow-up: cross-window drills
-  with the final store seam and explicit repair when an OS-store rollback fails.
+- **K-recovery (superseded by PROVWIZ9, 2026-10-09):** provider Save validates
+  before writing and retains completed provider/key/default/limit/model steps
+  after a later failure, reporting every partial outcome. No rollback remains.
+  The origin guard prevents an old key serving a newly saved origin. Same-host
+  snapshot comparisons remain; cross-window provider/key serialization awaits
+  PROVSTORE-LOCKLIB after M123. Shared-store crash atomicity remains follow-up.
 - **K-release-base merge:** local `origin/main` at `a95f24cf` conflicts in
   release/build files, every manifest translation, extension and constants.
   Merge was aborted; lead must reconcile the release base on integration.
@@ -42639,6 +42990,10 @@ threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
 
+| Location                                            | Residual / follow-up                                | Lead decision (2026-10-09)                                                                                                                                                                                                                            |
+| --------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M95 provider panel: `panelSeam.ts`, `wizardSave.ts` | RVPROVWIZ7C P2-1/P2-2; PROVSTORE-LOCKLIB after M123 | Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main. |
+
 | PORTS017 escape                                                                           | Reason                                                                                                                                                                                                                          |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `test/unit/helpers/malformedUsd.ts`: `input as unknown as UsdAmount`                      | Existing negative, NaN, infinity and overflow probes deliberately violate the typed port so their runtime refusals still execute.                                                                                               |
@@ -42949,11 +43304,12 @@ before a repaired one loads (2026-09-30).
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/host/git/gitExtension.ts`              | `value is GitRepository` and two more type predicates (`isGitExtension`, `isGitApi`, `isGitRepository`) | VS Code's Git extension exports are `unknown` to this extension; the guards check that each member it calls is there (functions, the change lists as arrays), not the members' parameter and result types, which no run-time check can see. It is VS Code's own API (`git.d.ts` version 1, the same from 1.99 to 1.139), and `test/integration` commits and pushes through the real one on the floor version and the latest (M71).                                                                                                                                                     | 2026-09-28 |
 
-| File                               | Construct                                                                      | Reason                                                                                                                                                                                                                                                                                                      | Added      |
-| ---------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `test/unit/modelApiHost.test.ts`   | `as ModelApiSession` in `resumeWithChild` and the custom-agent fork regression | The fake host constructs Model API sessions, but the shared resume/fork interface returns `AgentSession`; these two test-only casts expose `history()` for child-result assertions. Inline comments name that invariant. Production mode narrowing now selects a member of `APPROVAL_MODES` without a cast. | 2026-09-30 |
-| `test/unit/flightRecorder.test.ts` | `as never` on a hostile event kind and backend                                 | The refusal branches are reachable only with values outside `REPORT_EVENT_KINDS`/`BACKEND_KINDS`, which a typed test cannot spell; the two test-only casts feed them in. Inline comments name that invariant. Lane R product code holds no cast.                                                            | 2026-10-05 |
-| `test/unit/acpAgent.test.ts`       | `as acp.ClientCapabilities` in `wireCapabilities`                              | Non-boolean `terminal-auth` / `terminal` wire values cannot be spelled in the SDK type; the single test-only cast feeds them in after a JSON round-trip so the strict `=== true` check is exercised. Inline comment names that invariant. Lane ACPREG product code holds no cast.                           | 2026-10-06 |
+| File                                 | Construct                                                                      | Reason                                                                                                                                                                                                                                                                                                      | Added      |
+| ------------------------------------ | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/modelApiHost.test.ts`     | `as ModelApiSession` in `resumeWithChild` and the custom-agent fork regression | The fake host constructs Model API sessions, but the shared resume/fork interface returns `AgentSession`; these two test-only casts expose `history()` for child-result assertions. Inline comments name that invariant. Production mode narrowing now selects a member of `APPROVAL_MODES` without a cast. | 2026-09-30 |
+| `test/unit/flightRecorder.test.ts`   | `as never` on a hostile event kind and backend                                 | The refusal branches are reachable only with values outside `REPORT_EVENT_KINDS`/`BACKEND_KINDS`, which a typed test cannot spell; the two test-only casts feed them in. Inline comments name that invariant. Lane R product code holds no cast.                                                            | 2026-10-05 |
+| `test/unit/acpAgent.test.ts`         | `as acp.ClientCapabilities` in `wireCapabilities`                              | Non-boolean `terminal-auth` / `terminal` wire values cannot be spelled in the SDK type; the single test-only cast feeds them in after a JSON round-trip so the strict `=== true` check is exercised. Inline comment names that invariant. Lane ACPREG product code holds no cast.                           | 2026-10-06 |
+| `test/unit/modelsPanelEntry.test.ts` | `as unknown as vscode.WorkspaceConfiguration` on the stubbed configuration     | The `vscode` mock has no `WorkspaceConfiguration` class; the PROVWIZ2 round-3 quick-pick test stubs only the members the wizard's spending-limit configuration reads and writes (`get`, `inspect`, `update`), so a structural cast is the honest shape. Test-only.                                          | 2026-10-09 |
 
 | `test/unit/playbookSurface.test.ts` (M116 W) | `as never` on a hostile rule name | The unknown-rule refusal branch is reachable only with a rule outside `PLAYBOOK_CONFIGURABLE_RULES`, which a typed test cannot spell; the test-only cast feeds one in and asserts nothing is persisted. An inline comment names that invariant. Lane W product code holds no cast. | 2026-10-07 |
 

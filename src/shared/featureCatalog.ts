@@ -33,6 +33,7 @@ const UI_CONDITIONS: Readonly<
   resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold&memoryHeadroom=available',
   resourceMemoryMinFreeGiBDescription: 'memoryHeadroom=available',
   providerOpenRouterServices: 'openRouterServices=absent',
+  privacyNoRetentionDetail: 'provider=openrouter&privacy=zdr',
   referenceSandbox: 'platform=win32&shellSandbox',
   autoCompactionAwaitingEvaluation: 'autoCompactionEvaluation',
   referenceBrowser: 'workspaceTrust',
@@ -79,6 +80,8 @@ const SETTING_CONDITIONS: Readonly<
   sandboxNetwork: 'shellSandbox',
   browserCheckExtraHosts: 'browserNetworkAdmission',
   notifyOnBackgroundTurn: 'turnState&windowFocus',
+  // The provider wizard edits this numeric setting, preserving exact USD
+  // through a validated decimal-to-number boundary.
   modelApiSessionBudgetUsd: 'sessionBudget',
 
   modelApiObservationPacking: 'conversationStart',
@@ -312,7 +315,23 @@ export function featureCatalog(): readonly Feature[] {
         'connectChatGpt',
         'connectCopilot',
       ],
-      ['suggestedProvider'],
+      // Saved custom limits persist directly from Edit without a new test
+      // while the connection is unchanged; pre-write failures retain the draft.
+      // Edit and Change key share a full saved snapshot; unchanged routing,
+      // limits, consent and the default survive. Save admits one operation
+      // per draft, compares edited fields inside the stored mutation and offers
+      // Reload on conflicts. Untouched fields and rotated/removed keys survive
+      // consent waits; only an entered key replaces a stored credential.
+      // Save validates first, then writes provider/key/default/limit/composer in
+      // order. Completed writes stay on failure; localized outcomes name saved,
+      // failed and skipped steps. Every outcome refreshes without losing earlier
+      // information. Budget-only partial drafts retry on a fresh baseline; other
+      // partial or stale forms reopen. A key bound to an old origin shows missing.
+      // Re-entry compares even origin-refused credential records; only concurrent
+      // changes conflict. Confirmed limit retries retain all completed receipts.
+      // Simultaneous cross-window saves remain last-writer-wins until LOCKLIB.
+      // Earlier steps remain navigable while final Save validates limits.
+      ['suggestedProvider', 'modelApiSessionBudgetUsd'],
       'backends',
       ['museCode', 'modelApi'],
       false,
@@ -1088,7 +1107,7 @@ export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
 const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
-  providers: ['providerOpenRouterServices'],
+  providers: ['providerOpenRouterServices', 'pricePerMillion', 'privacyNoRetentionDetail'],
   estimator: ['estimateCliHelp'],
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],

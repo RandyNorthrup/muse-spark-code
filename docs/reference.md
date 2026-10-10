@@ -28,6 +28,10 @@ Add a model provider with an API key and pick a model.
 
 openRouterServices=absent: OpenRouter account connection and key usage are not available yet. Paste a key to use models.
 
+Prices per million tokens.
+
+provider=openrouter&privacy=zdr: Only providers that retain no data are used.
+
 ```json
 {
   "management": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
@@ -37,7 +41,7 @@ openRouterServices=absent: OpenRouter account connection and key usage are not a
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.startWithOwnModel`, `museSpark.modelsAndAgents`, `museSpark.addModelProvider`, `museSpark.connectChatGpt`, `museSpark.connectCopilot`. Settings: `museSpark.suggestedProvider`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#backends)
+Commands: `museSpark.startWithOwnModel`, `museSpark.modelsAndAgents`, `museSpark.addModelProvider`, `museSpark.connectChatGpt`, `museSpark.connectCopilot`. Settings: `museSpark.suggestedProvider`, `museSpark.modelApiSessionBudgetUsd`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#backends)
 
 ### Show report…
 
@@ -508,9 +512,9 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Submit
 
-In the panel, each question has one interactive card pinned above the composer. The transcript keeps a compact Open question marker; Answer opens or expands the docked card and focuses its first control, including after deferral. MCP forms follow the same rule. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (60 seconds by default; 0 waits indefinitely), Muse continues work that does not depend on the answer; the card becomes an open question that you can answer later or dismiss. A late answer is your own message and approves nothing. Next open question and Previous open question move between open cards. Scheduled prompts defer at once, and headless exec declines questions. In ACP, --questions-defer-after sets the form deadline, /questions lists open questions and /answer &lt;n&gt; &lt;text&gt; answers one.
+Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (default 60 seconds; 0 waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer &lt;n&gt; &lt;text&gt; answers one.
 
-In the panel, each question has one interactive card pinned above the composer. The transcript keeps a compact Open question marker; Answer opens or expands the docked card and focuses its first control, including after deferral. MCP forms follow the same rule. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (60 seconds by default; 0 waits indefinitely), Muse continues work that does not depend on the answer; the card becomes an open question that you can answer later or dismiss. A late answer is your own message and approves nothing. Next open question and Previous open question move between open cards. Scheduled prompts defer at once, and headless exec declines questions. In ACP, --questions-defer-after sets the form deadline, /questions lists open questions and /answer &lt;n&gt; &lt;text&gt; answers one.
+Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (default 60 seconds; 0 waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer &lt;n&gt; &lt;text&gt; answers one.
 
 ```json
 {
