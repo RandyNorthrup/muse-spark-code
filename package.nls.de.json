@@ -250,5 +250,7 @@
   "config.reports.network.enumDescriptions.always": "Netzwerkquellen für Berichte erlauben.",
   "config.reports.network.enumDescriptions.off": "Nur lokale Quellen lesen.",
   "config.reports.keepHistory.description": "Die neuesten 50 Berichte je Art auf diesem Rechner für Verlauf und Vergleiche aufbewahren.",
-  "config.reports.agentSources.description": "Das Lesen Ihrer eigenen Claude-Code- oder Codex-Nutzungs- und Limitdateien erlauben. Standard: keine. Gesprächstexte und Zugangsdaten werden niemals als Berichtsquellen gelesen."
+  "config.reports.agentSources.description": "Das Lesen Ihrer eigenen Claude-Code- oder Codex-Nutzungs- und Limitdateien erlauben. Standard: keine. Gesprächstexte und Zugangsdaten werden niemals als Berichtsquellen gelesen.",
+  "config.editorChatModels.description": "Explizit für Editor-Chat freigegebene Modellreferenzen. Jede installierte Erweiterung kann über diese Modelle Ihren Anbieterschlüssel belasten. Standardmäßig aus; erfordert bekannte Preise oder lokale Modelle und ein positives Tageslimit. Unter Modelle und Agenten konfigurieren.",
+  "config.editorChatDailyBudgetUsd.description": "USD-Tageslimit für freigegebene Modelle und alle Editorfenster. Null deaktiviert Anfragen. Unterbrochene Aufrufe behalten reservierte Kosten. Beim Aktivieren eines Modells unter Modelle und Agenten festlegen."
 }

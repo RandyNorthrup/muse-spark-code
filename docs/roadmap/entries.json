@@ -694,7 +694,7 @@
     {
       "id": "M95c",
       "title": "More providers and integrations",
-      "summary": "More providers such as Amazon Bedrock, chosen models offered to the editor's own chat under a daily cap, providers' own paid search, and Tab completions on other providers.",
+      "summary": "More providers such as Amazon Bedrock, opt-in models in VS Code-family chat under a shared daily cap, providers’ own paid search, and Tab completions on other providers.",
       "area": "models-providers"
     },
     {

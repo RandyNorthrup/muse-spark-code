@@ -5822,3 +5822,37 @@ local-only scans; missing dependency licences remain unknown. Private registry
 configuration is never contacted. CLI lookup still requires `--registry`.
 
 Containment-helper compilation uses heavy bootstrap admission, a bounded deadline and output, and whole-tree cancellation before its result is used. CLI and ACP process launches share runtime resource admission, including login and browser openers. The credential vault remains unavailable until its broker is installed.
+
+## Editor chat
+
+In VS Code-family editors with the stable language-model provider API (VS Code
+1.104 or later), open **Models & Agents**, select a configured model for the
+composer, then check **Editor chat** on its Models row. Only priced or local
+models with known input and output limits can be offered. Enter a positive
+daily USD cap and confirm the displayed rates. Any installed extension can
+call an exposed model using your provider key; the subscription pays none of
+these API calls. Uncheck the row to withdraw access.
+
+`museSpark.editorChatModels` stores the opted-in qualified model references;
+`museSpark.editorChatDailyBudgetUsd` stores the shared daily dollar cap. Both
+are machine-scoped, default to off (empty models and zero cap), and cannot
+be enabled by workspace settings. The cap covers all exposed models and all
+editor windows using this installation’s global storage. Each request reserves
+the model’s full input and output bounds before dispatch. That conservative
+reservation can refuse a short request that would have fit at its final cost.
+Reported usage replaces the reservation; interrupted or uncertain calls retain
+it. The local-day reservation stays on its original day across midnight.
+
+Calls are counted as **Editor chat** in **Usage & cost**, including failures
+with retained liability; the page shows the separate daily cap. Usage history
+can be switched off without disabling the budget ledger. The provider loads
+on the first opt-in action or editor request. It refuses untrusted or confidential workspaces, unsupported
+message parts or options, and requests exceeding the input bound. Text, native
+tool calls and results, and supported inline images use the existing captured
+provider transport. Image and tool capabilities follow the chosen model. Tool
+execution belongs to the calling editor, whose permissions still apply.
+
+This integration is scoped to the VS Code family on Windows, macOS and Linux.
+JetBrains, Visual Studio, Eclipse, Zed, Xcode, Neovim, Emacs, Sublime and the
+ACP/headless runtime require the C-M95c-8 editor-chat endpoint or a separately
+recorded equivalent; they do not expose this native VS Code API.

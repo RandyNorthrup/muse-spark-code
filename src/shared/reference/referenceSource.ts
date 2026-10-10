@@ -132,6 +132,7 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     'handoff',
     'browser',
     'tab',
+    'editor-chat',
     'support',
   ].map((id): [string, readonly string[]] => [id, ['vscode:museCode', 'vscode:modelApi']]),
   ...['acp'].map((id): [string, readonly string[]] => [id, ['acp:museCode', 'acp:modelApi']]),

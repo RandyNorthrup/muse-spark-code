@@ -250,5 +250,7 @@
   "config.reports.network.enumDescriptions.always": "Consenti fonti di rete per i rapporti.",
   "config.reports.network.enumDescriptions.off": "Leggi solo fonti locali.",
   "config.reports.keepHistory.description": "Conserva su questo computer gli ultimi 50 rapporti di ogni tipo per la cronologia e i confronti.",
-  "config.reports.agentSources.description": "Abilita la lettura dei tuoi file di utilizzo e limiti di Claude Code o Codex. Impostazione predefinita: nessuno. Il testo delle conversazioni e i file di credenziali non vengono mai letti come fonti dei rapporti."
+  "config.reports.agentSources.description": "Abilita la lettura dei tuoi file di utilizzo e limiti di Claude Code o Codex. Impostazione predefinita: nessuno. Il testo delle conversazioni e i file di credenziali non vengono mai letti come fonti dei rapporti.",
+  "config.editorChatModels.description": "Riferimenti dei modelli offerti esplicitamente alla chat dell’editor. Qualsiasi estensione installata può spendere con la tua chiave del provider tramite questi modelli. Disattivato per impostazione predefinita; richiede prezzi noti o modelli locali e un limite giornaliero positivo. Configura da Modelli e agenti.",
+  "config.editorChatDailyBudgetUsd.description": "Limite giornaliero in USD condiviso dai modelli esposti e da tutte le finestre dell’editor. Zero disabilita le richieste. Le chiamate interrotte mantengono il costo prenotato. Impostalo quando abiliti un modello in Modelli e agenti."
 }

@@ -278,6 +278,9 @@ export const COMMAND_IDS = {
 // side and the quick pick build to dist/modelsPanel.js; activation keeps only
 // the command registrations and the loader.
 export const MODELS_PANEL_VIEW_TYPE = 'museSpark.modelsPanel'
+export const EDITOR_CHAT_VENDOR = 'muse-spark-code'
+export const EDITOR_CHAT_BUNDLE_FILE = 'editorChat.js'
+export const EDITOR_CHAT_PROMPT_CACHE_RETENTION = 'in_memory'
 export const MODELS_PANEL_BUNDLE_FILE = 'modelsPanel.js'
 export const MODELS_WEBVIEW_SCRIPT_FILE = 'models.js'
 export const MODELS_WEBVIEW_STYLE_FILE = 'models.css'
@@ -715,6 +718,8 @@ export const SETTING_DEFAULTS = {
   // Q-M94b, decided 2026-10-04: Standard, which Meta does not train on.
   tabModel: 'muse-spark-1.3',
   // Q-M94c, decided 2026-10-04: the hard daily budget in US dollars.
+  editorChatModels: [],
+  editorChatDailyBudgetUsd: 0,
   tabDailyBudgetUsd: 1,
   // Shaped like Copilot's `github.copilot.enable` with the same default
   // (V12): every language on except plaintext, markdown and scminput.
@@ -831,6 +836,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   // settings cannot change what Tab spends.
   'modelApiTab',
   'tabModel',
+  'editorChatModels',
+  'editorChatDailyBudgetUsd',
   'tabDailyBudgetUsd',
   'tabLanguages',
   'tabMultiline',

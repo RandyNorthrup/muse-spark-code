@@ -36,6 +36,9 @@ import type { WizardSaveOutcome } from '../providers/wizardSave'
 import { OPENROUTER_ORIGIN } from '../providers/openRouter'
 
 export interface ModelsPanelDeps {
+  readonly editorChat?:
+    | { available(): boolean; selected(ref: string): boolean; toggle(ref: string): Promise<void> }
+    | undefined
   readonly connectChatGpt?: (() => Promise<void>) | undefined
   readonly connectCopilot?: (() => Promise<void>) | undefined
   readonly removeSubscription?: ((id: string) => Promise<void>) | undefined
@@ -265,6 +268,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           families.set(`${providerId}/${model.id}`, model.family)
         }
         all.push({
+          editorChat:
+            deps.editorChat?.available() === true
+              ? deps.editorChat.selected(`${providerId}/${model.id}`)
+              : undefined,
           ref: `${providerId}/${model.id}`,
           providerId,
           modelId: model.id,
@@ -700,6 +707,16 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         break
       }
       case 'models/tick': {
+        if (message.scope.scope === 'editorChat') {
+          if (
+            deps.editorChat === undefined ||
+            state.models.every((row) => row.ref !== message.ref || row.editorChat === undefined)
+          )
+            throw new Error(UI_TEXT.editorChatRefused)
+          if (deps.editorChat.selected(message.ref) !== message.ticked)
+            await deps.editorChat.toggle(message.ref)
+          break
+        }
         const id = message.scope.providerId ?? draftOf().presetId ?? ''
         const prefix = `${id}/`
         if (!message.ref.startsWith(prefix)) {

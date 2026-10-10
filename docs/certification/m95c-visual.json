@@ -1,0 +1,111 @@
+{
+  "rig": "win11",
+  "baseline": "6636c84beb804af52e49363ac10ede3223d3d295",
+  "base": "82d50d5e4",
+  "group": "thinking/light/690",
+  "purpose": "Diagnostic only; not a replacement for the full visual gate",
+  "records": [
+    {
+      "source": "base",
+      "key": "panel/thinking/default/light/690",
+      "againstReviewed": {
+        "changedPixels": 0
+      }
+    },
+    {
+      "source": "base",
+      "key": "panel/thinking/hover/light/690",
+      "againstReviewed": {
+        "changedPixels": 0
+      }
+    },
+    {
+      "source": "base",
+      "key": "panel/thinking/focus-visible/light/690",
+      "againstReviewed": {
+        "changedPixels": 0
+      }
+    },
+    {
+      "source": "base",
+      "key": "panel/thinking/pressed/light/690",
+      "againstReviewed": {
+        "changedPixels": 0
+      }
+    },
+    {
+      "source": "base",
+      "key": "panel/thinking/disabled/light/690",
+      "againstReviewed": {
+        "changedPixels": 0
+      }
+    },
+    {
+      "source": "base",
+      "key": "panel/thinking/selected/light/690",
+      "againstReviewed": {
+        "changedPixels": 0
+      }
+    },
+    {
+      "source": "lane",
+      "key": "panel/thinking/default/light/690",
+      "againstReviewed": {
+        "changedPixels": 0
+      },
+      "againstBase": {
+        "changedPixels": 0
+      }
+    },
+    {
+      "source": "lane",
+      "key": "panel/thinking/hover/light/690",
+      "againstReviewed": {
+        "changedPixels": 0
+      },
+      "againstBase": {
+        "changedPixels": 0
+      }
+    },
+    {
+      "source": "lane",
+      "key": "panel/thinking/focus-visible/light/690",
+      "againstReviewed": {
+        "changedPixels": 0
+      },
+      "againstBase": {
+        "changedPixels": 0
+      }
+    },
+    {
+      "source": "lane",
+      "key": "panel/thinking/pressed/light/690",
+      "againstReviewed": {
+        "changedPixels": 0
+      },
+      "againstBase": {
+        "changedPixels": 0
+      }
+    },
+    {
+      "source": "lane",
+      "key": "panel/thinking/disabled/light/690",
+      "againstReviewed": {
+        "changedPixels": 0
+      },
+      "againstBase": {
+        "changedPixels": 0
+      }
+    },
+    {
+      "source": "lane",
+      "key": "panel/thinking/selected/light/690",
+      "againstReviewed": {
+        "changedPixels": 0
+      },
+      "againstBase": {
+        "changedPixels": 0
+      }
+    }
+  ]
+}

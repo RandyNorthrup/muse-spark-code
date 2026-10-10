@@ -5225,5 +5225,13 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
-  }
+  },
+  "editorChatTitle": "Editör sohbeti",
+  "editorChatModel": "{model} modelini editör sohbetine sun",
+  "editorChatRefused": "Editör sohbeti isteği reddedildi. Model iznini, bilinen fiyatları, token sınırlarını, çalışma alanı güvenini ve günlük bütçeyi kontrol edin.",
+  "editorChatEnable": "Etkinleştir",
+  "editorChatBudgetPrompt": "Tüm modeller ve editör pencereleri için ortak, USD cinsinden pozitif günlük bütçe girin.",
+  "editorChatRates": "Milyon token başına {input} giriş / {output} çıkış",
+  "editorChatConsent": "{model} editör sohbetine sunulsun mu? {rates}. Yüklü tüm eklentiler bu modeli anahtarınızla çağırabilir. Ortak günlük sınır: {cap}. Kesilen çağrılar rezervasyonlarını korur. Abonelik bunların hiçbirini ödemez.",
+  "referenceEditorChat": "Seçilen fiyatı bilinen veya yerel modelleri ortak günlük USD sınırıyla VS Code sohbetine sunun; çağrılar Kullanım ve maliyet bölümünde görünür. VS Code 1.104+ ve güvenilir, gizli olmayan çalışma alanı gerekir."
 }

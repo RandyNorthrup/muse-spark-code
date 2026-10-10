@@ -250,5 +250,7 @@
   "config.reports.network.enumDescriptions.always": "Raporlar için ağ kaynaklarına izin ver.",
   "config.reports.network.enumDescriptions.off": "Yalnızca yerel kaynakları oku.",
   "config.reports.keepHistory.description": "Geçmiş ve karşılaştırma için bu bilgisayarda her türün en yeni 50 raporunu sakla.",
-  "config.reports.agentSources.description": "Kendi Claude Code veya Codex kullanım ve sınır dosyalarınızın okunmasına izin verin. Varsayılan: hiçbiri. Konuşma metni ve kimlik bilgisi dosyaları rapor kaynağı olarak asla okunmaz."
+  "config.reports.agentSources.description": "Kendi Claude Code veya Codex kullanım ve sınır dosyalarınızın okunmasına izin verin. Varsayılan: hiçbiri. Konuşma metni ve kimlik bilgisi dosyaları rapor kaynağı olarak asla okunmaz.",
+  "config.editorChatModels.description": "Editör sohbetine açıkça sunulan model başvuruları. Yüklü herhangi bir eklenti bu modeller üzerinden sağlayıcı anahtarınızla harcama yapabilir. Varsayılan olarak kapalıdır; bilinen fiyatlar veya yerel modeller ve pozitif günlük sınır gerekir. Modeller ve aracılar bölümünden yapılandırın.",
+  "config.editorChatDailyBudgetUsd.description": "Sunulan modeller ve tüm editör pencereleri için ortak günlük USD sınırı. Sıfır istekleri devre dışı bırakır. Kesilen çağrılar ayrılmış maliyeti korur. Modeller ve aracılar bölümünde model etkinleştirirken ayarlayın."
 }

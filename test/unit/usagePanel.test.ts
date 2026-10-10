@@ -1,4 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { mkdtemp } from 'node:fs/promises'
+import path from 'node:path'
+import { tmpdir } from 'node:os'
+import * as usageAdapter from '../../src/runtime/usage/usageAdapter'
+import { createTabLedger } from '../../src/host/tab/tabLedger'
+import { Usd } from '../../src/shared/usd'
+import { removeFolder } from './helpers/temporaryFolders'
 import { UsagePanel } from '../../src/host/usage/usagePanel'
 import { usagePanelLoader } from '../../src/host/usage/usagePanelBundle'
 import { createUsagePanel } from '../../src/host/usage/usagePanelEntry'
@@ -19,7 +26,14 @@ vi.mock('vscode', async () => {
     ...fake,
     ConfigurationTarget: { Global: 1 },
     window: { ...fake.window, showWarningMessage: confirm },
-    workspace: { ...fake.workspace, getConfiguration: () => ({ update: updateHistory }) },
+    workspace: {
+      ...fake.workspace,
+      getConfiguration: () => ({
+        update: updateHistory,
+        get: (key: string, fallback: unknown) =>
+          key === 'editorChatDailyBudgetUsd' ? 0.035 : key !== 'usageHistory' && fallback,
+      }),
+    },
   }
 })
 
@@ -88,6 +102,61 @@ describe('UsagePanel', () => {
     workspace.fs.writeFile.mockResolvedValue(undefined)
   })
 
+  it('shows editor-chat retained liability and its independent cap even with history off', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'muse-editor-chat-usage-'))
+    const context = fakeHostContext()
+    const capture: { deps?: usageAdapter.UsageAccessDeps } = {}
+    const access = vi.spyOn(usageAdapter, 'lazyUsageAdapter').mockImplementation((deps) => {
+      capture.deps = deps
+      return {
+        access: () => fakeUsageAccess().usage,
+        openPage: vi.fn<usageAdapter.UsageAdapter['openPage']>(),
+        dispose: () => Promise.resolve(),
+        runCommand: vi.fn<usageAdapter.UsageAdapter['runCommand']>(),
+      }
+    })
+    try {
+      const ledger = createTabLedger({
+        directory: path.join(directory, 'editor-chat-spend'),
+        windowId: 'usage-test',
+        now: Date.now,
+        sleep: () => Promise.resolve(),
+        log: context.log,
+      })
+      expect(
+        await ledger.admit(Usd.from(0.01).toAmount(), Usd.from(0.035).toAmount()),
+      ).toMatchObject({ admitted: true })
+      workspace.fs.readFile.mockResolvedValue(new TextEncoder().encode(JSON.stringify(USAGE_EN)))
+      const panel = await createUsagePanel({
+        ...context,
+        budgetStorageFolder: directory,
+        openModels: () => Promise.resolve(),
+        live: {
+          readBudgets: () => Promise.resolve([]),
+          readLiveLimits: () => Promise.resolve([]),
+          providerConsoles: () => [],
+        },
+      })
+      expect(capture.deps?.historySettings?.().enabled).toBe(false)
+      const budgets = await capture.deps?.live?.readBudgets()
+      expect(budgets).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            budget: expect.objectContaining({
+              kind: 'vscodeChatDaily',
+              capUsd: 0.035,
+              spentUsd: 0.01,
+              uncertainUsd: 0.01,
+            }),
+          }),
+        ]),
+      )
+      panel.dispose()
+    } finally {
+      access.mockRestore()
+      await removeFolder(directory)
+    }
+  })
   it('uses only local usage assets under the unchanged security policy and reveals one tab', () => {
     const { panel, tab } = openPanel()
     expect(window.createWebviewPanel).toHaveBeenCalledWith(

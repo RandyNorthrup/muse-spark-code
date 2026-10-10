@@ -35,6 +35,64 @@ function fail(message: string): never {
   throw new Error(message)
 }
 
+it('offers the editor-chat toggle only on hosts with the provider API and posts the model reference', async () => {
+  const post = vi.fn()
+  const row = makeRow({ ticked: true, priceNote: 'priced', editorChat: false })
+  const state = makeState({ models: [row], totalModels: 1 })
+  const view = render(<ModelsSection {...props(state, post)} />)
+  const toggle = await screen.findByRole('checkbox', {
+    name: fill(UI_TEXT.editorChatModel, { model: row.ref }),
+  })
+  expect(toggle).toBeEnabled()
+  fireEvent.click(toggle)
+  expect(post).toHaveBeenCalledWith({
+    type: 'models/tick',
+    scope: { scope: 'editorChat' },
+    ref: row.ref,
+    ticked: !row.editorChat,
+  })
+  view.rerender(
+    <ModelsSection {...props({ ...state, models: [{ ...row, editorChat: undefined }] }, post)} />,
+  )
+  expect(
+    screen.queryByRole('checkbox', { name: fill(UI_TEXT.editorChatModel, { model: row.ref }) }),
+  ).toBeNull()
+})
+
+it('disables editor-chat opt-in for unpriced or unselected models', async () => {
+  const rows = [
+    makeRow({
+      ref: 'unpriced/model',
+      ticked: true,
+      priceNote: 'unpriced',
+      editorChat: false,
+    }),
+    makeRow({
+      ref: 'unselected/model',
+      ticked: false,
+      priceNote: 'priced',
+      editorChat: false,
+    }),
+  ]
+  render(<ModelsSection {...props(makeState({ models: rows, totalModels: 2 }), vi.fn())} />)
+  for (const row of rows)
+    expect(
+      await screen.findByRole('checkbox', {
+        name: fill(UI_TEXT.editorChatModel, { model: row.ref }),
+      }),
+    ).toBeDisabled()
+})
+
+it('keeps revocation available after an opted-in model is unselected or loses its price', async () => {
+  const row = makeRow({ ticked: false, priceNote: 'unpriced', editorChat: true })
+  render(<ModelsSection {...props(makeState({ models: [row], totalModels: 1 }), vi.fn())} />)
+  expect(
+    await screen.findByRole('checkbox', {
+      name: fill(UI_TEXT.editorChatModel, { model: row.ref }),
+    }),
+  ).toBeEnabled()
+})
+
 /** A wizard whose draft stays current (the lifecycle races run on the real panel). */
 const OPEN_WIZARD = { generation: 1, isCurrent: (generation: number) => generation === 1 }
 

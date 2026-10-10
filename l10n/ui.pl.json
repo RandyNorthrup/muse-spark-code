@@ -5531,5 +5531,13 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  }
+  },
+  "editorChatTitle": "Czat edytora",
+  "editorChatModel": "Udostępnij {model} w czacie edytora",
+  "editorChatRefused": "Odmowa żądania czatu edytora. Sprawdź włączenie modelu, znane ceny, limity tokenów, zaufanie do obszaru roboczego i dzienny budżet.",
+  "editorChatEnable": "Włącz",
+  "editorChatBudgetPrompt": "Wprowadź dodatni dzienny budżet w USD, wspólny dla wszystkich modeli i okien edytora.",
+  "editorChatRates": "{input} wejście / {output} wyjście za milion tokenów",
+  "editorChatConsent": "Udostępnić {model} w czacie edytora? {rates}. Wszystkie zainstalowane rozszerzenia mogą wywoływać ten model Twoim kluczem. Wspólny dzienny limit: {cap}. Przerwane wywołania zachowują rezerwację. Subskrypcja nie pokrywa żadnego z tych kosztów.",
+  "referenceEditorChat": "Udostępnij wybrane modele o znanej cenie lub modele lokalne w czacie VS Code ze wspólnym dziennym limitem USD; wywołania pojawią się w użyciu i kosztach. Wymaga VS Code 1.104+ oraz zaufanego, niepoufnego obszaru roboczego."
 }

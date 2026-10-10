@@ -345,6 +345,7 @@ import {
   recoverProviderRemovals,
 } from './host/models/modelsPanelBundle'
 import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
+import { registerEditorChat } from './host/models/lmProviderBundle'
 import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
 
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
@@ -2019,6 +2020,21 @@ async function activateWindow(
       log,
     },
   })
+  const editorChat = registerEditorChat({
+    extensionPath: context.extensionPath,
+    storagePath: context.globalStorageUri.fsPath,
+    windowId: crypto.randomUUID(),
+    table: l10n,
+    log,
+    recording: usageRecording,
+    allowed: () => !currentSettings().confidentialWorkspace,
+    models: async () => {
+      const client = await subscriptionFeatures().createClient(keyClient())
+      if (client.models === undefined) throw new Error(UI_TEXT.editorChatRefused)
+      return client.models
+    },
+  })
+  context.subscriptions.push(editorChat)
   const ideTools = [diagnostics]
   // Web fetch (M69, PLAN.md D49): resolved, checked and pinned here, for the
   // Model API backend's `web_fetch` and Muse Code's `mcp__ide__webFetch`.
@@ -4041,6 +4057,7 @@ async function activateWindow(
       const seam = providersSeamBundle()
       modelsFeatures = bundle.createModelsPanelFeatures(
         {
+          editorChat,
           connectChatGpt: () => subscriptionFeatures().connectChatGpt(),
           connectCopilot: () => subscriptionFeatures().connectCopilot(),
           removeSubscription: (id) => subscriptionFeatures().removeSubscription(id),

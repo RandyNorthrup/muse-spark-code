@@ -39,6 +39,14 @@ Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no
 
 Commands: `museSpark.startWithOwnModel`, `museSpark.modelsAndAgents`, `museSpark.addModelProvider`, `museSpark.connectChatGpt`, `museSpark.connectCopilot`. Settings: `museSpark.suggestedProvider`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#backends)
 
+### Editor chat
+
+Opt chosen priced or local models into VS Code chat under a shared daily USD cap; calls appear in Usage & cost. Requires VS Code 1.104+ and a trusted, non-confidential workspace.
+
+Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: `museSpark.modelsAndAgents`. Settings: `museSpark.editorChatModels`, `museSpark.editorChatDailyBudgetUsd`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#editor-chat)
+
 ### Show report…
 
 Generate a deterministic report from named sources, without a model call.
@@ -3575,6 +3583,36 @@ Type: `"boolean"`. Default: `false`. Scope: `machine`.
 {
   "type": "boolean",
   "default": false
+}
+```
+
+### museSpark.editorChatModels
+
+Model references explicitly offered to editor chat. Any installed extension can spend your provider key through these models. Off by default; requires known prices or local models and a positive daily cap. Configure from Models & Agents.
+
+Type: `"array"`. Default: `[]`. Scope: `machine`.
+
+```json
+{
+  "type": "array",
+  "items": {
+    "type": "string"
+  },
+  "default": []
+}
+```
+
+### museSpark.editorChatDailyBudgetUsd
+
+editorChatCap: Daily USD cap shared by exposed models and all editor windows. Zero disables requests. Interrupted calls retain reserved cost. Set this cap when enabling a model in Models & Agents.
+
+Type: `"number"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 0,
+  "minimum": 0
 }
 ```
 

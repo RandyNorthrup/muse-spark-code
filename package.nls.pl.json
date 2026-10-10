@@ -250,5 +250,7 @@
   "config.reports.network.enumDescriptions.always": "Zezwól na sieciowe źródła raportów.",
   "config.reports.network.enumDescriptions.off": "Odczytuj wyłącznie lokalne źródła.",
   "config.reports.keepHistory.description": "Przechowuj na tym komputerze 50 najnowszych raportów każdego rodzaju do historii i porównań.",
-  "config.reports.agentSources.description": "Zezwól na odczyt własnych plików użycia i limitów Claude Code lub Codex. Domyślnie: żadne. Tekst rozmów i pliki poświadczeń nigdy nie są odczytywane jako źródła raportów."
+  "config.reports.agentSources.description": "Zezwól na odczyt własnych plików użycia i limitów Claude Code lub Codex. Domyślnie: żadne. Tekst rozmów i pliki poświadczeń nigdy nie są odczytywane jako źródła raportów.",
+  "config.editorChatModels.description": "Odwołania do modeli jawnie udostępnionych w czacie edytora. Każde zainstalowane rozszerzenie może wydawać środki za pomocą Twojego klucza dostawcy poprzez te modele. Domyślnie wyłączone; wymaga znanych cen lub modeli lokalnych i dodatniego dziennego limitu. Skonfiguruj w Modelach i agentach.",
+  "config.editorChatDailyBudgetUsd.description": "Dzienny limit USD wspólny dla udostępnionych modeli i wszystkich okien edytora. Zero wyłącza żądania. Przerwane wywołania zachowują zarezerwowany koszt. Ustaw podczas włączania modelu w Modelach i agentach."
 }

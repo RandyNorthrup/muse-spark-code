@@ -28885,11 +28885,27 @@ release acceptance are still pending.
 
 ### M95c — More providers and integrations after the first release (D74)
 
-**Status 2026-10-04: planned.**
+**Status 2026-10-10: building.**
 
-Status detail retained: planned with M95; each part starts when M95 has merged
-and is its own pull request, with its own capture and certification
-(`docs/certification/m95c.md`).
+C-M95c-2 implements part 2 for VS Code-family hosts exposing the stable
+provider API (1.104+), on Windows, macOS and Linux. Opt-in references and
+the shared daily USD cap are machine-scoped; the Models section asks with
+the selected model's prices before enabling it. A separate first-use bundle
+reuses the captured provider transports and M94's durable cross-window
+ledger in its own `editor-chat-spend` directory. Reservations price the
+full advertised input/output bounds; failures without terminal usage retain
+the reservation. Each dispatched attempt is recorded as M102 `vscodeChat`.
+Unsupported input fails explicitly before dispatch. Confidential or untrusted
+workspaces refuse requests. Activation loads no engine while the opt-in list
+is empty; a model's first opt-in action or editor call loads it. Older hosts
+have no exposure control.
+
+Other-editor equivalents belong to C-M95c-8 (with C-M94-7): JetBrains,
+Visual Studio, Eclipse, Zed, Xcode, Neovim, Emacs, Sublime and ACP/headless
+have no native `vscode.lm` provider API. This lane does not certify those
+rows. Installed-editor and three-OS receipts, full quality and the lead's
+external review remain release prerequisites; record scope and receipts in
+`docs/certification/m95c.md` before surfacing the feature in a release.
 
 - **Goal.** The provider list and its integrations grow past the first
   release without changing M95's seam: every part is a preset, a codec
@@ -38015,6 +38031,28 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**C-M95c-2 scoped rig certification (2026-10-10).** The lane brief forbids
+aggregate quality and restricts heavy commands to one process on win11.
+Run the complete owning tests at repository timeouts, changed-file lint and
+format, typecheck, deadcode, duplication, localization, generated reference,
+roadmap, host API, production build and visual checks; preserve every cap.
+The lead runs `npm run quality` on the integrated tree before proposing
+merge/release and obtains macOS/Linux and installed-editor receipts.
+Evidence, cap drills and Codex review: `docs/certification/m95c.md`.
+
+**C-M95c-2 visual gate follow-up (2026-10-10, win11).** Preserve the
+reviewed manifest, every selector, timeout and the 12-pixel allowance. The
+first complete attempt regenerates 9,792 baseline captures, then fails
+`panel/thinking/default/light/690` (357 changed pixels). All six states of
+that group subsequently match with zero changed pixels for both the original
+lane base and the lane. A second complete attempt fails in reviewed-baseline
+reconstruction before candidate comparison: `agents-details/light/320/en`,
+`never rendered: .agent-node-clickable`. This existing capture path is outside
+the lane's Models scope. The lead owns the harness repair and complete matrix
+rerun before merge/release; the scoped feature has no functional stub or
+preview label. The gate is not claimed green. Evidence:
+`docs/certification/m95c.md` and `docs/certification/m95c-visual.json`.
 
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering

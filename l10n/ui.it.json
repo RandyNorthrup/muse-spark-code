@@ -5378,5 +5378,13 @@
       "other": "{count} autorizzazioni",
       "many": "{count} autorizzazioni"
     }
-  }
+  },
+  "editorChatTitle": "Chat dell’editor",
+  "editorChatModel": "Offri {model} alla chat dell’editor",
+  "editorChatRefused": "Richiesta della chat dell’editor rifiutata. Controlla l’abilitazione del modello, i prezzi noti, i limiti dei token, l’attendibilità dell’area di lavoro e il budget giornaliero.",
+  "editorChatEnable": "Abilita",
+  "editorChatBudgetPrompt": "Inserisci un budget giornaliero positivo in USD, condiviso tra tutti i modelli e le finestre dell’editor.",
+  "editorChatRates": "{input} in ingresso / {output} in uscita per milione di token",
+  "editorChatConsent": "Offrire {model} alla chat dell’editor? {rates}. Tutte le estensioni installate possono chiamare questo modello con la tua chiave. Limite giornaliero condiviso: {cap}. Le chiamate interrotte mantengono la prenotazione. L’abbonamento non paga nulla di questo.",
+  "referenceEditorChat": "Abilita i modelli scelti con prezzo noto o locali nella chat di VS Code con un limite giornaliero condiviso in USD; le chiamate compaiono in Utilizzo e costi. Richiede VS Code 1.104+ e un’area di lavoro attendibile e non riservata."
 }
