@@ -51,11 +51,25 @@ export async function assertUsageError(page, { title, message }) {
     throw new Error(`${title}: expected error "${message}", saw "${text ?? ''}"`)
 }
 
-export async function assertUsageContent(page, { title, scenario }) {
+// An unreadable resource journal keeps the ready marker: the Usage state
+// renders, and only the Resources section shows its invalid-history alert
+// (src/webview/usage/ResourcesSection.tsx). A bare marker wait would pass
+// that scene without checking the failure rendered, so the resource scene
+// asserts the marker plus the section's own alert through this helper.
+export async function assertUsageResourceInvalid(page, { title, message }) {
+  await waitForUsageReady(page)
+  const alert = page.locator('section.usage-resources').getByRole('alert')
+  await alert.waitFor()
+  const text = await alert.textContent()
+  if (text === null || !text.includes(message))
+    throw new Error(`${title}: expected resource error "${message}", saw "${text ?? ''}"`)
+}
+
+export async function assertUsageContent(page, { title, scenario, hostLine = USAGE_HOST_LINE }) {
   await waitForUsageReady(page)
   if ((await page.getByRole('alert').count()) !== 0)
     throw new Error(`${title}: a ready page must not show an error alert`)
-  await page.getByText(USAGE_HOST_LINE).first().waitFor()
+  await page.getByText(hostLine).first().waitFor()
   const heading = USAGE_SCENARIO_HEADINGS[scenario]
   if (heading !== undefined) await page.getByRole('heading', { name: heading }).waitFor()
 }

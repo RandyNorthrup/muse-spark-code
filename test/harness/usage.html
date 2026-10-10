@@ -7,7 +7,12 @@
     <link rel="stylesheet" href="../../dist/webview/usage.css" />
   </head>
   <body>
-    <div id="root"></div>
+    <!-- RVCM1141D P2: the harness is the companion for bridge=http, so it
+      carries the theme nonce the real companion document sets
+      (renderCompanionPage in src/runtime/companion/page.ts). Without it the
+      usage entry throws before UsageApp mounts and the http matrix never
+      renders. Harness-only fake value; never shipped. -->
+    <div id="root" data-theme-nonce="0123456789abcdef0123456789abcdef"></div>
     <!-- The fake host is built by usage-check.mjs; product code is unchanged. -->
     <script type="module" src="../../temp/m102-usage-host.js"></script>
   </body>
