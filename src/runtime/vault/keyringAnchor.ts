@@ -74,6 +74,19 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
     return record?.vaultId ?? null
   }
 
+  /** Reset Vault: removes exactly this vault's record; another vault's is refused. */
+  async reset(vaultId: string): Promise<void> {
+    const record = await this.read()
+    if (record === null) return
+    if (record.vaultId !== vaultId) throw new VaultError('rollback')
+    try {
+      await storeOperation(() =>
+        this.openEntry(KEYRING_SERVICE, VAULT_ANCHOR_ACCOUNT).deletePassword(),
+      )
+    } catch {
+      throw new VaultStoreUnavailableError()
+    }
+  }
   async minimum(vaultId: string): Promise<VaultGenerationState | null> {
     const record = await this.read()
     if (record === null) return null

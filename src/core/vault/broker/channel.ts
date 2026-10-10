@@ -85,6 +85,10 @@ type ManageRequest = Extract<
       | 'publicKey'
       | 'confirmSetup'
       | 'cancelSetup'
+      | 'importKeep'
+      | 'importDelete'
+      | 'resetBegin'
+      | 'resetConfirm'
   }
 >
 /** Store and management failures become a fixed reason, never exception text. */
@@ -285,8 +289,12 @@ export class VaultChannelServer {
       case 'import':
       case 'publicKey':
       case 'confirmSetup':
-      case 'cancelSetup': {
-        return identity.manage ? await this.manageCall(request) : denied
+      case 'cancelSetup':
+      case 'importKeep':
+      case 'importDelete':
+      case 'resetBegin':
+      case 'resetConfirm': {
+        return identity.manage ? await this.manageCall(request, socket) : denied
       }
       case 'setup':
       case 'watch': {
@@ -295,8 +303,13 @@ export class VaultChannelServer {
       }
     }
   }
-  private async manageCall(request: ManageRequest): Promise<VaultBrokerResponse['response']> {
+  private async manageCall(
+    request: ManageRequest,
+    socket: Duplex,
+  ): Promise<VaultBrokerResponse['response']> {
     const manage = this.deps.manage
+    // A requester that closed its connection has cancelled: nothing commits.
+    const isCurrent = () => !socket.destroyed && socket.writable
     try {
       switch (request.kind) {
         case 'snapshot': {
@@ -314,7 +327,23 @@ export class VaultChannelServer {
           break
         }
         case 'import': {
-          await manage.importFile(request.path)
+          const report = await manage.importFile(request.path, isCurrent)
+          return { kind: 'imported', receipt: report.receipt, items: [...report.items] }
+        }
+        case 'importKeep': {
+          await manage.keepImport(request.receipt)
+          break
+        }
+        case 'importDelete': {
+          await manage.deleteImport(request.receipt, isCurrent)
+          break
+        }
+        case 'resetBegin': {
+          const challenge = await manage.resetBegin()
+          return { kind: 'resetChallenge', resetId: challenge.resetId, word: challenge.word }
+        }
+        case 'resetConfirm': {
+          await manage.resetConfirm(request.resetId, request.word)
           break
         }
         case 'confirmSetup': {

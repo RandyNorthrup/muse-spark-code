@@ -21,6 +21,8 @@ import {
 /** The anchor also names the one vault this user owns (lead decision 3). */
 export interface VaultAnchorPort extends VaultGenerationPort {
   vaultId(): Promise<string | null>
+  /** Reset Vault only: removes this vault's record (compare-and-delete). */
+  reset(vaultId: string): Promise<void>
 }
 
 type RepositoryChange = Parameters<Parameters<VaultBrokerRepository['subscribe']>[0]>[0]

@@ -3,6 +3,9 @@
 // broker, OS store or network is used.
 
 import { vi } from 'vitest'
+import { mkdtemp, rm } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
 import { type VaultSlotRecord } from '../../../src/shared/vault'
 import { type VaultStatus } from '../../../src/shared/vaultProtocol'
 import { VaultManagement } from '../../../src/core/vault/broker/management'
@@ -14,10 +17,26 @@ import {
 import { FakeVaultClock, FakeVaultSlot } from '../helpers/vault/core'
 import { MemoryVaultAnchor, MemoryVaultFiles } from './storeFixtures'
 
+const homes: string[] = []
+/** Removes only generated homes owned by this worker's completed tests. */
+export async function cleanupTempHomes(): Promise<void> {
+  for (const home of homes.splice(0)) await rm(home, { recursive: true, force: true })
+}
+/** Creates an isolated generated home, removed after the owning test. */
+export async function tempHome(): Promise<string> {
+  const home = await mkdtemp(path.join(os.tmpdir(), 'cm1091-home-'))
+  homes.push(home)
+  return home
+}
+
 export class AnchorWithId extends MemoryVaultAnchor implements VaultAnchorPort {
   vaultId(): Promise<string | null> {
     const [first] = this.states.keys()
     return Promise.resolve(first ?? null)
+  }
+  reset(vaultId: string): Promise<void> {
+    this.states.delete(vaultId)
+    return Promise.resolve()
   }
 }
 const noUnsubscribe = (): void => {
@@ -29,7 +48,7 @@ export async function stateOf(management: VaultManagement): Promise<string> {
 }
 
 /** `wrapHold` delays the OS-store wrap; the provider reads the key only after it. */
-export function managementFixture(wrapHold?: Promise<void>) {
+export function managementFixture(wrapHold?: Promise<void>, homeDir?: string) {
   const clock = new FakeVaultClock()
   const files = new MemoryVaultFiles()
   const anchor = new AnchorWithId()
@@ -80,7 +99,7 @@ export function managementFixture(wrapHold?: Promise<void>) {
     },
     policyChanged: vi.fn(() => Promise.resolve()),
   }
-  const importFile = vi.fn(() => Promise.resolve())
+  const home = homeDir ?? '/nonexistent-generated-home'
   const management = new VaultManagement({
     files,
     anchor,
@@ -89,7 +108,7 @@ export function managementFixture(wrapHold?: Promise<void>) {
     slots,
     broker,
     clock,
-    importFile,
+    home,
   })
   return {
     clock,
@@ -100,7 +119,6 @@ export function managementFixture(wrapHold?: Promise<void>) {
     unlock,
     broker,
     management,
-    importFile,
     wrapped,
     wrapping,
   }
@@ -126,4 +144,11 @@ export async function lockedVault(f: ReturnType<typeof managementFixture>): Prom
   await f.management.confirmSetup(shown.setupId)
   f.broker.lock()
   return code
+}
+
+/** Sets up a vault and holds its confirmation inside the delayed OS-store wrap. */
+export async function heldSetupConfirmation(f: ReturnType<typeof managementFixture>) {
+  const shown = await f.management.setup()
+  const { confirming } = await heldConfirmation(f, shown.setupId)
+  return { shown, confirming }
 }

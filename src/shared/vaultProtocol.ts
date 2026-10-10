@@ -33,6 +33,7 @@ const digest = z.string().check(z.regex(/^[a-f0-9]{64}$/u))
 const text = vaultWireText
 const counter = vaultWireCounter
 const handle = z.string().check(z.regex(/^secret:\/\/[a-z][a-z0-9-]{0,47}$/u))
+const importReceipt = z.string().check(z.regex(/^[a-f0-9-]{36}$/u))
 const publicItem = vaultItemMetadataSchema.check(
   z.refine((v) => !v.hidden && !v.firstParty && !['devicePair', 'internal'].includes(v.kind)),
 )
@@ -104,6 +105,12 @@ export const vaultBrokerRequestSchema = z.strictObject({
     z.strictObject({ kind: z.literal('setup'), protection: z.literal('auto') }),
     z.strictObject({ kind: z.literal('confirmSetup'), setupId: id }),
     z.strictObject({ kind: z.literal('cancelSetup'), setupId: id }),
+    // After an import: keep the source file, or delete it once verified.
+    z.strictObject({ kind: z.literal('importKeep'), receipt: importReceipt }),
+    z.strictObject({ kind: z.literal('importDelete'), receipt: importReceipt }),
+    // Reset Vault, two steps: a challenge, then the typed confirmation word.
+    z.strictObject({ kind: z.literal('resetBegin') }),
+    z.strictObject({ kind: z.literal('resetConfirm'), resetId: id, word: text }),
   ]),
 })
 export type VaultBrokerRequest = z.infer<typeof vaultBrokerRequestSchema>
@@ -123,6 +130,10 @@ export const VAULT_MANAGE_ONLY_KINDS = [
   'setup',
   'confirmSetup',
   'cancelSetup',
+  'importKeep',
+  'importDelete',
+  'resetBegin',
+  'resetConfirm',
 ] as const satisfies readonly VaultBrokerRequest['request']['kind'][]
 
 /** A ticket states which authority authorized it; a grant always names its audit id. */
@@ -187,6 +198,15 @@ export const vaultBrokerResponseSchema = z.strictObject({
     z.strictObject({ kind: z.literal('ok') }),
     z.strictObject({ kind: z.literal('snapshot'), snapshot: vaultBrokerSnapshotSchema }),
     z.strictObject({ kind: z.literal('publicKey'), publicKey: text }),
+    // The per-item import report: metadata only, never a value.
+    z.strictObject({
+      kind: z.literal('imported'),
+      receipt: importReceipt,
+      items: z
+        .array(vaultItemMetadataSchema)
+        .check(z.minLength(1), z.maxLength(VAULT_LIMITS.items)),
+    }),
+    z.strictObject({ kind: z.literal('resetChallenge'), resetId: id, word: text }),
     // A refused management call names why, without exception text.
     z.strictObject({
       kind: z.literal('refused'),

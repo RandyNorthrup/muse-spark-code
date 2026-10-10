@@ -1555,6 +1555,8 @@ Commands: `museSpark.showLogs`, `museSpark.diagnostics`, `museSpark.reportProble
 
 vaultBroker=absent: The credential vault is unavailable in this build because the broker is not installed.
 
+Work with the per-user credential vault from a terminal: setup, recover, reset, status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.
+
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: `museSpark.vault`, `museSpark.lockVault`. Settings: `museSpark.vault.enabled`, `museSpark.vault.protection`, `museSpark.vault.agentFence`, `museSpark.vault.lockAfterIdleMinutes`, `museSpark.vault.lockOnScreenLock`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-vault)
@@ -3679,7 +3681,7 @@ These are defaults; editor customizations take precedence.
 - `/share chat [--mode full|conversation] [--format md|html|json]`: Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
 - `resources [status|history|resume] [--json]; usage resources [--json]`: Keep this machine responsive by slowing or deferring work started by the harness. On by default.
 - `--version / -v`: Print the installed agent version.
-- `vault`: Work with the per-user credential vault from a terminal: setup, recover, status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.
+- `vault`: Work with the per-user credential vault from a terminal: setup, recover, reset, status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.
 - `vault --help`: Show the per-user credential vault command usage.
 - `providersAdd: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false}`
 - `providersAdd: --as <value>`: --as: Provider `{"type":"string","repeatable":false}`

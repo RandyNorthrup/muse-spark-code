@@ -19,7 +19,7 @@ import {
   vaultStatusSchema,
 } from '../../shared/vaultProtocol'
 import { vaultApprovalText, vaultDecisionChoices } from './vaultApproval'
-import type { VaultManagementPort } from '../../core/vault/broker/ports'
+import type { VaultImportReport, VaultManagementPort } from '../../core/vault/broker/ports'
 
 const auditFilterSchema = z.strictObject({
   item: z.optional(vaultAuditRecordSchema.shape.handle),
@@ -31,7 +31,10 @@ type AuditFilter = z.infer<typeof auditFilterSchema>
 
 export type VaultReadCommand = 'status' | 'list' | 'lock' | 'audit'
 export type VaultCommandOptions =
-  | { command: VaultReadCommand | 'watch' | 'setup' | 'recover'; filters?: AuditFilter }
+  | {
+      command: VaultReadCommand | 'watch' | 'setup' | 'recover' | 'reset'
+      filters?: AuditFilter
+    }
   | { command: 'unlock'; slotId: string | null }
   | { command: 'add'; metadata: VaultItemMetadata }
   | { command: 'grant'; grant: VaultGrant }
@@ -53,7 +56,12 @@ export interface VaultCommandPort extends Pick<
   remove(itemId: string): Promise<void>
   grant(grant: VaultGrant): Promise<void>
   revoke(grantId: string): Promise<void>
-  importFile(path: string): Promise<void>
+  importFile(path: string): Promise<VaultImportReport>
+  keepImport(receipt: string): Promise<void>
+  deleteImport(receipt: string): Promise<void>
+  /** Reset Vault (lead decision): only for a lost vault; two steps. */
+  resetBegin(): Promise<{ resetId: string; word: string }>
+  resetConfirm(resetId: string, word: string): Promise<void>
   publicKey(itemId: string): Promise<unknown>
   watch(signal: AbortSignal): AsyncIterable<unknown>
   answer(answer: VaultApprovalAnswer): Promise<unknown>
@@ -75,7 +83,7 @@ export interface VaultCommandDeps {
 }
 
 export function vaultUsage(): string {
-  return `${UI_TEXT.vault.title}: setup | recover | status | unlock [slot-id] | lock | list | add <metadata-json> | remove <item-id> | grant <grant-json> | revoke <grant-id> | audit [--item <handle>] [--requester <id>] [--kind <kind>] [--outcome <outcome>] | import <path> | public-key <item-id> | watch`
+  return `${UI_TEXT.vault.title}: setup | recover | reset | status | unlock [slot-id] | lock | list | add <metadata-json> | remove <item-id> | grant <grant-json> | revoke <grant-id> | audit [--item <handle>] [--requester <id>] [--kind <kind>] [--outcome <outcome>] | import <path> | public-key <item-id> | watch`
 }
 
 /** Parse without echoing supplied arguments or JSON errors (they can contain an accidental value). */
@@ -97,7 +105,7 @@ export function parseVaultCommand(args: readonly string[]): VaultCommandOptions 
       return { command, filters: auditFilterSchema.parse(parsed.values) }
     }
     if (rest.length > 0) return undefined
-    const read = (['status', 'list', 'lock', 'watch', 'setup', 'recover'] as const).find(
+    const read = (['status', 'list', 'lock', 'watch', 'setup', 'recover', 'reset'] as const).find(
       (candidate) => candidate === command,
     )
     if (argument === undefined && read !== undefined) return { command: read }
@@ -263,6 +271,56 @@ async function watch(port: VaultCommandPort, deps: VaultCommandDeps): Promise<vo
   }
 }
 
+/** All items or none; a per-item report of names only, then Keep or Delete the source. */
+async function importFile(
+  port: VaultCommandPort,
+  deps: VaultCommandDeps,
+  path: string,
+): Promise<number> {
+  const report = await port.importFile(path)
+  deps.print(
+    fill(UI_TEXT.vault.importedSummary, {
+      names: report.items.map((item) => `${item.name} (${item.kind})`).join(', '),
+    }),
+  )
+  if (!deps.isInteractive) return 0
+  let answer = 'keep'
+  try {
+    answer = await deps.choose(UI_TEXT.vault.importKeepOrDelete, ['keep', 'delete'], deps.signal)
+  } catch {
+    /* EOF, timeout and cancellation keep the file. */
+  }
+  if (answer === 'delete') await port.deleteImport(report.receipt)
+  else await port.keepImport(report.receipt)
+  return 0
+}
+/** Reset Vault: a lost vault only; the warning, Continue, then the typed word. */
+async function resetVault(port: VaultCommandPort, deps: VaultCommandDeps): Promise<number> {
+  if (!deps.isInteractive) {
+    deps.printError(UI_TEXT.vault.setupHeadless)
+    return 1
+  }
+  const challenge = await port.resetBegin()
+  deps.printError(UI_TEXT.vault.resetWarning)
+  let answer = 'cancel'
+  try {
+    answer = await deps.choose(UI_TEXT.vault.resetVault, ['continue', 'cancel'], deps.signal)
+  } catch {
+    /* EOF, timeout and cancellation cancel the reset. */
+  }
+  if (answer !== 'continue') return 1
+  const typed = await deps.readLine(
+    `${fill(UI_TEXT.vault.resetTypeWord, { word: challenge.word })} `,
+    deps.signal,
+  )
+  try {
+    await port.resetConfirm(challenge.resetId, typed.toString('utf8'))
+  } finally {
+    typed.fill(0)
+  }
+  deps.printError(UI_TEXT.vault.resetDone)
+  return 0
+}
 /** Shown once; the vault exists only after "I Saved It" (lead decision 8). */
 async function setUpVault(port: VaultCommandPort, deps: VaultCommandDeps): Promise<number> {
   if (!deps.isInteractive) {
@@ -348,7 +406,11 @@ export async function runVaultCommand(
         break
       }
       case 'import': {
-        await port.importFile(options.path)
+        code = await importFile(port, deps, options.path)
+        break
+      }
+      case 'reset': {
+        code = await resetVault(port, deps)
         break
       }
       case 'public-key': {

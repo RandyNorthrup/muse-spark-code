@@ -11,7 +11,7 @@ import { VaultStoreUnavailableError } from '../../../src/core/vault/broker/ports
 import { vaultRefusalMessage } from '../../../src/core/vault/broker/manageClient'
 import { grant, metadata } from '../helpers/vault/fixtures'
 import { heldWriteVault } from './storeFixtures'
-import { heldConfirmation, managementFixture, stateOf } from './managementFixture'
+import { heldSetupConfirmation, managementFixture, stateOf } from './managementFixture'
 
 const item = (): VaultItem => ({
   metadata: metadata(),
@@ -64,8 +64,7 @@ describe('RVCM1091B part A', () => {
     const release = Promise.withResolvers<undefined>()
     const f = managementFixture(release.promise)
     vi.spyOn(f.osStore, 'wrap').mockRejectedValueOnce(new Error('generated wrap failure'))
-    const shown = await f.management.setup()
-    const { confirming } = await heldConfirmation(f, shown.setupId)
+    const { shown, confirming } = await heldSetupConfirmation(f)
     f.management.noteLocked(1)
     release.resolve(undefined)
     await expect(confirming).rejects.toMatchObject({ reason: 'io' })

@@ -4,7 +4,15 @@
 // callbacks to noteApproval/noteLocked/noteRevoked.
 
 import { randomBytes } from 'node:crypto'
-import { VAULT_APPROVAL_TTL_MS, VAULT_KEY_BYTES, VAULT_LIMITS } from '../../../shared/constants'
+import nodePath from 'node:path'
+import {
+  UI_TEXT,
+  VAULT_APPROVAL_TTL_MS,
+  VAULT_KEY_BYTES,
+  VAULT_LIMITS,
+  VAULT_RESET_WORD,
+} from '../../../shared/constants'
+import { fill } from '../../../shared/l10n/text'
 import {
   vaultItemMetadataSchema,
   type VaultApprovalRequest,
@@ -21,7 +29,16 @@ import {
 import { eraseVaultMaterial, randomVaultBytes, VaultError } from '../crypto'
 import { createRecoverySlot, unlockRecoverySlot } from '../keyslots'
 import { VaultStore, type VaultFilePort } from '../store'
-import { VaultManagementError, VaultStoreUnavailableError, type VaultManagementPort } from './ports'
+import { discoverAmbientFiles } from '../migrate/ambient'
+import { VaultFileImporter, type VaultFileImportPort } from '../migrate/importFile'
+import { VaultMigrationFault, type MigrationOwnerPort } from '../migrate/ports'
+import { prepareImportItems } from '../migrate/prepareImport'
+import {
+  VaultManagementError,
+  VaultStoreUnavailableError,
+  type VaultImportReport,
+  type VaultManagementPort,
+} from './ports'
 import {
   type VaultAnchorPort,
   type VaultSlotProvider,
@@ -43,8 +60,76 @@ export interface VaultManagementDeps {
   readonly slots: Pick<VaultSlotProvider, 'osStore'>
   readonly broker: VaultManagementBroker
   readonly clock: VaultClockPort
-  /** M's file importer over the open store's encrypted batch writer. */
-  readonly importFile: (path: string) => Promise<void>
+  /** The user's home: only files discovered there (M's ambient list) are imported. */
+  readonly home: string
+}
+interface PendingReset {
+  readonly id: string
+  readonly vaultId: string
+  readonly expiresAt: number
+}
+/** Receipts keep the file identity's bigints across the store's JSON. */
+function encodeReceipt(record: unknown): string {
+  return JSON.stringify(record, (_key, value: unknown) =>
+    typeof value === 'bigint' ? { bigint: value.toString() } : value,
+  )
+}
+function decodeReceipt(raw: string): unknown {
+  return JSON.parse(raw, (_key, value: unknown) =>
+    typeof value === 'object' &&
+    value !== null &&
+    'bigint' in value &&
+    typeof value.bigint === 'string' &&
+    Object.keys(value).length === 1
+      ? BigInt(value.bigint)
+      : value,
+  )
+}
+/** The open store as M's batch import port. */
+function importPort(store: VaultStore): VaultFileImportPort {
+  return {
+    list: async () => await store.list(),
+    read: async (id) => await store.read(id),
+    writeBatch: async (items, receipt, verify, authorize) => {
+      await store.writeBatch(
+        items,
+        { id: receipt.id, record: encodeReceipt(receipt.record) },
+        verify,
+        authorize,
+      )
+    },
+    readReceipt: async (id) => {
+      const raw = await store.readReceipt(id)
+      return raw === null ? null : decodeReceipt(raw)
+    },
+    forgetReceipt: async (id, authorize) => {
+      await store.forgetReceipt(id, authorize)
+    },
+  }
+}
+/** One spelling per file: resolved, and case-insensitive on Windows (any drive). */
+function importPathKey(file: string): string {
+  const resolved = nodePath.resolve(file)
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved
+}
+/** M's refusals as the management reason; nothing of the file reaches it. */
+function importRefusal(error: unknown): unknown {
+  if (!(error instanceof VaultMigrationFault)) return error
+  switch (error.code) {
+    case 'conflict': {
+      return new VaultManagementError('exists')
+    }
+    case 'window': {
+      return new VaultManagementError('locked')
+    }
+    case 'storage': {
+      return new VaultManagementError('io')
+    }
+    case 'invalid':
+    case 'verification': {
+      return new VaultManagementError('invalid')
+    }
+  }
 }
 interface PendingSetup {
   readonly setupId: string
@@ -75,6 +160,11 @@ export class VaultManagement implements VaultManagementPort {
   private pending: PendingSetup | null = null
   /** A setup whose "I Saved It" is being committed: owned here, never expired underneath. */
   private confirming: PendingSetup | null = null
+  private pendingReset: PendingReset | null = null
+  /** Rises at every Lock: an operation that started earlier never finishes after it. */
+  private lockGeneration = 0
+  /** One importer per open store: Keep cancels that window's in-flight Delete. */
+  private importer: { store: VaultStore; importer: VaultFileImporter } | null = null
   /** Set by Lock during a confirmation: its key is erased, never restored to pending. */
   private isConfirmationCancelled = false
   private readonly approvals = new Map<string, VaultApprovalRequest>()
@@ -133,11 +223,14 @@ export class VaultManagement implements VaultManagementPort {
   }
 
   private async recoverNow(code: Uint8Array): Promise<void> {
+    const generation = this.lockGeneration
     // Already unlocked: nothing to recover, so no key is unwrapped at all
     // outside the broker's Lock cleanup (RVCM1091B 2).
     const status = await this.deps.broker.status()
+    this.assertSameLock(generation)
     if (status.state === 'unlocked') return
     const records = await this.deps.unlock.records()
+    this.assertSameLock(generation)
     const slot = records.find((record) => record.tier === 'recovery')
     if (slot === undefined) throw new VaultManagementError('invalid')
     let key: Buffer
@@ -155,13 +248,48 @@ export class VaultManagement implements VaultManagementPort {
     }
     this.changed()
   }
+  /** Thrown at every await boundary of an operation a Lock overtook. */
+  private assertSameLock(generation: number): void {
+    if (this.lockGeneration !== generation) throw new VaultManagementError('locked')
+  }
+  private async anchoredId(): Promise<string | null> {
+    try {
+      return await this.deps.anchor.vaultId()
+    } catch (error: unknown) {
+      throw storeRefusal(error)
+    }
+  }
+  /** M's importer bound to the open store; a lease is current only while that store is. */
+  private fileImporter(): VaultFileImporter {
+    const store = this.store()
+    if (this.importer?.store === store) return this.importer.importer
+    this.importer?.importer.dispose()
+    const owner: MigrationOwnerPort = {
+      run: async (work) =>
+        await this.serialize(
+          async () =>
+            await work({
+              assertCurrent: () => {
+                if (this.store() !== store) throw new VaultMigrationFault('window')
+                store.assertOpen()
+              },
+            }),
+        ),
+    }
+    const importer = new VaultFileImporter(importPort(store), owner)
+    this.importer = { store, importer }
+    return importer
+  }
   noteApproval(request: VaultApprovalRequest): void {
     this.approvals.set(request.id, structuredClone(request))
     this.emit({ kind: 'approval', v: 2, request })
   }
   noteLocked(epoch: number): void {
     // Lock ends everything: an unconfirmed setup's key and any offered
-    // recovery key are erased with the broker's own (RVCM1091B 2).
+    // recovery key are erased with the broker's own (RVCM1091B 2), and every
+    // operation already running stops at its next await (RVCM1091A2 P2).
+    this.lockGeneration += 1
+    this.pendingReset = null
     this.discard()
     if (this.confirming !== null) this.isConfirmationCancelled = true
     this.deps.unlock.discardRecovery()
@@ -179,6 +307,17 @@ export class VaultManagement implements VaultManagementPort {
   async snapshot(): Promise<VaultBrokerSnapshot> {
     const pending = this.current() ?? this.confirming
     const broker = await this.deps.broker.status()
+    if (pending === null) {
+      const anchored = await this.anchoredId()
+      if (anchored !== null && (await VaultStore.isLost(this.deps.files, anchored)))
+        return {
+          status: { ...broker, state: 'unavailable', reason: 'vaultLost' },
+          setupId: null,
+          items: [],
+          grants: [],
+          pending: [],
+        }
+    }
     const hasVault = await VaultStore.exists(this.deps.files)
     let state: VaultStatus['state'] = hasVault ? broker.state : 'uncreated'
     if (pending !== null) state = 'setupPending'
@@ -243,9 +382,123 @@ export class VaultManagement implements VaultManagementPort {
     await this.deps.broker.policyChanged(itemId)
     this.changed()
   }
-  async importFile(path: string): Promise<void> {
-    this.store()
-    await this.deps.importFile(path)
+  async importFile(path: string, isCurrent: () => boolean): Promise<VaultImportReport> {
+    const generation = this.lockGeneration
+    const importer = this.fileImporter()
+    const discovered = await discoverAmbientFiles(this.deps.home)
+    this.assertSameLock(generation)
+    const requested = importPathKey(path)
+    const file = discovered.find((entry) => importPathKey(entry.path) === requested)
+    if (file === undefined) throw new VaultManagementError('invalid')
+    let report: VaultImportReport
+    try {
+      report = await importer.import(
+        file,
+        (kind, bytes) => {
+          try {
+            return Promise.resolve(
+              prepareImportItems(kind, bytes, {
+                now: this.deps.clock.now(),
+                label: (source, number) => fill(UI_TEXT.vault.importedLabel, { source, number }),
+              }),
+            )
+          } catch (error: unknown) {
+            return Promise.reject(
+              error instanceof Error ? error : new VaultMigrationFault('invalid'),
+            )
+          }
+        },
+        () => {
+          // Cancelled requester (closed connection) or a Lock since the start:
+          // nothing commits (lead decision; RVCM1091A2 P2).
+          if (!isCurrent() || this.lockGeneration !== generation)
+            throw new VaultMigrationFault('window')
+        },
+      )
+    } catch (error: unknown) {
+      throw importRefusal(error)
+    }
+    this.changed()
+    return report
+  }
+  async keepImport(receipt: string): Promise<void> {
+    try {
+      await this.fileImporter().keep(receipt)
+    } catch (error: unknown) {
+      throw importRefusal(error)
+    }
+  }
+  async deleteImport(receipt: string, isCurrent: () => boolean): Promise<void> {
+    const generation = this.lockGeneration
+    try {
+      await this.fileImporter().deleteSource(receipt, () => {
+        if (!isCurrent() || this.lockGeneration !== generation)
+          throw new VaultMigrationFault('window')
+      })
+    } catch (error: unknown) {
+      throw importRefusal(error)
+    }
+  }
+  /** Reset Vault step 1 (lead decision): refused unless the anchored vault is lost. */
+  async resetBegin(): Promise<{ resetId: string; word: string }> {
+    return await this.serialize(async () => {
+      if (this.current() !== null || this.confirming !== null)
+        throw new VaultManagementError('invalid')
+      const generation = this.lockGeneration
+      const anchored = await this.anchoredId()
+      if (anchored === null || !(await VaultStore.isLost(this.deps.files, anchored)))
+        throw new VaultManagementError('invalid')
+      this.assertSameLock(generation)
+      const resetId = newId()
+      this.pendingReset = {
+        id: resetId,
+        vaultId: anchored,
+        expiresAt: this.deps.clock.now() + VAULT_APPROVAL_TTL_MS,
+      }
+      return { resetId, word: VAULT_RESET_WORD }
+    })
+  }
+  /**
+   * Step 2: the exact word for this challenge, the same lost vault, then the
+   * audit line, the files (displaced document retained) and the anchor.
+   * Rollback protection restarts with the next setup's new anchor.
+   */
+  async resetConfirm(resetId: string, word: string): Promise<void> {
+    await this.serialize(async () => {
+      const pending = this.pendingReset
+      this.pendingReset = null
+      if (
+        word !== VAULT_RESET_WORD ||
+        pending?.id !== resetId ||
+        this.deps.clock.now() >= pending.expiresAt
+      )
+        throw new VaultManagementError('invalid')
+      const generation = this.lockGeneration
+      const anchored = await this.anchoredId()
+      this.assertSameLock(generation)
+      if (anchored !== pending.vaultId) throw new VaultManagementError('invalid')
+      const audit = JSON.stringify({
+        v: 1,
+        kind: 'vaultReset',
+        at: this.deps.clock.now(),
+        previousVaultId: anchored,
+      })
+      try {
+        await VaultStore.resetLost(this.deps.files, anchored, audit, () => {
+          this.assertSameLock(generation)
+        })
+      } catch (error: unknown) {
+        if (error instanceof VaultManagementError) throw error
+        // Not lost any more (a vault reappeared) or the files refused: nothing reset.
+        throw new VaultManagementError('invalid')
+      }
+      this.assertSameLock(generation)
+      try {
+        await this.deps.anchor.reset(anchored)
+      } catch (error: unknown) {
+        throw storeRefusal(error)
+      }
+    })
     this.changed()
   }
   async publicKey(itemId: string): Promise<string> {
@@ -259,6 +512,7 @@ export class VaultManagement implements VaultManagementPort {
   async setup(): Promise<{ setupId: string; code: Buffer }> {
     return await this.serialize(async () => {
       if (this.current() !== null) throw new VaultManagementError('exists')
+      const generation = this.lockGeneration
       let anchored: string | null
       try {
         anchored = await this.deps.anchor.vaultId()
@@ -270,6 +524,7 @@ export class VaultManagement implements VaultManagementPort {
       if (anchored === null) await VaultStore.discardAbandonedCreation(this.deps.files)
       if (anchored !== null || (await VaultStore.exists(this.deps.files)))
         throw new VaultManagementError('exists')
+      this.assertSameLock(generation)
       const vaultId = newId()
       const key = randomVaultBytes(VAULT_KEY_BYTES)
       try {
@@ -292,7 +547,9 @@ export class VaultManagement implements VaultManagementPort {
   }
   /** "I Saved It": only now is the vault written, wrapped in the OS store, then unlocked. */
   async confirmSetup(setupId: string): Promise<void> {
+    let generation = this.lockGeneration
     await this.serialize(async () => {
+      generation = this.lockGeneration
       const pending = this.current()
       if (pending?.setupId !== setupId) throw new VaultManagementError('invalid')
       // Take ownership before the first await: expiry or a snapshot can no
@@ -307,12 +564,17 @@ export class VaultManagement implements VaultManagementPort {
         } catch (error: unknown) {
           throw storeRefusal(error)
         }
+        // Locked while wrapping: nothing is created and the key is erased below.
+        this.assertSameLock(generation)
         let store: VaultStore
         try {
           store = await VaultStore.create(
             { files: this.deps.files, anchor: this.deps.anchor, key: pending.key },
             pending.vaultId,
             [osStore, pending.recovery],
+            () => {
+              this.assertSameLock(generation)
+            },
           )
         } catch (error: unknown) {
           throw error instanceof VaultStoreUnavailableError ? storeRefusal(error) : error
@@ -331,6 +593,9 @@ export class VaultManagement implements VaultManagementPort {
       }
       this.changed()
     })
+    // A Lock during the confirmation never ends unlocked: the vault exists,
+    // locked, and the person unlocks it again (RVCM1091A2 P2).
+    this.assertSameLock(generation)
     try {
       await this.deps.broker.unlock(null)
     } catch {

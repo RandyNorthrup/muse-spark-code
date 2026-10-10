@@ -7828,6 +7828,10 @@ export const VAULT_KEY_BYTES = 32
 export const VAULT_NONCE_BYTES = 12
 export const VAULT_TAG_BYTES = 16
 export const VAULT_RECOVERY_BYTES = 20
+// Reset Vault's fixed confirmation word, typed exactly (lead decision 2026-10-10).
+export const VAULT_RESET_WORD = 'RESET'
+// Random bytes in an imported item's name, so a second import never collides.
+export const VAULT_IMPORT_NAME_BYTES = 3
 export const VAULT_KDF = {
   argon2: { memoryKiB: 65_536, iterations: 3, parallelism: 4 },
   scrypt: { N: 131_072, r: 8, p: 1 },
