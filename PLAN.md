@@ -38381,10 +38381,11 @@ and a strict production-schema regression; never relax the message schema.
 - [x] Reconstruct all 9,792 historical frames; compare all 1,632 light-theme candidate frames.
 - [x] Classify 120 observed changed scenes; stop on three class-(d) release-note scenes.
 - [ ] Complete all themes/shards and per-frame approval review under the resolved round-2 authorization.
-- [ ] Refresh approved baselines, all README shots, fingerprint and current audit hashes; perform the old-baseline drill.
+- [x] Regenerate all 19 README shots, update their input fingerprint and refresh 20 current audit source hashes.
+- [ ] Refresh approved baselines and perform the old-baseline drill.
 - [x] Run owning suites and scoped gates; record the blocked outcome, source restoration drill and hooks-on repairs.
 
-**Stopped outcome.** The complete light matrix has 1,440 over-allowance frames
+**Round 1 historical stopped outcome.** The complete light matrix has 1,440 over-allowance frames
 in 120 scenes: 116 label-only scenes, `models-errors` with labels and the
 provider repair's error/blocker list, and three What's New content scenes.
 Question spacing is already in the recorded source. No observed control-state
@@ -38404,6 +38405,12 @@ update, then regenerate every README shot and freshness record. Require the
 full official replay and owning suites at repository timeouts, plus an
 old-baseline failure and byte-exact restoration. Aggregate quality and the
 inherited duplication repair remain lead-owned; no merge or push.
+All 19 curated README captures are regenerated and inspected; 18 change and
+`languages.png` is byte-identical. The 20 stale current audit rows are refreshed
+without changing historical grades or evidence. Their complete owning suites
+pass 95 cases at repository deadlines. Per-frame review is complete for light,
+dark and high-contrast dark; the other three themes and official baseline
+update/replay and restoration drill remain in progress.
 
 **PROVWIZ10 scoped qualification (2026-10-09, complete).** Both RVPROVWIZ9C
 P2 repairs pass production/shared-form regressions, including genuine concurrent
