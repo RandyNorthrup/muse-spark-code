@@ -443,15 +443,10 @@ function modelApiManager(
         return await headlessProviders.accountId()
       },
     }),
-    ...(deps.exec?.providerRun !== undefined && {
-      // M106 R2: the selected BYO record resolves through the same registry
-      // the provider run streams with, so the entry's per-request suppliers
-      // bind the selected record instead of the legacy caps.
-      createProviders: () =>
-        headlessProviders === undefined
-          ? Promise.reject(new Error(UI_TEXT.modelsPanelUnavailable))
-          : Promise.resolve(headlessProviders.registry),
-    }),
+    // RVCM1062B P1: no raw-registry resolver here. The entry binds the
+    // selected record through the session client's own resolver, which is
+    // the accounting-wrapped headless client, so every priced request keeps
+    // its daily reservation and run-ledger admission/settlement.
     ...(deps.exec !== undefined && { streamIdleMs: deps.exec.streamIdleMs }),
     newId: () => randomUUID(),
     now: () => Date.now(),
