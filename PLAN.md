@@ -19984,6 +19984,15 @@ No production webview file is edited here. The next attempt passes under
 the unchanged policy; the failed attempt remains evidence, not a red drill.
 See `docs/certification/m114-s-after/c3-highlight-readiness.json`.
 
+**Q-CM1072R2 native delivery qualification (2026-10-10).** RVCM1072
+correctly leaves the clean installed-VSIX macOS 15/26, prompt-free launch,
+arm64 execution and actual older-editor/runtime matrix unconfirmed. The
+Mac mini is x86_64 on macOS 15; compiling/signing arm64 and simulating libuv
+1.51 do not supply those receipts. This is a hardware/editor qualification
+blocker, not a demonstrated Gatekeeper defect. The lead must arrange that
+matrix before claiming native delivery qualification; no signing/security
+setting is changed or approval bypass introduced by this lifecycle repair.
+
 ## 4. Architecture
 
 ```
@@ -31982,6 +31991,23 @@ No dependency, budget increase, paid/live request, push or rebase. Full aggregat
 quality/coverage and non-Linux native receipts remain the lead's release gate.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
+
+**CM1072R2 — RVCM1072 lifecycle repair (2026-10-10).** Forward sampler
+disposal through the runtime host's settings wrapper. Sweep the same ownership
+chain in the window, lazy runtime, ACP/CLI and headless shutdown paths; prove
+helper PID retirement on normal, failed, interrupted and in-flight teardown.
+Every regression runs at repository deadlines and gets a deliberately red,
+byte-exact restoration receipt in `docs/certification/m107-darwin-memory.md`.
+No dependency, guard, command, setting or bundle cap changes. Clean installed
+VSIX, macOS 26 and arm64 execution qualification remains an external hardware/
+editor receipt; this x86_64 macOS 15 rig cannot certify it. The rig/common brief
+keeps aggregate quality and hosted cross-platform checks with the lead.
+Scoped certification: the three-line disposal forwarding fix passes 213 distinct
+tests; four ownership guard mutations fail (10, 11, 1 and 4 cases respectively)
+and restore byte-exact. The runtime/window/lazy/headless sweep finds no sibling
+wrapper dropping disposal. Scoped static/build gates and unchanged caps pass;
+only the external native delivery qualification matrix remains unconfirmed.
+Evidence: `docs/certification/m107-darwin-memory.md` and its R2 drill receipt.
 
 **C-M107-2 — older macOS memory headroom (2026-10-10).** Scope: D87.4's
 request-driven memory mode in the existing signed Darwin helper, shared by

@@ -74,6 +74,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Runtime resource cleanup on older macOS** (CM1072R2). CLI, ACP and
+  headless shutdown now forward disposal to the sampler's memory helper,
+  so a resource status command exits normally and no helper keeps the
+  runtime alive after shutdown.
+
 - macOS resource headroom includes inactive and purgeable pages on runtimes
   with libuv older than 1.52, including Node 22 and older extension hosts.
   The existing signed helper handles one request per sample in one child per

@@ -27,6 +27,7 @@ export async function runtimeResources(
   const clock = new FakeResourceClock()
   const reading: Partial<ResourceSample> = {}
   const sampler = {
+    dispose: vi.fn(),
     sample: vi.fn(() =>
       Promise.resolve({
         atMs: clock.now(),
