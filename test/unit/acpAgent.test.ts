@@ -33,6 +33,7 @@ import { createRuntimeQuestionRegistry } from '../../src/runtime/questions/acpRe
 import { removeFolder } from './helpers/temporaryFolders'
 import { parsePlaybookCommand, runPlaybookCommand } from '../../src/runtime/playbook/command'
 import type { AgentHost, AgentSession, ModelSummary } from '../../src/core/agent/agentBackend'
+import { SessionNotLoadedError } from '../../src/core/agent/agentBackend'
 import type {
   AgentEvent,
   ApprovalChoice,
@@ -920,8 +921,10 @@ describe('the ACP agent (M63)', () => {
       })
     })
 
-    it('refuses a legal scan that fails instead of sending a model turn', async () => {
-      const h = harness({ legalScan: () => Promise.reject(new Error('no scanner')) })
+    it('refuses an unloadable legal scanner instead of sending a model turn', async () => {
+      const h = harness({
+        legalScan: () => Promise.reject(new Error(UI_TEXT.legalScanUnavailable)),
+      })
       await h.run(async (client) => {
         const { sessionId } = await start(client)
         await expect(prompt(client, sessionId, '/legal')).rejects.toMatchObject({
@@ -931,6 +934,59 @@ describe('the ACP agent (M63)', () => {
         expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
       })
     })
+
+    it('keeps a scanner programming fault internal, with no raw text on the wire', async () => {
+      const h = harness({
+        legalScan: () => Promise.reject(new TypeError('scan render boom')),
+      })
+      await h.run(async (client) => {
+        const { sessionId } = await start(client)
+        let failure: unknown
+        try {
+          await prompt(client, sessionId, '/legal')
+        } catch (error: unknown) {
+          failure = error
+        }
+        expect(failure).toMatchObject({
+          code: acp.RequestError.internalError().code,
+          message: expect.stringContaining(UI_TEXT.actionFailed),
+        })
+        expect(JSON.stringify(failure)).not.toContain('scan render boom')
+        expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+      })
+    })
+
+    it.each([
+      ['session/set_mode', { modeId: 'plan' }, 'setApprovalMode'],
+      ['session/set_config_option', { configId: 'model', value: 'muse-spark-1.3' }, 'setModel'],
+      ['session/set_config_option', { configId: 'effort', value: 'low' }, 'setReasoningEffort'],
+    ] as const)(
+      'reads an evicted backend session as a missing resource on %s, never internal error',
+      async (method, params, backendCall) => {
+        const h = harness()
+        await h.run(async (client) => {
+          const { sessionId } = await start(client)
+          const session = h.host.sessions[0]
+          session?.[backendCall].mockRejectedValueOnce(
+            new SessionNotLoadedError(sessionId, 'the host evicted this session'),
+          )
+          let failure: unknown
+          try {
+            await client.request<unknown, Record<string, unknown>>(method, {
+              sessionId,
+              ...params,
+            })
+          } catch (error: unknown) {
+            failure = error
+          }
+          expect(failure).toMatchObject({
+            code: acp.RequestError.resourceNotFound(sessionId).code,
+            message: expect.stringContaining(sessionId),
+          })
+          expect(JSON.stringify(failure)).not.toContain('evicted')
+        })
+      },
+    )
 
     it('refuses a turn the backend would not take', async () => {
       const h = harness()

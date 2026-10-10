@@ -396,4 +396,49 @@ describe('M109 H ACP vault', () => {
       expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
     })
   })
+  it('DFACPERR2 refuses a broker that cannot start, keeps a broker fault internal', async () => {
+    const refused = harness()
+    refused.commands.deps.open.mockRejectedValueOnce(new Error(UI_TEXT.vault.brokerBlocked))
+    await refused.run(async (client) => {
+      const { sessionId } = await start(client)
+      await expect(
+        client.request('session/prompt', {
+          sessionId,
+          prompt: [{ type: 'text', text: '/vault status' }],
+        }),
+      ).rejects.toMatchObject({
+        code: acp.RequestError.invalidRequest().code,
+        message: expect.stringContaining(UI_TEXT.vault.brokerBlocked),
+      })
+      expect(refused.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    })
+  })
+  it.each([
+    ['a throwing broker', new TypeError('status pipe boom')],
+    ['a malformed broker status', { state: 'bogus' }],
+  ])('DFACPERR2 keeps %s internal with no raw text on the wire', async (_label, broken) => {
+    const h = harness()
+    if (broken instanceof Error) h.commands.port.status.mockRejectedValueOnce(broken)
+    else h.commands.port.status.mockResolvedValueOnce(broken)
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      let failure: unknown
+      try {
+        await client.request('session/prompt', {
+          sessionId,
+          prompt: [{ type: 'text', text: '/vault status' }],
+        })
+      } catch (error: unknown) {
+        failure = error
+      }
+      expect(failure).toMatchObject({
+        code: acp.RequestError.internalError().code,
+        message: expect.stringContaining(UI_TEXT.actionFailed),
+      })
+      const wire = JSON.stringify(failure)
+      expect(wire).not.toContain('boom')
+      expect(wire).not.toContain('bogus')
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    })
+  })
 })
