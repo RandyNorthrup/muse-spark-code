@@ -113,7 +113,11 @@ is waiting for its named credential or local server/model/version. OpenAI,
 Azure, Anthropic, Gemini, xAI, OpenRouter, Groq, DeepSeek, Mistral, Together,
 Fireworks, Hugging Face, Z.ai and custom have no supplied keys. No Ollama,
 LM Studio, vLLM or llama.cpp executable is found on PATH, and no running
-endpoint/model was supplied. Prior M95 captures are retained as historical
+endpoint/model was supplied. Four additional unauthenticated models-list
+GETs at the preset default loopback ports (11434, 1234, 8000 and 8080) all
+fail with connection refused. The manifest counts and hashes this discovery
+separately: zero inference attempts and no HTTP response or vendor frame.
+Prior M95 captures are retained as historical
 evidence; no provider inherits Meta's headers or capabilities. No local server
 or parser is invented to manufacture a successful receipt.
 
@@ -157,13 +161,17 @@ shared common.md's old Model API 475 KiB note is stale: this base's PLAN §7
 and `scripts/check-bundle-size.mjs` already specify 525 KiB. This lane changes
 no size gate. No new collector, fixture or test is a shipped bundle entry.
 
-[The 19 drill receipts](m106-completion-drills.json) name mutations, exact
+[The 26 drill receipts](m106-completion-drills.json) name mutations, exact
 failing tests, nonzero exits and matching before/restored SHA-256. They cover
 literal-key scrubbing, encrypted-reasoning omission, key preflight, complete
 SSE framing, status validation, strict-refusal status, stream completion,
 item identity, exact delta/done bytes, output cap, incomplete status, body
 bounds, redirects, header allowlisting, pre-dispatch counts, key cleanup,
-existing-directory refusal, feedback disclosure and provider coverage.
+existing-directory refusal, feedback disclosure and provider coverage. The
+final seven also prove offline help/plan output, unsuccessful CLI exit, the
+complete stream validator, catalogue defaults, lifecycle reasons and rejected
+probe kinds. All 26 new test cases have been observed failing; the receipts
+list their full names under `observedFailingTests`.
 
 One exploratory delta/done mutation initially stayed green: the test's
 `{}` done argument also failed the later answer schema. It is not counted.
@@ -171,6 +179,7 @@ The test now uses valid arguments with different whitespace, so removing
 byte correlation returns a valid answer and fails that named test. The
 repeated drill fires and restores exactly; the final whole-file run passes.
 
-Hook-on commit output is retained in ignored `temp/cm1061/commit.log`.
+Hook-on commit output is retained in ignored `temp/cm1061/commit.log` and
+`temp/cm1061/commit-certification.log`.
 The reviewed index and committed patch are re-read after the hook, including
 any rewrite, as AGENTS rule 15 requires. Lead review remains outstanding.
