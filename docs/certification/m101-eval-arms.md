@@ -26,7 +26,7 @@ binding they draw, by canonical value — `src/core/eval/armSources.ts`
 walks the static import graph instead of a hand-kept list, and fails
 closed on anything it cannot cover):
 
-`d277f9d0e9a6d4bfce96ee6852104378ba4ce20cf24c8a2f676ca5079fa4c0b9`
+`9cfc4744b831524577ec068d8079830f4a1f1b24a29690210a442f4983786278`
 
 `test/unit/eval/evalFrozen.test.ts` pins the arm list, the task list and
 the digest. Any arm or task change breaks it on purpose; re-freeze by
@@ -44,7 +44,16 @@ strip pass that replaced every template with `""`, so ``import(`${name}`)``
 and `import("pre" + name)` read as literals and indirect spellings
 (`module.require`, `require?.()`, aliases, `createRequire(…)(…)`,
 `require.call`, `new Worker(…)`) were never refused. The refusal below is
-parsed with the TypeScript compiler. Details in the R5 section.)
+parsed with the TypeScript compiler. Details in the R5 section.
+2026-10-10 R6 re-freeze: review RVCM1012E findings 1–2. The previous
+digest `d277f9d0…fa4c0b9` named only eight loader shapes, so the same
+class stayed open (`import.defer`, function-local aliases, comma-sequence
+and destructured loaders, `require` through element access and through
+`call` on `module.require`, renamed/namespaced `createRequire` and
+`Worker`, `require.resolve` reads, two-argument `new URL`, and
+`import.meta.resolve`). The rule below refuses every runtime load unless
+the metafile placed its target in the closure. Details in the R6
+section.)
 
 ## Why the closure runs the real resolver (R4 redesign, not a patch)
 
@@ -216,6 +225,55 @@ replacement (5 failures), and the full sweep passes on the new one.
 | Drill | Deliberate break                               | Assertions that fire                                                                                                                                                                                      | Restored                       |
 | ----- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
 | R5-D1 | Refusal neutered: the AST walk returns at once | **8 failures**: every refusal test — the two old bare-form tests and the six new ones (template, concatenation, indirect spellings, Worker, property sweep, camouflage) — while all allow-pins stay green | armSources.ts `8584f41b…4611d` |
+
+### R6 repairs (2026-10-10, linuxlt; review RVCM1012E findings 1–2)
+
+One rule replaces the shape list: the walk finds every load site — a
+dynamic `import()` (including `import.defer`, whose callee parses as a
+MetaProperty on the keyword), any `require` spelling (bare, optional,
+aliased in any scope, destructured, assigned, comma-sequenced, through
+property or element access, through `call`/`apply`/`bind`,
+`createRequire(…)(…)` under any local name, `require.resolve` bare or
+destructured), every `new Worker(…)` spelling (bare, parenthesized, cast,
+renamed, namespaced, aliased), a two-argument `new URL(specifier, base)`,
+an `import.meta.resolve(…)`, a module-relative file read, and a dynamic
+evaluation (`eval`, `Function`, bare or through a global holder) — and
+every site is refused with file and 1-based line unless esbuild placed
+its target in the closure. Direct `import(…)` / `require(…)` literals
+resolve their candidates (probed extensions, index files, the `.js` →
+`.ts` mapping esbuild itself applies) against the build's own metafile
+inputs; a literal the bundler never followed (probed: the comma-sequence
+loader) mismatches and fails. A non-literal specifier has no determinate
+target and always mismatches. Bare and `node:` specifiers stay the
+platform or a hashed dependency. Literal and static `import.defer` never
+reach the walk: the cjs build rejects both outright (probed), as it does
+a comma sequence around `import` — each still fails the digest, pinned by
+its own test. Honest neighbours stay allowed and pinned: a bare platform
+require, `path`'s own destructured `resolve`, a computed file read (the
+loader itself reads its closure inputs that way), a `Function` type
+annotation, an absolute file read, and the one-argument validating `new
+URL(input)` zod itself uses. `ts.isImportCall` answers the same shape
+question at runtime but is absent from the compiler's public types, so
+the walk tests the callee shape directly. No new dependency, no shipped
+bundle imports the evaluation modules, no UI string, no widened guard.
+
+Regression tests in `test/unit/eval/evalArmSources.test.ts`: a 27-row
+spelling table (every finding-1/2 form, each with its refusal message
+and an `arm.ts:line` pin), the three fail-closed-at-build pins, five
+honest-neighbour pins, and the unchanged sweep and camouflage tests. The
+refuse-side of the metafile comparison (`did not place in the closure`)
+has no naturally occurring trigger under esbuild 0.28.2 — every direct
+literal either lands in the inputs or fails the build — so it stands as
+probed defense-in-depth, with the allow-side pinned by the literal
+dynamic-import test and the sweep's collect cases. Each drill below broke
+the new guard, watched the named tests fail, and restored `armSources.ts`
+byte-exact (SHA-256 `b558fbb1…e2b9` verified against the pre-drill
+value after every drill).
+
+| Drill | Deliberate break                                       | Assertions that fire                                                                                                                                                                                                                     | Restored                      |
+| ----- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| R6-D1 | Refusal neutered: the walk returns at once             | **9 failures**: every refusal test — the two old bare-form tests, template, concatenation, indirect spellings, the new 27-row E-spelling table, Worker, property sweep, camouflage — while all allow-pins and build-fail pins stay green | armSources.ts `b558fbb1…e2b9` |
+| R6-D2 | Comparison neutered: every relative literal mismatches | **2 failures**: the literal-relative-dynamic-import pin and the property sweep's collect cases — every refusal stays refused                                                                                                             | armSources.ts `b558fbb1…e2b9` |
 
 ## Gates
 
