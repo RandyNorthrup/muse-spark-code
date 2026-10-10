@@ -74,6 +74,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The ACP agent reports product-defined refusals with their own message as
+  invalid request (-32600) instead of internal error (-32603): unavailable
+  accounts, a broker that cannot start, a backend that cannot run, no usable
+  model, a failed legal scan, and a turn the backend would not take. Sharing
+  an empty conversation is refused with "There is no conversation to export
+  yet.", and bad share/prompt arguments are invalid params (-32602) with
+  their reason (DFACPERR).
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
