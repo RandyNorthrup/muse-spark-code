@@ -13,6 +13,10 @@ import { paidGrantFile } from '../../src/runtime/paidGrants'
 import { workspaceKey } from '../../src/runtime/dataFolder'
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { removeFolder } from './helpers/temporaryFolders'
+import { readFileSync as readDocumentation } from 'node:fs'
+import { formatAcpUsage } from '../../src/runtime/cliOptions'
+import { createReference } from '../../src/shared/reference/referenceEntry'
+import { EN } from '../../src/shared/l10n/en'
 import type { PaidUseRequest } from '../../src/shared/paid'
 
 it('ACP automatic compaction asks once after its explicit flag and refuses without it', async () => {
@@ -23,6 +27,7 @@ it('ACP automatic compaction asks once after its explicit flag and refuses witho
   }
   const paid = new AcpPaidUse({
     flagged: ['autoCompaction'],
+    autoCompactionEvaluated: () => true,
     canRemember: () => true,
     grants: memoryPaidGrants(),
     log: logger(),
@@ -32,6 +37,17 @@ it('ACP automatic compaction asks once after its explicit flag and refuses witho
   expect(await paid.allows('/ws', 'session', request, false)).toBe(true)
   expect(await paid.allows('/ws', 'session', request, false)).toBe(true)
   expect(ask).toHaveBeenCalledTimes(1)
+  expect(await paid.allows('/other-workspace', 'other-session', request, false)).toBe(true)
+  expect(ask).toHaveBeenCalledTimes(2)
+  const dormant = new AcpPaidUse({
+    flagged: ['autoCompaction'],
+    canRemember: () => true,
+    grants: memoryPaidGrants(),
+    log: logger(),
+  })
+  dormant.attach(ask)
+  expect(await dormant.allows('/ws', 'session', request, false)).toBe(false)
+  expect(ask).toHaveBeenCalledTimes(2)
   const off = new AcpPaidUse({
     flagged: [],
     canRemember: () => true,
@@ -40,7 +56,23 @@ it('ACP automatic compaction asks once after its explicit flag and refuses witho
   })
   off.attach(ask)
   expect(await off.allows('/ws', 'session', request, false)).toBe(false)
-  expect(ask).toHaveBeenCalledTimes(1)
+  expect(ask).toHaveBeenCalledTimes(2)
+})
+
+it('unevaluated compaction is absent from compact and full ACP/CLI help', () => {
+  expect(formatAcpUsage(EN, 'muse-spark-code-acp')).not.toMatch(/--(?:no-)?auto-compaction/)
+  const help = createReference(EN, 'en').all()
+  expect(help).not.toContain('auto-compaction')
+  expect(help).not.toContain('modelApiAutoCompaction')
+  expect(help).not.toContain(EN.autoCompactionName)
+})
+
+it('documents ACP Once as workspace-scoped within the agent process', () => {
+  for (const file of ['README.md', 'docs/certification/m101-admission.md', 'docs/acp.md']) {
+    expect(readDocumentation(file, 'utf8').replaceAll(/\s+/g, ' ')).toContain(
+      'workspace within this agent process',
+    )
+  }
 })
 
 describe('M80 structural headless paid policy', () => {

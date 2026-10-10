@@ -12,6 +12,7 @@ import {
   UI_TEXT,
   WORKSPACE_STATE_KEYS,
 } from '../../src/shared/constants'
+import { listedPaidFeatures, paidFeaturePrice, usablePaidFeatures } from '../../src/shared/paid'
 import { fill } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { mockJudgePaidConfiguration } from './helpers/judgePaidConfiguration'
@@ -78,6 +79,43 @@ async function details(request: Parameters<typeof askPaidUse>[0]) {
   const call = vi.mocked(confirmModal).mock.calls.at(-1)
   return { title: call?.[0], detail: call?.[1]?.detail ?? '' }
 }
+
+it('unevaluated compaction is absent from paid state, usage choices and consent cards', async () => {
+  const { paid } = paidWithSettings(new Map(), ['autoCompaction'], { defaultOn: true })
+  await paid.gate.review()
+  expect(paid.state().features).not.toContain('autoCompaction')
+  expect(usablePaidFeatures('modelApi', true)).not.toContain('autoCompaction')
+  expect(
+    listedPaidFeatures(['autoCompaction'], { ...paid.state().tally, autoCompactionRequests: 1 }),
+  ).not.toContain('autoCompaction')
+  expect(
+    await paid.consent.allows({
+      feature: 'autoCompaction',
+      modelId: 'muse-spark-1.3',
+      dailyBudgetUsd: Usd.from(1).toAmount(),
+    }),
+  ).toBe(false)
+  expect(await paid.gate.turnOn('autoCompaction')).toBe(false)
+  expect(confirmModal).not.toHaveBeenCalled()
+})
+
+it('evaluated compaction turn-on confirmation names the price being accepted', async () => {
+  const paid = createPaidFeatures({
+    globalState: memento(new Map()),
+    workspaceState: memento(new Map()),
+    isSettingOn: (feature) => feature === 'autoCompaction',
+    autoCompactionEvaluated: () => true,
+    isKeyStored: () => true,
+    canRememberPaidUse: () => true,
+    log: new FakeLogOutputChannel(),
+  })
+  answerWith(UI_TEXT.paidConfirmAccept)
+  await paid.gate.review()
+  expect(vi.mocked(confirmModal).mock.calls.at(-1)?.[1]?.detail).toContain(
+    paidFeaturePrice('autoCompaction'),
+  )
+  expect(paid.gate.isOn('autoCompaction')).toBe(true)
+})
 
 describe('the paid-use popup (M58)', () => {
   it('restores prior journal units once while keeping additions during the read', async () => {

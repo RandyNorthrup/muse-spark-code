@@ -63,6 +63,9 @@ const body: CreateResponseBody = {
   include: [],
 }
 
+function isConsentCurrent(): boolean {
+  return true
+}
 describe('standalone daily admission', () => {
   it('runtime automatic summaries use exactly one daily claim and one debit', async () => {
     const daily = dailyBudgetAt(folder())
@@ -82,6 +85,9 @@ describe('standalone daily admission', () => {
       accounting: 'transport',
       allowsPaidUse: () => Promise.resolve(true),
       isOn: () => true,
+      isTrusted: () => true,
+      isEvaluated: () => true,
+      paidUseFence: () => isConsentCurrent,
       notePaidUse: () => undefined,
       dailyBudgetUsd: () => Usd.from(5).toAmount(),
       log: new FakeLogOutputChannel(),

@@ -25,6 +25,9 @@ import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { watchSessionTurns } from './helpers/sessionTurns'
 import { createAutoCompactionAdmission } from '../../src/core/backends/modelapi/autoCompactionAdmission'
 import type { AutoCompactionLedgerClaim } from '../../src/core/backends/modelapi/autoCompactionAdmission'
+import { PaidUseConsent } from '../../src/core/paid/paidConsent'
+import { estimateInput } from '../../src/core/backends/modelapi/sessionBudget'
+import { MODEL_API_PRICES_PER_MILLION, TOKENS_PER_MILLION } from '../../src/shared/constants'
 import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 
 const TODOS = [
@@ -167,7 +170,12 @@ async function setup(
   }
 }
 
-function productionAdmission() {
+function isConsentCurrent(): boolean {
+  return true
+}
+function productionAdmission(
+  overrides: Partial<Parameters<typeof createAutoCompactionAdmission>[0]> = {},
+) {
   const claims: { check: ReturnType<typeof vi.fn>; settle: ReturnType<typeof vi.fn> }[] = []
   const allowsPaidUse = vi.fn(() => Promise.resolve(true))
   const reserveCompaction = vi.fn(
@@ -191,10 +199,14 @@ function productionAdmission() {
     accounting: { reserveCompaction },
     allowsPaidUse,
     isOn: () => true,
+    isTrusted: () => true,
+    isEvaluated: () => true,
+    paidUseFence: () => isConsentCurrent,
     dailyBudgetUsd: () => Usd.from(5).toAmount(),
     notePaidUse: () => undefined,
     log: new FakeLogOutputChannel(),
     storeUnavailable: EN.sessionBudgetStoreUnavailable,
+    ...overrides,
   })
   return { admitAutoCompaction, claims, allowsPaidUse, reserveCompaction }
 }
@@ -260,6 +272,94 @@ describe('automatic compaction in the shared Model API loop', () => {
     expect(total.spentUsd).toBe(Usd.from(0.00318875).toAmount())
     await t.host.close()
   })
+  it('production daily claims bound each actual summary body including fallback', async () => {
+    const paid = productionAdmission()
+    const t = await setup({ admitAutoCompaction: paid.admitAutoCompaction })
+    await t.seed()
+    t.api.script(...SUMMARY_RETRY)
+    await t.send()
+    const summaries = t.api.responseBodies().slice(2, -1)
+    expect(summaries).toHaveLength(3)
+    const rates = MODEL_API_PRICES_PER_MILLION.standard
+    for (const [index, raw] of summaries.entries()) {
+      const body = z
+        .object({
+          instructions: z.string(),
+          tools: z.array(z.unknown()),
+          input: z.array(z.unknown()),
+          max_output_tokens: z.number(),
+        })
+        .parse(raw)
+      const input = estimateInput(
+        [
+          JSON.stringify(body.instructions),
+          JSON.stringify(body.tools),
+          ...body.input.map((item) => JSON.stringify(item)),
+        ],
+        undefined,
+      ).inputTokens
+      const bound = Usd.from(rates.input)
+        .times(input)
+        .add(Usd.from(rates.output).times(body.max_output_tokens))
+        .divide(TOKENS_PER_MILLION)
+      expect(
+        Usd.from(paid.reserveCompaction.mock.calls[index]?.[0] ?? 0).compare(bound),
+      ).toBeGreaterThanOrEqual(0)
+    }
+    await t.host.close()
+  })
+
+  it('manual summary forks never acquire the automatic paid identity', async () => {
+    const t = await setup({
+      autoCompaction: () => false,
+      admitSummaryFork: () => Promise.resolve(() => undefined),
+    })
+    await t.seed()
+    t.api.script({ text: 'manual fork summary' })
+    expect(await t.session.compact('source-session')).toMatchObject({ status: 'accepted' })
+    const row = t.events.findLast(
+      (event) => event.type === 'itemCompleted' && event.item.kind === 'compaction',
+    )
+    expect(row).toBeDefined()
+    if (row?.type !== 'itemCompleted') throw new Error('expected summary row')
+    expect(row.item.paid).toBeUndefined()
+    await t.host.close()
+  })
+
+  it('production consent revoked during reservation sends no summary or continuation', async () => {
+    let grants: ReadonlySet<'autoCompaction'> = new Set(['autoCompaction'])
+    const consent = new PaidUseConsent({
+      isOn: () => true,
+      canRemember: () => true,
+      readGrants: () => grants,
+      writeGrants: () => {
+        grants = new Set()
+        return Promise.resolve()
+      },
+      ask: () => Promise.resolve('deny'),
+      log: new FakeLogOutputChannel(),
+    })
+    const paid = productionAdmission({
+      allowsPaidUse: (request) => consent.allows(request),
+      paidUseFence: () => consent.fence('autoCompaction'),
+    })
+    const reserve = paid.reserveCompaction.getMockImplementation()
+    if (reserve === undefined) throw new Error('expected reserve')
+    paid.reserveCompaction.mockImplementation(async (amount) => {
+      const claim = await reserve(amount)
+      await consent.forget()
+      return claim
+    })
+    const t = await setup({ admitAutoCompaction: paid.admitAutoCompaction })
+    await t.seed()
+    t.api.script(OVERFLOW, { text: 'must not summarize' }, { text: 'must not continue' })
+    await t.send()
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(consent.remembered()).toEqual([])
+    expect(paid.claims[0]?.settle).toHaveBeenCalledWith(Usd.from(0).toAmount(), false)
+    await t.host.close()
+  })
+
   it('production admission denies paid consent before summary or continuation', async () => {
     const paid = productionAdmission()
     paid.allowsPaidUse.mockResolvedValue(false)

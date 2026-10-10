@@ -1,5 +1,11 @@
+import { mkdtemp } from 'node:fs/promises'
+import path from 'node:path'
+import { tmpdir } from 'node:os'
+import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
+import { removeFolder } from './helpers/temporaryFolders'
 import { describe, expect, it, vi } from 'vitest'
 import { Usd, type UsdAmount } from '../../src/shared/usd'
+import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { MODEL_API_PRICES_PER_MILLION } from '../../src/shared/constants'
 import type {
   AutoCompactDecision,
@@ -19,7 +25,7 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 const PRICED: AutoCompactModel = {
   pricing: {
     kind: 'priced',
-    card: { input: 0.000001, cachedInput: 0.0000002, output: 0.000004, source: 'catalogue' },
+    card: { input: 0.00000125, cachedInput: 0.00000015, output: 0.00000425, source: 'catalogue' },
   },
 }
 const COST: AutoCompactDecision = {
@@ -35,6 +41,21 @@ const USAGE = {
   input_tokens_details: { cached_tokens: 200 },
 }
 const ZERO = Usd.from(0).toAmount()
+const BODY: CreateResponseBody = {
+  max_output_tokens: 5000,
+  prompt_cache_key: 'stable',
+  prompt_cache_retention: 'in_memory',
+  include: ['reasoning.encrypted_content'],
+  model: 'muse-spark-1.3',
+  input: [],
+  instructions: '',
+  tools: [],
+  tool_choice: 'auto',
+  reasoning: { effort: 'high', summary: 'auto' },
+  stream: true,
+  store: false,
+}
+const RESERVE = Usd.from(0.0225).toAmount()
 
 function requestFor(decision: AutoCompactDecision = COST, signal = new AbortController().signal) {
   return {
@@ -45,6 +66,9 @@ function requestFor(decision: AutoCompactDecision = COST, signal = new AbortCont
     decision,
     signal,
   }
+}
+function isConsentCurrent(): boolean {
+  return true
 }
 function fakeClaim(reservedUsd = Usd.from(0.012).toAmount()) {
   let isFinalized = false
@@ -76,6 +100,9 @@ function setup(reserve?: AutoCompactionLedger['reserveCompaction'], isOn = () =>
     accounting: { reserveCompaction },
     allowsPaidUse,
     isOn,
+    isTrusted: () => true,
+    isEvaluated: () => true,
+    paidUseFence: () => isConsentCurrent,
     dailyBudgetUsd: () => Usd.from(5).toAmount(),
     notePaidUse,
     log: new FakeLogOutputChannel(),
@@ -85,6 +112,97 @@ function setup(reserve?: AutoCompactionLedger['reserveCompaction'], isOn = () =>
 }
 
 describe('automatic compaction production admission', () => {
+  it('a short previous summary cannot overspend the real hard daily journal', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'm101-hard-bound-'))
+    try {
+      const daily = createPaidDailyBudget({
+        directory,
+        now: () => new Date(2026, 9, 10, 12).getTime(),
+        capUsd: () => Usd.from(1).toAmount(),
+        sleep: () => Promise.resolve(),
+        isModelApi: () => true,
+      })
+      const earlier = await daily.reserveExact(Usd.from(0.985).toAmount())
+      await earlier.settle(Usd.from(0.985).toAmount())
+      const t = setup(async (amount) => {
+        const claim = await daily.reserveExact(amount)
+        return {
+          ...claim,
+          check: () => {
+            claim.check()
+          },
+        }
+      })
+      const a = await t.admit(requestFor({ ...COST, newDebt: 0.01027 }))
+      await expect(a?.guard.prepareRequest?.(BODY, 1000)).rejects.toThrow()
+      expect(t.notePaidUse).not.toHaveBeenCalled()
+      await a?.close?.()
+      const day = await daily.latestDay()
+      expect(day.spentUsd).toBe(Usd.from(0.985).toAmount())
+    } finally {
+      await removeFolder(directory)
+    }
+  })
+
+  it('reserves the actual input and full output allowance independently of economic debt', async () => {
+    const t = setup()
+    const a = await t.admit(requestFor({ ...COST, newDebt: 0.000001 }))
+    await a?.guard.prepareRequest?.(BODY, 1000)
+    expect(t.claims[0]?.reservedUsd).toBe(RESERVE)
+    a?.guard('digest')
+    a?.guard.onRequestStarted?.()
+    await a?.settle(BODY.model, { input_tokens: 1000, output_tokens: 5000 }, 'returned')
+    expect(t.claims[0]?.settle).toHaveBeenCalledWith(RESERVE, false)
+    await a?.guard.prepareRequest?.({ ...BODY, max_output_tokens: 100 }, 2000)
+    expect(t.claims[1]?.reservedUsd).toBe(Usd.from(0.002925).toAmount())
+    await a?.close?.()
+  })
+
+  it.each(['consent', 'switch', 'trust', 'evaluation'] as const)(
+    'one authority checks %s before preparation, after reserve, at final send and before retry',
+    async (withdrawn) => {
+      const live = { consent: true, switch: true, trust: true, evaluation: true }
+      const isLiveConsent = (): boolean => live.consent
+      const reserveCompaction = vi.fn((amount: UsdAmount) => Promise.resolve(fakeClaim(amount)))
+      const allowsPaidUse = vi.fn(() => Promise.resolve(true))
+      const admit = createAutoCompactionAdmission({
+        accounting: { reserveCompaction },
+        allowsPaidUse,
+        isOn: () => live.switch,
+        isTrusted: () => live.trust,
+        isEvaluated: () => live.evaluation,
+        paidUseFence: () => isLiveConsent,
+        dailyBudgetUsd: () => Usd.from(1).toAmount(),
+        notePaidUse: vi.fn(),
+        log: new FakeLogOutputChannel(),
+        storeUnavailable: 'ledger unavailable',
+      })
+      const a = await admit(requestFor())
+      live[withdrawn] = false
+      await expect(a?.guard.prepareRequest?.(BODY, 1000)).rejects.toThrow('ledger unavailable')
+      expect(reserveCompaction).not.toHaveBeenCalled()
+      live[withdrawn] = true
+      await a?.guard.prepareRequest?.(BODY, 1000)
+      live[withdrawn] = false
+      expect(() => a?.guard('digest')).toThrow('ledger unavailable')
+      await expect(a?.guard.prepareRequest?.(BODY, 1000)).rejects.toThrow('ledger unavailable')
+      expect(reserveCompaction).toHaveBeenCalledTimes(1)
+      live[withdrawn] = true
+      const held = Promise.withResolvers<ReturnType<typeof fakeClaim>>()
+      reserveCompaction.mockImplementationOnce(() => held.promise)
+      const preparing = a?.guard.prepareRequest?.(BODY, 1000)
+      await vi.waitFor(() => {
+        expect(reserveCompaction).toHaveBeenCalledTimes(2)
+      })
+      live[withdrawn] = false
+      const claim = fakeClaim(RESERVE)
+      held.resolve(claim)
+      await expect(preparing).rejects.toThrow('ledger unavailable')
+      expect(claim.settle).toHaveBeenCalledWith(ZERO, false)
+      await a?.close?.()
+    },
+  )
+
   it('asks first-charge consent before preparing any claim and reserves at HTTP preparation', async () => {
     const t = setup()
     const a = await t.admit(requestFor())
@@ -98,9 +216,9 @@ describe('automatic compaction production admission', () => {
       'session',
     )
     expect(t.reserveCompaction).not.toHaveBeenCalled()
-    await a?.guard.prepare?.()
+    await a?.guard.prepareRequest?.(BODY, 1000)
     expect(t.reserveCompaction).toHaveBeenCalledTimes(1)
-    expect(t.reserveCompaction.mock.calls[0]?.[0]).toBe(Usd.from(0.012).toAmount())
+    expect(t.reserveCompaction.mock.calls[0]?.[0]).toBe(RESERVE)
     await a?.close?.()
   })
   it('an off paid gate declines before consent and is rechecked at final send', async () => {
@@ -110,7 +228,7 @@ describe('automatic compaction production admission', () => {
     expect(t.allowsPaidUse).not.toHaveBeenCalled()
     isEnabled = true
     const a = await t.admit(requestFor())
-    await a?.guard.prepare?.()
+    await a?.guard.prepareRequest?.(BODY, 1000)
     isEnabled = false
     expect(() => a?.guard('digest')).toThrow('ledger unavailable')
     await a?.close?.()
@@ -127,7 +245,7 @@ describe('automatic compaction production admission', () => {
     async (reason) => {
       const t = setup(() => Promise.reject(new Error('stopped or unreadable')))
       const a = await t.admit(requestFor({ ...COST, reason }))
-      await expect(a?.guard.prepare?.()).rejects.toThrow('stopped or unreadable')
+      await expect(a?.guard.prepareRequest?.(BODY, 1000)).rejects.toThrow('stopped or unreadable')
       expect(() => a?.guard('digest')).toThrow('ledger unavailable')
       expect(t.notePaidUse).not.toHaveBeenCalled()
       await a?.close?.()
@@ -136,12 +254,12 @@ describe('automatic compaction production admission', () => {
   it('refuses an absent claim at send', async () => {
     const t = setup(() => Promise.resolve(undefined))
     const a = await t.admit(requestFor())
-    await expect(a?.guard.prepare?.()).rejects.toThrow('ledger unavailable')
+    await expect(a?.guard.prepareRequest?.(BODY, 1000)).rejects.toThrow('ledger unavailable')
   })
   it('final-send checks the live claim synchronously', async () => {
     const t = setup()
     const a = await t.admit(requestFor())
-    await a?.guard.prepare?.()
+    await a?.guard.prepareRequest?.(BODY, 1000)
     a?.guard('digest')
     expect(t.claims[0]?.check).toHaveBeenCalledTimes(1)
     await a?.close?.()
@@ -150,7 +268,7 @@ describe('automatic compaction production admission', () => {
     const t = setup()
     const a = await t.admit(requestFor())
     for (const outcome of ['rate-limited', 'returned', 'returned'] as const) {
-      await a?.guard.prepare?.()
+      await a?.guard.prepareRequest?.(BODY, 1000)
       a?.guard('digest')
       a?.guard.onRequestStarted?.()
       await a?.settle('muse-spark-1.3', outcome === 'rate-limited' ? undefined : USAGE, outcome)
@@ -172,13 +290,13 @@ describe('automatic compaction production admission', () => {
   it('retains uncertain sends and refunds known nonsends on close', async () => {
     const t = setup()
     const a = await t.admit(requestFor())
-    await a?.guard.prepare?.()
+    await a?.guard.prepareRequest?.(BODY, 1000)
     await a?.close?.()
     expect(t.claims[0]?.settle).toHaveBeenCalledWith(ZERO, false)
-    await a?.guard.prepare?.()
+    await a?.guard.prepareRequest?.(BODY, 1000)
     a?.guard.onRequestStarted?.()
     await a?.close?.()
-    expect(t.claims[1]?.settle).toHaveBeenCalledWith(Usd.from(0.012).toAmount(), true)
+    expect(t.claims[1]?.settle).toHaveBeenCalledWith(RESERVE, true)
   })
   it('refunds cancellation racing reservation publication', async () => {
     const stop = new AbortController()
@@ -188,7 +306,7 @@ describe('automatic compaction production admission', () => {
       return Promise.resolve(claim)
     })
     const a = await t.admit(requestFor(COST, stop.signal))
-    await expect(a?.guard.prepare?.()).rejects.toThrow()
+    await expect(a?.guard.prepareRequest?.(BODY, 1000)).rejects.toThrow()
     expect(claim.settle).toHaveBeenCalledWith(ZERO, false)
     await a?.close?.()
     expect(claim.settle).toHaveBeenCalledTimes(1)
@@ -199,23 +317,25 @@ describe('automatic compaction production admission', () => {
     const failing: AutoCompactionLedgerClaim = { ...claim, settle: () => held.promise }
     const t = setup(() => Promise.resolve(failing))
     const a = await t.admit(requestFor())
-    await a?.guard.prepare?.()
+    await a?.guard.prepareRequest?.(BODY, 1000)
     a?.guard.onRequestStarted?.()
     const settled = a?.settle('muse-spark-1.3', USAGE, 'returned')
-    const preparing = a?.guard.prepare?.()
+    const preparing = a?.guard.prepareRequest?.(BODY, 1000)
     expect(t.reserveCompaction).toHaveBeenCalledTimes(1)
     held.reject(new Error('disk gone'))
     await expect(settled).rejects.toThrow('ledger unavailable')
     await expect(preparing).rejects.toThrow('ledger unavailable')
     await expect(a?.close?.()).rejects.toThrow('ledger unavailable')
   })
-  it('declines unpriced models and corrupt projections before consent', async () => {
+  it('declines unpriced models before consent and refuses unpriced request parts', async () => {
     const t = setup()
     expect(
       await t.admit({ ...requestFor(), model: { pricing: { kind: 'unpriced' } } }),
     ).toBeUndefined()
-    expect(await t.admit(requestFor({ ...COST, newDebt: NaN }))).toBeUndefined()
-    expect(t.allowsPaidUse).not.toHaveBeenCalled()
+    const a = await t.admit(requestFor({ ...COST, newDebt: NaN }))
+    expect(a).toBeDefined() // Economic debt never prices the HTTP allowance.
+    await expect(a?.guard.prepareRequest?.(BODY, NaN)).rejects.toThrow('ledger unavailable')
+    expect(t.reserveCompaction).not.toHaveBeenCalled()
   })
   it('uses the shared ask-once consent and revokes when disabled', async () => {
     let isEnabled = true
