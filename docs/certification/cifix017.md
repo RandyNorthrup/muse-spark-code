@@ -1151,3 +1151,58 @@ Aggregate quality and hosted qualification remain lead-owned.
 Before committing, reran the complete `m114Panel`, `m114Audit` and
 `readmeShots` suites: **95/95 pass** at repository timeouts (45.18 s).
 Changed-file ESLint, four-file Prettier and `git diff --check` also pass.
+
+### Tasks-tab controls — VQGOLD round 2 (2026-10-10)
+
+Baseline files committed with installed hooks as `1df6c04b6`:
+the manifest, both README question images, audit hashes, README fingerprint
+and this certification. lint-staged and gitleaks pass; staged and committed
+diffs were reread after the hook.
+
+Created a detached main worktree at
+`82d50d5e456d17205623064b0a70caf8a6e34471` under
+`$TMPDIR/vqgold-main-82d50d5e4-round2`, without the spacing fix. Both final
+controls start with empty `git status --porcelain`, and the worktree remains
+clean afterwards. Dependencies resolve through a symlink in its private
+parent, outside the worktree; the shared install is unchanged. An initial
+setup replay also passes, but is supplementary because its dependency
+symlink was moved out of the worktree after launch and before capture.
+
+Ran the same supported command in main twice, then in this branch at
+`1df6c04b6`: `npm run check:visual -- --shard=2/6`. This shard contains
+`tasks/tasks-tab/default/dark/320` and all six states of tasks-tab at both
+dark-theme widths. Trimmed final output:
+
+| Worktree / run | Exit | Output                                                                                          |
+| -------------- | ---- | ----------------------------------------------------------------------------------------------- |
+| Main / 2       | 0    | `visual: 1632 captures passed; 3 changed pixels within per-image tolerance; manifest unchanged` |
+| Main / 3       | 0    | `visual: 1632 captures passed; 3 changed pixels within per-image tolerance; manifest unchanged` |
+| Branch / 1     | 0    | `visual: 1632 captures passed; 0 changed pixels within per-image tolerance; manifest unchanged` |
+
+All three receipts use Chrome **150.0.7871.186**, Linux, the same recorded
+rasterization fingerprint, and the unchanged pixel policy. None reconstructs
+the baseline; each verifies and uses its existing reviewed archive. Main's
+maximum changed pixels per image is one. The branch manifest's SHA-256 is
+unchanged across its check.
+
+**Verdict: not reproduced in the requested shard.** Neither a failure on
+unchanged main nor a branch-only failure occurs. The prior whole-matrix
+capture-state error remains unexplained; these controls do not establish an
+environmental root cause or an effect of the question fix on the tasks tab.
+TasksApp, main.tsx, the capture implementation, harness HTML and visual matrix
+are byte-identical between main and this branch. All 72 tasks-tab coverage
+rows retain identical dimensions, component lists, targets and applied states.
+The product diff adds only QuestionCard's body class and CSS under that class.
+No further baseline or capture-policy update is made. Whole-matrix and
+aggregate release qualification remain lead-owned.
+
+The visual commands' production builds pass their existing caps: extension
+**550.1 / 600 KiB**, Model API **515.8 / 525 KiB**, checkpoint store
+**87.3 / 225 KiB**. No new gate or test is added; the earlier red visual and
+freshness checks remain the guard-fire evidence.
+
+Exact logs and receipts are retained in this lane's ignored `temp/`:
+`vqgold-round2-main-visual-{2,3}.log`, matching `.exit` and `.receipt.json`
+files, and `vqgold-round2-branch-visual-1.*`. The source comparison and complete
+receipts are also collected in `vqgold-round2-summary.json`. The temporary
+main worktree and dependency symlink are removed after preserving these files.
