@@ -85,9 +85,11 @@ happened, not what was planned; superseded entries are kept.
   caller-owned share/save validation names its flag (-32602) in the installed
   language; scanner and broker programming faults stay internal errors
   (-32603) with a fixed reason and nothing raw on the wire. An unexpected
-  sharing or prompt-store fault reads as an internal error with the fixed
-  could-not-complete reason (never as a prompt-file error), and the raw
-  failure is logged server-side.
+  sharing, prompt or headless fault reads as an internal error with the fixed
+  could-not-complete reason (never as a prompt-file error), and the
+  underlying fault is logged server-side by name — never a path or prompt
+  text. Defined refusals (an empty chat, an unreadable prompt store, a bad
+  prompt file) keep their own sentences on every surface.
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which

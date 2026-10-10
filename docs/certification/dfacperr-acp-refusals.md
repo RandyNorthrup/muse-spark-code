@@ -187,6 +187,115 @@ failed at lane HEAD `f31798e75` on
 (verified with `-t`), and the full typecheck is green. Not a review
 finding; recorded here so the lead sees it.
 
+## Round 4 — repair of review RVDFACPERR3 (1 P2, 2 P3), 2026-10-10
+
+Worktree `/Users/randy/lanes/DFACPERR2`, rig macmini. No new strings, no new
+commands/settings/features, no new dependency, no widened guard. Supersedes
+the round-2 privacy bullet (the catch-all sentence), the round-2 sibling-sweep
+claim that no other catch maps an unexpected fault to a bad-prompt-file
+sentence, and the lead note's `-32603` sentence below — all three described
+the pre-fix contract.
+
+- **P2 — the log names the underlying fault.** `AcpSharingFailure` carries
+  the original fault as `cause` (the `src/acp/sharing.ts` execute catch-all
+  passes `{ cause: error }`). The engine logs
+  `internalFaultForLog(error)` — new in
+  `src/core/backends/musecode/logText.ts`: it walks the `cause` chain to the
+  root fault, then `failureForLog`, so the log keeps a name only, never raw
+  text, a path or prompt text — at `src/acp/agent.ts:1926`. A `TypeError`
+  from the preview renderer now logs `sharing command failed: TypeError`,
+  not `AcpSharingFailure`. The wire is unchanged: the engine maps only the
+  fixed message, and the SDK never serializes `cause`. Headless ACP
+  (`serve`) uses the same agent class, so it logs the same line.
+- **P3 — headless `share`/`prompts` keep defined refusals.**
+  `runRuntimeSharing` (`src/runtime/sharing/sharingEntry.ts`) keeps every
+  defined refusal through the shared `sharingRefusal` list (now exported from
+  `src/acp/sharing.ts`) — including `exportNothing` on an empty chat and
+  `promptStoreDamaged` on an unreadable library — and reports anything else
+  (including non-`Error` throws) as `actionFailed` on stderr, with the
+  underlying fault's name in the log via a new optional `log` argument wired
+  from `src/runtime/main.ts`.
+- **P3 — the editor boundary keeps defined refusals.** `safePromptFailure`
+  (`src/host/prompts/promptEntry.ts`) keeps the same refusal list plus the
+  `promptVariables:` prefix the ACP adapter already keeps, and maps anything
+  else to `actionFailed` with the original as `cause`, logging the underlying
+  name through a new optional `PromptHostDeps.log` (set in `nativeDeps`;
+  used at the `runPromptCommand` catch and both webview sharing-action
+  sites). Same-class siblings fixed too: `promptBundleLoader` and
+  `runtimeSharingLoader` `unavailable` are now `actionFailed` — an unloadable
+  bundle is an installation fault, and the loader already logged the cause —
+  instead of `promptFileInvalid`.
+
+## Tests (repository timeouts, no `--testTimeout`)
+
+- `test/unit/acpSharing.test.ts`: the two privacy tests throw `TypeError`
+  fakes and now assert the log names `TypeError` (and never the
+  `AcpSharingFailure` wrapper, path or prompt text), all through the real SDK
+  client; new `carries the original fault as cause on an internal sharing
+failure` pins the adapter's `cause` chain directly.
+- `test/unit/runtimeSharing.test.ts`: new `keeps a defined empty-chat
+refusal instead of a prompt-file error` (empty chat keeps `exportNothing`,
+  exit 7, nothing logged), new `reports an unexpected headless fault as
+internal with the fault named in the log` (`TypeError` backend read keeps
+  raw text off stderr and names the fault in the log), new `reports an
+unloadable sharing bundle as internal, not a prompt-file error`. The file
+  pins `userInfo()` to `fixture`: this sandbox has no passwd entry, so the
+  real call throws `SystemError` and every real-`renderPreview` share test
+  failed here — including the round-2/round-3 `aliased workspace` pair, which
+  now passes (environmental, not a product change).
+- `test/unit/promptEntry.test.ts`: the init-failure test now throws a
+  `TypeError` with a planted path and asserts `actionFailed`, the `cause`
+  chain and the named log entry; new `keeps a defined prompt refusal…`
+  (blank share text keeps `promptFileInvalid`, nothing logged), new `keeps a
+variable-prompt refusal…` (the `promptVariables:` prefix passes through);
+  the malformed-bundle test now expects `actionFailed`.
+
+Results (macmini, this worktree): acpSharing 43/43; runtimeSharing 10/10;
+promptEntry 5/5. Neighbours: promptNative all pass (the two
+`promptFileInvalid` pins ride deliberate throws, unchanged); acpAgent
+149/150 and promptHostLifecycle 1/3 — the same failures run identically on
+pristine lane HEAD `153a2ca04` in a temporary worktree (since removed):
+the ChatGPT-actions authenticate-flow test and two 5 s-timeout lifecycle
+tests, pre-existing, unrelated, and outside this lane's files.
+
+## Red drills (byte-exact restores, SHA-256 verified)
+
+Pre-drill hashes: sharing.ts `f5685392…`, agent.ts `a26da61c…`,
+sharingEntry.ts `63e91d3a…`, promptEntry.ts `1b1a1fb7…`, promptBundle.ts
+`a8cac74b…`, sharingBundle.ts `4538ed82…`; `sha256sum -c` passes on all six
+after every drill.
+
+1. D1 (P2 cause): `cause` dropped from the sharing catch-all →
+   `carries the original fault as cause…` and `keeps an unexpected sharing
+failure internal…` fail; restored.
+2. D2 (P2 log): agent line back to `failureForLog` →
+   `keeps an unexpected sharing failure internal…` fails on `TypeError`;
+   restored.
+3. D3 (P3 headless fallback): catch fallback back to `promptFileInvalid` →
+   `reports an unexpected headless fault…` fails; restored.
+4. D3b (P3 headless refusals): `sharingRefusal` call forced to `undefined` →
+   `keeps a defined empty-chat refusal…` fails; restored.
+5. D4 (P3 editor): `safePromptFailure` unexpected branch back to
+   `promptFileInvalid` → `sanitises initialization failures…` fails;
+   restored.
+6. D5 (bundle siblings): both loaders back to `promptFileInvalid` →
+   `refuses a malformed bundle…` and `reports an unloadable sharing
+bundle…` fail; restored.
+
+`logText.ts` (`internalFaultForLog`) and `main.ts` (log pass-through) carry
+no guard of their own: both are exercised by D1/D2 and the headless tests.
+
+## Gates
+
+`npm run typecheck` exit 0 (all projects); `eslint --max-warnings=0` on
+changed files clean (four rule hits fixed: promise-chain, string-repeat and
+`import()`-type style in the new tests); `prettier --check` on changed files
+clean; `check:l10n` 0 problems (reused key, no new text); `npm run build`
+exit 0 with `dist/sharingRuntime.js` 161.3 KiB (budget 175 KiB),
+`dist/extension.js` 550.1 KiB (budget 600 KiB) and `dist/prompts.js`
+161.8 KiB. No `featureCatalog`/reference change (no new command, setting or
+feature). No `check:tokens`/`check:visual` impact (no visual change).
+
 ## Round 1 record (kept)
 
 The ACP SDK turns any non-`RequestError` thrown by a request handler into
@@ -201,13 +310,18 @@ failed the empty-share test; both restored byte-exact.
 
 ## Notes for the lead
 
-- The `-32603` message for unexpected sharing faults is the fixed
-  `promptFileInvalid` sentence (same as the CLI surface); for legal/vault
-  faults it is `actionFailed`. Both say the log has the details, and both
-  log server-side via `failureForLog`.
+- The `-32603` message for unexpected sharing, prompt and headless faults is
+  the fixed `actionFailed` sentence (same on the CLI surface); for
+  legal/vault faults it is also `actionFailed`. Every such sentence says the
+  log has the details, and every site logs the underlying fault's name
+  server-side via `internalFaultForLog` (a name only, never raw text).
 - Future `instanceof AcpSharingFailure` outside its own bundle would miss
   silently; the guard and the bundled-copy test carry this. Not added to
   the eslint `instanceof` rule (brief: no widened guards).
-- Pre-existing failures left open (verified on pristine HEAD): the ChatGPT
-  actions test in acpAgent.test.ts and the `aliased workspace` pair in
-  runtimeSharing.test.ts (this rig).
+- Pre-existing failures left open (verified on pristine lane HEAD
+  `153a2ca04` in a temporary worktree, since removed): the ChatGPT actions
+  test in acpAgent.test.ts (authenticate flow) and two 5 s-timeout tests in
+  promptHostLifecycle.test.ts (this rig). The round-2/round-3 `aliased
+workspace` pair in runtimeSharing.test.ts now passes here: its failure was
+  this sandbox's missing passwd entry (`os.userInfo()` throws `SystemError`),
+  and the file now pins the user name.
