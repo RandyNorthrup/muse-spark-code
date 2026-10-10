@@ -138,7 +138,7 @@ export function ModelSettings({
             else Object.assign(merged, { [control.key]: next })
             return merged
           })
-          onChange(draft)
+          onChange(draft ?? {})
         }
         return (
           <div key={control.key} className="team-editor-field">

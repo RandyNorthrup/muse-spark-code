@@ -364,9 +364,10 @@ describe('M96 U1 Roles UI', () => {
       />,
     )
     const boxes = [...document.querySelectorAll('.team-editor-tool input[type="checkbox"]')]
-    if (boxes.length < 2) throw new Error('No tool checkboxes')
-    fireEvent.click(boxes[0])
-    fireEvent.click(boxes[1])
+    const [firstBox, secondBox] = boxes
+    if (firstBox === undefined || secondBox === undefined) throw new Error('No tool checkboxes')
+    fireEvent.click(firstBox)
+    fireEvent.click(secondBox)
     const updates = posted.filter((message) => message.type === 'roles/updateRole')
     expect(updates).toHaveLength(2)
     const [first, second] = updates
