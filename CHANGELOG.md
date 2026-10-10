@@ -75,25 +75,30 @@ happened, not what was planned; superseded entries are kept.
 ### Fixed
 
 - A fully evidenced `/legal` scan now exits 0 (or 1 with a blocker) instead
-  of always exiting 2 (M97 C-M97-1). Verbatim license files match pinned
-  SPDX License List 3.28.0 texts exactly (holder and year lines aside);
-  excerpts, modified texts and unrecognized prose keep the named
-  full-matching incomplete reason, as do missing locks, stale artifacts,
-  assets without provenance and proprietary terms. An ecosystem with no
-  manifests at all is a complete observation, not a gap.
+  of always exiting 2 (M97 C-M97-1). An ecosystem with no manifests at all
+  is a complete observation, not a gap; missing locks, stale artifacts,
+  assets without provenance and proprietary terms keep named incomplete
+  reasons.
 
-- The `/legal` scanner no longer mistakes modified license terms for exact
-  matches (M97 CM971R2, review RVCM971). Only lines that are purely a
-  copyright notice leave the match text; any added restriction keeps the
-  text from matching exactly and is reported as differing terms for human
-  review. GPL-family texts match their version stem while the
-  `-only`/`-or-later` variant is read from the project's own manifest and
-  README grant, never from the license body. Dependency texts that do not
-  match exactly, malformed license expressions, and bundle artifacts whose
-  recorded content hashes do not match the workspace all keep named
-  human-review reasons. The production scan derives its distribution
-  evidence from the build's bundle metafiles plus recorded content hashes,
-  which the production build now writes beside each metafile.
+- The `/legal` scanner matches license texts against the official SPDX
+  License List 3.28.0 templates under the SPDX matching guidelines (M97
+  CM971-R3, reviews RVCM971 and RVCM971B). A text is an exact match only
+  when every fixed word of a template is present in order and only the
+  template's variable and optional parts vary, each variable holding just
+  what it stands for (a copyright notice, a list marker, a name); a
+  sentence, a condition or prose in any language never vanishes into a
+  match. Anything else is reported as differing from the template at a
+  quoted span, for human review. The 20 templates ship beside the scanner,
+  byte-identical and verified by SHA-256 before use. GPL-family texts match
+  their version stem; `-only`/`-or-later` comes only from the project's own
+  grant (manifest, README, source `SPDX-License-Identifier` headers, GNU
+  "any later version" notices, a trailing `+`). Every licence text a
+  dependency names (Cargo `license-file`, `SEE LICENSE IN`, Python
+  `License-File`) and every vendored licence below the root keeps its
+  human-review limitation unless it matches exactly. Artifact freshness is
+  proven per bundle from SHA-256 hashes the production build captures from
+  the exact bytes it compiles; every listed output must exist and match,
+  conflicting records fail, and inputs outside the workspace are named.
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which

@@ -10,7 +10,7 @@ import {
   resolveGplStemVariant,
   scanProjectLicense,
 } from '../../src/core/legal/projectLicense'
-import { snapshotFrom } from './legal/helpers'
+import { FULL_MIT_LICENSE, snapshotFrom } from './legal/helpers'
 
 const MIT_TEXT = `MIT License
 
@@ -44,9 +44,10 @@ describe('scanProjectLicense', () => {
     expect(result.findings.some((finding) => finding.explanation.includes('disagree'))).toBe(false)
   })
 
-  it('agrees on the id while flagging an excerpt file as differing', () => {
-    // RVCM971 P1: the excerpt covers every MIT phrase without matching the
-    // canonical text, so it reads as modified terms, never as exact.
+  it('agrees on the id while keeping an excerpt file under human review', () => {
+    // RVCM971 P1, CM971-R3: an excerpt is too far from the SPDX template to
+    // align, so it reads heuristically, never as exact, and keeps the
+    // named full-matching reason.
     const result = scanProjectLicense(
       snapshotFrom({
         LICENSE: MIT_TEXT,
@@ -55,10 +56,20 @@ describe('scanProjectLicense', () => {
       [manifest('MIT')],
     )
     expect(result.licenses).toEqual(['MIT'])
+    expect(result.findings).toEqual([])
+    expect(result.requiresReview).toBe(true)
+    expect(result.incomplete.join(' ')).toContain('heuristic')
+  })
+
+  it('flags a near-canonical file as differing, with its span', () => {
+    const result = scanProjectLicense(
+      snapshotFrom({ LICENSE: `${FULL_MIT_LICENSE}Nonprofit use only.\n` }),
+      [manifest('MIT')],
+    )
     expect(result.findings).toHaveLength(1)
     expect(result.findings[0]?.severity).toBe('advice')
-    expect(result.findings[0]?.explanation).toContain('differs from the canonical MIT text')
-    expect(result.incomplete.join(' ')).toContain('heuristic')
+    expect(result.findings[0]?.explanation).toContain('differs from the SPDX MIT template')
+    expect(result.findings[0]?.evidenceExcerpt).toContain('Nonprofit use only.')
   })
 
   it('reports a manifest against file conflict without resolving it', () => {
@@ -117,11 +128,11 @@ describe('scanProjectLicense', () => {
   })
 
   it('accepts a license pointer at a present file', () => {
-    const result = scanProjectLicense(snapshotFrom({ 'LICENSE.txt': MIT_TEXT }), [
+    const result = scanProjectLicense(snapshotFrom({ 'LICENSE.txt': FULL_MIT_LICENSE }), [
       manifest('SEE LICENSE IN LICENSE.txt'),
     ])
-    expect(result.findings).toHaveLength(1)
-    expect(result.findings[0]?.explanation).toContain('differs from the canonical MIT text')
+    expect(result.findings).toEqual([])
+    expect(result.licenses).toEqual(['MIT'])
   })
 
   it('reads GPL version stems from the text without granting a variant', () => {

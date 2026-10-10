@@ -4930,12 +4930,15 @@
       "other": "İncelenmedi: {count} Python gereksiniminde çözümlenmiş sürüm yok; geçişli lisanslar bilinmiyor."
     },
     "m196": "İncelenmedi: Python bildirgesi, kilit veya dağıtım meta verisi yok.",
-    "m197": {
-      "one": "{v0}, standart {v1} metninden {count} sözcük farklıdır; değiştirilen koşullar insan incelemesi gerektirir",
-      "other": "{v0}, standart {v1} metninden {count} sözcük farklıdır; değiştirilen koşullar insan incelemesi gerektirir"
-    },
     "m198": "İncelenmedi: {v0} bozuk bir lisans ifadesi ({v1}) bildirir; koşulları insan incelemesi gerektirir.",
     "m199": "İncelenmedi: {v1} konumundaki {v0} lisans metni standart metinden farklıdır.",
+    "m200": "{v0}, SPDX {v1} şablonundan “{v2}” noktasında ayrılıyor; şablon orada “{v3}” ile devam ediyor; değiştirilmiş koşulları bir insanın incelemesi gerekir",
+    "m201": "{v0}, SPDX {v1} şablonundan ayrılıyor: “{v2}” şablonun parçası değil; değiştirilmiş koşulları bir insanın incelemesi gerekir",
+    "m202": "Denetlenmedi: {v0} paketi çalışma alanı dışındaki {v1} öğesini listeliyor ve bu doğrulanamıyor",
+    "m203": "Denetlenmedi: derleme kayıtları {v0} içeriği konusunda çelişiyor",
+    "m204": "Denetlenmedi: {v0} paketinin {v1} çıktısı eksik ya da derleme kaydından farklı",
+    "m205": "Denetlenmedi: sabitlenmiş SPDX şablon verileri doğrulamayı geçemedi ({v0}); bunlar için tam lisans metni eşleştirmesi kapalı",
+    "m206": "Denetlenmedi: {v0} paketinin {v1} girdisinin derlemede alınmış bir özeti yok ya da artık onunla eşleşmiyor",
     "unknown": "bilinmiyor",
     "unresolved": "çözümlenmemiş",
     "noLicense": "lisans yok",

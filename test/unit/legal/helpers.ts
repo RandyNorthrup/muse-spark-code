@@ -43,18 +43,33 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTI
 USE OR OTHER DEALINGS IN THE SOFTWARE.
 `
 
+/** The one built output `hashEvidence` records; callers put it in the snapshot. */
+export const BUNDLE_OUTPUT = 'dist/bundle.js'
+export const BUNDLE_TEXT =
+  '// Copyright (c) 2026 Example Corp\n// SPDX-License-Identifier: MIT\nconsole.log(1)\n'
+
 /**
- * Hash-backed distribution evidence over every file (M97 CM971R2): file
- * names alone never prove freshness, so the evidence carries the content
- * hash of each input alongside the input list.
+ * Hash-backed distribution evidence (M97 CM971-R3): one bundle record
+ * whose inputs are every file but the output, and whose listed output
+ * (`BUNDLE_OUTPUT`) must exist in the snapshot with matching bytes. File
+ * names alone, or an empty output list, never prove freshness.
  */
 export function hashEvidence(files: Record<string, string>): DistributionEvidence {
+  const inputs = Object.keys(files).filter((file) => file !== BUNDLE_OUTPUT)
   return {
-    bundleInputs: Object.keys(files),
-    bundleInputHashes: Object.fromEntries(
-      Object.entries(files).map(([file, text]) => [file, fingerprint(text)]),
-    ),
-    bundleOutputHashes: {},
+    bundleInputs: inputs,
+    bundles: [
+      {
+        name: 'bundle',
+        inputs,
+        outputs: [BUNDLE_OUTPUT],
+        outside: [],
+        inputHashes: Object.fromEntries(
+          inputs.map((file) => [file, fingerprint(files[file] ?? '')]),
+        ),
+        outputHashes: { [BUNDLE_OUTPUT]: fingerprint(files[BUNDLE_OUTPUT] ?? '') },
+      },
+    ],
   }
 }
 

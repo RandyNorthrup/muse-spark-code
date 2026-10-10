@@ -16,20 +16,35 @@ import type { LegalFileSnapshot } from './files'
 import { excerpt, isLegalGlobMatch } from './files'
 import { LEGAL_PATH_MAX_CHARS, LEGAL_FINDINGS_MAX } from '../../shared/constants'
 
+/**
+ * One bundle's build record (M97 CM971-R3): what its metafile lists and
+ * the SHA-256 the build captured for the exact bytes it compiled and
+ * wrote. Each bundle is proven on its own, so one bundle's record never
+ * vouches for another's.
+ */
+export interface BundleEvidence {
+  /** The bundle's name (its metafile stem), for named reasons. */
+  readonly name: string
+  /** Every workspace input the metafile lists. */
+  readonly inputs: readonly string[]
+  /** Every workspace output the metafile lists. */
+  readonly outputs: readonly string[]
+  /** Listed inputs or outputs outside the workspace, by name. */
+  readonly outside: readonly string[]
+  /** Build-captured SHA-256 per path; absent when no build record exists. */
+  readonly inputHashes?: Readonly<Record<string, string>>
+  readonly outputHashes?: Readonly<Record<string, string>>
+}
+
 /** The distribution evidence a scan may use, all of it optional. */
 export interface DistributionEvidence {
   /** Exact bundle inputs (an esbuild metafile's input list), when known. */
   readonly bundleInputs?: readonly string[]
   /**
-   * SHA-256 content hashes of the bundle inputs, keyed by input path
-   * (M97 CM971R2): file names alone never prove artifact freshness.
+   * Per-bundle build records proving those inputs fresh (M97 CM971-R3):
+   * file names alone, or hashes without their bundle, never do.
    */
-  readonly bundleInputHashes?: Record<string, string>
-  /**
-   * SHA-256 content hashes of the bundle outputs, keyed by output path
-   * (M97 CM971R2): every emitted artifact must match the build bytes too.
-   */
-  readonly bundleOutputHashes?: Record<string, string>
+  readonly bundles?: readonly BundleEvidence[]
   /** A package manifest's shipped-file allowlist (`files`, PEP 639). */
   readonly packageFiles?: readonly string[]
   /** The raw text of the workspace's `.vscodeignore`, when present. */
@@ -196,53 +211,76 @@ export function normalizeEvidencePath(entry: string): string {
 }
 
 /**
- * The workspace bytes' SHA-256 for a snapshot member: the admitted-bytes
- * digest when the reader recorded one, else the digest of the text read
- * now. `undefined` when the file cannot be read as text.
+ * The SHA-256 of a snapshot member's exact bytes (M97 CM971-R3). A
+ * snapshot that admits bytes (the native reader) answers from those
+ * bytes, byte-order mark included, exactly as the build hashes them; an
+ * in-memory snapshot's text is its bytes. `undefined` when unreadable.
  */
 function currentContentHash(snapshot: LegalFileSnapshot, file: string): string | undefined {
-  const recorded = snapshot.readFileHash?.(file)
-  if (recorded !== undefined) return recorded
   const text = snapshot.readFile(file)
+  if (snapshot.readFileHash !== undefined) return snapshot.readFileHash(file)
   return text === undefined ? undefined : fingerprint(text)
 }
 
+function digestOf(
+  record: Readonly<Record<string, string>> | undefined,
+  file: string,
+): string | undefined {
+  if (record === undefined) return undefined
+  for (const [path, digest] of Object.entries(record))
+    if (normalizeEvidencePath(path) === file) return digest
+  return undefined
+}
+
 /**
- * Whether the build-recorded content hashes prove the artifacts fresh
- * (M97 CM971R2): every listed input and every recorded output must be
- * present with matching bytes. Missing hashes, unreadable files and
- * mismatches all read as stale, never as fresh.
+ * Named reasons a set of bundle records does not prove the shipped
+ * artifacts fresh (M97 CM971-R3); empty only when every bundle lists at
+ * least one input and one output, nothing outside the workspace, every
+ * listed input matches its build-captured hash, every listed output
+ * exists and matches its hash, and no two records disagree about one
+ * input.
  */
-function isBundleEvidenceFresh(
+function bundleFreshnessProblems(
   snapshot: LegalFileSnapshot,
   fileSet: ReadonlySet<string>,
-  inputs: readonly string[],
-  inputHashes: Record<string, string> | undefined,
-  outputHashes: Record<string, string> | undefined,
-): boolean {
-  if (inputHashes === undefined || outputHashes === undefined) return false
-  const normalizedInputHashes: Record<string, string> = {}
-  for (const [path, digest] of Object.entries(inputHashes)) {
-    normalizedInputHashes[normalizeEvidencePath(path)] = digest
+  bundles: readonly BundleEvidence[],
+): string[] {
+  if (bundles.length === 0) return [UI_TEXT.legalScanner.m035]
+  const problems: string[] = []
+  const recordedBy = new Map<string, string>()
+  const conflicts = new Set<string>()
+  for (const bundle of bundles) {
+    for (const entry of bundle.outside)
+      problems.push(fill(UI_TEXT.legalScanner.m202, { v0: bundle.name, v1: entry }))
+    if (bundle.inputs.length === 0 || bundle.outputs.length === 0)
+      problems.push(UI_TEXT.legalScanner.m035)
+    for (const listed of bundle.inputs) {
+      const input = normalizeEvidencePath(listed)
+      const expected = digestOf(bundle.inputHashes, input)
+      const earlier = recordedBy.get(input)
+      if (expected !== undefined && earlier !== undefined && earlier !== expected)
+        conflicts.add(input)
+      if (expected !== undefined) recordedBy.set(input, expected)
+      if (
+        expected === undefined ||
+        !fileSet.has(input) ||
+        currentContentHash(snapshot, input) !== expected
+      )
+        problems.push(fill(UI_TEXT.legalScanner.m206, { v0: bundle.name, v1: input }))
+    }
+    for (const listed of bundle.outputs) {
+      const output = normalizeEvidencePath(listed)
+      const expected = digestOf(bundle.outputHashes, output)
+      if (
+        expected === undefined ||
+        !fileSet.has(output) ||
+        currentContentHash(snapshot, output) !== expected
+      )
+        problems.push(fill(UI_TEXT.legalScanner.m204, { v0: bundle.name, v1: output }))
+    }
   }
-  const normalizedOutputHashes: Record<string, string> = {}
-  for (const [path, digest] of Object.entries(outputHashes)) {
-    normalizedOutputHashes[normalizeEvidencePath(path)] = digest
-  }
-  for (const file of inputs) {
-    const expected = normalizedInputHashes[file]
-    if (typeof expected !== 'string' || currentContentHash(snapshot, file) !== expected)
-      return false
-  }
-  for (const [output, expected] of Object.entries(normalizedOutputHashes)) {
-    if (
-      typeof expected !== 'string' ||
-      !fileSet.has(output) ||
-      currentContentHash(snapshot, output) !== expected
-    )
-      return false
-  }
-  return true
+  for (const input of conflicts) problems.push(fill(UI_TEXT.legalScanner.m203, { v0: input }))
+  return problems
 }
 
 /**
@@ -270,17 +308,23 @@ export function computeShipped(
   if (evidence.bundleInputs !== undefined) {
     const listed = evidence.bundleInputs.map((file) => normalizeEvidencePath(file))
     shippedFiles = listed.filter((file) => fileSet.has(file))
-    const isFresh =
-      shippedFiles.length === listed.length &&
-      isBundleEvidenceFresh(
-        snapshot,
-        fileSet,
-        shippedFiles,
-        evidence.bundleInputHashes,
-        evidence.bundleOutputHashes,
+    const problems = bundleFreshnessProblems(snapshot, fileSet, evidence.bundles ?? [])
+    const proven = new Set(
+      (evidence.bundles ?? []).flatMap((bundle) =>
+        bundle.inputs.map((file) => normalizeEvidencePath(file)),
+      ),
+    )
+    // Every shipped input must belong to a bundle record that proves it.
+    if (listed.some((file) => !proven.has(file) || !fileSet.has(file)))
+      problems.push(UI_TEXT.legalScanner.m036)
+    if (problems.length > 0) {
+      incomplete.push(
+        UI_TEXT.legalScanner.m036,
+        UI_TEXT.legalScanner.m035,
+        ...problems.filter(
+          (entry) => entry !== UI_TEXT.legalScanner.m036 && entry !== UI_TEXT.legalScanner.m035,
+        ),
       )
-    if (!isFresh) {
-      incomplete.push(UI_TEXT.legalScanner.m036, UI_TEXT.legalScanner.m035)
     }
     summary = plural(UI_TEXT.legalScanner.m037, shippedFiles.length, { v0: shippedFiles.length })
   } else if (evidence.packageFiles === undefined) {

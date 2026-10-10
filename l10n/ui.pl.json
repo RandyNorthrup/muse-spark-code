@@ -5224,14 +5224,15 @@
       "many": "Nie sprawdzono: {count} wymagań Python bez rozwiązanej wersji; licencje przechodnie nieznane."
     },
     "m196": "Nie sprawdzono: brak manifestów Python, blokad i metadanych dystrybucji.",
-    "m197": {
-      "one": "{v0} różni się od kanonicznego tekstu {v1} o {count} słowo; zmienione warunki wymagają przeglądu przez człowieka",
-      "other": "{v0} różni się od kanonicznego tekstu {v1} o {count} słów; zmienione warunki wymagają przeglądu przez człowieka",
-      "few": "{v0} różni się od kanonicznego tekstu {v1} o {count} słowa; zmienione warunki wymagają przeglądu przez człowieka",
-      "many": "{v0} różni się od kanonicznego tekstu {v1} o {count} słów; zmienione warunki wymagają przeglądu przez człowieka"
-    },
     "m198": "Nie sprawdzono: {v0} deklaruje wadliwe wyrażenie licencji ({v1}); jego warunki wymagają przeglądu przez człowieka.",
     "m199": "Nie sprawdzono: licencja {v0} w {v1} różni się od brzmienia kanonicznego.",
+    "m200": "{v0} różni się od szablonu SPDX {v1} w miejscu „{v2}”, gdzie szablon kontynuuje „{v3}”; zmienione warunki wymagają przeglądu przez człowieka",
+    "m201": "{v0} różni się od szablonu SPDX {v1}: „{v2}” nie jest jego częścią; zmienione warunki wymagają przeglądu przez człowieka",
+    "m202": "Nie sprawdzono: pakiet {v0} wymienia {v1}, który leży poza obszarem roboczym i nie można go zweryfikować",
+    "m203": "Nie sprawdzono: zapisy kompilacji nie zgadzają się co do zawartości {v0}",
+    "m204": "Nie sprawdzono: wynik {v1} pakietu {v0} nie istnieje lub różni się od zapisu kompilacji",
+    "m205": "Nie sprawdzono: przypięte dane szablonów SPDX nie przeszły weryfikacji ({v0}); dokładne dopasowanie tekstu licencji jest dla nich wyłączone",
+    "m206": "Nie sprawdzono: wejście {v1} pakietu {v0} nie ma skrótu zapisanego podczas kompilacji lub już mu nie odpowiada",
     "unknown": "nieznane",
     "unresolved": "nierozwiązane",
     "noLicense": "brak licencji",

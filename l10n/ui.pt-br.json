@@ -5077,13 +5077,15 @@
       "many": "Não verificado: {count} requisitos Python sem versão resolvida; licenças transitivas desconhecidas."
     },
     "m196": "Não verificado: faltam manifestos Python, bloqueios e metadados de distribuição.",
-    "m197": {
-      "one": "{v0} difere do texto canônico {v1} em {count} palavra; seus termos modificados precisam de revisão humana",
-      "other": "{v0} difere do texto canônico {v1} em {count} palavras; seus termos modificados precisam de revisão humana",
-      "many": "{v0} difere do texto canônico {v1} em {count} palavras; seus termos modificados precisam de revisão humana"
-    },
     "m198": "Não verificado: {v0} declara uma expressão de licença malformada ({v1}); seus termos precisam de revisão humana.",
     "m199": "Não verificado: a licença de {v0} em {v1} difere de sua redação canônica.",
+    "m200": "{v0} difere do modelo SPDX {v1} em “{v2}”, onde o modelo continua “{v3}”; seus termos modificados precisam de revisão humana",
+    "m201": "{v0} difere do modelo SPDX {v1}: “{v2}” não faz parte dele; seus termos modificados precisam de revisão humana",
+    "m202": "Não verificado: o pacote {v0} lista {v1}, que fica fora do espaço de trabalho e não pode ser verificado",
+    "m203": "Não verificado: os registros de build divergem sobre o conteúdo de {v0}",
+    "m204": "Não verificado: a saída {v1} do pacote {v0} está ausente ou difere do registro de build",
+    "m205": "Não verificado: os dados fixados de modelos SPDX falharam na verificação ({v0}); a correspondência exata do texto da licença está desligada para eles",
+    "m206": "Não verificado: a entrada {v1} do pacote {v0} não tem hash capturado no build ou não corresponde mais a ele",
     "unknown": "desconhecido",
     "unresolved": "não resolvido",
     "noLicense": "sem licença",

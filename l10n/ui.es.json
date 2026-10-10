@@ -5077,13 +5077,15 @@
       "many": "Sin comprobar: {count} requisitos Python sin versión resuelta; licencias transitivas desconocidas."
     },
     "m196": "Sin comprobar: faltan manifiestos Python, bloqueos y metadatos de distribución.",
-    "m197": {
-      "one": "{v0} difiere del texto canónico {v1} en {count} palabra; sus términos modificados necesitan revisión humana",
-      "other": "{v0} difiere del texto canónico {v1} en {count} palabras; sus términos modificados necesitan revisión humana",
-      "many": "{v0} difiere del texto canónico {v1} en {count} palabras; sus términos modificados necesitan revisión humana"
-    },
     "m198": "Sin comprobar: {v0} declara una expresión de licencia defectuosa ({v1}); sus términos necesitan revisión humana.",
     "m199": "Sin comprobar: la licencia de {v0} en {v1} difiere de su redacción canónica.",
+    "m200": "{v0} difiere de la plantilla SPDX {v1} en «{v2}», donde la plantilla continúa «{v3}»; sus términos modificados requieren revisión humana",
+    "m201": "{v0} difiere de la plantilla SPDX {v1}: «{v2}» no forma parte de ella; sus términos modificados requieren revisión humana",
+    "m202": "No comprobado: el paquete {v0} incluye {v1}, que está fuera del espacio de trabajo y no se puede verificar",
+    "m203": "No comprobado: los registros de compilación no coinciden sobre el contenido de {v0}",
+    "m204": "No comprobado: la salida {v1} del paquete {v0} falta o difiere de su registro de compilación",
+    "m205": "No comprobado: los datos fijados de plantillas SPDX no superaron la verificación ({v0}); la coincidencia exacta del texto de licencia está desactivada para ellos",
+    "m206": "No comprobado: la entrada {v1} del paquete {v0} no tiene un hash capturado en la compilación o ya no coincide con él",
     "unknown": "desconocido",
     "unresolved": "sin resolver",
     "noLicense": "sin licencia",

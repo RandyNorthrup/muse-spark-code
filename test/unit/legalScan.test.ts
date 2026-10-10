@@ -4,12 +4,19 @@
 // schema.
 
 import { describe, expect, it } from 'vitest'
-import { LEGAL_FILES_SCANNED_MAX, LEGAL_FINDINGS_MAX } from '../../src/shared/constants'
+import { LEGAL_FILES_SCANNED_MAX, LEGAL_FINDINGS_MAX, UI_TEXT } from '../../src/shared/constants'
 import { fingerprint } from '../../src/core/verify/fingerprint'
-import { formatNumber } from '../../src/shared/l10n/text'
+import { fill, formatNumber } from '../../src/shared/l10n/text'
 import { scanLegal } from '../../src/core/legal/scan'
 import { legalScanResultSchema } from '../../src/shared/legal'
-import { FULL_MIT_LICENSE, countingSnapshot, hashEvidence, snapshotFrom } from './legal/helpers'
+import {
+  BUNDLE_OUTPUT,
+  BUNDLE_TEXT,
+  FULL_MIT_LICENSE,
+  countingSnapshot,
+  hashEvidence,
+  snapshotFrom,
+} from './legal/helpers'
 
 const headed = `// Copyright (c) 2026 Example Corp
 // SPDX-License-Identifier: MIT
@@ -67,6 +74,7 @@ describe('scanLegal', () => {
       LICENSE: FULL_MIT_LICENSE.replaceAll('\n', '\r\n'),
       'package.json': JSON.stringify({ name: 'example', version: '1.0.0', license: 'MIT' }),
       'src/ok.ts': headed,
+      [BUNDLE_OUTPUT]: BUNDLE_TEXT,
     }
     const result = scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
@@ -91,6 +99,7 @@ describe('scanLegal', () => {
       'node_modules/leftpad/package.json': JSON.stringify({ version: '1.3.0', license: 'MIT' }),
       'node_modules/leftpad/LICENSE': `${FULL_MIT_LICENSE}You must also pay the author one dollar per installed copy.\n`,
       'src/ok.ts': headed,
+      [BUNDLE_OUTPUT]: BUNDLE_TEXT,
     }
     const result = scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
@@ -100,31 +109,60 @@ describe('scanLegal', () => {
     expect(result.incompleteChecks.some((entry) => entry.includes('human review'))).toBe(true)
   })
 
-  it('derives distribution from metafiles while ignoring non-file keys', () => {
-    // The webview page metafiles synthesize `namespace:name` inputs and
-    // may name absolute paths: keys that cannot name a snapshot member
-    // are build-time constants, while workspace inputs still verify.
-    const files = {
-      LICENSE: FULL_MIT_LICENSE,
-      'package.json': JSON.stringify({ name: 'example', version: '1.0.0', license: 'MIT' }),
-      'src/ok.ts': headed,
-      'dist/meta/bundle.json': JSON.stringify({
-        inputs: {
-          'src/ok.ts': { bytes: 1 },
-          'browser-ns:virtual': { bytes: 1 },
-          '/abs/path.js': { bytes: 1 },
-        },
-        outputs: {},
-      }),
-      'dist/meta-hashes/bundle.json': JSON.stringify({
-        version: 1,
-        inputs: { 'src/ok.ts': fingerprint(headed) },
-        outputs: {},
-      }),
-    }
+  const metaProject = (
+    inputs: Record<string, unknown>,
+    record: unknown,
+  ): Record<string, string> => ({
+    LICENSE: FULL_MIT_LICENSE,
+    'package.json': JSON.stringify({ name: 'example', version: '1.0.0', license: 'MIT' }),
+    'src/ok.ts': headed,
+    [BUNDLE_OUTPUT]: BUNDLE_TEXT,
+    'dist/meta/bundle.json': JSON.stringify({
+      inputs,
+      outputs: { [BUNDLE_OUTPUT]: { bytes: BUNDLE_TEXT.length } },
+    }),
+    'dist/meta-hashes/bundle.json': JSON.stringify(record),
+  })
+  const versionTwo = {
+    version: 2,
+    inputs: { 'src/ok.ts': fingerprint(headed) },
+    outputs: { [BUNDLE_OUTPUT]: fingerprint(BUNDLE_TEXT) },
+  }
+
+  it('derives distribution from a version-2 build record, skipping generated modules', () => {
+    // Plugin-generated `namespace:name` modules are not files; every
+    // workspace input and listed output verifies against the record.
+    const files = metaProject(
+      { 'src/ok.ts': { bytes: 1 }, 'browser-ns:virtual': { bytes: 1 } },
+      versionTwo,
+    )
     const result = scanLegal(snapshotFrom(files), { headerPolicy: 'optional' })
     expect(result.incompleteChecks).toEqual([])
     expect(result.findings).toEqual([])
+  })
+
+  it('names inputs outside the workspace instead of treating them as constants (RVCM971B P2-5)', () => {
+    const files = metaProject(
+      {
+        'src/ok.ts': { bytes: 1 },
+        '../shared/review.ts': { bytes: 1 },
+        '/abs/path.js': { bytes: 1 },
+      },
+      versionTwo,
+    )
+    const result = scanLegal(snapshotFrom(files), { headerPolicy: 'optional' })
+    for (const outside of ['../shared/review.ts', '/abs/path.js'])
+      expect(result.incompleteChecks).toContain(
+        fill(UI_TEXT.legalScanner.m202, { v0: 'bundle', v1: outside }),
+      )
+  })
+
+  it('refuses a version-1 record, which re-read files after the build (RVCM971B P2-4)', () => {
+    const files = metaProject({ 'src/ok.ts': { bytes: 1 } }, { ...versionTwo, version: 1 })
+    const result = scanLegal(snapshotFrom(files), { headerPolicy: 'optional' })
+    expect(result.incompleteChecks).toContain(
+      fill(UI_TEXT.legalScanner.m206, { v0: 'bundle', v1: 'src/ok.ts' }),
+    )
   })
 
   it('reads stale bundle bytes as stale, not as fresh (RVCM971 P2)', () => {
@@ -134,21 +172,14 @@ describe('scanLegal', () => {
       LICENSE: FULL_MIT_LICENSE,
       'package.json': JSON.stringify({ name: 'example', version: '1.0.0', license: 'MIT' }),
       'src/ok.ts': `${headed}export const extra = 2\n`,
+      [BUNDLE_OUTPUT]: BUNDLE_TEXT,
     }
     const stale = scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
-      distribution: {
-        bundleInputs: Object.keys(files),
-        bundleInputHashes: {
-          LICENSE: fingerprint(FULL_MIT_LICENSE),
-          'package.json': fingerprint(files['package.json']),
-          'src/ok.ts': fingerprint(headed),
-        },
-        bundleOutputHashes: {},
-      },
+      distribution: hashEvidence({ ...files, 'src/ok.ts': headed }),
     })
-    expect(stale.incompleteChecks.join(' ')).toContain('stale')
-    expect(stale.incompleteChecks.join(' ')).toContain('freshness')
+    expect(stale.incompleteChecks).toContain(UI_TEXT.legalScanner.m036)
+    expect(stale.incompleteChecks).toContain(UI_TEXT.legalScanner.m035)
   })
 
   it('sorts findings deterministically with stable rule ids', () => {

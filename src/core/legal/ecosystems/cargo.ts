@@ -93,7 +93,11 @@ function readVendored(
   snapshot: LegalFileSnapshot,
   name: string,
   version: string,
-): { readonly licenseRaw: string | undefined; readonly file: string | undefined } {
+): {
+  readonly licenseRaw: string | undefined
+  readonly file: string | undefined
+  readonly textFile?: string
+} {
   const registrySuffix = `/${name}-${version}/Cargo.toml`
   const vendorSuffix = `/vendor/${name}/Cargo.toml`
   const candidate = snapshot.files
@@ -123,7 +127,11 @@ function readVendored(
     const dir = dirNameOf(candidate)
     const licenseText = snapshot.readFile(`${dir}/${licenseFile}`)
     if (licenseText !== undefined && !hasBinaryContent(licenseText)) {
-      return { licenseRaw: identifyLicenseText(licenseText)?.id, file: `${dir}/${licenseFile}` }
+      return {
+        licenseRaw: identifyLicenseText(licenseText)?.id,
+        file: `${dir}/${licenseFile}`,
+        textFile: `${dir}/${licenseFile}`,
+      }
     }
   }
   return { licenseRaw: undefined, file: candidate }
@@ -189,7 +197,7 @@ export function readCargo(snapshot: LegalFileSnapshot): EcosystemResult {
   const lockedNames = new Set(Array.from(locked.values(), (entry) => entry.name))
   const dependencies = Array.from(locked.values(), (entry) => {
     const name = entry.name
-    const vendored =
+    const vendored: ReturnType<typeof readVendored> =
       entry.version === undefined
         ? { licenseRaw: undefined, file: undefined }
         : readVendored(snapshot, name, entry.version)
@@ -198,6 +206,7 @@ export function readCargo(snapshot: LegalFileSnapshot): EcosystemResult {
       version: entry.version,
       scope: manifest?.scope ?? 'production',
       licenseRaw: vendored.licenseRaw,
+      licenseTextFile: vendored.textFile,
     })
   })
   for (const manifestDep of manifestDeps) {

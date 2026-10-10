@@ -17,7 +17,13 @@ import {
 import { runLegalScan } from '../../src/core/legal/entry'
 import { requestUrl } from './helpers/legalRequest'
 import { scanLegal } from '../../src/core/legal/scan'
-import { FULL_MIT_LICENSE, hashEvidence, snapshotFrom } from './legal/helpers'
+import {
+  BUNDLE_OUTPUT,
+  BUNDLE_TEXT,
+  FULL_MIT_LICENSE,
+  hashEvidence,
+  snapshotFrom,
+} from './legal/helpers'
 import type { LegalRegistryTarget } from '../../src/runtime/legal/legalRegistry'
 import { loadLegalScanner, type LegalScanHandle } from '../../src/runtime/legal/legalScanner'
 import {
@@ -119,6 +125,42 @@ function deps(input?: {
   }
 }
 
+/** Write a workspace with a version-2 build record over `inputs` and run the production entry. */
+async function productionRun(
+  files: Record<string, string>,
+  inputs: readonly string[],
+): Promise<{ readonly handle: LegalScanHandle; readonly exitCode: number }> {
+  const root = mkdtempSync(path.join(tmpdir(), 'legal-e2e-'))
+  const bundle =
+    '// Copyright (c) 2026 Example Corp\n// SPDX-License-Identifier: MIT\nconsole.log(1)\n'
+  const all: Record<string, string> = {
+    ...files,
+    'dist/bundle.js': bundle,
+    'dist/meta/bundle.json': JSON.stringify({
+      inputs: Object.fromEntries(
+        inputs.map((input) => [input, { bytes: Buffer.byteLength(files[input] ?? '') }]),
+      ),
+      outputs: { 'dist/bundle.js': { bytes: Buffer.byteLength(bundle) } },
+    }),
+    'dist/meta-hashes/bundle.json': JSON.stringify({
+      version: 2,
+      inputs: Object.fromEntries(inputs.map((input) => [input, shaText(files[input] ?? '')])),
+      outputs: { 'dist/bundle.js': shaText(bundle) },
+    }),
+  }
+  for (const [file, text] of Object.entries(all)) {
+    const absolute = path.join(root, file)
+    mkdirSync(path.dirname(absolute), { recursive: true })
+    writeFileSync(absolute, text)
+  }
+  const handle = await runLegalScan({ workspaceRoot: root, input: { headerPolicy: 'optional' } })
+  const outcome = await runLegalCommand({
+    options: { format: 'json', out: undefined, registry: false },
+    deps: deps({ scan: () => Promise.resolve(handle) }),
+  })
+  return { handle, exitCode: outcome.exitCode }
+}
+
 describe('M97 legal run (lane R)', () => {
   it('exits 0 on a clean scan with text and json reports', async () => {
     for (const format of ['text', 'json'] as const) {
@@ -149,6 +191,7 @@ describe('M97 legal run (lane R)', () => {
       'package.json': JSON.stringify({ name: 'example', version: '1.0.0', license: 'MIT' }),
       'src/ok.ts':
         '// Copyright (c) 2026 Example Corp\n// SPDX-License-Identifier: MIT\nexport const value = 1\n',
+      [BUNDLE_OUTPUT]: BUNDLE_TEXT,
     }
     const result = scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
@@ -162,46 +205,60 @@ describe('M97 legal run (lane R)', () => {
     })
     expect(outcome.exitCode).toBe(LEGAL_EXIT.ok)
   })
-  it('completes a production runLegalScan end to end from real packaging evidence (CM971R2)', async () => {
-    // RVCM971 P2 (finding 2): the production entry derives distribution
-    // from the real packaging config (bundle metafile plus recorded
-    // content hashes), so a fully evidenced workspace completes with no
-    // injected evidence and exits 0 through the real command.
-    const root = mkdtempSync(path.join(tmpdir(), 'legal-e2e-'))
+  it('completes a production runLegalScan end to end with exit 0, BOM source included (RVCM971 P2-2, RVCM971B P2-7)', async () => {
+    // The production entry derives distribution from the real build
+    // record; a byte-order-marked source hashes the same bytes on both
+    // sides, so the fresh record is read as fresh.
     const source =
-      '// Copyright (c) 2026 Example Corp\n// SPDX-License-Identifier: MIT\nexport const value = 1\n'
-    const bundle =
-      '// Copyright (c) 2026 Example Corp\n// SPDX-License-Identifier: MIT\nconsole.log(1)\n'
-    const files: Record<string, string> = {
-      LICENSE: FULL_MIT_LICENSE,
-      'package.json': JSON.stringify({ name: 'example', version: '1.0.0', license: 'MIT' }),
-      'src/ok.ts': source,
-      'dist/bundle.js': bundle,
-      'dist/meta/bundle.json': JSON.stringify({
-        inputs: { 'src/ok.ts': { bytes: Buffer.byteLength(source) } },
-        outputs: { 'dist/bundle.js': { bytes: Buffer.byteLength(bundle) } },
-      }),
-      'dist/meta-hashes/bundle.json': JSON.stringify({
-        version: 1,
-        inputs: { 'src/ok.ts': shaText(source) },
-        outputs: { 'dist/bundle.js': shaText(bundle) },
-      }),
-    }
-    for (const [file, text] of Object.entries(files)) {
-      const absolute = path.join(root, file)
-      mkdirSync(path.dirname(absolute), { recursive: true })
-      writeFileSync(absolute, text)
-    }
-    const handle = await runLegalScan({ workspaceRoot: root, input: { headerPolicy: 'optional' } })
+      '\u{FEFF}// Copyright (c) 2026 Example Corp\n// SPDX-License-Identifier: MIT\nexport const value = 1\n'
+    const { handle, exitCode } = await productionRun(
+      {
+        LICENSE: FULL_MIT_LICENSE,
+        'package.json': JSON.stringify({ name: 'example', version: '1.0.0', license: 'MIT' }),
+        'src/ok.ts': source,
+      },
+      ['src/ok.ts'],
+    )
     expect(handle.result.incompleteChecks).toEqual([])
     expect(handle.result.findings).toEqual([])
     expect(handle.registryTargets).toEqual([])
-    const context = deps({ scan: () => Promise.resolve(handle) })
-    const outcome = await runLegalCommand({
-      options: { format: 'json', out: undefined, registry: false },
-      deps: context,
-    })
-    expect(outcome.exitCode).toBe(LEGAL_EXIT.ok)
+    expect(exitCode).toBe(LEGAL_EXIT.ok)
+  })
+
+  it('reports a shipped incompatible dependency end to end with exit 1 (RVCM971 P2-2)', async () => {
+    const headed =
+      '// Copyright (c) 2026 Example Corp\n// SPDX-License-Identifier: MIT\nexport const value = 1\n'
+    const files = {
+      LICENSE: FULL_MIT_LICENSE,
+      NOTICE: 'This product bundles copyleft-lib.\n',
+      'package.json': JSON.stringify({
+        name: 'example',
+        version: '1.0.0',
+        license: 'MIT',
+        dependencies: { 'copyleft-lib': '1.0.0' },
+      }),
+      'package-lock.json': JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          '': { name: 'example', version: '1.0.0', dependencies: { 'copyleft-lib': '1.0.0' } },
+          'node_modules/copyleft-lib': { version: '1.0.0', license: 'GPL-3.0-only' },
+        },
+      }),
+      'node_modules/copyleft-lib/package.json': JSON.stringify({
+        name: 'copyleft-lib',
+        version: '1.0.0',
+        license: 'GPL-3.0-only',
+      }),
+      'node_modules/copyleft-lib/index.js': 'module.exports = 1\n',
+      'src/ok.ts': headed,
+    }
+    const { handle, exitCode } = await productionRun(files, [
+      'src/ok.ts',
+      'node_modules/copyleft-lib/index.js',
+    ])
+    expect(handle.result.incompleteChecks).toEqual([])
+    expect(handle.result.findings.some((finding) => finding.severity === 'blocker')).toBe(true)
+    expect(exitCode).toBe(LEGAL_EXIT.findings)
   })
   it('redacts thrown scanner and writer reasons in reports, stderr and --out', async () => {
     for (const format of ['text', 'json'] as const) {

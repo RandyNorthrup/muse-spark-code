@@ -192,8 +192,10 @@ describe('pinned SPDX data', () => {
       expect(dataset.attribution).not.toBe('')
       const listed3 = dataset.files
       for (const file of listed3) {
+        // The SPDX templates live under legal-data/, beside the scanner.
+        const folder = dataset.name === 'spdx-license-templates' ? 'legal-data' : 'data'
         const bytes = readFileSync(
-          new URL(`../../src/core/legal/data/${file.path}`, import.meta.url),
+          new URL(`../../src/core/legal/${folder}/${file.path}`, import.meta.url),
         )
         expect(createHash('sha256').update(bytes).digest('hex')).toBe(file.sha256)
       }

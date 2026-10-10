@@ -1,258 +1,231 @@
-// M97 C-M97-1: the pinned license-text matcher. Verbatim license texts
-// match their canonical SPDX hashes exactly (holder and year lines aside);
-// excerpts, modified texts and unknown prose stay heuristic or unmatched
-// with the named full-matching incomplete reason downstream.
+// M97 CM971-R3: licence texts match the official SPDX templates under the
+// SPDX License List Matching Guidelines. Exact means every fixed token of
+// a pinned template is present in order with only its variable and
+// optional parts varying, each variable holding just what it stands for;
+// anything else is "differs: human review" with the differing span. The
+// property test inserts a restriction sentence into every pinned
+// template's canonical text and never accepts the result as exact.
 
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { fingerprint } from '../../src/core/verify/fingerprint'
-import { SPDX_LICENSE_TEXTS, spdxProvenance } from '../../src/core/legal/data'
+import { SPDX_TEMPLATE_FILES, spdxProvenance } from '../../src/core/legal/data'
 import {
-  identifyLicenseText,
-  matchPinnedLicenseText,
-  normalizeLicenseText,
-} from '../../src/core/legal/projectLicense'
+  licenseTemplateSet,
+  loadLicenseTemplates,
+  readLicenseText,
+} from '../../src/core/legal/licenseTemplates'
+import { identifyLicenseText, scanProjectLicense } from '../../src/core/legal/projectLicense'
+import { UI_TEXT } from '../../src/shared/constants'
 import { FULL_MIT_LICENSE, snapshotFrom } from './legal/helpers'
-import { scanProjectLicense } from '../../src/core/legal/projectLicense'
+import { PINNED_TEMPLATE_IDS, canonicalText } from './legal/templates'
 
-const MIT_EXCERPT = `MIT License
+const LEGAL_DATA = path.join(__dirname, '..', '..', 'src', 'core', 'legal', 'legal-data')
+const MIT_COPYRIGHT = 'Copyright (c) 2026 Example Corp'
 
-Copyright (c) 2026 Example Corp
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction.`
-
-const MIT_MODIFIED = `${FULL_MIT_LICENSE}
-You must also pay the author one dollar per installed copy.
-`
-
-const MIT_BODY_ONLY = FULL_MIT_LICENSE.split('\n')
-  .filter((line) => !/mit license/i.test(line))
-  .join('\n')
-
-const INSERTED_RESTRICTIONS: readonly string[] = [
-  'You must also pay the author one dollar per installed copy.',
-  'Copyright owners prohibit commercial use without a separate licence.',
-  '© 2026 Example Corp. A fee of $1 per copy is required.',
-  '(c) 2026 Example Corp. All rights reserved for commercial exploitation.',
-  'All rights reserved.',
-  'Commercial use requires a paid licence. Contact the authors.',
-  'THE SOFTWARE MAY NOT BE USED FOR MILITARY PURPOSES.',
+/** Restriction sentences in several shapes and scripts. */
+const RESTRICTIONS: readonly string[] = [
+  'For educational purposes only.',
+  'Nonprofit projects only.',
+  'No AI training.',
+  'Commercial use requires a paid license from the authors.',
+  'You must pay the author one dollar per installed copy.',
+  'This software may not be used by the military.',
+  'Redistribution is limited to members of Example Corp.',
+  'Copyright owners may not be used for commercial purposes.',
+  'COMMERCIAL USE REQUIRES A FEE.',
+  'Use of this software in Example Country is prohibited!',
+  '仅限非商业用途。',
+  '使用を教育目的に限定する。',
+  'Коммерческое использование запрещено.',
 ]
 
-describe('normalizeLicenseText', () => {
-  it('is stable across line endings, byte-order marks and holder lines', () => {
-    const unix = normalizeLicenseText(FULL_MIT_LICENSE)
-    const crlf = FULL_MIT_LICENSE.replaceAll('\n', '\r\n').replace(
-      '2026 Example Corp',
-      '1999 Someone Else',
-    )
-    expect(normalizeLicenseText(crlf)).toBe(unix)
-    expect(normalizeLicenseText(String.fromCodePoint(0xfe_ff) + crlf)).toBe(unix)
-    expect(unix).not.toContain('example corp')
-    expect(unix.split(' ').length).toBeGreaterThan(100)
-  })
-})
+/** Deterministic pseudo-random numbers (a 32-bit LCG), so failures replay. */
+function random(seed: number): () => number {
+  let state = seed
+  return () => {
+    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0
+    return state / 4_294_967_296
+  }
+}
 
-describe('matchPinnedLicenseText', () => {
-  it('matches a verbatim MIT text exactly regardless of the holder', () => {
-    const match = matchPinnedLicenseText(FULL_MIT_LICENSE)
-    expect(match).toMatchObject({ id: 'MIT', confidence: 1, exact: true })
-  })
+/** Every place a sentence can start: line starts, after sentence ends, at the end. */
+function sentenceBoundaries(text: string): number[] {
+  const offsets = new Set<number>([0, text.length])
+  for (const match of text.matchAll(/\n|[.:;]\s/gu)) offsets.add(match.index + match[0].length)
+  return [...offsets].toSorted((a, b) => a - b)
+}
 
-  it('matches a CRLF verbatim text exactly', () => {
-    const match = matchPinnedLicenseText(FULL_MIT_LICENSE.replaceAll('\n', '\r\n'))
-    expect(match).toMatchObject({ id: 'MIT', confidence: 1, exact: true })
-  })
-
-  it('reads a modified text heuristically, never as exact', () => {
-    const match = matchPinnedLicenseText(MIT_MODIFIED)
-    expect(match?.id).toBe('MIT')
-    expect(match?.exact).toBe(false)
-    expect(match?.differs?.canonicalId).toBe('MIT')
+describe('SPDX template matching', () => {
+  it('loads all twenty pinned templates with every hash verified', () => {
+    const set = licenseTemplateSet()
+    expect(set.problems).toEqual([])
+    expect(set.templates).toHaveLength(PINNED_TEMPLATE_IDS.length)
+    expect(PINNED_TEMPLATE_IDS).toHaveLength(20)
   })
 
-  it('keeps a Copyright-headed restriction in the match text (RVCM971 P1)', () => {
-    const restricted = `${FULL_MIT_LICENSE}Copyright owners prohibit commercial use without a separate licence.\n`
-    const match = matchPinnedLicenseText(restricted)
-    expect(match?.exact).not.toBe(true)
-    expect(match?.differs?.canonicalId).toBe('MIT')
-  })
-
-  it('keeps a © payment requirement in the match text (RVCM971 P1)', () => {
-    const restricted = `${FULL_MIT_LICENSE}© 2026 Example Corp. A fee of $1 per copy is required.\n`
-    const match = matchPinnedLicenseText(restricted)
-    expect(match?.exact).not.toBe(true)
-    expect(match?.differs?.canonicalId).toBe('MIT')
-  })
-
-  it.each(INSERTED_RESTRICTIONS)(
-    'never reads MIT with an inserted restriction (%s) as exact',
-    (restriction) => {
-      const lines = FULL_MIT_LICENSE.split('\n')
-      const variants = [
-        `${restriction}\n${FULL_MIT_LICENSE}`,
-        `${lines[0] ?? ''}\n${restriction}\n${lines.slice(1).join('\n')}`,
-        `${FULL_MIT_LICENSE}\n${restriction}`,
-      ]
-      for (const variant of variants) {
-        expect(matchPinnedLicenseText(variant)?.exact).not.toBe(true)
+  it.each(PINNED_TEMPLATE_IDS)(
+    'matches %s canonical text exactly, optionals kept or dropped',
+    (id) => {
+      for (const isKept of [true, false]) {
+        const reading = readLicenseText(canonicalText(id, isKept))
+        expect(reading?.exact).toBe(true)
+        expect(reading?.key).toBe(id.replace(/-(?:only|or-later)$/u, ''))
       }
     },
   )
 
-  it('never reads any pinned text with an inserted restriction as exact', () => {
-    // CM971R2 follow-up: the property holds for every pinned record, not
-    // only MIT. Each record's phrases plus neutral filler stand in for its
-    // canonical text (full texts stay out of the repo): the filler text
-    // matches its registered hash exactly, and every restriction-inserted
-    // variant must read as differs, never as exact. A normalizer that
-    // drops restriction lines fails this the same way the old one did.
-    for (const record of SPDX_LICENSE_TEXTS) {
-      const base = `${record.id} terms. ${record.phrases.join('. ')}. Sample neutral wording without distinctive phrases.`
-      const normalized = normalizeLicenseText(base)
-      const records = [
-        { ...record, hash: fingerprint(normalized), words: normalized.split(' ').length },
-      ]
-      const verbatim = matchPinnedLicenseText(base, records)
-      expect(verbatim?.exact, `${record.id} verbatim`).toBe(true)
-      expect(verbatim?.id, `${record.id} verbatim`).toBe(record.id)
-      const sentences = base.split('. ')
-      for (const restriction of INSERTED_RESTRICTIONS) {
-        const variants = [
-          `${restriction} ${base}`,
-          `${sentences[0] ?? ''}. ${restriction} ${sentences.slice(1).join('. ')}`,
-          `${base} ${restriction}`,
+  it('matches real-world MIT copies exactly: titles, holders, line endings, BOM, comments', () => {
+    const variants = [
+      FULL_MIT_LICENSE,
+      FULL_MIT_LICENSE.replaceAll('\n', '\r\n'),
+      `\u{FEFF}${FULL_MIT_LICENSE}`,
+      FULL_MIT_LICENSE.replace('MIT License', 'The MIT License (MIT)'),
+      FULL_MIT_LICENSE.replace(
+        MIT_COPYRIGHT,
+        'Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)',
+      ),
+      FULL_MIT_LICENSE.replace(
+        MIT_COPYRIGHT,
+        'Copyright Joyent, Inc. and other Node contributors. All rights reserved.',
+      ),
+      FULL_MIT_LICENSE.replace(
+        MIT_COPYRIGHT,
+        'Copyright (c) 2014-2026 J. Doe\nCopyright (c) Example Ltd.',
+      ),
+      FULL_MIT_LICENSE.split('\n')
+        .map((line) => `// ${line}`)
+        .join('\n'),
+    ]
+    for (const text of variants)
+      expect(identifyLicenseText(text)).toMatchObject({ id: 'MIT', exact: true })
+  })
+
+  it.each([
+    ['educational', `${MIT_COPYRIGHT}. For educational purposes only.`],
+    ['nonprofit', '© 2026 Example Corp. Nonprofit projects only.'],
+    ['no AI training', 'Copyright 2026 Example Corp. No AI training.'],
+    [
+      'Copyright-headed restriction',
+      `${MIT_COPYRIGHT}\nCopyright owners may not use this commercially.`,
+    ],
+    ['© payment', `${MIT_COPYRIGHT}\n© Each copy costs $5, payable to the copyright holder.`],
+    ['Chinese prose', `${MIT_COPYRIGHT}\n仅限非商业用途。`],
+    ['Japanese prose', `${MIT_COPYRIGHT} 使用を教育目的に限定する。`],
+    ['capitals run', `${MIT_COPYRIGHT} NO COMMERCIAL USE`],
+  ])(
+    'never reads a restriction in the copyright notice as exact: %s (RVCM971/B P1)',
+    (_name, notice) => {
+      const match = identifyLicenseText(FULL_MIT_LICENSE.replace(MIT_COPYRIGHT, () => notice))
+      expect(match).toMatchObject({ id: 'MIT', exact: false })
+      expect(match?.differs?.canonicalId).toBe('MIT')
+      expect(match?.differs?.span).not.toBe('')
+    },
+  )
+
+  it('ignores a title line made only of the license name, and nothing more', () => {
+    const bsd = canonicalText('BSD-3-Clause')
+    expect(readLicenseText(`BSD 3-Clause License\n\n${bsd}`)?.exact).toBe(true)
+    expect(readLicenseText(`BSD 3-Clause License, noncommercial\n\n${bsd}`)?.exact).toBe(false)
+  })
+
+  it('never reads a restriction in a name variable as exact', () => {
+    const text = FULL_MIT_LICENSE.replace(
+      'THE AUTHORS OR COPYRIGHT HOLDERS BE',
+      'THE AUTHORS. COMMERCIAL USE REQUIRES A FEE. BE',
+    )
+    expect(identifyLicenseText(text)).toMatchObject({ exact: false })
+  })
+
+  it('quotes the differing span and the template continuation', () => {
+    const text = FULL_MIT_LICENSE.replace(
+      'portions of the Software.',
+      'portions of the Software. Each copy requires a payment of $5.',
+    )
+    const match = identifyLicenseText(text)
+    expect(match?.differs).toMatchObject({ canonicalId: 'MIT' })
+    expect(match?.differs?.span).toContain('Each copy requires a payment of $5.')
+    expect(match?.differs?.expected).toContain('provided')
+  })
+
+  it('treats text after the end of a license as a difference, never as extraneous', () => {
+    for (const restriction of RESTRICTIONS) {
+      const match = identifyLicenseText(`${FULL_MIT_LICENSE}\n${restriction}\n`)
+      expect(match?.exact).toBe(false)
+    }
+  })
+
+  it.each(PINNED_TEMPLATE_IDS.map((id, index) => [id, index] as const))(
+    'never reads %s with an inserted restriction sentence as exact (property)',
+    (id, index) => {
+      const next = random(97 + index)
+      for (const isKept of [true, false]) {
+        const base = canonicalText(id, isKept)
+        const boundaries = sentenceBoundaries(base)
+        const pick = (): number => boundaries[Math.floor(next() * boundaries.length)] ?? 0
+        // The start, the end, sampled sentence starts and sampled word starts.
+        const offsets = [
+          0,
+          base.length,
+          ...Array.from({ length: 6 }, pick),
+          ...Array.from({ length: 6 }, () => Math.floor(next() * base.length)),
         ]
-        for (const variant of variants) {
-          const match = matchPinnedLicenseText(variant, records)
-          expect(match?.exact, `${record.id} with ${restriction}`).not.toBe(true)
-          expect(match?.differs?.canonicalId, `${record.id} with ${restriction}`).toBe(record.id)
+        for (const offset of offsets) {
+          const at = base.lastIndexOf(' ', offset - 1) + 1 || offset
+          const restriction = RESTRICTIONS[Math.floor(next() * RESTRICTIONS.length)] ?? ''
+          const text = `${base.slice(0, at)}${restriction} ${base.slice(at)}`
+          const reading = readLicenseText(text)
+          if (reading?.exact === true)
+            throw new Error(`${id} read as exact with "${restriction}" at ${String(at)}`)
         }
       }
-    }
-  })
+    },
+  )
 
-  it('prefers the closer word count for shared BSD phrases', () => {
-    const shared =
-      'Redistribution and use in source and binary forms. This software is provided by the copyright holders and contributors as is.'
-    const match = matchPinnedLicenseText(shared)
-    expect(match?.id).toBe('BSD-2-Clause')
-    expect(match?.exact).toBe(false)
-  })
-
-  it('leaves unknown prose unmatched', () => {
-    expect(matchPinnedLicenseText('The Example License grants nothing yet.')).toBeUndefined()
-    expect(matchPinnedLicenseText('')).toBeUndefined()
-  })
-
-  it('matches nothing with an empty record list, failing closed', () => {
-    expect(matchPinnedLicenseText(FULL_MIT_LICENSE, [])).toBeUndefined()
-  })
-
-  it('reads the GPL stem without a variant suffix, even over body wording', () => {
-    // RVCM971 P2 (finding 5): `any later version` in the body never grants
-    // `-or-later`; the variant resolves from the project's own grant.
-    const text = 'Some grant text mentioning any later version of the terms.'
-    const records = [
-      {
-        id: 'T-1.0',
-        hash: '00',
-        words: 3,
-        phrases: ['some grant text'] as readonly string[],
-        family: 'gpl' as const,
-      },
-    ]
-    expect(matchPinnedLicenseText(text, records)?.id).toBe('T-1.0')
-    expect(matchPinnedLicenseText('Some grant text with no such clause.', records)?.id).toBe(
-      'T-1.0',
+  it('fails closed when a pinned template does not match its SHA-256', () => {
+    const tampered = SPDX_TEMPLATE_FILES.map((file) =>
+      file.path === 'templates/MIT.template.txt' ? { ...file, sha256: '0'.repeat(64) } : file,
     )
+    const set = loadLicenseTemplates(LEGAL_DATA, tampered)
+    expect(set.problems).toEqual(['templates/MIT.template.txt'])
+    expect(identifyLicenseText(FULL_MIT_LICENSE, set)?.exact).not.toBe(true)
   })
 
-  it('returns the bare GPL stem for an exact body match', () => {
-    const body = 'Some grant text with several distinctive words here.'
-    const records = [
-      {
-        id: 'T-2.0',
-        hash: fingerprint(normalizeLicenseText(body)),
-        words: normalizeLicenseText(body).split(' ').length,
-        phrases: ['several distinctive words'] as readonly string[],
-        family: 'gpl' as const,
-      },
-    ]
-    const exact = matchPinnedLicenseText(`${body} or (at your option) any later version.`, records)
-    expect(exact?.exact).toBe(false)
-    const verbatim = matchPinnedLicenseText(body, records)
-    expect(verbatim).toMatchObject({ id: 'T-2.0', confidence: 1, exact: true })
+  it('matches nothing exactly with no templates (the matcher-off drill)', () => {
+    const empty = loadLicenseTemplates(LEGAL_DATA, [])
+    expect(empty.problems).toContain('templates')
+    expect(identifyLicenseText(FULL_MIT_LICENSE, empty)).toMatchObject({ id: 'MIT', exact: false })
+  })
+
+  it('reads a GPL body as its bare stem, never or-later from the body (RVCM971 P2-5)', () => {
+    for (const id of ['GPL-2.0-only', 'GPL-3.0-only', 'LGPL-2.1-only', 'AGPL-3.0-only']) {
+      const match = identifyLicenseText(canonicalText(id))
+      expect(match).toMatchObject({ exact: true, id: id.replace('-only', '') })
+    }
   })
 })
 
-describe('identifyLicenseText with pinned data', () => {
-  it('keeps heuristic readings for excerpts, marked inexact', () => {
-    const match = identifyLicenseText(MIT_EXCERPT)
-    expect(match).toMatchObject({ id: 'MIT', exact: false })
-  })
-
-  it('falls back to pinned phrases when the title line is missing', () => {
-    const match = identifyLicenseText(MIT_BODY_ONLY)
-    expect(match?.id).toBe('MIT')
-    expect(match?.exact).toBe(false)
-  })
-
-  it('keeps the GPL version reading without a variant suffix', () => {
-    // RVCM971 P2 (finding 5): the heuristic reads the bare stem; the
-    // `-only`/`-or-later` variant resolves from the project's own grant.
-    expect(identifyLicenseText('GNU LIBRARY GENERAL PUBLIC LICENSE\nVersion 2\n')?.id).toBe(
-      'LGPL-2.0',
+describe('pinned SPDX template provenance', () => {
+  it('pins every vendored file by SHA-256 and version', () => {
+    const dataset = spdxProvenance().datasets.find(
+      (entry) => entry.name === 'spdx-license-templates',
     )
+    expect(dataset).toMatchObject({ version: '3.28.0', tag: 'v3.28.0' })
+    expect(SPDX_TEMPLATE_FILES).toHaveLength(21)
+    for (const file of SPDX_TEMPLATE_FILES) {
+      const bytes = readFileSync(path.join(LEGAL_DATA, ...file.path.split('/')))
+      expect(createHash('sha256').update(bytes).digest('hex')).toBe(file.sha256)
+    }
+  })
+
+  it('keeps the heuristic caveat for an excerpt and lifts it for a verbatim license', () => {
     expect(
-      identifyLicenseText(
-        'GNU GENERAL PUBLIC LICENSE\nVersion 3\nor (at your option) any later version.',
-      )?.id,
-    ).toBe('GPL-3.0')
-  })
-
-  it('fails closed to heuristics with an empty record list', () => {
-    const match = identifyLicenseText(FULL_MIT_LICENSE, [])
-    expect(match).toMatchObject({ id: 'MIT', exact: false })
-  })
-})
-
-describe('pinned text data provenance', () => {
-  it('carries well-formed records sorted by text key', () => {
-    expect(SPDX_LICENSE_TEXTS.length).toBeGreaterThanOrEqual(15)
-    const ids = SPDX_LICENSE_TEXTS.map((record) => record.id)
-    expect(ids).toEqual([...ids].toSorted((a, b) => a.localeCompare(b, 'en')))
-    for (const record of SPDX_LICENSE_TEXTS) {
-      expect(record.hash).toMatch(/^[0-9a-f]{64}$/)
-      expect(record.words).toBeGreaterThan(50)
-      expect(record.phrases.length).toBeGreaterThanOrEqual(3)
-      for (const phrase of record.phrases) {
-        expect(phrase).toBe(phrase.toLowerCase())
-        expect(phrase).not.toMatch(/[^a-z0-9 ]/)
-      }
-    }
-  })
-
-  it('records the text dataset beside the identifier datasets', () => {
-    const dataset = spdxProvenance().datasets.find((entry) => entry.name === 'spdx-license-texts')
-    expect(dataset?.version).toBe('3.28.0')
-    expect(dataset?.sourceUrl).toMatch(/^https:\/\//)
-    expect(dataset?.vendoredOn).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-  })
-
-  it('keeps the heuristic caveat for excerpt license files', () => {
-    const result = scanProjectLicense(snapshotFrom({ LICENSE: MIT_EXCERPT }), [])
-    expect(result.licenses).toEqual(['MIT'])
-    expect(result.incomplete.join(' ')).toContain('full SPDX text matching')
-  })
-
-  it('lifts the heuristic caveat for a verbatim license file', () => {
-    const result = scanProjectLicense(snapshotFrom({ LICENSE: FULL_MIT_LICENSE }), [
-      { file: 'package.json', raw: 'MIT' },
-    ])
-    expect(result.findings).toEqual([])
-    expect(result.licenses).toEqual(['MIT'])
-    expect(result.incomplete).toEqual([])
+      scanProjectLicense(snapshotFrom({ LICENSE: 'MIT License\n\nShort excerpt only.\n' }))
+        .incomplete,
+    ).toContain(UI_TEXT.legalScanner.m084)
+    const verbatim = scanProjectLicense(snapshotFrom({ LICENSE: FULL_MIT_LICENSE }))
+    expect(verbatim.incomplete).toEqual([])
+    expect(verbatim.requiresReview).toBe(false)
   })
 })

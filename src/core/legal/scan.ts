@@ -38,11 +38,13 @@ import {
   type LegalDependency,
   type ManifestLicenseDeclaration,
 } from './dependencies'
+import * as z from 'zod/mini'
 import {
   checkNotices,
   computeShipped,
   materialInSnapshot,
   normalizeEvidencePath,
+  type BundleEvidence,
   type DistributionEvidence,
 } from './distribution'
 import { readCargo } from './ecosystems/cargo'
@@ -63,7 +65,8 @@ import {
   LegalScanError,
   type LegalFileSnapshot,
 } from './files'
-import { scanHeaders, scanAttributionRisks } from './headers'
+import { scanHeaders, scanAttributionRisks, projectHeaderGrants } from './headers'
+import { licenseTemplateSet } from './licenseTemplates'
 import { scanProjectLicense, identifyLicenseText, hasLicenseTextAgreement } from './projectLicense'
 
 /** The rule half of finding ids (`rule/version/counter`). */
@@ -210,104 +213,116 @@ function snapshotNotices(
 
 /**
  * Bundle metafiles the production build writes (`dist/meta/`, M26): every
- * source file that went into each shipped bundle. Content hashes recorded
- * beside each metafile (`dist/meta-hashes/`, M97 CM971R2) prove artifact
- * freshness; a metafile without recorded hashes contributes its inputs
- * but never freshness.
+ * source file that went into each shipped bundle. Beside each, the build
+ * records the SHA-256 of the exact bytes it compiled and wrote
+ * (`dist/meta-hashes/`, record version 2, M97 CM971-R3); a metafile
+ * without that record contributes its inputs but never freshness.
  */
 const LEGAL_META_DIR = 'dist/meta/'
 const LEGAL_META_HASHES_DIR = 'dist/meta-hashes/'
+const LEGAL_META_HASHES_VERSION = 2
 
-function readJsonRecord(
-  snapshot: LegalFileSnapshot,
-  file: string,
-): Record<string, unknown> | undefined {
+const keyedRecordSchema = z.record(z.string(), z.unknown())
+const hashRecordSchema = z.object({
+  version: z.literal(LEGAL_META_HASHES_VERSION),
+  inputs: z.record(z.string(), z.string().check(z.regex(/^[0-9a-f]{64}$/u))),
+  outputs: z.record(z.string(), z.string().check(z.regex(/^[0-9a-f]{64}$/u))),
+})
+
+function readJson(snapshot: LegalFileSnapshot, file: string): unknown {
   const text = snapshot.readFile(file)
   if (text === undefined) return undefined
   try {
     const parsed: unknown = JSON.parse(text)
-    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : undefined
+    return parsed
   } catch {
     return undefined
   }
 }
 
 /**
- * Whether a metafile key can name a workspace file (M97 CM971R2):
- * workspace-relative with forward slashes, never a plugin-namespace key
- * (`namespace:name`, which the webview page metafiles synthesize), an
- * absolute path or a parent escape. Keys that cannot name a snapshot
- * member are build-time constants, not artifacts, so they contribute no
- * inputs or outputs. Anything workspace-relative stays verifiable: a
- * deleted file still reads as stale downstream.
+ * What a metafile key names (M97 CM971-R3): a workspace file, a module a
+ * build plugin generated (`namespace:name`), or a real file outside the
+ * workspace (an absolute path or a parent escape), which the scan cannot
+ * read and so reports by name instead of treating it as a constant.
  */
-function isWorkspaceEvidencePath(entry: string): boolean {
+function evidencePathKind(entry: string): 'workspace' | 'generated' | 'outside' {
   const normalized = normalizeEvidencePath(entry)
-  return (
-    normalized !== '' &&
-    !normalized.startsWith('/') &&
-    !normalized.includes(':') &&
-    !normalized.split('/').includes('..')
+  if (
+    normalized.startsWith('/') ||
+    /^[A-Za-z]:\//u.test(normalized) ||
+    normalized.split('/').includes('..')
   )
+    return 'outside'
+  return normalized === '' || /^\(?[a-z][\w-]*\)?:/iu.test(normalized) ? 'generated' : 'workspace'
 }
 
-function stringMap(value: unknown): Record<string, string> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {}
-  const kept: Record<string, string> = {}
-  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-    if (
-      typeof key === 'string' &&
-      typeof entry === 'string' &&
-      entry !== '' &&
-      isWorkspaceEvidencePath(key)
-    ) {
-      kept[normalizeEvidencePath(key)] = entry
-    }
-  }
-  return kept
+/** The workspace entries of a metafile key list, normalized. */
+function workspaceEntries(list: readonly string[]): string[] {
+  return list
+    .filter((entry) => evidencePathKind(entry) === 'workspace')
+    .map((entry) => normalizeEvidencePath(entry))
 }
 
 function deriveBundleEvidence(snapshot: LegalFileSnapshot): {
   readonly bundleInputs: string[]
-  readonly bundleInputHashes: Record<string, string>
-  readonly bundleOutputHashes: Record<string, string>
+  readonly bundles: BundleEvidence[]
 } {
-  const inputs: string[] = []
-  let bundleInputHashes: Record<string, string> = {}
-  let bundleOutputHashes: Record<string, string> = {}
+  const inputs = new Set<string>()
+  const bundles: BundleEvidence[] = []
   const metafiles = snapshot.files
     .filter((file) => file.startsWith(LEGAL_META_DIR) && file.endsWith('.json'))
     .toSorted((a, b) => compareLegalText(a, b))
   for (const metafile of metafiles) {
-    const parsed = readJsonRecord(snapshot, metafile)
+    const parsed = keyedRecordSchema.safeParse(readJson(snapshot, metafile)).data
     if (parsed === undefined) continue
-    const metaInputs =
-      typeof parsed['inputs'] === 'object' && parsed['inputs'] !== null
-        ? Object.keys(parsed['inputs']).filter((entry) => isWorkspaceEvidencePath(entry))
-        : []
-    const metaOutputs =
-      typeof parsed['outputs'] === 'object' && parsed['outputs'] !== null
-        ? Object.keys(parsed['outputs']).filter((entry) => isWorkspaceEvidencePath(entry))
-        : []
-    if (metaInputs.length === 0 && metaOutputs.length === 0) continue
-    const stem = metafile.slice(LEGAL_META_DIR.length, -'.json'.length)
-    const hashes = readJsonRecord(snapshot, `${LEGAL_META_HASHES_DIR}${stem}.json`)
-    if (hashes !== undefined) {
-      bundleInputHashes = { ...bundleInputHashes, ...stringMap(hashes['inputs']) }
-      bundleOutputHashes = { ...bundleOutputHashes, ...stringMap(hashes['outputs']) }
-    }
-    for (const input of metaInputs) {
-      const normalized = normalizeEvidencePath(input)
-      if (normalized !== '' && !inputs.includes(normalized)) inputs.push(normalized)
+    const metaInputs = Object.keys(keyedRecordSchema.safeParse(parsed['inputs']).data ?? {})
+    const metaOutputs = Object.keys(keyedRecordSchema.safeParse(parsed['outputs']).data ?? {})
+    const listed = [...metaInputs, ...metaOutputs]
+    if (listed.length === 0) continue
+    const name = metafile.slice(LEGAL_META_DIR.length, -'.json'.length)
+    const hashes = hashRecordSchema.safeParse(
+      readJson(snapshot, `${LEGAL_META_HASHES_DIR}${name}.json`),
+    ).data
+    const bundleInputs = workspaceEntries(metaInputs)
+    for (const input of bundleInputs) inputs.add(input)
+    bundles.push({
+      name,
+      inputs: bundleInputs,
+      outputs: workspaceEntries(metaOutputs),
+      outside: listed.filter((entry) => evidencePathKind(entry) === 'outside'),
+      ...(hashes !== undefined && { inputHashes: hashes.inputs, outputHashes: hashes.outputs }),
+    })
+  }
+  return { bundleInputs: [...inputs].toSorted((a, b) => compareLegalText(a, b)), bundles }
+}
+
+const LICENSE_POINTER = /^SEE LICENSE IN\s+(\S.*)$/iu
+const LICENSE_FILE_FIELD = /^License-File:\s*(\S.*?)\s*$/gimu
+
+/**
+ * Licence files a dependency's metadata names (M97 CM971-R3): the text a
+ * reader identified the licence from, an npm-style `SEE LICENSE IN`
+ * target, and a Python distribution's `License-File:` entries, each
+ * resolved beside its manifest and kept only when present and confined.
+ */
+function namedLicenseFiles(snapshot: LegalFileSnapshot, dep: LegalDependency): string[] {
+  const dir = dep.evidenceFile.slice(0, dep.evidenceFile.lastIndexOf('/') + 1)
+  const named: string[] = []
+  if (dep.licenseTextFile !== undefined) named.push(dep.licenseTextFile)
+  const pointer = LICENSE_POINTER.exec(dep.licenseRaw ?? '')?.[1]?.trim()
+  if (pointer !== undefined) named.push(`${dir}${pointer}`)
+  if (dep.evidenceFile.endsWith('.dist-info/METADATA')) {
+    const metadata = snapshot.readFile(dep.evidenceFile) ?? ''
+    for (const match of metadata.matchAll(LICENSE_FILE_FIELD)) {
+      const value = match[1] ?? ''
+      named.push(`${dir}licenses/${value}`, `${dir}${value}`)
     }
   }
-  return {
-    bundleInputs: inputs.toSorted((a, b) => compareLegalText(a, b)),
-    bundleInputHashes,
-    bundleOutputHashes,
-  }
+  const present = new Set(snapshot.files)
+  return named
+    .map((file) => normalizeEvidencePath(file))
+    .filter((file) => present.has(file) && !file.split('/').includes('..'))
 }
 
 function deriveDistribution(snapshot: LegalFileSnapshot): DistributionEvidence {
@@ -333,11 +348,9 @@ function deriveDistribution(snapshot: LegalFileSnapshot): DistributionEvidence {
     ? snapshot.readFile('.vscodeignore')
     : undefined
   const bundle = deriveBundleEvidence(snapshot)
-  const hasBundleInputs = bundle.bundleInputs.length > 0
+  const hasBundles = bundle.bundles.length > 0
   return {
-    ...(hasBundleInputs && { bundleInputs: bundle.bundleInputs }),
-    ...(hasBundleInputs && { bundleInputHashes: bundle.bundleInputHashes }),
-    ...(hasBundleInputs && { bundleOutputHashes: bundle.bundleOutputHashes }),
+    ...(hasBundles && { bundleInputs: bundle.bundleInputs, bundles: bundle.bundles }),
     ...(packageFiles !== undefined && { packageFiles }),
     ...(vscodeignoreText !== undefined && { vscodeignoreText }),
     notices: snapshotNotices(snapshot),
@@ -405,7 +418,19 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
       cache.set(path, text)
       return text
     },
+    // Admitted-bytes digests travel with the bounded view (M97 CM971-R3),
+    // so freshness compares the same bytes, byte-order mark included,
+    // that the build hashed.
+    ...(snapshot.readFileHash !== undefined && {
+      readFileHash: (path: string) =>
+        allowed.has(path) && cache.get(path) !== undefined
+          ? snapshot.readFileHash?.(path)
+          : undefined,
+    }),
   }
+  const templates = licenseTemplateSet()
+  if (templates.problems.length > 0)
+    incomplete.push(fill(UI_TEXT.legalScanner.m205, { v0: templates.problems.join(', ') }))
   if (options.signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
   const headerView = subsetSnapshot(bounded, paths.length > 0 ? paths : undefined, allowed)
 
@@ -452,9 +477,16 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   const observed: LegalDependency[] = []
   let hasUnrecognizedLicenseText = false
   for (const dep of dependencies) {
-    const localFiles = materialInSnapshot(bounded, dep).filter((file) =>
-      isLicenseFileName(baseNameOf(file)),
-    )
+    // Every licence text the dependency carries or names (M97 CM971-R3):
+    // standard licence file names in its material, plus any file its
+    // metadata points at (`license-file`, `SEE LICENSE IN`,
+    // `License-File:`), so a renamed text keeps its exactness check.
+    const localFiles = [
+      ...new Set([
+        ...materialInSnapshot(bounded, dep).filter((file) => isLicenseFileName(baseNameOf(file))),
+        ...namedLicenseFiles(bounded, dep),
+      ]),
+    ]
     for (const file of localFiles) {
       const text = bounded.readFile(file)
       if (text === undefined) continue
@@ -484,7 +516,7 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
     }
   }
   dependencies.push(...observed)
-  const project = scanProjectLicense(bounded, manifests)
+  const project = scanProjectLicense(bounded, manifests, projectHeaderGrants(bounded))
   incomplete.push(...project.incomplete)
 
   const headers = scanHeaders(headerView, options.headerPolicy, project.licenses)
@@ -518,7 +550,8 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
     hasUnrecognizedLicenseText ||
     licensed.requiresReview ||
     risks.findings.length > 0 ||
-    project.incomplete.includes(UI_TEXT.legalScanner.m084)
+    project.requiresReview ||
+    templates.problems.length > 0
   ) {
     incomplete.push(UI_TEXT.legalScanner.m110)
   }

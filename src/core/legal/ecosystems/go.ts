@@ -247,6 +247,7 @@ export function readGo(snapshot: LegalFileSnapshot): EcosystemResult {
         sumVersions.get(requirement.name)?.version,
       scope: requirement.scope,
       licenseRaw: vendoredLicense.licenseRaw,
+      licenseTextFile: vendoredLicense.file,
     })
   })
   for (const [name, entry] of sumVersions) {
@@ -265,6 +266,7 @@ export function readGo(snapshot: LegalFileSnapshot): EcosystemResult {
         version,
         scope: 'production',
         licenseRaw: local.licenseRaw,
+        licenseTextFile: local.file,
       }),
     )
   }

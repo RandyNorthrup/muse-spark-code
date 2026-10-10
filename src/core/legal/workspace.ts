@@ -31,6 +31,42 @@ import {
   type LegalFileSnapshot,
 } from './files'
 
+/**
+ * The pinned SPDX template data shipped beside the scanner (M97
+ * CM971-R3): `legal-data/` next to this module, a layout the source tree
+ * and `dist/` share.
+ */
+export const PINNED_LEGAL_DATA_DIRECTORY = path.join(__dirname, 'legal-data')
+
+/**
+ * Read one pinned data file's bytes, read-only and without following a
+ * final link, bounded like a workspace file. `undefined` when it is
+ * missing, a link, oversized or unreadable; the caller fails closed.
+ */
+export function readPinnedLegalData(
+  relativePath: string,
+  directory: string = PINNED_LEGAL_DATA_DIRECTORY,
+): Uint8Array | undefined {
+  const absolute = path.join(directory, ...relativePath.split('/'))
+  if (!isWithin(directory, absolute)) return undefined
+  let fd: number | undefined
+  try {
+    if (lstatSync(absolute).isSymbolicLink()) return undefined
+    fd = openSync(
+      absolute,
+      constants.O_RDONLY | (Object.hasOwn(constants, 'O_NOFOLLOW') ? constants.O_NOFOLLOW : 0),
+    )
+    const held = fstatSync(fd)
+    if (!held.isFile() || held.size > LEGAL_FILE_MAX_BYTES) return undefined
+    const bytes = Buffer.alloc(held.size)
+    return readSync(fd, bytes) === held.size ? bytes : undefined
+  } catch {
+    return undefined
+  } finally {
+    if (fd !== undefined) closeSync(fd)
+  }
+}
+
 /** Enumeration errors and omitted subtrees travel with the snapshot. */
 export interface LegalWorkspaceSnapshot extends LegalFileSnapshot {
   readonly incompleteChecks: readonly string[]

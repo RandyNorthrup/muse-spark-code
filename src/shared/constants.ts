@@ -7606,6 +7606,28 @@ export const LEGAL_SCAN_PATHS_MAX = 100
 // workspace's ignore story, bounded so the envelope stays small.
 export const LEGAL_EXCLUSIONS_MAX = 200
 export const LEGAL_INCOMPLETE_MAX = 100
+// SPDX template matching (M97 CM971-R3): the longest text one template
+// variable may stand for, the SPDX copyright variable's own bound
+// (`.{0,5000}`), applied to every open variable so `.+` stays bounded.
+export const LEGAL_TEMPLATE_VARIABLE_MAX_CHARS = 5000
+// A text that does not match any template exactly still reads as the
+// closest template when this share of its words agrees (Dice over word
+// counts): close enough to name the differing span for human review,
+// never close enough to count as a match.
+export const LEGAL_TEMPLATE_SIMILARITY_MIN = 0.8
+// Templates below this share are not aligned at all: a text this far
+// from a template cannot match it exactly.
+export const LEGAL_TEMPLATE_ALIGN_MIN = 0.5
+// The differing span a report quotes, and how much of the template's
+// continuation it shows beside it.
+export const LEGAL_TEMPLATE_SPAN_MAX_CHARS = 160
+export const LEGAL_TEMPLATE_EXPECTED_TOKENS = 12
+// Capitals-only words in a row, outside a variable's own wording, that
+// read as a clause rather than a name (`NO COMMERCIAL USE`).
+export const LEGAL_TEMPLATE_CAPITALS_RUN_MAX = 3
+// Characters of slack when comparing variable text with the template's
+// original value, before tokenizing it: past this it cannot be equal.
+export const LEGAL_TEMPLATE_ORIGINAL_SLACK_CHARS = 16
 
 // --- The headless `legal` command (M97 lane R, PLAN.md D76) ---
 //

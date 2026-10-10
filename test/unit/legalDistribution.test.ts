@@ -5,10 +5,15 @@
 
 import { describe, expect, it } from 'vitest'
 import { fingerprint } from '../../src/core/verify/fingerprint'
-import { compareLegalText } from '../../src/core/legal/files'
 import { evaluateDependencyLicenses } from '../../src/core/legal/depLicenses'
 import { dependency } from '../../src/core/legal/dependencies'
-import { checkNotices, computeShipped } from '../../src/core/legal/distribution'
+import {
+  checkNotices,
+  computeShipped,
+  type BundleEvidence,
+} from '../../src/core/legal/distribution'
+import { UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 import { snapshotFrom } from './legal/helpers'
 
 const lock = {
@@ -31,6 +36,27 @@ function evaluated(names: readonly string[]) {
   ].filter((dep) => names.includes(dep.name))
   return evaluateDependencyLicenses(deps, () => true).evaluated
 }
+
+const OUT = 'dist/bundle.js'
+const OUT_TEXT = 'console.log(1)\n'
+const record = (
+  name: string,
+  inputs: Record<string, string>,
+  outputs: Record<string, string>,
+  extra: Partial<BundleEvidence> = {},
+): BundleEvidence => ({
+  name,
+  inputs: Object.keys(inputs),
+  outputs: Object.keys(outputs),
+  outside: [],
+  inputHashes: Object.fromEntries(
+    Object.entries(inputs).map(([file, text]) => [file, fingerprint(text)]),
+  ),
+  outputHashes: Object.fromEntries(
+    Object.entries(outputs).map(([file, text]) => [file, fingerprint(text)]),
+  ),
+  ...extra,
+})
 
 describe('computeShipped', () => {
   it('reads the shipped set from bundle inputs exactly', () => {
@@ -56,53 +82,117 @@ describe('computeShipped', () => {
   })
 
   it('proves freshness from matching input and output hashes (RVCM971 P2)', () => {
-    const files = { 'src/ok.ts': 'export const value = 1\n', 'dist/bundle.js': 'console.log(1)\n' }
+    const files = { 'src/ok.ts': 'export const value = 1\n', [OUT]: OUT_TEXT }
     const shipped = computeShipped(snapshotFrom(files), [], {
-      bundleInputs: Object.keys(files),
-      bundleInputHashes: Object.fromEntries(
-        Object.entries(files).map(([file, text]) => [file, fingerprint(text)]),
-      ),
-      bundleOutputHashes: { 'dist/bundle.js': fingerprint(files['dist/bundle.js']) },
+      bundleInputs: ['src/ok.ts'],
+      bundles: [record('bundle', { 'src/ok.ts': files['src/ok.ts'] }, { [OUT]: OUT_TEXT })],
     })
     expect(shipped.incomplete).toEqual([])
-    expect([...(shipped.shippedFiles ?? [])].toSorted((a, b) => compareLegalText(a, b))).toEqual([
-      'dist/bundle.js',
-      'src/ok.ts',
-    ])
+    expect([...(shipped.shippedFiles ?? [])]).toEqual(['src/ok.ts'])
   })
 
-  it('reads changed bytes without a rebuild as stale (RVCM971 P2)', () => {
-    const shipped = computeShipped(snapshotFrom({ 'src/ok.ts': 'export const extra = 2\n' }), [], {
-      bundleInputs: ['src/ok.ts'],
-      bundleInputHashes: { 'src/ok.ts': fingerprint('export const value = 1\n') },
-      bundleOutputHashes: {},
-    })
-    expect(shipped.incomplete.join(' ')).toContain('stale')
-    expect(shipped.incomplete.join(' ')).toContain('freshness')
+  it('reads changed bytes without a rebuild as stale, by name (RVCM971 P2)', () => {
+    const shipped = computeShipped(
+      snapshotFrom({ 'src/ok.ts': 'export const extra = 2\n', [OUT]: OUT_TEXT }),
+      [],
+      {
+        bundleInputs: ['src/ok.ts'],
+        bundles: [
+          record('bundle', { 'src/ok.ts': 'export const value = 1\n' }, { [OUT]: OUT_TEXT }),
+        ],
+      },
+    )
+    expect(shipped.incomplete).toContain(UI_TEXT.legalScanner.m036)
+    expect(shipped.incomplete).toContain(UI_TEXT.legalScanner.m035)
+    expect(shipped.incomplete).toContain(
+      fill(UI_TEXT.legalScanner.m206, { v0: 'bundle', v1: 'src/ok.ts' }),
+    )
   })
 
-  it('reads file names without hashes as stale, never as fresh (RVCM971 P2)', () => {
+  it('reads file names without a bundle record as stale, never as fresh (RVCM971 P2)', () => {
     const shipped = computeShipped(snapshotFrom({ 'src/ok.ts': 'x' }), [], {
       bundleInputs: ['src/ok.ts'],
     })
-    expect(shipped.incomplete.join(' ')).toContain('stale')
-    expect(shipped.incomplete.join(' ')).toContain('freshness')
+    expect(shipped.incomplete).toContain(UI_TEXT.legalScanner.m036)
+    expect(shipped.incomplete).toContain(UI_TEXT.legalScanner.m035)
   })
 
-  it('reads a missing recorded output as stale', () => {
-    const shipped = computeShipped(snapshotFrom({ 'src/ok.ts': 'x' }), [], {
+  it('requires every listed output to exist with its recorded hash (RVCM971B P2-2)', () => {
+    const files = { 'src/ok.ts': 'x' }
+    const noOutputHash = computeShipped(snapshotFrom(files), [], {
       bundleInputs: ['src/ok.ts'],
-      bundleInputHashes: { 'src/ok.ts': fingerprint('x') },
-      bundleOutputHashes: { 'dist/bundle.js': fingerprint('console.log(1)\n') },
+      bundles: [record('bundle', files, {}, { outputs: [OUT] })],
     })
-    expect(shipped.incomplete.join(' ')).toContain('stale')
+    expect(noOutputHash.incomplete).toContain(
+      fill(UI_TEXT.legalScanner.m204, { v0: 'bundle', v1: OUT }),
+    )
+    const secondMissing = computeShipped(snapshotFrom({ ...files, [OUT]: OUT_TEXT }), [], {
+      bundleInputs: ['src/ok.ts'],
+      bundles: [record('bundle', files, { [OUT]: OUT_TEXT }, { outputs: [OUT, 'dist/second.js'] })],
+    })
+    expect(secondMissing.incomplete).toContain(
+      fill(UI_TEXT.legalScanner.m204, { v0: 'bundle', v1: 'dist/second.js' }),
+    )
+    const noOutputs = computeShipped(snapshotFrom(files), [], {
+      bundleInputs: ['src/ok.ts'],
+      bundles: [record('bundle', files, {})],
+    })
+    expect(noOutputs.incomplete).toContain(UI_TEXT.legalScanner.m035)
+  })
+
+  it('fails conflicting records for one input, even when each output matches (RVCM971B P2-3)', () => {
+    const files = {
+      'src/shared.ts': 'export const version = 2\n',
+      'dist/a.js': 'a1\n',
+      'dist/z.js': 'z2\n',
+    }
+    const shipped = computeShipped(snapshotFrom(files), [], {
+      bundleInputs: ['src/shared.ts'],
+      bundles: [
+        record('a', { 'src/shared.ts': 'export const version = 1\n' }, { 'dist/a.js': 'a1\n' }),
+        record('z', { 'src/shared.ts': files['src/shared.ts'] }, { 'dist/z.js': 'z2\n' }),
+      ],
+    })
+    expect(shipped.incomplete).toContain(fill(UI_TEXT.legalScanner.m203, { v0: 'src/shared.ts' }))
+    expect(shipped.incomplete).toContain(
+      fill(UI_TEXT.legalScanner.m206, { v0: 'a', v1: 'src/shared.ts' }),
+    )
+  })
+
+  it('names inputs outside the workspace instead of dropping them (RVCM971B P2-5)', () => {
+    const files = { 'src/ok.ts': 'x', [OUT]: OUT_TEXT }
+    const shipped = computeShipped(snapshotFrom(files), [], {
+      bundleInputs: ['src/ok.ts'],
+      bundles: [
+        record(
+          'bundle',
+          { 'src/ok.ts': 'x' },
+          { [OUT]: OUT_TEXT },
+          {
+            outside: ['../shared/review.ts'],
+          },
+        ),
+      ],
+    })
+    expect(shipped.incomplete).toContain(
+      fill(UI_TEXT.legalScanner.m202, { v0: 'bundle', v1: '../shared/review.ts' }),
+    )
   })
 
   it('matches Windows-separator evidence against snapshot paths', () => {
-    const shipped = computeShipped(snapshotFrom({ 'src/ok.ts': 'x' }), [], {
+    const files = { 'src/ok.ts': 'x', [OUT]: OUT_TEXT }
+    const shipped = computeShipped(snapshotFrom(files), [], {
       bundleInputs: [String.raw`src\ok.ts`],
-      bundleInputHashes: { [String.raw`src\ok.ts`]: fingerprint('x') },
-      bundleOutputHashes: {},
+      bundles: [
+        {
+          name: 'bundle',
+          inputs: [String.raw`src\ok.ts`],
+          outputs: [String.raw`dist\bundle.js`],
+          outside: [],
+          inputHashes: { [String.raw`src\ok.ts`]: fingerprint('x') },
+          outputHashes: { [String.raw`dist\bundle.js`]: fingerprint(OUT_TEXT) },
+        },
+      ],
     })
     expect(shipped.incomplete).toEqual([])
     expect([...(shipped.shippedFiles ?? [])]).toEqual(['src/ok.ts'])
