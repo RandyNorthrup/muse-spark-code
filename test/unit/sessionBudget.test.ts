@@ -1,11 +1,19 @@
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { Usd } from '../../src/shared/usd'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   estimateInput,
+  helperRequestSettlement,
   requestParts,
   reserveRequest,
   SessionBudgetExceededError,
+  withAccountBudgetAdmission,
+  type SessionBudgetClaim,
 } from '../../src/core/backends/modelapi/sessionBudget'
+import { createSessionBudgetJournal } from '../../src/host/backend/sessionBudgetJournal'
+import { removeFolder } from './helpers/temporaryFolders'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { formatUsd } from '../../src/core/usage/insights'
 import { MODEL_API_MAX_OUTPUT_TOKENS, UI_TEXT } from '../../src/shared/constants'
@@ -35,6 +43,12 @@ describe('requestParts', () => {
 })
 
 describe('estimateInput', () => {
+  it('refuses fractional, negative and overflowing input token counts', () => {
+    for (const inputTokens of [0.5, -1, Number.MAX_SAFE_INTEGER, Infinity])
+      expect(() => estimateInput(['x'], { inputTokens, parts: new Map() })).toThrow(
+        UI_TEXT.sessionBudgetStoreUnavailable,
+      )
+  })
   it('counts every UTF-8 byte of every part as a token when there is no base', () => {
     expect(estimateInput(['ab', 'cd'], undefined).inputTokens).toBe(4)
     // é is two bytes, each CJK character three: bytes, not characters.
@@ -60,6 +74,30 @@ describe('estimateInput', () => {
     const next = estimateInput(['x', 'y', 'z'], { inputTokens: 7, parts: first.parts })
     expect(next.inputTokens).toBe(8)
     expect(next.parts.size).toBe(3)
+  })
+})
+
+describe('calibrated media budget parts', () => {
+  it('uses the upper bound independently of encoded size and a 170-token count base', () => {
+    const media = { mediaIdentity: 'uploaded-clip', upperBoundInputTokens: 5502 }
+    expect(estimateInput(['hi', media], undefined).inputTokens).toBe(5504)
+    const parts = estimateInput(['hi', media], undefined).parts
+    expect(estimateInput(['hi', media], { inputTokens: 170, parts }).inputTokens).toBe(5672)
+    expect(estimateInput([media], { inputTokens: 2751, parts }).inputTokens).toBe(8253)
+  })
+
+  it('keeps a media identity from hiding a newly added text part with the same text', () => {
+    const media = { mediaIdentity: 'same', upperBoundInputTokens: 5502 }
+    const parts = estimateInput([media], undefined).parts
+    expect(estimateInput(['same'], { inputTokens: 170, parts }).inputTokens).toBe(174)
+  })
+
+  it('rejects an unsafe calibrated token allowance', () => {
+    for (const upperBoundInputTokens of [-1, 0.1, NaN, Infinity]) {
+      expect(() =>
+        estimateInput([{ mediaIdentity: 'clip', upperBoundInputTokens }], undefined),
+      ).toThrow()
+    }
   })
 })
 
@@ -139,6 +177,19 @@ describe('reserveRequest', () => {
         searchPriceUsd: Usd.from(0.0025).toAmount(),
       }),
     ).toThrow(SessionBudgetExceededError)
+  })
+
+  it('keeps exactly one output token affordable after decimal cap subtraction', () => {
+    // $0.30 - $0.20 is exactly $0.10: the remaining $0.0000002 buys one token.
+    const request = {
+      capUsd: Usd.from(0.3).toAmount(),
+      spentUsd: Usd.from(0.2).toAmount(),
+      estimatedInputTokens: 999_998,
+      modelId: CONTRIBUTOR,
+    }
+    const reservation = reserveRequest(request)
+    expect(reservation.maxOutputTokens).toBe(1)
+    expect(reservation.costUsd).toBe(Usd.from(0.1).toAmount())
   })
 
   it('lowers max_output_tokens so input plus output at list price fits what is left', () => {
@@ -297,6 +348,117 @@ describe('reserveRequest', () => {
           }
         }
       }
+    }
+  })
+})
+
+it('settles helper token costs exactly and retains unknown sent liability', () => {
+  const usage = { input_tokens: 7, output_tokens: 3, total_tokens: 10 }
+  expect(
+    helperRequestSettlement(CONTRIBUTOR, usage, () => true, true, false, Usd.from(1).toAmount()),
+  ).toEqual({
+    costUsd: Usd.from('0.0000013').toAmount(),
+    isUnknown: false,
+  })
+  expect(
+    helperRequestSettlement(
+      CONTRIBUTOR,
+      undefined,
+      () => false,
+      true,
+      false,
+      Usd.from(0.1).toAmount(),
+    ),
+  ).toEqual({
+    costUsd: Usd.from(0.1).toAmount(),
+    isUnknown: true,
+  })
+  expect(
+    helperRequestSettlement(
+      CONTRIBUTOR,
+      undefined,
+      () => false,
+      false,
+      false,
+      Usd.from(0.1).toAmount(),
+    ),
+  ).toEqual({
+    costUsd: Usd.from(0).toAmount(),
+    isUnknown: false,
+  })
+  expect(() =>
+    helperRequestSettlement('unpriced', usage, () => true, true, false, Usd.from(1).toAmount()),
+  ).toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
+})
+
+describe('M108 T account budget admission', () => {
+  it('keeps an unbound claim identical and binds a guard once for initial and every final check', async () => {
+    const total = { spentUsd: Usd.from(0.5).toAmount(), hasUnknownHistoricalFees: false }
+    const claim: SessionBudgetClaim = {
+      claimId: 'owned-claim',
+      reservedUsd: Usd.from(0.1).toAmount(),
+      check: vi.fn(() => total),
+      settle: vi.fn(() => Promise.resolve(total)),
+    }
+    expect(withAccountBudgetAdmission(claim, undefined)).toBe(claim)
+    const guard = vi.fn<() => void>()
+    const bind = vi.fn(() => guard)
+    const admitted = withAccountBudgetAdmission(claim, bind)
+    expect(bind).toHaveBeenCalledExactlyOnceWith(claim)
+    expect(guard).toHaveBeenCalledOnce()
+    expect(admitted.check(Usd.from(1).toAmount())).toBe(total)
+    expect(admitted.check(Usd.from(2).toAmount())).toBe(total)
+    expect(guard).toHaveBeenCalledTimes(3)
+    expect(claim.check).toHaveBeenNthCalledWith(1, Usd.from(1).toAmount())
+    expect(claim.check).toHaveBeenNthCalledWith(2, Usd.from(2).toAmount())
+    expect(admitted.claimId).toBe(claim.claimId)
+    expect(admitted.reservedUsd).toBe(claim.reservedUsd)
+    await expect(admitted.settle(Usd.from(0.1).toAmount(), true)).resolves.toBe(total)
+    expect(claim.settle).toHaveBeenCalledExactlyOnceWith(Usd.from(0.1).toAmount(), true)
+    const stop = new Error('Account threshold reached')
+    guard.mockImplementation(() => {
+      throw stop
+    })
+    expect(() => admitted.check(Usd.from(1).toAmount())).toThrow(stop)
+    expect(claim.check).toHaveBeenCalledTimes(2)
+    expect(() => withAccountBudgetAdmission(claim, bind)).toThrow(stop)
+  })
+
+  it('does not let an account swap reset M82 settled spend or outstanding liability', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'muse-account-session-'))
+    try {
+      const journal = createSessionBudgetJournal({
+        directory,
+        sleep: () => Promise.resolve(),
+        initialBudget: () =>
+          Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+      })
+      const owner = 'a'.repeat(64)
+      await journal.record('conversation', owner, Usd.from(0.8).toAmount())
+      const open = await journal.reserve('conversation', owner, Usd.from(0.1).toAmount())
+      const check = vi.fn<() => void>()
+      withAccountBudgetAdmission(open, () => check).check(Usd.from(1).toAmount())
+      const afterSwap = await journal.reserve('conversation', owner, Usd.from(0.1).toAmount())
+      const swapped = withAccountBudgetAdmission(afterSwap, () => check)
+      expect(Number(swapped.check(Usd.from(1).toAmount()).spentUsd)).toBeCloseTo(1)
+      await swapped.settle(Usd.from(0.1).toAmount())
+      const rejected = await journal.reserve('conversation', owner, Usd.from(0.01).toAmount())
+      expect(() =>
+        withAccountBudgetAdmission(rejected, () => check).check(Usd.from(1).toAmount()),
+      ).toThrow(
+        fill(UI_TEXT.sessionBudgetStopped, {
+          estimate: formatUsd(0.01),
+          cap: formatUsd(1),
+          spent: formatUsd(1),
+        }),
+      )
+      await rejected.settle(Usd.from(0).toAmount())
+      const total = await journal.read('conversation', owner)
+      expect(Number(total.spentUsd)).toBeCloseTo(1)
+      // The old account's unresolved request remains owed after the swap.
+      expect(open.reservedUsd).toBe(Usd.from(0.1).toAmount())
+    } finally {
+      await removeFolder(directory)
     }
   })
 })

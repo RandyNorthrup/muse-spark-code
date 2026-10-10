@@ -1,0 +1,116 @@
+{
+  "mapping": {
+    "command.openEstimator.title": "estimateCommandTitle",
+    "config.estimator.optimize.description": "estimateOptimizeDescription",
+    "config.estimator.optimize.enumDescriptions.cost": "estimateCostDescription",
+    "config.estimator.optimize.enumDescriptions.speed": "estimateSpeedDescription",
+    "config.estimator.priceLookup.description": "estimatePriceLookupDescription"
+  },
+  "tables": {
+    "en": {
+      "estimateCommandTitle": "Open Estimator",
+      "estimateOptimizeDescription": "Choose the cheapest setup meeting the deadline at P90, or the fastest setup with worthwhile marginal savings.",
+      "estimateCostDescription": "Cheapest setup meeting the deadline at P90.",
+      "estimateSpeedDescription": "Fastest setup while another machine still saves enough time.",
+      "estimatePriceLookupDescription": "Look up public catalog prices when the Reports network policy permits; each price shows its date."
+    },
+    "de": {
+      "estimateCommandTitle": "Kapazitätsschätzer öffnen",
+      "estimateOptimizeDescription": "Wählen Sie die günstigste Ausstattung, die die Frist bei P90 einhält, oder die schnellste mit lohnenden zusätzlichen Zeitersparnissen.",
+      "estimateCostDescription": "Günstigste Ausstattung, die die Frist bei P90 einhält.",
+      "estimateSpeedDescription": "Schnellste Ausstattung, solange ein weiterer Rechner noch genügend Zeit spart.",
+      "estimatePriceLookupDescription": "Öffentliche Katalogpreise abrufen, wenn die Netzwerkrichtlinie für Berichte es erlaubt; jeder Preis zeigt sein Datum."
+    },
+    "fr": {
+      "estimateCommandTitle": "Ouvrir l’estimateur",
+      "estimateOptimizeDescription": "Choisissez la configuration la moins chère respectant l’échéance à P90, ou la plus rapide avec des gains marginaux suffisants.",
+      "estimateCostDescription": "Configuration la moins chère respectant l’échéance à P90.",
+      "estimateSpeedDescription": "Configuration la plus rapide tant qu’une machine supplémentaire fait encore gagner assez de temps.",
+      "estimatePriceLookupDescription": "Consulter les prix des catalogues publics lorsque la politique réseau des rapports le permet ; chaque prix affiche sa date."
+    },
+    "es": {
+      "estimateCommandTitle": "Abrir estimador",
+      "estimateOptimizeDescription": "Elige la configuración más barata que cumpla la fecha límite en P90, o la más rápida con ahorros marginales suficientes.",
+      "estimateCostDescription": "Configuración más barata que cumple la fecha límite en P90.",
+      "estimateSpeedDescription": "Configuración más rápida mientras otra máquina siga ahorrando suficiente tiempo.",
+      "estimatePriceLookupDescription": "Consultar precios de catálogos públicos cuando lo permita la política de red de Informes; cada precio muestra su fecha."
+    },
+    "it": {
+      "estimateCommandTitle": "Apri lo stimatore",
+      "estimateOptimizeDescription": "Scegli la configurazione più economica che rispetta la scadenza a P90, oppure la più rapida con risparmi marginali sufficienti.",
+      "estimateCostDescription": "Configurazione più economica che rispetta la scadenza a P90.",
+      "estimateSpeedDescription": "Configurazione più rapida finché un’altra macchina consente un risparmio di tempo sufficiente.",
+      "estimatePriceLookupDescription": "Consulta i prezzi dei cataloghi pubblici quando la politica di rete dei rapporti lo consente; ogni prezzo mostra la data."
+    },
+    "pt-br": {
+      "estimateCommandTitle": "Abrir estimador",
+      "estimateOptimizeDescription": "Escolha a configuração mais barata que cumpra o prazo em P90 ou a mais rápida com economia marginal suficiente.",
+      "estimateCostDescription": "Configuração mais barata que cumpre o prazo em P90.",
+      "estimateSpeedDescription": "Configuração mais rápida enquanto outra máquina ainda economizar tempo suficiente.",
+      "estimatePriceLookupDescription": "Consultar preços de catálogos públicos quando a política de rede de Relatórios permitir; cada preço mostra a data."
+    },
+    "cs": {
+      "estimateCommandTitle": "Otevřít odhad kapacity",
+      "estimateOptimizeDescription": "Vyberte nejlevnější sestavu splňující termín při P90, nebo nejrychlejší s dostatečnou dodatečnou úsporou času.",
+      "estimateCostDescription": "Nejlevnější sestava splňující termín při P90.",
+      "estimateSpeedDescription": "Nejrychlejší sestava, dokud další stroj ještě ušetří dostatek času.",
+      "estimatePriceLookupDescription": "Vyhledat ceny ve veřejných katalozích, pokud to dovoluje síťová zásada sestav; každá cena uvádí datum."
+    },
+    "pl": {
+      "estimateCommandTitle": "Otwórz estymator",
+      "estimateOptimizeDescription": "Wybierz najtańszą konfigurację dotrzymującą terminu przy P90 lub najszybszą z wystarczającymi dodatkowymi oszczędnościami czasu.",
+      "estimateCostDescription": "Najtańsza konfiguracja dotrzymująca terminu przy P90.",
+      "estimateSpeedDescription": "Najszybsza konfiguracja, dopóki kolejna maszyna nadal oszczędza wystarczająco dużo czasu.",
+      "estimatePriceLookupDescription": "Sprawdzaj ceny w publicznych katalogach, gdy pozwala na to polityka sieciowa raportów; każda cena ma datę."
+    },
+    "hu": {
+      "estimateCommandTitle": "Kapacitásbecslő megnyitása",
+      "estimateOptimizeDescription": "Válassza a P90 szerint határidőt tartó legolcsóbb összeállítást, vagy a leggyorsabbat, ahol a további időnyereség még számottevő.",
+      "estimateCostDescription": "A P90 szerint határidőt tartó legolcsóbb összeállítás.",
+      "estimateSpeedDescription": "A leggyorsabb összeállítás, amíg egy újabb gép még elegendő időt takarít meg.",
+      "estimatePriceLookupDescription": "Nyilvános katalógusárak lekérése, ha a jelentések hálózati szabályzata engedi; minden árhoz dátum tartozik."
+    },
+    "tr": {
+      "estimateCommandTitle": "Kapasite tahmincisini aç",
+      "estimateOptimizeDescription": "P90 düzeyinde son tarihe uyan en ucuz kurulumu veya ek zaman kazancı yeterli olan en hızlı kurulumu seçin.",
+      "estimateCostDescription": "P90 düzeyinde son tarihe uyan en ucuz kurulum.",
+      "estimateSpeedDescription": "Bir makine daha hâlâ yeterli süre kazandırdığı sürece en hızlı kurulum.",
+      "estimatePriceLookupDescription": "Raporların ağ ilkesi izin verdiğinde herkese açık katalog fiyatlarına bakın; her fiyatın tarihi gösterilir."
+    },
+    "ru": {
+      "estimateCommandTitle": "Открыть оценку ресурсов",
+      "estimateOptimizeDescription": "Выберите самую дешёвую конфигурацию, укладывающуюся в срок при P90, или самую быструю с достаточной дополнительной экономией времени.",
+      "estimateCostDescription": "Самая дешёвая конфигурация, укладывающаяся в срок при P90.",
+      "estimateSpeedDescription": "Самая быстрая конфигурация, пока ещё одна машина экономит достаточно времени.",
+      "estimatePriceLookupDescription": "Запрашивать публичные каталожные цены, когда это разрешает сетевая политика отчётов; у каждой цены указана дата."
+    },
+    "ja": {
+      "estimateCommandTitle": "キャパシティ見積もりを開く",
+      "estimateOptimizeDescription": "P90 で期限を満たす最安の構成、または追加の時間短縮に十分な価値がある最速の構成を選択します。",
+      "estimateCostDescription": "P90 で期限を満たす最安の構成。",
+      "estimateSpeedDescription": "マシンをもう一台追加しても十分な時間短縮が得られる範囲での最速構成。",
+      "estimatePriceLookupDescription": "レポートのネットワークポリシーが許可する場合、公開カタログ価格を取得します。各価格に日付を表示します。"
+    },
+    "ko": {
+      "estimateCommandTitle": "용량 추정기 열기",
+      "estimateOptimizeDescription": "P90에서 마감일을 충족하는 가장 저렴한 구성 또는 추가 시간 절약 효과가 충분한 가장 빠른 구성을 선택합니다.",
+      "estimateCostDescription": "P90에서 마감일을 충족하는 가장 저렴한 구성입니다.",
+      "estimateSpeedDescription": "머신을 하나 더 추가해도 충분한 시간을 절약할 수 있는 범위 내에서 가장 빠른 구성입니다.",
+      "estimatePriceLookupDescription": "보고서 네트워크 정책이 허용할 때 공개 카탈로그 가격을 조회합니다. 각 가격에 날짜가 표시됩니다."
+    },
+    "zh-cn": {
+      "estimateCommandTitle": "打开容量估算器",
+      "estimateOptimizeDescription": "选择在 P90 下满足截止日期的最便宜配置，或边际时间收益足够的最快配置。",
+      "estimateCostDescription": "在 P90 下满足截止日期的最便宜配置。",
+      "estimateSpeedDescription": "只要再增加一台机器仍能节省足够时间，就选择最快配置。",
+      "estimatePriceLookupDescription": "在报告网络策略允许时查询公开目录价格；每个价格均显示日期。"
+    },
+    "zh-tw": {
+      "estimateCommandTitle": "開啟容量估算工具",
+      "estimateOptimizeDescription": "選擇在 P90 下符合截止日期的最便宜組態，或邊際時間收益足夠的最快組態。",
+      "estimateCostDescription": "在 P90 下符合截止日期的最便宜組態。",
+      "estimateSpeedDescription": "只要再增加一台機器仍能節省足夠時間，就選擇最快組態。",
+      "estimatePriceLookupDescription": "報告的網路原則允許時，查詢公開目錄價格；每個價格都顯示日期。"
+    }
+  }
+}

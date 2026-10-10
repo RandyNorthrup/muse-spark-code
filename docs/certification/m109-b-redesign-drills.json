@@ -1,0 +1,65 @@
+{
+  "lane": "REDM109B",
+  "platform": "macmini",
+  "date": "2026-10-06",
+  "testTimeout": "repository default; no override",
+  "modelAttempts": 0,
+  "paidCalls": 0,
+  "receipts": [
+    {
+      "name": "release-generation",
+      "description": "Skip the final synchronous release-generation/authority check.",
+      "source": "src/core/vault/broker/broker.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/interleavings.test.ts",
+        "--maxWorkers=3"
+      ],
+      "expectedNamedFailure": "RVM109B3 P1-2 a queued private send has no plaintext authority after Lock",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: lock during a queued private send",
+        "FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: grant expiry during material release",
+        "FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded larger sets keep all six invariants after every event",
+        "FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > RVM109B3 P1-2 a queued private send has no plaintext authority after Lock",
+        "FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > a queued private send cannot outlive the item expiry without a timer tick"
+      ],
+      "sha256Before": "f5ba08f241a07ecf1ead54fc4127d026c06a9e31f8eaac2d01b350314c11e4fd",
+      "sha256Mutated": "e56b97053788d2ed283d376b592472e741dcd5a51f6e06bc8510bbe733d2c735",
+      "sha256Restored": "f5ba08f241a07ecf1ead54fc4127d026c06a9e31f8eaac2d01b350314c11e4fd",
+      "byteExactRestore": true
+    },
+    {
+      "name": "stale-incarnation",
+      "description": "Accept an authentication completion without its captured registration incarnation.",
+      "source": "src/core/vault/broker/state.ts",
+      "command": ["npx", "vitest", "run", "test/unit/vault/channel.test.ts", "--maxWorkers=3"],
+      "expectedNamedFailure": "RVM109B3 P1-1 hello held across cancellation cannot acquire a same-ceiling replacement",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vault/channel.test.ts > native authenticated broker channel > RVM109B3 P1-1 hello held across cancellation cannot acquire a same-ceiling replacement"
+      ],
+      "sha256Before": "f3fe7c331719fb2a829b810646864bad3bc5fea38504ac19a29fabdd82b13cd0",
+      "sha256Mutated": "ceeab3123e9e06734fcace7aec2b560caadd0e6cefb2991b8c1e1b96409703aa",
+      "sha256Restored": "f3fe7c331719fb2a829b810646864bad3bc5fea38504ac19a29fabdd82b13cd0",
+      "byteExactRestore": true
+    },
+    {
+      "name": "unowned-cleanup",
+      "description": "Let obsolete source cleanup also close the currently installed audit writer.",
+      "source": "src/core/vault/broker/broker.ts",
+      "command": ["npx", "vitest", "run", "test/unit/vault/reviewRound3.test.ts", "--maxWorkers=3"],
+      "expectedNamedFailure": "P2-4 an obsolete unwrap completion cannot close the fresh audit writer or erase its key",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vault/reviewRound3.test.ts > RVM109B3 owned completions > P2-4 an obsolete unwrap completion cannot close the fresh audit writer or erase its key"
+      ],
+      "sha256Before": "f5ba08f241a07ecf1ead54fc4127d026c06a9e31f8eaac2d01b350314c11e4fd",
+      "sha256Mutated": "e423cf7052ed49a35d41a6577d1b12e60905eaa30fc47a397b89ea20ffd02adb",
+      "sha256Restored": "f5ba08f241a07ecf1ead54fc4127d026c06a9e31f8eaac2d01b350314c11e4fd",
+      "byteExactRestore": true
+    }
+  ]
+}

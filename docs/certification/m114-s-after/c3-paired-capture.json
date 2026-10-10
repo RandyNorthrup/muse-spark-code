@@ -1,0 +1,70 @@
+{
+  "candidateCommit": "f3ee8572abc7bf0c554eb4a1639bd321b2e76aee",
+  "sourceSnapshot": "temp/m114-visual-source-sAl1uL",
+  "verifiedCaptureInputFiles": 636,
+  "maximumConcurrentBrowserJobs": 2,
+  "buildsSerialized": true,
+  "runs": [
+    {
+      "shard": {
+        "index": 3,
+        "count": 6
+      },
+      "attempt": 1,
+      "exit": 0,
+      "startedUtc": "2026-10-07T00:51:37.283575+00:00",
+      "durationSeconds": 181.842,
+      "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+      "manifestSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6",
+      "candidateSha256": "f38919930a87f1ba2b8c91a444b2758c2a0627d68b43a1589170ebd521c15873",
+      "selectionSha256": "2b139fb9e05089f97b344f2c22332089ba4be67fccdc7b32baf5a335b37a370b",
+      "checked": 804,
+      "changedPixels": 11,
+      "maxImageChangedPixels": 2,
+      "regenerated": false,
+      "baselineBytes": 38083428,
+      "candidateBytes": 38083854,
+      "browser": "150.0.7871.186",
+      "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+      "platform": "linux",
+      "policy": {
+        "threshold": 0.1,
+        "includeAA": false,
+        "maxChangedPixelRatio": 0.0001,
+        "maxChangedPixels": 12
+      }
+    },
+    {
+      "shard": {
+        "index": 5,
+        "count": 6
+      },
+      "attempt": 1,
+      "exit": 0,
+      "startedUtc": "2026-10-07T01:00:33.008037+00:00",
+      "durationSeconds": 225.326,
+      "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+      "manifestSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6",
+      "candidateSha256": "f38919930a87f1ba2b8c91a444b2758c2a0627d68b43a1589170ebd521c15873",
+      "selectionSha256": "342011a3ffbe9ec52aa1ee52e86909f84311edb5e66cb6725d0020cae4e50901",
+      "checked": 804,
+      "changedPixels": 0,
+      "maxImageChangedPixels": 0,
+      "regenerated": false,
+      "baselineBytes": 44681966,
+      "candidateBytes": 44682498,
+      "browser": "150.0.7871.186",
+      "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+      "platform": "linux",
+      "policy": {
+        "threshold": 0.1,
+        "includeAA": false,
+        "maxChangedPixelRatio": 0.0001,
+        "maxChangedPixels": 12
+      }
+    }
+  ],
+  "modelAttempts": 0,
+  "sourceSnapshotCleaned": true,
+  "captureDurationIncludesVerificationHold": true
+}

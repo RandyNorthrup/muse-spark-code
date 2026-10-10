@@ -7,7 +7,10 @@
   <a href="https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code"><img alt="Marketplace installs" src="https://badgen.net/vs-marketplace/i/RandyNorthrup.muse-spark-code?color=3b6cf6"></a>
   <a href="https://open-vsx.org/extension/RandyNorthrup/muse-spark-code"><img alt="Open VSX version" src="https://badgen.net/open-vsx/version/RandyNorthrup/muse-spark-code?label=Open%20VSX&color=3b6cf6"></a>
   <a href="https://open-vsx.org/extension/RandyNorthrup/muse-spark-code"><img alt="Open VSX downloads" src="https://badgen.net/open-vsx/d/RandyNorthrup/muse-spark-code?label=Open%20VSX%20downloads&color=3b6cf6"></a>
+  <a href="https://www.npmjs.com/package/muse-spark-code-acp"><img alt="ACP agent: npm version" src="https://badgen.net/npm/v/muse-spark-code-acp?label=ACP%20agent%20(npm)&color=3b6cf6"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/releases/latest"><img alt="ACP agent: GitHub Release" src="https://badgen.net/github/release/RandyNorthrup/muse-spark-code?label=ACP%20agent%20(GitHub)&color=3b6cf6"></a>
+  <a href="#install-in-your-editor"><img alt="Total downloads (all channels)" src="https://badgen.net/https/muse-marketplace-hook.objectipy.workers.dev/badgen/downloads"></a>
+  <a href="#git-and-pull-requests"><img alt="GitHub app installs" src="https://badgen.net/https/muse-marketplace-hook.objectipy.workers.dev/badgen/app-installs"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/badge.svg"></a>
   <a href="#install-in-your-editor"><img alt="Editors: VS Code-based (engine 1.99 or newer) and ACP" src="https://img.shields.io/badge/editors-VS%20Code--based%20%C2%B7%20ACP-2b7de9"></a>
   <img alt="WCAG 2.2 AA checked" src="https://img.shields.io/badge/WCAG%202.2-AA%20checked-2b7de9">
@@ -31,13 +34,17 @@ key to the CLI.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0160) ·
+The [roadmap](ROADMAP.md) shows what is in the next release, what is being
+built, what is planned and what each release shipped.
+
+**Contents:** [What's new](#whats-new-in-0170) · [Roadmap](ROADMAP.md) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
+[Several accounts](#several-accounts-per-provider) ·
 [Rules, skills and memory](#rules-skills-and-memory) ·
 [Muse Code's own tools](#muse-codes-own-tools) · [Web fetch](#web-fetch) ·
-[Browser check](#browser-check) · [The panel](#the-panel) ·
+[Browser check](#browser-check) · [Design](#design) · [The panel](#the-panel) ·
 [Voice dictation](#voice-dictation) · [Paid features](#paid-features) ·
 [Languages](#languages) ·
 [Limits](#limits) ·
@@ -46,7 +53,27 @@ key to the CLI.
 [Troubleshooting](#troubleshooting) ·
 [Reporting a problem](#reporting-a-problem) · [Development](#development)
 
-## What's new in 0.16.0
+Schedule budgets, consent and rental cost evidence use exact decimal USD. Saved
+reports write money version 2; historical numeric reports retain their original
+hash verification and migrate when read.
+
+## What's new in 0.17.0
+
+- **Deterministic reports.** `/report` builds project, quality, milestone,
+  release and change reports from local facts, in Markdown, HTML, JSON or text,
+  with saved history and comparisons; nothing is sent to a model.
+- **Capacity estimates (preview).** `/estimate <goal>` and the Estimator are in
+  place and verified with test data. Real forecasts need the plan reader that
+  comes later; until then they say so instead of guessing.
+- **Several accounts per provider.** List provider accounts, see the current
+  one and its thresholds; a vendor limit blocks only the affected account.
+- **Orchestrator playbook.** The nine orchestration rules ship as a first-party
+  skill. In the ACP agent and the CLI, `/playbook status`, `record` and
+  `settings` answer locally; the VS Code panel follows.
+- **Refreshed design.** Shared design tokens and generated palettes style every
+  panel surface; an optional pinned OFL font pack serves standalone installs.
+
+### Earlier in 0.16.0
 
 - **Loop guarantees.** Strict tool contracts, bounded hosted search and streamed
   argument previews help you follow Model API tool calls. Independent reads can
@@ -180,6 +207,109 @@ key to the CLI.
 Earlier releases are in the
 [changelog](https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md).
 
+## /report
+
+Open the local kind picker with `/report`, **Muse Spark: Show report…**, or
+Account & usage's **Usage report**. A report reads named sources without a
+model call or a charge. **Needs you** comes first; every source names its
+availability, freshness and observation time. Missing integrations remain
+visible as unavailable.
+
+| Kind                        | Input                                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------------- |
+| Project                     | `/report project`                                                                           |
+| Milestone                   | `/report milestone M113`                                                                    |
+| Release                     | `/report release latest`                                                                    |
+| Changes                     | `/report changes`; `since <tag, branch, or YYYY-MM-DD>` selects Git ancestry                |
+| Quality                     | `/report quality`                                                                           |
+| Usage                       | `/report usage today`; also `7d`, `30d`, `90d`, `week`, `month` or a date range             |
+| Session                     | `/report session`                                                                           |
+| Playbook                    | `/report playbook`                                                                          |
+| Issues                      | `/report issues`                                                                            |
+| Estimate                    | `/report estimate M113`                                                                     |
+| Fleet / security / accounts | `/report fleet`, `/report security`, `/report accounts`; future source bindings unavailable |
+| Schedules / keybindings     | `/report schedules`, `/report keybindings`; owning host bindings unavailable                |
+
+Each table shows at most ten rows with an omitted-row count; `--full` retains
+all available rows. Next steps follow the plan's declared delivery order and
+only become ready when their required milestones are complete. At most three
+next steps are shown. Session turn
+and approval totals require retained activity facts; transcript row counts
+never substitute for them.
+
+The tab provides **Save as…**, **Copy as Markdown**, **Attach to message**,
+**History**, **Diff with previous** and **Refresh**. Save as exports Markdown,
+HTML, JSON or text through the editor's save dialog. A saved report retains
+its original observation time; Refresh collects again. History is scoped to
+this workspace and kind. Identical comparisons say **No change since** the
+previous observation. Turning off `museSpark.reports.keepHistory` stops new
+history saves. Existing entries remain readable. A malformed or unfinished writer lease can
+block publication; it is preserved because ownership cannot be proved. Manual
+repair requires every relevant writer to have stopped. No automatic deletion
+is attempted.
+
+`museSpark.reports.network` is machine-scoped: `whenSignedIn` (default) reads
+GitHub using the editor's existing sign-in, `always` also reads GitHub without
+requiring sign-in, and `off` forbids network collection. Reports never open a
+sign-in prompt.
+The terminal requires `--network` on every collection, and uses `gh`'s own
+identity. CI egress remains denied. Cache reads and writes use confined,
+owner-only storage, validated decoded data and ETags; interrupted requests
+retain honest unavailable or partial status. Store, workflow and release
+adapters await approved live captures. Posting, scheduled destinations,
+mail/vault and node-browser integration await their owning milestones;
+the tab does not offer them yet.
+
+`museSpark.reports.agentSources` defaults to an empty array. Only agents you
+explicitly enable (`claudeCode`, `codex`) have their confined local usage files
+read. A missing usage capability, ledger, account or future feature produces
+an unavailable source; a subscription never implies known token or cost data.
+
+The shared CLI/ACP engine supplies the same report data to every editor.
+Installed native editor tabs are certified by M104; the portable MHP 1.2
+report methods are already validated. In a terminal, the command is
+`muse-spark-code-acp report <kind>`; bare `report` retains the problem-report
+command. See the [ACP guide](docs/acp.md#deterministic-reports-m113).
+
+![Local report tab with export actions](https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/deterministic-report.png)
+
+## Orchestrator playbook policy (M116)
+
+Nine rules govern orchestrated work: eight the team can configure (never to
+off for safety, never above their ceiling) plus the safety rule that always
+applies. A strike policy stops patches after repeated review failures; review
+coverage, finding classes and dispositions are explicit; generation leases
+fence stale reviews; and review history follows edited moves and merges.
+
+Outcomes verify before harness-managed push or completion: each newly
+reachable commit needs a passing receipt from the repository's own hooks,
+run only through native `git hook run` with the source repository's absolute
+hooksPath and a scrubbed environment. Verification discovers new branches,
+tags, notes, every worktree HEAD and private refs in every worktree; POSIX
+timeout cleanup tracks descendants by parent chain and start-time identity.
+Windows verification uses the trusted harness job runner; the M107 governor
+binding stays open.
+
+The panel, Agent map, ACP and CLI read the same journal: `/playbook
+<status|record|settings ...>` and `playbook <status|record|settings ...>`
+show status, journal evidence and settings without starting a backend or a
+model turn. Settings changes need a reason and record the owner; turning
+rules off and naming the fallback reviewer for classifier-blocked reviews
+need a real user decision. Residuals stay open per milestone until a
+lead or owner accepts them, and release refuses while any are open. Record
+views label legacy acceptances with no matching earlier answer as unbound
+and explain why they cover nothing. Local playbook commands leave queued
+late answers untouched; only a turn that starts with the model removes them.
+Queued turns retain them through withdrawal, Stop and process exit; Model API
+waits past submit hooks for request dispatch before announcing delivery.
+Dispatch briefs render structurally and their hashes record before dispatch.
+See the [help reference](docs/reference.md) (`Orchestrator playbook` row
+and the `playbook` CLI command), regenerated with
+`npm run reference:generate` and verified with `npm run check:reference`.
+The reviewer charter ships as the `orchestrator-playbook` skill; turning on
+panel enforcement waits for M96's planner (see
+`docs/certification/m116.md`).
+
 ## Highlights
 
 - **Streaming chat with tools you can see.** Every read, edit, write and shell
@@ -197,7 +327,8 @@ Earlier releases are in the
   `Shift+Tab`. Gated commands arrive as approval cards with the CLI's own
   choices; questions from the agent arrive as question cards with radios,
   checkboxes, tabs and an "Other" answer.
-- **`/` for everything.** The palette holds the actions, the model, effort
+- **`/` for everything.** The palette loads its action registry on first use, with loading, failure and
+  retry available. It holds the actions, the model, effort
   and thinking, the permission mode and your skills; type a letter after the
   `/` and it narrows to the slash commands, as in Claude Code.
 - **Subagents on a map.** When Muse Code delegates, or the Model API backend
@@ -221,8 +352,13 @@ Earlier releases are in the
   dictation. Each is available by default on Model API; spending requires paid-use consent, marked
   paid wherever it is used, and tallied in Account & usage.
 - **Scheduled prompts under your control.** On the Model API backend,
-  `/loop` saves a recurring prompt in this conversation. A due prompt waits
-  for you to run and confirm it; your key is never spent unattended.
+  `/loop` saves a recurring prompt in this conversation. By default a due
+  prompt waits for you to run and confirm it; unattended runs are opt-in
+  per schedule with a hard spending cap, and your key is never spent
+  without your consent. Scheduled turns currently cannot read video or audio:
+  verified upload storage, the captured media codec and production calibration bindings are
+  unavailable (PLAN D85.6, M105). The shared paid accounting refuses bills
+  above an admitted reserve and retains that reserve as uncertain liability.
 - **Two backends, one per conversation.** Your Muse subscription through the Muse Code
   CLI, or a Meta Model API key (pay as you go) with the extension's own
   tools. The pasted key is never handed to the CLI.
@@ -280,7 +416,7 @@ so they match the build.
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/quote.png" alt="A reply right-clicked in its highlighted passage: three blue pills, Copy, Ask about this and Comment on this, fanned out from the pointer"><br><sub>Highlight, right-click: <b>Copy</b>, <b>Ask about this</b> or <b>Comment on this</b></sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/rewind.png" alt="A sent message's menu with three blue pills: Fork conversation from here, Fork conversation and rewind code, and Rewind"><br><sub>Every sent message's ⋯: fork, fork and rewind code, or open <b>Rewind</b></sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/rewind.png" alt="A sent message's menu with three blue pills: Fork Conversation, Fork and Rewind, and Rewind"><br><sub>Every sent message's ⋯: fork, fork and rewind code, or open <b>Rewind</b></sub></td>
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/modes.png" alt="The Modes menu: Manual, Edit automatically, Plan and Auto, with descriptions and the effort row"><br><sub>Permission modes and effort; <code>Shift+Tab</code> cycles modes</sub></td>
@@ -292,7 +428,7 @@ so they match the build.
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/open-question.png" alt="An Open question in the attention dock: Colour, Blue, Green, Other, Submit and Explain instead; its folded transcript row and the 1 open question chip with Previous and Next controls remain visible"><br><sub>Answer an open question from the dock; its transcript row and navigation chip keep it easy to find</sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/help.png" alt="Help and Reference searched for Next open question, showing question-handling details, the deferral setting, and links to Next and Previous open question"><br><sub>Type <code>/help</code>: search the reference for features, commands, settings and shortcuts</sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/help.png" alt="Help and Reference searched for Next open question, showing question-handling details and deferral behavior"><br><sub>Type <code>/help</code>: search the reference for features, commands, settings and shortcuts</sub></td>
   </tr>
 </table>
 
@@ -349,6 +485,12 @@ Muse Code's subscription and its existing explicit key-paid opt-ins are unchange
    ```bash
    code --install-extension muse-spark-code-0.14.0.vsix
    ```
+
+   Other editors install it from
+   [Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code)
+   or run the ACP agent from
+   [npm](https://www.npmjs.com/package/muse-spark-code-acp); see
+   [Install in your editor](#install-in-your-editor).
 
 2. Open the **Muse Spark** view from the activity bar (or press
    `Ctrl+Shift+Alt+Esc` on Windows, `Cmd+Shift+Esc` on macOS,
@@ -524,7 +666,8 @@ from Open VSX or a `.vsix`.
 
 Get it from the
 [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code),
-[Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code) or
+[Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code),
+[npm](https://www.npmjs.com/package/muse-spark-code-acp) (the ACP agent) or
 [GitHub Releases](https://github.com/RandyNorthrup/muse-spark-code/releases)
 (both the `.vsix` and the agent's `.tgz`).
 
@@ -537,11 +680,18 @@ Get it from the
 | **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
 | **Neovim, Emacs, JupyterLab**                            | Install the ACP agent (below), then follow [docs/acp.md](docs/acp.md#configure-the-editor) (CodeCompanion, agent-shell, Jupyter AI)                                                                                                                |
 
-**The ACP agent** needs Node.js 22 or later. Install it from the release:
+**The ACP agent** needs Node.js 22 or later. Install it from npm:
 
 ```bash
-npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.14.0/muse-spark-code-acp-0.14.0.tgz
+npm install -g muse-spark-code-acp
 muse-spark-code-acp --version
+```
+
+Or install the `.tgz` attached to a GitHub Release, replacing `<version>`
+with the release's version:
+
+```bash
+npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v<version>/muse-spark-code-acp-<version>.tgz
 ```
 
 **Zed** (tested with Zed 1.20.2): add this to `settings.json`, then pick
@@ -733,6 +883,66 @@ Headless `exec` still declines questions immediately, reports
 conversations and the evaluation keep their immediate cancellation or
 clarification. Scheduled/unattended prompts defer at once and keep the
 question open, even when interactive deferral is disabled.
+
+## Several accounts per provider
+
+Accounts keep separate credentials, labels, order, limit groups and thresholds.
+The terminal can manage their metadata and choose a fixed account for a
+headless run. Automatic swapping, parallel admission, device placement and
+the editor panel/usage mounts await the provider, journal and shared-owner
+integration listed in [M108's certification](docs/certification/m108.md).
+`museSpark.accountSwap` and `museSpark.accountParallel` are machine-scoped
+and default on; they do not enable those missing integrations by themselves.
+
+These commands require an existing provider metadata record; this base
+refuses absent or malformed configuration until its provider owner supplies
+it. Display order never selects a backend credential.
+
+Manage metadata through the agent (credentials only from standard input,
+never an argument or a file):
+
+- `muse-spark-code-acp providers accounts list --provider <id>`
+- `muse-spark-code-acp providers accounts add --provider <id> --account <id> --label <label>`
+- `muse-spark-code-acp providers accounts thresholds --provider <id> --account <id> --thresholds <JSON>`
+- `muse-spark-code-acp auth set --provider <id> --account <id>` (then paste the key)
+- `muse-spark-code-acp exec --account <id> <prompt>` pins one run to one account
+
+`exec --account-pool` and in-session credential swaps report unavailable
+until the pooled owner is connected. ACP's `/accounts` and `account` picker
+read live metadata; choosing another account also reports unavailable.
+Second Muse Code accounts and cross-account native replay/cache evidence
+wait for the Q-M108 captures. The usage-page mount awaits M102's journal;
+it must keep outstanding reservations and uncertain charges across resets.
+The shared paid gate, daily budget and conversation cap never reset on a
+swap, and a different account needs its own first-charge consent.
+
+Placement defaults to one account per provider per device. Another account
+needs another paired device, or the machine-scoped, default-off
+`museSpark.accounts.severalOnThisDevice` option. That option requires the
+provider's terms confirmation and isolated local profiles, labelled “on this
+PC”. The installed profile/placement owner is still pending, so the setting
+does not currently start another account process.
+
+`muse-spark-code-acp developer` opens the terminal's machine-local Developer
+options after typed confirmation; `developer status` shows its state. The
+shared editor unlocks use seven clicks on the version within ten seconds or
+**Muse Spark: Developer options**, once their palette/About mounts land.
+Testing mode is badged and audited, expires, and Reset stops and removes only
+its recorded profiles. The visible several-account option has no developer
+badge or expiry. Profile start and cleanup report unavailable until their
+resource owner is bound; no successful cleanup is claimed in its absence.
+Revoking testing authority closes admission immediately and attempts to stop
+recorded profiles before saving. Persistence failures are reported; a durable
+revocation audit prevents restoring the previous enabled grant. Removing an
+unknown profile reports an error without changing the current grant.
+
+The [policy record](docs/certification/m108-policy.md), checked 2026-10-05,
+lists every provider's pooling decision with its clause, source and date.
+“Confirmation required” quotes the restriction and offers Confirm, Only at
+my own caps, or Cancel; one-account-per-person rules also apply at user caps.
+Accounts sharing a vendor limit group add no capacity against that limit.
+These rules hold on every device and in developer mode. Nothing creates
+accounts, changes request identity or moves a credential to another device.
 
 ## Permission modes
 
@@ -1799,6 +2009,15 @@ also unavailable while a pull request worktree is held.
 - **Restricted Mode.** None of this runs there, and the panel says why:
   git can run programs a repository's configuration names.
 
+**The project's GitHub app (arriving with M123).** Editors without their own
+GitHub sign-in will sign in through the GitHub OAuth app "Muse Spark Code
+(Unofficial)", using GitHub's device flow (no client secret). Like the
+extension, the app is unofficial and not affiliated with or endorsed by Meta
+or GitHub. Its GitHub Marketplace listing is awaiting GitHub's review.
+
+<!-- Marketplace listing (draft, pending GitHub review): https://github.com/marketplace/muse-spark-code-u
+     Turn this into a link in the release that follows approval. -->
+
 <!-- reference: streamed-argument-previews -->
 
 ## Streamed argument previews
@@ -1959,6 +2178,34 @@ both backends, as Muse Code's `/goal` does.
   its own, so your key pays for nothing you did not ask for. A token budget
   the agent gives a goal stops it once spent.
 
+## Estimates
+
+The estimator routes are wired, but real forecasts are **not available yet**.
+The composer `/estimate <goal> [--by <date>] [--fleet
+current|minimum|optimum]`, ACP `/estimate`, **Open Estimator**, and standalone
+`muse-spark-code-acp estimate` use one lazy engine. Production snapshots refuse
+with `M117-W-M113-plan-reader` until the plan reader lands; fleet/catalog
+integration also waits for M113. `muse-spark-code-acp estimate --help` shows the
+standalone syntax without starting a model or asking for credentials.
+
+- **Verified with fakes.** The engine returns P50/P90 dates, critical-path
+  schedules, limiting resources and current/minimum/optimum setups. Figures
+  carry parameter-specific evidence and sample sizes; unknown capacity and
+  approximate placement stay qualified. Below 20 samples, fitted parameters
+  remain priors. Bases older than seven days carry a schedule-risk flag.
+- **Existing fleet.** The panel sends an audited, contract-first first-wave
+  request independently of rental readiness. Production dispatch still
+  refuses with `M117-W-M96-board`. Finished-lane history updates and automatic
+  production refresh wait for M115.
+- **Rentals remain advice-only.** M109/M110 provider/install/pair bindings
+  and P's internal Slice 2 provisioning lifecycle are still absent. Liability
+  reservation, separate spend confirmation, funded-deadline/idle teardown,
+  Keep and wipe-before-delete are planned, not shipped behavior. No rental
+  creation is enabled.
+- **Settings** (this machine): `museSpark.estimator.optimize` (`cost` or
+  `speed`) and `museSpark.estimator.priceLookup`, which follows the Reports
+  network policy; catalog quotes retain their dates.
+
 ## Review
 
 Review what the agent did before it lands, on both backends.
@@ -2046,6 +2293,19 @@ Review what the agent did before it lands, on both backends.
 
 ## Scheduled prompts (Model API)
 
+The machine-scoped `museSpark.schedules` switch controls the v2 surface.
+Its host defaults are `museSpark.scheduleDefaultDelivery` (`whenIdle`) and
+`museSpark.scheduleAgentCreation` (`ask`), also machine-scoped. These flat keys
+avoid VS Code's scalar-parent conflict; the reader still validates previous
+`schedules.defaultDelivery` and `schedules.agentCreation` values when a new key
+is absent. Paid consent and the shared daily budget still apply.
+
+The Command Palette's **Schedule this prompt…**, **Show schedules** and
+**Show schedule timeline** open the v2 editor, list and timeline in the
+active chat, opening a chat when needed. The schedule surface loads on
+first use. Starting unattended jobs through this editor still requires the
+pending editor delivery binding; the `/loop` flow below remains available.
+
 On the Model API backend, `/loop 10m Review the build` saves a prompt in the
 current conversation to become due every ten minutes. Use `m`, `h`, or `d`
 for minutes, hours, or days; `/loop "0 9 * * 1-5" Summarize new bugs` uses
@@ -2063,7 +2323,8 @@ It expires after seven days; `/loop 7d ...` has no run before that deadline
 and is refused. A due prompt stays pending until Run, Cancel or expiry.
 Only a loaded conversation checks for due work;
 closing VS Code stops checks. A missed recurring interval leaves one due
-occurrence, without a backlog. A due prompt **never runs by itself**: turn
+occurrence, without a backlog. By default a due prompt **never runs by
+itself**: turn
 on **Scheduled prompts (paid)** and accept both published standard and
 contributor token rates, then choose **Run now** and allow that
 occurrence's prompt, model and exact tier rates in the paid-use popup
@@ -2081,11 +2342,37 @@ in that conversation's token estimate. A run admitted just before a crash
 is not replayed, even if its result was never seen. Cancel does not stop a
 turn that already began.
 
+Unattended runs are opt-in per schedule. The `schedule` command manages
+jobs beyond `/loop`: `schedule add --draft <JSON>` (with
+`--scheduled-prompts --max-budget-usd <USD>` to allow unattended runs under
+that hard cap), `list`, `remove`, `run-now`, `pause`, `resume`, `fire`,
+`timeline`, `run-due` and `background`. Without a positive budget, paid
+authorization for an unattended run is refused; with one, every run still
+passes the paid rule above, naming its price and the shared daily budget.
+Crash accounting holds across restarts: a lost acknowledgement is recovered
+from the delivery ledger without a second run, and even when both the
+acknowledgement and the ledger are lost there is at most one re-run and
+exactly one recorded settlement for the run. The ACP `/schedule` command
+offers the same list, except `run-due` and background maintenance, and only
+while the agent runs with `--scheduled-prompts` (again with
+`--max-budget-usd`).
+
 Muse Code has its own subscription-backed `cron_create`, `cron_list` and
 `cron_delete` tools. Ask it in chat to schedule, list or cancel its jobs;
 those are not the Model API jobs shown by this panel. Muse Code 1.3.0 does
 not expose scheduler controls over MSP or a `muse cron` CLI command, so the
 panel cannot present an authoritative native job list or direct cancel.
+
+The cross-editor native background scheduler under development (M115) is
+not enabled by these shipped controls. Its launcher verifies installed paths
+and the effective OS definition on every wake. Linux also checks every
+systemd search and applicable drop-in directory, including absent paths;
+a refused registration disables its timer. Windows checks both the task
+folder and the task object's security descriptor. On macOS, switching it off
+first disables the native job, then its record; removing the job waits for a
+full calendar wake interval and an idle instance. POSIX shared-verifier binding
+and native Linux/macOS/ordinary-user Windows certification remain integration
+prerequisites.
 
 ## Observation packing (Model API)
 
@@ -2579,6 +2866,29 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   know, as untrusted data. The row shows the counts and the entries in your
   language; on Muse Code the row shows the tool's English text.
 
+## Design
+
+The panel follows your editor's theme and UI/code fonts. Shared tokens give
+our cards, menus and dialogs consistent radii, focus rings, elevation and
+control states; high contrast uses borders and opaque surfaces. Reduced
+motion stops interaction animations. Native editor prompts, including paid
+consent, keep the editor's appearance and existing behavior.
+
+The [token contract](design/tokens/README.md) is shared with other hosts.
+Standalone surfaces have an optional pinned OFL font pack (Inter, JetBrains
+Mono, Fira Code and Cascadia Code subsets), with UI/code font and ligature
+preferences. Their host bindings are tracked in the
+[editor design rows](docs/ide-compatibility/m114-design.md). For an offline
+install from a source checkout after building:
+
+```sh
+node dist/acp.js fonts install --from design/fonts/pack
+```
+
+Installation verifies every digest and writes only application data. Online
+asset publication and standalone settings bindings remain with their named
+integration owners; editor font settings continue to decide inside editors.
+
 ## The panel
 
 **Composer.**
@@ -2654,6 +2964,35 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   gets a failed tool result before its bytes are retained. PDF and image
   tool rows use the installed panel language and number format; the model
   receives its English result.
+- **Multimodal integration status (M105).** The picker recognizes video and
+  audio; paste/drop sends approved host URI tokens without reading their bytes
+  in the browser. A bytes-only audio/video paste is refused. Production video
+  and audio delivery remains unavailable until the selected-model capability,
+  the production upload and transcription bindings, consent and
+  exact-budget bindings land.
+  `mediaAudioAction` selects the intended audio route; it does not enable an
+  unbound transcription adapter. Muse Spark 1.3 ignores a video's soundtrack;
+  1.2 hears it, according to the recorded captures. Standalone Meta audio is
+  refused because the capture found it silently ignored.
+  **Attach screen recording…** and ACP `/record` require an installed recorder
+  binding and otherwise explain that recording is unavailable. **Attach latest
+  screen recording** can inspect an existing Linux recording, but admission
+  still requires the media bindings. Remote windows need the companion route,
+  whose server is pending M104. The Windows VM has no working direct-capture
+  receipt. Configured future uploads have a `mediaMaxUploadMiB` cap and
+  `mediaUploadExpiryDays` expiry; **Delete uploaded files…** requires the real
+  account ledger. These commands do not establish provider/editor certification.
+
+  | Backend/model                                | Images and PDFs                                 | Video                                                | Standalone audio                                     |
+  | -------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
+  | Model API, current production binding        | Existing inline path                            | Off: capability/Files/consent/budget binding pending | Off: captured batch adapter and paid binding pending |
+  | Muse Code                                    | Existing image path; established document rules | Off: U16/MSP capture pending                         | Off: needs captured Model API route                  |
+  | Gemini / OpenAI-compatible and other vendors | Their future captured capability record         | Off: lane V and vendor captures pending              | Off: captured capability/codec pending               |
+
+  Portable core and editor adapters have fake-based tests. Installed-editor,
+  native recording and live provider receipts remain open in
+  [M105 certification](docs/certification/m105.md).
+
 - A path with a space, `#` or `"` is written in quotes,
   `@"my notes/a b.md"#5-10`, and the menu searches what you type after `@"`.
 - The model pill reads `model effort` (effort tiers Minimal to Max, each
@@ -2769,7 +3108,7 @@ is completed so you can add what follows it), `Tab` completes the name and
   to open the same radial menu: each action is one crisp blue pill, its icon
   then its name, every pill the same size, in a fan beside the pointer or
   the ⋯ and inside the panel. Arrow keys move, Home/End go to the first and last,
-  Enter or Space picks. A message's menu has **Fork conversation from here**
+  Enter or Space picks. A message's menu has **Fork Conversation**
   and a **Rewind** pill that opens a second burst of the rewind and restore
   choices; Escape returns from that burst first, then closes the menu and
   returns focus to ⋯. An edit row's menu has **Open output**, **Review** (the
@@ -2838,7 +3177,7 @@ change, and **Click to expand** opens the diff editor. One edit can be
 undone from its row's ⋯ menu (**Revert**). To undo more, use the ⋯ menu on
 any sent message (or right-click it):
 
-- **Fork conversation from here**.
+- **Fork Conversation**.
 - **Restore files to here** (a message whose turn has a checkpoint, in a
   connected Model API session) undoes the model's own file-tool edits from
   that turn on, while each file still holds exactly what the model left;
@@ -2869,7 +3208,7 @@ any sent message (or right-click it):
   conversation's and its subagents', in the reverse of the order they
   landed. A file the edit created goes to the trash, unless you have added
   to it since, in which case your lines stay.
-- **Fork conversation and rewind code** (offered where the turn has no
+- **Fork and Rewind** (offered where the turn has no
   checkpoint) is one action: the confirmation, the reverts, then the fork.
   Declining the confirmation does neither.
 
@@ -3894,6 +4233,8 @@ remain planned; this reference does not claim those hosts implement the page.
 | Muse Spark: Start with Your Own Model               | —                                                                                                | Open the setup wizard at "Pick a provider"; keys stay in the host draft until Save, failures restore prior provider/default/secret state, and setup confirmation requires the composer's model receipt. Cancel writes nothing |
 | Muse Spark: Models & Agents                         | —                                                                                                | Open the Models & Agents panel: providers with key state, model scans with diffs, removal with Undo, import and export                                                                                                        |
 | Muse Spark: Add Model Provider…                     | —                                                                                                | The quick-pick fast path without the panel: pick a provider, enter or connect the key, test it, pick models and confirm                                                                                                       |
+| Muse Spark: Show Resources                          | —                                                                                                | Open the resource chip's popover in the chat in view: this machine's readings against its limits, what is waiting, Resume now and Settings; see [Keeping your machine responsive](#keeping-your-machine-responsive)           |
+| Muse Spark: Resume Work Now                         | —                                                                                                | Hold this window's resource governor at normal for fifteen minutes; a governor you switched off stays off                                                                                                                     |
 | Command                                             | Default keybinding                                                                               | What it does                                                                                                                                                                                                                  |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                    |
 | Muse Spark: Continue with ChatGPT                   | —                                                                                                | Connect an eligible Plus/Pro plan in the system browser and select its catalogue model                                                                                                                                        |
@@ -3938,15 +4279,19 @@ remain planned; this reference does not claim those hosts implement the page.
 | Muse Spark: Start with Your Own Model               | —                                                                                                | Open the setup wizard at "Pick a provider"; keys stay in the host draft until Save, failures restore prior provider/default/secret state, and setup confirmation requires the composer's model receipt. Cancel writes nothing |
 | Muse Spark: Models & Agents                         | —                                                                                                | Open the Models & Agents panel: providers with key state, model scans with diffs, removal with Undo, import and export                                                                                                        |
 | Muse Spark: Add Model Provider…                     | —                                                                                                | The quick-pick fast path without the panel: pick a provider, enter or connect the key, test it, pick models and confirm                                                                                                       |
+| Muse Spark: Attach screen recording…                | —                                                                                                | Direct recording is unavailable in this build; choose an existing recording file instead                                                                                                                                      |
+| Muse Spark: Attach latest screen recording          | —                                                                                                | Attach the newest recording the OS already saved to the conversation in view                                                                                                                                                  |
+| Muse Spark: Delete uploaded files…                  | —                                                                                                | Delete this conversation's uploaded media before its expiry                                                                                                                                                                   |
 
 Windows keeps `Ctrl+Esc` for Start and `Ctrl+Shift+Esc` for Task Manager,
-which is why its two shortcuts add `Alt`. Twelve commands appear in the
+which is why its two shortcuts add `Alt`. Fifteen commands appear in the
 Command Palette only where they can act: Insert @-Mention with an editor
-open, Toggle Thinking, Export Conversation, Import Session, Open Share File
-and Stop Background Tasks with a Muse panel in view, Move Running Commands
-to Background while one runs, Set Up Shell Sandbox on Windows (or in a
-remote window), Create AGENTS.md, the two worktree commands and Open a Pull
-Request in a Conversation with a folder open.
+open, Toggle Thinking, Export Conversation, Import Session, Open Share File,
+Stop Background Tasks, Attach screen recording, Attach latest screen
+recording and Delete uploaded files with a Muse panel in view, Move Running
+Commands to Background while one runs, Set Up Shell Sandbox on Windows (or
+in a remote window), Create AGENTS.md, the two worktree commands and Open a
+Pull Request in a Conversation with a folder open.
 
 ## Settings
 
@@ -4025,6 +4370,10 @@ Bypass at once.
 | `modelApiAutoCompaction`          | `true`      | Automatic Model API compaction; awaiting evaluation and inactive until the M75 pair and shared paid admission are certified. Set false to opt out. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 | `modelApiTeamWorkers` | `true` | [Paid](#paid-features): team tasks billed to your Model API key (M96 agent roles, lane A): on with one price question before the first charge; the first delegate call that starts key tasks asks once with each model's prices, each task's ceiling and the shared daily budget. Machine-scoped |
+| `mediaMaxUploadMiB` | `200` | Uploaded media cap in MiB, 1–1024; machine-scoped. An attachment over it is refused before it is read |
+| `mediaUploadExpiryDays` | `7` | Uploaded media expiry in days, 1–30; machine-scoped. **Delete uploaded files…** removes them early |
+| `screenRecordingMaxSeconds` | `120` | Screen recording length cap in seconds, 10–600; machine-scoped. Shorter bounds are clamped, not refused |
+| `mediaAudioAction` | `"transcribe"` | What pasted or dropped audio becomes: `transcribe` (free text the model reads) or `sendAudio` (a playable clip); machine-scoped |
 
 The Model API backend's shell tool applies `terminal.integrated.env.*` the
 way VS Code's terminal does. A restart of Muse Code, for a setting, trust
@@ -4571,6 +4920,10 @@ separate jobs: read the proposal before you approve it. A candidate tarball is
 unsigned and pinned by digest; a registry install checks npm 11.19.0's verified
 bundles and the signer identity.
 
+`npm run schema:report` regenerates the [report-v1 schema](docs/schemas/report-v1.schema.json).
+`npm run schema:report -- --check` checks its committed bytes against the strict
+shared report boundary. The schema ships beside the exec schemas in the ACP package.
+
 `npm run schema:exec` regenerates the
 [result](docs/schemas/exec-result-v2.schema.json) and
 [event](docs/schemas/exec-event-v2.schema.json) schemas, and `-- --check`
@@ -4594,11 +4947,22 @@ results and what is still open.
 
 M107's integration candidate adds one portable governor per harness process.
 It is on by default and loads on the first governed launch. It delays new
-background work when the machine is busy; running work continues. The governor
+background work when the machine is busy; running work continues. At pause, new
+background launches and containment-helper builds are refused at once with
+`Resources: Paused`, the words `muse-spark-code-acp resources status` prints.
+Every launch names its lifetime: `login` runs in your terminal; browser and
+clipboard hand-offs wait up to ten seconds for the OS adapter, discard its
+output and never stop the browser it opened; CLI shutdown stops the work it
+started. As policy, the governor
 never kills or suspends a process, never imposes a hard memory limit, and never
 controls your own terminals, editor or other applications. Model requests,
 Tab, approvals, paid consent and Stop do not wait for it. It does not change
 provider capabilities, permissions, paid consent or budgets.
+
+On macOS, memory headroom is unknown when the runtime's libuv is older than
+1.52 (including Node 22), or its available-memory API is absent. Those older
+readings count only free pages and can falsely pause new ACP sessions despite
+reclaimable memory. Newer runtimes include inactive and purgeable pages.
 
 These settings are machine-scoped; workspace values are ignored. Settings
 names below start with `museSpark.`.
@@ -4635,16 +4999,61 @@ The CLI accepts `muse-spark-code-acp resources status --json` and
 `muse-spark-code-acp resources resume --json`. Status describes that command
 process, rather than another running session's queue. Resume writes the
 machine's bounded marker, read by loaded runtime hosts on their next refresh.
-`resources history` and `usage resources` report unavailable until the durable
-journal is supplied. ACP's shared command adapter provides `/resources`,
-`/resources resume` and `/usage resources` through its injected runtime port.
+`resources history` and `usage resources` print the machine's resource
+history, the same summary the usage page's **Resources** section shows
+(`--json` gives the validated aggregate). The VS Code window's governor and
+the ACP agent record minute readings, level and override events and the
+harness's own CPU time into a local journal under the usage folder, with the
+usage-history setting as consent, checked when each reading is collected. It
+keeps seven recorded days of detail (at most 10,080 minute readings and 1,000
+events), shows the open minute as "This minute so far", and keeps one row per
+completed day ("Earlier days") for the usage-history days. The usage page's
+**Delete history** names how many resource entries it also deletes, and no
+running window or agent writes anything from before the delete. One-shot commands and headless runs only read it. An unreadable
+journal is reported as such, never shown as empty history. ACP's shared
+command adapter provides `/resources`, `/resources resume` and
+`/usage resources` through its injected runtime port.
 See the [ACP guide](docs/acp.md#resource-status-and-resume) and
 [CI guide](docs/ci.md#resource-governor-in-headless-runs).
 
-The shared chip/popover and usage-history section ship as separate artifacts.
-Their window/native/companion mounts, actuator lifecycle, runtime spawn binding,
-M96/M96c slots and M100 paired-device dispatch remain explicit integration
-handoffs. Once those routes join, relocation will move only eligible queued
+In VS Code, after the window's first governed launch, a **Resources** chip
+sits beside the heartbeat (or above the composer when no turn is running).
+Its popover shows CPU, memory in use and available memory against your limits
+(GPU and disk busy when you set them), what is waiting, any **Resume now**
+override and that relocation is not available on this build. Its buttons are
+**Resume now**, **Open settings** (the machine's `museSpark.resource*`
+settings) and **Show resources**, which opens the Usage & cost page where
+resource history lives. A status bar item appears while the governor is
+throttling or paused; at pause, one notice per conversation names
+the reading, its limit and what is waiting, with the same three actions.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/resources.png" alt="A running turn with the Resources: Throttling chip beside its heartbeat and the chip's popover open: CPU use 93% of 85%, memory in use 71% of 90%, available memory 4,939.2 MB against a 2,147.5 MB floor, relocation not available yet, two background checks and one worker waiting, and Resume now, Open settings and Show resources on one row, with Close focused" width="60%"><br>
+  <sub>The <b>Resources</b> chip while throttling, opened by <b>Show resources</b></sub>
+</p>
+
+| Command                         | What it does                                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **Muse Spark: Show Resources**  | Opens the chip's popover in the chat in view (opening a chat if none is), after one fresh reading |
+| **Muse Spark: Resume Work Now** | Holds this window's governor at normal for fifteen minutes, then the readings decide again        |
+
+Neither command turns on a governor you switched off; both say so and offer
+the settings instead. Resume now applies to this window's governor; the CLI's
+`resources resume` writes the machine marker its own runtime hosts read. The
+chip and its schema load on first use, never with chat's first paint, and the
+status item and notice load with the governor. The chip shows nothing for a
+status that fails its schema check.
+
+Other editors: ACP clients get `/resources`, `/resources resume` and
+`/usage resources` through the runtime port, and terminals get
+`muse-spark-code-acp resources`. JetBrains, Visual Studio and Eclipse (MHP's
+native status widget and embedded chip) and the companion page can reuse the
+same shared chip, status adapter and controls once their host bridges bind
+them (M104); none does yet. The usage page (VS Code, the companion page and
+native hosts' embedded page) mounts the usage-history section lazily from the
+usage service's validated state. The actuator lifecycle, runtime spawn
+binding, M96/M96c slots and M100 paired-device dispatch remain explicit
+integration handoffs. Once those routes join, relocation will move only eligible queued
 tasks/checks, or a running check after explicit **Move to** and proven
 retirement. Pairing, offers,
 repository mapping, receiver permissions and paid consent remain required;
@@ -4655,8 +5064,12 @@ component receipts from installed-editor acceptance.
 
 ## Development
 
-Resource admission is shared through `dist/resourceAdmission.js`; sampler,
-queue, tree accounting and disk policy stay in lazy `dist/resourceGovernor.js`.
+Resource admission and the lazy launch shims are shared through
+`dist/resourceAdmission.js`; sampler, queue, tree accounting and disk policy
+stay in lazy `dist/resourceGovernor.js`, and the governed process launcher
+(profiles, the attested Windows job, bounded commands, hand-offs) loads beside
+it as `dist/resourceProcess.js`. Windows helper preparation launches through
+that launcher, so it ships with its callers (activation, `dist/acp.js`).
 The controls and history have their own closure budgets, including history CSS,
 without raising the 900 KiB startup or original 50 KiB deferred caps. The split
 and packaging gates cover both VSIX and ACP delivery. See
@@ -4733,6 +5146,84 @@ page wait for M104's bridge. The TUI waits for M110a0 lane T. The
 [certification](docs/certification/m118.md) names each pending binding; shared
 logic and fake adapter tests do not establish installed-editor parity.
 
+## The vault
+
+One encrypted vault per user holds API keys, OAuth tokens, SSH keys, sudo and
+other passwords, website logins with their TOTP seeds, session cookies and any
+named secret. Agents get handles and approved, scoped, logged uses, never
+values. Every approval names the exact use and binds to it. One click locks
+everything. It works the same in every editor; see
+[the M109 record](docs/certification/m109.md) for the lanes, the captures and
+what is still open.
+
+The `Vault` command (`museSpark.vault`) opens the vault panel and `Lock vault
+now` (`museSpark.lockVault`, Ctrl+Alt+Shift+L / Cmd+Alt+Shift+L) ends every
+use in every window. The panel host and the native editor ship in
+`dist/vault.js`, loaded on the first vault command; activation reads no vault
+and starts no broker. Until the broker-backed service lands
+([the M109 record](docs/certification/m109.md)), both commands report that the
+broker installation is missing and refuse access instead of opening an empty
+vault. No value is ever logged, and no handle is substituted into a command,
+a file or the model's text.
+
+Settings (all machine-scoped, so no workspace can change them):
+`museSpark.vault.enabled` (on; an explicitly stored legacy `museSpark.vault`
+boolean remains effective until the new flag is explicitly configured), `museSpark.vault.protection` (`auto` is available
+hardware plus the OS store, with the recovery code offered at setup),
+`museSpark.vault.agentFence` (on), `museSpark.vault.lockAfterIdleMinutes`
+(240) and `museSpark.vault.lockOnScreenLock` (on). The Secure Enclave
+hardware and presence slots are offered where `SecureEnclave.isAvailable`,
+after the owner's Touch ID capture; the Keychain-biometry path stays off
+until an Apple Developer entitlement exists.
+
+The terminal/ACP/headless handlers are implemented against the shared vault
+contracts. This branch still needs the installed broker factory and panel
+bindings from M109 W/U/M104. It does not claim a working packaged vault:
+missing bindings report the broker installation failure and refuse access.
+No activation read or broker start is added.
+
+The terminal grammar is `muse-spark-code-acp vault` followed by `status`,
+`unlock [slot-id]`, `lock`, `list`, `add <metadata-json>`, `remove <item-id>`,
+`grant <grant-json>`, `revoke <grant-id>`, `audit`, `import <path>`,
+`public-key <item-id>` or `watch`. Every handler was run successfully against
+an injected fake-only local port in the H certification; installed-command
+success remains the integration check. `audit` accepts `--item`, `--requester`,
+`--kind` and `--outcome`. IDs, metadata and grant JSON use the shared schemas.
+Keep secrets out of names, labels and command arguments.
+
+`add` reads private material as one bounded JSON line from standard input,
+with byte fields encoded as base64. Terminal echo stays off while reading;
+base64 is only an input encoding, not encryption. Values never come from an
+argument, environment variable or file. An explicit `import <path>` delegates
+only the chosen credential file to the import owner. `grant` displays every
+scope field and requires explicit terminal confirmation. `watch` displays
+exact requester/use details, asks through the terminal, and answers only the
+same unexpired request id and digest. Pipes cannot approve grants or uses.
+
+ACP `/vault` supports `status` (the default), `list`, `lock` and `audit` locally,
+without sending the command to a model. Vault permissions offer Allow once,
+Allow for this session where permitted, and Deny; ACP's `allow_always` means
+that session choice only. Bypass does not grant a secret. Lock can interrupt
+an active turn or permission question.
+
+Lock, cancel and expiry withdraw a pending vault permission and settle its
+card. Command-bound TOTP consent says that the process sees the code. Agent
+audit replies include only currently visible items. Headless refusals retain
+their reason; only a missing unattended grant recommends creating one.
+
+Turning `museSpark.vault.agentFence` off applies only to an interactive shell.
+Workers, schedules, checks and hooks retain the credential and Git-helper
+fence. Approved environment injection cannot restore loader or startup
+variables.
+
+Local headless `exec --vault` requires existing unattended grants and never
+prompts. Missing grants, presence, taint, unavailable bindings or a failed
+vault use end the run with `denied` (exit 7), independently of
+`--fail-on-denial`. `--key-stdin` and CI cannot enable the vault. Ordinary
+headless behavior without the flag is unchanged. Companion and native panel
+routes carry only public state and bound answers; add/edit opens the host's
+local terminal and never sends a value through the bridge.
+
 ## Development
 
 `npm run schema:exec -- --check` checks the exec and sharing JSON schemas
@@ -4766,6 +5257,12 @@ image-proxy copies. It needs no secret; stale caches or network failures warn
 without failing publication. See [release CI](docs/ci.md#release-publication-and-readme-badges)
 for propagation bounds and verification limits.
 
+The **downloads** and **GitHub app installs** badges read counters from the
+project's own Cloudflare Worker ([`infra/marketplace-hook`](infra/marketplace-hook/README.md)):
+total downloads across the VS Code Marketplace, Open VSX, npm, GitHub Release
+assets and GitHub app installs, refreshed at most hourly, and current app
+installs from the GitHub Marketplace webhook. It stores counters only.
+
 Marketplace/Open VSX and npm package READMEs receive static version badges from
 `package.json` during packaging; this GitHub README keeps dynamic versions.
 `npm run check:badges` checks all three pages' HTTPS image targets, the pinned
@@ -4791,6 +5288,21 @@ npm ci          # also installs the pre-commit hook (lint-staged + gitleaks)
 Press **F5** to launch the Extension Development Host with a fresh build.
 [CONTRIBUTING.md](CONTRIBUTING.md) has the rules for a pull request;
 [SECURITY.md](SECURITY.md) the way to report a vulnerability.
+
+The macOS screen-recorder implementation can be checked without screen or
+microphone access. These commands build the signed, localized screen-helper
+bundle and exercise synthetic H.264/AAC media, bounds, sleep events,
+signature rejection, native localization and the responsibility relay:
+
+```bash
+bash native/darwin/build.sh
+bash test/native/darwin/run-screen-record.sh
+bash test/native/darwin/check-screen-resources.sh
+bash native/darwin/check-disclaim.sh --screen-only
+```
+
+Recorder entry points and packaging remain under M105 integration; the
+certification record lists the outstanding real-capture/editor checks.
 
 **Bundled workflow package (M89).** `vendor/high-quality-projects-skill/`
 contains the pinned v0.7.0 workflow assets and their MIT licence. To refresh
@@ -4839,6 +5351,21 @@ group and exited state before authorizing process actions; this mode runs
 before any audio or privacy setup. Native tests build and sign the production
 helper in private fixtures, so they work in a clean checkout.
 
+M109's Windows vault helper is prepared for integration with the shared broker.
+It wraps the vault key with current-user DPAPI or a non-exportable TPM RSA key;
+presence uses a forced-protection key plus a fresh Windows Hello signature in
+the helper's own window. Missing TPM or Hello support refuses those slots.
+Each launch checks the EXE's compiled SHA-256, its file and directory ACLs,
+and every ancestor for unsafe permissions or reparse points. The system
+PowerShell process holds a handle denying writes and deletion while running
+the verified managed entry point; private input follows its readiness signal.
+A refused cache is left intact and rebuilt in a fresh private directory.
+Only this process's completed builds are reused; native DLL imports and the
+helper's startup search are restricted to System32.
+Existing credential storage is unchanged until the broker and migration lanes
+are integrated. The [Windows certification](docs/certification/m109-pw.md)
+records the generated-material captures and the remaining hardware checks.
+
 The session board and best-of-N implementation loads on its first action
 from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after
 consent from `dist/reviewer.js`, also shipped with the ACP agent. Ordinary
@@ -4862,7 +5389,11 @@ recorded in [the M78 certification](docs/certification/m78.md).
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm run build:dev`                       | Dev bundles for the extension, the Model API backend, the review, the search worker, web fetch's page converter worker, the webview and the integration tests, with source maps                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `npm run watch`                           | Rebuild the extension, the Model API backend, the search worker, the page converter worker and the webview on change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `npm run harness:shots`                   | Screenshots of the webview in headless Chrome behind a fake host (`test/harness/`), every scenario or the names you pass; needs `build:dev`. `--theme=dark`, `light`, `hc-dark` or `hc-light` uses a captured theme; `chat-menu-narrow` uses a true 320 px viewport. The README's screenshots refresh with `npm run readme:shots` (the mapping in `scripts/readme-shots.json`), captured at the mapped viewport size after the harness readiness scan into `media/readme/`: `tools-open` (as `turn.png`), `agents`, `slash-palette` (as `palette.png`), `slash-commands`, `approval`, `question`, `quote-menu` (as `quote.png`), `rewind`, `modes`, `history`, `usage`, `dictation` (as `voice.png`), `paid` and `paid-always`, the Languages section's is `usage --lang=de` (as `languages.png`), `readme-open-question` (as `open-question.png`) and `readme-help` (as `help.png`); the walkthrough's are `empty`, `tools`, `slash-palette` and `signin` (as `open.png`, `welcome.png`, `chat.png` and `sign-in.png` in `resources/walkthrough/`); `--lang=<id>` renders them in a table from `l10n/` (`--lang=pseudo` in the pseudo-locale)                                                                                 |
+| `npm run harness:shots`                   | Screenshots of the webview in headless Chrome behind a fake host (`test/harness/`), every scenario or the names you pass; needs `build:dev`. `--theme=dark`, `light`, `hc-dark`, `hc-light`, `one-dark-pro` or `dracula` uses a captured theme; `chat-menu-narrow` uses a true 320 px viewport. The README's screenshots refresh with `npm run readme:shots` (the mapping in `scripts/readme-shots.json`), captured at the mapped viewport size after the harness readiness scan into `media/readme/`: `tools-open` (as `turn.png`), `agents`, `slash-palette` (as `palette.png`), `slash-commands`, `approval`, `question`, `quote-menu` (as `quote.png`), `rewind`, `modes`, `history`, `usage`, `dictation` (as `voice.png`), `paid` and `paid-always`, the Languages section's is `usage --lang=de` (as `languages.png`), `readme-open-question` (as `open-question.png`), `readme-help` (as `help.png`) and `resources-throttle` (as `resources.png`); the walkthrough's are `empty`, `tools`, `slash-palette` and `signin` (as `open.png`, `welcome.png`, `chat.png` and `sign-in.png` in `resources/walkthrough/`); `--lang=<id>` renders them in a table from `l10n/` (`--lang=pseudo` in the pseudo-locale)           |
+| `npm run build:tokens`                    | Regenerate shared CSS and native/desktop/TUI token inputs from `design/tokens/muse.tokens.json`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `npm run check:tokens`                    | Reject stale generated outputs, missing contrast coverage and pairs below AA in all four Muse palettes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `npm run check:visual`                    | Compare every audited component scene, six control states, six captured themes and 320/690 px widths with pixelmatch (colour threshold 0.1, AA detection, per-image allowance at most 0.01% or 12 pixels). Full PNG baselines stay outside git under a 512 MiB budget. An absent archive reconstructs the manifest's Git revision with the current browser/fonts. Both CI tiers require six deterministic shards and their complete receipt merge. Use `-- --shard=1/6` to rerun one batch and `-- --merge-shards=<receipt-directory>` to require all batches and the combined budget. Each shard reconstructs the reviewed source on the runner; see [S's certification](docs/certification/m114-s-screenshots,-visual-regression-and-docs.md). A reviewed update uses `-- --update --review=<reference> --archive=<new-external-directory>`; commit the changed manifest only after reviewing the images. See [the visual contract](test/harness/goldens/README.md).                                                                                                                                                                                                                                                         |
+| `npm run check:visual:a11y`               | Record scoped axe findings for every audited component in six themes at true 320/690 px; retain incomplete findings and fail on violations. The full `test:a11y` gate remains separate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `npm run harness:pseudo`                  | Write the pseudo-locale (`test/harness/l10n/ui.pseudo.json`): every string accented, bracketed and lengthened by about a third, with its slots kept, so English left outside the table and text that overflows stand out in `harness:shots --lang=pseudo`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `npm run test:a11y`                       | The accessibility gate: axe-core checks every harness scenario in VS Code's four default themes against WCAG 2.2 AA and fails on any violation, on anything axe leaves undecided (except the contrast of text it could not see and of glyph-only content, which it counts), and on a page without a result or whose scenario threw; needs a build. `node scripts/capture-themes.mjs` refreshes the theme colours from a real VS Code; `--lang=<id>` checks the scenarios in a table from `l10n/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `npm run images`                          | Render the Marketplace icon, the README banner and the social preview from their SVGs (headless Chrome)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -4873,7 +5404,7 @@ recorded in [the M78 certification](docs/certification/m78.md).
 | `npm run typecheck`                       | `tsc --noEmit` for the host, webview, unit-test (checked in sequential memory-bounded projects), e2e-test and integration-test projects                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `npm run typecheck:unit`                  | Check every configured unit-project file with the same strict options in sequential compiler processes; generated configs are removed after checking.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `npm run deadcode`                        | `knip`: unused files, exports (including namespace values and types), dependencies (no `--strict`; see `knip.jsonc`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `npm run cycles`                          | `dpdm` circular-import check from the extension's, the Model API backend's, the webview's and the ACP agent's entry points                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `npm run cycles`                          | `dpdm` circular-import check (`scripts/cycles.mjs` over the roots in `scripts/cycles.json`) covering every build entry, runtime lazy import target, entry-named module and knip entry; `cyclesRoots.test.ts` guards coverage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `npm run duplication`                     | `jscpd` copy-paste detection (threshold 0)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `npm run test:unit`                       | vitest with coverage thresholds (90 % statements/lines/functions, 85 % branches); includes `test/e2e/`, where a fake Muse Code CLI is spawned as a real child process (a compiled stub on Windows) and driven through the real backend manager                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `npm run test:e2e:live`                   | Two real turns on the installed Muse Code CLI (a reply-only turn and M70's review turn held in Plan mode), opt-in with `MUSE_LIVE_E2E=1`; bills the signed-in subscription (25 to 45 model attempts measured for a reply-only turn: one for the answer, the rest for Muse Code's bundled reminder agents, which loop a varying number of times; budget 60 per turn, counted from the CLI's trace log); never in CI                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -4908,6 +5439,10 @@ Only packaged translation JSON whitespace is compacted; source tables stay
 unchanged and malformed JSON refuses publication. The 3000 KiB universal VSIX budget covers the measured 0.16.0 combined train plus D6's margin; individual bundle caps follow their recorded measurements.
 The legal scanner's pinned data is embedded in its lazy bundle, with separate
 notice/provenance files in both packages.
+
+The dev build and `cyclesRoots.test.ts` share integration-test discovery from
+`scripts/lib/integrationTests.mjs`; changes to its directory or filter also
+change which integration entries the cycle guard requires.
 
 **Tests.** Unit tests (`test/unit/**`) run under vitest with `vscode` aliased
 to `test/unit/mocks/vscode.ts` and webview components under jsdom; the fakes
@@ -4992,7 +5527,7 @@ test/unit/                  vitest tests, vscode mock, fakes
 test/e2e/                   the fake Muse Code CLI and the tests that drive the real backend through it; the opt-in live suites
 test/integration/           @vscode/test-cli suites
 test/fixtures/workspace/    the workspace the integration tests open
-test/harness/               the webview behind a fake host, for screenshots and the accessibility gate; themes/ holds VS Code's four default themes
+test/harness/               the webview behind a fake host, for screenshots and the accessibility gate; themes/ holds four VS Code themes and captured One Dark Pro/Dracula colours; goldens/ holds the visual manifest, with PNGs outside git
 test/hosts/                 the extension and the ACP agent in other editors (VSCodium, code-server, Theia, JupyterLab, Emacs, Neovim), one script per host
 scripts/                    esbuild build; bundle-size, bundle-split, host-globals, notices, audit, PSScriptAnalyzer, accessibility, localization and host API gates; the pseudo-locale; theme capture, harness screenshots, image rendering; CHANGELOG notes and VS Code versions for the workflows; the ACP agent's package
 docs/                       PRIVACY.md, and certification/: per-milestone gate-fire records
@@ -5285,3 +5820,5 @@ one-time notice naming each registry and explaining that only package names
 and versions leave over HTTPS. Disable `museSpark.legalRegistryLookups` for
 local-only scans; missing dependency licences remain unknown. Private registry
 configuration is never contacted. CLI lookup still requires `--registry`.
+
+Containment-helper compilation uses heavy bootstrap admission, a bounded deadline and output, and whole-tree cancellation before its result is used. CLI and ACP process launches share runtime resource admission, including login and browser openers. The credential vault remains unavailable until its broker is installed.

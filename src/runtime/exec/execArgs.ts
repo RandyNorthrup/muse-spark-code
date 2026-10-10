@@ -30,6 +30,8 @@ import { fill, plural } from '../../shared/l10n/text'
 import { modelRef } from '../../host/backend/providerPolicyEntry'
 const { isProviderId, parseModelRef } = modelRef
 import type { ServeOptions } from '../cliArgs'
+import { accountIdSchema } from '../../shared/accounts'
+import { ACCOUNT_DEFAULT_ID } from '../../shared/constants'
 
 export type ExecMode = 'plan' | 'acceptEdits'
 export type ExecOutput = 'text' | 'json' | 'jsonl'
@@ -39,6 +41,8 @@ export type PromptSource =
   | { readonly kind: 'file'; readonly path: string }
   | { readonly kind: 'stdin' }
 export interface ExecOptions {
+  readonly account?: string
+  readonly accountPool?: boolean
   readonly backend: AcpBackendKind
   readonly cwd: string | undefined
   readonly prompt: PromptSource
@@ -64,6 +68,8 @@ export interface ExecOptions {
   readonly failOnDenial: boolean
   readonly ephemeral: boolean
   readonly keyFromStdin: boolean
+  /** Local unattended vault grants only; CI's stdin-key lane remains vault-free. */
+  readonly vault: boolean
   readonly museBinary: string
   readonly shellSandbox: ShellSandboxMode
   readonly isVerbose: boolean
@@ -77,11 +83,13 @@ const BOOLEAN_OPTIONS = new Set([
   'fail-on-denial',
   'ephemeral',
   'key-stdin',
+  'vault',
   'verbose',
   'trust-workspace',
   'allow-dangerously-skip-permissions',
   'web-search',
   'output-schema-outside',
+  'account-pool',
 ])
 const STRING_OPTIONS = new Set([
   'backend',
@@ -98,6 +106,7 @@ const STRING_OPTIONS = new Set([
   'muse-binary',
   'shell-sandbox',
   'provider',
+  'account',
 ])
 const DECIMAL_BUDGET = /^[0-9]+(?:\.[0-9]{1,6})?$/
 const INTEGER = /^[0-9]+$/
@@ -178,6 +187,16 @@ export function parseExec(
   if (values['trust-workspace'] === true || values['allow-dangerously-skip-permissions'] === true)
     return invalid(UI_TEXT.execTrustRefused)
   if (values['web-search'] === true) return invalid(UI_TEXT.execWebSearchUnbounded)
+  if (values['account'] !== undefined && !accountIdSchema.safeParse(values['account']).success)
+    return invalid(UI_TEXT.accounts.invalidAccount)
+  if (
+    values['key-stdin'] === true &&
+    (values['account-pool'] === true ||
+      (values['account'] !== undefined && values['account'] !== ACCOUNT_DEFAULT_ID))
+  )
+    return invalid(UI_TEXT.accounts.credentialHelp)
+  if (values['vault'] === true && values['key-stdin'] === true)
+    return invalid(`${UI_TEXT.vault.noAccess}: --vault / --key-stdin`)
   const mode = enumValue(EXEC_MODES, values['permission-mode'] ?? EXEC_DEFAULT_MODE)
   if (mode === undefined) return invalid(UI_TEXT.execModeRefused)
   const backend = enumValue(ACP_BACKENDS, values['backend'] ?? ACP_DEFAULT_BACKEND)
@@ -187,6 +206,12 @@ export function parseExec(
     values['shell-sandbox'] ?? SETTING_DEFAULTS.shellSandbox,
   )
   const effort = enumValue(EFFORT_LEVELS, values['effort'])
+  if (
+    backend === 'museCode' &&
+    (values['account-pool'] === true ||
+      (values['account'] !== undefined && values['account'] !== ACCOUNT_DEFAULT_ID))
+  )
+    return invalid(UI_TEXT.accounts.museCodeUnavailable)
   if (
     backend === undefined ||
     output === undefined ||
@@ -276,6 +301,8 @@ export function parseExec(
   return {
     ok: true,
     options: {
+      ...(typeof values['account'] === 'string' && { account: values['account'] }),
+      ...(values['account-pool'] === true && { accountPool: true }),
       backend,
       cwd: stringValue('cwd'),
       prompt,
@@ -295,6 +322,7 @@ export function parseExec(
       failOnDenial: values['fail-on-denial'] === true,
       ephemeral: values['ephemeral'] === true,
       keyFromStdin: values['key-stdin'] === true,
+      vault: values['vault'] === true,
       museBinary: stringValue('muse-binary') ?? SETTING_DEFAULTS.museBinaryPath,
       shellSandbox,
       isVerbose: values['verbose'] === true,

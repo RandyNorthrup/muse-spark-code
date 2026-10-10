@@ -2,7 +2,7 @@
 import { Fragment } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { formatNumber } from '../../shared/l10n/text'
-import { formatTokenWindow } from '../../shared/palette'
+import { formatTokenWindow } from '../../shared/l10n/text'
 import { formatUsd } from '../../core/usage/insights'
 import type { TeamUsageFigures, TeamUsageSummary } from '../../shared/teamView'
 

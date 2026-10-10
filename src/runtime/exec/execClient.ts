@@ -4,6 +4,7 @@ import type { ExecSink } from './execOutput'
 import type { Lifecycle } from './execLimits'
 import type { ExecDenial } from './execProtocol'
 import { UI_TEXT } from '../../shared/constants'
+import { accountEventSchema, type AccountEvent } from '../../shared/accounts'
 
 const updateParams = z.looseObject({
   sessionId: z.string(),
@@ -22,6 +23,7 @@ export function createExecClient(input: {
   onDenial: (denial: ExecDenial) => void
   onQuestion: (count: number) => void
   onFilesChanged: (paths: readonly string[]) => void
+  onAccountNotice?: (event: AccountEvent) => void
 }): ReturnType<typeof acp.client> {
   const edits = new Map<string, string[]>()
   const emit = (event: Parameters<ExecSink['emit']>[0]) => {
@@ -35,11 +37,12 @@ export function createExecClient(input: {
   }
   const client = acp.client({ name: 'muse-headless' })
   // ACP SDK 1.5.0's constructor inserts a closed-union session router before
-  // custom parsers. Headless uses request(), never its active-session helpers.
-  // Remove only that identified constructor handler from this instance's
-  // private builder so unknown updates reach our loose boundary (PLAN.md §8).
-  // Re-verified with Muse Code SDK 1.4.2 in M106 S; this is an ACP seam,
-  // independent of the Muse Code SDK's Connection and fingerprint.
+  // custom parsers; 1.7.0 still does (SDK144). Headless uses request(), never
+  // its active-session helpers. Remove only that identified constructor
+  // handler from this instance's private builder so unknown updates reach our
+  // loose boundary (PLAN.md §8). Re-verified with Muse Code SDK 1.4.2 in
+  // M106 S; this is an ACP seam, independent of the Muse Code SDK's
+  // Connection and fingerprint.
   const original: unknown = Reflect.get(client, 'builder')
   if (typeof original !== 'object' || original === null) throw new Error(UI_TEXT.execRequestShape)
   const handlers: unknown = Reflect.get(original, 'handlers')
@@ -59,9 +62,22 @@ export function createExecClient(input: {
     .onNotification('session/update', updateParams, ({ params }) => {
       if (input.lifecycle.signal.aborted) return
       const update = params.update
+      if (update.sessionUpdate === 'agent_message_chunk') {
+        const meta = z.looseObject({ accountNotice: accountEventSchema }).safeParse(update['_meta'])
+        if (meta.success) {
+          input.onAccountNotice?.(meta.data.accountNotice)
+          emit({
+            type: 'update',
+            update: { sessionUpdate: 'account_notice', event: meta.data.accountNotice },
+          })
+        }
+      }
       // Drop these before the sink: the ACP translator may already have
       // clipped tool text or made synthetic completed message chunks.
-      if (update.sessionUpdate === 'tool_call' || update.sessionUpdate === 'tool_call_update') {
+      else if (
+        update.sessionUpdate === 'tool_call' ||
+        update.sessionUpdate === 'tool_call_update'
+      ) {
         const metadata = toolMetadata.safeParse(update)
         if (metadata.success) {
           const tool = metadata.data

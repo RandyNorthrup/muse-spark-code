@@ -71,13 +71,16 @@ function probe(script: string): Promise<unknown> {
     child.stdin.end(`${probeBundles.join('')}\n${script}`)
   })
 }
+// "Promptly" is measured as the probe's own CPU time: exponential work costs
+// seconds of it, while wall time also counts a busy runner's scheduling
+// (hosted macOS read 55 and 82 ms for milliseconds of work, CIFIX017).
 const probePrelude = `
 const compile = module.exports.compileOutputSchema;
 const encode = value => new TextEncoder().encode(JSON.stringify(value));
 const closed = properties => ({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
 let timerFired = false;
 setTimeout(() => {timerFired = true}, 20);
-const started = performance.now();
+const started = process.cpuUsage();
 `
 
 const definitionNameSchema = (size: number) => ({
@@ -379,7 +382,8 @@ const defs = {d0: {type: 'boolean'}};
 for(let i=1;i<=5;i++) defs['d'+i] = {anyOf:Array.from({length:25},()=>({$ref:'#/$defs/d'+(i-1)}))};
 let error;
 try {compile(encode({...closed({answer:{$ref:'#/$defs/d5'}}),$defs:defs}))} catch(e) {error=e.message}
-const elapsed = performance.now()-started;
+const used = process.cpuUsage(started);
+const elapsed = (used.user + used.system) / 1000;
 setTimeout(()=>process.stdout.write(JSON.stringify({error,elapsed,timerFired})),30);
 `)
     expect(result).toMatchObject({
@@ -394,7 +398,8 @@ const schema=compile(encode(closed({value:{type:'string'},next:{anyOf:[{type:'nu
 let answer={value:1,next:null};
 for(let i=0;i<8;i++) answer={value:'a',next:answer};
 const result=schema.parseAnswer(JSON.stringify(answer));
-const elapsed=performance.now()-started;
+const used=process.cpuUsage(started);
+const elapsed=(used.user+used.system)/1000;
 setTimeout(()=>process.stdout.write(JSON.stringify({result,elapsed,timerFired})),30);
 `)
     expect(result).toMatchObject({ result: { ok: false, detail: 'schema' }, timerFired: true })

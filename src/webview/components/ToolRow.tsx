@@ -7,9 +7,10 @@
 // host is waiting.
 
 import { lazy, memo, type ReactNode, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-
+import { statusDotClass } from '../toolStatus'
 import {
   IO_PREVIEW_LINES,
+  MODEL_API_SCHEDULED_TOOL,
   PATCH_DOCUMENT_MAX_PAGES,
   TOOL_STATUS_IN_PROGRESS,
   TOOL_STATUS_INTERRUPTED,
@@ -18,7 +19,12 @@ import {
 import { fill } from '../../shared/l10n/text'
 import { PaidBadge } from './PaidBadge'
 import type { LineRange } from '../../shared/protocol'
-import { type DiffRow, type FileDiff, parsePatchDocument, parseUnifiedText } from '../diff'
+import {
+  type DiffRow,
+  type FileDiff,
+  parsePatchDocument,
+  parseUnifiedText,
+} from '../../shared/patchDocument'
 import {
   failedOutcomeText,
   hasLandedEdits,
@@ -55,6 +61,25 @@ const TeamWorkerLabel = lazy(async () => {
 import { Clipped, DiffTable } from './ToolBlocks'
 import { verifySummaryText } from '../../shared/verifyText'
 import { ThenRunBlock, VerifyBody } from './VerifyParts'
+import type { PlaybookWhyNote } from '../../shared/playbook'
+
+// The playbook's notes stay out of the startup closure: the row loads them
+// the first time a step carries notes. The shared deferred boundary outside
+// the import announces loading and retries a failed wrapper chunk without
+// taking the chat down (a boundary inside the loaded module could never
+// catch the load itself).
+const DeferredPlaybookNotes = deferred(
+  async () => {
+    const { DeferredPlaybookNotes } = await import('../playbook/DeferredPlaybook')
+    return { default: DeferredPlaybookNotes }
+  },
+  false,
+  () => (
+    <span role="status" data-deferred-loading="playbook">
+      {UI_TEXT.loadingOutput}
+    </span>
+  ),
+)
 
 const GoalBody = deferred(async () => {
   const entry = await import('./ToolBodies')
@@ -72,6 +97,10 @@ const ScheduleBody = deferred(async () => {
   const entry = await import('./ToolBodies')
   return { default: entry.ScheduleBody }
 }, false)
+const ScheduleRunBody = deferred(async () => {
+  const module = await import('../schedules/ScheduleRunBody')
+  return { default: module.ScheduleRunBody }
+})
 const ToolImage = deferred(async () => {
   const entry = await import('./ToolBodies')
   return { default: entry.ToolImage }
@@ -93,6 +122,8 @@ const ToolArgumentPreview = lazy(async () => {
 })
 
 export interface ToolRowProps {
+  /** I supplies the policy's notes for this step; no model text is involved. */
+  readonly playbookNotes?: readonly PlaybookWhyNote[]
   readonly entry: ToolEntry
   readonly isRunning: boolean
   readonly patchPage: OutputPage | undefined
@@ -154,15 +185,6 @@ function editRows(
 }
 
 /** A row's status dot: running, done, cut off or failed (the user's `!` rows too, M46). */
-export function statusDotClass(status: string): string {
-  if (status === 'inProgress') {
-    return 'tool-dot tool-dot-running'
-  }
-  if (status === TOOL_STATUS_INTERRUPTED) {
-    return 'tool-dot tool-dot-muted'
-  }
-  return status === 'completed' ? 'tool-dot tool-dot-ok' : 'tool-dot tool-dot-failed'
-}
 
 function EditBody({
   entry,
@@ -267,7 +289,7 @@ function TaskAction({
     return (
       <button
         type="button"
-        className="tool-more tool-task-action"
+        className="tool-more tool-task-action chat-control"
         aria-label={`${UI_TEXT.stopTask}: ${row}`}
         title={UI_TEXT.stopTaskTitle}
         disabled={entry.taskRequest !== undefined}
@@ -282,7 +304,7 @@ function TaskAction({
   return presentation.body === 'shell' ? (
     <button
       type="button"
-      className="tool-more tool-task-action"
+      className="tool-more tool-task-action chat-control"
       aria-label={`${UI_TEXT.moveToBackground}: ${row}`}
       title={UI_TEXT.moveToBackgroundTitle}
       disabled={entry.taskRequest !== undefined}
@@ -382,6 +404,7 @@ function imagePathsOf(entry: ToolEntry, imagePath: string | undefined): readonly
 }
 
 function ToolRowView({
+  playbookNotes,
   entry,
   isRunning,
   patchPage,
@@ -402,10 +425,15 @@ function ToolRowView({
   quoteMenu,
 }: ToolRowProps) {
   const attention = useAttentionSurface()
+  const settlementOutput = entry.tool === MODEL_API_SCHEDULED_TOOL ? entry.output : undefined
   const presentation = useMemo(
-    () => describeTool(entry.tool, entry.args, entry.argumentPreview !== undefined),
-    [entry.tool, entry.args, entry.argumentPreview],
+    () =>
+      describeTool(entry.tool, entry.args, entry.argumentPreview !== undefined, settlementOutput),
+    [entry.tool, entry.args, entry.argumentPreview, settlementOutput],
   )
+  let dotStatus = entry.status
+  if (presentation.settlementOutcome !== undefined)
+    dotStatus = presentation.settlementOutcome === 'ran' ? 'completed' : 'failed'
   const imagePaths = imagePathsOf(entry, presentation.imagePath)
   const isQuestionOpen =
     entry.question !== undefined &&
@@ -563,7 +591,12 @@ function ToolRowView({
       break
     }
     case 'schedule': {
-      body = <ScheduleBody entry={entry} />
+      body =
+        entry.tool === MODEL_API_SCHEDULED_TOOL ? (
+          <ScheduleRunBody entry={entry} />
+        ) : (
+          <ScheduleBody entry={entry} />
+        )
       break
     }
     case 'web': {
@@ -636,12 +669,12 @@ function ToolRowView({
       >
         <button
           type="button"
-          className="tool-toggle"
+          className="tool-toggle chat-control"
           aria-expanded={isOpen}
           disabled={!hasBody}
           onClick={toggle}
         >
-          <span className={statusDotClass(entry.status)} aria-hidden="true" />
+          <span className={statusDotClass(dotStatus)} aria-hidden="true" />
           <span className="tool-label">{presentation.label}</span>
           {entry.isBackground ? <span className="badge">{UI_TEXT.backgroundBadge}</span> : null}
           {entry.paid === undefined ? null : <PaidBadge feature={entry.paid} />}
@@ -652,7 +685,7 @@ function ToolRowView({
         {filePath === undefined ? null : (
           <button
             type="button"
-            className="tool-path"
+            className="tool-path chat-control"
             title={UI_TEXT.openFileTitle}
             onClick={openFile}
           >
@@ -668,7 +701,7 @@ function ToolRowView({
         {hasBody ? (
           <button
             type="button"
-            className="tool-chevron"
+            className="tool-chevron chat-control"
             aria-label={UI_TEXT.toggleDetails}
             aria-expanded={isOpen}
             onClick={toggle}
@@ -735,6 +768,9 @@ function ToolRowView({
       (entry.question?.state === 'open' &&
         entry.questionOutcome.clarification === undefined) ? null : (
         <DeferredQuestionOutcome outcome={entry.questionOutcome} />
+      )}
+      {playbookNotes === undefined || playbookNotes.length === 0 ? null : (
+        <DeferredPlaybookNotes notes={playbookNotes} />
       )}
       {menu.menu}
       {quoteMenu}

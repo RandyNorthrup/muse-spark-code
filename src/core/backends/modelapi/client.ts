@@ -93,6 +93,8 @@ export type ProviderClient = Pick<
     | 'inheritSearchQuote'
     | 'releaseSearchQuotes'
     | 'readServiceStatus'
+    | 'withScheduleAuthority'
+    | 'requestFile'
   >
 > & {
   readonly providerId?: ModelApiClient['providerId']
@@ -100,14 +102,20 @@ export type ProviderClient = Pick<
   readonly inheritSearchQuote?: ModelApiClient['inheritSearchQuote']
   readonly releaseSearchQuotes?: ModelApiClient['releaseSearchQuotes']
   readonly readServiceStatus?: ModelApiClient['readServiceStatus']
+  readonly withScheduleAuthority?: (run: () => UnattendedRun | undefined) => ProviderClient
   readonly provider?: TransportProviderClient['provider']
   readonly models?: ModelResolver
   readonly modelContextLimit?: (model: string) => number | undefined
   readonly isPlanModel?: (model: string) => boolean
   readonly readPlanUsage?: () => readonly PlanUsageRow[]
 }
+import type { SecretScrubPort } from '../../../shared/redact'
+
+import type { UnattendedRun } from '../../schedules/unattended'
 
 export interface ModelApiClientDeps {
+  /** M109 T: broker-backed exact-value scrub, immediately before every send. */
+  readonly vaultScrub?: SecretScrubPort
   readonly paidAuthority?: PaidAuthority
   /** Share across clients for one process; omitted clients own a bucket themselves. */
   readonly pacing?: RequestPacer
@@ -170,8 +178,14 @@ export class ModelApiClient implements TransportProviderClient {
     reasoning: true,
     parallelToolCalls: true,
   })
-  public constructor(private readonly deps: ModelApiClientDeps) {
-    this.transport = new RequestTransport(deps)
+  public constructor(
+    private readonly deps: ModelApiClientDeps,
+    private readonly scheduledRun?: () => UnattendedRun | undefined,
+  ) {
+    this.transport = new RequestTransport({
+      ...deps,
+      ...(scheduledRun !== undefined && { scheduledRun }),
+    })
     this.provider = {
       id: 'meta',
       label: 'Meta',
@@ -182,6 +196,31 @@ export class ModelApiClient implements TransportProviderClient {
     } as const
   }
 
+  private async paidReservation(
+    body: CreateResponseBody | CreateImageBody,
+    feature: PaidFeature | undefined,
+    signal: AbortSignal,
+    guard?: ResponseAttemptGuard,
+    reservationUsd?: UsdAmount,
+    estimatedInputTokens = guard?.paidEstimatedInputTokens,
+  ) {
+    const run = this.scheduledRun?.()
+    if (run === undefined && this.scheduledRun !== undefined)
+      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+    const reserve =
+      run === undefined
+        ? (guard?.reservePaidRequest ?? this.deps.reservePaidRequest)
+        : run.reservePaidRequest
+    feature ??= run === undefined ? undefined : 'scheduledPrompts'
+    const claim =
+      feature === undefined
+        ? undefined
+        : await reserve?.(body, feature, estimatedInputTokens, signal, reservationUsd)
+    if (run !== undefined && claim === undefined)
+      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+    return claim === undefined ? undefined : { claim, isSent: false, run }
+  }
+
   /** A billed image request: only a 429 is retried, with a deadline of its own. */
   private async imageRequest(
     path: string,
@@ -190,8 +229,8 @@ export class ModelApiClient implements TransportProviderClient {
     admitAttempt?: ResponseAttemptGuard,
   ): Promise<ImagesResponse> {
     const active = AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)])
-    const claim = await this.deps.reservePaidRequest?.(body, 'imageGeneration', undefined, active)
-    const paid = claim === undefined ? undefined : { claim, isSent: false }
+    const paid = await this.paidReservation(body, 'imageGeneration', active, admitAttempt)
+    const claim = paid?.claim
     try {
       const result = await this.transport.request(
         path,
@@ -258,6 +297,11 @@ export class ModelApiClient implements TransportProviderClient {
     this.deps.paidAuthority?.releaseConversation(conversationId, retainedQuoteIds)
   }
 
+  /** Each session owns its authority callback, even when hosts share transport. */
+  public withScheduleAuthority(run: () => UnattendedRun | undefined): ModelApiClient {
+    return new ModelApiClient(this.deps, run)
+  }
+
   /** Whether interactive extras have a finite daily admission port (D78). */
   public get hasPaidDailyBudget(): boolean {
     return this.deps.reservePaidRequest !== undefined
@@ -286,6 +330,12 @@ export class ModelApiClient implements TransportProviderClient {
   /** Bind a one-use child consent to the stored key without retaining it. */
   public async currentKeyDigest(): Promise<string> {
     return await this.transport.currentKeyDigest()
+  }
+
+  public async requestFile(
+    ...args: Parameters<RequestTransport['requestFile']>
+  ): Promise<Response> {
+    return await this.transport.requestFile(...args)
   }
 
   /** The wait before retry number `attempt` (0-based): the same backoff and jitter as a request's. */
@@ -402,6 +452,7 @@ export class ModelApiClient implements TransportProviderClient {
       confirmed !== undefined &&
       (body.model !== confirmed.modelId || !confirmed.isStillAllowed())
     ) {
+      await admitAttempt?.mediaAccounting?.finish()
       throw new Error(UI_TEXT.scheduleConfirmationExpired)
     }
     let feature = admitAttempt?.paidFeature
@@ -415,31 +466,7 @@ export class ModelApiClient implements TransportProviderClient {
     const searchQuote = admitAttempt?.searchQuote
     const searchPrice =
       searchQuote?.tariffUsd ?? (hasSearch ? this.searchPriceUsd(body.model) : undefined)
-    let reservationUsd: UsdAmount | undefined
-    if (hasSearch && this.hasPaidDailyBudget) {
-      if (body.max_tool_calls === undefined) throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
-      const inputTokens =
-        admitAttempt?.paidEstimatedInputTokens ??
-        estimateInput(requestParts(body), undefined).inputTokens
-      reservationUsd = sumUsd(
-        this.searchTokenCostUsd(
-          { inputTokens, outputTokens: body.max_output_tokens, cachedTokens: 0 },
-          body.model,
-        ),
-        searchAllowanceUsd(body.max_tool_calls, searchPrice),
-      )
-    }
-    const claim =
-      feature === undefined
-        ? undefined
-        : await this.deps.reservePaidRequest?.(
-            body,
-            feature,
-            admitAttempt?.paidEstimatedInputTokens,
-            signal,
-            reservationUsd,
-          )
-    const paid = claim === undefined ? undefined : { claim, isSent: false }
+    let paid: Awaited<ReturnType<ModelApiClient['paidReservation']>>
     const authority = this.deps.paidAuthority ?? new PaidAuthority()
     const claimId =
       searchQuote === undefined
@@ -486,6 +513,59 @@ export class ModelApiClient implements TransportProviderClient {
       }
     }
     try {
+      const media = admitAttempt?.mediaAccounting
+      if (
+        media !== undefined &&
+        (body.model !== media.modelId || body.max_output_tokens > media.maxOutputTokens)
+      )
+        throw new Error('Media reservation does not match this request')
+      let reservationUsd = media?.reservedUsd
+      // A scheduled fire always reserves against its own finite ledger.
+      if (hasSearch && (this.hasPaidDailyBudget || this.scheduledRun !== undefined)) {
+        if (body.max_tool_calls === undefined)
+          throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+        const inputTokens =
+          admitAttempt?.paidEstimatedInputTokens ??
+          estimateInput(requestParts(body), undefined).inputTokens
+        reservationUsd = sumUsd(
+          media?.reservedUsd ??
+            this.searchTokenCostUsd(
+              { inputTokens, outputTokens: body.max_output_tokens, cachedTokens: 0 },
+              body.model,
+            ),
+          searchAllowanceUsd(body.max_tool_calls, searchPrice),
+        )
+      }
+      if (media !== undefined && this.scheduledRun !== undefined) {
+        await media.rebindDaily(async () => {
+          paid = await this.paidReservation(
+            body,
+            feature,
+            signal,
+            admitAttempt,
+            reservationUsd,
+            media.inputTokens,
+          )
+          if (paid === undefined) throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+          const claim = paid.claim
+          return {
+            check: () => {
+              claim.check(Usd.from(0).toAmount())
+            },
+            settle: (costUsd, hasUnknownCost) => {
+              let amount = sumUsd(costUsd, returnedFees())
+              if (hasUnknownCost === true)
+                amount = hasSearch
+                  ? returnedLiability(claim.reservedUsd, !hasTerminalSearchCount)
+                  : costUsd
+              return claim.settle(amount, hasUnknownCost)
+            },
+          }
+        })
+      } else if (media === undefined) {
+        paid = await this.paidReservation(body, feature, signal, admitAttempt, reservationUsd)
+      }
+      const claim = paid?.claim
       if (searchQuote !== undefined && claimId !== undefined) {
         if (this.deps.paidAuthority === undefined) {
           const grant = { quote: searchQuote, generation: 'caller' }
@@ -584,8 +664,7 @@ export class ModelApiClient implements TransportProviderClient {
               noteSearchAnomaly()
               const usage = known.data.response.usage
               const cached = usage?.input_tokens_details?.cached_tokens ?? 0
-              if (
-                claim !== undefined &&
+              const isCountedUsage =
                 usage !== null &&
                 usage !== undefined &&
                 Number.isSafeInteger(usage.input_tokens) &&
@@ -595,7 +674,9 @@ export class ModelApiClient implements TransportProviderClient {
                 Number.isSafeInteger(cached) &&
                 cached >= 0 &&
                 cached <= usage.input_tokens
-              ) {
+              // M105 media settles its own claims on counted usage, with or without a token claim.
+              if (isCountedUsage) await media?.settle(usage)
+              if (claim !== undefined && isCountedUsage && media === undefined) {
                 const billable = {
                   inputTokens: usage.input_tokens,
                   outputTokens: usage.output_tokens,
@@ -613,7 +694,12 @@ export class ModelApiClient implements TransportProviderClient {
                     returnedFees(),
                   ),
                 )
-              } else if (claim !== undefined && hasSearch && body.max_tool_calls !== undefined) {
+              } else if (
+                claim !== undefined &&
+                media === undefined &&
+                hasSearch &&
+                body.max_tool_calls !== undefined
+              ) {
                 await claim.settle(returnedLiability(claim.reservedUsd, false))
               }
               hasTerminal = true
@@ -648,13 +734,23 @@ export class ModelApiClient implements TransportProviderClient {
         void frames.return(undefined).catch(ignoreClosingError)
       }
     } finally {
-      if (!hasTerminal) noteSearchAnomaly()
-      if (paid?.isSent === false) await paid.claim.settle(Usd.from(0).toAmount())
-      else if (paid !== undefined && hasSearch && !hasTerminal) {
-        await paid.claim.settle(
-          returnedLiability(paid.claim.reservedUsd, !hasTerminalSearchCount),
-          !hasTerminalSearchCount,
-        )
+      try {
+        if (!hasTerminal) noteSearchAnomaly()
+        if (paid?.isSent === false && admitAttempt?.mediaAccounting === undefined)
+          await paid.claim.settle(Usd.from(0).toAmount())
+        else if (
+          paid !== undefined &&
+          hasSearch &&
+          !hasTerminal &&
+          admitAttempt?.mediaAccounting === undefined
+        ) {
+          await paid.claim.settle(
+            returnedLiability(paid.claim.reservedUsd, !hasTerminalSearchCount),
+            !hasTerminalSearchCount,
+          )
+        }
+      } finally {
+        await admitAttempt?.mediaAccounting?.finish()
       }
     }
   }

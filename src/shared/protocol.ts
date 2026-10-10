@@ -30,6 +30,7 @@ import {
   MAX_ATTACHMENT_BASE64_CHARS,
   MODEL_PRICINGS,
   PAID_FEATURES,
+  ESTIMATE_OPTIMIZE_MODES,
   PERMISSION_MODES,
   PREFERRED_LOCATIONS,
   REPORT_DESCRIPTION_MAX_CHARS,
@@ -39,6 +40,8 @@ import {
   REPORT_FRAME_PATH_MAX_CHARS,
   REPORT_STACK_MAX_FRAMES,
   REPORT_WEBVIEW_ERROR_KINDS,
+  RESOURCE_NONCE_MAX_CHARS,
+  RESOURCE_STATUS_MAX_CHARS,
   SUBAGENT_ACTIONS,
   WEBVIEW_ERROR_MESSAGE_MAX_CHARS,
   WEBVIEW_ERROR_SOURCES,
@@ -54,7 +57,19 @@ import {
   pullRequestFormSchema,
 } from './git'
 import { judgeStatusSchema } from './judge'
-import { paidStateSchema } from './paid'
+import { scheduleHostMessageSchema, scheduleWebviewMessageSchema } from './scheduleProtocol'
+import {
+  scheduleDraftSchema,
+  scheduleSourceCapabilitySchema,
+  scheduleTargetSchema,
+} from './scheduleV2'
+import {
+  mediaAttachmentActionSchema,
+  mediaAttachmentRequestSchema,
+  mediaChipSchema,
+  mediaContributorChoiceSchema,
+} from './media'
+import { paidStateSchema } from './paidBoundary'
 import { patchHunkSchema } from './patchDocument'
 import { reviewRequestSchema } from './reviewCommand'
 import { scheduleCadenceSchema } from './schedule'
@@ -73,6 +88,7 @@ import {
   requestLegalFixMessageSchema,
 } from './legalFix'
 import { boardRowSchema } from './sessionBoard'
+import type { EstimatorToHostMessage, HostToEstimatorMessage } from './estimatorProtocol'
 import { sessionRowSchema } from './sessions'
 import {
   accountFactsSchema,
@@ -86,7 +102,11 @@ import { teamTreeSchema, teamUsageSchema } from './teamView'
 
 const stringSchema = z.string()
 const numberSchema = z.number()
+// M107: the random id a chat document mints at start; and Show's request number.
+const documentNonceSchema = z.string().check(z.minLength(1), z.maxLength(RESOURCE_NONCE_MAX_CHARS))
+const resourceSeqSchema = z.int().check(z.gte(1))
 const booleanSchema = z.boolean()
+import { parseWith, type ParseResult } from './parseResult'
 
 // Settings the webview needs to render. Host-only settings (binary path,
 // environment variables) are deliberately absent. The shape is exported so the
@@ -106,8 +126,12 @@ export const settingsSnapshotShape = {
   archiveInactiveSessions: numberSchema,
   /** Tokens and the dollar estimate under each Model API reply (M82); off by default. */
   modelApiReplyUsage: booleanSchema,
+  /** The v2 schedules surface (M115); bound while its setting is on. */
+  schedules: booleanSchema,
   /** The Auto reviewer on Muse Code (M90): the Modes menu words Auto with it. */
   museCodeAutoReviewer: booleanSchema,
+  /** The capacity estimator's setup search (M117, PLAN.md D97). */
+  'estimator.optimize': z.enum(ESTIMATE_OPTIMIZE_MODES),
 } as const
 
 const settingsSnapshotSchema = z.object(settingsSnapshotShape)
@@ -300,8 +324,8 @@ const skillOptionSchema = z.object({
 })
 export type SkillOption = z.infer<typeof skillOptionSchema>
 
-// An image, or (M54, PLAN.md D47) a PDF: no pixel size, and its page count
-// when the page tree could be read.
+// Existing image/PDF/text summaries retain their shape. M105's optional
+// region carries media metadata and upload progress, never file bytes.
 const attachmentSchema = z.object({
   id: stringSchema,
   name: stringSchema,
@@ -310,6 +334,7 @@ const attachmentSchema = z.object({
   height: z.optional(numberSchema),
   sizeBytes: numberSchema,
   pageCount: z.optional(numberSchema),
+  media: z.optional(mediaChipSchema),
 })
 export type AttachmentSummary = z.infer<typeof attachmentSchema>
 
@@ -423,6 +448,11 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     action: z.string(),
     payload: z.unknown(),
   }),
+  z.strictObject({
+    type: z.literal('runReport'),
+    requestId: z.string(),
+    argumentsText: z.string(),
+  }),
   z.object({ type: z.literal('readReference') }),
   z.object({ type: z.literal('openReferenceSetting'), key: z.string() }),
   z.object({ type: z.literal('runReferenceCommand'), command: z.string() }),
@@ -525,6 +555,14 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('scheduleList') }),
   z.object({ type: z.literal('scheduleCancel'), id: stringSchema }),
   z.object({ type: z.literal('scheduleRun'), id: stringSchema, occurrenceMs: numberSchema }),
+  // Scheduled prompts v2 (M115): the versioned channel envelope; the
+  // runtime surface parses the request, the panel parses the answer.
+  z.object({ type: z.literal('schedulesRequest'), message: scheduleWebviewMessageSchema }),
+  // Scheduled prompts v2 (M115): open the surface over this workspace.
+  z.object({
+    type: z.literal('openSchedules'),
+    view: z.enum(['list', 'timeline', 'editor']),
+  }),
   // "/export" and "Export session log…" (M30): Markdown, or Muse Code's JSON log.
   z.object({ type: z.literal('exportConversation'), format: z.enum(EXPORT_FORMATS) }),
   // "Import session…" and "Open share file…" (M84): a portable JSON file
@@ -538,6 +576,9 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // "+" / "Attach file…": native open dialog; images (and, on the Model API
   // backend, PDFs: M54) become attachments, other files `@path` mentions.
   z.object({ type: z.literal('pickFile') }),
+  mediaAttachmentRequestSchema,
+  mediaAttachmentActionSchema,
+  mediaContributorChoiceSchema,
   // "Mention file from this project…": QuickPick over the workspace index.
   z.object({ type: z.literal('pickMentionFile') }),
   // An image pasted or dropped into the composer, or (M54) a PDF: the name
@@ -554,6 +595,18 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Editor resources dropped onto the composer (`text/uri-list`).
   z.object({ type: z.literal('droppedUris'), uris: z.array(stringSchema) }),
   z.object({ type: z.literal('hostAction'), action: z.enum(HOST_ACTIONS) }),
+  // M107 U–C1: the chip's popover controls; the host runs each through its command.
+  z.strictObject({
+    type: z.literal('resourceAction'),
+    action: z.enum(['show', 'settings', 'resume']),
+  }),
+  // M107 pull model: a document asks for a pending Show, and acknowledges one.
+  z.strictObject({ type: z.literal('resourcePull'), nonce: documentNonceSchema }),
+  z.strictObject({
+    type: z.literal('resourceOpenAck'),
+    seq: resourceSeqSchema,
+    nonce: documentNonceSchema,
+  }),
   z.strictObject({ type: z.literal('openUsagePage') }),
   // Approval card: one of the request's `availableChoices`.
   z.object({
@@ -667,7 +720,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     endLine: z.optional(numberSchema),
   }),
   // Rewind code to a message: revert every edit after it, newest first (M13).
-  // With `fork` ("Fork conversation and rewind code", M72) the host forks
+  // With `fork` ("Fork and Rewind", M72) the host forks
   // after the rewind, in one action: before `lastTurnId`, or a fresh
   // conversation without one.
   z.object({
@@ -868,7 +921,8 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   }),
 ])
 
-export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema> | TeamTreeAction
+export type WebviewToHostMessage =
+  z.infer<typeof webviewToHostMessageSchema> | TeamTreeAction | EstimatorToHostMessage
 
 const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({
@@ -1067,6 +1121,21 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // Sent on surfaceReady and on every change.
   z.object({ type: z.literal('paidState'), state: paidStateSchema }),
   z.object({ type: z.literal('judgeState'), state: judgeStatusSchema }),
+  // M107 U–C1: the window governor's checked status as JSON text, bounded here.
+  // resourceStatusSchema checks it strictly in the deferred chip before any
+  // field is shown, so its parser never enters chat's startup bundle.
+  // null: the current status was refused (over the bound, or unreadable), so
+  // the chip says it is unavailable rather than keep an old reading.
+  z.strictObject({
+    type: z.literal('resourceStatus'),
+    status: z.nullable(z.string().check(z.minLength(1), z.maxLength(RESOURCE_STATUS_MAX_CHARS))),
+  }),
+  // Show resources' open, for the document whose nonce it names; it acks the seq.
+  z.strictObject({
+    type: z.literal('resourceOpen'),
+    seq: resourceSeqSchema,
+    nonce: documentNonceSchema,
+  }),
   // A message the host sent itself (M79: a plan's brief): the pending card,
   // as the composer's own Send would have made it. `turnAccepted` or
   // `sendFailed` follows with the same `localId`.
@@ -1137,6 +1206,11 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // A request's or a confirm's admission result. Correlation protects a
   // newer draft or dialog: only an accepted request clears the composer's
   // `/handoff …`, and a refused confirm keeps the dialog.
+  z.strictObject({
+    type: z.literal('reportCommandResult'),
+    requestId: z.string(),
+    accepted: z.boolean(),
+  }),
   z.object({
     type: z.literal('handoffCommandResult'),
     requestId: stringSchema,
@@ -1152,6 +1226,26 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   // The host's model catalogue (for the picker and context-limit lookups).
   z.object({ type: z.literal('modelList'), models: z.array(modelOptionSchema) }),
+  // Scheduled prompts v2 (M115): the runtime surface's answer or change
+  // notice for the panel's versioned channel.
+  z.object({ type: z.literal('schedulesMessage'), message: scheduleHostMessageSchema }),
+  // The v2 surface's props: the host posts them when a schedule command
+  // opens the panel, and again when targets or defaults change.
+  z.object({
+    type: z.literal('schedulesSurface'),
+    workspaceKey: z.string(),
+    targets: z.array(
+      z.strictObject({
+        id: z.string(),
+        label: z.string(),
+        target: scheduleTargetSchema,
+        capability: scheduleSourceCapabilitySchema,
+      }),
+    ),
+    defaultDraft: scheduleDraftSchema,
+    nowMs: z.number(),
+    initialView: z.enum(['list', 'timeline', 'editor']),
+  }),
   // The session's user-invocable skills (palette "Skills" group).
   z.object({ type: z.literal('skillList'), skills: z.array(skillOptionSchema) }),
   // The host-owned composer settings for this conversation.
@@ -1268,7 +1362,9 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     // which of its choices (the dialog's `revision`, 0 for the opening
     // draft) this draft answers: a late draft for a closed or older dialog,
     // or for an older choice, is told apart instead of reopening or
-    // overwriting it.
+    // overwriting it. A rebuild that refused re-posts the previous draft
+    // with the failed choice's revision, so the dialog settles on what it
+    // still shows instead of waiting for a draft that never comes.
     session: z.int().check(z.gte(1)),
     revision: z.int().check(z.gte(0)),
     description: z.string().check(z.maxLength(REPORT_DESCRIPTION_MAX_CHARS)),
@@ -1297,9 +1393,13 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     issueFallback: z.optional(z.boolean()),
     reason: z.optional(z.enum(REPORT_EXPORT_REASONS)),
   }),
+  // The extension's `museSpark.estimate` command: focus the composer with
+  // `/estimate ` ready for the goal.
+  z.object({ type: z.literal('openEstimator') }),
 ])
 
-export type HostToWebviewMessage = z.infer<typeof hostToWebviewMessageSchema> | TeamTreeUpdate
+export type HostToWebviewMessage =
+  z.infer<typeof hostToWebviewMessageSchema> | TeamTreeUpdate | HostToEstimatorMessage
 
 const teamSchemas: {
   action: z.ZodMiniType<TeamTreeAction> | undefined
@@ -1323,16 +1423,6 @@ function hasMessageType(input: unknown, type: string): boolean {
   return typeof input === 'object' && input !== null && 'type' in input && input.type === type
 }
 
-export type ParseResult<T> =
-  { readonly ok: true; readonly message: T } | { readonly ok: false; readonly error: string }
-
-function parseWith<T>(schema: z.ZodMiniType<T>, input: unknown): ParseResult<T> {
-  const result = schema.safeParse(input)
-  return result.success
-    ? { ok: true, message: result.data }
-    : { ok: false, error: z.prettifyError(result.error) }
-}
-
 export function parseWebviewToHostMessage(input: unknown): ParseResult<WebviewToHostMessage> {
   return parseWith<WebviewToHostMessage>(
     teamSchemas.action !== undefined && hasMessageType(input, 'teamTreeAction')
@@ -1350,3 +1440,27 @@ export function parseHostToWebviewMessage(input: unknown): ParseResult<HostToWeb
     input,
   )
 }
+
+/** Only select the parser here; its lazy Zod schema validates every payload. */
+export function isEstimatorHostMessage(input: unknown): boolean {
+  return (
+    typeof input === 'object' &&
+    input !== null &&
+    'type' in input &&
+    typeof input.type === 'string' &&
+    ['estimatorSection', 'estimatorFailure', 'estimatorStarted'].includes(input.type)
+  )
+}
+export function isEstimatorWebviewMessage(input: unknown): boolean {
+  return (
+    typeof input === 'object' &&
+    input !== null &&
+    'type' in input &&
+    (input.type === 'estimateRun' || input.type === 'estimateSpinUp')
+  )
+}
+
+// M115's lazy schedule surface owns its validated channel beside Tasks.
+export type { ScheduleHostMessage, ScheduleWebviewMessage } from './scheduleProtocol'
+
+export { parseWith, type ParseResult } from './parseResult'

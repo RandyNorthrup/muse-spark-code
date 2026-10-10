@@ -14,9 +14,17 @@
   // the knip 5 `"//": [...]` pseudo-comment convention.
 
   "entry": [
+    "src/runtime/reporting/network.ts",
+    "src/runtime/reporting/destinationsEntry.ts",
+    "src/webview/reporting/destinations/DestinationPicker.tsx",
+    "src/runtime/reference.node.generated.ts",
+    "src/runtime/reporting/reportsEntry.ts",
+    "src/host/reporting/reportPanelEntry.ts",
+    "src/webview/reporting/main.tsx",
+    "test/harness/reporting/verify.mjs",
     "src/extension.ts",
     "src/core/resources/resourceGovernorEntry.ts",
-    "src/core/resources/admission.ts",
+    "src/core/resources/admissionEntry.ts",
     "src/runtime/exec/runExec.ts",
     "src/runtime/runtimeAccountingEntry.ts",
     "src/runtime/runtimeEngineEntry.ts",
@@ -40,7 +48,12 @@
     "src/runtime/exec/execEntry.ts",
     // The help generator bundles this catalog in memory, then imports its export.
     "src/shared/featureCatalog.ts",
-    "src/shared/modelApiBoundariesEntry.ts",
+    "src/shared/estimateContractsEntry.ts",
+    "src/core/nodeBoundariesEntry.ts",
+    // M107 W2's resource journal, shared by the governor and the usage service (INT0170).
+    "src/runtime/resources/resourceJournalEntry.ts",
+    // Vault schemas shared by real Node bundle readers (D6).
+    "src/shared/vaultBoundariesEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
     "src/core/legal/entry.ts",
@@ -56,6 +69,10 @@
     "src/host/teamViewBundle.ts",
     "src/host/sessionBoardEntry.ts",
     "src/core/backends/modelapi/reviewerEntry.ts",
+    "src/core/backends/modelapi/schedulesEntry.ts",
+    // M115W: the lazy schedules bundle entry (v1 beside the v2 binding),
+    // required by path on the first schedule use.
+    "src/runtime/schedules/schedulesBundle.ts",
     "src/core/backends/modelapi/foreignHooksEntry.ts",
     // M91: the hook and MCP-form runtime, imported by path on first use.
     "src/core/backends/modelapi/hookRuntimeEntry.ts",
@@ -74,6 +91,8 @@
     // The import from other agents' own bundle (M83), required by path on the first import.
     "src/host/agentImportEntry.ts",
     "src/host/git/conversationGitEntry.ts",
+    // The Model API's session store (D14), required by path when its host is first built.
+    "src/host/backend/fileSessionStoreEntry.ts",
     // The bundled skills installer's own bundle (M89), required by path on first use.
     "src/host/skills/bundledSkillsEntry.ts",
     // Code intelligence's `ide` answers and voice's drivers, each required by
@@ -84,6 +103,9 @@
     "src/host/web/webFetchEntry.ts",
     // The Auto reviewer on Muse Code (M90), required on the first review.
     "src/host/review/museCodeReviewerEntry.ts",
+    // The capacity estimator's engine (M117, PLAN.md D97), required by path
+    // on the first estimate.
+    "src/host/estimator/estimatorEntry.ts",
     // Both-backend extension hooks, required by path on first use (M91 E).
     "src/host/extensionHooksEntry.ts",
     // What's New (M99), required on the first page or notice, and its page script.
@@ -102,13 +124,31 @@
     "src/webview/models/models.tsx",
     "src/runtime/main.ts",
     "src/runtime/sharing/sharingEntry.ts",
+    // M105 media attachments and screen recording, each required by path on
+    // first use (dist/media.js, dist/screenRecord.js).
+    "src/host/media/mediaEntry.ts",
+    "src/host/media/screenRecordEntry.ts",
     // M112 A: same-build ACP question factory, loaded by path on first use.
     "src/acp/questionDeferralEntry.ts",
     "src/runtime/questions/questionRegistryEntry.ts",
+    // FIXM116I: /playbook's journal bundle, loaded by path on first use.
+    "src/runtime/playbook/playbookEntry.ts",
     "src/core/questions/deferralEntry.ts",
+    "src/runtime/fonts/fontsEntry.ts",
+    "src/runtime/schedules/backgroundEntry.ts",
+    // The vault's window (M109 W), required by path on the first vault command.
+    "src/host/vault/vaultPanelEntry.ts",
+    // The vault harness page and its runner (M109 U): the page is the harness
+    // build's esbuild entry, which knip does not read, and the runner is run
+    // by path for the panel scenes and axe (`node test/harness/vault/run.mjs`).
+    "test/harness/vault/main.tsx",
+    "test/harness/vault/run.mjs",
+    // M115 schedule scenes: test/harness/index.html imports this page module.
+    "test/harness/schedules.mjs",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     // Standalone browser checks invoked by path; usageHost is bundled by them.
     "test/harness/usage-check.mjs",
+    "test/harness/usage-resource-scenes.mjs",
     "test/harness/usage-companion.mjs",
     "test/harness/usage-accounts.mjs",
     "test/harness/usage-contrast.mjs",
@@ -118,6 +158,7 @@
     "test/e2e/**/*.test.ts",
     // DIET1 production browser smoke, invoked directly as documented in README.
     "test/e2e/webviewDiet.mjs",
+    "test/e2e/startupMoney.mjs",
     "test/e2e/fake-muse/serve.mjs",
     // The fake stdio MCP server the M50 tests start as a child process.
     "test/unit/helpers/fakeMcpServer.mjs",
@@ -131,8 +172,15 @@
     "test/unit/helpers/fakeMcpLauncherParent.mjs",
     "test/unit/helpers/fakeMcpPrebindParent.mjs",
     "test/unit/helpers/fakeMcpStartMarker.mjs",
+    // ACP crash regression bundles this child by path; esbuild entries are not traced.
+    "test/unit/helpers/questions/queuedTurnCrash.ts",
     // The never-ending monitor the M92b bounded-run proof starts by path.
     "test/fixtures/never-ending-monitor.mjs",
+    // M116 playbook scenes: the axe runner (an npm script knip already sees)
+    // bundles this scene file with esbuild, which knip does not trace.
+    "test/harness/playbook.mjs",
+    // LEFT017B's real optional surfaces are bundled by the golden generator.
+    "test/harness/goldens/integrated.tsx",
     "test/integration/**/*.test.ts",
     // The TypeScript fixture VS Code's language service reads in the code
     // intelligence integration test (M67); main.ts imports the rest.
@@ -154,7 +202,9 @@
     "test/**/*.{ts,tsx}",
     "test/**/*.mjs",
     "scripts/**/*.mjs",
-    "action/**/*.mjs"
+    "action/**/*.mjs",
+    // The badge Worker (infra/marketplace-hook); wrangler deploys worker.js by path.
+    "infra/**/*.js"
   ],
 
   "ignore": ["vendor/**"],

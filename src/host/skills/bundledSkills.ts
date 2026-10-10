@@ -20,18 +20,25 @@ import type {
   BundledSkillsStatus,
 } from './bundledSkillsInstall'
 
-/** The installer's three entries, shipped and loaded together. */
+/** The installer and playbook charter entries, shipped and loaded together. */
 export interface BundledSkillsBundle {
   readonly bundledSkillsStatus: (paths: BundledSkillsPaths) => Promise<BundledSkillsStatus>
   readonly installBundledSkills: (
     deps: BundledSkillsInstallDeps,
   ) => Promise<BundledSkillsInstallResult>
   readonly removeBundledSkills: (paths: BundledSkillsPaths) => Promise<BundledSkillsRemoveResult>
+  /** I binds this only to playbook reviews; ordinary request builders never read it. */
+  readonly playbookReviewerCharter: () => string
 }
 
-const BUNDLE_FUNCTIONS = ['bundledSkillsStatus', 'installBundledSkills', 'removeBundledSkills']
+const BUNDLE_FUNCTIONS = [
+  'bundledSkillsStatus',
+  'installBundledSkills',
+  'removeBundledSkills',
+  'playbookReviewerCharter',
+]
 
-/** Whether a required module exports the three entries (their signatures taken on trust, PLAN.md §8). */
+/** Whether the module exports these entries (signatures trusted from the same build, PLAN.md §8). */
 export function isBundledSkillsBundle(value: unknown): value is BundledSkillsBundle {
   return (
     typeof value === 'object' &&

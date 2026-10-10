@@ -3,12 +3,7 @@
 // skips only the POSIX signal rows). Fake fetch/keyring injection lives only in
 // a test-owned Node preload, never in a production loader flag. No request can
 // reach the network in this suite.
-import {
-  execFileSync,
-  spawn,
-  spawnSync,
-  type ChildProcessWithoutNullStreams,
-} from 'node:child_process'
+import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import {
   chmodSync,
@@ -26,9 +21,8 @@ import { brotliDecompressSync } from 'node:zlib'
 import { pathToFileURL } from 'node:url'
 import * as z from 'zod/mini'
 import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { resolveExecutable } from '../../src/core/executables'
-import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import {
   execEventV2Schema,
   validateResult,
@@ -36,8 +30,15 @@ import {
 } from '../../src/runtime/exec/execProtocol'
 
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
+import { readArchivedUiTable } from '../../src/shared/l10n/tableArchive'
+import { layOutAcpNativeSources } from '../unit/helpers/acpPackageSources'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
-import { buildProductionPackage, packageImagePreload } from '../unit/helpers/productionPackage'
+import { buildCreatedHelper } from './createdHelperFixture'
+import {
+  PRODUCTION_BUILD_KEY,
+  buildProductionPackage,
+  packageImagePreload,
+} from '../unit/helpers/productionPackage'
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..')
 const TEMP = path.join(ROOT, 'temp')
@@ -55,8 +56,7 @@ const KEY = 'LLM|123456|fabricated%legacy.key-for-m80d'
 // Each package guard gets an independent copy; ordinary operations keep 30 seconds.
 const COLD_PACKAGE_TIMEOUT_MS = 60_000
 const TIMEOUT = 30_000
-// The production build and pack before the built rows: about a minute on the
-// Windows 11 VM, past Vitest's 10 s hook default and a single row's budget.
+// Building the fake process launcher performs real compiler work once per suite.
 const BUILD_TIMEOUT = 300_000
 const BASH = bashForTests()
 // Node passes drive-letter absolute paths; GNU tar treats their colon as a
@@ -182,7 +182,7 @@ function packagingFixture() {
     'dist',
     'dist/webview',
     'dist/meta',
-    'native/windows',
+    'dist/native/darwin',
     'l10n',
     'docs/schemas',
     'test/action',
@@ -190,6 +190,9 @@ function packagingFixture() {
   ]) {
     mkdirSync(path.join(dir, folder), { recursive: true })
   }
+  // The fake-only membership guard needs its own native member; this is never
+  // used as a universal release artifact or executed as a macOS helper.
+  writeFileSync(path.join(dir, 'dist/native/darwin/muse-vault'), 'test-owned native fixture\n')
   for (const script of ['package-acp.mjs', 'package-acp-test.mjs']) {
     cpSync(path.join(ROOT, 'scripts', script), path.join(dir, 'scripts', script))
   }
@@ -291,54 +294,10 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
       devDependencies: { '@napi-rs/keyring': '2.1.0' },
     }),
   )
-  for (const bundle of [
-    'acp',
-    'headless',
-    'sharingRuntime',
-    // M112: the lazy ACP forms, the private registry and the deferral note.
-    'acpQuestions',
-    'runtimeQuestions',
-    'questionNotes',
-    'exec',
-    'modelApi',
-    'mcpPool',
-    'modelApiCodeIntel',
-    'structuredSchema',
-    'modelApiHooks',
-    'modelApiMcp',
-    'runtimeAccounting',
-    'runtimeEngine',
-    'providerPolicy',
-    'modelApiBoundaries',
-    'providers',
-    'subscriptions',
-    'configuredProviders',
-    'reviewer',
-    'legalScan',
-    'team',
-    'teamScheduler',
-    'teamRunners',
-    // M91: the adapters, the hook and MCP-form runtime, the window's hook runner.
-    'foreignHooks',
-    'hookRuntime',
-    'extensionHooks',
-    'recorder',
-    'reference',
-    'uiText',
-    'uiTextRuntime',
-    'uiTextHooks',
-    'uiTextSurfaces',
-    'wire',
-    'validation',
-    'searchWorker',
-    'imageResizeWorker',
-    'pageWorker',
-    'resourceGovernor',
-    'resourceAdmission',
-    'usageService',
-    'usageCompanion',
-  ]) {
-    cpSync(path.join(BUILD_ROOT, 'dist', `${bundle}.js`), path.join(dir, 'dist', `${bundle}.js`))
+  const productionFiles = readdirSync(path.join(BUILD_ROOT, 'dist'))
+  for (const file of productionFiles) {
+    if (file.endsWith('.js'))
+      cpSync(path.join(BUILD_ROOT, 'dist', file), path.join(dir, 'dist', file))
   }
   cpSync(
     path.join(BUILD_ROOT, 'dist/providerCatalog.json'),
@@ -348,22 +307,13 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     path.join(BUILD_ROOT, 'dist/providerCatalog.js'),
     path.join(dir, 'dist/providerCatalog.js'),
   )
-  for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
-    writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
-  }
-  mkdirSync(path.join(dir, 'native', 'darwin'), { recursive: true })
-  writeFileSync(path.join(dir, 'native', 'darwin', 'muse-dictate'), 'test-owned inert helper')
-  for (const arch of ['x64', 'arm64']) {
-    const native = path.join(dir, 'native', 'linux', arch)
-    mkdirSync(native, { recursive: true })
-    // This fixture checks packaging only; it never executes these native bytes.
-    writeFileSync(path.join(native, 'muse-created'), 'test-owned inert Linux helper\n')
-  }
+  layOutAcpNativeSources(dir, ROOT)
   cpSync(path.join(ROOT, 'media'), path.join(dir, 'media'), { recursive: true })
   cpSync(path.join(ROOT, 'src/shared'), path.join(dir, 'src/shared'), { recursive: true })
   mkdirSync(path.join(dir, 'src/core/judge'), { recursive: true })
   cpSync(path.join(ROOT, 'src/core/judge/engine.ts'), path.join(dir, 'src/core/judge/engine.ts'))
-  mkdirSync(path.join(dir, 'src/runtime'), { recursive: true })
+  mkdirSync(path.join(dir, 'src/runtime/estimator'), { recursive: true })
+  cpSync('src/runtime/estimator/options.ts', path.join(dir, 'src/runtime/estimator/options.ts'))
   cpSync(path.join(ROOT, 'src/runtime/cliOptions.ts'), path.join(dir, 'src/runtime/cliOptions.ts'))
   cpSync(path.join(ROOT, 'src/core/whatsNew'), path.join(dir, 'src/core/whatsNew'), {
     recursive: true,
@@ -382,7 +332,14 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     path.join(BUILD_ROOT, 'dist/meta/usageWebview.json'),
     path.join(dir, 'dist/meta/usageWebview.json'),
   )
-  cpSync(path.join(ROOT, 'native/runner'), path.join(dir, 'native/runner'), { recursive: true })
+  // M114 F: the packager stages the committed font manifest beside the
+  // runtime-only installer bundle; the fixture carries the real file, as
+  // it does the schemas, so a missing manifest still fails packaging.
+  mkdirSync(path.join(dir, 'design', 'fonts'), { recursive: true })
+  cpSync(
+    path.join(ROOT, 'design', 'fonts', 'manifest.json'),
+    path.join(dir, 'design', 'fonts', 'manifest.json'),
+  )
   writeFileSync(path.join(dir, 'LICENSE'), 'test-owned licence\n')
   writeFileSync(path.join(dir, 'docs', 'acp.md'), '# Test-owned guide\n')
   for (const file of ['README.md', 'docs/npm-readme.md', 'docs/marketplace-readme.md'])
@@ -400,7 +357,7 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
 
 // Build immutable inputs once during file setup. The cold archive hook's
 // unchanged 60-second budget belongs to packaging, rather than build + pack.
-buildProductionPackage(ROOT, BUILD_ROOT)
+buildProductionPackage(ROOT, BUILD_ROOT, inject(PRODUCTION_BUILD_KEY))
 
 describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   let preparedPackage: { dir: string; run: ReturnType<typeof command> } | undefined
@@ -448,28 +405,16 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
           readFileSync(path.join(ROOT, 'docs', 'schemas', schema), 'utf8'),
         )
       }
-      const tables = z
-        .object({
-          keys: z.array(z.string()),
-          locales: z.array(z.string()),
-          values: z.array(z.array(z.unknown())),
-        })
-        .parse(
-          JSON.parse(
-            brotliDecompressSync(readFileSync(path.join(stage, 'l10n/ui.tables.json.br'))).toString(
-              'utf8',
-            ),
-          ),
-        )
+      const archived = brotliDecompressSync(
+        readFileSync(path.join(stage, 'l10n/ui.tables.json.br')),
+      ).toString('utf8')
+      const tables = z.object({ locales: z.array(z.string()) }).parse(JSON.parse(archived))
       // The package ships every table, independently of the process locale.
-      // Inspect German explicitly; the old assertion belonged to a tiny fixture
-      // that TRAIN15E replaced with the production tables.
+      // Inspect German explicitly through the installed reader: the archive is
+      // the packed (format 1) matrix, restored in English key order.
       expect(tables.locales).toEqual(TABLE_LOCALES.toSorted((a, b) => a.localeCompare(b, 'en')))
-      const expected = z
-        .record(z.string(), z.unknown())
-        .parse(JSON.parse(readFileSync(path.join(dir, 'l10n/ui.de.json'), 'utf8')))
-      expect(tables.values[tables.locales.indexOf('de')]).toEqual(
-        tables.keys.map((key) => expected[key]),
+      expect(readArchivedUiTable(archived, 'de')).toBe(
+        JSON.stringify(JSON.parse(readFileSync(path.join(dir, 'l10n/ui.de.json'), 'utf8'))),
       )
       const manifest: unknown = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
       expect(manifest).toMatchObject({ bin: { 'muse-spark-code-acp': 'dist/acp.js' } })
@@ -818,17 +763,15 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
   beforeAll(async () => {
     if (INSTALLED === undefined) {
       const darwinHelper = path.join(BUILD_ROOT, 'native/darwin/muse-dictate')
-      if (process.platform === 'darwin') {
-        if (!existsSync(darwinHelper))
-          execFileSync(BASH, ['native/darwin/build.sh'], {
-            cwd: BUILD_ROOT,
-            env: withoutCredentials(process.env),
-            stdio: 'pipe',
-            timeout: BUILD_TIMEOUT,
-          })
-      } else {
-        // Package admission needs every platform. Foreign helpers are inert
-        // fixture bytes; only the current platform's real helper can execute.
+      if (process.platform === 'darwin' || process.platform === 'linux') {
+        const currentHelper =
+          process.platform === 'darwin'
+            ? darwinHelper
+            : path.join(BUILD_ROOT, 'native/linux', process.arch, 'muse-created')
+        if (!existsSync(currentHelper)) buildCreatedHelper(ROOT, BUILD_ROOT)
+      }
+      if (process.platform !== 'darwin') {
+        // Foreign helpers are inert fixture bytes; the current helper is real.
         writeFileSync(darwinHelper, 'test-owned inert Darwin helper\n')
       }
       for (const arch of ['x64', 'arm64']) {

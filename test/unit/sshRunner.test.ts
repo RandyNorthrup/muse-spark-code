@@ -115,7 +115,9 @@ if(command.includes("'status'") && command.includes("'drop-run'")) process.exit(
 const remoteEnv=Object.fromEntries(Object.entries(process.env).filter(([name])=>name.toLowerCase()!=='path'));
 remoteEnv.PATH=${JSON.stringify(shellPath)}+(process.env.PATH??process.env.Path??'');
 // Git Bash lacks Unix host metrics; this fake remote supplies only those probes.
-const metrics=${JSON.stringify(process.platform === 'win32' ? String.raw`getconf() { printf '4\n'; }; uptime() { printf 'load average: 0.00, 0.00, 0.00\n'; }; export -f getconf uptime; ` : '')};
+// Its nice maps to Windows' BelowNormal class, which strict priority starves
+// behind normal work (a POSIX share it is not), so the job runs unniced here.
+const metrics=${JSON.stringify(process.platform === 'win32' ? String.raw`getconf() { printf '4\n'; }; uptime() { printf 'load average: 0.00, 0.00, 0.00\n'; }; nice() { if [ "$1" = -n ]; then shift 2; fi; "$@"; }; export -f getconf uptime nice; ` : '')};
 const child=spawn(${JSON.stringify(bash)},['-c',metrics+command],{stdio:'inherit',env:{...remoteEnv,VENDOR_API_KEY:'remote-fixture-only',GH_TOKEN:'remote-fixture-only',mIxEd_ApI_kEy:'remote-fixture-only',gH_tOkEn:'remote-fixture-only'}});
 child.on('exit',code=>process.exit(code??1));
 `,

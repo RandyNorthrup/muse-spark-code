@@ -30,6 +30,11 @@
 //   hold and edit review) is in dist/extension.js, dist/modelApi.js or
 //   dist/acp.js, or missing from dist/review.js, which dist/extension.js
 //   requires the first time one is used.
+// - the vault's window (M109: the panel host and the native editor) is in
+//   dist/extension.js, dist/modelApi.js or dist/acp.js, or missing from
+//   dist/vault.js, which dist/extension.js requires on the first vault
+//   command. Only types and the loader (vaultPanelBundle.ts) stay at
+//   activation.
 // - the import from other agents (M83: the scan, the converters, the file
 //   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
 //   or dist/acp.js, or missing from dist/agentImport.js.
@@ -57,12 +62,14 @@
 //   dist/recorder.js. The ACP agent loads that same journal before serving.
 // - a model text block beside MODEL_TEXT (MODEL_API_, CODE_INTEL_,
 //   CHECKPOINT_, AGENT_IMPORT_, GIT_, REVIEW_, WEB_FETCH_, EXEC_,
-//   AUTO_REVIEWER_MODEL_TEXT) is
+//   AUTO_REVIEWER_, WINDOWS_PATH_MODEL_TEXT) is
 //   in any shipped bundle but the ones declared to read it, or no longer in
 //   one of those; a block is declared that this check does not guard;
 //   FILE_REFUSAL_MODEL_TEXT, which activation carries by design, holds other
-//   keys than its pinned ones; or a key of MODEL_TEXT, which every bundle
-//   reading any key of it carries whole, is read by no source file of
+//   keys than its pinned ones; dist/headless.js carries MODEL_TEXT, or a
+//   Node bundle that reads zod/mini from dist/validation.js carries classic
+//   zod (INT0170); or a key of MODEL_TEXT, which every bundle reading any
+//   key of it carries whole, is read by no source file of
 //   dist/extension.js (it belongs in the block of the bundle that reads it).
 //
 // Exits 1 on any problem.
@@ -80,9 +87,11 @@ import {
   ON_FIRST_USE,
   DEFERRED_ONLY,
   MODEL_API_OPTIONAL_ONLY,
+  SCHEDULES_ONLY,
   FOREIGN_HOOKS_ONLY,
   HOOK_RUNTIME_ONLY,
   PLUGIN_HOOKS_ONLY,
+  MODEL_API_BOUNDARY_SOURCES,
   checkDeferredBundles,
   checkResourceBundles,
 } from './lib/deferredBundles.mjs'
@@ -116,7 +125,11 @@ const ENTRY = 'src/host/backend/modelApiEntry.ts'
 const TYPES_ONLY = new Set(['hookFormats/contract.ts'])
 // M91 lane X's Cline discovery, which no bundle carries until its dispatcher
 // wiring lands (PLAN.md M91, lane X; the lead's call).
-const UNBUNDLED = new Set(['hookFormats/clineDiscover.ts'])
+// M105 lane W: the Files transport (lane F) and the Responses media codec
+// (lane M2) ship no production construction yet; the video/audio upload
+// binding (U6c, A-PAID follow-ups) lands them in dist/modelApi.js. Until
+// then no bundle carries them (PLAN.md M105, lane W).
+const UNBUNDLED = new Set(['hookFormats/clineDiscover.ts', 'files.ts'])
 
 // The backend's files the activation bundle may carry, each with its reason.
 const ACTIVATION_ALLOWED = new Map([
@@ -125,7 +138,6 @@ const ACTIVATION_ALLOWED = new Map([
   ['imageToolDefinitions.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['sessionStore.ts', "the stored-session format the window's session store reads (D14)"],
   ['goalRecord.ts', "a stored session's goal (D14, M45)"],
-  ['schedules.ts', "the schedule store's next occurrence (M52)"],
 ])
 
 // The files that load only with the backend: the host, its tools, hooks,
@@ -191,12 +203,20 @@ const LAZY_ONLY = [
   'mcp/protocol.ts',
 ]
 
+// Each metafile is read and parsed once: the checks ask for the same few
+// metafiles hundreds of times, which made one run take seconds.
+const metafiles = new Map()
+
 /** The bundle's source files and the bytes each contributed, from its metafile. */
 function inputsOf({ output, metafile }) {
   if (!existsSync(metafile)) {
     throw new Error(`${metafile} is missing: run "node scripts/build.mjs --production" first`)
   }
-  const parsed = JSON.parse(readFileSync(metafile, 'utf8'))
+  let parsed = metafiles.get(metafile)
+  if (parsed === undefined) {
+    parsed = JSON.parse(readFileSync(metafile, 'utf8'))
+    metafiles.set(metafile, parsed)
+  }
   const bundle = Object.entries(parsed.outputs).find(
     ([file]) => file.replaceAll('\\', '/') === output,
   )?.[1]
@@ -236,6 +256,7 @@ for (const name of onDisk) {
     Number(DEFERRED_ONLY.includes(name)) +
     Number(MODEL_API_OPTIONAL_ONLY.includes(name)) +
     Number(name.startsWith('codecs/')) +
+    Number(SCHEDULES_ONLY.includes(name)) +
     Number(FOREIGN_HOOKS_ONLY.includes(name)) +
     Number(HOOK_RUNTIME_ONLY.includes(name)) +
     Number(PLUGIN_HOOKS_ONLY.includes(name)) +
@@ -255,6 +276,7 @@ for (const name of [
   ...PROVIDER_ONLY,
   ...DEFERRED_ONLY,
   ...MODEL_API_OPTIONAL_ONLY,
+  ...SCHEDULES_ONLY,
   ...FOREIGN_HOOKS_ONLY,
   ...HOOK_RUNTIME_ONLY,
   ...PLUGIN_HOOKS_ONLY,
@@ -475,6 +497,10 @@ const CONVERSATION_GIT = {
   output: 'dist/conversationGit.js',
   metafile: 'dist/meta/conversationGit.json',
 }
+const MODEL_API_SESSIONS = {
+  output: 'dist/modelApiSessions.js',
+  metafile: 'dist/meta/modelApiSessions.json',
+}
 const BUNDLED_SKILLS = {
   output: 'dist/bundledSkills.js',
   metafile: 'dist/meta/bundledSkills.json',
@@ -644,6 +670,26 @@ for (const file of REVIEW_ONLY) {
     problems.push(`${REVIEW.output} no longer carries ${file}`)
   }
 }
+// M109 lane W: the vault's window (the panel host and the native editor)
+// loads on the first vault command. Only types and the loader
+// (vaultPanelBundle.ts) stay at activation.
+const VAULT = { output: 'dist/vault.js', metafile: 'dist/meta/vault.json' }
+const VAULT_ONLY = [
+  'src/host/vault/vaultPanelEntry.ts',
+  'src/host/vault/vaultPanelHost.ts',
+  'src/host/vault/vaultNativeEditor.ts',
+]
+const vault = inputsOf(VAULT)
+for (const file of VAULT_ONLY) {
+  for (const [output, inputs] of [...loaders, [BUNDLES.modelApi.output, modelApi]]) {
+    if (inputs.has(file)) {
+      problems.push(`${output} carries ${file}, which belongs to the vault bundle`)
+    }
+  }
+  if (!vault.has(file)) {
+    problems.push(`${VAULT.output} no longer carries ${file}`)
+  }
+}
 // M83: the import from other agents loads on the first import.
 const IMPORT_ONLY = [
   'src/host/agentImportEntry.ts',
@@ -720,6 +766,24 @@ for (const file of GIT_ONLY) {
   }
   if (!conversationGit.has(file)) {
     problems.push(`${CONVERSATION_GIT.output} no longer carries ${file}`)
+  }
+}
+
+// ACTBUD017: the Model API backend's session store loads when its host is
+// first built; activation keeps the checked loader and the store's types.
+const MODEL_API_SESSIONS_ONLY = [
+  'src/host/backend/fileSessionStore.ts',
+  'src/host/backend/fileSessionStoreEntry.ts',
+]
+const modelApiSessions = inputsOf(MODEL_API_SESSIONS)
+for (const file of MODEL_API_SESSIONS_ONLY) {
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi]) {
+    if (inputsOf(bundle).has(file)) {
+      problems.push(`${bundle.output} carries ${file}, which loads only with the Model API host`)
+    }
+  }
+  if (!modelApiSessions.has(file)) {
+    problems.push(`${MODEL_API_SESSIONS.output} no longer carries ${file}`)
   }
 }
 
@@ -823,6 +887,28 @@ for (const file of TEAM_UI_ONLY) {
   }
 }
 
+// STARTUP017: exact money arithmetic loads with the lazy money chunk, never
+// with chat startup. A startup importer reintroduces usd.ts through paid.ts,
+// tokenRatePrice.ts, exactUsd.ts or insights.ts alike, so every one is
+// guarded, not only usd.ts itself.
+const MONEY_STARTUP_NEVER = [
+  'src/shared/usd.ts',
+  'src/shared/l10n/exactUsd.ts',
+  'src/shared/tokenRatePrice.ts',
+  'src/core/usage/insights.ts',
+  'src/shared/paid.ts',
+]
+for (const file of MONEY_STARTUP_NEVER) {
+  const carrying = Object.entries(webview.outputs).filter(([, output]) =>
+    Object.keys(output.inputs ?? {}).some((input) => input.replaceAll('\\', '/') === file),
+  )
+  if (carrying.length === 0) problems.push(`webview no longer carries ${file}`)
+  for (const [output] of carrying) {
+    if (initialWebview.has(output))
+      problems.push(`${output} carries exact-money ${file} in the initial webview graph`)
+  }
+}
+
 // What's New's page script (M99) is a few lines that pass clicks back: it
 // carries no package, not the display table and not constants.ts (which
 // re-exports that table), only the script and its markup contract.
@@ -873,7 +959,13 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
             !(
               input === 'src/core/providers/configured.ts' && output === BUNDLES.configured.output
             ) &&
-            !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js'))
+            !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js') &&
+            !(
+              output === 'dist/runtimeAccounts.js' &&
+              ['accounts.ts', 'accountPolicy.ts', 'accountCredentialRecord.ts'].some(
+                (file) => input === `src/core/providers/${file}`,
+              )
+            ))
         ) {
           problems.push(`${output} carries ${input}, which loads only in dist/providers.js`)
         }
@@ -985,6 +1077,10 @@ const TEXT_BLOCKS = [
       SHARING_RUNTIME.output,
       'dist/conversation.js',
       BUNDLES.modelApi.output,
+      'dist/reporting.js',
+      'dist/reportingNetwork.js',
+      'dist/reportingDestinations.js',
+      'dist/schedules.js',
     ],
   },
   {
@@ -1035,13 +1131,20 @@ const TEXT_BLOCKS = [
     sentinels: ['reviewerRole', 'reviewMuseCodeRole'],
     readers: [REVIEW.output, BUNDLES.modelApi.output],
   },
+  // M116 K's charter is read through the existing lazy skills bundle only.
+  {
+    block: 'PLAYBOOK_MODEL_TEXT',
+    sentinels: ['playbookReviewInstructions'],
+    readers: ['dist/bundledSkills.js'],
+  },
   {
     block: 'REVIEW_COMMENT_MODEL_TEXT',
     sentinels: ['reviewRemovedLine'],
     readers: webviewReview.map(({ output }) => output),
   },
   // Web fetch's own words (M69): the window's fetch, the Model API
-  // backend's URL checks and the ACP agent's fetch.
+  // backend's URL checks and the ACP agent's fetch. Keyed headless runs fetch
+  // through the engine's backend, which the accounts port receives (CAPS017).
   {
     block: 'WEB_FETCH_MODEL_TEXT',
     sentinels: ['webFetchUntrusted', 'webFetchMovedOpen'],
@@ -1060,6 +1163,16 @@ const TEXT_BLOCKS = [
     block: 'AUTO_REVIEWER_MODEL_TEXT',
     sentinels: ['autoReviewerInstructions', 'museCodeReviewerTurn'],
     readers: ['dist/reviewer.js', 'dist/museCodeReviewer.js'],
+  },
+  // SECWINPATH's refusals (INT0170): src/core/windowsPathSpelling.ts reads
+  // them and the Node bundles share it through dist/modelApiBoundaries.js;
+  // a bundle that carried the block would have inlined the module. The
+  // report engine is built without that plugin (its own shared set) and
+  // inlines the module, as it inlines pathIdentity.ts.
+  {
+    block: 'WINDOWS_PATH_MODEL_TEXT',
+    sentinels: ['windowsDeviceNamespace', 'windowsUnprovenUncPath'],
+    readers: ['dist/modelApiBoundaries.js', 'dist/reporting.js'],
   },
   // The same-model Judge's sources and question load only at an eligible approval.
   {
@@ -1151,6 +1264,32 @@ if (fileRefusalKeys.join(', ') !== FILE_REFUSAL.keys.join(', ')) {
     `${FILE_REFUSAL.block} holds ${fileRefusalKeys.join(', ')}, not ${FILE_REFUSAL.keys.join(', ')}: every bundle that reads a key of it, dist/extension.js among them, carries all of it`,
   )
 }
+// INT0170: MODEL_TEXT is carried whole by every bundle that reads one key of
+// it. The headless preflight reads none: SECWINPATH's refusals reached it as
+// MODEL_TEXT through runExec.ts -> attachArgs.ts -> workspacePath.ts ->
+// windowsPathSpelling.ts (+10.4 KiB). Name each source that reads it there.
+const MODEL_TEXT_SENTINEL_KEY = 'memoryNoteExists'
+if (!blockKeys('MODEL_TEXT').includes(MODEL_TEXT_SENTINEL_KEY)) {
+  problems.push(`MODEL_TEXT has no key ${MODEL_TEXT_SENTINEL_KEY}: pick another sentinel for it`)
+}
+const MODEL_TEXT_SENTINEL = new RegExp(`[{,]${MODEL_TEXT_SENTINEL_KEY}:`)
+for (const { output, metafile } of [
+  { output: 'dist/headless.js', metafile: 'dist/meta-acp/headless.json' },
+]) {
+  if (!MODEL_TEXT_SENTINEL.test(textOf(output))) continue
+  const readers = inputsOf({ output, metafile })
+    .keys()
+    .filter(
+      (input) =>
+        input !== CONSTANTS &&
+        input.startsWith('src/') &&
+        /\bMODEL_TEXT\b/.test(readFileSync(input, 'utf8')),
+    )
+    .toArray()
+  problems.push(
+    `${output} carries MODEL_TEXT whole, read by ${readers.join(', ') || 'no named source'}: give those words a block of their own`,
+  )
+}
 // What stays in MODEL_TEXT is what dist/extension.js reads: a key no source
 // file of the activation bundle reads makes every bundle carry it for
 // nothing, and belongs in the block of the bundle that does read it.
@@ -1217,6 +1356,9 @@ const visitWebview = (file) => {
 visitWebview('dist/webview/main.js')
 problems.push(...checkResourceWebview(webviewMeta))
 for (const file of Object.keys(RESOURCE_WEBVIEW_ENTRIES)) visitWebview(file)
+
+visitWebview('dist/webview/reportingPage.js')
+visitWebview('dist/webview/reportingDestinations.js')
 const deferredWebviewSources = [
   ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
   ...ADDITIONAL_WEBVIEW_BUDGETS.flatMap(({ entries }) => entries),
@@ -1226,6 +1368,7 @@ const deferredWebviewSources = [
   'src/webview/components/TeamTree.tsx',
   'src/webview/components/TeamCards.tsx',
   'src/core/prompts/promptSearch.ts',
+  'src/shared/slashCommands.ts',
 ]
 for (const source of deferredWebviewSources) {
   const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>
@@ -1327,6 +1470,8 @@ const nodeMetafiles = readdirSync('dist/meta')
         'usageWebview.json',
         'resourceSurface.json',
         'resourceHistory.json',
+        'reportingPageWebview.json',
+        'reportingDestinationsWebview.json',
       ].includes(name),
   )
   .map((name) => `dist/meta/${name}`)
@@ -1335,7 +1480,24 @@ nodeMetafiles.push(
   'dist/meta-acp/acpQuestions.json',
   'dist/meta-acp/runtimeQuestions.json',
 )
-const validationReaders = new Set()
+// INT0170: classic zod stays out of the Node bundles that read zod/mini from
+// dist/validation.js. CONSENT017's paidConsent.ts imported 'zod', and
+// dist/extension.js carried 444 KiB of it with its `navigator` sniff
+// (extension.ts -> host/paid/paidHost.ts -> core/paid/paidConsent.ts).
+// dist/structuredSchema.js shares zod/v4/core by design; the ACP engine
+// carries the ACP SDK's classic zod (englishZodLocales trims its locales).
+const CLASSIC_ZOD_CARRIERS = new Set([
+  'dist/meta/structuredSchema.json',
+  'dist/meta/runtimeEngine.json',
+])
+/** A zod module other than zod/mini's own; zod/mini's core comes from validation.js. */
+function isClassicZod(input) {
+  return (
+    /^node_modules\/zod\//.test(input.replaceAll('\\', '/')) &&
+    !input.replaceAll('\\', '/').startsWith('node_modules/zod/v4/mini/')
+  )
+}
+const validationReaders = new Map()
 for (const file of nodeMetafiles) {
   const meta = JSON.parse(readFileSync(file, 'utf8'))
   for (const [output, details] of Object.entries(meta.outputs)) {
@@ -1344,13 +1506,25 @@ for (const file of nodeMetafiles) {
     ) {
       problems.push(`${output} inlines the shared mini-parser`)
     }
+    if (CLASSIC_ZOD_CARRIERS.has(file)) continue
+    const classic = Object.keys(details.inputs).filter((input) => isClassicZod(input))
+    if (classic.length === 0) continue
+    const importers = Object.keys(details.inputs).filter(
+      (input) =>
+        input.startsWith('src/') &&
+        (meta.inputs[input]?.imports ?? []).some(({ path: imported }) => isClassicZod(imported)),
+    )
+    problems.push(
+      `${output} carries classic zod (${String(classic.length)} modules), imported by ${importers.join(', ') || 'no named source'}: Node bundles read zod/mini from dist/validation.js`,
+    )
   }
   const sourceInputs = Object.keys(meta.inputs).filter((name) => name.startsWith('src/'))
   for (const input of sourceInputs) {
-    validationReaders.add(input)
+    const prior = validationReaders.get(input) ?? []
+    validationReaders.set(input, [...prior, validationExports])
   }
 }
-for (const input of validationReaders) {
+for (const [input, readers] of validationReaders) {
   const text = readFileSync(input, 'utf8')
   // A file that never names the module has no alias to check; parsing every
   // source input made this the slowest part of the check.
@@ -1373,7 +1547,7 @@ for (const input of validationReaders) {
       ts.isPropertyAccessExpression(node) &&
       ts.isIdentifier(node.expression) &&
       aliases.has(node.expression.text) &&
-      !validationExports.has(node.name.text)
+      readers.some((exports) => !exports.has(node.name.text))
     ) {
       problems.push(`${input} reads zod/mini.${node.name.text}, absent from validation.js`)
     }
@@ -1387,6 +1561,36 @@ if (
   )
 ) {
   problems.push('dist/validation.js no longer carries the mini-parser')
+}
+// INT0170: a bundle that loads dist/modelApiBoundaries.js reads its shared
+// sources from there and carries no copy of its own. PORTS017's usdSchema.ts
+// was copied into dist/modelApi.js and twelve other loaders (about 580 B each).
+const boundaryOutput = 'dist/modelApiBoundaries.js'
+const boundaryInputs = inputsOf({
+  output: boundaryOutput,
+  metafile: 'dist/meta/modelApiBoundaries.json',
+})
+// Pinned here as well as in the plugin's list, so dropping one from that list
+// fails instead of letting the copies back in unchecked.
+const boundarySources = new Set([
+  ...MODEL_API_BOUNDARY_SOURCES,
+  'src/core/windowsPathSpelling.ts',
+  'src/shared/usdSchema.ts',
+])
+for (const source of boundarySources) {
+  if (!boundaryInputs.has(source)) problems.push(`${boundaryOutput} no longer carries ${source}`)
+}
+for (const { output, metafile } of SHIPPED) {
+  const details = Object.entries(JSON.parse(readFileSync(metafile, 'utf8')).outputs).find(
+    ([file]) => file.replaceAll('\\', '/') === output,
+  )?.[1]
+  if (!details?.imports.some(({ path: imported }) => imported === './modelApiBoundaries.js'))
+    continue
+  for (const source of boundarySources) {
+    if (Object.hasOwn(details.inputs, source)) {
+      problems.push(`${output} loads ${boundaryOutput} and still carries its own copy of ${source}`)
+    }
+  }
 }
 
 if (
@@ -1450,7 +1654,7 @@ console.log(
 )
 console.log(`ok   ${BUNDLES.providers.output}: codecs and provider core load exclusively there`)
 console.log(
-  `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} each in its readers and in no other of the ${String(SHIPPED.length)} shipped bundles; ${FILE_REFUSAL.block} pinned to ${String(FILE_REFUSAL.keys.length)} keys; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation`,
+  `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} each in its readers and in no other of the ${String(SHIPPED.length)} shipped bundles; ${FILE_REFUSAL.block} pinned to ${String(FILE_REFUSAL.keys.length)} keys; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation, none in dist/headless.js`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
 console.log('ok   webview: optional surfaces and highlighting load only in guarded deferred chunks')

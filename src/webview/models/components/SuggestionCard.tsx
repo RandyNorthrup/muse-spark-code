@@ -8,6 +8,8 @@ export interface SuggestionCardProps {
   readonly title: string
   readonly reason: string
   readonly value: string
+  /** The value is on show: Accept is never offered for a value not yet stated. */
+  readonly isValueShown?: boolean
   readonly accepted: boolean
   readonly onAccept: () => void
   readonly onChange: () => void
@@ -17,6 +19,7 @@ export function SuggestionCard({
   title,
   reason,
   value,
+  isValueShown = true,
   accepted,
   onAccept,
   onChange,
@@ -30,7 +33,7 @@ export function SuggestionCard({
         <button
           type="button"
           className="models-button-primary"
-          disabled={accepted}
+          disabled={accepted || !isValueShown}
           onClick={onAccept}
         >
           {UI_TEXT.suggestionAccept}

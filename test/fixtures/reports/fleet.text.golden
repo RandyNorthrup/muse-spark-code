@@ -1,0 +1,84 @@
+Fleet
+
+Scope: Fixture workspace
+Generated as of 2026-10-06T12:00:00+00:00
+Version: 0.14.2
+SHA-256: 2ec8034c0bc7fca92d119d0af9a0feefce798fa78b69145adbe5affb5224f5a9
+
+Needs you
+Questions: Choose the release channel.
+Sources: plan
+
+Questions: Open VSX is behind the tag.
+Sources: git
+
+Questions: Default branch quality failed.
+Sources: github
+
+Agents
+Name: M12: fixture contracts | <release> & "notes"
+Status: Planned
+Sources: git, plan
+
+Name: M110a0: fixture runtime
+A second commit.
+Status: Merged
+Sources: git
+12 more
+
+Workers
+Name: M12: fixture contracts
+Status: Planned
+Sources: git, plan
+
+Name: M110a0: fixture runtime
+A second commit.
+Status: Merged
+Sources: git
+
+Devices
+Name: M12: fixture contracts
+Status: Planned
+Sources: git, plan
+
+Name: M110a0: fixture runtime
+A second commit.
+Status: Merged
+Sources: git
+
+Nodes
+Name: M12: fixture contracts
+Status: Planned
+Sources: git, plan
+
+Name: M110a0: fixture runtime
+A second commit.
+Status: Merged
+Sources: git
+
+Sources
+Name: git
+Status: Partial
+Reason: Commit bound reached.
+Observed at: 2026-10-06T11:00:00.000+00:00
+Freshness: Stale (3,600s)
+
+Name: github
+Status: Unavailable
+Reason: Network is off.
+Observed at: Unknown
+Freshness: Unknown
+
+Name: plan
+Status: Available
+Reason:
+Observed at: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: usage
+Status: Not applicable
+Reason: Journal integration is not present.
+Observed at: Unknown
+Freshness: Unknown
+
+Renderer 1; ICU 77.1; locale en

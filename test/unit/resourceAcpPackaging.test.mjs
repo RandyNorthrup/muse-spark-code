@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { copyFileSync, existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { execFile, execFileSync } from 'node:child_process'
+import { JOB_SOURCE_FILES } from '../../src/host/backend/jobSource'
 
 vi.mock('node:fs', () => ({
   copyFileSync: vi.fn(),
@@ -53,7 +54,7 @@ it('M107 copies both resource bundles and all three exec schemas into the ACP pa
     source.replaceAll('\\', '/'),
     target.replaceAll('\\', '/'),
   ])
-  for (const file of ['resourceGovernor.js', 'resourceAdmission.js'])
+  for (const file of ['resourceGovernor.js', 'resourceProcess.js', 'resourceAdmission.js'])
     expect(normalized).toContainEqual([`dist/${file}`, `dist/acp-package/dist/${file}`])
   for (const file of [
     'exec-result-v1.schema.json',
@@ -82,7 +83,7 @@ it('refuses a failed staged Help language before npm pack', async () => {
   expect(execFileSync.mock.calls.some(([file]) => file === 'npm')).toBe(false)
 })
 
-it.each(['resourceGovernor.js', 'resourceAdmission.js'])(
+it.each(['resourceGovernor.js', 'resourceProcess.js', 'resourceAdmission.js'])(
   'M107 refuses absent %s before any staging or child process',
   async (file) => {
     existsSync.mockImplementation((source) => source.replaceAll('\\', '/') !== `dist/${file}`)
@@ -107,6 +108,20 @@ it('M107 refuses a non-file or malformed v2 schema before any staging or child p
   await expect(import('../../scripts/package-acp.mjs')).rejects.toThrow()
   expect(copyFileSync).not.toHaveBeenCalled()
   expect(execFileSync).not.toHaveBeenCalled()
+})
+
+// The governor launches `muse serve` through the job launcher on Windows
+// (src/runtime/resources/jobs.ts): without its C# no session starts (CIFIX017W2).
+it('ships every Windows job helper source the runtime compiles, the governed launcher included', async () => {
+  await import('../../scripts/package-acp.mjs')
+  const copied = copyFileSync.mock.calls.map(([source, target]) => [
+    source.replaceAll('\\', '/'),
+    target.replaceAll('\\', '/'),
+  ])
+  const sources = Object.values(JOB_SOURCE_FILES).map((file) => file.replaceAll('\\', '/'))
+  expect(sources).toContain('native/windows/MuseSparkMcpLauncher.cs')
+  for (const source of sources)
+    expect(copied).toContainEqual([source, `dist/acp-package/${source}`])
 })
 
 it('G10 Linux delivery copies both architectures into the ACP package', async () => {

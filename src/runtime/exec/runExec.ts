@@ -18,13 +18,16 @@ import {
   sameFile,
   type FileIdentity,
 } from '../../core/fs/fileIdentity'
+import type { AcpMediaFactory } from '../../acp/media'
 import { isValidModelApiKey, type SecretStore } from '../../host/auth/credentialStore'
 import type { Logger } from '../../host/logger'
 import type { AgentEvent } from '../../shared/agentEvents'
-import { uiLocale, fill, formatUsd, plural } from '../../shared/l10n/text'
+import { uiLocale, fill, plural } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import {
   ACP_AGENT_NAME,
   ACP_COMPACT_COMMAND,
+  ACCOUNT_DEFAULT_ID,
   ACP_CONFIG_IDS,
   EXEC_EXIT,
   EXEC_ENDPOINTS,
@@ -37,6 +40,7 @@ import {
   EXEC_USD_DECIMALS,
   HTTP_STATUS,
   HTTP_UNAUTHORIZED,
+  JSON_RPC_ERRORS,
   MILLISECONDS_PER_SECOND,
   MODEL_API_MAX_OUTPUT_TOKENS,
   NO_COMPACTABLE_HISTORY,
@@ -47,10 +51,14 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { effortLevelsFor } from '../../shared/effort'
-
+import { formatUsd as exactUsd, parseUsd } from '../../shared/accountUsd'
 import { modelApiPaidTier } from '../../shared/paid'
-import type { RuntimeBackend } from '../backends'
-import { type ExecOptions, serveOptionsFor } from './execArgs'
+import type { RuntimeBackend, RuntimeBackendDeps } from '../backends'
+import { serveOptionsFor } from './execArgs'
+import { execAttachmentBlocks, type ExecAttachmentOptions as ExecOptions } from './attachArgs'
+import { execAccountSelection, type ExecAccountsPort } from './execAccounts'
+import type { AccountsSessionPort } from '../../acp/accounts'
+import { accountStopText, accountUsageUrl } from '../../acp/accountText'
 import { execFetch, type ExecTransport } from './execFetch'
 import { statusForStop, type Lifecycle, type StopCause } from './execLimits'
 import { createExecLogger, type ExecSink } from './execOutput'
@@ -77,6 +85,7 @@ import type { AssembledProviderRun } from './providerExec'
 import { createRunLedger } from './runLedger'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
+import type { ExecVaultPort, ExecVaultSession } from '../vault/execVault'
 import { metaSideCallFormats } from '../../core/backends/modelapi/modelCapabilities'
 import { compileOutputSchema, type OutputSchema } from './outputSchema'
 
@@ -121,6 +130,8 @@ export { setUiText } from '../../shared/l10n/text'
 export interface ExecDeps {
   readonly usageRecording?: UsageRecording | undefined
   readonly isUsageHistoryEnabled?: (() => boolean) | undefined
+  readonly accounts?: ExecAccountsPort
+  readonly vault?: ExecVaultPort
   options: ExecOptions
   version: string
   distDir: string
@@ -150,6 +161,8 @@ export interface ExecDeps {
     realpath: (file: string) => Promise<string>
     lstat: (file: string) => Promise<FileIdentity>
   }
+  /** W binds headless-safe capability, upload/replay and exact budget admission. */
+  media?: AcpMediaFactory
 }
 
 /** Open first, verify the held target, then read exclusively through that handle. */
@@ -266,6 +279,7 @@ function relativePaths(cwd: string, paths: readonly string[]): string[] {
 
 export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<number> {
   const { options } = deps
+  const mediaFactory = deps.media
   const cwd = path.resolve(deps.processCwd, options.cwd ?? deps.processCwd)
   const literals: string[] = []
   let isFinished = false
@@ -329,6 +343,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let runtime: RuntimeBackend | undefined
   let tap: SessionTap | undefined
   let transport: ExecTransport | undefined
+  let vaultSession: ExecVaultSession | undefined
+  let vaultDenial: string | undefined
   const setup: { sessionId: string | null; isUsageError: boolean } = {
     sessionId: null,
     isUsageError: true,
@@ -399,6 +415,12 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         type: 'limit',
         limit: cause.kind === 'accounting_invalid' ? 'accounting' : cause.kind,
       })
+  }
+  const denyVault = (message: string) => {
+    if (isFinishing) return
+    vaultDenial = message
+    setup.isUsageError = false
+    latch({ kind: 'denied' })
   }
   const observe = (event: AgentEvent) => {
     if (event.type === 'turnCompleted') {
@@ -512,6 +534,23 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     }
   }
   try {
+    if (
+      options.vault &&
+      (options.keyFromStdin ||
+        (deps.env['CI'] !== undefined &&
+          !['', '0', 'false'].includes(deps.env['CI'].toLowerCase())) ||
+        deps.vault === undefined)
+    ) {
+      denyVault(UI_TEXT.vault.brokerBlocked)
+      return await finish()
+    }
+    const selection = execAccountSelection(options)
+    const requiresAccounts =
+      options.accountPool === true || selection.account !== ACCOUNT_DEFAULT_ID
+    if (requiresAccounts && options.backend === 'museCode')
+      throw new Error(UI_TEXT.accounts.museCodeUnavailable)
+    if (requiresAccounts && deps.accounts === undefined)
+      throw new Error(UI_TEXT.accounts.unavailable)
     if (options.provider !== undefined) {
       const result = await runWithProvider()
       if (result !== undefined) return result
@@ -573,7 +612,12 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             text: resource.text,
           },
         })),
+        ...(await lifecycle.race(
+          execAttachmentBlocks(options.attachFiles ?? [], cwd, lifecycle.signal, deps.platform),
+        )),
       ]
+      if ((options.attachFiles?.length ?? 0) > 0 && deps.media === undefined)
+        throw new Error(UI_TEXT.media.uploadStorageUnknown)
       let secrets = providerRun?.secrets ?? deps.storeSecrets
       if (providerRun === undefined && options.keyFromStdin) {
         const key = await lifecycle.race(readKeyLine(deps.stdin, lifecycle.signal))
@@ -653,7 +697,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       engine.setUiText(UI_TEXT, uiLocale())
       restoreUsageRecording = engine.installUsageRecording(usageRecording)
       const { createRuntimeBackend } = engine
-      runtime = createRuntimeBackend({
+      const runtimeDeps: RuntimeBackendDeps = {
         options: serveOptionsFor(options),
         version: deps.version,
         distDir: deps.distDir,
@@ -709,7 +753,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             return Promise.resolve(isAllowed)
           },
         },
-      })
+      }
+      let accounts: AccountsSessionPort | undefined
+      if (requiresAccounts) {
+        const configured = deps.accounts?.create(runtimeDeps, selection, createRuntimeBackend)
+        if (configured === undefined) throw new Error(UI_TEXT.accounts.unavailable)
+        runtime = configured.runtime
+        accounts = configured.accounts
+      } else runtime = createRuntimeBackend(runtimeDeps)
       setup.isUsageError = false
       const readiness = await lifecycle.race(runtime.backend.readiness(false))
       if (readiness.state !== 'ready') {
@@ -721,12 +772,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       const { createAcpAgent, createExecClient } = engine
       const agent = createAcpAgent({
         questions: 'decline',
+        ...(accounts !== undefined && { accounts }),
         backend: tap.backend,
         version: deps.version,
         options: {
           canBypass: false,
           allowsContributorModels: options.allowsContributorModels,
           initialMode: options.mode,
+          isHeadless: true,
         },
         signIn: {
           id: 'headless',
@@ -739,8 +792,40 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         paid: runtime.paid,
         ...(resources !== undefined && { resources }),
         log,
+        ...(mediaFactory !== undefined && {
+          media: (context) =>
+            mediaFactory({
+              ...context,
+              onAttachment: ({ name, info }) => {
+                inputs.push({
+                  name: name.replaceAll(/[\\/:]/gu, '_'),
+                  bytes: info.sizeBytes,
+                  chunks: 0,
+                  complete: true,
+                })
+              },
+            }),
+        }),
       })
       const client = createExecClient({
+        onAccountNotice: (event) => {
+          if (event.type === 'swap')
+            log.info(
+              `${UI_TEXT.accounts.swapEvent}: ${event.provider} · ${event.account}. ${fill(UI_TEXT.accounts.coldCache, { cost: exactUsd(parseUsd(event.coldCacheUsd)) })}`,
+            )
+          else if (event.type === 'spread')
+            log.info(`${UI_TEXT.accounts.spreadEvent}: ${event.provider} · ${event.account}`)
+          else {
+            const text = accountStopText(event)
+            let url = ''
+            try {
+              if (accounts !== undefined) url = accountUsageUrl(accounts, event.provider)
+            } catch {
+              /* The notice remains visible without reflecting an invalid URL. */
+            }
+            log.info(`${text} ${url}`)
+          }
+        },
         sink,
         lifecycle,
         onDenial: (denial) => {
@@ -776,6 +861,39 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 .catch(() => {
                   /* Session already stopped or closed; cancellation is best effort. */
                 })
+            }
+            if (
+              requiresAccounts &&
+              created.configOptions?.find((option) => option.id === ACP_CONFIG_IDS.account)
+                ?.currentValue !== selection.account
+            ) {
+              setup.isUsageError = true
+              error = UI_TEXT.accounts.invalidAccount
+              return
+            }
+            if (options.vault && deps.vault !== undefined) {
+              try {
+                const vault = deps.vault
+                const opening = (async () => {
+                  const session = await vault.open({
+                    cwd,
+                    sessionId: created.sessionId,
+                    signal: lifecycle.signal,
+                    source: 'headless',
+                    unattended: true,
+                    onDenied: denyVault,
+                  })
+                  if (isFinishing || lifecycle.signal.aborted) {
+                    await session.close()
+                    throw new Error(UI_TEXT.vault.noAccess)
+                  }
+                  return session
+                })()
+                vaultSession = await lifecycle.race(opening)
+              } catch {
+                denyVault(UI_TEXT.vault.brokerBlocked)
+                return
+              }
             }
             const modelConfig = created.configOptions?.find(
               (option) => option.id === ACP_CONFIG_IDS.model,
@@ -908,6 +1026,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               stopReason = answer.stopReason
             } catch (error_: unknown) {
               error = error_ instanceof Error ? error_.message : String(error_)
+              if (
+                error_ instanceof engine.RequestError &&
+                error_.code === JSON_RPC_ERRORS.invalidParams &&
+                ((options.attachFiles?.length ?? 0) > 0 ||
+                  prompt.trim() === '/record' ||
+                  /^\/attach(?:\s|$)/u.test(prompt.trim()))
+              )
+                setup.isUsageError = true
             }
             await lifecycle.race(transport?.whenSettled() ?? Promise.resolve())
           } finally {
@@ -960,7 +1086,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     if (lifecycle.cause !== null) {
       status = statusForStop(lifecycle.cause)
       if (lifecycle.cause.kind !== 'budget' || error === UI_TEXT.execIncomplete)
-        error = stopMessage(lifecycle.cause, options.maxRequests ?? 0)
+        error =
+          vaultDenial !== undefined && lifecycle.cause.kind === 'denied'
+            ? vaultDenial
+            : stopMessage(lifecycle.cause, options.maxRequests ?? 0)
     } else if (status !== 'auth_required' && status !== 'backend_unavailable') {
       if (
         backendErrorKind === 'authRequired' ||
@@ -1089,7 +1218,22 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         literals.length = 0
       }
       try {
-        await grace(Promise.all([closeSession?.(), runtime?.close()]))
+        const closingVault = vaultSession
+        await grace(
+          Promise.all([
+            closeSession?.(),
+            runtime?.close(),
+            closingVault === undefined
+              ? undefined
+              : (async () => {
+                  try {
+                    await closingVault.close()
+                  } catch {
+                    throw new Error(UI_TEXT.vault.noAccess)
+                  }
+                })(),
+          ]),
+        )
       } catch (error_: unknown) {
         log.error(error_ instanceof Error ? error_.message : String(error_))
         lifecycle.latch({ kind: 'internal' })

@@ -15,6 +15,7 @@
 // Code's own lock (`.muse-memory.lock`, an operating-system lock) is not
 // taken: two writers updating one existing note may lose one write.
 
+import type { ContentSource } from '../schedules/provenance'
 import path from 'node:path'
 import {
   FILE_REFUSAL_MODEL_TEXT,
@@ -52,7 +53,10 @@ export interface MemoryDirectoryEntry {
 /** What the store reads and writes through; the host lends the file system. */
 export interface MemoryIo {
   /** The file's text, a BOM kept; undefined when absent; rejects when it is not UTF-8 text. */
-  readFile(absolutePath: string): Promise<string | undefined>
+  readFile(
+    absolutePath: string,
+    observeSource?: (source: Extract<ContentSource, { kind: 'file' }>) => void,
+  ): Promise<string | undefined>
   /** Whether the path is open with unsaved changes, which a replacement must not clobber. */
   hasUnsavedChanges(absolutePath: string): boolean
   /**
@@ -488,6 +492,11 @@ export class MemoryStore {
     } catch (error: unknown) {
       return failed(describe(error))
     }
+  }
+
+  /** A session lends its guarded I/O without mutating the window's shared store. */
+  public withIo(guard: (io: MemoryIo) => MemoryIo): MemoryStore {
+    return new MemoryStore({ ...this.deps, io: guard(this.deps.io) })
   }
 
   /** The scopes this window has: `personal` with a home, the other two with a folder. */

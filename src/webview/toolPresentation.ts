@@ -15,6 +15,7 @@ import {
   IMAGE_PREVIEW_TOOLS,
   MEMORY_TOOLS,
   MODEL_API_WEB_SEARCH_TOOL,
+  MODEL_API_SCHEDULED_TOOL,
   SCHEDULE_TOOLS,
   SHELL_TOOLS,
   UI_TEXT,
@@ -25,6 +26,8 @@ import {
 import { fill, formatBytes, plural } from '../shared/l10n/text'
 import { parseWebPageHeader } from '../shared/webPage'
 import type { PatchSummary } from './state/transcriptEntries'
+import type { ScheduleFireRecord } from '../shared/scheduleV2'
+import { parseScheduleSettlement } from './schedules/settlement'
 
 export type ToolBody =
   | 'preview'
@@ -43,6 +46,7 @@ export type ToolBody =
   | 'generic'
 
 export interface ToolPresentation {
+  readonly settlementOutcome?: ScheduleFireRecord['outcome']
   readonly label: string
   /** Path, command description, goal, prompt, query or nothing. */
   readonly summary: string
@@ -51,6 +55,8 @@ export interface ToolPresentation {
   readonly command: string | undefined
   /** The picture the call read or made, when its path names one (M43). */
   readonly imagePath: string | undefined
+  /** Video path candidate for E3's lazy preview; the host authorizes the resource. */
+  readonly videoPath?: string
 }
 
 interface ParsedArgs {
@@ -248,12 +254,34 @@ export function describeTool(
   tool: string,
   args: string,
   isArgumentPreview = false,
+  output?: string,
 ): ToolPresentation {
+  if (tool === MODEL_API_SCHEDULED_TOOL && output !== undefined) {
+    const parsed = parseScheduleSettlement(output)
+    if (parsed.ok)
+      return {
+        label:
+          parsed.fire.outcome === 'ran'
+            ? UI_TEXT.scheduleSettlement.sent
+            : UI_TEXT.scheduleSettlement.outcomes[parsed.fire.outcome],
+        summary: parsed.fire.scheduleId,
+        settlementOutcome: parsed.fire.outcome,
+        body: 'schedule',
+        command: undefined,
+        imagePath: undefined,
+      }
+  }
   const parsed = parseArgs(args)
   const label = toolLabel(tool) ?? mcpLabel(tool) ?? tool
   if (isArgumentPreview) {
     return { label, summary: '', body: 'preview', command: undefined, imagePath: undefined }
   }
+  const video =
+    FILE_READ_TOOLS.has(tool) &&
+    parsed.path !== undefined &&
+    /\.(?:mp4|mov)$/iu.test(parsed.path.replaceAll('\\', '/'))
+      ? { videoPath: parsed.path }
+      : {}
   const imagePath =
     IMAGE_PREVIEW_TOOLS.has(tool) && parsed.path !== undefined && isImagePath(parsed.path)
       ? parsed.path
@@ -272,7 +300,7 @@ export function describeTool(
     return { label, summary: parsed.path ?? '', body: 'edit', command: undefined, imagePath }
   }
   return FILE_READ_TOOLS.has(tool)
-    ? { label, summary: parsed.path ?? '', body: 'read', command: undefined, imagePath }
+    ? { label, summary: parsed.path ?? '', body: 'read', command: undefined, imagePath, ...video }
     : { label, ...otherPresentation(tool, parsed), command: undefined, imagePath }
 }
 

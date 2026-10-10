@@ -1,19 +1,22 @@
+import { buildPalette, slashCommandsOf } from '../../src/shared/paletteRegistry'
+import { paidFeaturePrice } from '../../src/shared/paid'
 import { afterEach, describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import {
   backendLabel,
-  buildPalette,
   filterPalette,
   flattenPalette,
   formatTokenWindow,
   type PaletteContext,
 } from '../../src/shared/palette'
-import {
-  rankSlashCommands,
-  type SlashCommand,
-  slashCommandsOf,
-} from '../../src/shared/slashCommands'
+import { slashCommandsOf as referenceSlashCommandsOf } from '../../src/shared/reference/slashReference'
+import { rankSlashCommands, type SlashCommand } from '../../src/shared/slashCommands'
+
+/** Paid rows with their exact prices, as the loaded money chunk states them. */
+function pricedPalette(context: PaletteContext) {
+  return buildPalette(context, (feature) => paidFeaturePrice(feature))
+}
 
 const context: PaletteContext = {
   currentModel: { modelId: 'muse-spark-1.3', contextLimit: 1_007_997 },
@@ -39,7 +42,7 @@ const context: PaletteContext = {
 }
 
 it('uses record effort tiers in the composer palette', () => {
-  const groups = buildPalette({
+  const groups = pricedPalette({
     ...context,
     models: [
       {
@@ -56,7 +59,7 @@ it('uses record effort tiers in the composer palette', () => {
 })
 
 it('disables the effort palette row when the record has no effort tiers', () => {
-  const groups = buildPalette({
+  const groups = pricedPalette({
     ...context,
     models: [
       { modelId: 'muse-spark-1.3', displayLabel: 'Muse', isDefault: true, effortLevels: [] },
@@ -69,9 +72,9 @@ it('disables the effort palette row when the record has no effort tiers', () => 
 })
 
 it('exposes prompt actions only with a bound host and keeps real tips', () => {
-  const absent = flattenPalette(buildPalette(context))
+  const absent = flattenPalette(pricedPalette(context))
   expect(absent.filter((item) => item.action.type === 'promptCommand')).toEqual([])
-  const bound = flattenPalette(buildPalette({ ...context, arePromptCommandsBound: true })).filter(
+  const bound = flattenPalette(pricedPalette({ ...context, arePromptCommandsBound: true })).filter(
     (item) => item.action.type === 'promptCommand',
   )
   expect(bound.map((item) => item.action)).toEqual([
@@ -121,7 +124,7 @@ describe('the palette in the installed table (M40)', () => {
       'de',
     )
     expect(backendLabel('modelApi')).toBe('Meta Model API (Schlüssel)')
-    const items = buildPalette(context).flatMap((group) => group.items)
+    const items = pricedPalette(context).flatMap((group) => group.items)
     expect(items.find((item) => item.id === 'switchModel')?.widget).toEqual({
       kind: 'value',
       text: 'muse-spark-1.3 (Kontext 1M)',
@@ -139,28 +142,28 @@ describe('the palette in the installed table (M40)', () => {
 
 /** The Customize group's row ids on a backend (M31). */
 function customizeIds(backend: PaletteContext['backend']) {
-  return buildPalette({ ...context, backend })
+  return pricedPalette({ ...context, backend })
     .find((group) => group.id === 'customize')
     ?.items.map((item) => item.id)
 }
 
 /** The MCP servers row's detail on a backend (M50). */
 function mcpDetailOn(backend: PaletteContext['backend']) {
-  return buildPalette({ ...context, backend })
+  return pricedPalette({ ...context, backend })
     .find((group) => group.id === 'customize')
     ?.items.find((item) => item.id === 'mcpServers')?.detail
 }
 
 /** The Skills group's row ids on a backend (M30). */
 function skillIdsOn(backend: PaletteContext['backend']) {
-  return buildPalette({ ...context, backend })
+  return pricedPalette({ ...context, backend })
     .find((group) => group.id === 'skills')
     ?.items.map((item) => item.id)
 }
 
 /** The export actions the slash group offers on a backend (M30). */
 function exportActionsOn(backend: PaletteContext['backend']) {
-  return buildPalette({ ...context, backend })
+  return pricedPalette({ ...context, backend })
     .find((group) => group.id === 'slash')
     ?.items.filter((item) => item.action.type === 'exportConversation')
     .map((item) => item.action)
@@ -169,21 +172,57 @@ function exportActionsOn(backend: PaletteContext['backend']) {
 /** Every action the slash group offers on a backend (M84). */
 function slashActionsOn(backend: PaletteContext['backend']) {
   return (
-    buildPalette({ ...context, backend })
+    pricedPalette({ ...context, backend })
       .find((group) => group.id === 'slash')
       ?.items.map((item) => item.action) ?? []
   )
 }
 
 function backendRow(base: PaletteContext, backend: PaletteContext['backend']) {
-  return buildPalette({ ...base, backend })
+  return pricedPalette({ ...base, backend })
     .find((group) => group.id === 'account')
     ?.items.find((item) => item.id === 'backend')
 }
 
+function estimateRow(isAvailable?: boolean) {
+  return pricedPalette({
+    ...context,
+    ...(isAvailable !== undefined && { estimateAvailable: isAvailable }),
+  })
+    .flatMap((group) => group.items)
+    .find((item) => item.id === 'estimate')
+}
+
 describe('buildPalette', () => {
+  it('offers deterministic reports on both backends separately from the problem report', () => {
+    for (const backend of ['museCode', 'modelApi'] as const) {
+      const groups = pricedPalette({ ...context, backend })
+      const rows = groups.flatMap((group) => group.items)
+      expect(rows.find((row) => row.id === 'showReport')).toMatchObject({
+        label: EN.reportShowItem,
+        slashName: 'report',
+        action: { type: 'showReport' },
+      })
+      expect(rows.find((row) => row.id === 'issue')?.action).toEqual({ type: 'openReport' })
+      expect(slashCommandsOf(groups).find((command) => command.name === 'report')?.detail).toBe(
+        EN.reportSlashDescription,
+      )
+    }
+  })
+
+  it('offers estimate only after the local composer binding is available', () => {
+    expect(estimateRow()).toBeUndefined()
+    expect(estimateRow(false)).toBeUndefined()
+    expect(estimateRow(true)).toMatchObject({
+      slashName: 'estimate',
+      label: EN.estimateTitle,
+      detail: EN.estimateUsage,
+      action: { type: 'insertSkill', selector: 'estimate' },
+    })
+  })
+
   it('lays out the seven Claude Code groups in order, with git and pull requests (M71), Review (M70) before Support', () => {
-    expect(buildPalette(context).map((group) => group.title)).toEqual([
+    expect(pricedPalette(context).map((group) => group.title)).toEqual([
       'Context',
       'Git and pull requests',
       'Model',
@@ -199,7 +238,7 @@ describe('buildPalette', () => {
   // M70: the review presets, the security preset and the review pane, on both backends.
   it('offers /review, the git presets, the security preset and the review pane on both backends', () => {
     for (const backend of ['museCode', 'modelApi'] as const) {
-      const review = buildPalette({ ...context, backend }).find((group) => group.id === 'review')
+      const review = pricedPalette({ ...context, backend }).find((group) => group.id === 'review')
       expect(review?.items.map((item) => [item.id, item.action])).toEqual([
         ['review', { type: 'startReview' }],
         [
@@ -218,7 +257,7 @@ describe('buildPalette', () => {
   })
 
   it('shows the current model, effort slider, toggles and mode as widgets', () => {
-    const groups = buildPalette(context)
+    const groups = pricedPalette(context)
     const items = groups.flatMap((group) => group.items)
     expect(items.find((item) => item.id === 'switchModel')?.widget).toEqual({
       kind: 'value',
@@ -255,7 +294,7 @@ describe('buildPalette', () => {
   })
 
   it('turns skills into slash rows with their argument hint', () => {
-    const skills = buildPalette(context).find((group) => group.id === 'skills')
+    const skills = pricedPalette(context).find((group) => group.id === 'skills')
     expect(skills?.items).toEqual([
       {
         id: 'manageSkills',
@@ -289,9 +328,9 @@ describe('buildPalette', () => {
   })
 
   it('explains an unloaded or empty skill list with a disabled row', () => {
-    const loading = buildPalette({ ...context, skills: undefined }).find((g) => g.id === 'skills')
+    const loading = pricedPalette({ ...context, skills: undefined }).find((g) => g.id === 'skills')
     expect(loading?.items.at(-1)).toMatchObject({ isDisabled: true, action: { type: 'none' } })
-    const empty = buildPalette({ ...context, skills: [] }).find((g) => g.id === 'skills')
+    const empty = pricedPalette({ ...context, skills: [] }).find((g) => g.id === 'skills')
     expect(empty?.items.at(-1)).toMatchObject({
       label: 'No skills available in this workspace',
       isDisabled: true,
@@ -299,14 +338,14 @@ describe('buildPalette', () => {
   })
 
   it('describes a missing model and usage honestly', () => {
-    const groups = buildPalette({ ...context, currentModel: undefined, usage: undefined })
+    const groups = pricedPalette({ ...context, currentModel: undefined, usage: undefined })
     const items = groups.flatMap((group) => group.items)
     expect(items.find((item) => item.id === 'switchModel')?.widget).toEqual({
       kind: 'value',
       text: 'Starting Muse Code…',
     })
     expect(items.find((item) => item.id === 'usage')?.widget).toEqual({ kind: 'value', text: '—' })
-    const noLimit = buildPalette({
+    const noLimit = pricedPalette({
       ...context,
       currentModel: { modelId: 'm', contextLimit: undefined },
     })
@@ -317,7 +356,7 @@ describe('buildPalette', () => {
   })
 
   it('offers Resume in the Context group, opening the History dialog', () => {
-    const context_group = buildPalette(context).find((group) => group.id === 'context')
+    const context_group = pricedPalette(context).find((group) => group.id === 'context')
     expect(context_group?.items.find((item) => item.id === 'resume')).toMatchObject({
       label: 'Resume',
       action: { type: 'openHistory' },
@@ -338,7 +377,7 @@ describe('buildPalette', () => {
   })
 
   it('opens the Account & usage dialog from its row and from /usage and /cost', () => {
-    const groups = buildPalette(context)
+    const groups = pricedPalette(context)
     const account = groups.find((group) => group.id === 'account')
     expect(account?.items[0]).toMatchObject({
       label: 'Account & usage…',
@@ -376,7 +415,7 @@ describe('buildPalette', () => {
 
   it('offers worktrees in the Context group on both backends (M32)', () => {
     for (const backend of ['museCode', 'modelApi', undefined] as const) {
-      const rows = buildPalette({ ...context, backend })
+      const rows = pricedPalette({ ...context, backend })
         .find((group) => group.id === 'context')
         ?.items.filter((item) => item.id.endsWith('Worktree'))
         .map((item) => item.action)
@@ -386,7 +425,7 @@ describe('buildPalette', () => {
 
   it('offers commit, push and pull requests on both backends (M71)', () => {
     for (const backend of ['museCode', 'modelApi', undefined] as const) {
-      const rows = buildPalette({ ...context, backend })
+      const rows = pricedPalette({ ...context, backend })
         .find((group) => group.id === 'git')
         ?.items.map((item) => item.action)
       expect(rows, String(backend)).toEqual([
@@ -432,7 +471,7 @@ describe('buildPalette', () => {
 
   it('offers the import from other agents on both backends and signed out (M83)', () => {
     for (const backend of ['museCode', 'modelApi', undefined] as const) {
-      const row = buildPalette({ ...context, backend })
+      const row = pricedPalette({ ...context, backend })
         .find((group) => group.id === 'customize')
         ?.items.find((item) => item.id === 'importFromAgents')
       expect(row, String(backend)).toEqual({
@@ -447,7 +486,7 @@ describe('buildPalette', () => {
 
   it('offers the Memory view on both backends, which share one memory (M49)', () => {
     for (const backend of ['museCode', 'modelApi', undefined] as const) {
-      const row = buildPalette({ ...context, backend })
+      const row = pricedPalette({ ...context, backend })
         .find((group) => group.id === 'customize')
         ?.items.find((item) => item.id === 'memory')
       expect(row, String(backend)).toEqual({
@@ -463,7 +502,7 @@ describe('buildPalette', () => {
 
   it('offers the saved plans in the Context group on both backends (M79)', () => {
     for (const backend of ['museCode', 'modelApi', undefined] as const) {
-      const row = buildPalette({ ...context, backend })
+      const row = pricedPalette({ ...context, backend })
         .find((group) => group.id === 'context')
         ?.items.find((item) => item.id === 'plans')
       expect(row, String(backend)).toEqual({
@@ -484,7 +523,7 @@ describe('buildPalette', () => {
 
   it('offers to continue Claude Code or Codex work where the session lists the skill (M30)', () => {
     const contextRows = (skills: PaletteContext['skills']) =>
-      buildPalette({ ...context, skills })
+      pricedPalette({ ...context, skills })
         .find((group) => group.id === 'context')
         ?.items.filter((item) => item.id.startsWith('continue:'))
     expect(contextRows(context.skills)).toEqual([])
@@ -534,7 +573,7 @@ describe('buildPalette', () => {
   })
 
   it('routes every enabled row to a real action', () => {
-    const rows = flattenPalette(buildPalette(context))
+    const rows = flattenPalette(pricedPalette(context))
     for (const item of rows) {
       expect(item.action.type, item.id).not.toBe('none')
     }
@@ -543,7 +582,7 @@ describe('buildPalette', () => {
 
 describe('filterPalette', () => {
   it('matches label or detail case-insensitively and drops empty groups', () => {
-    const groups = buildPalette(context)
+    const groups = pricedPalette(context)
     const filtered = filterPalette(groups, 'DEPLOY')
     expect(filtered.map((group) => group.id)).toEqual(['skills'])
     expect(filtered[0]?.items.map((item) => item.id)).toEqual(['skill:acme:deploy'])
@@ -557,7 +596,7 @@ describe('filterPalette', () => {
 describe('slashCommandsOf', () => {
   it('keeps /help local when an installed skill has the same selector', () => {
     const commands = slashCommandsOf(
-      buildPalette({
+      pricedPalette({
         ...context,
         skills: [{ selector: 'help', displayName: 'Help skill', description: 'Custom help' }],
       }),
@@ -569,7 +608,7 @@ describe('slashCommandsOf', () => {
     expect(commands.filter((command) => command.name === 'help')).toHaveLength(1)
   })
   it('lists the rows with a slash name and the skills, each name once, never a disabled row', () => {
-    const commands = slashCommandsOf(buildPalette(context))
+    const commands = slashCommandsOf(pricedPalette(context))
     const names = commands.map((command) => command.name)
     expect(names).toEqual([
       'resume',
@@ -601,6 +640,7 @@ describe('slashCommandsOf', () => {
       'security-review',
       'changes',
       'help',
+      'report',
     ])
     // A row named for the prompt describes itself by its label.
     expect(commands.find((command) => command.name === 'model')).toMatchObject({
@@ -621,7 +661,7 @@ describe('slashCommandsOf', () => {
     })
     for (const backend of ['museCode', 'modelApi', undefined] as const) {
       expect(
-        slashCommandsOf(buildPalette({ ...context, backend })).some(
+        slashCommandsOf(pricedPalette({ ...context, backend })).some(
           (command) => command.name === 'legal',
         ),
       ).toBe(true)
@@ -631,11 +671,28 @@ describe('slashCommandsOf', () => {
       selector: 'acme:deploy',
     })
     // Before the session lists skills, the disabled note is no command.
-    const loading = slashCommandsOf(buildPalette({ ...context, skills: undefined }))
+    const loading = slashCommandsOf(pricedPalette({ ...context, skills: undefined }))
     expect(loading.map((command) => command.name)).not.toContain(
       'Start a conversation to load skills',
     )
     expect(loading.every((command) => command.action.type !== 'none')).toBe(true)
+  })
+  it('leaves Help syntax and descriptions to the reference join, outside the "/" list', () => {
+    const groups = pricedPalette(context)
+    const compact = slashCommandsOf(groups).find((command) => command.name === 'compact')
+    expect(compact).toBeDefined()
+    expect(compact).not.toHaveProperty('syntax')
+    expect(compact).not.toHaveProperty('reference')
+    expect(
+      referenceSlashCommandsOf(groups).find((command) => command.name === 'compact'),
+    ).toStrictEqual({
+      ...compact,
+      syntax: ['/compact'],
+      reference: { museCode: { ui: 'compactDetail' }, modelApi: { ui: 'compactDetail' } },
+    })
+    expect(referenceSlashCommandsOf(groups).map((command) => command.name)).toEqual(
+      slashCommandsOf(groups).map((command) => command.name),
+    )
   })
 })
 
@@ -675,11 +732,11 @@ function paidRows(groups: ReturnType<typeof buildPalette>) {
 
 describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
   it('offers no paid toggle on the Muse Code backend without a stored key', () => {
-    expect(paidRows(buildPalette(context))).toEqual([])
+    expect(paidRows(pricedPalette(context))).toEqual([])
   })
 
   it('offers the key’s images, voice and legal explanation on Muse Code (M44, M97)', () => {
-    const rows = paidRows(buildPalette({ ...context, isKeyStored: true }))
+    const rows = paidRows(pricedPalette({ ...context, isKeyStored: true }))
     // Web search is Muse Code's own there, on the subscription.
     // D75 also exposes the key's team setting; paid delegate consent still gates use.
     expect(rows.map((row) => row.id)).toEqual([
@@ -697,7 +754,7 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
 
   it('offers each paid feature as a toggle naming its price on the Model API backend', () => {
     const rows = paidRows(
-      buildPalette({ ...context, backend: 'modelApi', paidFeatures: ['imageGeneration'] }),
+      pricedPalette({ ...context, backend: 'modelApi', paidFeatures: ['imageGeneration'] }),
     )
     expect(rows.map((row) => [row.label, row.detail, row.widget, row.action])).toEqual([
       [
@@ -784,13 +841,28 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
       ],
     ])
   })
+
+  it('names paid toggles without prices until the money chunk arrives (STARTUP017)', () => {
+    const rows = paidRows(
+      buildPalette({ ...context, backend: 'modelApi', paidFeatures: ['voice'] }),
+    )
+    const tips = new Map(Object.entries(EN.paletteTips))
+    expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows) {
+      expect(row.label).toContain('(paid)')
+      expect(row.detail).toBeUndefined()
+      // The static per-row tip still reads; only the exact price waits.
+      expect(row.tip).toBe(tips.get(row.id))
+      expect(row.widget).toEqual(expect.objectContaining({ kind: 'toggle' }))
+    }
+  })
 })
 
 describe('M87 palette tips', () => {
   it('covers every registry row on every backend, except loading and empty notes', () => {
     for (const backend of ['museCode', 'modelApi', undefined] as const) {
       for (const skills of [context.skills, undefined, []]) {
-        const rows = buildPalette({ ...context, backend, skills, isKeyStored: true }).flatMap(
+        const rows = pricedPalette({ ...context, backend, skills, isKeyStored: true }).flatMap(
           (group) => group.items,
         )
         expect(rows.length).toBeGreaterThan(0)
@@ -805,7 +877,7 @@ describe('M87 palette tips', () => {
   it.each(['', ' '.repeat(3), '  Own description.  '])(
     'uses the skill description or a named fallback: %j',
     (description) => {
-      const groups = buildPalette({
+      const groups = pricedPalette({
         ...context,
         skills: [{ selector: 'review', displayName: 'Review code', description }],
       })
@@ -821,7 +893,7 @@ describe('release Help and sharing menus', () => {
   it.each([false, true])(
     'offers one complete Help route with sharing bound: %s',
     (arePromptCommandsBound) => {
-      const items = flattenPalette(buildPalette({ ...context, arePromptCommandsBound }))
+      const items = flattenPalette(pricedPalette({ ...context, arePromptCommandsBound }))
       const help = items.filter((item) => item.slashName === 'help' || item.label === '/help')
       expect(help).toHaveLength(1)
       expect(help[0]?.action).toEqual({ type: 'openHelp' })
@@ -829,6 +901,38 @@ describe('release Help and sharing menus', () => {
         for (const id of ['shareChat', 'promptLibrary', 'promptUseSaved', 'sharePrompt'])
           expect(items.some((item) => item.id === id)).toBe(true)
       }
+    },
+  )
+})
+
+describe('M115 bound schedule palette', () => {
+  it.each(['museCode', 'modelApi'] as const)(
+    'exposes injected schedule actions on %s',
+    (backend) => {
+      const schedules: NonNullable<PaletteContext['schedules']> = {
+        create: { type: 'startLoop' },
+        list: { type: 'openHistory' },
+        timeline: { type: 'showPlans' },
+      }
+      const groups = pricedPalette({ ...context, backend, schedules })
+      const rows = groups.flatMap((group) => group.items)
+      expect(rows.find((row) => row.id === 'schedule')?.action).toEqual(schedules.list)
+      expect(rows.find((row) => row.id === 'schedulePrompt')?.action).toEqual(schedules.create)
+      expect(rows.find((row) => row.id === 'scheduleTimeline')?.action).toEqual(schedules.timeline)
+      expect(rows.find((row) => row.id === 'loop')?.action).toEqual({ type: 'startLoop' })
+      for (const id of ['schedule', 'schedulePrompt', 'scheduleTimeline']) {
+        expect(rows.find((row) => row.id === id)?.tip?.trim(), id).toBeTruthy()
+      }
+      expect(slashCommandsOf(groups).find((row) => row.name === 'schedule')).toBeDefined()
+    },
+  )
+  it.each(['museCode', 'modelApi'] as const)(
+    'keeps unbound scheduling actions hidden on %s',
+    (backend) => {
+      const rows = pricedPalette({ ...context, backend }).flatMap((group) => group.items)
+      expect(
+        rows.filter((row) => ['schedule', 'schedulePrompt', 'scheduleTimeline'].includes(row.id)),
+      ).toEqual([])
     },
   )
 })

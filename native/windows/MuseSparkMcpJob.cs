@@ -2,6 +2,32 @@
 // job helper (M27), shipped beside the extension and compiled on first use
 // (PLAN.md D6: kept out of the host bundle). C# 5, which Windows PowerShell
 // 5.1's Add-Type compiles.
+// SPAWN017C: the job object attests its own tree. The helper holds the only
+// handle to an unnamed kill-on-close job without breakaway, caps its active
+// processes through the job, waits in process until the job is empty, and
+// reports one final record on the owner's control pipe. No reader process
+// runs per launch.
+public sealed class MuseSparkJobAttestation {
+  public uint ActiveProcessLimit;
+  public uint SpawnLimit;
+  public int SpawnWindowMs;
+  public int SampleMs;
+  public int EmptyTimeoutMs;
+  internal System.IO.Stream Control;
+  // The job's completion port: the kernel posts a message for each child the
+  // active-process cap refused (JOB_OBJECT_MSG_ACTIVE_PROCESS_LIMIT).
+  internal IntPtr Port;
+  readonly object writing = new object();
+
+  internal void Send(string line) {
+    byte[] bytes = Encoding.UTF8.GetBytes(line + "\n");
+    lock (writing) {
+      Control.Write(bytes, 0, bytes.Length);
+      Control.Flush();
+    }
+  }
+}
+
 public static class MuseSparkMcpJob {
   [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
   struct STARTUPINFO {
@@ -36,6 +62,15 @@ public static class MuseSparkMcpJob {
     public ulong ReadTransferCount, WriteTransferCount, OtherTransferCount;
   }
   [StructLayout(LayoutKind.Sequential)]
+  struct JOB_PORT {
+    public IntPtr CompletionKey, CompletionPort;
+  }
+  [StructLayout(LayoutKind.Sequential)]
+  struct JOB_TOTALS {
+    public long TotalUserTime, TotalKernelTime, ThisPeriodTotalUserTime, ThisPeriodTotalKernelTime;
+    public uint TotalPageFaultCount, TotalProcesses, ActiveProcesses, TotalTerminatedProcesses;
+  }
+  [StructLayout(LayoutKind.Sequential)]
   struct EXTENDED_LIMITS {
     public BASIC_LIMITS BasicLimitInformation;
     public IO_COUNTERS IoInfo;
@@ -58,6 +93,24 @@ public static class MuseSparkMcpJob {
   static extern bool SetInformationJobObject(IntPtr job, int infoClass, ref EXTENDED_LIMITS info, int length);
   [DllImport("kernel32.dll", SetLastError = true)]
   static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
+  [DllImport("kernel32.dll", SetLastError = true)]
+  static extern bool TerminateJobObject(IntPtr job, uint exitCode);
+  [DllImport("kernel32.dll", SetLastError = true)]
+  static extern bool SetInformationJobObject(IntPtr job, int infoClass, ref JOB_PORT info, int length);
+  [DllImport("kernel32.dll", SetLastError = true)]
+  static extern IntPtr CreateIoCompletionPort(IntPtr file, IntPtr existing, UIntPtr key, uint threads);
+  [DllImport("kernel32.dll", SetLastError = true)]
+  static extern bool GetQueuedCompletionStatus(IntPtr port, out uint message, out UIntPtr key,
+    out IntPtr overlapped, uint timeout);
+  [DllImport("kernel32.dll", SetLastError = true)]
+  static extern bool QueryInformationJobObject(IntPtr job, int infoClass, out JOB_TOTALS info,
+    int length, IntPtr returned);
+  [DllImport("kernel32.dll", SetLastError = true)]
+  static extern bool QueryInformationJobObject(IntPtr job, int infoClass, out EXTENDED_LIMITS info,
+    int length, IntPtr returned);
+  [DllImport("kernel32.dll", SetLastError = true)]
+  static extern bool GetProcessTimes(IntPtr process, out long creation, out long exit,
+    out long kernel, out long user);
   [DllImport("kernel32.dll", SetLastError = true)]
   static extern uint ResumeThread(IntPtr thread);
   [DllImport("kernel32.dll", SetLastError = true)]
@@ -91,6 +144,17 @@ public static class MuseSparkMcpJob {
   const uint DUPLICATE_SAME_ACCESS = 0x2;
   const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
   const uint JOB_OBJECT_LIMIT_JOB_MEMORY = 0x200;
+  const uint JOB_OBJECT_LIMIT_ACTIVE_PROCESS = 0x8;
+  const uint JOB_OBJECT_LIMIT_BREAKAWAY_OK = 0x800;
+  const uint JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK = 0x1000;
+  const int JOB_BASIC_ACCOUNTING = 1;
+  const int JOB_EXTENDED_LIMITS = 9;
+  const int JOB_ASSOCIATE_COMPLETION_PORT = 7;
+  const uint JOB_MSG_ACTIVE_PROCESS_LIMIT = 3;
+  const uint JOB_MSG_PROCESS_MEMORY_LIMIT = 9, JOB_MSG_JOB_MEMORY_LIMIT = 10;
+  const int EMPTY_POLL_MS = 5;
+  const uint OWNER_GONE_EXIT = 4, STOPPED_EXIT = 5, SPAWN_RATE_EXIT = 6;
+  const long TICKS_PER_MS = 10000;
   const uint WAIT_OBJECT_0 = 0;
   const uint WAIT_TIMEOUT = 258;
   const uint SYNCHRONIZE = 0x00100000;
@@ -138,8 +202,13 @@ public static class MuseSparkMcpJob {
   // private pipe after this helper has bound the owner's process handle, so
   // even a PID recycled before OpenProcess cannot authorize the child.
   static void ConfirmOwner(string pipeName, string nonce, IntPtr parent) {
-    using (var control = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut,
-      PipeOptions.Asynchronous)) {
+    using (OpenOwner(pipeName, nonce, parent)) { }
+  }
+
+  static NamedPipeClientStream OpenOwner(string pipeName, string nonce, IntPtr parent) {
+    var control = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut,
+      PipeOptions.Asynchronous);
+    try {
       control.Connect(HANDSHAKE_TIMEOUT_MS);
       byte[] ready = Encoding.UTF8.GetBytes("READY " + nonce + "\n");
       control.Write(ready, 0, ready.Length);
@@ -161,6 +230,10 @@ public static class MuseSparkMcpJob {
         throw new IOException("creating Node process did not authorize the launch");
       if (WaitForSingleObject(parent, 0) != WAIT_TIMEOUT)
         throw new IOException("creating Node process exited before launch");
+      return control;
+    } catch {
+      control.Dispose();
+      throw;
     }
   }
 
@@ -204,6 +277,22 @@ public static class MuseSparkMcpJob {
   public static int Run(string executable, string[] arguments, string cwd, uint parentPid,
     string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce,
     ulong jobMemoryLimit, bool debugPipes, Action<uint, IntPtr> beforeResume) {
+    return RunCore(executable, arguments, cwd, parentPid, childEnvironment, verbatimArguments,
+      controlPipe, controlNonce, jobMemoryLimit, debugPipes, beforeResume, null);
+  }
+
+  public static int RunAttested(string executable, string[] arguments, string cwd, uint parentPid,
+    string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce,
+    ulong jobMemoryLimit, MuseSparkJobAttestation attestation) {
+    if (attestation == null) throw new ArgumentNullException("attestation");
+    return RunCore(executable, arguments, cwd, parentPid, childEnvironment, verbatimArguments,
+      controlPipe, controlNonce, jobMemoryLimit, false, null, attestation);
+  }
+
+  static int RunCore(string executable, string[] arguments, string cwd, uint parentPid,
+    string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce,
+    ulong jobMemoryLimit, bool debugPipes, Action<uint, IntPtr> beforeResume,
+    MuseSparkJobAttestation attestation) {
     IntPtr job = IntPtr.Zero, input = IntPtr.Zero, output = IntPtr.Zero, error = IntPtr.Zero;
     IntPtr parent = IntPtr.Zero;
     IntPtr attributeList = IntPtr.Zero, handleList = IntPtr.Zero;
@@ -218,9 +307,11 @@ public static class MuseSparkMcpJob {
       if (parent == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
       if (WaitForSingleObject(parent, 0) != WAIT_TIMEOUT)
         throw new Exception("creating Node process has already exited");
-      ConfirmOwner(controlPipe, controlNonce, parent);
+      if (attestation == null) ConfirmOwner(controlPipe, controlNonce, parent);
+      else attestation.Control = OpenOwner(controlPipe, controlNonce, parent);
       // C1: the private launch pipe also names the job the owner's registry queries.
-      job = CreateJobObjectW(IntPtr.Zero, "Local\\" + controlPipe);
+      // An attested job is unnamed: no other process can open it and keep it alive.
+      job = CreateJobObjectW(IntPtr.Zero, attestation == null ? "Local\\" + controlPipe : null);
       if (job == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
       var limits = new EXTENDED_LIMITS();
       limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
@@ -229,8 +320,21 @@ public static class MuseSparkMcpJob {
         limits.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_JOB_MEMORY;
         limits.JobMemoryLimit = new UIntPtr(jobMemoryLimit);
       }
+      if (attestation != null && attestation.ActiveProcessLimit > 0) {
+        limits.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_ACTIVE_PROCESS;
+        limits.BasicLimitInformation.ActiveProcessLimit = attestation.ActiveProcessLimit;
+      }
       if (!SetInformationJobObject(job, 9, ref limits, Marshal.SizeOf(typeof(EXTENDED_LIMITS))))
         throw new Win32Exception(Marshal.GetLastWin32Error());
+      if (attestation != null) {
+        RequireContainment(job);
+        // Before any process joins, so no limit message can be missed.
+        attestation.Port = CreateIoCompletionPort(new IntPtr(-1), IntPtr.Zero, UIntPtr.Zero, 1);
+        if (attestation.Port == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
+        var port = new JOB_PORT { CompletionKey = job, CompletionPort = attestation.Port };
+        if (!SetInformationJobObject(job, JOB_ASSOCIATE_COMPLETION_PORT, ref port,
+          Marshal.SizeOf(typeof(JOB_PORT)))) throw new Win32Exception(Marshal.GetLastWin32Error());
+      }
       input = InheritStandard(-10);
       output = InheritStandard(-11);
       error = InheritStandard(-12);
@@ -296,9 +400,13 @@ public static class MuseSparkMcpJob {
         throw new Win32Exception(Marshal.GetLastWin32Error());
       assigned = true;
       if (beforeResume != null) beforeResume(process.dwProcessId, process.hProcess);
+      if (attestation != null)
+        attestation.Send("PID " + process.dwProcessId.ToString(Invariant) + " " +
+          Creation(process.hProcess).ToString(Invariant));
       if (WaitForSingleObject(parent, 0) != WAIT_TIMEOUT) throw new Exception("creating Node process exited before resume");
       if (ResumeThread(process.hThread) == 0xffffffff)
         throw new Win32Exception(Marshal.GetLastWin32Error());
+      if (attestation != null) return Attest(job, process.hProcess, parent, attestation);
       uint wait = WaitForMultipleObjects(2, new IntPtr[] { process.hProcess, parent }, false, 0xffffffff);
       if (wait == WAIT_OBJECT_0 + 1) return 4;
       if (wait != WAIT_OBJECT_0) throw new Win32Exception(Marshal.GetLastWin32Error());
@@ -321,6 +429,147 @@ public static class MuseSparkMcpJob {
       if (environmentBlock != IntPtr.Zero) Marshal.FreeHGlobal(environmentBlock);
       if (job != IntPtr.Zero) CloseHandle(job);
       if (parent != IntPtr.Zero) CloseHandle(parent);
+      if (attestation != null && attestation.Control != null) attestation.Control.Dispose();
+      if (attestation != null && attestation.Port != IntPtr.Zero) CloseHandle(attestation.Port);
     }
+  }
+
+  static readonly IFormatProvider Invariant = System.Globalization.CultureInfo.InvariantCulture;
+
+  static long Creation(IntPtr process) {
+    long creation, exit, kernel, user;
+    if (!GetProcessTimes(process, out creation, out exit, out kernel, out user))
+      throw new Win32Exception(Marshal.GetLastWin32Error());
+    return creation;
+  }
+
+  static JOB_TOTALS Totals(IntPtr job) {
+    JOB_TOTALS totals;
+    if (!QueryInformationJobObject(job, JOB_BASIC_ACCOUNTING, out totals,
+      Marshal.SizeOf(typeof(JOB_TOTALS)), IntPtr.Zero))
+      throw new Win32Exception(Marshal.GetLastWin32Error());
+    return totals;
+  }
+
+  static EXTENDED_LIMITS Limits(IntPtr job) {
+    EXTENDED_LIMITS limits;
+    if (!QueryInformationJobObject(job, JOB_EXTENDED_LIMITS, out limits,
+      Marshal.SizeOf(typeof(EXTENDED_LIMITS)), IntPtr.Zero))
+      throw new Win32Exception(Marshal.GetLastWin32Error());
+    return limits;
+  }
+
+  // Every pending job message, without waiting: the cap's refusals and which memory
+  // limits the kernel enforced against this tree.
+  static void DrainLimits(IntPtr port, ref uint refusals, ref bool jobMemory, ref bool processMemory) {
+    uint message;
+    UIntPtr key;
+    IntPtr overlapped;
+    while (GetQueuedCompletionStatus(port, out message, out key, out overlapped, 0)) {
+      if (message == JOB_MSG_ACTIVE_PROCESS_LIMIT) refusals++;
+      else if (message == JOB_MSG_JOB_MEMORY_LIMIT) jobMemory = true;
+      else if (message == JOB_MSG_PROCESS_MEMORY_LIMIT) processMemory = true;
+    }
+  }
+
+  // Read back what the kernel holds: kill on close, and no way to break away.
+  static void RequireContainment(IntPtr job) {
+    uint flags = Limits(job).BasicLimitInformation.LimitFlags;
+    if ((flags & JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE) == 0 ||
+        (flags & (JOB_OBJECT_LIMIT_BREAKAWAY_OK | JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK)) != 0)
+      throw new InvalidDataException("job containment flags");
+  }
+
+  // Waits for the root, a STOP (or the owner's pipe closing) or the owner's exit;
+  // enforces the spawn rate from the job's own birth count; then ends the whole
+  // job and waits until it is empty before reporting. The record goes out last.
+  static int Attest(IntPtr job, IntPtr root, IntPtr parent, MuseSparkJobAttestation attestation) {
+    var stop = new System.Threading.ManualResetEvent(false);
+    var reader = new System.Threading.Thread(() => {
+      try {
+        var buffer = new byte[16];
+        var text = new StringBuilder();
+        for (;;) {
+          int count = attestation.Control.Read(buffer, 0, buffer.Length);
+          if (count <= 0) break;
+          text.Append(Encoding.UTF8.GetString(buffer, 0, count));
+          // STOP is the only message an owner sends; anything else also ends the launch.
+          if (text.Length >= 5) break;
+        }
+      } catch (Exception) {
+        // A broken pipe is an owner that can no longer govern this tree.
+      }
+      stop.Set();
+    });
+    reader.IsBackground = true;
+    reader.Start();
+    IntPtr[] handles = { root, parent, stop.SafeWaitHandle.DangerousGetHandle() };
+    var births = new Queue<long>();
+    var clock = System.Diagnostics.Stopwatch.StartNew();
+    uint seen = 0, exitCode = 0, refusals = 0;
+    bool jobMemory = false, processMemory = false;
+    string ending = "exit";
+    for (;;) {
+      uint wait = WaitForMultipleObjects(3, handles, false, (uint)attestation.SampleMs);
+      JOB_TOTALS totals = Totals(job);
+      DrainLimits(attestation.Port, ref refusals, ref jobMemory, ref processMemory);
+      long now = clock.ElapsedMilliseconds;
+      for (; seen < totals.TotalProcesses; seen++) births.Enqueue(now);
+      while (births.Count > 0 && now - births.Peek() >= attestation.SpawnWindowMs) births.Dequeue();
+      if (attestation.SpawnLimit > 0 && births.Count > attestation.SpawnLimit) {
+        ending = "spawnRate";
+        exitCode = SPAWN_RATE_EXIT;
+        break;
+      }
+      if (wait == WAIT_OBJECT_0) {
+        if (!GetExitCodeProcess(root, out exitCode))
+          throw new Win32Exception(Marshal.GetLastWin32Error());
+        break;
+      }
+      if (wait == WAIT_OBJECT_0 + 1) {
+        ending = "owner";
+        exitCode = OWNER_GONE_EXIT;
+        break;
+      }
+      if (wait == WAIT_OBJECT_0 + 2) {
+        ending = "stopped";
+        exitCode = STOPPED_EXIT;
+        break;
+      }
+      if (wait != WAIT_TIMEOUT) throw new Win32Exception(Marshal.GetLastWin32Error());
+    }
+    // A contained tree ends with its root: what the root left behind is ended too.
+    if (!TerminateJobObject(job, exitCode)) throw new Win32Exception(Marshal.GetLastWin32Error());
+    bool emptied = false;
+    var drain = System.Diagnostics.Stopwatch.StartNew();
+    for (;;) {
+      if (Totals(job).ActiveProcesses == 0) {
+        emptied = true;
+        break;
+      }
+      if (drain.ElapsedMilliseconds >= attestation.EmptyTimeoutMs) break;
+      System.Threading.Thread.Sleep(EMPTY_POLL_MS);
+    }
+    JOB_TOTALS final = Totals(job);
+    DrainLimits(attestation.Port, ref refusals, ref jobMemory, ref processMemory);
+    var limits = new List<string>();
+    if (refusals > 0) limits.Add("\"activeProcess\"");
+    if (jobMemory) limits.Add("\"jobMemory\"");
+    if (processMemory) limits.Add("\"processMemory\"");
+    ulong peak = Limits(job).PeakJobMemoryUsed.ToUInt64();
+    string record = "{\"v\":1,\"ending\":\"" + ending + "\",\"exitCode\":" +
+      ((int)exitCode).ToString(Invariant) + ",\"emptied\":" + (emptied ? "true" : "false") +
+      ",\"cpuMs\":" + ((final.TotalUserTime + final.TotalKernelTime) / TICKS_PER_MS).ToString(Invariant) +
+      ",\"peakJobMemoryBytes\":" + peak.ToString(Invariant) +
+      ",\"totalProcesses\":" + final.TotalProcesses.ToString(Invariant) +
+      ",\"capRefusals\":" + refusals.ToString(Invariant) +
+      ",\"limits\":[" + string.Join(",", limits.ToArray()) + "]" +
+      ",\"activeProcessLimit\":" + attestation.ActiveProcessLimit.ToString(Invariant) + "}";
+    try {
+      attestation.Send("RESULT " + record);
+    } catch (Exception) {
+      // The owner treats a missing record as an unobserved retirement (uncertain).
+    }
+    return (int)exitCode;
   }
 }

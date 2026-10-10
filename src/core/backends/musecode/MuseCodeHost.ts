@@ -7,9 +7,26 @@ import type { UsageRecording } from '../../usage/recording'
 // The process boundary (`MspHost`) is injected so unit tests drive the class
 // through a fake in-memory transport.
 
+import { editAutomaticallyChoice } from '../../agent/approvalRules'
+import type { UnattendedRun, ScheduledAgentSession } from '../../schedules/unattended'
+import { SessionOwner, type SessionToken, type SessionEffect } from '../../schedules/sessionOwner'
+import type { ScheduleApprovalAction } from '../../../shared/scheduleV2'
+import { mspApprovalMode } from '../../../shared/permissionModes'
 import { Buffer } from 'node:buffer'
 import { observeAgentItem, observeChildReceipt } from '../../agent/agentObservation'
-import { type Connection, MspError, ProtocolError } from '@muse-code/sdk'
+import { type ChildProcess, spawn } from 'node:child_process'
+// Exact SDK pin: reuse bounded process teardown while wrapping actual submission.
+import { ChildStdioTransport } from '@muse-code/sdk/dist/src/connection/spawn.js'
+import type { MuseCodeAccountHome } from './accountHomes'
+import {
+  Connection,
+  type DuplexTransport,
+  MspError,
+  ProtocolError,
+  checkServedFingerprint,
+  type MspHandshake,
+  type SpawnMspConnectionOptions,
+} from '@muse-code/sdk'
 import * as z from 'zod/mini'
 import {
   type AgentEvent,
@@ -58,7 +75,6 @@ import {
 } from '../../../shared/usage'
 import {
   type AgentHost,
-  type AgentSession,
   type ApprovalDecision,
   type CompactOutcome,
   type GoalCommand,
@@ -121,6 +137,8 @@ import {
 /** What the SDK's `SpawnedMspConnection` provides, narrowed to what we use. */
 export interface MspHost {
   readonly connection: Connection
+  /** Required for an account lease: owns the SDK transport submission boundary. */
+  readonly commandOwner?: MuseCodeCommandOwner
   readonly initializeResult: unknown
   readonly exited: Promise<{ readonly code: number | null; readonly signal: string | null }>
   close(): Promise<unknown>
@@ -457,12 +475,150 @@ class HostLiveness {
   }
 }
 
+/** Local authority only: request ids and lease generations never add wire fields. */
+export interface MuseCodeLeaseState {
+  readonly generation: number
+  readonly status: 'active' | 'revoked' | 'closed'
+  readonly queued: ReadonlyMap<number, number>
+}
+export type MuseCodeLeaseEvent =
+  | { readonly type: 'queue'; readonly id: number; readonly generation: number }
+  | { readonly type: 'dispatch'; readonly id: number }
+  | { readonly type: 'resume'; readonly generation: number }
+  | { readonly type: 'revoke' }
+  | { readonly type: 'close' }
+
+/** One synchronous transition; only its admitted effect permits submission or adoption. */
+export function stepMuseCodeLease(
+  state: MuseCodeLeaseState,
+  event: MuseCodeLeaseEvent,
+): {
+  readonly state: MuseCodeLeaseState
+  readonly effects: { readonly admitted: boolean }
+} {
+  if (event.type === 'revoke' || event.type === 'close') {
+    return {
+      state: {
+        ...state,
+        status: event.type === 'close' || state.status === 'closed' ? 'closed' : 'revoked',
+        queued: new Map(),
+      },
+      effects: { admitted: false },
+    }
+  }
+  const generation = event.type === 'dispatch' ? state.queued.get(event.id) : event.generation
+  const canAdmit = state.status === 'active' && generation === state.generation
+  if (event.type === 'resume') return { state, effects: { admitted: canAdmit } }
+  const queued = new Map(state.queued)
+  if (canAdmit && event.type === 'queue') queued.set(event.id, event.generation)
+  if (event.type === 'dispatch') queued.delete(event.id)
+  return { state: { ...state, queued }, effects: { admitted: canAdmit } }
+}
+
+// SDK-owned outgoing JSON-RPC envelope, not a new Muse Code response shape.
+const submissionSchema = z.object({
+  id: z.optional(z.union([z.number(), z.string()])),
+  method: z.optional(z.string()),
+})
+
+/** Serialized owner shared by the transport, host, retained sessions and resume. */
+export class MuseCodeCommandOwner {
+  private state: MuseCodeLeaseState
+  private nextRequestId = 0
+  private readonly lifetime = new AbortController()
+  private connection: Connection | undefined
+  public readonly generation: number
+  public readonly signal: AbortSignal
+
+  public constructor(public readonly accountHome?: MuseCodeAccountHome) {
+    this.generation = accountHome?.generation ?? 0
+    this.state = { generation: this.generation, status: 'active', queued: new Map() }
+    this.signal =
+      accountHome === undefined
+        ? this.lifetime.signal
+        : AbortSignal.any([this.lifetime.signal, accountHome.signal])
+    this.signal.addEventListener(
+      'abort',
+      () => {
+        this.step({ type: this.lifetime.signal.aborted ? 'close' : 'revoke' })
+      },
+      { once: true },
+    )
+    if (this.signal.aborted) this.step({ type: 'revoke' })
+  }
+
+  private step(event: MuseCodeLeaseEvent): boolean {
+    const next = stepMuseCodeLease(this.state, event)
+    this.state = next.state
+    return next.effects.admitted
+  }
+
+  public assertCurrent(generation: number): void {
+    if (this.state.status === 'closed') throw new Error(UI_TEXT.questionCancelled)
+    try {
+      this.accountHome?.assertCurrent()
+      if (this.accountHome !== undefined && this.accountHome.generation !== this.generation)
+        throw new Error(UI_TEXT.accounts.invalidAccount)
+    } catch (error: unknown) {
+      this.step({ type: 'revoke' })
+      throw error
+    }
+    if (!this.step({ type: 'resume', generation })) throw new Error(UI_TEXT.accounts.invalidAccount)
+  }
+
+  /** The SDK calls write after its private write tail clears; no await separates guard and write. */
+  public connect(transport: DuplexTransport): Connection {
+    if (this.connection !== undefined) throw new Error(UI_TEXT.accounts.invalidAccount)
+    const closeTransport = transport.close?.bind(transport)
+    this.connection = new Connection(
+      {
+        incoming: transport.incoming,
+        write: (chunk) => {
+          this.assertCurrent(this.generation)
+          const frame = submissionSchema.parse(JSON.parse(chunk))
+          if (
+            frame.method !== undefined &&
+            frame.id !== undefined &&
+            (typeof frame.id !== 'number' || !this.step({ type: 'dispatch', id: frame.id }))
+          )
+            throw new Error(UI_TEXT.accounts.invalidAccount)
+          return transport.write(chunk)
+        },
+        ...(closeTransport !== undefined && { close: closeTransport }),
+      },
+      {
+        mintRequestId: () => {
+          this.assertCurrent(this.generation)
+          this.nextRequestId += 1
+          const id = this.nextRequestId
+          if (!this.step({ type: 'queue', id, generation: this.generation }))
+            throw new Error(UI_TEXT.accounts.invalidAccount)
+          return id
+        },
+      },
+    )
+    return this.connection
+  }
+
+  public ownsConnection(connection: Connection): boolean {
+    return this.connection === connection
+  }
+
+  public close(): void {
+    this.step({ type: 'close' })
+    this.lifetime.abort()
+  }
+}
+
 /** What every command on one connection shares: its deadlines, its log and its watchdog. */
 interface CommandChannel {
   readonly connection: Connection
   readonly timeouts: CommandTimeouts
   readonly log: CoreLogger
   readonly liveness: HostLiveness
+  readonly generation: number
+  readonly signal: AbortSignal
+  readonly assertCurrent: (generation: number) => void
 }
 
 /** An MSP refusal that admitted nothing, so the same command may be sent again. */
@@ -501,6 +657,10 @@ function mspInput(parts: readonly TurnPart[]): readonly TurnPart[] {
   const input: TurnPart[] = []
   let attachmentBytes = 0
   for (const part of parts) {
+    // U16 is not captured on this base. Never disguise media as an MSP image/file.
+    if ('mediaType' in part && /^(?:video|audio)\//u.test(part.mediaType)) {
+      throw new Error(UI_TEXT.media.museCodeRefusal)
+    }
     if (part.type === 'file') {
       throw new Error(UI_TEXT.pdfNeedsModelApi)
     }
@@ -522,16 +682,19 @@ function mspInput(parts: readonly TurnPart[]): readonly TurnPart[] {
 }
 
 /**
- * `Connection.command` without its memory (PLAN.md D26). The SDK keeps the
- * canonical payload of every command for the connection's life, an image
- * turn's base64 included, to check replays across reconnects this
- * extension never makes, so a long session's memory only grew. The same
+ * `Connection.command` without its memory (PLAN.md D26). Up to SDK 1.4.2 it
+ * kept the canonical payload of every command for the connection's life,
+ * an image turn's base64 included, to check replays across reconnects this
+ * extension never makes (#35). 1.4.4 keeps a SHA-256 per command instead,
+ * still never evicted; this stays because each attempt here is also fenced
+ * by the host generation and heard by the watchdog (SDK144). The same
  * contract otherwise: the command id rides in the params, the ack must echo
  * it, and a refusal that admitted nothing (`overloaded`, `backpressured`)
  * is retried with the same id after a short, growing, jittered wait.
  */
 async function sendCommand(
   channel: CommandChannel,
+  generation: number,
   method: string,
   params: Record<string, unknown>,
   commandId: string,
@@ -545,7 +708,7 @@ async function sendCommand(
   }
   for (let attempt = 1; ; attempt += 1) {
     try {
-      const ack = await answered(channel, method, commandParams)
+      const ack = await answered(channel, generation, method, commandParams)
       if (ack['commandId'] !== undefined && ack['commandId'] !== commandId) {
         throw new Error(`${method} ack did not echo its commandId ${commandId}`)
       }
@@ -570,14 +733,18 @@ async function sendCommand(
  */
 async function answered(
   channel: CommandChannel,
+  generation: number,
   method: string,
   params: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
+  channel.assertCurrent(generation)
   try {
     const answer = await channel.connection.request(method, params)
+    channel.assertCurrent(generation)
     channel.liveness.heard()
     return answer
   } catch (error: unknown) {
+    channel.assertCurrent(generation)
     if (error instanceof MspError) {
       channel.liveness.heard()
     }
@@ -591,6 +758,7 @@ async function answered(
  */
 async function requestWithin<T>(
   channel: CommandChannel,
+  generation: number,
   method: string,
   timeoutMs: number,
   request: () => Promise<T>,
@@ -599,17 +767,30 @@ async function requestWithin<T>(
     channel.log.info(`${method} was not sent: Muse Code is not answering`)
     throw new Error(UI_TEXT.museCodeNotAnswering)
   }
+  channel.assertCurrent(generation)
+  let onAbort: (() => void) | undefined
+  const cancelled = new Promise<never>((_resolve, reject) => {
+    onAbort = () => {
+      reject(new Error(UI_TEXT.questionCancelled))
+    }
+    channel.signal.addEventListener('abort', onAbort, { once: true })
+  })
   try {
-    return await withDeadline(
-      request(),
+    const answer = await withDeadline(
+      Promise.race([request(), cancelled]),
       timeoutMs,
       `Muse Code did not answer ${method} within ${String(Math.round(timeoutMs / MILLISECONDS_PER_SECOND))} s`,
     )
+    channel.assertCurrent(generation)
+    return answer
   } catch (error: unknown) {
+    channel.assertCurrent(generation)
     if (error instanceof DeadlineError) {
       channel.liveness.missed(method)
     }
     throw error
+  } finally {
+    if (onAbort !== undefined) channel.signal.removeEventListener('abort', onAbort)
   }
 }
 
@@ -620,6 +801,7 @@ async function requestWithin<T>(
  */
 async function commandWithin(
   channel: CommandChannel,
+  generation: number,
   method: string,
   params: Record<string, unknown>,
   commandId: string = channel.connection.mintCommandId(),
@@ -628,8 +810,8 @@ async function commandWithin(
   const timeoutMs = MSP_LONG_COMMANDS.has(method) ? timeouts.longMs : timeouts.normalMs
   const startedAt = Date.now()
   try {
-    const answer = await requestWithin(channel, method, timeoutMs, () =>
-      sendCommand(channel, method, params, commandId),
+    const answer = await requestWithin(channel, generation, method, timeoutMs, () =>
+      sendCommand(channel, generation, method, params, commandId),
     )
     log.trace(`${method} answered in ${String(Date.now() - startedAt)} ms`)
     return answer
@@ -743,7 +925,12 @@ export class MuseUsageDeltas {
   }
 }
 
-export class MuseSession implements AgentSession {
+interface NativeFireToken {
+  readonly run: UnattendedRun
+  readonly token: SessionToken
+}
+
+export class MuseSession implements ScheduledAgentSession {
   private readonly observedAgents = new Map<string, ItemSnapshot>()
 
   private readonly listeners = new Set<SessionEventListener>()
@@ -770,6 +957,13 @@ export class MuseSession implements AgentSession {
   private readonly unqueuedTurns = new Set<string>()
   private readonly log: CoreLogger
   private readonly timeouts: CommandTimeouts
+  private readonly owner: SessionOwner
+  private readonly scheduledItems = new Map<string, NativeFireToken>()
+  private readonly scheduledApprovals = new Map<string, NativeFireToken>()
+  private readonly scheduledQuestions = new Set<string>()
+  private heldScheduleEvents: { event: AgentEvent; fire: NativeFireToken | undefined }[] | undefined
+  private restoringScheduleMode: Promise<void> = Promise.resolve()
+  private readonly leaseGeneration: number
 
   public constructor(
     public readonly sessionId: string,
@@ -779,15 +973,137 @@ export class MuseSession implements AgentSession {
     /** The host granted `userShell` at the handshake (M46): `!` commands may run. */
     private readonly canRunUserShell: boolean,
     private readonly usageDeltas?: MuseUsageDeltas,
+    initialApprovalMode?: string,
   ) {
+    this.owner = new SessionOwner(initialApprovalMode)
     this.log = channel.log
     this.timeouts = channel.timeouts
+    this.leaseGeneration = channel.generation
   }
 
   /** One MSP command against this session with a freshly minted commandId. */
+  private async decideScheduledApproval(
+    event: Extract<AgentEvent, { type: 'approvalRequested' | 'approvalUpdated' }>,
+    fire: NativeFireToken,
+  ): Promise<void> {
+    const { run, token } = fire
+    const subject = event.subject
+    const isKnown = ['shell', 'fileAccess', 'fileWrite', 'network', 'tool'].includes(subject.kind)
+    let actionClass: ScheduleApprovalAction['class'] = 'mcp'
+    switch (subject.kind) {
+      case 'shell': {
+        actionClass = 'shell'
+        break
+      }
+      case 'fileWrite': {
+        actionClass = 'edit'
+        break
+      }
+      case 'fileAccess': {
+        actionClass = subject.access === 'write' ? 'edit' : 'mcp'
+        break
+      }
+      case 'network': {
+        actionClass = 'webFetch'
+        break
+      }
+      // No default
+    }
+    const action: ScheduleApprovalAction = {
+      id: event.approvalId,
+      class: actionClass,
+      tool:
+        subject.toolName ?? (event.type === 'approvalRequested' ? event.toolName : subject.kind),
+      ...(subject.command !== undefined && { command: subject.command }),
+      paths: subject.path === undefined ? [] : [subject.path],
+      requiresAsking: !isKnown || (event.type === 'approvalRequested' && event.isJudgeEscalated),
+      protectedPath: event.type === 'approvalRequested' && event.isProtectedWrite,
+    }
+    let isAllowed = false
+    let reason: string | undefined
+    const pending = this.prompts.pending(event.approvalId)
+    const isAutomatic =
+      pending !== undefined && editAutomaticallyChoice(pending, run.context.mode) !== undefined
+    try {
+      const decision =
+        this.owner.isFailed(run) || !this.owner.matches(token) || this.owner.run() !== run
+          ? { allowed: false, reason: run.refuse(action, run.modelText.approvalRefused) }
+          : await run.decide(action, !isAutomatic)
+      isAllowed = decision.allowed && this.owner.matches(token) && this.owner.run() === run
+      reason = decision.reason
+    } catch {
+      reason = run.refuse(action, run.modelText.approvalRefused)
+    }
+    const choice = event.availableChoices.find((candidate) =>
+      isAllowed
+        ? candidate.decision === 'approved' && candidate.scope === 'once'
+        : candidate.decision === 'abort',
+    )
+    if (choice === undefined) throw new Error('No safe scheduled approval choice')
+    await this.decideApproval({
+      approvalId: event.approvalId,
+      requirementId: event.requirementId,
+      choiceId: choice.choiceId,
+      ...(reason !== undefined && { feedback: reason }),
+    })
+  }
+
+  private async admitScheduled(
+    waiter: SessionToken,
+    run: UnattendedRun,
+    send: (token: SessionToken) => Promise<TurnSubmission>,
+    expectedTurnId?: string,
+  ): Promise<TurnSubmission> {
+    await this.restoringScheduleMode
+    const token = this.owner.claim(waiter, run, expectedTurnId)
+    if (token === undefined) throw new SteerRefusedError(UI_TEXT.scheduleBusy)
+    this.heldScheduleEvents = []
+    try {
+      await this.changeApprovalMode(mspApprovalMode(run.context.mode), token, run)
+      if (!run.isActive())
+        throw expectedTurnId === undefined
+          ? new Error(UI_TEXT.scheduleBusy)
+          : new SteerRefusedError(UI_TEXT.scheduleBusy)
+      const result = await send(token)
+      this.restoreScheduleMode(this.owner.admitted(token, result.turnId))
+      return result
+    } catch (error: unknown) {
+      this.restoreScheduleMode(this.owner.admissionFailed(token))
+      const cancellation = this.owner.token()
+      try {
+        if (this.owner.canCancel(cancellation, run)) await this.command('turn/cancel', {})
+      } catch {
+        this.log.warn('Scheduled admission failed; the turn could not be stopped')
+      }
+      throw error
+    } finally {
+      const events = this.heldScheduleEvents
+      this.heldScheduleEvents = undefined
+      for (const held of events) this.emit(held.event, true, held.fire)
+    }
+  }
+
+  private restoreScheduleMode(effect: SessionEffect | undefined): void {
+    if (effect === undefined) return
+    this.restoringScheduleMode = this.applyModeEffect(effect)
+    void this.restoringScheduleMode.catch(() => {
+      this.log.warn('Scheduled mode could not be restored; new turns are refused')
+    })
+  }
+
+  private stopScheduledRun(run: UnattendedRun): void {
+    if (this.getScheduledRun() !== run) return
+    void this.cancel(run).catch(() => {
+      this.log.warn('Scheduled turn could not be stopped')
+    })
+  }
+
   private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
     try {
-      return await commandWithin(this.channel, method, { sessionId: this.sessionId, ...params })
+      return await commandWithin(this.channel, this.leaseGeneration, method, {
+        sessionId: this.sessionId,
+        ...params,
+      })
     } catch (error: unknown) {
       this.noteLogFault(error)
       throw error
@@ -990,6 +1306,30 @@ export class MuseSession implements AgentSession {
     return error
   }
 
+  private async applyModeEffect(effect: SessionEffect): Promise<void> {
+    if (!this.owner.matches(effect.token)) {
+      this.owner.modeApplied(effect, false)
+      throw new Error(UI_TEXT.scheduleBusy)
+    }
+    try {
+      await this.command('session/setApprovalMode', { mode: effect.mode })
+      if (!this.owner.modeApplied(effect, true)) throw new Error(UI_TEXT.scheduleBusy)
+    } catch (error: unknown) {
+      this.owner.modeApplied(effect, false)
+      throw ceilingOr(error)
+    }
+  }
+
+  private async changeApprovalMode(
+    mode: string,
+    token: SessionToken,
+    run?: UnattendedRun,
+  ): Promise<void> {
+    const effect = this.owner.modeEffect(token, mode, run)
+    if (effect === undefined) throw new Error(UI_TEXT.scheduleBusy)
+    await this.applyModeEffect(effect)
+  }
+
   /** Merge captured native attempt history for both live updates and local inspection. */
   public observeAgent(item: ItemSnapshot): ItemSnapshot {
     if (item.kind !== 'subagent' && item.kind !== 'workflow') return item
@@ -1006,6 +1346,7 @@ export class MuseSession implements AgentSession {
       this.observedAgents.set(item.itemId, updated)
     }
   }
+
   /** Muse Code reported this session's event log failed (`noteLogFault`). */
   public onLogDamaged(listener: () => void): () => void {
     this.logDamagedListeners.add(listener)
@@ -1029,6 +1370,12 @@ export class MuseSession implements AgentSession {
     const backlog = this.early ?? this.prompts.open()
     this.early = undefined
     for (const event of backlog) {
+      if (
+        ((event.type === 'approvalRequested' || event.type === 'approvalUpdated') &&
+          this.scheduledApprovals.has(event.approvalId)) ||
+        (event.type === 'questionRequested' && this.scheduledQuestions.has(event.userInputId))
+      )
+        continue
       notify(
         [listener],
         isPendingPrompt(event) ? { ...event, isReplayed: true } : event,
@@ -1058,8 +1405,47 @@ export class MuseSession implements AgentSession {
   }
 
   /** @internal An event for this session's listeners, once, in arrival order. */
-  public emit(event: AgentEvent): void {
+  public emit(event: AgentEvent, wasObserved = false, bufferedFire?: NativeFireToken): void {
     if (this.isDisposed) {
+      return
+    }
+    const terminalRun =
+      event.type === 'turnCompleted' || event.type === 'turnWithdrawn'
+        ? this.owner.run(event.turnId)
+        : undefined
+    // Live evidence is observed once, including while UI delivery is held.
+    if (!wasObserved) {
+      if (event.type === 'turnStarted') this.owner.observedStart(event.turnId)
+      else if (event.type === 'turnCompleted' || event.type === 'turnWithdrawn')
+        this.restoreScheduleMode(this.owner.terminal(event.turnId))
+      else if (event.type === 'approvalRequested' && event.turnId !== undefined)
+        this.owner.observeFireTurn(event.turnId)
+      else if (event.type === 'approvalModeChanged') this.owner.observeMode(event.mode)
+      else if (
+        event.type === 'sessionStatus' &&
+        (event.status === 'idle' || event.status === 'stopped')
+      )
+        this.restoreScheduleMode(this.owner.stopped())
+    }
+    let turnId: string | undefined
+    if ('turnId' in event) turnId = event.turnId
+    else if ('item' in event) turnId = event.item.turnId
+    const run = this.owner.run(turnId)
+    const fire =
+      bufferedFire ??
+      (run === undefined
+        ? undefined
+        : {
+            run,
+            token: {
+              generation: this.owner.token().generation,
+              turnId: turnId ?? this.owner.currentTurnId ?? this.owner.token().turnId,
+            },
+          })
+    if (fire !== undefined && event.type === 'itemStarted' && event.item.turnId !== undefined)
+      this.scheduledItems.set(event.item.itemId, fire)
+    if (this.heldScheduleEvents !== undefined) {
+      this.heldScheduleEvents.push({ event, fire })
       return
     }
     switch (event.type) {
@@ -1077,6 +1463,75 @@ export class MuseSession implements AgentSession {
     if (admitted === undefined) {
       return
     }
+    switch (admitted.type) {
+      case 'approvalRequested':
+      case 'approvalUpdated': {
+        const ownership =
+          admitted.type === 'approvalRequested'
+            ? (this.scheduledItems.get(admitted.itemId) ?? fire)
+            : this.scheduledApprovals.get(admitted.approvalId)
+        if (ownership !== undefined) {
+          this.scheduledApprovals.set(admitted.approvalId, ownership)
+          void this.decideScheduledApproval(admitted, ownership)
+            .catch(() => {
+              this.log.warn('Scheduled approval failed')
+              this.stopScheduledRun(ownership.run)
+            })
+            .finally(() => {
+              if (this.prompts.pending(admitted.approvalId) === undefined)
+                this.scheduledApprovals.delete(admitted.approvalId)
+            })
+          return
+        }
+
+        break
+      }
+      case 'questionRequested': {
+        const ownership = this.scheduledItems.get(admitted.itemId) ?? fire
+        if (ownership !== undefined) {
+          const { run } = ownership
+          this.scheduledQuestions.add(admitted.userInputId)
+          void run
+            .defer(admitted)
+            .then(async (text) => {
+              if (!this.owner.matches(ownership.token) || this.owner.run() !== run) return
+              await this.clarifyQuestions(admitted.userInputId, text)
+              this.prompts.admit({
+                type: 'questionSettled',
+                userInputId: admitted.userInputId,
+                outcome: 'clarified',
+                answers: [],
+              })
+              this.scheduledQuestions.delete(admitted.userInputId)
+            })
+            .catch(() => {
+              this.log.warn('Scheduled question could not be deferred')
+              this.stopScheduledRun(run)
+            })
+          return
+        }
+
+        break
+      }
+      case 'approvalResolved': {
+        this.scheduledApprovals.delete(admitted.approvalId)
+        break
+      }
+      case 'questionSettled': {
+        this.scheduledQuestions.delete(admitted.userInputId)
+        break
+      }
+      case 'turnCompleted':
+      case 'turnWithdrawn': {
+        const completedRun = terminalRun ?? bufferedFire?.run
+        for (const [id, ownership] of this.scheduledItems)
+          if (ownership.run === completedRun) this.scheduledItems.delete(id)
+        this.restoreScheduleMode(this.owner.terminal(admitted.turnId))
+
+        break
+      }
+      // No default
+    }
     if (this.early !== undefined) {
       this.early.push(admitted)
       return
@@ -1091,13 +1546,53 @@ export class MuseSession implements AgentSession {
     notify(this.listeners, event, this.log, 'backend.diagnostic')
   }
 
+  public getScheduledRun(turnId?: string): UnattendedRun | undefined {
+    return this.owner.run(turnId)
+  }
+
+  /** Context is host-owned; MSP input stays in its captured ordinary shape. */
+  public async sendScheduledTurn(
+    parts: readonly TurnPart[],
+    run: UnattendedRun,
+    displayText?: string,
+  ): Promise<TurnSubmission> {
+    const waiter = this.owner.token()
+    await run.checkParts(parts)
+    return await this.admitScheduled(waiter, run, () =>
+      this.sendTurn(run.parts(parts), displayText, run),
+    )
+  }
+
+  public async steerScheduledTurn(
+    expectedTurnId: string,
+    parts: readonly TurnPart[],
+    run: UnattendedRun,
+  ): Promise<TurnSubmission> {
+    const waiter = this.owner.token()
+    await run.checkParts(parts)
+    return await this.admitScheduled(
+      waiter,
+      run,
+      () => this.steer(expectedTurnId, run.parts(parts), run),
+      expectedTurnId,
+    )
+  }
+
   /** Submit one user turn; queued behind a running turn by host default. */
   /**
    * Submit a turn. `displayText` is the transcript's presentation form of the
    * prompt (MSP: durable, never model-visible), used when the parts carry
    * more than the user typed (editor context, M5).
    */
-  public async sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission> {
+  public async sendTurn(
+    parts: readonly TurnPart[],
+    displayText?: string,
+    scheduledOwner?: UnattendedRun,
+  ): Promise<TurnSubmission> {
+    const token = this.owner.token()
+    await this.restoringScheduleMode
+    if (scheduledOwner !== undefined) await scheduledOwner.checkParts(parts)
+    if (!this.owner.start(token, scheduledOwner)) throw new Error(UI_TEXT.scheduleBusy)
     let ack: unknown
     try {
       ack = await this.command('turn/start', {
@@ -1105,10 +1600,13 @@ export class MuseSession implements AgentSession {
         ...(displayText !== undefined && { displayText }),
       })
     } catch (error: unknown) {
+      this.owner.startFailed(token)
       throw faultOr(error, 'approvalReplay')
     }
     const result = turnStartResultSchema.parse(ack)
-    return { turnId: result.turnId, disposition: result.disposition ?? DEFAULT_DISPOSITION }
+    const disposition = result.disposition ?? DEFAULT_DISPOSITION
+    this.owner.startAcknowledged(token, result.turnId, disposition === 'started')
+    return { turnId: result.turnId, disposition }
   }
 
   /**
@@ -1118,7 +1616,16 @@ export class MuseSession implements AgentSession {
    * after which the caller may send the input as a new turn; a steer with no
    * answer may still reach the turn, and fails in words that say so.
    */
-  public async steer(expectedTurnId: string, parts: readonly TurnPart[]): Promise<TurnSubmission> {
+  public async steer(
+    expectedTurnId: string,
+    parts: readonly TurnPart[],
+    scheduledOwner?: UnattendedRun,
+  ): Promise<TurnSubmission> {
+    const token = this.owner.token()
+    const run = scheduledOwner ?? this.getScheduledRun(expectedTurnId)
+    if (run !== undefined) await run.checkParts(parts)
+    if (!this.owner.canSteer(token, expectedTurnId, run))
+      throw new SteerRefusedError(UI_TEXT.scheduleBusy)
     const input = mspInput(parts)
     let result: unknown
     try {
@@ -1162,14 +1669,22 @@ export class MuseSession implements AgentSession {
   }
 
   /** Ask the host to stop the running turn gracefully. */
-  public async cancel(): Promise<void> {
+  public async cancel(scheduledOwner?: UnattendedRun): Promise<void> {
+    const token = this.owner.token()
     await this.rejectPartlyDecided()
+    if (
+      !this.owner.matches(token) ||
+      (scheduledOwner !== undefined && !this.owner.canCancel(token, scheduledOwner))
+    )
+      return
     await this.command('turn/cancel', {})
   }
 
   /** Stop the running turn immediately. */
   public async interrupt(): Promise<void> {
+    const token = this.owner.token()
     await this.rejectPartlyDecided()
+    if (!this.owner.matches(token)) return
     await this.command('turn/interrupt', {})
   }
 
@@ -1186,11 +1701,9 @@ export class MuseSession implements AgentSession {
 
   /** Select one of the host's preconfigured approval modes. */
   public async setApprovalMode(mode: string): Promise<void> {
-    try {
-      await this.command('session/setApprovalMode', { mode })
-    } catch (error: unknown) {
-      throw ceilingOr(error)
-    }
+    const token = this.owner.token()
+    await this.restoringScheduleMode
+    await this.changeApprovalMode(mode, token)
   }
 
   /** Summarise older context; `status` is `noop` with a reason when nothing to do. */
@@ -1441,6 +1954,7 @@ export class MuseCodeHost implements AgentHost {
   private readonly usageListeners = new Set<(usage: SubscriptionUsage) => void>()
   /** Set by `close()`: the exit that follows is the extension's, not a crash (D25). */
   private isClosing = false
+  private readonly commandOwner: MuseCodeCommandOwner
   /**
    * Session starts, resumes and forks in flight (D26). The SDK hands every
    * frame of one read to the handlers before the awaiting command resumes,
@@ -1464,11 +1978,24 @@ export class MuseCodeHost implements AgentHost {
     private readonly timeouts: CommandTimeouts = DEFAULT_TIMEOUTS,
     private readonly features: MuseCodeFeaturePorts = {},
     private readonly usageRecording = MuseCodeHost.usageRecording,
+    private readonly accountHome?: MuseCodeAccountHome,
   ) {
+    if (
+      accountHome !== undefined &&
+      (host.commandOwner?.accountHome !== accountHome ||
+        !host.commandOwner.ownsConnection(host.connection))
+    )
+      throw new Error(UI_TEXT.accounts.museCodeUnavailable)
+    this.commandOwner = host.commandOwner ?? new MuseCodeCommandOwner()
     this.channel = {
       connection: host.connection,
       timeouts,
       log,
+      generation: this.commandOwner.generation,
+      signal: this.commandOwner.signal,
+      assertCurrent: (generation) => {
+        this.commandOwner.assertCurrent(generation)
+      },
       liveness: new HostLiveness(
         timeouts.unresponsiveSilenceMs ?? MSP_UNRESPONSIVE_SILENCE_MS,
         log,
@@ -1530,6 +2057,7 @@ export class MuseCodeHost implements AgentHost {
     // is as good as dead: the process is closed so the exit is reported.
     void host.connection.closed.then(() => {
       this.deletionStopped.abort(new Error(UI_TEXT.sessionDeleteConnectionClosed))
+      this.commandOwner.close()
       if (this.isClosing) {
         return
       }
@@ -1538,6 +2066,7 @@ export class MuseCodeHost implements AgentHost {
     })
     void host.exited.then((exit) => {
       this.deletionStopped.abort(new Error(UI_TEXT.sessionDeleteHostExited))
+      this.commandOwner.close()
       const described = describeExit(exit, this.isClosing)
       if (described.isExpected) {
         this.log.info(`muse serve exited as asked (${described.description})`)
@@ -1649,7 +2178,7 @@ export class MuseCodeHost implements AgentHost {
   }
 
   private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
-    return await commandWithin(this.channel, method, params)
+    return await commandWithin(this.channel, this.channel.generation, method, params)
   }
 
   /**
@@ -1705,6 +2234,8 @@ export class MuseCodeHost implements AgentHost {
             ],
           })
         }
+        this.accountHome?.assertCurrent()
+        this.accountHome?.observeUsage(parsed.data)
         notify(this.usageListeners, parsed.data, this.log, 'museCode.usage', (event) => {
           this.reportListenerFailure(event)
         })
@@ -1747,6 +2278,7 @@ export class MuseCodeHost implements AgentHost {
     record: { readonly sessionId: string },
     modelId: string,
     isNew = false,
+    initialApprovalMode?: string,
   ): MuseSession {
     const existing = this.sessions.get(record.sessionId)
     if (existing !== undefined) {
@@ -1765,6 +2297,7 @@ export class MuseCodeHost implements AgentHost {
       this.usageRecording === undefined
         ? undefined
         : new MuseUsageDeltas(this.usageRecording, record.sessionId, modelId, isNew),
+      initialApprovalMode,
     )
     this.sessions.set(record.sessionId, handle)
     const waiting = this.unclaimed.get(record.sessionId) ?? []
@@ -1802,6 +2335,7 @@ export class MuseCodeHost implements AgentHost {
         this.deliver({ method: 'userInput/requested', params })
       }
     } catch (error: unknown) {
+      this.channel.assertCurrent(this.channel.generation)
       this.log.warn(
         `approval/listPending after resuming ${sessionId} failed: ${failureForLog(error)}`,
       )
@@ -1844,13 +2378,18 @@ export class MuseCodeHost implements AgentHost {
   private async goalFromView(sessionId: string): Promise<SessionGoal | null> {
     let cursor: string | undefined
     for (let page = 0; page < GOAL_RECOVERY_MAX_PAGES; page += 1) {
-      const raw = await requestWithin(this.channel, VIEW_PAGE, this.timeouts.normalMs, () =>
-        answered(this.channel, VIEW_PAGE, {
-          sessionId,
-          limit: GOAL_RECOVERY_PAGE_LIMIT,
-          direction: 'backward',
-          ...(cursor !== undefined && { cursor }),
-        }),
+      const raw = await requestWithin(
+        this.channel,
+        this.channel.generation,
+        VIEW_PAGE,
+        this.timeouts.normalMs,
+        () =>
+          answered(this.channel, this.channel.generation, VIEW_PAGE, {
+            sessionId,
+            limit: GOAL_RECOVERY_PAGE_LIMIT,
+            direction: 'backward',
+            ...(cursor !== undefined && { cursor }),
+          }),
       )
       const result = viewPageResultSchema.parse(raw)
       for (const frame of result.events.toReversed()) {
@@ -1901,7 +2440,12 @@ export class MuseCodeHost implements AgentHost {
   /** The subscription window the CLI last observed; absent until a turn has run. */
   public async readUsage(): Promise<SubscriptionUsage | undefined> {
     const result = await this.command(USAGE_READ, {})
-    return usageReadResultSchema.parse(result).usage
+    const usage = usageReadResultSchema.parse(result).usage
+    if (usage !== undefined) {
+      this.accountHome?.assertCurrent()
+      this.accountHome?.observeUsage(usage)
+    }
+    return usage
   }
 
   public onUsageChanged(listener: (usage: SubscriptionUsage) => void): () => void {
@@ -1971,7 +2515,13 @@ export class MuseCodeHost implements AgentHost {
         Promise.race([
           (async () => {
             reader.parseDeleteAdmission(
-              await commandWithin(this.channel, 'session/delete', { sessionId }, commandId),
+              await commandWithin(
+                this.channel,
+                this.channel.generation,
+                'session/delete',
+                { sessionId },
+                commandId,
+              ),
               commandId,
             )
             return await terminal
@@ -2036,21 +2586,24 @@ export class MuseCodeHost implements AgentHost {
         hasPending: (envelope.pendingRequests ?? []).length > 0,
       }
     })
-    if (hasPending) {
-      await this.presentPending(sessionId)
-    }
-    if (loaded.history.goal === undefined) {
-      try {
-        return {
-          ...loaded,
-          history: { ...loaded.history, goal: await this.goalFromView(sessionId) },
+    try {
+      if (hasPending) await this.presentPending(sessionId)
+      let history = loaded.history
+      if (history.goal === undefined) {
+        try {
+          history = { ...history, goal: await this.goalFromView(sessionId) }
+        } catch {
+          this.channel.assertCurrent(this.channel.generation)
+          // Ordinary page failures must not strand an attached session.
+          this.log.warn('Muse Code could not recover the goal from view history after resume')
         }
-      } catch {
-        // A page failure must not strand an attached session after resume.
-        this.log.warn('Muse Code could not recover the goal from view history after resume')
       }
+      this.channel.assertCurrent(this.channel.generation)
+      return { ...loaded, history }
+    } catch (error: unknown) {
+      this.sessions.get(sessionId)?.disposeAll()
+      throw error
     }
-    return loaded
   }
 
   /** A point-in-time read with items, without loading the session. */
@@ -2128,13 +2681,22 @@ export class MuseCodeHost implements AgentHost {
         scrubNote: (note) => Promise.resolve(this.previewFeedbackNote(note)),
         submit: async (request) =>
           reader.parseOutcome(
-            await requestWithin(this.channel, 'feedback/submit', this.timeouts.normalMs, () => {
-              // The registry may change during the async scrub. Recheck it in
-              // the dispatch tick and send only the preview the person approved.
-              const note = this.previewFeedbackNote(request.note)
-              if (note !== request.note) throw new Error(UI_TEXT.feedbackFailed)
-              return answered(this.channel, 'feedback/submit', { ...request, note })
-            }),
+            await requestWithin(
+              this.channel,
+              this.channel.generation,
+              'feedback/submit',
+              this.timeouts.normalMs,
+              () => {
+                // The registry may change during the async scrub. Recheck it in
+                // the dispatch tick and send only the preview the person approved.
+                const note = this.previewFeedbackNote(request.note)
+                if (note !== request.note) throw new Error(UI_TEXT.feedbackFailed)
+                return answered(this.channel, this.channel.generation, 'feedback/submit', {
+                  ...request,
+                  note,
+                })
+              },
+            ),
           ),
       },
       input.note,
@@ -2155,7 +2717,7 @@ export class MuseCodeHost implements AgentHost {
         throw ceilingOr(error)
       }
       const { session } = sessionStartResultSchema.parse(result)
-      return this.track(session, session.modelId ?? options.modelId, true)
+      return this.track(session, session.modelId ?? options.modelId, true, options.approvalMode)
     })
   }
 
@@ -2167,6 +2729,7 @@ export class MuseCodeHost implements AgentHost {
     // The exit that follows is the extension's own (D25).
     this.isClosing = true
     this.deletionStopped.abort(new Error(UI_TEXT.sessionDeleteHostClosed))
+    this.commandOwner.close()
     // Close the process first: the host emits session/statusChanged for every
     // loaded session on the way down, and those must still find their session.
     try {
@@ -2176,5 +2739,68 @@ export class MuseCodeHost implements AgentHost {
         session.disposeAll()
       }
     }
+  }
+}
+
+/** Account-only handshake: the SDK's public spawner hides the submission transport. */
+export function spawnAccountMspConnection(
+  options: Pick<
+    SpawnMspConnectionOptions,
+    'command' | 'args' | 'cwd' | 'env' | 'onStderr' | 'shutdownTimeoutMs'
+  >,
+  accountHome: MuseCodeAccountHome,
+  /** The resource governor's registration of the spawned tree (M107). */
+  onSpawn?: (child: ChildProcess) => void,
+) {
+  accountHome.assertCurrent()
+  const hasProcessGroup = process.platform !== 'win32'
+  const child = spawn(options.command, [...(options.args ?? [])], {
+    ...(options.cwd !== undefined && { cwd: options.cwd }),
+    ...(options.env !== undefined && { env: options.env }),
+    detached: hasProcessGroup,
+    windowsHide: true,
+  })
+  onSpawn?.(child)
+  const transport = new ChildStdioTransport(
+    child,
+    options.onStderr,
+    options.shutdownTimeoutMs,
+    hasProcessGroup,
+  )
+  const commandOwner = new MuseCodeCommandOwner(accountHome)
+  const connection = commandOwner.connect(transport)
+  const close = async () => {
+    commandOwner.close()
+    try {
+      await connection.close()
+    } finally {
+      // Even a framing/write failure must finish the SDK-owned process teardown.
+      await transport.close()
+    }
+    return await transport.exited
+  }
+  let isInitialized = false
+  return {
+    exited: transport.exited,
+    close,
+    initialize: async (params: Parameters<MspHandshake['initialize']>[0]) => {
+      if (isInitialized) throw new Error('initialize may be sent only once per connection')
+      isInitialized = true
+      const initializeResult = initializeResultSchema.parse(
+        await connection.request('initialize', { ...params }),
+      )
+      const fingerprint = initializeResult.schema?.fingerprint
+      if (fingerprint === undefined) throw new Error('initialize result has no schema fingerprint')
+      connection.notify('initialized')
+      await connection.flush()
+      return {
+        connection,
+        commandOwner,
+        initializeResult,
+        fingerprintWarning: checkServedFingerprint(fingerprint),
+        exited: transport.exited,
+        close,
+      }
+    },
   }
 }

@@ -121,13 +121,21 @@ async function packageTree(): Promise<void> {
   // Real adjacent modules required by the production and test packers.
   await build({
     entryPoints: {
+      estimator: path.join(ROOT, 'src/host/estimator/estimatorEntry.ts'),
       recorder: path.join(ROOT, 'src/host/support/recorderEntry.ts'),
       resourceGovernor: path.join(ROOT, 'src/core/resources/resourceGovernorEntry.ts'),
-      resourceAdmission: path.join(ROOT, 'src/core/resources/admission.ts'),
+      // POSTSPAWN: the governed launcher ships beside the governor.
+      resourceProcess: path.join(ROOT, 'src/core/resources/resourceProcessEntry.ts'),
+      // f74dc661b: the shared resource journal ships beside the governor.
+      resourceJournal: path.join(ROOT, 'src/runtime/resources/resourceJournalEntry.ts'),
+      resourceAdmission: path.join(ROOT, 'src/core/resources/admissionEntry.ts'),
       exec: path.join(ROOT, 'src/runtime/exec/execEntry.ts'),
       mcpPool: path.join(ROOT, 'src/core/backends/modelapi/mcpPoolEntry.ts'),
       modelApiCodeIntel: path.join(ROOT, 'src/core/backends/modelapi/codeIntelEntry.ts'),
       structuredSchema: path.join(ROOT, 'src/shared/structuredSchemaEntry.ts'),
+      reporting: path.join(ROOT, 'src/runtime/reporting/reportsEntry.ts'),
+      reportingNetwork: path.join(ROOT, 'src/runtime/reporting/network.ts'),
+      reportingDestinations: path.join(ROOT, 'src/runtime/reporting/destinationsEntry.ts'),
       wire: path.join(ROOT, 'src/shared/wireEntry.ts'),
       uiTextRuntime: UI_TEXT_ENTRY,
       uiTextHooks: UI_TEXT_ENTRY,
@@ -180,6 +188,7 @@ async function packageTree(): Promise<void> {
     'exec-result-v2.schema.json',
     'exec-event-v2.schema.json',
     'share-v1.schema.json',
+    'report-v1.schema.json',
   ])
     cpSync(path.join(ROOT, 'docs', 'schemas', schema), path.join(STAGE, 'schemas', schema))
   writeFileSync(
@@ -295,6 +304,7 @@ describe('M80 W fake-only test package', { timeout: TIMEOUT }, () => {
       'exec-event-v2.schema.json',
       'exec-result-v1.schema.json',
       'exec-result-v2.schema.json',
+      'report-v1.schema.json',
       'share-v1.schema.json',
     ])
     expect(readFileSync(path.join(STAGE, 'package.json'), 'utf8')).not.toContain('exec-test')

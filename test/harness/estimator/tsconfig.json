@@ -1,0 +1,4 @@
+{
+  "extends": "../../../src/webview/tsconfig.json",
+  "include": ["./scene.tsx", "../../../src/webview/types/css.d.ts"]
+}

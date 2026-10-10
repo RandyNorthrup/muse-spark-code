@@ -30,9 +30,27 @@ import {
   isSameLocalDay,
   plural,
 } from '../../shared/l10n/text'
-import { formatTokenWindow } from '../../shared/palette'
-import { formatUsd } from '../../core/usage/insights'
 import { isFinishedStep, type StepEntry, stepSummary, stepSummaryText } from '../stepSummary'
+import { useReplyUsageText } from '../moneyHooks'
+import type { UsdAmount } from '../../shared/usdSchema'
+
+/**
+ * A reply's usage line with its exact cost (STARTUP017): the line appears
+ * once the lazy money chunk arrives, never with a guessed cost. The tokens
+ * are known at startup; the exact dollars are not.
+ */
+function ReplyUsage({
+  inputTokens,
+  outputTokens,
+  costUsd,
+}: {
+  readonly inputTokens: number
+  readonly outputTokens: number
+  readonly costUsd: UsdAmount
+}) {
+  const text = useReplyUsageText(inputTokens, outputTokens, costUsd)
+  return text === undefined ? null : <div className="response-usage">{text}</div>
+}
 import { hasFileAttachment, STEERED_DISPOSITION } from '../state/transcriptEntries'
 import {
   forkCutBefore,
@@ -60,13 +78,18 @@ import { MarkdownView } from './MarkdownView'
 import { ReasoningRow } from './ReasoningRow'
 import { StatusLine } from './StatusLine'
 import type { TeamCardActions } from './TeamCards'
-import { ToolRow, type ToolRowProps } from './ToolRow'
+import type { ToolRowProps } from './ToolRow'
 import { UserShellRow } from './UserShellRow'
 import { deferred } from './DeferredSurface'
 
 import { PaidBadge } from './PaidBadge'
 import { type GooeyItem, useRowMenu } from './GooeyMenu'
 import type { MenuPoint } from '../gooeyLayout'
+
+const ToolRow = deferred<ToolRowProps>(async () => {
+  const module = await import('./ToolRow')
+  return { default: module.ToolRow }
+})
 
 const TeamCard = lazy(async () => {
   const module = await import('./TeamUi')
@@ -121,7 +144,7 @@ export interface TranscriptProps {
   /** The user card's menu (M6, M13); absent while no session exists. */
   readonly onFork?: ((entryId: string) => void) | undefined
   readonly onRewind?: ((entryId: string) => void) | undefined
-  /** "Fork conversation and rewind code": one host action, the rewind then the fork (M72). */
+  /** "Fork and Rewind": one host action, the rewind then the fork (M72). */
   readonly onForkRewind?: ((entryId: string) => void) | undefined
   readonly onRewindConversation?: ((entryId: string) => void) | undefined
   /**
@@ -635,7 +658,7 @@ function HookEditedMarker({
   return (
     <div className="hook-edited" role="note">
       <span>{UI_TEXT.hookMessageEdited}</span>
-      <button type="button" className="button-secondary" onClick={onToggle}>
+      <button type="button" className="button-secondary chat-control" onClick={onToggle}>
         {isOriginalShown ? UI_TEXT.hookMessageShowEdited : UI_TEXT.hookMessageShowOriginal}
       </button>
     </div>
@@ -783,13 +806,11 @@ const AssistantRow = memo(function AssistantRow({
           />
         )}
         {showReplyUsage && entry.usage !== undefined && entry.costUsd !== undefined ? (
-          <div className="response-usage">
-            {fill(UI_TEXT.replyUsage, {
-              input: formatTokenWindow(entry.usage.inputTokens),
-              output: formatTokenWindow(entry.usage.outputTokens),
-              cost: formatUsd(entry.costUsd),
-            })}
-          </div>
+          <ReplyUsage
+            inputTokens={entry.usage.inputTokens}
+            outputTokens={entry.usage.outputTokens}
+            costUsd={entry.costUsd}
+          />
         ) : null}
         {onSavePlan === undefined || entry.isStreaming ? null : (
           <PlanActions
@@ -829,7 +850,7 @@ function StepsGroup({
     <li className="steps">
       <button
         type="button"
-        className="steps-toggle"
+        className="steps-toggle chat-control"
         aria-expanded={isOpen}
         aria-controls={listId}
         onClick={() => {
@@ -889,7 +910,7 @@ function ReportThisButton({
   return onReportProblem === undefined || reportRef === undefined ? null : (
     <button
       type="button"
-      className="notice-action"
+      className="notice-action chat-control"
       onClick={() => {
         onReportProblem(entry.id, reportRef)
       }}
@@ -1078,7 +1099,7 @@ const ActionNotice = memo(function ActionNotice({
         <button
           key={action}
           type="button"
-          className="notice-action"
+          className="notice-action chat-control"
           disabled={isSpent}
           onClick={() => {
             if (spent.current) {
@@ -1172,6 +1193,8 @@ function TranscriptList(props: TranscriptProps) {
       <ReasoningRow key={entry.id} entry={entry} />
     ) : (
       <ToolRow
+        asListItem
+        keepFocus
         key={entry.id}
         entry={entry}
         isRunning={isRunning}

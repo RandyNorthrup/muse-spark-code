@@ -32,6 +32,7 @@ import {
   SEARCHES_PER_PRICE_UNIT,
   MODEL_API_IMAGE_MODEL,
   MUSE_VOICE_MODEL,
+  UI_TEXT,
   type PaidFeature,
 } from '../../shared/constants'
 
@@ -422,6 +423,15 @@ export class PaidUsage {
     return () => {
       this.listeners.delete(listener)
     }
+  }
+
+  /** Batch transcription keeps fractional seconds. An uncertain attempt uses
+   * its admitted duration bound in this estimate, never a made-up zero bill. */
+  public addVoiceBatch(seconds: number): void {
+    if (!Number.isFinite(seconds) || seconds < 0) {
+      throw new Error(UI_TEXT.media.durationUnknown)
+    }
+    this.add('voice', seconds)
   }
 
   /** Counts `units` uses: searches, images, or whole seconds of audio. */

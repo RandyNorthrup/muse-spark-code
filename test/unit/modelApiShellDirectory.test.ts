@@ -4,8 +4,9 @@
 // workspace root; a directory outside the workspace resets to the root with a
 // note. The host wraps the user's command with a trailer reporting the final
 // directory to the session's side file and reads it back (never the output,
-// which can be truncated). The declared tool description and schema never
-// change (SoL-Pi rule 1); `then_run` and `run_checks` still run at the root.
+// which can be truncated). The directory wrapper preserves the declared tool
+// description and schema (SoL-Pi rule 1); M109 adds optional secret routes to
+// that schema while the vault runner is bound. `then_run` and `run_checks` still run at the root.
 
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
@@ -25,6 +26,7 @@ import {
   toolDefinitions,
 } from '../../src/core/backends/modelapi/tools'
 import type { ShellResult } from '../../src/core/shellResult'
+import { VAULT_EXEC_PARAMETERS } from '../../src/core/vault/exec/toolSchema'
 import { SETTING_DEFAULTS, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import type { AgentEvent } from '../../src/shared/agentEvents'
@@ -416,30 +418,36 @@ describe('the shell directory trailer', () => {
 })
 
 describe('the shell tool declaration', () => {
-  it('stays byte-stable on every platform (SoL-Pi rule 1: the cache-stable prefix)', () => {
-    for (const platform of ['win32', 'linux', 'darwin'] as const) {
-      const { name, shellName } = shellToolFor(platform)
-      expect(toolDefinitions(platform)).toContainEqual({
-        type: 'function',
-        name,
-        description: `Run one ${shellName} command line in the workspace root and return its output.`,
-        parameters: {
-          type: 'object',
-          properties: {
-            command: { type: 'string' },
-            description: { type: 'string', description: 'One line saying what the command does' },
-            timeout_ms: {
-              type: 'integer',
-              description: 'Milliseconds before the command is stopped',
+  it.each([false, true])(
+    'stays byte-stable on every platform with vault binding %s (SoL-Pi rule 1)',
+    (hasVaultShell) => {
+      for (const platform of ['win32', 'linux', 'darwin'] as const) {
+        const { name, shellName } = shellToolFor(platform)
+        expect(
+          toolDefinitions(platform, { hasShell: true, hasSkills: false, hasVaultShell }),
+        ).toContainEqual({
+          type: 'function',
+          name,
+          description: `Run one ${shellName} command line in the workspace root and return its output.`,
+          parameters: {
+            type: 'object',
+            properties: {
+              command: { type: 'string' },
+              description: { type: 'string', description: 'One line saying what the command does' },
+              timeout_ms: {
+                type: 'integer',
+                description: 'Milliseconds before the command is stopped',
+              },
+              ...(hasVaultShell && { secrets: VAULT_EXEC_PARAMETERS.secrets }),
             },
+            required: ['command', 'description'],
+            additionalProperties: false,
           },
-          required: ['command', 'description'],
-          additionalProperties: false,
-        },
-        strict: false,
-      })
-    }
-  })
+          strict: false,
+        })
+      }
+    },
+  )
 })
 
 /** `text` with its regular-expression metacharacters escaped. */

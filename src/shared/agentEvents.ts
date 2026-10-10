@@ -1,4 +1,4 @@
-import { nonnegativeUsdSchema } from './usd'
+import { nonnegativeUsdSchema } from './usdSchema'
 // Backend-agnostic events a conversation emits. The MSP backend maps Muse
 // Session Protocol notifications onto these; the Model API backend (M7) will
 // map its own stream onto the same union. The webview renders only these, so
@@ -579,3 +579,11 @@ const agentEventSchema = z.discriminatedUnion('type', [
 export type AgentEvent = z.infer<typeof agentEventSchema>
 
 export { agentEventSchema, itemSnapshotSchema }
+
+/** Known child sessions prefix their forwarded turn ids (M48). */
+export function isChildTurn(turnId: string, childSessionIds: ReadonlySet<string>): boolean {
+  for (const childSessionId of childSessionIds) {
+    if (turnId === childSessionId || turnId.startsWith(`${childSessionId}:`)) return true
+  }
+  return false
+}

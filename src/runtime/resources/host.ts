@@ -6,14 +6,16 @@ import {
   type ResourceRunningWork,
 } from '../../core/resources/queue'
 import { RESOURCE_OVERRIDE_MS, UI_TEXT } from '../../shared/constants'
+import { resourceHistorySchema } from '../../shared/resourceHistory'
 import {
-  resourceRecordSchema,
   resourceSettingsSchema,
   type ResourceClock,
   type ResourceEvent,
   type ResourceSampler,
   type ResourceSettings,
+  type ResourceStatus,
 } from '../../shared/resources'
+import { resourceHistoryText } from '../../core/usage/resourceText'
 import type {
   ResourceHistoryPort,
   ResourceMachineStore,
@@ -21,7 +23,7 @@ import type {
   RuntimeResourceNotice,
   RuntimeResources,
 } from './port'
-import { resourceHistoryText, resourceNoticeText, resourceStatusText } from './text'
+import { resourceNoticeText, resourceStatusText } from './text'
 
 export interface RuntimeResourceHostOptions {
   clock: ResourceClock
@@ -29,6 +31,8 @@ export interface RuntimeResourceHostOptions {
   machine: ResourceMachineStore
   running: ResourceRunningWork
   history?: ResourceHistoryPort
+  /** J's recorder observes each governor sample; it never delays admission. */
+  onSample?: (status: ResourceStatus) => void
   overrides?: Partial<ResourceSettings>
   /** R provides approved availability; headless never does. Absent: no relocation route. */
   hasRelocationTarget?: () => boolean
@@ -104,6 +108,15 @@ export async function createRuntimeResourceHost(
     running: options.running,
   })
   const snapshot = () => governor.status(queue.counts())
+  const onSample = options.onSample
+  if (onSample !== undefined)
+    governor.onSample(() => {
+      try {
+        onSample(snapshot())
+      } catch (error) {
+        options.onError(error)
+      }
+    })
   const unsubscribe = events.subscribe((event) => {
     const allWork = Array.from(work.values(), (context) => ({ ...context }))
     const onlyCurrent = currentWork === undefined ? [] : [currentWork]
@@ -133,25 +146,27 @@ export async function createRuntimeResourceHost(
   const host: RuntimeResources = {
     async command(action, json) {
       if (action === 'history') {
-        const records = await host.history()
-        return json ? JSON.stringify(records) : resourceHistoryText(records)
+        const history = await host.history()
+        return json ? JSON.stringify(history) : resourceHistoryText(history)
       }
       const status = await (action === 'resume' ? host.resume() : host.status())
       return json ? JSON.stringify(status) : resourceStatusText(status)
     },
-    async status() {
+    async status(signal) {
       ensureOpen()
       await sync()
-      await governor.refresh()
+      signal?.throwIfAborted()
+      await governor.refresh(signal)
       ensureOpen()
       return snapshot()
     },
     async history() {
       ensureOpen()
       if (options.history === undefined) throw new Error(UI_TEXT.resourceUnavailable)
-      const records = await options.history.read()
+      const history = await options.history.read()
       ensureOpen()
-      return records.map((record) => resourceRecordSchema.parse(record))
+      // A strict copy: private fields or out-of-range dates never reach a surface.
+      return resourceHistorySchema.parse(history)
     },
     async resume() {
       ensureOpen()

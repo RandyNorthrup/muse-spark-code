@@ -20,6 +20,16 @@ function linkTargets(markdown: string): string[] {
 }
 
 describe('the ACP agent npm landing page', () => {
+  it('requires the lazy estimator in both production and private package inputs', () => {
+    // The test package lists 0180b's shared lazy bundles (mcpPool, exec,
+    // modelApiCodeIntel, structuredSchema) between acp.js and estimator.js,
+    // so only presence is required, not adjacency (merge f3a6c1e5b).
+    for (const name of ['package-acp.mjs', 'package-acp-test.mjs']) {
+      const script = read('scripts', name)
+      expect(script, name).toContain("'estimator.js'")
+    }
+  })
+
   it('is packed as the package README instead of the detailed guide', () => {
     const script = read('scripts', 'package-acp.mjs')
     const declaration = /^const README = .*$/m.exec(script)?.[0] ?? ''

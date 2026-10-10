@@ -50,16 +50,28 @@ them, the milestone plan, and the certification checklist.
      declared readers, and a new block the split check does not guard
      (PLAN.md D6, 2026-10-03 and 2026-10-04).
    - **Node bundles share English fallback** (`dist/uiText.js` and its generated
-     runtime/hooks/surfaces regions, PLAN.md D6).
+     runtime/hooks/surfaces/media regions, PLAN.md D6).
      Each bundle keeps its own installed-language state; lazy factories install
-     the caller's table before use. Browser and integration-test bundles keep
-     their inline fallback.
+     the caller's table before use. Production chat splits optional account/developer/help/runtime English
+     behind `loadDeferredEnglish`; its generated validation templates preserve
+     the complete shape and slots. Independent browser pages and integration
+     bundles keep their inline fallback.
    - **Adding or changing a key** means every table in `l10n/` gets it too,
      or `npm run check:l10n` fails.
    - **New UI surfaces ship lazily**, on first use, with accessible loading,
      an honest chunk-load failure and retry, and a measured budget of their own.
      Startup and the original deferred aggregate retain their existing caps;
      reserve first-paint bytes for chat and its first turn.
+   - **Design tokens (M114, D94).** Colours, radius, elevation, alpha,
+     spacing, typography and motion come from `design/tokens/muse.tokens.json`.
+     Read `design/tokens/README.md`; regenerate with `npm run build:tokens`
+     and pass `npm run check:tokens`. Raw CSS/TypeScript paint is guarded;
+     generated token files alone contain it. Meaningful motion uses the
+     120/180/240 ms scale under the no-preference reduced-motion guard.
+     Every visual change passes `npm run check:visual`; reviewed baseline
+     updates name their review. Full PNG sets stay outside git (512 MiB);
+     track only their source revision, hashes, dimensions and coverage.
+     README screenshots use `scripts/readme-shots.mjs` (2 MiB curated set).
 6. **No dead code, no placeholders.** No commented-out code, unused exports,
    unused dependencies, TODO stubs, fake implementations, or mock data outside
    `test/**`. A function that cannot do its job throws or returns an explicit
@@ -177,13 +189,27 @@ them, the milestone plan, and the certification checklist.
     copy or reproduction without the owner's explicit go for that pull
     request (PLAN.md D102).
 
+17. **Keep the roadmap current.** Every milestone change (a new milestone, a
+    status line, a release, a changed user-facing limit or label) updates its
+    entry in `docs/roadmap/entries.json` and regenerates `ROADMAP.md` with
+    `npm run roadmap:generate` in the same change. Release preparation adds
+    PLAN.md §10's `X.Y.Z preparation (…)` record; publication adds
+    `X.Y.Z released (…)`; regenerate after each. `npm run check:roadmap`
+    fails on a stale file (any change to the milestone headings, statuses,
+    §10 records, changelog headings or entries it is built from changes its
+    source fingerprint), a milestone without an entry or an entry for a
+    milestone PLAN.md does not have (PLAN.md M122; CONTRIBUTING.md has the
+    entry format).
+
 ## Layout
 
 ```
 src/extension.ts      activation: the view, the panel, the commands, the openers
 src/host/**           VS Code adapters (views, conversation, backend managers,
                       the Model API bundle's entry (dist/modelApi.js, loaded
-                      when that backend first starts), the plan reader's
+                      when that backend first starts), its schedule entry
+                      (dist/schedules.js, loaded on the first schedule use),
+                      the plan reader's
                       (dist/planMarkdown.js, loaded on the first plan action),
                       the review's (dist/review.js: git's material, the turn
                       text, the Plan-mode hold and edit review, loaded the
@@ -214,11 +240,26 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       prepare a runtime) and the runtime's consent and command,
                       bundled skills' Muse Code installer (skills/,
                       dist/bundledSkills.js, loaded on first use),
+                      first-party skills (first-party-skills/, installed beside
+                      the vendored workflows, including the M116
+                      orchestrator-playbook reviewer charter),
                       Tab's lazy provider, ledger and menu (dist/tab.js),
                       shared schema conversion (dist/structuredSchema.js),
                       Model API code intelligence and MCP pools
                       (dist/modelApiCodeIntel.js and dist/mcpPool.js),
                       with its status item in the activation shim,
+                      media attachments (dist/media.js: the attach port, the
+                      recording picker and the uploaded-files list, loaded on
+                      the first attach or recording action; M105) and screen
+                      recording (dist/screenRecord.js: the recorder command,
+                      loaded on the first recording; M105),
+                      the vault's window (vault/: the panel host and the
+                      native editor in dist/vault.js, loaded on the first
+                      vault command; only the command shim stays at
+                      activation, and both commands refuse closed until the
+                      broker-backed service lands),
+                      the estimator's engine and history honesty
+                      (dist/estimator.js, loaded on the first estimate; M117),
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
                       MCP server (diagnostics, code intelligence, images, web
@@ -229,13 +270,20 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       side: settled diagnostics, format on edit and turn
                       checkpoints' shadow repository)
 src/core/**           backend-agnostic logic; must not import `vscode`
-                      (MSP host, Model API client and tools, the MCP client,
+                      (media/inspectEntry.ts, the portable first-use inspector
+                      shared by VS Code and ACP through dist/media.js;
+                      MSP host, Model API client and tools, the MCP client,
                       the hook dispatcher and, in dist/foreignHooks.js loaded
                       on first use, the adapters for hooks imported from
                       other agents (M91),
                       context (rules, skills, custom agents), Muse Code's
                       questions' portable registry (questions/: states, clock,
                       owner-only store port and exactly-once late delivery; M112),
+                      the orchestrator playbook (orchestration/playbook/: policy,
+                      journal, outcomes, brief, reports and integration; D96/M116),
+                      provider accounts and thresholds, backend pools, developer profile
+                      ownership and account usage projections (M108; installed bindings
+                      wait for M95/M102/M104/M109),
                       memory, export, worktrees, git and GitHub (push plans,
                       REST client, draft prompts), usage,
                       dictation, Muse Voice, the paid gate, network failures,
@@ -252,6 +300,7 @@ src/core/**           backend-agnostic logic; must not import `vscode`
 src/core/resources/** portable machine sampler, governor, queue, registered-tree
                       accounting/actions, disk and created-root policy;
                       dist/resourceGovernor.js loads on first governed use,
+                      dist/resourceProcess.js is the governed launcher,
                       dist/resourceAdmission.js is the shared process shim
 src/webview/resources/** shared chip/popover via injected source and lazy loader;
                       dist/webview/resourceSurface.js shares React/text chunks
@@ -266,12 +315,24 @@ src/acp/**            the ACP agent (D62): the ACP side of a session and the
                       local answer/list commands and the registry binding);
                       must not import
                       `vscode`
+src/runtime/reporting/** deterministic report engine and portable facade
+                      (dist/reporting.js), shared by editor, CLI and ACP;
+                      permitted network reads (dist/reportingNetwork.js),
+                      destination contracts (dist/reportingDestinations.js),
+                      editor adapter (dist/reportingPanel.js) and shared page
+                      (dist/webview/reportingPage.js), loaded on first use
 src/runtime/exec/**   headless arguments/protocol/egress (dist/exec.js, loaded
                       only by the exec command), stdin key/scanner,
                       bounded lifecycle, ACP client/tap and per-attempt ledger
 src/runtime/**        the agent's process: arguments, backends outside VS Code,
-                      the OS credential store (D61), `auth`, `login` and
-                      `report` (M93)
+                      the OS credential store (D61), `auth`, `login`,
+                      `report` (M93), `providers accounts` and the runtime
+                      account services (dist/runtimeAccounts.js, loaded on the
+                      first accounts, developer or keyed headless command; M108),
+                      the journal-backed `playbook` command
+                      with its ACP `/playbook` surface (M116); the schedule command and settle path
+                      (schedules/), and the native background scheduler entry
+                      (dist/scheduleBackground.js, run by the OS launcher)
 src/shared/**         constants + zod protocol shared by host and webview
 src/shared/l10n/**    the English table (en.ts), fill/plural/Intl helpers, the
                       table checks and the list of translated languages
@@ -289,7 +350,20 @@ src/webview/**        React 19 app (browser project, own tsconfig);
                       useRowMenu, each row's ⋯ opener) over gooeyLayout.ts's
                       pure geometry for its fanned column of labelled
                       pills; diffTally.ts and
-                      components/DiffTally.tsx add up the conversation's edits
+                      components/DiffTally.tsx add up the conversation's edits;
+                      models/sections/accounts, usage/AccountsSection and developer/
+                      are optional M108 surfaces, mounted only through their lazy owners
+src/webview/bridges/theme/**
+                      the native hosts' theme colours onto the token roles
+                      through MHP's theme message (M114 lane C, with M104)
+design/tokens/**      the W3C design-token source (muse.tokens.json, M114
+                      D94) and its generated CSS/JSON consumers
+                      (scripts/build-tokens.mjs); design/fonts/ holds the
+                      pinned OFL pack's manifest, subsets and licences
+                      (never in the VSIX)
+src/runtime/fonts/**  the pinned font pack's verified installer
+                      (`fonts install`) and the portable UI/code font and
+                      ligature preferences (M114 lane F)
 native/windows/**     dictate.ps1, the Windows dictation helper; capture.ps1,
                       Muse Voice's recorder; the job helpers' C#
                       (MuseSparkJob.cs, MuseSparkMcpLauncher.cs and the
@@ -308,11 +382,17 @@ test/integration/**   @vscode/test-cli, runs inside VS Code, over the workspace
                       project its language service reads)
 test/harness/         the webview behind a fake host, for screenshots and the
                       accessibility gate; themes/ holds VS Code's four themes
+                      plus One Dark Pro and Dracula; goldens/ holds the
+                      visual-regression manifest and shot lists (M114;
+                      full PNG sets stay outside git)
+                      playbook.mjs scenes run standalone as
+                      `npm run harness:playbook` until the panel port is bound
 test/hosts/           the extension and the ACP agent in other editors
                       against the fake CLI, one script per host (hosts.yml)
 scripts/**            esbuild build; bundle-size, bundle-split, host-globals,
                       notices, audit, PSScriptAnalyzer, semgrep, accessibility,
-                      localization and host API gates; theme capture, the
+                      localization, tokens, visual regression, reference
+                      and host API gates; theme capture, the
                       pseudo-locale, harness screenshots, image rendering,
                       changelog notes, What's New's content (lib/), VS Code
                       versions for CI, the ACP
@@ -341,25 +421,28 @@ media/                icons, banner, social preview, README screenshots
 
 ## Commands
 
-| Task                           | Command                                   |
-| ------------------------------ | ----------------------------------------- |
-| All gates (local)              | `npm run quality`                         |
-| The gates CI runs everywhere   | `npm run quality:gates`                   |
-| Accessibility gate             | `npm run test:a11y`                       |
-| Reference gate                 | `npm run check:reference`                 |
-| Localization gate              | `npm run check:l10n`                      |
-| Host API record (D60)          | `npm run check:host-api` (`-- --write`)   |
-| Panel in the pseudo-locale     | `npm run harness:shots -- --lang=pseudo`  |
-| Unit tests with coverage       | `npm run test:unit`                       |
-| Integration tests              | `npm run test:integration`                |
-| Dev build / watch              | `npm run build:dev` / `npm run watch`     |
-| Production build + size budget | `npm run build`                           |
-| Package `.vsix`                | `npm run package`                         |
-| Package the ACP agent (D62)    | `npm run package:acp`                     |
-| Exec schemas (M80)             | `npm run schema:exec` (`-- --check`)      |
-| Fake-only test package (M80)   | `node scripts/package-acp-test.mjs`       |
-| Scan staged text (M80)         | `muse-spark-code-acp scan-secrets <file>` |
-| Host checks (hosts.yml)        | `sh test/hosts/run-<host>.sh`             |
+| Task                           | Command                                              |
+| ------------------------------ | ---------------------------------------------------- |
+| All gates (local)              | `npm run quality`                                    |
+| The gates CI runs everywhere   | `npm run quality:gates`                              |
+| Accessibility gate             | `npm run test:a11y`                                  |
+| Token generation / gate        | `npm run build:tokens` / `npm run check:tokens`      |
+| Visual regression              | `npm run check:visual`                               |
+| Reference gate                 | `npm run check:reference`                            |
+| Roadmap generation / gate      | `npm run roadmap:generate` / `npm run check:roadmap` |
+| Localization gate              | `npm run check:l10n`                                 |
+| Host API record (D60)          | `npm run check:host-api` (`-- --write`)              |
+| Panel in the pseudo-locale     | `npm run harness:shots -- --lang=pseudo`             |
+| Unit tests with coverage       | `npm run test:unit`                                  |
+| Integration tests              | `npm run test:integration`                           |
+| Dev build / watch              | `npm run build:dev` / `npm run watch`                |
+| Production build + size budget | `npm run build`                                      |
+| Package `.vsix`                | `npm run package`                                    |
+| Package the ACP agent (D62)    | `npm run package:acp`                                |
+| Exec schemas (M80)             | `npm run schema:exec` (`-- --check`)                 |
+| Fake-only test package (M80)   | `node scripts/package-acp-test.mjs`                  |
+| Scan staged text (M80)         | `muse-spark-code-acp scan-secrets <file>`            |
+| Host checks (hosts.yml)        | `sh test/hosts/run-<host>.sh`                        |
 
 M80's lanes are integrated and their fake-only suites pass on the rigs; do not
 call exec, the scanner or the Action supported until the hosted action-check

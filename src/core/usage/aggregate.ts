@@ -21,19 +21,26 @@ import {
   type ResourceHistory,
 } from '../../shared/resourceHistory'
 
-/** Resource region for M102's aggregate: validate retained input before any projection. */
-export function aggregateResources(records: readonly ResourceRecord[]): ResourceHistory {
+/**
+ * Resource region for M102's aggregate: validate retained input before any projection.
+ * `sources[i]` names the collector that wrote `records[i]` (the journal's writer):
+ * a later cumulative snapshot replaces only its own collector's segment.
+ */
+export function aggregateResources(
+  records: readonly ResourceRecord[],
+  sources: readonly string[] = [],
+): ResourceHistory {
   const minutes: ResourceRecord[] = []
   const events: ResourceHistory['events'] = []
   const counts = new Map<string, ResourceHistory['counts'][number]>()
   const work = new Map<ResourceKind, ResourceHistory['work'][number]>()
-  const snapshots = new Map<number, ResourceRecord>()
+  const snapshots = new Map<string, ResourceRecord>()
   const parsed: ResourceRecord[] = []
-  for (const input of records) {
+  for (const [index, input] of records.entries()) {
     const record = resourceHistoryRecordSchema.parse(input)
     // A read-time flush and final accounting replace one cumulative minute segment.
     if (record.minute === null) parsed.push(record)
-    else snapshots.set(record.atMs, record)
+    else snapshots.set(JSON.stringify([sources[index] ?? '', record.atMs]), record)
   }
   parsed.push(...snapshots.values())
   const ordered = parsed.toSorted((a, b) => a.atMs - b.atMs)

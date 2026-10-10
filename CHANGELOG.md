@@ -7,34 +7,293 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
+  first governed launch, a **Resources** chip sits beside the heartbeat, or
+  above the composer between turns. Its popover shows CPU, memory in use and
+  available memory against your limits, what is waiting, any override, and
+  that relocation is not available on this build. Its buttons are **Resume
+  now**, **Open settings** and **Show resources** (the Usage & cost page). A
+  status bar item shows while the governor throttles or pauses. At pause, one
+  notice per conversation names the reading and its limit, with the same
+  actions. New commands: **Muse Spark: Show Resources** opens the popover in
+  the chat in view, and **Muse Spark: Resume Work Now** holds this window's
+  governor at normal for fifteen minutes. A governor you switched off stays
+  off. The governor, its status item and the chip still load on first use,
+  never at activation, and chat's first paint stays within its budget.
+  A status the chip cannot trust (unreadable, with unknown fields, or too
+  large) shows as **Resources: Unknown** with a short explanation, never as
+  an older reading. While the chip loads it says so in place, and if it
+  cannot load it offers **Try again** without disturbing the conversation.
+  JetBrains, Visual Studio, Eclipse and the companion page can reuse the same
+  chip and status adapter once their M104 bridges bind them; none does yet.
+  ACP and terminals keep `/resources` and `resources status|resume`.
+
 ### Changed
 
-- Update the ACP SDK to 1.5.1 with incoming transport memory bounds, Vitest and
-  V8 coverage to 5.0.3, jscpd to 5.4.0 and knip to 6.39.0. Retain
-  typescript-eslint 8.70.1 after isolating 8.71.0's lint heap regression;
-  keep all existing rules, deadlines and bundle budgets. The ACP agent and the
-  team host's ACP children open their streams with one deliberate bound (the
-  aggregate media budget plus 16 MiB) instead of the SDK's new 32 MiB
-  default, so a valid prompt with several near-limit images still reaches the
-  per-image and media-budget checks.
+- `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
+  (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
+  without a mismatch warning; a 1.4.2 host now logs one, as older hosts did
+  after earlier bumps. The SDK now hides the `muse serve` window on Windows
+  itself (meta-models/muse-code-sdk#34). The extension's other Muse Code
+  workarounds were re-checked against 1.4.4 and are still needed
+  (`docs/certification/sdk144.md`).
+- `@agentclientprotocol/sdk` moves from 1.5.1 to 1.7.0 (SDK144). The ACP
+  agent, headless `exec` and team workers speak the same ACP v1; the SDK's
+  transport is unchanged, so the agent's 32 MiB line override and the
+  session-router seam carry over as they were.
+- **A sent message's menu is shorter and its pills fit their labels.**
+  **Fork conversation from here** is now **Fork Conversation**, and **Fork
+  conversation and rewind code** is now **Fork and Rewind**, in every
+  language. Every radial menu's pills stay one size, but that size is now
+  the longest label's own width instead of a fixed 272 px, so short menus
+  no longer carry empty blue space; only a label wider than the panel ends
+  in an ellipsis with the whole label in its tooltip.
+- The README's Resources screenshot is retaken with the rest of the set (the
+  same Linux Chrome build and fonts); the other 18 screenshots still match the
+  current UI and are unchanged.
+- README and `docs/acp.md` name all four places the project ships from (VS Code Marketplace, Open VSX, npm, GitHub Releases), add an npm version badge, and install the ACP agent with `npm install -g muse-spark-code-acp` first, the release `.tgz` second.
+- The npm package's README and the Marketplace/Open VSX page list the same four channels as the README (VS Code Marketplace, Open VSX, npm, GitHub Releases); the npm page adds the release `.tgz` install.
+- README adds a total downloads badge (all channels) and a GitHub app installs badge, both served by the project's Cloudflare Worker, now kept in `infra/marketplace-hook` (counters only; not part of any package).
+- README notes the project's unofficial GitHub OAuth app for M123 sign-in and that its GitHub Marketplace listing awaits GitHub's review; the privacy notice adds the app's device flow, `repo` scope, keychain or vault storage and revocation.
+- The working line is calmer: the heartbeat trace sweeps in about 1.4 s instead of
+  1.2 s, and the circle mark before the status text keeps its 0.16.0 loop at 75 % size
+  (12 px instead of 16 px).
+- Preserve exact decimal USD across schedule authorization, consent and agent caps,
+  rental cost estimates, reporting facts, account totals and voice consent. Read
+  historical numeric records at validated boundaries; saved reports verify their
+  original hashes before migration to exact money version 2.
+- The resource history journal is one shared bundle that the window's
+  governor and the usage page both load, instead of a copy in each; both stay
+  inside their size budgets. Usage records read the account id from a small
+  leaf instead of every account schema.
+- The Model API backend's session store loads with that backend instead of
+  at activation (its own `dist/modelApiSessions.js`), taking 24.5 KB off the
+  activation bundle; sessions are kept and read as before (ACTBUD017).
 
 ### Fixed
 
-- The Action's apply tests no longer race a detached Git maintenance repack
-  in their fake origin: the fixture turns off receive auto-gc and plain-git
-  auto maintenance, and a witness test proves none runs.
+- On macOS 26, a process that `ps` lists with an unknown state (`?`) while
+  it changes no longer voids every resource tree's membership read, which
+  could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
 
-### Documentation
+- The two-account Muse Code backend test waits for the usage event that
+  follows a turn instead of assuming both arrive together, and the estimator
+  browser harness pays the browser's first-navigation work once before its
+  matrix, keeping every case's two-second bound.
 
-- Outside contributions are vetted before they run or land:
-  `docs/contributor-vetting.md` checks the person and the change, then
-  needs Codex and Grok reviews, a record under `docs/certification/vetting/`
-  and the owner's go for that pull request (AGENTS.md rule 16, PLAN.md D102,
-  a CONTRIBUTING section). Hosted CI on the pull request may run once the
-  person and the change are reviewed; nothing else runs, lands or is copied
-  before the owner's go. Workflow runs from forks now wait for approval for
-  every external contributor. PR #51 has a retroactive record with a benefit
-  check of its tests.
+- The estimator browser harness uses the same packed English fallback as
+  independent production pages, avoiding cold Windows navigation timeouts
+  while keeping its two-second bound and complete accessibility/keyboard matrix.
+
+- macOS UI regressions give each target-size scene its own test and await
+  the palette view's actual lazy-import rejection before checking its failure
+  row, retaining every assertion at the existing deadlines (CIR4MAC).
+
+- macOS runtimes with libuv older than 1.52 report unknown memory headroom
+  instead of counting only free pages, preventing false resource pauses and
+  ACP multi-workspace session timeouts on Node 22 (ACPM118).
+
+- Windows recorder destinations accept native 8.3 temporary-folder spelling
+  while still refusing traversal and existing destinations (CIFIX017W).
+
+- Companion uploads close their inspection handle and remove private bytes
+  before acknowledging the request, avoiding Windows cleanup races.
+  A failed inspection close returns a refusal with private diagnostics withheld.
+
+- Windows resource-history tests wait for durable disposal output before
+  checking or corrupting journal files.
+
+- Windows native probes avoid unnecessary PowerShell module startup;
+  packaging tests share one production build while retaining private outputs.
+
+- Visual capture waits for restored question rows to finish loading before
+  measuring the context-menu passage, preventing a timing-dependent 14 px
+  menu displacement in narrow captures. Pixel allowances are unchanged.
+
+- Schedule runtime tests cover Linux, Windows and macOS rearm ownership
+  explicitly; macOS wake shutdown retains its independent after-exit helper.
+
+- Reporting journal, history-engine and response-cache tests retain real OS
+  process-birth probes on macOS and Windows without requiring unrelated
+  resource-governor installation in their storage fixtures.
+- Windows: the ACP agent (`muse-spark-code-acp`) could not start a Muse
+  Code session. Its governed `muse serve` launch was missing the Windows job
+  helper the extension's launch already had, so every new session failed
+  with an internal error.
+
+- Windows: the npm package of the ACP agent now ships the C# of that job
+  helper's launcher (`MuseSparkMcpLauncher.cs`). An agent installed with
+  `npm install -g` still failed every new session with an internal error
+  without it (CIFIX017W2).
+
+- Windows: the trusted-path check behind background schedules reads each
+  folder's attributes and ACL through .NET alone. Its PowerShell no longer
+  loads the modules behind `Get-Item`, `Get-Acl` and `ConvertTo-Json`, which
+  took over 15 s per folder on machines with many PowerShell modules
+  installed, such as hosted CI runners (CIFIX017W2).
+
+- macOS with Node 22 (or an editor on its libuv): the resource governor read
+  free memory pages as headroom, judged an ordinary Mac critically short of
+  memory and held every later process start for 20 seconds, so a second ACP
+  session took over 20 s to open. That reading is now treated as unknown
+  (CIFIX017R3).
+
+- A report save could fail after two seconds when another save released
+  its lock while a third retired one: a lock file being deleted was taken
+  for an unsafe file, and the releasing save kept its lock (CIFIX017R3).
+
+- The report's plan reader no longer parses each plan line three times;
+  this repository's plan reads about 15% faster (CIFIX017R3).
+
+- Windows: `muse-spark-code-acp usage open` and sharing to the clipboard or
+  browser failed with "That did not work". The program lookup added `.exe`
+  to names that already had it (`rundll32.exe.exe`) and found nothing.
+
+- Linux: `muse-spark-code-acp usage open` waited 10 s and then reported
+  failure when `xdg-open` stayed open with the browser, as many handlers do.
+  The opener now counts as launched once it starts, in its own session, and
+  is never stopped. Any OS opener still running at the hand-off limit is
+  detached and counted as launched, not killed; one that exits with an
+  error still fails.
+
+- When a Windows job helper fails to compile, the log names the compiler's
+  errors and exit code again, not only "Bootstrap command failed".
+- Visual regression reconstructs the recorded schedule surface inside the
+  served historical revision, so clean CI can load its lazy schedule entry.
+  The current-source audit also records the accounts accessibility stylesheet.
+
+- Native schedules and helpers no longer refuse a Windows profile folder
+  that is a junction or redirected to another drive. Paths are now checked
+  from the folder the extension owns: links above it are accepted by their
+  resolved identity, and a link below it is still refused.
+
+- Scheduled prompts spend about half the time on their store per fire: the
+  store keeps one journal per workspace, so its validated snapshot and deltas
+  are reused between calls, and a read copies the folded state once instead
+  of every journal entry. Every read still rereads and checks the bytes.
+
+- Model API turns no longer reinstall the whole display-language table for
+  every recorded context read (about 4 ms each); the schedules bundle
+  installs it once per language.
+
+- ACP: an answer queued with `/answer` is sent with the next prompt once,
+  even when the backend finishes that turn before it confirms the start.
+  Before, such a turn released the answer instead of marking it sent, so the
+  following prompt carried it again.
+
+- Model API replies stream with less work per event: the stream's key
+  redaction builds its matcher once per reply (and again only when a stored
+  secret changes) instead of for every string in every event. A long reply
+  had spent most of its time there.
+
+- Contributors: a pre-commit hook that fails now stops the commit on Windows
+  even when nothing is reading Git's output any more (for example
+  `git commit … | Select-Object -First 5`). Before, husky's runtime was
+  killed by a broken pipe while reporting the failure, and Git for Windows
+  counted that as a pass. `npm run prepare` installs stubs that rule this
+  out on every OS, and the hook asks for `npm run prepare` in a worktree
+  that still has husky's own stubs.
+
+- Packaged translation tables round-trip byte-exact again: every language
+  table lists its keys in English's order, including the resource history
+  and Windows path strings merged for 0.17.0.
+
+- The dependency-cycle gate now covers every build entry, lazy import target,
+  entry-named module and knip entry, with a guard against root-list drift.
+  Remove the worker admission/environment/ref-fence cycle by sharing the
+  unchanged credential-free environment policy from the worker environment
+  module. The guard now shares integration-test discovery with the build,
+  so changes to its directory or filter also change the required cycle roots.
+
+- Start the team browser tests' card and tree deadline once the harness reports
+  the scene played, keeping bundle start-up, the ready handshake and the
+  steps' settle time outside that wait, and list still-open requests when a
+  team test's wait fails.
+
+- Settle quote-menu capture origins after final layout and isolate source-reconstruction fixtures from temporary-directory placement.
+- Capture settled share-view highlighting, usage-dialog account facts and status rows, and the palette's focus scroll so visual replays no longer race lazy renderers.
+
+- Complete integrated visual coverage through real optional UI scenes, decode packed update notes in replay, wrap narrow Models actions and use token focus rings.
+
+- Guard the lazy slash-command registration as a deferred chat entry without adding activation bytes.
+
+- Restore the Schedule Prompt, Schedules and Schedule Timeline editor commands, including panels opened on demand.
+- Reuse successful time-zone validation during repeated schedule journal reads, preserving storage checks and workload deadlines.
+- Resolve visual replay fixtures from the running gate when historical render sources predate them, and guard Help document IDs against duplication.
+- Prepare browser-English probe scratch space in fresh clones and include the merged Linux helper job in the visual CI test fixture.
+- Give plan-usage request counts localized singular/plural text so contrast checks can measure their visible content.
+- Refresh reviewed README captures from the combined UI and its real ready handshake, retaining the curated media budget.
+- Name and exercise report-root literal regex escaping across all operators and Windows separators.
+
+- Share ACP preparation cancellation and exact USD display helpers; align merged paid-ledger tests with the exact decimal contract.
+- Batch staged-file tool arguments below the Windows command-shim limit while retaining every hook check.
+
+- Include lazy account and developer surfaces in the browser English regression probe while preserving deferred fallback checks.
+
+- Remove the obsolete compact Node reference build plugin and its stale test; the production reference uses the current generated data loader.
+- Draw the independent reporting focus ring and the Models/account boundaries from the M114 token contract instead of direct host colours, so keyboard focus stays visible on low-contrast themes.
+- Give team traffic and Runners buttons the secondary-button token role instead of input-field colours, and draw their keyboard focus ring from the M114 token contract.
+- Draw Models buttons, the accounts picker and traffic buttons from a new assured boundary role that mixes the theme foreground into its background, keeping control boundaries at 3:1 or more in every captured theme.
+- Give the team merge card's path lists their own full-width row so long paths wrap instead of one character per line at narrow widths.
+
+- Media request tariffs accept exact USD amounts only and reject numeric
+  JavaScript callers before admission. Ordinary session reservations share the
+  atomic-admission lock, preventing competing owners from publishing during an
+  unfinished claim and preserving cap checks at the remaining headroom.
+
+- The Account & usage spend meter sums exact decimal amounts instead of
+  rounding through nano-USD, so sub-nano spend below a nearby cap reports
+  unreached exactly as admission evaluates it.
+
+- The media accounting core claims its calibrated upper bound
+  against both schedule and shared daily caps, including replayed file IDs,
+  settles the admitted media tariff once, and retains uncertain liabilities.
+  Above-reserve bills refuse settlement; daily claim transfers secure their
+  replacement before releasing held budget.
+  Production video/audio uploads remain unavailable in this version pending
+  the production upload and transcription bindings (PLAN D85.6, M105).
+  Scheduled reads now explain that limitation explicitly in every editor.
+  Media read-file references through a bound adapter carry their checked source
+  into the run ledger;
+  stopped reads cannot publish a new proof.
+
+- The 0.17.0 integration's daily-budget and durable schedule tests now assert
+  exact decimal money, including entered limits below nano precision, while
+  account consent fixtures persist quote ceilings and retain account refusal.
+  Account-bound paid consent carries exact decimal budgets through its popup.
+
+- Account-bound paid consent holds "Always" across instances and restarts for
+  the same workspace, provider, account and price through the binding-kept
+  grant when no host quote store is configured; it still asks again when any
+  of them changes, when the quote generation changes, or when only a
+  differently-keyed legacy grant exists.
+
+- Account-bound paid consent no longer fabricates quote approval from the
+  binding's feature grant: it requires an account-scoped quote store and
+  generation, persists the approved quote and generation per account, asks
+  again for a higher tariff or a different model on the same or a new
+  instance, and revoke() clears that account's quote grants too. No
+  production host constructs account-bound consent yet — paid approval stays
+  per workspace until M108 lane P wires it — and Help now says so.
+
+- Account-bound paid consent binds grant authority to a durable revocation
+  epoch persisted per account binding: revoke() advances the epoch before
+  clearing, so leftover grants from a failed clear stay stale on every
+  instance after a restart, and a failed advance rejects with the grants
+  still working. Every grant records its approval epoch; concurrent asks on
+  another instance cannot resurrect a revoked grant. Help says paid consent
+  stays per workspace in all fourteen translated tables.
+
+- Resource history now includes Windows contained and probe commands: the
+  helper's final CPU and memory use is recorded once in this window's
+  history (at most 512 waiting results between reads). The governed process
+  launcher and the start of vault-backed MCP servers now load on first use
+  in bundles of their own (`dist/resourceProcess.js`, new 50 KiB budget;
+  `dist/mcpVault.js`, new 25 KiB budget), so the resource governor is back
+  within its unchanged 125 KiB budget and activation no longer carries the
+  vault MCP start.
 
 ### Pending
 
@@ -75,6 +334,453 @@ happened, not what was planned; superseded entries are kept.
 
 - Provider-specific retry-table binding remains pending for non-Meta transports;
   the shared retry classifier does not certify endpoint quota refusal.
+
+- DEVID017B (developer machine id, review round 2): the machine id is a
+  random value created once in the machine-scoped data folder instead of a
+  hostname digest, so renames and `host` vs `host.local` keep the unlock and
+  profiles. Legacy raw-hostname and digest grants migrate on open and the
+  raw hostname leaves stored state at once; a different machine identity is
+  refused with an honest message and `developer reset` recovers.
+
+- DEVID017C (developer machine id, review round 3): the id is published by
+  staging the full value to a private temp file, fsyncing it and claiming
+  the final name with `link`, so a racing reader sees no file or the
+  complete id, never a prefix; only the exact 64-lowercase-hex format
+  loads, anything else refuses honestly. Foreign reset asks first with
+  nothing mutated before the answer, never re-binds the grant, and clears
+  without stopping through this machine's resource port; profile folders
+  stay on disk. Cancel leaves everything unchanged.
+
+- DEVID017D (developer machine id, review round 4): a published id loads
+  before any staging, so storage that refuses new files still returns the
+  existing identity, and failed staging removes its temp file. A failed
+  foreign reset never clears without recording it: the reset audit row
+  comes first, and when it cannot be written the stored state is left
+  unchanged. Foreign reset asks its own confirmation, which says exactly
+  what happens: this machine's developer state is cleared, nothing is
+  stopped, and profile folders and credentials stay as they are.
+
+- DEVID017E (developer machine id, lead review fix): foreign Reset writes a
+  distinct `resetForeign` audit row (schema stays `v: 1`, as with `migrate`),
+  so only that clear is withheld when its audit append fails. Every other
+  revocation, own-machine Reset included, is still published after an audit
+  failure, and the caller still gets the persistence error.
+
+## [0.17.0] - 2026-10-08
+
+### Highlights
+
+- **Deterministic reports.** `/report` builds project, quality, milestone,
+  release and change reports from local facts, in Markdown, HTML, JSON or text,
+  with saved history and comparisons; nothing is sent to a model.
+  <!-- try: command museSpark.showReport -->
+- **Capacity estimates (preview).** `/estimate <goal>` and the Estimator are in
+  place and verified with test data. Real forecasts need the plan reader that
+  comes later; until then they say so instead of guessing.
+- **Several accounts per provider.** List provider accounts, see the current
+  one and its thresholds; a vendor limit blocks only the affected account.
+- **Orchestrator playbook.** The nine orchestration rules ship as a first-party
+  skill. In the ACP agent and the CLI, `/playbook status`, `record` and
+  `settings` answer locally; the VS Code panel follows.
+- **Refreshed design.** Shared design tokens and generated palettes style every
+  panel surface; an optional pinned OFL font pack serves standalone installs.
+
+### Changed
+
+- Update the ACP SDK to 1.5.1, Vitest and V8 coverage to 5.0.3, jscpd to
+  5.4.0 and knip to 6.39.0. Keep typescript-eslint 8.70.1 because 8.71.0
+  regresses lint memory use. Rules, deadlines and bundle budgets stay intact.
+  ACP and team-child streams use the media budget plus 16 MiB instead of
+  the SDK's 32 MiB default, allowing valid multi-image prompts to reach
+  individual image and media checks.
+- Restore bundle budgets through shared wire schemas and report redaction,
+  a backend port for accounts, fewer ACP locales, and deferred vault English,
+  Help facts, estimate schemas and exact dollar formatting. Accounts shrink
+  from 348 to 48 KB; the ACP engine from 915 to 639 KB. The provisional
+  universal VSIX cap is 3700 KiB pending hosted measurement.
+
+### Fixed
+
+- Action apply fixtures disable Git auto-gc and maintenance, preventing
+  detached repacks from racing the tests; a guard verifies this.
+- `/estimate` recognizes Windows instead of rejecting Node's `win32` name.
+- Developer storage works below linked ancestors, including macOS `/var`,
+  redirected profiles and Windows short names. Links at or below its root
+  are still refused.
+- Translated tables ship in English key order; packaged ACP tables match
+  their sources byte for byte.
+
+### Documentation
+
+- [Contributor vetting](docs/contributor-vetting.md) requires person and
+  change review, Codex and Grok reviews, a certification record and the
+  owner's approval before outside code runs, lands or is copied. Hosted PR
+  CI may run after person and change review. All external fork contributors
+  require workflow approval. The earlier contribution has a retrospective
+  record evaluating its tests; CONTRIBUTING documents the policy.
+
+### Fixed
+
+- Compress README captures while preserving every pixel and PNG metadata;
+  unchanged images remain exact.
+- Avoid redundant plan-string writes while retaining privacy scrubbing;
+  prepare usage fixtures within their existing deadlines.
+- Centre chat in its container, await schedule mounts before accessibility
+  scans, and supply the real report panel input in CI.
+- Register both schedule defaults as flat machine-scoped settings beside
+  the schedule switch; keep validated legacy reads.
+- Await the named screenshot scenario after the webview handshake so empty
+  welcome screens cannot pass capture or accessibility checks.
+- Traverse reader-owned arrays without scrubbing generated indices as text;
+  retain recursive secret scrubbing and the plan performance budget.
+- Cache validated journal deltas only while reread bytes match, clone before
+  replay, await workflow controls, and measure heavy engine/browser fixtures.
+- Keep recording-reader fixtures within ordinary deadlines; name only the
+  measured TypeScript compiler setup timeout.
+- Reuse schedule-journal validation only while serialized bytes match;
+  reread storage and validate every change and lease.
+- Include schedule usage in shared CLI help; keep the native theme bridge
+  within budget and validate original role keys.
+- Share schedule XML encoding, use maintained report task-glob matching,
+  and verify literal private paths before redaction.
+- Use generated tokens for report borders and usage-chart fallbacks; retain
+  native theme overrides and the 4 KiB core token budget.
+- Restrict context recording to fixed reader-only builders. Reject unbranded
+  or copied content and filesystem, Git or skill-store imports, including
+  dynamic imports. Sealed scopes cannot create content or rerun adapters.
+- Discard late acknowledgements for idle turns; refuse automatic verification
+  as soon as scheduled steering claims the session, before adopting input.
+- Record cached scheduled inputs, Git facts and directory indexes in closed
+  reader scopes. Refuse replay of undelivered Git subjects and verification
+  that would read unconfined editor dependencies. Defer schedule authorization
+  and context builders, freeing over 10 KiB in the Model API bundle.
+- Retain pending native starts across idle snapshots so schedules cannot
+  claim an ordinary turn acknowledged afterward.
+- Require complete cached-context source inventories and derivations, with
+  one canonical workspace boundary for cached and live reads. Omitted or
+  truncated evidence cannot authorize delivery.
+- Release stale schedule mode effects and stopped or withdrawn admissions,
+  settle refused queued fires, and validate steer media before claiming a
+  session, allowing later work to proceed.
+- Load tool rows and schedule channels on first use with accessible loading,
+  explicit failure and retry; preserve provider, usage, report and schedule
+  behavior alongside playbook fixes.
+
+### Fixed
+
+- Preserve reports, provider/team workflows and playbook during integration;
+  remove duplicate Help, retain prompt scope for a local user named `user`,
+  and generate report palettes from shared tokens.
+- Keep universal packaging within budget through lossless localization leaf
+  archives, full English fallback and legacy decoding. Key ordering changes
+  no translated values.
+- Fit the planning document within its parser bound without losing decisions,
+  rationale, milestone status or delivery order.
+
+### Fixed
+
+- Preserve provider, team, legal, sharing and local usage workflows alongside
+  reports, design and playbook, within existing bundle caps.
+- Load optional English before the first slash registry resolves; Help-only
+  fallback stays in lazy Help.
+- Await sandboxed report content and fonts before screenshots; retain main
+  chat readiness checks.
+
+### Added
+
+- Ship the orchestrator-playbook skill with nine rules, a third-strike
+  redesign template and two repository examples. Project or personal skills
+  take precedence on Model API; Install Bundled Skills copies it byte-exact
+  for Muse Code and offers Update when its digest changes. Missing sources,
+  invalid ids, non-file skills and linked roots refuse installation. Its
+  reviewer charter covers eight classes, coverage, dispositions and exact
+  prior-finding resolutions, loading only through the skills bundle.
+  Orchestrated reviewer bindings remain pending.
+- ACP `/playbook <status|record|settings ...>` and terminal `playbook` answer
+  locally from a journal without a backend or model turn. Settings record
+  owner and reason; rule opt-outs and fallback reviewers require a user
+  decision. Residuals stay open until lead or owner acceptance and block
+  release while open. Dispatch briefs record hashes before rendering. Help
+  and capability inventories cover all four editor/backend surfaces; full
+  panel enforcement still awaits the planner.
+
+### Fixed
+
+- CLI, ACP and React playbook records show unmatched legacy acceptance reasons
+  and original decisions, distinguish identical entries by journal position,
+  and use browser-safe contracts. All fourteen languages include the labels;
+  queued-answer write failures warn that retained answers may repeat.
+- Commit ACP queued-answer leases only when their carrying model turn starts,
+  after hooks and admission. Withdrawal, unqueue, Stop, release, exit and
+  refused or failed submissions retain answers without claiming delivery.
+  Local commands never lease. Failed writes retain answers, warn of repeats,
+  and leave active turns busy and stoppable.
+- Panel subagent, delegate, best-of-N and `/review` dispatches use shared
+  playbook policy and offer a Plan redesign at round three. Planner, fleet,
+  schedule and review integrations remain named handoffs.
+- Verify native Git hook exit verdicts instead of emulating Husky; invalidate
+  older receipts and discover worktree private refs. Timeout cleanup follows
+  detached descendants by parent and start identity; prepared cgroup/scope
+  runners take precedence, with resource-governor binding pending.
+- Detect skipped Husky bodies, new refs and detached worktree commits. Run
+  source hooks by absolute path, clean partial registrations, scrub failures,
+  and handle annotated tags and ref deletions. Reject legacy or invalidated
+  receipts, require renewal/cancellation tokens, enforce hook strikes even
+  without findings, and contain processes in POSIX groups or Windows jobs.
+- Persist playbook safety refusals across tools, agents and restart to block
+  same-effect retries. Journal fixtures own and clean their temporary folders.
+- Verify shell outcomes: new commits require durable hook receipts before
+  managed push or completion; failures add strikes. Early command checks
+  remain advisory. Bind reviews to lane and lease generation, follow edits
+  through content and Git history, record lineage before admission, and
+  reconcile merged strikes and lifetime counts. Editor/planner bindings
+  remain pending.
+- Fence playbook replies by bridge lifetime, request and workspace so disposed
+  surfaces cannot populate another workspace.
+- Prioritize owner failures and unresolved redesigns in badges and agent
+  details. Settings preserve other drafts, restore focus and announce saves.
+- Refresh saved playbook fields, including another window's lowered round
+  limit, so stale controls cannot overwrite them.
+- Local ACP playbook commands settle unused answer leases. Residual acceptance
+  binds to its instance, rationale, follow-up and module. Submodules and
+  separate Git directories without `commondir` work. All deferred playbook
+  wrappers offer accessible loading, failure and retry. Slash/mention menus,
+  edit tally, task panel and effort controls defer startup work; playbook
+  loads separately to restore the ACP 850 KiB budget.
+- Legacy name-only acceptance covers only earlier residuals, never a reused
+  name; unmatched records remain visible. Failed wrapper loads stay local
+  with retry. Edit totals and task lists load only when needed.
+
+### Added
+
+- Add shared design tokens, generated editor/Muse palettes, contrast and
+  staleness checks, and raw-colour guards. Accessibility overrides cover
+  html, body and nested scopes; guards catch escaped paint and closing-brace
+  hex values.
+- Add an optional pinned OFL font pack, verified `fonts install`, offline
+  seeds, portable UI/code fonts and ligatures, and notice/package guards.
+  Hosts retain control of editor fonts.
+- Add pixelmatch regression for all audited panel, Tasks and What's New
+  surfaces across six themes, six states and 320/690 px widths. Hashes and
+  dimensions identify bounded external PNG archives; CI reconstructs the
+  reviewed source in its own rendering environment.
+- Load exact money arithmetic, paid tariffs and estimates after first paint.
+  Names, badges and tooltips paint immediately; prices never use guesses.
+  Failed loading offers "Prices could not load." and Try again, rebuilding
+  the panel. Paid and session-budget acceptance waits for the price; cancelled
+  or replaced wizard drafts drop pending budget changes. Schedule prompt
+  mapping loads on submit; failure restores the command in an empty composer
+  with a warning, and closed surfaces or sessions stash nothing. Restored
+  schedule rows use a small English group; other schedule text loads with
+  its surfaces. Exact cap checks avoid startup arithmetic. The first-paint
+  baseline is 760,059 B plus the prior 1.4 KB margin.
+
+### Changed
+
+- Visual checks use antialiasing detection, colour threshold 0.1 and at most
+  0.01% or 12 changed pixels per image. Both CI tiers reconstruct source
+  comparisons; static gates check tokens.
+- Polish conversation cards, tools, composer, chips, dock, menus, pickers,
+  dialogs, usage, History, Tasks and What's New with shared tokens and states.
+  Approval choices remain equal on one row at 320 px; gooey pills stay crisp.
+  Header targets stay 24 × 24 px; History retains Arrow/Delete archiving.
+  Reduced motion stops animation; forced colours distinguish hover, focus
+  and pressed states.
+
+### Fixed
+
+- Keep visual CI shards, integrated question/lazy coverage and revision-bound
+  receipts. Open Questions uses the shared keyboard ring; modal and menu
+  focus stay independent. Theme bundles fit their budget and font errors
+  use the installed language.
+- Use six deterministic visual shards, requiring every receipt, matching
+  coverage/environment and combined 512 MiB archive budgets.
+- Follow imported generated stylesheets for the complete host theme inventory.
+- Add local `/report` and a report tab with Markdown, HTML, JSON and text,
+  saved history and comparisons. Composer, palette and usage share the lazy
+  engine without model turns; unavailable evidence retains reasons/freshness.
+- Add checked plan grammar, report-v1 schema, pure collectors, bounded local
+  readers, canonical redaction and CLI/ACP/native shared contracts.
+
+### Fixed
+
+- `museSpark.reports.network` promises only wired GitHub reads; store, workflow
+  and release adapters remain unavailable pending approved captures.
+- Reject reporting bundles that include the paid gate.
+- Render report comparison diffs in every format. Validate decoded redaction,
+  order equal history stamps by save sequence and tied checks consistently,
+  discover Claude subagents, match quality globs like the runner, and resolve
+  workspace aliases through Git. Fixtures use canonical roots and ordinary
+  deadlines; long picker identities wrap at 320 px.
+- Cold filtered slash commands await English with accessible loading/failure/
+  retry; browser checks await scenario start before measuring or sending keys.
+- Sequence long-reply accessibility after competing axe pages without dropping
+  deltas, themes, scans or readiness deadlines.
+- Reuse validated estimator scheduling without report-only timelines or unused
+  reservation sorting; keep all 2,000 draws and the selected P50 schedule.
+- Account projections load without unrelated Models, vault, team or keybinding
+  schemas.
+- Honor approved audio models for ordinary requests, retaining model, key and
+  consent fences. Include vault/estimator bundles in problem-recorder frames.
+- Speed vault scanning without changing redaction or stream boundaries; retain
+  Unicode SSH wildcard matching without regex construction; share HTML encoding
+  for estimator exports.
+- Register `museSpark.vault.enabled` and nested defaults in VS Code while
+  preserving opt-outs; use accepted release captures for request baselines.
+- Capture diagnostics before team-test timeouts. Retain early ready messages
+  until their scenario handler exists.
+
+### Fixed
+
+- Preserve provider, media and account contracts; defer credential-bearing
+  account commands. Files requests retain endpoint checks and scrubbed errors;
+  upload cleanup requires its ownership ledger. Both packages include vault
+  and estimator assets, with the native macOS helper from CI. Fresh clones
+  retain browser English readers under temporary parents. Unbound vault shell
+  descriptors preserve strict-tool requests; account help shares usage text,
+  GCM decryption pins tag length, and legacy credentials reuse shared validators.
+  Harnesses supply the estimator setting. Budgets remain unchanged.
+- Record window/ACP minute resource readings, levels, overrides, deferrals and
+  harness CPU in one flushed local machine journal when usage history is on.
+  Usage **Resources**, `resources history`, `usage resources` and ACP
+  `/usage resources` read it. Keep seven recorded days with bounded files and
+  reads; ignore only a torn final line, report other unreadable data as
+  unavailable, and clear it with **Delete history**.
+- Show **This minute so far** across windows/agents and one **Earlier days**
+  row per recorded day. **Delete history** includes the resource-entry count.
+- Add [the public roadmap](ROADMAP.md), generated from milestone statuses,
+  release headings and curated entries. Its quality/CI gate rejects stale
+  fingerprints, missing or extra milestones and internal working ids in
+  public text. Prepared releases appear under _In the next release_ until
+  a release record confirms shipment.
+
+### Added
+
+- Add several-account storage, thresholds, confirmations and shared account/
+  usage/developer UI, certified with fake editor ports. `providers accounts`
+  manages metadata; `auth set` reads credentials only from stdin; headless
+  `--account` pins a run; ACP refreshes membership. Machine-scoped
+  `accountSwap`/`accountParallel` default on; `accounts.severalOnThisDevice`
+  defaults off. Installed mounts, pooling, credential-changing selection and
+  profile/device owners remain pending; extra Muse Code accounts await captures.
+  Account changes never reset paid gates or shared budgets. See
+  [policy](docs/certification/m108-policy.md) and
+  [integration evidence](docs/certification/m108.md).
+- Resource-history deletion refuses swapped links outside the usage folder
+  on Linux/Windows; macOS retains the same-user race documented in SECURITY.
+  Failed removal reports and retries, leftovers are cleaned, and retention
+  failure logs. Recording, daily upkeep and deletion share a lock; writes
+  recheck ownership and delete order. Readings while history is off or before
+  deletion cannot land later; old daily rows stay hidden. Refused-removal
+  restoration preserves replacements except SECURITY's stated cases. Retried
+  uncertain writes count once; window close flushes its minute. The 32 MiB
+  read bound counts actual bytes.
+- Resource-history cards use one column at 320 px and two at 690 px; legends
+  and trailing chart values stay visible.
+- Governed launches declare contained work, read-only probes, OS handoffs
+  (including `share` and `prompts share`), terminal `login` or helper builds.
+  CLI shutdown stops owned work; handoffs wait at most ten seconds for the
+  adapter and leave opened browsers running; terminal Ctrl+C reaches login.
+  Pause immediately refuses helper/background launches with `Resources: Paused`,
+  without first-command Windows fallback. Deadlines include sampling; a
+  source guard checks every process against its inventory.
+- Windows commands avoid per-launch PowerShell. Jobs enforce process caps and
+  report whole-tree retirement, CPU and memory; real-Git schedules on four
+  CPUs improve from about 12.4 to 8.3 s. Shutdown awaits exit before temporary
+  cleanup; non-exiting trees are retained and reported.
+- Windows completion requires a helper report proving the job empty. Killed
+  or undrained helpers retain temporary folders for recovery. Process/memory
+  cap refusals fail commands even after exit 0. Every launch checks helper
+  bytes, refuses changes and rebuilds; shutdown awaits the final report.
+- Read-only Git, gh, birth and media-version probes keep admission/containment
+  without temporary folders. This avoids missing-helper refusals in Linux/
+  macOS source checkouts and repeated Windows PowerShell starts. Writers,
+  including converters and schedule OS commands, retain temporary folders;
+  runtime Windows helpers prepare once.
+- Helper compilation uses heavy bootstrap admission, bounded output and
+  whole-tree deadlines/cancellation. Runtime admission covers login/browser
+  launches. Windows report leases close before restoration, preserving
+  concurrent journal entries; birth probes avoid module discovery. Help
+  names unavailable recording and vault-broker services.
+- Account-scoped Muse Code hosts share governed native jobs and retirement.
+  Vault MCP stdio uses a guarded governed builder. Media, vault helpers,
+  reporting and schedule readers use admission/containment; missing native
+  launch services refuse before spawning.
+
+### Fixed
+
+- Remote vendor limits persist per sender, owner and provider across sticky
+  moves, named sends, account removal and restart. Group/global exclusions
+  share local eligibility; reset or bounded expiry clears blocks, with
+  overlapping limits using the later reset. Frames carry no account/group data.
+- Profile create/remove and Reset audit the real calling surface, including
+  terminal commands. Sticky/retry/busy certification follows its regressions.
+- Device admission shares local queues, full limit groups and advertised
+  capacity. Threshold changes move sticky routes; deleted accounts cannot
+  wedge them. Refusals distinguish recovery, cancellation, caps, busy owners
+  and missing devices.
+- Remote routing skips blocked accounts' full limit group using sender-side
+  pool rows, without frame metadata. Busy conversations report "A prompt is
+  already running for this conversation." in all fourteen languages.
+- Unknown profile removal cannot change authority. Revocation stops profiles
+  before saving; failed publication cannot restore revoked grants. Enable/
+  disable audit actual surfaces; stale launches fail and release credentials.
+- Account/developer/Help English loads with optional surfaces within startup
+  and deferred budgets. Every translated key, plural and template slot still
+  validates. Help data packs losslessly within budget.
+- Unbound runtime profile cleanup reports unavailable and retains its ledger
+  after failed launches.
+- Fixed-account surfaces retain backend identity after reordering/removal.
+  Headless ports bind requested credentials; missing accounts or malformed
+  metadata cannot fall back to the legacy Meta key.
+- ACP package guards include the lazy account-runtime bundle.
+- Companion uploads support Unicode filenames and omit unrelated loopback
+  cookies: only header metadata is encoded; streamed intake stays guarded.
+  Progress reports start/completion. Closed panels settle recorder startup
+  and dispose late previews; browser tests use OS temporary storage.
+- Media keeps exact currency, ceiling display and tariff text outside startup;
+  tool rows offer lazy accessible loading/failure/retry. Patch projections
+  share schemas within existing caps. Headless `--record` help is corrected;
+  pending capture, provider, accounting, recorder and companion bindings are
+  explicit. Packages preserve signed recorder resources and media bundles;
+  macOS CI needs no permission. Estimates round upward and refused fills
+  close reserved descriptors. ACP/VS Code inspect media on first use; shared
+  reference values restore ACP/reference budgets to 850/100 KiB. Attachment
+  and inspection factories install the caller's language before refusals.
+- ACP supports between-turn `/attach <path>` and `/record`, capability-gated
+  audio, confined resource links and PDF/video/audio/image/unknown blobs.
+  Headless `exec --attach <path>` repeats, `--record` refuses, and `read_file`
+  reads mp4/mp3/wav within the media budget.
+- Files API uploads stream approved media with progress, Stop, SHA-256 and
+  expiry; validate receipts and reject redirects or ambiguous retries.
+  Storage admission and lazy media bindings remain integration work.
+- Upload metadata/reference counts persist across sessions. Deletion/purge
+  cleans uploads; missing-file replacement verifies its source. Usage lists
+  files and cleanup with expiry/read-only metadata; editor ports await binding.
+- Media and screen recording load on first use with separate budgets/guards;
+  startup stays near 733 KiB. Add Attach screen recording, Attach latest
+  screen recording and Delete uploaded files, plus `mediaMaxUploadMiB`,
+  `mediaUploadExpiryDays`, `screenRecordingMaxSeconds` and `mediaAudioAction`.
+  Recordings return to their starting conversation; picked media uses drop
+  confinement and reasoned refusals. Audio pastes transcribe by default;
+  Gemini/OpenAI-compatible video remains unsupported.
+
+### Security
+
+- Refuse ambiguous Windows file names: device namespaces, drive-relative
+  paths, alternate streams, trailing dots/spaces and reserved names (including
+  superscript digits), on every drive. Muse Code approvals for these or
+  protected resolved paths (8.3, junctions, `subst`) require manual once-only
+  consent. Ordinary Muse Code `\\?\X:\` paths retain automatic editing,
+  Auto review and Always allow. Checkpoints/held PRs compare native identities:
+  other volumes, WSL and loopback shares stay outside; linked/relocated profiles
+  work; unprovable identity refuses writes explicitly. `con.d` and `aux.js`
+  remain ordinary Windows 11 names. Browser and token ACL helpers locate
+  Windows through `SystemRoot`, then `windir`, on any drive.
+- Document process-tree cleanup after timeouts, explicit background-job
+  handoffs, blind readings for protected processes and no tight security-status
+  polling. Shared orchestration, resource, vault and support policy and the
+  placement playbook adopt these rules across models.
 
 ## [0.16.0] - 2026-10-07
 

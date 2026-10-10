@@ -7,8 +7,8 @@ import {
   formatNumber,
   formatPercent,
   formatUnit,
-  formatUsd,
 } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import type { UsageCertainty, UsageKind } from '../../shared/usageJournal'
 import type {
   UsagePageState,

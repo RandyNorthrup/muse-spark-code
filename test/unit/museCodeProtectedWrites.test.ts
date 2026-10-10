@@ -42,7 +42,28 @@ const PROTECTED_CASES = [
   ['outside the workspace, from the home folder', '~/.claude/settings.json'],
   ['outside the workspace, absolute', String.raw`\\?\C:\Users\dev\.claude\settings.json`],
   ['an agent file, nested', String.raw`${CAPTURED_WORKSPACE}\packages\app\.mcp.json`],
+  // DOS and other-drive spellings, so a Windows run matches names, not a prefix.
+  ['DOS, in any case', String.raw`C:\Users\dev\protect-live\ws2\.Claude\Settings.JSON`],
+  ['as Muse Code names it, another drive', String.raw`\\?\D:\work\.git\config`],
+  ['as Muse Code names it, a late drive', String.raw`\\?\Z:\w\.github\workflows\ci.yml`],
 ] as const
+
+// Each protected case's ordinary twin: the same prefix and depth, an ordinary
+// name (SECWINPATH2: a Windows run cannot pass by the prefix alone).
+const ORDINARY_TWINS: Readonly<Record<string, string>> = {
+  'absolute, as Muse Code names it': String.raw`${CAPTURED_WORKSPACE}\claude\settings.json`,
+  'absolute, forward slashes': 'C:/Users/dev/protect-live/ws2/claude/settings.json',
+  'absolute on macOS and Linux': '/home/dev/ws2/claude/settings.json',
+  'relative, forward slashes': 'claude/settings.json',
+  'relative, backslashes': String.raw`claude\settings.json`,
+  'in any case': String.raw`${CAPTURED_WORKSPACE}\Claude\Settings.JSON`,
+  'outside the workspace, from the home folder': '~/claude/settings.json',
+  'outside the workspace, absolute': String.raw`\\?\C:\Users\dev\claude\settings.json`,
+  'an agent file, nested': String.raw`${CAPTURED_WORKSPACE}\packages\app\mcp.json`,
+  'DOS, in any case': String.raw`C:\Users\dev\protect-live\ws2\Claude\Settings.JSON`,
+  'as Muse Code names it, another drive': String.raw`\\?\D:\work\git\config`,
+  'as Muse Code names it, a late drive': String.raw`\\?\Z:\w\.github\ci.yml`,
+}
 
 const LOOK_ALIKES = [
   String.raw`${CAPTURED_WORKSPACE}\.claude-backup.txt`,
@@ -123,7 +144,12 @@ describe('Muse Code file-write approvals and the extension’s protected list', 
     expect(isReviewableApproval(request, 'auto', CAPTURED_TURN_ID)).toBe(false)
   })
 
-  it.each(PROTECTED_CASES)('protects a write Muse Code does not flag: %s', (_case, path) => {
+  it.each(PROTECTED_CASES)('protects a write Muse Code does not flag: %s', (name, path) => {
+    const twin = requestFor(ORDINARY_TWINS[name] ?? '', false)
+    expect(twin.isProtectedWrite, ORDINARY_TWINS[name]).toBe(false)
+    expect(choiceIds(twin)).toEqual(CHOICES_WITH_RULE)
+    expect(editAutomaticallyChoice(twin, 'acceptEdits')?.choiceId).toBe('allow_once')
+    expect(isReviewableApproval(twin, 'auto', CAPTURED_TURN_ID)).toBe(true)
     const request = requestFor(path, false)
     expect(request.isProtectedWrite).toBe(true)
     expect(choiceIds(request)).toEqual(CHOICES_WITHOUT_RULE)

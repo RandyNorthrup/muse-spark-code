@@ -8,6 +8,7 @@ import {
   terminalEnvironment,
   withLoopbackBypass,
 } from '../../src/core/backends/musecode/launch'
+import { fakeAccountHome } from './helpers/accountHome'
 
 function windowsProbe(files: Record<string, string | true>, overrides: Partial<LaunchProbe> = {}) {
   const probe: LaunchProbe = {
@@ -224,6 +225,60 @@ describe('resolveMuseLaunch on POSIX', () => {
 })
 
 describe('buildChildEnvironment', () => {
+  it.each(['linux', 'darwin', 'win32'] as const)(
+    'pins the %s account home after settings and removes inherited credentials',
+    (platform) => {
+      const accountHome = fakeAccountHome()
+      const baseEnv = {
+        PATH: 'keep',
+        XDG_CONFIG_HOME: '/shell-home',
+        xdg_config_home: '/wrong-case-home',
+        META_API_KEY: 'shell-canary',
+        MUSE_AUTH_PATH: '/shell-auth',
+        AWS_SESSION_TOKEN: 'token-canary',
+      }
+      const env = buildChildEnvironment({
+        platform,
+        baseEnv,
+        extraVariables: [
+          { name: 'XDG_CONFIG_HOME', value: '/settings-home' },
+          { name: 'META_API_KEY', value: 'settings-canary' },
+          { name: 'OPENAI_API_KEY', value: 'other-provider-canary' },
+        ],
+        systemRoot: undefined,
+        programFiles: undefined,
+        accountHome,
+      })
+      expect(env['XDG_CONFIG_HOME']).toBe(accountHome.configHome)
+      expect(env['PATH']).toBe('keep')
+      expect(env).not.toHaveProperty('META_API_KEY')
+      expect(env).not.toHaveProperty('OPENAI_API_KEY')
+      expect(env).not.toHaveProperty('AWS_SESSION_TOKEN')
+      expect(env).not.toHaveProperty('MUSE_AUTH_PATH')
+      if (platform === 'win32') expect(env).not.toHaveProperty('xdg_config_home')
+      expect(baseEnv.META_API_KEY).toBe('shell-canary')
+      expect(baseEnv.XDG_CONFIG_HOME).toBe('/shell-home')
+      expect(accountHome.assertCurrent).toHaveBeenCalledOnce()
+    },
+  )
+
+  it('refuses an invalidated account home before building its launch environment', () => {
+    const accountHome = fakeAccountHome()
+    accountHome.assertCurrent.mockImplementation(() => {
+      throw new Error('removed account')
+    })
+    expect(() =>
+      buildChildEnvironment({
+        platform: 'linux',
+        baseEnv: {},
+        extraVariables: [],
+        systemRoot: undefined,
+        programFiles: undefined,
+        accountHome,
+      }),
+    ).toThrow('removed account')
+  })
+
   it('resets PSModulePath on Windows and adds the extras, never a META_API_KEY of its own', () => {
     const env = buildChildEnvironment({
       platform: 'win32',

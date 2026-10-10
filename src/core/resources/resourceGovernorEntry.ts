@@ -6,10 +6,14 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { statfs } from 'node:fs/promises'
 import { TreeTempRoots } from '../../host/resources/tempRoots'
-import type { ResourceTempRoots } from './launch'
+import type { ResourceTempRoots, ResourceWindowsJob } from './launch'
 import { ResourceDiskSampler, type ResourceDiskTarget } from './disk'
 import { CreatedRegistry, type CreatedCleanup, type CreatedPathProof } from './createdRegistry'
-import { BOUNDED_FILE_READ_CHUNK_BYTES, RESOURCE_SAMPLE_MS } from '../../shared/constants'
+import {
+  BOUNDED_FILE_READ_CHUNK_BYTES,
+  RESOURCE_HISTORY_FLUSH_TIMEOUT_MS,
+  RESOURCE_SAMPLE_MS,
+} from '../../shared/constants'
 import {
   readResourceSettings,
   type ResourceClock,
@@ -22,7 +26,19 @@ import type { ResourceProcessLaunch, ResourceTreeBinding } from './launch'
 import { createMachineResourceSampler } from './sampler/system'
 import { LinuxResourceTreeReader } from './trees/linux'
 import { WindowsResourceTreeReader } from './trees/windows'
+import type { ResourceAdmission, ResourceLaunchRequest } from './queue'
+// POSTSPAWN: the launcher and helper preparation live in dist/resourceProcess.js.
 export { createResources } from '../../runtime/resources/entry'
+// U–C1: the window's status item and pause notices load with the governor, never at activation.
+export {
+  createResourceStatus,
+  createVsCodeResourceStatusItem,
+} from '../../host/resources/resourceStatus'
+import {
+  resourceHistoryRecorder,
+  type ResourceHistoryBinding,
+  type ResourceHistoryRecorder,
+} from '../../runtime/resources/history'
 import { runTreeProgram } from './trees/run'
 import { powerShellQuoted } from '../shellQuote'
 import {
@@ -31,6 +47,11 @@ import {
 } from '../../shared/constants'
 
 export interface ResourceHostSettings {
+  /** Runtime shares its existing machine governor's queue with process launches. */
+  readonly admission?: (
+    request: ResourceLaunchRequest,
+    signal?: AbortSignal,
+  ) => Promise<ResourceAdmission>
   /** W/H supply T's remaining native identity ports; absence is explicitly unknown. */
   readonly bindNativeTree?:
     ((launch: ResourceProcessLaunch) => Promise<ResourceTreeBinding | null>) | undefined
@@ -45,21 +66,42 @@ export interface ResourceHostSettings {
   readonly registryFile?: string | undefined
   readonly onCleanup?: ((result: CreatedCleanup) => void) | undefined
   readonly localization?: { readonly table: UiText; readonly locale: string } | undefined
+  /** M107 J/M102: record this window's samples into the machine journal, with usage consent. */
+  readonly history?: ResourceHistoryBinding | undefined
   readonly inspect: ResourceSettingsReader
   readonly onError: () => void
-  readonly windowsJob?:
-    | (() => Promise<
-        { readonly assemblyPath: string; readonly executablePath: string } | undefined
-      >)
-    | undefined
+  readonly windowsJob?: (() => Promise<ResourceWindowsJob | undefined>) | undefined
 }
-const state: { host?: ResourceLaunchHost } = {}
+const state: { host?: ResourceLaunchHost; recorder?: ResourceHistoryRecorder } = {}
+
+/**
+ * Window disposal (RVM107W2 P2): the open minute and any pending snapshot are
+ * written, waiting at most RESOURCE_HISTORY_FLUSH_TIMEOUT_MS so shutdown never hangs.
+ */
+export async function flushResourceHistory(): Promise<void> {
+  const recorder = state.recorder
+  if (recorder === undefined) return
+  let cancel: (() => void) | undefined
+  try {
+    await Promise.race([
+      recorder.flush(),
+      new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, RESOURCE_HISTORY_FLUSH_TIMEOUT_MS)
+        timer.unref()
+        cancel = () => {
+          clearTimeout(timer)
+        }
+      }),
+    ])
+  } finally {
+    cancel?.()
+  }
+}
 
 /** Loaded by the first governed launch; a CommonJS module is shared by all bundles. */
 export function resourceGovernorHost(options: ResourceHostSettings): ResourceLaunchHost {
   if (options.localization !== undefined)
     setUiText(options.localization.table, options.localization.locale)
-  if (state.host !== undefined) return state.host
   const settings = () => readResourceSettings(options.inspect)
   const clock: ResourceClock = {
     now: () => Date.now(),
@@ -224,6 +266,7 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
     return (await options.bindNativeTree?.(launch)) ?? null
   }
   state.host = new ResourceLaunchHost({
+    ...(options.admission !== undefined && { admission: options.admission }),
     governor,
     events,
     clock,
@@ -234,6 +277,25 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
     created,
     onCleanup: options.onCleanup,
     onError: options.onError,
+    // POSTSPAWN: attested Windows launches are never tree-sampled; their final
+    // job accounting is history's only record of them, kept while it is read.
+    isSettledRead: options.history !== undefined,
   })
+  if (options.history !== undefined) {
+    // The governor's own sample and event streams; recording never gates admission.
+    const host = state.host
+    const recorder = (state.recorder = resourceHistoryRecorder(
+      options.history,
+      // Each read drains the settled rows, so an attested tree is recorded once.
+      { read: () => Promise.resolve([...host.settled().rows, ...host.treeUsage()]) },
+      options.onError,
+    ))
+    governor.onSample(() => {
+      recorder.sample(governor.status([]))
+    })
+    events.subscribe((event) => {
+      recorder.event(event)
+    })
+  }
   return state.host
 }

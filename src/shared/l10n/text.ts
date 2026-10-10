@@ -1,3 +1,4 @@
+import type { BackendKind } from '../protocol'
 // The table the extension shows, and the helpers that fill it in the display
 // language (PLAN.md D33). `UI_TEXT` starts as English; the host installs the
 // user's table at activation and hands the same table to each webview, which
@@ -6,7 +7,6 @@
 
 import { EN, type UiText } from './en'
 import type { PluralForms } from './forms'
-import { Usd } from '../usd'
 
 export const BASE_LOCALE = 'en'
 const PERCENT_DIVISOR = 100
@@ -65,7 +65,8 @@ export function uiLocale(): string {
 
 export type TemplateValues = Readonly<Record<string, string | number>>
 
-function numberFormat(key: string, options: Intl.NumberFormatOptions): Intl.NumberFormat {
+/** The installed language's cached number format for `key` (shared with exactUsd.ts). */
+export function numberFormat(key: string, options: Intl.NumberFormatOptions): Intl.NumberFormat {
   const cached = current.formatters.get(key)
   if (cached !== undefined) {
     return cached
@@ -80,44 +81,12 @@ export function formatNumber(value: number): string {
   return numberFormat('number', {}).format(value)
 }
 
-/** A whole percentage, as the language writes one: 42% / 42 % / %42. */
-export function formatPercent(percent: number): string {
-  return numberFormat('percent', { style: 'percent', maximumFractionDigits: 0 }).format(
-    percent / PERCENT_DIVISOR,
-  )
-}
-
-/** An amount of US dollars as the language writes money: $1.46 / 1,46 $ / US$1.46. */
-export function formatUsd(amount: number | string | Usd, fractionDigits = 2): string {
-  const exact = amount instanceof Usd ? amount : Usd.from(amount)
-  const leadingZeros = /^0\.(0*)[1-9]/.exec(exact.toString())?.[1]?.length
-  const precision = Math.max(
-    fractionDigits,
-    leadingZeros === undefined || leadingZeros < 2 ? 0 : leadingZeros + 2,
-  )
-  return formatUsdAtPrecision(exact, precision)
-}
-
-/** A verified quote's chosen precision, without changing its exact amount. */
-export function formatUsdAtPrecision(exact: Usd, precision: number): string {
-  const rounded = exact.ceiling(precision).toString()
-  const [whole = '0', fraction = ''] = rounded.split('.', 2)
-  const formatter = numberFormat(`usd:${String(precision)}`, {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: precision,
-    maximumFractionDigits: precision,
-  })
-  // Intl accepts bigint exactly; substitute the exact fractional digits in its locale pattern.
-  const digits = fraction
-    .padEnd(precision, '0')
-    .replaceAll(/\d/g, (digit) =>
-      numberFormat('digit', { useGrouping: false }).format(Number(digit)),
-    )
-  return formatter
-    .formatToParts(BigInt(whole))
-    .map((part) => (part.type === 'fraction' ? digits : part.value))
-    .join('')
+/** A percentage in the display language, whole by default: 42% / 42 % / %42. */
+export function formatPercent(percent: number, maximumFractionDigits = 0): string {
+  return numberFormat(`percent:${String(maximumFractionDigits)}`, {
+    style: 'percent',
+    maximumFractionDigits,
+  }).format(percent / PERCENT_DIVISOR)
 }
 
 // Decimal sizes, as Intl's byte units are named (kB, MB).
@@ -240,4 +209,32 @@ export function templateParts(template: string): readonly TemplatePart[] {
     parts.push(template.slice(last))
   }
   return parts
+}
+
+const TOKENS_PER_MILLION = 1_000_000
+const TOKENS_PER_THOUSAND = 1000
+// Thousands are shown to one decimal: 12.3K.
+const TOKENS_PER_TENTH_THOUSAND = 100
+const TENTHS_PER_UNIT = 10
+
+/** "1M" / "200K" / "12.3K" / "512" for a token count, in the display language's digits. */
+export function formatTokenWindow(tokens: number): string {
+  if (tokens < TOKENS_PER_THOUSAND) {
+    return formatNumber(tokens)
+  }
+  const thousands = Math.round(tokens / TOKENS_PER_TENTH_THOUSAND) / TENTHS_PER_UNIT
+  // 999,950 and up round to a thousand thousands: that is "1M", not "1,000K".
+  return thousands < TOKENS_PER_THOUSAND
+    ? `${formatNumber(thousands)}K`
+    : `${formatNumber(Math.round(tokens / TOKENS_PER_MILLION))}M`
+}
+
+/** The backend's name as the palette, the usage dialog and an export show it. */
+export function backendLabel(kind: BackendKind): string {
+  // Built per call, so the name is the installed table's (PLAN.md D33).
+  const labels: Readonly<Record<BackendKind, string>> = {
+    museCode: UI_TEXT.backendMuseCode,
+    modelApi: UI_TEXT.backendModelApi,
+  }
+  return labels[kind]
 }

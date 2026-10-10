@@ -236,5 +236,11 @@
   "exportTooLarge": "Ten eksport jest zbyt duży dla przeglądarki. Wybierz krótszy okres lub wyeksportuj za pomocą CLI.",
   "exportBound": "Eksporty w przeglądarce są ograniczone do {limit}, łącznie z kodowaniem JSON.",
   "editorActionsUnavailable": "Ta strona nie może otworzyć ustawień edytora, pokazać folderu historii ani edytować cen modeli. Użyj ustawień edytora oraz elementów sterujących Modelami i agentami. Odczyt, filtry, wykresy i eksporty pozostają tu dostępne.",
-  "readOnlyActions": "Ten interfejs tekstowy jest tylko do odczytu. Otwórz stronę towarzyszącą, aby korzystać z wykresów, zarządzać historią i pobierać pliki."
+  "readOnlyActions": "Ten interfejs tekstowy jest tylko do odczytu. Otwórz stronę towarzyszącą, aby korzystać z wykresów, zarządzać historią i pobierać pliki.",
+  "deleteConfirmResources": {
+    "one": "Usuwa też {count} wpis historii zasobów.",
+    "few": "Usuwa też {count} wpisy historii zasobów.",
+    "many": "Usuwa też {count} wpisów historii zasobów.",
+    "other": "Usuwa też {count} wpisu historii zasobów."
+  }
 }

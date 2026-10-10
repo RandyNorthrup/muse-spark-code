@@ -1,3 +1,4 @@
+// App's deferred modal owns loading, failure, retry and dismissal.
 import { deferred } from './DeferredSurface'
 import type { UsageDialogProps } from './UsageDialogContent'
 export type { UsageDialogProps } from './UsageDialogContent'

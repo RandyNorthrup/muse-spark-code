@@ -41,7 +41,22 @@ function count(text: string, pattern: RegExp): number {
 
 const SURFACE_ACTIVE = `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || focusedView == '${CHAT_VIEW_ID}'`
 
+/** A package.json `%key%` reference names its package.nls.json string. */
+const nlsKeyOf = (reference: string | undefined) => reference?.replace(/^%(.+)%$/, '$1') ?? ''
+
 describe('package.json manifest', () => {
+  it('never puts settings below a scalar setting that VS Code would ignore', () => {
+    const properties = manifest.contributes.configuration.properties
+    const keys = Object.keys(properties)
+    for (const [parent, specification] of Object.entries(properties)) {
+      if (specification.type === 'object') continue
+      expect(
+        keys.filter((key) => key.startsWith(`${parent}.`)),
+        parent,
+      ).toEqual([])
+    }
+  })
+
   it('offers paid Tab by default while retaining its machine scope and daily cap', () => {
     const properties = manifest.contributes.configuration.properties
     expect(properties['museSpark.modelApiTab']).toMatchObject({ default: true, scope: 'machine' })
@@ -214,6 +229,30 @@ describe('package.json manifest', () => {
     expect(description).not.toMatch(/only through|only overrun|only way/i)
   })
 
+  it('claims only the GitHub reads the wired network port can make (M113W)', () => {
+    // The wired stores port is always unbound (src/runtime/reporting/network.ts):
+    // store, workflow and release adapters await approved live captures, so no
+    // setting may promise public release-channel reads (Grok M113W P2).
+    const here = path.dirname(fileURLToPath(import.meta.url))
+    const nls = JSON.parse(
+      readFileSync(path.join(here, '..', '..', 'package.nls.json'), 'utf8'),
+    ) as Record<string, string>
+    const properties = manifest.contributes.configuration.properties as Record<
+      string,
+      { description?: string; enumDescriptions?: string[] }
+    >
+    const network = properties['museSpark.reports.network']
+    const description = nls[nlsKeyOf(network?.description)] ?? ''
+    expect(description).toContain('GitHub')
+    expect(description).toContain('--network')
+    expect(description).not.toMatch(/public release channels/i)
+    const enumTexts = (network?.enumDescriptions ?? []).map(
+      (reference) => nls[nlsKeyOf(reference)] ?? '',
+    )
+    for (const text of enumTexts) expect(text).not.toMatch(/public release channels/i)
+    expect(nls[nlsKeyOf(network?.enumDescriptions?.[0])] ?? '').toContain('signed in')
+  })
+
   it('notifies about background turns until turned off, a choice a workspace may make (M82)', () => {
     const properties = manifest.contributes.configuration.properties as Record<
       string,
@@ -317,6 +356,12 @@ describe('package.json manifest', () => {
       [COMMAND_IDS.moveToBackground]: CONTEXT_KEYS.canMoveToBackground,
       // The background tasks of the conversation in front of the user (M46).
       [COMMAND_IDS.stopBackgroundTasks]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
+      // Records the screen for the conversation in front of the user (M105).
+      [COMMAND_IDS.attachScreenRecording]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
+      // Attaches the newest saved recording to the conversation in front of the user (M105).
+      [COMMAND_IDS.attachLatestScreenRecording]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
+      // Deletes the conversation in front of the user's uploaded media (M105).
+      [COMMAND_IDS.deleteUploadedFiles]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
     })
     const registered: readonly string[] = Object.values(COMMAND_IDS)
     for (const command of palette.keys()) {
@@ -469,7 +514,9 @@ describe('packaging (M26)', () => {
     const ci = read('.github', 'workflows', 'build.yml')
     expect(ci).toContain('run: node scripts/release-reuse.mjs record')
     expect(ci).toContain('name: source-tree-${{ steps.source.outputs.tree }}')
-    expect(count(ci, /retention-days: 30/g)).toBe(4)
+    // Four package artifacts plus M114 S's visual-shards and visual jobs,
+    // every one on the same 30-day retention.
+    expect(count(ci, /retention-days: 30/g)).toBe(6)
   })
   it('keeps manual recovery on the shared verified staging path and never rebuilds it (RELFAST2)', () => {
     const release = read('.github', 'workflows', 'release.yml')
@@ -560,17 +607,30 @@ describe('tiered CI (CIFLOW)', () => {
       expect(job(id)).toContain('inputs.fast && \'["ubuntu-latest"]\'')
       expect(job(id)).toContain('["ubuntu-latest","windows-latest","macos-latest"]')
     }
-    // Exactly quality:gates without the tests, which run in their own jobs: a
-    // gate added to quality:gates and not to CI fails here.
+    // Exactly quality:gates without tests and pixels, which have required jobs: a
+    // gate added to quality:gates and not to CI fails here. The static gates run
+    // in parts (CIFIX017R3): each script quality:gates reaches through run-s
+    // runs in exactly one part, none twice and none dropped.
+    const scripts: Record<string, string | undefined> = manifest.scripts
+    const leaves = (names: readonly string[]): string[] =>
+      names.flatMap((name) => {
+        const script = scripts[name] ?? ''
+        return script.startsWith('run-s ') ? leaves(script.split(' ').slice(1)) : [name]
+      })
     const gates = manifest.scripts['quality:gates'].split(' ')
     expect(gates.slice(0, 1)).toEqual(['run-s'])
     expect(gates).toContain('test:unit')
-    expect(job('checks')).toContain(
-      `      - run: npx run-s ${gates
-        .slice(1)
-        .filter((gate) => gate !== 'test:unit')
-        .join(' ')}\n`,
+    const parts = Array.from(
+      job('checks').matchAll(/\n {12}gates: '([^']+)'\n/g),
+      ([, list = '']) => list.split(' '),
     )
+    expect(parts).toHaveLength(3)
+    expect(leaves(parts.flat()).toSorted((a, b) => a.localeCompare(b))).toEqual(
+      leaves(
+        gates.slice(1).filter((gate) => gate !== 'test:unit' && gate !== 'check:visual'),
+      ).toSorted((a, b) => a.localeCompare(b)),
+    )
+    expect(job('checks')).toContain('      - run: npx run-s ${{ matrix.part.gates }}\n')
     expect(job('unit')).toContain('npx vitest run\n')
     for (const id of [
       'coverage',
@@ -582,6 +642,8 @@ describe('tiered CI (CIFLOW)', () => {
     ]) {
       expect(job(id)).toContain('if: ${{ !inputs.fast }}')
     }
+    // M114 S's visual gate runs on every tier, like the static checks.
+    expect(job('visual')).toContain('if: always()')
     expect(job('accessibility')).toContain('runs-on: ubuntu-latest')
     expect(job('accessibility')).toContain('run: npm run test:a11y\n')
     expect(job('accessibility')).toContain('run: npm run test:legal-a11y\n')
@@ -596,14 +658,45 @@ describe('tiered CI (CIFLOW)', () => {
     expect(job('packages')).toContain('name: muse-spark-code-sboms')
   })
 
-  it('collects all four shards per OS and gates merged coverage with unchanged thresholds', () => {
-    expect(job('unit')).toContain("shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4]') }}")
-    expect(job('unit')).toContain('--shard="$SHARD/4" --reporter=default --reporter=blob')
+  it('carries the whole production dist, not a hand list, to the accessibility job', () => {
+    // A hand list drifted once: wire.js gained a lazy chunk the list lacked.
+    expect(job('checks')).toContain(
+      'path: |\n            dist\n            !dist/vsix-package\n            !dist/meta\n',
+    )
+    expect(job('checks')).not.toMatch(/^ {12}dist\/[A-Za-z]+\.js$/m)
+    expect(job('accessibility')).toContain('name: production-webview\n          path: dist\n')
+    expect(read('test/harness/reporting/verify.mjs')).toContain(
+      "statSync(path.join(root, 'dist/reportingPanel.js'))",
+    )
+  })
+
+  it('replays visual pixels only in required shards with the recorded Git source available', () => {
+    expect(job('checks')).not.toContain('check:visual')
+    expect(job('visual-shards')).toContain('fetch-depth: 0')
+    expect(job('visual-shards')).toContain('git fetch --no-tags origin "$revision"')
+    expect(job('visual-shards')).toContain('npm run check:visual -- --shard=${{ matrix.shard }}/6')
+    expect(job('visual')).toContain('needs: visual-shards')
+  })
+
+  it('collects every shard per OS (eight on Windows, six on macOS) and gates merged coverage with unchanged thresholds', () => {
+    expect(job('unit')).toContain(
+      "shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6,7,8]') }}",
+    )
+    expect(job('unit')).toContain(
+      `exclude: \${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8},{"os":"macos-latest","shard":7},{"os":"macos-latest","shard":8}]') }}`,
+    )
+    expect(job('unit')).toContain(
+      "SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || matrix.os == 'macos-latest' && 6 || 8 }}",
+    )
+    expect(job('unit')).toContain('--shard="$SHARD/$SHARDS" --reporter=default --reporter=blob')
     expect(job('unit')).toContain('--outputFile="blob-reports/shard-$SHARD.json"')
     expect(job('coverage')).toContain('os: [ubuntu-latest, windows-latest, macos-latest]')
     expect(job('coverage')).toContain('pattern: coverage-${{ matrix.os }}-*')
     expect(job('coverage')).toContain('merge-multiple: true')
-    expect(job('coverage')).toContain('for shard in 1 2 3 4; do')
+    expect(job('coverage')).toContain(
+      "SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || matrix.os == 'macos-latest' && 6 || 8 }}",
+    )
+    expect(job('coverage')).toContain('for shard in $(seq 1 "$SHARDS"); do')
     expect(job('coverage')).toContain('test -s "blob-reports/shard-$shard.json"')
     expect(job('coverage')).toContain('npx vitest run --merge-reports=blob-reports --coverage')
     const config = read('vitest.config.ts')
@@ -611,7 +704,10 @@ describe('tiered CI (CIFLOW)', () => {
     expect(config).toContain("arg !== '--shard' && !arg.startsWith('--shard=')")
     expect(config).toContain('...(process.argv.every')
     expect(config).toContain('thresholds: COVERAGE_THRESHOLDS,')
-    expect(config).toContain("fileParallelism: process.platform !== 'win32'")
+    expect(config).toContain("fileParallelism: process.platform !== 'win32' && !IS_HOSTED_MAC")
+    expect(config).toContain(
+      "process.platform === 'darwin' && process.env['GITHUB_ACTIONS'] === 'true'",
+    )
   })
 
   it('keeps all required names and wires fail-closed checks for each selected-tier dependency', () => {
@@ -634,6 +730,7 @@ describe('tiered CI (CIFLOW)', () => {
         .filter(Boolean),
     ).toEqual([
       'checks',
+      'visual',
       'unit',
       'coverage',
       'accessibility',
@@ -645,7 +742,7 @@ describe('tiered CI (CIFLOW)', () => {
       'sast',
     ])
     expect(job(id)).toContain('if: always()')
-    for (const key of ['CHECKS', 'UNIT', 'SECRETS', 'SAST']) {
+    for (const key of ['CHECKS', 'VISUAL', 'UNIT', 'SECRETS', 'SAST']) {
       expect(job(id)).toContain(`          test "$${key}" = success\n`)
     }
     expect(job(id)).toContain('          if [ "$FAST" != true ]; then\n')
@@ -708,7 +805,7 @@ describe('tiered CI (CIFLOW)', () => {
           ?.split(',')
           .map((value) => value.trim())
           .filter(Boolean) ?? []
-      const always = ['checks', 'unit', 'secrets', 'sast']
+      const always = ['checks', 'visual', 'unit', 'secrets', 'sast']
       const fullOnly = [
         'coverage',
         'accessibility',
@@ -787,5 +884,34 @@ describe('toolchain pins (AGENTS.md)', () => {
     expect(dependabot).toMatch(
       /^ {6}- dependency-name: typescript\n {8}update-types: \['version-update:semver-major'\]$/m,
     )
+  })
+})
+
+// cmd.exe reads at most 8,191 characters per command line. npm on Windows runs
+// a script as `%ComSpec% /d /s /c "<script>"`, and a tool from node_modules/.bin
+// is npm's .cmd shim, which re-expands every argument into one line of its own
+// (CMD_SHIM_LINE). Measured on Windows 11 (CIFIX017W2): through dpdm's shim in a
+// 51-character .bin folder, an 8,035-character script ran and 8,036 failed
+// with "The syntax of the command is incorrect." (exit 255), as the 8,070-
+// character `cycles` script did on the hosted runner. Each path in those lines
+// may be up to MAX_PATH long, wherever the repository is checked out.
+const CMD_LINE_MAX = 8191
+const MAX_PATH = 260
+const CMD_SHIM_LINE = String.raw`endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\..\%tool%" %*`
+
+describe('npm scripts on Windows (CIFIX017W2)', () => {
+  it('fit cmd.exe’s command line as npm runs them and as a node_modules/.bin shim expands them', () => {
+    const longestPath = 'p'.repeat(MAX_PATH)
+    const lines = (script: string) => [
+      `${longestPath} /d /s /c "${script}"`,
+      CMD_SHIM_LINE.replaceAll(/%(?:COMSPEC|_prog|dp0|tool)%/g, () => longestPath).replace(
+        '%*',
+        () => script,
+      ),
+    ]
+    const tooLong = Object.entries(manifest.scripts).filter(([, script]) =>
+      lines(script).some((line) => line.length > CMD_LINE_MAX),
+    )
+    expect(tooLong.map(([name, script]) => `${name}: ${String(script.length)}`)).toEqual([])
   })
 })

@@ -4,5 +4,5 @@ export type { AgentMapProps } from './AgentMapContent'
 
 export const AgentMap = deferred<AgentMapProps>(async () => {
   const module = await import('./AgentMapContent')
-  return { default: module.AgentMapContent }
+  return { default: module.default }
 }, true)

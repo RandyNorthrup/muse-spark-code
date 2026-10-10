@@ -14,7 +14,7 @@ import type {
 import { CodeIcon, PlusIcon } from '../components/icons'
 import { ModelsSection } from './ModelsSection'
 import { ProvidersSection } from './ProvidersSection'
-import type { PanelUiAction, PanelUiState } from './reducer'
+import type { PanelUiAction, PanelUiState, WizardLife } from './reducer'
 
 export interface SectionProps {
   readonly panelState: ModelsPanelState
@@ -23,6 +23,8 @@ export interface SectionProps {
   readonly navigate: (section: ModelsPanelSection) => void
   readonly dispatch: (action: PanelUiAction) => void
   readonly wizardOpen: boolean
+  /** The open wizard's draft generation (pending work checks it before posting). */
+  readonly wizardLife: WizardLife
   readonly importOpen: boolean
   readonly highlightedItem: string | undefined
 }
@@ -48,7 +50,7 @@ function reduceProviders(state: PanelUiState, action: PanelUiAction): PanelUiSta
       // The pick step is local (no draft yet): it survives host states
       // until the host's draft arrives, and closes when that draft goes
       // (saved or cancelled) after it was seen.
-      return { ...state, wizardOpen: true }
+      return { ...state, wizardOpen: true, wizardGeneration: state.wizardGeneration + 1 }
     }
     case 'close-wizard': {
       return { ...state, wizardOpen: false, wizardHasDraft: false }

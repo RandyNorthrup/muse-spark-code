@@ -7,6 +7,10 @@ import type { UsdAmount } from '../../../shared/usd'
 // its validation, and the store interface the host implements. Pure.
 
 import * as z from 'zod/mini'
+import { uploadedMediaRefSchema, type UploadedMediaRef } from '../../../shared/media'
+import { storedReplayMediaSchema } from '../../../shared/media'
+import type { StoredMediaPart } from '../../media/replayMedia'
+import { vaultTaintSchema, type VaultTaint } from '../../../shared/vault'
 import {
   agentEvidenceSchema,
   agentFileSchema,
@@ -40,9 +44,13 @@ import {
 import type { ReplayProducer } from './modelPolicy'
 
 export interface StoredReplayItem {
+  /** Host provenance, never serialized into the provider input item. */
+  readonly provenance?: VaultTaint | undefined
   readonly turnId: string
   readonly item: InputItem
   readonly producer?: ReplayProducer | undefined
+  /** Canonical metadata survives per-request model-switch omission notes. */
+  readonly media?: readonly { readonly index: number; readonly media: StoredMediaPart }[]
   /** The transcript user card that supplied this exact replay message (M53). */
   readonly userMessageId?: string
   /** Identifies a background task's terminal model note across fork cuts. */
@@ -97,6 +105,8 @@ export interface StoredSession {
   readonly sessionId: string
   /** SHA-256 digest of the owning Model API key; absent on legacy files. */
   readonly accountId?: string
+  /** M105: durable upload references only; source bytes and paths never belong here. */
+  readonly fileRefs?: readonly UploadedMediaRef[]
   readonly sideChat?: boolean
   /**
    * Built from an imported session-export file (M84, PLAN.md D49), or forked
@@ -260,6 +270,7 @@ const storedSessionFields = {
   sessionId: z.string(),
   // Legacy sessions remain readable for retention, but are never admitted.
   accountId: z.optional(z.string().check(z.regex(/^[a-f0-9]{64}$/))),
+  fileRefs: z.optional(z.array(uploadedMediaRefSchema)),
   sideChat: z.optional(z.boolean()),
   imported: z.optional(z.literal(true)),
   workspaceRoot: z.string(),
@@ -290,13 +301,36 @@ const storedSessionFields = {
   // Optional, so a session saved before M45 still reads.
   goal: z.optional(goalRecordSchema),
   replay: z.array(
-    z.object({
-      turnId: z.string(),
-      item: storedInputItemSchema,
-      producer: z.optional(z.object({ provider: z.string(), model: z.string() })),
-      userMessageId: z.optional(z.string()),
-      backgroundTaskId: z.optional(z.string()),
-    }),
+    z
+      .object({
+        turnId: z.string(),
+        provenance: z.optional(vaultTaintSchema),
+        producer: z.optional(z.object({ provider: z.string(), model: z.string() })),
+        item: storedInputItemSchema,
+        userMessageId: z.optional(z.string()),
+        backgroundTaskId: z.optional(z.string()),
+        media: z.optional(z.array(storedReplayMediaSchema)),
+      })
+      .check(
+        z.refine((entry) => {
+          const media = entry.media ?? []
+          if (media.length === 0) return true
+          const { item } = entry
+          return (
+            item.type === 'message' &&
+            item.role === 'user' &&
+            new Set(media.map((part) => part.index)).size === media.length &&
+            media.every(({ index, media: part }) => {
+              const content = item.content[index]
+              return (
+                content !== undefined &&
+                ((part.file === undefined && (part.files?.length ?? 0) === 0) ||
+                  content.type === 'input_text')
+              )
+            })
+          )
+        }),
+      ),
   ),
   // Each item keeps its optional `recordedAt` (M87, PLAN.md D66): the time the
   // host stamped on a user message or reply; a file saved before has none.
@@ -412,6 +446,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
   // Optional fields are absent in a StoredSession, never undefined.
   const {
     accountId,
+    fileRefs,
     name,
     forkedFrom,
     firstPrompt,
@@ -434,10 +469,11 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     promptDate,
     ...rest
   } = result.data
-  const replay = rest.replay.map(({ backgroundTaskId, userMessageId, ...entry }) => ({
+  const replay = rest.replay.map(({ backgroundTaskId, userMessageId, media, ...entry }) => ({
     ...entry,
     ...(userMessageId !== undefined && { userMessageId }),
     ...(backgroundTaskId !== undefined && { backgroundTaskId }),
+    ...(media !== undefined && { media }),
   }))
   const restoredChildren: StoredChild[] = []
   const storedChildren = children ?? []
@@ -466,6 +502,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     session: {
       ...rest,
       ...(accountId !== undefined && { accountId }),
+      ...(fileRefs !== undefined && { fileRefs }),
       replay,
       ...(name !== undefined && { name }),
       ...(forkedFrom !== undefined && { forkedFrom }),

@@ -52,6 +52,7 @@ import {
 } from '../../shared/constants'
 import { isMissingPath } from '../canonicalPath'
 import type { Logger } from '../logger'
+import type { SecretScrubPort } from '../../shared/redact'
 
 /** One directory entry: links and unexpected types never enter the journal. */
 export interface ReportDirEntry {
@@ -216,6 +217,7 @@ export const nodeReportJournalFs: ReportJournalFs = {
 }
 
 export interface ReportJournalOptions {
+  readonly vaultScrub?: SecretScrubPort
   /** `ExtensionContext.globalStorageUri.fsPath`: the only root this touches. */
   readonly globalStorageDir: string
   /** This window's instance (`crypto.randomUUID()`): one journal and marker. */
@@ -291,6 +293,7 @@ export class ReportJournal {
   private readonly instance: string
   private readonly isAlive: (pid: number) => boolean
   private readonly log: Logger
+  private readonly vaultScrub: SecretScrubPort | undefined
   private tail: Promise<void> = Promise.resolve()
   private disabled = false
   private warned = false
@@ -319,6 +322,7 @@ export class ReportJournal {
     this.instance = options.instance
     this.isAlive = options.isAlive
     this.log = options.log
+    this.vaultScrub = options.vaultScrub
   }
 
   private disable(error: unknown): void {
@@ -377,7 +381,9 @@ export class ReportJournal {
       if (isMissingPath(error)) return { entries: [], skipped: 0 }
       throw error
     }
-    const parsed = parseJournalText(text)
+    const parsed = parseJournalText(
+      this.vaultScrub === undefined ? text : await this.vaultScrub.scrub(text),
+    )
     const entries = pruneFlightEntries(parsed.entries, now, maxBytes)
     const clean = entries.map((entry) => serializeFlightRecord(entry)).join('')
     // Zero valid entries also removes an empty or over-cap invalid-only file.
@@ -482,6 +488,9 @@ export class ReportJournal {
         const built = buildFlightRecord({ ...input, ext: this.ext, host: this.host }, now)
         if (!built.ok) return
         const line = serializeFlightRecord(built.record)
+        // A value matching a structural fact makes that record untrustworthy.
+        // Refuse it rather than persisting a damaged schema or secret residue.
+        if (this.vaultScrub !== undefined && (await this.vaultScrub.scrub(line)) !== line) return
         try {
           // The first append measures and repairs what the journal holds (a
           // torn tail would swallow the new event); later ones keep count.

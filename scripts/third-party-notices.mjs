@@ -26,6 +26,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { contributedPackageDirs, noticePackageDir } from './lib/noticesInput.mjs'
+import { assertFontBundleSplit, fontNotices } from './notices-fonts.mjs'
 
 const METAFILE_DIR = path.join('dist', 'meta')
 const ACP_METAFILE_DIR = path.join('dist', 'meta-acp')
@@ -51,7 +52,7 @@ Muse Spark Code (Unofficial)
 The extension's bundles (dist/extension.js, dist/modelApi.js,
 dist/resourceGovernor.js, dist/resourceAdmission.js, dist/sessionBoard.js, dist/reviewer.js, dist/team.js, dist/teamScheduler.js, dist/teamRunners.js, dist/foreignHooks.js, dist/hookRuntime.js,
 dist/pluginHooks.js, dist/planMarkdown.js, dist/checkpointStore.js,
-dist/review.js, dist/agentImport.js, dist/conversationGit.js, dist/codeIntel.js, dist/voice.js, dist/webFetch.js,
+dist/review.js, dist/agentImport.js, dist/conversationGit.js, dist/modelApiSessions.js, dist/codeIntel.js, dist/voice.js, dist/webFetch.js,
 dist/museCodeReviewer.js, dist/browserCheck.js, dist/browserRuntime.js, dist/bundledSkills.js,
 dist/conversation.js, dist/whatsNew.js, dist/report.js, dist/recorder.js, dist/uiText.js, dist/uiTextRuntime.js, dist/uiTextHooks.js, dist/uiTextSurfaces.js, dist/validation.js, dist/wire.js, dist/searchWorker.js, dist/pageWorker.js,
 dist/webview/main.js, dist/webview/resourceSurface.js, dist/webview/resourceHistory.js, dist/webview/resourceHistory.css, its ESM chunks, dist/webview/main.css, dist/webview/whatsNew.js and dist/webview/whatsNew.css)
@@ -59,7 +60,8 @@ include code from the packages below, each under its own licence,
 reproduced here as the package ships it. The vendored
 high-quality-projects-skill workflow package and the vendored models.dev
 provider catalogue are also included below.
-The macOS dictation helper links
+The separately distributed optional standalone font pack is also listed below;
+no font is shipped in the VSIX. The macOS dictation helper links
 only Apple's system frameworks and the Windows helper is a PowerShell
 script of this project; neither includes third-party code.
 The Linux created-path helper statically links OpenSSL SHA-256 routines;
@@ -73,10 +75,11 @@ const ACP_HEADER = `THIRD-PARTY SOFTWARE NOTICES
 muse-spark-code-acp, Muse Spark Code (Unofficial) for editors that speak the
 Agent Client Protocol
 
-The agent's bundles (dist/acp.js, dist/acpQuestions.js, dist/runtimeQuestions.js, dist/questionNotes.js, dist/resourceGovernor.js, dist/resourceAdmission.js, dist/modelApi.js, dist/reviewer.js, dist/team.js, dist/teamScheduler.js, dist/teamRunners.js, dist/foreignHooks.js, dist/hookRuntime.js, dist/recorder.js, dist/uiText.js, dist/uiTextRuntime.js, dist/uiTextHooks.js, dist/uiTextSurfaces.js, dist/validation.js, dist/wire.js, dist/searchWorker.js and
+The agent's bundles (dist/acp.js, dist/fontsInstall.js, dist/acpQuestions.js, dist/runtimeQuestions.js, dist/questionNotes.js, dist/resourceGovernor.js, dist/resourceAdmission.js, dist/modelApi.js, dist/reviewer.js, dist/team.js, dist/teamScheduler.js, dist/teamRunners.js, dist/foreignHooks.js, dist/hookRuntime.js, dist/recorder.js, dist/uiText.js, dist/uiTextRuntime.js, dist/uiTextHooks.js, dist/uiTextSurfaces.js, dist/validation.js, dist/wire.js, dist/searchWorker.js and
 dist/pageWorker.js and dist/legalScan.js) include code from the packages below, each under its
 own licence, reproduced here as the package ships it. The keyring binding (@napi-rs/keyring) is installed
-beside it as a dependency, with its own licence.
+beside it as a dependency, with its own licence. The optional standalone font
+pack is described below; fonts install verifies its separately downloaded assets.
 
 Generated from the production build by scripts/third-party-notices.mjs.
 `
@@ -212,6 +215,12 @@ if (acpOutput === undefined) {
     },
   )
 }
+assertFontBundleSplit(
+  JSON.parse(readFileSync(path.join('dist', 'meta-acp', 'acp.json'), 'utf8')),
+  JSON.parse(readFileSync(path.join('dist', 'meta-acp', 'fontsInstall.json'), 'utf8')),
+)
+const fonts = await fontNotices()
+packages.push(...fonts.map((font) => ({ ...font, text: normalise(font.text) })))
 if (problems.length > 0) {
   console.error(`third-party notices: ${String(problems.length)} package(s) need a review:`)
   for (const problem of problems) {
@@ -236,5 +245,7 @@ if (acpOutput !== undefined) {
     )
     process.exit(1)
   }
-  console.log(`ok   ${OUTPUT}: ${String(packages.length)} bundled packages`)
+  console.log(
+    `ok   ${OUTPUT}: ${String(packages.length)} third-party notices (${String(fonts.length)} optional fonts)`,
+  )
 }

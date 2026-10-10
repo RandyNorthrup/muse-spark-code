@@ -13,6 +13,12 @@ import type { ResourceProcessIdentity, ResourceTicket } from '../../src/shared/r
 import { readJobSource, runJobWithoutAutoload } from './helpers/jobSource'
 import { removeFolder } from './helpers/temporaryFolders'
 
+// The real job helper compiles under the bootstrap runner; only its admission is a fixture.
+vi.mock('../../src/core/resources/admission', async (original) => {
+  const { withFixtureBootstrap } = await import('./helpers/resources/fixtureLaunch')
+  return withFixtureBootstrap(await original())
+})
+
 const ticket: ResourceTicket = {
   id: 'job-tree',
   root: { pid: 810, startTime: '134040000000000000' },

@@ -33,6 +33,7 @@ interface PaidRequestClaim {
   check(capUsd: UsdAmount): void
   settle(actualCostUsd: UsdAmount, hasUnknownCost?: boolean): Promise<unknown>
 }
+import type { MediaRequestAccounting } from '../../media/mediaCost'
 import { fill } from '../../../shared/l10n/text'
 import { classifyRetry, RETRY_TABLES } from '../../../shared/retryPolicy'
 import type { CoreLogger } from '../../logging'
@@ -42,8 +43,11 @@ import {
   networkFailureMessage,
 } from '../../networkFailure'
 import { redactSecrets } from '../../redact'
+import { scrubSecrets, secretRedactor, type SecretScrubPort } from '../../../shared/redact'
 export { redactSecrets } from '../../redact'
 import { errorBodySchema, type StreamEvent } from './schemas'
+import type { UnattendedRun } from '../../schedules/unattended'
+import type { ModelApiClientDeps } from './client'
 
 import {
   USAGE_HEADER_ALLOW_LIST,
@@ -54,6 +58,7 @@ import type { AuthHeaders, AuthSource } from './authSource'
 import { DeadlineError, withDeadline } from '../../timeouts'
 
 export interface TransportDeps {
+  readonly vaultScrub?: SecretScrubPort
   readonly streamIdleMs?: number
   readonly pacing?: RequestPacer
   readonly pacingOwner?: object
@@ -64,6 +69,7 @@ export interface TransportDeps {
     failure: ModelApiError,
     retryAfterMs: number | undefined,
   ) => boolean
+  readonly scheduledRun?: () => UnattendedRun | undefined
   readonly fetch: typeof fetch
   readonly baseUrl: string
   readonly apiKey?: () => Promise<string | undefined>
@@ -371,12 +377,14 @@ export function rateLimitHeaders(headers: Headers): UsageHeaders {
 }
 
 export interface ResponseAttemptGuard {
+  readonly mediaAccounting?: MediaRequestAccounting
   readonly pacingClass?: PacingClass
   readonly searchQuote?: PaidQuote
   readonly onSearchesReturned?: (settlement: SearchSettlement) => void
   readonly prepareRetry?: (keyDigest: string, signal: AbortSignal) => Promise<void>
   /** Durable admission before the synchronous credential/gate fence. */
   readonly prepare?: () => Promise<void>
+  readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly paidFeature?: PaidFeature
   readonly paidEstimatedInputTokens?: number
   (keyDigest: string | undefined): void
@@ -524,6 +532,39 @@ export class RequestTransport {
   }
 
   /** The retry delay, cut short by the turn's Stop. */
+  /** Files share this client's configured endpoint and key; uploads are never retried ambiguously. */
+  public async requestFile(
+    route: string,
+    method: 'GET' | 'POST' | 'DELETE',
+    signal: AbortSignal,
+    multipart?: { readonly body: ReadableStream<Uint8Array>; readonly contentType: string },
+    expectedAccountId?: string,
+  ): Promise<Response> {
+    if (!/^\/files(?:\?after=file-[A-Za-z0-9_-]+|\/file-[A-Za-z0-9_-]+)?$/u.test(route))
+      throw new Error('Invalid Files route')
+    const credentials = await this.headers(this.deps.baseUrl)
+    signal.throwIfAborted()
+    if (expectedAccountId !== undefined && credentials.keyDigest !== expectedAccountId)
+      throw new Error(UI_TEXT.media.filesReadOnly)
+    const init: RequestInit & { readonly duplex?: 'half' } = {
+      method,
+      headers: {
+        Authorization: credentials.values['Authorization'] ?? '',
+        Accept: JSON_MEDIA_TYPE,
+        ...(multipart !== undefined && { 'Content-Type': multipart.contentType }),
+      },
+      redirect: 'error',
+      signal,
+      ...(multipart !== undefined && { body: multipart.body, duplex: 'half' }),
+    }
+    await this.deps.verifyEndpoint?.(`${this.deps.baseUrl}${route}`)
+    signal.throwIfAborted()
+    const response = await this.deps.fetch(`${this.deps.baseUrl}${route}`, init)
+    if (!response.ok)
+      throw await describeFailure(response, this.deps.parseError, credentials.redact)
+    return response
+  }
+
   public async pause(ms: number, signal: AbortSignal | undefined): Promise<void> {
     if (signal === undefined) {
       await this.deps.sleep(ms)
@@ -555,7 +596,11 @@ export class RequestTransport {
       readonly pacingClass?: PacingClass
       readonly estimatedTokens?: number
       readonly accept: string
-      readonly paid?: { readonly claim: PaidRequestClaim; isSent: boolean }
+      readonly paid?: {
+        readonly claim: PaidRequestClaim
+        readonly run?: UnattendedRun | undefined
+        isSent: boolean
+      }
     },
     signal: AbortSignal,
     onRetry?: (notice: RetryNotice) => void,
@@ -693,7 +738,11 @@ export class RequestTransport {
        */
       readonly headers?: Readonly<Record<string, string>>
       readonly retries?: 'all' | 'rateLimitOnly'
-      readonly paid?: { readonly claim: PaidRequestClaim; isSent: boolean }
+      readonly paid?: {
+        readonly claim: PaidRequestClaim
+        readonly run?: UnattendedRun | undefined
+        isSent: boolean
+      }
     },
     signal: AbortSignal | undefined,
     onRetry?: (notice: RetryNotice) => void,
@@ -707,7 +756,10 @@ export class RequestTransport {
     }
     const isGoverned = path === '/responses' && init.modelId !== undefined
     const shouldObserveLimits = isGoverned || path === '/responses/input_tokens'
-    const isRateLimitOnly = init.retries === 'rateLimitOnly' || init.paid !== undefined
+    const isRateLimitOnly =
+      init.retries === 'rateLimitOnly' ||
+      init.paid !== undefined ||
+      admitAttempt?.mediaAccounting !== undefined
     const url = `${this.deps.baseUrl}${path}`
     if (!path.startsWith('/') || new URL(url).origin !== new URL(this.deps.baseUrl).origin) {
       throw new ModelApiError(
@@ -733,6 +785,18 @@ export class RequestTransport {
     // How long the answer took, retries included, at trace level (M39).
     const startedAt = this.deps.now()
     for (let attempt = budget?.retriesUsed ?? 0; ; attempt += 1) {
+      // Rebuild on every retry: rotation may change the vault while we wait.
+      // Outside the transport retry catch: a scrub failure must never send.
+      const scrubGeneration = this.deps.vaultScrub?.generation
+      const wireBody =
+        this.deps.vaultScrub === undefined || init.body === undefined
+          ? undefined
+          : await scrubSecrets(JSON.stringify(init.body), this.deps.vaultScrub)
+      if (wireBody !== undefined && this.deps.vaultScrub !== undefined) {
+        // Exact-value replacement must still leave valid JSON. No raw body
+        // can be sent if an unusual value matched protocol syntax.
+        JSON.parse(wireBody)
+      }
       let credentials: Awaited<ReturnType<RequestTransport['headers']>>
       try {
         credentials = await this.headers(url)
@@ -760,6 +824,19 @@ export class RequestTransport {
       ) {
         throw new Error(UI_TEXT.scheduleConfirmationExpired)
       }
+      // A scheduled fire's authority is live: checked before pacing and again
+      // after it, since revocation or a key change can land during the wait.
+      const assertScheduleAuthority = () => {
+        if (init.method !== 'POST' || (path !== '/responses' && !path.startsWith('/images/')))
+          return
+        const run = this.deps.scheduledRun?.()
+        if (
+          (run !== init.paid?.run && (run !== undefined || init.paid?.run !== undefined)) ||
+          (run !== undefined && (!run.isActive() || credentials.keyDigest !== run.paid?.accountId))
+        )
+          throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+      }
+      assertScheduleAuthority()
       const account = `${provider.identity.provider}:${this.deps.baseUrl}:${credentials.keyDigest}`
       const kind = init.pacingClass ?? 'foreground'
       if (isGoverned) {
@@ -791,6 +868,7 @@ export class RequestTransport {
       }
       if (isAborted(signal))
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
+      assertScheduleAuthority()
       // Local consent refusal is outside the transport retry catch: it never
       // becomes another billable attempt.
       await admitAttempt?.prepare?.()
@@ -806,12 +884,23 @@ export class RequestTransport {
         !this.deps.paidAuthority.canSpend(admitAttempt.searchQuote)
       )
         throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+      admitAttempt?.mediaAccounting?.check()
       admitAttempt?.(credentials.keyDigest)
       if (isAborted(signal)) {
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
       }
       if (confirmed !== undefined && !confirmed.isStillAllowed()) {
         throw new Error(UI_TEXT.scheduleConfirmationExpired)
+      }
+      if (
+        wireBody !== undefined &&
+        scrubGeneration !== undefined &&
+        this.deps.vaultScrub?.generation !== scrubGeneration
+      ) {
+        // The vault rotated during admission: the scrubbed body is
+        // older than the values, so rebuild it instead of sending. A Lock in
+        // the same window fails the rebuild, which never sends either.
+        continue
       }
       const metadata = Object.fromEntries(
         Object.entries(init.headers ?? {}).filter(
@@ -837,7 +926,7 @@ export class RequestTransport {
         method: init.method,
         redirect: 'error',
         headers,
-        ...(init.body !== undefined && { body: JSON.stringify(init.body) }),
+        ...(init.body !== undefined && { body: wireBody ?? JSON.stringify(init.body) }),
         ...(signal !== undefined && { signal }),
       }
       confirmed?.onRequestStarted()
@@ -846,6 +935,7 @@ export class RequestTransport {
         init.paid.isSent = true
       }
       const sent = this.pacing.snapshot(account)
+      admitAttempt?.mediaAccounting?.started()
       let response: Response
       try {
         response = await this.fetchWithIdleDeadline(url, requestInit)
@@ -907,10 +997,12 @@ export class RequestTransport {
         return {
           response,
           redact: credentials.redact,
-          redactContent: (text) => redactSecrets(text, secrets, false),
+          redactContent: secretRedactor(secrets, false),
         }
       }
       const failure = await describeFailure(response, this.deps.parseError, credentials.redact)
+      if (response.status === HTTP_TOO_MANY_REQUESTS || response.status === HTTP_STATUS.badRequest)
+        admitAttempt?.mediaAccounting?.refused()
       if (
         init.paid !== undefined &&
         (response.status === HTTP_TOO_MANY_REQUESTS || response.status === HTTP_STATUS.badRequest)

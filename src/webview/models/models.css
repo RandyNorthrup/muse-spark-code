@@ -6,6 +6,7 @@
  */
 
 @import url('../page.css');
+@import url('../tokens.css');
 
 .models-panel {
   container-type: inline-size;
@@ -22,8 +23,8 @@
 }
 
 .models-panel :focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: 1px;
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
 }
 
 .models-visually-hidden {
@@ -143,7 +144,7 @@
 .models-button {
   background: var(--vscode-button-secondaryBackground);
   color: var(--vscode-button-secondaryForeground);
-  border: 1px solid var(--vscode-input-border);
+  border: 1px solid var(--ms-boundary);
   border-radius: 4px;
   padding: 4px 12px;
   cursor: pointer;
@@ -504,7 +505,7 @@
   text-align: center;
 }
 
-/* Narrow: the table becomes a list of cards; actions and ranges stack. */
+/* Narrow: the table becomes cards; actions wrap and ranges stack. */
 @container (max-width: 340px) {
   .models-panel {
     padding: 8px;
@@ -541,7 +542,7 @@
   }
 
   .models-row-actions {
-    flex-direction: column;
+    flex-flow: row wrap;
     align-items: stretch;
   }
 
