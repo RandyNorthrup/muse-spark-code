@@ -93,9 +93,11 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     'auto',
     'hook-models',
     'cache',
-    'budget',
     'judge',
   ].map((id): [string, readonly string[]] => [id, ['vscode:modelApi']]),
+  // C-X-1: the shared daily budget also binds headless/ACP runs through the
+  // runtime ledger, which reads the same paidDailyBudgetUsd setting.
+  ['budget', ['vscode:modelApi', 'acp:modelApi']],
   ...[
     'auto-subscription',
     'native-agents',

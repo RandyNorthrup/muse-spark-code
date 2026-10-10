@@ -32,6 +32,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Truth pass (C-X-1): the roadmap no longer lists a next release (0.17.0
+  shipped); roles/teams, the vault, scheduled prompts v2 and the capacity
+  estimator say what they do today (no team can be created, vault commands
+  refuse closed, closed-editor fires stay refused, real forecasts still say
+  so); streamed argument text is no longer claimed; the README's Auto
+  reviewer is on by default with consent before spending; the Help reference
+  lists the shared daily budget on ACP as well as VS Code. Paid schedules on
+  ACP stay VS Code-only in the reference until the lead rules on
+  flag-authorized paid surfaces.
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did
@@ -375,8 +384,9 @@ happened, not what was planned; superseded entries are kept.
   with saved history and comparisons; nothing is sent to a model.
   <!-- try: command museSpark.showReport -->
 - **Capacity estimates (preview).** `/estimate <goal>` and the Estimator are in
-  place and verified with test data. Real forecasts need the plan reader that
-  comes later; until then they say so instead of guessing.
+  place and verified with test data. Real forecasts need the plan reader
+  bound into the estimator; the reader is on main but still unbound, so until
+  then they say so instead of guessing.
 - **Several accounts per provider.** List provider accounts, see the current
   one and its thresholds; a vendor limit blocks only the affected account.
 - **Orchestrator playbook.** The nine orchestration rules ship as a first-party

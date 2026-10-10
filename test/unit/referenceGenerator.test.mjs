@@ -369,7 +369,7 @@ describe('RVHELPREF truth regressions', () => {
       'vscode:modelApi',
       'acp:modelApi',
     ])
-    expect(feature('budget').surfaces).toEqual(['vscode:modelApi'])
+    expect(feature('budget').surfaces).toEqual(['vscode:modelApi', 'acp:modelApi'])
     expect(source.EN.referencePaidContexts).toContain('runtime daily budget')
     expect(source.EN.referencePaidContexts).toContain('explicit opt-in')
     expect(feature('images').facts.configuredDefaults).toEqual({

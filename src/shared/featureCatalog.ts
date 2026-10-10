@@ -960,6 +960,7 @@ export function featureCatalog(): readonly Feature[] {
       'paid-features',
       ['modelApi'],
       false,
+      ['vscode', 'acp'],
     ),
     feature(
       'tab',

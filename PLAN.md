@@ -24477,9 +24477,11 @@ Each finding gets a regression and a byte-exact restored red drill in
 `docs/certification/m96-k.md`. No dependency, guard widening, live/paid call,
 product wiring or other lane's source change is part of this correction.
 
-**Status 2026-10-04: planned.**
+**Status 2026-10-10 (first parts shipped in 0.15.0; team creation and worker dispatch remain): building.**
 
-Status detail retained: planned on `feature/m96-agent-roles` from main
+Status detail retained: first parts (role charters, tools, pools, limits)
+shipped in 0.15.0; team creation and worker dispatch remain (no team can be
+created: the teamWorkers paid gate has no production availability). Planned on `feature/m96-agent-roles` from main
 `1e93c67c`. The plan is D75 (with its decisions on the open questions),
 M96b, M96c and this section. The research is
 `docs/certification/m96-research.md`. Implementation lanes start after the
@@ -26424,7 +26426,7 @@ Status detail retained: planned; starts after M96 merges.
 
 ### M96c — Scheduler and traffic (D75)
 
-**Status 2026-10-09: built.** Scheduler, scheduler-tool, merge-queue, Traffic-view, runner, collision and orchestration lanes integrated with their review repairs and lazy package adapters; complete integration certified on macmini. Not in a release yet.
+**Status 2026-10-10 (corrects 2026-10-09: the section certification checklist below is still open): building.** Scheduler, scheduler-tool, merge-queue, Traffic-view, runner, collision and orchestration lanes integrated with their review repairs and lazy package adapters; complete integration certified on macmini. Not in a release yet.
 
 **M96CINT round 2 integration (2026-10-05).** Finish the existing partial
 integration by merging reviewed C (`52d04b69`) and then O (`19bb0703`) with
@@ -28343,7 +28345,7 @@ RVM95SC-R-host-api-record (§§7, 9); full quality/package and the separate
 RVM95SC-R-shell-env item remain open for the lead. No numbered review finding
 is deferred; all five fix drills fired and restored SHA-256-exact source.
 
-**Status 2026-10-04: planned.**
+**Status 2026-10-10 (first parts shipped in 0.15.0; M95b sign-ins/plan keys and M95c Bedrock/chat exposure remain): building.**
 
 Status detail retained: planned on `feature/m95-byo-providers` from main
 `1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
@@ -29480,7 +29482,7 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M101 — Upstream sync: Pi and SoL-Pi ports, automatic compaction (D81)
 
-**Status 2026-10-05: planned.**
+**Status 2026-10-10 (first parts shipped in 0.15.0; automatic compaction stays off until its evaluation passes and the remaining port items remain): building.**
 
 Status detail retained: planned; lanes start from `m101/base` (the M95
 integration branch plus this plan). The item numbers below are the
@@ -30983,7 +30985,7 @@ Each finding gets a failing-before regression and a byte-exact restored red
 drill in `docs/certification/m105-r3-linux-and-companion-recorders-(c).md`.
 No new dependency, guard widening or other lane implementation changes.
 
-**Status 2026-10-05: planned.** The research is
+**Status 2026-10-10 (first parts shipped in 0.17.0; sending video and audio to a model stays unavailable and the remaining deliveries remain): building.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §2. The work lands in four
 deliveries, in order:
 
@@ -31620,7 +31622,7 @@ recorded in `docs/certification/m106-s.md`; no review residual remains.
 The rig brief prohibits aggregate quality and merging; scoped local checks
 and hook-on commits precede the lead's integrated quality gate.
 
-**Status 2026-10-05: planned.** The research is
+**Status 2026-10-10 (first parts shipped in 0.16.0; streamed argument text stays unwired and the remaining lane items remain): building.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §3. Strict tools wait for
 FIXM101P2; everything else starts against lane 0's contracts.
 
@@ -32452,7 +32454,7 @@ dependency, wire shape, setting, command or translated copy. W/lead retains
 joined wiring and full quality; the rig brief prohibits merges and full
 quality in this lane.
 
-**Status 2026-10-05: planned.** No model call is needed anywhere in this
+**Status 2026-10-10 (first parts shipped in 0.16.0; macOS headroom and device relocation stay unavailable and the remaining lanes remain): building.** No model call is needed anywhere in this
 milestone. Lanes S, T, G, A, C1, U and H depend only on main and lane 0's
 contracts. C2 waits for M96 and M96c, R for M100's lanes S and E, J for M102.
 Each joins when its dependency merges, and none blocks the others.
@@ -32878,7 +32880,7 @@ red before each fix and break each guard after fixing it, restoring byte-exact.
 No dependency, endpoint guard, paid default or budget changes. See
 `docs/certification/m108-k.md` for scoped rig receipts and integration limits.
 
-**Status 2026-10-05: planned.** The terms research is
+**Status 2026-10-10 (first parts shipped in 0.17.0; the remaining account lanes remain): building.** The terms research is
 `docs/research/account-terms-2026-10-05.md`.
 
 - **Lanes 0, K, T, U and J** need only M95 and M102.
@@ -33155,7 +33157,7 @@ No dependency, endpoint guard, paid default or budget changes. See
 
 ### M109 — A credential vault and broker for agents (D89)
 
-**Status 2026-10-09: released.** Shipped in 0.17.0 (merged via INT0180).
+**Status 2026-10-10 (corrects 2026-10-09: the broker-backed panel service is still unbound, so both vault commands refuse closed): building.** Vault slots, the broker process, MCP routes and scrub ports merged and certified; the C/B/P/M adapter over the broker channel remains an open handoff (`docs/certification/m109.md`). Not usable in a release yet.
 
 **FIXM109W integrated review repair (2026-10-07, Mac mini).** Verify every
 P1/P2 in `_ctx/codex/M109-findings.md` against integration `a1d2b73e7`,
@@ -35199,7 +35201,7 @@ No dependency, guard weakening or live/model call. Existing W wiring,
 reference and integration-gate handoffs remain; bounded rig checks replace
 aggregate quality for this lane under the explicit rig/shared brief.
 
-**Status 2026-10-05: planned.** No model call is needed anywhere in this
+**Status 2026-10-10 (first parts shipped in 0.17.0: project, quality, milestone, release and change kinds; the remaining deliveries and the ten source-backed kinds remain): building.** No model call is needed anywhere in this
 milestone. It lands in three deliveries:
 
 - **a:** the engine, the schema, the plan reader and its gate, the local
@@ -35611,7 +35613,7 @@ M110, and fake providers for every adapter.
   default-timeout repeated owning suites in a fresh CI clone. Full quality and
   reviewed integrated pixels remain explicit lead gates where unavailable.
 
-**Status 2026-10-06: planned.** No model call is needed. Lane 0's token
+**Status 2026-10-10 (first parts shipped in 0.17.0; the remaining panel lanes remain): building.** No model call is needed. Lane 0's token
 source and lint rule come first and are the prerequisite of every UI-building
 lane after it: M111's TH and its shell and workbench lanes, M110's web UI
 (U1, U2) and TUI design (TD). The panel's part (lanes 0, A, P1, P2, C, F and
@@ -35911,7 +35913,7 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
 
 ### M115 — Scheduled prompts v2: unattended, stacked, with a delivery mode (D95)
 
-**Status 2026-10-06: planned.** It comes right after M112 in the delivery
+**Status 2026-10-10 (store, engine, surfaces and live-session fires merged; event sources, team targets and firing while all editors are closed remain): building.** It comes right after M112 in the delivery
 order: it shares M112's deferral and the unattended machinery, and builds on
 M52's store, claim and cron matcher. No model call is needed outside one live
 check (step 3). Lanes T, S, U, D, G, V and X start on lane 0's contracts and
@@ -36570,7 +36572,7 @@ history remains unknown. Deterministic fakes, regressions, byte-exact red
 drills and all fourteen translations certify these changes. No new dependency
 or runtime surface is introduced; G/C/S/R/U consume the revised contracts.
 
-**Status 2026-10-06: planned.** No model call is needed. It needs M113's plan
+**Status 2026-10-10 (engine and panel merged on fakes and verified with test data; the plan-reader, board and broker bindings still refuse): building.** No model call is needed. It needs M113's plan
 reader, sources, determinism harness and report renderers, and M116's round
 record; the engine and the panel run on fakes until those merge. M107, M100,
 M108 and M110 join as they land; provisioning waits for M109, M110d and
@@ -37540,7 +37542,7 @@ recovery; interrupted Resume remains the captured control.
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
-**Status 2026-10-09: built.** Document-epoch redesign in review.
+**Status 2026-10-10 (corrects 2026-10-09: the document-epoch redesign is still in review with checklist items open): building.** Document-epoch redesign in review.
 
 **Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
 authorization: "any recommendation you come up with you are authorized").**
@@ -46243,6 +46245,15 @@ playbook and design polish). Integration receipts: INT0170, INT0170B and
 LEFT017 (`docs/certification/int0170-combined.md`). This is preparation, not
 publication; the public roadmap (M122) lists 0.17.0 as the next release until
 a `0.17.0 released (…)` record follows here.
+
+**0.17.0 released (2026-10-10, main's release merge `82d50d5e4`, PR #145).**
+The release branch carries the extension version 0.17.0 and the dated
+`CHANGELOG.md` `[0.17.0]` section (reports, capacity estimates, several
+accounts per provider, the orchestrator playbook and design polish). The
+roadmap no longer lists a next release until a new preparation record lands:
+entries naming 0.17.0 now read as shipped or partly shipped. Recorded by the
+C-X-1 truth pass, which also corrected the vault, teams, scheduled-prompts,
+estimator and preview wording to match the code.
 
 **0.16.0 released (2026-10-07, tag `v0.16.0` on main's release merge `4da4ef666`, PR #140, release run 37736641658).**
 The Release run succeeded and the GitHub release was published at
