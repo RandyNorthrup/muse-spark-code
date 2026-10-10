@@ -2913,6 +2913,10 @@
             key({ key: 'Enter' })
           })
         },
+        'assistant-menu': () => {
+          transcriptFixture({ isDone: true })
+          whenFound('.message-assistant .row-actions-button', (control) => control.click())
+        },
         'chat-menu': () => {
           steps.rewind()
           whenFound('[aria-haspopup="menu"][role="menuitem"]', (control) => control.click())

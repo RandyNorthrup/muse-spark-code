@@ -5560,6 +5560,16 @@ choices:
     both widths, update reviewed visual goldens with
     `owner-2026-10-10-menu-fan`, and regenerate affected README shots and
     reference/roadmap. Record: `docs/certification/menufan.md`.
+    Round 3 (RVMENUFAN2): every element-anchored burst follows ancestor
+    scrolling, panel resizing and content reflow; dismiss if its opener is
+    clipped out or removed. One shared lifecycle owns listeners and frame
+    sampling while open. Hover/active/selected decoration stays inside each
+    pill; only keyboard focus extends outside. Derive resting spacing from
+    the installed CSS focus width/offset plus 2 px clear space. Certify every
+    menu at 320/480/900 px in light/dark/high contrast, including adjacent
+    focus/hover combinations, scroll-follow and byte-exact guard drills.
+    Re-run and inspect all menu visual frames; refresh only changed menu
+    scenes under `owner-2026-10-10-menu-fan-r3`.
 
 - **The chat column (the owner's requests of 2026-10-04).** His four
   requests, word for word, then what was built.
@@ -23512,6 +23522,11 @@ re-rendered. Evidence: `docs/certification/m87.md`, "Integration on
   the opener element and follow it across panel resizes. Sweep 280–700 px,
   one to six items and left/right/centre openers; certify the exact 320 px
   checkpoint Rewind scene, resize regression and byte-exact red drills.
+  Round 3 repairs RVMENUFAN2’s two P2 classes: the shared anchor lifecycle
+  tracks scroll/reflow/removal, and inside pointer borders leave 2 px clear
+  beside keyboard focus rings with CSS-token-derived spacing. Certify all
+  eight menu scenes at 320/480/900 px in light/dark/high contrast and review
+  only menu baseline changes.
   Evidence: `docs/certification/menufan.md`.
 
 - **Goal.** The panel can be read at a glance: how full the context is,

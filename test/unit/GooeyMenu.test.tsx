@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   GooeyMenuContent as GooeyMenu,
@@ -20,11 +20,11 @@ function drawn(
   })
 }
 
-function setup() {
+function setup(anchor?: HTMLElement) {
   const onSelect = vi.fn()
   const onClose = vi.fn()
-  const opener = document.createElement('button')
-  document.body.append(opener)
+  const opener = anchor ?? document.createElement('button')
+  if (!opener.isConnected) document.body.append(opener)
   opener.focus()
   const items: readonly GooeyItem[] = [
     { id: 'copy', label: 'Copy', icon: 'C', onSelect },
@@ -42,9 +42,25 @@ function setup() {
     { id: 'retry', label: 'Retry', icon: 'T', onSelect },
   ]
   const view = render(
-    <GooeyMenu items={items} label="Actions" origin={{ x: 160, y: 380 }} onClose={onClose} />,
+    <GooeyMenu
+      items={items}
+      label="Actions"
+      origin={anchor ?? { x: 160, y: 380 }}
+      onClose={onClose}
+    />,
   )
   return { ...view, onSelect, onClose, opener, menu: screen.getByRole('menu') }
+}
+
+function point() {
+  const pill = screen.getByRole('menuitem', { name: 'Copy' })
+  const [x, y] = pill.style.transformOrigin
+    .split(' ')
+    .map((value) => Number(value.replace('px', '')))
+  return {
+    x: Number(pill.style.left.replace('px', '')) + (x ?? 0),
+    y: Number(pill.style.top.replace('px', '')) + (y ?? 0),
+  }
 }
 
 describe('GooeyMenu', () => {
@@ -309,6 +325,7 @@ describe('GooeyMenu', () => {
 
   it('uses anchor element origin and a forced-colours hook, with no filter at all', () => {
     const anchor = document.createElement('button')
+    document.body.append(anchor)
     vi.spyOn(anchor, 'getBoundingClientRect').mockReturnValue(new DOMRect(260, 30, 40, 40))
     const { container } = render(
       <GooeyMenu
@@ -328,6 +345,142 @@ describe('GooeyMenu', () => {
     // The owner, 2026-10-04: crisp pills, "not with the faded smudge look".
     expect(container.querySelector('svg, filter, defs')).toBeNull()
     expect(container.querySelector('[style*="filter"]')).toBeNull()
+  })
+
+  it('follows non-bubbling ancestor scroll, frame-only reflow and window resize; cleans up', () => {
+    const anchor = document.createElement('button')
+    const scroller = document.createElement('div')
+    scroller.append(anchor)
+    document.body.append(scroller)
+    let rect = new DOMRect(280, 360, 24, 24)
+    vi.spyOn(anchor, 'getBoundingClientRect').mockImplementation(() => rect)
+    const callbacks: FrameRequestCallback[] = []
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callbacks.push(callback)
+      return callbacks.length
+    })
+    const cancel = vi.spyOn(window, 'cancelAnimationFrame')
+    const remove = vi.spyOn(document, 'removeEventListener')
+    const { unmount, onClose } = setup(anchor)
+    expect(point()).toEqual({ x: 292, y: 372 })
+    rect = new DOMRect(280, 300, 24, 24)
+    fireEvent.scroll(scroller, { bubbles: false })
+    expect(point()).toEqual({ x: 292, y: 312 })
+    rect = new DOMRect(280, 240, 24, 24)
+    act(() => callbacks[0]?.(0))
+    expect(point()).toEqual({ x: 292, y: 252 })
+    rect = new DOMRect(480, 240, 24, 24)
+    fireEvent.resize(window)
+    expect(point()).toEqual({ x: 492, y: 252 })
+    expect(onClose).not.toHaveBeenCalled()
+    unmount()
+    expect(cancel).toHaveBeenCalledWith(2)
+    expect(remove).toHaveBeenCalledWith('scroll', expect.any(Function), true)
+    scroller.remove()
+  })
+
+  it.each(['clipped', 'removed', 'hidden'])(
+    'dismisses the second burst once when its opener is %s',
+    (why) => {
+      const anchor = document.createElement('button')
+      const scroller = document.createElement('div')
+      scroller.style.overflowY = 'auto'
+      scroller.append(anchor)
+      document.body.append(scroller)
+      vi.spyOn(scroller, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 100, 600, 400))
+      const rect = vi
+        .spyOn(anchor, 'getBoundingClientRect')
+        .mockReturnValue(new DOMRect(280, 300, 24, 24))
+      const callbacks: FrameRequestCallback[] = []
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+        callbacks.push(callback)
+        return callbacks.length
+      })
+      const { onClose } = setup(anchor)
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Rewind' }))
+      if (why === 'clipped') rect.mockReturnValue(new DOMRect(280, 60, 24, 24))
+      else if (why === 'removed') anchor.remove()
+      else anchor.style.display = 'none'
+      if (why === 'clipped') fireEvent.scroll(scroller, { bubbles: false })
+      else act(() => callbacks[0]?.(0))
+      expect(onClose).toHaveBeenCalledOnce()
+      fireEvent.scroll(scroller, { bubbles: false })
+      expect(onClose).toHaveBeenCalledOnce()
+      scroller.remove()
+    },
+  )
+
+  it('derives both bursts’ spacing from installed CSS focus tokens plus clear space', () => {
+    document.documentElement.style.setProperty('--ms-focus-width', '3px')
+    document.documentElement.style.setProperty('--ms-focus-offset', '4px')
+    // jsdom does not inherit CSS custom properties; provide the browser's computed values.
+    const computed = window.getComputedStyle.bind(window)
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((node) => {
+      const style = computed(node)
+      if (node.classList.contains('gooey-menu')) {
+        const read = style.getPropertyValue.bind(style)
+        vi.spyOn(style, 'getPropertyValue').mockImplementation((key) => {
+          if (key === '--ms-focus-width') return '3px'
+          return key === '--ms-focus-offset' ? '4px' : read(key)
+        })
+      }
+      return style
+    })
+    const { menu } = setup()
+    const gaps = () =>
+      screen
+        .getAllByRole('menuitem')
+        .slice(1)
+        .map(
+          (pill, index) =>
+            Number(pill.style.top.replace('px', '')) -
+            Number(screen.getAllByRole('menuitem')[index]?.style.top.replace('px', '')) -
+            40,
+        )
+    expect(gaps()).toEqual([9, 9, 9])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rewind' }))
+    expect(menu).toHaveAccessibleName('Rewind')
+    expect(gaps()).toEqual([9, 9])
+    document.documentElement.style.removeProperty('--ms-focus-width')
+    document.documentElement.style.removeProperty('--ms-focus-offset')
+  })
+
+  it('pulls focus decoration inward when a short panel compresses the gap', () => {
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(276)
+    render(
+      <GooeyMenu
+        label="Short"
+        origin={{ x: 160, y: 150 }}
+        onClose={vi.fn()}
+        items={Array.from({ length: 6 }, (_, index) => ({
+          id: String(index),
+          label: `Action ${String(index)}`,
+          icon: 'A',
+          onSelect: vi.fn(),
+        }))}
+      />,
+    )
+    for (const pill of screen.getAllByRole('menuitem')) {
+      expect(pill.style.outlineOffset).toBe(
+        'min(var(--ms-focus-offset), calc(4px - var(--ms-focus-width) - 2px))',
+      )
+    }
+  })
+
+  it('keeps a narrow fan’s focus ring clear of its opener too', () => {
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(320)
+    const anchor = document.createElement('button')
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this === anchor ? new DOMRect(283, 56, 24, 24) : new DOMRect(0, 0, 300, 40)
+    })
+    setup(anchor)
+    for (const pill of screen.getAllByRole('menuitem')) {
+      expect(pill.style.outlineOffset).toBe(
+        'min(var(--ms-focus-offset), calc(4px - var(--ms-focus-width) - 2px))',
+      )
+    }
   })
 
   it('handles no enabled actions without activating or losing Escape', () => {

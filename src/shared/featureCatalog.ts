@@ -557,6 +557,8 @@ export function featureCatalog(): readonly Feature[] {
       'the-panel',
       ['modelApi'],
     ),
+    // M87 MENUFAN: shared row/selection bursts follow visible element anchors;
+    // inside pointer/selected borders keep neighbouring focus rings clear.
     feature(
       'conversation-actions',
       { ui: 'transcriptLabel' },

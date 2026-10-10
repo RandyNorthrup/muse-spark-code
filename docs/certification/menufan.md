@@ -284,3 +284,93 @@ receipt copy are `temp/menufan/r2/visual-before-update.log` and
 `temp/menufan/r2/visual-final-result.json`. No scene, state, theme, width,
 threshold, timeout, ignore or gate was removed or weakened. No push, merge,
 rebase, subagent, paid/live call or aggregate quality run occurred.
+
+## Round 3 — RVMENUFAN2 classes (2026-10-10, Kubuntu)
+
+Review: `owner-2026-10-10-menu-fan-r3`; starting head `32cb9a4df`.
+Both P2 classes are repaired in the shared lazy GooeyMenuContent:
+
+- One geometry watcher captures non-bubbling ancestor scroll, window resize
+  and root ResizeObserver delivery, and samples frames while mounted to catch
+  content reflow and transforms that do not resize the root. Placement changes
+  state only when its coordinates, viewport or token-derived spacing change.
+  It intersects every clipping ancestor and dismisses once when the opener is
+  hidden, removed or outside the visible panel. Cleanup cancels the frame and
+  removes listeners/observer. Focus returns with `preventScroll`, so dismissal
+  does not bring an offscreen button back into view.
+- Hover, active, selected and pressed decoration uses an inside border in the
+  existing on-accent role. The sweep removed the later Gooey pressed-outline
+  selector too; its approval-button sibling retains its existing behavior.
+  Resting spacing reads CSS focus width + offset + 2 px clearance. A compressed
+  short-panel gap or narrow fan's room beside its opener pulls the focus ring
+  inward, keeping both pill and opener neighbours clear. The pure layout's
+  existing 6 px default remains the fallback for callers without CSS.
+
+All element origins (row, tool, deferred-question and highlighted-text menus,
+including both bursts) use the same watcher. Pointer-origin history/row menus
+retain their pointer origin. Header contains no custom radial title-bar menu;
+VS Code owns its native overflow. Every React panel host shares this repair;
+ACP/headless has no visual radial menu. No provider capability, paid feature,
+wire shape, credential, dependency, suppression, cast or localization key changes.
+The conversation-actions catalog records the corrected shared behavior;
+regeneration preserves its existing descriptions, actions and translated text.
+
+The unit regression proves capture-phase scroll, frame-only reflow, resize,
+cleanup, exactly-once removal/hidden/clipped dismissal, installed 3/4 px focus
+values producing 9 px spacing in both bursts, and inward focus in short/narrow
+panels. Production Chrome tests sweep eight menus × 320/480/900 px × light,
+dark, high-contrast light/dark. For every adjacent pair in both directions they
+measure focus+hover, focus only, hover only, focus+active, focus+selected and
+focus+pressed outline bounds, requiring at least 2 px between pills and from
+an opener. Nine real scroll tests follow quote/tool/checkpoint openers through
+reflow and 60 px scrolling, follow the checkpoint's second burst, then dismiss
+when the button leaves view. The open-selection resize check keeps the actual
+opener visible through 320→690→320 px.
+
+Fixture qualification exposed two setup mistakes: `assistant` was not a menu
+scenario, so the lane adds a real `assistant-menu` fixture; resizing a fixed
+690 px capture document into a 320 px viewport legitimately hid its opener
+before the next script changed document width. The resize test now uses the
+real panel's fluid width and unpins the transcript before growing scroll room.
+It preserves every resize/origin/clearance assertion. Two expensive state
+cases hit the repository's 5 s deadline; batching independent CDP state writes
+and resetting after each state set removes round trips without deleting a
+combination, assertion or timeout. No timeout was raised.
+
+### Round 3 red drills
+
+Each drill runs full owning files, at most three per run, `--maxWorkers=3`,
+and repository deadlines; every mutated production file restores byte-exact.
+
+- Restore the pre-fix GooeyMenuContent from HEAD. Six new unit tests fail:
+  scroll/reflow/resize cleanup, clipped/removed/hidden second-burst dismissal,
+  CSS-derived spacing and compressed-panel focus. The other 45 tests pass.
+- Restore the pre-fix CSS. All 96 scene/width/theme outline tests fail on the
+  focus+hover collision (clearance −2 px rather than 2 px); the other 12 pass.
+- Replace the opener-space cap with the drawn gap. The named narrow-fan focus
+  test fails: 6 px outline-space input instead of the required 4 px, while
+  the other 51 tests pass.
+
+Logs and SHA-256 receipts: `temp/menufan/r3/drill-*.log` and
+`temp/menufan/r3/drill-sha256.json`. Final verification and reviewed visual
+receipts follow below.
+
+Restore hashes (each before equals after):
+
+- `anchor-and-token-guards`: `81c1f9ddad360ba2bb705a256f379c67f844174a6c6b5fc55acf4ecc181c022c`.
+- `outside-hover-outline`: `acd7d5a33de7c29cec494d5cbc92e6a456c7c5880a3311bc1f227d70adfef4f8`.
+- `opener-clearance`: `6aa8cbe270613303abd4b1e42fdf766c64159e14f9c59776a186eff1548fb989`.
+
+### Round 3 source verification
+
+Seven complete owning suites pass 440 tests: GooeyMenu/layout/QuoteMenu (52),
+production visual stability and geometric/scroll tests (108), and
+App/Transcript/rowMenus (280). The maximum browser test duration is 3,266 ms.
+All five TypeScript projects pass; unit's initial possibly-undefined test
+reader was repaired by querying its named Copy action. Scoped ESLint (zero
+warnings), stylelint, Prettier, plain knip, zero-clone duplication, localization
+(14 UI tables, zero problems), reference freshness, roadmap, plan, host API
+and tokens pass. The production build passes the existing size, split,
+host-global, notice and token gates. Aggregate `quality` remains lead-owned,
+as required by the rig/common brief. No threshold, timeout, coverage rule,
+ignore, hook, hook configuration or visual policy changed.
