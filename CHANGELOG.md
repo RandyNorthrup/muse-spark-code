@@ -46,6 +46,9 @@ happened, not what was planned; superseded entries are kept.
   Every structured builder now validates its final frozen shape and throws
   a typed contract error for invalid caller content, including empty diff
   paths, unsupported media/terminal content, empty option ids and plan titles.
+  Plan validation covers the complete returned collection and its entry count;
+  sparse plans, content and permission-option arrays are refused rather than
+  emitted with missing entries.
 
 ### Changed
 

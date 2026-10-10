@@ -288,13 +288,14 @@ export interface TeamPlanTask {
  * `plan` with one entry per running task (PLAN.md M96b).
  */
 export function teamPlanEntries(tasks: readonly TeamPlanTask[]): PlanEntry[] {
-  return tasks.map((task) =>
-    checkedContract(teamPlanEntrySchema, {
+  return checkedContract(
+    z.array(teamPlanEntrySchema).check(z.length(tasks.length)),
+    tasks.map((task) => ({
       content: task.title,
       priority: TEAM_PLAN_PRIORITY,
       status: 'in_progress',
       _meta: { teamTask: checkedId('task', task.taskId) },
-    }),
+    })),
   )
 }
 
