@@ -23,11 +23,21 @@
 // imports, re-exports, `require` calls and literal dynamic imports — and
 // directory and index resolution is exactly what the build does, because
 // it is the build. Anything esbuild cannot resolve fails the digest with
-// its own error. A dynamic `import()` or `require()` call whose specifier
-// is not a string literal is left for runtime by the bundler, so the
-// digest refuses it with a clear error instead of hashing around it.
-// `esbuild` itself stays external: the resolver is tooling, not harness
-// behaviour. Bare and `node:` imports the bundler leaves out are the
+// its own error. A load the bundler leaves for runtime fails the digest
+// with its file and line instead of hashing around it: a dynamic
+// `import()` or bare `require()` whose specifier is not a string literal,
+// and every indirect loader spelling (`module.require`, an optional
+// `require?.()`, a `const req = require` alias, `createRequire(…)(…)` and
+// `require.call/apply/bind`) and every `new Worker(…)`, literal or not —
+// none of those is ever followed (each probed on this rig), so each would
+// run outside every hashed edge. The refusal is parsed, not
+// pattern-matched: each file in the closure is read with the TypeScript
+// compiler, so call-like text in comments, strings, templates and regex
+// literals is never mistaken for a load, in either direction. A `new
+// URL(…)` alone is data, not a load — zod's own schemas validate with one
+// — while a URL nested in a loader is refused with it. `esbuild` and
+// `typescript` themselves stay external: the resolver is tooling, not
+// harness behaviour. Bare and `node:` imports the bundler leaves out are the
 // platform, not the harness; bare packages it bundles (today zod, through
 // the task schemas) are hashed by bytes like any other input, pinned by
 // the lockfile.
@@ -50,6 +60,7 @@ import { buildSync } from 'esbuild'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
+import ts from 'typescript'
 import { EVAL_ARM_SOURCE_SEARCH_DEPTH } from '../../shared/constants'
 
 /** The modules that define the frozen arms: every arm runs only once `EVAL_ARMS` names it. */
@@ -102,69 +113,149 @@ function resolveEntry(root: string, repoRoot: string): string {
   return absolute
 }
 
-/**
- * Comments and string literals, skipped before looking for runtime loading
- * calls, so an import-looking line inside a task fixture (the `main.js`
- * content importing `./util.js`) or a verifier prelude is never mistaken
- * for an edge the digest must refuse. A regular-expression literal holding
- * call-like text would read as a call, since literals are not stripped, so
- * the patterns below are strings, never literals: string contents always
- * strip as one unit. (A regular expression in a scanned file that confuses
- * the strip this way fails loudly, never as a skipped edge.)
- */
-const SKIP = new RegExp(
-  '/\\*[\\s\\S]*?\\*/|//[^\\n]*|\'(?:[^\'\\\\\\n]|\\\\.)*\'|"(?:[^"\\\\\\n]|\\\\.)*"|`(?:[^`\\\\]|\\\\.)*?`',
-  'g',
-)
-
-/** The call words, kept out of any literal so this file never spells a call. */
-const IMPORT_WORD = 'import'
+/** The loader words, compared as identifiers the parser found, never as text. */
 const REQUIRE_WORD = 'require'
-
-/** A runtime loading call: dynamic `import()` or a bare `require()` (never `obj.require`). */
-const LOADER = new RegExp(String.raw`\b${IMPORT_WORD}\s*\(|(?<!\.)\b${REQUIRE_WORD}\s*\(`, 'g')
+const CREATE_REQUIRE_WORD = 'createRequire'
+const WORKER_WORD = 'Worker'
 
 /**
- * Whether a dynamic loading call's template argument is a plain literal:
- * a closing backtick before any substitution. A substitution reads at
- * runtime, outside every hashed edge, so it fails the digest.
+ * Whether a loader's specifier is visible to the bundler: a string literal
+ * or a substitution-free template (probed: both land in the metafile, so
+ * either is in it or the build above already failed on it). Anything else
+ * — a name, an interpolation, a concatenation — runs at runtime, outside
+ * every hashed edge.
  */
-function isLiteralTemplateSpecifier(arg: string, key: string): boolean {
-  let index = 1
-  while (index < arg.length) {
-    const char = arg[index]
-    if (char === '\\') {
-      index += 1
-    } else if (char === '`') {
-      return true
-    } else if (char === '$' && arg[index + 1] === '{') {
-      throw new Error(`the frozen arm sources cannot cover a non-literal dynamic import in ${key}`)
-    }
-    index += 1
+function isLiteralSpecifier(node: ts.Expression): boolean {
+  return ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)
+}
+
+/** Parentheses and assertions around a specifier change nothing; see through them. */
+function unwrapSpecifier(node: ts.Expression): ts.Expression {
+  let current = node
+  while (
+    ts.isParenthesizedExpression(current) ||
+    ts.isAsExpression(current) ||
+    ts.isSatisfiesExpression(current) ||
+    ts.isNonNullExpression(current)
+  ) {
+    current = current.expression
   }
-  return false
+  return current
+}
+
+/** `createRequire` or `something.createRequire`: the factory whose result loads. */
+function isCreateRequireFactory(node: ts.Expression): boolean {
+  return (
+    (ts.isIdentifier(node) && node.text === CREATE_REQUIRE_WORD) ||
+    (ts.isPropertyAccessExpression(node) && node.name.text === CREATE_REQUIRE_WORD)
+  )
+}
+
+type Refusal = (node: ts.Node, what: string) => never
+
+/**
+ * Refuses one call that may load a module at runtime. A dynamic `import()`
+ * or bare `require()` with a literal specifier is the bundler's own edge
+ * and needs no refusal; anything else the bundler cannot see fails the
+ * digest with its file and line.
+ */
+function checkLoadCall(node: ts.CallExpression, aliases: ReadonlySet<string>, fail: Refusal): void {
+  const callee = node.expression
+  if (callee.kind === ts.SyntaxKind.ImportKeyword) {
+    const specifier = node.arguments[0]
+    if (specifier === undefined || !isLiteralSpecifier(unwrapSpecifier(specifier))) {
+      fail(node, 'a non-literal dynamic import')
+    }
+    return
+  }
+  if (ts.isIdentifier(callee) && (callee.text === REQUIRE_WORD || aliases.has(callee.text))) {
+    // An optional `require?.(…)` is never followed (probed), and neither
+    // is a call through an alias: both run at runtime whatever the
+    // specifier reads, so both fail whatever it is.
+    if (node.questionDotToken !== undefined || aliases.has(callee.text)) {
+      fail(node, 'an indirect module load the bundler leaves for runtime')
+    }
+    const specifier = node.arguments[0]
+    if (specifier === undefined || !isLiteralSpecifier(unwrapSpecifier(specifier))) {
+      fail(node, 'a non-literal dynamic import')
+    }
+    return
+  }
+  if (ts.isPropertyAccessExpression(callee)) {
+    // `module.require(…)`: never followed, even with a literal (probed).
+    if (callee.name.text === REQUIRE_WORD) {
+      fail(node, 'an indirect module load the bundler leaves for runtime')
+    }
+    // `require.call/apply/bind(…)`: the loader through its method.
+    if (
+      ts.isIdentifier(callee.expression) &&
+      (callee.expression.text === REQUIRE_WORD || aliases.has(callee.expression.text)) &&
+      ['call', 'apply', 'bind'].includes(callee.name.text)
+    ) {
+      fail(node, 'an indirect module load the bundler leaves for runtime')
+    }
+    return
+  }
+  // `createRequire(url)(…)`: the factory's result loads at runtime, never
+  // followed even with a literal (probed).
+  if (ts.isCallExpression(callee) && isCreateRequireFactory(callee.expression)) {
+    fail(node, 'an indirect module load the bundler leaves for runtime')
+  }
 }
 
 /**
- * Refuses a dynamic `import()` or `require()` call whose specifier the
- * bundler cannot see: it runs at runtime, outside every hashed edge, so
- * the digest fails closed instead of freezing around it. A string literal
- * (or a substitution-free template) is the bundler's own edge and needs
- * no refusal: it is either in the metafile or the build above already
- * failed on it.
+ * Refuses one `new Worker(…)` load: the worker file runs outside every
+ * hashed edge — never followed, even with a literal (probed) — so every
+ * spelling fails the digest. A `new URL(…)` alone is deliberately not
+ * refused: it parses data and loads no file.
+ */
+function checkWorker(node: ts.NewExpression, fail: Refusal): void {
+  const target = ts.isParenthesizedExpression(node.expression)
+    ? node.expression.expression
+    : node.expression
+  if (ts.isIdentifier(target) && target.text === WORKER_WORD) {
+    fail(node, 'a Worker load the bundler leaves for runtime')
+  }
+}
+
+/**
+ * Refuses every load in one closure file that the bundler leaves for
+ * runtime: the file is parsed, so call-like text in comments, strings,
+ * templates and regex literals is never mistaken for a load, in either
+ * direction — and a template substitution or concatenation is never
+ * mistaken for the literal the old strip pass saw.
  */
 function refuseDynamicLoads(source: string, key: string): void {
-  const clean = source.replaceAll(SKIP, (match) => (match.startsWith('/') ? '' : '""'))
-  LOADER.lastIndex = 0
-  for (let found = LOADER.exec(clean); found !== null; found = LOADER.exec(clean)) {
-    // Comments are already stripped above, so only whitespace can precede
-    // the specifier.
-    const arg = clean.slice(found.index + found[0].length).replace(/^\s+/, '')
-    const quote = arg[0]
-    if (quote === "'" || quote === '"') continue
-    if (quote === '`' && isLiteralTemplateSpecifier(arg, key)) continue
-    throw new Error(`the frozen arm sources cannot cover a non-literal dynamic import in ${key}`)
+  const tree = ts.createSourceFile(key, source, ts.ScriptTarget.ESNext, false)
+  const fail: Refusal = (node, what) => {
+    const line = tree.getLineAndCharacterOfPosition(node.getStart(tree)).line + 1
+    throw new Error(`the frozen arm sources cannot cover ${what} in ${key}:${String(line)}`)
   }
+  // Every local name for the module loader: `const req = require`,
+  // `const req = module.require` and `const req = createRequire(url)` all
+  // load at runtime when called, exactly like the indirect forms above
+  // (an alias of an alias chains through the same set, in order).
+  const aliases = new Set<string>()
+  for (const statement of tree.statements) {
+    if (!ts.isVariableStatement(statement)) continue
+    for (const declaration of statement.declarationList.declarations) {
+      if (declaration.initializer === undefined || !ts.isIdentifier(declaration.name)) continue
+      const init = declaration.initializer
+      if (
+        (ts.isIdentifier(init) && (init.text === REQUIRE_WORD || aliases.has(init.text))) ||
+        (ts.isPropertyAccessExpression(init) && init.name.text === REQUIRE_WORD) ||
+        (ts.isCallExpression(init) && isCreateRequireFactory(init.expression))
+      ) {
+        aliases.add(declaration.name.text)
+      }
+    }
+  }
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node)) checkLoadCall(node, aliases, fail)
+    else if (ts.isNewExpression(node)) checkWorker(node, fail)
+    ts.forEachChild(node, visit)
+  }
+  visit(tree)
 }
 
 function digestBytes(bytes: Buffer | string): string {
@@ -194,7 +285,7 @@ export function collectArmSources(roots: readonly string[] = ARM_SOURCE_ROOTS): 
         metafile: true,
         platform: 'node',
         format: 'cjs',
-        external: ['esbuild'],
+        external: ['esbuild', 'typescript'],
         logLevel: 'silent',
         absWorkingDir: repoRoot,
       })
