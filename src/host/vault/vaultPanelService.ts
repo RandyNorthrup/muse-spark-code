@@ -91,8 +91,16 @@ export function vaultPanelService(
     answer: async (answer, authorize) => {
       await session.answer(answer, authorize)
     },
-    importFile: async (path, authorize) => {
-      await session.importFile(path, authorize)
+    importFile: async (path, authorize) => await session.importFile(path, authorize),
+    keepImport: async (receipt) => {
+      await session.keepImport(receipt)
+    },
+    deleteImport: async (receipt, authorize) => {
+      await session.deleteImport(receipt, authorize)
+    },
+    resetBegin: async () => await session.resetBegin(),
+    resetConfirm: async (resetId, word, authorize) => {
+      await session.resetConfirm(resetId, word, authorize)
     },
     setup: async () => await session.setup(),
     confirmSetup: async (setupId, authorize) => {

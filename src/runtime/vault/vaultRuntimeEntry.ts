@@ -22,7 +22,11 @@ import {
   type VaultBrokerPort,
 } from '../../shared/vaultProtocol'
 import { VaultBrokerClient } from '../../core/vault/broker/client'
-import { VaultManageSession, type VaultConnect } from '../../core/vault/broker/manageClient'
+import {
+  isCancelled,
+  VaultManageSession,
+  type VaultConnect,
+} from '../../core/vault/broker/manageClient'
 import { VaultBrokerProcess } from '../../host/vault/brokerProcess'
 import { vaultClientPlatform } from './clientPlatform'
 import { HeadlessVaultSession, type ExecVaultContext, type ExecVaultSession } from './execVault'
@@ -92,8 +96,16 @@ export function vaultCommandPort(session: VaultManageSession): VaultCommandPort 
     revoke: async (grantId) => {
       await session.revoke(grantId)
     },
-    importFile: async (path) => {
-      await session.importFile(path)
+    importFile: async (path) => await session.importFile(path),
+    keepImport: async (receipt) => {
+      await session.keepImport(receipt)
+    },
+    deleteImport: async (receipt) => {
+      await session.deleteImport(receipt)
+    },
+    resetBegin: async () => await session.resetBegin(),
+    resetConfirm: async (resetId, word) => {
+      await session.resetConfirm(resetId, word)
     },
     publicKey: metadataOf,
     watch: (signal) => watchEvents(session, signal),
@@ -120,6 +132,11 @@ export async function openHeadlessVault(
   processId: number,
 ): Promise<ExecVaultSession> {
   const client = await connect()
+  // Cancellation during any later await closes this connection at once (RVCM1091A2 P3).
+  const abort = () => {
+    client.close()
+  }
+  context.signal.addEventListener('abort', abort, { once: true })
   try {
     // Cancelled while connecting: the late connection is closed, never registered (F8).
     if (context.signal.aborted) throw new Error(UI_TEXT.vault.noAccess)
@@ -137,7 +154,9 @@ export async function openHeadlessVault(
       source: 'headless',
     })
     const registered = await client.send({ kind: 'registerRequester', requester })
-    if (registered.kind !== 'ok') throw new Error(UI_TEXT.vault.noAccess)
+    // Re-checked after the await: a run cancelled meanwhile gets no session.
+    if (isCancelled(context.signal) || registered.kind !== 'ok')
+      throw new Error(UI_TEXT.vault.noAccess)
     const port: VaultBrokerPort = {
       clock: { now: Date.now },
       status: async () => {
@@ -165,6 +184,8 @@ export async function openHeadlessVault(
   } catch (error: unknown) {
     client.close()
     throw error
+  } finally {
+    context.signal.removeEventListener('abort', abort)
   }
 }
 

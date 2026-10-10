@@ -15,7 +15,7 @@ import type { VaultBrokerEvent, VaultBrokerSnapshot } from '../../../shared/vaul
 import { encodeVaultMaterial } from '../crypto'
 import type { VaultBrokerClient } from './client'
 import type { VaultChannelResponse } from './frames'
-import type { VaultManagementRefusal } from './ports'
+import type { VaultImportReport, VaultManagementRefusal } from './ports'
 
 /** What a host needs of one authenticated connection. */
 export type VaultBrokerConnection = Pick<VaultBrokerClient, 'send' | 'close' | 'watch' | 'closed'>
@@ -142,8 +142,27 @@ export class VaultManageSession {
   ): Promise<VaultChannelResponse['response']> {
     return await this.simple({ kind: 'answer', answer }, authorize)
   }
-  async importFile(path: string, authorize?: () => void): Promise<void> {
-    expectOk(await this.simple({ kind: 'import', path }, authorize))
+  /** The per-item report (metadata only) and the receipt for Keep/Delete. */
+  async importFile(path: string, authorize?: () => void): Promise<VaultImportReport> {
+    const response = await this.simple({ kind: 'import', path }, authorize)
+    if (response.kind === 'refused') throw new Error(vaultRefusalMessage(response.reason))
+    if (response.kind !== 'imported') throw new Error(UI_TEXT.vault.noAccess)
+    return { receipt: response.receipt, items: response.items }
+  }
+  async keepImport(receipt: string): Promise<void> {
+    expectOk(await this.simple({ kind: 'importKeep', receipt }))
+  }
+  async deleteImport(receipt: string, authorize?: () => void): Promise<void> {
+    expectOk(await this.simple({ kind: 'importDelete', receipt }, authorize))
+  }
+  async resetBegin(): Promise<{ resetId: string; word: string }> {
+    const response = await this.simple({ kind: 'resetBegin' })
+    if (response.kind === 'refused') throw new Error(vaultRefusalMessage(response.reason))
+    if (response.kind !== 'resetChallenge') throw new Error(UI_TEXT.vault.noAccess)
+    return { resetId: response.resetId, word: response.word }
+  }
+  async resetConfirm(resetId: string, word: string, authorize?: () => void): Promise<void> {
+    expectOk(await this.simple({ kind: 'resetConfirm', resetId, word }, authorize))
   }
   async publicKey(itemId: string): Promise<string> {
     const response = await this.simple({ kind: 'publicKey', itemId })

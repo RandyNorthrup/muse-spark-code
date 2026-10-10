@@ -35,7 +35,17 @@ export const vaultStatusSchema = z.strictObject({
   silentUnlock: z.boolean(),
   itemCount: counter,
   reason: z.nullable(
-    z.enum(['brokerBlocked', 'slotUnavailable', 'basicText', 'rollback', 'auditInvalid', 'locked']),
+    z.enum([
+      'brokerBlocked',
+      'slotUnavailable',
+      'basicText',
+      'rollback',
+      'auditInvalid',
+      'locked',
+      // The anchored vault can no longer be opened by any slot or code; only
+      // then is Reset Vault offered (lead decision, 2026-10-10).
+      'vaultLost',
+    ]),
   ),
 })
 export type VaultStatus = z.infer<typeof vaultStatusSchema>

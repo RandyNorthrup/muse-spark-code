@@ -430,7 +430,7 @@ export const EN = {
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
   referenceVault:
-    'Work with the per-user credential vault from a terminal: setup, recover, status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.',
+    'Work with the per-user credential vault from a terminal: setup, recover, reset, status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.',
   referenceVaultHelp: 'Show the per-user credential vault command usage.',
   referenceVaultPanel:
     'The credential vault is unavailable in this build because the broker is not installed.',
@@ -6230,6 +6230,19 @@ export const EN = {
     recoveryShownOnce: 'Recovery code (shown only now): {code}',
     savedItPrompt: 'Have you saved the recovery code somewhere safe?',
     busy: 'The vault is busy in another window. Try again.',
+    // C-M109-1: import and Reset Vault (lead decisions, 2026-10-10).
+    importedLabel: 'Imported {source} credential {number}',
+    importedSummary: 'Imported into the vault: {names}',
+    importKeepOrDelete:
+      'Keep the original file, or delete it now that its credentials are in the vault?',
+    resetVault: 'Reset Vault',
+    resetContinue: 'Continue',
+    resetWarning:
+      'Resetting erases this vault for good: every stored secret is gone, and rollback protection restarts with a new anchor when you set the vault up again.',
+    resetTypeWord: 'Type {word} to reset the vault.',
+    resetDone: 'The vault was reset. Set it up again to store secrets.',
+    vaultLost:
+      'This vault can no longer be opened: its files are missing or damaged. Reset it to start again.',
     // RVCM1091B 4: the OS store's fixed repair, never native text.
     storeUnavailable:
       "The operating system's credential store is not available. On Linux, sign in to a desktop session with an unlocked keyring (the Secret Service); on macOS, unlock the login Keychain; on Windows, sign in interactively. Then try again.",

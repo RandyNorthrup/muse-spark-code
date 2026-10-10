@@ -63,6 +63,19 @@ happened, not what was planned; superseded entries are kept.
     - A cancelled watcher closes its late connection.
     - The Windows contract requires a native check that the pipe's server
       runs as the same user.
+  - Import is all or nothing. A discovered credential file (SSH keys,
+    `.git-credentials`, `.netrc`, `.npmrc`, AWS, Docker) goes into the
+    vault in one encrypted commit with a per-item report of names and kinds
+    only. Imported items stay hidden from agents until you review them, and
+    you then keep the original file or delete it. A cancelled import writes
+    nothing.
+  - **Reset Vault** (`vault reset`), offered only when the vault can no longer
+    be opened:
+    - It states that every secret is gone and that rollback protection
+      restarts with a new anchor.
+    - It asks you to type `RESET`.
+    - It records a value-free audit line.
+    - A file from the old vault never opens again.
   - Review repairs (RVCM1091B, part A):
     - Lock now erases an unconfirmed setup and any recovery key.
     - Recovery while unlocked unwraps nothing.
@@ -71,6 +84,15 @@ happened, not what was planned; superseded entries are kept.
     - When the operating system's credential store is unavailable, the vault
       now says how to make it available, in every language, instead of
       "No access".
+  - Review repairs (RVCM1091A2):
+    - First creation and Reset Vault re-check Lock at the physical commit,
+      including while their writes are staged. Import labels format their
+      ordinal using the installed language.
+    - A Lock during setup confirmation, recovery, Reset Vault or an import
+      now stops that operation. The vault is never left unlocked and nothing
+      is committed after the Lock.
+    - A headless run cancelled while opening the vault gets no session, and
+      its connection closes.
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did
