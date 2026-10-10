@@ -9,7 +9,7 @@ import { fingerprint } from '../../src/core/verify/fingerprint'
 import { formatNumber } from '../../src/shared/l10n/text'
 import { scanLegal } from '../../src/core/legal/scan'
 import { legalScanResultSchema } from '../../src/shared/legal'
-import { FULL_MIT_LICENSE, countingSnapshot, snapshotFrom } from './legal/helpers'
+import { FULL_MIT_LICENSE, countingSnapshot, hashEvidence, snapshotFrom } from './legal/helpers'
 
 const headed = `// Copyright (c) 2026 Example Corp
 // SPDX-License-Identifier: MIT
@@ -70,13 +70,7 @@ describe('scanLegal', () => {
     }
     const result = scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
-      distribution: {
-        bundleInputs: Object.keys(files),
-        bundleInputHashes: Object.fromEntries(
-          Object.entries(files).map(([file, text]) => [file, fingerprint(text)]),
-        ),
-        bundleOutputHashes: {},
-      },
+      distribution: hashEvidence(files),
     })
     expect(legalScanResultSchema.safeParse(result).success).toBe(true)
     expect(result.findings).toEqual([])
@@ -100,16 +94,37 @@ describe('scanLegal', () => {
     }
     const result = scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
-      distribution: {
-        bundleInputs: Object.keys(files),
-        bundleInputHashes: Object.fromEntries(
-          Object.entries(files).map(([file, text]) => [file, fingerprint(text)]),
-        ),
-        bundleOutputHashes: {},
-      },
+      distribution: hashEvidence(files),
     })
     expect(result.incompleteChecks.some((entry) => entry.includes('differs'))).toBe(true)
     expect(result.incompleteChecks.some((entry) => entry.includes('human review'))).toBe(true)
+  })
+
+  it('derives distribution from metafiles while ignoring non-file keys', () => {
+    // The webview page metafiles synthesize `namespace:name` inputs and
+    // may name absolute paths: keys that cannot name a snapshot member
+    // are build-time constants, while workspace inputs still verify.
+    const files = {
+      LICENSE: FULL_MIT_LICENSE,
+      'package.json': JSON.stringify({ name: 'example', version: '1.0.0', license: 'MIT' }),
+      'src/ok.ts': headed,
+      'dist/meta/bundle.json': JSON.stringify({
+        inputs: {
+          'src/ok.ts': { bytes: 1 },
+          'browser-ns:virtual': { bytes: 1 },
+          '/abs/path.js': { bytes: 1 },
+        },
+        outputs: {},
+      }),
+      'dist/meta-hashes/bundle.json': JSON.stringify({
+        version: 1,
+        inputs: { 'src/ok.ts': fingerprint(headed) },
+        outputs: {},
+      }),
+    }
+    const result = scanLegal(snapshotFrom(files), { headerPolicy: 'optional' })
+    expect(result.incompleteChecks).toEqual([])
+    expect(result.findings).toEqual([])
   })
 
   it('reads stale bundle bytes as stale, not as fresh (RVCM971 P2)', () => {

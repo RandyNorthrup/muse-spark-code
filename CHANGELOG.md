@@ -82,6 +82,19 @@ happened, not what was planned; superseded entries are kept.
   assets without provenance and proprietary terms. An ecosystem with no
   manifests at all is a complete observation, not a gap.
 
+- The `/legal` scanner no longer mistakes modified license terms for exact
+  matches (M97 CM971R2, review RVCM971). Only lines that are purely a
+  copyright notice leave the match text; any added restriction keeps the
+  text from matching exactly and is reported as differing terms for human
+  review. GPL-family texts match their version stem while the
+  `-only`/`-or-later` variant is read from the project's own manifest and
+  README grant, never from the license body. Dependency texts that do not
+  match exactly, malformed license expressions, and bundle artifacts whose
+  recorded content hashes do not match the workspace all keep named
+  human-review reasons. The production scan derives its distribution
+  evidence from the build's bundle metafiles plus recorded content hashes,
+  which the production build now writes beside each metafile.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.

@@ -1862,5 +1862,13 @@ Exact source URLs, versions, acquisition date, original hashes, and vendored
 hashes are recorded in `provenance.json`. Licenses named by the identifiers
 retain their own terms. Runtime scans make no data downloads.
 
+`spdxLicenseTexts.json` holds derived match data only (a normalized SHA-256,
+a word count and short distinctive phrases for 15 licenses) computed from the
+SPDX License List 3.28.0 texts shipped in `spdx-license-list` 6.12.0
+(Sindre Sorhus, CC0-1.0 package; SPDX texts © their respective licensors).
+No full license text is vendored. Every phrase was machine-checked present in
+its canonical text at derivation time; the tarball hash, derivation method and
+vendored hash are recorded in `provenance.json`.
+
 The packaging lane must preserve this notice and the provenance when shipping
 the lazy scanner and copy the applicable dataset terms into packaged notices.
