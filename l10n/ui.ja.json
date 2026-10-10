@@ -259,6 +259,7 @@
   "estimateClassStrikes": "指摘分類ごとの指摘回数",
   "estimateRedesigns": "再設計イベント",
   "estimateDisclosureMissing": "数値の較正情報が不足しています。",
+  "estimateRuntimeUnavailable": "このホストでは見積もりを利用できません。計画のスナップショットは接続されていません。",
   "estimateUnavailable": "見積もりモジュールを読み込めなかったため、見積もりを実行できません。拡張機能を再インストールしてウィンドウを再読み込みしてください。詳細はログにあります。",
   "estimateStaleBase": "ベースが古いです ({lanes}): 開始前にリベースしてください。",
   "estimateWaveStarted": "開始しました: {lanes}。",
@@ -438,6 +439,7 @@
   "referenceTasks": "この会話のタスク一覧を別のエディタータブで開きます。",
   "referenceDiagnostics": "ローカルのバックエンドと拡張機能の診断を表示します。",
   "referenceReport": "保存または送信する前に、機密情報を除去した問題レポートを確認します。",
+  "referenceInProgress": "進行中.",
   "referenceEstimate": "進行中.",
   "referenceTerminal": "エディターのターミナルで Muse Code CLI を開きます。",
   "referenceRules": "ワークスペースのルートに AGENTS.md を作成または開きます。",
@@ -5072,6 +5074,5 @@
     "grantsCount": {
       "other": "{count} 件の許可"
     }
-  },
-  "referenceInProgress": "進行中."
+  }
 }

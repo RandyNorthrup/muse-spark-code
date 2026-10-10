@@ -259,6 +259,7 @@
   "estimateClassStrikes": "Раунды с замечаниями по классу проблем",
   "estimateRedesigns": "События перепроектирования",
   "estimateDisclosureMissing": "Сведения о калибровке числовых значений неполны.",
+  "estimateRuntimeUnavailable": "Оценки недоступны в этом хосте. Снимок плана не подключён.",
   "estimateUnavailable": "Не удалось загрузить оценщик, поэтому оценка не может быть выполнена; переустановите расширение и перезагрузите окно. Подробности — в журнале.",
   "estimateStaleBase": "Устаревшая база ({lanes}): перед началом выполните rebase.",
   "estimateWaveStarted": "Запущено: {lanes}.",
@@ -438,6 +439,7 @@
   "referenceTasks": "Открыть задачи этого разговора в отдельной вкладке редактора.",
   "referenceDiagnostics": "Показать локальную диагностику бэкенда и расширения.",
   "referenceReport": "Просмотреть очищенный отчёт перед сохранением или отправкой.",
+  "referenceInProgress": "В работе.",
   "referenceEstimate": "В работе.",
   "referenceTerminal": "Открыть CLI Muse Code в терминале редактора.",
   "referenceRules": "Создать или открыть AGENTS.md в корне рабочей области.",
@@ -5531,6 +5533,5 @@
       "few": "{count} разрешения",
       "many": "{count} разрешений"
     }
-  },
-  "referenceInProgress": "В работе."
+  }
 }

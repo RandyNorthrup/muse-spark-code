@@ -259,6 +259,7 @@
   "estimateClassStrikes": "Fehlerrunden pro Befundklasse",
   "estimateRedesigns": "Neuentwurfsereignisse",
   "estimateDisclosureMissing": "Die Kalibrierungsangaben für Zahlenwerte sind unvollständig.",
+  "estimateRuntimeUnavailable": "Schätzungen sind in diesem Host nicht verfügbar. Kein Planschnappschuss ist angebunden.",
   "estimateUnavailable": "Der Schätzer konnte nicht geladen werden, daher kann keine Schätzung starten; installieren Sie die Erweiterung neu und laden Sie das Fenster neu. Details stehen im Protokoll.",
   "estimateStaleBase": "Veraltete Basis ({lanes}): vor dem Start rebasen.",
   "estimateWaveStarted": "Gestartet: {lanes}.",
@@ -438,6 +439,7 @@
   "referenceTasks": "Aufgabenliste dieser Unterhaltung in einem eigenen Editor-Tab öffnen.",
   "referenceDiagnostics": "Lokale Backend- und Erweiterungsdiagnose anzeigen.",
   "referenceReport": "Bereinigten Problembericht vor dem Speichern oder Senden prüfen.",
+  "referenceInProgress": "In Arbeit.",
   "referenceEstimate": "In Arbeit.",
   "referenceTerminal": "Muse Code CLI im Terminal des Editors öffnen.",
   "referenceRules": "AGENTS.md im Arbeitsbereich erstellen oder öffnen.",
@@ -5225,6 +5227,5 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
-  },
-  "referenceInProgress": "In Arbeit."
+  }
 }

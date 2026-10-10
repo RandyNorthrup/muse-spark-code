@@ -581,11 +581,28 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     resourceRelocate: 'relocate',
   }
   const resourceDefaults = source.resourceSettingsSchema.parse({})
+  // A compatibility-only control must ignore every configured value and have no reader.
+  // Active controls keep the same enum, inverse-boolean and numeric-bound probes.
+  const inactiveSettings = new Set(
+    Object.entries(properties)
+      .filter(
+        ([, schema]) =>
+          translated(schema.deprecationMessage ?? schema.markdownDeprecationMessage, nls) ===
+          'Stored for compatibility; no runtime effect.',
+      )
+      .map(([id]) => id.slice('museSpark.'.length)),
+  )
+  const readInactiveSettings = new Set()
   const runtimeSetting = (key, value, log) => {
     const field = resourceFields[key]
     if (field === undefined)
       return source.readSettings(
-        { get: (requested) => (requested === key ? value : undefined) },
+        {
+          get: (requested) => {
+            if (inactiveSettings.has(requested)) readInactiveSettings.add(requested)
+            return requested === key ? value : undefined
+          },
+        },
         log,
       )[key]
     try {
@@ -613,9 +630,14 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     const canonical = field === undefined ? source.SETTING_DEFAULTS[key] : resourceDefaults[field]
     if (JSON.stringify(canonical) !== JSON.stringify(schema.default))
       errors.push(`Runtime default mismatch: ${id}`)
-    for (const value of [schema.default, ...(schema.enum ?? [])]) {
+    for (const value of [
+      schema.default,
+      ...(schema.enum ?? []),
+      ...(schema.type === 'boolean' ? [!schema.default] : []),
+    ]) {
       const actual = runtimeSetting(key, value, silentLog)
-      if (!isSameSetting(key, actual, value)) errors.push(`Runtime value mismatch: ${id}`)
+      if (!isSameSetting(key, actual, inactiveSettings.has(key) ? canonical : value))
+        errors.push(`Runtime value mismatch: ${id}`)
     }
   }
 
@@ -631,7 +653,13 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     const key = id.slice('museSpark.'.length)
     for (const value of [schema.minimum, schema.maximum]) {
       if (value === undefined) continue
-      if (!isSameSetting(key, readSetting(key, value), value))
+      if (
+        !isSameSetting(
+          key,
+          readSetting(key, value),
+          inactiveSettings.has(key) ? schema.default : value,
+        )
+      )
         errors.push(`Runtime bound mismatch: ${id}`)
     }
     for (const value of [
@@ -639,7 +667,11 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       schema.maximum === undefined ? undefined : schema.maximum + 1,
     ]) {
       if (value === undefined) continue
-      if (isSameSetting(key, readSetting(key, value), value))
+      if (
+        inactiveSettings.has(key)
+          ? !isSameSetting(key, readSetting(key, value), schema.default)
+          : isSameSetting(key, readSetting(key, value), value)
+      )
         errors.push(`Runtime bound mismatch: ${id}`)
     }
   }
@@ -657,6 +689,9 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     errors.push('Runtime refinement mismatch: values:boolean')
   if (readSetting('browserCheckExtraHosts', ['invalid/path']).length > 0)
     errors.push('Runtime refinement mismatch: valid:host')
+
+  for (const key of readInactiveSettings)
+    errors.push(`Compatibility setting has a runtime reader: museSpark.${key}`)
 
   const descriptionFor = (ref) => {
     if ('conditions' in ref)

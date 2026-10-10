@@ -9,10 +9,7 @@ import {
 import manifest from '../../package.json'
 import { formatAcpUsage } from '../../src/runtime/cliOptions'
 import { EN } from '../../src/shared/l10n/en'
-import {
-  encodeWhatsNewContent,
-  parseWhatsNewContent,
-} from '../../src/core/whatsNew/whatsNewContent'
+import { currentWhatsNewText } from './helpers/currentWhatsNew'
 import { featureCatalog } from '../../src/shared/featureCatalog'
 import { referenceModel } from '../../src/shared/reference/reference.generated'
 
@@ -222,10 +219,7 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
   })
 
   it('ships encoded current notes without archived dormant claims or action buttons', () => {
-    const content = parseWhatsNewContent(
-      encodeWhatsNewContent(JSON.stringify({ schema: 1, releases: releases.slice(0, 2) })),
-    )
-    const shown = JSON.stringify(content)
+    const shown = currentWhatsNewText(releases)
     expect(shown).not.toMatch(
       /no production tool declares preview fields|rows stream.*while arguments arrive|P50.*P90|ship the orchestrator-playbook skill with nine rules/i,
     )

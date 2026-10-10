@@ -968,7 +968,7 @@ describe('the ACP agent (M63)', () => {
       content: {
         type: 'text',
         text: expect.stringContaining(
-          `${UI_TEXT.groupSlashCommands}: /help, /compact, /agents, /questions, /answer`,
+          `${UI_TEXT.groupSlashCommands}: /help, /compact, /report, /agents, /answer, /questions`,
         ),
       },
     })

@@ -32,6 +32,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Dormant `/schedule` v2 and `/estimate` refuse plainly in chat and ACP and
+  stay absent from palettes, completions, discovery and Help (CX1R6).
+  Compatibility-only settings keep stored values without runtime reads; the
+  interactive shell credential-fence setting keeps its working description.
+  Workspace skills cannot republish reserved dormant commands. Legacy `/loop`
+  stays available. Team-worker toggles record no price acceptance; a bound
+  team asks the task price and shared daily budget on first paid use.
+
 - ACP sessions open and run normally without account metadata or when optional
   account startup fails (CX1R5). Account controls appear only after a successful
   metadata read and startup.
@@ -43,8 +51,8 @@ happened, not what was planned; superseded entries are kept.
 - Hide unavailable ACP commands from editor discovery and drop the unbound
   vault binding from the ACP agent (CX1R5): `/schedule` and `/estimate` stay
   out of `available_commands_update` while their owners refuse, and `/vault`
-  refuses without a broker. Dormant Settings entries read as compatibility
-  placeholders with no runtime effect; the accounts, relocation and team
+  refuses without a broker. Settings describe the schedule editor/draft, relocation pause note and
+  inactive automatic-compaction notice they still control; the accounts, relocation and team
   Help strings say only what they do today. The 0.17.0 detailed accounts
   claim and the stale relocation wording are archived out of current notes.
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4

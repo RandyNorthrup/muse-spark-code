@@ -35,6 +35,17 @@ const build = (pkg = manifest, overrides = {}) =>
     : buildReference(pkg, nls, { ...source, ...overrides }, runtime, readme)
 
 describe('the code-derived reference gate', () => {
+  it('C-X-1 rejects a compatibility-only stored reader even when it returns the default', () => {
+    expect(() =>
+      build(manifest, {
+        readSettings: (config, log) => {
+          config.get('vault.enabled')
+          return source.readSettings(config, log)
+        },
+      }),
+    ).toThrow('Compatibility setting has a runtime reader: museSpark.vault.enabled')
+  })
+
   it('shares the unchanged reference between lookups', () => {
     expect(build()).toBe(baseline.model)
     expect(build()).toBe(build())

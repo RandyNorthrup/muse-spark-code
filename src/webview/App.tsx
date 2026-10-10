@@ -30,6 +30,7 @@ import {
   MUSE_DELEGATION_ENABLED,
   REVIEW_SLASH_COMMAND,
   ARE_SCHEDULES_ON_BY_DEFAULT,
+  OPTIONAL_RUNTIME_AVAILABILITY,
   IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT,
   type PaidFeature,
   type SubagentAction,
@@ -1200,6 +1201,14 @@ export function App({
     // draft clears and the host's `estimatorSection` reveals it. The full
     // parse loads with the composer so startup carries only the prefix check.
     if (isEstimateCommandText(text)) {
+      if (!OPTIONAL_RUNTIME_AVAILABILITY.estimator) {
+        dispatch({
+          type: 'noticeRaised',
+          level: 'warning',
+          text: UI_TEXT.estimateRuntimeUnavailable,
+        })
+        return
+      }
       dispatch({ type: 'draftChanged', draft: '' })
       setIsPinnedToEnd(true)
       void import('./estimator/composer')
@@ -1235,6 +1244,14 @@ export function App({
     // its props already here, dispatches the mapped draft or request.
     // `/loop` below stays on the v1 store until its migration ships.
     if (/^\/schedule(?:\s|$)/i.test(text.trim())) {
+      if (!OPTIONAL_RUNTIME_AVAILABILITY.schedules) {
+        dispatch({
+          type: 'noticeRaised',
+          level: 'warning',
+          text: UI_TEXT.scheduleV2.runtime.unavailable,
+        })
+        return
+      }
       dispatch({ type: 'draftChanged', draft: '' })
       setIsPinnedToEnd(true)
       const props = current.schedulesSurface
@@ -2541,13 +2558,14 @@ export function App({
   const paletteContext = useMemo(
     () => ({
       arePromptCommandsBound: true,
-      ...((state.settings?.schedules ?? ARE_SCHEDULES_ON_BY_DEFAULT) && {
-        schedules: {
-          create: { type: 'openScheduleEditor' as const },
-          list: { type: 'openScheduleList' as const },
-          timeline: { type: 'openScheduleTimeline' as const },
-        },
-      }),
+      ...(OPTIONAL_RUNTIME_AVAILABILITY.schedules &&
+        (state.settings?.schedules ?? ARE_SCHEDULES_ON_BY_DEFAULT) && {
+          schedules: {
+            create: { type: 'openScheduleEditor' as const },
+            list: { type: 'openScheduleList' as const },
+            timeline: { type: 'openScheduleTimeline' as const },
+          },
+        }),
       currentModel: state.model,
       models: state.models,
       effort: state.effort,
@@ -2560,9 +2578,7 @@ export function App({
       backend: state.auth.backend,
       paidFeatures: state.paid.features,
       isKeyStored: state.paid.isKeyStored,
-      // The estimator is bound in this surface (M117): its row inserts
-      // `/estimate`, which the submit path handles below.
-      estimateAvailable: true,
+      estimateAvailable: OPTIONAL_RUNTIME_AVAILABILITY.estimator,
     }),
     [
       state.paid.isKeyStored,

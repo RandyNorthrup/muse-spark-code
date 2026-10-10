@@ -314,6 +314,7 @@ export const EN = {
   estimateClassStrikes: 'Finding-class strikes',
   estimateRedesigns: 'Redesign events',
   estimateDisclosureMissing: 'Numeric calibration disclosures are incomplete.',
+  estimateRuntimeUnavailable: 'Estimates are unavailable in this host. No plan snapshot is bound.',
   // The estimator's own module (dist/estimator.js) could not be loaded.
   estimateUnavailable:
     'The estimator could not be loaded, so no estimate can run; reinstall the extension and reload the window. The log has the details.',

@@ -4805,7 +4805,18 @@ component receipts from installed-editor acceptance.
 
 ## In progress
 
-Integration work is tracked in the [roadmap](ROADMAP.md#in-progress):
+Integration work is tracked in the [roadmap](ROADMAP.md#in-progress).
+Dormant schedule-v2 and estimator commands stay out of command discovery and
+refuse when typed. Legacy `/loop` and manual `/compact` keep working.
+Compatibility-only Settings values are retained without runtime reads. The
+schedule management and draft-delivery settings still control their editor
+paths; `resourceRelocate` controls the missing-route note on resource pauses,
+and `modelApiAutoCompaction` controls the first-turn awaiting-evaluation notice,
+with automatic compaction inactive. `vault.agentFence` still controls the
+credential fence for interactive Model API shell commands; verification,
+schedules, workers and hooks always remain fenced.
+
+The unbound features include:
 
 - <a id="several-accounts-per-provider"></a>Several accounts per provider
 - <a id="streamed-argument-previews"></a>Tool argument previews

@@ -888,6 +888,12 @@ describe('automatic compaction in the shared Model API loop', () => {
       t.api.script({ calls: [TOOL] }, { text: 'done' })
       await t.send()
       expect(t.admissions()).toBe(0)
+      expect(t.events).not.toContainEqual(
+        expect.objectContaining({
+          type: 'backendNotice',
+          text: EN.autoCompactionAwaitingEvaluation,
+        }),
+      )
     }
     expect(JSON.stringify(off.api.responseBodies())).toBe(
       JSON.stringify(pending.api.responseBodies()),
@@ -906,6 +912,14 @@ describe('automatic compaction in the shared Model API loop', () => {
       level: 'info',
       text: EN.autoCompactionAwaitingEvaluation,
     })
+    t.api.script(OVERFLOW)
+    await t.send()
+    expect(
+      t.events.filter(
+        (event) =>
+          event.type === 'backendNotice' && event.text === EN.autoCompactionAwaitingEvaluation,
+      ),
+    ).toHaveLength(1)
     expect(t.admissions()).toBe(0)
     await t.host.close()
   })
