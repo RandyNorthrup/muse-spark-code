@@ -232,6 +232,183 @@ describe('the frozen arms source closure', () => {
     expect(() => collectOwned(ownedDir)).toThrow(/non-literal dynamic import/)
   })
 
+  it('fails closed on a template-substitution dynamic import', () => {
+    // Review RVCM1012D finding 1: the strip pass replaced every template
+    // with `""`, so `import(`${name}`)` read as `import("")` and a helper
+    // mutation left the digest identical. The parser sees the
+    // substitution, not a literal.
+    const { ownedDir } = makeTree(
+      {
+        'arm.ts': [
+          'export function load(name: string): Promise<unknown> {',
+          '  return import(`${name}`)',
+          '}',
+          '',
+        ].join('\n'),
+        'helper.ts': HELPER,
+      },
+      {},
+    )
+    expect(() => collectOwned(ownedDir)).toThrow(/non-literal dynamic import/)
+    // The refusal names the file and the 1-based line of the load.
+    expect(() => collectOwned(ownedDir)).toThrow(/arm\.ts:2/)
+  })
+
+  it('fails closed on a concatenated dynamic import', () => {
+    // `import("pre" + name)` starts with a quote, which the old scan
+    // likewise accepted; the parser sees the concatenation, not a literal.
+    const { ownedDir } = makeTree(
+      {
+        'arm.ts': `export function load(name: string): Promise<unknown> {\n  return import("pre" + name)\n}\n`,
+        'helper.ts': HELPER,
+      },
+      {},
+    )
+    expect(() => collectOwned(ownedDir)).toThrow(/non-literal dynamic import/)
+  })
+
+  it('fails closed on every indirect require spelling, literal or not', () => {
+    // Review RVCM1012D finding 1: the bundler leaves each of these for
+    // runtime even with a literal specifier (probed on this rig:
+    // `module.require`, `createRequire(…)(…)` and `new Worker(…)` never
+    // land in the metafile), so every form is refused, literal or not.
+    const arms: Record<string, string> = {
+      'module.require': `export function load(name: string): unknown {\n  return module.require(name)\n}\n`,
+      'literal module.require': `export function load(): unknown {\n  return module.require('./helper')\n}\n`,
+      'optional require': `export function load(name: string): unknown {\n  return require?.(name)\n}\n`,
+      'require alias': `const req = require\nexport function load(name: string): unknown {\n  return req(name)\n}\n`,
+      'literal require alias': `const req = require\nexport function load(): unknown {\n  return req('./helper')\n}\n`,
+      'createRequire result': `import { createRequire } from 'node:module'\nexport function load(name: string): unknown {\n  return createRequire(import.meta.url)(name)\n}\n`,
+      'literal createRequire result': `import { createRequire } from 'node:module'\nexport function load(): unknown {\n  return createRequire(import.meta.url)('./helper')\n}\n`,
+      'require.call': `export function load(name: string): unknown {\n  return require.call(null, name)\n}\n`,
+    }
+    for (const [label, arm] of Object.entries(arms)) {
+      const { ownedDir } = makeTree({ 'arm.ts': arm, 'helper.ts': HELPER }, {})
+      expect(() => collectOwned(ownedDir), label).toThrow(/leaves for runtime/)
+    }
+  })
+
+  it('fails closed on a Worker load, literal or not', () => {
+    // Probed on this rig: even `new Worker('./helper')` never lands in
+    // the metafile, so the worker file would decide the arm outside the
+    // digest. `new URL(…)` alone is not refused: it parses data and loads
+    // no file (zod's own schemas do exactly this, and the real closure
+    // scans clean) — a URL nested in a loader is already refused above.
+    for (const spec of ['name', "'./helper'"]) {
+      const { ownedDir } = makeTree(
+        {
+          'arm.ts': `export function start(name: string): unknown {\n  return new Worker(${spec})\n}\n`,
+          'helper.ts': HELPER,
+        },
+        {},
+      )
+      expect(() => collectOwned(ownedDir), spec).toThrow(/Worker load/)
+    }
+  })
+
+  it('leaves validating URL constructions alone', () => {
+    const { ownedDir } = makeTree(
+      {
+        'arm.ts': `export function check(input: string): boolean {\n  try {\n    new URL(input)\n    return true\n  } catch {\n    return false\n  }\n}\n`,
+      },
+      {},
+    )
+    expect(collectOwned(ownedDir).files.map((file) => file.path)).toEqual([
+      keyOf(path.join(ownedDir, 'arm.ts')),
+    ])
+  })
+
+  it('refuses every generated load spelling the bundler cannot see', () => {
+    // Property sweep over the finding's class: loader forms (direct,
+    // indirect, worker) against specifier forms (literal spellings,
+    // interpolation, concatenation, bare names). A literal through a
+    // direct loader collects the helper, because the bundler follows it;
+    // everything else fails closed, because it runs at runtime outside
+    // every hashed edge.
+    const preludes: Record<string, string> = {
+      'require alias': 'const req = require\n',
+      createRequire: "import { createRequire } from 'node:module'\n",
+    }
+    const loaders: Record<string, { call: (spec: string) => string; indirect: boolean }> = {
+      import: { call: (spec) => `import(${spec})`, indirect: false },
+      require: { call: (spec) => `require(${spec})`, indirect: false },
+      'module.require': { call: (spec) => `module.require(${spec})`, indirect: true },
+      'optional require': { call: (spec) => `require?.(${spec})`, indirect: true },
+      'require alias': { call: (spec) => `req(${spec})`, indirect: true },
+      createRequire: { call: (spec) => `createRequire(import.meta.url)(${spec})`, indirect: true },
+      'require.call': { call: (spec) => `require.call(null, ${spec})`, indirect: true },
+      worker: { call: (spec) => `new Worker(${spec})`, indirect: true },
+    }
+    const literals = new Set(["'./helper'", '"./helper"', '`./helper`'])
+    const nonLiterals = ['name', '`${name}`', '`./${name}`', '"pre" + name', '"./" + name']
+    const tree = mkdtempSync(path.join(tmpdir(), 'arm-sources-'))
+    trees.push(tree)
+    const ownedDir = path.join(tree, 'owned')
+    mkdirSync(ownedDir, { recursive: true })
+    writeFileSync(path.join(ownedDir, 'helper.ts'), HELPER)
+    for (const [loaderName, loader] of Object.entries(loaders)) {
+      for (const spec of [...literals, ...nonLiterals]) {
+        const label = `${loaderName}(${spec})`
+        writeFileSync(
+          path.join(ownedDir, 'arm.ts'),
+          `${preludes[loaderName] ?? ''}export function load(name: string): unknown {\n  return ${loader.call(spec)}\n}\n`,
+        )
+        if (!loader.indirect && literals.has(spec)) {
+          expect(
+            collectOwned(ownedDir).files.map((file) => file.path),
+            label,
+          ).toContain(keyOf(path.join(ownedDir, 'helper.ts')))
+        } else if (loader.indirect) {
+          expect(() => collectOwned(ownedDir), label).toThrow(/leaves for runtime/)
+        } else {
+          expect(() => collectOwned(ownedDir), label).toThrow(/non-literal dynamic import/)
+        }
+      }
+    }
+    // The allowed side moves the digest too: a helper mutation under a
+    // literal `require` — the bundler's own edge — changes the closure.
+    writeFileSync(
+      path.join(ownedDir, 'arm.ts'),
+      `export const answer: unknown = require('./helper')\n`,
+    )
+    const before = digestOf(collectOwned(ownedDir))
+    expect(collectOwned(ownedDir).files.map((file) => file.path)).toContain(
+      keyOf(path.join(ownedDir, 'helper.ts')),
+    )
+    writeFileSync(path.join(ownedDir, 'helper.ts'), HELPER.replace('return 1', 'return 2'))
+    expect(digestOf(collectOwned(ownedDir))).not.toBe(before)
+  })
+
+  it('sees loads through comment, string and regex camouflage', () => {
+    // Call-like text in comments, strings, templates and regex literals
+    // is never a load; a real non-literal load beside it still fails
+    // closed. The old strip pass is gone; the parser never confuses the
+    // two, in either direction.
+    const camouflage = [
+      '// import(helper) and require(helper) and a "quoted" call',
+      '/* import(`./helper`) and require("./helper") */',
+      'const decoy = "import(name) require(name)"',
+      String.raw`const pattern = /import\(name\)/`,
+      'const template = `import(name) ${decoy}`',
+    ].join('\n')
+    const clean = makeTree(
+      {
+        'arm.ts': `${camouflage}\nexport const arm = pattern.source + template\n`,
+      },
+      {},
+    )
+    expect(
+      collectArmSources([path.join(clean.ownedDir, 'arm.ts')]).files.map((file) => file.path),
+    ).toEqual([keyOf(path.join(clean.ownedDir, 'arm.ts'))])
+    const dirty = makeTree(
+      {
+        'arm.ts': `${camouflage}\nexport function load(name: string): Promise<unknown> {\n  return import(name)\n}\n`,
+      },
+      {},
+    )
+    expect(() => collectOwned(dirty.ownedDir)).toThrow(/non-literal dynamic import/)
+  })
+
   it('resolves a directory import to its index, like the build does', () => {
     // Review RVCM1012C finding 3: the hand resolver returned the
     // directory itself and died reading it. The real resolver reaches
