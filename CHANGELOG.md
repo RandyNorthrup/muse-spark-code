@@ -83,6 +83,23 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Estimator plan snapshots refuse loudly instead of accepting or inventing
+  data (M117 C-M117-1R2). The fleet is stamped with the request's `asOf`
+  instead of a second clock, so production estimates pass input validation.
+  ACP and headless estimates read the requesting session's workspace root
+  (one cached estimator per root), never the process working directory.
+  Release membership comes from the delivery-order titles, not prerequisites.
+  A `last` lane depends on every other unfinished lane of its milestone; an
+  unknown prerequisite, any plan-reader drift record and an unknown rig each
+  fail with a named diagnostic. Issue and label goals are refused naming the
+  missing lane associations until M113 N links them. A lane's state comes
+  from its current branch or PR, never an older merged PR, and merged lanes
+  without hour estimates stay out instead of blocking unfinished work. The
+  networked `gh` collection runs only while the host allows it, cancellation
+  reaches the snapshot reads, and a PR goal without PR evidence refuses
+  instead of reporting not found. The snapshot bundle installs the caller's
+  language table before first use.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.

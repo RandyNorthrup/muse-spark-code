@@ -862,10 +862,9 @@
     {
       "id": "M117",
       "title": "Capacity estimator",
-      "summary": "Run /estimate on a goal to see when it can land with your current, minimum or optimum set of agents and machines without a model call, although real forecasts are not available yet.",
+      "summary": "Run /estimate on a goal to see when it can land with your current, minimum or optimum set of agents and machines without a model call.",
       "area": "agents",
-      "release": "0.17.0",
-      "labels": ["not available yet"]
+      "release": "0.17.0"
     },
     {
       "id": "M118",

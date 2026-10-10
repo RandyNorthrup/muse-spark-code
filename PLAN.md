@@ -36592,6 +36592,21 @@ single-rig milestone forecasts P50/P90 deterministically. Receipts in
 `docs/certification/m117-snapshot.md`. Still waiting: board, catalog,
 history, multi-machine fleets, and issue lane linkage (M113 N).
 
+**C-M117-1R2 review fixes (2026-10-10, Kubuntu).** Every RVCM1171 finding is
+fixed in the lane's files: one `asOf` captured once and passed through to the
+fleet; ACP/headless snapshots read the requesting session's root (cached per
+root); release membership from delivery-order titles; `last` depends on all
+other unfinished lanes; unknown prerequisites, reader drift and unknown rigs
+refuse with named diagnostics (closure-scoped, so unrelated goals still
+resolve: `M114` refuses its unknown `M110a0`, `M115` now resolves past
+released `M109`'s hour-less lanes); issue/label goals refuse naming the
+missing associations; lane state follows the current branch/PR; `gh` runs
+only while the host allows it; cancellation reaches snapshot reads; PR goals
+without PR evidence refuse; the snapshot bundle installs the caller's
+language. Regression tests, real-PLAN.md tests and the M103/M104 history
+golden in the lane's estimator suites; red drills in
+`docs/certification/m117.md`.
+
 - **Goal.** For a goal (a milestone, a pull request, issues, a release, a
   list of lanes), the user sees when it will be done with what they have, or
   what they need to be done by a date: how many agents, on which machines,
