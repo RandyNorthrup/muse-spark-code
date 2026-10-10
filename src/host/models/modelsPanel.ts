@@ -21,6 +21,11 @@ import {
   type ModelRow,
   type ProviderTest,
 } from '../../shared/modelsPanel'
+import {
+  vaultClientMessageSchema,
+  vaultHostMessageSchema,
+  type VaultHostMessage,
+} from '../../shared/hostApi/vaultMessages'
 import { buildWebviewHtml, createNonce } from '../html'
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
@@ -49,11 +54,52 @@ export interface ModelsPanelDeps {
   readonly readImportFile: () => Promise<string | undefined>
   readonly confirmImport: (preview: ImportPreview) => Promise<boolean>
   readonly onWizardSaved: (outcome: WizardSaveOutcome) => void
+  /**
+   * The vault binding factory (C-M109-1 P1). Undefined until lanes (b)
+   * and (c) bind `vaultClientPlatform` and compose the broker: without it
+   * the section stays hidden and the vault keeps refusing with
+   * `vault.brokerBlocked`, as 0.17.0 does.
+   */
+  readonly vault?: ModelsVaultFactory | undefined
 }
 export interface ModelsPanelNavigate {
   readonly section?: string | undefined
   readonly presetId?: string | undefined
   readonly wizard?: boolean | undefined
+}
+/**
+ * The vault section's host side (C-M109-1 P1): built in dist/vault.js and
+ * owned by this panel while its tab lives. The factory and the binding
+ * never import this file, and this file never imports the vault's host
+ * files, so the bundle-split gate keeps them in their own bundles; only
+ * the shared message schemas are carried by both.
+ */
+export interface ModelsVaultBinding {
+  readonly handle: (raw: unknown) => Promise<void>
+  readonly refresh: () => Promise<void>
+  /** Idempotent: the panel disposes its tab and the binding together. */
+  readonly dispose: () => void
+}
+/** Builds the binding with its publisher into this panel's webview. */
+export type ModelsVaultFactory = (
+  publish: (message: VaultHostMessage) => void,
+) => ModelsVaultBinding
+/** The navigate target the host posts; a vault link needs the binding. */
+function navigateSection(
+  section: string,
+  isVaultOffered: boolean,
+): 'providers' | 'models' | 'vault' {
+  switch (section) {
+    case 'models': {
+      return 'models'
+    }
+    case 'vault': {
+      return isVaultOffered ? 'vault' : 'providers'
+    }
+    default: {
+      return 'providers'
+    }
+  }
 }
 export interface ModelsPanel {
   readonly reveal: (navigate?: ModelsPanelNavigate) => void
@@ -150,7 +196,30 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     void panel.webview.postMessage(parsed.message)
   }
+  const publishVault = (message: VaultHostMessage): void => {
+    if (isDisposed) {
+      return
+    }
+    const parsed = vaultHostMessageSchema.safeParse(message)
+    if (!parsed.success) {
+      log.warn('Dropped malformed vault host message')
+      return
+    }
+    void panel.webview.postMessage(parsed.data)
+  }
+  // The gate: no factory, no vault section. A factory that throws leaves
+  // the panel without the section too, refusing exactly as 0.17.0 does.
+  let vault: ModelsVaultBinding | undefined
+  if (deps.vault !== undefined) {
+    try {
+      vault = deps.vault(publishVault)
+    } catch {
+      log.warn('Vault section unavailable')
+      vault = undefined
+    }
+  }
   const publish = (): void => {
+    state.vaultOffered = vault !== undefined
     post({ type: 'modelsPanel/state', state })
   }
   const fail = (): void => {
@@ -406,7 +475,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         if (navigation !== undefined) {
           post({
             type: 'modelsPanel/navigate',
-            section: navigation.section === 'models' ? 'models' : 'providers',
+            section: navigateSection(navigation.section ?? 'providers', vault !== undefined),
             itemId: navigation.presetId,
           })
         }
@@ -781,6 +850,16 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     })()
   }
   const subscription = panel.webview.onDidReceiveMessage((raw: unknown) => {
+    // The vault's own messages ride the same webview; its host validates
+    // them again before acting. Without the binding they fall through to
+    // the panel's parser, which drops them.
+    if (vault !== undefined && vaultClientMessageSchema.safeParse(raw).success) {
+      const binding = vault
+      void binding.handle(raw).catch(() => {
+        log.warn('Vault panel operation failed')
+      })
+      return
+    }
     const parsed = parsePanelToHostMessage(raw)
     if (!parsed.ok) {
       log.warn('Dropped malformed models panel message')
@@ -796,6 +875,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     isDisposed = true
     credentials.clear()
     subscription.dispose()
+    vault?.dispose()
+    vault = undefined
   }
   panel.onDidDispose(cleanup)
   return {
@@ -814,7 +895,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       if (navigate !== undefined) {
         post({
           type: 'modelsPanel/navigate',
-          section: navigate.section === 'models' ? 'models' : 'providers',
+          section: navigateSection(navigate.section ?? 'providers', vault !== undefined),
           itemId: navigate.presetId,
         })
       }

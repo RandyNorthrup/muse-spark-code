@@ -2077,9 +2077,10 @@ async function activateWindow(
     isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork)
   // The credential vault (M109, PLAN.md D89): the commands and the lazy
   // loader only. dist/vault.js builds its broker-backed service itself
-  // (C-M109-1). Until the Models & Agents panel mounts the vault section,
-  // both commands refuse closed with the broker-blocked reason instead of
-  // opening an empty vault.
+  // (C-M109-1). Until lanes (b) and (c) bind the broker, both commands
+  // refuse closed with the broker-blocked reason instead of opening an
+  // empty vault; the Models & Agents panel's vault section (C-M109-1 P1)
+  // stays hidden behind the same gate.
   context.subscriptions.push(
     vscode.commands.registerCommand(COMMAND_IDS.downloadBrowserCheckRuntime, async () => {
       await downloadBrowserRuntime(browserChecks, isIdeBrowserCheckOffered)
@@ -4050,6 +4051,11 @@ async function activateWindow(
           suggestedProviderSetting,
           isRemote: vscode.env.remoteName !== undefined,
           setComposerModel,
+          // The vault section's gate (C-M109-1 P1): no factory until lanes
+          // (b) and (c) bind `vaultClientPlatform` and compose the broker.
+          // While undefined the section stays hidden and the vault keeps
+          // refusing with `vault.brokerBlocked`, as 0.17.0 does.
+          createVault: undefined,
           onKeyUsage: (snapshot) => {
             usageRecording.limit({
               backend: 'modelApi',

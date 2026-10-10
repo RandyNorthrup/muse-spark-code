@@ -35,3 +35,7 @@ export const vaultClientMessageSchema = z.discriminatedUnion('type', [
     itemId: z.string().check(z.regex(/^[a-f0-9]{32}$/u)),
   }),
 ])
+/** What the vault section posts to the host (C-M109-1 P1 mount). */
+export type VaultClientMessage = z.infer<typeof vaultClientMessageSchema>
+/** What the host publishes to the vault section. */
+export type VaultHostMessage = z.infer<typeof vaultHostMessageSchema>

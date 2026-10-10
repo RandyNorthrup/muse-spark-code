@@ -2,6 +2,7 @@ import * as vscode from 'vscode'
 import { randomBytes } from 'node:crypto'
 import { homedir } from 'node:os'
 import { UI_TEXT, VAULT_LIMITS } from '../../shared/constants'
+import { type VaultHostMessage } from '../../shared/hostApi/vaultMessages'
 import { type UiText } from '../../shared/l10n/en'
 import { fill, setUiText } from '../../shared/l10n/text'
 import { VaultBrokerClient } from '../../core/vault/broker/client'
@@ -78,23 +79,13 @@ function brokerService(distDir: string): {
   }
 }
 
-/** W loads dist/vault.js on first need, then binds C/B/P/M and M95's panel to this factory. */
-export function createVaultPanelHost(
-  deps: VaultPanelEntryDeps,
-  table: UiText,
-  locale: string,
-): { host: VaultPanelHost } & VaultWindowControls {
-  setUiText(table, locale)
-  const broker = deps.service === undefined ? brokerService(deps.distDir) : undefined
-  const service = deps.service ?? broker?.service
-  if (service === undefined) throw new Error(UI_TEXT.vault.brokerBlocked)
-  const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right)
-  status.text = `$(lock) ${UI_TEXT.vault.lock}`
-  status.tooltip = UI_TEXT.vault.unlocked
-  status.command = VAULT_COMMANDS.lock
-  const host = new VaultPanelHost({
-    ...deps,
-    service,
+/** The native prompts and error channel every vault host shares. */
+function nativeHostDeps(deps: {
+  readonly now: () => number
+  readonly sshKey: VaultNativeInput['sshKey']
+}): Omit<VaultPanelHostDeps, 'service' | 'publish' | 'status'> {
+  return {
+    now: deps.now,
     showRecoveryCode: async (code, signal) => {
       // Shown once, with Copy and I Saved It, before the vault exists (lead decision 8).
       while (!signal.aborted) {
@@ -154,16 +145,117 @@ export function createVaultPanelHost(
     showError: (message) => {
       void vscode.window.showErrorMessage(message)
     },
+  }
+}
+
+export interface ModelsVaultBindingDeps {
+  /** dist/ beside the running bundle (the broker and its native helpers). */
+  readonly distDir: string
+  readonly now: () => number
+  readonly sshKey: VaultNativeInput['sshKey']
+  /** Into the Models & Agents panel's webview (an already parsed host message). */
+  readonly publish: (message: VaultHostMessage) => void
+  /** A test's service; the window's own is the broker-backed one built here. */
+  readonly service?: VaultPanelService
+}
+
+export interface ModelsVaultBinding {
+  readonly handle: (raw: unknown) => Promise<void>
+  readonly refresh: () => Promise<void>
+  readonly dispose: () => void
+}
+
+/** The lock status item every vault host shows while unlocked. */
+function lockStatusItem(): vscode.StatusBarItem {
+  const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right)
+  status.text = `$(lock) ${UI_TEXT.vault.lock}`
+  status.tooltip = UI_TEXT.vault.unlocked
+  status.command = VAULT_COMMANDS.lock
+  return status
+}
+
+/**
+ * What both factories resolve the same way: the broker-backed service (or
+ * a test's), the lock item and its writer. The broker connection stays
+ * lazy; without a bound platform every use refuses with
+ * `vault.brokerBlocked`.
+ */
+function serviceAndStatus(deps: {
+  readonly distDir: string
+  readonly service?: VaultPanelService | undefined
+}): {
+  service: VaultPanelService
+  statusItem: vscode.StatusBarItem
+  status: (isUnlocked: boolean) => void
+  /** The broker's readiness probe; trivial while a test owns the service. */
+  probe: () => Promise<void>
+} {
+  const broker = deps.service === undefined ? brokerService(deps.distDir) : undefined
+  const service = deps.service ?? broker?.service
+  if (service === undefined) throw new Error(UI_TEXT.vault.brokerBlocked)
+  const statusItem = lockStatusItem()
+  return {
+    service,
+    statusItem,
     status: (unlocked) => {
-      if (unlocked) status.show()
-      else status.hide()
+      if (unlocked) statusItem.show()
+      else statusItem.hide()
     },
+    probe: () => broker?.probe() ?? Promise.resolve(),
+  }
+}
+
+/**
+ * The vault section's binding for the Models & Agents panel (C-M109-1 P1):
+ * the same broker-backed host the window uses, publishing into the panel's
+ * webview instead. The panel owns it while its tab lives; the lock status
+ * item behaves as the window's does. The broker connection stays lazy, so
+ * until lanes (b) and (c) bind `vaultClientPlatform` every broker use
+ * refuses with `vault.brokerBlocked` (surfaced as the host's operation
+ * failure); the panel hides the section because it is given no factory.
+ */
+export function createModelsVaultBinding(
+  deps: ModelsVaultBindingDeps,
+  table: UiText,
+  locale: string,
+): ModelsVaultBinding {
+  setUiText(table, locale)
+  const { service, statusItem, status } = serviceAndStatus(deps)
+  const host = new VaultPanelHost({
+    ...nativeHostDeps(deps),
+    service,
+    publish: deps.publish,
+    status,
+  })
+  return {
+    handle: (raw) => host.handle(raw),
+    refresh: () => host.refresh(),
+    dispose: () => {
+      host.dispose()
+      statusItem.dispose()
+    },
+  }
+}
+
+/** W loads dist/vault.js on first need, then binds C/B/P/M and M95's panel to this factory. */
+export function createVaultPanelHost(
+  deps: VaultPanelEntryDeps,
+  table: UiText,
+  locale: string,
+): { host: VaultPanelHost } & VaultWindowControls {
+  setUiText(table, locale)
+  const { service, statusItem, status, probe } = serviceAndStatus(deps)
+  const host = new VaultPanelHost({
+    ...deps,
+    ...nativeHostDeps(deps),
+    service,
+    status,
   })
   return {
     host,
     open: async () => {
       // Until a platform lane binds the broker, refuse exactly as 0.17.0 does.
-      await broker?.probe()
+      await probe()
       await deps.openPanel()
       await host.refresh()
     },
@@ -172,7 +264,7 @@ export function createVaultPanelHost(
     },
     dispose: () => {
       host.dispose()
-      status.dispose()
+      statusItem.dispose()
     },
   }
 }

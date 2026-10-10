@@ -9,7 +9,12 @@ export async function buildVaultSurfaces(outdir, hasHarness = false) {
     entryPoints: {
       main: 'src/webview/main.tsx',
       models: 'src/webview/models/sections/vault/VaultSurface.tsx',
-      ...(hasHarness && { vaultHarness: 'test/harness/vault/main.tsx' }),
+      ...(hasHarness && {
+        vaultHarness: 'test/harness/vault/main.tsx',
+        // C-M109-1 P1's mounted scenes ride their own entry, so the U
+        // guard build (without the harness) stays byte-identical.
+        mounted: 'test/harness/vault/mounted.tsx',
+      }),
     },
     outdir,
     bundle: true,
