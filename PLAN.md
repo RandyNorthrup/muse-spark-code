@@ -29886,6 +29886,21 @@ receipts remain the lead's checks under the rig brief.
   rows go missing. Record: `docs/certification/m101.md`; updated evidence
   in `docs/certification/m101-eval-arms.md`.
 
+  **CM1012R4 repair of review RVCM1012C (2026-10-10, linuxlt).** All four
+  findings (three P2, one P3) fixed with no residuals, by redesign rather
+  than another scanner patch: the frozen digest now bundles each arm root
+  with the real resolver (esbuild, already a build dependency, never
+  shipped) and hashes the exact bytes of every input file the metafile
+  reports, so accessor implementations (finding 1), comment-quoted edges
+  and relative dynamic imports (finding 2) and directory indexes
+  (finding 3) are covered exactly as the build resolves them; a
+  non-literal dynamic `import()` or `require()` fails the digest, and the
+  hash-outside-bindings-by-value path is removed. Canonical JSON keeps an
+  own `__proto__` field via definition, never assignment (finding 4, P3),
+  and the digest envelope is canonicalized through it. Re-frozen as
+  `8e4bde…c227c`. Record: updated evidence and R4 drills in
+  `docs/certification/m101-eval-arms.md`.
+
   **C2 final-review accounting correction.** If shared settlement throws during
   an HTTP retry notice, mark that attempt consumed before invoking settlement
   so cleanup cannot settle it a second time. A complete-file regression must

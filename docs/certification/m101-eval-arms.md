@@ -26,18 +26,40 @@ binding they draw, by canonical value — `src/core/eval/armSources.ts`
 walks the static import graph instead of a hand-kept list, and fails
 closed on anything it cannot cover):
 
-`80d6fd0028a04bdad33af83a042bfa2f365500dd348de584260d85909ea95959`
+`8e4bdefa01d029ca999267ef970c6191528bdb86f3000981a5951f733c6c227c`
 
 `test/unit/eval/evalFrozen.test.ts` pins the arm list, the task list and
 the digest. Any arm or task change breaks it on purpose; re-freeze by
 recording the new digest here and in that test, never by weakening it.
 Lane E's counted run recomputes the digest and compares it to this value.
-(2026-10-10 R3 re-freeze: review RVCM1012B findings 1–2; the previous
-digest `dc3f6372…dd15f` hashed each change callback's source but not the
-helpers it references or the values it draws, and the R2 record below
-wrongly claimed no casts were needed. The R2 digest `dc3f6372…dd15f`
-likewise covered names, descriptions and change sources only over the
-original `7f6241a6…45b26`. Details in `docs/certification/m101.md`.)
+(2026-10-10 R4 re-freeze: review RVCM1012C findings 1–4. The previous
+digest `80d6fd00…ea95959` walked imports with a pattern scanner and hashed
+outside bindings by their current runtime values; the scanner missed
+edges, the values missed accessor implementations, and its directory
+resolution disagreed with the build. The redesign below replaces both
+with the real resolver. Details in `docs/certification/m101.md`.)
+
+## Why the closure runs the real resolver (R4 redesign, not a patch)
+
+The fourth round on this module redesigns how the frozen digest finds the
+arms' import closure instead of patching the pattern scanner again. Each
+arm root is bundled by esbuild (already a build dependency, never shipped:
+no production bundle imports the evaluation harness) with `bundle: true,
+write: false, metafile: true`, and every input file the metafile reports
+contributes its exact bytes (sorted path + content). Every runtime edge
+the bundler follows is therefore covered — static imports, re-exports,
+`require` calls and literal dynamic imports — and directory and index
+resolution is exactly what the build does, because it is the build. An
+import the bundler cannot resolve fails the digest with its error; a
+dynamic `import()` or `require()` with a non-literal specifier, which the
+bundler leaves for runtime outside every hashed edge, is refused with a
+clear error. The hash-outside-bindings-by-value path is gone: outside
+files (capabilities, presets, constants, the pinned task schemas) are
+hashed by bytes like harness-owned ones. Canonical JSON keeps an own
+`__proto__` field (defined, never assigned), so values differing only in
+that field hash differently. The previous digest `80d6fd00…ea95959` hashed
+each change callback's source plus the scanner's closure; the R3 digest
+`dc3f6372…dd15f` hashed callback sources only.
 
 ## Why the compaction tasks carry their log in the prompt
 
@@ -121,6 +143,32 @@ in `docs/certification/m101.md`.
 | R3-D2 | New owned helper imported by the auto-compaction arm                | frozen digest moves; the new-helper test proves the walk found it | helper removed, import reverted   |
 | R3-D3 | Function-valued outside binding hashed as `{}` (refusal neutered)   | `fails closed on a function-valued outside binding`               | armSources.ts `24a98227…541830`   |
 | R3-D4 | A PLAN §8 row deleted                                               | `records the dependency-key assertion`                            | PLAN.md (SHA verified on restore) |
+
+### R4 repairs (2026-10-10, linuxlt; review RVCM1012C findings 1–4)
+
+The redesign above replaces the scanner and the by-value path wholesale;
+the old R3 drills no longer apply (there is no clause pattern, no value
+table and no `resolveRelative` left to break). Each drill below broke the
+new guard, watched the named tests fail, and restored `armSources.ts`
+byte-exact (SHA-256 `afb3659f…2ae9df787` verified against the pre-drill
+value after every drill).
+
+| Drill | Deliberate break                                                 | Assertions that fire                                                                                                                                                                                                                                                                                            | Restored                           |
+| ----- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| R4-D1 | File contents neutered: digest hashes each path, not its bytes   | `covers an outside file by bytes`, `moves when the helper changes`, `comment-quote edge`, `literal dynamic import`: **4 expected failures**                                                                                                                                                                     | armSources.ts `afb3659f…2ae9df787` |
+| R4-D2 | Bundler neutered: `bundle: true` flipped to `false` (entry-only) | **15 failures**: every test that bundles fails closed — the build rejects `external` without `bundle`, so the directory-index test (finding 3 rides the same resolver) and the refusal tests (with the resolve error instead) fail too; only the missing-file, `__proto__` and unhashable assertions still pass | armSources.ts `afb3659f…2ae9df787` |
+| R4-D3 | Refusal neutered: `refuseDynamicLoads` returns at once           | `fails closed on a non-literal dynamic import`, `fails closed on a non-literal require`: **2 expected failures** (without the scan the hole is silent: bundling succeeds)                                                                                                                                       | armSources.ts `afb3659f…2ae9df787` |
+| R4-D4 | `__proto__` guard neutered: plain assignment instead of define   | `keeps an own __proto__ field through canonicalization`: **1 expected failure** (both values serialize as `{}`)                                                                                                                                                                                                 | armSources.ts `afb3659f…2ae9df787` |
+
+Self-host note: the refusal scan initially flagged `armSources.ts`
+itself, because the scan patterns were regular-expression literals whose
+inner quotes paired wrongly with the strip pass and exposed the doc
+comment's call-like words. The patterns are now strings (string contents
+always strip as one unit); the module comment records the remaining
+boundary — a regular expression in a scanned file that confuses the strip
+fails loudly, never as a skipped edge — and the real closure (all 16
+`src/` files plus pinned zod) scans clean, pinned by the
+repository-relative test.
 
 ## Gates
 
