@@ -109,7 +109,7 @@ export async function acquireRepositoryLock(
   }
   const renew = async (): Promise<void> => {
     try {
-      if (!(await lease.renew())) {
+      if (!(await lease.renew()) || !lease.isHeldSync()) {
         lose()
       }
     } catch {
@@ -128,7 +128,9 @@ export async function acquireRepositoryLock(
         return false
       }
       if (!lease.isHeldSync()) {
-        lose()
+        // A failed sample may overlap our own rewrite. Refuse this check,
+        // then let renewal's settled ownership check decide permanent loss.
+        if (renewing === undefined) lose()
         return false
       }
       return true

@@ -158,6 +158,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Git dispatch during lease renewal** (M123G4C, PLAN.md D104). A native
+  Git transaction keeps its lock while its own renewal is being written,
+  so an unchanged commit or push is no longer refused at that instant.
+  The shared lease still refuses a successor, an expired hold or a later
+  fence; a failed sample during renewal is rechecked when renewal settles.
+
 - **Native Git transaction leases** (M123G4, PLAN.md D104). A paused
   transaction can no longer reclaim another window's lock after that
   window renews it, or run another Git mutation with that lost lock. The

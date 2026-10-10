@@ -447,6 +447,133 @@ async function renewalOvertaken(port: LeasePort) {
 }
 
 describe('file lease: renewal (M123 LOCKLIB)', () => {
+  it.each([false, true])(
+    'RVM123G4C: recognizes only its own pending rewrite (expiry: %s)',
+    async (expires) => {
+      const { lockPath } = await lockFolder()
+      const atOpen = deferred()
+      const accept = deferred()
+      const written = Promise.withResolvers<string>()
+      const resume = deferred()
+      const checked = deferred()
+      const finish = deferred()
+      let isObserving = false
+      let elapsed = 0
+      let samples = 0
+      let changed: 'none' | 'file' | 'birth' | 'time' = 'none'
+      const lease = await acquireFileLease(
+        lockPath,
+        await leaseEnv({
+          monotonic: () => elapsed,
+          leaseMs: 1000,
+          watches: new Map(),
+          port: {
+            ...nodeLeasePort,
+            readdir: async (folder) => {
+              if (isObserving) {
+                checked.resolve()
+                await finish.promise
+              }
+              return await nodeLeasePort.readdir(folder)
+            },
+            lstatSync: (file) => {
+              const stats = nodeLeasePort.lstatSync(file)
+              switch (changed) {
+                case 'file': {
+                  stats.ino += 1n
+                  break
+                }
+                case 'birth': {
+                  stats.birthtimeNs += 1n
+                  break
+                }
+                case 'time': {
+                  stats.mtimeNs += BigInt(++samples)
+                  break
+                }
+                case 'none': {
+                  break
+                }
+              }
+              return stats
+            },
+            rewriteOwn: async (file, isOwn, content) => {
+              atOpen.resolve()
+              await accept.promise
+              if (!isOwn(await nodeLeasePort.lstat(file), await readFile(file))) return false
+              written.resolve(content)
+              await resume.promise
+              await writeFile(file, content)
+              isObserving = true
+              return true
+            },
+          },
+        }),
+      )
+      const before = await readFile(lockPath)
+      elapsed = 100
+      const renewals = [lease.renew(), lease.renew()]
+      try {
+        await atOpen.promise
+        expect(await within(Promise.race(renewals), 100)).toBe(false)
+        await writeFile(lockPath, '')
+        expect(lease.isHeldSync()).toBe(false) // Not yet accepted by the opened-file guard.
+        await writeFile(lockPath, before)
+        accept.resolve()
+        const after = await written.promise
+        expect(lease.isHeldSync()).toBe(true) // Still the old renewal count.
+        expect(await within(lease.renew(), 100)).toBe(false) // One rewrite at a time.
+        await writeFile(lockPath, after)
+        expect(lease.isHeldSync()).toBe(true) // The next renewal count, not yet settled.
+        expect(await lease.isHeld()).toBe(true)
+        for (const foreign of [
+          after.replace(/"id":"[^"]+"/u, '"id":"foreign"'),
+          after.replace('"renewal":1', '"renewal":2'),
+        ]) {
+          await writeFile(lockPath, foreign)
+          expect(lease.isHeldSync()).toBe(false)
+        }
+        for (const torn of ['', '{"owner":']) {
+          await writeFile(lockPath, torn)
+          changed = 'time' // The holder's write can change metadata between sync samples.
+          expect(lease.isHeldSync()).toBe(true)
+          for (const field of ['file', 'birth'] as const) {
+            changed = field
+            expect(lease.isHeldSync()).toBe(false)
+          }
+        }
+        changed = 'none'
+        const laterFence = path.join(
+          `${lockPath}.fences`,
+          String(lease.fence + 1).padStart(16, '0'),
+        )
+        await writeFile(laterFence, '')
+        expect(lease.isHeldSync()).toBe(false)
+        await rm(laterFence)
+        if (expires) elapsed = 1000
+        expect(lease.isHeldSync()).toBe(!expires)
+        resume.resolve()
+        await checked.promise
+        expect(lease.isHeldSync()).toBe(!expires) // Complete next note during post-write checks.
+        await writeFile(lockPath, '')
+        expect(lease.isHeldSync()).toBe(false) // Rewrite settled; observations still pending.
+        await writeFile(lockPath, after)
+        finish.resolve()
+        const results = await Promise.all(renewals)
+        expect(results.filter(Boolean)).toHaveLength(expires ? 0 : 1)
+        await writeFile(lockPath, '')
+        expect(lease.isHeldSync()).toBe(false) // No pending rewrite remains.
+      } finally {
+        accept.resolve()
+        resume.resolve()
+        finish.resolve()
+        await Promise.all(renewals)
+        await lease.release()
+        await rm(path.dirname(lockPath), { recursive: true, force: true })
+      }
+    },
+  )
+
   it('keeps a renewing holder against a waiter, and is taken over a lease after it stops', async () => {
     // Liveness by renewal (lane G's transaction lock moves onto this): the
     // waiter watches each renewed instance afresh, so it never takes over
