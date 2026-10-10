@@ -7895,4 +7895,14 @@ export const LINUX_DICTATION = {
   libraries: ['libwhisper.so.1', 'libggml.so', 'libggml-base.so'],
   baseline: { x64: 'libggml-cpu-x64.so', arm64: 'libggml-cpu-armv8.0_1.so' },
   environment: { LD_PRELOAD: '', LD_LIBRARY_PATH: '', LD_AUDIT: '', GGML_BACKEND_PATH: '' },
+  // Audio-server selectors the Linux helper must never inherit (RVCM9LNX
+  // P2): a network choice here would move capture to TCP. The launcher
+  // deletes them; the helper refuses a non-local server itself.
+  audioServerVariables: [
+    'PULSE_SERVER',
+    'PULSE_SINK',
+    'PULSE_SOURCE',
+    'PIPEWIRE_REMOTE',
+    'PIPEWIRE_CORE',
+  ],
 } as const

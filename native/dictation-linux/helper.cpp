@@ -8,8 +8,10 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
+#include <cstdlib>
 #include <deque>
 #include <fstream>
+#include <unistd.h>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -77,6 +79,35 @@ std::vector<int16_t> wav(const std::string &file) {
   throw std::runtime_error("input-wav");
 }
 
+// Offline capture must stay on this computer: PulseAudio's client (and
+// PipeWire's Pulse layer with it) also honors PULSE_SERVER, so a network
+// address inherited from the editor would move capture to TCP. A non-local
+// choice is refused before any connection is opened; the explicit local
+// socket below also overrides client.conf's default-server. Device selectors
+// (PULSE_SINK/PULSE_SOURCE) and PipeWire daemon selectors (PIPEWIRE_REMOTE,
+// PIPEWIRE_CORE) are cleared with it: a tunnelled device is a network path
+// of the same class. Kept deliberately: PULSE_COOKIE (local authentication),
+// XDG_RUNTIME_DIR (builds the socket path), HOME (local cookie and config;
+// the explicit server wins over the config). Proxy variables are not read
+// by the audio client. The launcher scrubs the same names first; this check
+// also covers a direct launch.
+const char *AUDIO_SERVER_VARIABLES[] = {
+  "PULSE_SERVER", "PULSE_SINK", "PULSE_SOURCE", "PIPEWIRE_REMOTE", "PIPEWIRE_CORE",
+};
+
+bool isLocalAudioServer(const char *value) {
+  if (value == nullptr || *value == '\0') return true;
+  return std::strncmp(value, "unix:", 5) == 0;
+}
+
+std::string localAudioServer() {
+  const char *runtime = std::getenv("XDG_RUNTIME_DIR");
+  std::string directory;
+  if (runtime != nullptr && *runtime != '\0') directory = runtime;
+  else directory = "/run/user/" + std::to_string(geteuid());
+  return "unix:" + directory + "/pulse/native";
+}
+
 void record(Engine &engine, const std::string &fixture) {
   std::mutex mutex;
   std::condition_variable changed;
@@ -109,7 +140,13 @@ void record(Engine &engine, const std::string &fixture) {
     std::unique_ptr<pa_simple, decltype(&pa_simple_free)> pulse(nullptr, pa_simple_free);
     std::vector<int16_t> input;
     if (fixture.empty()) {
-      pulse.reset(pa_simple_new(nullptr, "Muse Spark Code (Unofficial)", PA_STREAM_RECORD,
+      const char *selected = std::getenv("PULSE_SERVER");
+      const bool local = isLocalAudioServer(selected);
+      const std::string server =
+          local && selected != nullptr && *selected != '\0' ? selected : localAudioServer();
+      for (const char *name : AUDIO_SERVER_VARIABLES) unsetenv(name);
+      if (!local) throw std::runtime_error("remote-server");
+      pulse.reset(pa_simple_new(server.c_str(), "Muse Spark Code (Unofficial)", PA_STREAM_RECORD,
                                nullptr, "Muse Spark Code (Unofficial)", &format, nullptr, nullptr, &reason));
       if (!pulse) throw std::runtime_error("pulse-capture");
     } else input = wav(fixture);
