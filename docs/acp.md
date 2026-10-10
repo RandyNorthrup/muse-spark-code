@@ -111,10 +111,13 @@ are in `result`. No automatic fix is available. The reserved
 argument parsing. The older `legal --format json` invocation remains an alias.
 Both refuse prompt text and model/credential flags.
 
-The current scanner also lists human review, full license-text matching and
-artifact freshness as incomplete checks on every real run. Even a fixture
-with no findings therefore returns exit 2; the complete exit-0/1 branches are
-tested with injected reports and are not yet real-scanner CI receipts.
+Verbatim license files match pinned SPDX License List 3.28.0 texts exactly,
+and fresh, complete bundle inputs establish artifact freshness, so a fully
+evidenced scan with no findings returns exit 0 (exit 1 with a blocker).
+Heuristic or unrecognized license texts, missing locks or license data,
+dynamic metadata, binary files, links, stale artifacts and bounded-out input
+stay named incomplete checks with exit 2; the absence of an ecosystem's
+manifests entirely is a complete observation, not a gap.
 
 Registry enrichment uses npm/PyPI HTTPS metadata, sends only package names and
 versions, refuses redirects and never reads private registry configuration.

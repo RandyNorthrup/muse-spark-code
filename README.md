@@ -4099,8 +4099,10 @@ The report groups evidence by severity and retains exclusions, uncertainty,
 recommendations and fixability. A recognized SPDX identifier or a low finding
 count does not establish legal compliance. Missing locks or license data,
 dynamic metadata, binary files, links, stale artifacts and bounded-out input
-remain incomplete. Identifier matching is pinned; license-text recognition is
-heuristic. **Not legal advice; for distribution decisions consult a lawyer.**
+remain incomplete. Identifier matching is pinned, and verbatim license texts
+match pinned SPDX License List texts exactly; excerpts, modified texts and
+unrecognized prose stay heuristic with named incomplete reasons. **Not legal
+advice; for distribution decisions consult a lawyer.**
 
 Select findings or choose **Fix all safe ones** to review exact patches before
 applying them. Supported fixes add missing SPDX/copyright headers from the

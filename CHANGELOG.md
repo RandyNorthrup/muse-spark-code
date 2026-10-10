@@ -74,6 +74,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- A fully evidenced `/legal` scan now exits 0 (or 1 with a blocker) instead
+  of always exiting 2 (M97 C-M97-1). Verbatim license files match pinned
+  SPDX License List 3.28.0 texts exactly (holder and year lines aside);
+  excerpts, modified texts and unrecognized prose keep the named
+  full-matching incomplete reason, as do missing locks, stale artifacts,
+  assets without provenance and proprietary terms. An ecosystem with no
+  manifests at all is a complete observation, not a gap.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
