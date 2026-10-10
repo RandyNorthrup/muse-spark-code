@@ -31312,7 +31312,7 @@ scoped direct rig checks precede the lead's full gate and review.
 and zero model attempts. Fixtures now preserve the 1.4.4 effort catalogue,
 effort changes, session start/close, the note-only feedback upload receipt,
 and the ephemeral-feedback/delete refusals. The Meta collector is verified
-with fake services: 35 owning tests and 19 failing guard drills with exact
+with fake services: 35 owning tests and 26 failing guard drills with exact
 SHA-256 restores; five-project typecheck and the scoped static/build gates
 pass. Raw Meta delta/done, fresh status/output-cap and every other provider
 row remain waiting for the named key or local runtime. Durable History's

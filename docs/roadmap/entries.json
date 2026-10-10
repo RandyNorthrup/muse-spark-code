@@ -786,7 +786,7 @@
     {
       "id": "M106",
       "title": "Stronger agent-loop guarantees",
-      "summary": "The Model API agent loop uses strict tool contracts, validated side answers and concurrent read-only calls; each model-specific guarantee requires its own captured evidence.",
+      "summary": "The Model API agent loop uses strict tool contracts, validated side answers and concurrent read-only calls; each model-specific guarantee requires a capture for that model.",
       "area": "agents",
       "release": "0.16.0"
     },

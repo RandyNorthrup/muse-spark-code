@@ -10,7 +10,8 @@
     "modelAttempts": 0,
     "feedbackSubmitAttempts": 2,
     "feedbackUploads": 1,
-    "metaCollectorHttpAttempts": 0
+    "metaCollectorHttpAttempts": 0,
+    "localDiscoveryGetAttempts": 4
   },
   "captures": [
     {
@@ -177,7 +178,8 @@
       "requires": "No key required; running ollama server, installed model and exact server version",
       "items": ["headers", "strict", "structured", "streaming", "output-cap"],
       "newAttempts": 0,
-      "reason": "No corresponding executable found on PATH. No local endpoint/model supplied; no server or capability is invented."
+      "reason": "No corresponding executable found on PATH; the preset default loopback models-list GET was refused. No endpoint/model supplied; no server or capability is invented.",
+      "discoveryUrl": "http://127.0.0.1:11434/api/tags"
     },
     {
       "provider": "lmstudio",
@@ -185,7 +187,8 @@
       "requires": "No key required; running lmstudio server, installed model and exact server version",
       "items": ["headers", "strict", "structured", "streaming", "output-cap"],
       "newAttempts": 0,
-      "reason": "No corresponding executable found on PATH. No local endpoint/model supplied; no server or capability is invented."
+      "reason": "No corresponding executable found on PATH; the preset default loopback models-list GET was refused. No endpoint/model supplied; no server or capability is invented.",
+      "discoveryUrl": "http://127.0.0.1:1234/v1/models"
     },
     {
       "provider": "vllm",
@@ -193,7 +196,8 @@
       "requires": "No key required; running vllm server, installed model and exact server version",
       "items": ["headers", "strict", "structured", "streaming", "output-cap"],
       "newAttempts": 0,
-      "reason": "No corresponding executable found on PATH. No local endpoint/model supplied; no server or capability is invented."
+      "reason": "No corresponding executable found on PATH; the preset default loopback models-list GET was refused. No endpoint/model supplied; no server or capability is invented.",
+      "discoveryUrl": "http://127.0.0.1:8000/v1/models"
     },
     {
       "provider": "llamacpp",
@@ -201,7 +205,8 @@
       "requires": "No key required; running llamacpp server, installed model and exact server version",
       "items": ["headers", "strict", "structured", "streaming", "output-cap"],
       "newAttempts": 0,
-      "reason": "No corresponding executable found on PATH. No local endpoint/model supplied; no server or capability is invented."
+      "reason": "No corresponding executable found on PATH; the preset default loopback models-list GET was refused. No endpoint/model supplied; no server or capability is invented.",
+      "discoveryUrl": "http://127.0.0.1:8080/v1/models"
     }
   ],
   "limitations": [
@@ -211,5 +216,38 @@
     "Feedback with the ephemeral session ID returns sessionNotFound. The successful host-level feedback includes no session ID, files or session record; no attachment-enabled outcome is certified.",
     "The catalogue reports outputLimit 128000. This is Muse Code metadata, not evidence that Meta accepts or enforces the recommended HTTP cap 131072.",
     "No production capability binding, native reader, editor feature or release certification is enabled by this receipt."
-  ]
+  ],
+  "localDiscovery": {
+    "timestamp": "2026-10-10T17:28:58.008Z",
+    "inferenceAttempts": 0,
+    "rows": [
+      {
+        "provider": "ollama",
+        "url": "http://127.0.0.1:11434/api/tags",
+        "status": null,
+        "result": "connection refused"
+      },
+      {
+        "provider": "lmstudio",
+        "url": "http://127.0.0.1:1234/v1/models",
+        "status": null,
+        "result": "connection refused"
+      },
+      {
+        "provider": "vllm",
+        "url": "http://127.0.0.1:8000/v1/models",
+        "status": null,
+        "result": "connection refused"
+      },
+      {
+        "provider": "llamacpp",
+        "url": "http://127.0.0.1:8080/v1/models",
+        "status": null,
+        "result": "connection refused"
+      }
+    ],
+    "sourceSha256": "23240c21b3794b0cb2fb342749de61d5731549f11029578610073d22654ea661",
+    "source": "bounded unauthenticated loopback models-list GETs at the preset default ports; no HTTP response received"
+  },
+  "providerAttemptDefinition": "newAttempts counts M106 guarantee probes; models-list discovery GETs are counted separately."
 }
