@@ -5,6 +5,7 @@
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import {
+  modelsDeferredBudgetGroups,
   webviewDeferredBudgetGroups,
   webviewPacingOutputs,
   webviewStartupOutputs,
@@ -351,6 +352,18 @@ for (const { name, source, budgetKiB } of [
   if (sizeKiB > budgetKiB) hasFailure = true
   console.log(
     `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} dist/webview ${name} body: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
+  )
+}
+// MODELSPLIT: the Models panel's deferred sections have their own measured
+// caps from the page's own metafile (see MODELS_DEFERRED_BUDGETS in
+// scripts/lib/webviewBundles.mjs for the measurements).
+const modelsMeta = JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8'))
+const modelsSectionGroups = modelsDeferredBudgetGroups(modelsMeta)
+for (const { name, budgetKiB, outputs } of modelsSectionGroups) {
+  const sizeKiB = outputs.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
+  if (sizeKiB > budgetKiB) hasFailure = true
+  console.log(
+    `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} dist/webview ${name}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
   )
 }
 for (const { entry, budgetKiB } of WEBVIEW_SURFACE_BUDGETS) {
