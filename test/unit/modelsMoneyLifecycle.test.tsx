@@ -42,7 +42,9 @@ async function mountPanel(state: ModelsPanelState) {
     return <ModelsPanel panelState={state} ui={ui} post={post} dispatch={dispatch} />
   }
   render(<Panel />)
-  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardPickProvider }))
+  // The providers section loads behind the shared deferred boundary.
+  const pick = await screen.findByRole('button', { name: UI_TEXT.wizardPickProvider })
+  fireEvent.click(pick)
   return { post, UI_TEXT }
 }
 
