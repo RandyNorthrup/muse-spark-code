@@ -47,6 +47,17 @@ export function isPlanCheckBundle(value: unknown): value is {
   )
 }
 
+/** The required snapshot bundle, or a refusal naming the bundle file. */
+function requireSnapshotBundle(deps: PlanSnapshotLoaderDeps): unknown {
+  const { bundlePath, loadBundle = requireFile } = deps
+  try {
+    return loadBundle(bundlePath)
+  } catch (error: unknown) {
+    deps.log.error(`The plan snapshot ${bundlePath} could not be loaded: ${describe(error)}`)
+    throw new Error(UI_TEXT.estimateUnavailable, { cause: error })
+  }
+}
+
 export interface PlanSnapshotLoaderDeps {
   /** dist/planSnapshot.js beside the running bundle. */
   readonly bundlePath: string
@@ -76,14 +87,8 @@ export function planSnapshotLoader(
     ((goal: EstimateGoal, asOf: string, signal?: AbortSignal) => Promise<unknown>) | undefined
   return async (goal, asOf, signal) => {
     if (source === undefined) {
-      const { bundlePath, loadBundle = requireFile } = deps
-      let bundle: unknown
-      try {
-        bundle = loadBundle(bundlePath)
-      } catch (error: unknown) {
-        deps.log.error(`The plan snapshot ${bundlePath} could not be loaded: ${describe(error)}`)
-        throw new Error(UI_TEXT.estimateUnavailable, { cause: error })
-      }
+      const { bundlePath } = deps
+      const bundle = requireSnapshotBundle(deps)
       if (!isPlanSnapshotBundle(bundle)) {
         deps.log.error(`${bundlePath} does not export the plan snapshot`)
         if (deps.loadBundle === undefined) {
@@ -114,14 +119,8 @@ export function planCheckLoader(
   let check: ((signal?: AbortSignal) => Promise<string[]>) | undefined
   return async (signal) => {
     if (check === undefined) {
-      const { bundlePath, loadBundle = requireFile } = deps
-      let bundle: unknown
-      try {
-        bundle = loadBundle(bundlePath)
-      } catch (error: unknown) {
-        deps.log.error(`The plan snapshot ${bundlePath} could not be loaded: ${describe(error)}`)
-        throw new Error(UI_TEXT.estimateUnavailable, { cause: error })
-      }
+      const { bundlePath } = deps
+      const bundle = requireSnapshotBundle(deps)
       if (!isPlanCheckBundle(bundle)) {
         deps.log.error(`${bundlePath} does not export the plan check`)
         if (deps.loadBundle === undefined) {

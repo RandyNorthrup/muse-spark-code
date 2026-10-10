@@ -6,7 +6,7 @@ import {
 } from '../../src/host/estimator/planSnapshotSource'
 import { parseEstimateGoal } from '../../src/shared/estimate'
 import { resolveEstimateGoal } from '../../src/core/estimator/goal'
-import { ESTIMATOR_AS_OF } from './helpers/estimator/fakes'
+import { ESTIMATOR_AS_OF, fakePlanSourceIo } from './helpers/estimator/fakes'
 
 const PLAN = `## 6. Milestones
 
@@ -36,15 +36,7 @@ const NETWORK = {
 }
 
 function ioWith(overrides: Partial<PlanSnapshotSourceIo> = {}): PlanSnapshotSourceIo {
-  return {
-    readPlanFile: () => Promise.resolve(PLAN),
-    runGit: (args) => {
-      if (args.includes('symbolic-ref')) return Promise.resolve('refs/remotes/origin/main\n')
-      return Promise.resolve(args.includes('--merged') ? 'm112/0\n' : 'm112/0\nm112/q\n')
-    },
-    runGh: () => Promise.resolve(PULLS),
-    ...overrides,
-  }
+  return fakePlanSourceIo(PLAN, PULLS, 'm112/0\n', overrides)
 }
 
 function settleSoon(): Promise<void> {
