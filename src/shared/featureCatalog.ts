@@ -385,9 +385,9 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'compaction',
       { ui: 'compactItem' },
-      { ui: 'autoCompactionAwaitingEvaluation' },
+      { ui: 'referenceManualCompaction' },
       [],
-      ['modelApiAutoCompaction'],
+      [],
       'observation-packing-model-api',
       ['modelApi'],
       false,

@@ -4,9 +4,11 @@ import { MODEL_API_PRICES_PER_MILLION, TOKENS_PER_MILLION } from '../../../share
 import { modelApiPaidTier } from '../../../shared/paid'
 import { estimateCostUsd } from '../../usage/insights'
 import type { CoreLogger } from '../../logging'
-import type { AutoCompactDecision, AutoCompactModel } from './autoCompact'
+import { reserveRequestAmount } from '../../providers/priceCard'
+import { requestImageCount } from './modelPolicy'
+import type { AutoCompactModel } from './autoCompact'
 import type { ModelApiHostDeps } from './ModelApiHost'
-import type { Usage } from './schemas'
+import type { CreateResponseBody, Usage } from './schemas'
 
 /**
  * Meta catalogue rates for the cost model, projected to exact per-token
@@ -54,6 +56,10 @@ export interface AutoCompactionAdmissionDeps {
   readonly accounting: AutoCompactionLedger | 'transport'
   readonly allowsPaidUse: ModelApiHostDeps['allowsPaidUse']
   readonly isOn: () => boolean
+  readonly isTrusted: () => boolean
+  readonly isEvaluated: () => boolean
+  /** Captured before consent; revocation invalidates the entire admitted use. */
+  readonly paidUseFence: (sessionId: string) => () => boolean
   readonly dailyBudgetUsd: () => UsdAmount | Promise<UsdAmount>
   readonly notePaidUse: ModelApiHostDeps['notePaidUse']
   readonly log: CoreLogger
@@ -65,13 +71,27 @@ type AdmitAutoCompaction = NonNullable<ModelApiHostDeps['admitAutoCompaction']>
 
 function reserveAmountUsd(
   model: AutoCompactModel,
-  decision: AutoCompactDecision,
+  body: CreateResponseBody,
+  inputTokens: number,
 ): UsdAmount | undefined {
-  if (model.pricing.kind !== 'priced') return Usd.from(0).toAmount()
-  const { newDebt } = decision
-  if (typeof newDebt !== 'number' || !Number.isFinite(newDebt) || newDebt < 0) return undefined
+  if (
+    model.pricing.kind !== 'priced' ||
+    !Number.isSafeInteger(inputTokens) ||
+    inputTokens < 0 ||
+    !Number.isSafeInteger(body.max_output_tokens) ||
+    body.max_output_tokens < 0 ||
+    body.tools.some((tool) => tool.type === 'web_search')
+  )
+    return undefined
   try {
-    return Usd.from(newDebt).toAmount()
+    return Usd.from(
+      reserveRequestAmount(model.pricing.card, {
+        inputTokens,
+        outputTokens: body.max_output_tokens,
+      }),
+    )
+      .add(Usd.from(model.pricing.card.image ?? 0).times(requestImageCount(body)))
+      .toAmount()
   } catch {
     return undefined
   }
@@ -108,11 +128,17 @@ function settleAmount(
 export function createAutoCompactionAdmission(
   deps: AutoCompactionAdmissionDeps,
 ): AdmitAutoCompaction {
-  return async ({ signal, model, decision, modelId, sessionId }) => {
-    if (signal.aborted || !deps.isOn()) return
-    const reserveUsd = reserveAmountUsd(model, decision)
-    // A corrupt projection or missing tariff cannot authorize a paid extra.
-    if (reserveUsd === undefined || model.pricing.kind !== 'priced') return
+  return async ({ signal, model, modelId, sessionId }) => {
+    const isAvailable = () => deps.isOn() && deps.isTrusted() && deps.isEvaluated()
+    if (signal.aborted || !isAvailable()) return
+    // Only the verified catalogue is settled here; BYO tariffs belong to C-M101-4.
+    if (model.pricing.kind !== 'priced' || modelApiPaidTier(modelId) === undefined) return
+    const beforeConsent = deps.paidUseFence(sessionId)
+    let isConsentCurrent = beforeConsent
+    const checkAuthorization = () => {
+      signal.throwIfAborted()
+      if (!isAvailable() || !isConsentCurrent()) throw new Error(deps.storeUnavailable)
+    }
     const dailyBudgetUsd = await deps.dailyBudgetUsd()
     signal.throwIfAborted()
     const paidDecision = await deps.allowsPaidUse(
@@ -121,7 +147,9 @@ export function createAutoCompactionAdmission(
       sessionId,
     )
     signal.throwIfAborted()
-    if (paidDecision !== true || !deps.isOn()) return
+    if (paidDecision !== true || !isAvailable() || !isConsentCurrent()) return
+    const acceptedConsent = deps.paidUseFence(sessionId)
+    isConsentCurrent = () => beforeConsent() && acceptedConsent()
     let claim: AutoCompactionLedgerClaim | undefined
     let didSend = false
     let hasFailed = false
@@ -156,24 +184,28 @@ export function createAutoCompactionAdmission(
     }
     const guard = Object.assign(
       () => {
-        signal.throwIfAborted()
+        checkAuthorization()
         if (hasFailed) throw new Error(deps.storeUnavailable)
-        if (!deps.isOn()) throw new Error(deps.storeUnavailable)
         if (claim === undefined && deps.accounting !== 'transport')
           throw new Error(deps.storeUnavailable)
         claim?.check()
       },
       {
-        prepare: async () => {
+        prepareRequest: async (body: CreateResponseBody, inputTokens: number) => {
           await settle(modelId, undefined, 'uncertain')
-          signal.throwIfAborted()
-          if (hasFailed || !deps.isOn()) throw new Error(deps.storeUnavailable)
+          checkAuthorization()
+          if (hasFailed || body.model !== modelId) throw new Error(deps.storeUnavailable)
+          const reserveUsd = reserveAmountUsd(model, body, inputTokens)
+          if (reserveUsd === undefined) throw new Error(deps.storeUnavailable)
           if (deps.accounting === 'transport') return
           claim = await deps.accounting.reserveCompaction(reserveUsd, signal)
           if (claim === undefined) throw new Error(deps.storeUnavailable)
-          if (!signal.aborted) return
-          await settle(modelId, undefined, 'uncertain')
-          signal.throwIfAborted()
+          try {
+            checkAuthorization()
+          } catch (error: unknown) {
+            await settle(modelId, undefined, 'uncertain')
+            throw error
+          }
         },
         onRequestStarted: () => {
           didSend = true

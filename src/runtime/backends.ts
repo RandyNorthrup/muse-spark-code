@@ -66,6 +66,7 @@ import {
   PAID_PRICES_USD,
   PROVIDERS_CONFIG_DIR_NAME,
   PROVIDERS_FILE_NAME,
+  IS_AUTO_COMPACTION_EVALUATED,
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../shared/constants'
@@ -499,6 +500,7 @@ function modelApiManager(
     webSearchMaxPerRequest: () => SETTING_DEFAULTS.webSearchMaxPerRequest,
     isAutoCompactionOn: () =>
       deps.options.autoCompaction ?? SETTING_DEFAULTS.modelApiAutoCompaction,
+    autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
     // The wrapped runtime transport owns one daily claim per HTTP attempt.
     autoCompactionAccounting: 'transport',
     paidDailyBudgetUsd: async () => {
@@ -514,6 +516,7 @@ function modelApiManager(
     allowsPaidUse: (request, requiresAsking, sessionId) =>
       paid.allows(storedWorkspaceRoot, sessionId, request, requiresAsking),
     isPaidUseRemembered: (feature) => paid.isRemembered(storedWorkspaceRoot, feature),
+    paidUseFence: (feature, sessionId) => paid.fence(storedWorkspaceRoot, sessionId, feature),
     noteSubagentUsage: (modelId) => {
       log.warn(`A subagent's usage on ${modelId} was reported, but the agent runs no subagents`)
     },
@@ -548,6 +551,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   )
   const paid = new AcpPaidUse({
     flagged: deps.options.paidFeatures,
+    autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
     canRemember: () => deps.options.trustWorkspace,
     grants: paidGrantFile({
       file: paidGrantsFile({ platform: deps.platform, env: deps.env, homeDir: deps.homeDir }),

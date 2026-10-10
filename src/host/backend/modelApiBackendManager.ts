@@ -49,6 +49,8 @@ import {
   MODEL_API_BASE_URL,
   MODEL_TEXT,
   type PromptCacheRetention,
+  type PaidFeature,
+  IS_AUTO_COMPACTION_EVALUATED,
   UI_TEXT,
   SETTING_DEFAULTS,
 } from '../../shared/constants'
@@ -168,6 +170,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly isRepoMapInPrompt?: (() => boolean) | undefined
   /** `museSpark.modelApiAutoCompaction`, read at each in-turn decision (M101 C2). */
   readonly isAutoCompactionOn?: (() => boolean) | undefined
+  readonly autoCompactionEvaluated?: (() => boolean) | undefined
+  readonly paidUseFence?: (feature: PaidFeature, sessionId: string) => () => boolean
   /** `museSpark.modelApiObservationPacking`, read when a conversation starts or resumes (M73). */
   readonly isObservationPackingOn?: (() => boolean) | undefined
   /** `museSpark.modelApiShellKeepsDirectory`, read per shell call (M91 lane S). */
@@ -427,6 +431,7 @@ export class ModelApiBackendManager {
         isRepoMapInPrompt: variant.isRepoMapInPrompt,
         observationPacking: this.deps.isObservationPackingOn,
         autoCompaction: this.deps.isAutoCompactionOn,
+        autoCompactionEvaluated: this.deps.autoCompactionEvaluated,
         autoCompactModel: resolveAutoCompactModel,
         ...((this.deps.reserveAutoCompaction !== undefined ||
           this.deps.autoCompactionAccounting === 'transport') && {
@@ -442,7 +447,14 @@ export class ModelApiBackendManager {
                     },
                   },
             allowsPaidUse: variant.allowsPaidUse,
-            isOn: () => variant.isPaidFeatureOn('autoCompaction'),
+            isOn: () =>
+              variant.isPaidFeatureOn('autoCompaction') &&
+              this.deps.isAutoCompactionOn?.() !== false,
+            isTrusted: this.deps.isWorkspaceTrusted,
+            isEvaluated: () =>
+              this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED,
+            paidUseFence: (sessionId) =>
+              this.deps.paidUseFence?.('autoCompaction', sessionId) ?? (() => false),
             dailyBudgetUsd:
               this.deps.paidDailyBudgetUsd ??
               (() => Usd.from(SETTING_DEFAULTS.paidDailyBudgetUsd).toAmount()),

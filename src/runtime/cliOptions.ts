@@ -1,3 +1,4 @@
+import { isAutoCompactionEvaluated } from '../shared/constants'
 import { ESTIMATE_OPTIONS } from './estimator/options'
 import type { UiText } from '../shared/l10n/en'
 import { sharingHelp } from '../shared/featureCatalog'
@@ -19,7 +20,17 @@ export function formatAcpUsage(table: UiText, command: string): string {
       (flag) => table.referenceCliOptions[flag],
     ),
     `${table.helpReferenceTitle}: ${command} help --all`,
-  ].join('\n')
+  ]
+    .filter((line) => isAutoCompactionEvaluated() || !line.includes('--auto-compaction'))
+    .map((line) =>
+      isAutoCompactionEvaluated()
+        ? line
+        : line
+            .split('\n')
+            .filter((part) => !part.includes('--no-auto-compaction'))
+            .join('\n'),
+    )
+    .join('\n')
 }
 
 // One parseArgs definition per runtime route, also read by the lazy reference.

@@ -732,6 +732,22 @@ export class PaidUseConsent {
     return PAID_FEATURES.filter((feature) => this.isRemembered(feature))
   }
 
+  /** A live fence for an admitted use, including Once and revoked Always grants. */
+  public fence(feature: PaidFeature): () => boolean {
+    const revocation = this.revocation
+    const generation = this.deps.windowOnceGeneration?.(feature)
+    const wasRemembered = this.isRemembered(feature)
+    const wasOnce = this.isWindowOnce(feature)
+    const wasTrusted = this.deps.canRemember()
+    return () =>
+      revocation === this.revocation &&
+      generation === this.deps.windowOnceGeneration?.(feature) &&
+      wasTrusted === this.deps.canRemember() &&
+      this.isEnabled(feature) &&
+      (!wasRemembered || this.isRemembered(feature)) &&
+      (!wasOnce || this.isWindowOnce(feature))
+  }
+
   /**
    * Whether this use may be billed: allowed always here, or allowed in the
    * popup now. `requiresAsking` (a hook that demands a question) asks even when the

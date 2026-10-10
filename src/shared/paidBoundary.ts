@@ -3,6 +3,7 @@ import { nonnegativeUsdSchema } from './usdSchema'
 // modelApiBoundaries.js; browser consumers retain the same inline code.
 import * as z from 'zod/mini'
 import {
+  isAutoCompactionEvaluated,
   MODEL_API_PRICED_MODELS,
   type MODEL_API_PRICES_PER_MILLION,
   MUSE_CODE_PAID_FEATURES,
@@ -98,7 +99,9 @@ export function usablePaidFeatures(
   isKeyStored: boolean,
 ): readonly PaidFeature[] {
   if (backend === 'modelApi') {
-    return PAID_FEATURES
+    return PAID_FEATURES.filter(
+      (feature) => feature !== 'autoCompaction' || isAutoCompactionEvaluated(),
+    )
   }
   return backend === 'museCode' && isKeyStored ? MUSE_CODE_PAID_FEATURES : []
 }

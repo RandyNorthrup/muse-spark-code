@@ -2096,6 +2096,10 @@ export const COMPACTION_SUMMARY_MAX_TOKENS = 8192
 export const COMPACTION_SUMMARY_WINDOW_FRACTION = 0.05
 // Lane E flips this only with a current passing M75 pair and D78 wiring.
 export const IS_AUTO_COMPACTION_EVALUATED = false
+/** The single runtime reader for the latch, so every gate flips together. */
+export function isAutoCompactionEvaluated(): boolean {
+  return IS_AUTO_COMPACTION_EVALUATED
+}
 export const AUTO_COMPACTION_COOLDOWN_REQUESTS = 2
 export const AUTO_COMPACTION_MIN_OCCUPANCY = 1 / 2
 export const AUTO_COMPACTION_NEAR_WINDOW = 9 / 10

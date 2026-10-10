@@ -3061,7 +3061,11 @@ export const EN = {
   installOrKeyDetail:
     'The Muse Code CLI hosts conversations for this extension; without it you can still use a Meta Model API key.',
   compactionDone: 'Context compacted',
+  referenceManualCompaction:
+    'Summarize the conversation with /compact and keep recent turns verbatim.',
   autoCompactionName: 'Automatic compaction',
+  paidConfirmAutoCompaction:
+    'Automatic compaction uses the selected model at {price}. The subscription does not pay for it.',
   autoCompactionAwaitingEvaluation: 'Automatic compaction is awaiting evaluation and is inactive.',
   autoCompactionFailed: 'Automatic compaction failed; continuing with the original context.',
   contextWindowFull: 'Context window full: /compact or /handoff',

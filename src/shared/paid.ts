@@ -18,6 +18,7 @@ import {
 import type { ModelPricing } from '../core/providers/priceCard'
 import { isJudgeEngineOn } from '../core/judge/engine'
 import {
+  isAutoCompactionEvaluated,
   BEST_OF_N_DEFAULT_ATTEMPTS,
   BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT,
   DEFAULT_MODEL_ID,
@@ -290,18 +291,19 @@ export function listedPaidFeatures(
 ): readonly PaidFeature[] {
   return PAID_FEATURES.filter(
     (feature) =>
-      usable.includes(feature) ||
-      isPositiveUsd(paidCostUsd(feature, tally)) ||
-      (feature === 'scheduledPrompts' && tally.scheduledRuns > 0) ||
-      (feature === 'subagents' && (tally.subagentRequests ?? 0) > 0) ||
-      (feature === 'autoReviewer' && (tally.autoReviews ?? 0) > 0) ||
-      (feature === 'legalExplanation' && (tally.legalExplanations ?? 0) > 0) ||
-      (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0) ||
-      (feature === 'teamWorkers' && (tally.teamWorkerRequests ?? 0) > 0) ||
-      (feature === 'tab' && (tally.tabRequests ?? 0) > 0) ||
-      (feature === 'hookModels' && (tally.hookModelRuns ?? 0) > 0) ||
-      (feature === 'autoCompaction' && (tally.autoCompactionRequests ?? 0) > 0) ||
-      (feature === 'judge' && (tally.judgeCalls ?? 0) > 0),
+      (feature !== 'autoCompaction' || isAutoCompactionEvaluated()) &&
+      (usable.includes(feature) ||
+        isPositiveUsd(paidCostUsd(feature, tally)) ||
+        (feature === 'scheduledPrompts' && tally.scheduledRuns > 0) ||
+        (feature === 'subagents' && (tally.subagentRequests ?? 0) > 0) ||
+        (feature === 'autoReviewer' && (tally.autoReviews ?? 0) > 0) ||
+        (feature === 'legalExplanation' && (tally.legalExplanations ?? 0) > 0) ||
+        (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0) ||
+        (feature === 'teamWorkers' && (tally.teamWorkerRequests ?? 0) > 0) ||
+        (feature === 'tab' && (tally.tabRequests ?? 0) > 0) ||
+        (feature === 'hookModels' && (tally.hookModelRuns ?? 0) > 0) ||
+        (feature === 'autoCompaction' && (tally.autoCompactionRequests ?? 0) > 0) ||
+        (feature === 'judge' && (tally.judgeCalls ?? 0) > 0)),
   )
 }
 

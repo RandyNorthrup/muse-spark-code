@@ -598,6 +598,11 @@ export interface ModelApiPaidHooks {
   readonly hookModelDailyBudget?: HookModelDailyBudget | undefined
 }
 
+type CompactionAttemptGuard = ResponseAttemptGuard & {
+  /** The final body's calibrated input estimate; rebound for every retry/fallback. */
+  readonly prepareRequest?: (body: CreateResponseBody, inputTokens: number) => Promise<void>
+}
+
 export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDeps {
   /** M105-A: M2 binds the attachment choices to the portable sound router in
    * dist/media.js. Absent until that lane is integrated; no eager media load. */
@@ -632,7 +637,7 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
         readonly signal: AbortSignal
       }) => Promise<
         | {
-            readonly guard: ResponseAttemptGuard
+            readonly guard: CompactionAttemptGuard
             /** Once per dispatched attempt, including uncertain/failed attempts. */
             readonly settle: (
               modelId: string,
@@ -14148,7 +14153,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   private async collectText(
     makeBody: () => CreateResponseBody,
     signal: AbortSignal,
-    extraAdmission?: ResponseAttemptGuard,
+    extraAdmission?: CompactionAttemptGuard,
     settleExtra?: (
       modelId: string,
       usage: Usage | undefined,
@@ -14200,6 +14205,11 @@ export class ModelApiSession implements ScheduledAgentSession {
             prepare: async () => {
               await settling
               await admitAttempt.prepare?.()
+              await extraAdmission?.prepareRequest?.(
+                body,
+                estimateInput(this.media?.budgetParts(body) ?? requestParts(body), undefined)
+                  .inputTokens,
+              )
               await extraAdmission?.prepare?.()
             },
             onRequestStarted: () => {
@@ -14585,14 +14595,15 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.autoCompact.failed()
         return false
       }
-      const guard: ResponseAttemptGuard = Object.assign(
+      const guard: CompactionAttemptGuard = Object.assign(
         (keyDigest: string | undefined) => {
           assertCurrent()
           admission?.guard(keyDigest)
         },
         {
-          prepare: async () => {
+          prepareRequest: async (body: CreateResponseBody, inputTokens: number) => {
             assertCurrent()
+            await admission?.guard.prepareRequest?.(body, inputTokens)
             await admission?.guard.prepare?.()
           },
           onRequestStarted: () => admission?.guard.onRequestStarted?.(),
@@ -14652,7 +14663,7 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   private async runCompaction(
     signal: AbortSignal,
-    extraAdmission?: ResponseAttemptGuard,
+    extraAdmission?: CompactionAttemptGuard,
     isSummaryFork = false,
     settleExtra?: (
       modelId: string,
@@ -14842,7 +14853,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       itemId: this.deps.newId(),
       kind: 'compaction',
       status: COMPLETED,
-      ...(extraAdmission !== undefined && { paid: 'autoCompaction' as const }),
+      ...(extraAdmission !== undefined && !isSummaryFork && { paid: 'autoCompaction' as const }),
       fallbackText: UI_TEXT.compactionDone,
     }
     this.emit({ type: 'itemCompleted', item })
@@ -15782,7 +15793,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** C2 calls the core while its active turn holds the replay at a settled boundary. */
   public compactContext(
     signal: AbortSignal,
-    extraAdmission?: ResponseAttemptGuard,
+    extraAdmission?: CompactionAttemptGuard,
   ): Promise<CompactOutcome> {
     return this.runCompaction(signal, extraAdmission)
   }
