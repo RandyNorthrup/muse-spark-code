@@ -321,3 +321,109 @@ match object { effort: 'high' }` — while its later-turn 65,536
 - `npm run build` clean: `dist/extension.js` 550.1 KiB (cap 600),
   `dist/modelApi.js` 517.1 KiB (cap 525, was 516.8 — the fix adds
   ~0.3 KiB). No new chunk, no new dependency, no guard widened.
+
+## R5 — RVCM1062D repairs (Codex, kubuntu, 2026-10-10)
+
+Both P2 findings and their siblings are fixed. R5 supersedes R4's claims
+about strict host-field curation and same-ref request binding: the prior
+regressions did not cover either transition. No new wire shape, dependency,
+string, paid/default/consent change, guard widening or visual styling.
+The shared host and entry serve VS Code, ACP and exec; the established
+preview surface and headless dropping policy remain covered by their suites.
+
+| Finding                                                                                                                          | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Regression                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Red drills |
+| -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| P2 validation / preview honesty: strict conversion discarded nonenumerable host preview metadata                                 | `tools.ts` marks every host declaration, including recall and injected vault/schedule tools with no curated fields, with nonenumerable metadata; `schemas.ts` preserves the exact `previewFields` property descriptor when converting a definition, including a present property whose value is undefined. The final offered-tool snapshot therefore preserves host curation and never falls back to external schema fields for a host tool. Metadata stays nonenumerable and absent from request JSON.                                                                                                                                                                                                       | `modelApiArgumentPreview`: “keeps every host tool curated and hidden fields off the wire with strict %s” covers write content, edit find/replace/then_run and uncurated ask_user and recall_output (including its search text), strict on and off. `modelCapabilitiesBinding`: “preserves every host preview descriptor through strict conversion (%s)” sweeps all optional host families and injected vault/schedule declarations. Production preview fixtures now supply `metaModelFacts`, exercising the captured model's strict conversion.                               | 1, 6       |
+| P2 concurrency / selected-record binding: a second same-ref resolve replaced the client under a body built from the first record | `ModelApiHost.ts` passes the one resolved record explicitly to body/policy/tool builders, output limits, budget reservation, send bookkeeping and final admission. `collectText` never resolves a same-ref record again after building; a stale record refuses, while a changed selection rebuilds the whole projection. The count request resolves before its body. The cap cache is a WeakMap keyed by record identity; the entry's separate policy stash is removed. Compaction tools are rebuilt from current declarations instead of a prior request's tools. Reviewer admission captures its supplied record too; whole-stream retry backoff reads the already selected client without a fresh resolve. | `modelCapabilitiesBinding`: “binds one record per compaction and resolves before counting after same-ref replacement (hook invalidation %s)” covers a 65,536/high record followed by a same-ref 1,024/none/tool-less record, pins the client and settlement price, verifies exactly one resolve per response/count, and refuses hook-time invalidation without sending or changing replay before a fresh successful compaction. `modelApiLoopGuarantees`: “uses the selected output cap once per resolved request record” pins request identity rather than a model-ID cache. | 2–5        |
+
+Class sweep: all `resolveModel`, `body`, `budgeted`, `sending`,
+`responseAttemptGuard` and response/count dispatch sites in the host; both
+normal/reviewer tool builders; the single preview constructor and its
+request-offered tool snapshot; strict conversion at both `toolDefinitions`
+and the host, plus byte-only markers for every host declaration; entry cap
+suppliers and their production callers. Resolution
+for selection, consent and ownership stays outside request construction.
+Every response builder and its admission/accounting now receive the same
+record object, and the separate count request gets its own record before
+building. No cached tools from a prior capability record enter compaction.
+
+### R5 red drills
+
+Each drill ran whole owning files, with repository timeouts and
+`--maxWorkers=3`; every exit was 1. Source restoration used original bytes
+in `finally`, equality against the saved backup, and matching SHA-256.
+Logs/backups are private scratch under this lane's disk-backed
+`$TMPDIR/CM1062R5-drills/`; no source was edited while its test run was active.
+
+1. **Strict metadata:** return the spread strict definition without restoring
+   its descriptor. Strict-on hidden-field and every-host-descriptor tests
+   fail (2 failures / 68 passes). Strict-off stays green. Restore hash:
+   `44bc6a3860c60d076f3a47b5f6e3c52295c4456bf1338b0cc2972d816c517ea9`
+   (`schemas.ts`).
+2. **Second resolve:** resolve `body.model` again after `makeBody(resolved)`.
+   Both same-ref cases fail: the first body is dispatched through the
+   replacement client, or an extra resolution is counted (2 failures / 59
+   passes).
+3. **Count ordering:** build countable from the previous selected record,
+   then resolve its client. The non-invalidated case fails on the count's
+   old cap/effort/tools (1 failure / 60 passes).
+4. **Stale admission:** remove the pre-build current-record check and the
+   final admission current-record check. The hook-invalidated case wrongly
+   accepts instead of rejecting (1 failure / 60 passes).
+5. **Record cap cache:** key the output-cap cache by ref again. Both same-ref
+   cases and the per-request supplier test fail: stale cap and one supplier
+   call instead of two (3 failures / 58 passes).
+
+6. **Host markers:** remove the final metadata marker for declarations that
+   did not pass through `define`. Both strict-on/off preview cases expose
+   recall search/id text, and both catalogue descriptor cases fail (4
+   failures / 66 passes). Restore `tools.ts` byte-exact:
+   `9676c496588f8e02687eb20c36d67ca296fb9fd35af81eebaa6d526d31ed10da`.
+
+Drill 1 was repeated after expanding the catalogue/recall regressions: the
+strict-on cases still fail (2 failures / 68 passes), with the same schema
+restore hash.
+
+Drills 2–5 each restored `ModelApiHost.ts` to:
+`4d2c2c83b482381f057b296181fb4f6d5e33b10c6537d0b377a1eb006d6f7e51`.
+
+One exploratory run was discarded: editing `schemas.ts` while Vite loaded it
+invalidated its exported module in the test process and produced unrelated
+undefined-export failures. All drills and final verification run with source
+held fixed for the entire invocation. No timeout was raised.
+
+### R5 verification (kubuntu, repository timeouts)
+
+Final whole-file runs, at most three files per run and `--maxWorkers=3`:
+
+| Files                                                                           | Result     |
+| ------------------------------------------------------------------------------- | ---------- |
+| `modelCapabilitiesBinding`, `modelApiArgumentPreview`, `modelApiLoopGuarantees` | 112 passed |
+| `modelApiBackendManager`, `modelApiGoldenRequests`, `acpModelApi`               | 184 passed |
+| `modelApiHost`, `execClient`, `argumentPreview`                                 | 741 passed |
+
+Total: **1,037 passed**, zero failures. No tests skipped or filtered; no
+`--testTimeout`. The final run includes the complete optional-host catalogue
+and recall-marker repair. Strict/off goldens, offered/unoffered MCP previews,
+raw U9 declared-tool previews, ACP translation, exec dropping, compaction
+selection switching and stale key/admission paths remain green.
+
+- `npm run typecheck`: all five projects passed; affected host/unit projects
+  rechecked after the expanded catalogue repair. The unit gate caught the
+  vault fixture's missing required handler, which now explicitly rejects
+  execution; the final owning suites still pass all 112 tests.
+- Changed-file ESLint with zero warnings and Prettier checks passed. Knip
+  passed (the two existing vendor/axe-core configuration hints remain),
+  jscpd found 0 clones, and dpdm found no cycles across 3,137 files.
+- Localization: 14 UI tables, 14 usage tables, 0 problems. Reference:
+  77 features, current. Host API: 375 APIs, 0 problems. Plan: 207 milestones,
+  0 drift. Roadmap: 207 entries, regenerated/current.
+- Final `npm run build` passed all token, size, split, model-text,
+  host-global and notice gates: extension **550.1 / 600 KiB**; Model API
+  **517.2 / 525 KiB**; checkpoint store **87.3 / 225 KiB**. No budget raised.
+- The rig/shared brief prohibits aggregate quality, full-suite runs and
+  branch integration; PLAN §7 records that boundary. The lead retains those
+  checks and the multi-OS release matrix. No browser, live/paid call,
+  credential read, dependency install, push, rebase or merge was performed.
+
+No RVCM1062D finding remains open; no external blocker was encountered.

@@ -11,6 +11,7 @@ import {
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import {
   metaArgumentPreviewCapabilities,
+  metaModelFacts,
   metaOutputMaxTokens,
 } from '../../src/core/backends/modelapi/modelCapabilities'
 import {
@@ -28,6 +29,8 @@ import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { startWatchedSession, watchSessionTurns } from './helpers/sessionTurns'
 import { M106_CAPTURED_META_MODEL } from '../../src/shared/constants'
 import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
+import { CONSERVATIVE_CAPABILITIES } from '../../src/core/providers/capabilities'
+import { FORMAT_QUIRKS } from '../../src/core/providers/presets'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { ArgumentPreview } from '../../src/core/backends/modelapi/argumentPreview'
 import { UpdateTranslator } from '../../src/acp/translate'
@@ -131,6 +134,75 @@ const DELTAS: readonly StreamEvent[] = [
 ]
 
 describe('Model API argument preview admission', () => {
+  it.each([true, false])(
+    'keeps every host tool curated and hidden fields off the wire with strict %s',
+    async (strict) => {
+      const h = await setup({
+        observationPacking: () => true,
+        modelFacts: () => ({
+          capabilities: {
+            ...CONSERVATIVE_CAPABILITIES,
+            toolCalling: true,
+            supportsStrictTools: strict,
+          },
+          quirks: FORMAT_QUIRKS.responses,
+        }),
+      })
+      const calls = [
+        { name: 'write_file', args: { path: 'new.txt', content: 'hidden-write-content' } },
+        {
+          name: 'edit_file',
+          args: {
+            path: 'new.txt',
+            find: 'hidden-find',
+            replace: 'hidden-replace',
+            then_run: 'hidden-command',
+          },
+        },
+        { name: 'ask_user', args: { question: 'hidden-question' } },
+        { name: 'recall_output', args: { id: 'hidden-output-id', search: 'hidden-recall-text' } },
+      ]
+      const deltas = calls.flatMap(({ name, args }, index): StreamEvent[] => [
+        {
+          type: 'response.output_item.added',
+          item: {
+            ...CALL,
+            id: `call-${String(index)}`,
+            call_id: `call-${String(index)}`,
+            name,
+            arguments: '',
+          },
+        },
+        {
+          type: 'response.function_call_arguments.delta',
+          item_id: `call-${String(index)}`,
+          delta: JSON.stringify(args),
+        },
+      ])
+      const stream = controlledStream(h.client, deltas)
+      try {
+        await h.session.sendTurn(WRITE_PROMPT)
+        await stream.reached.promise
+        const previews = previewEvents(h.events)
+        for (const { name, args } of calls) {
+          const preview = previews.findLast((event) => event.item.tool === name)
+          expect(preview?.item.argumentPreview.bytes).toBe(Buffer.byteLength(JSON.stringify(args)))
+          if ('path' in args)
+            expect(preview?.item.argumentPreview.text).toContain('"path": "new.txt"')
+          else expect(preview?.item.argumentPreview.text).toBe('')
+        }
+        expect(JSON.stringify(previews)).not.toContain('hidden-')
+        expect(stream.bodies[0]).not.toContain('previewFields')
+        expect(JSON.parse(stream.bodies[0] ?? '{}')).toMatchObject({
+          tools: expect.arrayContaining([expect.objectContaining({ name: 'write_file', strict })]),
+        })
+      } finally {
+        stream.gate.resolve(undefined)
+        await h.host.close()
+      }
+    },
+  )
+
   it('never executes, asks or calls a tool hook on a delta, then reuses the row after done', async () => {
     const hooks = parseHookConfig(
       JSON.stringify({
@@ -864,6 +936,7 @@ async function productionRig(modelId: string) {
   const host = new ModelApiHost({
     ...fakeModelApiHostDeps({ client, workspaceRoot: ROOT, io, log }),
     argumentPreviewCapabilities: metaArgumentPreviewCapabilities,
+    modelFacts: metaModelFacts,
     modelOutputMaxTokens: metaOutputMaxTokens,
   })
   const session = await host.startSession({
