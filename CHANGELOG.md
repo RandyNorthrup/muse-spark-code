@@ -422,6 +422,25 @@ happened, not what was planned; superseded entries are kept.
   A failed write keeps the typed value, shows its specific error, and
   reports no setup success. The quick pick does the same through the same
   shared function instead of dropping the value.
+- DeepSeek Thinking off now sends the documented `thinking: {type:
+  "disabled"}` switch and omits `reasoning_effort` instead of sending the
+  unlisted value `"none"`. Any other effort a model's declared list cannot
+  express is refused with a typed codec error rather than reaching the wire;
+  every other preset's request bytes are unchanged.
+- DeepSeek review fixes: an unlisted Thinking-on effort (e.g. `medium`) is
+  refused with the typed `unsupported_reasoning_effort` error instead of
+  silently disabling thinking; the off switch also sends for toggle-only
+  models with no effort list; and the typed refusal now reaches the caller
+  instead of the generic unavailable error.
+- Reasoning effort and Thinking off now go through one resolver per
+  selected model and its capability record. DeepSeek: an unlisted
+  Thinking-on level moves to the nearest level the model lists (for
+  example `medium` sends `high`), never to Thinking off; Thinking off is
+  sent only where the model can disable thinking, otherwise it is refused
+  with a translated "Thinking cannot be turned off for the selected
+  model."; a model without effort levels gets no effort field. Every
+  other provider's requests are back to byte-identical with 0.17.0,
+  which also restores short Claude Haiku replies at the default effort.
 
 ### Pending
 

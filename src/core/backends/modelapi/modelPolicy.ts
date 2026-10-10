@@ -12,12 +12,13 @@ import {
   MODEL_API_PRICES_PER_MILLION,
   MODEL_API_MODEL_PREFIX,
   MODEL_API_CONTEXT_WINDOW,
+  THINKING_OFF_EFFORT,
   TOKENS_PER_MILLION,
 } from '../../../shared/constants'
 import type { ModelCapabilities } from '../../providers/capabilities'
 import type { ModelPricing, PricedUsage } from '../../providers/priceCard'
 
-import { effortLevelsFor } from '../../../shared/effort'
+import { effortLevelsFor, resolveReasoning } from '../../../shared/effort'
 import { modelApiPaidTier } from '../../../shared/paid'
 
 /** The configured provider and exact model that produced opaque reasoning. */
@@ -43,6 +44,8 @@ export interface ModelPolicyEvidence {
   readonly maxOutputTokens?: number | undefined
   readonly effortLevels?: readonly string[] | undefined
   readonly canDisableReasoning?: boolean | undefined
+  /** The preset's documented Thinking-off switch (lane DSTHINK3). */
+  readonly thinkingOff?: 'thinking-switch' | undefined
   readonly webSearch?: boolean | undefined
   readonly pricing?: ModelPricing | undefined
 }
@@ -53,6 +56,7 @@ export interface ModelPolicy {
   readonly reasoning: {
     readonly effortLevels: Known<readonly string[]>
     readonly canDisable: Known<true>
+    readonly thinkingOff?: 'thinking-switch' | undefined
   }
   readonly output: { readonly maxTokens?: number | undefined }
   readonly hosted: { readonly webSearch: Known<true> }
@@ -107,6 +111,7 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
     reasoning: {
       effortLevels: levels === undefined ? { state: 'unknown' } : { state: 'yes', value: levels },
       canDisable: knownFlag(isMeta || evidence.canDisableReasoning),
+      ...(!isMeta && evidence.thinkingOff !== undefined && { thinkingOff: evidence.thinkingOff }),
     },
     output: {
       maxTokens: isMeta ? MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS : evidence.maxOutputTokens,
@@ -122,13 +127,28 @@ export function outputLimitFor(policy: ModelPolicy, ceiling: number): number {
   return maximum === undefined ? ceiling : Math.min(ceiling, maximum)
 }
 
-/** Do not invent Meta effort tiers for a BYO model with no reasoning evidence. */
+/**
+ * The selected model's request effort, from the one resolver (lane
+ * DSTHINK3). Off sends `none`; without a declared switch so does anything
+ * unlisted, exactly as before. With one, a default or refused setting rides
+ * unchanged to the model's codec, which resolves it again from the same
+ * record: nothing is sent, or the typed refusal is raised before dispatch.
+ */
 export function effortForPolicy(policy: ModelPolicy, requested: string): string {
   if (policy.identity.provider === 'meta') {
     return requested === 'none' ? 'minimal' : requested
   }
-  const levels = policy.reasoning.effortLevels
-  return levels.state === 'yes' && levels.value.includes(requested) ? requested : 'none'
+  const { effortLevels, canDisable, thinkingOff } = policy.reasoning
+  const decision = resolveReasoning(
+    {
+      effortLevels: effortLevels.state === 'yes' ? effortLevels.value : undefined,
+      canDisable: canDisable.state === 'yes',
+      thinkingOff,
+    },
+    requested,
+  )
+  if (decision.kind === 'effort') return decision.effort
+  return thinkingOff === undefined || decision.kind === 'off' ? THINKING_OFF_EFFORT : requested
 }
 
 /** Price-card operations run in the lazy provider bundle. Unpriced is never zero. */

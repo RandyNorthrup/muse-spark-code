@@ -5312,6 +5312,11 @@ export const EN = {
     'Anthropic images must use a base64 data URL with a supported image type.',
   anthropicCodecToolArgumentsInvalid: 'Anthropic tool arguments must be a JSON object.',
   anthropicCodecEffortUnsupported: 'This reasoning effort is not supported by Anthropic.',
+  // Lane DSTHINK: the Chat codec's typed refusal for an unlisted effort.
+  chatCodecEffortUnsupported: 'This reasoning effort is not supported by the selected model.',
+  // Lane DSTHINK3: the same typed refusal for Thinking off on a model that
+  // cannot disable thinking.
+  chatCodecThinkingOffUnsupported: 'Thinking cannot be turned off for the selected model.',
   anthropicCodecEmptyTurn: 'Anthropic requires at least one message.',
   anthropicCodecLimitExceeded: 'The Anthropic response exceeded a decoding limit.',
   // M95-M (the Models panel's framework, PLAN.md D74): the table, filter

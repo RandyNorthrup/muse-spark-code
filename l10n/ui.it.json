@@ -4486,6 +4486,8 @@
   "anthropicCodecImageInvalid": "Le immagini per Anthropic devono usare un URL dati base64 con un tipo di immagine supportato.",
   "anthropicCodecToolArgumentsInvalid": "Gli argomenti degli strumenti Anthropic devono essere un oggetto JSON.",
   "anthropicCodecEffortUnsupported": "Anthropic non supporta questo livello di ragionamento.",
+  "chatCodecEffortUnsupported": "Il modello selezionato non supporta questo livello di ragionamento.",
+  "chatCodecThinkingOffUnsupported": "Il modello selezionato non consente di disattivare il ragionamento.",
   "anthropicCodecEmptyTurn": "Anthropic richiede almeno un messaggio.",
   "anthropicCodecLimitExceeded": "La risposta di Anthropic ha superato un limite di decodifica.",
   "modelsEmpty": "Ancora nessun provider di modelli. Aggiunga un provider per usare i propri modelli.",

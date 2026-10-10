@@ -28345,6 +28345,39 @@ record-driven image/PDF admission; exact Meta defaults and request goldens.
 Owning tests and four required mutations precede targeted static/build gates.
 Evidence and readiness review: `docs/certification/m95-n.md`.
 
+**Lane DSTHINK (2026-10-09, kubuntu).** DeepSeek Thinking off sends the
+documented `thinking: {type: "disabled"}` switch and omits
+`reasoning_effort` (lead capture L98P2; catalogue `toggle` + effort
+`[low, high, max]`); the preset declares the switch, the codec gates any
+other effort against the record's declared levels with a typed refusal,
+and every other preset's bytes stay identical. Z.ai GLM is unchanged for
+lack of a repo capture for its switch. Evidence:
+`docs/certification/m95-h.md`.
+
+**Lane FIXDSTHINK2 (2026-10-09, linuxlt).** Fixes the three RVDSTHINK P2
+findings: `effortForPolicy` no longer maps an unlisted Thinking-on
+effort to `none` (it rides through for the codec's typed refusal; only
+the `none`/`minimal` off spellings stay off, keeping the Auto
+reviewer's bytes identical); the codec checks the declared
+thinking-off switch before the `reasoningParam: "none"` early return so
+toggle-only overrides (canDisable yes, effortLevels no) still send it;
+the configured client rethrows the typed `ChatCodecError` instead of
+the generic unavailable error. Production-path regression tests,
+red drills and gate receipts: `docs/certification/m95-h.md`.
+
+**Lane DSTHINK3 (2026-10-09, kubuntu).** Round 3 after RVDSTHINK (3 P2)
+and RVDSTHINK2 (2 P2): one pure resolver, `resolveReasoning` in
+`src/shared/effort.ts`, maps a requested setting per selected model and
+its capability record (levels, `canDisable`) plus the preset's declared
+off switch to a listed effort, the model's off switch, nothing, or the
+typed refusal `unsupported_reasoning_effort`. `effortForPolicy`, the
+configured client and the Chat codec all use it. Without a declared
+switch (every preset but DeepSeek, and Meta) the base mapping is kept
+exactly, proven by a table over every preset model × every setting
+against a golden generated on 01ee6233b. Open for the owner: on a model
+without a switch an unlisted on-level still goes as `none`, kept for
+byte identity. Evidence: `docs/certification/m95-h.md`.
+
 | Finding                                                                                                                                                                                                                                                                                                                                                                   | Owner                                                             |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | Record shape, resolver, parsers keeping native records, custom overrides (F12); reasoning modes per model incl. Haiku 4.5 manual thinking in the Anthropic encoder and Gemini level/budget mapping (F3); effort levels from the catalogue's `reasoning_options` (research BYO 10); image/PDF limits into the record and the media budget (F4 media part; research BYO 15) | **M95 lane N (CAPREC)**                                           |
