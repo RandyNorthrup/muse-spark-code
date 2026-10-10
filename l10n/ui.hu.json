@@ -5230,5 +5230,45 @@
       "one": "{count} engedély",
       "other": "{count} engedély"
     }
-  }
+  },
+  "teamEditor": {
+    "purpose": "Cél",
+    "done": "Befejezési feltételek",
+    "guidance": "Útmutató",
+    "roleId": "Szerepazonosító",
+    "pools": "Készletek",
+    "concurrent": "Párhuzamossági korlát",
+    "caps": "Korlátok",
+    "task": "Feladat",
+    "day": "Nap",
+    "lifetime": "Összesen",
+    "addCap": "Korlát hozzáadása",
+    "reapply": "Szint újbóli alkalmazása",
+    "empty": "Nincs futó csapat",
+    "save": "Csapat mentése",
+    "saved": "Csapat mentve.",
+    "invalid": "Mentés előtt ellenőrizze a csapat érvénytelen vagy hiányzó értékeit.",
+    "moveLabel": "{entry} a(z) {position}. helyre került.",
+    "noCalls": "Ez az előnézet nem hív modellt, és ingyenes.",
+    "settings": "Modellbeállítások",
+    "agents": "Ügynökök",
+    "workspace": "Munkaterület",
+    "poolKeys": "Az Alt+Fel / Alt+Le mozgatja ezt a bejegyzést a csoportjában.",
+    "toolSearch": "Eszközök keresése",
+    "transcript": "Átirat megnyitása",
+    "diff": "Diff áttekintése",
+    "editRole": "Szerkesztés a Szerepek szakaszban",
+    "stopAll": "Összes csapatfeladat leállítása"
+  },
+  "teamEditorRoles": {
+    "research": "Kutatás",
+    "design": "Tervezés",
+    "marketing": "Piaci kommunikáció",
+    "engineering": "Fejlesztés",
+    "qa": "Minőségbiztosítás",
+    "code-review": "Kódellenőrzés",
+    "docs": "Dokumentáció"
+  },
+  "referenceTeamConfiguration": "A Szerepek és Ügynökök rejtve maradnak, amíg a csapatügynökök és a konfiguráció kapcsolatai nincsenek telepítve.",
+  "referenceTeamPoolKeys": "Az Alt+Fel / Alt+Le mozgatja ezt a bejegyzést a csoportjában."
 }

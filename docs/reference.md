@@ -71,6 +71,14 @@ Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no
 
 Commands: `museSpark.openUsagePage`. Settings: `museSpark.usageHistory`, `museSpark.usageHistoryDays`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#usage-and-cost)
 
+### Roles
+
+teamWorkerBinding=absent|teamConfigurationBinding=absent: Roles and Agents stay hidden until the team worker and configuration bindings are installed.
+
+Surfaces: vscode:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: `museSpark.modelsAndAgents`. Settings: `museSpark.team`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#team-configuration)
+
 ### Team workers
 
 Paid, on by default; the first charge asks once. On the Model API backend, team tasks run on models billed to your Model API key, and on the Muse Code backend while a key is stored. Enabling this asks you to accept token prices. The first delegate call that starts key tasks asks for approval, naming each model's prices and each task's ceiling, in every permission mode including Bypass, unless you allow team workers always in this workspace. Subscription and local tasks are never billed.
@@ -3606,6 +3614,7 @@ These are defaults; editor customizations take precedence.
 - `museSpark.nextOpenQuestion`: `ctrl+alt+j` (macOS: `cmd+alt+j`); when `activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'`
 - `museSpark.previousOpenQuestion`: `ctrl+alt+shift+j` (macOS: `cmd+alt+shift+j`); when `activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'`
 - `museSpark.lockVault`: `ctrl+alt+shift+l` (macOS: `cmd+alt+shift+l`)
+- `team.pool`: `ArrowUp / ArrowDown`; when `team.pool`; Alt+Up / Alt+Down move this entry in its pool.
 - `team.tree`: `ArrowDown / ArrowUp / Home / End / ArrowRight / ArrowLeft / F2 / Escape / Character`; when `team.tree`; Use arrow keys to move. F2 focuses actions; Left and Right choose an action; Escape returns to the item.
 - `models.table`: `ArrowDown / ArrowUp / Home / End / Enter / Escape`; when `models.table`; Navigate items, choose or complete a selection, or close the list.
 - `models.select`: `ArrowDown / ArrowUp / Enter / Escape`; when `models.select`; Navigate items, choose or complete a selection, or close the list.

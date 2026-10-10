@@ -20,6 +20,9 @@ import { FakeWebviewPanel, memoryProvidersStore, memorySecrets } from './helpers
 import { FakeUri } from './mocks/vscode'
 import { fakeSurface } from './helpers/fakes'
 import { recoverProviderRemovals } from '../../src/host/models/modelsPanelBundle'
+import { panelRig } from './helpers/teamPanelRig'
+import { parseHostToPanelMessage } from '../../src/shared/modelsPanel'
+import * as teamPanelFactory from '../../src/core/team/teamPanelEntry'
 
 function seam(): { readonly seam: ModelsPanelSeam } {
   return {
@@ -96,7 +99,80 @@ beforeEach(() => {
   }
 })
 
+const unsubscribeTeamTree = () => undefined
+
+function teamEditorPanel(hasConfiguration: boolean) {
+  const rig = panelRig({ confirmOrchestrator: vi.fn(() => Promise.resolve()) })
+  const binding = {
+    isEnabled: () => true,
+    state: rig.deps.state,
+    reload: rig.reload,
+    onTreeChange: () => unsubscribeTeamTree,
+    tree: () => undefined,
+    handle: () => Promise.resolve(),
+    ...(hasConfiguration && {
+      configuration: {
+        offers: rig.deps.offers,
+        defaultRef: rig.deps.defaultRef,
+        maxWorkers: rig.deps.maxWorkers,
+        remainingDailyBudgetUsd: rig.deps.remainingDailyBudgetUsd,
+        records: rig.deps.records,
+        confirmOrchestrator: rig.deps.confirmOrchestrator,
+      },
+    }),
+  }
+  const { host, composed } = hostDeps({ team: binding })
+  const features = createModelsPanelFeatures(host, seam().seam)
+  features.openPanel({ section: 'roles' })
+  const panel = fakeWindow.createWebviewPanel.mock.results[0]?.value
+  if (!(panel instanceof FakeWebviewPanel)) throw new TypeError('Expected team panel')
+  const latest = () => {
+    for (const [raw] of panel.webview.postMessage.mock.calls.toReversed()) {
+      const parsed = parseHostToPanelMessage(raw)
+      if (parsed.ok && parsed.message.type === 'modelsPanel/state') return parsed.message.state
+    }
+    return undefined
+  }
+  panel.webview.messages.fire({ type: 'modelsPanel/ready' })
+  return { panel, latest, composed, rig }
+}
+
 describe('createModelsPanelFeatures', () => {
+  it('keeps sections hidden when the engine is enabled but configuration ports are absent', async () => {
+    const factory = vi.spyOn(teamPanelFactory, 'createTeamPanel')
+    try {
+      const { panel, latest, rig } = teamEditorPanel(false)
+      await vi.waitFor(() => {
+        expect(latest()?.presets.length).toBeGreaterThan(0)
+      })
+      expect(latest()?.roles).toBeUndefined()
+      expect(latest()?.agents).toBeUndefined()
+      expect(rig.update).not.toHaveBeenCalled()
+      expect(factory).not.toHaveBeenCalled()
+      panel.dispose()
+    } finally {
+      factory.mockRestore()
+    }
+  })
+  it('uses the captured configuration ports and saves without changing the current composer', async () => {
+    const { panel, latest, composed, rig } = teamEditorPanel(true)
+    await vi.waitFor(() => {
+      expect(latest()?.roles).toBeDefined()
+    })
+    panel.webview.messages.fire({ type: 'roles/template', template: 'pair' })
+    await vi.waitFor(() => {
+      expect(latest()?.roles?.document.roles).toHaveLength(2)
+    })
+    panel.webview.messages.fire({ type: 'roles/orchestrator', modelRef: 'main/main' })
+    panel.webview.messages.fire({ type: 'roles/save' })
+    await vi.waitFor(() => {
+      expect(rig.reload).toHaveBeenCalledOnce()
+    })
+    expect(rig.deps.confirmOrchestrator).toHaveBeenCalledWith('main/main')
+    expect(composed).toEqual([])
+    panel.dispose()
+  })
+
   it('rejects a void model refusal and restores the surface post method', async () => {
     const surface = fakeSurface('receipt')
     const previous = surface.post

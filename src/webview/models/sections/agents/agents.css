@@ -1,0 +1,46 @@
+.team-editor .team-tree {
+  display: grid;
+  gap: var(--ms-space-12);
+}
+
+.team-editor .team-node {
+  border-radius: var(--ms-radius-md);
+  padding: var(--ms-space-4);
+}
+
+.team-editor .team-node[data-level='2'] {
+  margin-inline-start: var(--ms-space-4);
+}
+
+.team-editor .team-node[data-level='3'] {
+  margin-inline-start: var(--ms-space-8);
+}
+
+.team-editor .team-node[data-level='4'] {
+  margin-inline-start: var(--ms-space-12);
+}
+
+.team-editor :where(.team-node-body, .team-node-title) {
+  display: grid;
+  gap: var(--ms-space-8);
+}
+
+.team-editor .team-node-meta {
+  color: var(--ms-muted);
+}
+
+.team-editor .team-node-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ms-space-12);
+  padding: var(--ms-space-4);
+}
+
+.team-editor .team-node-actions button {
+  border-radius: var(--ms-radius-pill);
+  padding: var(--ms-space-8) var(--ms-space-12);
+  border: var(--ms-focus-width) solid var(--ms-boundary);
+  background: var(--ms-accent);
+  color: var(--ms-on-accent);
+  cursor: pointer;
+}

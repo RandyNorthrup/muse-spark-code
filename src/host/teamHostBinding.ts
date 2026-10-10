@@ -60,6 +60,7 @@ const unavailable = (tool: string): TeamToolResult => {
 }
 
 export class TeamHostBinding implements TeamSurfacePort {
+  private readonly treeListeners = new Set<() => void>()
   private service: TeamHostService | undefined
   private loading: Promise<TeamHostService | undefined> | undefined
   private unsubscribe: (() => void) | undefined
@@ -102,6 +103,7 @@ export class TeamHostBinding implements TeamSurfacePort {
         this.service = service
         this.unsubscribe = service.onTreeChange((tree) => {
           this.deps.showTree(tree)
+          for (const listener of this.treeListeners) listener()
         })
         return service
       } catch (error: unknown) {
@@ -167,6 +169,14 @@ export class TeamHostBinding implements TeamSurfacePort {
     }
   }
 
+  /** U1 and chat observe the same service tree. */
+  public onTreeChange(listener: () => void): () => void {
+    this.treeListeners.add(listener)
+    return () => {
+      this.treeListeners.delete(listener)
+    }
+  }
+
   /** Re-reads the stored team after the Roles section saves it. */
   public reload(): void {
     this.service?.reload()
@@ -174,6 +184,7 @@ export class TeamHostBinding implements TeamSurfacePort {
 
   public async dispose(): Promise<void> {
     this.isDisposed = true
+    this.treeListeners.clear()
     this.unsubscribe?.()
     const service = this.service
     this.service = undefined

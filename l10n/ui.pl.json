@@ -5536,5 +5536,45 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  }
+  },
+  "teamEditor": {
+    "purpose": "Cel",
+    "done": "Kryteria ukończenia",
+    "guidance": "Wskazówki",
+    "roleId": "ID roli",
+    "pools": "Pule",
+    "concurrent": "Limit równoległości",
+    "caps": "Limity",
+    "task": "Zadanie",
+    "day": "Dzień",
+    "lifetime": "Łącznie",
+    "addCap": "Dodaj limit",
+    "reapply": "Zastosuj poziom ponownie",
+    "empty": "Żaden zespół nie pracuje",
+    "save": "Zapisz zespół",
+    "saved": "Zespół zapisany.",
+    "invalid": "Przed zapisaniem sprawdź nieprawidłowe lub brakujące wartości zespołu.",
+    "moveLabel": "Przeniesiono {entry} na pozycję {position}.",
+    "noCalls": "Ten podgląd nie wywołuje modelu i nic nie kosztuje.",
+    "settings": "Ustawienia modelu",
+    "agents": "Agenci",
+    "workspace": "Obszar roboczy",
+    "poolKeys": "Alt+Góra / Alt+Dół przesuwa ten wpis w puli.",
+    "toolSearch": "Szukaj narzędzi",
+    "transcript": "Otwórz transkrypcję",
+    "diff": "Przejrzyj diff",
+    "editRole": "Edytuj w sekcji Role",
+    "stopAll": "Zatrzymaj wszystkie zadania zespołu"
+  },
+  "teamEditorRoles": {
+    "research": "Badania",
+    "design": "Projektowanie",
+    "marketing": "Promocja",
+    "engineering": "Inżynieria",
+    "qa": "Kontrola jakości",
+    "code-review": "Przegląd kodu",
+    "docs": "Dokumentacja"
+  },
+  "referenceTeamConfiguration": "Role i Agenci pozostają ukryte do czasu zainstalowania połączeń agentów zespołu i konfiguracji.",
+  "referenceTeamPoolKeys": "Alt+Góra / Alt+Dół przesuwa ten wpis w puli."
 }

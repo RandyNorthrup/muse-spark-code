@@ -135,6 +135,7 @@ beforeAll(async () => {
       usagePanel: 'src/host/usage/usagePanelEntry.ts',
       headless: 'src/runtime/exec/runExec.ts',
       modelsPanel: 'src/host/models/modelsPanelEntry.ts',
+      teamPanel: 'src/core/team/teamPanelEntry.ts',
       sessionBoard: 'src/host/sessionBoardEntry.ts',
       reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
       foreignHooks: 'src/core/backends/modelapi/foreignHooksEntry.ts',
@@ -365,6 +366,16 @@ function runLegalGate(name: string) {
         imports: [],
         entryPoint: 'src/webview/usage/UsageApp.tsx',
       },
+      ...Object.fromEntries(
+        [
+          'src/webview/models/sections/roles/RolesSection.tsx',
+          'src/webview/models/sections/agents/AgentsSection.tsx',
+          'src/shared/teamPanelDefinition.ts',
+        ].map((source) => [
+          `dist/webview/${path.basename(source)}.js`,
+          { imports: [], inputs: { [source]: { bytesInOutput: 0 } } },
+        ]),
+      ),
     },
   }
   let status = 0
@@ -435,6 +446,25 @@ function inputs(name: string): string[] {
 }
 
 describe('deferred cohort bundles', () => {
+  it('keeps the team editor in its first-use bundle and refuses an eager copy', () => {
+    expect(inputs('teamPanel')).toContain('src/core/team/teamPanel.ts')
+    expect(inputs('modelsPanel')).not.toContain('src/core/team/teamPanel.ts')
+    expect(checkDeferredBundles(bundleInputs)).toEqual([])
+    const eager = new Map(
+      bundleInputs({
+        output: 'dist/extension.js',
+        metafile: 'dist/meta/extension.json',
+      }),
+    )
+    eager.set('src/core/team/teamPanel.ts', 1)
+    expect(
+      checkDeferredBundles((bundle) =>
+        bundle.output === 'dist/extension.js' ? eager : bundleInputs(bundle),
+      ),
+    ).toContain(
+      'dist/extension.js carries src/core/team/teamPanel.ts, which loads only on its first action',
+    )
+  })
   it('keeps governor execution in its lazy bundle and shares the admission shim', () => {
     for (const name of ['extension', 'modelApi', 'acp', 'browserCheck']) {
       expect(inputs(name)).not.toContain('src/core/resources/governor.ts')

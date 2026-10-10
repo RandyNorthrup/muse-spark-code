@@ -5383,5 +5383,45 @@
       "other": "{count} autorisations",
       "many": "{count} autorisations"
     }
-  }
+  },
+  "teamEditor": {
+    "purpose": "Objectif",
+    "done": "Critères de fin",
+    "guidance": "Consignes",
+    "roleId": "ID du rôle",
+    "pools": "Groupes d’agents",
+    "concurrent": "Limite simultanée",
+    "caps": "Plafonds",
+    "task": "Tâche",
+    "day": "Jour",
+    "lifetime": "Cumul",
+    "addCap": "Ajouter un plafond",
+    "reapply": "Réappliquer le niveau",
+    "empty": "Aucune équipe en cours",
+    "save": "Enregistrer l’équipe",
+    "saved": "Équipe enregistrée.",
+    "invalid": "Vérifiez les valeurs invalides ou manquantes de l’équipe avant d’enregistrer.",
+    "moveLabel": "{entry} déplacé à la position {position}.",
+    "noCalls": "Cet aperçu n’appelle aucun modèle et ne coûte rien.",
+    "settings": "Paramètres du modèle",
+    "agents": "Agents de l’équipe",
+    "workspace": "Espace de travail",
+    "poolKeys": "Alt+Haut / Alt+Bas déplace cette entrée dans son groupe.",
+    "toolSearch": "Rechercher des outils",
+    "transcript": "Ouvrir la transcription",
+    "diff": "Vérifier le diff",
+    "editRole": "Modifier dans la section Rôles",
+    "stopAll": "Arrêter toutes les tâches de l’équipe"
+  },
+  "teamEditorRoles": {
+    "research": "Recherche",
+    "design": "Conception",
+    "marketing": "Commercialisation",
+    "engineering": "Développement",
+    "qa": "Assurance qualité",
+    "code-review": "Revue de code",
+    "docs": "Documentation"
+  },
+  "referenceTeamConfiguration": "Rôles et Agents restent masqués jusqu’à l’installation des connexions des agents de l’équipe et de la configuration.",
+  "referenceTeamPoolKeys": "Alt+Haut / Alt+Bas déplace cette entrée dans son groupe."
 }

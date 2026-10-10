@@ -27,9 +27,10 @@ import { legacyUsdSchema } from './usdSchema'
 // import from `vscode`, Node, or the DOM.
 
 import * as z from 'zod/mini'
+import { teamPanelSliceSchema, teamAgentsSliceSchema, teamPanelMessageSchema } from './teamPanel'
 
 /** The panel's sections; M96 registers `roles` and `agents` beside these. */
-export const modelsPanelSectionSchema = z.enum(['providers', 'models'])
+export const modelsPanelSectionSchema = z.enum(['providers', 'models', 'roles', 'agents'])
 export type ModelsPanelSection = z.infer<typeof modelsPanelSectionSchema>
 
 /** The add-provider wizard's steps, in order (mirrors lane P's `WizardStep`). */
@@ -305,6 +306,8 @@ export type ImportPreview = z.infer<typeof importPreviewSchema>
 
 /** The host-owned state the panel renders. */
 export const modelsPanelStateSchema = z.strictObject({
+  roles: z.optional(teamPanelSliceSchema),
+  agents: z.optional(teamAgentsSliceSchema),
   presets: z.array(presetCardSchema),
   providers: z.array(providerStateSchema),
   /** The Models rows after the host applied `filter` and `sort`. */
@@ -358,7 +361,7 @@ export const tickScopeSchema = z.strictObject({
 export type TickScope = z.infer<typeof tickScopeSchema>
 
 /** What the panel posts to the host. */
-export const panelToHostMessageSchema = z.discriminatedUnion('type', [
+const providerPanelMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('modelsPanel/ready') }),
   // The shared shape with protocol.ts: http(s) opens in the browser
   // through the host, anything else is refused there.
@@ -452,6 +455,10 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
     modelRef: z.optional(z.string()),
     usd: z.optional(legacyUsdSchema),
   }),
+])
+export const panelToHostMessageSchema = z.union([
+  providerPanelMessageSchema,
+  teamPanelMessageSchema,
 ])
 export type PanelToHostMessage = z.infer<typeof panelToHostMessageSchema>
 

@@ -5383,5 +5383,45 @@
       "other": "{count} autorizzazioni",
       "many": "{count} autorizzazioni"
     }
-  }
+  },
+  "teamEditor": {
+    "purpose": "Obiettivo",
+    "done": "Criteri di completamento",
+    "guidance": "Istruzioni",
+    "roleId": "ID ruolo",
+    "pools": "Pool",
+    "concurrent": "Limite simultaneo",
+    "caps": "Soglie",
+    "task": "Attività",
+    "day": "Giorno",
+    "lifetime": "Totale",
+    "addCap": "Aggiungi soglia",
+    "reapply": "Riapplica livello",
+    "empty": "Nessun team in esecuzione",
+    "save": "Salva team",
+    "saved": "Team salvato.",
+    "invalid": "Controlla i valori non validi o mancanti del team prima di salvare.",
+    "moveLabel": "{entry} spostato alla posizione {position}.",
+    "noCalls": "Questa anteprima non chiama modelli e non costa nulla.",
+    "settings": "Impostazioni modello",
+    "agents": "Agenti",
+    "workspace": "Area di lavoro",
+    "poolKeys": "Alt+Su / Alt+Giù sposta questa voce nel gruppo.",
+    "toolSearch": "Cerca strumenti",
+    "transcript": "Apri trascrizione",
+    "diff": "Rivedi diff",
+    "editRole": "Modifica nella sezione Ruoli",
+    "stopAll": "Interrompi tutte le attività del team"
+  },
+  "teamEditorRoles": {
+    "research": "Ricerca",
+    "design": "Progettazione",
+    "marketing": "Promozione",
+    "engineering": "Sviluppo",
+    "qa": "Garanzia di qualità",
+    "code-review": "Revisione codice",
+    "docs": "Documentazione"
+  },
+  "referenceTeamConfiguration": "Ruoli e Agenti restano nascosti finché non vengono installati i collegamenti per gli agenti del team e la configurazione.",
+  "referenceTeamPoolKeys": "Alt+Su / Alt+Giù sposta questa voce nel gruppo."
 }

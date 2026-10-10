@@ -128,6 +128,35 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "team-configuration",
+      "name": { "ui": "teamRolesTitle" },
+      "summary": {
+        "conditions": [
+          {
+            "when": "teamWorkerBinding=absent|teamConfigurationBinding=absent",
+            "text": { "ui": "referenceTeamConfiguration" }
+          }
+        ]
+      },
+      "description": {
+        "conditions": [
+          {
+            "when": "teamWorkerBinding=absent|teamConfigurationBinding=absent",
+            "text": { "ui": "referenceTeamConfiguration" }
+          }
+        ]
+      },
+      "commands": ["museSpark.modelsAndAgents"],
+      "settings": ["museSpark.team"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#team-configuration",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode"]
+    },
+    {
       "id": "team-workers",
       "name": { "ui": "paidTeamWorkersName" },
       "summary": { "setting": "modelApiTeamWorkers" },
@@ -7108,6 +7137,12 @@
       "when": "activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'"
     },
     { "command": "museSpark.lockVault", "key": "ctrl+alt+shift+l", "mac": "cmd+alt+shift+l" },
+    {
+      "command": "team.pool",
+      "key": "ArrowUp / ArrowDown",
+      "when": "team.pool",
+      "text": { "ui": "referenceTeamPoolKeys" }
+    },
     {
       "command": "team.tree",
       "key": "ArrowDown / ArrowUp / Home / End / ArrowRight / ArrowLeft / F2 / Escape / Character",

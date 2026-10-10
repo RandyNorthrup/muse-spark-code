@@ -5383,5 +5383,45 @@
       "other": "{count} autorizaciones",
       "many": "{count} autorizaciones"
     }
-  }
+  },
+  "teamEditor": {
+    "purpose": "Objetivo",
+    "done": "Criterios de finalización",
+    "guidance": "Instrucciones",
+    "roleId": "ID del rol",
+    "pools": "Grupos",
+    "concurrent": "Límite simultáneo",
+    "caps": "Topes",
+    "task": "Tarea",
+    "day": "Día",
+    "lifetime": "Acumulado",
+    "addCap": "Añadir tope",
+    "reapply": "Volver a aplicar nivel",
+    "empty": "No hay equipos en ejecución",
+    "save": "Guardar equipo",
+    "saved": "Equipo guardado.",
+    "invalid": "Revise los valores inválidos o ausentes del equipo antes de guardar.",
+    "moveLabel": "{entry} movido a la posición {position}.",
+    "noCalls": "Esta vista previa no llama al modelo ni genera costes.",
+    "settings": "Ajustes del modelo",
+    "agents": "Agentes",
+    "workspace": "Espacio de trabajo",
+    "poolKeys": "Alt+Arriba / Alt+Abajo mueve esta entrada en su grupo.",
+    "toolSearch": "Buscar herramientas",
+    "transcript": "Abrir transcripción",
+    "diff": "Revisar diferencias",
+    "editRole": "Editar en la sección Roles",
+    "stopAll": "Detener todas las tareas del equipo"
+  },
+  "teamEditorRoles": {
+    "research": "Investigación",
+    "design": "Diseño",
+    "marketing": "Mercadotecnia",
+    "engineering": "Ingeniería",
+    "qa": "Garantía de calidad",
+    "code-review": "Revisión de código",
+    "docs": "Documentación"
+  },
+  "referenceTeamConfiguration": "Roles y Agentes permanecen ocultos hasta que se instalen las conexiones de los agentes del equipo y de la configuración.",
+  "referenceTeamPoolKeys": "Alt+Arriba / Alt+Abajo mueve esta entrada en su grupo."
 }

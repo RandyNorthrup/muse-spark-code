@@ -38,10 +38,15 @@
 
 .models-nav {
   display: flex;
-  gap: 4px;
+  gap: var(--ms-space-4);
   margin-bottom: 12px;
   border-bottom: 1px solid var(--vscode-panel-border);
   padding-bottom: 8px;
+}
+
+.models-nav-team {
+  flex-wrap: wrap;
+  gap: var(--ms-space-8);
 }
 
 .models-nav-item {

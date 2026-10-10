@@ -51,6 +51,20 @@ function normalOutputs(meta) {
   )
 }
 
+// U1's strict validators load only for a team payload, outside M95's panel body.
+export const teamPanelBrowserValidation = {
+  name: 'team-panel-browser-validation',
+  setup(build) {
+    build.onResolve({ filter: /[\\/]teamPanel(?:\.[jt]s)?$/ }, (args) => {
+      const source = normalPath(
+        path.resolve(args.resolveDir, `${normalPath(args.path).replace(/\.[jt]s$/, '')}.ts`),
+      )
+      if (source !== normalPath(path.resolve('src/shared/teamPanel.ts'))) return
+      return { path: path.resolve('src/webview/models/teamPanelBrowser.ts') }
+    })
+  },
+}
+
 // Count every eagerly imported JavaScript chunk, once. Dynamic surfaces have
 // their own budget; moving startup code into a static chunk buys no headroom.
 function staticOutputs(meta, roots) {
@@ -82,6 +96,26 @@ export function webviewPanelOutputs(meta, entry, source) {
   )
   if (body.length !== 1) throw new Error(`Missing or duplicated panel body: ${source}`)
   return staticOutputs(meta, [body[0][0]]).filter((file) => !eager.has(file))
+}
+
+/** Charge each optional Models surface outside its already-budgeted body. */
+export function webviewTeamPanelOutputs(meta, source) {
+  const base = new Set([
+    ...webviewStartupOutputs(meta, 'dist/webview/models.js'),
+    ...webviewPanelOutputs(meta, 'dist/webview/models.js', 'src/webview/models/panel.tsx'),
+  ])
+  const roots = Object.entries(meta.outputs)
+    .filter(([, output]) =>
+      Object.keys(output.inputs ?? {}).some((input) => normalPath(input) === source),
+    )
+    .map(([file]) => file)
+  if (roots.length !== 1) throw new Error(`Missing or duplicated team surface: ${source}`)
+  const files = staticOutputs(meta, roots).filter((file) => !base.has(file))
+  const outputs = normalOutputs(meta)
+  const css = files.flatMap((file) =>
+    outputs[file]?.cssBundle === undefined ? [] : [outputs[file].cssBundle],
+  )
+  return [...new Set([...files, ...css])]
 }
 
 // Keep each page's full reachable graph, including lazy imports and its CSS.
@@ -117,6 +151,11 @@ export const RESOURCE_WEBVIEW_ENTRIES = {
 }
 
 export const ADDITIONAL_WEBVIEW_BUDGETS = [
+  {
+    name: 'team configuration English',
+    entries: ['browser-team-english:browser-team-english'],
+    budgetKiB: 25,
+  },
   {
     name: 'resource controls',
     entries: [RESOURCE_WEBVIEW_ENTRIES['dist/webview/resourceSurface.js']],

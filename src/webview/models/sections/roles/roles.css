@@ -1,0 +1,99 @@
+/* U1 uses the shared palette and scale; controls reserve room for focus rings. */
+.team-editor {
+  display: grid;
+  gap: var(--ms-space-12);
+  min-width: 0;
+}
+
+.team-editor form,
+.team-editor-role {
+  display: grid;
+  gap: var(--ms-space-12);
+  min-width: 0;
+}
+
+.team-editor-card,
+.team-editor-entry {
+  border: var(--ms-focus-width) solid var(--ms-boundary);
+  border-radius: var(--ms-radius-lg);
+  padding: var(--ms-space-12);
+  margin: 0;
+  min-width: 0;
+  display: grid;
+  gap: var(--ms-space-12);
+}
+
+.team-editor-field,
+.team-editor-cap,
+.team-editor-caps {
+  display: grid;
+  gap: var(--ms-space-8);
+  min-width: 0;
+}
+
+.team-editor :where(input:not([type='checkbox']), select, textarea) {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--ms-space-8);
+  background: var(--ms-surface);
+  border: var(--ms-focus-width) solid var(--ms-boundary);
+  border-radius: var(--ms-radius-sm);
+}
+
+.team-editor :where(select, option) {
+  text-overflow: ellipsis;
+}
+
+.team-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ms-space-12);
+  align-items: center;
+  padding: var(--ms-space-4);
+}
+
+.team-editor :where(.models-button, .models-chip, .team-editor-order) {
+  border-radius: var(--ms-radius-pill);
+  padding: var(--ms-space-8) var(--ms-space-12);
+  border: var(--ms-focus-width) solid var(--ms-boundary);
+  background: var(--ms-surface);
+  color: var(--ms-text);
+  cursor: pointer;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.team-editor .models-button-primary,
+.team-editor .models-chip[aria-pressed='true'] {
+  background: var(--ms-accent);
+  color: var(--ms-on-accent);
+}
+
+.team-editor :disabled {
+  cursor: default;
+}
+
+.team-editor-pool {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--ms-space-12);
+}
+
+.team-editor-charter {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+
+.team-editor-tool {
+  display: flex;
+  align-items: center;
+  gap: var(--ms-space-8);
+  padding: var(--ms-space-4);
+}
+
+.team-editor :where(p, h3, li) {
+  overflow-wrap: anywhere;
+}

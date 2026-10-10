@@ -5077,5 +5077,45 @@
     "grantsCount": {
       "other": "{count} 个授权"
     }
-  }
+  },
+  "teamEditor": {
+    "purpose": "目的",
+    "done": "完成标准",
+    "guidance": "指导",
+    "roleId": "角色 ID",
+    "pools": "代理池",
+    "concurrent": "并发上限",
+    "caps": "配额",
+    "task": "任务",
+    "day": "每日",
+    "lifetime": "累计",
+    "addCap": "添加配额",
+    "reapply": "重新应用级别",
+    "empty": "没有团队正在运行",
+    "save": "保存团队",
+    "saved": "团队已保存。",
+    "invalid": "保存前请检查团队中无效或缺失的值。",
+    "moveLabel": "已将 {entry} 移至第 {position} 位。",
+    "noCalls": "此预览不调用模型，也不产生费用。",
+    "settings": "模型设置",
+    "agents": "代理",
+    "workspace": "工作区",
+    "poolKeys": "Alt+上 / Alt+下可在池中移动此条目。",
+    "toolSearch": "搜索工具",
+    "transcript": "打开记录",
+    "diff": "检查差异",
+    "editRole": "在“角色”部分编辑",
+    "stopAll": "停止所有团队任务"
+  },
+  "teamEditorRoles": {
+    "research": "研究",
+    "design": "设计",
+    "marketing": "营销",
+    "engineering": "工程",
+    "qa": "质量保证",
+    "code-review": "代码审查",
+    "docs": "文档"
+  },
+  "referenceTeamConfiguration": "团队代理和配置连接安装完成之前，角色和代理保持隐藏。",
+  "referenceTeamPoolKeys": "Alt+上 / Alt+下可在池中移动此条目。"
 }

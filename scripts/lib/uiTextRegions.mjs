@@ -367,6 +367,9 @@ export const compactBrowserUiText = {
           helpFiles.every((file) => !readFileSync(file, 'utf8').includes(`UI_TEXT.${key}`)),
       )
       // M108: account and developer English load with their optional surfaces.
+      const teamKeys = deferredKeys.filter(
+        (key) => key === 'teamEditor' || key === 'teamEditorRoles',
+      )
       const accountKeys = deferredKeys.filter((key) => /^(?:accounts|developer)$/.test(key))
       // STARTUP017: the schedule surfaces' English loads beside them; chat
       // startup paints restored settlement rows from scheduleSettlement alone.
@@ -389,6 +392,7 @@ export const compactBrowserUiText = {
         (key) =>
           !helpKeys.includes(key) &&
           !accountKeys.includes(key) &&
+          !teamKeys.includes(key) &&
           !scheduleKeys.includes(key) &&
           key !== 'vault' &&
           nonResourceKeys.has(key),
@@ -415,6 +419,7 @@ export const compactBrowserUiText = {
         surfaceKeys,
         helpKeys,
         accountKeys,
+        teamKeys,
         scheduleKeys,
         scheduleReaders,
         resourceKeys,
@@ -449,6 +454,7 @@ export const compactBrowserUiText = {
       'browser-reference-english',
       'browser-account-english',
       'browser-schedule-english',
+      'browser-team-english',
     ]) {
       build.onResolve({ filter: /.*/, namespace }, (args) => {
         if (args.path === path.resolve(TABLE).replaceAll('\\', '/'))
@@ -462,7 +468,7 @@ export const compactBrowserUiText = {
     }))
     build.onLoad({ filter: /[/\\]l10n[/\\]deferredEnglish\.ts$/ }, () => ({
       contents:
-        "export async function loadDeferredEnglish() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english')]) }",
+        "export async function loadDeferredEnglish() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english'), import('browser-team-english')]) }",
       loader: 'js',
     }))
     build.onLoad({ filter: /[/\\]installTable\.ts$/ }, (args) => ({
@@ -473,6 +479,16 @@ export const compactBrowserUiText = {
       loader: 'ts',
       resolveDir: path.dirname(args.path),
       watchFiles: [args.path],
+    }))
+    build.onResolve({ filter: /^browser-team-english$/ }, () => ({
+      path: 'browser-team-english',
+      namespace: 'browser-team-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-team-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
+${inlineBrowserTable(Object.fromEntries(data.teamKeys.map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}
+installSurfaceEnglish(EN);`,
+      loader: 'js',
     }))
     build.onResolve({ filter: /^browser-surface-english$/ }, () => ({
       path: 'browser-surface-english',
@@ -554,7 +570,7 @@ installSurfaceEnglish(EN);`,
     }))
     build.onLoad({ filter: /[/\\]paletteRegistry\.ts$/ }, (args) => ({
       contents:
-        "await Promise.all([import('browser-surface-english'), import('browser-schedule-english')]);\n" +
+        "await Promise.all([import('browser-surface-english'), import('browser-schedule-english'), import('browser-team-english')]);\n" +
         readFileSync(args.path, 'utf8'),
       loader: 'ts',
       resolveDir: path.dirname(args.path),
@@ -588,7 +604,7 @@ installSurfaceEnglish(EN);`,
           edits.push({
             start: argument.getStart(tree),
             end: argument.end,
-            source: `async () => { await ${node.expression.text === 'lazy' ? "Promise.all([import('browser-surface-english'), import('browser-account-english')])" : "import('browser-reference-english')"}; return await (${argument.getText(tree)})() }`,
+            source: `async () => { await ${node.expression.text === 'lazy' ? "Promise.all([import('browser-surface-english'), import('browser-account-english'), import('browser-team-english')])" : "import('browser-reference-english')"}; return await (${argument.getText(tree)})() }`,
           })
         }
         ts.forEachChild(node, visit)

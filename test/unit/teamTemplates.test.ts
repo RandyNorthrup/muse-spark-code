@@ -115,7 +115,7 @@ describe('labels', () => {
   it('names each template and numbers the setup steps', () => {
     expect(templateName('solo')).toBe('Solo')
     expect(templateName('pair')).toContain('Pair')
-    expect(templateName('full')).toBe('Full team')
+    expect(templateName('full')).toBe('Full Team')
     expect(templateName('custom')).toBe('Custom')
     expect(setupStepLabel(3)).toContain('3')
   })

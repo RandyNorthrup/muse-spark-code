@@ -12,6 +12,7 @@ import type {
   PanelToHostMessage,
 } from '../../shared/modelsPanel'
 import { CodeIcon, PlusIcon } from '../components/icons'
+import { deferred } from '../components/DeferredSurface'
 import { ModelsSection } from './ModelsSection'
 import { ProvidersSection } from './ProvidersSection'
 import type { PanelUiAction, PanelUiState, WizardLife } from './reducer'
@@ -77,6 +78,15 @@ function reduceModels(state: PanelUiState, _action: PanelUiAction): PanelUiState
   return state
 }
 
+const RolesSection = deferred(async () => {
+  const module = await import('./sections/roles/RolesSection')
+  return { default: module.RolesSection }
+})
+const AgentsSection = deferred(async () => {
+  const module = await import('./sections/agents/AgentsSection')
+  return { default: module.AgentsSection }
+})
+
 export const MODEL_SECTIONS: readonly PanelSectionDef[] = [
   {
     id: 'providers',
@@ -90,6 +100,20 @@ export const MODEL_SECTIONS: readonly PanelSectionDef[] = [
     getTitle: () => UI_TEXT.modelsSectionTitle,
     icon: CodeIcon,
     Component: ModelsSection,
+    reduceSection: reduceModels,
+  },
+  {
+    id: 'roles',
+    getTitle: () => UI_TEXT.teamRolesTitle,
+    icon: CodeIcon,
+    Component: RolesSection,
+    reduceSection: reduceModels,
+  },
+  {
+    id: 'agents',
+    getTitle: () => UI_TEXT.teamEditor.agents,
+    icon: CodeIcon,
+    Component: AgentsSection,
     reduceSection: reduceModels,
   },
 ]
