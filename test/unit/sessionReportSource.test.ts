@@ -1,8 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createHostReportSources } from '../../src/host/reporting/sources'
 import { createRuntimeReportSources } from '../../src/runtime/reporting/sources'
+import { createReportCollector } from '../../src/core/reporting/collect'
+import { finalizeReport } from '../../src/core/reporting/render/canonical'
+import { REPORT_EMPTY_HASH } from '../../src/shared/constants'
 import { questionsSource } from '../../src/core/reporting/sources/questions'
 import { sessionSource } from '../../src/core/reporting/sources/session'
+import { RENDERERS, REPORT_THEME } from './reportRenderFixtures'
+import { buildSourceSnapshot, unavailableSource } from './helpers/reporting/snapshot'
 import {
   codeUnitCompare,
   reportWorkspaceKey,
@@ -167,6 +172,117 @@ describe('session, registry and shared report adapters', () => {
       const bytes = JSON.stringify(result)
       expected ??= bytes
       expect(bytes).toBe(expected)
+    }
+  })
+  it('renders byte-identical session reports in every format for every permutation of valid inputs', async () => {
+    // RVCM1131 finding 1: source-byte equality alone never certified the
+    // report. This test carries permuted source inputs through the production
+    // collector, the production finalizer and all four production renderers.
+    // Every row keeps a distinct collector identity (checks differ in `at`,
+    // usage keys and question ids are distinct), so the document is valid;
+    // scrub-collapsed identities still collide at the collector and are
+    // recorded as a limitation in docs/certification/m113-s-local-sources.md.
+    const original = await sessionReader().read(context())
+    if (original === null) throw new Error('Missing test fixture')
+    const check = {
+      at: '2026-10-06T11:59:00Z',
+      check: 'quality',
+      commit: 'fixture-commit',
+      outcome: 'passed',
+      durationMs: 1,
+    } satisfies (typeof original.checkRuns)[number]
+    const checks = [0, 1, 2].map((step) => ({
+      ...check,
+      at: `2026-10-06T11:59:0${String(step)}Z`,
+    }))
+    const breakdown = [0, 1, 2].map((step) => ({
+      key: `render-model-${['a', 'b', 'c'][step] ?? 'a'}`,
+      inputTokens: step + 1,
+      outputTokens: 1,
+      costUsd: null,
+      certainty: 'unknown',
+    })) satisfies typeof original.usage.breakdown
+    const limits = [0, 1, 2].map((step) => ({
+      key: `render-limit-${['a', 'b', 'c'][step] ?? 'a'}`,
+      used: step + 1,
+      limit: 10,
+      resetsAt: null,
+    }))
+    const questions: ReportQuestion[] = [
+      { id: 'render-q-a', text: 'First', milestoneIds: [], state: 'answered' },
+      { id: 'render-q-b', text: 'Second', milestoneIds: [], state: 'open' },
+      { id: 'render-q-c', text: 'Third', milestoneIds: [], state: 'dismissed' },
+    ]
+    const collect = createReportCollector({
+      finalize: (draft) =>
+        finalizeReport({
+          ...draft,
+          header: { ...draft.header, contentHash: REPORT_EMPTY_HASH },
+        }),
+      nextStepLimit: 3,
+      selections: {
+        changes: () => unavailableSource('changesRange', 'No range evidence'),
+        changeBranches: () => unavailableSource('changeBranches', 'No branch ancestry evidence'),
+        risksSinceRelease: () => unavailableSource('risksSinceRelease', 'No revision evidence'),
+      },
+    })
+    const options = reportOptions('session')
+    let expectedSource: string | undefined
+    let expectedRenders: Record<'md' | 'html' | 'json' | 'text', string> | undefined
+    for (const order of permutations([0, 1, 2])) {
+      const session = await sessionSource(
+        {
+          read: () =>
+            Promise.resolve({
+              ...original,
+              checkRuns: order.flatMap((index) => checks[index] ?? []),
+              usage: {
+                ...original.usage,
+                breakdown: order.flatMap((index) => breakdown[index] ?? []),
+                limits: order.flatMap((index) => limits[index] ?? []),
+              },
+            }),
+        },
+        [],
+        scrub,
+      ).read(context())
+      expect(session.record.status).toBe('ok')
+      // Checks tie on check/outcome/commit/durationMs and differ only in
+      // `at`: the serialized-bytes tail alone orders them, oldest first.
+      expect(session.data?.checkRuns.map((row) => row.at)).toEqual([
+        '2026-10-06T11:59:00Z',
+        '2026-10-06T11:59:01Z',
+        '2026-10-06T11:59:02Z',
+      ])
+      const sessionBytes = JSON.stringify(session)
+      expectedSource ??= sessionBytes
+      expect(sessionBytes).toBe(expectedSource)
+      const asked = await questionsSource(
+        {
+          read: () =>
+            Promise.resolve({
+              questions: order.flatMap((index) => questions[index] ?? []),
+              observedAt: REPORT_FIXTURE_AS_OF,
+            }),
+        },
+        scrub,
+      ).read(context())
+      expect(asked.record.status).toBe('ok')
+      if (session.data === null || asked.data === null) throw new Error('Missing test facts')
+      const snapshot = buildSourceSnapshot({ session, questions: asked })
+      const document = collect(snapshot, options)
+      expect(document.header.contentHash).toMatch(/^[a-f0-9]{64}$/u)
+      const rendered = {
+        md: RENDERERS.md(document, 'en', REPORT_THEME),
+        html: RENDERERS.html(document, 'en', REPORT_THEME),
+        json: RENDERERS.json(document, 'en', REPORT_THEME),
+        text: RENDERERS.text(document, 'en', REPORT_THEME),
+      }
+      for (const output of Object.values(rendered)) {
+        expect(output).toContain(document.header.contentHash)
+      }
+      expectedRenders ??= rendered
+      expect(rendered).toEqual(expectedRenders)
     }
   })
   it('uses M84 export and retains real turns and all approval outcomes', async () => {

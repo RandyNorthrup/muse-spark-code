@@ -9,7 +9,17 @@ import {
   isAgentUsagePath,
   type AgentUsageFile,
 } from '../../src/core/reporting/sources/agentUsage'
-import { reportOptions, REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
+import { createReportCollector } from '../../src/core/reporting/collect'
+import { finalizeReport } from '../../src/core/reporting/render/canonical'
+import { REPORT_EMPTY_HASH } from '../../src/shared/constants'
+import { RENDERERS, REPORT_THEME } from './reportRenderFixtures'
+import {
+  availableSource,
+  buildSourceSnapshot,
+  reportOptions,
+  REPORT_FIXTURE_AS_OF,
+  unavailableSource,
+} from './helpers/reporting/snapshot'
 import type { LocalFileIo } from '../../src/core/reporting/sources/local'
 
 // Numeric projection of the 2026-10-06 win11 capture. Ids/models are fixture values.
@@ -302,6 +312,110 @@ describe('captured, opt-in external agent usage', () => {
         await agentUsageSource(['claudeCode'], [normalized, second], clean).read(context()),
       ),
     ).toBe(JSON.stringify(result))
+  })
+  it('renders byte-identical usage reports in every format for every file order', async () => {
+    // RVCM1131 finding 1: the separator test above proves source file order
+    // is stable, but only a rendered report certifies the report. This test
+    // carries permuted agent files (distinct paths, so every collector row
+    // keeps a distinct key) through the production collector, finalizer and
+    // all four renderers, and proves a Windows-separator selection renders
+    // exactly like its normalized order.
+    const orders = [
+      [0, 1, 2],
+      [0, 2, 1],
+      [1, 0, 2],
+      [1, 2, 0],
+      [2, 0, 1],
+      [2, 1, 0],
+    ]
+    const names = ['a', 'm', 'z']
+    const collect = createReportCollector({
+      finalize: (draft) =>
+        finalizeReport({
+          ...draft,
+          header: { ...draft.header, contentHash: REPORT_EMPTY_HASH },
+        }),
+      nextStepLimit: 3,
+      selections: {
+        changes: () => unavailableSource('changesRange', 'No range evidence'),
+        changeBranches: () => unavailableSource('changeBranches', 'No branch ancestry evidence'),
+        risksSinceRelease: () => unavailableSource('risksSinceRelease', 'No revision evidence'),
+      },
+    })
+    const options = reportOptions('usage')
+    const renderFor = async (files: readonly AgentUsageFile[]) => {
+      const agentUsage = await agentUsageSource(['claudeCode'], files, clean).read(context())
+      expect(agentUsage.record.status).toBe('ok')
+      if (agentUsage.data === null) throw new Error('Missing test facts')
+      const snapshot = buildSourceSnapshot({
+        agentUsage,
+        usage: availableSource('usage', {
+          period: 'session',
+          inputTokens: 6,
+          outputTokens: 3,
+          cachedTokens: null,
+          costUsd: null,
+          certainty: 'unknown',
+          breakdown: [
+            {
+              key: 'render-a',
+              inputTokens: 1,
+              outputTokens: 1,
+              costUsd: null,
+              certainty: 'unknown',
+            },
+            {
+              key: 'render-m',
+              inputTokens: 2,
+              outputTokens: 1,
+              costUsd: null,
+              certainty: 'unknown',
+            },
+            {
+              key: 'render-z',
+              inputTokens: 3,
+              outputTokens: 1,
+              costUsd: null,
+              certainty: 'unknown',
+            },
+          ],
+          limits: [],
+        }),
+      })
+      const document = collect(snapshot, options)
+      expect(document.header.contentHash).toMatch(/^[a-f0-9]{64}$/u)
+      return {
+        source: JSON.stringify(agentUsage),
+        renders: {
+          md: RENDERERS.md(document, 'en', REPORT_THEME),
+          html: RENDERERS.html(document, 'en', REPORT_THEME),
+          json: RENDERERS.json(document, 'en', REPORT_THEME),
+          text: RENDERERS.text(document, 'en', REPORT_THEME),
+        },
+      }
+    }
+    let expected: Awaited<ReturnType<typeof renderFor>> | undefined
+    for (const order of orders) {
+      const files = order.map((step) => {
+        const source = file('claudeCode', JSON.stringify(claude()))
+        return { ...source, file: `projects/fixture/${names[step] ?? 'a'}.jsonl` }
+      })
+      const observed = await renderFor(files)
+      for (const output of Object.values(observed.renders)) {
+        expect(output).toContain('agentUsage')
+      }
+      expected ??= observed
+      expect(observed).toEqual(expected)
+    }
+    // A Windows-separator selection renders exactly like its normalized order.
+    const backslash = file('claudeCode', JSON.stringify(claude()))
+    const slashed = file('claudeCode', JSON.stringify(claude()))
+    const mixed = await renderFor([
+      { ...slashed, file: 'projects/fixture/z.jsonl' },
+      { ...backslash, file: String.raw`projects\fixture\a.jsonl` },
+      { ...slashed, file: 'projects/fixture/m.jsonl' },
+    ])
+    expect(mixed).toEqual(expected)
   })
   it('does not double-count duplicate file selections', async () => {
     const source = file('codex', JSON.stringify(codex()))
