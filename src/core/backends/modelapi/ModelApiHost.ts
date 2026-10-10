@@ -1984,6 +1984,26 @@ function toolNameOf(definition: ToolDefinition): string {
   return definition.type === 'function' ? definition.name : definition.type
 }
 
+/**
+ * The preview fields of one tool this request offered (RVCM1062C P2). Host
+ * tools carry their curated fields; an offered external (IDE/MCP) tool
+ * declares its own through its schema. A tool carrying neither renders no
+ * text, as before.
+ */
+function previewFieldsOfOfferedTool(tool: FunctionToolDefinition): readonly string[] | undefined {
+  // `in` keeps the host-only metadata read a narrowing the compiler
+  // verifies: only a definition object carrying that key takes this
+  // branch, and only a string array is honoured from it.
+  if ('previewFields' in tool) {
+    const fields: unknown = tool.previewFields
+    return Array.isArray(fields) &&
+      fields.every((field): field is string => typeof field === 'string')
+      ? fields
+      : undefined
+  }
+  return declaredPreviewFields(tool)
+}
+
 function childStateLabel(state: SubagentState): string {
   switch (state) {
     case 'queued': {
@@ -2648,6 +2668,12 @@ export class ModelApiSession implements ScheduledAgentSession {
   private packedBaseline = 0
   private sendingModel: ResolvedModel | undefined
   private sendingImageCount = 0
+  /**
+   * The preview fields of the tools the request in flight offered, by
+   * function name (RVCM1062C P2): a streamed call for any other name
+   * renders a byte count only, never field text.
+   */
+  private offeredPreviewFields = new Map<string, readonly string[]>()
   private readonly resolvedModels = new Map<string, ResolvedModel>()
   private readonly modelKeyDigests = new Map<string, string>()
 
@@ -2896,6 +2922,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (!model.isCurrent()) throw new Error(UI_TEXT.scheduleConfirmationExpired)
     }
     this.resolvedModels.set(ref, model)
+    // A newly resolved record replaces whatever an earlier request built
+    // from before it: drop the cached output maximum so the next request
+    // binds the selected record's cap, not the legacy one (RVCM1062C P2).
+    this.outputCaps.delete(ref)
     return model
   }
 
@@ -3748,6 +3778,15 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.wasCallSent = false
     this.hasAmbiguousCallAttempt = false
     this.packedBaseline = this.packing?.savings() ?? 0
+    // Snapshot what this request offered: the streamed preview may only
+    // read field text from these tools, never the full catalogues.
+    const offered = new Map<string, readonly string[]>()
+    for (const tool of body.tools) {
+      if (tool.type !== 'function') continue
+      const fields = previewFieldsOfOfferedTool(tool)
+      if (fields !== undefined) offered.set(tool.name, fields)
+    }
+    this.offeredPreviewFields = offered
     const parentKind = this.isSideChat ? 'sideChat' : (this.deps.usageKind ?? 'turn')
     const kind = this.isSubagent ? 'subagent' : parentKind
     this.recordedCall = {
@@ -5579,21 +5618,14 @@ export class ModelApiSession implements ScheduledAgentSession {
             ourId: this.deps.newId(),
             kind: 'argumentPreview',
             call: item,
-            // Host tools name their preview fields; an offered IDE or MCP
-            // tool declares its own (RVCM1062B: the captured get_weather
-            // call's city/unit render from its declaration). A tool the
-            // request never offered stays textless, as before.
-            preview: new ArgumentPreview(
-              toolDefinitions(this.deps.platform, {
-                hasShell: true,
-                hasSkills: false,
-                hasWebFetch: true,
-              }).find((tool) => tool.name === item.name)?.previewFields ??
-                declaredPreviewFields(
-                  this.ideDefinitions().find((tool) => tool.name === item.name) ??
-                    this.deps.mcpServers?.definitions().find((tool) => tool.name === item.name),
-                ),
-            ),
+            // Preview text comes only from the tools this request offered
+            // (RVCM1062C P2): host tools name their curated fields and an
+            // offered IDE or MCP tool declares its own (RVCM1062B: the
+            // captured get_weather call's city/unit render from its
+            // declaration). A tool the request never offered — allowlisted
+            // out, untrusted away, or never declared — stays textless and
+            // shows a byte count only, as the README documents.
+            preview: new ArgumentPreview(this.offeredPreviewFields.get(item.name)),
             text: '',
             summary: [],
             isCompleted: false,
@@ -14178,13 +14210,26 @@ export class ModelApiSession implements ScheduledAgentSession {
       const attempt = budget.retriesUsed + 1
       try {
         await unlessStopped(this.refreshBudgetSpend(), signal)
+        // Bind the selected record before any request is built from it:
+        // a body built first would compute (and cache) the legacy output
+        // maximum while the stash is still empty, and the builders below
+        // require the record resolved (RVCM1062C P2).
+        await unlessStopped(this.resolveModel(), signal)
         await unlessStopped(
           this.beforeModelCall(turnId, makeBody(), requestId, attempt, 0, signal),
           signal,
         )
         await unlessStopped(this.refreshBudgetSpend(), signal)
-        const body = makeBody()
-        const resolved = await this.resolveModel(body.model)
+        const provisional = makeBody()
+        const resolved = await this.resolveModel(provisional.model)
+        let body = provisional
+        if (provisional.model !== this.modelId) {
+          // A side voice owns this request's model: its record resolved
+          // only now, after the provisional body was built, so build the
+          // sent body again on the resolved record.
+          this.outputCaps.delete(provisional.model)
+          body = makeBody()
+        }
         const revision = this.modelRevision
         const chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
         let text = ''
@@ -15705,6 +15750,10 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     this.modelId = modelId
     this.modelRevision += 1
+    // The selection changed: a cached maximum for this id predates the
+    // newly selected record, so the next request recomputes it (RVCM1062C
+    // P2). The resolve below drops it again once the record lands.
+    this.outputCaps.delete(modelId)
     const revision = this.modelRevision
     if (modelId.includes('/')) await this.resolveModel(modelId)
     if (revision !== this.modelRevision) throw new AbortedError()
