@@ -59,7 +59,16 @@ export function nativeCapabilityEvidence(
     read(numeric, 'context_window') ??
     read(numeric, 'max_context_length') ??
     read(numeric, 'inputTokenLimit') ??
-    read(numeric, 'max_input_tokens')
+    read(numeric, 'max_input_tokens') ??
+    // Local servers (captured 2026-10-10, C-M95-4 R2): llama.cpp lists the
+    // live `--ctx-size` window as `meta.n_ctx` with the trained window in
+    // `meta.n_ctx_train`, and vLLM uses `max_model_len`. Without these a
+    // scanned local model keeps an unknown window and manual compact
+    // assumes Meta's window.
+    read(numeric, 'meta', 'n_ctx') ??
+    read(numeric, 'meta', 'n_ctx_train') ??
+    read(numeric, 'max_model_len') ??
+    read(numeric, 'n_ctx')
   const maxOutput =
     read(numeric, 'limit', 'output') ??
     read(numeric, 'max_tokens') ??

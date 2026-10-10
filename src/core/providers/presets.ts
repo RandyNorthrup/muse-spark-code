@@ -223,6 +223,32 @@ export interface ProviderPreset {
   readonly quirks: Partial<FormatQuirks>
   /** The preset's own wire capture is recorded (rule 13). */
   readonly wireCapture: boolean
+  /**
+   * The exact server build the quirks were captured against (C-M95-4 R2,
+   * local presets only; from the capture ledgers). The models lists carry
+   * no version, so this stamps what was proven, not what is assumed.
+   */
+  readonly capturedBuild?: string | undefined
+}
+
+/** Which reasoning field a preset's assistant messages replay (C-M95-4 R2). */
+export type PresetReplayField = 'details' | 'content' | 'none'
+
+/**
+ * The reasoning field a preset replays on its assistant messages. A local
+ * server carries no version on the wire, so a build older or newer than
+ * the capture may not understand the captured replay field: local presets
+ * never replay thinking (fail closed). Display is unaffected — the chat
+ * decoder still reads every reasoning field, and a mistranslated replay
+ * would otherwise be dropped silently or refused loudly mid-turn.
+ */
+export function replayFieldFor(preset: ProviderPreset): PresetReplayField {
+  let field: PresetReplayField = 'none'
+  if (preset.category !== 'local') {
+    if (preset.quirks.reasoningField === 'reasoning_details') field = 'details'
+    else if (preset.quirks.reasoningField === 'reasoning_content') field = 'content'
+  }
+  return field
 }
 
 /** A preset's effective quirks: its format's defaults plus its overrides. */
@@ -694,6 +720,7 @@ const LMSTUDIO_PRESET: ProviderPreset = {
     cachedUsageFields: [],
   },
   wireCapture: true,
+  capturedBuild: 'llmster 0.0.25-1',
 }
 
 const VLLM_PRESET: ProviderPreset = {
@@ -733,7 +760,9 @@ const LLAMACPP_PRESET: ProviderPreset = {
   keyShape: { kind: 'any', minLength: 1 },
   keyHint: '',
   keyTest: { kind: 'models-list' },
-  // `/props` gives `n_ctx`; `/v1/models` gives `meta.n_ctx_train`.
+  // `/v1/models` gives the live window as `meta.n_ctx` (`--ctx-size`)
+  // with the trained window in `meta.n_ctx_train`; `/props` repeats
+  // `n_ctx` in `default_generation_settings`.
   modelsList: { path: '/v1/models', windowField: 'n_ctx', priceSource: 'none-local' },
   quirks: {
     outputCapParam: 'max_tokens',
@@ -745,6 +774,7 @@ const LLAMACPP_PRESET: ProviderPreset = {
     cachedUsageFields: ['prompt_tokens_details.cached_tokens'],
   },
   wireCapture: true,
+  capturedBuild: 'b11541 (0.6.0-dev, commit f2918cabb)',
 }
 
 const CUSTOM_PRESET: ProviderPreset = {

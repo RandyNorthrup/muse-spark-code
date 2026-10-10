@@ -12,9 +12,13 @@
 // the probe's targets always name 127.0.0.1 literally.
 
 import { request as httpRequest } from 'node:http'
-import { LOOPBACK_FETCH_DEFAULT_PORT, LOOPBACK_FETCH_MAX_BODY_BYTES } from '../../shared/constants'
+import {
+  LOOPBACK_FETCH_DEFAULT_PORT,
+  LOOPBACK_FETCH_MAX_BODY_BYTES,
+  LOOPBACK_FETCH_NULL_BODY_STATUSES,
+} from '../../shared/constants'
 
-/** The only hosts this fetch ever dials. */
+/** The only hosts this fetch ever dials (brackets stripped: see below). */
 const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(['127.0.0.1', '::1'])
 
 /** Why a loopback fetch was refused before any connection. */
@@ -47,7 +51,11 @@ export function fetchLoopback(
   if (parsed.protocol !== 'http:') {
     return refuse(`a ${parsed.protocol} URL`)
   }
-  if (!LOOPBACK_HOSTS.has(parsed.hostname)) {
+  // Node keeps the brackets in an IPv6 URL's hostname (`[::1]`), so strip
+  // them before the allowlist check or every `http://[::1]/...` probe is
+  // refused before connect (C-M95-4 R2).
+  const host = parsed.hostname.replaceAll(/^\[|\]$/g, '')
+  if (!LOOPBACK_HOSTS.has(host)) {
     return refuse(`a non-loopback host (${parsed.hostname})`)
   }
   if (parsed.username !== '' || parsed.password !== '') {
@@ -60,9 +68,27 @@ export function fetchLoopback(
   }
   const port = parsed.port === '' ? LOOPBACK_FETCH_DEFAULT_PORT : Number(parsed.port)
   return new Promise<Response>((resolve, reject) => {
+    // Every path below settles the promise exactly once through `settle`:
+    // nothing here may throw or reject outside it, or the probe hangs
+    // until its timeout (C-M95-4 R2: a 204's empty body used to throw in
+    // the `'end'` handler, past `isSettled = true`, unsettled forever).
+    let isSettled = false
+    const settle = (run: () => void): void => {
+      if (isSettled) {
+        return
+      }
+      isSettled = true
+      run()
+    }
+    const fail = (error: Error): void => {
+      settle(() => {
+        request.destroy()
+        reject(error)
+      })
+    }
     const request = httpRequest(
       {
-        host: parsed.hostname,
+        host,
         port,
         path: `${parsed.pathname}${parsed.search}`,
         method: 'GET',
@@ -70,21 +96,11 @@ export function fetchLoopback(
       (incoming) => {
         const status = incoming.statusCode
         if (status === undefined) {
-          request.destroy()
-          reject(new Error('loopback fetch refuses a response without a status'))
+          fail(new Error('loopback fetch refuses a response without a status'))
           return
         }
         const chunks: Buffer[] = []
         let size = 0
-        let isSettled = false
-        const fail = (error: Error): void => {
-          if (isSettled) {
-            return
-          }
-          isSettled = true
-          request.destroy()
-          reject(error)
-        }
         incoming.on('data', (chunk: Buffer) => {
           size += chunk.byteLength
           if (size > LOOPBACK_FETCH_MAX_BODY_BYTES) {
@@ -98,28 +114,49 @@ export function fetchLoopback(
           chunks.push(chunk)
         })
         incoming.on('end', () => {
-          if (isSettled) {
+          let response: Response
+          try {
+            const headers = new Headers()
+            for (const [name, value] of Object.entries(incoming.headers)) {
+              if (Array.isArray(value)) {
+                for (const item of value) {
+                  headers.append(name, item)
+                }
+              } else if (value !== undefined) {
+                headers.set(name, value)
+              }
+            }
+            // A null-body status with a body throws; an empty buffer is
+            // still a body, so these answers ride `null` (C-M95-4 R2).
+            const body = LOOPBACK_FETCH_NULL_BODY_STATUSES.includes(status)
+              ? null
+              : Buffer.concat(chunks)
+            response = new Response(body, { status, headers })
+          } catch (error) {
+            const cause =
+              error instanceof Error
+                ? error
+                : new Error('loopback fetch refuses an unreadable answer')
+            fail(cause)
             return
           }
-          isSettled = true
-          resolve(
-            new Response(Buffer.concat(chunks), {
-              status,
-              headers: incoming.headers as Record<string, string>,
-            }),
-          )
+          settle(() => {
+            resolve(response)
+          })
         })
         incoming.on('error', fail)
       },
     )
-    request.on('error', (error: Error) => {
-      reject(error)
-    })
+    request.on('error', fail)
     const signal = init?.signal
     if (signal !== undefined && signal !== null) {
       const abort = (): void => {
-        request.destroy()
-        reject(signal.reason instanceof Error ? signal.reason : new Error('loopback fetch aborted'))
+        settle(() => {
+          request.destroy()
+          reject(
+            signal.reason instanceof Error ? signal.reason : new Error('loopback fetch aborted'),
+          )
+        })
       }
       if (signal.aborted) {
         abort()
