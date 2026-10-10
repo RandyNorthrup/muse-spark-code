@@ -2959,20 +2959,21 @@ export const EN = {
   announceQuestion: 'Muse asked a question',
   announceResumed: 'Conversation resumed',
   // Voice dictation (M9).
-  linuxDictationDownloadTitle: 'Download the offline English dictation model ({size})?',
+  linuxDictationDownloadTitle:
+    'Download the offline English dictation helper ({helperSize}) and model ({size})?',
   linuxDictationDownloadDetail:
-    'Whisper tiny.en is free and recognizes English on this computer, using only the CPU. Download from huggingface.co into {location}. Audio stays in memory. Turn linuxDictationModel off to stop dictation and remove the model.',
+    'Whisper tiny.en is free and recognizes English on this computer, using only the CPU. Download the helper from the extension release assets and the model from huggingface.co into {location}. Audio stays in memory. Turn linuxDictationModel off to stop dictation and remove the helper and model.',
   linuxDictationIntegrity:
-    'The dictation model failed its size or SHA-256 check. No recognition started.',
+    'The dictation helper or model failed its size or SHA-256 check. No recognition started.',
   linuxDictationBusy:
-    'Another window is using the dictation model. Stop its recording or download and try again.',
+    'Another window is using the dictation helper or model. Stop its recording or download and try again.',
   linuxDictationRemoved:
-    'Linux dictation is off and its model is removed. Turn linuxDictationModel on and reload the window to enable it.',
+    'Linux dictation is off and its helper and model are removed. Turn linuxDictationModel on and reload the window to enable it.',
   linuxDictationRemoveFailed:
-    'The offline dictation model could not be removed. Check storage permissions and stop downloads in other windows, then reload this window to retry.',
+    'The offline dictation helper or model could not be removed. Check storage permissions and stop downloads in other windows, then reload this window to retry.',
   linuxDictationFailed: 'Linux dictation failed',
   linuxDictationDownloadFailed:
-    'The dictation model could not be downloaded. Press the microphone to retry; an interrupted download can resume.',
+    'The dictation helper or model could not be downloaded. Press the microphone to retry; an interrupted download can resume.',
   dictationTitle: 'Tap or hold to record (Ctrl+D)',
   dictationStopTitle: 'Stop recording (Ctrl+D)',
   dictationLabel: 'Record voice',
@@ -2981,7 +2982,7 @@ export const EN = {
   dictationFailed: 'Voice dictation failed',
   dictationUnavailable: 'Voice dictation is not available on this platform.',
   dictationUnavailableLinux:
-    'Linux dictation needs the bundled x64 or arm64 helper and PulseAudio or PipeWire with PulseAudio support.',
+    'Linux dictation needs an x64 or arm64 computer with PulseAudio or PipeWire running.',
   dictationUnavailableWindows:
     'Voice dictation needs Windows PowerShell, which was not found (SystemRoot is not set).',
   dictationUnavailableDarwin:

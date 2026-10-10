@@ -105,6 +105,12 @@ export function createDictationSetup(
                   fetch,
                   consent: async (signal) => await canDownloadLinuxModel(directory, signal),
                 },
+                helper: {
+                  directory,
+                  fetch,
+                  consent: async (signal) => await canDownloadLinuxModel(directory, signal),
+                  arch: process.arch,
+                },
               },
               UI_TEXT,
               uiLocale(),
@@ -171,8 +177,13 @@ async function canDownloadLinuxModel(directory: string, signal: AbortSignal): Pr
   if (signal.aborted) return false
   const download = { title: UI_TEXT.browserRuntimeDownload }
   const decline = { title: UI_TEXT.browserRuntimeNotNow, isCloseAffordance: true }
+  // One card for both downloads (PLAN.md D106): the helper's size is the
+  // measured first-download approximation; the pins enforce exact sizes.
   const asked = window.showInformationMessage(
-    fill(UI_TEXT.linuxDictationDownloadTitle, { size: formatBytes(LINUX_DICTATION.bytes) }),
+    fill(UI_TEXT.linuxDictationDownloadTitle, {
+      helperSize: `~${formatBytes(LINUX_DICTATION.helperDownloadBytes)}`,
+      size: formatBytes(LINUX_DICTATION.bytes),
+    }),
     { modal: true, detail: fill(UI_TEXT.linuxDictationDownloadDetail, { location: directory }) },
     download,
     decline,

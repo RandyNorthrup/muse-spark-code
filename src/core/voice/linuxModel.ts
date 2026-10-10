@@ -17,6 +17,14 @@ export interface LinuxModelDeps {
   readonly pin?: LinuxModelPin
 }
 
+/** One pinned file inside a download directory: the model or a helper file. */
+export interface LinuxPinnedTarget extends LinuxModelPin {
+  readonly file: string
+  readonly partial: string
+  /** Owner-only for data; executable for the helper binary. */
+  readonly mode: number
+}
+
 function isMissing(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === 'ENOENT'
 }
@@ -28,18 +36,25 @@ async function removeFile(file: string): Promise<void> {
   }
 }
 
-/** Shared on-disk acquisition: a crash leaves resumable bytes, never a usable unchecked model. */
-export class LinuxDictationModel {
-  private readonly partial: string
-  private readonly lock: string
-  private readonly pin: LinuxModelPin
-  public readonly modelPath: string
+export interface PinnedDownloadDeps {
+  readonly directory: string
+  readonly fetch: typeof fetch
+}
 
-  public constructor(private readonly deps: LinuxModelDeps) {
-    this.modelPath = path.join(deps.directory, LINUX_DICTATION.modelFile)
-    this.partial = path.join(deps.directory, LINUX_DICTATION.partialFile)
+/**
+ * One pinned download: a crash leaves resumable bytes, never usable
+ * unchecked bytes. The model and every helper file share this path, and
+ * one lock directory per folder, so their integrity, redirect, resume and
+ * ownership behaviour stay identical.
+ */
+export class PinnedFileDownload {
+  private readonly lock: string
+
+  public constructor(
+    private readonly deps: PinnedDownloadDeps,
+    private readonly target: LinuxPinnedTarget,
+  ) {
     this.lock = path.join(deps.directory, LINUX_DICTATION.lockDirectory)
-    this.pin = deps.pin ?? LINUX_DICTATION
   }
 
   private async acquire(): Promise<() => Promise<void>> {
@@ -100,21 +115,21 @@ export class LinuxDictationModel {
     }
     try {
       const info = await handle.stat()
-      if (!info.isFile() || info.size !== this.pin.bytes) return false
+      if (!info.isFile() || info.size !== this.target.bytes) return false
       const hash = createHash('sha256')
       const stream = handle.createReadStream({ autoClose: false })
       for await (const chunk of stream) {
         signal.throwIfAborted()
         hash.update(z.instanceof(Buffer).parse(chunk))
       }
-      return hash.digest('hex') === this.pin.sha256
+      return hash.digest('hex') === this.target.sha256
     } finally {
       await handle.close()
     }
   }
 
   private async response(offset: number, signal: AbortSignal): Promise<Response> {
-    let url = this.pin.url
+    let url = this.target.url
     for (let hop = 0; hop <= LINUX_DICTATION.redirectLimit; hop += 1) {
       const target = new URL(url)
       if (target.protocol !== 'https:' || target.username !== '' || target.password !== '')
@@ -137,29 +152,37 @@ export class LinuxDictationModel {
     throw new Error(UI_TEXT.linuxDictationDownloadFailed)
   }
 
-  public async ensure(signal: AbortSignal): Promise<string | undefined> {
+  public async ensure(
+    canDownload: (signal: AbortSignal) => Promise<boolean>,
+    signal: AbortSignal,
+  ): Promise<string | undefined> {
     signal.throwIfAborted()
     const release = await this.acquire()
     try {
-      if (await this.matches(this.modelPath, signal)) return this.modelPath
-      await removeFile(this.modelPath)
-      if (!(await this.deps.consent(signal))) return undefined
+      const installed = path.join(this.deps.directory, this.target.file)
+      const partial = path.join(this.deps.directory, this.target.partial)
+      if (await this.matches(installed, signal)) {
+        await removeFile(partial)
+        return installed
+      }
+      await removeFile(installed)
+      if (!(await canDownload(signal))) return undefined
       signal.throwIfAborted()
       const handle = await open(
-        this.partial,
+        partial,
         constants.O_RDWR | constants.O_CREAT | constants.O_NOFOLLOW,
-        LINUX_DICTATION.fileMode,
+        this.target.mode,
       )
       try {
-        await handle.chmod(LINUX_DICTATION.fileMode)
+        await handle.chmod(this.target.mode)
         const info = await handle.stat()
         if (!info.isFile()) throw new Error(UI_TEXT.linuxDictationIntegrity)
         let offset = info.size
-        if (offset > this.pin.bytes) {
+        if (offset > this.target.bytes) {
           await handle.truncate(0)
           offset = 0
         }
-        if (offset !== this.pin.bytes) {
+        if (offset !== this.target.bytes) {
           const response = await this.response(offset, signal)
           const status = z.number().parse(response.status)
           if (status === LINUX_DICTATION.statusOk) {
@@ -169,13 +192,13 @@ export class LinuxDictationModel {
             offset === 0 ||
             status !== LINUX_DICTATION.statusPartial ||
             response.headers.get('content-range') !==
-              `bytes ${String(offset)}-${String(this.pin.bytes - 1)}/${String(this.pin.bytes)}`
+              `bytes ${String(offset)}-${String(this.target.bytes - 1)}/${String(this.target.bytes)}`
           ) {
             await response.body?.cancel()
             throw new Error(UI_TEXT.linuxDictationDownloadFailed)
           }
           const length = response.headers.get('content-length')
-          if (length !== null && Number(length) !== this.pin.bytes - offset) {
+          if (length !== null && Number(length) !== this.target.bytes - offset) {
             await response.body?.cancel()
             throw new Error(UI_TEXT.linuxDictationIntegrity)
           }
@@ -187,7 +210,7 @@ export class LinuxDictationModel {
               const part = await reader.read()
               if (part.done) break
               const bytes = z.instanceof(Uint8Array).parse(part.value)
-              if (offset + bytes.byteLength > this.pin.bytes)
+              if (offset + bytes.byteLength > this.target.bytes)
                 throw new Error(UI_TEXT.linuxDictationIntegrity)
               let written = 0
               while (written < bytes.byteLength) {
@@ -206,19 +229,19 @@ export class LinuxDictationModel {
             await reader.cancel()
             reader.releaseLock()
           }
-          if (offset !== this.pin.bytes) throw new Error(UI_TEXT.linuxDictationDownloadFailed)
+          if (offset !== this.target.bytes) throw new Error(UI_TEXT.linuxDictationDownloadFailed)
         }
         await handle.sync()
       } finally {
         await handle.close()
       }
-      if (!(await this.matches(this.partial, signal))) {
-        await removeFile(this.partial)
+      if (!(await this.matches(partial, signal))) {
+        await removeFile(partial)
         throw new Error(UI_TEXT.linuxDictationIntegrity)
       }
       signal.throwIfAborted()
-      await rename(this.partial, this.modelPath)
-      return this.modelPath
+      await rename(partial, installed)
+      return installed
     } finally {
       await release()
     }
@@ -227,10 +250,37 @@ export class LinuxDictationModel {
   public async remove(): Promise<void> {
     const release = await this.acquire()
     try {
-      await removeFile(this.modelPath)
-      await removeFile(this.partial)
+      await removeFile(path.join(this.deps.directory, this.target.file))
+      await removeFile(path.join(this.deps.directory, this.target.partial))
     } finally {
       await release()
     }
+  }
+}
+
+/** Shared on-disk acquisition: a crash leaves resumable bytes, never a usable unchecked model. */
+export class LinuxDictationModel {
+  private readonly download: PinnedFileDownload
+  public readonly modelPath: string
+
+  public constructor(private readonly deps: LinuxModelDeps) {
+    const pin = deps.pin ?? LINUX_DICTATION
+    this.modelPath = path.join(deps.directory, LINUX_DICTATION.modelFile)
+    this.download = new PinnedFileDownload(deps, {
+      file: LINUX_DICTATION.modelFile,
+      partial: LINUX_DICTATION.partialFile,
+      bytes: pin.bytes,
+      sha256: pin.sha256,
+      url: pin.url,
+      mode: LINUX_DICTATION.fileMode,
+    })
+  }
+
+  public async ensure(signal: AbortSignal): Promise<string | undefined> {
+    return await this.download.ensure(this.deps.consent, signal)
+  }
+
+  public async remove(): Promise<void> {
+    await this.download.remove()
   }
 }

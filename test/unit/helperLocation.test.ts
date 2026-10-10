@@ -90,9 +90,9 @@ describe('locateDictationHelper', () => {
     expect(missing.isAvailable ? '' : missing.reason).toContain('native/darwin/muse-dictate')
   })
 
-  it('locates only the bundled Linux architecture with a fixed model argument', () => {
+  it('locates the downloaded Linux helper beside the model before any download', () => {
     for (const arch of ['x64', 'arm64']) {
-      const command = path.join(helperDir, 'linux', arch, 'muse-dictate')
+      const command = path.join('/storage', LINUX_DICTATION.helperBinary)
       const location = locateDictationHelper({
         ...local,
         platform: 'linux',
@@ -100,14 +100,8 @@ describe('locateDictationHelper', () => {
         helperDir,
         arch,
         linuxModelPath: '/storage/model.bin',
-        fileExists: (file) =>
-          [
-            command,
-            ...[
-              ...LINUX_DICTATION.libraries,
-              LINUX_DICTATION.baseline[arch === 'x64' ? 'x64' : 'arm64'],
-            ].map((name) => path.join(path.dirname(command), name)),
-          ].includes(file),
+        // Nothing is bundled: availability never depends on files on disk.
+        fileExists: () => false,
       })
       expect(location).toEqual({
         isAvailable: true,
@@ -130,12 +124,8 @@ describe('locateDictationHelper', () => {
       locateDictationHelper({ ...probe, arch: 'ia32', fileExists: () => true }).isAvailable,
     ).toBe(false)
     expect(
-      locateDictationHelper({ ...probe, arch: 'x64', fileExists: (file) => !file.endsWith('.so') })
-        .isAvailable,
-    ).toBe(false)
-    expect(
-      locateDictationHelper({ ...probe, arch: 'x64', fileExists: () => false }).isAvailable,
-    ).toBe(false)
+      locateDictationHelper({ ...probe, arch: 'x64', fileExists: () => true }).isAvailable,
+    ).toBe(true)
     expect(
       locateDictationHelper({ ...probe, arch: 'x64', remoteName: 'ssh', fileExists: () => true })
         .isAvailable,

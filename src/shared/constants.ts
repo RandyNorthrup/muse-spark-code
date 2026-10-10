@@ -7877,7 +7877,13 @@ export const LINUX_DICTATION = {
   redirects: [301, 302, 303, 307, 308],
   directoryMode: 0o700,
   fileMode: 0o600,
+  helperMode: 0o755,
   setting: 'linuxDictationModel',
+  helperBinary: 'muse-dictate',
+  // Approximate first-download bytes shown on the consent card (measured
+  // x64 inventory, 2026-10-10; arm64 is similar). The pins enforce the
+  // exact per-file sizes at download; this is display only.
+  helperDownloadBytes: 7_623_768,
   sampleRate: 16_000,
   framesPerSecond: 5,
   phraseSeconds: 10,

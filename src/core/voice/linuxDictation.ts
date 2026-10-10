@@ -1,9 +1,11 @@
 import { Dictation, type DictationDeps, type DictationHandle } from './dictation'
+import { LinuxDictationHelper, type LinuxHelperDeps } from './linuxHelper'
 import { LinuxDictationModel, type LinuxModelDeps } from './linuxModel'
 import { LINUX_DICTATION, UI_TEXT } from '../../shared/constants'
 
 export interface LinuxDictationDeps extends DictationDeps {
   readonly model: LinuxModelDeps
+  readonly helper: LinuxHelperDeps
   readonly isEnabled: () => boolean
 }
 
@@ -38,8 +40,29 @@ export class LinuxDictation implements DictationHandle {
     this.deps.listener.onStatus('starting')
     this.pending = (async () => {
       try {
-        const model = await new LinuxDictationModel(this.deps.model).ensure(signal)
-        if (signal.aborted || this.isDisposed || !this.deps.isEnabled()) return
+        // One card for both downloads: the first consent answer covers the
+        // helper and the model for this press (PLAN.md D106).
+        let granted: boolean | undefined
+        const canDownload = async (child: AbortSignal): Promise<boolean> => {
+          granted ??= await this.deps.model.consent(child)
+          return granted
+        }
+        const isCancelled = (): boolean =>
+          signal.aborted || this.isDisposed || !this.deps.isEnabled()
+        const helper = await new LinuxDictationHelper({
+          ...this.deps.helper,
+          consent: canDownload,
+        }).ensure(signal)
+        if (isCancelled()) return
+        if (helper === undefined) {
+          this.deps.listener.onStatus('idle')
+          return
+        }
+        const model = await new LinuxDictationModel({
+          ...this.deps.model,
+          consent: canDownload,
+        }).ensure(signal)
+        if (isCancelled()) return
         if (model === undefined) {
           this.deps.listener.onStatus('idle')
           return
