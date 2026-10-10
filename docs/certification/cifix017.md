@@ -1083,3 +1083,126 @@ and each step first waits for them (a request open 15 s fails the scene
 instead of hanging the job); the 100-step bound now counts frozen-clock time
 only. The routes continue to localhost or abort, so every request finishes.
 Pages that are not tracked (the `visualReadiness` unit case) behave as before.
+
+## Question field spacing (2026-10-10)
+
+Kubuntu, Chrome 150.0.7871.186; capture source
+`fb7a3f005b32756f98280988725e0edf0396b424`, review
+`owner-2026-10-10-question-field-gap`. The old manifest names `6636c84be`.
+The complete old/new archive comparison verifies all **9,792 frames** and
+finds **144 over-allowance frames in exactly two scenes: `question` and
+`question-filled`**, 72 each (six themes, both widths, all six states).
+The remaining frames have seventeen counted pixels total, at most one per
+image, within the unchanged policy. Dimensions, renderer coverage, targets,
+applied states and rasterization are unchanged. Reviewed light, dark and
+high-contrast images show the added spacing and the stretched answer field.
+
+- `npm run check:visual` before refresh exits 1 at
+  `panel/question/default/light/320`: 8,512 changed pixels, allowance 12.
+  A separate 136-scene light/320 default-state comparison confirms only the
+  two question scenes differ before updating.
+- `npm run check:visual -- --update --review=owner-2026-10-10-question-field-gap
+--archive=/var/tmp/l-VQGOLD/vqgold-question-field-gap-2026-10-10` exits 0:
+  9,792 PNGs, **446,957,226 bytes**, below 512 MiB and outside Git.
+- `npm run readme:shots -- --only question,open-question` exits 0. Only
+  `media/readme/question.png` and `media/readme/open-question.png` are
+  regenerated and reviewed; the focused field clears Other and the buttons.
+  The complete README media set is **1,504,458 / 2,097,152 bytes**.
+- Existing freshness guards first fail on the QuestionCard source hash and
+  README pixel-input digest (two failures, 34 passes). After capture, refresh
+  only the two stale current audit hashes (QuestionCard and styles.css) and
+  the README digest; all freshness assertions pass below.
+
+All unit commands use repository timeouts on this rig:
+
+| Command (`npx vitest run … --maxWorkers=3`)                                                              | Result                                                                                                |
+| -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `test/unit/visualCapture.test.mjs test/unit/visualStability.test.mjs test/unit/visualReadiness.test.mjs` | 15/15 pass. An initial setup terminated with exit 143 before reporting tests; unchanged retry passes. |
+| `test/unit/m114Panel.test.mjs test/unit/m114Audit.test.mjs test/unit/readmeShots.test.mjs`               | 95/95 pass, including 71 panel cases and the focus-ring regression.                                   |
+| `test/unit/visualGate.test.mjs test/unit/m114PanelEvidence.test.mjs`                                     | 14/14 pass.                                                                                           |
+
+`npm run typecheck` (all five projects), changed-file ESLint, plain knip,
+`npx jscpd` (zero clones), localization, tokens, host API, reference, plan and
+roadmap checks all exit 0. `npm run build` exits 0 with every existing cap:
+extension **550.1 / 600 KiB**, Model API **515.8 / 525 KiB**, checkpoint store
+**87.3 / 225 KiB**. Aggregate quality remains lead-owned under the rig brief.
+No new gate or test is introduced; the initial visual and freshness failures
+prove the existing guards fire. The parent spacing fix's browser regression
+is retained and passes at default timeouts.
+
+**Initial final visual verification was blocked.** The first post-update
+`npm run check:visual` stops because `slash-commands` does not mount
+`src/webview/components/SlashMenu.tsx` (no page errors). After the browser
+suites finish, the serial rerun passes that scene but exits 1 at
+`tasks/tasks-tab/default/dark/320`: **Visual state coverage changed**.
+This is outside the question-card change. Stop under the brief's unrelated
+scene rule; do not change its baseline, parser or capture policy. The reviewed
+manifest, two README images and freshness records were left uncommitted for
+the lead's decision. Logs: `temp/vqgold-visual-after.log` and
+`temp/vqgold-visual-after-serial.log`; complete old/new review:
+`temp/vqgold-full-review.json`. Text-file Prettier and `git diff --check` pass.
+
+**VQGOLD round 2, lead decision (2026-10-10).** The lead accepts the reviewed
+question-card baseline files above and explicitly requests their hooks-on
+commit. Investigate the tasks-tab mismatch separately by repeating visual
+shard 2/6 twice in a clean worktree at unchanged main `82d50d5e4`, in this
+same environment. Do not update any further scene baseline or capture policy.
+Aggregate quality and hosted qualification remain lead-owned.
+Before committing, reran the complete `m114Panel`, `m114Audit` and
+`readmeShots` suites: **95/95 pass** at repository timeouts (45.18 s).
+Changed-file ESLint, four-file Prettier and `git diff --check` also pass.
+
+### Tasks-tab controls — VQGOLD round 2 (2026-10-10)
+
+Baseline files committed with installed hooks as `1df6c04b6`:
+the manifest, both README question images, audit hashes, README fingerprint
+and this certification. lint-staged and gitleaks pass; staged and committed
+diffs were reread after the hook.
+
+Created a detached main worktree at
+`82d50d5e456d17205623064b0a70caf8a6e34471` under
+`$TMPDIR/vqgold-main-82d50d5e4-round2`, without the spacing fix. Both final
+controls start with empty `git status --porcelain`, and the worktree remains
+clean afterwards. Dependencies resolve through a symlink in its private
+parent, outside the worktree; the shared install is unchanged. An initial
+setup replay also passes, but is supplementary because its dependency
+symlink was moved out of the worktree after launch and before capture.
+
+Ran the same supported command in main twice, then in this branch at
+`1df6c04b6`: `npm run check:visual -- --shard=2/6`. This shard contains
+`tasks/tasks-tab/default/dark/320` and all six states of tasks-tab at both
+dark-theme widths. Trimmed final output:
+
+| Worktree / run | Exit | Output                                                                                          |
+| -------------- | ---- | ----------------------------------------------------------------------------------------------- |
+| Main / 2       | 0    | `visual: 1632 captures passed; 3 changed pixels within per-image tolerance; manifest unchanged` |
+| Main / 3       | 0    | `visual: 1632 captures passed; 3 changed pixels within per-image tolerance; manifest unchanged` |
+| Branch / 1     | 0    | `visual: 1632 captures passed; 0 changed pixels within per-image tolerance; manifest unchanged` |
+
+All three receipts use Chrome **150.0.7871.186**, Linux, the same recorded
+rasterization fingerprint, and the unchanged pixel policy. None reconstructs
+the baseline; each verifies and uses its existing reviewed archive. Main's
+maximum changed pixels per image is one. The branch manifest's SHA-256 is
+unchanged across its check.
+
+**Verdict: not reproduced in the requested shard.** Neither a failure on
+unchanged main nor a branch-only failure occurs. The prior whole-matrix
+capture-state error remains unexplained; these controls do not establish an
+environmental root cause or an effect of the question fix on the tasks tab.
+TasksApp, main.tsx, the capture implementation, harness HTML and visual matrix
+are byte-identical between main and this branch. All 72 tasks-tab coverage
+rows retain identical dimensions, component lists, targets and applied states.
+The product diff adds only QuestionCard's body class and CSS under that class.
+No further baseline or capture-policy update is made. Whole-matrix and
+aggregate release qualification remain lead-owned.
+
+The visual commands' production builds pass their existing caps: extension
+**550.1 / 600 KiB**, Model API **515.8 / 525 KiB**, checkpoint store
+**87.3 / 225 KiB**. No new gate or test is added; the earlier red visual and
+freshness checks remain the guard-fire evidence.
+
+Exact logs and receipts are retained in this lane's ignored `temp/`:
+`vqgold-round2-main-visual-{2,3}.log`, matching `.exit` and `.receipt.json`
+files, and `vqgold-round2-branch-visual-1.*`. The source comparison and complete
+receipts are also collected in `vqgold-round2-summary.json`. The temporary
+main worktree and dependency symlink are removed after preserving these files.
