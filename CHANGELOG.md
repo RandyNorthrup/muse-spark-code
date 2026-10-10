@@ -32,6 +32,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- ACP sessions open and run normally without account metadata or when optional
+  account startup fails (CX1R5). Account controls appear only after a successful
+  metadata read and startup.
+
 - Remove dormant feature claims and usage from the README, Help, What's New,
   roadmap and editor records (CX1R3, for 0.17.1). Correct historical release
   claims with dated notices. Legacy `/loop` and CLI/ACP playbook commands
