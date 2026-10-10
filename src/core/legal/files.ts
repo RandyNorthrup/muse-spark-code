@@ -35,7 +35,7 @@ export class LegalScanError extends Error {
 }
 
 /** The Unicode byte-order mark, compared by code point, never as a literal. */
-const BYTE_ORDER_MARK_CODE = 0xfe_ff
+export const BYTE_ORDER_MARK_CODE = 0xfe_ff
 const WINDOWS_ABSOLUTE = /^[a-zA-Z]:[\\/]/
 const PARENT_SEGMENT = '..'
 

@@ -8,6 +8,7 @@ import exceptionIds from './data/spdxExceptions.json'
 import deprecatedExceptionIds from './data/spdxExceptionsDeprecated.json'
 import deprecatedIds from './data/spdxLicenseIdsDeprecated.json'
 import currentIds from './data/spdxLicenseIds.json'
+import licenseTextData from './data/spdxLicenseTexts.json'
 import provenance from './data/provenance.json'
 
 /** The vendored SPDX License List identifier set (current ids). */
@@ -63,6 +64,28 @@ export function isDeprecatedLicenseId(id: string): boolean {
 export function canonicalExceptionId(id: string): string | undefined {
   return canonicalExceptionByLowerId.get(id.toLowerCase())
 }
+
+/**
+ * One pinned license-text match record (M97 C-M97-1): the text key (a plain
+ * SPDX id, or the version stem for the GPL family whose `-only`/`-or-later`
+ * suffix is read from the input's own wording), the SHA-256 of the
+ * normalized canonical text, its word count, and short distinctive phrases
+ * machine-checked present in that text at derivation time. Full texts are
+ * never vendored: the 150 KiB scanner budget carries hashes, not corpora.
+ */
+export interface SpdxLicenseTextRecord {
+  readonly id: string
+  readonly hash: string
+  readonly words: number
+  readonly phrases: readonly string[]
+  /** `'gpl'` when the suffix is read from the input; otherwise absent. */
+  readonly family?: string
+}
+
+const rawTextRecords: readonly SpdxLicenseTextRecord[] = licenseTextData
+
+/** The pinned text-match records, sorted by text key at derivation time. */
+export const SPDX_LICENSE_TEXTS: readonly SpdxLicenseTextRecord[] = rawTextRecords
 
 /** Where the vendored data came from; see `data/provenance.json`. */
 export type SpdxProvenance = typeof provenance

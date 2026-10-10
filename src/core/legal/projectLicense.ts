@@ -12,6 +12,7 @@ import { compareLegalText } from './files'
 import type { ManifestLicenseDeclaration } from './dependencies'
 import type { LegalFindingDraft } from './finding'
 import type { LegalFileSnapshot } from './files'
+import { BYTE_ORDER_MARK_CODE } from './files'
 import {
   baseNameOf,
   hasBinaryContent,
@@ -20,7 +21,9 @@ import {
   isLicenseFileName,
   topLines,
 } from './files'
-import { canonicalLicenseId, canonicalExceptionId } from './data'
+import { canonicalLicenseId, canonicalExceptionId, SPDX_LICENSE_TEXTS } from './data'
+import type { SpdxLicenseTextRecord } from './data'
+import { fingerprint } from '../verify/fingerprint'
 import { parseSpdxExpression, type SpdxNode } from './spdx'
 
 /** What the project-license reader established, for later readers. */
@@ -35,6 +38,13 @@ export interface ProjectLicenseResult {
 export interface LicenseTextMatch {
   readonly id: string
   readonly confidence: number
+  /**
+   * True only when the whole text matches the pinned canonical text
+   * byte-for-byte after normalization (M97 C-M97-1): heuristic title and
+   * clause readings keep `false` and stay covered by the named
+   * full-matching incomplete reason.
+   */
+  readonly exact: boolean
 }
 
 const TITLE_PATTERNS: readonly { readonly id: string; readonly pattern: RegExp }[] = [
@@ -62,15 +72,110 @@ const GPL_VERSION = /\bversion (\d(?:\.\d)?)/i
 const GPL_OR_LATER = /\bany later version\b/i
 const BSD_SOURCE_BINARY = /\bredistribution and use in source and binary forms\b/i
 
+/** The GPL family's shared-text marker in the pinned match data. */
+const GPL_TEXT_FAMILY = 'gpl'
+
+/** Confidence of a full distinctive-phrase cover without an exact hash. */
+const PHRASE_COVER_CONFIDENCE = 0.9
+
+/** Confidence of a partial distinctive-phrase cover without an exact hash. */
+const PHRASE_PARTIAL_CONFIDENCE = 0.6
+
+/**
+ * How far into a line a `copyright` mention may start to count as a
+ * copyright-notice line (holders and years live at the line start; grant
+ * clauses that mention copyright later stay in the match text).
+ */
+const COPYRIGHT_NOTICE_HEAD_LENGTH = 12
+
+/**
+ * Normalize a license text for full-text matching: drop the byte-order
+ * mark, remove copyright-notice lines (holders and years differ per copy
+ * while the grant stays identical), lowercase, and collapse every
+ * non-alphanumeric run (line endings, punctuation, quote styles) to one
+ * space. The derivation tool runs this same algorithm over the canonical
+ * SPDX texts; both sides must stay identical or exact matching fails
+ * closed into the heuristic readers, never into a wrong license.
+ */
+export function normalizeLicenseText(text: string): string {
+  const withoutBom = text.codePointAt(0) === BYTE_ORDER_MARK_CODE ? text.slice(1) : text
+  const kept: string[] = []
+  for (const line of withoutBom.split(/\r\n|\r|\n/)) {
+    if (/copyright/i.test(line.slice(0, COPYRIGHT_NOTICE_HEAD_LENGTH)) || /\(c\)|©/i.test(line))
+      continue
+    kept.push(line)
+  }
+  return kept
+    .join('\n')
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+/**
+ * Match text against pinned records (M97 C-M97-1): an exact SHA-256 hit
+ * first, then the best distinctive-phrase cover (ties broken by closest
+ * word count, so BSD-2-Clause beats BSD-3-Clause for a two-clause text).
+ * The GPL family's `-only`/`-or-later` suffix is read from the input's
+ * own wording, exactly as the heuristic reader does. An empty record
+ * list (the matcher-off drill) matches nothing, restoring the named
+ * full-matching incomplete reason downstream.
+ */
+export function matchPinnedLicenseText(
+  text: string,
+  records: readonly SpdxLicenseTextRecord[] = SPDX_LICENSE_TEXTS,
+): LicenseTextMatch | undefined {
+  const normalized = normalizeLicenseText(text)
+  if (normalized === '') return undefined
+  const digest = fingerprint(normalized)
+  const exactRecord = records.find((record) => record.hash === digest)
+  if (exactRecord !== undefined) {
+    return { id: suffixedTextId(exactRecord, text), confidence: 1, exact: true }
+  }
+  let best: SpdxLicenseTextRecord | undefined
+  let bestCovered = 0
+  let bestDistance = Infinity
+  const words = normalized.split(' ').length
+  for (const record of records) {
+    if (record.phrases.length === 0) continue
+    const covered = record.phrases.filter((phrase) => normalized.includes(phrase)).length
+    if (covered === 0) continue
+    const distance = Math.abs(words - record.words)
+    if (covered < bestCovered || (covered === bestCovered && distance >= bestDistance)) continue
+    best = record
+    bestCovered = covered
+    bestDistance = distance
+  }
+  if (best === undefined) return undefined
+  return {
+    id: suffixedTextId(best, text),
+    confidence:
+      bestCovered === best.phrases.length ? PHRASE_COVER_CONFIDENCE : PHRASE_PARTIAL_CONFIDENCE,
+    exact: false,
+  }
+}
+
+function suffixedTextId(record: SpdxLicenseTextRecord, text: string): string {
+  if (record.family !== GPL_TEXT_FAMILY) return record.id
+  return `${record.id}${GPL_OR_LATER.test(text) ? '-or-later' : '-only'}`
+}
+
 /**
  * The license a file's text reads as. Shared with the ecosystem readers,
- * which meet the same prose inside vendored packages.
+ * which meet the same prose inside vendored packages. A verbatim text
+ * matches its pinned canonical hash first; anything else falls through
+ * the historical title and clause heuristics, then the pinned phrases.
  */
-export function identifyLicenseText(text: string): LicenseTextMatch | undefined {
+export function identifyLicenseText(
+  text: string,
+  records: readonly SpdxLicenseTextRecord[] = SPDX_LICENSE_TEXTS,
+): LicenseTextMatch | undefined {
+  const pinnedExact = matchPinnedLicenseText(text, records)
+  if (pinnedExact?.exact === true) return pinnedExact
   const title = topLines(text).join('\n')
   const firstTitle = title.split('\n').find((line) => line.trim() !== '') ?? ''
   for (const candidate of TITLE_PATTERNS) {
-    if (candidate.pattern.test(firstTitle)) return { id: candidate.id, confidence: 1 }
+    if (candidate.pattern.test(firstTitle)) return { id: candidate.id, confidence: 1, exact: false }
   }
   for (const kind of GPL_KIND) {
     if (kind.pattern.test(text)) {
@@ -78,18 +183,20 @@ export function identifyLicenseText(text: string): LicenseTextMatch | undefined 
       const suffix = GPL_OR_LATER.test(text) ? '-or-later' : '-only'
       if (kind.id === 'LGPL' && ['2', '2.1', '3'].includes(version)) {
         const precise = version === '2.1' ? version : `${version}.0`
-        return { id: `LGPL-${precise}${suffix}`, confidence: 1 }
+        return { id: `LGPL-${precise}${suffix}`, confidence: 1, exact: false }
       }
       return (version === '2' || version === '3') && (kind.id === 'GPL' || kind.id === 'AGPL')
-        ? { id: `${kind.id}-${version}.0${suffix}`, confidence: 1 }
-        : { id: kind.id, confidence: 0.6 }
+        ? { id: `${kind.id}-${version}.0${suffix}`, confidence: 1, exact: false }
+        : { id: kind.id, confidence: 0.6, exact: false }
     }
   }
   for (const candidate of TITLE_PATTERNS) {
     if (candidate.pattern.test(title) || candidate.pattern.test(text))
-      return { id: candidate.id, confidence: 0.8 }
+      return { id: candidate.id, confidence: 0.8, exact: false }
   }
-  return BSD_SOURCE_BINARY.test(text) ? { id: 'BSD-2-Clause', confidence: 0.8 } : undefined
+  return BSD_SOURCE_BINARY.test(text)
+    ? { id: 'BSD-2-Clause', confidence: 0.8, exact: false }
+    : (pinnedExact ?? undefined)
 }
 
 const TEXT_FILE_SUFFIXES: ReadonlySet<string> = new Set(['txt', 'md', 'rst', 'text', 'textile'])
@@ -237,15 +344,21 @@ export function scanProjectLicense(
   const incomplete: string[] = []
 
   const licenseFiles = rootLicenseFiles(snapshot)
-  if (licenseFiles.length > 0) incomplete.push(UI_TEXT.legalScanner.m084)
   const fileIds = new Map<string, number>()
+  // Full-text matching (M97 C-M97-1) lifts the heuristic caveat only when
+  // every license file matches its pinned canonical text exactly:
+  // anything heuristic, modified, unrecognized, binary or unreadable keeps
+  // the named reason instead of exiting clean.
+  let isFullyExact = licenseFiles.length > 0
   for (const file of licenseFiles) {
     const text = snapshot.readFile(file)
     if (text === undefined || hasBinaryContent(text)) {
+      isFullyExact = false
       continue
     }
     const match = identifyLicenseText(text)
     if (match === undefined) {
+      isFullyExact = false
       findings.push({
         severity: 'advice',
         category: 'license',
@@ -263,6 +376,10 @@ export function scanProjectLicense(
     if (match.confidence > known) {
       fileIds.set(match.id, match.confidence)
     }
+    isFullyExact &&= match.exact
+  }
+  if (!isFullyExact && licenseFiles.length > 0) {
+    incomplete.push(UI_TEXT.legalScanner.m084)
   }
   const fileIdList = Array.from(fileIds.keys(), (entry) => entry).toSorted((a, b) =>
     compareLegalText(a, b),

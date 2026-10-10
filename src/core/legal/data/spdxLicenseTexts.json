@@ -1,0 +1,153 @@
+[
+  {
+    "id": "AGPL-3.0",
+    "hash": "7bc3eb0fa805521396dd858075c136bcfc16ee182bf79041b96102fe898a6d09",
+    "words": 5547,
+    "phrases": [
+      "gnu affero general public license version 3",
+      "if you modify the program your modified version must prominently offer",
+      "remote network interaction"
+    ],
+    "family": "gpl"
+  },
+  {
+    "id": "Apache-2.0",
+    "hash": "594673f8fe0542761280c31fa6f0d1eca9f491e533af6c2c1fef40b1c4229b47",
+    "words": 1558,
+    "phrases": [
+      "apache license version 2 0",
+      "licensed under the apache license version 2 0",
+      "you may not use this file except in compliance with the license"
+    ]
+  },
+  {
+    "id": "BSD-2-Clause",
+    "hash": "a56fee4b2f66331ed54da4950ef9c9391453fd1490b4d8ea202bc29683bcbd30",
+    "words": 186,
+    "phrases": [
+      "redistribution and use in source and binary forms",
+      "are permitted provided that the following conditions are met",
+      "this software is provided by the copyright holders and contributors as is"
+    ]
+  },
+  {
+    "id": "BSD-3-Clause",
+    "hash": "9b83d3dee0616d07b82a272dd9bf5134a9f402b750f5ee6188458073b0a32ff2",
+    "words": 217,
+    "phrases": [
+      "redistribution and use in source and binary forms",
+      "neither the name of the copyright holder",
+      "this software is provided by the copyright holders and contributors as is"
+    ]
+  },
+  {
+    "id": "BSL-1.0",
+    "hash": "5fcf89bde8c0c2deb999f4cc626e1aebf90e80fdc5cd334dae008152ef4a1ded",
+    "words": 214,
+    "phrases": [
+      "boost software license version 1 0",
+      "permission is hereby granted free of charge to any person or organization",
+      "the software is provided as is"
+    ]
+  },
+  {
+    "id": "CC0-1.0",
+    "hash": "c9fc766f3657f72225d157a552169fb6bc0ba652f321dd55458ae0b62f996a32",
+    "words": 1075,
+    "phrases": ["cc0 1 0 universal", "statement of purpose", "waiver"]
+  },
+  {
+    "id": "EPL-2.0",
+    "hash": "8fbb910251c24acd487b634ceb37457ff21d40aef11bed21e8bfa194397787e9",
+    "words": 2161,
+    "phrases": [
+      "eclipse public license v 2 0",
+      "the accompanying program is provided under the terms of this eclipse public license",
+      "secondary licenses"
+    ]
+  },
+  {
+    "id": "GPL-2.0",
+    "hash": "6f39a68618bd6079226800eb792e361c1f4c98acbdf46c4e9fb6c080e3af8358",
+    "words": 2863,
+    "phrases": [
+      "gnu general public license version 2",
+      "everyone is permitted to copy and distribute",
+      "to protect your rights we need to make restrictions"
+    ],
+    "family": "gpl"
+  },
+  {
+    "id": "GPL-3.0",
+    "hash": "5a196c412ec2528b5e3b01cce9fbd7def6962b94424ae87926aa1da1542d5c87",
+    "words": 5660,
+    "phrases": [
+      "gnu general public license version 3",
+      "everyone is permitted to copy and distribute",
+      "the gnu general public license is a free copyleft license"
+    ],
+    "family": "gpl"
+  },
+  {
+    "id": "ISC",
+    "hash": "3d522e40b21fe47f1c0b4ba98d2813c76a08e24b8869559e32371e837ae9fa78",
+    "words": 112,
+    "phrases": [
+      "isc license",
+      "permission to use copy modify and or distribute this software for any purpose",
+      "isc disclaims all warranties with regard to this software"
+    ]
+  },
+  {
+    "id": "LGPL-2.1",
+    "hash": "256d923cbf7679e48c144883ad4750f207c1e09c83711c233f6660cdb071889d",
+    "words": 4400,
+    "phrases": [
+      "gnu lesser general public license version 2 1",
+      "successor of the gnu library public license version 2",
+      "lesser gpl"
+    ],
+    "family": "gpl"
+  },
+  {
+    "id": "LGPL-3.0",
+    "hash": "958ce41d551ff4eee67cbffc9fe7d3928220dccb0dc8dd53fcc0d759a1ca4c73",
+    "words": 6891,
+    "phrases": [
+      "gnu lesser general public license version 3",
+      "supplemented by the additional permissions",
+      "additional definitions"
+    ],
+    "family": "gpl"
+  },
+  {
+    "id": "MIT",
+    "hash": "35a446201226de6b27cfb7106d0f6c697f63bfeac2913dcf89024911e66ef164",
+    "words": 165,
+    "phrases": [
+      "mit license",
+      "permission is hereby granted free of charge",
+      "the software is provided as is without warranty of any kind"
+    ]
+  },
+  {
+    "id": "MPL-2.0",
+    "hash": "3dacd2c104719e7227969cbdcc7d581518827199e830b9379627eec0a32f8ab7",
+    "words": 2414,
+    "phrases": [
+      "mozilla public license version 2 0",
+      "this source code form is subject to the terms of the mozilla public license",
+      "if a copy of the mpl was not distributed with this file"
+    ]
+  },
+  {
+    "id": "Unlicense",
+    "hash": "7a4d92cdb11d254973a073803be1148a5402f1b2ca67808cdb3ef78b596102cd",
+    "words": 200,
+    "phrases": [
+      "this is free and unencumbered software",
+      "anyone is free to copy modify publish use compile sell",
+      "the software is provided as is"
+    ]
+  }
+]
