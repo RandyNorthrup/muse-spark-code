@@ -295,6 +295,12 @@ happened, not what was planned; superseded entries are kept.
   within its unchanged 125 KiB budget and activation no longer carries the
   vault MCP start.
 
+- Sharing a chat from an ACP editor or the CLI showed an error instead of
+  the preview. The sharing ports built their backend options from a
+  `serve` word the command parser rejects, so the conversation could never
+  be read; they now use the default options, and the CLI share of a chat
+  reads through its own runtime.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

@@ -887,6 +887,16 @@ async function serve(
   }
 }
 
+/**
+ * The sharing ports' backend options: the documented empty-argv default, never
+ * a literal command word (the strict parser treats `serve` as unknown).
+ */
+function defaultServeOptions(): ServeOptions {
+  const parsed = parseCommandLine([])
+  if (parsed.command !== 'serve') throw new Error(UI_TEXT.exportHistoryUnavailable)
+  return parsed.options
+}
+
 function sharingPorts(
   log: Logger,
   current?: Awaited<ReturnType<typeof runtimeFor>>,
@@ -905,9 +915,7 @@ function sharingPorts(
       }
     },
     read: async (cwd, sessionId, exportedAt) => {
-      const parsed = parseCommandLine(['serve'])
-      if (parsed.command !== 'serve') throw new Error(UI_TEXT.exportHistoryUnavailable)
-      const runtime = current ?? (await runtimeFor(parsed.options, log))
+      const runtime = current ?? (await runtimeFor(defaultServeOptions(), log))
       try {
         const host = await runtime.backend.hostFor(cwd)
         const history = await host.readSession(sessionId)
@@ -1229,10 +1237,18 @@ async function main(): Promise<number> {
     }
     case 'share':
     case 'prompts': {
-      return await runtimeSharingLoader(
-        path.join(distDir, 'sharingRuntime.js'),
-        log,
-      )().runRuntimeSharing(command, sharingPorts(log), UI_TEXT, uiLocale())
+      // A chat target reads the real session through the active runtime; other
+      // targets never touch a backend, so they keep today's lazy ports.
+      const requiresSession = command.command === 'share' && command.request.target === 'chat'
+      const runtime = requiresSession ? await runtimeFor(defaultServeOptions(), log) : undefined
+      try {
+        return await runtimeSharingLoader(
+          path.join(distDir, 'sharingRuntime.js'),
+          log,
+        )().runRuntimeSharing(command, sharingPorts(log, runtime), UI_TEXT, uiLocale())
+      } finally {
+        await runtime?.close()
+      }
     }
     case 'schedule': {
       const load = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
