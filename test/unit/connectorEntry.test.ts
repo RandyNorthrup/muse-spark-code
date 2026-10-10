@@ -5,17 +5,20 @@
 // a browser afterwards. With operations still draining it must stop them
 // first and finish only once they have (registry.drained, held here).
 import { mkdtemp, rm } from 'node:fs/promises'
+import { createConnection } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { describe, expect, it, vi } from 'vitest'
+import { CONNECTOR_COMPANION_LIMITS } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { startApprovalPage, type ApprovalPage } from '../../src/runtime/connector/approvalPage'
 import { parseConnectorCommand, runConnectorCommand } from '../../src/runtime/connector/command'
 import { runConnector, type ConnectorRuntimeDeps } from '../../src/runtime/connector/entry'
 import { ConnectorStore } from '../../src/runtime/connector/store'
 import { ConnectorRegistry } from '../../src/core/connector/registry'
+import { call } from './helpers/companion'
 
 vi.mock('../../src/runtime/connector/approvalPage', () => ({ startApprovalPage: vi.fn() }))
 
@@ -64,18 +67,8 @@ function runtimeDeps(
   }
 }
 
-async function shutDownWhilePageStarts(data: string): Promise<void> {
-  await granted(data)
-  const starting = Promise.withResolvers<ApprovalPage>()
-  vi.mocked(startApprovalPage).mockReturnValue(starting.promise)
-  const openBrowser = vi.fn(() => Promise.resolve())
-  const stdin = new PassThrough()
-  let isDone = false
-  const running = (async () => {
-    const code = await runConnector(runtimeDeps(data, stdin, openBrowser))
-    isDone = true
-    return code
-  })()
+/** The client initializes and requests a save that needs our approval page. */
+function requestSave(stdin: PassThrough): void {
   stdin.write(
     frame({
       jsonrpc: '2.0',
@@ -101,6 +94,21 @@ async function shutDownWhilePageStarts(data: string): Promise<void> {
       },
     }),
   )
+}
+
+async function shutDownWhilePageStarts(data: string): Promise<void> {
+  await granted(data)
+  const starting = Promise.withResolvers<ApprovalPage>()
+  vi.mocked(startApprovalPage).mockReturnValue(starting.promise)
+  const openBrowser = vi.fn(() => Promise.resolve())
+  const stdin = new PassThrough()
+  let isDone = false
+  const running = (async () => {
+    const code = await runConnector(runtimeDeps(data, stdin, openBrowser))
+    isDone = true
+    return code
+  })()
+  requestSave(stdin)
   await vi.waitFor(
     () => {
       expect(startApprovalPage).toHaveBeenCalled()
@@ -121,6 +129,70 @@ async function shutDownWhilePageStarts(data: string): Promise<void> {
   expect(await running).toBe(0)
   expect(page.close).toHaveBeenCalled()
   expect(openBrowser).not.toHaveBeenCalled()
+}
+
+/** A failed opener must not orphan the real page's listener or idle timer. */
+async function shutDownAfterOpenerRejects(data: string): Promise<void> {
+  await granted(data)
+  const actual = await vi.importActual<{ startApprovalPage: typeof startApprovalPage }>(
+    '../../src/runtime/connector/approvalPage',
+  )
+  let page: ApprovalPage | undefined
+  vi.mocked(startApprovalPage).mockImplementation(async (owner) => {
+    const started = await actual.startApprovalPage(owner)
+    page = { ...started, close: vi.fn(started.close) }
+    return page
+  })
+  const timers = vi.spyOn(globalThis, 'setTimeout')
+  const clear = vi.spyOn(globalThis, 'clearTimeout')
+  const stdin = new PassThrough()
+  let url = ''
+  const openBrowser = vi.fn((launchUrl: string) => {
+    url = new URL(launchUrl).origin
+    return Promise.reject(new Error('test opener failed'))
+  })
+  const deps = runtimeDeps(data, stdin, openBrowser)
+  let output = ''
+  deps.stdout.on('data', (chunk: Buffer) => {
+    output += chunk.toString('utf8')
+  })
+  const running = runConnector(deps)
+  try {
+    requestSave(stdin)
+    await vi.waitFor(() => {
+      expect(output).toContain('approval_unavailable')
+      expect(output).toContain('"isError":true')
+    })
+    expect(openBrowser).toHaveBeenCalledTimes(1)
+    const response = await call({ url }, '/')
+    expect(response.status).toBe(200)
+    const idleIndex = timers.mock.calls.findIndex(
+      ([, delay]) => delay === CONNECTOR_COMPANION_LIMITS.idleTimeoutMs,
+    )
+    const idle = timers.mock.results[idleIndex]
+    if (idle?.type !== 'return') throw new Error('approval idle timer absent')
+    stdin.end()
+    expect(await running).toBe(0)
+    expect(page?.close).toHaveBeenCalledTimes(1)
+    expect(clear).toHaveBeenCalledWith(idle.value)
+    // A fresh socket proves the listener is gone without reusing HTTP's idle connection.
+    const socket = createConnection({ host: '127.0.0.1', port: Number(new URL(url).port) })
+    try {
+      const connected = new Promise<void>((resolve, reject) => {
+        socket.once('connect', resolve)
+        socket.once('error', reject)
+      })
+      await expect(connected).rejects.toMatchObject({ code: 'ECONNREFUSED' })
+    } finally {
+      socket.destroy()
+    }
+  } finally {
+    stdin.end()
+    await running
+    await page?.close()
+    timers.mockRestore()
+    clear.mockRestore()
+  }
 }
 
 /** Disconnects with operations still draining (held), then lets them settle. */
@@ -155,13 +227,17 @@ async function shutDownWhileDraining(data: string): Promise<void> {
   }
 }
 
-describe('M124 runtime shutdown (RVM124R4 P2-3)', () => {
+describe('M124 runtime shutdown (RVM124R4 P2-3, RVM124R5 P2-1)', () => {
   for (const [label, scenario] of [
     [
       'finishes only after the approval page’s start-up settled, closes it and opens no browser late',
       shutDownWhilePageStarts,
     ],
     ['finishes only after its pending operations have drained', shutDownWhileDraining],
+    [
+      'refuses after the browser opener rejects and closes the real approval listener and idle timer at stdin end',
+      shutDownAfterOpenerRejects,
+    ],
   ] as const)
     it(label, async () => {
       const data = await mkdtemp(path.join(os.tmpdir(), 'm124-entry-'))

@@ -315,7 +315,10 @@ records the decided result.
 **Shutdown.** When the client goes, the transport first stops every call
 (the disconnect); the runtime finishes only after every pending operation has
 ended (a started write, a committed receipt; at most one call deadline) and
-the approval page's start-up has settled; that page is then closed. A page that finishes starting after the client left opens
+the approval page's start-up has settled; that page is then closed. A rejected
+browser opener still refuses the call with `approval_unavailable`, but the
+runtime retains the successfully started page and closes its listener and idle
+timer on disconnect. A page that finishes starting after the client left opens
 no browser.
 
 **Receipts.** Every transition writes one receipt (`from` → `event`), so

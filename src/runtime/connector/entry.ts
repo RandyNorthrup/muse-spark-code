@@ -155,7 +155,8 @@ export async function runConnector(deps: ConnectorRuntimeDeps): Promise<number> 
             if (!page.isWatched()) await deps.openBrowser(page.launchUrl())
             return true
           } catch {
-            starting = undefined
+            // A failed opener does not relinquish a successfully started page.
+            if (page === undefined) starting = undefined
             return false
           }
         },

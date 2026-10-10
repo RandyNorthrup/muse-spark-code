@@ -804,3 +804,80 @@ Restored SHA-256 (HEAD blobs at `f23f6348d`):
   of its 100 KiB budget, 79 bytes left; no cap raised). `dist/extension.js`
   563,348 bytes, SHA-256 `34b93af4…381e371a`, unchanged.
 - Not run here: the aggregate `npm run quality` (hosted CI is the gate).
+
+## M124 round 6: retain the page after an opener failure (RVM124R5, 2026-10-09)
+
+Windows 11 rig, Node 24.21.0, branch `feature/m124-r3`, from
+`76b4bf1806fa695d68d53bca5aa84b19074f5adf`. Zero model attempts, paid calls,
+credential reads, dependency changes, merges or pushes. RVM124R5 P2-1 is
+closed: `surface.show()` clears `starting` only when no page started. A
+browser opener rejection still answers `approval_unavailable`, while the
+runtime retains the successful startup promise for shutdown. Disconnect
+drains the registry, then closes the page's listener and idle timer before
+`runConnector` returns 0. Startup failures can still retry.
+
+The new `connectorEntry.test.ts` scenario goes through the real entry,
+registry, owner grant/store and approval page/companion server. The page
+factory is wrapped only to capture its real close method; the opener rejects.
+It observes an error reply containing `approval_unavailable`, HTTP 200 while
+the page is running, then stdin end, exactly one runtime close, the real idle
+timer cleared and `ECONNREFUSED` from a fresh TCP connection after return.
+Its `finally` closes any captured page even on a failed assertion.
+
+### Native Windows tests and fault drill
+
+All complete-file runs used repository timeouts, with no `--testTimeout`.
+
+| Command                                                                                                                                     | Result                                  |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| `npx.cmd vitest run test/unit/connectorRegistry.test.ts test/unit/connectorEntry.test.ts test/unit/connectorRuntime.test.ts --maxWorkers=3` | 92/92 pass on the final source, 26.51 s |
+| `npx.cmd vitest run test/unit/connectorLimitsLock.test.ts test/e2e/connectorStdio.e2e.test.ts --maxWorkers=3`                               | 11/11 pass, 33.52 s                     |
+
+The new complete entry suite over the unchanged production entry failed
+on the expected assertion (zero runtime closes, expected one): 1 failed,
+2 passed, exit 1. The first fixed-code run exposed reuse of HTTP's idle
+connection (`ECONNRESET` instead of a new connection's `ECONNREFUSED`);
+the test now opens a fresh TCP socket to verify listener retirement.
+
+**R6-F1:** replace exactly one `if (page === undefined) starting = undefined`
+with `starting = undefined` in `src/runtime/connector/entry.ts`, then run
+the complete `connectorEntry.test.ts` file. The opener-rejection case fails
+on zero runtime closes, expected one: 1 failed, 2 passed, exit 1, 21.65 s.
+Restore the saved original bytes in `finally` and compare SHA-256 before
+and after: both
+`a06291a6f217a6e714ad06140365d4cc57854b47b53cfe85bb9e6d920a321b20`.
+The subsequent complete registry/entry/runtime run passes (92/92, 27.20 s),
+as does the final-source run after the test's lint-only type correction
+(92/92 above).
+
+### Gates and production sizes
+
+- One unit-project typecheck, `npx.cmd tsc -p test/unit/tsconfig.json --noEmit`:
+  exit 0. Scoped ESLint `--max-warnings=0`: exit 0 (the first run required
+  replacing the test's forbidden import-type expression with the imported
+  function's type; no disable or cast was added).
+- `npm.cmd run deadcode` (plain knip): exit 0, the same two configuration
+  hints. `npx.cmd jscpd`: exit 1 for the same two pre-existing clones,
+  `connectorStdio.e2e`/`schedulesStdio.e2e` and `windowsTrustedPath`; all three
+  files match `76b4bf180` byte-for-byte in Git, no new clone. The deferral
+  is recorded in PLAN §7, without weakening the zero threshold.
+- Localization (14 UI/14 usage tables, 0 problems), reference, host API,
+  plan and regenerated-roadmap checks: exit 0. Prettier checks on all eight
+  changed files: exit 0.
+- `npm.cmd run build`: exit 0, including tokens, bundle sizes/splits, host
+  globals and third-party notices. `dist/connector.js`: **102,335/102,400
+  bytes**, up 14 bytes, **65 bytes left**. `dist/acp.js`: 242,286/870,400
+  bytes. `dist/extension.js`: 563,348/614,400 bytes; SHA-256
+  `34b93af4902136c711cf93d1dc7ad2e96fdf4ef3802756154f355235381e371a`,
+  identical to the baseline. No cap changed.
+- The first commit attempt was refused before lint-staged because the
+  worktree still had Husky's stale stubs. The repository's official
+  `npm.cmd run prepare` installed its required fail-closed stubs, exit 0;
+  `core.hooksPath` remains `.husky/_`. No hook source or check was changed.
+
+The inherited RVM124 finding 15 (storage ownership, trusted parents,
+held-handle identity and restrictive Windows DACL) remains open, as do
+shared React approval/theme/a11y qualification, real-client qualification
+and hosted transport. This lane changes no paid authority or model
+capability handling. Aggregate quality remains with the lead under the
+rig/common brief; no gate, hook, timeout or bundle cap is weakened.

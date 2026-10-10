@@ -20371,6 +20371,19 @@ stays open (unchanged list in the record). `dist/connector.js` 102,321
 bytes of 100 KiB (79 bytes left; no cap raised); `dist/extension.js`
 unchanged.
 
+**M124 round 6 (2026-10-09, same branch; RVM124R5 P2-1).** Closed: an
+opener rejection still refuses the call with `approval_unavailable`, but
+the runtime keeps the successfully started approval page's promise and
+closes its listener and idle timer on stdin end before returning. The
+regression uses the real entry, registry, store and approval server;
+103 connector tests pass natively on Windows, and a deliberate removal
+of the ownership guard fails the new case, restored byte-exact.
+`dist/connector.js` is 102,335 bytes of 100 KiB (65 bytes left; no cap
+raised); `dist/extension.js` is unchanged. Storage ownership and Windows
+DACL (RVM124 finding 15) remain deferred. Record:
+[`docs/certification/m124-local.md`](docs/certification/m124-local.md).
+Aggregate quality remains with the lead under the rig/common brief.
+
 - **Goal.** Other agents can inspect the user's fleet and evidence, request
   bounded orchestration, ask for deterministic advice/reports, and manage
   schedules/prompts/shares through one connector. Every effect goes through
@@ -40685,6 +40698,17 @@ and four-theme accessibility. All passed; receipts are in
 repository coverage and native/installed-editor/live certification remain
 with release integration. This is a scoped run, not a gate relaxation: no
 rule, ignore, threshold, budget or deadline changed.
+
+**M124 round 6 lane verification (2026-10-09, Windows 11).** The rig/common
+brief reserves aggregate `npm run quality` for the lead and requires native
+connector suites, scoped lint/format, one typecheck and unchanged bundle caps.
+The full duplication check still exits 1 for the two previously recorded
+clones (`connectorStdio.e2e`/`schedulesStdio.e2e` and `windowsTrustedPath`);
+all three files are unchanged from `76b4bf180`, and this fix adds no clone.
+Their repair remains with integration, without changing the zero threshold.
+Storage ownership/Windows DACL, real-client and shared approval UI
+qualification remain open as before. Receipts:
+`docs/certification/m124-local.md`, round 6.
 
 **M119PLAN documentation-only certification (2026-10-07, Kubuntu; planned
 under the numbers D102/M119, ported as D106/M124 on 2026-10-09).** The

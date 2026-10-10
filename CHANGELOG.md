@@ -135,6 +135,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The local MCP connector closes its approval page's listener and idle timer
+  when the client disconnects after the browser opener failed. The requested
+  action still refuses with `approval_unavailable`.
+
 - Schedule runtime tests cover Linux, Windows and macOS rearm ownership
   explicitly; macOS wake shutdown retains its independent after-exit helper.
 
