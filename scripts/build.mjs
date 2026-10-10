@@ -147,6 +147,8 @@ const TEAM_HOST_ENTRY = 'src/host/team/teamHostEntry.ts'
 const TEAM_HOST_OUTFILE = 'dist/teamHost.js'
 const TEAM_FILE_IO_ENTRY = 'src/core/team/workers/workerToolIoEntry.ts'
 const TEAM_FILE_IO_OUTFILE = 'dist/teamFileIo.js'
+const TEAM_MERGE_ENTRY = 'src/core/team/teamMergeFlow.ts'
+const TEAM_MERGE_OUTFILE = 'dist/teamMerge.js'
 // M115 W: v1's Model API schedules re-exported beside the v2 runtime binding.
 const SCHEDULES_ENTRY = 'src/runtime/schedules/schedulesBundle.ts'
 const SCHEDULES_OUTFILE = 'dist/schedules.js'
@@ -459,6 +461,12 @@ const teamFileIoOptions = {
   ...teamOptions,
   entryPoints: [TEAM_FILE_IO_ENTRY],
   outfile: TEAM_FILE_IO_OUTFILE,
+}
+
+const teamMergeOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_MERGE_ENTRY],
+  outfile: TEAM_MERGE_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1215,6 +1223,7 @@ if (isWatch) {
     esbuild.context(teamRunnersOptions),
     esbuild.context(teamHostOptions),
     esbuild.context(teamFileIoOptions),
+    esbuild.context(teamMergeOptions),
     esbuild.context(teamSchedulerOptions),
     esbuild.context(foreignHooksOptions),
     esbuild.context({
@@ -1331,6 +1340,7 @@ if (isWatch) {
     teamRunners: esbuild.build(teamRunnersOptions),
     teamHost: esbuild.build(teamHostOptions),
     teamFileIo: esbuild.build(teamFileIoOptions),
+    teamMerge: esbuild.build(teamMergeOptions),
     teamScheduler: esbuild.build(teamSchedulerOptions),
     foreignHooks: esbuild.build(foreignHooksOptions),
     modelApiHooks: esbuild.build({

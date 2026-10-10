@@ -29,7 +29,6 @@ import {
 } from '../../shared/usdConstants'
 import { fill } from '../../shared/l10n/text'
 import { redactSecrets } from '../redact'
-import { isProtectedPath } from '../protectedPaths'
 import {
   teamAgentRefSchema,
   teamPoolEntrySchema,
@@ -70,12 +69,13 @@ import type {
   TeamWaitingChoice,
   TeamWorkerOutcome,
 } from './teamHostService'
+import type * as teamMergeFlow from './teamMergeFlow'
 
 /** The workspace-state key the tasks are written under (one window's team record). */
 export const TEAM_TASKS_STATE_KEY = 'museSpark.team.tasks'
 const REVIEW_ROLE = 'code-review'
 
-type StaffedEntry = TeamPoolEntry & {
+export type StaffedEntry = TeamPoolEntry & {
   readonly agent: TeamAgentRef
   /** Default: the orchestrator slot's own model and backend (acceptance 34). */
   readonly isDefault: boolean
@@ -100,7 +100,7 @@ type TaskPhase = (typeof TASK_PHASES)[number]
 /** Finished tasks that may still hold a copy to merge, discard or recover. */
 const SETTLED_PHASES: ReadonlySet<TaskPhase> = new Set(['done', 'failed', 'interrupted'])
 
-interface TeamTaskRecord {
+export interface TeamTaskRecord {
   readonly taskId: string
   readonly role: TeamRoleConfig
   readonly brief: string
@@ -1330,94 +1330,6 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       : undefined
   }
 
-  /** A reviewer with headroom, preferring a model that did not write the branch. */
-  const reviewerFor = (task: TeamTaskRecord): StaffedEntry | undefined => {
-    const reviewRole = roles().find((role) => role.role === REVIEW_ROLE)
-    if (reviewRole === undefined) return undefined
-    if (running() >= deps.settings.maxWorkers()) return undefined
-    const ready = pool(reviewRole).filter((entry) => hasHeadroom(entry))
-    return (
-      ready.find((entry) =>
-        task.writerModels.every((model) => !isSameTeamModel(entry.agent.model, model)),
-      ) ?? ready[0]
-    )
-  }
-
-  /**
-   * Review before merge (acceptance 19): with a reviewer that has headroom,
-   * a branch head nobody reviewed starts a review task first; the merge waits
-   * for it. Answers the refusal the caller passes on, or undefined to merge.
-   */
-  const requireReview = async (
-    task: TeamTaskRecord,
-    context: TeamToolContext,
-  ): Promise<string | undefined> => {
-    const head = task.outcome?.head
-    if (head === undefined || task.reviewedHead === head) return undefined
-    const running = allTasks().find(
-      (candidate) => candidate.reviewOf === task && isActive(candidate.phase),
-    )
-    if (running !== undefined)
-      return fill(TEAM_MODEL_TEXT.hostReviewRunning, { task: running.taskId })
-    const reviewer = reviewerFor(task)
-    const reviewRole = roles().find((role) => role.role === REVIEW_ROLE)
-    if (reviewer === undefined || reviewRole === undefined) return undefined
-    const review = record(
-      reviewRole,
-      {
-        brief: fill(TEAM_MODEL_TEXT.hostReviewBrief, {
-          task: task.taskId,
-          role: task.role.role,
-          brief: task.brief,
-        }),
-        files: [...(task.outcome?.changedFiles ?? [])],
-        reason: { code: 'different_model', detail: TEAM_MODEL_TEXT.hostReviewReason },
-      },
-      task.sessionId,
-      'starting',
-    )
-    review.reviewOf = task
-    let isLaunched = false
-    try {
-      context.signal.throwIfAborted()
-      const lease = admit(review, reviewer)
-      const cancelReview = (): void => {
-        review.controller.abort()
-      }
-      context.signal.addEventListener('abort', cancelReview, { once: true })
-      review.lease = {
-        release: () => {
-          context.signal.removeEventListener('abort', cancelReview)
-          lease.release()
-        },
-      }
-      await persist()
-      checkMergeOwner(task, context)
-      if (
-        reviewer.agent.pays === 'key' &&
-        !(await deps.paid.allowKeyTasks(
-          [confirmationFor(REVIEW_ROLE, reviewer)],
-          undefined,
-          context,
-        ))
-      )
-        return TEAM_MODEL_TEXT.hostPaidDeclined
-      checkMergeOwner(task, context)
-      review.consented = new Set([paidScope(reviewer.agent)])
-      await launch(review)
-      isLaunched = true
-      checkMergeOwner(task, context)
-      return fill(TEAM_MODEL_TEXT.hostReviewStarted, { task: review.taskId })
-    } finally {
-      if (!isLaunched) {
-        review.lease?.release()
-        tasks.delete(review.taskId)
-        await persist()
-        changed()
-      }
-    }
-  }
-
   const checkMergeOwner = (task: TeamTaskRecord, context: TeamToolContext): void => {
     context.signal.throwIfAborted()
     if (isClosed() || task.controller.signal.aborted)
@@ -1428,31 +1340,16 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     if (mode === 'denyUnmatched') throw new Error(TEAM_MODEL_TEXT.hostMergePlanMode)
   }
 
-  const mergeCard = (task: TeamTaskRecord, outcome: TeamWorkerOutcome) => {
-    const files = outcome.changedFiles ?? []
-    return {
-      itemId: `team-merge-${task.taskId}`,
-      kind: 'teamMerge' as const,
-      teamMerge: {
-        taskId: task.taskId,
-        roleId: task.role.role,
-        brief: task.brief,
-        branch: outcome.branch ?? '',
-        filesChanged: files.length,
-        affectedFiles: files,
-        protectedPaths: files.filter((file) => isProtectedPath(file.toLowerCase())),
-        review: task.review ?? ('not-reviewed' as const),
-        ...(task.reviewVerdict !== undefined && { reviewVerdict: task.reviewVerdict }),
-        ...(task.reviewSummary !== undefined && {
-          reviewerFindings: task.reviewFindings?.length
-            ? task.reviewFindings.map(
-                (finding) =>
-                  `${finding.severity ?? ''} ${finding.file}${finding.line === undefined ? '' : `:${String(finding.line)}`} ${finding.title}${finding.detail === undefined ? '' : `\n${finding.detail}`}`,
-              )
-            : [task.reviewSummary],
-        }),
-      },
-    }
+  /** The merge flow's strings, filled here so the lazy bundle never reads model text. */
+  const reviewText = {
+    brief: (taskId: string, role: string, brief: string): string =>
+      fill(TEAM_MODEL_TEXT.hostReviewBrief, { task: taskId, role, brief }),
+    reason: TEAM_MODEL_TEXT.hostReviewReason,
+    running: (taskId: string): string => fill(TEAM_MODEL_TEXT.hostReviewRunning, { task: taskId }),
+    started: (taskId: string): string => fill(TEAM_MODEL_TEXT.hostReviewStarted, { task: taskId }),
+    paidDeclined: TEAM_MODEL_TEXT.hostPaidDeclined,
+    mergeNotReady: TEAM_MODEL_TEXT.hostMergeNotReady,
+    mergeCancelled: TEAM_MODEL_TEXT.hostMergeCancelled,
   }
 
   /** Own review admission and exactly one card waiter through final settlement. */
@@ -1461,80 +1358,49 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     if (refused !== undefined) return Promise.resolve(refusal(refused))
     task.mergePhase = 'reviewing'
     context = { ...context, signal: AbortSignal.any([context.signal, task.controller.signal]) }
-    const work = async (): Promise<TeamToolResult> => {
-      let cancel: (() => void) | undefined
+    // The flow loads lazily; the guard and phase claim above already ran here.
+    const completion = (async (): Promise<TeamToolResult> => {
+      let flow: typeof teamMergeFlow
       try {
-        checkMergeOwner(task, context)
-        await persist()
-        checkMergeOwner(task, context)
-        const review = await requireReview(task, context)
-        checkMergeOwner(task, context)
-        if (review !== undefined) {
-          task.mergePhase = 'idle'
-          return refusal(review)
-        }
-        const outcome = task.outcome
-        if (outcome === undefined) throw new Error(TEAM_MODEL_TEXT.hostMergeNotReady)
-        const card = mergeCard(task, outcome)
-        const decision = new Promise<TeamMergeDecision | 'cancelled'>((resolve) => {
-          task.awaiting = resolve
-          cancel = () => {
-            resolve('cancelled')
-          }
-          context.signal.addEventListener('abort', cancel, { once: true })
-          task.mergePhase = 'awaiting-decision'
-          deps.cards.show(task.sessionId, { ...card, status: 'inProgress' })
-          task.mergeReady?.()
-          changed()
-        })
-        const chosen = await decision
-        task.awaiting = undefined
-        checkMergeOwner(task, context)
-        if (chosen === 'cancelled') throw new Error(TEAM_MODEL_TEXT.hostMergeCancelled)
-        task.mergePhase = 'merging'
-        await persist()
-        checkMergeOwner(task, context)
-        if (chosen === 'discard') {
-          await discard(task)
-          task.mergePhase = 'done'
-          deps.cards.show(task.sessionId, { ...card, status: 'completed', teamDecision: chosen })
-          return answer({ task_id: task.taskId, state: 'discarded' }, UI_TEXT.teamWorkerDiscarded)
-        }
-        const merged = await exclusive(task, async () => {
-          checkMergeOwner(task, context)
-          const result = await deps.merges.merge(
-            { taskId: task.taskId, role: task.role, outcome },
-            context.signal,
-            { allowProtected: card.teamMerge.protectedPaths.length > 0 },
-          )
-          if (result.status === 'merged') task.phase = 'merged'
-          await persist()
-          return result
-        })
-        task.mergePhase = merged.status === 'merged' ? 'done' : 'failed'
-        deps.cards.show(task.sessionId, { ...card, status: 'completed', teamDecision: chosen })
-        return answer(
-          { task_id: task.taskId, ...merged },
-          merged.status === 'merged' ? UI_TEXT.teamWorkerMerged : UI_TEXT.teamMergeRework,
-        )
+        flow = await import('./teamMergeFlow')
       } catch (error: unknown) {
+        // A missing lazy bundle is an install fault: refuse without hanging the card.
         task.mergePhase = 'failed'
         task.failure = describeError(error)
-        if (task.outcome !== undefined)
-          deps.cards.show(task.sessionId, {
-            ...mergeCard(task, task.outcome),
-            status: 'completed',
-            teamDecision: task.failure,
-          })
-        return refusal(task.failure)
-      } finally {
-        if (cancel !== undefined) context.signal.removeEventListener('abort', cancel)
-        task.awaiting = undefined
         task.mergeReady?.()
-        changed()
+        return refusal(task.failure)
       }
-    }
-    task.mergeCompletion = work()
+      return await flow.runMergeFlow(task, context, {
+        record,
+        admit,
+        launch,
+        persist,
+        changed,
+        discard,
+        exclusive,
+        checkOwner: checkMergeOwner,
+        confirmReview: (entry) => confirmationFor(REVIEW_ROLE, entry),
+        agentScope: (agent) => paidScope(agent),
+        forget: (taskId: string): void => {
+          tasks.delete(taskId)
+        },
+        reviewStaff: () => {
+          const role = roles().find((candidate) => candidate.role === REVIEW_ROLE)
+          return role === undefined ? undefined : { role, entries: pool(role) }
+        },
+        hasReviewRoom: (entry) => running() < deps.settings.maxWorkers() && hasHeadroom(entry),
+        findRunningReview: (of) =>
+          allTasks().find((candidate) => candidate.reviewOf === of && isActive(candidate.phase)),
+        answer,
+        refusal,
+        describeError,
+        paid: deps.paid,
+        cards: deps.cards,
+        merges: deps.merges,
+        text: reviewText,
+      })
+    })()
+    task.mergeCompletion = completion
     return task.mergeCompletion
   }
 
