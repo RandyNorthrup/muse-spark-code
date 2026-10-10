@@ -236,12 +236,21 @@ only become ready when their required milestones are complete. At most three
 next steps are shown. Session turn
 and approval totals require retained activity facts; transcript row counts
 never substitute for them. The session report reads the current conversation
-in the editor, or a stored Model API session by id. The usage report reads
+in the editor, a stored Model API session by id, or primary-backend history
+through the active ACP host (the CLI opens a read-only host when needed).
+Usage periods use an explicit UTC offset of zero, independent of the machine
+timezone; journal day labels remain as recorded. The usage report reads
 the on-disk usage journal through the same aggregation as Account & usage, so
 its totals match that page for the same period; `--by model`, `provider`,
 `kind`, `session`, `client` or `account` chooses the breakdown. Per-tool
 usage is not recorded in the journal, so `--by tool` reports totals with an
-explicit partial breakdown instead of invented rows.
+explicit partial breakdown instead of invented rows. Account rows use
+`provider/account` identities. Reports await pending recording and share one
+journal snapshot per generation. Damaged, incomplete, newer-version or
+unattributable evidence is disclosed in partial source rows. Limits respect
+the selected period; live finite daily and conversation budgets use the
+usage page's snapshots when available in that period. Historical or unbound
+budget snapshots are explicitly unavailable.
 
 The tab provides **Save as…**, **Copy as Markdown**, **Attach to message**,
 **History**, **Diff with previous** and **Refresh**. Save as exports Markdown,

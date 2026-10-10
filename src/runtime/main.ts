@@ -1,3 +1,4 @@
+import type { SourceReadContext } from '../core/reporting/sources/types'
 import { legalScanLoader } from '../host/ide/legalScanBundle'
 // `muse-spark-code-acp` (PLAN.md D62): the Muse Spark agent for editors that
 // speak the Agent Client Protocol, and the sign-in commands their terminal
@@ -463,7 +464,11 @@ function resourcesFor(
 }
 
 /** No account or backend is touched; W ships this entry in its own lazy chunk. */
-function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeReports> {
+function runtimeReports(
+  log: Logger,
+  current?: Awaited<ReturnType<typeof runtimeFor>>,
+  recording?: UsageRecording,
+): () => ReturnType<typeof createRuntimeReports> {
   const load = reportsLoader({ bundlePath: path.join(distDir, 'reporting.js'), log })
   // M113 C-M113-2: the session and usage inputs ride their own lazy chunk.
   const inputs = reportInputsLoader({
@@ -478,62 +483,82 @@ function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeRepor
       table: UI_TEXT,
       now: () => new Date().toISOString(),
       roots: [homedir()],
-      servicesFor: (cwd, _sessionId, language) =>
-        Promise.resolve({
+      servicesFor: (cwd, _sessionId, language) => {
+        const l10n = language ?? { table: UI_TEXT, locale: uiLocale() }
+        const dataFolder = agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        })
+        let journalReader:
+          ReturnType<ReturnType<typeof inputs>['createReportJournalReader']> | undefined
+        const readJournal = (context: SourceReadContext) => {
+          journalReader ??= inputs().createReportJournalReader({
+            dataFolder,
+            ...(recording !== undefined && { beforeRead: () => recording.flush() }),
+            ...(current !== undefined && { readBudgets: current.readUsageBudgets }),
+          })
+          return journalReader(context)
+        }
+        return Promise.resolve({
           keepHistory: true,
           services: load().createReportingServices({
             workspaceRoot: cwd,
             log,
-            storageRoot: agentDataFolder({
-              platform: process.platform,
-              env: process.env,
-              homeDir: homedir(),
-            }),
-            l10n: language ?? { table: UI_TEXT, locale: uiLocale() },
+            storageRoot: dataFolder,
+            l10n,
             generatorVersion: packageVersion(),
             keepHistory: true,
             enabledAgents: [],
-            // M113 C-M113-2: the CLI and ACP read the same durable inputs as
-            // VS Code: a stored Model API session by id, and the shared
-            // usage journal through aggregate.ts. The inputs bundle loads on
-            // the first session or usage read, never for other kinds.
             session: {
               read: (context) =>
                 inputs()
-                  .createSessionReportReader({
-                    resolveSession: (sessionId) =>
-                      sessionId === undefined
-                        ? Promise.resolve(null)
-                        : inputs().readStoredReportSession(
-                            workspaceSessionsFolder(
-                              {
-                                platform: process.platform,
-                                env: process.env,
-                                homeDir: homedir(),
-                              },
-                              cwd,
-                            ),
-                            sessionId,
+                  .createSessionReportReader(
+                    {
+                      resolveSession: async (sessionId) => {
+                        if (sessionId === undefined) return null
+                        const stored = await inputs().readStoredReportSession(
+                          workspaceSessionsFolder(
+                            { platform: process.platform, env: process.env, homeDir: homedir() },
+                            cwd,
                           ),
-                    readJournal: () =>
-                      inputs().readUsageReportJournal(
-                        agentDataFolder({
-                          platform: process.platform,
-                          env: process.env,
-                          homeDir: homedir(),
-                        }),
-                      ),
-                  })
+                          sessionId,
+                        )
+                        if (stored !== null) return stored
+                        // Default serve options for the on-demand CLI runtime;
+                        // ACP serve reuses its live runtime through `current`.
+                        const parsed = parseCommandLine([])
+                        if (parsed.command !== 'serve') return null
+                        let runtime = current
+                        try {
+                          runtime ??= await runtimeFor(parsed.options, log)
+                          const host = await runtime.backend.hostFor(cwd)
+                          return await inputs().readHostReportSession(host, sessionId)
+                        } catch {
+                          return null
+                        } finally {
+                          if (current === undefined) await runtime?.close()
+                        }
+                      },
+                      readJournal,
+                    },
+                    l10n.table,
+                    l10n.locale,
+                  )
                   .read(context),
             },
             usage: (context) =>
-              inputs().createUsageReportReader({
-                dataFolder: agentDataFolder({
-                  platform: process.platform,
-                  env: process.env,
-                  homeDir: homedir(),
-                }),
-              })(context),
+              inputs().createUsageReportReader(
+                {
+                  dataFolder,
+                  readJournal,
+                  // The machine-local day, like M102's page and the journal's
+                  // own day stamps; the contract carries it explicitly (D93).
+                  timezoneOffsetMins: new Date().getTimezoneOffset(),
+                },
+                l10n.table,
+                l10n.locale,
+              )(context),
             network: {
               policy: {
                 surface: 'terminal',
@@ -543,7 +568,8 @@ function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeRepor
               },
             },
           }),
-        }),
+        })
+      },
       resolveSaved: async (cwd, file) => {
         const target = path.resolve(cwd, file)
         const info = await lstat(target)
@@ -773,7 +799,7 @@ async function serve(
       bundlePath: path.join(distDir, LEGAL_SCAN_BUNDLE_FILE),
       log,
     })
-    const reports = runtimeReports(log)
+    const reports = runtimeReports(log, runtime, recording)
     const agent = engine.createAcpAgent({
       schedules: {
         async holdWorkspace(cwd) {
@@ -952,7 +978,7 @@ function sharingPorts(
       }
     },
     read: async (cwd, sessionId, exportedAt) => {
-      const parsed = parseCommandLine(['serve'])
+      const parsed = parseCommandLine([])
       if (parsed.command !== 'serve') throw new Error(UI_TEXT.exportHistoryUnavailable)
       const runtime = current ?? (await runtimeFor(parsed.options, log))
       try {

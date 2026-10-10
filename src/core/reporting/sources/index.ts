@@ -43,9 +43,22 @@ export function createLocalReportSources(deps: LocalReportSourceDeps): LocalRepo
     changelog: changelogSource(deps.files, deps.scrub),
     certification: certificationSource(deps.files, deps.scrub),
     package: packageSource(deps.files, deps.scrub),
-    session: sessionSource(deps.session, deps.roots, deps.scrub),
+    session: sessionSource(
+      deps.session === undefined
+        ? undefined
+        : {
+            read: (context) => {
+              if (context.options.kind !== 'session') throw new LocalSourceError('disabled')
+              return deps.session?.read(context) ?? Promise.resolve(null)
+            },
+          },
+      deps.roots,
+      deps.scrub,
+    ),
     questions: questionsSource(deps.questions, deps.scrub),
     usage: localSource('usage', async (context) => {
+      if (!['usage', 'project'].includes(context.options.kind))
+        throw new LocalSourceError('disabled')
       if (deps.usage === undefined) throw new LocalSourceError('unbound')
       const result = await deps.usage(context)
       return {

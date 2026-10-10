@@ -1934,7 +1934,10 @@
     "sessionTurnsUnavailable": "A munkamenet-előzmények nem tartalmaznak körazonosítókat, ezért a körök nem számolhatók meg.",
     "sessionApprovalsUnavailable": "A munkamenet-előzmények nem tartalmaznak jóváhagyási döntéseket.",
     "toolBreakdownUnavailable": "Az eszközönkénti használat nincs rögzítve a használati naplóban.",
-    "rolledUpBreakdownExcluded": "Az összesített előzmények a végösszegekben szerepelnek, de ebben a bontásban nem."
+    "rolledUpBreakdownExcluded": "Az összesített előzmények a végösszegekben szerepelnek, de ebben a bontásban nem.",
+    "journalIncomplete": "A használati napló sérült, hiányos vagy újabb verziójú bejegyzéseket tartalmaz; az összesítés ezeket kizárja.",
+    "sessionUsageUnavailable": "A megőrzött naplóban a használat nem rendelhető ehhez a munkamenethez; a tokenek és költségek összesítése nem érhető el.",
+    "budgetsUnavailable": "A kiválasztott időszak költségkeret-pillanatképei nem érhetők el."
   },
   "reportRowsMore": {
     "one": "További {count} sor",

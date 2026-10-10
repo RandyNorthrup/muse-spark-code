@@ -3,12 +3,20 @@
 // durable sources: M84's session history and M102's usage journal through
 // aggregate.ts. Ships in dist/reportInputs.js; the hosts pass only identifiers
 // and directories, so activation carries no new import.
-import { readFile } from 'node:fs/promises'
+import { open, lstat, realpath } from 'node:fs/promises'
+import { constants as fsConstants } from 'node:fs'
+import { handleIdentity, lstatIdentity, sameFile } from '../../core/fs/fileIdentity'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import * as z from 'zod/mini'
-import { UI_TEXT } from '../../shared/constants'
+import {
+  UI_TEXT,
+  SESSION_EXPORT_MAX_BYTES,
+  STORED_SESSION_VERSION,
+  REPORT_STORAGE_LINK_COUNT,
+} from '../../shared/constants'
 import type { BackendKind } from '../../shared/protocol'
+import type { AgentHost } from '../../core/agent/agentBackend'
 import { itemSnapshotSchema, type ItemSnapshot } from '../../shared/agentEvents'
 import { LocalSourceError } from '../../core/reporting/sources/local'
 import type { ReportSessionReader } from '../../core/reporting/sources/session'
@@ -23,6 +31,7 @@ import {
 import { UsageJournalStore, toAggregateRow } from '../../core/usage/journalStore'
 import { NodeUsageFs } from '../usage/nodeUsageFs'
 import type { UsageAggregateRow } from '../../core/usage/aggregate'
+import type { UsageBudgetRead } from '../../core/usage/usageService'
 
 /** A session id names a file; only the UUID alphabet is allowed into a path. */
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]+$/u
@@ -60,22 +69,77 @@ export async function readUsageReportJournal(dataFolder: string): Promise<UsageR
     throw new LocalSourceError('failed')
   }
   const rollups: UsageAggregateRow[] = journal.rollups.map((row) => toAggregateRow(row))
-  return { records: journal.records, rollups, limits: journal.limits }
+  const isDamaged =
+    journal.invalidLines +
+      journal.tornLines +
+      journal.newerVersionRecords +
+      journal.newerVersionFiles >
+    0
+  return {
+    records: journal.records,
+    rollups,
+    limits: journal.limits,
+    ...(isDamaged && { partial: UI_TEXT.reportDetailReasons.journalIncomplete }),
+  }
+}
+
+/** One snapshot per generation, shared by concurrent session and usage sources. */
+export function createReportJournalReader(input: {
+  readonly dataFolder: string
+  readonly beforeRead?: () => Promise<void>
+  readonly readBudgets?: () => Promise<readonly UsageBudgetRead[]>
+  readonly now?: () => number
+}): (context: SourceReadContext) => Promise<UsageReportJournal> {
+  const runs = new WeakMap<object, Promise<UsageReportJournal>>()
+  return (context) => {
+    let pending = runs.get(context.run ?? context.options)
+    if (pending === undefined) {
+      pending = (async () => {
+        await input.beforeRead?.()
+        const journal = await readUsageReportJournal(input.dataFolder)
+        // Only the usage kinds render a Limits section; a session report
+        // never touches budget machinery or its failure partial.
+        if (
+          input.readBudgets === undefined ||
+          (context.options.kind !== 'usage' && context.options.kind !== 'project')
+        )
+          return journal
+        try {
+          const budgets = await input.readBudgets()
+          const budgetDay =
+            new Date(input.now?.() ?? Date.now()).toISOString().split('T', 1)[0] ?? ''
+          return { ...journal, budgets, budgetDay }
+        } catch {
+          return {
+            ...journal,
+            partial: [journal.partial, UI_TEXT.reportDetailReasons.budgetsUnavailable]
+              .filter((reason) => reason !== undefined)
+              .join(' '),
+          }
+        }
+      })()
+      runs.set(context.run ?? context.options, pending)
+    }
+    return pending
+  }
 }
 
 /** M102's journal as the reporting `usage` source: the same numbers as its page. */
 export function createUsageReportReader(input: {
   readonly dataFolder: string
+  readonly readJournal?: (context: SourceReadContext) => Promise<UsageReportJournal>
+  readonly timezoneOffsetMins: number
   readonly now?: () => number
 }): NonNullable<LocalReportSourceDeps['usage']> {
   return async (context: SourceReadContext) => {
-    const journal = await readUsageReportJournal(input.dataFolder)
+    const journal = await (input.readJournal?.(context) ?? readUsageReportJournal(input.dataFolder))
     const facts = usageReportFacts({
       journal,
-      scope: context.options.scope,
+      scope: context.options.kind === 'usage' ? context.options.scope : '7d',
       by: context.options.by,
       now: input.now?.() ?? Date.parse(context.asOf),
       asOf: context.asOf,
+      timezoneOffsetMins: input.timezoneOffsetMins,
     })
     return {
       usage: facts.usage,
@@ -92,12 +156,33 @@ export function createUsageReportReader(input: {
  * else the store keeps never enters a report.
  */
 const storedReportSessionSchema = z.object({
+  version: z.literal(STORED_SESSION_VERSION),
   sessionId: z.string(),
   modelId: z.string(),
   name: z.optional(z.string()),
   turnIds: z.array(z.string()),
   transcript: z.array(z.object({ turnId: z.string(), item: itemSnapshotSchema })),
 })
+
+/** Read-only primary-backend history through the active host's existing ports. */
+export async function readHostReportSession(
+  host: Pick<AgentHost, 'info' | 'readSession' | 'listModels'>,
+  sessionId: string,
+): Promise<SessionHistoryInput | null> {
+  const history = await host.readSession(sessionId, { recoverGoal: false })
+  if (history.mode === 'none') return null
+  const models = await host.listModels(sessionId)
+  const model = models.find((entry) => entry.isActive)
+  if (model === undefined) throw new LocalSourceError('history')
+  return {
+    sessionId,
+    backend: host.info.kind,
+    modelId: model.modelId,
+    ...(history.name !== undefined && { name: history.name }),
+    items: history.items,
+    turnIds: [],
+  }
+}
 
 /** One workspace's stored Model API session, or null when it is not there. */
 export async function readStoredReportSession(
@@ -107,14 +192,54 @@ export async function readStoredReportSession(
   if (!SESSION_ID_PATTERN.test(sessionId)) return null
   let raw: unknown
   try {
-    const text = await readFile(path.join(directory, `${sessionId}.json`), 'utf8')
-    raw = JSON.parse(text) as unknown
+    // Refuse links in every named ancestor before opening any payload bytes.
+    let ancestor = path.resolve(directory)
+    while (path.dirname(ancestor) !== ancestor) {
+      const entry = await lstat(ancestor)
+      if (entry.isSymbolicLink()) throw new LocalSourceError('refused')
+      ancestor = path.dirname(ancestor)
+    }
+    const root = await realpath(directory)
+    const file = path.join(root, `${sessionId}.json`)
+    const before = await lstatIdentity(file)
+    if (!before.isFile() || before.nlink !== BigInt(REPORT_STORAGE_LINK_COUNT))
+      throw new LocalSourceError('refused')
+    if (before.size > BigInt(SESSION_EXPORT_MAX_BYTES)) throw new LocalSourceError('limit')
+    const handle = await open(
+      file,
+      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW | fsConstants.O_NONBLOCK,
+    )
+    try {
+      const held = await handleIdentity(handle)
+      if (
+        !sameFile(before, held) ||
+        !sameFile(before, await lstatIdentity(file)) ||
+        (await realpath(directory)) !== root
+      )
+        throw new LocalSourceError('refused')
+      const buffer = Buffer.alloc(SESSION_EXPORT_MAX_BYTES + 1)
+      let bytesRead = 0
+      while (bytesRead < buffer.length) {
+        const read = await handle.read(buffer, bytesRead, buffer.length - bytesRead, null)
+        if (read.bytesRead === 0) break
+        bytesRead += read.bytesRead
+      }
+      if (!sameFile(held, await lstatIdentity(file)) || (await realpath(directory)) !== root)
+        throw new LocalSourceError('refused')
+      if (bytesRead > SESSION_EXPORT_MAX_BYTES) throw new LocalSourceError('limit')
+      raw = JSON.parse(
+        new TextDecoder('utf-8', { fatal: true }).decode(buffer.subarray(0, bytesRead)),
+      )
+    } finally {
+      await handle.close()
+    }
   } catch (error) {
     if (errorCode(error) === 'ENOENT') return null
+    if (error instanceof LocalSourceError) throw error
     throw new LocalSourceError('failed')
   }
   const parsed = storedReportSessionSchema.safeParse(raw)
-  if (!parsed.success) return null
+  if (!parsed.success || parsed.data.sessionId !== sessionId) throw new LocalSourceError('invalid')
   const session = parsed.data
   return {
     sessionId: session.sessionId,
@@ -137,13 +262,21 @@ export async function readStoredReportSession(
  */
 export function createSessionReportReader(input: {
   readonly resolveSession: (sessionId: string | undefined) => Promise<SessionHistoryInput | null>
-  readonly readJournal: () => Promise<UsageReportJournal>
+  readonly readJournal: (context: SourceReadContext) => Promise<UsageReportJournal>
 }): ReportSessionReader {
   return {
     read: async (context: SourceReadContext) => {
       const history = await input.resolveSession(context.options.sessionId)
       if (history === null) throw new LocalSourceError('history')
-      const journal = await input.readJournal()
+      const journal = await input.readJournal(context)
+      const partials: string[] = journal.partial === undefined ? [] : [journal.partial]
+      if (journal.rollups.length > 0)
+        partials.push(UI_TEXT.reportDetailReasons.rolledUpBreakdownExcluded)
+      if (
+        history.items.length > 0 &&
+        journal.records.every((record) => record.session !== history.sessionId)
+      )
+        partials.push(UI_TEXT.reportDetailReasons.sessionUsageUnavailable)
       const turns =
         history.turnIds.length > 0 ? history.turnIds.length : sessionTurnCount(history.items)
       return {
@@ -170,6 +303,7 @@ export function createSessionReportReader(input: {
         usage: sessionUsageFacts(journal.records, history.sessionId),
         checkRuns: [],
         observedAt: context.asOf,
+        ...(partials.length > 0 && { partial: partials.join(' ') }),
       }
     },
   }

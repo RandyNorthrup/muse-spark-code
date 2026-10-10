@@ -1962,7 +1962,10 @@
     "sessionTurnsUnavailable": "L'historique de la session ne contient aucun identifiant de tour ; les tours ne peuvent pas être comptés.",
     "sessionApprovalsUnavailable": "L'historique de la session ne contient aucune décision d'approbation.",
     "toolBreakdownUnavailable": "L'utilisation par outil n'est pas enregistrée dans le journal d'utilisation.",
-    "rolledUpBreakdownExcluded": "L'historique cumulé est inclus dans les totaux mais pas dans cette répartition."
+    "rolledUpBreakdownExcluded": "L'historique cumulé est inclus dans les totaux mais pas dans cette répartition.",
+    "journalIncomplete": "Le journal contient des entrées endommagées, incomplètes ou de version plus récente ; les totaux les excluent.",
+    "sessionUsageUnavailable": "L’utilisation de cette session ne peut pas être attribuée dans le journal conservé ; les totaux de jetons et de coûts sont indisponibles.",
+    "budgetsUnavailable": "Les instantanés de budget pour la période sélectionnée sont indisponibles."
   },
   "reportRowsMore": {
     "one": "{count} ligne de plus",

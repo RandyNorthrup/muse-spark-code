@@ -128,7 +128,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
               ...(context.questions !== undefined && { questions: context.questions }),
               ...(context.usage !== undefined && { usage: context.usage }),
             }).sources
-      const readContext = { options, asOf: options.asOf, workspaceKey: key, signal }
+      const readContext = { run: {}, options, asOf: options.asOf, workspaceKey: key, signal }
       let planText: string | undefined
       const sources: ReportSourcePorts = {
         git: local?.git ?? unavailable('git'),

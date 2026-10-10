@@ -3,6 +3,7 @@ import type { ProviderUsageRow, AccountFacts, SubscriptionUsage } from '../../sh
 import type { ChatShareSource } from '../../core/sharing/chatShare'
 import { recoveryStamp } from '../../shared/agentRecovery'
 import type { ReportQuestionsReader } from '../../core/reporting/sources/questions'
+import { LocalSourceError } from '../../core/reporting/sources/local'
 import type { SessionHistoryInput } from '../../runtime/reporting/reportInputs'
 import { QuestionRegistry } from '../../core/questions/registry'
 import type { QuestionAnswerText } from '../../core/questions/lateAnswer'
@@ -11005,10 +11006,13 @@ export class ConversationController {
    */
   public async reportingSessionHistory(): Promise<SessionHistoryInput | null> {
     const { session } = this
-    if (session === undefined) return null
+    if (session === undefined || this.isDisposed) return null
+    const epoch = this.historyWatchEpoch
     const host = await this.deps.ensureHost()
+    if (this.historyWatchEpoch !== epoch || this.session !== session) return null
     const history = await host.readSession(session.sessionId)
-    if (history.mode === 'none') return null
+    if (history.mode === 'none' || this.historyWatchEpoch !== epoch || this.session !== session)
+      return null
     return {
       sessionId: session.sessionId,
       backend: host.info.kind,
@@ -11022,6 +11026,12 @@ export class ConversationController {
   public reportingQuestions(): ReportQuestionsReader {
     return {
       read: (context) => {
+        if (
+          this.isDisposed ||
+          (context.options.sessionId !== undefined &&
+            context.options.sessionId !== this.session?.sessionId)
+        )
+          return Promise.reject(new LocalSourceError('history'))
         const registry = this.session === undefined ? undefined : sessionQuestions.get(this.session)
         if (registry === undefined)
           return Promise.reject(new Error(UI_TEXT.reportSourceReasons.unbound))

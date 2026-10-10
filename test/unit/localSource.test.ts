@@ -30,10 +30,12 @@ describe('local source failures', () => {
     expect(localFailureOf(foreign)).toBe('history')
   })
 
-  it('refuses a branded failure with an unknown code', () => {
+  it('R22 refuses branded prototype and unknown codes', () => {
     expect(localFailureOf({ isLocalSourceError: true, code: 'nope' })).toBeUndefined()
     expect(localFailureOf({ isLocalSourceError: true })).toBeUndefined()
     expect(localFailureOf({ code: 'history' })).toBeUndefined()
+    for (const code of ['constructor', 'toString', '__proto__'])
+      expect(localFailureOf({ isLocalSourceError: true, code })).toBeUndefined()
   })
 
   it('reports the foreign code instead of a generic failure', async () => {

@@ -233,6 +233,9 @@ export type SourceResult<T> =
     }
 
 export interface SourceReadContext {
+  /** Identity shared by all reads in one generation, including refreshes at the same stamp. */
+  readonly run?: object
+
   readonly asOf: string
   readonly workspaceKey: string
   readonly options: ReportOptions
