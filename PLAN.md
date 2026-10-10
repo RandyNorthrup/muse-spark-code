@@ -38219,7 +38219,7 @@ keeping its detailed native qualification catalogue generated too.
 Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
 in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
 
-**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. Verification retains the portable graph cap, duplication and SAST findings, four ACP fixture failures, native bridge contract checks, installed qualification and the next resource-chip parity lane as blockers. Retained requirements and receipts follow.
+**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. Verification retains the portable graph cap, duplication and SAST findings, native bridge contract checks, installed qualification and the next resource-chip parity lane as blockers. M104 F3 repairs the four ACP resource fixtures; their complete stdio suite passes. Retained requirements and receipts follow.
 
 **FIXM104PB / RVM104PB (2026-10-06).** Repair all four P2 findings and the
 P3 evidence error inside B's paid engines and their shared guards. One
@@ -38875,6 +38875,17 @@ so each test fits the unchanged deadline. Preserve every locale-specific
 plural form when ordering source tables. No assertions, contrasts, caps or
 platform guards are relaxed; failing receipts remain blockers until corrected.
 
+**M104 F3 repair scope (2026-10-09, kubuntu).** The dedicated follow-up
+brief authorizes root-cause repair of the twelve recorded clones, the complete
+portable JavaScript graph overage and the four ACP startup fixtures. Keep
+all zero-clone/size/security guards and assertions unchanged. Give process
+fixtures their own private resource namespace; consolidate equivalent paid
+record/setup and test fixtures under their existing owners. Measure browser
+contributors before removing repeated code/data from the graph. Run complete
+touched suites at repository deadlines, byte-exact red drills, changed-file
+lint/format and all compiler projects. Aggregate quality, native contract/SAST
+repair and installed qualification remain lead/other-lane work.
+
 **M104INT ACP fixture stop (2026-10-09).** Four real-stdio session
 startup cases still fail after the private Linux-helper and joined-factory
 fixture repairs. The creation-registry guard rejects a real directory with
@@ -38883,6 +38894,18 @@ or rewrite the fixture repeatedly to obtain green. The shared two-fix stop
 rule applies. Temporary permission diagnostics are restored byte-exact.
 The four failures remain a main-integration blocker until the lead fixes the
 fixture's resource ownership/isolation and reruns the whole file.
+
+**M104 F3 ACP resource fixture qualification (2026-10-09).** The dedicated
+repair brief supersedes the prior integration lane's bounded fixture stop.
+The fixture owned its data-home wrapper but let initial state publication
+create the machine-data parent with default permissions (0775 on this rig).
+Creation-registry publication correctly refuses that parent. Create the
+platform-specific machine-data directory with the existing private mode,
+inside the fixture's fresh mkdtemp root, before starting an agent. No chmod,
+ambient profile read or registry/security change. All thirteen real-stdio
+cases pass; removing only the private namespace setup reproduces the four
+startup failures, then the fixed file is restored byte-exact. This removes
+the ACP fixture blocker, while other integration blockers remain.
 
 **M104INT presentation browser fixture repair (2026-10-09).** Compile
 What's New CSS through esbuild like production, including its generated host
