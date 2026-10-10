@@ -31,6 +31,18 @@ export function isAccountSwitchRefusedError(error: unknown): error is AccountSwi
   )
 }
 
+/** A refused providers file, recognized across bundle boundaries by its
+ * brand rather than its constructor (each bundle carries its own copy of
+ * the store error, like the refused switch above). */
+export function isInvalidProvidersFileError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.name === 'AccountStoreError' &&
+    'code' in error &&
+    error.code === 'invalidProvidersFile'
+  )
+}
+
 /** The one call a usage link needs from the account owner. */
 export interface AccountUsagePort {
   /** The selected provider's fixed public usage page, never a vendor error URL. */
@@ -42,16 +54,8 @@ export function accountErrorText(error: unknown): string {
   // its account, so a generic failure would misreport what happened.
   if (isAccountSwitchRefusedError(error)) return error.message
   // A refused providers file names the refusal: the runtime is already on
-  // the account service, and the file was left untouched. Brand-checked like
-  // the refused switch above, since each bundle carries its own copy of the
-  // store error constructor.
-  if (
-    error instanceof Error &&
-    error.name === 'AccountStoreError' &&
-    'code' in error &&
-    error.code === 'invalidProvidersFile'
-  )
-    return UI_TEXT.accounts.providersInvalid
+  // the account service, and the file was left untouched.
+  if (isInvalidProvidersFileError(error)) return UI_TEXT.accounts.providersInvalid
   return error instanceof Error && error.message === UI_TEXT.accounts.invalidAccount
     ? UI_TEXT.accounts.invalidAccount
     : UI_TEXT.accounts.unavailable

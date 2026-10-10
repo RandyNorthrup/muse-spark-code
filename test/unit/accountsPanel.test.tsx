@@ -167,6 +167,16 @@ describe('M108 Accounts section', () => {
     expect(port.accept).not.toHaveBeenCalled()
     expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.actionFailed)
   })
+  it('renders the honest sentence for a refused providers file instead of a generic failure', async () => {
+    const { port } = section()
+    vi.mocked(port.request).mockResolvedValueOnce({
+      type: 'accounts/error',
+      code: 'providersInvalid',
+    })
+    fireEvent.click(screen.getAllByRole('button', { name: UI_TEXT.accounts.use })[1]!)
+    expect(await screen.findByRole('alert')).toHaveTextContent(UI_TEXT.accounts.providersInvalid)
+    expect(port.accept).not.toHaveBeenCalled()
+  })
   it('does not adopt an old reply after the selected provider changes', async () => {
     const { port, rerender } = section()
     const held = Promise.withResolvers<unknown>()

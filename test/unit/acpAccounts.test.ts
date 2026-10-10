@@ -921,6 +921,55 @@ describe('M108 ACP accounts', () => {
     controller.dispose()
   })
 
+  it('keeps a branded providers-file refusal through refresh, selection and start', async () => {
+    const h = sessionAccountsRig()
+    const controller = new AcpAccounts('session', h.port, vi.fn(), vi.fn())
+    await controller.start()
+    // The producer bundle carries its own copy of the store error
+    // constructor, so `instanceof` is false here: only the brand travels.
+    const refused = new ForeignStoreError()
+    expect(refused).not.toBeInstanceOf(AccountStoreError)
+    h.port.read = () => Promise.reject(refused)
+    await expect(controller.command('/accounts list', () => true)).rejects.toBe(refused)
+    await expect(controller.use('work', () => true)).rejects.toBe(refused)
+    const late = new AcpAccounts('session', h.port, vi.fn(), vi.fn())
+    await expect(late.start()).rejects.toBe(refused)
+    // The selection catch preserves the brand too when the read succeeds.
+    h.port.read = () => Promise.resolve(h.state())
+    h.port.use = () => Promise.reject(refused)
+    await expect(controller.use('work', () => true)).rejects.toBe(refused)
+    controller.dispose()
+    late.dispose()
+  })
+
+  it('answers a branded providers-file refusal as an internal error with the honest sentence', async () => {
+    const h = connectedAccounts()
+    h.port.use = () => Promise.reject(new ForeignStoreError())
+    await h.run(async (client, id) => {
+      await expect(
+        client.request('session/prompt', {
+          sessionId: id,
+          prompt: [{ type: 'text', text: '/accounts use work' }],
+        }),
+      ).rejects.toMatchObject({
+        code: acp.RequestError.internalError().code,
+        message: expect.stringContaining(UI_TEXT.accounts.providersInvalid),
+      })
+      // The picker selection route reports the same honest sentence.
+      await expect(
+        client.request('session/set_config_option', {
+          sessionId: id,
+          configId: ACP_CONFIG_IDS.account,
+          value: 'work',
+        }),
+      ).rejects.toMatchObject({
+        code: acp.RequestError.internalError().code,
+        message: expect.stringContaining(UI_TEXT.accounts.providersInvalid),
+      })
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    })
+  })
+
   it('answers a refused switch as an invalid request with the stay-put text', async () => {
     const h = connectedAccounts()
     h.port.use = () => Promise.reject(new AccountSwitchRefusedError('meta', 'Default'))
@@ -1051,6 +1100,12 @@ describe('M108 companion through the shared panel', () => {
     await expect(panel.dispatch({ type: 'accounts/list', provider: 'meta' })).resolves.toEqual({
       type: 'accounts/error',
       code: 'unavailable',
+    })
+    // A branded providers-file refusal from the inner port keeps its code.
+    dispatch.mockRejectedValue(new ForeignStoreError())
+    await expect(panel.dispatch({ type: 'accounts/list', provider: 'meta' })).resolves.toEqual({
+      type: 'accounts/error',
+      code: 'providersInvalid',
     })
     const listener = vi.fn()
     panel.subscribe(listener)

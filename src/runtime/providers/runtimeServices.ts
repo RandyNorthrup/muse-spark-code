@@ -10,7 +10,7 @@ import { randomBytes } from 'node:crypto'
 import { hostname } from 'node:os'
 import { AccountStore, type AccountsMetadataPort } from '../../core/providers/accounts'
 import type { Account, AccountThresholds } from '../../shared/accounts'
-import { AccountSwitchRefusedError } from '../../acp/accountText'
+import { AccountSwitchRefusedError, isInvalidProvidersFileError } from '../../acp/accountText'
 import {
   AccountSecrets,
   secretStorageAccountVault,
@@ -116,8 +116,11 @@ class RuntimeAccountSessions implements AccountsSessionPort {
   public async read(_sessionId: string): ReturnType<AccountsSessionPort['read']> {
     try {
       return await this.snapshot()
-    } catch {
-      throw new Error(UI_TEXT.accounts.unavailable)
+    } catch (error: unknown) {
+      // A refused providers file travels with its brand: the runtime is
+      // already on the account service, so the connection sentence would lie.
+      if (isInvalidProvidersFileError(error)) throw error
+      throw new Error(UI_TEXT.accounts.unavailable, { cause: error })
     }
   }
 

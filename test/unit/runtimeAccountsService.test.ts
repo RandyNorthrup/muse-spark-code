@@ -6,7 +6,8 @@ import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from '
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { AccountSwitchRefusedError } from '../../src/acp/accountText'
+import { AcpAccounts } from '../../src/acp/accounts'
+import { AccountSwitchRefusedError, accountErrorText } from '../../src/acp/accountText'
 import { runAccountsCommand, runAccountAuthSet } from '../../src/runtime/providers/accountsCommand'
 import { memoryKeyring } from './helpers/keyring'
 import { CURRENT_SHAPE_KEYS } from './helpers/modelApiKeys'
@@ -172,7 +173,76 @@ describe('installed runtime account service', () => {
     expect(await accounts(h.services, h.print, h.printError, ['list', '--provider', 'meta'])).toBe(
       1,
     )
-    expect(h.printError).toHaveBeenCalledWith(UI_TEXT.accounts.unavailable)
+    expect(h.printError).toHaveBeenCalledWith(UI_TEXT.accounts.providersInvalid)
     expect(readFileSync(file, 'utf8')).toBe('{not json')
+  })
+
+  it.each([
+    [
+      'duplicate account ids',
+      {
+        id: 'meta',
+        policyProvider: 'meta',
+        product: 'model-api',
+        auth: 'apiKey',
+        origin: 'https://api.meta.ai',
+        accounts: [
+          { id: 'default', label: 'Default', order: 0, thresholds: {} },
+          { id: 'default', label: 'Copy', order: 1, thresholds: {} },
+        ],
+      },
+    ],
+    [
+      'a provider id that does not match its key',
+      {
+        id: 'other',
+        policyProvider: 'meta',
+        product: 'model-api',
+        auth: 'apiKey',
+        origin: 'https://api.meta.ai',
+      },
+    ],
+  ])(
+    'refuses a %s with the providers-file sentence instead of the connection one',
+    async (_label, entry) => {
+      const h = rig()
+      const file = path.join(h.dataDir, 'providers.json')
+      writeFileSync(file, JSON.stringify({ providers: { meta: entry } }), 'utf8')
+      const before = readFileSync(file, 'utf8')
+      expect(
+        await accounts(h.services, h.print, h.printError, ['list', '--provider', 'meta']),
+      ).toBe(1)
+      expect(h.printError).toHaveBeenCalledWith(UI_TEXT.accounts.providersInvalid)
+      expect(readFileSync(file, 'utf8')).toBe(before)
+    },
+  )
+
+  it('keeps the branded refusal through session reads and ACP operations after the file corrupts', async () => {
+    const h = rig()
+    const run = (args: string[]) => accounts(h.services, h.print, h.printError, args)
+    expect(await run(['add', '--provider', 'meta', '--account', 'work', '--label', 'Work'])).toBe(0)
+    // A healthy file adopts the session first.
+    await expect(h.services.sessions('meta').read('session-1')).resolves.toMatchObject({
+      currentAccount: 'default',
+    })
+    const controller = new AcpAccounts('session-1', h.services.sessions('meta'), vi.fn(), vi.fn())
+    await controller.start()
+    // Corrupting the file afterwards must not become a connection problem.
+    const file = path.join(h.dataDir, 'providers.json')
+    writeFileSync(file, '{not json', 'utf8')
+    const branded = { name: 'AccountStoreError', code: 'invalidProvidersFile' }
+    await expect(h.services.sessions('meta').read('session-1')).rejects.toMatchObject(branded)
+    await expect(controller.command('/accounts list', () => true)).rejects.toMatchObject(branded)
+    await expect(controller.command('/accounts current', () => true)).rejects.toMatchObject(branded)
+    await expect(controller.use('work', () => true)).rejects.toMatchObject(branded)
+    // The agent boundary still renders the honest sentence for that brand.
+    try {
+      await controller.command('/accounts list', () => true)
+      expect.unreachable()
+    } catch (error: unknown) {
+      expect(accountErrorText(error)).toBe(UI_TEXT.accounts.providersInvalid)
+    }
+    expect(readFileSync(file, 'utf8')).toBe('{not json')
+    controller.dispose()
   })
 })
