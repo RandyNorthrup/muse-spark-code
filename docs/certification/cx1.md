@@ -812,3 +812,14 @@ With direct v2 commands now refusing, the schedules setting's remaining live
 effect is the legacy `/loop` shortcut in Muse Code chat. All 15 manifest
 descriptions say that explicitly and state that management and execution are
 unavailable. It is neither labeled inert nor described as opening a v2 panel.
+
+The final F1 publication sweep preserves all five active settings in both Help
+references. Hiding `resourceRelocate` again and regenerating the references made
+`retains the configured-default policy and working enhancement controls` fail;
+the other 62 matrix tests passed. All five files were restored byte-exact:
+
+- `scripts/lib/reference.mjs`: `d2c14a355e614ad24754afac6181f39d68f90d01944d2b97e2dd51fdcb17e2c9`.
+- `docs/reference.md`: `f8f9a1e93b4488ef98c6918c9dbe669467a93b313ea2f0ad93bfe82ea6f8b880`.
+- `src/runtime/reference.node.generated.ts`: `5b5da39ac310637c8a4fa55a3c27c8e1015736affa2fe4ad14c88c2b4ed5fe3f`.
+- `src/shared/reference/reference.generated.json`: `4968370d4d30fefb205814a995ffe31da8a9ac87b6c6055fadf04fa72d2f457b`.
+- `src/shared/reference/reference.generated.ts`: `9e913cab717ccda0129702c2825b16cb3ae158d403fc9b9f4cf3d9bd8a9ebcd8`.

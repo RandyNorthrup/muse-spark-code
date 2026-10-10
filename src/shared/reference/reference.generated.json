@@ -13,7 +13,8 @@
         "museSpark.resourceMemoryMinFreeGiB",
         "museSpark.resourceGpuMaxPercent",
         "museSpark.resourceDiskBusyMaxPercent",
-        "museSpark.resourceDiskMinFreeGiB"
+        "museSpark.resourceDiskMinFreeGiB",
+        "museSpark.resourceRelocate"
       ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#keeping-your-machine-responsive",
       "backends": ["museCode", "modelApi"],
@@ -192,7 +193,7 @@
       "summary": { "tip": "compact" },
       "description": { "tip": "compact" },
       "commands": [],
-      "settings": [],
+      "settings": ["museSpark.modelApiAutoCompaction"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#observation-packing-model-api",
       "backends": ["modelApi"],
       "paid": false,
@@ -1385,7 +1386,11 @@
       "summary": { "tip": "loop" },
       "description": { "tip": "loop" },
       "commands": [],
-      "settings": ["museSpark.modelApiScheduledPrompts"],
+      "settings": [
+        "museSpark.modelApiScheduledPrompts",
+        "museSpark.schedules",
+        "museSpark.scheduleDefaultDelivery"
+      ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api",
       "backends": ["modelApi"],
       "paid": true,
@@ -2830,6 +2835,38 @@
       "schema": { "type": "boolean", "default": true }
     },
     {
+      "text": {
+        "conditions": [
+          { "when": "scheduleRuntime=unbound&backend=museCode", "text": { "setting": "schedules" } }
+        ]
+      },
+      "id": "museSpark.schedules",
+      "name": "museSpark.schedules",
+      "description": "Controls the legacy /loop shortcut in Muse Code chat. Schedule management and scheduled prompt execution are unavailable.",
+      "descriptionKey": "config.schedules.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.scheduleDefaultDelivery",
+      "name": "museSpark.scheduleDefaultDelivery",
+      "description": "Selects the delivery written into new schedule drafts; it does not enable scheduled execution.",
+      "descriptionKey": "config.schedules.defaultDelivery.description",
+      "type": "string",
+      "default": "whenIdle",
+      "enum": ["steer", "interrupt", "queue", "whenIdle", "newConversation"],
+      "scope": "machine",
+      "refinements": [],
+      "schema": {
+        "type": "string",
+        "enum": ["steer", "interrupt", "queue", "whenIdle", "newConversation"],
+        "default": "whenIdle"
+      }
+    },
+    {
       "id": "museSpark.modelApiSubagents",
       "name": "museSpark.modelApiSubagents",
       "description": "Bounded paid child agents, with up to four requests per task including retries. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.",
@@ -3630,6 +3667,66 @@
       "schema": { "type": ["number", "null"], "default": null, "minimum": 2 }
     },
     {
+      "text": {
+        "conditions": [{ "when": "resourceRelocation", "text": { "setting": "resourceRelocate" } }]
+      },
+      "id": "museSpark.resourceRelocate",
+      "name": "museSpark.resourceRelocate",
+      "description": "Controls the missing-route note on resource pauses. No relocation route is bound; work stays on this machine.",
+      "descriptionKey": "config.resourceRelocate.description",
+      "type": "string",
+      "default": "paired",
+      "enum": ["paired", "ask", "off"],
+      "enumDescriptions": [
+        "Show the missing-route note when resource pressure pauses work; no paired-device route is bound.",
+        "Show the missing-route note when resource pressure pauses work; no relocation question or transfer runs.",
+        "Hide the missing-route note on resource pauses; work stays on this machine."
+      ],
+      "enumDescriptionKeys": [
+        "config.resourceRelocate.enumDescriptions.paired",
+        "config.resourceRelocate.enumDescriptions.ask",
+        "config.resourceRelocate.enumDescriptions.off"
+      ],
+      "enumTexts": {
+        "0": {
+          "conditions": [
+            {
+              "when": "resourceRelocation=noRoute",
+              "text": {
+                "fallbackKey": "config.resourceRelocate.enumDescriptions.paired",
+                "fallback": "Show the missing-route note when resource pressure pauses work; no paired-device route is bound."
+              }
+            }
+          ]
+        },
+        "1": {
+          "conditions": [
+            {
+              "when": "resourceRelocation=noRoute",
+              "text": {
+                "fallbackKey": "config.resourceRelocate.enumDescriptions.ask",
+                "fallback": "Show the missing-route note when resource pressure pauses work; no relocation question or transfer runs."
+              }
+            }
+          ]
+        },
+        "2": {
+          "conditions": [
+            {
+              "when": "resourceRelocation=off",
+              "text": {
+                "fallbackKey": "config.resourceRelocate.enumDescriptions.off",
+                "fallback": "Hide the missing-route note on resource pauses; work stays on this machine."
+              }
+            }
+          ]
+        }
+      },
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "string", "default": "paired", "enum": ["paired", "ask", "off"] }
+    },
+    {
       "id": "museSpark.questions.deferAfterSeconds",
       "name": "museSpark.questions.deferAfterSeconds",
       "description": "Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.",
@@ -3650,6 +3747,25 @@
       "scope": "window",
       "refinements": [],
       "schema": { "type": "string", "default": "" }
+    },
+    {
+      "text": {
+        "conditions": [
+          {
+            "when": "conversationStart&modelPricing",
+            "text": { "setting": "modelApiAutoCompaction" }
+          }
+        ]
+      },
+      "id": "museSpark.modelApiAutoCompaction",
+      "name": "museSpark.modelApiAutoCompaction",
+      "description": "Shows the first-turn notice that automatic compaction is awaiting evaluation. Automatic compaction remains inactive; turning this off hides the notice.",
+      "descriptionKey": "config.modelApiAutoCompaction.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
     },
     {
       "text": {
@@ -3895,6 +4011,25 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "enum": ["transcribe", "sendAudio"], "default": "transcribe" }
+    },
+    {
+      "text": {
+        "conditions": [
+          {
+            "when": "shellOrigin=interactive&agentFence",
+            "text": { "setting": "vault.agentFence" }
+          }
+        ]
+      },
+      "id": "museSpark.vault.agentFence",
+      "name": "museSpark.vault.agentFence",
+      "description": "Controls the credential fence for interactive Model API shell commands. Verification, schedules, workers and hooks remain fenced.",
+      "descriptionKey": "config.vault.agentFence.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
     }
   ],
   "slash": [

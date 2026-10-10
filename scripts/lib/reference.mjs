@@ -1367,11 +1367,12 @@ export function publishedReference(model, source) {
     source.COMMAND_IDS.showScheduleTimeline,
   ])
   const settings = new Set([
-    ...dormant.flatMap((feature) => feature.settings),
-    'museSpark.schedules',
-    'museSpark.scheduleDefaultDelivery',
+    ...dormant
+      .flatMap((feature) => feature.settings)
+      .filter(
+        (id) => !['museSpark.modelApiAutoCompaction', 'museSpark.vault.agentFence'].includes(id),
+      ),
     'museSpark.scheduleAgentCreation',
-    'museSpark.resourceRelocate',
   ])
   // CX1R4 F1: the accounts route is dormant; CM108ACC re-adds it with the runtime.
   const hiddenRoutes = new Set(['estimate', 'schedule', 'vault', 'vaultHelp', 'accounts'])
