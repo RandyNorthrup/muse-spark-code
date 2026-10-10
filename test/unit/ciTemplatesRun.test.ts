@@ -12,11 +12,12 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
-import { CI_OUT_DIR } from '../../action/lib/ci-run.mjs'
+import { CI_BOOTSTRAP_UNSET, CI_OUT_DIR } from '../../action/lib/ci-run.mjs'
 import {
   completedResult,
   NODE,
   PROCESS_SUITE,
+  REPO_ROOT,
   tempLayout,
   type TempLayout,
 } from './helpers/actionFixtures'
@@ -325,6 +326,53 @@ describe.runIf(isPosix)('the exact template scripts', PROCESS_SUITE, () => {
     expect(existsSync(path.join(layout().root, 'output', CI_OUT_DIR))).toBe(false)
     // The trap owns the temp directory on the digest failure path too.
     expect(existsSync(tempOf(run.log))).toBe(false)
+  })
+
+  it('R5-P2: the parent trap removes the temp dir after its unset runs, under sh and bash', () => {
+    // The exact parent assignment and trap from the bootstrap source, with
+    // the generated key-name list expanded as the templates carry it. An
+    // exec failure (a Node tool missing from PATH on a persistent agent)
+    // fires the trap; unsetting muse_dir before expanding it tripped set -u
+    // and left the 0700 directory behind (RVCM80CI4 P2).
+    const source = readFileSync(path.join(REPO_ROOT, 'ci-templates', 'bootstrap.sh'), 'utf8')
+      .split('@MUSE_KEY_NAMES@')
+      .join(CI_BOOTSTRAP_UNSET.join(' '))
+    const lines = source.split('\n')
+    const start = lines.findIndex((line) => line.startsWith('muse_start_ms="${muse_setup'))
+    let trap = -1
+    for (let index = lines.length - 1; index >= 0; index -= 1) {
+      if (lines[index]?.startsWith("trap '(") === true) {
+        trap = index
+        break
+      }
+    }
+    expect(start).toBeGreaterThan(-1)
+    expect(trap).toBeGreaterThan(start)
+    const parent = lines.slice(start, trap + 1).join('\n')
+    expect(parent).toContain('muse_rm_dir="$muse_cleanup_dir"')
+    expect(parent).toContain('rm -rf "$muse_rm_dir"')
+    for (const shell of ['sh', 'bash']) {
+      const dir = path.join(layout().root, `trap-temp-${shell}`)
+      mkdirSync(dir, { mode: 0o700 })
+      const result = spawnSync(
+        shell,
+        [
+          '-e',
+          '-c',
+          [
+            'set -eu',
+            `muse_setup="1700000000000:${dir}"`,
+            parent,
+            'exec muse-spark-exec-probe-missing-binary',
+          ].join('\n'),
+        ],
+        { encoding: 'utf8' },
+      )
+      expect(result.status).not.toBe(0)
+      const output = `${result.stdout}${result.stderr}`
+      expect(output).not.toMatch(/unbound variable|parameter not set/)
+      expect(existsSync(dir), `${shell} left ${dir} behind`).toBe(false)
+    }
   })
 
   it('an unpinned template refuses before downloading', () => {
