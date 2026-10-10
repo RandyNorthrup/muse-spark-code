@@ -1545,6 +1545,7 @@
   "worktreeDetachedHead": "aktuálně rezervované potvrzení",
   "worktreeFolderExists": "Tato složka už existuje:",
   "worktreeAddFailed": "git nemohl vytvořit pracovní strom",
+  "worktreeRecordsWriteUnknown": "Záznamy pracovních stromů mohly být zapsány",
   "worktreeCreated": "Pracovní strom je připraven v {path}",
   "worktreeOpen": "Otevřít v novém okně",
   "worktreeListFailed": "git nemohl vypsat pracovní stromy",

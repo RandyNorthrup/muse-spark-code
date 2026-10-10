@@ -1494,6 +1494,7 @@
   "worktreeDetachedHead": "目前簽出的認可",
   "worktreeFolderExists": "該資料夾已存在：",
   "worktreeAddFailed": "git 無法建立工作樹",
+  "worktreeRecordsWriteUnknown": "工作樹記錄可能已寫入",
   "worktreeCreated": "工作樹已就緒，位於 {path}",
   "worktreeOpen": "在新視窗中開啟",
   "worktreeListFailed": "git 無法列出工作樹",

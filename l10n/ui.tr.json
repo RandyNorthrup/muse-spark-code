@@ -1511,6 +1511,7 @@
   "worktreeDetachedHead": "şu anda kullanıma alınmış işleme",
   "worktreeFolderExists": "Bu klasör zaten var:",
   "worktreeAddFailed": "git çalışma ağacını oluşturamadı",
+  "worktreeRecordsWriteUnknown": "Çalışma ağacı kayıtları yazılmış olabilir",
   "worktreeCreated": "Çalışma ağacı hazır: {path}",
   "worktreeOpen": "Yeni Pencerede Aç",
   "worktreeListFailed": "git çalışma ağaçlarını listeleyemedi",
