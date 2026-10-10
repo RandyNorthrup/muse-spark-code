@@ -46,6 +46,38 @@ function sectionProps(slice: TeamPanelSlice, post: SectionProps['post'] = vi.fn(
     highlightedItem: undefined,
   }
 }
+async function pairSlice(overrides?: Parameters<typeof panelRig>[0]) {
+  const rig = panelRig(overrides)
+  await rig.read()
+  await rig.controller.handle({ type: 'roles/template', template: 'pair' })
+  return { rig, slice: await rig.read() }
+}
+async function importedFullSlice() {
+  const rig = panelRig()
+  const empty = await rig.read()
+  await rig.controller.handle({ type: 'roles/template', template: 'full' })
+  const templateSlice = await rig.read()
+  // A real import arrives with the host's import notice.
+  const imported: TeamPanelSlice = { ...templateSlice, notice: UI_TEXT.teamImportDraft }
+  return { rig, empty, imported }
+}
+function engineeringRole(slice: TeamPanelSlice) {
+  const role = slice.document.roles.find((item) => item.role === 'engineering')
+  if (role === undefined) throw new Error('No engineering role')
+  return role
+}
+function collectingPost(): {
+  posted: TeamPanelMessage[]
+  post: SectionProps['post']
+} {
+  const posted: TeamPanelMessage[] = []
+  const post: SectionProps['post'] = (message) => {
+    const parsed = teamPanelMessageSchema.safeParse(message)
+    if (!parsed.success) throw new Error('Not a team message')
+    posted.push(parsed.data)
+  }
+  return { posted, post }
+}
 async function sectionRig(template?: 'pair' | 'full') {
   const rig = panelRig()
   await rig.read()
@@ -184,12 +216,7 @@ describe('M96 U1 Roles UI', () => {
     expect(screen.getByText(UI_TEXT.teamEditor.saved)).toBeDefined()
   })
   it('shows the stored template and keeps an imported draft out of the first-run guide', async () => {
-    const rig = panelRig()
-    const empty = await rig.read()
-    await rig.controller.handle({ type: 'roles/template', template: 'full' })
-    const templateSlice = await rig.read()
-    // A real import arrives with the host's import notice.
-    const imported: TeamPanelSlice = { ...templateSlice, notice: UI_TEXT.teamImportDraft }
+    const { empty, imported } = await importedFullSlice()
     const post = vi.fn<SectionProps['post']>()
     const props = sectionProps(empty, post)
     const view = render(<RolesSection {...props} />)
@@ -215,11 +242,7 @@ describe('M96 U1 Roles UI', () => {
     expect(screen.getByRole('button', { name: UI_TEXT.wizardContinue })).toBeDefined()
   })
   it('restores guided setup when the editor is cancelled back to empty', async () => {
-    const rig = panelRig()
-    await rig.read()
-    await rig.controller.handle({ type: 'roles/template', template: 'full' })
-    const templateSlice = await rig.read()
-    const imported: TeamPanelSlice = { ...templateSlice, notice: UI_TEXT.teamImportDraft }
+    const { imported } = await importedFullSlice()
     const post = vi.fn<SectionProps['post']>()
     render(<RolesSection {...sectionProps(imported, post)} />)
     expect(screen.queryByRole('button', { name: UI_TEXT.wizardContinue })).toBeNull()
@@ -250,24 +273,9 @@ describe('M96 U1 Roles UI', () => {
         { key: 'outputCap', kind: 'number', label: 'Output Cap', note: '', min: 1 },
         { key: 'temperature', kind: 'number', label: 'Temperature', note: '' },
       )
-    const rig = panelRig({ offers: () => Promise.resolve(offers) })
-    await rig.read()
-    await rig.controller.handle({ type: 'roles/template', template: 'pair' })
-    const slice = await rig.read()
-    const role = slice.document.roles.find((item) => item.role === 'engineering')
-    if (role === undefined) throw new Error('No engineering role')
-    const posted: TeamPanelMessage[] = []
-    render(
-      <RoleEditor
-        role={role}
-        slice={slice}
-        post={(message) => {
-          const parsed = teamPanelMessageSchema.safeParse(message)
-          if (!parsed.success) throw new Error('Not a team message')
-          posted.push(parsed.data)
-        }}
-      />,
-    )
+    const { rig, slice } = await pairSlice({ offers: () => Promise.resolve(offers) })
+    const { posted, post } = collectingPost()
+    render(<RoleEditor role={engineeringRole(slice)} slice={slice} post={post} />)
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Output Cap' }), {
       target: { value: '1024' },
     })
@@ -291,24 +299,9 @@ describe('M96 U1 Roles UI', () => {
     ).toMatchObject({ outputCap: 1024, temperature: 0.5 })
   })
   it('keeps rapid consecutive cap edits without restoring the stale measure', async () => {
-    const rig = panelRig()
-    await rig.read()
-    await rig.controller.handle({ type: 'roles/template', template: 'pair' })
-    const slice = await rig.read()
-    const role = slice.document.roles.find((item) => item.role === 'engineering')
-    if (role === undefined) throw new Error('No engineering role')
-    const posted: TeamPanelMessage[] = []
-    render(
-      <PoolEditor
-        role={role}
-        slice={slice}
-        post={(message) => {
-          const parsed = teamPanelMessageSchema.safeParse(message)
-          if (!parsed.success) throw new Error('Not a team message')
-          posted.push(parsed.data)
-        }}
-      />,
-    )
+    const { rig, slice } = await pairSlice()
+    const { posted, post } = collectingPost()
+    render(<PoolEditor role={engineeringRole(slice)} slice={slice} post={post} />)
     const block = document.querySelector('.team-editor-cap')
     if (block === null) throw new Error('No cap block')
     const selects = block.querySelectorAll('select')
@@ -345,24 +338,9 @@ describe('M96 U1 Roles UI', () => {
     ).toEqual({ measure: 'outputTokens', window: 'day', amount: 10_000 })
   })
   it('keeps rapid consecutive tool ticks without restoring the first', async () => {
-    const rig = panelRig()
-    await rig.read()
-    await rig.controller.handle({ type: 'roles/template', template: 'pair' })
-    const slice = await rig.read()
-    const role = slice.document.roles.find((item) => item.role === 'engineering')
-    if (role === undefined) throw new Error('No engineering role')
-    const posted: TeamPanelMessage[] = []
-    render(
-      <RoleEditor
-        role={role}
-        slice={slice}
-        post={(message) => {
-          const parsed = teamPanelMessageSchema.safeParse(message)
-          if (!parsed.success) throw new Error('Not a team message')
-          posted.push(parsed.data)
-        }}
-      />,
-    )
+    const { rig, slice } = await pairSlice()
+    const { posted, post } = collectingPost()
+    render(<RoleEditor role={engineeringRole(slice)} slice={slice} post={post} />)
     const boxes = [...document.querySelectorAll('.team-editor-tool input[type="checkbox"]')]
     const [firstBox, secondBox] = boxes
     if (firstBox === undefined || secondBox === undefined) throw new Error('No tool checkboxes')
@@ -529,10 +507,7 @@ describe('M96 U1 Roles UI', () => {
 
 describe('M96 U1 pool catalogue filters', () => {
   it('shows the catalogue filter bar in the pool picker', async () => {
-    const rig = panelRig()
-    await rig.read()
-    await rig.controller.handle({ type: 'roles/template', template: 'pair' })
-    const slice = await rig.read()
+    const { slice } = await pairSlice()
     render(<RolesSection {...sectionProps(slice)} />)
     expect(document.querySelector('.team-editor .models-filter-bar')).not.toBeNull()
   })
@@ -576,12 +551,8 @@ describe('M96 U1 pool catalogue filters', () => {
 
 describe('M96 U1 localized role labels', () => {
   it('renders report and tool labels from the installed table', async () => {
-    const rig = panelRig()
-    await rig.read()
-    await rig.controller.handle({ type: 'roles/template', template: 'pair' })
-    const slice = await rig.read()
-    const role = slice.document.roles.find((item) => item.role === 'engineering')
-    if (role === undefined) throw new Error('No engineering role')
+    const { slice } = await pairSlice()
+    const role = engineeringRole(slice)
     const element = document.createElement('script')
     element.type = 'application/json'
     element.id = WEBVIEW_L10N_ELEMENT_ID
