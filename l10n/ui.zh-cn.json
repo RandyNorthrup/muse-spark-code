@@ -5014,6 +5014,7 @@
     "recoveryShownOnce": "恢复码（仅此次显示）：{code}",
     "savedItPrompt": "您已将恢复码保存在安全的地方了吗？",
     "busy": "凭据库正在另一个窗口中使用。请重试。",
+    "storeUnavailable": "操作系统的凭据存储不可用。在 Linux 上，请登录到密钥环（Secret Service）已解锁的桌面会话；在 macOS 上，请解锁登录钥匙串；在 Windows 上，请以交互方式登录。然后重试。",
     "remoteWarning": "只能向其他设备请求签名或一次性验证码。该设备的用户必须在当地批准每次使用。",
     "approvalExpired": "此批准已过期。请重新请求使用。",
     "useChanged": "批准后的使用内容已改变。请为新用途请求批准。",

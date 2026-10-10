@@ -21,7 +21,7 @@ import {
 import { eraseVaultMaterial, randomVaultBytes, VaultError } from '../crypto'
 import { createRecoverySlot, unlockRecoverySlot } from '../keyslots'
 import { VaultStore, type VaultFilePort } from '../store'
-import { VaultManagementError, type VaultManagementPort } from './ports'
+import { VaultManagementError, VaultStoreUnavailableError, type VaultManagementPort } from './ports'
 import {
   type VaultAnchorPort,
   type VaultSlotProvider,
@@ -54,6 +54,12 @@ interface PendingSetup {
   readonly expiresAt: number
 }
 const newId = (): string => randomBytes(VAULT_LIMITS.idBytes).toString('hex')
+/** An OS-store failure keeps its fixed repair reason; anything else is `io`. */
+function storeRefusal(error: unknown): VaultManagementError {
+  return new VaultManagementError(
+    error instanceof VaultStoreUnavailableError ? 'storeUnavailable' : 'io',
+  )
+}
 /** The store's in-transaction refusal (absent, removed, other kind) as the management reason. */
 async function refusingInvalid(commit: Promise<void>): Promise<void> {
   try {
@@ -69,6 +75,8 @@ export class VaultManagement implements VaultManagementPort {
   private pending: PendingSetup | null = null
   /** A setup whose "I Saved It" is being committed: owned here, never expired underneath. */
   private confirming: PendingSetup | null = null
+  /** Set by Lock during a confirmation: its key is erased, never restored to pending. */
+  private isConfirmationCancelled = false
   private readonly approvals = new Map<string, VaultApprovalRequest>()
   private readonly listeners = new Set<(event: VaultBrokerEvent) => void>()
   private setupTail: Promise<void> = Promise.resolve()
@@ -125,6 +133,10 @@ export class VaultManagement implements VaultManagementPort {
   }
 
   private async recoverNow(code: Uint8Array): Promise<void> {
+    // Already unlocked: nothing to recover, so no key is unwrapped at all
+    // outside the broker's Lock cleanup (RVCM1091B 2).
+    const status = await this.deps.broker.status()
+    if (status.state === 'unlocked') return
     const records = await this.deps.unlock.records()
     const slot = records.find((record) => record.tier === 'recovery')
     if (slot === undefined) throw new VaultManagementError('invalid')
@@ -148,6 +160,11 @@ export class VaultManagement implements VaultManagementPort {
     this.emit({ kind: 'approval', v: 2, request })
   }
   noteLocked(epoch: number): void {
+    // Lock ends everything: an unconfirmed setup's key and any offered
+    // recovery key are erased with the broker's own (RVCM1091B 2).
+    this.discard()
+    if (this.confirming !== null) this.isConfirmationCancelled = true
+    this.deps.unlock.discardRecovery()
     this.approvals.clear()
     this.emit({ kind: 'locked', v: 2, lockEpoch: epoch })
   }
@@ -241,11 +258,17 @@ export class VaultManagement implements VaultManagementPort {
 
   async setup(): Promise<{ setupId: string; code: Buffer }> {
     return await this.serialize(async () => {
-      if (
-        this.current() !== null ||
-        (await this.deps.anchor.vaultId()) !== null ||
-        (await VaultStore.exists(this.deps.files))
-      )
+      if (this.current() !== null) throw new VaultManagementError('exists')
+      let anchored: string | null
+      try {
+        anchored = await this.deps.anchor.vaultId()
+      } catch (error: unknown) {
+        throw storeRefusal(error)
+      }
+      // A first intent left by a failed, expired setup can never be opened:
+      // remove it so setup can start again (RVCM1091B 3).
+      if (anchored === null) await VaultStore.discardAbandonedCreation(this.deps.files)
+      if (anchored !== null || (await VaultStore.exists(this.deps.files)))
         throw new VaultManagementError('exists')
       const vaultId = newId()
       const key = randomVaultBytes(VAULT_KEY_BYTES)
@@ -281,22 +304,30 @@ export class VaultManagement implements VaultManagementPort {
         let osStore: VaultSlotRecord
         try {
           osStore = await this.deps.slots.osStore(pending.vaultId, newId()).wrap(pending.key)
-        } catch {
-          throw new VaultManagementError('io')
+        } catch (error: unknown) {
+          throw storeRefusal(error)
         }
-        const store = await VaultStore.create(
-          { files: this.deps.files, anchor: this.deps.anchor, key: pending.key },
-          pending.vaultId,
-          [osStore, pending.recovery],
-        )
+        let store: VaultStore
+        try {
+          store = await VaultStore.create(
+            { files: this.deps.files, anchor: this.deps.anchor, key: pending.key },
+            pending.vaultId,
+            [osStore, pending.recovery],
+          )
+        } catch (error: unknown) {
+          throw error instanceof VaultStoreUnavailableError ? storeRefusal(error) : error
+        }
         store.lock()
         isCreated = true
       } finally {
         this.confirming = null
         // A failed confirmation stays pending inside its window (retry or
-        // cancel); after the window, or once created, the key is erased.
-        if (isCreated || this.deps.clock.now() >= pending.expiresAt) pending.key.fill(0)
+        // cancel); after the window, after a Lock, or once created, the key
+        // is erased.
+        if (isCreated || this.isConfirmationCancelled || this.deps.clock.now() >= pending.expiresAt)
+          pending.key.fill(0)
         else this.pending = pending
+        this.isConfirmationCancelled = false
       }
       this.changed()
     })

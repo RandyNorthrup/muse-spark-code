@@ -9,6 +9,7 @@ import {
   type VaultSnapshot,
 } from '../../../src/core/vault/store'
 import { createRecoverySlot } from '../../../src/core/vault/keyslots'
+import type { VaultItem } from '../../../src/shared/vault'
 import {
   encodeVaultJson,
   hkdfSha256,
@@ -168,4 +169,23 @@ export async function withRngFailure(
     for (const bytes of allocations) bytes.fill(0)
     key.fill(0)
   }
+}
+
+/** A fresh vault with one item whose next write of `name` is held until released. */
+export async function heldWriteVault(
+  name: 'vault.v1' | 'slots.v1' | 'pending.v1',
+  item: VaultItem,
+) {
+  const vault = await freshVault()
+  const files = vault.files
+  if (!(files instanceof MemoryVaultFiles)) throw new Error('memory files expected')
+  await vault.store.write(item)
+  const held = Promise.withResolvers<undefined>()
+  const state = { isHeld: false }
+  files.hold = (written) => {
+    if (written !== name) return Promise.resolve()
+    state.isHeld = true
+    return held.promise
+  }
+  return { vault, files, held, state }
 }

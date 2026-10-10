@@ -5164,6 +5164,7 @@
     "recoveryShownOnce": "Kurtarma kodu (yalnızca şimdi gösterilir): {code}",
     "savedItPrompt": "Kurtarma kodunu güvenli bir yere kaydettiniz mi?",
     "busy": "Kasa başka bir pencerede meşgul. Yeniden deneyin.",
+    "storeUnavailable": "İşletim sisteminin kimlik bilgisi deposu kullanılamıyor. Linux’ta kilidi açık bir anahtarlıkla (Secret Service) masaüstü oturumu açın; macOS’ta oturum açma anahtar zincirinin kilidini açın; Windows’ta etkileşimli olarak oturum açın. Ardından yeniden deneyin.",
     "remoteWarning": "Başka bir cihazdan yalnızca imza veya tek kullanımlık kod istenebilir. Kullanıcı her kullanımı o cihazda onaylamalıdır.",
     "approvalExpired": "Bu onayın süresi doldu. Kullanımı yeniden isteyin.",
     "useChanged": "Onaydan sonra kullanım değişti. Yeni kullanım için onay isteyin.",

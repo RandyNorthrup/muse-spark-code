@@ -10,6 +10,7 @@ import * as z from 'zod/mini'
 import { KEYRING_SERVICE, VAULT_LIMITS } from '../../shared/constants'
 import { VaultError } from '../../core/vault/crypto'
 import { type VaultGenerationPort, type VaultGenerationState } from '../../core/vault/store'
+import { VaultStoreUnavailableError } from '../../core/vault/broker/ports'
 import { storeOperation, type KeyringEntryFactory } from '../keyStore'
 
 /** The OS-store account of the anchor record (service: KEYRING_SERVICE). */
@@ -54,7 +55,8 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
         this.openEntry(KEYRING_SERVICE, VAULT_ANCHOR_ACCOUNT).getPassword(),
       )
     } catch {
-      throw new VaultError('io')
+      // No native text: the fixed, localized repair reaches the person (RVCM1091B 4).
+      throw new VaultStoreUnavailableError()
     }
     if (raw === null || raw === undefined) return null
     if (raw.length > VAULT_LIMITS.text) throw new VaultError('rollback')
@@ -100,7 +102,8 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
         this.openEntry(KEYRING_SERVICE, VAULT_ANCHOR_ACCOUNT).setPassword(JSON.stringify(next)),
       )
     } catch {
-      throw new VaultError('io')
+      // No native text: the fixed, localized repair reaches the person (RVCM1091B 4).
+      throw new VaultStoreUnavailableError()
     }
   }
 }

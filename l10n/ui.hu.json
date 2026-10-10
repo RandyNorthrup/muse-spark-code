@@ -5164,6 +5164,7 @@
     "recoveryShownOnce": "Helyreállítási kód (csak most látható): {code}",
     "savedItPrompt": "Elmentette a helyreállítási kódot biztonságos helyre?",
     "busy": "A tárolót egy másik ablak használja. Próbálja újra.",
+    "storeUnavailable": "Az operációs rendszer hitelesítőadat-tárolója nem érhető el. Linuxon jelentkezzen be egy feloldott kulcstartójú (Secret Service) asztali munkamenetbe; macOS-en oldja fel a bejelentkezési kulcskarikát; Windowson jelentkezzen be interaktívan. Ezután próbálja újra.",
     "remoteWarning": "Más eszköztől csak aláírás vagy egyszer használatos kód kérhető. Az ottani felhasználónak minden használatot ott kell jóváhagynia.",
     "approvalExpired": "Ez a jóváhagyás lejárt. Kérje újra a használatot.",
     "useChanged": "A használat megváltozott a jóváhagyás után. Kérjen jóváhagyást az új használathoz.",

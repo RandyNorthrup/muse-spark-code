@@ -5164,6 +5164,7 @@
     "recoveryShownOnce": "Wiederherstellungscode (nur jetzt angezeigt): {code}",
     "savedItPrompt": "Haben Sie den Wiederherstellungscode an einem sicheren Ort gespeichert?",
     "busy": "Der Tresor wird gerade in einem anderen Fenster verwendet. Versuchen Sie es erneut.",
+    "storeUnavailable": "Der Anmeldeinformationsspeicher des Betriebssystems ist nicht verfügbar. Melden Sie sich unter Linux in einer Desktopsitzung mit entsperrtem Schlüsselbund (Secret Service) an, entsperren Sie unter macOS den Anmeldeschlüsselbund und melden Sie sich unter Windows interaktiv an. Versuchen Sie es dann erneut.",
     "remoteWarning": "Von einem anderen Gerät können nur Signaturen oder Einmalcodes angefordert werden. Dort muss der Benutzer jeder Nutzung zustimmen.",
     "approvalExpired": "Diese Zustimmung ist abgelaufen. Fordern Sie die Nutzung erneut an.",
     "useChanged": "Die Nutzung hat sich nach der Zustimmung geändert. Fordern Sie eine Zustimmung für die neue Nutzung an.",

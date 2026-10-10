@@ -6230,6 +6230,9 @@ export const EN = {
     recoveryShownOnce: 'Recovery code (shown only now): {code}',
     savedItPrompt: 'Have you saved the recovery code somewhere safe?',
     busy: 'The vault is busy in another window. Try again.',
+    // RVCM1091B 4: the OS store's fixed repair, never native text.
+    storeUnavailable:
+      "The operating system's credential store is not available. On Linux, sign in to a desktop session with an unlocked keyring (the Secret Service); on macOS, unlock the login Keychain; on Windows, sign in interactively. Then try again.",
     remoteWarning:
       'Only a signature or a one-time code may be requested from another device. Its user must approve each use there.',
     approvalExpired: 'This approval expired. Request the use again.',
