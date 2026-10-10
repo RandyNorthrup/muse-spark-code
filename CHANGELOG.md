@@ -81,6 +81,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M120 borrowed launches recheck authorization, native recovery and main-role
+  demand synchronously after the launch journal write. Revoked unstarted loans
+  return to their queue with the journal closed. Readiness wakes received
+  during the final journal write are drained before their promises resolve
+  (RVM120S3C).
+
 - M120 loans live on the task board with their authorization and are rechecked
   against current assignments, candidates, workers and main-role demand.
   Work arriving or a native candidate recovering during authorization cancels

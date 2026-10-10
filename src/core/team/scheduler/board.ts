@@ -359,6 +359,29 @@ export class TaskBoard {
     return true
   }
 
+  /** Close an admission whose worker was never invoked; preserve queue age. */
+  cancelUnstarted(id: string, number: number): void {
+    const task = this.requireTask(id)
+    const attempt = task.attempts.at(-1)
+    if (task.state !== 'running' || number !== task.currentAttempt || attempt?.state !== 'running')
+      throw new BoardRefusal('state', [id])
+    // Only the scheduler, before invoking start, can close this admission.
+    // The counted admission remains conservative; no process retirement is claimed.
+    task.attempts.pop()
+    task.currentAttempt--
+    task.state = 'ready'
+    delete task.loan
+    delete task.recallAskedAtMs
+    if (task.handoff !== undefined) {
+      task.handoff.chain = task.handoff.chain.filter(
+        (link) =>
+          link.kind !== 'borrow' ||
+          link.candidateId !== attempt.entryId ||
+          link.atMs !== attempt.startedAt,
+      )
+    }
+  }
+
   /** Journalled with the board, including demand resets when a main candidate frees. */
   demand(id: string, nowMs: number, isMainFree: boolean): void {
     const task = this.requireTask(id)

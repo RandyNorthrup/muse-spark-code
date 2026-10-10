@@ -17,6 +17,7 @@ import { SchedulerBorrowing } from '../../src/core/team/scheduler/borrowing'
 import { TaskPicker } from '../../src/core/team/scheduler/pick'
 import { teamPreferenceListSchema, type TeamPreferenceList } from '../../src/shared/teamPreference'
 import { teamBoardSchema, type TeamBoardTask } from '../../src/shared/team'
+import type { TeamBoard } from '../../src/shared/team'
 import {
   TEAM_BORROW_DEMAND_WAIT_MS,
   TEAM_BORROW_RECALL_WAIT_MS,
@@ -179,6 +180,25 @@ function retireTask(f: ReturnType<typeof fixture>, task: TeamBoardTask): void {
   f.board.transition(task.id, task.currentAttempt, 'done', Date.now())
 }
 
+async function resetBorrowDemand(f: ReturnType<typeof fixture>): Promise<void> {
+  f.board.pause()
+  for (const task of f.board.snapshot().tasks) {
+    if (task.state === 'running') {
+      retireTask(f, task)
+      await f.scheduler.retired({ taskId: task.id, attempt: task.currentAttempt })
+    } else if (task.id !== 'coding') f.board.transition(task.id, 0, 'cancelled', Date.now())
+  }
+  f.signedOut.add('coder')
+  if (f.assignments.length === 0)
+    f.assignments.push({
+      candidateId: 'reviewer',
+      mainRole: 'review',
+      secondaryRoles: ['engineering'],
+    })
+  f.board.resume()
+  vi.setSystemTime(Date.now() + TEAM_BORROW_DEMAND_WAIT_MS)
+}
+
 function overrideSelection(
   f: ReturnType<typeof fixture>,
   change: (task: TeamBoardTask, snapshot: TeamSelectionSnapshot) => TeamSelectionSnapshot,
@@ -208,7 +228,150 @@ async function expectNoMainRecall(f: ReturnType<typeof fixture>): Promise<void> 
   expect(f.board.task('coding').recallAskedAtMs).toBeUndefined()
 }
 
+function suspendJournal(f: ReturnType<typeof fixture>, shouldHold: (board: TeamBoard) => boolean) {
+  const previous = f.deps.journal
+  const writing = Promise.withResolvers<undefined>()
+  const finished = Promise.withResolvers<undefined>()
+  let isHeld = false
+  f.deps.journal = vi.fn<SchedulerDependencies['journal']>(async (snapshot) => {
+    await previous(snapshot)
+    if (isHeld || !shouldHold(snapshot)) return
+    isHeld = true
+    writing.resolve(undefined)
+    await finished.promise
+  })
+  return {
+    writing: writing.promise,
+    release: () => {
+      finished.resolve(undefined)
+    },
+    restore: () => {
+      f.deps.journal = previous
+    },
+  }
+}
+
 describe('M120 borrowing through the real scheduler and pool', () => {
+  it('starts in the same synchronous turn as the final loan check', async () => {
+    const f = fixture()
+    await waitForBorrow(f)
+    let hasWritten = false
+    let hasChecked = false
+    f.deps.journal = vi.fn<SchedulerDependencies['journal']>((snapshot) => {
+      if (snapshot.tasks.some((task) => task.id === 'coding' && task.state === 'running'))
+        hasWritten = true
+      return Promise.resolve()
+    })
+    const context = f.deps.context
+    f.deps.context = () => {
+      if (hasWritten && !hasChecked) {
+        hasChecked = true
+        queueMicrotask(() => {
+          f.assignments.length = 0
+        })
+      }
+      return context()
+    }
+    f.deps.start = vi.fn(() => {
+      expect(hasChecked).toBe(true)
+      expect(f.assignments[0]?.secondaryRoles).toContain('engineering')
+      return Promise.resolve('started' as const)
+    })
+    await f.scheduler.wake()
+    expect(f.deps.start).toHaveBeenCalledOnce()
+    expect(f.assignments).toEqual([])
+  })
+
+  it.each([
+    'assignment',
+    'main work',
+    'native recovery',
+    'candidate',
+    'admission',
+    'selection',
+  ] as const)(
+    'refuses a loan changed by %s immediately after the launch journal write',
+    async (change) => {
+      const f = fixture()
+      await waitForBorrow(f)
+      let hasChanged = false
+      f.deps.journal = vi.fn<SchedulerDependencies['journal']>((snapshot) => {
+        if (
+          !hasChanged &&
+          snapshot.tasks.some((task) => task.id === 'coding' && task.state === 'running')
+        ) {
+          hasChanged = true
+          switch (change) {
+            case 'assignment': {
+              f.assignments.length = 0
+              break
+            }
+            case 'main work': {
+              f.board.submit([submission('review', { roleId: 'review' })], Date.now())
+              break
+            }
+            case 'native recovery': {
+              f.signedOut.clear()
+              break
+            }
+            case 'admission': {
+              f.unavailable.add('reviewer')
+              break
+            }
+            case 'candidate': {
+              const candidate = f.lists[1]?.pool[0]
+              if (candidate?.agent) candidate.agent.model = 'replacement-engine'
+              break
+            }
+            case 'selection': {
+              const context = f.deps.context
+              f.deps.context = () => {
+                const base = context()
+                delete base.selection
+                return base
+              }
+              break
+            }
+          }
+        }
+        return Promise.resolve()
+      })
+      await f.scheduler.wake()
+      expect(hasChanged).toBe(true)
+      expect(
+        vi
+          .mocked(f.deps.start)
+          .mock.calls.filter(
+            ([, worker]) => worker.id === 'reviewer' && worker.roleId === 'engineering',
+          ),
+      ).toEqual([])
+      expect(f.board.task('coding')).toMatchObject({
+        state: 'ready',
+        currentAttempt: 0,
+        attempts: [],
+      })
+      expect(f.board.task('coding').loan).toBeUndefined()
+      expect(f.slots.snapshot().some((slot) => slot.request.taskId === 'coding')).toBe(false)
+      expect(f.deps.journal).toHaveBeenLastCalledWith(f.board.snapshot())
+    },
+  )
+
+  it('drains a readiness wake received while the final journal write is suspended', async () => {
+    const f = fixture()
+    f.signedOut.clear()
+    let writes = 0
+    const journal = suspendJournal(f, () => ++writes === 2)
+    const first = f.scheduler.wake()
+    await journal.writing
+    f.board.submit([submission('coding')], Date.now())
+    const second = f.scheduler.wake()
+    journal.release()
+    await Promise.all([first, second])
+    expect(f.board.task('coding').state).toBe('running')
+    expect(f.deps.start).toHaveBeenCalledOnce()
+    expect(f.deps.journal).toHaveBeenLastCalledWith(f.board.snapshot())
+  })
+
   it('preserves two authorized lenders and launches both loans in one drain', async () => {
     const f = fixture()
     f.lists[1]?.pool.push(...list('review', ['reviewer-two']).pool)
@@ -249,12 +412,16 @@ describe('M120 borrowing through the real scheduler and pool', () => {
     async (seed) => {
       const f = fixture()
       const choose = randomChoices(seed)
-      const operations = Array.from({ length: 8 }, () => 0)
+      const operations = Array.from({ length: 10 }, () => 0)
       let serial = 0
       let authorizationChange: number | undefined
       let isLoanAuthorization = false
       let authorizations = 0
       let borrowedStarts = 0
+      let journalChange: number | undefined
+      let journalRevocations = 0
+      let journalWakes = 0
+      const invoked = new Set<string>()
       overrideSelection(f, (task, snapshot) =>
         task.id.startsWith('legacy') ? selectionSnapshot() : snapshot,
       )
@@ -276,7 +443,22 @@ describe('M120 borrowing through the real scheduler and pool', () => {
         }
         return Promise.resolve(true)
       }
+      f.deps.journal = vi.fn<SchedulerDependencies['journal']>((snapshot) => {
+        const pending = snapshot.tasks.find(
+          (task) =>
+            task.state === 'running' &&
+            task.loan?.attempt === task.currentAttempt &&
+            !invoked.has(JSON.stringify([task.id, task.currentAttempt])),
+        )
+        if (pending !== undefined && journalChange !== undefined) {
+          changeAuthorization(journalChange)
+          journalChange = undefined
+          journalRevocations++
+        }
+        return Promise.resolve()
+      })
       f.deps.start = vi.fn<SchedulerDependencies['start']>((task, worker) => {
+        invoked.add(JSON.stringify([task.id, task.currentAttempt]))
         if (worker.roleId !== 'engineering' || worker.id !== 'reviewer')
           return Promise.resolve('started')
         borrowedStarts++
@@ -304,22 +486,12 @@ describe('M120 borrowing through the real scheduler and pool', () => {
       await f.scheduler.wake()
       isLoanAuthorization = false
       expect(borrowedStarts).toBe(0)
-      f.board.pause()
-      for (const task of f.board.snapshot().tasks) {
-        if (task.state === 'running') {
-          retireTask(f, task)
-          await f.scheduler.retired({ taskId: task.id, attempt: task.currentAttempt })
-        } else if (task.id !== 'coding') f.board.transition(task.id, 0, 'cancelled', Date.now())
-      }
-      f.signedOut.add('coder')
-      if (f.assignments.length === 0)
-        f.assignments.push({
-          candidateId: 'reviewer',
-          mainRole: 'review',
-          secondaryRoles: ['engineering'],
-        })
-      f.board.resume()
-      vi.setSystemTime(Date.now() + TEAM_BORROW_DEMAND_WAIT_MS)
+      await resetBorrowDemand(f)
+      journalChange = choose(3)
+      await f.scheduler.wake()
+      expect(journalRevocations).toBe(1)
+      expect(borrowedStarts).toBe(0)
+      await resetBorrowDemand(f)
       await f.scheduler.wake()
       const actions: readonly (() => Promise<void>)[] = [
         () => {
@@ -363,6 +535,37 @@ describe('M120 borrowing through the real scheduler and pool', () => {
         () => {
           authorizationChange = choose(3)
           return Promise.resolve()
+        },
+        () => {
+          journalChange = choose(3)
+          return Promise.resolve()
+        },
+        async () => {
+          // Equal consecutive snapshots identify the drain's final write;
+          // tick and final write both occur even when every worker is busy.
+          if (f.assignments.length === 0)
+            f.assignments.push({
+              candidateId: 'reviewer',
+              mainRole: 'review',
+              secondaryRoles: ['engineering'],
+            })
+          let previous = ''
+          const journal = suspendJournal(f, (snapshot) => {
+            const bytes = JSON.stringify(snapshot)
+            const isFinal = bytes === previous
+            previous = bytes
+            return isFinal
+          })
+          const first = f.scheduler.wake()
+          await journal.writing
+          const id = `preferred-wake-${String(serial++)}`
+          f.board.submit([submission(id)], Date.now())
+          const second = f.scheduler.wake()
+          journal.release()
+          await Promise.all([first, second])
+          journal.restore()
+          journalWakes++
+          expect(f.board.task(id).unmetSinceMs).toBeDefined()
         },
       ]
       for (let step = 0; step < 80; step++) {
@@ -425,6 +628,8 @@ describe('M120 borrowing through the real scheduler and pool', () => {
       expect(operations.every((count) => count > 0)).toBe(true)
       expect(authorizations).toBeGreaterThan(0)
       expect(borrowedStarts).toBeGreaterThan(0)
+      expect(journalRevocations).toBeGreaterThan(0)
+      expect(journalWakes).toBeGreaterThan(0)
     },
   )
 

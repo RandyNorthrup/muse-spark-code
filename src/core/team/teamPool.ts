@@ -733,6 +733,12 @@ export class TeamScheduler {
   }
 
   private async drain(): Promise<void> {
+    do {
+      await this.drainPass()
+    } while (this.hasWake && this.canDispatch())
+  }
+
+  private async drainPass(): Promise<void> {
     const considered = new Set<string>()
     let didBorrow = false
     while (this.hasWake && this.canDispatch()) {
@@ -850,6 +856,25 @@ export class TeamScheduler {
           await this.deps.journal(this.board.snapshot())
           continue
         }
+        if (current.loan !== undefined && this.borrowing !== undefined) {
+          const live = this.deps.context()
+          if (
+            !this.borrowing.canLaunch(
+              {
+                ...live,
+                now: this.deps.now(),
+                canStart: (task, entry) =>
+                  live.canStart(task, entry) && this.hasSlot(task, entry, ref),
+              },
+              this.board.task(current.id),
+            )
+          ) {
+            this.board.cancelUnstarted(current.id, ref.attempt)
+            hasAttempt = false
+            await this.deps.journal(this.board.snapshot())
+            continue
+          }
+        }
         this.slots.mark(ref, 'running')
         canRelease = false
         this.leases.set(this.key(ref), lease)
@@ -893,7 +918,9 @@ export class TeamScheduler {
         this.hasWake = true
       }
     }
-    if (this.borrowing !== undefined) await this.deps.journal(this.board.snapshot())
+    if (this.borrowing !== undefined) {
+      await this.deps.journal(this.board.snapshot())
+    }
   }
 
   startSweep(): void {

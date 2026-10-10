@@ -11,6 +11,54 @@ import {
 } from './helpers/teamScheduler'
 
 describe('window task board', () => {
+  it('closes only the unstarted admission while preserving queue age, history and counted caps', () => {
+    const { board, countAttempt } = makeBoard()
+    board.submit([submission('task')], 0)
+    const prior = {
+      kind: 'borrow' as const,
+      atMs: 0,
+      candidateId: 'previous',
+      mainRole: 'review',
+      borrowingRole: 'engineering',
+    }
+    board.appendChain('task', prior)
+    board.loan('task', {
+      candidateId: 'entry',
+      mainRole: 'review',
+      authorization: 'authorized',
+      attempt: 1,
+    })
+    expect(board.begin('task', attempt())).toBe(true)
+    board.appendChain('task', { ...prior, candidateId: 'entry', atMs: 1 })
+    board.cancelUnstarted('task', 1)
+    expect(board.task('task')).toMatchObject({
+      state: 'ready',
+      readyAt: 0,
+      currentAttempt: 0,
+      attempts: [],
+      reassignments: 0,
+    })
+    expect(board.task('task').loan).toBeUndefined()
+    expect(board.task('task').handoff?.chain).toEqual([prior])
+    expect(countAttempt).toHaveBeenCalledOnce()
+    expect(teamBoardSchema.parse(board.snapshot())).toEqual(board.snapshot())
+  })
+
+  it.each(['ready', 'stale attempt', 'retiring'] as const)(
+    'refuses an unstarted closure for %s without changing the board',
+    (condition) => {
+      const { board } = makeBoard()
+      board.submit([submission('task')], 0)
+      if (condition !== 'ready') board.begin('task', attempt())
+      if (condition === 'retiring') board.finishAttempt('task', 1, { state: 'retiring' })
+      const before = board.snapshot()
+      expect(() => {
+        board.cancelUnstarted('task', condition === 'stale attempt' ? 2 : 1)
+      }).toThrow(BoardRefusal)
+      expect(board.snapshot()).toEqual(before)
+    },
+  )
+
   it('keeps quarantined older attempts chargeable and records their late retirement after archival', () => {
     const { board, archived } = makeBoard()
     board.submit([submission('reader')], 0)

@@ -37357,6 +37357,18 @@ with byte-exact drills, run complete team suites/request goldens and scoped
 gates at repository deadlines. Aggregate quality and the inherited encoder
 blocker remain lead-owned; no merge, push or live/paid calls.
 
+**Lane S round 4 (RVM120S3C, 2026-10-09).** Revalidate the board's
+loan authorization and D109 lending conditions synchronously after the
+launch journal's last await, immediately before starting the worker. A
+refused unstarted attempt returns to its queue and its journal is closed;
+no process-retirement proof is fabricated. Latch readiness wakes through
+the final journal write and drain again before resolving them. Retain both
+reviewer reproductions, extend the seeded property with journal-boundary
+revocation and overlapping wakes, and prove both guards with byte-exact
+drills. Run complete team suites/request goldens, scoped formatting/lint
+and one unit-project typecheck at repository deadlines. Aggregate quality and the
+accepted production-build blocker remain lead-owned under the rig brief.
+
 - **Goal:** D103 across every balancing surface.
 - **Order:** after the Wednesday set, and before the M110/M111 resume.
   M110's node orchestrator uses it.

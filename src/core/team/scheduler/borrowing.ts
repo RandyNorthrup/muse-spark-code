@@ -321,80 +321,10 @@ export class SchedulerBorrowing {
     }
   }
 
-  async tick(context: PickContext, journal: () => Promise<void>): Promise<PickContext> {
-    const tasks = this.board.snapshot().tasks
-    for (const task of tasks)
-      if (task.loan !== undefined && task.loan.attempt > task.currentAttempt)
-        this.board.loan(task.id, undefined)
-    if (
-      this.port.assignments().every((assignment) => assignment.secondaryRoles.length === 0) &&
-      tasks.every((task) => task.loan === undefined)
-    )
-      return context
-    const lists = this.port.lists()
-    const snapshot = this.snapshot(context, tasks, lists)
-    const taken = new Set<string>()
-    const decisions: BorrowDecision[] = []
-    const ordered = snapshot.queued.toSorted(
-      (a, b) => a.queuedAtMs - b.queuedAtMs || a.taskId.localeCompare(b.taskId),
-    )
-    for (const queued of ordered) {
-      const task = this.board.task(queued.taskId)
-      if (context.selection?.(task).preference === undefined) continue
-      const agents = snapshot.agents.map((agent): BorrowAgent => {
-        if (agent.running !== undefined) return agent
-        const candidate = lists
-          .find((list) => list.role === agent.mainRole)
-          ?.pool.find((item) => item.id === agent.candidateId)
-        const home = context.entries.find(
-          (entry) => entry.id === agent.candidateId && entry.roleId === agent.mainRole,
-        )
-        if (candidate === undefined || home === undefined)
-          return { ...agent, skip: { candidateId: agent.candidateId, reason: 'nodeOffline' } }
-        if (taken.has(agent.candidateId))
-          return { ...agent, skip: { candidateId: agent.candidateId, reason: 'busy' } }
-        const selection = this.selection(context, task, candidate)
-        const result = selectTeamEntry(
-          { roleId: task.roleId, entries: [], policy: 'queue', continueOnNext: false },
-          selection,
-          TEAM_TASKS_PER_TURN_DEFAULT,
-        )
-        const skip = result.kind === 'exhausted' ? result.skips?.[0] : undefined
-        return { ...agent, ...(skip !== undefined && { skip }) }
-      })
-      const decision = decideBorrow({ ...snapshot, agents }, task.id)[0]
-      if (decision === undefined) continue
-      decisions.push(decision)
-      if (decision.kind !== 'borrow') continue
-      const agent = agents.find((item) => item.candidateId === decision.candidateId)
-      const candidate = lists
-        .find((list) => list.role === agent?.mainRole)
-        ?.pool.find((item) => item.id === decision.candidateId)
-      const home = context.entries.find(
-        (entry) => entry.id === decision.candidateId && entry.roleId === agent?.mainRole,
-      )
-      if (candidate === undefined || home === undefined)
-        throw new Error('team:borrowCandidateMissing')
-      taken.add(decision.candidateId)
-      this.board.loan(task.id, {
-        candidateId: candidate.id,
-        mainRole: home.roleId,
-        authorization: this.authorization(candidate, home),
-        attempt: task.currentAttempt + 1,
-      })
-    }
-    this.port.decisions(decisions)
-    this.apply(context)
-    await journal()
-    return this.apply(context)
-  }
-
-  /** Recheck proposed lenders against fresh facts without another borrow/recall tick. */
-  apply(context: PickContext): PickContext {
+  private project(context: PickContext, tasks: readonly TeamBoardTask[]): PickContext {
     const borrowed = new Map<string, { candidate: TeamCandidate; entry: SchedulerEntry }>()
     const lists = this.port.lists()
     const assignments = this.port.assignments()
-    const tasks = this.board.snapshot().tasks
     const snapshot = this.snapshot(context, tasks, lists)
     const invalid = new Set<string>()
     for (const task of tasks) {
@@ -466,6 +396,130 @@ export class SchedulerBorrowing {
         return selection
       },
     }
+  }
+
+  async tick(context: PickContext, journal: () => Promise<void>): Promise<PickContext> {
+    const tasks = this.board.snapshot().tasks
+    for (const task of tasks)
+      if (task.loan !== undefined && task.loan.attempt > task.currentAttempt)
+        this.board.loan(task.id, undefined)
+    if (
+      this.port.assignments().every((assignment) => assignment.secondaryRoles.length === 0) &&
+      tasks.every((task) => task.loan === undefined)
+    )
+      return context
+    const lists = this.port.lists()
+    const snapshot = this.snapshot(context, tasks, lists)
+    const taken = new Set<string>()
+    const decisions: BorrowDecision[] = []
+    const ordered = snapshot.queued.toSorted(
+      (a, b) => a.queuedAtMs - b.queuedAtMs || a.taskId.localeCompare(b.taskId),
+    )
+    for (const queued of ordered) {
+      const task = this.board.task(queued.taskId)
+      if (context.selection?.(task).preference === undefined) continue
+      const agents = snapshot.agents.map((agent): BorrowAgent => {
+        if (agent.running !== undefined) return agent
+        const candidate = lists
+          .find((list) => list.role === agent.mainRole)
+          ?.pool.find((item) => item.id === agent.candidateId)
+        const home = context.entries.find(
+          (entry) => entry.id === agent.candidateId && entry.roleId === agent.mainRole,
+        )
+        if (candidate === undefined || home === undefined)
+          return { ...agent, skip: { candidateId: agent.candidateId, reason: 'nodeOffline' } }
+        if (taken.has(agent.candidateId))
+          return { ...agent, skip: { candidateId: agent.candidateId, reason: 'busy' } }
+        const selection = this.selection(context, task, candidate)
+        const result = selectTeamEntry(
+          { roleId: task.roleId, entries: [], policy: 'queue', continueOnNext: false },
+          selection,
+          TEAM_TASKS_PER_TURN_DEFAULT,
+        )
+        const skip = result.kind === 'exhausted' ? result.skips?.[0] : undefined
+        return { ...agent, ...(skip !== undefined && { skip }) }
+      })
+      const decision = decideBorrow({ ...snapshot, agents }, task.id)[0]
+      if (decision === undefined) continue
+      decisions.push(decision)
+      if (decision.kind !== 'borrow') continue
+      const agent = agents.find((item) => item.candidateId === decision.candidateId)
+      const candidate = lists
+        .find((list) => list.role === agent?.mainRole)
+        ?.pool.find((item) => item.id === decision.candidateId)
+      const home = context.entries.find(
+        (entry) => entry.id === decision.candidateId && entry.roleId === agent?.mainRole,
+      )
+      if (candidate === undefined || home === undefined)
+        throw new Error('team:borrowCandidateMissing')
+      taken.add(decision.candidateId)
+      this.board.loan(task.id, {
+        candidateId: candidate.id,
+        mainRole: home.roleId,
+        authorization: this.authorization(candidate, home),
+        attempt: task.currentAttempt + 1,
+      })
+    }
+    this.port.decisions(decisions)
+    this.apply(context)
+    await journal()
+    return this.apply(context)
+  }
+
+  /** Recheck proposed lenders against fresh facts without another borrow/recall tick. */
+  apply(context: PickContext): PickContext {
+    return this.project(context, this.board.snapshot().tasks)
+  }
+
+  /** The journalled attempt has not started: exclude only its own occupancy. */
+  canLaunch(context: PickContext, task: TeamBoardTask): boolean {
+    const attempt = task.attempts.at(-1)
+    if (
+      context.selection === undefined ||
+      task.loan?.attempt !== task.currentAttempt ||
+      attempt?.state !== 'running'
+    )
+      return false
+    const ready: TeamBoardTask = {
+      ...task,
+      state: 'ready',
+      currentAttempt: task.currentAttempt - 1,
+      attempts: task.attempts.slice(0, -1),
+    }
+    const supplied = context
+    context = {
+      ...supplied,
+      selection: (item) => {
+        const selection = supplied.selection?.(item)
+        if (selection === undefined) throw new Error('team:borrowSelectionMissing')
+        const entries = new Map(selection.runningByEntry)
+        const agents = new Map(selection.runningByAgent)
+        entries.set(attempt.entryId, Math.max(0, (entries.get(attempt.entryId) ?? 0) - 1))
+        agents.set(
+          attempt.agentProfileId,
+          Math.max(0, (agents.get(attempt.agentProfileId) ?? 0) - 1),
+        )
+        return {
+          ...selection,
+          runningByEntry: entries,
+          runningByAgent: agents,
+          global: { ...selection.global, running: Math.max(0, selection.global.running - 1) },
+          process: {
+            ...selection.process,
+            running: Math.max(0, selection.process.running - (attempt.kind === 'engine' ? 0 : 1)),
+          },
+        }
+      },
+    }
+    const tasks = this.board.snapshot().tasks.map((item) => (item.id === task.id ? ready : item))
+    const checked = this.project(context, tasks)
+    const selected = this.picker.rank([ready], checked)[0]?.entry
+    return (
+      selected?.id === attempt.entryId &&
+      selected.agentProfileId === attempt.agentProfileId &&
+      selected.modelId === attempt.modelId &&
+      selected.kind === attempt.kind
+    )
   }
 
   /** The scheduler clears its drain before delivering; callbacks may wake or retire. */
