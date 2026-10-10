@@ -8,7 +8,10 @@ again after the fourth review (`RVJUDGEFAST4`): B2 is now Linux-only; and
 after the fifth (`RVJUDGEFAST5`): lane F splits into F1 (B1) and F2 (B2,
 redesigned as default-deny); and after the sixth (`RVJUDGEFAST6`), F2
 only: its init is isolated from the check, no host endpoint is bound, and
-every lookup of a hidden file is evidence.
+every lookup of a hidden file is evidence; and after the seventh
+(`RVJUDGEFAST7`), F2 only: the bootstrap order, the descriptor hand-off,
+evidence read while the run lives, and mirrored user files instead of
+exempt misses.
 Nothing here is built. PLAN.md D107 is the decision of record and M125 the
 milestone; this file holds the reasoning, the catalogue and the numbers
 behind them.
@@ -1411,71 +1414,128 @@ mounts; they are not available to a setuid install), verified like B1's
 programs, starts lane F2's init (the confinement helper in its init mode)
 as the first process of the run's own PID namespace, with `--as-pid-1`,
 `--unshare-all` (its own user, PID, network, IPC, UTS and cgroup
-namespaces), `--die-with-parent`, `--new-session`, `--clearenv` and
-`--cap-add CAP_SYS_ADMIN`, a capability that holds only inside the run's
-own user namespace and that the init keeps and the check never has. The
-init is trusted code that never runs repository code, and it is isolated
-from the check it supervises (sixth review: as built in round 6, the check
-had the init's credentials and could reach `/proc/1/mem` and `/proc/1/fd`):
+namespaces), `--die-with-parent`, `--new-session`, `--clearenv`,
+`--cap-add CAP_SYS_ADMIN` and `--cap-add CAP_SETPCAP`. Both capabilities
+hold only inside the run's own user namespace; only trusted helper code
+ever holds them, and only during the bootstrap below. The init never runs
+repository code, and it is isolated from the check it supervises (sixth
+review: as built in round 6, the check had the init's credentials and
+could reach `/proc/1/mem` and `/proc/1/fd`).
 
-- **It is not dumpable.** The init calls `PR_SET_DUMPABLE` 0 before it
-  starts the check. The kernel then lets only a process holding
-  `CAP_SYS_PTRACE` in the run's user namespace open its memory, its
-  descriptors or its environment through `/proc`, or attach to it; the
-  check holds no capability at all, and `ptrace` and `process_vm_*` are
-  outside its allow-list in any case.
-- **It is not in the check's world.** The check is started in a nested PID
-  namespace and mount namespace of its own, with a fresh `/proc` mounted
-  there, so its `/proc` lists only its own processes: the init, its
-  descriptors and its status channel do not appear in it at all. The
-  check's first process is a minimal reaper (the helper's reaper mode),
-  which holds nothing but the check's standard streams and starts the
-  package manager as its child.
-- **It keeps its descriptors to itself.** Before the check's first `execve`
-  the child drops every capability and its bounding set, sets
-  `no_new_privs`, closes every descriptor but the three standard ones
-  (`close_range` from 3), installs the system-call allow-list below with a
-  user-notification listener, hands that listener to the init over a
-  socket pair made for it, and closes both ends. The status channel is a
-  pipe only the init and the harness hold.
-- **It keeps the keyring out of reach.** It joins a fresh, empty session
-  keyring before starting the check, so the editor's inherited session
-  keyring and its keys are not possessed by anything in the run (fifth
-  review); the key-management calls are outside the allow-list, and the
-  child masks `/proc/keys` and `/proc/key-users` in its fresh `/proc`
-  before it drops its capabilities.
-- **It answers every notification.** A call outside the allow-list is
-  recorded and refused, and, since any refusal discards the run (5), the
-  run is stopped at the first one. A path-taking call is recorded with its
-  path and let through (5, lookups).
-- **It drains before it reports.** When the check exits, or the user
-  presses Stop, or the tool's timeout fires, it kills every process left
-  in the namespace, waits until none is left, and only then writes the
-  check's exit status, the records and "drained" to its status channel,
-  and exits.
+**The descriptors at the start.** The harness passes the init exactly five
+descriptors: standard input (`/dev/null`), standard output and error (the
+two output pipes), the write end of the **evidence channel** (a pipe the
+harness reads), and the read end of the **control channel** (a pipe the
+harness writes, for Stop). The init closes anything else it finds.
 
-**Output and status.** The check's standard output and error are pipes the
-harness reads while the run is alive, into bounded buffers with the tool's
-own caps (`SHELL_OUTPUT_MAX_CHARS`, the middle dropped with a count past
-it, as today), so a check that writes more than a pipe holds never blocks
-on a reader that waits for the end (sixth review). That output is content,
-never evidence. The evidence (the exit status, the records, "drained") is
-read only after bubblewrap itself has exited, which happens only after the
-init has been reaped, which the kernel completes only once every process
-of the namespace has ended. A missing, incomplete or malformed status, or
-a "drained" record without bubblewrap's exit, discards the run. Only then
-are the writes compared and anything delivered.
+**The bootstrap, in order** (seventh review: the earlier order dropped the
+bounding set without the capability that permits it, and closed the
+listener's hand-off channel before using it):
+
+1. The init marks itself not dumpable (`PR_SET_DUMPABLE` 0), joins a
+   fresh, empty session keyring (fifth review), and makes a connected
+   `AF_UNIX` stream pair for the listener hand-off, both ends
+   close-on-exec.
+2. The init starts the child in a nested PID namespace and mount
+   namespace (`clone` with `CLONE_NEWPID` and `CLONE_NEWNS`, which takes
+   `CAP_SYS_ADMIN`). From here the init needs no capability: it drops its
+   bounding set while it still holds `CAP_SETPCAP`, then clears its
+   ambient, inheritable, permitted and effective sets, and confirms all
+   five are empty.
+3. The child, which is trusted helper code and holds both capabilities,
+   first closes what it must never hold: the evidence channel, the control
+   channel and the init's end of the hand-off pair. It keeps only its
+   standard descriptors and its own end of the pair.
+4. It mounts a fresh `/proc` for its namespace, so its `/proc` lists only
+   its own processes, and masks `/proc/keys` and `/proc/key-users` there
+   (`CAP_SYS_ADMIN`).
+5. It drops its capabilities in the only order that works: the bounding
+   set first, one capability at a time (`PR_CAPBSET_DROP`, which needs
+   `CAP_SETPCAP` in its effective set, so this comes before anything else
+   is cleared); then sets the no-root securebits, locked; then clears the
+   ambient set; then sets its inheritable, permitted and effective sets
+   empty (`capset`), which removes `CAP_SETPCAP` and `CAP_SYS_ADMIN` last.
+   It then reads all five sets back from `/proc/self/status` and stops
+   with an error, failing the run before any repository code exists in
+   it, unless every one is empty.
+6. It sets `no_new_privs` and installs the system-call allow-list below
+   with a user-notification listener, which returns a new descriptor.
+7. It sends that listener descriptor to the init over its end of the pair
+   and waits for the init's one-byte acknowledgement. Between installing
+   the filter and receiving the acknowledgement it makes no call that the
+   filter reports to the listener (sending and reading on the pair are
+   plain allowed calls), so nothing waits on a listener nobody holds yet.
+8. On the acknowledgement it closes the listener and its end of the pair,
+   closes every descriptor from 3 upward (`close_range`) as a final sweep,
+   and confirms through `/proc/self/fd` that only 0, 1 and 2 remain.
+9. It marks itself not dumpable and becomes the nested namespace's
+   reaper: it starts the package manager as its child, with the
+   allow-list inherited, reaps every process in its namespace, and exits
+   with the package manager's exit status. The reaper holds nothing but
+   the standard descriptors; even so, nothing it reports is trusted beyond
+   what the check's own code could choose (a check decides its own exit
+   status in any sandbox).
+
+Meanwhile the init, on the listener's arrival, sends the acknowledgement,
+closes its end of the pair, and closes its copies of standard output and
+error, so the harness sees the end of the output when the check's last
+process ends. From then on it holds standard input, the evidence channel,
+the control channel and the listener, and nothing in the run holds any
+capability. It answers every notification: a call outside the allow-list
+is recorded and refused, and, since any refusal discards the run (5), the
+run is then stopped; a path-taking call is recorded with its path and let
+through (5, lookups).
+
+**The drain.** When the reaper exits, or the control channel says Stop, or
+the tool's timeout fires, the init kills every process left in the nested
+namespace and its own, waits until none is left, writes the final status
+(the check's exit status, the number of records it sent and "drained") to
+the evidence channel, and exits.
+
+**Output, evidence and control, all read while the run lives.** The
+harness reads three pipes concurrently, each on a reader that does nothing
+else, so no writer in the run ever waits on a reader that waits for the
+end (sixth and seventh reviews):
+
+- **Output.** Standard output and error into bounded buffers with the
+  tool's own caps (`SHELL_OUTPUT_MAX_CHARS`, the middle dropped with a
+  count past it, as today). Output is content, never evidence.
+- **Evidence.** The init writes each record as it happens, as a numbered,
+  length-prefixed frame (a refusal; a path lookup, each distinct path once
+  per run), and the final status last. The harness reads it into a buffer
+  bounded by `JUDGE_FAST_B2_EVIDENCE_MAX_MIB` = 64, with the init's own
+  distinct-path table bounded by `JUDGE_FAST_B2_LOOKUPS_MAX` = 200,000.
+  Hitting either cap is a verdict of its own, **evidence overflow**: the
+  harness stops the run, the result is discarded, the reviewer decides as
+  today, and the check is marked "not B2 in this workspace" until its
+  definition changes. A gap in the frame numbers, a malformed frame, a
+  final status whose count does not match, or no final status at all also
+  discards the run.
+- **Control.** The harness writes one byte for Stop. If the init has not
+  reported "drained" within `JUDGE_FAST_B2_STOP_GRACE_MS` = 2,000 ms, the
+  harness kills bubblewrap, whose death kills the init (`--die-with-parent`)
+  and with it every process of the namespace; the run is discarded.
+
+Reading is concurrent; trusting is not. The evidence is validated, the
+writes compared and anything delivered only after bubblewrap itself has
+exited, which happens only after the init has been reaped, which the
+kernel completes only once every process of the namespace has ended. The
+scratch area is removed only then too.
 
 **What still relies on the kernel.** The isolation of PID and mount
-namespaces, the capability rules of user namespaces, the access check that
-keeps a non-dumpable process's `/proc` entries from a process without
-`CAP_SYS_PTRACE`, seccomp and its notifications, and overlayfs. A flaw in
-one of them is outside what F2 can bound. Not on the list: the host's
-optional Yama setting, which F2 does not depend on. A second user id for
-the check is not available: an unprivileged user namespace maps only the
-user's own id (more ids need the setuid `newuidmap` and `/etc/subuid`
-entries, which the extension does not configure), so non-dumpability and
-the nested namespaces stand in for it.
+namespaces, the capability rules of user namespaces (including that
+`CAP_SYS_ADMIN` and `CAP_SETPCAP` held inside the run's user namespace give
+nothing outside it), the access check that keeps a non-dumpable process's
+`/proc` entries from a process without `CAP_SYS_PTRACE`, seccomp and its
+notifications, and overlayfs. A flaw in one of them is outside what F2 can
+bound. The isolation does not depend on the host's optional Yama setting;
+the lookup record does, a little: the init reads each reported path from
+the check's memory, which Yama's two strictest settings forbid even to an
+ancestor, so on such a host the self-test fails and B2 is off there, with
+the reason. A second user id for the check is not available: an
+unprivileged user namespace maps only the user's own id (more ids need the
+setuid `newuidmap` and `/etc/subuid` entries, which the extension does not
+configure), so non-dumpability and the nested namespaces stand in for it.
 
 **3. The system-call allow-list.** Everything a check may call is listed;
 every other call is reported to the init and refused, and **any refused
@@ -1575,7 +1635,9 @@ keep F2 off for large projects.
   bound by itself; the resolved install folders of `node` and the package
   manager, each bound by its own path. Fresh and empty: `/tmp`,
   `/var/tmp`, `/run` (and so `/var/run`), and the home folder, mounted at
-  the home folder's own path so `HOME` keeps its value. New: `--proc` and
+  the home folder's own path so `HOME` keeps its value; in it only exact,
+  read-only copies of the mirrored user files that hold no secret (5,
+  lookups). New: `--proc` and
   bubblewrap's minimal `--dev` (null, zero, full, random, urandom, tty and
   new pseudo-terminals; none backed by a host process). The workspace,
   through the overlay on the snapshot. Nothing else exists inside the run:
@@ -1652,11 +1714,23 @@ checks afterwards, on the host and as the user, whether that path exists
 there. A path that exists for the user but not in
 the run (a file under the real home folder, `.git`, `/opt`) is a **hidden
 lookup**: in place the check would have found it, so the contained verdict
-may differ. A short list of lookups whose absence is known not to change a
-check's verdict, each with its reason, is kept from the capture
-(`JUDGE_FAST_B2_EQUIVALENT_MISSES`; for example npm's user `.npmrc` when
-every key in it is in the safe list or is a registry credential, which no
-script reads through npm). Everything else counts. The record is made by
+may differ. **No lookup is exempt.** The previous version kept a list of
+misses "known" not to change a verdict, such as npm's user `.npmrc` when
+its keys were safe; the seventh review showed why that cannot be shown: a
+test can read the file, or ask `npm config get`, and see the difference.
+Equivalence is made instead of assumed, for the few user files the tools
+read on every run (`JUDGE_FAST_B2_MIRRORED_FILES`, from the capture:
+npm's `~/.npmrc` and pnpm's `~/.config/pnpm/rc`): when such a file holds no
+secret (no credential key, such as `_auth`, `_authToken`, `_password` or a
+registry-scoped one, and no `countSecretMatches` hit), the run's fresh home
+gets an exact, read-only copy at the same path, so the run and an in-place
+run read the same bytes and the lookup finds the file in both. When it
+holds a secret it is not copied, its lookup counts like any other, and
+every B2 run on that machine is discarded and the check marked: a user
+whose `~/.npmrc` holds a registry token gets no B2, because the run cannot
+be given that file without the token and is not equivalent without it.
+Every other lookup of a file that exists for the user but not in the run
+counts. The record is made by
 the init from the kernel's notifications, outside the check's reach; a
 check written to defeat it (by changing the path between the notification
 and the call) can steer its own verdict, as hostile test code can always
@@ -1761,35 +1835,39 @@ not planned.
 
 **Red drills (lane F2, on Linux):**
 
-| Drill                      | Case                                                                                                                                                                                                                                                           | Expected                                                                                                                                                                                                      |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| B2-1 script body           | The agent edits `scripts/check.js`, which the `test` script names; `package.json` unchanged                                                                                                                                                                    | Reviewer                                                                                                                                                                                                      |
-| B2-2 script line or hook   | The agent edits `scripts.test`, or adds `pretest`                                                                                                                                                                                                              | Reviewer                                                                                                                                                                                                      |
-| B2-3 manager config        | `.npmrc` with `node-options=--require ./x.js`, a `script-shell`, or any key outside the list                                                                                                                                                                   | Reviewer                                                                                                                                                                                                      |
-| B2-4 agent commit          | The agent commits B2-1's change; HEAD moves during the turn                                                                                                                                                                                                    | Reviewer (the baseline is unchanged)                                                                                                                                                                          |
-| B2-5 extra option          | `npm test -- --globalSetup=./x.js`, `npm test -- -u`                                                                                                                                                                                                           | Reviewer                                                                                                                                                                                                      |
-| B2-6 sockets, by outcome   | Recorded refusals: `socket()` for `AF_INET` and for `AF_UNIX`; an `AF_UNIX` `SOCK_DGRAM` pair; an addressed `sendto` toward a live host datagram canary in a bound install folder. Emulated: `io_uring_setup`. Kernel: an addressed `sendmsg` on a stream pair | The refusals recorded and the run discarded; `io_uring_setup` answers "not supported", is not recorded and the program goes on; `sendmsg` fails with `EISCONN`, is not recorded; every canary records nothing |
-| B2-7 home secrets          | The test reads canaries at `~/.ssh/id_ed25519`, `~/.aws/credentials` and `~/.npmrc` and a file under `/opt`, and `GITHUB_TOKEN` set in the parent                                                                                                              | None present; the lookups recorded as hidden; discarded                                                                                                                                                       |
-| B2-8 workspace write       | The test rewrites `src/a.ts` with different bytes of the same length and restores its modification time, with no other change                                                                                                                                  | Workspace byte-identical; the net write found; discarded; reviewer                                                                                                                                            |
-| B2-9 write outside         | The test writes `~/x` and `/tmp/x`                                                                                                                                                                                                                             | Absent outside the run                                                                                                                                                                                        |
-| B2-10 secret out           | The test prints the workspace's `.env`                                                                                                                                                                                                                         | Output withheld; reviewer                                                                                                                                                                                     |
-| B2-11 lingering process    | A Node helper starts a detached child in a new session that starts a grandchild, records its PID and keeps writing a file in the overlay; the intermediate exits early; checked after the run and after Stop                                                   | The grandchild started and is gone; no evidence is read, compared or delivered before the drain; its late writes never reach the diff                                                                         |
-| B2-12 bounds               | Output over the cap; scratch writes over the cap; a run past its timeout                                                                                                                                                                                       | Stopped and discarded, or today's timeout result                                                                                                                                                              |
-| B2-13 no containment       | bubblewrap missing or 0.9, user namespaces refused, the allow-list not applied, a self-test canary leaked                                                                                                                                                      | B2 off, with the reason; never run in place                                                                                                                                                                   |
-| B2-14 elsewhere            | A macOS or Windows host, a Muse Code approval, root                                                                                                                                                                                                            | Reviewer                                                                                                                                                                                                      |
-| B2-15 bootstrap code       | A Yarn repository whose `.yarnrc.yml` names an edited plugin; a `.pnpmfile.cjs`                                                                                                                                                                                | Reviewer (not B2)                                                                                                                                                                                             |
-| B2-16 package selection    | The agent edits `package.json`'s `workspaces`; a script runs `npm run check --workspaces`                                                                                                                                                                      | Reviewer                                                                                                                                                                                                      |
-| B2-17 indirect script      | `check` runs `npm run lint`; the agent edits `scripts.lint`; and a script with a `;`, a pipe or a `$`                                                                                                                                                          | Reviewer                                                                                                                                                                                                      |
-| B2-18 kernel keyring       | The editor's session keyring holds a synthetic user key with possessor read and write; the test searches for it, reads it, updates it and revokes it, and reads `/proc/keys`                                                                                   | Not found; the key unchanged afterwards; the refusals recorded; discarded                                                                                                                                     |
-| B2-19 configuration bodies | `pnpm-workspace.yaml` with `nodeOptions: --require ./hooks/preload.cjs` (the agent edits only that file), or a `scriptShell`; the same in `package.json`'s `pnpm` field                                                                                        | Reviewer (not B2)                                                                                                                                                                                             |
-| B2-20 save during the run  | The user saves a changed `package.json` and script body while the snapshot is taken and while the check runs                                                                                                                                                   | The run executes the snapshot's validated definition; a save before the snapshot is validated against it                                                                                                      |
-| B2-21 caught refusal       | A test catches a refused connection and fails with only "Expected true; received false"; another, in a check that already agreed, catches "not found" on an existing home-file canary the same way                                                             | The first is discarded by its recorded refusal; the second by its hidden lookup                                                                                                                               |
-| B2-22 transient file       | The test creates `generated.json` outside the cache paths, uses it, and deletes it; another keeps it                                                                                                                                                           | The first has no lasting effect and may be delivered; the second is a net write, discarded                                                                                                                    |
-| B2-23 supervisor           | The test opens `/proc/1/mem`, `/proc/1/fd/*` and `/proc/1/environ`, writes to descriptors 3 to 64 and to the init's PID from the outer namespace through `/proc`, and calls `ptrace`; then the same with the nested `/proc` removed in a fault build           | Nothing of the init's is visible; with the nested `/proc` removed, non-dumpability still refuses each open; the records and status arrive intact; a forged or missing status discards the run                 |
-| B2-24 host endpoint        | A live host-reader FIFO canary placed in a user-writable `node` install folder before the run                                                                                                                                                                  | Not B2 on that machine, with the reason; the canary receives nothing                                                                                                                                          |
-| B2-25 lasting metadata     | Equal bytes with a new executable bit (`chmod +x` then run); a symbolic link retargeted; a new empty folder; a new hard link between two files; a touch                                                                                                        | Each found as a lasting effect; discarded                                                                                                                                                                     |
-| B2-26 output above a pipe  | A passing check that writes 128 KiB to standard output and to standard error, under the output cap                                                                                                                                                             | Finishes in its own time, delivered whole; no stall                                                                                                                                                           |
-| B2-27 another invocation   | A check that agreed for `npm test` runs as `npm test -- src/other.test.ts`                                                                                                                                                                                     | A shadow run first; delivered only after that invocation agrees                                                                                                                                               |
+| Drill                       | Case                                                                                                                                                                                                                                                                                                                                                                                      | Expected                                                                                                                                                                                                                                                                                                                          |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B2-1 script body            | The agent edits `scripts/check.js`, which the `test` script names; `package.json` unchanged                                                                                                                                                                                                                                                                                               | Reviewer                                                                                                                                                                                                                                                                                                                          |
+| B2-2 script line or hook    | The agent edits `scripts.test`, or adds `pretest`                                                                                                                                                                                                                                                                                                                                         | Reviewer                                                                                                                                                                                                                                                                                                                          |
+| B2-3 manager config         | `.npmrc` with `node-options=--require ./x.js`, a `script-shell`, or any key outside the list                                                                                                                                                                                                                                                                                              | Reviewer                                                                                                                                                                                                                                                                                                                          |
+| B2-4 agent commit           | The agent commits B2-1's change; HEAD moves during the turn                                                                                                                                                                                                                                                                                                                               | Reviewer (the baseline is unchanged)                                                                                                                                                                                                                                                                                              |
+| B2-5 extra option           | `npm test -- --globalSetup=./x.js`, `npm test -- -u`                                                                                                                                                                                                                                                                                                                                      | Reviewer                                                                                                                                                                                                                                                                                                                          |
+| B2-6 sockets, by outcome    | Recorded refusals: `socket()` for `AF_INET` and for `AF_UNIX`; an `AF_UNIX` `SOCK_DGRAM` pair; a `sendto` with a destination address that names live host datagram canaries in the host's `/tmp` and `$XDG_RUNTIME_DIR`, which are not bound, so the preflight scan does not see them and the run goes ahead. Emulated: `io_uring_setup`. Kernel: an addressed `sendmsg` on a stream pair | The refusals recorded and the run discarded (the filter refuses the addressed `sendto` on its argument alone, so no destination needs to exist in the run); `io_uring_setup` answers "not supported", is not recorded and the program goes on; `sendmsg` fails with `EISCONN`, is not recorded; every host canary records nothing |
+| B2-7 home secrets           | The test reads canaries at `~/.ssh/id_ed25519`, `~/.aws/credentials` and `~/.npmrc` and a file under `/opt`, and `GITHUB_TOKEN` set in the parent                                                                                                                                                                                                                                         | None present; the lookups recorded as hidden; discarded                                                                                                                                                                                                                                                                           |
+| B2-8 workspace write        | The test rewrites `src/a.ts` with different bytes of the same length and restores its modification time, with no other change                                                                                                                                                                                                                                                             | Workspace byte-identical; the net write found; discarded; reviewer                                                                                                                                                                                                                                                                |
+| B2-9 write outside          | The test writes `~/x` and `/tmp/x`                                                                                                                                                                                                                                                                                                                                                        | Absent outside the run                                                                                                                                                                                                                                                                                                            |
+| B2-10 secret out            | The test prints the workspace's `.env`                                                                                                                                                                                                                                                                                                                                                    | Output withheld; reviewer                                                                                                                                                                                                                                                                                                         |
+| B2-11 lingering process     | A Node helper starts a detached child in a new session that starts a grandchild, records its PID and keeps writing a file in the overlay; the intermediate exits early; checked after the run and after Stop                                                                                                                                                                              | The grandchild started and is gone; evidence is read as it comes but nothing is trusted, compared or delivered before the drain; its late writes never reach the diff                                                                                                                                                             |
+| B2-12 bounds                | Output over the cap; scratch writes over the cap; a run past its timeout                                                                                                                                                                                                                                                                                                                  | Stopped and discarded, or today's timeout result                                                                                                                                                                                                                                                                                  |
+| B2-13 no containment        | bubblewrap missing or 0.9, user namespaces refused, the allow-list not applied, a self-test canary leaked                                                                                                                                                                                                                                                                                 | B2 off, with the reason; never run in place                                                                                                                                                                                                                                                                                       |
+| B2-14 elsewhere             | A macOS or Windows host, a Muse Code approval, root                                                                                                                                                                                                                                                                                                                                       | Reviewer                                                                                                                                                                                                                                                                                                                          |
+| B2-15 bootstrap code        | A Yarn repository whose `.yarnrc.yml` names an edited plugin; a `.pnpmfile.cjs`                                                                                                                                                                                                                                                                                                           | Reviewer (not B2)                                                                                                                                                                                                                                                                                                                 |
+| B2-16 package selection     | The agent edits `package.json`'s `workspaces`; a script runs `npm run check --workspaces`                                                                                                                                                                                                                                                                                                 | Reviewer                                                                                                                                                                                                                                                                                                                          |
+| B2-17 indirect script       | `check` runs `npm run lint`; the agent edits `scripts.lint`; and a script with a `;`, a pipe or a `$`                                                                                                                                                                                                                                                                                     | Reviewer                                                                                                                                                                                                                                                                                                                          |
+| B2-18 kernel keyring        | The editor's session keyring holds a synthetic user key with possessor read and write; the test searches for it, reads it, updates it and revokes it, and reads `/proc/keys`                                                                                                                                                                                                              | Not found; the key unchanged afterwards; the refusals recorded; discarded                                                                                                                                                                                                                                                         |
+| B2-19 configuration bodies  | `pnpm-workspace.yaml` with `nodeOptions: --require ./hooks/preload.cjs` (the agent edits only that file), or a `scriptShell`; the same in `package.json`'s `pnpm` field                                                                                                                                                                                                                   | Reviewer (not B2)                                                                                                                                                                                                                                                                                                                 |
+| B2-20 save during the run   | The user saves a changed `package.json` and script body while the snapshot is taken and while the check runs                                                                                                                                                                                                                                                                              | The run executes the snapshot's validated definition; a save before the snapshot is validated against it                                                                                                                                                                                                                          |
+| B2-21 caught refusal        | A test catches a refused connection and fails with only "Expected true; received false"; another, in a check that already agreed, catches "not found" on an existing home-file canary the same way                                                                                                                                                                                        | The first is discarded by its recorded refusal; the second by its hidden lookup                                                                                                                                                                                                                                                   |
+| B2-22 transient file        | The test creates `generated.json` outside the cache paths, uses it, and deletes it; another keeps it                                                                                                                                                                                                                                                                                      | The first has no lasting effect and may be delivered; the second is a net write, discarded                                                                                                                                                                                                                                        |
+| B2-23 supervisor            | The test opens `/proc/1/mem`, `/proc/1/fd/*` and `/proc/1/environ`, writes to descriptors 3 to 64 and to the init's PID from the outer namespace through `/proc`, and calls `ptrace`; then the same with the nested `/proc` removed in a fault build                                                                                                                                      | Nothing of the init's is visible; with the nested `/proc` removed, non-dumpability still refuses each open; the records and status arrive intact; a forged or missing status discards the run                                                                                                                                     |
+| B2-24 host endpoint         | A live host-reader FIFO canary placed in a user-writable `node` install folder before the run                                                                                                                                                                                                                                                                                             | Not B2 on that machine, with the reason; the canary receives nothing                                                                                                                                                                                                                                                              |
+| B2-25 lasting metadata      | Equal bytes with a new executable bit (`chmod +x` then run); a symbolic link retargeted; a new empty folder; a new hard link between two files; a touch                                                                                                                                                                                                                                   | Each found as a lasting effect; discarded                                                                                                                                                                                                                                                                                         |
+| B2-26 output above a pipe   | A passing check that writes 128 KiB to standard output and to standard error, under the output cap                                                                                                                                                                                                                                                                                        | Finishes in its own time, delivered whole; no stall                                                                                                                                                                                                                                                                               |
+| B2-27 another invocation    | A check that agreed for `npm test` runs as `npm test -- src/other.test.ts`                                                                                                                                                                                                                                                                                                                | A shadow run first; delivered only after that invocation agrees                                                                                                                                                                                                                                                                   |
+| B2-28 evidence above a pipe | A module-heavy passing check whose lookup record is larger than a pipe holds; and one that looks up more distinct paths than `JUDGE_FAST_B2_LOOKUPS_MAX`                                                                                                                                                                                                                                  | The first finishes in its own time with every frame read and its final status matching its count; the second is stopped as evidence overflow, discarded and marked                                                                                                                                                                |
+| B2-29 bootstrap order       | Fault builds that skip one step each: the bounding set not dropped, a capability left in any set, the hand-off pair closed before the listener is sent, a descriptor above 2 left open, the evidence or control channel left in the child                                                                                                                                                 | Each is caught by the bootstrap's own check before repository code runs, and the run fails; the production build passes every check                                                                                                                                                                                               |
+| B2-30 mirrored user file    | The user's `~/.npmrc` holds only `engine-strict=true`, and a test reads it and runs `npm config get engine-strict`; then the same file with a registry token                                                                                                                                                                                                                              | The first is copied exactly, both runs see it, no hidden lookup, delivered; the second is not copied, its lookup counts, discarded and marked                                                                                                                                                                                     |
+| B2-31 Stop                  | Stop during a run; and Stop with the init made unresponsive in a fault build                                                                                                                                                                                                                                                                                                              | The init drains and reports; in the fault build bubblewrap is killed after the grace period and the namespace ends; both discarded, nothing delivered, the scratch removed only after bubblewrap exits                                                                                                                            |
 
 ### 9.6 The safety envelope
 
@@ -2173,6 +2251,12 @@ them through MHP like other panels.
   drills that contradicted the "not supported" answers), addressed in
   section 9.5 (parts 2 to 5, the risks and drills B2-6, B2-21 and B2-23
   to B2-27).
+- The seventh review: `RVJUDGEFAST7` (F1 unchanged; in F2 the bounding
+  set dropped without `CAP_SETPCAP`, the hand-off channel closed before
+  use, the evidence channel read only after exit, a missing user `.npmrc`
+  claimed equivalent, and a drill its own preflight would refuse),
+  addressed in section 9.5 (part 2, the lookup paragraph of part 5, and
+  drills B2-6 and B2-28 to B2-31).
 - The owner's answer to Q-D107 (2026-10-10: B, with B1 and B2) and to
   Q-D107-VETO (2026-10-10: a veto window of up to 5 s for both classes),
   recorded in PLAN.md §3 and D107, and designed in section 9.
