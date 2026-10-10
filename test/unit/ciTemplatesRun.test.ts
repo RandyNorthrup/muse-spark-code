@@ -1,186 +1,182 @@
-// Lane CM80CI: end-to-end runs of the exact template command
-// (`node ci-templates/muse-spark-run.mjs`) in a container-free shell process
-// with a fake agent binary, asserting the Action's outputs and exit codes:
-// key over private stdin only, never in env/argv/logs, and refusal before
-// any dispatch for untrusted sources. No network, no spend.
+// Lane CM80CI-R2: each template's exact shell, as its system runs it, under
+// `sh -xe` (Jenkins' own flags, tracing on) in the system's clone, against a
+// local package tarball and the fake agent. curl, sha256sum, tar, mktemp,
+// mkdir and git are recording shims, so every program the script and the
+// launcher's Git start shows its environment and argv; a fabricated key is
+// planted in the system's secret variable and must reach the agent's exec
+// stdin and nothing else. POSIX only: the templates run on Linux runners.
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { spawnSync } from 'node:child_process'
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { runOnce } from '../../ci-templates/muse-spark-run.mjs'
+import { pathToFileURL } from 'node:url'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { parse } from 'yaml'
+import { CI_OUT_DIR } from '../../action/lib/ci-run.mjs'
+import {
+  completedResult,
+  NODE,
+  PROCESS_SUITE,
+  tempLayout,
+  type TempLayout,
+} from './helpers/actionFixtures'
+import {
+  agentReports,
+  CI_KEY,
+  ciPackage,
+  cloneFor,
+  hasKey,
+  REPO_VERSION,
+  systemEnv,
+  type CiPackage,
+} from './helpers/ciFixtures'
+import { scriptOf, templateText } from './helpers/ciTemplateText'
 
-const execFileAsync = promisify(execFile)
-const ROOT = path.resolve(import.meta.dirname, '..', '..')
-const RUNNER = path.join(ROOT, 'ci-templates', 'muse-spark-run.mjs')
-const SECRET = 'LLM_e2e-fake-key-0123456789'
+const SYSTEMS = ['gitlab', 'azure', 'jenkins', 'bitbucket'] as const
+const SHIMMED = ['curl', 'sha256sum', 'tar', 'mktemp', 'mkdir', 'git']
+const isPosix = process.platform !== 'win32'
+const state: { layout?: TempLayout } = {}
 
-// A fake `muse-spark-code-acp`: records what it received (argv, whether the
-// key leaked into its environment, the exact stdin bytes), prints one canned
-// JSON result, and exits with FAKE_AGENT_EXIT. Runs under any Node.
-const FAKE_AGENT = `import { writeFileSync } from 'node:fs';
-const chunks = [];
-process.stdin.on('data', (c) => chunks.push(c));
-process.stdin.on('end', () => {
-  writeFileSync(process.env.FAKE_AGENT_RECORD, JSON.stringify({
-    argv: process.argv.slice(2),
-    envHadKey: 'MUSE_SPARK_MODEL_API_KEY' in process.env,
-    stdin: Buffer.concat(chunks).toString('utf8'),
-  }));
-  process.stdout.write(process.env.FAKE_AGENT_STDOUT ?? '{"v":1,"status":"completed"}');
-  process.exit(Number(process.env.FAKE_AGENT_EXIT ?? '0'));
-});
-`
+beforeEach(() => {
+  state.layout = tempLayout()
+})
 
-const state = { scratch: '', fakeAgent: '' }
+afterEach(() => {
+  state.layout?.cleanup()
+})
 
-function baseEnv(): Record<string, string> {
-  return {
-    MUSE_UNTRUSTED: 'false',
-    MUSE_MODE: 'review',
-    MUSE_MAX_BUDGET_USD: '2.00',
-    MUSE_PROMPT: 'Review this workspace.',
-    MUSE_AGENT_BIN: state.fakeAgent,
-    MUSE_OUT_DIR: path.join(state.scratch, 'out'),
-    MUSE_WORKSPACE: state.scratch,
-    MUSE_SPARK_MODEL_API_KEY: SECRET,
-    FAKE_AGENT_RECORD: path.join(state.scratch, 'record.json'),
-    FAKE_AGENT_EXIT: '0',
-  }
+function layout(): TempLayout {
+  if (state.layout === undefined) throw new Error('no layout')
+  return state.layout
 }
 
-const record = () =>
-  JSON.parse(readFileSync(path.join(state.scratch, 'record.json'), 'utf8')) as {
-    argv: string[]
-    envHadKey: boolean
-    stdin: string
+/** Recording shims ahead of the real programs: each logs its env and argv, then runs the real one. */
+function shims(): { dir: string; log: string } {
+  const dir = path.join(layout().root, 'shims')
+  const log = path.join(layout().root, 'shim-log')
+  mkdirSync(dir)
+  mkdirSync(log)
+  for (const name of SHIMMED) {
+    const file = path.join(dir, name)
+    writeFileSync(
+      file,
+      [
+        '#!/bin/sh',
+        `env > '${log}/${name}.'$$'.env'`,
+        String.raw`printf '%s\n' "$@" > '${log}/${name}.'$$'.args'`,
+        'PATH="${PATH#*:}"',
+        `exec ${name} "$@"`,
+        '',
+      ].join('\n'),
+    )
+    chmodSync(file, 0o755)
   }
+  return { dir, log }
+}
 
-beforeAll(() => {
-  state.scratch = mkdtempSync(path.join(tmpdir(), 'muse-ci-templates-'))
-  state.fakeAgent = path.join(state.scratch, 'fake-agent.mjs')
-  writeFileSync(state.fakeAgent, FAKE_AGENT, 'utf8')
-})
+/** The template's own variables, as GitLab and Azure put them in the environment. */
+function declaredVariables(system: string): Record<string, string> {
+  if (system !== 'gitlab' && system !== 'azure') return {}
+  const variables = (parse(templateText(system)) as { variables: Record<string, unknown> })
+    .variables
+  return Object.fromEntries(Object.entries(variables).map(([name, value]) => [name, String(value)]))
+}
 
-afterAll(() => {
-  rmSync(state.scratch, { recursive: true, force: true })
-})
+interface ScriptRun {
+  status: number | null
+  output: string
+  log: string
+}
 
-describe('template run end to end', () => {
-  it('pipes the key over private stdin only and propagates completed/0', async () => {
-    const result = await runOnce({ ...baseEnv() })
-    expect(result.exitCode).toBe(0)
-    const seen = record()
-    expect(seen.stdin).toBe(`${SECRET}\n`)
-    expect(seen.envHadKey).toBe(false)
-    expect(seen.argv.join(' ')).not.toContain(SECRET)
-    expect(seen.argv.slice(0, 5)).toEqual(['exec', '--key-stdin', '--backend', 'modelApi', '--cwd'])
-    expect(seen.argv).toContain('plan')
-    expect(seen.argv.at(-1)).toBe('Review this workspace.')
-    // runOnce hands stdout back; only the CLI entry archives result.json (covered below).
-    expect(result.stdout).toContain('"status":"completed"')
+function runTemplate(
+  system: string,
+  pkg: CiPackage,
+  extra: Record<string, string> = {},
+): ScriptRun {
+  const clone = cloneFor(system, layout())
+  const { dir, log } = shims()
+  const result = spawnSync('sh', ['-xe', '-c', scriptOf(system)], {
+    cwd: layout().workspace,
+    encoding: 'utf8',
+    env: {
+      PATH: `${dir}:${path.dirname(NODE)}:${process.env['PATH'] ?? ''}`,
+      HOME: layout().root,
+      ...declaredVariables(system),
+      ...systemEnv(system, layout(), clone),
+      MUSE_AGENT_VERSION: REPO_VERSION,
+      MUSE_AGENT_URL: pathToFileURL(pkg.tarball).href,
+      MUSE_INPUT_AGENT_PACKAGE_SHA256: pkg.sha256,
+      MUSE_INPUT_MAX_BUDGET_USD: '1.00',
+      MUSE_MODEL_API_KEY: CI_KEY,
+      ...extra,
+    },
   })
+  return { status: result.status, output: `${result.stdout}${result.stderr}`, log }
+}
 
-  it('maps fix mode and preserves nonzero exit codes', async () => {
-    for (const code of [5, 9, 3]) {
-      const env = {
-        ...baseEnv(),
-        MUSE_MODE: 'fix',
-        FAKE_AGENT_EXIT: String(code),
-        MUSE_OUT_DIR: path.join(state.scratch, `out-${String(code)}`),
+function shimLogs(log: string): { name: string; text: string }[] {
+  return readdirSync(log).map((name) => ({
+    name,
+    text: readFileSync(path.join(log, name), 'utf8'),
+  }))
+}
+
+describe.runIf(isPosix)('the exact template scripts', PROCESS_SUITE, () => {
+  it.each([...SYSTEMS])(
+    '%s: the key reaches exec’s stdin and no program’s environment, argv or log',
+    (system) => {
+      const pkg = ciPackage(layout().root, { exec: { result: completedResult() } })
+      const run = runTemplate(system, pkg)
+      expect(run.output).not.toContain('muse-spark: ')
+      expect(run.status).toBe(0)
+      const outputs = JSON.parse(
+        readFileSync(path.join(layout().workspace, CI_OUT_DIR, 'outputs.json'), 'utf8'),
+      ) as Record<string, string>
+      expect(outputs).toMatchObject({ status: 'completed', 'exit-code': '0' })
+      const exec = agentReports(pkg).find((line) => line['command'] === 'exec' && 'keyLine' in line)
+      expect(exec?.['keyLine']).toBe(CI_KEY)
+      expect(hasKey(JSON.stringify(exec?.['env']))).toBe(false)
+      expect(hasKey(JSON.stringify(exec?.['args']))).toBe(false)
+      const logs = shimLogs(run.log)
+      for (const name of ['curl', 'sha256sum', 'tar', 'mktemp', 'git']) {
+        expect(
+          logs.some((entry) => entry.name.startsWith(`${name}.`)),
+          name,
+        ).toBe(true)
       }
-      const result = await runOnce(env)
-      expect(result.exitCode).toBe(code)
-      expect(result.stdout).toContain('"status":"completed"')
-      expect(record().argv).toContain('acceptEdits')
-    }
-  })
-
-  it('refuses untrusted sources before any dispatch', async () => {
-    const env = { ...baseEnv(), MUSE_UNTRUSTED: 'fork-merge-request' }
-    const result = await runOnce(env)
-    expect(result.exitCode).toBe(0)
-    expect(result.refused).toContain('fork-merge-request')
-  })
-
-  it('fails closed with missing key on a trusted run', async () => {
-    const env = { ...baseEnv() }
-    Reflect.deleteProperty(env, 'MUSE_SPARK_MODEL_API_KEY')
-    const result = await runOnce(env)
-    expect(result.exitCode).toBe(3)
-  })
-
-  it('the CLI entry writes run-summary.json and never prints the key', async () => {
-    const outDir = path.join(state.scratch, 'out-cli')
-    const env = {
-      ...baseEnv(),
-      MUSE_OUT_DIR: outDir,
-      FAKE_AGENT_EXIT: '5',
-      FAKE_AGENT_STDOUT: '{"v":1,"status":"budget_exceeded"}',
-    }
-    let combined = ''
-    try {
-      await execFileAsync(process.execPath, [RUNNER], { env, encoding: 'utf8' })
-    } catch (error: unknown) {
-      if (typeof error === 'object' && error !== null && 'stdout' in error && 'stderr' in error) {
-        if (typeof error.stdout === 'string') combined += error.stdout
-        if (typeof error.stderr === 'string') combined += error.stderr
+      for (const entry of logs) expect(hasKey(entry.text), entry.name).toBe(false)
+      expect(hasKey(run.output)).toBe(false)
+      const out = path.join(layout().workspace, CI_OUT_DIR)
+      const files = readdirSync(out)
+      for (const file of files) {
+        expect(hasKey(readFileSync(path.join(out, file), 'utf8')), file).toBe(false)
       }
-    }
-    expect(combined).not.toContain(SECRET)
-    const summary = JSON.parse(readFileSync(path.join(outDir, 'run-summary.json'), 'utf8')) as {
-      status: string
-      exitCode: number
-    }
-    expect(summary).toEqual({ status: 'budget_exceeded', exitCode: 5 })
+    },
+  )
+
+  it('a tarball whose digest differs is never unpacked or run (finding 3)', () => {
+    const pkg = ciPackage(layout().root, { exec: { result: completedResult() } })
+    const run = runTemplate('gitlab', pkg, { MUSE_INPUT_AGENT_PACKAGE_SHA256: 'e'.repeat(64) })
+    expect(run.status).toBe(1)
+    expect(run.output).toContain('muse-spark: the agent package does not match')
+    expect(shimLogs(run.log).some((entry) => entry.name.startsWith('tar.'))).toBe(false)
+    expect(agentReports(pkg)).toEqual([])
+    expect(existsSync(path.join(layout().workspace, CI_OUT_DIR))).toBe(false)
   })
 
-  it('installs the exact pinned registry version through npm argv, keyless', async () => {
-    const { installAgent } = await import('../../ci-templates/muse-spark-run.mjs')
-    const calls: { command: string; argv: string[]; env: Record<string, string> }[] = []
-    const fakeSpawn = (
-      command: string,
-      argv: string[],
-      options: { env: Record<string, string> },
-    ) => {
-      calls.push({ command, argv, env: options.env })
-      const handlers = new Map<string, (...args: unknown[]) => void>()
-      return {
-        on: (event: string, handler: (...args: unknown[]) => void) => {
-          handlers.set(event, handler)
-          if (event === 'close') {
-            queueMicrotask(() => {
-              handler(0)
-            })
-          }
-          return undefined
-        },
-        kill: () => undefined,
-      }
-    }
-    const env = {
-      MUSE_AGENT_VERSION: '0.17.0',
-      MUSE_NPM_BIN: state.fakeAgent,
-      MUSE_SPARK_MODEL_API_KEY: SECRET,
-    }
-    const result = await installAgent(env, { spawn: fakeSpawn })
-    expect(result).toEqual({ exitCode: 0 })
-    expect(calls).toHaveLength(1)
-    expect(calls[0]!.argv).toContain('muse-spark-code-acp@0.17.0')
-    expect(calls[0]!.env).not.toContain('MUSE_SPARK_MODEL_API_KEY')
+  it('an unpinned template refuses before downloading', () => {
+    const pkg = ciPackage(layout().root)
+    const run = runTemplate('azure', pkg, { MUSE_AGENT_VERSION: '' })
+    expect(run.status).toBe(1)
+    expect(run.output).toContain('muse-spark: pin MUSE_AGENT_VERSION')
+    expect(shimLogs(run.log)).toEqual([])
   })
 
-  it('install refuses a tarball whose digest does not match', async () => {
-    const { installAgent } = await import('../../ci-templates/muse-spark-run.mjs')
-    const tarball = path.join(state.scratch, 'agent.tgz')
-    writeFileSync(tarball, 'fake-tarball-bytes', 'utf8')
-    const result = await installAgent({
-      MUSE_AGENT_TARBALL: tarball,
-      MUSE_AGENT_TARBALL_SHA256: '0'.repeat(64),
-    })
-    expect(result.exitCode).toBe(2)
-    expect(result.error).toContain('digest mismatch')
+  it('Bitbucket keeps an explicitly empty budget, which the launcher refuses (finding 11)', () => {
+    const pkg = ciPackage(layout().root, { exec: { result: completedResult() } })
+    const run = runTemplate('bitbucket', pkg, { MUSE_INPUT_MAX_BUDGET_USD: '' })
+    expect(run.status).toBe(1)
+    expect(run.output).toContain('max-budget-usd must be a plain decimal number of USD')
+    expect(agentReports(pkg)).toEqual([])
   })
 })

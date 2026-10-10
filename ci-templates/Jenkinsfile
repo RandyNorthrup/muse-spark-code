@@ -1,77 +1,86 @@
-// Muse Spark Code (Unofficial): Jenkins declarative template (lane CM80CI, PLAN.md M80/D65).
+// Muse Spark Code (Unofficial): Jenkins declarative template (PLAN.md M80/D65, lane CM80CI-R2).
+// Not endorsed by Meta. Guide: docs/ci-other-systems.md.
 //
-// Use this Jenkinsfile (or its stages) next to a vendored copy of
-// ci-templates/muse-spark-run.mjs. It runs one headless Model API review
-// (or fix) through the same runner, inputs and exit codes as the GitHub
-// Action (action/action.yml). Requires a Node 22 tool named `node-22`
-// (Manage Jenkins > Tools) and a Linux agent.
+// One stage runs the GitHub Action's own launcher, shipped in the
+// muse-spark-code-acp package (ci/lib/ci-run.mjs): the step downloads the
+// pinned package, checks its SHA-256 with sha256sum before anything of it
+// runs, unpacks it outside the workspace and execs the launcher, which
+// installs the same tarball with lifecycle scripts off, checks its identity,
+// reviews (or proposes a fix for) the change and writes muse-spark-out/.
+// It never comments and never pushes. Needs a Linux agent labelled `linux`
+// and a Node 22 tool named `node-22`.
 //
-// Secret setup: store the Meta Model API key as a Secret text credential
-// with id `muse-model-api-key`. `withCredentials` masks it in the build log
-// and the binding below lives only around the single run step: install,
-// checkout and archive steps never see it. Never echo it.
+// Secret: a Secret text credential with id `muse-model-api-key`. It is
+// bound only inside the stage below, whose `when` (evaluated before the
+// stage starts) excludes fork change requests (CHANGE_FORK) and every
+// change request unless MUSE_INPUT_TRUST_PULL_REQUESTS is checked. In a
+// multibranch job keep "Discover pull requests from forks" at a trust
+// level that builds untrusted forks with the target branch's Jenkinsfile,
+// so a fork cannot edit this file. The shell turns tracing off first,
+// unsets the variable before any other command and passes the value only
+// on the exec line.
 //
-// Fork rule: in a multibranch pipeline CHANGE_FORK is set for pull requests
-// from forks and unset otherwise. Fork PRs are refused (exit 0, nothing
-// runs) before any key is read. Same-repo change requests are trusted only
-// when MUSE_TRUST_PRS is true: keep it false unless the job restricts PR
-// discovery to trusted sources or gates runs behind an `input` approval.
-// Branch builds are trusted: only writers can change this file, the same
-// trust the Action places in OWNER/MEMBER/COLLABORATOR.
-//
-// This template never comments on the change and never pushes: artifacts only.
+// Pin MUSE_AGENT_VERSION to a release that carries ci/ (the first release
+// after 0.17.0) and MUSE_INPUT_AGENT_PACKAGE_SHA256 to that tarball's SHA-256.
 
 pipeline {
   agent { label 'linux' }
   tools { nodejs 'node-22' }
-  options { timeout(time: 25, unit: 'MINUTES') } // MUSE_TIMEOUT_MINUTES plus overhead and install margin.
+  // MUSE_CI_JOB_TIMEOUT_MINUTES below names the same deadline for the launcher.
+  options { timeout(time: 35, unit: 'MINUTES') }
   parameters {
-    choice(name: 'MUSE_MODE', choices: ['review', 'fix'], description: 'review (plan, no edits) or fix (accept edits).')
-    string(name: 'MUSE_MAX_BUDGET_USD', defaultValue: '2.00', description: 'Required: hard USD cap, more than 0, at most 20.')
-    string(name: 'MUSE_MAX_REQUESTS', defaultValue: '30', description: 'Billable HTTP attempts allowed (1-500).')
-    string(name: 'MUSE_TIMEOUT_MINUTES', defaultValue: '20', description: 'Run deadline in minutes (1-360).')
-    string(name: 'MUSE_MODEL', defaultValue: '', description: 'Model API model id; empty uses the agent default.')
-    string(name: 'MUSE_EFFORT', defaultValue: '', description: 'Reasoning effort; empty uses the default.')
-    booleanParam(name: 'MUSE_IMAGE_GENERATION', defaultValue: false, description: 'Paid images; needs fix mode.')
-    booleanParam(name: 'MUSE_ALLOW_CONTRIBUTOR_MODELS', defaultValue: false, description: 'Opt into a contributor model.')
-    string(name: 'MUSE_MAX_DIFF_BYTES', defaultValue: '262144', description: 'Untrusted-file bound mirror.')
-    string(name: 'MUSE_PROMPT', defaultValue: 'Review the latest changes in this workspace and report findings.', description: 'The one-turn prompt.')
-    string(name: 'MUSE_EXTRA_INSTRUCTIONS', defaultValue: '', description: 'Trusted author instructions (4000 chars max).')
-    string(name: 'MUSE_AGENT_VERSION', defaultValue: '0.17.0', description: 'Exact registry pin for the agent.')
-    booleanParam(name: 'MUSE_TRUST_PRS', defaultValue: false, description: 'Trust same-repo change requests.')
+    choice(name: 'MUSE_INPUT_MODE', choices: ['review', 'fix'], description: 'review (plan mode, no edits) or fix (a patch is proposed).')
+    string(name: 'MUSE_INPUT_MAX_BUDGET_USD', defaultValue: '2.00', description: 'Hard USD cap: more than 0, at most 20, up to six decimals.')
+    string(name: 'MUSE_INPUT_MAX_REQUESTS', defaultValue: '30', description: 'Billable HTTP attempts, retries included (1-500).')
+    string(name: 'MUSE_INPUT_TIMEOUT_MINUTES', defaultValue: '20', description: 'The run deadline (1-360); the job timeout must cover it.')
+    string(name: 'MUSE_INPUT_MODEL', defaultValue: '', description: 'Model API model id; empty uses the agent default.')
+    string(name: 'MUSE_INPUT_EFFORT', defaultValue: '', description: 'Reasoning effort; empty uses the model default.')
+    booleanParam(name: 'MUSE_INPUT_ALLOW_CONTRIBUTOR_MODELS', defaultValue: false, description: 'Allow a contributor model (training-eligible).')
+    booleanParam(name: 'MUSE_INPUT_IMAGE_GENERATION', defaultValue: false, description: 'Paid images in fix mode, within the budget.')
+    string(name: 'MUSE_INPUT_MAX_DIFF_BYTES', defaultValue: '262144', description: 'The diff given to the model is cut to this (1-1048576).')
+    string(name: 'MUSE_INPUT_EXTRA_INSTRUCTIONS', defaultValue: '', description: 'Trusted instructions from the pipeline author.')
+    booleanParam(name: 'MUSE_INPUT_TRUST_PULL_REQUESTS', defaultValue: false, description: 'Review change requests from this repository.')
   }
   environment {
-    MUSE_PROMPT_FILE = ''
-    MUSE_AGENT_TARBALL = ''
-    MUSE_AGENT_TARBALL_SHA256 = ''
-    MUSE_OUT_DIR = 'muse-spark-out'
+    MUSE_AGENT_VERSION = '' // Exact release, x.y.z.
+    MUSE_INPUT_AGENT_PACKAGE_SHA256 = '' // SHA-256 of that release's tarball.
+    MUSE_CI_JOB_TIMEOUT_MINUTES = '35'
   }
   stages {
-    stage('Install the agent') {
-      steps {
-        // No secret in this step: install first, exactly like the Action.
-        sh 'node ci-templates/muse-spark-run.mjs --install-only'
-      }
-    }
-    stage('Run Muse Spark') {
-      steps {
-        script {
-          // Fork PRs are always untrusted; same-repo PRs need the explicit opt-in above.
-          env.MUSE_UNTRUSTED = (env.CHANGE_FORK != null || (env.CHANGE_ID != null && params.MUSE_TRUST_PRS != true)).toString()
+    stage('Muse Spark') {
+      when {
+        beforeAgent true
+        allOf {
+          expression { env.CHANGE_FORK == null }
+          anyOf {
+            not { changeRequest() }
+            expression { params.MUSE_INPUT_TRUST_PULL_REQUESTS }
+          }
         }
-        // Only this step receives the key, piped over private stdin by the runner. Never echo it.
+      }
+      steps {
         withCredentials([string(credentialsId: 'muse-model-api-key', variable: 'MUSE_MODEL_API_KEY')]) {
           sh '''
-            export MUSE_SPARK_MODEL_API_KEY="$MUSE_MODEL_API_KEY"
-            node ci-templates/muse-spark-run.mjs
+            set +x
+            set -eu
+            muse_key="${MUSE_MODEL_API_KEY:-}"
+            unset MUSE_MODEL_API_KEY
+            if [ -z "${MUSE_AGENT_VERSION:-}" ] || [ -z "${MUSE_INPUT_AGENT_PACKAGE_SHA256:-}" ]; then echo 'muse-spark: pin MUSE_AGENT_VERSION and MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
+            muse_dir="$(mktemp -d)"
+            curl --fail --silent --show-error --location --max-time 120 --output "$muse_dir/agent.tgz" "${MUSE_AGENT_URL:-https://registry.npmjs.org/muse-spark-code-acp/-/muse-spark-code-acp-$MUSE_AGENT_VERSION.tgz}"
+            muse_sum="$(sha256sum "$muse_dir/agent.tgz")"
+            if [ "${muse_sum%% *}" != "$MUSE_INPUT_AGENT_PACKAGE_SHA256" ]; then echo 'muse-spark: the agent package does not match MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
+            mkdir "$muse_dir/launcher"
+            tar -xzf "$muse_dir/agent.tgz" -C "$muse_dir/launcher" --no-same-owner
+            MUSE_SPARK_MODEL_API_KEY="$muse_key" MUSE_CI_TEMP="$muse_dir" MUSE_INPUT_AGENT_PACKAGE="$muse_dir/agent.tgz" exec node "$muse_dir/launcher/package/ci/lib/ci-run.mjs" jenkins
           '''
         }
       }
-    }
-  }
-  post {
-    always {
-      archiveArtifacts artifacts: 'muse-spark-out/**', allowEmptyArchive: true
+      post {
+        always {
+          archiveArtifacts artifacts: 'muse-spark-out/**', allowEmptyArchive: true
+        }
+      }
     }
   }
 }

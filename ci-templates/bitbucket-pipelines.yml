@@ -1,64 +1,73 @@
-# Muse Spark Code (Unofficial): Bitbucket Pipelines template (lane CM80CI, PLAN.md M80/D65).
+# Muse Spark Code (Unofficial): Bitbucket Pipelines template (PLAN.md M80/D65, lane CM80CI-R2).
+# Not endorsed by Meta. Guide: docs/ci-other-systems.md.
 #
-# Copy this step into your bitbucket-pipelines.yml next to a vendored copy
-# of ci-templates/muse-spark-run.mjs. It runs one headless Model API review
-# (or fix) through the same runner, inputs and exit codes as the GitHub
-# Action (action/action.yml).
+# One step runs the GitHub Action's own launcher, shipped in the
+# muse-spark-code-acp package (ci/lib/ci-run.mjs): the step downloads the
+# pinned package, checks its SHA-256 with sha256sum before anything of it
+# runs, unpacks it outside the workspace and execs the launcher, which
+# installs the same tarball with lifecycle scripts off, checks its identity,
+# reviews (or proposes a fix for) the change and writes muse-spark-out/.
+# It never comments and never pushes.
 #
-# Secret setup (Repository settings > Pipelines > Repository variables):
-#   MUSE_MODEL_API_KEY = <Meta Model API key>, ticked Secured.
-# Secured values are masked in logs and are NOT passed to builds triggered
-# by pull requests from forks. Only the run command receives
-# MUSE_SPARK_MODEL_API_KEY. Never echo it.
+# Secret (Repository settings > Repository variables): MUSE_MODEL_API_KEY,
+# Secured. Set MUSE_AGENT_VERSION (a release that carries ci/, the first
+# after 0.17.0) and MUSE_INPUT_AGENT_PACKAGE_SHA256 (that tarball's SHA-256)
+# there too, and any other MUSE_INPUT_* value to change. Bitbucket does not
+# start this repository's pipelines for pull requests from forks. The step
+# is listed only under branches (main) and custom (run by hand by someone
+# with write access), never under pull-requests: add it there yourself only
+# with MUSE_INPUT_TRUST_PULL_REQUESTS set to true, or the launcher refuses
+# the pull request build. The step unsets the variable before any other
+# command and passes the value only on the exec line.
 #
-# Fork rule: BITBUCKET_PR_ID is set for every pull-request build. The step
-# marks all PR builds untrusted, so a fork PR is refused (exit 0, nothing
-# runs) even before the missing key matters. Branch builds are trusted: only
-# writers can change this file, the same trust the Action places in
-# OWNER/MEMBER/COLLABORATOR. To review same-repo pull requests, run the
-# branch's custom pipeline by hand, or set MUSE_TRUST_SAME_REPO_PRS to true
-# only while branch permissions keep untrusted writers out.
-#
-# This template never comments on the PR and never pushes: artifacts only.
+# Inputs, as repository variables (empty or unset takes the default; an
+# explicitly empty MUSE_INPUT_MAX_BUDGET_USD stays empty and is refused):
+#   MUSE_INPUT_MODE                     review (plan mode, no edits) or fix (a patch is proposed)
+#   MUSE_INPUT_MAX_BUDGET_USD           hard USD cap, more than 0, at most 20; 2.00 when unset
+#   MUSE_INPUT_MAX_REQUESTS             billable HTTP attempts, retries included (1-500); 30
+#   MUSE_INPUT_TIMEOUT_MINUTES          the run's deadline (1-360); 20; max-time must cover it
+#   MUSE_INPUT_MODEL                    Model API model id; the agent's default
+#   MUSE_INPUT_EFFORT                   reasoning effort; the model's default
+#   MUSE_INPUT_ALLOW_CONTRIBUTOR_MODELS true allows a contributor model (training-eligible); false
+#   MUSE_INPUT_IMAGE_GENERATION         true allows paid images in fix mode; false
+#   MUSE_INPUT_MAX_DIFF_BYTES           the diff given to the model is cut to this (1-1048576); 262144
+#   MUSE_INPUT_EXTRA_INSTRUCTIONS       trusted instructions from the pipeline author
+#   MUSE_INPUT_TRUST_PULL_REQUESTS      true reviews pull requests from this repository; false
+#   MUSE_INPUT_HTTPS_PROXY, MUSE_INPUT_NO_PROXY, MUSE_INPUT_EXTRA_CA_CERTS
+
+clone:
+  depth: full # The base commit must be in the clone.
 
 definitions:
   steps:
-    - step: &muse-spark-review
-      name: Muse Spark review
-      image: node:22
-      max-time: 25 # MUSE_TIMEOUT_MINUTES plus the runner's one-minute overhead and install margin.
-      script:
-        - export MUSE_MODE="${MUSE_MODE:-review}"
-        - export MUSE_MAX_BUDGET_USD="${MUSE_MAX_BUDGET_USD:-2.00}"
-        - export MUSE_MAX_REQUESTS="${MUSE_MAX_REQUESTS:-30}"
-        - export MUSE_TIMEOUT_MINUTES="${MUSE_TIMEOUT_MINUTES:-20}"
-        - export MUSE_MODEL="${MUSE_MODEL:-}"
-        - export MUSE_EFFORT="${MUSE_EFFORT:-}"
-        - export MUSE_IMAGE_GENERATION="${MUSE_IMAGE_GENERATION:-false}"
-        - export MUSE_ALLOW_CONTRIBUTOR_MODELS="${MUSE_ALLOW_CONTRIBUTOR_MODELS:-false}"
-        - export MUSE_MAX_DIFF_BYTES="${MUSE_MAX_DIFF_BYTES:-262144}"
-        - export MUSE_PROMPT="${MUSE_PROMPT:-Review the latest changes in this workspace and report findings.}"
-        - export MUSE_PROMPT_FILE="${MUSE_PROMPT_FILE:-}"
-        - export MUSE_EXTRA_INSTRUCTIONS="${MUSE_EXTRA_INSTRUCTIONS:-}"
-        - export MUSE_AGENT_VERSION="${MUSE_AGENT_VERSION:-0.17.0}"
-        - export MUSE_AGENT_TARBALL="${MUSE_AGENT_TARBALL:-}"
-        - export MUSE_AGENT_TARBALL_SHA256="${MUSE_AGENT_TARBALL_SHA256:-}"
-        - export MUSE_OUT_DIR="${MUSE_OUT_DIR:-muse-spark-out}"
-        - export MUSE_TRUST_SAME_REPO_PRS="${MUSE_TRUST_SAME_REPO_PRS:-false}"
-        # Pull-request builds stay untrusted unless the override above says so.
-        - if [ -n "${BITBUCKET_PR_ID:-}" ] && [ "$MUSE_TRUST_SAME_REPO_PRS" != "true" ]; then export MUSE_UNTRUSTED="pull-request-build"; else export MUSE_UNTRUSTED="false"; fi
-        # No secret in this step: install first, exactly like the Action.
-        - node ci-templates/muse-spark-run.mjs --install-only
-        # Only this command receives the key, piped over private stdin by the runner. Never echo it.
-        - export MUSE_SPARK_MODEL_API_KEY="$MUSE_MODEL_API_KEY"
-        - node ci-templates/muse-spark-run.mjs
-      artifacts:
-        - muse-spark-out/**
+    - step: &muse-spark
+        name: Muse Spark
+        image: node:22
+        # MUSE_CI_JOB_TIMEOUT_MINUTES below names the same deadline for the launcher.
+        max-time: 35
+        script:
+          - export MUSE_INPUT_MAX_BUDGET_USD="${MUSE_INPUT_MAX_BUDGET_USD-2.00}"
+          - export MUSE_CI_JOB_TIMEOUT_MINUTES=35
+          - |
+            set +x
+            set -eu
+            muse_key="${MUSE_MODEL_API_KEY:-}"
+            unset MUSE_MODEL_API_KEY
+            if [ -z "${MUSE_AGENT_VERSION:-}" ] || [ -z "${MUSE_INPUT_AGENT_PACKAGE_SHA256:-}" ]; then echo 'muse-spark: pin MUSE_AGENT_VERSION and MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
+            muse_dir="$(mktemp -d)"
+            curl --fail --silent --show-error --location --max-time 120 --output "$muse_dir/agent.tgz" "${MUSE_AGENT_URL:-https://registry.npmjs.org/muse-spark-code-acp/-/muse-spark-code-acp-$MUSE_AGENT_VERSION.tgz}"
+            muse_sum="$(sha256sum "$muse_dir/agent.tgz")"
+            if [ "${muse_sum%% *}" != "$MUSE_INPUT_AGENT_PACKAGE_SHA256" ]; then echo 'muse-spark: the agent package does not match MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
+            mkdir "$muse_dir/launcher"
+            tar -xzf "$muse_dir/agent.tgz" -C "$muse_dir/launcher" --no-same-owner
+            MUSE_SPARK_MODEL_API_KEY="$muse_key" MUSE_CI_TEMP="$muse_dir" MUSE_INPUT_AGENT_PACKAGE="$muse_dir/agent.tgz" exec node "$muse_dir/launcher/package/ci/lib/ci-run.mjs" bitbucket
+        artifacts:
+          - muse-spark-out/**
 
 pipelines:
   branches:
-    '{main,master}':
-      - step: *muse-spark-review
-  pull-requests:
-    '**':
-      - step: *muse-spark-review
+    main:
+      - step: *muse-spark
+  custom:
+    muse-spark:
+      - step: *muse-spark

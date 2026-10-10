@@ -559,7 +559,7 @@
     {
       "id": "M80",
       "title": "Headless runs and a GitHub Action",
-      "summary": "Run one agent turn without an editor through the ACP agent's exec command, or let a GitHub Action review or propose a fix for a same-repository pull request, each under a hard dollar budget; both can be tried but are not certified or supported yet.",
+      "summary": "Run one agent turn without an editor, from a GitHub Action or from GitLab, Azure, Jenkins or Bitbucket templates sharing its launcher, to review or fix a change under a hard dollar budget; not certified or supported yet.",
       "area": "platform",
       "release": "0.12.0"
     },

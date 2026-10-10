@@ -246,7 +246,7 @@ function revokePatch(paths) {
  * P2-2): whatever reached out/ before the stop is removed, synchronously, and
  * the report no longer offers a result. Ordinary exec failures keep theirs.
  */
-function revokeIfStopped(report, owner, paths) {
+export function revokeIfStopped(report, owner, paths) {
   if (!owner.stopped && !report.wrapperFailed) return
   rmSync(paths.result, { force: true })
   rmSync(paths.events, { force: true })
@@ -389,7 +389,7 @@ export function outputsFor(report, owner, paths) {
   }
 }
 
-function summaryFor(report, outputs) {
+export function summaryFor(report, outputs) {
   const upper = outputs['cost-is-upper-bound'] === 'true' ? ' (upper bound)' : ''
   return [
     '### Muse Spark Code run',

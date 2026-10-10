@@ -238,6 +238,82 @@ declare module '*/action/lib/lifecycle.mjs' {
   }): LauncherOwner
 }
 
+interface CiFacts {
+  system: string
+  workspace: string
+  runId: string
+  attempt: string
+  event: 'pull_request' | 'branch' | 'unsupported'
+  label: string
+  number: string | null
+  isFork: boolean
+  isProtected: boolean | null
+  headSha: string
+  base: { sha: string } | { ref: string } | { firstParent: true } | { mergeParent: true }
+  title: string
+  body: string
+}
+
+type CiInputs = ActionInputs & { trustPullRequests: boolean }
+
+interface CiOwnerOptions {
+  bounds?: ActionBounds
+  onSignal?: (signal: 'SIGINT' | 'SIGTERM', run: () => void) => () => void
+  // The owner calls Node's spawn with these; the test's wrapper returns its child.
+  spawnChild?: (
+    file: string,
+    args: string[],
+    options: { cwd: string; env: Record<string, string> },
+  ) => unknown
+}
+
+declare module '*/action/lib/ci-adapters.mjs' {
+  export const CI_SYSTEMS: readonly string[]
+  export function azureBoolean(value: string | undefined, name: string): boolean | undefined
+  export function ciFacts(system: string, env: Record<string, string | undefined>): CiFacts
+  export function decideCi(
+    facts: CiFacts,
+    inputs: Pick<CiInputs, 'trustPullRequests' | 'imageGeneration' | 'mode'>,
+  ): { allowed: true } | { allowed: false; reason: string }
+}
+
+declare module '*/action/lib/ci-run.mjs' {
+  export const CI_TEMPLATES_DIR: string
+  export const LAUNCHER_ROOT: string
+  export const CI_SECRET_VARIABLE: string
+  export const CI_OUT_DIR: string
+  export function takeCiKey(env: Record<string, string | undefined>): string | undefined
+  export function parseCiInputs(env: Record<string, string | undefined>, system: string): CiInputs
+  export function ownerTotalMs(inputs: Pick<ActionInputs, 'timeoutMinutes'>): number
+  export function requiredJobMinutes(inputs: Pick<ActionInputs, 'timeoutMinutes'>): number
+  export function jobMinutes(env: Record<string, string | undefined>, system: string): number
+  export function checkJobDeadline(
+    env: Record<string, string | undefined>,
+    system: string,
+    inputs: Pick<ActionInputs, 'timeoutMinutes'>,
+  ): void
+  export function privateTemp(
+    value: string | undefined,
+    workspace: string,
+    platform: string,
+  ): string
+  export function changeResource(
+    facts: CiFacts,
+    shas: { headSha: string; baseSha: string },
+  ): { text: string; truncated: boolean }
+  export function runCi(input: {
+    system: string
+    env: Record<string, string | undefined>
+    held: { key: string | undefined }
+    write: (text: string) => void
+    log: (text: string) => void
+    platform?: NodeJS.Platform
+    execPath?: string
+    launcherRoot?: string
+    ownerOptions?: CiOwnerOptions
+  }): Promise<number>
+}
+
 declare module '*/action/lib/git.mjs' {
   export const GIT_METADATA_OPTIONS: readonly string[]
   export const INERT_CONFIG_NAMES: ReadonlySet<string>

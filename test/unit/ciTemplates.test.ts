@@ -1,282 +1,278 @@
-// Lane CM80CI: structural validators for the four non-GitHub CI templates.
-// Each template must stay equivalent to the GitHub Action's documented
-// inputs (action/action.yml), pass the key only to the run step over private
-// stdin, and refuse forks/untrusted runs through that system's mechanism.
-// The runner module is the single source of defaults; templates carry them.
+// Lane CM80CI-R2: validators for the four other-CI templates, parsed with
+// the repository's YAML parser (Jenkins: its declarative blocks by
+// structure). Each template is a thin wrapper: the same bootstrap (key out
+// of the environment first, pinned download, SHA-256 before anything of the
+// package runs, exec of the Action's launcher), the system's own mechanism
+// keeping untrusted runs away from the credential, a job timeout the
+// launcher accepts, and only inputs the launcher consumes.
 
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import {
-  CI_DEFAULTS,
-  InputError,
-  MODEL_API_KEY_PATTERN,
-  execArguments,
-  parseRunnerInputs,
-  statusForExitCode,
-  takeModelApiKey,
-  toExecPair,
-  toPosix,
-} from '../../ci-templates/muse-spark-run.mjs'
+import { parse } from 'yaml'
+import { parseCiInputs, requiredJobMinutes } from '../../action/lib/ci-run.mjs'
+import { CI_LAUNCHER_SOURCES } from '../../scripts/lib/acpNativeSources.mjs'
+import { byText, REPO_ROOT } from './helpers/actionFixtures'
+import { bootstrapOf, jenkinsStage, templateText } from './helpers/ciTemplateText'
 
-const ROOT = path.resolve(import.meta.dirname, '..', '..')
-const template = (name: string) => readFileSync(path.join(ROOT, 'ci-templates', name), 'utf8')
+const INPUTS = [
+  'MUSE_INPUT_MODE',
+  'MUSE_INPUT_MAX_BUDGET_USD',
+  'MUSE_INPUT_MAX_REQUESTS',
+  'MUSE_INPUT_TIMEOUT_MINUTES',
+  'MUSE_INPUT_MODEL',
+  'MUSE_INPUT_EFFORT',
+  'MUSE_INPUT_ALLOW_CONTRIBUTOR_MODELS',
+  'MUSE_INPUT_IMAGE_GENERATION',
+  'MUSE_INPUT_MAX_DIFF_BYTES',
+  'MUSE_INPUT_EXTRA_INSTRUCTIONS',
+  'MUSE_INPUT_TRUST_PULL_REQUESTS',
+]
+const SYSTEMS = ['gitlab', 'azure', 'jenkins', 'bitbucket'] as const
 
-const TEMPLATES = [
-  'gitlab-ci.yml',
-  'azure-pipelines.yml',
-  'Jenkinsfile',
-  'bitbucket-pipelines.yml',
-] as const
+type Yaml = Record<string, unknown>
 
-function baseEnv() {
-  return {
-    MUSE_UNTRUSTED: 'false',
-    MUSE_MODE: 'review',
-    MUSE_MAX_BUDGET_USD: '2.00',
-    MUSE_PROMPT: 'Review this workspace.',
-  } as Record<string, string>
+function yamlOf(name: string): Yaml {
+  return parse(templateText(name)) as Yaml
 }
 
-describe('ci template files', () => {
-  it.each([...TEMPLATES])(
-    'shares one runner: %s installs before running, with no secret at install',
-    (name) => {
-      const text = template(name)
-      expect(text).toContain('ci-templates/muse-spark-run.mjs')
-      expect(text).toContain('--install-only')
-      expect(text.indexOf('--install-only')).toBeLessThan(
-        text.lastIndexOf('ci-templates/muse-spark-run.mjs'),
+function record(value: unknown): Yaml {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('expected a mapping')
+  }
+  return value as Yaml
+}
+
+/** Every MUSE_INPUT_* name a template mentions. */
+function inputNames(text: string): string[] {
+  return [...new Set(text.match(/MUSE_INPUT_[A-Z0-9_]+/g))].toSorted(byText)
+}
+
+describe('one bootstrap, the same in every template', () => {
+  it.each([...SYSTEMS])(
+    '%s: key out first, digest before anything runs, exec of the launcher',
+    (system) => {
+      const lines = bootstrapOf(system)
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line !== '')
+      expect(lines.slice(0, 4)).toEqual([
+        'set +x',
+        'set -eu',
+        'muse_key="${MUSE_MODEL_API_KEY:-}"',
+        'unset MUSE_MODEL_API_KEY',
+      ])
+      const digest = lines.findIndex((line) => line.startsWith('if [ "${muse_sum%% *}"'))
+      const unpack = lines.findIndex((line) => line.startsWith('tar -xzf'))
+      expect(digest).toBeGreaterThan(0)
+      expect(unpack).toBeGreaterThan(digest)
+      const last = lines.at(-1) ?? ''
+      expect(last).toBe(
+        `MUSE_SPARK_MODEL_API_KEY="$muse_key" MUSE_CI_TEMP="$muse_dir" MUSE_INPUT_AGENT_PACKAGE="$muse_dir/agent.tgz" exec node "$muse_dir/launcher/package/ci/lib/ci-run.mjs" ${system}`,
       )
-      const installLine = text.split('\n').find((line) => line.includes('--install-only'))
-      expect(installLine).toBeDefined()
-      expect(installLine).not.toContain('MODEL_API_KEY')
+      // The key appears only where it is taken and on the exec line.
+      const withKey = lines.filter(
+        (line) => line.includes('muse_key') || line.includes('MODEL_API_KEY'),
+      )
+      expect(withKey).toEqual([lines[2], lines[3], last])
     },
   )
 
-  it.each([...TEMPLATES])('never echoes the key: %s', (name) => {
-    const text = template(name)
-    for (const line of text.split('\n')) {
-      const trimmed = line.trim()
-      if (trimmed.startsWith('#') || trimmed.startsWith('//')) continue
-      if (line.includes('KEY') && /(^|\s)(echo|print|Write-Host|Write-Output)\b/.test(line)) {
-        throw new Error(`key printed in ${name}: ${line}`)
-      }
-    }
-    expect(text).toContain('Never echo it')
-  })
-
-  it.each([...TEMPLATES])('carries the Action-parity defaults: %s', (name) => {
-    const text = template(name)
-    expect(text).toContain(CI_DEFAULTS.mode)
-    expect(text).toContain(CI_DEFAULTS.maxRequests)
-    expect(text).toContain(CI_DEFAULTS.timeoutMinutes)
-    expect(text).toContain(CI_DEFAULTS.maxDiffBytes)
-    expect(text).toContain(CI_DEFAULTS.agentVersion)
-    expect(text).toContain('MUSE_MAX_BUDGET_USD')
-    expect(text).toContain('MUSE_IMAGE_GENERATION')
-    expect(text).toContain('MUSE_ALLOW_CONTRIBUTOR_MODELS')
-  })
-
-  it('gitlab refuses fork merge requests through project-path rules', () => {
-    const text = template('gitlab-ci.yml')
-    expect(text).toContain('MUSE_UNTRUSTED')
-    expect(text).toContain('CI_MERGE_REQUEST_SOURCE_PROJECT_PATH')
-    expect(text).toContain('Masked')
-    expect(text).toContain('Protected')
-  })
-
-  it('azure refuses fork pull requests through IsFork', () => {
-    const text = template('azure-pipelines.yml')
-    expect(text).toContain('MUSE_UNTRUSTED')
-    expect(text).toContain('System.PullRequest.IsFork')
-    expect(text).toMatch(/secret/i)
-  })
-
-  it('jenkins binds the key only around the run stage and checks CHANGE_FORK', () => {
-    const text = template('Jenkinsfile')
-    expect(text).toContain('MUSE_UNTRUSTED')
-    expect(text).toContain('CHANGE_FORK')
-    expect(text).toContain("withCredentials([string(credentialsId: 'muse-model-api-key'")
-    // The binding must wrap only the run stage, after the install stage.
-    expect(text.indexOf("stage('Install the agent')")).toBeLessThan(
-      text.indexOf("stage('Run Muse Spark')"),
+  it('is byte-identical across the four templates but for the system name', () => {
+    const bodies = SYSTEMS.map((system) =>
+      bootstrapOf(system)
+        .split('\n')
+        .map((line) => line.trim())
+        .join('\n')
+        .replace(new RegExp(` ${system}$`, 'm'), ' SYSTEM'),
     )
-    expect(text.indexOf("stage('Run Muse Spark')")).toBeLessThan(
-      text.indexOf('withCredentials([string'),
-    )
-  })
-
-  it('bitbucket marks pull-request builds untrusted via BITBUCKET_PR_ID', () => {
-    const text = template('bitbucket-pipelines.yml')
-    expect(text).toContain('MUSE_UNTRUSTED')
-    expect(text).toContain('BITBUCKET_PR_ID')
-    expect(text).toContain('Secured')
+    expect(new Set(bodies).size).toBe(1)
   })
 })
 
-describe('runner input parity with the Action', () => {
-  it('accepts the documented budget grammar and range', () => {
-    for (const budget of ['2.00', '0.000001', '20', '20.000000']) {
-      expect(parseRunnerInputs({ ...baseEnv(), MUSE_MAX_BUDGET_USD: budget }).maxBudgetUsd).toBe(
-        budget,
+describe('inputs: only what the launcher consumes, the Action’s grammar', () => {
+  it.each([...SYSTEMS])('%s carries the launcher’s inputs and nothing GitHub-only', (system) => {
+    const names = inputNames(templateText(system))
+    for (const name of INPUTS) expect(names, name).toContain(name)
+    for (const name of names) {
+      expect(
+        [
+          ...INPUTS,
+          'MUSE_INPUT_AGENT_PACKAGE',
+          'MUSE_INPUT_AGENT_PACKAGE_SHA256',
+          'MUSE_INPUT_HTTPS_PROXY',
+          'MUSE_INPUT_NO_PROXY',
+          'MUSE_INPUT_EXTRA_CA_CERTS',
+        ],
+        name,
+      ).toContain(name)
+    }
+  })
+
+  it.each(['gitlab', 'azure'] as const)(
+    '%s defaults parse with the launcher’s own grammar',
+    (system) => {
+      const variables = record(yamlOf(system)['variables'])
+      const env = Object.fromEntries(
+        Object.entries(variables).map(([name, value]) => [name, String(value)]),
       )
-    }
-    for (const budget of [
-      '',
-      '0',
-      '0.00',
-      '20.000001',
-      '21',
-      '-1',
-      '2.0000000',
-      ' 2',
-      '2 ',
-      '1e3',
-      '$2',
-    ]) {
-      expect(() => parseRunnerInputs({ ...baseEnv(), MUSE_MAX_BUDGET_USD: budget })).toThrow(
-        InputError,
+      const inputs = parseCiInputs(
+        {
+          ...env,
+          MUSE_INPUT_AGENT_PACKAGE: '/tmp/agent.tgz',
+          MUSE_INPUT_AGENT_PACKAGE_SHA256: 'f'.repeat(64),
+        },
+        system,
       )
-    }
-  })
+      expect(inputs).toMatchObject({
+        mode: 'review',
+        maxBudgetUsd: '2.00',
+        maxRequests: 30,
+        timeoutMinutes: 20,
+        trustPullRequests: false,
+      })
+    },
+  )
 
-  it('parses mode, requests, timeout, diff bytes, effort and model like the Action', () => {
-    expect(parseRunnerInputs(baseEnv()).mode).toBe('review')
-    expect(() => parseRunnerInputs({ ...baseEnv(), MUSE_MODE: 'auto' })).toThrow(InputError)
-    expect(parseRunnerInputs({ ...baseEnv(), MUSE_MAX_REQUESTS: '500' }).maxRequests).toBe(500)
-    expect(() => parseRunnerInputs({ ...baseEnv(), MUSE_MAX_REQUESTS: '501' })).toThrow(InputError)
-    expect(() => parseRunnerInputs({ ...baseEnv(), MUSE_TIMEOUT_MINUTES: '0' })).toThrow(InputError)
-    expect(() => parseRunnerInputs({ ...baseEnv(), MUSE_MAX_DIFF_BYTES: '1048577' })).toThrow(
-      InputError,
-    )
-    expect(() => parseRunnerInputs({ ...baseEnv(), MUSE_EFFORT: 'ultra' })).toThrow(InputError)
-    expect(() => parseRunnerInputs({ ...baseEnv(), MUSE_MODEL: 'not a model!' })).toThrow(
-      InputError,
-    )
-  })
-
-  it('refuses image generation in review mode, as the Action does', () => {
-    expect(() => parseRunnerInputs({ ...baseEnv(), MUSE_IMAGE_GENERATION: 'true' })).toThrow(
-      InputError,
-    )
-    expect(
-      parseRunnerInputs({ ...baseEnv(), MUSE_MODE: 'fix', MUSE_IMAGE_GENERATION: 'true' })
-        .imageGeneration,
-    ).toBe(true)
-  })
-
-  it('requires exactly one prompt source', () => {
-    expect(() => parseRunnerInputs({ ...baseEnv(), MUSE_PROMPT: '' })).toThrow(InputError)
-    const both = { ...baseEnv(), MUSE_PROMPT_FILE: 'ci-templates/gitlab-ci.yml' }
-    expect(() => parseRunnerInputs(both)).toThrow(InputError)
-    expect(() =>
-      parseRunnerInputs({
-        ...baseEnv(),
-        MUSE_PROMPT: '',
-        MUSE_PROMPT_FILE: 'ci-templates/no-such-file.yml',
-      }),
-    ).toThrow(InputError)
-  })
-
-  it('reads the prompt from a file when asked', () => {
-    const inputs = parseRunnerInputs({
-      ...baseEnv(),
-      MUSE_PROMPT: '',
-      MUSE_PROMPT_FILE: path.join(ROOT, 'ci-templates', 'gitlab-ci.yml'),
-    })
-    expect(inputs.promptText.length).toBeGreaterThan(0)
+  it('Bitbucket keeps an explicitly empty value instead of reinstating a default (finding 11)', () => {
+    const text = templateText('bitbucket')
+    expect(text).not.toMatch(/\$\{MUSE_INPUT_[A-Z_]+:-/)
+    expect(text).toContain('export MUSE_INPUT_MAX_BUDGET_USD="${MUSE_INPUT_MAX_BUDGET_USD-2.00}"')
   })
 })
 
-describe('runner key handling', () => {
-  it('accepts the Action key shape, strips one LF, and deletes the variable', () => {
-    const env = { MUSE_SPARK_MODEL_API_KEY: 'LLM_abcdefghijklmnop\n' } as Record<string, string>
-    expect(takeModelApiKey(env)).toBe('LLM_abcdefghijklmnop')
-    expect(env).not.toContain('MUSE_SPARK_MODEL_API_KEY')
-    expect(MODEL_API_KEY_PATTERN.test('LLM_abcdefghijklmnop')).toBe(true)
+describe('job timeouts cover the launcher’s bounds (finding 12)', () => {
+  const needed = requiredJobMinutes({ timeoutMinutes: 20 })
+
+  it('GitLab: the job timeout, which the launcher reads as CI_JOB_TIMEOUT', () => {
+    const job = record(yamlOf('gitlab')['muse-spark'])
+    expect(job['timeout']).toBe('35m')
+    expect(35).toBeGreaterThanOrEqual(needed)
   })
 
-  it('refuses empty, multi-line, oversize or malformed keys without echoing', () => {
-    for (const key of [
-      '',
-      'LLM_short',
-      'not-a-key',
-      'LLM_abcdefghijklmnop\nsecond',
-      'LLM_abc\rdef',
-    ]) {
-      const env = { MUSE_SPARK_MODEL_API_KEY: key }
-      expect(takeModelApiKey(env)).toBeUndefined()
-      expect(env).not.toContain('MUSE_SPARK_MODEL_API_KEY')
-    }
-    const big = { MUSE_SPARK_MODEL_API_KEY: `LLM_${'x'.repeat(4096)}` }
-    expect(takeModelApiKey(big)).toBeUndefined()
+  it('Azure: timeoutInMinutes equals the declared MUSE_CI_JOB_TIMEOUT_MINUTES', () => {
+    const document = yamlOf('azure')
+    const job = record((document['jobs'] as unknown[])[0])
+    const declared = Number(record(document['variables'])['MUSE_CI_JOB_TIMEOUT_MINUTES'])
+    expect(job['timeoutInMinutes']).toBe(declared)
+    expect(declared).toBeGreaterThanOrEqual(needed)
+  })
+
+  it('Jenkins: options timeout equals the declared MUSE_CI_JOB_TIMEOUT_MINUTES', () => {
+    const text = templateText('jenkins')
+    const timeout = /options \{ timeout\(time: (\d+), unit: 'MINUTES'\) \}/.exec(text)?.[1]
+    const declared = /MUSE_CI_JOB_TIMEOUT_MINUTES = '(\d+)'/.exec(text)?.[1]
+    expect(timeout).toBe(declared)
+    expect(Number(declared)).toBeGreaterThanOrEqual(needed)
+  })
+
+  it('Bitbucket: max-time equals the exported MUSE_CI_JOB_TIMEOUT_MINUTES', () => {
+    const step = bitbucketStep()
+    const exported = (step['script'] as string[]).find((line) =>
+      line.startsWith('export MUSE_CI_JOB_TIMEOUT_MINUTES='),
+    )
+    expect(step['max-time']).toBe(Number(exported?.split('=', 2)[1]))
+    expect(Number(step['max-time'])).toBeGreaterThanOrEqual(needed)
   })
 })
 
-describe('runner exec argv and exit codes', () => {
-  it('builds the Action-equivalent argv with the prompt last', () => {
-    const args = execArguments(parseRunnerInputs(baseEnv()))
-    expect(args.slice(0, 4)).toEqual(['exec', '--key-stdin', '--backend', 'modelApi'])
-    expect(args).toContain('--ephemeral')
-    expect(args).toContain('json')
-    expect(args).toContain('2.00')
-    expect(args).not.toContain('--model')
-    expect(args.at(-1)).toBe('Review this workspace.')
-    const fix = execArguments(
-      parseRunnerInputs({
-        ...baseEnv(),
-        MUSE_MODE: 'fix',
-        MUSE_MODEL: 'muse-spark-1',
-        MUSE_EFFORT: 'low',
-      }),
-    )
-    expect(fix).toContain('acceptEdits')
-    expect(fix).toContain('muse-spark-1')
-    expect(fix).toContain('low')
-  })
+function bitbucketStep(): Yaml {
+  const definitions = record(yamlOf('bitbucket')['definitions'])
+  const steps = definitions['steps'] as unknown[]
+  return record(record(steps[0])['step'])
+}
 
-  it('maps every documented exit code to the docs/ci.md status word', () => {
-    expect([
-      statusForExitCode(0),
-      statusForExitCode(2),
-      statusForExitCode(3),
-      statusForExitCode(4),
-      statusForExitCode(5),
-      statusForExitCode(6),
-      statusForExitCode(7),
-      statusForExitCode(8),
-      statusForExitCode(9),
-      statusForExitCode(130),
-      statusForExitCode(143),
-      statusForExitCode(1),
-    ]).toEqual([
-      'completed',
-      'no_result',
-      'auth_required',
-      'failed',
-      'budget_exceeded',
-      'timeout',
-      'denied',
-      'incomplete',
-      'accounting_unverified',
-      'cancelled',
-      'cancelled',
-      'internal',
+describe('each system’s own mechanism keeps untrusted runs from the credential', () => {
+  it('GitLab: the only job never runs for forks, untrusted or unprotected merge requests, unprotected refs or tags', () => {
+    const document = yamlOf('gitlab')
+    expect(Object.keys(document).toSorted(byText)).toEqual(['muse-spark', 'variables'])
+    const job = record(document['muse-spark'])
+    const rules = (job['rules'] as unknown[]).map((rule) => record(rule))
+    expect(rules.map((rule) => [rule['if'], rule['when']])).toEqual([
+      [
+        '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_SOURCE_PROJECT_ID != $CI_PROJECT_ID',
+        'never',
+      ],
+      [
+        '$CI_PIPELINE_SOURCE == "merge_request_event" && $MUSE_INPUT_TRUST_PULL_REQUESTS != "true"',
+        'never',
+      ],
+      [
+        '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_SOURCE_BRANCH_PROTECTED != "true"',
+        'never',
+      ],
+      [
+        '$CI_PIPELINE_SOURCE != "merge_request_event" && $CI_COMMIT_REF_PROTECTED != "true"',
+        'never',
+      ],
+      ['$CI_COMMIT_TAG', 'never'],
+      [undefined, 'on_success'],
     ])
+    expect(record(job['variables'])['GIT_DEPTH']).toBe('0')
+    expect(record(job['artifacts'])['paths']).toEqual(['muse-spark-out/'])
+    // The secret is a project variable, never declared in the file.
+    expect(Object.keys(record(document['variables']))).not.toContain('MUSE_MODEL_API_KEY')
   })
 
-  it('runs .js entries under this Node and bins directly', () => {
-    const [node, prefix] = toExecPair('/tmp/fake-agent.mjs')
-    expect(node).toBe(process.execPath)
-    expect(prefix).toEqual(['/tmp/fake-agent.mjs'])
-    expect(toExecPair('muse-spark-code-acp')).toEqual(['muse-spark-code-acp', []])
-  })
-
-  it('normalises Windows separators before comparing paths', () => {
-    expect(toPosix(String.raw`muse-spark-out\run-summary.json`)).toBe(
-      'muse-spark-out/run-summary.json',
+  it('Azure: the job condition excludes forks and untrusted pull requests; only the run step maps the secret', () => {
+    const document = yamlOf('azure')
+    const job = record((document['jobs'] as unknown[])[0])
+    expect(job['condition']).toBe(
+      "and(succeeded(), or(ne(variables['Build.Reason'], 'PullRequest'), and(eq(variables['MUSE_INPUT_TRUST_PULL_REQUESTS'], 'true'), eq(variables['System.PullRequest.IsFork'], 'False'))))",
     )
-    expect(toPosix(String.raw`C:\Users\ci\out`)).toBe('C:/Users/ci/out')
+    const steps = (job['steps'] as unknown[]).map((step) => record(step))
+    const withEnv = steps.filter((step) => step['env'] !== undefined)
+    expect(withEnv).toHaveLength(1)
+    expect(record(withEnv[0]?.['env'])).toEqual({ MUSE_MODEL_API_KEY: '$(MUSE_MODEL_API_KEY)' })
+    expect(typeof withEnv[0]?.['bash']).toBe('string')
+    expect(steps[0]).toMatchObject({ checkout: 'self', fetchDepth: 0, persistCredentials: false })
+    expect(Object.keys(record(document['variables']))).not.toContain('MUSE_MODEL_API_KEY')
+  })
+
+  it('Jenkins: the credential is bound only inside the stage whose when excludes forks and untrusted change requests (finding 2)', () => {
+    const text = templateText('jenkins')
+    expect(text.match(/withCredentials\(/g)).toHaveLength(1)
+    const stage = jenkinsStage(text)
+    const when = stage.slice(stage.indexOf('when {'), stage.indexOf('steps {'))
+    expect(when).toContain('beforeAgent true')
+    expect(when).toContain('expression { env.CHANGE_FORK == null }')
+    expect(when).toContain('not { changeRequest() }')
+    expect(when).toContain('expression { params.MUSE_INPUT_TRUST_PULL_REQUESTS }')
+    expect(stage.indexOf('when {')).toBeLessThan(stage.indexOf('withCredentials('))
+    expect(text).toContain(
+      "string(credentialsId: 'muse-model-api-key', variable: 'MUSE_MODEL_API_KEY')",
+    )
+  })
+
+  it('Bitbucket: the step parses into a real step and is listed only under branches and custom (finding 5)', () => {
+    const document = yamlOf('bitbucket')
+    const step = bitbucketStep()
+    expect(step['name']).toBe('Muse Spark')
+    expect(Array.isArray(step['script'])).toBe(true)
+    expect(step['artifacts']).toEqual(['muse-spark-out/**'])
+    const pipelines = record(document['pipelines'])
+    expect(Object.keys(pipelines).toSorted(byText)).toEqual(['branches', 'custom'])
+    const main = (record(pipelines['branches'])['main'] as unknown[]).map((item) => record(item))
+    const custom = (record(pipelines['custom'])['muse-spark'] as unknown[]).map((item) =>
+      record(item),
+    )
+    // The anchors resolve to the very step, script and all.
+    expect(main[0]?.['step']).toEqual(step)
+    expect(custom[0]?.['step']).toEqual(step)
+    expect(record(document['clone'])['depth']).toBe('full')
+  })
+})
+
+describe('the launcher ships in the package', () => {
+  it('package-acp.mjs copies action/lib and action/prompts into ci/ and lists it in files', () => {
+    expect(CI_LAUNCHER_SOURCES).toEqual([
+      path.join('action', 'lib'),
+      path.join('action', 'prompts'),
+    ])
+    const script = readFileSync(path.join(REPO_ROOT, 'scripts', 'package-acp.mjs'), 'utf8')
+    expect(script).toContain(
+      "cpSync(source, path.join(STAGE, 'ci', path.basename(source)), { recursive: true })",
+    )
+    expect(script).toMatch(/files: \[\n\s+'ci',/)
   })
 })

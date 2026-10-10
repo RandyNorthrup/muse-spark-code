@@ -4945,18 +4945,22 @@ results and what is still open.
 
 ### Other CI systems
 
-The same headless run also ships as first-class templates for GitLab CI,
-Azure Pipelines, Jenkins and Bitbucket Pipelines under
-[`ci-templates/`](ci-templates/gitlab-ci.yml), all calling the shared
-[`muse-spark-run.mjs`](ci-templates/muse-spark-run.mjs) runner. Each template
-carries the Action's inputs (plan or fix mode, budget cap, model), takes the
-key from that system's secret store into the run step only, refuses
-forks and untrusted runs before anything is spent, and keeps the Action's
-exit codes; none comments or pushes. They are fake-tested here (validators
-plus end-to-end runs against a fake agent); no live run on these systems
-exists yet, so this is **not certified yet**. [The CI systems
-guide](docs/ci-other-systems.md) lists each system's secret setup,
-fork mechanism, inputs and claim limits.
+The GitHub Action's own launcher also runs on GitLab CI, Azure Pipelines,
+Jenkins and Bitbucket Pipelines, from one thin template each under
+[`ci-templates/`](ci-templates/gitlab-ci.yml). Each template downloads the
+pinned `muse-spark-code-acp` release, checks its SHA-256 before anything of
+it runs, and starts the launcher the package carries (`ci/lib/ci-run.mjs`),
+which installs and checks the package the Action's way and runs the
+Action's review or fix with its inputs, budget, prompt file, result
+validation and exit codes. The key comes from that system's secret store
+into the one credential step, which the system's own mechanism (protected
+variables, fork secret policy and conditions, a guarded stage, branch-only
+steps) keeps untrusted runs away from; it reaches the agent over private
+stdin only. None comments or pushes. They are tested with fakes here;
+there is no live run on these systems and no release carrying the launcher
+yet, so this is **not certified yet**. [The CI systems
+guide](docs/ci-other-systems.md) lists each system's secret setup, trust
+mechanism, inputs and limits.
 
 ## Keeping your machine responsive
 
