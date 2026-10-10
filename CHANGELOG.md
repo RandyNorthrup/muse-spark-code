@@ -74,6 +74,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- A question's "Type your own answer…" field no longer touches the Other
+  option above it or the Submit and Explain instead buttons below it; its
+  focus ring now has room on both sides.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
