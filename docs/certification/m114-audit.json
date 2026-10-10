@@ -11115,7 +11115,7 @@
     },
     {
       "file": "src/webview/models/Wizard.tsx",
-      "sha256": "a34d1ff5ccf0bf71966d1413c67eb070a9118e6874ef3345a03a3e6f073efdc3"
+      "sha256": "142e184f2d6844545123b35e74a671c925f11b82fe8a7e1be456d2ec8ed2db16"
     },
     {
       "file": "src/webview/models/components/Badge.tsx",

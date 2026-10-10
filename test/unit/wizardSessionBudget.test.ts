@@ -11,12 +11,11 @@ import path from 'node:path'
 import { createModelsPanelSeam } from '../../src/core/providers/panelSeam'
 import { beforeEach, onTestFinished, describe, expect, it, vi } from 'vitest'
 import { window } from 'vscode'
-import { window as fakeWindow, FakeUri } from './mocks/vscode'
 import {
   reserveRequest,
   SessionBudgetExceededError,
 } from '../../src/core/backends/modelapi/sessionBudget'
-import { createModelsPanel, type ModelsPanelDeps } from '../../src/host/models/modelsPanel'
+import type { ModelsPanelDeps } from '../../src/host/models/modelsPanel'
 import {
   runAddProviderQuickPick,
   type ProviderQuickPickUi,
@@ -24,7 +23,9 @@ import {
 import {
   applyWizardSessionBudget,
   createSessionBudgetConfig,
+  type SessionBudgetConfig,
 } from '../../src/host/models/sessionBudget'
+import type { ProvidersHost } from '../../src/host/providers/providersHost'
 import { loadUiTable } from '../../src/host/l10n'
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { readSettings } from '../../src/host/settings'
@@ -32,70 +33,33 @@ import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { formatUsd } from '../../src/shared/l10n/exactUsd'
 import { BASE_LOCALE, fill, setUiText } from '../../src/shared/l10n/text'
-import { parseHostToPanelMessage, type ModelsPanelState } from '../../src/shared/modelsPanel'
 import { Usd, isPositiveUsd } from '../../src/shared/usd'
 import { scannedTwoModels, testProvidersHost } from './helpers/m95kFixtures'
 import {
-  FakeWebviewPanel,
+  type FakeWebviewPanel,
   fakeSettingsSource,
   memoryProvidersStore,
   memorySessionBudgetConfig,
 } from './helpers/fakes'
+import {
+  chooseOpenRouter,
+  latestState,
+  openModelsPanel,
+  resetModelsPanelWindow,
+  send,
+  testAndTickFirstModel,
+  type OpenedModelsPanel,
+} from './helpers/modelsPanelHarness'
+import { scriptedUi } from './helpers/providerQuickPickScript'
 
-function panelSetup(overrides: Partial<ModelsPanelDeps> = {}): {
-  panel: FakeWebviewPanel
-  warnings: string[]
-  saved: ReturnType<typeof vi.fn>
-} {
+function panelSetup(overrides: Partial<ModelsPanelDeps> = {}): OpenedModelsPanel {
   const { providers } = testProvidersHost({
     deps: {
       store: memoryProvidersStore(),
       ...scannedTwoModels(),
     },
   })
-  const warnings: string[] = []
-  const saved = vi.fn()
-  createModelsPanel({
-    extensionUri: new FakeUri('/ext'),
-    l10n: { locale: 'en', table: EN },
-    providers,
-    log: {
-      trace: () => undefined,
-      info: () => undefined,
-      error: (message) => {
-        warnings.push(message)
-      },
-      warn: (message) => {
-        warnings.push(message)
-      },
-    },
-    writeExportFile: () => Promise.resolve(),
-    readImportFile: () => Promise.resolve(undefined),
-    confirmImport: () => Promise.resolve(true),
-    onWizardSaved: saved,
-    sessionBudget: memorySessionBudgetConfig(),
-    ...overrides,
-  })
-  const panel = fakeWindow.createWebviewPanel.mock.results[0]?.value
-  if (!(panel instanceof FakeWebviewPanel)) {
-    throw new TypeError('Expected panel')
-  }
-  return { panel, warnings, saved }
-}
-
-function latestState(panel: FakeWebviewPanel): ModelsPanelState {
-  for (const call of vi.mocked(panel.webview.postMessage).mock.calls.toReversed()) {
-    const parsed = parseHostToPanelMessage(call[0])
-    if (parsed.ok && parsed.message.type === 'modelsPanel/state') {
-      return parsed.message.state
-    }
-  }
-  throw new Error('No valid state')
-}
-
-async function send(panel: FakeWebviewPanel, message: unknown, done: () => void): Promise<void> {
-  panel.webview.messages.fire(message)
-  await vi.waitFor(done)
+  return openModelsPanel({ providers, ...overrides })
 }
 
 /** Prepares the host-owned draft before Save. */
@@ -104,22 +68,11 @@ async function prepareOpenRouter(
   budget: string | undefined,
   expected = '0',
 ): Promise<void> {
-  await send(panel, { type: 'providers/select', presetId: 'openrouter' }, () => {
-    expect(latestState(panel).drafts.wizard?.presetId).toBe('openrouter')
-  })
+  await chooseOpenRouter(panel)
   await send(panel, { type: 'providers/enterKey', mode: 'new' }, () => {
     expect(latestState(panel).drafts.wizard).toMatchObject({ keyPresent: true, keyShapeOk: true })
   })
-  await send(panel, { type: 'providers/test', acceptCost: false }, () => {
-    expect(latestState(panel).drafts.wizard?.test?.status).toBe('ok')
-  })
-  await send(
-    panel,
-    { type: 'models/tick', scope: { scope: 'wizard' }, ref: 'openrouter/m1', ticked: true },
-    () => {
-      expect(latestState(panel).drafts.wizard?.models).toEqual(['m1'])
-    },
-  )
+  await testAndTickFirstModel(panel, 'openrouter')
   if (budget === undefined) return
   await send(
     panel,
@@ -146,34 +99,6 @@ async function saveOpenRouter(
   })
 }
 
-function scriptedUi(script: {
-  readonly pickOne?: (string | undefined)[]
-  readonly pickMany?: (readonly string[] | undefined)[]
-  readonly inputText?: (string | undefined)[]
-  readonly confirmSave?: boolean[]
-}): ProviderQuickPickUi & { readonly errors: string[]; readonly notices: string[] } {
-  const errors: string[] = []
-  const notices: string[] = []
-  const pickOne = [...(script.pickOne ?? [])]
-  const pickMany = [...(script.pickMany ?? [])]
-  const inputText = [...(script.inputText ?? [])]
-  const confirmSave = [...(script.confirmSave ?? [])]
-  return {
-    errors,
-    notices,
-    pickOne: () => Promise.resolve(pickOne.shift()),
-    pickMany: () => Promise.resolve(pickMany.shift()),
-    inputText: () => Promise.resolve(inputText.shift()),
-    confirmSave: () => Promise.resolve(confirmSave.shift() ?? false),
-    showError: (message) => {
-      errors.push(message)
-    },
-    showNotice: (message) => {
-      notices.push(message)
-    },
-  }
-}
-
 function quickPickProviders(): ReturnType<typeof testProvidersHost> {
   return testProvidersHost({
     deps: {
@@ -184,13 +109,29 @@ function quickPickProviders(): ReturnType<typeof testProvidersHost> {
   })
 }
 
-beforeEach(() => {
-  fakeWindow.createWebviewPanel.mockReset()
-  fakeWindow.createWebviewPanel.mockImplementation(
-    (viewType, title) => new FakeWebviewPanel(viewType, title),
-  )
-  vi.mocked(window.showInputBox).mockReset()
-})
+/**
+ * The quick-pick answers that add OpenRouter on a pasted key with both
+ * models ticked, giving the spending-limit field `budgetAnswers` in turn.
+ */
+function openRouterScript(budgetAnswers: string[]): ReturnType<typeof scriptedUi> {
+  return scriptedUi({
+    pickOne: ['openrouter', 'paste', 'accept'],
+    pickMany: [['m1', 'm2']],
+    inputText: budgetAnswers,
+    confirmSave: [true],
+  })
+}
+
+/** Runs the quick pick in a local window against `sessionBudget`. */
+function runQuickPick(
+  providers: ProvidersHost,
+  ui: ProviderQuickPickUi,
+  sessionBudget: SessionBudgetConfig,
+): ReturnType<typeof runAddProviderQuickPick> {
+  return runAddProviderQuickPick({ providers, isRemote: false, ui, sessionBudget })
+}
+
+beforeEach(resetModelsPanelWindow)
 
 describe('applyWizardSessionBudget (the one shared function)', () => {
   it('refuses an edited limit without its prefill and never writes it', async () => {
@@ -370,22 +311,11 @@ describe('panel save path', () => {
     const budget = memorySessionBudgetConfig({ failWrite: true })
     const { panel, saved } = panelSetup({ sessionBudget: budget })
     vi.mocked(window.showInputBox).mockResolvedValue('sk-or-test-key')
-    await send(panel, { type: 'providers/select', presetId: 'openrouter' }, () => {
-      expect(latestState(panel).drafts.wizard?.presetId).toBe('openrouter')
-    })
+    await chooseOpenRouter(panel)
     await send(panel, { type: 'providers/enterKey', mode: 'new' }, () => {
       expect(latestState(panel).drafts.wizard).toMatchObject({ keyPresent: true })
     })
-    await send(panel, { type: 'providers/test', acceptCost: false }, () => {
-      expect(latestState(panel).drafts.wizard?.test?.status).toBe('ok')
-    })
-    await send(
-      panel,
-      { type: 'models/tick', scope: { scope: 'wizard' }, ref: 'openrouter/m1', ticked: true },
-      () => {
-        expect(latestState(panel).drafts.wizard?.models).toEqual(['m1'])
-      },
-    )
+    await testAndTickFirstModel(panel, 'openrouter')
     await send(
       panel,
       {
@@ -417,12 +347,7 @@ describe('quick pick save path', () => {
     const budget = memorySessionBudgetConfig()
     vi.mocked(window.showInputBox).mockResolvedValue('sk-or-test-key')
     const seen: { title: string; placeholder: string; value?: string }[] = []
-    const base = scriptedUi({
-      pickOne: ['openrouter', 'paste', 'accept'],
-      pickMany: [['m1', 'm2']],
-      inputText: ['2'],
-      confirmSave: [true],
-    })
+    const base = openRouterScript(['2'])
     const ui: typeof base = {
       ...base,
       inputText: (options) => {
@@ -434,12 +359,7 @@ describe('quick pick save path', () => {
         return base.inputText(options)
       },
     }
-    const outcome = await runAddProviderQuickPick({
-      providers,
-      isRemote: false,
-      ui,
-      sessionBudget: budget,
-    })
+    const outcome = await runQuickPick(providers, ui, budget)
     expect(outcome).toEqual({
       providerId: 'openrouter',
       modelRef: 'openrouter/m1',
@@ -463,18 +383,8 @@ describe('quick pick save path', () => {
     const { providers } = quickPickProviders()
     const budget = memorySessionBudgetConfig({ effective: '2' })
     vi.mocked(window.showInputBox).mockResolvedValue('sk-or-test-key')
-    const ui = scriptedUi({
-      pickOne: ['openrouter', 'paste', 'accept'],
-      pickMany: [['m1', 'm2']],
-      inputText: ['2'],
-      confirmSave: [true],
-    })
-    const outcome = await runAddProviderQuickPick({
-      providers,
-      isRemote: false,
-      ui,
-      sessionBudget: budget,
-    })
+    const ui = openRouterScript(['2'])
+    const outcome = await runQuickPick(providers, ui, budget)
     expect(outcome?.sessionBudgetUsd).toBeUndefined()
     expect(budget.writes).toEqual([])
     expect(ui.notices.at(-1)).toContain('openrouter/m1')
@@ -484,18 +394,8 @@ describe('quick pick save path', () => {
     const { providers } = quickPickProviders()
     const budget = memorySessionBudgetConfig({ failWrite: true })
     vi.mocked(window.showInputBox).mockResolvedValue('sk-or-test-key')
-    const ui = scriptedUi({
-      pickOne: ['openrouter', 'paste', 'accept'],
-      pickMany: [['m1', 'm2']],
-      inputText: ['2'],
-      confirmSave: [true],
-    })
-    const outcome = await runAddProviderQuickPick({
-      providers,
-      isRemote: false,
-      ui,
-      sessionBudget: budget,
-    })
+    const ui = openRouterScript(['2'])
+    const outcome = await runQuickPick(providers, ui, budget)
     expect(outcome).toBeUndefined()
     expect(ui.errors).toEqual([
       [
@@ -516,18 +416,8 @@ describe('quick pick save path', () => {
     const { providers } = quickPickProviders()
     const budget = memorySessionBudgetConfig()
     vi.mocked(window.showInputBox).mockResolvedValue('sk-or-test-key')
-    const ui = scriptedUi({
-      pickOne: ['openrouter', 'paste', 'accept'],
-      pickMany: [['m1', 'm2']],
-      inputText: ['nope', '2'],
-      confirmSave: [true],
-    })
-    const outcome = await runAddProviderQuickPick({
-      providers,
-      isRemote: false,
-      ui,
-      sessionBudget: budget,
-    })
+    const ui = openRouterScript(['nope', '2'])
+    const outcome = await runQuickPick(providers, ui, budget)
     expect(outcome?.sessionBudgetUsd).toBe('2')
     expect(ui.errors).toEqual([UI_TEXT.wizardSessionBudgetInvalid])
     expect(budget.writes).toEqual([{ value: '2', scope: 'global' }])

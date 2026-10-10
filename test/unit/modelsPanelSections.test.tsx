@@ -84,6 +84,67 @@ function props(
   }
 }
 
+/**
+ * Opens the wizard's provider picker over the ChatGPT and Copilot cards with
+ * `availability`, focused, and returns its box.
+ */
+function focusSignInPicker(
+  post: (message: PanelToHostMessage) => void,
+  availability: Partial<ModelsPanelState>,
+): HTMLElement {
+  const state = makeState({
+    presets: [CHATGPT_CARD, COPILOT_CARD],
+    ...availability,
+    drafts: { edits: {}, wizard: makeDraft() },
+  })
+  render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
+  const box = screen.getByRole('combobox')
+  fireEvent.focus(box)
+  return box
+}
+
+/** The usual local servers, each on its usual port. */
+const LOCAL_SERVERS = [
+  { presetId: 'ollama', label: 'Ollama', port: 11_434 },
+  { presetId: 'lmstudio', label: 'LM Studio', port: 1234 },
+]
+
+/** The Providers section after a local scan that checked both usual servers. */
+function renderLocalScan(
+  post: (message: PanelToHostMessage) => void,
+  found: typeof LOCAL_SERVERS,
+): void {
+  const state = makeState({ localScan: { found, checked: LOCAL_SERVERS } })
+  render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
+}
+
+/** The suggestions step over a $5 spending limit effective from `scope`. */
+function renderBudgetStep(post: (message: PanelToHostMessage) => void, scope: string): void {
+  render(
+    <Wizard
+      life={OPEN_WIZARD}
+      panelState={makeState({
+        suggestions: [makeSuggestion('defaultModel')],
+        sessionBudget: {
+          effectiveUsd: Usd.from(5).toAmount(),
+          nowLine: fill(UI_TEXT.wizardSessionBudgetNow, { amount: formatUsd('5'), scope }),
+        },
+      })}
+      draft={makeDraft({ step: 'suggestions', presetId: 'openrouter', blockers: [] })}
+      post={post}
+      onNavigateModels={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  )
+}
+
+/** Types `value` into the spending-limit field. */
+function typeBudget(value: string): void {
+  fireEvent.change(screen.getByLabelText(UI_TEXT.wizardSessionBudget), {
+    target: { value },
+  })
+}
+
 describe('ProvidersSection', () => {
   it('hides unavailable OpenRouter connect and usage with an honest status (PR136 VE)', () => {
     const post = vi.fn()
@@ -262,31 +323,22 @@ describe('ProvidersSection', () => {
 
   it('hides Copilot in a confidential workspace and offers ChatGPT', () => {
     const post = vi.fn()
-    const state = makeState({
-      presets: [CHATGPT_CARD, COPILOT_CARD],
+    focusSignInPicker(post, {
       subscriptionsAvailable: true,
       copilotAvailable: false,
       confidentialWorkspace: true,
-      drafts: { edits: {}, wizard: makeDraft() },
     })
-    render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
-    fireEvent.focus(screen.getByRole('combobox'))
     expect(screen.queryByText('Copilot')).toBeNull()
     expect(screen.getByText('ChatGPT')).toBeDefined()
   })
 
   it('disables ChatGPT in a remote window with its reason and never selects it', () => {
     const post = vi.fn()
-    const state = makeState({
-      presets: [CHATGPT_CARD, COPILOT_CARD],
+    const box = focusSignInPicker(post, {
       subscriptionsAvailable: true,
       copilotAvailable: true,
       remoteWindow: true,
-      drafts: { edits: {}, wizard: makeDraft() },
     })
-    render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
-    const box = screen.getByRole('combobox')
-    fireEvent.focus(box)
     const reason = screen.getByText(UI_TEXT.signInRemoteWindow)
     expect(reason.closest('li')?.getAttribute('aria-disabled')).toBe('true')
     fireEvent.change(box, { target: { value: 'ChatGPT' } })
@@ -297,15 +349,7 @@ describe('ProvidersSection', () => {
 
   it('disables a sign-in with no connector as not offered, and picks an offered one', () => {
     const post = vi.fn()
-    const state = makeState({
-      presets: [CHATGPT_CARD, COPILOT_CARD],
-      subscriptionsAvailable: false,
-      copilotAvailable: true,
-      drafts: { edits: {}, wizard: makeDraft() },
-    })
-    render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
-    const box = screen.getByRole('combobox')
-    fireEvent.focus(box)
+    const box = focusSignInPicker(post, { subscriptionsAvailable: false, copilotAvailable: true })
     const reason = screen.getByText(UI_TEXT.signInNotOffered)
     expect(reason.closest('li')?.getAttribute('aria-disabled')).toBe('true')
     fireEvent.change(box, { target: { value: 'ChatGPT' } })
@@ -336,19 +380,7 @@ describe('ProvidersSection', () => {
 
   it('offers each answering server and fills its port on choice', () => {
     const post = vi.fn()
-    const state = makeState({
-      localScan: {
-        found: [
-          { presetId: 'ollama', label: 'Ollama', port: 11_434 },
-          { presetId: 'lmstudio', label: 'LM Studio', port: 1234 },
-        ],
-        checked: [
-          { presetId: 'ollama', label: 'Ollama', port: 11_434 },
-          { presetId: 'lmstudio', label: 'LM Studio', port: 1234 },
-        ],
-      },
-    })
-    render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
+    renderLocalScan(post, LOCAL_SERVERS)
     fireEvent.click(screen.getByRole('button', { name: 'Ollama on Port 11434' }))
     expect(post).toHaveBeenNthCalledWith(1, { type: 'providers/select', presetId: 'ollama' })
     expect(post).toHaveBeenNthCalledWith(2, {
@@ -359,16 +391,7 @@ describe('ProvidersSection', () => {
 
   it('says nothing is running and names each usual port', () => {
     const post = vi.fn()
-    const state = makeState({
-      localScan: {
-        found: [],
-        checked: [
-          { presetId: 'ollama', label: 'Ollama', port: 11_434 },
-          { presetId: 'lmstudio', label: 'LM Studio', port: 1234 },
-        ],
-      },
-    })
-    render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
+    renderLocalScan(post, [])
     expect(screen.getByText('Nothing is running on this computer yet.')).toBeDefined()
     expect(screen.getByText('Ollama on Port 11434')).toBeDefined()
     expect(screen.getByText('LM Studio on Port 1234')).toBeDefined()
@@ -688,25 +711,7 @@ describe('Wizard', () => {
 
   it('shows the spending limit as the conversation setting, prefilled with what it is now', () => {
     const post = vi.fn()
-    render(
-      <Wizard
-        life={OPEN_WIZARD}
-        panelState={makeState({
-          suggestions: [makeSuggestion('defaultModel')],
-          sessionBudget: {
-            effectiveUsd: Usd.from(5).toAmount(),
-            nowLine: fill(UI_TEXT.wizardSessionBudgetNow, {
-              amount: formatUsd('5'),
-              scope: UI_TEXT.sessionBudgetScopeWorkspace,
-            }),
-          },
-        })}
-        draft={makeDraft({ step: 'suggestions', presetId: 'openrouter', blockers: [] })}
-        post={post}
-        onNavigateModels={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    )
+    renderBudgetStep(post, UI_TEXT.sessionBudgetScopeWorkspace)
     expect(screen.getByText(UI_TEXT.wizardSessionBudget)).toBeDefined()
     expect(screen.getByLabelText<HTMLInputElement>(UI_TEXT.wizardSessionBudget).value).toBe('5')
     // One line names the setting for every conversation, its current
@@ -723,28 +728,8 @@ describe('Wizard', () => {
 
   it('commits the typed spending limit on Continue, with no separate Change press', () => {
     const post = vi.fn()
-    render(
-      <Wizard
-        life={OPEN_WIZARD}
-        panelState={makeState({
-          suggestions: [makeSuggestion('defaultModel')],
-          sessionBudget: {
-            effectiveUsd: Usd.from(5).toAmount(),
-            nowLine: fill(UI_TEXT.wizardSessionBudgetNow, {
-              amount: formatUsd('5'),
-              scope: UI_TEXT.sessionBudgetScopeGlobal,
-            }),
-          },
-        })}
-        draft={makeDraft({ step: 'suggestions', presetId: 'openrouter', blockers: [] })}
-        post={post}
-        onNavigateModels={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    )
-    fireEvent.change(screen.getByLabelText(UI_TEXT.wizardSessionBudget), {
-      target: { value: '2' },
-    })
+    renderBudgetStep(post, UI_TEXT.sessionBudgetScopeGlobal)
+    typeBudget('2')
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardContinue }))
     expect(post).toHaveBeenNthCalledWith(1, {
       type: 'suggestions/change',
@@ -775,9 +760,7 @@ describe('Wizard', () => {
     )
     const { rerender } = render(view(initial))
     if (edited !== undefined) {
-      fireEvent.change(screen.getByLabelText(UI_TEXT.wizardSessionBudget), {
-        target: { value: edited },
-      })
+      typeBudget(edited)
     }
     rerender(view(2))
     expect(screen.getByLabelText(UI_TEXT.wizardSessionBudget)).toHaveProperty(
@@ -796,31 +779,11 @@ describe('Wizard', () => {
 
   it('disables Continue while the spending limit is not a non-negative amount', () => {
     const post = vi.fn()
-    render(
-      <Wizard
-        life={OPEN_WIZARD}
-        panelState={makeState({
-          suggestions: [makeSuggestion('defaultModel')],
-          sessionBudget: {
-            effectiveUsd: Usd.from(5).toAmount(),
-            nowLine: fill(UI_TEXT.wizardSessionBudgetNow, {
-              amount: formatUsd('5'),
-              scope: UI_TEXT.sessionBudgetScopeGlobal,
-            }),
-          },
-        })}
-        draft={makeDraft({ step: 'suggestions', presetId: 'openrouter', blockers: [] })}
-        post={post}
-        onNavigateModels={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    )
+    renderBudgetStep(post, UI_TEXT.sessionBudgetScopeGlobal)
     // Nothing is saved until the field holds a non-negative dollar amount:
     // an unparseable number disables Continue instead of posting it, and
     // the wording of the failure stays host-side with the write.
-    fireEvent.change(screen.getByLabelText(UI_TEXT.wizardSessionBudget), {
-      target: { value: '-3' },
-    })
+    typeBudget('-3')
     expect(
       screen.getByRole('button', { name: UI_TEXT.wizardContinue }).getAttribute('disabled'),
     ).not.toBeNull()
