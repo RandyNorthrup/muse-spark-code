@@ -56,8 +56,10 @@ minimal loader; only the authenticated page is themed.
   applies stored UI/code families through the font element, and loads the
   installed `Muse UI` face when present. Proven in jsdom (28 tests) and the
   node-side asset guard; the Chromium proof
-  (`test/unit/companionThemedBrowser.test.mjs`: dark at 320 px with axe and
-  captures, light at 690 px) is written for the unsandboxed run below.
+  (`test/unit/companionThemedBrowser.test.mjs`: the real launch handshake
+  in all four modes, each waiting for the mounted Usage body, the
+  installed font and axe, with captures) is written for the unsandboxed
+  run below.
 - Axe: the served shell is clean in jsdom with contrast off; the browser
   suite runs the full WCAG 2.0/2.1/2.2 A+AA tag set with contrast on. The
   lane also fixed a pre-existing gap the new test surfaced: the served page
@@ -123,13 +125,14 @@ dist/webview/theme.css` case passes; deleting the seed from
   run here. The `usageIntegration` fixture edit (added `theme.css`) is
   one line mirroring its `usage.css` line; re-run it outside the sandbox.
 - Chrome cannot launch (`browserType.launch: Target page ... has been
-closed`, `kill EPERM`): `companionThemedBrowser.test.mjs` (2 tests,
-  dark-320 with axe plus captures, light-690) and the existing
-  `themeBridgeBrowser`/`companionMediaBrowser` suites cannot run here. The
-  new browser file serves everything through Playwright routes (no
-  listening socket) and was syntax/lint-checked; its assembly is proven by
-  `companionThemedAssets.test.mjs`. Captures `temp/c-m114-1-*.png` do not
-  exist yet.
+closed`) and loopback `listen` is denied, so the rewritten
+  `companionThemedBrowser.test.mjs` (RVCM1141 finding 3: real companion
+  server, launch URL through `/session` and the bootstrap, all four modes
+  waiting for the mounted Usage body, the installed font and axe) cannot
+  run here — nor can the existing `themeBridgeBrowser`/
+  `companionMediaBrowser` suites. The rewritten file parses and lints
+  clean; re-run it outside the sandbox. Captures `temp/c-m114-1-*.png`
+  do not exist yet.
 - Codex review: requested from the lead (no sub-agents on this lane).
 
 ## Decisions and handoffs
