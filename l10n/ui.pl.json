@@ -225,7 +225,7 @@
   "estimateSpeedDescription": "Najszybsza konfiguracja, dopóki kolejna maszyna nadal oszczędza wystarczająco dużo czasu.",
   "estimateCommandTitle": "Otwórz estymator",
   "estimateUsage": "Użycie: /estimate <goal> [--by <date>] [--fleet current|minimum|optimum]",
-  "estimateCliHelp": "Oszacuj cel przy użyciu połączonych maszyn, miejsc dla agentów, kont i CI; bez wywołania modelu. Jeszcze niedostępne: migawki są odrzucane z M117-W-M113-plan-reader, dopóki czytnik planu nie zostanie powiązany.",
+  "estimateCliHelp": "W toku.",
   "estimateCiUnavailable": "Minuty CI niedostępne",
   "estimateInstalling": "Instalowanie węzła",
   "estimatePairing": "Parowanie węzła",
@@ -342,10 +342,10 @@
     "seed": "--seed <seed>: Ziarno symulacji"
   },
   "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany.",
-  "referenceVault": "Pracuj z magazynem poświadczeń użytkownika z terminala: stan, odblokowanie, blokowanie, lista, dodawanie, granty, audyt, import i obserwacja. Wartości nigdy nie są wypisywane; przechowuje je broker.",
-  "referenceVaultHelp": "Pokazuje użycie polecenia magazynu poświadczeń użytkownika.",
-  "referenceVaultPanel": "Magazyn jest niedostępny, ponieważ broker nie jest zainstalowany.",
-  "referenceVaultLock": "Zablokuj teraz magazyn poświadczeń użytkownika; kończy każde użycie w każdym oknie.",
+  "referenceVault": "W toku.",
+  "referenceVaultHelp": "W toku.",
+  "referenceVaultPanel": "W toku.",
+  "referenceVaultLock": "W toku.",
   "referenceAuthClear": "Usuń zapisany klucz Model API.",
   "referenceAuthStatus": "Sprawdź, czy zapisano klucz Model API.",
   "referenceAccountsTitle": "Several accounts per provider",
@@ -438,7 +438,7 @@
   "referenceTasks": "Otwórz zadania tej rozmowy w osobnej karcie edytora.",
   "referenceDiagnostics": "Pokaż lokalną diagnostykę backendu i rozszerzenia.",
   "referenceReport": "Wyświetl oczyszczony raport przed zapisaniem lub wysłaniem.",
-  "referenceEstimate": "Szacuje, kiedy cel będzie gotowy przy obecnej flocie, albo jakiej konfiguracji wymaga termin. Jeszcze niedostępne: /estimate czeka na powiązanie czytnika planu.",
+  "referenceEstimate": "W toku.",
   "referenceTerminal": "Otwórz CLI Muse Code w terminalu edytora.",
   "referenceRules": "Utwórz lub otwórz AGENTS.md w katalogu głównym obszaru roboczego.",
   "referenceWalkthrough": "Otwórz przewodnik wprowadzający.",
@@ -3589,7 +3589,7 @@
   "acpFontIntegrity": "Weryfikacja pliku czcionki nie powiodła się: {file}",
   "acpFontInstallFailed": "Nie udało się zainstalować pakietu czcionek.",
   "acpFontsUsage": "Użycie: {command} fonts install [--from <directory>]",
-  "acpUsage": "Użycie:\n  {command} [opcje]              Obsługuj Agent Client Protocol przez stdin i stdout\n  {command} [opcje] login        Zaloguj się do Muse Code w tym terminalu\n  {command} auth set|status|clear  Zapisz, sprawdź lub usuń klucz Meta Model API\n  {command} auth set|status|clear --provider <id>  Zapisz, sprawdź lub usuń klucz dostawcy (czytany ze stdin)\n  {command} providers list|add|test|remove  Zarządzaj dostawcami modeli\n  {command} exec [options] <prompt>  Uruchomić jedną turę bez interfejsu\n  {command} scan-secrets <file> [--key-stdin]  Policzyć prawdopodobne sekrety w jednym pliku (wypisuje tylko liczbę)\n  {command} report [options]  Wypisać oczyszczony raport o problemie (nie uruchamia backendu, nie otwiera przeglądarki)\n  {command} legal [options]  Uruchom skanowanie prawne tylko do odczytu (bez backendu i logowania)\nOpcje:\n  --backend museCode|modelApi      Kto płaci: Muse Code (domyślnie) lub klucz Model API\n  --trust-workspace                Wczytaj reguły, umiejętności i pamięć folderu\n  --muse-binary <ścieżka>             Interfejs CLI Muse Code do uruchomienia\n  --shell-sandbox auto|muse|off    Piaskownica powłoki Muse Code\n  --questions-defer-after <seconds>  Domyślnie odraczaj pytania po 60 sekundach; 0 nigdy, 1–9 oznacza 10, maksymalnie 3600\n  --allow-dangerously-skip-permissions  Udostępnij tryb „Pomijanie uprawnień”\n  --allow-contributor-models       Wyświetl modele poziomu contributor (Meta może trenować na ich treści)\n  --web-search                     Udostępnij płatne wyszukiwanie w sieci (backend Model API; najpierw pyta o cenę)\n  --image-generation               Udostępnij płatne generowanie obrazów (backend Model API; najpierw pyta o cenę)\n  --no-auto-compaction             Wyłącz automatyczną kompakcję\n  --verbose                        Zapisuj każdy szczegół w stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Uruchom hooki Setup i zakończ",
+  "acpUsage": "Użycie:\n  {command} [opcje]              Obsługuj Agent Client Protocol przez stdin i stdout\n  {command} [opcje] login        Zaloguj się do Muse Code w tym terminalu\n  {command} auth set|status|clear  Zapisz, sprawdź lub usuń klucz Meta Model API\n  {command} auth set|status|clear --provider <id>  Zapisz, sprawdź lub usuń klucz dostawcy (czytany ze stdin)\n  {command} providers list|add|test|remove  Zarządzaj dostawcami modeli\n  {command} exec [options] <prompt>  Uruchomić jedną turę bez interfejsu\n  {command} scan-secrets <file> [--key-stdin]  Policzyć prawdopodobne sekrety w jednym pliku (wypisuje tylko liczbę)\n  {command} report [options]  Wypisać oczyszczony raport o problemie (nie uruchamia backendu, nie otwiera przeglądarki)\n  {command} legal [options]  Uruchom skanowanie prawne tylko do odczytu (bez backendu i logowania)\nOpcje:\n  --backend museCode|modelApi      Kto płaci: Muse Code (domyślnie) lub klucz Model API\n  --trust-workspace                Wczytaj reguły, umiejętności i pamięć folderu\n  --muse-binary <ścieżka>             Interfejs CLI Muse Code do uruchomienia\n  --shell-sandbox auto|muse|off    Piaskownica powłoki Muse Code\n  --questions-defer-after <seconds>  Domyślnie odraczaj pytania po 60 sekundach; 0 nigdy, 1–9 oznacza 10, maksymalnie 3600\n  --allow-dangerously-skip-permissions  Udostępnij tryb „Pomijanie uprawnień”\n  --allow-contributor-models       Wyświetl modele poziomu contributor (Meta może trenować na ich treści)\n  --web-search                     Udostępnij płatne wyszukiwanie w sieci (backend Model API; najpierw pyta o cenę)\n  --image-generation               Udostępnij płatne generowanie obrazów (backend Model API; najpierw pyta o cenę)\n  --verbose                        Zapisuj każdy szczegół w stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Uruchom hooki Setup i zakończ",
   "reportUsage": "Użycie:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Wypisuje oczyszczony raport o problemie na stdout albo zapisuje go do <file> z --out.\n  Nie uruchamia backendu, nigdzie się nie loguje i nie otwiera przeglądarki.\nOpcje:\n  --out <file>         Zapisać raport do pliku zamiast na stdout\n  --description <text>  Co się działo, własnymi słowami\n  --no-facts           Pominąć dane wsparcia\n  --no-events          Pominąć ostatnie zdarzenia",
   "execBudgetRequired": "Model API wymaga --max-budget-usd.",
   "execNumberInvalid": "Nieprawidłowa liczba lub limit; budżet w USD dopuszcza najwyżej sześć miejsc po przecinku.",
@@ -5531,5 +5531,6 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  }
+  },
+  "referenceInProgress": "W toku."
 }

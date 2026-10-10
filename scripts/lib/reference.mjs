@@ -1319,17 +1319,63 @@ export function referenceMarkdown(model, source, nls, manifest) {
   return lines.join('\n')
 }
 
+/** Publication is narrower than the complete, validated command inventory. */
+export function publishedReference(model, source) {
+  const dormant = model.features.filter((feature) =>
+    source.REFERENCE_IN_PROGRESS_FEATURES.includes(feature.id),
+  )
+  const commands = new Set([
+    ...dormant.flatMap((feature) => feature.commands),
+    source.COMMAND_IDS.schedulePrompt,
+    source.COMMAND_IDS.showSchedules,
+    source.COMMAND_IDS.showScheduleTimeline,
+  ])
+  const settings = new Set([
+    ...dormant.flatMap((feature) => feature.settings),
+    'museSpark.schedules',
+    'museSpark.scheduleDefaultDelivery',
+    'museSpark.scheduleAgentCreation',
+    'museSpark.resourceRelocate',
+  ])
+  const hiddenRoutes = new Set(['estimate', 'schedule', 'vault', 'vaultHelp'])
+
+  return {
+    ...model,
+    features: model.features
+      .filter((feature) => !source.REFERENCE_IN_PROGRESS_FEATURES.includes(feature.id))
+      .map((feature) => ({
+        ...feature,
+        commands: feature.commands.filter((id) => !commands.has(id)),
+        settings: feature.settings.filter((id) => !settings.has(id)),
+      })),
+    commands: model.commands.filter((command) => !commands.has(command.id)),
+    settings: model.settings.filter((setting) => !settings.has(setting.id)),
+    slash: model.slash.filter(
+      (command) => !['estimate', 'vault', 'schedule'].includes(command.name),
+    ),
+    cli: model.cli.filter(
+      (command) =>
+        !hiddenRoutes.has(command.route) &&
+        !/(?:^|\s)--(?:scheduled-prompts|vault|no-auto-compaction)(?:\s|$)/.test(command.name),
+    ),
+    shortcuts: model.shortcuts.filter(
+      (shortcut) => !commands.has(shortcut.command) && shortcut.command !== 'team.tree',
+    ),
+  }
+}
+
 export async function generateReference(root, isCheck = false) {
   const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'))
   const nls = JSON.parse(readFileSync(path.join(root, 'package.nls.json'), 'utf8'))
   const source = await referenceSources(root)
-  const model = buildReference(
+  const inventory = buildReference(
     manifest,
     nls,
     source,
     readFileSync(path.join(root, 'src/runtime/cliArgs.ts'), 'utf8'),
     readFileSync(path.join(root, 'README.md'), 'utf8'),
   )
+  const model = publishedReference(inventory, source)
   const texts = [
     ...model.features.flatMap((f) => [f.name, f.summary, f.description, ...f.details]),
     ...model.commands.map((c) => c.text),

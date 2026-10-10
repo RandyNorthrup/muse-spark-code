@@ -225,7 +225,7 @@
   "estimateSpeedDescription": "只要再增加一台机器仍能节省足够时间，就选择最快配置。",
   "estimateCommandTitle": "打开容量估算器",
   "estimateUsage": "用法：/estimate <goal> [--by <date>] [--fleet current|minimum|optimum]",
-  "estimateCliHelp": "使用已关联机器、智能体槽位、账户和 CI 估算目标；不调用模型。 尚未可用：在计划读取器绑定之前，快照将以 M117-W-M113-plan-reader 被拒绝。",
+  "estimateCliHelp": "进行中.",
   "estimateCiUnavailable": "CI 剩余分钟数不可用",
   "estimateInstalling": "正在安装节点",
   "estimatePairing": "正在配对节点",
@@ -342,10 +342,10 @@
     "seed": "--seed <seed>: 模拟种子"
   },
   "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",
-  "referenceVault": "从终端使用按用户 credential 保管库：状态、解锁、锁定、列表、添加、授权、审计、导入和监视。值永远不会打印；由代理持有。",
-  "referenceVaultHelp": "显示按用户 credential 保管库命令的用法。",
-  "referenceVaultPanel": "由于未安装代理服务，无法使用凭据保险库。",
-  "referenceVaultLock": "立即锁定按用户划分的凭据保管库，结束每个窗口中的每次使用。",
+  "referenceVault": "进行中.",
+  "referenceVaultHelp": "进行中.",
+  "referenceVaultPanel": "进行中.",
+  "referenceVaultLock": "进行中.",
   "referenceAuthClear": "删除已存储的 Model API 密钥。",
   "referenceAuthStatus": "检查是否存储了 Model API 密钥。",
   "referenceAccountsTitle": "Several accounts per provider",
@@ -438,7 +438,7 @@
   "referenceTasks": "在单独的编辑器标签页中打开此对话的任务列表。",
   "referenceDiagnostics": "显示本地后端和扩展诊断信息。",
   "referenceReport": "保存或发送前预览已清理的问题报告。",
-  "referenceEstimate": "估计目标在当前舰队下何时交付，或某个日期所需的配置。 尚未可用：/estimate 正在等待计划读取器的绑定。",
+  "referenceEstimate": "进行中.",
   "referenceTerminal": "在编辑器终端中打开 Muse Code CLI。",
   "referenceRules": "在工作区根目录创建或打开 AGENTS.md。",
   "referenceWalkthrough": "打开入门指南。",
@@ -3370,7 +3370,7 @@
   "acpFontIntegrity": "字体文件验证失败：{file}",
   "acpFontInstallFailed": "无法安装字体包。",
   "acpFontsUsage": "用法：{command} fonts install [--from <directory>]",
-  "acpUsage": "用法：\n  {command} [选项]              通过 stdin 和 stdout 提供 Agent Client Protocol\n  {command} [选项] login        在此终端中登录 Muse Code\n  {command} auth set|status|clear  存储、检查或移除 Meta Model API 密钥\n  {command} auth set|status|clear --provider <id>  存储、检查或移除提供方密钥（从 stdin 读取）\n  {command} providers list|add|test|remove  管理模型提供方\n  {command} exec [options] <prompt>  无界面运行一轮\n  {command} scan-secrets <file> [--key-stdin]  统计单个文件中疑似机密的数量（仅输出数量）\n  {command} report [options]  输出已清理的问题报告（不启动后端，不打开浏览器）\n  {command} legal [options]  运行只读法律扫描（无需后端、无需登录）\n选项：\n  --backend museCode|modelApi      由谁付费：Muse Code（默认）或 Model API 密钥\n  --trust-workspace                加载文件夹的规则、技能和记忆\n  --muse-binary <路径>             要运行的 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code 的 shell 沙盒\n  --questions-defer-after <seconds>  默认在60秒后暂缓问题；0表示从不暂缓，1–9按10处理，最大3600\n  --allow-dangerously-skip-permissions  提供“绕过权限”模式\n  --allow-contributor-models       列出贡献者级模型（Meta 可能使用其内容进行训练）\n  --web-search                     提供付费网页搜索（Model API 后端；会先询问价格）\n  --image-generation               提供付费图片生成（Model API 后端；会先询问价格）\n  --no-auto-compaction             禁用自动压缩\n  --verbose                        在 stderr 上记录所有细节\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  运行 Setup 钩子并退出",
+  "acpUsage": "用法：\n  {command} [选项]              通过 stdin 和 stdout 提供 Agent Client Protocol\n  {command} [选项] login        在此终端中登录 Muse Code\n  {command} auth set|status|clear  存储、检查或移除 Meta Model API 密钥\n  {command} auth set|status|clear --provider <id>  存储、检查或移除提供方密钥（从 stdin 读取）\n  {command} providers list|add|test|remove  管理模型提供方\n  {command} exec [options] <prompt>  无界面运行一轮\n  {command} scan-secrets <file> [--key-stdin]  统计单个文件中疑似机密的数量（仅输出数量）\n  {command} report [options]  输出已清理的问题报告（不启动后端，不打开浏览器）\n  {command} legal [options]  运行只读法律扫描（无需后端、无需登录）\n选项：\n  --backend museCode|modelApi      由谁付费：Muse Code（默认）或 Model API 密钥\n  --trust-workspace                加载文件夹的规则、技能和记忆\n  --muse-binary <路径>             要运行的 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code 的 shell 沙盒\n  --questions-defer-after <seconds>  默认在60秒后暂缓问题；0表示从不暂缓，1–9按10处理，最大3600\n  --allow-dangerously-skip-permissions  提供“绕过权限”模式\n  --allow-contributor-models       列出贡献者级模型（Meta 可能使用其内容进行训练）\n  --web-search                     提供付费网页搜索（Model API 后端；会先询问价格）\n  --image-generation               提供付费图片生成（Model API 后端；会先询问价格）\n  --verbose                        在 stderr 上记录所有细节\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  运行 Setup 钩子并退出",
   "reportUsage": "用法：\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  将已清理的问题报告输出到 stdout，或使用 --out 将其写入 <file>。\n  不启动后端，不登录任何位置，不打开浏览器。\n选项：\n  --out <file>         将报告写入文件而不是 stdout\n  --description <text>  用自己的话描述当时发生了什么\n  --no-facts           不包含支持信息\n  --no-events          不包含最近事件",
   "execBudgetRequired": "Model API 需要 --max-budget-usd。",
   "execNumberInvalid": "数字或限制无效；美元预算最多支持六位小数。",
@@ -5072,5 +5072,6 @@
     "grantsCount": {
       "other": "{count} 个授权"
     }
-  }
+  },
+  "referenceInProgress": "进行中."
 }

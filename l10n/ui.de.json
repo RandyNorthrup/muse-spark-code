@@ -225,7 +225,7 @@
   "estimateSpeedDescription": "Schnellste Ausstattung, solange ein weiterer Rechner noch genügend Zeit spart.",
   "estimateCommandTitle": "Kapazitätsschätzer öffnen",
   "estimateUsage": "Verwendung: /estimate <goal> [--by <date>] [--fleet current|minimum|optimum]",
-  "estimateCliHelp": "Ein Ziel anhand verbundener Rechner, Agentenplätze, Konten und CI schätzen; ohne Modellaufruf. Noch nicht verfügbar: Snapshots werden mit M117-W-M113-plan-reader abgelehnt, bis der Plan-Reader gebunden ist.",
+  "estimateCliHelp": "In Arbeit.",
   "estimateCiUnavailable": "CI-Minuten nicht verfügbar",
   "estimateInstalling": "Knoten wird installiert",
   "estimatePairing": "Knoten wird gekoppelt",
@@ -342,10 +342,10 @@
     "seed": "--seed <seed>: Startwert der Simulation"
   },
   "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert.",
-  "referenceVault": "Arbeite im Terminal mit dem benutzereigenen Anmeldeinformations-Tresor: Status, Entsperren, Sperren, Auflisten, Hinzufügen, Freigaben, Prüfung, Import und Beobachtung. Werte werden nie ausgegeben; der Broker hält sie.",
-  "referenceVaultHelp": "Verwendung des Befehls für den benutzereigenen Anmeldeinformations-Tresor anzeigen.",
-  "referenceVaultPanel": "Der Tresor ist nicht verfügbar, da der Broker nicht installiert ist.",
-  "referenceVaultLock": "Den benutzereigenen Anmeldeinformations-Tresor jetzt sperren; beendet jede Verwendung in jedem Fenster.",
+  "referenceVault": "In Arbeit.",
+  "referenceVaultHelp": "In Arbeit.",
+  "referenceVaultPanel": "In Arbeit.",
+  "referenceVaultLock": "In Arbeit.",
   "referenceAuthClear": "Den gespeicherten Model API-Schlüssel entfernen.",
   "referenceAuthStatus": "Prüfen, ob ein Model API-Schlüssel gespeichert ist.",
   "referenceAccountsTitle": "Several accounts per provider",
@@ -438,7 +438,7 @@
   "referenceTasks": "Aufgabenliste dieser Unterhaltung in einem eigenen Editor-Tab öffnen.",
   "referenceDiagnostics": "Lokale Backend- und Erweiterungsdiagnose anzeigen.",
   "referenceReport": "Bereinigten Problembericht vor dem Speichern oder Senden prüfen.",
-  "referenceEstimate": "Schätzt, wann ein Ziel mit der aktuellen Flotte fertig wird, oder welches Setup ein Termin braucht. Noch nicht verfügbar: /estimate wartet auf die Plan-Reader-Bindung.",
+  "referenceEstimate": "In Arbeit.",
   "referenceTerminal": "Muse Code CLI im Terminal des Editors öffnen.",
   "referenceRules": "AGENTS.md im Arbeitsbereich erstellen oder öffnen.",
   "referenceWalkthrough": "Einführungsanleitung öffnen.",
@@ -3443,7 +3443,7 @@
   "acpFontIntegrity": "Überprüfung der Schriftdatei fehlgeschlagen: {file}",
   "acpFontInstallFailed": "Das Schriftpaket konnte nicht installiert werden.",
   "acpFontsUsage": "Verwendung: {command} fonts install [--from <directory>]",
-  "acpUsage": "Verwendung:\n  {command} [Optionen]              Das Agent Client Protocol über stdin und stdout bereitstellen\n  {command} [Optionen] login        In diesem Terminal bei Muse Code anmelden\n  {command} auth set|status|clear  Den Schlüssel für die Meta Model API speichern, prüfen oder entfernen\n  {command} auth set|status|clear --provider <id>  Einen Anbieterschlüssel speichern, prüfen oder entfernen (wird über stdin gelesen)\n  {command} providers list|add|test|remove  Modellanbieter verwalten\n  {command} exec [options] <prompt>  Einen Lauf ohne Oberfläche ausführen\n  {command} scan-secrets <file> [--key-stdin]  Mögliche Geheimnisse in einer Datei zählen (gibt nur die Anzahl aus)\n  {command} report [options]  Einen bereinigten Problembericht ausgeben (startet kein Backend, öffnet keinen Browser)\n  {command} legal [options]  Den schreibgeschützten Legal-Scan ausführen (kein Backend, keine Anmeldung)\nOptionen:\n  --backend museCode|modelApi      Wer bezahlt: Muse Code (Standard) oder der Model API-Schlüssel\n  --trust-workspace                Regeln, Skills und Speicher des Ordners laden\n  --muse-binary <Pfad>             Die auszuführende Muse Code-CLI\n  --shell-sandbox auto|muse|off    Die Shell-Sandbox von Muse Code\n  --questions-defer-after <seconds>  Fragen standardmäßig nach 60 Sekunden zurückstellen; 0 nie, 1–9 gelten als 10, höchstens 3600\n  --allow-dangerously-skip-permissions  Den Modus „Berechtigungen umgehen“ anbieten\n  --allow-contributor-models       Modelle der Contributor-Stufe auflisten (Meta darf mit ihren Inhalten trainieren)\n  --web-search                     Kostenpflichtige Websuche anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --image-generation               Kostenpflichtige Bilderzeugung anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --no-auto-compaction             Automatische Komprimierung deaktivieren\n  --verbose                        Jedes Detail auf stderr protokollieren\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Die Setup-Hooks ausführen und beenden",
+  "acpUsage": "Verwendung:\n  {command} [Optionen]              Das Agent Client Protocol über stdin und stdout bereitstellen\n  {command} [Optionen] login        In diesem Terminal bei Muse Code anmelden\n  {command} auth set|status|clear  Den Schlüssel für die Meta Model API speichern, prüfen oder entfernen\n  {command} auth set|status|clear --provider <id>  Einen Anbieterschlüssel speichern, prüfen oder entfernen (wird über stdin gelesen)\n  {command} providers list|add|test|remove  Modellanbieter verwalten\n  {command} exec [options] <prompt>  Einen Lauf ohne Oberfläche ausführen\n  {command} scan-secrets <file> [--key-stdin]  Mögliche Geheimnisse in einer Datei zählen (gibt nur die Anzahl aus)\n  {command} report [options]  Einen bereinigten Problembericht ausgeben (startet kein Backend, öffnet keinen Browser)\n  {command} legal [options]  Den schreibgeschützten Legal-Scan ausführen (kein Backend, keine Anmeldung)\nOptionen:\n  --backend museCode|modelApi      Wer bezahlt: Muse Code (Standard) oder der Model API-Schlüssel\n  --trust-workspace                Regeln, Skills und Speicher des Ordners laden\n  --muse-binary <Pfad>             Die auszuführende Muse Code-CLI\n  --shell-sandbox auto|muse|off    Die Shell-Sandbox von Muse Code\n  --questions-defer-after <seconds>  Fragen standardmäßig nach 60 Sekunden zurückstellen; 0 nie, 1–9 gelten als 10, höchstens 3600\n  --allow-dangerously-skip-permissions  Den Modus „Berechtigungen umgehen“ anbieten\n  --allow-contributor-models       Modelle der Contributor-Stufe auflisten (Meta darf mit ihren Inhalten trainieren)\n  --web-search                     Kostenpflichtige Websuche anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --image-generation               Kostenpflichtige Bilderzeugung anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --verbose                        Jedes Detail auf stderr protokollieren\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Die Setup-Hooks ausführen und beenden",
   "reportUsage": "Verwendung:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Gibt den bereinigten Problembericht auf stdout aus oder schreibt ihn mit --out nach <file>.\n  Startet kein Backend, meldet sich nirgends an und öffnet keinen Browser.\nOptionen:\n  --out <file>         Den Bericht in eine Datei statt auf stdout schreiben\n  --description <text>  Was gerade geschah, in eigenen Worten\n  --no-facts           Die Support-Fakten weglassen\n  --no-events          Die letzten Ereignisse weglassen",
   "execBudgetRequired": "Die Model API benötigt --max-budget-usd.",
   "execNumberInvalid": "Ungültige Zahl oder Grenze; das USD-Budget erlaubt höchstens sechs Nachkommastellen.",
@@ -5225,5 +5225,6 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
-  }
+  },
+  "referenceInProgress": "In Arbeit."
 }

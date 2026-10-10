@@ -225,7 +225,7 @@
   "estimateSpeedDescription": "Configurazione più rapida finché un’altra macchina consente un risparmio di tempo sufficiente.",
   "estimateCommandTitle": "Apri lo stimatore",
   "estimateUsage": "Uso: /estimate <goal> [--by <date>] [--fleet current|minimum|optimum]",
-  "estimateCliHelp": "Stima un obiettivo con macchine collegate, posti per agenti, account e CI; senza chiamate al modello. Non ancora disponibile: le istantanee vengono rifiutate con M117-W-M113-plan-reader finché il lettore di piani non è collegato.",
+  "estimateCliHelp": "In corso.",
   "estimateCiUnavailable": "Minuti CI non disponibili",
   "estimateInstalling": "Installazione del nodo",
   "estimatePairing": "Abbinamento del nodo",
@@ -342,10 +342,10 @@
     "seed": "--seed <seed>: Seme della simulazione"
   },
   "referenceScanSecrets": "Analizza un file patch UTF-8 alla ricerca di segreti e termina con errore se li rileva. --key-stdin cerca anche la chiave Model API esatta in memoria; nessuna chiave viene salvata.",
-  "referenceVault": "Lavora con il vault delle credenziali per utente da un terminale: stato, sblocco, blocco, elenco, aggiunta, concessioni, audit, importazione e osservazione. I valori non vengono mai stampati; li detiene il broker.",
-  "referenceVaultHelp": "Mostra l’uso del comando del vault delle credenziali per utente.",
-  "referenceVaultPanel": "Il vault non è disponibile perché il broker non è installato.",
-  "referenceVaultLock": "Bloccare ora la cassaforte di credenziali per utente; termina ogni uso in ogni finestra.",
+  "referenceVault": "In corso.",
+  "referenceVaultHelp": "In corso.",
+  "referenceVaultPanel": "In corso.",
+  "referenceVaultLock": "In corso.",
   "referenceAuthClear": "Rimuovi la chiave Model API salvata.",
   "referenceAuthStatus": "Verifica se è salvata una chiave Model API.",
   "referenceAccountsTitle": "Several accounts per provider",
@@ -438,7 +438,7 @@
   "referenceTasks": "Apri le attività di questa conversazione in una scheda separata.",
   "referenceDiagnostics": "Mostra la diagnostica locale del backend e dell’estensione.",
   "referenceReport": "Visualizza un rapporto ripulito prima di salvarlo o inviarlo.",
-  "referenceEstimate": "Stima quando un obiettivo sarà pronto con la flotta attuale, o la configurazione necessaria per una data. Non ancora disponibile: /estimate attende il collegamento del lettore di piani.",
+  "referenceEstimate": "In corso.",
   "referenceTerminal": "Apri la CLI Muse Code nel terminale dell’editor.",
   "referenceRules": "Crea o apri AGENTS.md nella radice dell’area di lavoro.",
   "referenceWalkthrough": "Apri la guida introduttiva.",
@@ -3516,7 +3516,7 @@
   "acpFontIntegrity": "Verifica del file di carattere non riuscita: {file}",
   "acpFontInstallFailed": "Impossibile installare il pacchetto di caratteri.",
   "acpFontsUsage": "Uso: {command} fonts install [--from <directory>]",
-  "acpUsage": "Uso:\n  {command} [opzioni]              Serve l’Agent Client Protocol su stdin e stdout\n  {command} [opzioni] login        Accedi a Muse Code in questo terminale\n  {command} auth set|status|clear  Salva, controlla o rimuovi la chiave Meta Model API\n  {command} auth set|status|clear --provider <id>  Salva, controlla o rimuovi una chiave provider (letta da stdin)\n  {command} providers list|add|test|remove  Gestisci i provider di modelli\n  {command} exec [options] <prompt>  Eseguire un turno senza interfaccia\n  {command} scan-secrets <file> [--key-stdin]  Contare i probabili segreti in un file (stampa solo il numero)\n  {command} report [options]  Stampare una segnalazione depurata (non avvia backend, non apre il browser)\n  {command} legal [options]  Esegui la scansione legale in sola lettura (senza backend né accesso)\nOpzioni:\n  --backend museCode|modelApi      Chi paga: Muse Code (predefinito) o la chiave Model API\n  --trust-workspace                Carica regole, skill e memoria della cartella\n  --muse-binary <percorso>             La CLI di Muse Code da eseguire\n  --shell-sandbox auto|muse|off    La sandbox della shell di Muse Code\n  --questions-defer-after <seconds>  Rimandare le domande dopo 60 secondi per impostazione predefinita; 0 mai, 1–9 valgono 10, massimo 3600\n  --allow-dangerously-skip-permissions  Offri la modalità «Ignora autorizzazioni»\n  --allow-contributor-models       Elenca i modelli di livello contributor (Meta può addestrarsi sui loro contenuti)\n  --web-search                     Offre la ricerca web a pagamento (back-end Model API; prima ne chiede il prezzo)\n  --image-generation               Offre la generazione di immagini a pagamento (back-end Model API; prima ne chiede il prezzo)\n  --no-auto-compaction             Disabilita la compattazione automatica\n  --verbose                        Registra ogni dettaglio su stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Esegui gli hook Setup ed esci",
+  "acpUsage": "Uso:\n  {command} [opzioni]              Serve l’Agent Client Protocol su stdin e stdout\n  {command} [opzioni] login        Accedi a Muse Code in questo terminale\n  {command} auth set|status|clear  Salva, controlla o rimuovi la chiave Meta Model API\n  {command} auth set|status|clear --provider <id>  Salva, controlla o rimuovi una chiave provider (letta da stdin)\n  {command} providers list|add|test|remove  Gestisci i provider di modelli\n  {command} exec [options] <prompt>  Eseguire un turno senza interfaccia\n  {command} scan-secrets <file> [--key-stdin]  Contare i probabili segreti in un file (stampa solo il numero)\n  {command} report [options]  Stampare una segnalazione depurata (non avvia backend, non apre il browser)\n  {command} legal [options]  Esegui la scansione legale in sola lettura (senza backend né accesso)\nOpzioni:\n  --backend museCode|modelApi      Chi paga: Muse Code (predefinito) o la chiave Model API\n  --trust-workspace                Carica regole, skill e memoria della cartella\n  --muse-binary <percorso>             La CLI di Muse Code da eseguire\n  --shell-sandbox auto|muse|off    La sandbox della shell di Muse Code\n  --questions-defer-after <seconds>  Rimandare le domande dopo 60 secondi per impostazione predefinita; 0 mai, 1–9 valgono 10, massimo 3600\n  --allow-dangerously-skip-permissions  Offri la modalità «Ignora autorizzazioni»\n  --allow-contributor-models       Elenca i modelli di livello contributor (Meta può addestrarsi sui loro contenuti)\n  --web-search                     Offre la ricerca web a pagamento (back-end Model API; prima ne chiede il prezzo)\n  --image-generation               Offre la generazione di immagini a pagamento (back-end Model API; prima ne chiede il prezzo)\n  --verbose                        Registra ogni dettaglio su stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Esegui gli hook Setup ed esci",
   "reportUsage": "Uso:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Stampa la segnalazione depurata su stdout, oppure la scrive in <file> con --out.\n  Non avvia alcun backend, non accede da nessuna parte e non apre il browser.\nOpzioni:\n  --out <file>         Scrivere la segnalazione in un file invece che su stdout\n  --description <text>  Cosa stava succedendo, a parole tue\n  --no-facts           Omettere i dati di supporto\n  --no-events          Omettere gli eventi recenti",
   "execBudgetRequired": "La Model API richiede --max-budget-usd.",
   "execNumberInvalid": "Numero o limite non valido; il budget in USD accetta al massimo sei cifre decimali.",
@@ -5378,5 +5378,6 @@
       "other": "{count} autorizzazioni",
       "many": "{count} autorizzazioni"
     }
-  }
+  },
+  "referenceInProgress": "In corso."
 }

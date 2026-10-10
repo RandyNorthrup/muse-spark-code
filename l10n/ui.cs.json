@@ -225,7 +225,7 @@
   "estimateSpeedDescription": "Nejrychlejší sestava, dokud další stroj ještě ušetří dostatek času.",
   "estimateCommandTitle": "Otevřít odhad kapacity",
   "estimateUsage": "Použití: /estimate <goal> [--by <date>] [--fleet current|minimum|optimum]",
-  "estimateCliHelp": "Odhadnout cíl pomocí propojených strojů, míst pro agenty, účtů a CI; bez volání modelu. Zatím není k dispozici: snímky se odmítají s M117-W-M113-plan-reader, dokud není čtečka plánu navázána.",
+  "estimateCliHelp": "Probíhá.",
   "estimateCiUnavailable": "Minuty CI nejsou dostupné",
   "estimateInstalling": "Instalace uzlu",
   "estimatePairing": "Párování uzlu",
@@ -342,10 +342,10 @@
     "seed": "--seed <seed>: Počáteční hodnota simulace"
   },
   "referenceScanSecrets": "Prohledejte soubor opravy v UTF-8 na tajné údaje; při nálezu skončí příkaz chybou. --key-stdin také hledá přesný klíč Model API držený v paměti; klíč se neukládá.",
-  "referenceVault": "Pracujte s trezorem pověření pro jednotlivé uživatele z terminálu: stav, odemknutí, uzamknutí, seznam, přidání, granty, audit, import a sledování. Hodnoty se nikdy netisknou; drží je zprostředkovatel.",
-  "referenceVaultHelp": "Zobrazí nápovědu k příkazu trezoru pověření pro jednotlivé uživatele.",
-  "referenceVaultPanel": "Trezor není dostupný, protože zprostředkovatel není nainstalován.",
-  "referenceVaultLock": "Zamknout uživatelský trezor přihlašovacích údajů nyní; ukončí každé použití v každém okně.",
+  "referenceVault": "Probíhá.",
+  "referenceVaultHelp": "Probíhá.",
+  "referenceVaultPanel": "Probíhá.",
+  "referenceVaultLock": "Probíhá.",
   "referenceAuthClear": "Odstranit uložený klíč Model API.",
   "referenceAuthStatus": "Zjistit, zda je uložen klíč Model API.",
   "referenceAccountsTitle": "Several accounts per provider",
@@ -438,7 +438,7 @@
   "referenceTasks": "Otevřít úkoly této konverzace na samostatné kartě editoru.",
   "referenceDiagnostics": "Zobrazit místní diagnostiku backendu a rozšíření.",
   "referenceReport": "Před uložením nebo odesláním zobrazit očištěné hlášení problému.",
-  "referenceEstimate": "Odhadne, kdy bude cíl hotový se stávající flotilou, nebo jaké nastavení vyžaduje datum. Zatím není k dispozici: /estimate čeká na vazbu čtečky plánu.",
+  "referenceEstimate": "Probíhá.",
   "referenceTerminal": "Otevřít Muse Code CLI v terminálu editoru.",
   "referenceRules": "Vytvořit nebo otevřít AGENTS.md v kořenu pracovního prostoru.",
   "referenceWalkthrough": "Otevřít průvodce prvními kroky.",
@@ -3589,7 +3589,7 @@
   "acpFontIntegrity": "Ověření souboru písma selhalo: {file}",
   "acpFontInstallFailed": "Balíček písem se nepodařilo nainstalovat.",
   "acpFontsUsage": "Použití: {command} fonts install [--from <directory>]",
-  "acpUsage": "Použití:\n  {command} [volby]              Poskytuje Agent Client Protocol přes stdin a stdout\n  {command} [volby] login        Přihlásí se k Muse Code v tomto terminálu\n  {command} auth set|status|clear  Uloží, zkontroluje nebo odebere klíč Meta Model API\n  {command} auth set|status|clear --provider <id>  Uloží, zkontroluje nebo odebere klíč poskytovatele (čte se ze stdin)\n  {command} providers list|add|test|remove  Spravuje poskytovatele modelů\n  {command} exec [options] <prompt>  Spustit jeden běh bez rozhraní\n  {command} scan-secrets <file> [--key-stdin]  Spočítat pravděpodobná tajemství v jednom souboru (vypíše jen počet)\n  {command} report [options]  Vytisknout vyčištěnou zprávu o problému (nespouští žádný backend, neotvírá prohlížeč)\n  {command} legal [options]  Spustit kontrolu licencí jen pro čtení (bez backendu a přihlášení)\nVolby:\n  --backend museCode|modelApi      Kdo platí: Muse Code (výchozí) nebo klíč Model API\n  --trust-workspace                Načte pravidla, dovednosti a paměť složky\n  --muse-binary <cesta>             Rozhraní CLI Muse Code, které se spustí\n  --shell-sandbox auto|muse|off    Izolované prostředí shellu Muse Code\n  --questions-defer-after <seconds>  Ve výchozím nastavení odložit otázky po 60 sekundách; 0 nikdy, 1–9 se bere jako 10, nejvýše 3600\n  --allow-dangerously-skip-permissions  Nabídne režim „Obejít oprávnění“\n  --allow-contributor-models       Zobrazí modely úrovně contributor (Meta může trénovat na jejich obsahu)\n  --web-search                     Nabídne placené hledání na webu (back-end Model API; nejprve se zeptá na cenu)\n  --image-generation               Nabídne placené vytváření obrázků (back-end Model API; nejprve se zeptá na cenu)\n  --no-auto-compaction             Vypnout automatické zhuštění\n  --verbose                        Zapisuje každý detail do stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Spustí hooky Setup a skončí",
+  "acpUsage": "Použití:\n  {command} [volby]              Poskytuje Agent Client Protocol přes stdin a stdout\n  {command} [volby] login        Přihlásí se k Muse Code v tomto terminálu\n  {command} auth set|status|clear  Uloží, zkontroluje nebo odebere klíč Meta Model API\n  {command} auth set|status|clear --provider <id>  Uloží, zkontroluje nebo odebere klíč poskytovatele (čte se ze stdin)\n  {command} providers list|add|test|remove  Spravuje poskytovatele modelů\n  {command} exec [options] <prompt>  Spustit jeden běh bez rozhraní\n  {command} scan-secrets <file> [--key-stdin]  Spočítat pravděpodobná tajemství v jednom souboru (vypíše jen počet)\n  {command} report [options]  Vytisknout vyčištěnou zprávu o problému (nespouští žádný backend, neotvírá prohlížeč)\n  {command} legal [options]  Spustit kontrolu licencí jen pro čtení (bez backendu a přihlášení)\nVolby:\n  --backend museCode|modelApi      Kdo platí: Muse Code (výchozí) nebo klíč Model API\n  --trust-workspace                Načte pravidla, dovednosti a paměť složky\n  --muse-binary <cesta>             Rozhraní CLI Muse Code, které se spustí\n  --shell-sandbox auto|muse|off    Izolované prostředí shellu Muse Code\n  --questions-defer-after <seconds>  Ve výchozím nastavení odložit otázky po 60 sekundách; 0 nikdy, 1–9 se bere jako 10, nejvýše 3600\n  --allow-dangerously-skip-permissions  Nabídne režim „Obejít oprávnění“\n  --allow-contributor-models       Zobrazí modely úrovně contributor (Meta může trénovat na jejich obsahu)\n  --web-search                     Nabídne placené hledání na webu (back-end Model API; nejprve se zeptá na cenu)\n  --image-generation               Nabídne placené vytváření obrázků (back-end Model API; nejprve se zeptá na cenu)\n  --verbose                        Zapisuje každý detail do stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Spustí hooky Setup a skončí",
   "reportUsage": "Použití:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Vypíše vyčištěnou zprávu o problému na stdout, nebo ji s --out zapíše do <file>.\n  Nespouští žádný backend, nikam se nepřihlašuje a neotvírá prohlížeč.\nVolby:\n  --out <file>         Zapsat zprávu do souboru místo na stdout\n  --description <text>  Co se dělo, vlastními slovy\n  --no-facts           Vynechat podpůrná fakta\n  --no-events          Vynechat nedávné události",
   "execBudgetRequired": "Model API vyžaduje --max-budget-usd.",
   "execNumberInvalid": "Neplatné číslo nebo limit; rozpočet v USD přijímá nejvýše šest desetinných míst.",
@@ -5531,5 +5531,6 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
-  }
+  },
+  "referenceInProgress": "Probíhá."
 }

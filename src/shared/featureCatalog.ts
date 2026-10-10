@@ -268,6 +268,15 @@ function feature(
   }
 }
 
+// CX1R3: retained for coverage validation, omitted from published Help.
+export const REFERENCE_IN_PROGRESS_FEATURES: readonly string[] = [
+  'team-workers',
+  'vault',
+  'estimator',
+  'auto-compaction',
+  'argument-preview',
+]
+
 export function featureCatalog(): readonly Feature[] {
   return [
     feature(
@@ -385,7 +394,7 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'compaction',
       { ui: 'compactItem' },
-      { ui: 'autoCompactionAwaitingEvaluation' },
+      { tip: 'compact' },
       [],
       ['modelApiAutoCompaction'],
       'observation-packing-model-api',
@@ -1051,9 +1060,14 @@ export function featureCatalog(): readonly Feature[] {
       ['vscode', 'acp'],
     ),
   ].map((entry) => {
-    const surfaces = REFERENCE_SURFACES[entry.id] ?? entry.surfaces
+    const isInProgress = REFERENCE_IN_PROGRESS_FEATURES.includes(entry.id)
+    const surfaces = isInProgress ? [] : (REFERENCE_SURFACES[entry.id] ?? entry.surfaces)
     return {
       ...entry,
+      ...(isInProgress && {
+        summary: { ui: 'referenceInProgress' },
+        description: { ui: 'referenceInProgress' },
+      }),
       surfaces,
       editors: [
         ...new Set(
@@ -1072,14 +1086,16 @@ export function featureCatalog(): readonly Feature[] {
       paid: Object.values(PAID_USE_REGISTRY).some((paid) => paid.featureId === entry.id),
       // Feature-level details (schedules, accounts) and REFERENCE_DETAILS
       // combine: neither source may silently erase the other.
-      details: [...entry.details, ...(REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui }))],
+      details: isInProgress
+        ? []
+        : [...entry.details, ...(REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui }))],
       facts: {},
     }
   })
 }
 
 export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
-  estimator: ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'],
+  'orchestrator-playbook': ['acp:museCode', 'acp:modelApi'],
   'web-fetch': ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
   search: ['vscode:modelApi', 'acp:modelApi'],
   images: ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],

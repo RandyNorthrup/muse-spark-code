@@ -38,7 +38,7 @@ export const EN = {
   resourceOverrideNotice: 'Work resumed until {time}.',
   resourceRelocatedNotice: 'Queued work moved to {device} because this machine is busy.',
   resourceRelocationNoRoute:
-    'Relocation is not available yet: it needs a paired device or runner route. Work stays on this machine.',
+    'Relocation requires a paired device or runner route. Work stays on this machine.',
   resourceUnavailable: 'This reading is unavailable on this machine.',
   resourceGovernorOff: 'Resource limits are off on this machine.',
   resourceStatusRefused: 'The latest resource status could not be read, so no readings are shown.',
@@ -102,7 +102,7 @@ export const EN = {
   resourceDiskBusyMaxPercentDescription:
     'Optional disk busy limit in percent. Unset means no disk probe.',
   resourceRelocateDescription:
-    'Where queued team tasks and checks may move when this machine is busy. Relocation needs a paired device or runner route and is not available yet, so work stays on this machine.',
+    'Relocation requires a paired device or runner route. Work stays on this machine.',
   resourceRelocatePairedDescription:
     'Use an approved paired device with normal resource load once relocation is available.',
   resourceRelocateAskDescription: 'Ask before moving queued work.',
@@ -281,8 +281,7 @@ export const EN = {
   estimateSpeedDescription: 'Fastest setup while another machine still saves enough time.',
   estimateCommandTitle: 'Open Estimator',
   estimateUsage: 'Usage: /estimate <goal> [--by <date>] [--fleet current|minimum|optimum]',
-  estimateCliHelp:
-    'Estimate a goal using linked machines, agent slots, accounts and CI; no model call. Not available yet: snapshots refuse with M117-W-M113-plan-reader until the plan reader is bound.',
+  estimateCliHelp: 'In progress.',
   estimateCiUnavailable: 'CI minutes unavailable',
   estimateInstalling: 'Installing node',
   estimatePairing: 'Pairing node',
@@ -429,12 +428,10 @@ export const EN = {
   },
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
-  referenceVault:
-    'Work with the per-user credential vault from a terminal: status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.',
-  referenceVaultHelp: 'Show the per-user credential vault command usage.',
-  referenceVaultPanel:
-    'The credential vault is unavailable in this build because the broker is not installed.',
-  referenceVaultLock: 'Lock the per-user credential vault now, ending every use in every window.',
+  referenceVault: 'In progress.',
+  referenceVaultHelp: 'In progress.',
+  referenceVaultPanel: 'In progress.',
+  referenceVaultLock: 'In progress.',
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus: 'Check whether a Model API key is stored.',
   referenceAccountsTitle: 'Several accounts per provider',
@@ -575,8 +572,8 @@ export const EN = {
   referenceTasks: 'Open this conversation’s task list in a separate editor tab.',
   referenceDiagnostics: 'Show local backend and extension diagnostics.',
   referenceReport: 'Preview a scrubbed problem report before saving or sending it.',
-  referenceEstimate:
-    'Ship-date forecast for a goal from the current fleet, or the setup a target date needs. Not available yet: /estimate waits on the plan-reader binding.',
+  referenceInProgress: 'In progress.',
+  referenceEstimate: 'In progress.',
   referenceTerminal: 'Open the Muse Code CLI in the editor’s terminal.',
   referenceRules: 'Create or open AGENTS.md in the workspace root.',
   referenceWalkthrough: 'Open the Getting Started walkthrough.',
@@ -2262,7 +2259,7 @@ export const EN = {
     attached: 'Report attached to the message.',
     saveFailed: 'The report could not be saved.',
     copyFailed: 'The report could not be copied.',
-    unsupportedKind: 'Report kind {kind} is not available yet.',
+    unsupportedKind: 'Report kind {kind} is unavailable.',
     localBudgetExceeded: 'The local report exceeded {duration}.',
     confirmFirstSend: 'Confirm the first email to this recipient.',
     destinations: 'Destinations',
@@ -2284,7 +2281,7 @@ export const EN = {
     failed: 'The source could not be read completely.',
     refused: 'The source path is private or outside its allowed folder.',
     disabled: 'This agent usage source is not enabled.',
-    unbound: 'This source integration is not available yet.',
+    unbound: 'This source integration is unavailable.',
     history: 'History for the selected session is unavailable.',
   },
   reportRowsMore: forms({ one: '{count} more', other: '{count} more' }),
@@ -4135,7 +4132,6 @@ export const EN = {
     '  --allow-contributor-models       List contributor-tier models (Meta may train on their content)',
     '  --web-search                     Offer paid web search (Model API backend; its price is asked first)',
     '  --image-generation               Offer paid image generation (Model API backend; its price is asked first)',
-    '  --no-auto-compaction             Disable automatic compaction',
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
     '  {command} --trust-workspace setup [--maintenance]  Run the Setup hooks and exit',
@@ -5024,7 +5020,7 @@ export const EN = {
   providerImportPreviewTitle: 'Import preview',
   importNeedsKey: 'needs a key',
   providerOpenRouterServices:
-    'OpenRouter account connection and key usage are not available yet. Paste a key to use models.',
+    'OpenRouter account connection and key usage are unavailable. Paste a key to use models.',
   refreshModels: 'Refresh models',
   scanNewModels: forms({
     one: '{count} new model since the last scan',

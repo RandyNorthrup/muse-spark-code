@@ -20176,6 +20176,20 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+**CX1R3 removal pass (RVCX1B, 2026-10-10; ships in 0.17.1).** Remove dormant
+feature claims and usage from current README, Help, What's New and editor
+records; retain historical changelog text with dated corrections. Put dormant
+work in roadmap In progress without capability or shipped claims. Keep complete
+reference coverage validation before filtering its user-facing publication;
+archive corrected release bullets from What's New rather than qualifying them.
+The compact CLI help is also a current Help surface: remove its v2 schedule
+grammar and inactive automatic-compaction option without altering parsers.
+No feature implementation, dependency, gate widening, merge, push or live call.
+
+Plan: [x] current surfaces and roadmap; [x] regression tests and byte-exact red
+drills for every finding and sibling class; [x] scoped rig gates; [ ] hooked
+commits, committed-diff review and certification in `docs/certification/cx1.md`.
+
 ### M122 — Public roadmap (2026-10-08)
 
 **Status 2026-10-08: built.** Certification: `docs/certification/roadmap.md`.
@@ -26366,9 +26380,9 @@ serve`."
 
 ### M96b — The team in the ACP agent and headless runs (D75)
 
-**Status 2026-10-04: planned.**
+**Status 2026-10-10 (depends on team integration): waiting.**
 
-Status detail retained: planned; starts after M96 merges.
+Prerequisite: team integration (M96).
 
 - **Goal.** The same team, roles, pools and caps work in the ACP agent (D62)
   and in headless `exec` (D65), with each surface's own way of asking.
@@ -27408,9 +27422,9 @@ it process lifetime, the journal, hints and the load guard. The research is
 
 ### M96d — The machine coordinator spike, and the scheduler optimisations (D75)
 
-**Status 2026-10-04: planned.**
+**Status 2026-10-10 (depends on team integration): waiting.**
 
-Status detail retained: planned; starts after M96c merges. M96c's first
+Prerequisite: team scheduler integration (M96c). M96c's first
 delivery left these out:
 
 - the machine coordinator, on the lead's round-3 ruling after Codex's
@@ -35913,7 +35927,7 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
 
 ### M115 — Scheduled prompts v2: unattended, stacked, with a delivery mode (D95)
 
-**Status 2026-10-10 (store, engine, surfaces and live-session fires merged; event sources, team targets and firing while all editors are closed remain): building.** It comes right after M112 in the delivery
+**Status 2026-10-10 (management store and surfaces merged; production session lookup, open/fresh and run ports are unbound on every surface): building.** It comes right after M112 in the delivery
 order: it shares M112's deferral and the unattended machinery, and builds on
 M52's store, claim and cron matcher. No model call is needed outside one live
 check (step 3). Lanes T, S, U, D, G, V and X start on lane 0's contracts and
@@ -36287,7 +36301,7 @@ control's focus (or the saved rule heading), and announce successful saves
 through a polite live region. Add regressions and byte-exact red drills in
 `docs/certification/m116-u.md`. Existing P/I/W integration handoffs remain.
 
-**Status 2026-10-07: built.**
+**Status 2026-10-10 (CLI/ACP journal commands work; VS Code panel journal/settings and planner binding remain): building.**
 
 Status detail retained: lane W integrated All five lanes merged (`m116/w`;
 `docs/certification/m116.md`); every P1/P2 finding verified fixed; the D100
