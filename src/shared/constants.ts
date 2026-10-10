@@ -6948,6 +6948,9 @@ export const EVAL_REPORT_VERSION = 2
 // Decimals for the report's dollar amounts: a task costs a few
 // ten-thousandths of a dollar on the contributor tier.
 export const EVAL_COST_DECIMALS = 4
+// How far above the working directory the frozen arm digest looks for the
+// repository root before failing closed (review RVCM1012B).
+export const EVAL_ARM_SOURCE_SEARCH_DEPTH = 12
 
 // --- Bring-your-own model providers (M95, PLAN.md D74) ---
 //

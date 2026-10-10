@@ -31,6 +31,7 @@ import {
   SETTING_DEFAULTS,
 } from '../../shared/constants'
 import type { ApprovalMode } from '../../shared/permissionModes'
+import { EVAL_HELD_DEPS } from './heldDeps'
 
 /** A mechanism: the change it makes to the harness's dependencies. */
 export type EvalHostChange = (deps: ModelApiHostDeps) => ModelApiHostDeps
@@ -106,27 +107,6 @@ type ApprovalRequested = Extract<AgentEvent, { type: 'approvalRequested' }>
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
-
-/**
- * What a mechanism may not change: the client (every request must pass the
- * trace), the workspace (the empty folder), the paid-use hooks (the run
- * refuses and counts every paid use), the shared context window (M101 R2:
- * a mechanism that changed it would also change file-read truncation, so
- * the pair would not isolate the mechanism) and the memory store (absent
- * unless a test supplies one; the counted run certifies memory absent).
- * Exported so the frozen digest pins exactly what the harness holds fixed.
- */
-export const EVAL_HELD_DEPS = [
-  'client',
-  'workspaceRoot',
-  'allowsPaidUse',
-  'isPaidUseRemembered',
-  'notePaidUse',
-  'noteSubagentUsage',
-  'noteReviewerUsage',
-  'contextModel',
-  'memory',
-] as const satisfies readonly (keyof ModelApiHostDeps)[]
 
 /** The mechanism's harness; one that moves a held dependency does not run. */
 function applyChange(deps: ModelApiHostDeps, change: EvalHostChange | undefined): ModelApiHostDeps {
