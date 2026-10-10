@@ -113,6 +113,10 @@ export async function startVaultBrokerProcess(options: VaultBrokerProcessOptions
   let channel: Pick<VaultChannelServer, 'listen' | 'close'> | undefined
   let release: (() => Promise<void>) | undefined
   let closing: Promise<void> | undefined
+  // The listener's raw server while its listen/chmod window is open. The
+  // channel only learns it once listen returns, so close() stops it here;
+  // otherwise a server error during chmod shuts down nothing and leaks it.
+  let pendingServer: ReturnType<typeof createServer> | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   const sockets = new Set<Duplex>()
   const close = (): Promise<void> => {
@@ -125,6 +129,18 @@ export async function startVaultBrokerProcess(options: VaultBrokerProcessOptions
         try {
           await channel?.close()
         } finally {
+          // Own the raw server the channel has not learned yet: a shutdown
+          // during the listen/chmod window must still stop it listening.
+          // Taken exactly once (the listener clears it on the same test),
+          // so this and the post-chmod stop below never close it twice.
+          const pending = pendingServer
+          pendingServer = undefined
+          if (pending?.listening)
+            await new Promise<void>((resolve) => {
+              pending.close(() => {
+                resolve()
+              })
+            })
           try {
             await options.dispose()
           } finally {
@@ -183,6 +199,8 @@ export async function startVaultBrokerProcess(options: VaultBrokerProcessOptions
           })
           accepted(stream)
         })
+        // Stored before any await so close() owns it during the window below.
+        pendingServer = server
         try {
           await new Promise<void>((resolve, reject) => {
             server.once('error', reject)
@@ -196,6 +214,7 @@ export async function startVaultBrokerProcess(options: VaultBrokerProcessOptions
           server.on('error', onServerError)
           await chmod(file, constants.S_IRUSR | constants.S_IWUSR)
         } catch (error: unknown) {
+          if (pendingServer === server) pendingServer = undefined
           if (server.listening)
             await new Promise<void>((resolve) =>
               server.close(() => {
@@ -204,7 +223,21 @@ export async function startVaultBrokerProcess(options: VaultBrokerProcessOptions
             )
           throw error
         }
+        // Shutdown ran while the permission fix was in flight: close() owned
+        // only the raw server above, so stop the just-bound server here
+        // instead of handing a live one to a closing broker.
+        if (lifecycle.isClosing) {
+          if (pendingServer === server) pendingServer = undefined
+          if (server.listening)
+            await new Promise<void>((resolve) => {
+              server.close(() => {
+                resolve()
+              })
+            })
+          throw new Error(UI_TEXT.vault.noAccess)
+        }
         return async () => {
+          if (pendingServer === server) pendingServer = undefined
           for (const stream of sockets) stream.destroy()
           await new Promise<void>((resolve, reject) =>
             server.close((error) => {
