@@ -526,6 +526,10 @@ describe.skipIf(process.platform === 'win32')('POSIX vault broker lifecycle', ()
       })
       brokerRaceGates.releaseChmod()
       await expect(started).rejects.toThrow()
+      // The shutdown owned the raw server even though the channel never
+      // learned it (RVCM1091B2 P2): without that, the server stays bound
+      // here and the broker process never exits.
+      expect(server.server.listening).toBe(false)
       const discovery = new VaultBrokerDiscovery(f.options.runDirectory, f.options.userSession)
       await expect(stat(path.join(discovery.directory, 'broker.sock'))).rejects.toMatchObject({
         code: 'ENOENT',
