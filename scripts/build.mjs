@@ -2,7 +2,7 @@
 import { buildLinuxHelper } from './build-linux-helper.mjs'
 import {
   COMPANION_THEME_CSS_FILE,
-  companionThemeCss,
+  companionThemeCssPlugin,
   resourceBrowserValidation,
   webviewEntryMetafile,
 } from './lib/webviewBundles.mjs'
@@ -1066,15 +1066,7 @@ const webviewOptions = {
     resourceBrowserValidation,
     // M114 C-M114-1: the companion page's static theme sheets beside the
     // webview entries, rebuilt with every webview build including watch.
-    {
-      name: 'companion-theme-css',
-      setup(build) {
-        build.onEnd((result) => {
-          if (result.errors.length > 0) return
-          writeFileSync(path.join(WEBVIEW_OUTDIR, COMPANION_THEME_CSS_FILE), companionThemeCss())
-        })
-      },
-    },
+    companionThemeCssPlugin,
     {
       name: 'reference-caller-react',
       setup(build) {
