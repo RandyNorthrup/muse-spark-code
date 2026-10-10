@@ -224,13 +224,75 @@ describe('createRuntimeAccountServices', () => {
     }
   })
 
-  it('serves the stored default key with no metadata row; unknown providers stay unavailable', async () => {
+  it('refuses --account-pool with the pool limitation instead of the connection text', () => {
     const services = rig()
+    try {
+      const parsed = parseCommandLine(['--backend', 'modelApi'])
+      if (parsed.command !== 'serve') throw new Error('missing test serve options')
+      const createBackend = vi.fn(createRuntimeBackend)
+      // The throw happens before any backend or credential is touched.
+      expect(() =>
+        services.exec.create(
+          {
+            options: parsed.options,
+            version: 'test',
+            distDir: '',
+            platform: process.platform,
+            env: {},
+            homeDir: '',
+            secrets: {
+              get: () => Promise.resolve(undefined),
+              store: () => Promise.resolve(),
+              delete: () => Promise.resolve(),
+            },
+            runGit: () => Promise.reject(new Error('unexpected git')),
+            fetch: () => Promise.reject(new Error('unexpected fetch')),
+            sleep: () => Promise.resolve(),
+            log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+          },
+          { account: 'default', hasPoolFlag: true, isInteractive: false },
+          createBackend,
+        ),
+      ).toThrow(UI_TEXT.accounts.poolUnavailable)
+      expect(createBackend).not.toHaveBeenCalled()
+    } finally {
+      services.dispose()
+    }
+  })
+
+  it('serves the stored default key with no file; a user file without meta refuses', async () => {
+    const services = rig()
+    const folder = dirs.at(-1)
+    if (folder === undefined) throw new Error('missing test folder')
     const get = vi.fn(() => Promise.resolve('LLM|1|fake-legacy-key'))
     const fallback = { get, store: () => Promise.resolve(), delete: () => Promise.resolve() }
     const origin = new URL(MODEL_API_BASE_URL).origin
     const stored = CURRENT_SHAPE_KEYS[0]
-    // No meta row is stored: the built-in entry still authorizes the write.
+    // The rig seeds a vendor-only user file: with a file present, meta is
+    // unconfigured and the built-in entry no longer applies. The store
+    // refuses with its fixed code; the command boundary renders the text.
+    await expect(
+      services.store.setCredential('meta', 'default', {
+        v: 1,
+        auth: 'apiKey',
+        provider: 'meta',
+        account: 'default',
+        origin,
+        secret: stored,
+      }),
+    ).rejects.toThrow(AccountStoreError)
+    await expect(
+      services.store.setCredential('meta', 'default', {
+        v: 1,
+        auth: 'apiKey',
+        provider: 'meta',
+        account: 'default',
+        origin,
+        secret: stored,
+      }),
+    ).rejects.toThrow('unavailable')
+    rmSync(runtimeProvidersFile(folder))
+    // With no file, the built-in entry authorizes the write.
     await services.store.setCredential('meta', 'default', {
       v: 1,
       auth: 'apiKey',

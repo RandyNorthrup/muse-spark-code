@@ -102,8 +102,8 @@ import type {
 } from './questionDeferral'
 import {
   AcpAccounts,
-  AccountSwitchRefusedError,
   accountErrorText,
+  isAccountSwitchRefusedError,
   type AccountsSessionPort,
 } from './accounts'
 import {
@@ -296,7 +296,7 @@ function isContributorModel(modelId: string): boolean {
 function accountRequestError(error: unknown): RequestError {
   // A refused switch is user-actionable (the session kept its account), not
   // an internal failure: answer invalidRequest with the stay-put text.
-  if (error instanceof AccountSwitchRefusedError)
+  if (isAccountSwitchRefusedError(error))
     return RequestError.invalidRequest(undefined, error.message)
   const text = accountErrorText(error)
   return text === UI_TEXT.accounts.invalidAccount
@@ -326,7 +326,7 @@ class AcpSession {
   private readonly questionBundle: () => AcpQuestionBundle
   private media: Promise<AcpMediaPort> | undefined
   private readonly attachments: AcpAttachment[] = []
-  private readonly accounts: AcpAccounts | undefined
+  private accounts: AcpAccounts | undefined
   private readonly translator: UpdateTranslator
   private unsubscribe: (() => void) | undefined
   private readonly unsubscribeResources: (() => void) | undefined
@@ -1336,7 +1336,14 @@ class AcpSession {
   }
 
   public async startAccounts(): Promise<void> {
-    await this.accounts?.start()
+    // Ordinary sessions never depend on accounts: a failing port leaves the
+    // session working without accounts instead of failing adoption.
+    try {
+      await this.accounts?.start()
+    } catch {
+      this.accounts?.dispose()
+      this.accounts = undefined
+    }
   }
 
   /** Broker-owned request; Bypass, tools and paid grants never enter this path. */

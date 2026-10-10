@@ -69,6 +69,7 @@ import {
 } from './cliArgs'
 import { parseSharingArgs, type SharingCommand } from './sharing/args'
 import { runtimeSharingLoader } from './sharing/sharingBundle'
+import { serveAccountsPort } from '../acp/accounts'
 import { acpSharingCommands } from '../acp/sharing'
 import { boundedAcpStream } from '../shared/acpStream'
 import type { RuntimeSharingPorts } from './sharing/sharingEntry'
@@ -727,6 +728,10 @@ async function serve(
       log,
     })
     const reports = runtimeReports(log)
+    // Model API sessions only: the Muse Code backend runs on its
+    // subscription, and a loader failure leaves the session working without
+    // accounts instead of refusing `serve`.
+    const serveAccounts = serveAccountsPort(options.backend, () => loadAccounts().sessions('meta'))
     const agent = engine.createAcpAgent({
       schedules: {
         async holdWorkspace(cwd) {
@@ -759,11 +764,9 @@ async function serve(
         ),
       reports: { format: 'md', execute: (args, context) => reports().acp.execute(args, context) },
       vault: acpVault,
-      // The shared Model API account service is backend-independent: ACP
-      // lists the same accounts, current account and thresholds on both
-      // backends. Switching stays refused (no adoption transaction) and the
-      // Muse Code backend still runs on its subscription.
-      accounts: loadAccounts().sessions('meta'),
+      // The account picker serves Model API sessions (list, current,
+      // thresholds). Switching stays refused (no adoption transaction).
+      ...(serveAccounts !== undefined && { accounts: serveAccounts }),
       legalScan: async (cwd, signal, isRegistryOn, allowsRegistryLookup) => {
         const bundle = agentLegalBundle()
         const handle = await bundle.runLegalScan({ workspaceRoot: cwd, input: {}, signal })

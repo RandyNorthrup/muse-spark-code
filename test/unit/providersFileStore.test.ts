@@ -135,4 +135,35 @@ describe('fileAccountsMetadata', () => {
     const metadata = fileAccountsMetadata(dir())
     await expect(metadata.read('META!')).resolves.toBeUndefined()
   })
+
+  it('reads unconfigured once the user has a file without a meta row', async () => {
+    const folder = dir()
+    seed(folder, { providers: {} })
+    const metadata = fileAccountsMetadata(folder)
+    await expect(metadata.read('meta')).resolves.toBeUndefined()
+  })
+
+  it('refuses to overwrite a malformed user row and leaves the file untouched', async () => {
+    const folder = dir()
+    const file = seed(folder, { providers: { meta: { ...ENTRY, auth: 'not-a-method' } } })
+    const before = readFileSync(file, 'utf8')
+    const metadata = fileAccountsMetadata(folder)
+    await expect((async () => await metadata.read('meta'))()).rejects.toBeInstanceOf(
+      AccountStoreError,
+    )
+    await expectWriteRejected(metadata)
+    expect(readFileSync(file, 'utf8')).toBe(before)
+  })
+
+  it('refuses a first write that races a malformed user row', async () => {
+    const folder = dir()
+    const metadata = fileAccountsMetadata(folder)
+    // The addition read an absent row; another process supplies a malformed
+    // user row before the write reload.
+    await expect(metadata.read('meta')).resolves.toMatchObject({ id: 'meta' })
+    const file = seed(folder, { providers: { meta: { ...ENTRY, origin: 42 } } })
+    const before = readFileSync(file, 'utf8')
+    await expectWriteRejected(metadata)
+    expect(readFileSync(file, 'utf8')).toBe(before)
+  })
 })
