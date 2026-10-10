@@ -7812,6 +7812,7 @@ export const VAULT_SIGN_P95_MS = 20
 export const VAULT_FEEDER_START_MS = 200
 export const VAULT_SCRUB_MIN_MBPS = 50
 export const VAULT_IDLE_MINUTES = 240
+export const VAULT_BYTE_MAX = 255
 export const VAULT_KEY_BYTES = 32
 export const VAULT_NONCE_BYTES = 12
 export const VAULT_TAG_BYTES = 16

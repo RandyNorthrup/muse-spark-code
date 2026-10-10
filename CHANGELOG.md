@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Internal vault OS-store slots use Linux Secret Service and the macOS login
+  Keychain, with fixed actionable errors when the store is unavailable.
+  Editor vault bindings remain closed until their integration is certified.
+
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

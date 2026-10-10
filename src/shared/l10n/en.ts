@@ -6122,6 +6122,10 @@ export const EN = {
   },
   // M109: read each key through UI_TEXT.vault at use time.
   vault: {
+    secretServiceUnavailable:
+      'The vault cannot reach Secret Service. Sign in to a desktop session and unlock its keyring, then try again.',
+    keychainUnavailable:
+      'The vault cannot reach the login Keychain. Unlock it in Keychain Access, then try again.',
     title: 'Vault',
     locked: 'Locked',
     unlocked: 'Unlocked',

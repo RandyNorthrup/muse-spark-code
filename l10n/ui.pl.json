@@ -5370,6 +5370,8 @@
     "commandUsage": "Użycie: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   },
   "vault": {
+    "secretServiceUnavailable": "Skarbiec nie może połączyć się z Secret Service. Zaloguj się do sesji pulpitu i odblokuj jej pęk kluczy, a następnie spróbuj ponownie.",
+    "keychainUnavailable": "Skarbiec nie może uzyskać dostępu do pęku kluczy logowania. Odblokuj go w aplikacji Dostęp do pęku kluczy i spróbuj ponownie.",
     "title": "Sejf",
     "locked": "Zablokowany",
     "unlocked": "Odblokowany",
