@@ -5,12 +5,18 @@ function unavailable(): never {
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import type { ModelsPanelSeam, ProviderEntry, PresetInfo } from '../../host/providers/providerPorts'
-import { emptyProvidersFile, readProvidersFile, writeProvidersFileAtomic } from './providersFile'
+import {
+  emptyProvidersFile,
+  providerEntrySchema,
+  readProvidersFile,
+  writeProvidersFileAtomic,
+} from './providersFile'
 import { listedPresets, PRESETS, PLAN_KEY_PRESETS, isKeyShape } from './presets'
 import { checkEndpointUrl } from './endpointPolicy'
 import { createPkcePair } from './pkce'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { parseModelRef } from './modelRef'
 
 export function createModelsPanelSeam(options: {
   readonly configFile: string
@@ -53,6 +59,12 @@ export function createModelsPanelSeam(options: {
     return { ...row, address: row.address }
   }
   const store: ModelsPanelSeam['store'] = {
+    validate: (row, ref) => {
+      if (!providerEntrySchema.safeParse(row).success)
+        throw new Error(fill(UI_TEXT.providerSaveFailed, { reason: 'invalid' }))
+      if (ref !== undefined && parseModelRef(ref) === undefined)
+        throw new Error(UI_TEXT.providerText.schema.modelRef)
+    },
     list: async () => {
       const file = await read()
       return file.providers.map((row) => entry(row))

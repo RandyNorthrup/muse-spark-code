@@ -164,9 +164,9 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   const newModels = new Set<string>()
   // A failed limit write can leave a saved provider. Retrying that draft
   // replaces its saved entry rather than attempting a duplicate add.
+  const savedDrafts = new WeakSet<PanelDraft>()
   // Token limits do not change the saved connection; only connection edits
   // invalidate this exemption from a fresh credential test.
-  const savedDrafts = new WeakSet<PanelDraft>()
   const savedConnections = new WeakSet<PanelDraft>()
   // Keep the entire stored entry on the host, including fields the form
   // does not expose. Only differences from this draft snapshot are saved.

@@ -8,8 +8,6 @@ import { type UsdAmount } from '../../shared/usd'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { redactSecrets } from '../../shared/redact'
-import { providerEntrySchema } from '../../core/providers/providersFile'
-import { parseModelRef } from '../../core/providers/modelRef'
 import {
   applyWizardSessionBudget,
   validateWizardSessionBudget,
@@ -195,13 +193,10 @@ export async function saveWizardDraft(
   ) {
     throw new Error(UI_TEXT.actionFailed)
   }
-  if (
-    (draft.setDefault !== false || draft.useNow) &&
-    parseModelRef(draft.defaultModel) === undefined
+  deps.store.validate(
+    draft.provider,
+    draft.setDefault !== false || draft.useNow ? draft.defaultModel : undefined,
   )
-    throw new Error(UI_TEXT.providerText.schema.modelRef)
-  const parsed = providerEntrySchema.safeParse(draft.provider)
-  if (!parsed.success) throw new Error(fill(UI_TEXT.providerSaveFailed, { reason: 'invalid' }))
   const budgetInvalid = validateWizardSessionBudget(
     draft.sessionBudgetUsd,
     deps.sessionBudget?.expectedUsd,

@@ -207,7 +207,7 @@ describe('ordered provider saves', () => {
     await expect(
       saveWizardDraft(f.deps, {
         ...f.draft,
-        provider: { ...f.provider, models: [''] },
+        provider: { ...f.provider, models: [''], modelLimits: { '': f.provider.modelLimits.m1 } },
         defaultModel: 'custom/',
       }),
     ).rejects.toThrow(UI_TEXT.providerText.schema.modelRef)

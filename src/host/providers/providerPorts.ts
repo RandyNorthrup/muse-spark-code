@@ -81,6 +81,8 @@ export interface ProviderEntry {
  * `providersFile.ts` implements this with its zod schema and atomic write.
  */
 export interface ProvidersStore {
+  /** Validate a draft with the provider bundle's canonical schemas before writing. */
+  validate(entry: ProviderEntry, defaultModel: string | undefined): void
   /** Every configured provider, in the file's order. */
   list(): Promise<readonly ProviderEntry[]>
   /** Adds a provider saved by the wizard; rejects a duplicate id. */

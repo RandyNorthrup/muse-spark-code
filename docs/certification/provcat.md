@@ -1707,3 +1707,104 @@ No timeout overrides, test-name filters or skipped cases were used.
 
 Final unit-project compiler passes (`npm run typecheck:unit`,
 `temp/provwiz9-tsc-final.log`), covering host/core/shared/React and unit fixtures.
+
+The full split check caught direct canonical-schema imports in the Models host
+bundle. Preflight now calls `ProvidersStore.validate`, implemented by the
+existing lazy provider seam with its canonical entry/default parsers. The test
+store implements that same port. No schema or prompt shape is duplicated in
+production. The focused ordered-save / original saver / production seam run
+passes 38 tests after the move; the invalid-default fixture now isolates the
+reference failure from unrelated missing custom limits.
+
+The first full production build reaches the unchanged size gate and fails only
+surface English: **25651 / 25600 bytes**. A complete source archive of unchanged
+base `28578a4ad`, built with the same Node/toolchain on this macbook, produces
+exactly **25651 / 25600 bytes** and the same failure. Both surface tables contain
+778 keys / 63371 JSON characters, SHA-256
+`b7d1a3d0d57c9af47ae82d92b543198c29fa4d403d8183d71b997c589953f689`.
+The owned baseline archive lived under `TMPDIR` and was removed in `finally`;
+no dependency install or shared-node_modules write occurred. This lane adds no
+surface-English bytes. Keep the cap; record the inherited build hold for the
+lead's cross-rig qualification. Receipts: `temp/provwiz9-base-build.{json,log}`.
+
+The initial visual harness state predates the required session-budget field,
+so the production panel rejects it and stays Connecting. Qualifying screenshot
+runs inject the existing canonical `modelsPanelFixtures.makeState().sessionBudget`
+into that fake host state before rendering. No harness/source or sandbox bypass
+was added; all transport remains loopback and data synthetic.
+
+Visual inspection passes on production browser assets, using synthetic host
+outcomes and the canonical budget fixture. The new-origin key-failure notice
+and missing-key row are clear at 690 px in dark theme. The limit-failure plus
+refresh warning wraps at 320 px in dark theme; German key failure wraps at
+320 px in light theme. Both narrow pages have document scroll width exactly
+320 px; the wide page is exactly 690 px. No clipping or document overflow.
+Screenshots: `provwiz9/key-failure.png`, `provwiz9/limit-refresh.png`,
+`provwiz9/key-failure-de.png`; `temp/provwiz9-visual.log` records measured widths.
+These are shared React rendering checks, not installed-editor qualification.
+
+## Final lazy-port guard qualification
+
+After the schema move, all 46 complete owning files again pass **816 tests**.
+All seven final drills fail and restore exact source bytes; final counts remain
+8/9, 1/9, 1/9, 1/9, 1/39, 3/39 and 1/9 in the table order above. Entry and
+qualified-default guards now fire in `src/core/providers/panelSeam.ts`, so
+canonical schemas stay in the provider bundle. Logs and hashes:
+`temp/provwiz9-final-drill-*.log`, `temp/provwiz9-final-drills.json`.
+
+- `src/host/providers/wizardSave.ts`: `5e16cfd8df09aa14f42e9e3110b5c67c7f4f45b388444728b4413a722b91fae0`
+- `src/core/providers/panelSeam.ts`: `3601f2d2dedb8728f3f3d82c4b9f02f0f46f17f473bcf7f38ff8bfd5354f019a`
+- `src/host/providers/providersHost.ts`: `bc53606e4a19d8ae7f030127b6209d94738695de003d0afa93318a597a60bcda`
+- `src/host/models/modelsPanel.ts`: `f27dc9a608087b72390d79242af3ff0f1beae7a9161ba12c322cfb42a9ef0452`
+
+The restored focused run passes **81 tests**, and the complete request goldens
+again pass **152 tests** after the move (`temp/provwiz9-port-restored-final.log`,
+`temp/provwiz9-port-goldens-final.log`). No test skips or deadline overrides.
+
+## Final gates, build hold and planning status
+
+Final unit-project compiler passes (`temp/provwiz9-port-tsc-final.log`) with the
+lazy preflight port, every host/core/shared/React source and unit fixture. Changed
+file ESLint and Prettier pass. Reference regeneration/check is current (72
+features); localization reports 14 UI / 14 usage tables, 0 problems; host API is
+0 problems. Plain Knip passes with its two inherited configuration hints. The
+final bundle split, host-global and third-party-notice checks each pass (88
+bundled packages). `temp/provwiz9-gates.json` records each real exit code.
+
+Plain jscpd exits 1 with the same inherited **21 clones / 287 lines / 1970 tokens**;
+no new clone. Full `npm run build` exits 1 only at the inherited surface-English
+size gate (**25651 / 25600 bytes**, exactly the unchanged base on this rig).
+All other bundle size/deferred budgets pass. No cap, threshold, ignore, hook or
+timeout was changed. Split runs separately after that size stop and is green;
+this does not turn the full build or aggregate quality green.
+
+| Artifact                      | Final bytes |          Unchanged cap |
+| ----------------------------- | ----------: | ---------------------: |
+| `dist/extension.js`           |      521707 |                 614400 |
+| `dist/modelApi.js`            |      500425 |                 537600 |
+| `dist/providers.js`           |      137641 |                 153600 |
+| `dist/configuredProviders.js` |       27721 |                  51200 |
+| `dist/modelsPanel.js`         |      118489 |                 128000 |
+| `dist/uiText.js`              |       83983 |                 128000 |
+| Chat browser startup          |      750282 |                 921600 |
+| Models browser body           |       63633 |                  76800 |
+| Surface English               |       25651 | 25600 (inherited hold) |
+
+`temp/provwiz9-sizes.json` records all deferred groups. Aggregate quality,
+coverage, packages, installed/editor, hosted multi-OS and live qualification were
+not run under the explicit rig/common brief. No real credentials or paid model
+calls were used; no dependency install, push, rebase or merge occurred.
+
+Planning check: this repository's current planning document is `PLAN.md`.
+PROVWIZ9's implementation, complete scoped regressions, final byte-exact drills
+and shared production rendering checks are complete. Next slice is lead review
+and cross-rig release gates, with the inherited size and duplication holds kept
+visible. PROVSTORE-LOCKLIB follows after M123 lands on main; the accepted
+cross-window last-writer-wins residual is retained at M95 and section 8.
+
+First local commit: `b17170fb9`, with installed hooks at `.husky/_`, output in
+`temp/provwiz9-save-commit.log`. Its staged and committed source/test diffs were
+re-read; drilled source hashes matched after the hook. The following local
+commit carries the lazy-port correction, final qualification record and visual
+receipts. Final commit output, committed-diff and hash checks are retained under
+`temp/provwiz9-final-*`; no hook path or hook behavior was substituted.

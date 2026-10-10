@@ -18,6 +18,8 @@ import { Usd, legacyUsdSchema, type UsdAmount } from '../../../src/shared/usd'
 import type { SettingsSource } from '../../../src/host/settings'
 import { EN } from '../../../src/shared/l10n/en'
 import { UI_TEXT } from '../../../src/shared/constants'
+import { providerEntrySchema } from '../../../src/core/providers/providersFile'
+import { parseModelRef } from '../../../src/core/providers/modelRef'
 import { BASE_LOCALE } from '../../../src/shared/l10n/text'
 import type { HostToWebviewMessage, SettingsSnapshot } from '../../../src/shared/protocol'
 import type { ChatSurface } from '../../../src/host/views/chatSurface'
@@ -371,6 +373,11 @@ export function memoryProvidersStore(
   return {
     current,
     replaced,
+    validate: (entry, ref) => {
+      providerEntrySchema.parse(entry)
+      if (ref !== undefined && parseModelRef(ref) === undefined)
+        throw new Error(UI_TEXT.providerText.schema.modelRef)
+    },
     list: () => Promise.resolve([...current]),
     add: (entry) => {
       if (current.some((existing) => existing.id === entry.id)) {

@@ -19877,7 +19877,11 @@ byte-exact red/restored drills, changed-file format/lint, one unit-project tsc,
 localization/reference/host API, static gates, build budgets and visual checks.
 Record receipts in `docs/certification/provcat.md`. Aggregate quality, coverage,
 packages, hosted multi-OS/editor and live qualification remain lead-owned under
-the rig/common brief; inherited duplication hold remains. No dependency, gate,
+the rig/common brief; inherited duplication hold remains. Schema/default
+preflight stays in the existing lazy provider-store port, keeping provider
+schemas out of the Models host bundle. The unchanged base and this lane both
+produce a 25651-byte surface-English chunk on macbook, over its 25600-byte cap;
+record this inherited build hold without changing the cap. No dependency, gate,
 hook, paid/live call, merge, rebase, push or subagent changes. Shared editor
 bridges receive the same form; ACP's persisted provider schema stays unchanged.
 
@@ -44848,17 +44852,23 @@ is relaxed. No live or paid calls, push, rebase or merge.
 
 **PROVWIZ9 scoped qualification (2026-10-09).** Ordered provider saves remove
 rollback after RVPROVWIZ8C's three P2 findings. All 46 complete owning files
-pass 816 tests at repository deadlines; initial regressions and seven byte-exact
-source drills fail as required and restore source SHA-256. Every partial
-outcome keeps completed writes and refresh warnings append. New-origin rows
-require an origin-bound usable key. Budget-only drafts retain fresh retry
-baselines; quick-pick conflict retries preserve intervening provider edits.
-The explicit rig/common brief delegates aggregate quality, coverage, packages,
-hosted/editor and live qualification to the lead. Retain PROVWIZ8's inherited
-zero-clone hold pending scoped static results; quality is not claimed green.
-Cross-window serialization remains PROVSTORE-LOCKLIB after M123. Final compiler,
-request-golden, individual static/build and visual receipts are recorded under
-PROVWIZ9 in `docs/certification/provcat.md` as they finish.
+pass 816 tests at repository deadlines, including the final lazy-store preflight
+move. Request goldens pass 152; deliberate byte-exact source drills prove guards
+fire. Every partial outcome keeps completed writes and refresh warnings append.
+New-origin rows require an origin-bound usable key. Budget-only drafts retain
+fresh retry baselines; quick-pick conflict retries preserve intervening edits.
+English/German production rendering passes at 690/320 px without document
+overflow. Full quality, coverage, packages, hosted/editor and live qualification
+remain lead-owned under the explicit rig/common brief. Plain jscpd retains the
+same inherited 21 clones / 287 lines / 1970 tokens, with no new clone. Full
+production build is held by surface English at 25651 / 25600 bytes: the unchanged
+base built on this same macbook has exactly the same size/failure, and this lane
+adds no surface bytes. Do not raise the cap or claim full quality green. The
+initial schema split failure is fixed by preflight through the existing lazy
+provider-store port; individual final split/global/notices receipts are recorded
+in `docs/certification/provcat.md`. Next slice: lead review and cross-rig release
+gates, including inherited size/duplication holds; then PROVSTORE-LOCKLIB after
+M123 lands on main for the accepted cross-window residual.
 
 **PROVWIZ8 scoped qualification and retained duplication hold (2026-10-09).**
 Repair RVPROVWIZ7C P2-3/P2-4 with a per-field inverse in the existing provider
