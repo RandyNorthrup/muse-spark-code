@@ -57,7 +57,7 @@ export class OsStoreVaultSlot implements VaultSlotPort {
   readonly tier = 'osStore'
   constructor(
     context: SlotContext,
-    private readonly platform: NodeJS.Platform = process.platform,
+    platform: NodeJS.Platform = process.platform,
     private readonly open?: OpenEntry,
   ) {
     if (platform !== 'linux' && platform !== 'darwin') throw new VaultError('invalid')

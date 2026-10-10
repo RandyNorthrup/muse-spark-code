@@ -354,6 +354,47 @@
       "evidence": [
         "test/unit/vault/vaultBrokerEntry.test.ts > vault broker entry signal handling > closes a starting broker when a signal arrives before startup resolves: Test timed out in 5000ms"
       ]
+    },
+    {
+      "name": "slot-typed-error",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/slots/osStoreVaultSlot.ts",
+          "sha256": "dc6cd5f79fa6097ad9b5177f104513f6f4a09018a9ef5036d2a3ecf5e28d34ff"
+        }
+      ],
+      "evidence": [
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > throws the typed store error with no native text on denied storage",
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > throws the typed store error when the entry cannot be read",
+        "test/unit/osStoreVaultSlot.test.ts > OS-store vault slot > an unusable OS store survives slot unlock as the typed error (3 failed, 10 passed under the mutation)"
+      ]
+    },
+    {
+      "name": "committed-not-revocation",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/core/vault/broker/repository.ts",
+          "sha256": "98b03db16fa31c9f297a0831447f0c25282863b03c55ea9d0b33cd446a8ac89e"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerComposition.test.ts > broker composition over part A blocks > a committed grant save reaches watchers through subscribeCommitted (fails when saveGrant fires notify instead of notifyCommitted; first version passed under the drill because confirmSetup also emits changed, now cleared before the save)"
+      ]
+    },
+    {
+      "name": "lock-erases-pending",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/core/vault/broker/management.ts",
+          "sha256": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerComposition.test.ts > broker composition over part A blocks > a broker lock erases a pending setup through onLocked (fails when noteLocked skips discard)"
+      ]
     }
   ]
 }

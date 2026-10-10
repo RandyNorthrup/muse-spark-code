@@ -23,7 +23,8 @@ import { encodeVaultMaterial } from '../../../src/core/vault/crypto'
 import { type VaultSlotRecord } from '../../../src/shared/vault'
 import { VAULT_LIMITS } from '../../../src/shared/constants'
 import { brokerFixture } from './brokerFixture'
-import { metadata } from '../helpers/vault/fixtures'
+import { managementFixture, stateOf } from './managementFixture'
+import { grant, metadata } from '../helpers/vault/fixtures'
 
 vi.mock(
   '../../../src/core/resources/launcher',
@@ -177,12 +178,13 @@ describe.skipIf(process.platform === 'win32')('broker composition over part A bl
       const stillOpen = await client.send({ kind: 'status' })
       if (stillOpen.kind !== 'status') throw new Error('missing live status')
       expect(stillOpen.status.state).toBe('unlocked')
-      // A committed repository notification, rather than the management add's own changed event.
+      // A saved grant reaches watchers through subscribeCommitted, not the
+      // revocation channel (RVCM1091A F3); the management add has no such event.
       const repoCall = vi.mocked(f.ports.audit).mock.calls[0]
       const repository = repoCall?.[0]
       expect(repository).toBeInstanceOf(VaultStoreRepository)
       changed.mockClear()
-      repository?.notify({ kind: 'item', id: metadata().id })
+      await repository?.saveGrant(grant(), () => undefined)
       expect(changed).toHaveBeenCalledOnce()
       const ciphertext = await readFile(path.join(context.dataDir, 'vault.v1'))
       expect(ciphertext.includes(material.value)).toBe(false)
@@ -205,6 +207,55 @@ describe.skipIf(process.platform === 'win32')('broker composition over part A bl
       for (const value of f.secrets.values()) value.fill(0)
       changed.mockRestore()
       locked.mockRestore()
+    }
+  })
+  it('a committed grant save reaches watchers through subscribeCommitted', async () => {
+    const m = managementFixture()
+    const events: string[] = []
+    const stopWatch = m.management.subscribe((event) => {
+      events.push(event.kind)
+    })
+    // The broker composition wires repository commits to watchers exactly
+    // like this; a saved grant must not need the revocation channel.
+    const stopForward = m.repository.subscribeCommitted(() => {
+      m.management.noteChanged()
+    })
+    const value = randomBytes(32)
+    try {
+      const shown = await m.management.setup()
+      shown.code.fill(0)
+      await m.management.confirmSetup(shown.setupId)
+      // A grant saves only for a present item; the fixture names metadata()'s.
+      await m.repository
+        .current()
+        .write({ metadata: metadata(), material: { kind: 'secret' as const, value } })
+      // Confirming already emits changed; the save must emit one of its own.
+      events.length = 0
+      await m.repository.saveGrant(grant(), () => undefined)
+      expect(events).toContain('changed')
+    } finally {
+      value.fill(0)
+      stopForward()
+      stopWatch()
+    }
+  })
+  it('a broker lock erases a pending setup through onLocked', async () => {
+    const m = managementFixture()
+    const f = await brokerFixture({
+      onLocked: (epoch: number) => {
+        m.management.noteLocked(epoch)
+      },
+    })
+    try {
+      const shown = await m.management.setup()
+      await f.broker.lock()
+      await expect(m.management.confirmSetup(shown.setupId)).rejects.toMatchObject({
+        reason: 'invalid',
+      })
+      expect(await stateOf(m.management)).toBe('uncreated')
+      shown.code.fill(0)
+    } finally {
+      await f.broker.dispose()
     }
   })
 })

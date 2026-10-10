@@ -148,7 +148,9 @@ export async function createVaultBrokerProcess(
       })
       managementRef.current = manage
       const management = manage
-      const unsubscribe = repository.subscribe(() => {
+      // Grant saves no longer fire subscribe(); committed changes reach
+      // watchers through subscribeCommitted (RVCM1091A F3).
+      const unsubscribe = repository.subscribeCommitted(() => {
         management.noteChanged()
       })
       owned.broker = broker
