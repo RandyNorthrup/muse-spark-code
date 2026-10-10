@@ -47,6 +47,7 @@ import {
   type AgentHost,
   type AgentSession,
   isPromptSettledError,
+  isSessionNotLoadedError,
   type ModelSummary,
   type SessionMcpServer,
   type SkillSummary,
@@ -118,7 +119,7 @@ import {
   promptParts,
   UpdateTranslator,
 } from './translate'
-import type { AcpSharingPort } from './sharing'
+import { isAcpSharingFailure, SHARING_FAILURE_CODES, type AcpSharingPort } from './sharing'
 import { acpReportArguments, runAcpReport, type AcpReportsPort } from './reports'
 import { type AcpVault, vaultPermissionAnswer, vaultPermissionOptions, vaultSlash } from './vault'
 import { type VaultApprovalRequest, type VaultApprovalAnswer } from '../shared/vault'
@@ -301,6 +302,28 @@ function accountRequestError(error: unknown): RequestError {
   return text === UI_TEXT.accounts.invalidAccount
     ? RequestError.invalidParams(undefined, text)
     : refusalError(text)
+}
+
+/**
+ * A sharing failure that crossed the lazy bundle, as the ACP error its code
+ * deserves. The engine owns the single RequestError constructor; the adapter
+ * never builds one, so a second bundled copy cannot fail the `instanceof`
+ * check and misreport a refusal as an internal error. Anything else passes
+ * through untouched (notably cancellation).
+ */
+function sharingRequestError(error: unknown): unknown {
+  if (!isAcpSharingFailure(error)) return error
+  switch (error.code) {
+    case SHARING_FAILURE_CODES.invalidParams: {
+      return RequestError.invalidParams(undefined, error.message)
+    }
+    case SHARING_FAILURE_CODES.invalidRequest: {
+      return RequestError.invalidRequest(undefined, error.message)
+    }
+    default: {
+      return RequestError.internalError(undefined, error.message)
+    }
+  }
 }
 
 /** The model a new session starts on: the backend's default, else the first listed. */
@@ -1079,6 +1102,21 @@ class AcpSession {
     }
   }
 
+  /**
+   * One backend session command. Muse Code evicts or closes sessions ACP
+   * still holds (MSP `sessionNotLoaded`); the editor's id then names nothing,
+   * so the request reads as a missing resource, never an internal error.
+   * Any other backend failure propagates as before.
+   */
+  private async sessionCommand(action: () => Promise<void>): Promise<void> {
+    try {
+      await action()
+    } catch (error: unknown) {
+      if (isSessionNotLoadedError(error)) throw RequestError.resourceNotFound(this.sessionId)
+      throw error
+    }
+  }
+
   /** A late answer belongs only to the prompt that asked, while that prompt still runs. */
   private isCurrentPrompt(pending: PendingPrompt | undefined): boolean {
     return !this.isDisposed && this.pending === pending && pending?.isCancelled !== true
@@ -1142,9 +1180,17 @@ class AcpSession {
       this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
       await this.outbox
       return 'end_turn'
-    } catch {
+    } catch (error: unknown) {
       if (stop.signal.aborted) return 'cancelled'
-      throw refusalError(UI_TEXT.legalScanUnavailable)
+      // Only the product's own unloadable-scanner refusal reads as one: a
+      // scanner programming fault stays an internal fault, with the raw
+      // failure in the log and a fixed reason on the wire.
+      if (error instanceof Error && error.message === UI_TEXT.legalScanUnavailable)
+        throw refusalError(UI_TEXT.legalScanUnavailable)
+      this.deps.log.warn(
+        `ACP session ${this.sessionId}: legal scan failed: ${failureForLog(error)}`,
+      )
+      throw RequestError.internalError(undefined, UI_TEXT.actionFailed)
     } finally {
       if (this.legalStop === stop) this.legalStop = undefined
       if (this.preparing === preparing) this.preparing = undefined
@@ -1471,7 +1517,7 @@ class AcpSession {
    */
   public async matchAdvertised(): Promise<void> {
     this.ensureHeld()
-    await this.session.setApprovalMode(approvalModeFor(this.mode, true))
+    await this.sessionCommand(() => this.session.setApprovalMode(approvalModeFor(this.mode, true)))
     const reported = await this.host.listModels(this.sessionId)
     const active = reported.find((model) => model.isActive)
     if (active !== undefined && this.models.some((model) => model.modelId === active.modelId)) {
@@ -1479,7 +1525,7 @@ class AcpSession {
     } else {
       const listed = startingModel(this.models)
       this.ensureHeld()
-      await this.session.setModel(listed)
+      await this.sessionCommand(() => this.session.setModel(listed))
       this.modelId = listed
     }
     await this.applyEffort(this.effort)
@@ -1489,7 +1535,9 @@ class AcpSession {
   public async applyEffort(effort: EffortLevel): Promise<void> {
     const served = servedEffort(this.modelId, effort)
     this.ensureHeld()
-    await this.session.setReasoningEffort(effortForThinking(served, true))
+    await this.sessionCommand(() =>
+      this.session.setReasoningEffort(effortForThinking(served, true)),
+    )
     this.effort = served
   }
 
@@ -1501,7 +1549,7 @@ class AcpSession {
       throw RequestError.invalidParams(undefined, modeId)
     }
     this.ensureHeld()
-    await this.session.setApprovalMode(approvalModeFor(mode, true))
+    await this.sessionCommand(() => this.session.setApprovalMode(approvalModeFor(mode, true)))
     this.mode = mode
   }
 
@@ -1528,7 +1576,7 @@ class AcpSession {
         throw RequestError.invalidParams(undefined, value)
       }
       this.ensureHeld()
-      await this.session.setModel(value)
+      await this.sessionCommand(() => this.session.setModel(value))
       this.modelId = value
       await this.applyEffort(this.effort)
       return
@@ -1630,8 +1678,17 @@ class AcpSession {
         this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
         await this.outbox
         return 'end_turn'
-      } catch {
-        throw refusalError(UI_TEXT.vault.brokerBlocked)
+      } catch (error: unknown) {
+        // Only the broker's own cannot-start refusal reads as one: a protocol
+        // fault (notably a malformed broker status) or a programming fault
+        // stays internal, with the raw failure in the log and a fixed reason
+        // on the wire.
+        if (error instanceof Error && error.message === UI_TEXT.vault.brokerBlocked)
+          throw refusalError(UI_TEXT.vault.brokerBlocked)
+        this.deps.log.warn(
+          `ACP session ${this.sessionId}: vault command failed: ${failureForLog(error)}`,
+        )
+        throw RequestError.internalError(undefined, UI_TEXT.actionFailed)
       } finally {
         if (preparing !== undefined && this.preparing === preparing) this.preparing = undefined
       }
@@ -1847,15 +1904,22 @@ class AcpSession {
           !preparing.isCancelled &&
           !('error' in preparing)
         if (!isActive()) return 'cancelled'
-        const text = await unlessAborted(
-          sharing.execute(parsed.displayText, {
-            cwd: this.cwd,
-            sessionId: this.sessionId,
-            isActive,
-            signal: preparing.abort.signal,
-          }),
-          preparing.abort.signal,
-        )
+        // The lazy sharing bundle's failures become the engine's own
+        // RequestErrors here, where the single constructor lives.
+        let text: string | undefined
+        try {
+          text = await unlessAborted(
+            sharing.execute(parsed.displayText, {
+              cwd: this.cwd,
+              sessionId: this.sessionId,
+              isActive,
+              signal: preparing.abort.signal,
+            }),
+            preparing.abort.signal,
+          )
+        } catch (error: unknown) {
+          throw sharingRequestError(error)
+        }
         if ('error' in preparing) throw preparing.error
         if (text === undefined || !isActive()) return 'cancelled'
         this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })

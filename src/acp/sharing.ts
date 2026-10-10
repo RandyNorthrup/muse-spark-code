@@ -1,9 +1,19 @@
 // Slash commands use the existing ACP prompt/available-commands paths. The host
 // supplies its preview/composer UI bridge; no private ACP method is invented.
-import { RequestError } from '@agentclientprotocol/sdk'
+//
+// This module never imports the ACP SDK: it ships in the lazy sharing bundle
+// as well as the engine, and a second bundled copy of the SDK's RequestError
+// would fail the engine serializer's `instanceof` check and misreport every
+// sharing refusal as an internal error. Failures cross the lazy boundary as
+// AcpSharingFailure (read with isAcpSharingFailure, never `instanceof`); the
+// engine owns the single RequestError constructor and maps them there.
 import { UI_TEXT } from '../shared/constants'
 import { sharingHelp } from '../shared/featureCatalog'
-import { parseSharingSlash, localArgumentError } from '../runtime/sharing/args'
+import {
+  parseSharingSlash,
+  localArgumentError,
+  SharingArgumentError,
+} from '../runtime/sharing/args'
 import type { SharingCommands, SharingUi, SharingResult } from '../runtime/sharing/commands'
 
 export interface AcpSharingContext {
@@ -18,6 +28,44 @@ export interface AcpSharingContext {
 export interface AcpSharingPort {
   commands(): { name: string; description: string; input: { hint: string } | null }[]
   execute(text: string, context: AcpSharingContext): Promise<string>
+}
+
+/**
+ * JSON-RPC codes a sharing failure carries for the engine to map. Named so
+ * no magic number crosses the lazy bundle boundary in either direction.
+ */
+export const SHARING_FAILURE_CODES = {
+  invalidRequest: -32_600,
+  invalidParams: -32_602,
+  internalError: -32_603,
+} as const
+
+/** JSON-RPC code an AcpSharingFailure carries for the engine to map. */
+export type SharingFailureCode = (typeof SHARING_FAILURE_CODES)[keyof typeof SHARING_FAILURE_CODES]
+
+/**
+ * A sharing failure with the JSON-RPC code it deserves. The class is bundled
+ * twice (engine and lazy sharing runtime), so readers use
+ * isAcpSharingFailure, never `instanceof`.
+ */
+export class AcpSharingFailure extends Error {
+  public constructor(
+    public readonly code: SharingFailureCode,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'AcpSharingFailure'
+  }
+}
+
+/** Whether a failure crossed from the sharing adapter, whichever bundle copy threw it. */
+export function isAcpSharingFailure(error: unknown): error is AcpSharingFailure {
+  return (
+    error instanceof Error &&
+    error.name === 'AcpSharingFailure' &&
+    'code' in error &&
+    (Object.values(SHARING_FAILURE_CODES) as readonly unknown[]).includes(error.code)
+  )
 }
 
 function resultText(result: SharingResult): string {
@@ -71,10 +119,12 @@ export function acpSharingCommands(): ReturnType<AcpSharingPort['commands']> {
 
 /**
  * A sharing refusal the product defines, read at use time so the installed
- * language is the one shown. Anything else rethrows: only known refusal
- * sentences may cross the ACP boundary, never an unexpected failure.
+ * language is the one shown. Anything else is not a refusal: caller-owned
+ * input fails as invalid params where it is classified, and an unexpected
+ * failure becomes a sanitized internal fault with no raw text (the SDK copies
+ * ordinary exception messages into error.data.details).
  */
-function sharingRefusal(message: string): RequestError | undefined {
+function sharingRefusal(message: string): string | undefined {
   const refusals = [
     UI_TEXT.exportNothing,
     UI_TEXT.exportHistoryUnavailable,
@@ -93,7 +143,7 @@ function sharingRefusal(message: string): RequestError | undefined {
     UI_TEXT.promptUntrusted,
   ]
   return refusals.includes(message) || message.startsWith(`${UI_TEXT.promptVariables}:`)
-    ? RequestError.invalidRequest(undefined, message)
+    ? message
     : undefined
 }
 
@@ -112,21 +162,26 @@ export function createAcpSharing(
       try {
         parsed = parseSharingSlash(text, context.sessionId)
       } catch (error: unknown) {
-        // Bad flags and unknown actions are invalid params, with their reason.
-        throw RequestError.invalidParams(
-          undefined,
-          error instanceof Error ? error.message : UI_TEXT.promptFileInvalid,
+        // The parser's own error already names the caller's argument in the
+        // installed language; anything else (Node's option diagnostics, a
+        // JSON quote failure) becomes the product's unknown-argument reason.
+        throw new AcpSharingFailure(
+          SHARING_FAILURE_CODES.invalidParams,
+          error instanceof SharingArgumentError ? error.message : localArgumentError(text).message,
         )
       }
       if (parsed === undefined)
-        throw RequestError.invalidParams(undefined, localArgumentError(text).message)
+        throw new AcpSharingFailure(
+          SHARING_FAILURE_CODES.invalidParams,
+          localArgumentError(text).message,
+        )
       if (
         parsed.command.command === 'share' &&
         parsed.command.request.target === 'chat' &&
         parsed.command.request.sessionId !== context.sessionId
       ) {
-        throw RequestError.invalidParams(
-          undefined,
+        throw new AcpSharingFailure(
+          SHARING_FAILURE_CODES.invalidParams,
           localArgumentError(parsed.command.request.sessionId).message,
         )
       }
@@ -138,14 +193,20 @@ export function createAcpSharing(
         })
         return resultText(result)
       } catch (error: unknown) {
-        // An empty conversation shares nothing: the CLI's sentence reaches
-        // the client as its own message, never -32603 internal error.
-        if (error instanceof RequestError) throw error
+        // Cancellation stays cancellable: the engine maps it, never an error.
+        if (context.signal.aborted) throw error
+        if (error instanceof SharingArgumentError)
+          throw new AcpSharingFailure(SHARING_FAILURE_CODES.invalidParams, error.message)
         if (error instanceof Error) {
           const refusal = sharingRefusal(error.message)
-          if (refusal !== undefined) throw refusal
+          if (refusal !== undefined)
+            throw new AcpSharingFailure(SHARING_FAILURE_CODES.invalidRequest, refusal)
         }
-        throw error
+        // An empty conversation shares nothing: the CLI's sentence reaches
+        // the client as its own message, never -32603 internal error. Anything
+        // unrecognized stays internal, with the fixed prompt-file reason in
+        // place of paths, prompt text or raw diagnostics.
+        throw new AcpSharingFailure(SHARING_FAILURE_CODES.internalError, UI_TEXT.promptFileInvalid)
       }
     },
   }
