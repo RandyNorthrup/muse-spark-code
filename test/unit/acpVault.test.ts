@@ -389,7 +389,10 @@ describe('M109 H ACP vault', () => {
       const { sessionId } = await start(client)
       await expect(
         client.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: '/vault' }] }),
-      ).rejects.toThrow(UI_TEXT.vault.brokerBlocked)
+      ).rejects.toMatchObject({
+        code: acp.RequestError.invalidRequest().code,
+        message: expect.stringContaining(UI_TEXT.vault.brokerBlocked),
+      })
       expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
     })
   })

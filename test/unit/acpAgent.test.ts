@@ -872,7 +872,13 @@ describe('the ACP agent (M63)', () => {
       signedOut.run((client) => client.request('authenticate', { methodId: 'muse-code-login' })),
     ).rejects.toMatchObject({ code: -32_000 })
     const missing = harness({ readiness: { state: 'unavailable', message: 'no CLI' } })
-    await expect(missing.run((client) => start(client))).rejects.toMatchObject({ code: -32_603 })
+    await expect(missing.run((client) => start(client))).rejects.toMatchObject({
+      code: -32_600,
+      message: expect.stringContaining('no CLI'),
+    })
+    await expect(
+      missing.run((client) => client.request('authenticate', { methodId: 'muse-code-login' })),
+    ).rejects.toMatchObject({ code: -32_600, message: expect.stringContaining('no CLI') })
     const ready = harness()
     expect(
       await ready.run((client) => client.request('authenticate', { methodId: 'muse-code-login' })),
@@ -880,6 +886,67 @@ describe('the ACP agent (M63)', () => {
     await ready.run((client) => start(client))
     // Only authenticate, after a sign-in in the terminal, asks afresh (PR #49).
     expect(ready.rechecks).toEqual([true, false])
+  })
+
+  describe('refusals read as invalid request, never internal error (DFACPERR)', () => {
+    it('refuses /accounts and account options without a binding', async () => {
+      const h = harness()
+      await h.run(async (client) => {
+        const { sessionId } = await start(client)
+        await expect(prompt(client, sessionId, '/accounts')).rejects.toMatchObject({
+          code: -32_600,
+          message: expect.stringContaining(UI_TEXT.accounts.unavailable),
+        })
+        await expect(
+          client.request('session/set_config_option', {
+            sessionId,
+            configId: 'account',
+            value: 'work',
+          }),
+        ).rejects.toMatchObject({
+          code: -32_600,
+          message: expect.stringContaining(UI_TEXT.accounts.unavailable),
+        })
+        expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+      })
+    })
+
+    it('fails session setup when the backend offers no usable model', async () => {
+      const h = harness()
+      h.host.listModels.mockResolvedValue([])
+      await expect(h.run((client) => start(client))).rejects.toMatchObject({
+        code: -32_600,
+        message: expect.stringContaining(UI_TEXT.acpNoModels),
+      })
+    })
+
+    it('refuses a legal scan that fails instead of sending a model turn', async () => {
+      const h = harness({ legalScan: () => Promise.reject(new Error('no scanner')) })
+      await h.run(async (client) => {
+        const { sessionId } = await start(client)
+        await expect(prompt(client, sessionId, '/legal')).rejects.toMatchObject({
+          code: -32_600,
+          message: expect.stringContaining(UI_TEXT.legalScanUnavailable),
+        })
+        expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+      })
+    })
+
+    it('refuses a turn the backend would not take', async () => {
+      const h = harness()
+      await h.run(async (client) => {
+        const { sessionId } = await start(client)
+        h.host.sessions[0]?.sendTurn.mockResolvedValue({
+          turnId: 'turn-9',
+          disposition: 'denied',
+          userMessageId: undefined,
+        })
+        await expect(prompt(client, sessionId, 'hello')).rejects.toMatchObject({
+          code: -32_600,
+          message: expect.stringContaining(UI_TEXT.answerNotAccepted),
+        })
+      })
+    })
   })
 
   it('starts a session on the default model with the modes and the config options', async () => {
