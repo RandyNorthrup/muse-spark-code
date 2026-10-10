@@ -438,6 +438,7 @@ export function createConfiguredProviderServices(
             effortLevels: capabilities.capabilityEffortLevels(record),
             maxOutputTokens:
               entry.modelLimits?.[nativeModel]?.outputTokens ?? record.output.maxTokens,
+            minOutputTokens: record.output.minTokens,
             canDisableReasoning: record.reasoning.canDisable.state === 'yes',
           },
           pricing,

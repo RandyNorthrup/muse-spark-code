@@ -2087,6 +2087,11 @@ export const MODEL_API_LEGACY_CONTEXT_MODELS: readonly string[] = [
 ]
 // U8/U10 captured selected model; other models retain unknown capability states.
 export const M106_CAPTURED_META_MODEL = 'muse-spark-1.3-contributor'
+// Live capture 2026-10-10 (muse-spark-1.3-contributor): POST /v1/responses
+// with max_output_tokens 1 is a 400 naming max_output_tokens, "The number
+// must be `>= 16`". Never send a smaller output cap to Meta; a budget that
+// cannot fit this refuses instead (sessionBudget.ts).
+export const MODEL_API_MIN_OUTPUT_TOKENS = 16
 export const MODEL_API_MAX_OUTPUT_TOKENS = 32_768
 // M101 C1: keep whole recent turns; summaries and the tail scale down for small windows.
 export const NO_COMPACTABLE_HISTORY = 'no_compactable_history'
@@ -3962,7 +3967,8 @@ export const EXEC_OBSERVER_HIGH_WATER_BYTES = 16_777_216
 export const EXEC_SCAN_MAX_BYTES = 16_777_216
 export const EXEC_SCAN_TIMEOUT_MS = 30_000
 export const EXEC_SCAN_EXIT_FOUND = 10
-export const EXEC_MIN_OUTPUT_TOKENS = 16
+// Headless runs refuse smaller caps at the same floor Meta enforces.
+export const EXEC_MIN_OUTPUT_TOKENS: number = MODEL_API_MIN_OUTPUT_TOKENS
 export const EXEC_IMAGE_N = 1
 export const EXEC_STREAM_IDLE_MS = 300_000
 export const EXEC_USD_UNITS = 1_000_000

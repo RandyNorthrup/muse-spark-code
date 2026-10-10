@@ -2,6 +2,7 @@ import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
   effortForPolicy,
+  minOutputTokensForPolicy,
   modelPolicyFor,
   modelPricedUsage,
   outputLimitFor,
@@ -59,6 +60,12 @@ describe('resolved model policy', () => {
     expect(modelPolicyFor(ref, { capabilities: { toolCalling: false } }).tools.calling.state).toBe(
       'no',
     )
+  })
+
+  it('floors Meta requests at the captured provider minimum and leaves others at one', () => {
+    expect(minOutputTokensForPolicy(modelPolicyFor('muse-spark-1.3'))).toBe(16)
+    expect(minOutputTokensForPolicy(modelPolicyFor(ref))).toBe(1)
+    expect(minOutputTokensForPolicy(modelPolicyFor(ref, { minOutputTokens: 32 }))).toBe(32)
   })
 
   it('retains the exact Meta output cap and effort mapping', () => {
