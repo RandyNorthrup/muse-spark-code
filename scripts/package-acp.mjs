@@ -34,6 +34,7 @@ import {
   JOB_SOURCES,
   LINUX_HELPERS,
   RUNNER_HELPERS,
+  VOICE_WINDOWS_HELPERS,
 } from './lib/acpNativeSources.mjs'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
 
@@ -214,7 +215,7 @@ for (const source of pageAssets) {
   mkdirSync(path.dirname(target), { recursive: true })
   copyFileSync(source, target)
 }
-for (const source of [...JOB_SOURCES, DARWIN_HELPER, ...LINUX_HELPERS]) {
+for (const source of [...JOB_SOURCES, DARWIN_HELPER, ...LINUX_HELPERS, ...VOICE_WINDOWS_HELPERS]) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
   copyFileSync(source, path.join(STAGE, source))
 }
