@@ -1494,6 +1494,7 @@
   "worktreeDetachedHead": "当前检出的提交",
   "worktreeFolderExists": "该文件夹已存在：",
   "worktreeAddFailed": "git 无法创建工作树",
+  "worktreeRecordsWriteUnknown": "工作树记录可能已写入",
   "worktreeCreated": "工作树已就绪，位于 {path}",
   "worktreeOpen": "在新窗口中打开",
   "worktreeListFailed": "git 无法列出工作树",

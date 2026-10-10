@@ -1545,6 +1545,7 @@
   "worktreeDetachedHead": "извлеченная сейчас фиксация",
   "worktreeFolderExists": "Эта папка уже существует:",
   "worktreeAddFailed": "git не удалось создать рабочее дерево",
+  "worktreeRecordsWriteUnknown": "Записи рабочих деревьев могли быть сохранены",
   "worktreeCreated": "Рабочее дерево готово: {path}",
   "worktreeOpen": "Открыть в новом окне",
   "worktreeListFailed": "git не удалось получить список рабочих деревьев",

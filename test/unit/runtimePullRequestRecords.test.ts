@@ -299,7 +299,7 @@ async function seeded(dataFolder: string, folder: string, isTrusted: boolean) {
  * the first generation published after `arm()`: 1 is that publish's own
  * proof, 2 the sweep after it (or, unproven, the reconciliation read).
  */
-function failingListingsAfterLink(failing: readonly number[]) {
+function failingListingsAfterLink(failing: readonly number[], failureCode = 'EACCES') {
   let isArmed = false
   let listings: number | undefined
   let failed = 0
@@ -319,7 +319,7 @@ function failingListingsAfterLink(failing: readonly number[]) {
         if (failing.includes(listings)) {
           failed += 1
           throw Object.assign(new Error(`EACCES: permission denied, scandir '${folder}'`), {
-            code: 'EACCES',
+            code: failureCode,
           })
         }
       }
@@ -477,33 +477,52 @@ describe('worktree record store: fenced reservations (M123 lane P)', () => {
     expect(store.holdsSync(reserved.reservation)).toBe(false)
   })
 
-  it('keeps a landed claim when the sweep after it cannot list the records', async () => {
-    // RVM123P7 finding 1: the claim's generation landed and was proven;
-    // the best-effort sweep's listing then failed once (EACCES). The claim
-    // stands, with its new fence, and its folder is made.
-    const { dataFolder, folder } = await dataSetup()
-    const failing = failingListingsAfterLink([2])
-    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
-      fs: failing.fs,
-    })
-    const reserved = await store.reserve(pendingRecord(folder, 'a'))
-    if (!reserved.ok) {
-      throw new Error('refused')
-    }
-    failing.arm()
-    let made = 0
-    const claimed = await store.claim(reserved.reservation, () => {
-      made += 1
-      return Promise.resolve('made')
-    })
-    expect(failing.failed()).toBe(1)
-    if (claimed.status !== 'made') {
-      throw new Error(`expected a made claim, not ${claimed.status}`)
-    }
-    expect(claimed.reservation.fence).toBeGreaterThan(reserved.reservation.fence)
-    expect(made).toBe(1)
-    expect(store.holdsSync(claimed.reservation)).toBe(true)
-  })
+  it.each([
+    { code: 'EACCES', loggedCode: 'EACCES' },
+    {
+      code: String.raw`EACCES: C:\Users\private\worktree-records`,
+      loggedCode: 'an unrecognized value',
+    },
+  ])(
+    'keeps a landed claim when the sweep after it cannot list the records ($loggedCode)',
+    async ({ code, loggedCode }) => {
+      // RVM123P7 finding 1: the claim's generation landed and was proven;
+      // the best-effort sweep's listing then failed once (EACCES). The claim
+      // stands, with its new fence, and its folder is made.
+      const { dataFolder, folder } = await dataSetup()
+      const failing = failingListingsAfterLink([2], code)
+      const warnings: string[] = []
+      const logger: CoreLogger = {
+        ...log,
+        warn: (message) => {
+          warnings.push(message)
+        },
+      }
+      const store = createFileWorktreeRecordStore(dataFolder, process.platform, logger, {
+        fs: failing.fs,
+      })
+      const reserved = await store.reserve(pendingRecord(folder, 'a'))
+      if (!reserved.ok) {
+        throw new Error('refused')
+      }
+      failing.arm()
+      let made = 0
+      const claimed = await store.claim(reserved.reservation, () => {
+        made += 1
+        return Promise.resolve('made')
+      })
+      expect(failing.failed()).toBe(1)
+      if (claimed.status !== 'made') {
+        throw new Error(`expected a made claim, not ${claimed.status}`)
+      }
+      expect(claimed.reservation.fence).toBeGreaterThan(reserved.reservation.fence)
+      expect(made).toBe(1)
+      expect(store.holdsSync(claimed.reservation)).toBe(true)
+      expect(warnings).toEqual([
+        `The worktree records sweep listing failed (${loggedCode}); the next write tries again`,
+      ])
+    },
+  )
 
   it('keeps a landed claim whose proof cannot be read, once the head shows it', async () => {
     const { dataFolder, folder } = await dataSetup()
