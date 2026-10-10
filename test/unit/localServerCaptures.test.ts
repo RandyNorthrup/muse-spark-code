@@ -23,7 +23,11 @@ import {
   type ResponseObject,
 } from '../../src/core/backends/modelapi/schemas'
 import { classifyContextOverflow } from '../../src/core/context/overflow'
-import { parseNativeModelsList } from '../../src/core/providers/modelMetadata'
+import {
+  nativeCapabilityEvidence,
+  parseNativeModelsList,
+} from '../../src/core/providers/modelMetadata'
+import { presetById } from '../../src/core/providers/presets'
 
 const CHAT_LIMITS = {
   frameBytes: 64 * 1024,
@@ -134,6 +138,34 @@ describe('llama.cpp captures (b11541)', () => {
     const meta = recordField(rows[0]?.['meta'], 'model meta')
     expect(meta['n_ctx']).toBe(4096)
     expect(meta['n_ctx_train']).toBe(40_960)
+  })
+
+  it('reads the scanned window from the captured list, not the Meta default', () => {
+    // C-M95-4 R2: the scan used to leave a llama.cpp model windowless, so
+    // manual compact assumed Meta's 1,048,576-token window on a 4096-token
+    // server. The captured sample must evidence the live window.
+    const frame = recordField(captureFile('llamacpp', '01-models-list.json'), 'models list')
+    const response = recordField(frame['response'], 'response')
+    const summary = recordField(response['bodySummary'], 'body summary')
+    const rows = parseNativeModelsList({ data: summary['sample'] })
+    const evidence = nativeCapabilityEvidence('llamacpp', rows[0], {
+      kind: 'models-list',
+      ref: 'test',
+    })
+    expect(evidence.fields.limits?.contextTokens).toBe(4096)
+  })
+
+  it('stamps each preset with its ledger server version', () => {
+    // C-M95-4 R2: the stamp is what the quirks were proven against; the
+    // scan names it when it fails closed on an unknown build.
+    const versionOf = (provider: string) => {
+      const ledger = ledgerOf(provider)
+      const versions = new Set(ledger.map((row) => row.serverVersion))
+      expect(versions.size).toBe(1)
+      return [...versions][0]
+    }
+    expect(presetById('llamacpp')?.capturedBuild).toBe(versionOf('llamacpp'))
+    expect(presetById('lmstudio')?.capturedBuild).toBe(versionOf('lmstudio'))
   })
 
   it('decodes the plain reply with usage on a choices-less chunk', () => {

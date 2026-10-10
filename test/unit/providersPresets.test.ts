@@ -17,6 +17,7 @@ import {
   presetsByCategory,
   PRESETS,
   quirksOf,
+  replayFieldFor,
   isKeyShape,
   FORMAT_QUIRKS,
   type ProviderPreset,
@@ -207,6 +208,30 @@ describe('the preset table', () => {
     expect(azureOrigin('has space')).toBeUndefined()
     expect(azureOrigin('ab')).toBeUndefined()
     expect(azureOrigin('has.dot')).toBeUndefined()
+  })
+
+  it('never replays thinking to an unversioned local server (fail closed)', () => {
+    // C-M95-4 R2: neither local list carries a version, so a build older
+    // or newer than the capture may not understand the captured replay
+    // field. Local presets replay nothing; the decoder still displays
+    // every reasoning field.
+    for (const id of ['ollama', 'lmstudio', 'vllm', 'llamacpp']) {
+      expect(replayFieldFor(preset(id))).toBe('none')
+    }
+    expect(replayFieldFor(preset('openrouter'))).toBe('details')
+    expect(replayFieldFor(preset('deepseek'))).toBe('content')
+    expect(replayFieldFor(preset('openai'))).toBe('none')
+    expect(replayFieldFor(preset('groq'))).toBe('none')
+  })
+
+  it('stamps the captured server build on captured local presets only', () => {
+    // C-M95-4 R2: the stamp names what the quirks were proven against
+    // (the capture ledgers); the scan names it when it fails closed.
+    expect(preset('llamacpp').capturedBuild).toBe('b11541 (0.6.0-dev, commit f2918cabb)')
+    expect(preset('lmstudio').capturedBuild).toBe('llmster 0.0.25-1')
+    for (const id of ['openai', 'ollama', 'vllm', 'custom']) {
+      expect(preset(id).capturedBuild).toBeUndefined()
+    }
   })
 })
 

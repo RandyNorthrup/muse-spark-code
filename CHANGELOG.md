@@ -90,6 +90,21 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Local-server scan and panel honesty (M95 C-M95-4 R2, review RVCM954).
+  Scan this computer settles every probe answer exactly once: a 204, 205
+  or 304 answer (no body allowed) resolves with its status instead of
+  throwing past settlement and timing out as unanswered, and bracketed
+  `http://[::1]/...` probes pass the loopback allowlist. A scanned
+  llama.cpp model now evidences its live `meta.n_ctx` window (4096 in the
+  capture) instead of staying windowless while manual compact assumed
+  Meta's window, and a llama.cpp list without it fails the scan closed.
+  Presets without a wire capture stay out of the Models panel and refuse
+  to send (vLLM, Ollama), keyless or not. Thinking is still displayed
+  from every reasoning field but never replays to an unversioned local
+  server, whose list carries no version; each captured local preset
+  stamps the build its quirks were proven against (llama.cpp b11541, LM
+  Studio llmster 0.0.25-1).
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
