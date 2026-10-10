@@ -207,6 +207,12 @@ describe('PaidUsage and the prices (M33)', () => {
       usage.add('webSearch', 1)
     }).toThrow('verified tariff')
   })
+  it('keeps the sentence-case error when a voice batch has no usable duration', () => {
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    expect(() => {
+      usage.addVoiceBatch(-1)
+    }).toThrow('Duration unknown')
+  })
   it('counts an attempted child request as unpriced until its usage arrives', () => {
     const usage = new PaidUsage(new FakeLogOutputChannel())
     usage.add('subagents', 1)

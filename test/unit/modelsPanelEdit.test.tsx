@@ -207,7 +207,7 @@ describe('Saved custom provider Edit through the shared form and production stor
     await waitFor(() => {
       expect(
         screen.getByText(
-          fill(UI_TEXT.setupComplete, { provider: 'Custom server', model: 'custom/m1' }),
+          fill(UI_TEXT.setupComplete, { provider: 'Custom Server', model: 'custom/m1' }),
         ),
       ).toBeDefined()
     })
@@ -925,7 +925,7 @@ describe('Saved custom provider Edit through the shared form and production stor
     expect(held).toHaveBeenCalledOnce()
     expect(await seam.store.list()).toMatchObject([{ modelLimits: { m1: { outputTokens: 8000 } } }])
     expect(state().notice).toBe(
-      fill(UI_TEXT.setupComplete, { provider: 'Custom server', model: 'custom/m1' }),
+      fill(UI_TEXT.setupComplete, { provider: 'Custom Server', model: 'custom/m1' }),
     )
     post({ type: 'providers/save', providerId: 'custom', useNow: false })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providerEdit }))
@@ -934,7 +934,7 @@ describe('Saved custom provider Edit through the shared form and production stor
     })
     expect(held).toHaveBeenCalledOnce()
     expect(state().notice).toBe(
-      fill(UI_TEXT.setupComplete, { provider: 'Custom server', model: 'custom/m1' }),
+      fill(UI_TEXT.setupComplete, { provider: 'Custom Server', model: 'custom/m1' }),
     )
     host.dispose()
   })

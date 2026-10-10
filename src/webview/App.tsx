@@ -2114,7 +2114,7 @@ export function App({
     },
     [store, dispatch, postMessage],
   )
-  // "Rewind code to here": the host reverts the edits after that message,
+  // "Rewind Code to Here": the host reverts the edits after that message,
   // newest first, and says so (or that there was nothing to revert).
   const onRewind = useCallback(
     (entryId: string) => {
@@ -2134,7 +2134,7 @@ export function App({
     },
     [store, dispatch, postMessage],
   )
-  // "Restore files to here" (M72): the host confirms, restores and reports.
+  // "Restore Files to Here" (M72): the host confirms, restores and reports.
   const onRestoreFiles = useCallback(
     (entryId: string) => {
       const current = store.getState()
@@ -2150,7 +2150,7 @@ export function App({
     },
     [store, postMessage],
   )
-  // "Rewind conversation and restore files" (M72): the files first, then M53's rewind.
+  // "Rewind Conversation and Restore Files" (M72): the files first, then M53's rewind.
   const onRestoreBoth = useCallback(
     (entryId: string) => {
       const request = rewindRequest(store.getState(), entryId)
@@ -2178,7 +2178,7 @@ export function App({
     },
     [store, dispatch, postMessage],
   )
-  // "Report this" on a recorded failure (M93 lane W): the row's
+  // "Report This" on a recorded failure (M93 lane W): the row's
   // sanitized event reference opens the report workflow, never its text.
   const onReportProblem = useCallback(
     (_entryId: string, ref: ReportEventRef) => {
@@ -2277,7 +2277,7 @@ export function App({
         setOverlay(undefined)
         return
       }
-      // "Add context": start an @-mention where the caret is; the mention
+      // "Add Context": start an @-mention where the caret is; the mention
       // menu opens as soon as the `@` lands. A mention token must follow
       // whitespace, so one is added after a non-blank draft.
       const { draft } = store.getState()

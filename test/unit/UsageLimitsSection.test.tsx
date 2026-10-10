@@ -44,7 +44,7 @@ describe('usage limits', () => {
       <LimitCard snapshot={snapshot} window={snapshot.windows[0]!} now={NOW + USAGE_STALE_MS} />,
     )
     expect(screen.queryByText('Stale')).toBeNull()
-    expect(screen.getByRole('heading', { name: 'museCode: 5-hour window' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'museCode: 5-Hour Window' })).toBeInTheDocument()
     expect(screen.getByText(/Pace:/)).toBeInTheDocument()
     rerender(
       <LimitCard
@@ -100,9 +100,9 @@ describe('usage limits', () => {
     expect(screen.getByRole('progressbar', { name: /70%/ })).toBeInTheDocument()
     expect(screen.queryByRole('progressbar', { name: /62%/ })).toBeNull()
     const raw = screen
-      .getByRole('heading', { name: 'Request & token rate limits: openai' })
+      .getByRole('heading', { name: 'Request & Token Rate Limits: openai' })
       .closest('article')!
-    expect(within(raw).getByText('As reported')).toBeInTheDocument()
+    expect(within(raw).getByText('As Reported')).toBeInTheDocument()
     expect(within(raw).getByText('6m0s')).toBeInTheDocument()
     expect(within(raw).queryByRole('progressbar')).toBeNull()
     expect(
@@ -113,16 +113,16 @@ describe('usage limits', () => {
     const budget = usageStateFor('over-limit', NOW).budgets[0]!
     const { rerender } = render(<BudgetCard budget={budget} now={NOW} />)
     expect(screen.getByText('Stopped')).toBeInTheDocument()
-    expect(screen.getByText('Raised for today')).toBeInTheDocument()
+    expect(screen.getByText('Raised for Today')).toBeInTheDocument()
     expect(screen.getByText(/Uncertain: \$0.10/)).toBeInTheDocument()
     expect(
-      screen.getByText('Daily spend & projection', { selector: 'figcaption' }),
+      screen.getByText('Daily Spend & Projection', { selector: 'figcaption' }),
     ).toBeInTheDocument()
     rerender(
       <BudgetCard budget={{ ...budget, capUsd: undefined, projectedUsd: undefined }} now={NOW} />,
     )
     expect(screen.queryByRole('progressbar')).toBeNull()
-    expect(screen.queryByText('Daily spend & projection', { selector: 'figcaption' })).toBeNull()
+    expect(screen.queryByText('Daily Spend & Projection', { selector: 'figcaption' })).toBeNull()
     expect(
       screen.getByText('Projection appears after at least 30m of spend today.'),
     ).toBeInTheDocument()
@@ -140,7 +140,7 @@ describe('usage limits', () => {
     })
     const { rerender } = render(<LimitsSection state={state} post={vi.fn()} now={() => NOW} />)
     const account = screen
-      .getByRole('heading', { name: 'Provider account budget: openrouter' })
+      .getByRole('heading', { name: 'Provider Account Budget: openrouter' })
       .closest('article')!
     expect(within(account).getByText('monthly')).toBeInTheDocument()
     expect(within(account).getByRole('progressbar')).toHaveAttribute('value', '20')

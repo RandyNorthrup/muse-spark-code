@@ -7,7 +7,7 @@ import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 //
 // What the panel guarantees holds here too: an approval is decided only
 // with a choice the backend offered, and one the client did not answer is
-// denied (D62); "Edit automatically" answers only what the panel's rule
+// denied (D62); "Edit Automatically" answers only what the panel's rule
 // allows (`editAutomaticallyChoice`, D24); a paid feature is on only with
 // its flag, and each use asks in the editor first, naming its price (M58,
 // paid.ts). Every update of a turn goes out before the turn's response.

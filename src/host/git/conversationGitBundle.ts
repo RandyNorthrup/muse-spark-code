@@ -1,7 +1,7 @@
 // M71's implementation loads at its existing construction points (PLAN.md
 // D6): a conversation's Git adapter when the conversation is made, and the
 // window's git and pull request features with the first of those or the
-// first "Open a pull request in a conversation…". The activation bundle
+// first "Open a Pull Request in a Conversation…". The activation bundle
 // retains this checked loader and type-only ports: a value imported from the
 // bundle's side would carry the GitHub client, the checkout and VS Code's
 // git extension adapter back into dist/extension.js, which the bundle-split
@@ -83,7 +83,7 @@ export function conversationGitFactory(
 }
 
 /**
- * "Open a pull request in a conversation…": when the bundle cannot load,
+ * "Open a Pull Request in a Conversation…": when the bundle cannot load,
  * the command is refused with Git's unavailable error (the log has the
  * cause), as a repository Git cannot reach is, and the next press tries again.
  */

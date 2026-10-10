@@ -384,10 +384,10 @@ describe('M116 shared playbook surfaces', () => {
     expect(
       screen.getByText(/Concurrency: 3 review rounds/u, { selector: 'span' }),
     ).toHaveTextContent('3 review rounds')
-    expect(screen.getByText(/Redesign outcome/u)).toHaveTextContent(
+    expect(screen.getByText(/Redesign Outcome/u)).toHaveTextContent(
       UI_TEXT.playbookResolutions.caught,
     )
-    expect(screen.queryByText(/Structurally impossible/u)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Structurally Impossible/u)).not.toBeInTheDocument()
   })
 
   it('places transcript failure notes before informational progress', () => {

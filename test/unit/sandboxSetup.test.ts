@@ -101,14 +101,14 @@ describe('SandboxSetup.offerIfNeeded', () => {
     expect(t.showWarning).not.toHaveBeenCalled()
   })
 
-  it('sets up through UAC on "Set up now" and reports the re-check', async () => {
-    const t = setup({ checks: [SETUP_REQUIRED, READY] }, { choice: 'Set up now' })
+  it('sets up through UAC on "Set Up Now" and reports the re-check', async () => {
+    const t = setup({ checks: [SETUP_REQUIRED, READY] }, { choice: 'Set Up Now' })
     await t.sandbox.offerIfNeeded('startup')
     expect(t.showWarning).toHaveBeenCalledWith(
       expect.stringContaining('administrator'),
-      'Set up now',
-      'Not now',
-      "Don't ask again",
+      'Set Up Now',
+      'Not Now',
+      "Don't Ask Again",
     )
     expect(t.runs.map((r) => isSetupRun(r))).toEqual([false, true, false])
     expect(t.runs[1]?.args.at(-1)).toContain('-Verb RunAs')
@@ -123,7 +123,7 @@ describe('SandboxSetup.offerIfNeeded', () => {
         setupExitCode: 1,
         setupStderr: 'The operation was canceled by the user.\nat line 1',
       },
-      { choice: 'Set up now' },
+      { choice: 'Set Up Now' },
     )
     await t.sandbox.offerIfNeeded('startup')
     expect(t.runs).toHaveLength(2)
@@ -134,15 +134,15 @@ describe('SandboxSetup.offerIfNeeded', () => {
   })
 
   it('warns with the reason when the setup ran but the sandbox is still not ready', async () => {
-    const t = setup({ checks: [SETUP_REQUIRED, SETUP_REQUIRED] }, { choice: 'Set up now' })
+    const t = setup({ checks: [SETUP_REQUIRED, SETUP_REQUIRED] }, { choice: 'Set Up Now' })
     await t.sandbox.offerIfNeeded('startup')
     expect(t.showWarning).toHaveBeenLastCalledWith(
       'Muse Code sandbox is still not ready: sandbox users are not ready.',
     )
   })
 
-  it('asks once per host on startup, even after "Not now"', async () => {
-    const t = setup({ checks: [SETUP_REQUIRED] }, { choice: 'Not now' })
+  it('asks once per host on startup, even after "Not Now"', async () => {
+    const t = setup({ checks: [SETUP_REQUIRED] }, { choice: 'Not Now' })
     await t.sandbox.offerIfNeeded('startup')
     await t.sandbox.offerIfNeeded('startup')
     expect(t.showWarning).toHaveBeenCalledTimes(1)
@@ -150,7 +150,7 @@ describe('SandboxSetup.offerIfNeeded', () => {
   })
 
   it('asks again when a shell tool fails, but not while an offer is open', async () => {
-    const t = setup({ checks: [SETUP_REQUIRED, SETUP_REQUIRED] }, { choice: 'Not now' })
+    const t = setup({ checks: [SETUP_REQUIRED, SETUP_REQUIRED] }, { choice: 'Not Now' })
     await t.sandbox.offerIfNeeded('startup')
     const first = t.sandbox.offerIfNeeded('failure')
     const second = t.sandbox.offerIfNeeded('failure')
@@ -160,12 +160,12 @@ describe('SandboxSetup.offerIfNeeded', () => {
   })
 
   it('remembers "Don\'t ask again" for startup offers only', async () => {
-    const t = setup({ checks: [SETUP_REQUIRED, SETUP_REQUIRED] }, { choice: "Don't ask again" })
+    const t = setup({ checks: [SETUP_REQUIRED, SETUP_REQUIRED] }, { choice: "Don't Ask Again" })
     await t.sandbox.offerIfNeeded('startup')
     expect(t.suppressPrompt).toHaveBeenCalledTimes(1)
     const suppressed = setup(
       { checks: [SETUP_REQUIRED] },
-      { isSuppressed: true, choice: 'Not now' },
+      { isSuppressed: true, choice: 'Not Now' },
     )
     await suppressed.sandbox.offerIfNeeded('startup')
     expect(suppressed.runs).toHaveLength(0)

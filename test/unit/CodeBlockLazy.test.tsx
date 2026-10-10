@@ -38,7 +38,7 @@ describe('code while its highlighting chunk loads', () => {
     const latest = 'const latest = "<img src=x onerror=alert(1)>"'
     rerender(<CodeBlock code={latest} language="ts" {...actions} />)
     fireEvent.click(screen.getByText('Copy'))
-    fireEvent.click(screen.getByText('Insert at cursor'))
+    fireEvent.click(screen.getByText('Insert at Cursor'))
     fireEvent.click(screen.getByText('Apply'))
     expect(onCopy).toHaveBeenLastCalledWith(latest)
     expect(onInsert).toHaveBeenLastCalledWith(latest)

@@ -114,7 +114,7 @@ describe('ProvidersSection', () => {
         )}
       />,
     )
-    expect(screen.queryByRole('button', { name: 'Connect OpenRouter account' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Connect OpenRouter Account' })).toBeNull()
     expect(
       screen.getByText(
         'OpenRouter account connection and key usage are not available yet. Paste a key to use models.',
@@ -349,7 +349,7 @@ describe('ProvidersSection', () => {
       },
     })
     render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Ollama on port 11434' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ollama on Port 11434' }))
     expect(post).toHaveBeenNthCalledWith(1, { type: 'providers/select', presetId: 'ollama' })
     expect(post).toHaveBeenNthCalledWith(2, {
       type: 'providers/prefill',
@@ -370,8 +370,8 @@ describe('ProvidersSection', () => {
     })
     render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
     expect(screen.getByText('Nothing is running on this computer yet.')).toBeDefined()
-    expect(screen.getByText('Ollama on port 11434')).toBeDefined()
-    expect(screen.getByText('LM Studio on port 1234')).toBeDefined()
+    expect(screen.getByText('Ollama on Port 11434')).toBeDefined()
+    expect(screen.getByText('LM Studio on Port 1234')).toBeDefined()
     expect(post).not.toHaveBeenCalled()
   })
 
@@ -386,7 +386,7 @@ describe('ProvidersSection', () => {
     render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.enterKey }))
     expect(post).toHaveBeenCalledWith({ type: 'providers/enterKey', mode: 'new' })
-    fireEvent.click(screen.getByRole('button', { name: 'Connect OpenRouter account' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Connect OpenRouter Account' }))
     expect(post).toHaveBeenCalledWith({ type: 'providers/connect' })
   })
 
@@ -521,9 +521,9 @@ describe('ProvidersSection', () => {
       },
     })
     render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
-    const zdr = screen.getByRole('radio', { name: /No data retention/ })
+    const zdr = screen.getByRole('radio', { name: /No Data Retention/ })
     expect((zdr as HTMLInputElement).checked).toBe(true)
-    fireEvent.click(screen.getByRole('radio', { name: /No training/ }))
+    fireEvent.click(screen.getByRole('radio', { name: /No Training/ }))
     expect(post).toHaveBeenCalledWith({
       type: 'providers/prefill',
       fields: { privacy: 'no-training' },
@@ -639,7 +639,7 @@ describe('ProvidersSection', () => {
     render(<ProvidersSection {...props(state, post, { importOpen: true })} />)
     expect(screen.getByText(UI_TEXT.providerImportPreviewTitle)).toBeDefined()
     expect(screen.getByText(UI_TEXT.importUntrusted)).toBeDefined()
-    expect(screen.getByText(UI_TEXT.importNeedsKey)).toBeDefined()
+    expect(screen.getByText(UI_TEXT.importNeedsKeyLabel)).toBeDefined()
     const confirm = screen.getAllByRole('button', { name: UI_TEXT.providerImport }).at(-1)
     fireEvent.click(confirm ?? fail('import confirm missing'))
     expect(post).toHaveBeenCalledWith({

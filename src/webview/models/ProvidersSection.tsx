@@ -426,7 +426,7 @@ function ImportPane({
               <li key={provider.id}>
                 <span>{provider.label ?? provider.id}</span>
                 <span className="models-origin">{provider.address}</span>
-                <span className="models-needs-key">{UI_TEXT.importNeedsKey}</span>
+                <span className="models-needs-key">{UI_TEXT.importNeedsKeyLabel}</span>
               </li>
             ))}
           </ul>

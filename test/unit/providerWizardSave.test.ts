@@ -426,7 +426,7 @@ describe('saveWizardDraft', () => {
         },
         { ...DRAFT, provider: { ...DRAFT.provider, privateNetwork: true } },
       ),
-    ).rejects.toThrow()
+    ).rejects.toThrow('Use it anyway')
     expect(parts.store.current).toEqual([])
   })
 

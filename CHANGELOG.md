@@ -71,6 +71,22 @@ happened, not what was planned; superseded entries are kept.
 - The Model API backend's session store loads with that backend instead of
   at activation (its own `dist/modelApiSessions.js`), taking 24.5 KB off the
   activation bundle; sessions are kept and read as before (ACTBUD017).
+- **English titles and labels use Title Case.** Buttons, menu items, tabs,
+  headings, dialog and section titles, chips, badges, column headers, field
+  labels and command titles now capitalize every major word ("Rewind
+  Conversation to Here", "Open in Browser", "Account & Usage"). Sentences,
+  notices, tooltips that are sentences, placeholders and error messages keep
+  sentence case. Other languages keep their own convention; their labels and
+  badges that began in lower case ("aktuell", "payant") now start with a
+  capital. A follow-up pass cases sixty labels the first pass missed (count
+  and state labels such as **1 Background Task** and **Running**) and keeps
+  error text that shares a key with a label in sentence case (`Duration
+  unknown`, `Stop upload`, `All slots busy`), with separate label keys for
+  the chips and buttons that show those words. A later pass splits two more
+  shared keys the same way: the missing-key failure stays `needs a key`
+  while its labels read **Needs a Key**, and the unconfirmed private-network
+  failure stays `Use it anyway` while its dialog button reads **Use It
+  Anyway**.
 
 ### Fixed
 
@@ -339,12 +355,12 @@ happened, not what was planned; superseded entries are kept.
 - The provider wizard stores the conversation spending limit as the number
   its native setting requires, refusing amounts that would lose decimal
   precision or overflow at that boundary.
-- Models & Agents: **Scan this computer** offers every local server that answers
-  ("Ollama on port 11434"); choosing one opens its wizard with the local port
+- Models & Agents: **Scan This Computer** offers every local server that answers
+  ("Ollama on Port 11434"); choosing one opens its wizard with the local port
   filled, and an empty scan says nothing is running yet and names each local app
   with its usual port. Previously it kept only the first answer, asked for a
   local port it never used, and said nothing when nothing answered. Mistral's
-  plan key now has its own "Mistral plan" label and a sentence saying it uses
+  plan key now has its own "Mistral Plan" label and a sentence saying it uses
   the subscription's credits, not pay-as-you-go billing. The Copilot sign-in
   has its own sentence (VS Code's granted models, billed to the Copilot plan
   or AI credits) instead of repeating ChatGPT's notice.
@@ -398,7 +414,7 @@ happened, not what was planned; superseded entries are kept.
   Previously the wizard accepted a "Session budget" and reported setup
   success while the enforced cap stayed unchanged, so a typed USD 2 left the
   conversation unlimited. The suggestions step now labels the field
-  "Spending limit per conversation (USD, 0 = no limit)", shows "This is your
+  "Spending Limit per Conversation (USD, 0 = No Limit)", shows "This is your
   setting for every conversation; it is $X now", prefills the current
   effective value, and the typed number counts on Continue and on Save. An
   unchanged value writes nothing; a changed one is written at the scope it

@@ -148,7 +148,7 @@ describe('U approval cards', () => {
     expect(screen.getByRole('button', { name: UI_TEXT.allowOnce })).toBeDisabled()
     expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.vault.approvalExpired)
   })
-  it('V4 presence, unproven SSH destination and taint are shown; Manage never grants', () => {
+  it('V4 presence, unproven SSH Destination and taint are shown; Manage never grants', () => {
     const request = approval()
     request.item.requirePresence = true
     request.use = {
@@ -322,7 +322,7 @@ describe('U Vault section', () => {
       />,
     )
     fireEvent.change(screen.getByLabelText(/Workspaces/), { target: { value: 'workspace' } })
-    fireEvent.change(screen.getByLabelText(/Use count/), { target: { value: '2' } })
+    fireEvent.change(screen.getByLabelText(/Use Count/), { target: { value: '2' } })
     fireEvent.change(screen.getByLabelText(/Days/), { target: { value: '1\n2' } })
     fireEvent.change(screen.getByLabelText(/endHour/), { target: { value: '17' } })
     fireEvent.submit(screen.getByRole('button', { name: UI_TEXT.vault.grant }).closest('form')!)
@@ -335,7 +335,7 @@ describe('U Vault section', () => {
       window: { days: [1, 2], startHour: 0, endHour: 17 },
       createdBy: 'vaultPanel',
     })
-    fireEvent.change(screen.getByLabelText(/Use count/), { target: { value: '0' } })
+    fireEvent.change(screen.getByLabelText(/Use Count/), { target: { value: '0' } })
     fireEvent.submit(screen.getByRole('button', { name: UI_TEXT.vault.grant }).closest('form')!)
     expect(saved).toHaveBeenCalledOnce()
     expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.vault.invalidFields)

@@ -140,7 +140,7 @@ export interface GitWindow {
     check: () => void,
   ) => Promise<string>
   readonly pickRemote: (names: readonly string[]) => Promise<string | undefined>
-  /** The held window's "Trust this worktree…": asks, and releases the hold on a yes. */
+  /** The held window's "Trust This Worktree…": asks, and releases the hold on a yes. */
   readonly confirmWorktreeTrust: () => Promise<void>
   readonly now: () => number
   readonly log: Logger

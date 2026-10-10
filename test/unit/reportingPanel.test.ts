@@ -141,13 +141,13 @@ describe('M113 VS Code report tab', () => {
     expect(panel.webview.postMessage).not.toHaveBeenCalled()
     panel.webview.messages.fire({ type: 'reportingReady' })
     expect(t.state().header).toEqual(t.document.header)
-    expect(t.state().html).toContain('Needs you')
+    expect(t.state().html).toContain('Needs You')
     expect(t.reports.run).toHaveBeenCalledWith({
       workspaceKey: 'workspace-fixture',
       options: expect.objectContaining({ kind: 'project', full: true, network: false }),
     })
     panel.webview.messages.fire({ type: 'reportingReady' })
-    expect(t.state().html).toContain('Needs you')
+    expect(t.state().html).toContain('Needs You')
   })
 
   it('copies and attaches renderer Markdown without submitting a model turn', async () => {
