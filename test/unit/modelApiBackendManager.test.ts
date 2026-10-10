@@ -247,6 +247,68 @@ describe('ModelApiBackendManager', () => {
     }
   })
 
+  it('binds a qualified selected record through the unmanaged production path', async () => {
+    // RVCM1062 P2: a BYO record with authoritative output.maxTokens = 65536
+    // must request 65536 through the production path (manager → entry), not
+    // the legacy 32768. No caller supplies preview or cap deps: the entry
+    // binds the registry record the host resolves for the selected model.
+    // Without a streaming-argument capture the turn stays preview-free.
+    const api = fakeModelApi()
+    const provider = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const ref = 'team/small'
+    const registry = createProviderRegistry({
+      models: () =>
+        Promise.resolve([
+          {
+            ref,
+            origin: 'https://example.test',
+            pricing: { kind: 'local' },
+            evidence: {
+              capabilities: { toolCalling: true },
+              maxOutputTokens: 65_536,
+            },
+          },
+        ]),
+      createClient: () => Promise.resolve(fakeModelApiClient(provider, log)),
+      isCurrent: () => true,
+    })
+    const manager = new ModelApiBackendManager(
+      fakeManagerDeps(api, log, {
+        workspaceRoot: '/ws',
+        store: undefined,
+        bundlePath: 'src/host/backend/modelApiEntry.ts',
+        loadBundle: () => modelApiEntry,
+        createProviders: () => Promise.resolve(registry),
+      }),
+    )
+    try {
+      const host = await manager.ensureHost()
+      const session = await host.startSession({
+        workspaceRoot: '/ws',
+        modelId: 'muse-spark-1.3',
+        approvalMode: 'allowAll',
+      })
+      await session.setModel(ref)
+      const watched = watchSessionTurns(session)
+      provider.script(
+        { calls: [{ name: 'read_file', arguments: '{"path":"a.txt"}', callId: 'c1' }] },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'read it' }])
+      await watched.turnDone()
+      expect(watched.events.filter((event) => event.type === 'toolArgumentPreview')).toEqual([])
+      const bodies = provider.responseBodies()
+      expect(bodies.length).toBeGreaterThan(0)
+      for (const body of bodies) {
+        expect(body['max_output_tokens']).toBe(65_536)
+      }
+      expect(JSON.stringify(bodies)).not.toContain('argumentPreview')
+    } finally {
+      await manager.dispose()
+    }
+  })
+
   it('keeps a caller-supplied selected record ahead of the Meta default', async () => {
     const create = vi.spyOn(modelApiEntry, 'createModelApiHost')
     const api = fakeModelApi()

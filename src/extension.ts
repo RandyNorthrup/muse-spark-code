@@ -6,6 +6,7 @@ import {
   REFERENCE_BUNDLE_FILE,
   VAULT_BUNDLE_FILE,
   PROVIDER_SECRET_PREFIX,
+  SECRET_KEYS,
   PROVIDERS_CONFIG_DIR_NAME,
   PROVIDERS_FILE_NAME,
   LEGAL_REGISTRY_NOTICE_KEY,
@@ -2542,6 +2543,24 @@ async function activateWindow(
         ? meta
         : await subscriptionFeatures().createClient(meta),
     getProviderAccountId: () => subscriptionFeatures().accountId(),
+    // M106 R2: the M95 registry resolver, so the entry's per-request
+    // suppliers bind the selected BYO record (its output.maxTokens) instead
+    // of the legacy caps. The module is already its own split chunk
+    // (dist/configuredProviders.js); this lazy import adds no new block.
+    createProviders: async () => {
+      const entry = await import('./host/backend/configuredProvidersEntry')
+      entry.setUiText(UI_TEXT, uiLocale())
+      const services = entry.createConfiguredProviderServices(undefined, {
+        configFile: providerConfigFile,
+        catalogFile: vscode.Uri.joinPath(context.extensionUri, 'dist', 'providerCatalog.json')
+          .fsPath,
+        secrets: {
+          get: (key: string) => Promise.resolve(context.secrets.get(key)),
+        },
+        hasMetaKey: async () => (await context.secrets.get(SECRET_KEYS.modelApiKey)) !== undefined,
+      })
+      return services.registry
+    },
     log,
     // Each Model API turn's unit (M86): its record before it runs, its own
     // recorded writes while it does, then its writes drained, its unit folded

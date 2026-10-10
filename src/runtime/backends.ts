@@ -443,6 +443,15 @@ function modelApiManager(
         return await headlessProviders.accountId()
       },
     }),
+    ...(deps.exec?.providerRun !== undefined && {
+      // M106 R2: the selected BYO record resolves through the same registry
+      // the provider run streams with, so the entry's per-request suppliers
+      // bind the selected record instead of the legacy caps.
+      createProviders: () =>
+        headlessProviders === undefined
+          ? Promise.reject(new Error(UI_TEXT.modelsPanelUnavailable))
+          : Promise.resolve(headlessProviders.registry),
+    }),
     ...(deps.exec !== undefined && { streamIdleMs: deps.exec.streamIdleMs }),
     newId: () => randomUUID(),
     now: () => Date.now(),
