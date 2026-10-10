@@ -9,6 +9,22 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **llama.cpp server and LM Studio presets in the Models panel** (M95
+  C-M95-4). Both are listed once their own live wire captures landed
+  (`docs/certification/m95-captures/<llamacpp|lmstudio>/`, 31 frames, free
+  local runs of Qwen3-0.6B): llama.cpp b11541 and LM Studio (llmster
+  0.0.25-1). Recorded per server: reply, one and parallel tool calls,
+  streamed `reasoning_content` (LM Studio too, not `reasoning` as the
+  research said), usage placement, context-overflow and error frames, and
+  which `tool_choice` and output-cap forms each takes (llama.cpp takes the
+  object form; LM Studio takes strings only and answers engine failures as
+  SSE error events under HTTP 200, or a bare-string 400). The shared error
+  envelope now accepts llama.cpp's numeric codes and LM Studio's
+  string errors, so both still read as the server's words and the overflow
+  classifier still fires. vLLM stays hidden until its capture runs
+  off-sandbox (its engine needs `AF_UNIX`, denied on this rig). Scan this
+  computer now probes loopback over plain `node:http`, never through the
+  user's proxy.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
