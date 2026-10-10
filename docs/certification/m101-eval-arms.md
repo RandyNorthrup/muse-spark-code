@@ -26,7 +26,7 @@ binding they draw, by canonical value — `src/core/eval/armSources.ts`
 walks the static import graph instead of a hand-kept list, and fails
 closed on anything it cannot cover):
 
-`630ffa839f8b13c3adb48ac53480e63ead2679ee322ab33af02d629d18f4fc1f`
+`d277f9d0e9a6d4bfce96ee6852104378ba4ce20cf24c8a2f676ca5079fa4c0b9`
 
 `test/unit/eval/evalFrozen.test.ts` pins the arm list, the task list and
 the digest. Any arm or task change breaks it on purpose; re-freeze by
@@ -37,7 +37,14 @@ digest `80d6fd00…ea95959` walked imports with a pattern scanner and hashed
 outside bindings by their current runtime values; the scanner missed
 edges, the values missed accessor implementations, and its directory
 resolution disagreed with the build. The redesign below replaces both
-with the real resolver. Details in `docs/certification/m101.md`.)
+with the real resolver. Details in `docs/certification/m101.md`.
+2026-10-10 R5 re-freeze: review RVCM1012D finding 1. The previous digest
+`630ffa83…f4fc1f` refused non-literal loads with a regular-expression
+strip pass that replaced every template with `""`, so ``import(`${name}`)``
+and `import("pre" + name)` read as literals and indirect spellings
+(`module.require`, `require?.()`, aliases, `createRequire(…)(…)`,
+`require.call`, `new Worker(…)`) were never refused. The refusal below is
+parsed with the TypeScript compiler. Details in the R5 section.)
 
 ## Why the closure runs the real resolver (R4 redesign, not a patch)
 
@@ -160,15 +167,55 @@ value after every drill).
 | R4-D3 | Refusal neutered: `refuseDynamicLoads` returns at once           | `fails closed on a non-literal dynamic import`, `fails closed on a non-literal require`: **2 expected failures** (without the scan the hole is silent: bundling succeeds)                                                                                                                                       | armSources.ts `59d3671a…1484c16bbed` |
 | R4-D4 | `__proto__` guard neutered: plain assignment instead of define   | `keeps an own __proto__ field through canonicalization`: **1 expected failure** (both values serialize as `{}`)                                                                                                                                                                                                 | armSources.ts `59d3671a…1484c16bbed` |
 
-Self-host note: the refusal scan initially flagged `armSources.ts`
+Self-host note: the old refusal scan initially flagged `armSources.ts`
 itself, because the scan patterns were regular-expression literals whose
 inner quotes paired wrongly with the strip pass and exposed the doc
-comment's call-like words. The patterns are now strings (string contents
-always strip as one unit); the module comment records the remaining
-boundary — a regular expression in a scanned file that confuses the strip
-fails loudly, never as a skipped edge — and the real closure (all 16
-`src/` files plus pinned zod) scans clean, pinned by the
-repository-relative test.
+comment's call-like words; the patterns became strings to work around it.
+The parser needs no such precaution — strings, comments, templates and
+regex literals never parse as calls — and the real closure (all 16 `src/`
+files plus pinned zod) scans clean, pinned by the repository-relative
+test.
+
+### R5 repairs (2026-10-10, linuxlt; review RVCM1012D finding 1)
+
+The remaining refusal scanner treated non-literal dynamic loads as
+covered: the strip pass replaced every template — substitutions included —
+with `""`, so ``import(`${name}`)`` read as `import("")`, and a
+concatenation starting with a quote read as a literal too. Indirect forms
+the bundler also leaves for runtime were not refused either. The scanner
+is replaced with the TypeScript compiler API (already a dev dependency,
+never shipped: external to the in-memory bundle beside esbuild): every
+file in the esbuild closure is parsed, and any `import()`, `require()` or
+`new Worker()` load the bundler cannot see fails the digest with its file
+and 1-based line. A dynamic `import()` or bare `require()` with a string
+literal or substitution-free template stays the bundler's own edge
+(probed: both land in the metafile); every indirect spelling
+(`module.require`, `require?.()`, a `const req = require` alias chain
+including `createRequire(url)` results, `require.call/apply/bind`) and
+every `new Worker(…)` is refused in all spellings, literal or not —
+probed on this rig, the bundler follows none of them (`require?.()` not
+even with a literal), so each would run at runtime outside every hashed
+edge. A `new URL(…)` alone is deliberately not refused: it parses data
+and loads no file (zod's own `schemas.js` validates with `new URL(input)`
+twice, and the real closure scans clean); a URL nested in a loader is
+refused with it. No new dependency, no shipped-bundle change (`src/core/eval`
+is imported by no shipped bundle), no UI string, no widened guard: the
+rule refuses exactly the loads the bundler cannot follow.
+
+Regression tests in `test/unit/eval/evalArmSources.test.ts`: the review's
+two exact scenarios (template substitution, concatenation), every
+indirect spelling (each literal and non-literal), `new Worker` (literal
+and bare name), the `new URL` validation pin, a literal-`require` pin on
+the allowed side, a file-and-line pin (`arm.ts:2`), a 64-case property
+sweep (8 loader forms × 3 literal + 5 non-literal specifier spellings)
+and a camouflage test (comment, block comment, string, regex and
+template decoys collect clean beside them while a real load still fails).
+Each new refusal test was watched to fail on the old scanner before the
+replacement (5 failures), and the full sweep passes on the new one.
+
+| Drill | Deliberate break                               | Assertions that fire                                                                                                                                                                                      | Restored                       |
+| ----- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| R5-D1 | Refusal neutered: the AST walk returns at once | **8 failures**: every refusal test — the two old bare-form tests and the six new ones (template, concatenation, indirect spellings, Worker, property sweep, camouflage) — while all allow-pins stay green | armSources.ts `8584f41b…4611d` |
 
 ## Gates
 

@@ -29901,6 +29901,21 @@ receipts remain the lead's checks under the rig brief.
   `630ffa…f4fc1f`. Record: updated evidence and R4 drills in
   `docs/certification/m101-eval-arms.md`.
 
+  **CM1012R5 repair of review RVCM1012D (2026-10-10, linuxlt).** The single
+  P2 fixed with no residuals: the remaining refusal scanner is replaced
+  with the TypeScript compiler API (already a dev dependency, never
+  shipped). Every file in the esbuild closure is parsed; a non-literal
+  dynamic `import()` or bare `require()` fails the digest with file and
+  line, and every indirect loader spelling (`module.require`,
+  `require?.()`, require aliases, `createRequire(…)(…)`,
+  `require.call/apply/bind`) and every `new Worker(…)` is refused in all
+  spellings — probed, the bundler follows none of them. `new URL(…)` alone
+  stays allowed (data, not a load; zod validates with one). Regression
+  tests plus a 64-case property sweep over generated load spellings; the
+  R5 drill breaks the walk and restores byte-exact. Re-frozen as
+  `d277f9…0b9`. Record: updated evidence and R5 drills in
+  `docs/certification/m101-eval-arms.md`.
+
   **C2 final-review accounting correction.** If shared settlement throws during
   an HTTP retry notice, mark that attempt consumed before invoking settlement
   so cleanup cannot settle it a second time. A complete-file regression must

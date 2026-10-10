@@ -49,6 +49,15 @@ happened, not what was planned; superseded entries are kept.
   A non-literal dynamic `import()` or `require()` fails the digest
   instead of freezing around it, and canonical JSON keeps an own
   `__proto__` field. No user-facing change; production stays off.
+- **Frozen-digest refusal parsing** (M101 CM1012R5, review RVCM1012D).
+  The remaining pattern-based refusal scanner is replaced with the
+  TypeScript compiler API: every file in the resolver's closure is
+  parsed, so interpolated and concatenated dynamic specifiers fail the
+  digest with file and line, as does every indirect loader spelling
+  (`module.require`, optional `require?.()`, require aliases,
+  `createRequire(…)(…)` and `require.call/apply/bind`) and every `new
+  Worker(…)` load, literal or not — none of which the bundler follows.
+  No user-facing change; production stays off.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
