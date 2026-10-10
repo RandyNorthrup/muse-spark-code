@@ -20176,6 +20176,37 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### DFACPERR — Honest ACP refusals (2026-10-10)
+
+**Status 2026-10-10: built.** Certification:
+`docs/certification/dfacperr-acp-refusals.md`. Review RVDFACPERR (round 1)
+and this lane's round-2 repair of all seven findings (1 P1, 4 P2, 2 P3).
+
+- **Scope.** Every ACP failure maps to the right JSON-RPC error with a
+  product-owned, localized, privacy-safe message: defined refusals read as
+  invalid request (-32600) with their own sentence, bad caller arguments as
+  invalid params (-32602) with the flag that carried them, and genuine
+  internal faults stay internal errors (-32603) with a fixed reason and no
+  raw exception text in `error.data`. Exactly one `RequestError` identity:
+  the engine owns the constructor; the lazy sharing bundle carries failures
+  across as `AcpSharingFailure` (read with `isAcpSharingFailure`, never
+  `instanceof`). Mode/model/effort commands against a backend session Muse
+  Code evicted or closed read as a missing resource (-32002).
+- **Out of scope.** Turn-path backend failures keep their terminal channel;
+  schedules/estimate/reports/playbook-unbound paths keep their chat text;
+  no new command, setting, string or dependency.
+- [x] Sharing adapter carries no SDK copy; the engine maps bundle-crossing
+      failures by name and code (P1), covered by an in-memory bundle test.
+- [x] Caller-owned mini-zod validation fails as -32602 naming its flag;
+      service-data validation stays internal (P2 validation).
+- [x] `SessionNotLoadedError` on mode/model/effort reads as -32002 (P2 lifecycle).
+- [x] Legal and vault catch-alls distinguish the defined refusal from
+      genuine faults, which stay -32603 (P2 classification).
+- [x] Unexpected sharing errors reach the wire sanitized; parser errors read
+      in the installed language (P2 privacy, P3 localization).
+- [x] Every fix has a regression test that fails without it and a recorded
+      red drill with a byte-exact restore.
+
 ### M122 — Public roadmap (2026-10-08)
 
 **Status 2026-10-08: built.** Certification: `docs/certification/roadmap.md`.
