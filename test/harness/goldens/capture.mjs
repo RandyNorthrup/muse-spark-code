@@ -346,6 +346,99 @@ async function stateShot(page, cdp, state, target) {
   return { bytes, applied: isApplied }
 }
 
+/**
+ * The capture page: VS Code's API shim, loopback-only requests, the frozen
+ * clock and focus emulation. One page serves every scene opened on it.
+ */
+export async function openCapturePage(context) {
+  const page = await context.newPage()
+  trackRequests(page)
+  const errors = []
+  page.on('pageerror', (error) => {
+    errors.push(error.message)
+  })
+  await page.addInitScript(() => {
+    Object.defineProperty(globalThis, 'acquireVsCodeApi', {
+      configurable: true,
+      writable: true,
+      value: () => ({
+        postMessage: (message) => message,
+        getState: () => null,
+        setState: (state) => state,
+      }),
+    })
+  })
+  await page.route('**/*', (route) =>
+    new URL(route.request().url()).hostname === '127.0.0.1' ? route.continue() : route.abort(),
+  )
+  await page.clock.install({ time: FIXED_TIME })
+  await page.clock.pauseAt(new Date(FIXED_TIME.getTime() + 60_000))
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true })
+  await cdp.send('DOM.enable')
+  await cdp.send('CSS.enable')
+  return { page, cdp, errors }
+}
+
+/**
+ * Open one scene on a capture page and wait until every audited component of
+ * it has painted, with the smallest one scrolled into view.
+ */
+export async function prepareScene({ page, errors, root, port, fixtures }, audit, view) {
+  const { scene, theme, width, height } = view
+  errors.length = 0
+  try {
+    await openScene(page, root, port, scene, theme, width, height, fixtures)
+  } catch (error) {
+    throw new Error(
+      `Visual scene failed: ${scene}/${theme}/${width}/en: ${error.message}; page errors: ${errors.join('; ') || 'none'}`,
+      { cause: error },
+    )
+  }
+  const rows = audit.components.filter((row) => row.scene === scene)
+  for (const row of rows) {
+    try {
+      await waitForPaint(page, row.captureSelector)
+    } catch (error) {
+      const fixtureText = await page.locator('body').textContent()
+      throw new Error(
+        `Missing component render: ${row.file} in ${scene}; page errors: ${errors.join('; ') || 'none'}; fixture text: ${fixtureText.slice(0, 300)}`,
+        { cause: error },
+      )
+    }
+  }
+  const components = await page.evaluate(
+    (rows) =>
+      rows.map((row) => {
+        const element = globalThis.document.querySelector(row.captureSelector)
+        if (
+          element === null ||
+          element.getBoundingClientRect().width === 0 ||
+          element.getBoundingClientRect().height === 0
+        )
+          throw new Error(`Missing component render: ${row.file}`)
+        return row.file
+      }),
+    rows,
+  )
+  // Canonical descendants must appear in the viewport, not merely in
+  // a long page's DOM. Keep parents visible around the smallest scope.
+  const reviewSelector = await page.evaluate(
+    (rows) =>
+      rows
+        .map((row) => ({
+          selector: row.captureSelector,
+          box: globalThis.document.querySelector(row.captureSelector).getBoundingClientRect(),
+        }))
+        .toSorted((a, b) => a.box.width * a.box.height - b.box.width * b.box.height)[0]?.selector,
+    rows,
+  )
+  if (reviewSelector !== undefined)
+    await page.locator(reviewSelector).first().scrollIntoViewIfNeeded()
+  if (errors.length > 0) throw new Error(`${scene}: ${errors.join('; ')}`)
+  return { rows, components }
+}
+
 /** Streaming comparison avoids retaining thousands of images in memory. */
 /**
  * `rasterization` is a fingerprint already measured on the browser at
@@ -386,89 +479,16 @@ export async function captureMatrix(
       browser = await connection.newContext(CAPTURE_CONTEXT)
     }
     const fingerprint = rasterization ?? (await rasterizationFingerprint(browser))
-    const page = await browser.newPage()
-    trackRequests(page)
-    const errors = []
-    page.on('pageerror', (error) => {
-      errors.push(error.message)
-    })
-    await page.addInitScript(() => {
-      Object.defineProperty(globalThis, 'acquireVsCodeApi', {
-        configurable: true,
-        writable: true,
-        value: () => ({
-          postMessage: (message) => message,
-          getState: () => null,
-          setState: (state) => state,
-        }),
-      })
-    })
-    await page.route('**/*', (route) =>
-      new URL(route.request().url()).hostname === '127.0.0.1' ? route.continue() : route.abort(),
-    )
-    await page.clock.install({ time: FIXED_TIME })
-    await page.clock.pauseAt(new Date(FIXED_TIME.getTime() + 60_000))
-    const cdp = await page.context().newCDPSession(page)
-    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true })
-    await cdp.send('DOM.enable')
-    await cdp.send('CSS.enable')
+    const { page, cdp, errors } = await openCapturePage(browser)
     for (const theme of matrix.themes)
       for (const width of matrix.widths)
         for (const scene of audit.scenes) {
           if (groups !== undefined && !groups.has(captureGroup({ scene, theme, width }))) continue
-          errors.length = 0
-          try {
-            await openScene(page, root, port, scene, theme, width, matrix.height, fixtures)
-          } catch (error) {
-            throw new Error(
-              `Visual scene failed: ${scene}/${theme}/${width}/en: ${error.message}; page errors: ${errors.join('; ') || 'none'}`,
-              { cause: error },
-            )
-          }
-          const rows = audit.components.filter((row) => row.scene === scene)
-          for (const row of rows) {
-            try {
-              await waitForPaint(page, row.captureSelector)
-            } catch (error) {
-              const fixtureText = await page.locator('body').textContent()
-              throw new Error(
-                `Missing component render: ${row.file} in ${scene}; page errors: ${errors.join('; ') || 'none'}; fixture text: ${fixtureText.slice(0, 300)}`,
-                { cause: error },
-              )
-            }
-          }
-          const components = await page.evaluate(
-            (rows) =>
-              rows.map((row) => {
-                const element = globalThis.document.querySelector(row.captureSelector)
-                if (
-                  element === null ||
-                  element.getBoundingClientRect().width === 0 ||
-                  element.getBoundingClientRect().height === 0
-                )
-                  throw new Error(`Missing component render: ${row.file}`)
-                return row.file
-              }),
-            rows,
+          const { rows, components } = await prepareScene(
+            { page, errors, root, port, fixtures },
+            audit,
+            { scene, theme, width, height: matrix.height },
           )
-          // Canonical descendants must appear in the viewport, not merely in
-          // a long page's DOM. Keep parents visible around the smallest scope.
-          const reviewSelector = await page.evaluate(
-            (rows) =>
-              rows
-                .map((row) => ({
-                  selector: row.captureSelector,
-                  box: globalThis.document
-                    .querySelector(row.captureSelector)
-                    .getBoundingClientRect(),
-                }))
-                .toSorted((a, b) => a.box.width * a.box.height - b.box.width * b.box.height)[0]
-                ?.selector,
-            rows,
-          )
-          if (reviewSelector !== undefined)
-            await page.locator(reviewSelector).first().scrollIntoViewIfNeeded()
-          if (errors.length > 0) throw new Error(`${scene}: ${errors.join('; ')}`)
           for (const state of matrix.states) {
             const target = await targetFor(page, rows, state)
             const { bytes, applied } = await stateShot(page, cdp, state, target)
