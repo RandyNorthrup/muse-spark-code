@@ -339,9 +339,9 @@ panel enforcement waits for M96's planner (see
   the run is a card that keeps updating after the reply: its agents with
   their state, time and tokens, and the result it returned. Owner controls
   wait for a live accepted-command capture.
-- **Reply and quote with context.** A reply's ⋯ menu has **Reply to this
-  output**; highlight anything in the chat and right-click for **Ask about
-  this** or **Comment on this**. The passage, its author and your intent
+- **Reply and quote with context.** A reply's ⋯ menu has **Reply to This
+  Output**; highlight anything in the chat and right-click for **Ask About
+  This** or **Comment on This**. The passage, its author and your intent
   travel with the message.
 - **Voice dictation at no cost.** Tap or hold the microphone (`Ctrl+D`) and
   speak; the words land at the caret. Windows and macOS use the recogniser
@@ -415,8 +415,8 @@ so they match the build.
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/question.png" alt="A compact Open question marker with Answer in the transcript and one question card pinned above the composer, with Colour and Toppings tabs, choices, Other, Submit and Explain instead"><br><sub>One question card, pinned above the message box; Answer on its transcript marker brings it into focus</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/quote.png" alt="A reply right-clicked in its highlighted passage: three blue pills, Copy, Ask about this and Comment on this, fanned out from the pointer"><br><sub>Highlight, right-click: <b>Copy</b>, <b>Ask about this</b> or <b>Comment on this</b></sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/rewind.png" alt="A sent message's menu with three blue pills: Fork Conversation, Fork and Rewind, and Rewind"><br><sub>Every sent message's ⋯: fork, fork and rewind code, or open <b>Rewind</b></sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/quote.png" alt="A reply right-clicked in its highlighted passage: three blue pills, Copy, Ask About This and Comment on This, fanned close around the row’s ⋯ button"><br><sub>Highlight, right-click: <b>Copy</b>, <b>Ask About This</b> or <b>Comment on This</b></sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/rewind.png" alt="A sent message's menu with five blue pills close to its ⋯: Fork Conversation, Fork and Rewind, Rewind, Save Prompt and Share Prompt…"><br><sub>Every sent message's ⋯: fork, fork and rewind code, or open <b>Rewind</b></sub></td>
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/modes.png" alt="The Modes menu: Manual, Edit automatically, Plan and Auto, with descriptions and the effort row"><br><sub>Permission modes and effort; <code>Shift+Tab</code> cycles modes</sub></td>
@@ -3060,8 +3060,8 @@ is completed so you can add what follows it), `Tab` completes the name and
 - Replies render as GitHub-flavoured markdown with highlighted code and
   **Copy**, **Insert at cursor** and **Apply** on every block (an imported
   conversation's blocks carry **Copy** only); a finished
-  reply's ⋯ menu has **Copy response** (the ⋯ shows a check for a moment
-  after) and **Reply to this output**. A relative link in a reply
+  reply's ⋯ menu has **Copy Response** (the ⋯ shows a check for a moment
+  after) and **Reply to This Output**. A relative link in a reply
   (`src/parser.ts#L12`) opens that workspace file at those lines.
 - Tool rows show the diff or the command and its output from the start;
   read rows open on click, and a chevron marks the rows that open. A shell
@@ -3103,7 +3103,7 @@ is completed so you can add what follows it), `Tab` completes the name and
 - Thinking rows stream their summary while the model thinks and end as
   "Thought for Ns" (a resumed conversation's read "Thought").
 - Each actionable message, reply, tool output or restore notice has one **More
-  actions** (⋯) button, revealed on hover or keyboard focus and always visible
+  Actions** (⋯) button, revealed on hover or keyboard focus and always visible
   on touch screens. Right-click its row, or press Shift+F10 / the Menu key,
   to open the same radial menu: each action is one crisp blue pill, its icon
   then its name, every pill the same size, in a fan beside the pointer or
@@ -3111,16 +3111,19 @@ is completed so you can add what follows it), `Tab` completes the name and
   Enter or Space picks. A message's menu has **Fork Conversation**
   and a **Rewind** pill that opens a second burst of the rewind and restore
   choices; Escape returns from that burst first, then closes the menu and
-  returns focus to ⋯. An edit row's menu has **Open output**, **Review** (the
+  returns focus to ⋯. An edit row's menu has **Open Output**, **Review** (the
   diff editor) and **Revert**: it asks first, then puts back that one edit's
   lines, leaving (and naming) a file whose lines changed since; it is not
   offered while a turn runs. A reply has no Retry (a resent prompt would run
-  its tools a second time): **Rewind conversation to here** on the prompt's
+  its tools a second time): **Rewind Conversation to Here** on the prompt's
   card puts the prompt back to send again. With text selected in a row,
-  right-clicking that row opens the highlighted-text menu instead.
-- A reply's ⋯ menu has **Reply to this output**: the next message carries
+  right-clicking that row opens the highlighted-text menu at its ⋯ button.
+  A row without an opener uses the pointer. Both bursts keep 6 px between
+  pills and a shallow arc close to the opener, centred on it when there is
+  room and shifted whole at a panel edge.
+- A reply's ⋯ menu has **Reply to This Output**: the next message carries
   that output (up to 8,000 characters) to the agent as context. Highlight any text in the chat and
-  right-click it for **Copy**, **Ask about this** or **Comment on this**; the
+  right-click it for **Copy**, **Ask About This** or **Comment on This**; the
   passage, its author and your intent travel with the message. The composer
   shows a chip for either; × drops it.
   The highlighted-text menu fans into the same labelled pills, fitting panels
@@ -3178,19 +3181,19 @@ undone from its row's ⋯ menu (**Revert**). To undo more, use the ⋯ menu on
 any sent message (or right-click it):
 
 - **Fork Conversation**.
-- **Restore files to here** (a message whose turn has a checkpoint, in a
+- **Restore Files to Here** (a message whose turn has a checkpoint, in a
   connected Model API session) undoes the model's own file-tool edits from
   that turn on, while each file still holds exactly what the model left;
   commands, hooks, MCP tools, your edits and other windows' writes are never
   undone. It asks first, then says what it
   restored and names every file it left as it is. See **Turn checkpoints**
   below.
-- **Rewind conversation and restore files** does both, after one
+- **Rewind Conversation and Restore Files** does both, after one
   confirmation that names both: it checks the conversation can be rewound,
   restores the files, then rewinds the conversation below. When a file was
   left short (unsaved, changed since, could not be changed) the conversation
   stays as it is, and the panel says so.
-- **Rewind conversation to here** starts a branch before that message and
+- **Rewind Conversation to Here** starts a branch before that message and
   puts its prompt back in the composer. The original conversation stays in
   History. Images return when the backend still has their bytes; the panel
   warns if it cannot restore one. A Model API conversation cannot be rewound
@@ -3204,7 +3207,7 @@ any sent message (or right-click it):
   an earlier text-only card in the same turn keeps its rewind choice. A
   request made outside the menu is checked against the served card and cut
   before the conversation changes.
-- **Rewind code to here** reverts every edit made after that message, the
+- **Rewind Code to Here** reverts every edit made after that message, the
   conversation's and its subagents', in the reverse of the order they
   landed. A file the edit created goes to the trash, unless you have added
   to it since, in which case your lines stay.
@@ -3212,7 +3215,7 @@ any sent message (or right-click it):
   checkpoint) is one action: the confirmation, the reverts, then the fork.
   Declining the confirmation does neither.
 
-Both **Rewind code to here** and **Restore files to here** ask first, each in
+Both **Rewind Code to Here** and **Restore Files to Here** ask first, each in
 its own confirmation.
 
 **Turn checkpoints.** On by default (`museSpark.turnCheckpoints`). **Restore
@@ -3249,7 +3252,7 @@ Code has no stored file restore; its native rewind is separate.
   changes files outside the recorded tool writes and makes those files
   not restorable. **Format on edit** (`museSpark.formatOnEdit`) writes
   through the recorded file-tool path and is restorable.
-- **Conversation rewind.** **Rewind conversation and restore files**
+- **Conversation rewind.** **Rewind Conversation and Restore Files**
   restores first, then branches before the message and returns its prompt
   to the composer. A refused file blocks the conversation rewind; a
   commands note by itself does not. Files already in the earlier state
@@ -4347,7 +4350,7 @@ Bypass at once.
 | `environmentVariables`            | `[]`        | `{ name, value }` pairs for the Muse Code process and the terminals that run the CLI (Open in Terminal, MCP sign-in, `muse logout`); an `XDG_CONFIG_HOME` here is where the extension looks for the CLI's sign-in and settings too. Never put API keys here; use Sign in. Changing it restarts the host                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `modelApiRepoMap`                 | `false`     | Put a [repo map](#code-intelligence) in the Model API backend's instructions in a trusted workspace: the workspace's most used files and definitions, made once per conversation in about 1,000 tokens, which every request then carries (billed to your key). Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `modelApiObservationPacking`      | `true`      | On by default. Packs old long tool outputs after two requests; recall_output reads the originals. The M75 evaluation passed. Read when a conversation starts or resumes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `turnCheckpoints`                 | `true`      | Records the model’s own file-tool writes for **Restore files to here** and Redo while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone. Requires a connected Model API session, git and confirmed process safety; copies stay in extension storage, outside the workspace’s `.git`. Off in Restricted Mode. Machine-scoped                                                                                                                                                                                                                                                                                                 |
+| `turnCheckpoints`                 | `true`      | Records the model’s own file-tool writes for **Restore Files to Here** and Redo while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone. Requires a connected Model API session, git and confirmed process safety; copies stay in extension storage, outside the workspace’s `.git`. Off in Restricted Mode. Machine-scoped                                                                                                                                                                                                                                                                                                 |
 | `bundledSkills`                   | `true`      | The [bundled skills](#bundled-skills) (`project_setup`, `feature_delivery`, `quality_retrofit`): a skill source on the Model API backend, after the project's and your own, and the install offer for Muse Code (once per window until you choose Install or Not now). Off removes them from the Model API catalogue at once; an install for Muse Code stays until **Remove Bundled Skills from Muse Code**. Machine-scoped                                                                                                                                                                                                                                                                                    |
 | `diagnosticsAfterEdits`           | `true`      | [Checking edits](#checking-edits): after each round of edits the Model API model gets the errors and warnings of up to 8 edited files from VS Code's language servers; Muse Code is told to read them itself. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `checkCommands`                   | `[]`        | [Checking edits](#checking-edits): `{ name, command, changedFiles?, timeoutSeconds? }` lint, test or type-check commands the Model API backend runs after each round of edits, each asking wherever a shell command asks; Muse Code is told to run them. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -4435,7 +4438,7 @@ stopped and the next message resumes the same session.
 - The [Muse Code CLI](https://dev.meta.ai/products/muse-code/) signed in with
   a Meta account (subscription), or a Meta Model API key (pay as you go).
 - `git` on `PATH` for `.gitignore`-aware `@` mentions, worktrees, turn
-  checkpoints (**Restore files to here**), best-of-N (git 2.36 or newer) and
+  checkpoints (**Restore Files to Here**), best-of-N (git 2.36 or newer) and
   the Model API prompt's git facts (optional; VS Code's file search is used
   without it). Commit and push use VS Code’s built-in Git extension, and pull
   requests use VS Code’s GitHub sign-in. The extension runs git only in a trusted workspace and only
@@ -4742,8 +4745,8 @@ stopped and the next message resumes the same session.
   [#30](https://github.com/meta-models/muse-code-sdk/issues/30),
   [#31](https://github.com/meta-models/muse-code-sdk/issues/31)), so the
   panel does not offer fork-based actions there, whatever the version, until
-  a release is verified to fix them; **Rewind code to here** still works
-  (**Restore files to here** needs a Model API session on every platform),
+  a release is verified to fix them; **Rewind Code to Here** still works
+  (**Restore Files to Here** needs a Model API session on every platform),
   and the Model API backend offers all of them.
 - **"Muse Code applies your approvals in this conversation but reports an
   error for each one"** — Muse Code on Windows can fail its own approval
@@ -5080,13 +5083,13 @@ and packaging gates cover both VSIX and ACP delivery. See
 ### Saved prompts
 
 Right-click your own message, a history entry, the composer, or an editor's
-selected text and choose **Save prompt**. History lets you choose the exact
-user message first. **Prompt library** offers search, tags, edit, delete,
+selected text and choose **Save Prompt**. History lets you choose the exact
+user message first. **Prompt Library** offers search, tags, edit, delete,
 duplicate, import, share, and insertion. Scope labels distinguish **My prompts**
 from workspace prompts; **Copy to my prompts** makes a personal copy.
 
-The composer's compact **Prompt library** toolbar menu offers **Save prompt**,
-**Share prompt** and **Use saved prompt…**. Right-click the input for the same
+The composer's compact **Prompt Library** toolbar menu offers **Save Prompt**,
+**Share Prompt…** and **Use Saved Prompt…**. Right-click the input for the same
 actions: VS Code uses its native menu; other shared-panel hosts open the compact
 menu at the pointer. Save and Share appear only with nonblank text. Escape closes
 the compact menu and returns focus to the input. Outside VS Code,
@@ -5096,7 +5099,7 @@ shortcuts also remain available. Native/companion panel mounting still awaits M1
 Personal prompts live in the agent data folder, shared across workspaces and
 editors on this machine. Workspace prompts live in `.muse/prompts/` and may
 be committed to git. A saved personal prompt can be loaded in a fresh empty
-workspace. **Use saved prompt…**, **Insert** and **Run with variables** review
+workspace. **Use Saved Prompt…**, **Insert** and **Run with variables** review
 variables and imported content, then fill the composer; they never send a
 message. Save no secrets. Settings Sync mirrors personal prompts only when
 `museSpark.syncPromptsAndBookmarks` is explicitly enabled globally. Turning it

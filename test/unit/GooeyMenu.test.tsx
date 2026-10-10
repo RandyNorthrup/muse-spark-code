@@ -192,7 +192,7 @@ describe('GooeyMenu', () => {
               icon: 'B',
               onSelect: vi.fn(),
             },
-            { id: 'c', label: 'Reply to this output', icon: 'C', onSelect: vi.fn() },
+            { id: 'c', label: 'Reply to This Output', icon: 'C', onSelect: vi.fn() },
           ]}
           label="Uniform"
           origin={{ x: width - 24, y: 380 }}
@@ -319,12 +319,12 @@ describe('GooeyMenu', () => {
       />,
     )
     expect(screen.getByRole('menu')).toHaveClass('gooey-menu-colors-safe')
-    // The anchor's centre is (280, 50): the lone pill sits 48 px to its right,
+    // The anchor's centre is (280, 50): the lone pill sits 32 px to its right,
     // level with it, and bursts from that centre.
     const pill = screen.getByRole('menuitem')
-    expect(pill.style.left).toBe('328px')
+    expect(pill.style.left).toBe('312px')
     expect(pill.style.top).toBe('30px')
-    expect(pill.style.transformOrigin).toBe('-48px 20px')
+    expect(pill.style.transformOrigin).toBe('-32px 20px')
     // The owner, 2026-10-04: crisp pills, "not with the faded smudge look".
     expect(container.querySelector('svg, filter, defs')).toBeNull()
     expect(container.querySelector('[style*="filter"]')).toBeNull()

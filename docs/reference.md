@@ -47,7 +47,7 @@ Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no
 
 Commands: `museSpark.showReport`. Settings: `museSpark.reports.network`, `museSpark.reports.keepHistory`, `museSpark.reports.agentSources`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#report)
 
-### Prompt library
+### Prompt Library
 
 Composer toolbar or right-click: Save, Share, Use saved. Outside VS Code, Shift-right-click keeps native clipboard actions. Prompts are plain text; save no secrets.
 
@@ -470,6 +470,18 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 turnState: Rename, fork or rewind a conversation. Rewind can restore recorded edits as well as history; changed files are left alone, and shell changes are not covered. While a turn runs, new messages steer it. Model API messages can be withdrawn before the next request; Muse Code permits withdrawal only while queued, because steering is delivered immediately. Side chat copies completed turns, clears the goal and stays in Plan; Muse Code file tools may still edit in Plan. Select transcript text to reply, ask, comment or copy.
 
 Muse Code cannot rename or fork sessions on Windows (meta-models/muse-code-sdk#30, #31).
+
+Copy Response
+
+Reply to This Output
+
+Ask About This
+
+Comment on This
+
+Save Prompt
+
+Share Prompt…
 
 ```json
 {
@@ -1861,7 +1873,7 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 ### Muse Spark: Prompt library
 
-`museSpark.promptLibrary` — Prompt library
+`museSpark.promptLibrary` — Prompt Library
 
 ### Muse Spark: Save prompt
 
@@ -3671,7 +3683,7 @@ These are defaults; editor customizations take precedence.
 - `help / --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.
 - `share chat SESSION_ID [--mode full|conversation] [--format md|html|json]`: Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
 - `prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] < prompt.txt`: Prompts are stored as plain text. Do not save passwords or keys.
-- `prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]`: Prompt library
+- `prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]`: Prompt Library
 - `prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER]`: Review variables and insert
 - `prompts share ID [--scope user|workspace] [--format md|html|json] [--destination copy|file|browser] [--out FILE]`: Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
 - `/agents [receipt|continue|retry] [ID]`: Agents show activity and evidence-backed outcomes. Select an ended agent for its bounded receipt and attempt history. Continue keeps its session and changes after confirmation; Retry requires an isolated checkpoint. Missing evidence is shown as unverified. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.

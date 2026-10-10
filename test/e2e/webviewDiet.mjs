@@ -210,7 +210,7 @@ try {
         }),
       )
     })
-    const trigger = failedMenu.page.getByLabel('More actions', { exact: true }).last()
+    const trigger = failedMenu.page.getByLabel('More Actions', { exact: true }).last()
     await trigger.click()
     const retry = failedMenu.page.getByRole('button', { name: 'Try again', exact: true })
     await retry.focus()
@@ -272,7 +272,7 @@ try {
           }),
         )
       })
-      const trigger = cold.page.getByLabel('More actions', { exact: true }).last()
+      const trigger = cold.page.getByLabel('More Actions', { exact: true }).last()
       await trigger.click()
       await started.promise
       await cold.page.locator('[data-deferred-loading]').waitFor()

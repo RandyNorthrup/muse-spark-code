@@ -671,7 +671,15 @@
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi"],
-      "details": [{ "ui": "referenceWindowsSessions" }],
+      "details": [
+        { "ui": "referenceWindowsSessions" },
+        { "ui": "copyResponse" },
+        { "ui": "replyToOutput" },
+        { "ui": "askAboutThis" },
+        { "ui": "commentOnThis" },
+        { "ui": "promptSave" },
+        { "ui": "sharePrompt" }
+      ],
       "facts": {
         "sideChat": {
           "mode": "plan",
@@ -2536,7 +2544,7 @@
       "nameKey": "command.promptLibrary.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "Prompt library",
+      "description": "Prompt Library",
       "text": { "ui": "promptLibrary" },
       "canRun": true
     },
@@ -4859,7 +4867,7 @@
     {
       "route": "prompts",
       "name": "prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]",
-      "description": "Prompt library",
+      "description": "Prompt Library",
       "text": { "ui": "promptLibrary" }
     },
     {

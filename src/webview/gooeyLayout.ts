@@ -45,8 +45,8 @@ export function gooeyPillWidth(viewport: MenuViewport, natural: number): number 
 
 /**
  * The pills beside `anchor`, one row each, centred on its height and moved
- * whole to stay inside the panel. Their near ends sit on half an ellipse
- * around the anchor: the pills level with it reach farthest, the outer ones
+ * whole to stay inside the panel, with 6 px gaps. Their near ends sit on half an ellipse
+ * 16–32 px from the anchor: the pills level with it reach farthest, the outer ones
  * curve back, so the rows read as a fan. When the fan would leave the panel
  * it moves back towards (and over) the origin all at once, keeping its arc;
  * only a panel too narrow for the whole arc gets a shallower one. Rows never

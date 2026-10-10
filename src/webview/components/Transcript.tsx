@@ -149,7 +149,7 @@ export interface TranscriptProps {
   readonly onRewindConversation?: ((entryId: string) => void) | undefined
   /**
    * Turn checkpoints (M72): the turns with one, their card's "Restore files"
-   * and "Rewind conversation and restore files", and a restore's Redo.
+   * and "Rewind Conversation and Restore Files", and a restore's Redo.
    */
   readonly checkpointTurnIds?: ReadonlySet<string> | undefined
   readonly legacyCheckpointTurnIds?: ReadonlySet<string> | undefined
@@ -195,7 +195,7 @@ export interface TranscriptProps {
    * Edit on a queued card (M87, PLAN.md D66): the ids the host gave it, for
    * `withdrawQueued`. Absent while nothing can take a message back.
    */
-  /** M118-P-REACT-BRIDGE: same handler as the native Save prompt command. */
+  /** M118-P-REACT-BRIDGE: same handler as the native Save Prompt command. */
   readonly onSharePrompt?: ((text: string) => void) | undefined
   readonly onSavePrompt?: ((text: string) => void) | undefined
   readonly onEditQueued?: ((card: QueuedCardRef) => void) | undefined
@@ -631,7 +631,7 @@ interface AssistantRowProps {
   /** Absent in a conversation that holds imported history (M84). */
   readonly onInsert: ((text: string) => void) | undefined
   readonly onApply: ((text: string) => void) | undefined
-  /** The actions menu's "Reply to this output" (M17); absent while no session exists. */
+  /** The actions menu's "Reply to This Output" (M17); absent while no session exists. */
   readonly onReply: ((entryId: string) => void) | undefined
   /** Tokens and the dollar estimate under the reply (M82); hidden while off. */
   readonly showReplyUsage: boolean

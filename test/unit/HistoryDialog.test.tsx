@@ -272,7 +272,7 @@ describe('HistoryDialog', () => {
   })
 })
 
-it('offers Save prompt on history right-click without resuming or losing archive', async () => {
+it('offers Save Prompt on history right-click without resuming or losing archive', async () => {
   const save = vi.fn()
   const { props } = renderDialog({ onSavePrompt: save })
   fireEvent.contextMenu(screen.getByText('Fix the parser'))

@@ -543,12 +543,12 @@ describe('Transcript rows (M15, M16)', () => {
       { kind: 'assistant', id: 'a2', text: 'partial', isStreaming: true },
     ])
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.rowMoreActions }))
-    const copy = screen.getByRole('menuitem', { name: 'Copy response' })
-    expect(copy).toHaveAttribute('title', 'Copy response')
+    const copy = screen.getByRole('menuitem', { name: 'Copy Response' })
+    expect(copy).toHaveAttribute('title', 'Copy Response')
     fireEvent.click(copy)
     expect(props.onCopy).toHaveBeenCalledWith('first **bold**')
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.rowMoreActions }))
-    expect(screen.getByRole('menuitem', { name: 'Copy response' })).toHaveAttribute(
+    expect(screen.getByRole('menuitem', { name: 'Copy Response' })).toHaveAttribute(
       'title',
       'Copied',
     )
@@ -634,13 +634,13 @@ describe('Transcript rows (M15, M16)', () => {
 })
 
 describe('Transcript chat references (M17)', () => {
-  it("offers Reply to this output in a reply's actions menu", () => {
+  it("offers Reply to This Output in a reply's actions menu", () => {
     const onReply = vi.fn()
     renderTranscript([{ kind: 'assistant', id: 'a1', text: 'done', isStreaming: false }], {
       onReply,
     })
     fireEvent.click(screen.getAllByRole('button', { name: UI_TEXT.rowMoreActions }).at(-1)!)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Reply to this output' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Reply to This Output' }))
     expect(onReply).toHaveBeenCalledWith('a1')
     expect(screen.queryByRole('menuitem')).toBeNull()
   })
@@ -657,7 +657,7 @@ describe('Transcript chat references (M17)', () => {
       ],
       { quoteMenuEntryId: 'u1', onQuote, onCopyQuote, onCloseQuoteMenu },
     )
-    const menu = screen.getByRole('menu', { name: 'Highlighted text' })
+    const menu = screen.getByRole('menu', { name: 'Highlighted Text' })
     // Our menu replaces the browser's, so Copy comes first and has the focus (M25).
     const copy = screen.getByRole('menuitem', { name: 'Copy' })
     expect(document.activeElement).toBe(copy)
@@ -666,9 +666,9 @@ describe('Transcript chat references (M17)', () => {
     expect(menu.closest('[data-entry-id]')).toHaveAttribute('data-entry-id', 'u1')
     expect(menu.closest('[data-entry-id]')).toHaveAttribute('data-role', 'user')
     expect(document.querySelector('[data-entry-id="t1"]')).toHaveAttribute('data-role', 'tool')
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Ask about this' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Ask About This' }))
     expect(onQuote).toHaveBeenCalledWith('question')
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Comment on this' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Comment on This' }))
     expect(onQuote).toHaveBeenCalledWith('comment')
     fireEvent.keyDown(menu, { key: 'a' })
     expect(onCloseQuoteMenu).not.toHaveBeenCalled()
@@ -1049,7 +1049,7 @@ describe('Transcript replies (M25)', () => {
     fireEvent.pointerDown(document.body)
     expect(screen.queryByRole('menu')).toBeNull()
     fireEvent.click(screen.getAllByRole('button', { name: UI_TEXT.rowMoreActions }).at(-1)!)
-    const item = screen.getByRole('menuitem', { name: 'Reply to this output' })
+    const item = screen.getByRole('menuitem', { name: 'Reply to This Output' })
     fireEvent.pointerDown(item)
     expect(screen.getByRole('menu')).toBeInTheDocument()
     fireEvent.blur(item, {
@@ -1121,9 +1121,9 @@ describe('Transcript replies (M25)', () => {
     fireEvent.click(screen.getAllByRole('button', { name: UI_TEXT.rowMoreActions })[0]!)
     fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.rowRewindGroup }))
     expect(screen.getAllByRole('menuitem').map((item) => item.getAttribute('aria-label'))).toEqual([
-      'Rewind code to here',
+      'Rewind Code to Here',
     ])
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Rewind code to here' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rewind Code to Here' }))
     expect(onRewind).toHaveBeenCalledWith('u')
   })
 })
