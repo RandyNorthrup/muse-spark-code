@@ -74,7 +74,12 @@
       "legalUsage",
       "referenceScreenRecording",
       "referenceLatestRecording",
-      "referenceUploadedFiles"
+      "referenceUploadedFiles",
+      "vault.windowsTpm",
+      "vault.secureEnclave",
+      "vault.linuxTpm2",
+      "vault.windowsDpapi",
+      "vault.secretService"
     ],
     "cs": [
       "groupModel",

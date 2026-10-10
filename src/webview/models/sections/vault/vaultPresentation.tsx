@@ -89,6 +89,9 @@ export function isSessionAllowed(request: VaultApprovalRequest): boolean {
 
 function label(key: string): string {
   const labels: Readonly<Record<string, string>> = {
+    tier: UI_TEXT.vault.tier,
+    provider: UI_TEXT.vault.provider,
+    silentUnlock: UI_TEXT.vault.silentUnlock,
     policy: UI_TEXT.vault.policy,
     roles: UI_TEXT.vault.roles,
     workspaces: UI_TEXT.vault.workspaces,
@@ -118,9 +121,74 @@ function label(key: string): string {
   }
   return labels[key] ?? key
 }
+function tierWord(tier: string): string {
+  switch (tier) {
+    case 'hardware': {
+      return UI_TEXT.vault.hardware
+    }
+    case 'presence': {
+      return UI_TEXT.vault.presence
+    }
+    case 'osStore': {
+      return UI_TEXT.vault.osStore
+    }
+    case 'secretStorage': {
+      return UI_TEXT.vault.secretStorage
+    }
+    case 'passphrase': {
+      return UI_TEXT.vault.passphrase
+    }
+    case 'recovery': {
+      return UI_TEXT.vault.recovery
+    }
+    default: {
+      return tier
+    }
+  }
+}
+function providerWord(provider: string): string {
+  switch (provider) {
+    case 'windowsTpm': {
+      return UI_TEXT.vault.windowsTpm
+    }
+    case 'secureEnclave': {
+      return UI_TEXT.vault.secureEnclave
+    }
+    case 'linuxTpm2': {
+      return UI_TEXT.vault.linuxTpm2
+    }
+    case 'windowsDpapi': {
+      return UI_TEXT.vault.windowsDpapi
+    }
+    case 'loginKeychain': {
+      return UI_TEXT.vault.loginKeychain
+    }
+    case 'secretService': {
+      return UI_TEXT.vault.secretService
+    }
+    case 'secretStorage': {
+      return UI_TEXT.vault.secretStorage
+    }
+    case 'passphrase': {
+      return UI_TEXT.vault.passphrase
+    }
+    case 'recovery': {
+      return UI_TEXT.vault.recovery
+    }
+    default: {
+      return provider
+    }
+  }
+}
 function display(value: unknown, key: string): string {
   if (value === null)
     return ['maxUses', 'expiresAt', 'window'].includes(key) ? UI_TEXT.vault.unlimited : '—'
+  if (typeof value === 'string') {
+    // The status card names the protection in plain words; anything outside
+    // the closed slot vocabulary passes through (platform data, not a token).
+    if (key === 'tier') return tierWord(value)
+    return key === 'provider' ? providerWord(value) : value
+  }
   if (typeof value === 'number')
     return key === 'time' || key.endsWith('At') ? formatDateTime(value) : formatNumber(value)
   if (typeof value === 'boolean') return value ? UI_TEXT.toggleOn : UI_TEXT.toggleOff
@@ -130,7 +198,7 @@ function display(value: unknown, key: string): string {
     return `{${Object.entries(value)
       .map(([field, entry]) => `${field}: ${display(entry, field)}`)
       .join(', ')}}`
-  return typeof value === 'string' ? value : '—'
+  return '—'
 }
 
 /** Exact technical fields remain visible, including argv boundaries and every grant scope. */
