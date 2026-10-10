@@ -142,6 +142,18 @@ describe('fileAccountsMetadata', () => {
     ['a null providers field', { providers: null }],
     ['a providers array field', { providers: [] }],
     ['a malformed provider row', { providers: { meta: { ...ENTRY, auth: 'not-a-method' } } }],
+    [
+      'duplicate account ids',
+      {
+        providers: {
+          meta: { ...ENTRY, accounts: [DEFAULT_ROW, { ...DEFAULT_ROW, label: 'Copy', order: 1 }] },
+        },
+      },
+    ],
+    [
+      'a provider id that does not match its key',
+      { providers: { meta: { ...ENTRY, id: 'other' } } },
+    ],
   ])('reports refused file content with its own code: %s', async (_label, envelope) => {
     const folder = dir()
     const file = seed(folder, envelope)

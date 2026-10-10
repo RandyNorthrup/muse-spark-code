@@ -15,6 +15,7 @@ import {
   accountStopText,
   accountUsageUrl,
   isAccountSwitchRefusedError,
+  isInvalidProvidersFileError,
   type AccountUsagePort,
 } from './accountText'
 
@@ -65,8 +66,11 @@ export function companionAccountsPanel(port: AccountsPanelPort): AccountsPanelPo
       try {
         const reply = accountsReplySchema.safeParse(await port.dispatch(parsed.data))
         return reply.success ? reply.data : { type: 'accounts/error', code: 'unavailable' }
-      } catch {
-        return { type: 'accounts/error', code: 'unavailable' }
+      } catch (error: unknown) {
+        return {
+          type: 'accounts/error',
+          code: isInvalidProvidersFileError(error) ? 'providersInvalid' : 'unavailable',
+        }
       }
     },
     subscribe(listener) {
@@ -166,8 +170,11 @@ export class AcpAccounts {
     let state: AccountsState
     try {
       state = parseState(await this.port.read(this.sessionId))
-    } catch {
-      throw new Error(UI_TEXT.accounts.unavailable)
+    } catch (error: unknown) {
+      // A refused providers file keeps its brand through the refresh: the
+      // agent maps it to the honest sentence at the request boundary.
+      if (isInvalidProvidersFileError(error)) throw error
+      throw new Error(UI_TEXT.accounts.unavailable, { cause: error })
     }
     if (!isCurrent() || (this.state !== undefined && state.provider !== this.state.provider))
       throw new Error(UI_TEXT.accounts.unavailable)
@@ -226,8 +233,12 @@ export class AcpAccounts {
         await this.refresh(isCurrent)
         for (const notice of this.earlyNotices.splice(0)) receive(notice)
       })
-    } catch {
-      throw new Error(UI_TEXT.accounts.unavailable)
+    } catch (error: unknown) {
+      // The branded providers-file refusal still drops the session's
+      // accounts here and continues, like any other failed adoption:
+      // ordinary sessions never depend on accounts.
+      if (isInvalidProvidersFileError(error)) throw error
+      throw new Error(UI_TEXT.accounts.unavailable, { cause: error })
     }
   }
 
@@ -264,11 +275,13 @@ export class AcpAccounts {
       try {
         state = parseState(await this.port.use(this.sessionId, account, canAdopt))
       } catch (error: unknown) {
-        // The owner refused adoption with the session's stay-put text; any
-        // other failure stays a generic unavailable, never raw error text.
-        // The brand (not `instanceof`) survives the bundle boundary between
-        // the runtime producer and this consumer.
+        // The owner refused adoption with the session's stay-put text; a
+        // refused providers file keeps its brand for the honest sentence.
+        // Any other failure stays a generic unavailable, never raw error
+        // text. The brand (not `instanceof`) survives the bundle boundary
+        // between the runtime producer and this consumer.
         if (isAccountSwitchRefusedError(error)) throw error
+        if (isInvalidProvidersFileError(error)) throw error
         throw new Error(UI_TEXT.accounts.unavailable, { cause: error })
       }
       if (!isCurrent() || !canCommit()) throw new Error(UI_TEXT.accounts.unavailable)

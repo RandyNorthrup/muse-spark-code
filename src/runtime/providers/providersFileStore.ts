@@ -14,7 +14,12 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { accountIdSchema, accountSchema, type Account } from '../../shared/accounts'
+import {
+  accountIdSchema,
+  accountPoolSchema,
+  accountSchema,
+  type Account,
+} from '../../shared/accounts'
 import type { AccountProvider, AccountsMetadataPort } from '../../core/providers/accounts'
 import { AccountStoreError } from '../../core/providers/accountCredentialRecord'
 import { MODEL_API_BASE_URL } from '../../shared/constants'
@@ -31,6 +36,17 @@ const providerEntrySchema = z.strictObject({
 function providerOf(value: unknown): AccountProvider | undefined {
   const parsed = providerEntrySchema.safeParse(value)
   return parsed.success ? parsed.data : undefined
+}
+
+/** A stored row counts only when it is whole: the entry id matches its map
+ * key and the complete pool (not just each row) validates, so duplicate ids
+ * refuse here instead of throwing a raw schema error from the store later. */
+function storedProviderOf(key: string, value: unknown): AccountProvider | undefined {
+  const entry = providerOf(value)
+  if (entry?.id !== key) return undefined
+  return entry.accounts !== undefined && !accountPoolSchema.safeParse(entry.accounts).success
+    ? undefined
+    : entry
 }
 
 /** The built-in entry: every field is already pinned in-repo (the key names
@@ -91,7 +107,7 @@ export class FileAccountsMetadata implements AccountsMetadataPort {
     // a file, an absent row is unconfigured and a malformed row refuses.
     if (value === undefined)
       return Promise.resolve(loaded.exists ? undefined : builtInProvider(provider))
-    const entry = providerOf(value)
+    const entry = storedProviderOf(provider, value)
     if (entry === undefined) throw new AccountStoreError('invalidProvidersFile')
     return Promise.resolve(entry)
   }
@@ -101,9 +117,9 @@ export class FileAccountsMetadata implements AccountsMetadataPort {
     const raw = providers[provider]
     // Absence takes the built-in base; a present-but-malformed user row
     // refuses and leaves the file untouched instead of being overwritten.
-    if (raw !== undefined && providerOf(raw) === undefined)
+    if (raw !== undefined && storedProviderOf(provider, raw) === undefined)
       throw new AccountStoreError('invalidProvidersFile')
-    const entry = providerOf(raw) ?? builtInProvider(provider)
+    const entry = storedProviderOf(provider, raw) ?? builtInProvider(provider)
     if (entry === undefined) throw new AccountStoreError('invalidAccount')
     mkdirSync(path.dirname(this.file), { recursive: true })
     const next = {

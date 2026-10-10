@@ -2,6 +2,7 @@
 // No VS Code API or secret enters the shared page's message route.
 import type { AccountStore, AccountProvider } from '../../core/providers/accounts'
 import { AccountStoreError } from '../../core/providers/accountCredentialRecord'
+import { isInvalidProvidersFileError } from '../../acp/accountText'
 import type { AccountConfirmations } from '../../core/accounts/confirmations'
 import type { AccountPoolStoppedError } from '../../core/accounts/pool'
 import { accountPolicyFor } from '../../core/providers/accountPolicy'
@@ -146,6 +147,8 @@ export class AccountsPanelHandler {
       return await this.snapshot(request.provider)
     } catch (error) {
       // Raw adapter errors may contain a credential. Only fixed bridge codes leave.
+      if (isInvalidProvidersFileError(error))
+        return { type: 'accounts/error', code: 'providersInvalid' }
       return {
         type: 'accounts/error',
         code:
