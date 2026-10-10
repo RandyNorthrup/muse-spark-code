@@ -328,6 +328,12 @@ it with the same verified-path p95. No table, message or screen states a
 class as on that this function rejects. The p95 is the complete call
 (section 4.1), never raw inference.
 
+**The approval veto is a window of its own.** The approval fast path's veto
+(section 9) is not an I decision: the held action is waiting for the
+reviewer anyway, and the owner set its window at up to
+`JUDGE_FAST_VETO_WINDOW_MS` = 5,000 ms (Q-D107-VETO). `eligible` admits an
+engine for it when its complete-call p95 is within that window.
+
 **S windows that exist.** An S decision judges only input that is complete
 when it starts, and its answer can only add to the tail at the first
 boundary after it arrives. The windows are:
@@ -956,12 +962,20 @@ skip the slow reviewer only when:
    outside or protected paths, secrets, network, paid, spawn);
 2. it belongs to a built-in class: **B1**, read-only inspect commands, or
    **B2**, the workspace's own unchanged check scripts;
-3. the judge does not veto within 300 ms; no answer is a veto.
+3. the judge does not veto within its window; no answer is a veto.
 
 Every skip leaves an audit row; undo goes through the turn's checkpoint
 (M72's, as M86 rebuilt it); there are kill switches; a class turns on by
 default only after zero harm in 400 labelled actions for that class. The
 judge is one of two gates, never the only one.
+
+**Q-D107-VETO answered by the owner, 2026-10-10: the window is up to 5 s
+for both B1 and B2.** The decision first said 300 ms. He was told that no
+measured engine answers in 300 ms and that 5 s is still about ten times
+faster than the reviewer's 45–60 s timeouts, and chose up to 5 s for both
+classes over "B2 5 s, B1 300 ms" and "300 ms for both". For B2 the window
+may run alongside the contained run and ends at the earlier of the run's
+end and 5 s; no answer by then is still a veto.
 
 Lane F builds this; it is planned work, no longer conditional. The rest of
 this section is how it is built so that the three conditions mean what
@@ -1027,15 +1041,32 @@ as today.
    user's.
 4. **The class's confinement is available** on this machine and passed its
    self-test in this session (9.4, 9.5).
-5. **The judge does not veto** within `JUDGE_FAST_INLINE_DEADLINE_MS` =
-   300 ms. It answers 7.1's `risk.destructive` noul over the command (for
-   B2 also the script's text and the paths changed since the owner's
+5. **The judge does not veto within its window**, `JUDGE_FAST_VETO_WINDOW_MS`
+   = 5,000 ms from the moment the action is held (Q-D107-VETO); for B2 the
+   window ends at the earlier of the contained run's end and those 5 s. The
+   judge answers 7.1's `risk.destructive` noul over the command (for B2
+   also the script's text and the paths changed since the owner's
    baseline) with p(yes) under a calibrated threshold (a fitted profile,
-   section 7.0), from an engine eligible for I. No answer, a late answer
-   or an uncalibrated engine is a veto, and the reviewer runs. No engine
-   measured so far is eligible for I (section 5), so lane F ships complete
-   but skips nothing until one is; 9.7 asks the owner whether B2 may use
-   its contained run as the veto's window instead.
+   section 7.0), from an engine whose complete-call p95 on this machine,
+   every attempt counted and a miss as infinite (section 4.2), is within
+   the window. No answer, a late answer or an uncalibrated engine is a
+   veto. 9.7 lists the engines that qualify.
+
+**The reviewer still starts when it does today.** A 5 s window must not
+make a veto slower than today's path, so the harness does not wait for the
+judge before asking the reviewer: when the action is held, the reviewer
+starts exactly as today, and the judge's question (and, for B2, the
+contained run) start beside it. The fast path wins only if the judge's
+non-veto arrives inside its window and before the reviewer's verdict; the
+reviewer is then cancelled, and only once the fast path's result is
+delivered (B1 after its output passes the secret check, B2 after its
+delivery rules, 9.5), so a discarded B2 run falls back to a reviewer that
+is already running. If the reviewer's verdict comes first, or the judge
+vetoes, or the window closes without an answer, today's path decides with
+no added wait, and a B2 run in progress is killed and discarded. The cost
+is a reviewer request started and cancelled for each skip; the reviewer's
+wait, not its tokens, is what B removes, and the ship rule counts both
+(section 11).
 
 ### 9.4 B1, inspect: what runs, and what it may read
 
@@ -1302,12 +1333,13 @@ result, passing or failing, only when all of these hold:
 - the bounds held, or the run timed out (a timeout is delivered as today's
   timeout result when nothing else above failed).
 
-Otherwise the run is discarded whole and the action goes to the reviewer
-exactly as today. A write or a marker also marks that script, by its
-closure's digest, "not B2 in this workspace", so it is not tried again
-until its definition changes. The decision to skip meets the 300 ms
-deadline; a discarded run costs its own time on top of today's path, which
-the ship rule counts (section 11), and the marking stops it repeating.
+Otherwise the run is discarded whole and the reviewer, which started when
+the action was held (9.3), decides exactly as today. A write or a marker
+also marks that script, by its closure's digest, "not B2 in this
+workspace", so it is not tried again until its definition changes. Because
+the reviewer runs alongside, a discarded run adds no wait to today's path;
+it costs only the CPU it used, which the ship rule counts (section 11), and
+the marking stops it repeating.
 
 **Linux.** The system's bubblewrap, 0.11.0 or later (the release that
 added overlay mounts; they are not available to a setuid install),
@@ -1417,8 +1449,9 @@ today. B2 on Windows would be a milestone of its own; it is not planned.
   fence's frames, tool outputs and model requests are byte-identical to
   today (goldens with F off and with the judge abstaining). Nothing already
   sent changes: a B1 or B2 result is a new tool output. The skip decision
-  has the 300 ms deadline and today's reviewer path as its fallback, and a
-  discarded B2 run falls back to that same path. In a confidential
+  has the veto window (at most 5 s) as its deadline and today's reviewer
+  path, started at the same moment as today, as its fallback, so a veto,
+  a missing answer or a discarded B2 run adds no wait. In a confidential
   workspace the veto can come only from a deterministic check or a
   verified local engine; a hosted engine is never one of the two gates
   there.
@@ -1431,27 +1464,51 @@ today. B2 on Windows would be a milestone of its own; it is not planned.
   a sandbox-induced failure delivered, and a clone-versus-in-place
   disagreement (B2).
 
-### 9.7 What B costs, what it buys, and one question left
+### 9.7 What B costs, what it buys, and which engines can veto
 
 It costs lane F's confinement helper for Linux and macOS (native, per
 architecture), the B2 runners, the owner-baseline tracker, the
 per-platform captures and self-tests, the drills above, a fitted
-`risk.destructive` profile for an I-eligible engine, and 400 labelled
-actions per class and platform. It buys a skipped review for a single
-read-only inspect command on Linux and macOS, and for the workspace's own
-unchanged check scripts on Linux with bubblewrap 0.11.0 or later and on
-macOS on APFS, on the Model API and M95 only. It skips nothing on Windows,
-on Muse Code, for git, for `rg`, for any pipe, or on a machine without an
-I-eligible engine.
+`risk.destructive` profile for an engine that answers within the 5 s
+window, a reviewer request started and cancelled per skip, and 400
+labelled actions per class and platform. It buys a skipped review for a
+single read-only inspect command on Linux and macOS, and for the
+workspace's own unchanged check scripts on Linux with bubblewrap 0.11.0 or
+later and on macOS on APFS, on the Model API and M95 only. It skips nothing
+on Windows, on Muse Code, for git, for `rg`, for any pipe, or on a machine
+with no engine that qualifies below.
 
-That last limit matters most today: the owner's 300 ms veto deadline needs
-an engine eligible for I, and none is measured (section 5). For B1 nothing
-can be done about it: the command finishes in milliseconds, so there is no
-window to hide a slower veto in. For B2 there is one: the run takes
-seconds, and it is contained and discardable, so a veto that arrives
-before delivery could still discard it. That would let a CPU `tev1:4b` or
-Jev serve B2. It changes the owner's stated term, so it is his decision
-(PLAN.md §3, Q-D107-VETO). Until he answers, B2's veto deadline is 300 ms.
+**Which engines can veto (Q-D107-VETO's 5 s window).** An engine serves
+the veto on a machine when its complete-call p95 there is within 5 s and
+it has a fitted `risk.destructive` profile for its identity (section 7.0).
+From the recorded numbers (section 4.1), and only where B exists (Linux
+and macOS):
+
+| Engine (recorded latency)                                   | Linux                                                                                                       | macOS                                                       |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| GPU `tev1:4b` (raw p95 0.36 s)                              | Yes on latency once lane J's lease shortcut has its Linux receipts; not on today's 6.5–10.7 s verified path | No: the full disk proof runs before every dispatch (18.4 s) |
+| Quiet-CPU `tev1:4b` (raw p95 3.8 s; three questions 2.0 s)  | Yes on latency after lane J, if its receipts stay within 5 s; a loaded CPU (17–22 s) is suspended           | No, as above                                                |
+| Local logprob models of 3B and more (GPU raw p50 62–104 ms) | After lane J, and once calibrated to `tev1:4b`'s Brier (section 4.1)                                        | No, as above                                                |
+| Jev 1.13 through OpenRouter (1.9–2.1 s per request)         | Yes on latency, with D78 consent and daily budget; never in a confidential workspace                        | The same                                                    |
+| Together `Tev1-4B-experimental` (1.5 s, one sample)         | Yes on latency; its accuracy is one smoke item                                                              | The same                                                    |
+| Other fast logprob models, 2e (2.2–3.4 s for 40 questions)  | Yes on latency, once 2e's capability capture exists; BYO key                                                | The same                                                    |
+| Cloudflare Clef (not measured)                              | Only after a counted probe                                                                                  | The same                                                    |
+| `tev1:0.8b`                                                 | Never (not for 7.1 or the veto)                                                                             | Never                                                       |
+| The user's chat model (8.8 s for one question)              | No: over the window, and never blocks an action (section 4.3)                                               | No                                                          |
+
+The common gate is the profile: none is fitted yet, so at M125's start B
+skips nothing anywhere until lane V's 400 independent labels for
+`risk.destructive` and lane L's fit land for an engine. The first engine
+likely to qualify on both platforms is Jev through OpenRouter (hosted,
+paid, consented; never in a confidential workspace); on Linux a local
+`tev1:4b`, on a GPU or a quiet CPU, follows once lane J lands. On macOS
+only hosted engines qualify, so a confidential macOS workspace never skips
+the reviewer. The resolver measures every engine on the machine itself;
+these rows are where to expect a fit, not receipts. With the reviewer
+running alongside (9.3), an engine that answers in 2–4 s still beats the
+reviewer's big-model call (8–14 s on Muse Spark, 45–60 s timeouts); for B2,
+a run that ends before the answer arrives is discarded and the reviewer
+decides, with no added wait.
 
 ### 9.8 How B relates to the standing rule, and what was recommended
 
@@ -1690,8 +1747,8 @@ them through MHP like other panels.
   workspace, no surviving process. What remains is in section 9.5: the
   workspace's own secrets in the output, a run's CPU and time, and a
   sandbox-induced result. Neither class exists on Windows or Muse Code, or
-  for git or `rg`; both skip nothing until an I-eligible engine exists,
-  unless the owner answers Q-D107-VETO for B2.
+  for git or `rg`. Both skip nothing until an engine within the 5 s veto
+  window (Q-D107-VETO) has a fitted `risk.destructive` profile (9.7).
 - **Measurement cost.** The M75 arms and the Clef probe make live or paid
   calls (D48). M125's live checks need the owner's go, with counts first.
 
@@ -1716,8 +1773,9 @@ them through MHP like other panels.
   Windows metadata shortcut; qualification without misses; the absolute
   cached-token gate; the reused Muse Code judge session), addressed in
   sections 9.4, 4.1, 4.2, 11 and 4.3.
-- The owner's answer to Q-D107 (2026-10-10: B, with B1 and B2), recorded
-  in PLAN.md §3 and D107, and designed in section 9.
+- The owner's answer to Q-D107 (2026-10-10: B, with B1 and B2) and to
+  Q-D107-VETO (2026-10-10: a veto window of up to 5 s for both classes),
+  recorded in PLAN.md §3 and D107, and designed in section 9.
 - Landlock: <https://docs.kernel.org/userspace-api/landlock.html> (ABI
   versions, `no_new_privs`, hierarchy-based rules, the unrestricted
   `stat`); `openat2(2)` (`RESOLVE_BENEATH`, `RESOLVE_NO_SYMLINKS`); `fcntl(2)`
