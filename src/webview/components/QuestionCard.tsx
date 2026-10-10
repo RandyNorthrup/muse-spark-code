@@ -514,7 +514,7 @@ export function QuestionCard({
         ) : null}
       </div>
       {isDockCard ? (
-        <div hidden={!isFull} inert={menu.isOpen}>
+        <div className="question-body" hidden={!isFull} inert={menu.isOpen}>
           {state === 'waiting' && question.deadlineAt !== undefined ? (
             <Countdown deadlineAt={question.deadlineAt} />
           ) : null}

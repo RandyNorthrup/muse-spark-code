@@ -228,6 +228,35 @@ describe('M114 P2 panel contract', () => {
       await secret.close()
     }
   })
+  // Owner report 2026-10-10: the focused "Type your own answer…" field covered
+  // the Other option above it and the Submit/Explain buttons below it.
+  it('keeps the focused answer field and its focus ring clear of the Other option and the buttons', async () => {
+    for (const theme of ['light', 'dark']) {
+      const page = await openHarness(theme, 'questions-waiting')
+      try {
+        const input = page.locator('.question-input').first()
+        await input.waitFor()
+        await input.focus()
+        const gaps = await input.evaluate((field) => {
+          const card = field.closest('.question')
+          const other = [...card.querySelectorAll('.question-choice')]
+            .at(-1)
+            .getBoundingClientRect()
+          const actions = card.querySelector('.question-actions').getBoundingClientRect()
+          const box = field.getBoundingClientRect()
+          const style = globalThis.getComputedStyle(field)
+          const ring =
+            Number(style.outlineWidth.replace('px', '')) +
+            Number(style.outlineOffset.replace('px', ''))
+          return { above: box.top - ring - other.bottom, below: actions.top - (box.bottom + ring) }
+        })
+        expect(gaps.above, theme).toBeGreaterThanOrEqual(2)
+        expect(gaps.below, theme).toBeGreaterThanOrEqual(2)
+      } finally {
+        await page.close()
+      }
+    }
+  })
   it('certifies History archive marks outside Tab order with Arrow/Delete keyboard access', async () => {
     const certification = readFileSync(
       'docs/certification/m114-p2-panel-polish-menus-dialogs-and-the-rest.md',
