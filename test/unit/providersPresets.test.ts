@@ -55,10 +55,13 @@ describe('the preset table', () => {
       'fireworks',
       'huggingface',
       'zai',
+      // C-M95-4: live captures in docs/certification/m95-captures/<llamacpp|lmstudio>/.
+      'lmstudio',
+      'llamacpp',
     ]) {
       expect(listed).toContain(id)
     }
-    for (const id of ['azure', 'ollama', 'lmstudio', 'vllm', 'llamacpp', 'custom']) {
+    for (const id of ['azure', 'ollama', 'vllm', 'custom']) {
       expect(listed).not.toContain(id)
     }
   })
@@ -150,9 +153,14 @@ describe('the preset table', () => {
     })
     expect(quirksOf(preset('openrouter')).reasoningField).toBe('reasoning_details')
     expect(quirksOf(preset('deepseek')).reasoningField).toBe('reasoning_content')
+    // C-M95-4: LM Studio streams `reasoning_content` (capture 02-plain-reply).
+    expect(quirksOf(preset('lmstudio')).reasoningField).toBe('reasoning_content')
+    // C-M95-4: LM Studio's list carries no window (capture 01-models-list).
+    expect(preset('lmstudio').modelsList.windowField).toBeUndefined()
     expect(quirksOf(preset('gemini')).reasoningField).toBe('thoughtSignature')
     expect(quirksOf(preset('anthropic')).reasoningField).toBe('thinking')
-    expect(quirksOf(preset('llamacpp')).toolChoice).toBe('string-only')
+    // C-M95-4: b11541 accepts the object form (capture 12-toolchoice-object).
+    expect(quirksOf(preset('llamacpp')).toolChoice).toBe('auto')
     expect(quirksOf(preset('together')).outputCapParam).toBe('max_tokens')
     for (const candidate of PRESETS) {
       expect(quirksOf(candidate).neverSendEmptyTools).toBe(true)

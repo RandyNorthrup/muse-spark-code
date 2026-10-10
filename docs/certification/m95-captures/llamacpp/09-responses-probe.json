@@ -1,0 +1,61 @@
+{
+  "provider": "llamacpp",
+  "step": "responses-probe",
+  "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+  "capturedAt": "2026-10-10T16:58:14.270+00:00",
+  "billed": false,
+  "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:8080/v1/responses",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "model": "Qwen3-0.6B-Q8_0",
+      "input": "Say hello in three words.",
+      "max_output_tokens": 32
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "server": "llama.cpp",
+      "access-control-allow-origin": "",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "608",
+      "keep-alive": "timeout=5, max=100"
+    },
+    "body": {
+      "completed_at": 1791651494,
+      "created_at": 1791651494,
+      "id": "resp_GOljvCG2ej7jE6JGUoEwhpfyszgYwH3L",
+      "model": "/var/tmp/l-CM954/m95local/Qwen3-0.6B-Q8_0.gguf",
+      "object": "response",
+      "output": [
+        {
+          "id": "rs_TmumSagN5BbT1JtUIdhpTADqSRsBAcJy",
+          "summary": [],
+          "type": "reasoning",
+          "content": [
+            {
+              "text": "Okay, the user wants me to say \"say hello in three words.\" Let me think. First, I need to make sure I understand the request",
+              "type": "reasoning_text"
+            }
+          ],
+          "encrypted_content": "",
+          "status": "completed"
+        }
+      ],
+      "status": "completed",
+      "usage": {
+        "input_tokens": 14,
+        "output_tokens": 32,
+        "total_tokens": 46,
+        "input_tokens_details": {
+          "cached_tokens": 3
+        }
+      }
+    },
+    "chunkBytes": [608]
+  }
+}

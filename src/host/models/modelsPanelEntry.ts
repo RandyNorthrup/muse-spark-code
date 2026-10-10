@@ -16,6 +16,7 @@ import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
 import { showPickOne } from '../quickPick'
 import { startOAuthLoopback } from '../providers/oauthLoopback'
+import { fetchLoopback } from '../providers/loopbackFetch'
 import { createModelsPanel, type ModelsPanel, type ModelsPanelNavigate } from './modelsPanel'
 import { runAddProviderQuickPick, type ProviderQuickPickOutcome } from './modelsQuickPick'
 import { createProvidersHost, type ProvidersHost } from '../providers/providersHost'
@@ -274,7 +275,9 @@ export function createModelsPanelFeatures(
         }
       },
     },
-    loopbackFetch: globalThis.fetch,
+    // M95 step 1: the probe never uses VS Code's patched fetch (it honors
+    // the user's proxy, and loopback needs no proxy at all).
+    loopbackFetch: fetchLoopback,
     now: () => Date.now(),
     setComposerModel: host.setComposerModel,
     ui: {

@@ -1,0 +1,47 @@
+{
+  "provider": "llamacpp",
+  "step": "malformed-temperature",
+  "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+  "capturedAt": "2026-10-10T17:00:48.914+00:00",
+  "billed": false,
+  "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:8080/v1/chat/completions",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "model": "Qwen3-0.6B-Q8_0",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Hi"
+        }
+      ],
+      "temperature": "hot",
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 16
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {
+      "server": "llama.cpp",
+      "access-control-allow-origin": "",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "153",
+      "connection": "close"
+    },
+    "body": {
+      "error": {
+        "code": 400,
+        "message": "Field 'temperature': [json.exception.type_error.302] type must be number, but is string",
+        "type": "invalid_request_error"
+      }
+    },
+    "chunkBytes": [153]
+  }
+}

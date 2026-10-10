@@ -295,6 +295,10 @@ export const PROVIDER_UNDO_WINDOW_MS = 10 * 1000
 export const LOCAL_PROBE_TIMEOUT_MS = 3 * 1000
 /** How much of a probe answer the panel shows (D74). */
 export const LOCAL_PROBE_SNIPPET_CHARS = 500
+/** A loopback probe answer past this is refused rather than read (M95 step 1). */
+export const LOOPBACK_FETCH_MAX_BODY_BYTES = 64 * 1024
+/** The probe dials `http:` loopback; an empty port means this one. */
+export const LOOPBACK_FETCH_DEFAULT_PORT = 80
 /**
  * Lane I's providers bundle (PLAN.md D6): the lane-P/T seam the Models
  * panel's factory is composed with. Lane I adopts this name with its entry.

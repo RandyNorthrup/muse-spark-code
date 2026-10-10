@@ -1,0 +1,51 @@
+{
+  "provider": "lmstudio",
+  "step": "malformed-temperature",
+  "serverVersion": "llmster 0.0.25-1",
+  "capturedAt": "2026-10-10T18:32:01.440+00:00",
+  "billed": false,
+  "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:1234/v1/chat/completions",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "model": "qwen3-0.6b",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Hi"
+        }
+      ],
+      "temperature": "hot",
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 16
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-powered-by": "Express",
+      "content-type": "text/event-stream",
+      "cache-control": "no-cache",
+      "connection": "keep-alive",
+      "date": "Sat, 10 Oct 2026 18:32:01 GMT",
+      "transfer-encoding": "chunked"
+    },
+    "events": [
+      {
+        "data": {
+          "error": {
+            "message": "Field with key llm.prediction.temperature does not satisfy the schema:[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"number\",\n    \"received\": \"nan\",\n    \"path\": [],\n    \"message\": \"Expected number, received nan\"\n  }\n]"
+          },
+          "message": "Field with key llm.prediction.temperature does not satisfy the schema:[\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"number\",\n    \"received\": \"nan\",\n    \"path\": [],\n    \"message\": \"Expected number, received nan\"\n  }\n]"
+        }
+      }
+    ],
+    "chunkBytes": [552]
+  }
+}
