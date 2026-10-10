@@ -23,9 +23,11 @@ export type ReferenceText =
     }
 
 // Conditional descriptions must opt into a typed field, never a content heuristic.
+// Other-CI details distinguish vendor transport/isolation qualification (M80 R4).
 const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
+  referenceCiOther: 'ciVendor&artifactTransport&secretIsolation',
   referenceScreenRecording: 'nativeRecorder=absent',
   referenceVaultPanel: 'vaultBroker=absent',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',

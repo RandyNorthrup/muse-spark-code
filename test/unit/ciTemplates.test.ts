@@ -48,56 +48,40 @@ function inputNames(text: string): string[] {
   return [...new Set(text.match(/MUSE_INPUT_[A-Z0-9_]+/g))].toSorted(byText)
 }
 
+function normalize(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .join('\n')
+}
+
 describe('one bootstrap, generated from one source into every template', () => {
-  it.each([...SYSTEMS])('%s: the generated block matches the source', (system) => {
-    const expected = bootstrapSource()
-      .split('@MUSE_SYSTEM@')
-      .join(system)
-      .split('\n')
-      .map((line) => line.trim())
-      .join('\n')
-    const actual = bootstrapOf(system)
-      .split('\n')
-      .map((line) => line.trim())
-      .join('\n')
-    expect(actual).toBe(expected)
-  })
+  it.each([...SYSTEMS])(
+    '%s: generated bootstrap matches its source and key-name list',
+    (system) => {
+      expect(normalize(bootstrapOf(system))).toBe(
+        normalize(bootstrapSource().split('@MUSE_SYSTEM@').join(system)),
+      )
+    },
+  )
 
   it.each([...SYSTEMS])(
-    '%s: aliases out first, key into a private file, stdin to the launcher',
+    '%s: R4 shell never reads or copies a key; download children lose aliases',
     (system) => {
-      const lines = bootstrapOf(system)
-        .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line !== '' && !line.startsWith('#'))
-      expect(lines.slice(0, 3)).toEqual(['set +x', 'set -eu', 'umask 077'])
-      // The holders are unset before assignment (an exported holder cannot
-      // keep its export attribute), then every secret name and alias is
-      // unset before any child runs.
-      expect(lines.slice(3, 7)).toEqual([
-        'unset muse_key muse_key_file',
-        'muse_key="${MUSE_MODEL_API_KEY:-}"',
-        'muse_key_file="${MUSE_MODEL_API_KEY_FILE:-}"',
-        'unset MUSE_MODEL_API_KEY MUSE_MODEL_API_KEY_FILE MUSE_SPARK_MODEL_API_KEY META_API_KEY',
-      ])
-      // The holder is never exported: no export, no key on the exec line.
-      expect(lines.some((line) => line.startsWith('export'))).toBe(false)
-      expect(lines.some((line) => line.includes('MUSE_SPARK_MODEL_API_KEY='))).toBe(false)
-      // The temp directory is owned by a trap on every exit path.
-      expect(lines).toContain('trap \'rm -rf "$muse_dir"\' EXIT HUP INT TERM')
-      // The File variable is read as a file; the value holder is transient.
-      expect(lines.some((line) => line.startsWith('cp "$muse_key_file"'))).toBe(true)
-      expect(lines).toContain('printf \'%s\' "$muse_key" > "$muse_dir/key"')
-      expect(lines).toContain('chmod 600 "$muse_dir/key"')
-      expect(lines.filter((line) => line === 'unset muse_key muse_key_file')).toHaveLength(2)
-      const digest = lines.findIndex((line) => line.startsWith('if [ "${muse_sum%% *}"'))
-      const unpack = lines.findIndex((line) => line.startsWith('tar -xzf'))
-      expect(digest).toBeGreaterThan(0)
-      expect(unpack).toBeGreaterThan(digest)
-      const last = lines.at(-1) ?? ''
-      expect(last).toBe(
-        `MUSE_CI_TEMP="$muse_dir" MUSE_CI_BOOTSTRAP_START_MS="$muse_start_ms" MUSE_INPUT_AGENT_PACKAGE="$muse_dir/agent.tgz" exec node "$muse_dir/launcher/package/ci/lib/ci-run.mjs" ${system} < "$muse_dir/key"`,
+      const body = bootstrapOf(system)
+      expect(body).toContain('muse_setup="$(')
+      expect(body).toContain(
+        'unset MUSE_MODEL_API_KEY MUSE_SPARK_MODEL_API_KEY META_API_KEY MUSE_MODEL_API_KEY_FILE muse_key muse_key_file',
       )
+      expect(body.indexOf('unset MUSE_MODEL_API_KEY')).toBeLessThan(body.indexOf('date +%s'))
+      expect(body).toContain('for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do')
+      expect(body).toContain('unset "$muse_alias"')
+      expect(body).not.toMatch(/(?:muse_key=|muse_key_file=|cp |\/key|<.*key)/)
+      expect(body).not.toContain('${MUSE_MODEL_API_KEY')
+      const digest = body.indexOf('if [ "${muse_sum%% *}"')
+      expect(body.indexOf('tar -xzf')).toBeGreaterThan(digest)
+      expect(body).toContain('trap - EXIT HUP INT TERM')
+      expect(body).toContain(`exec node "$muse_dir/launcher/package/ci/lib/ci-entry.mjs" ${system}`)
     },
   )
 
@@ -107,9 +91,31 @@ describe('one bootstrap, generated from one source into every template', () => {
         .split('\n')
         .map((line) => line.trim())
         .join('\n')
-        .replace(new RegExp(` ${system} <`, 'm'), ' SYSTEM <'),
+        .replace(new RegExp(` ${system}$`, 'm'), ' SYSTEM'),
     )
     expect(new Set(bodies).size).toBe(1)
+  })
+})
+
+describe('R4 documentation and vendor qualification', () => {
+  it('R4-P3-9: plan and certification record replace the old key transport', () => {
+    const plan = readFileSync(path.join(REPO_ROOT, 'PLAN.md'), 'utf8').replaceAll(/\s+/g, ' ')
+    expect(plan).not.toContain('exec the launcher with the key in one variable')
+    expect(plan).toContain('The POSIX bootstrap never reads a key value or copies a key file')
+    const certification = readFileSync(path.join(REPO_ROOT, 'docs/certification/cm80ci.md'), 'utf8')
+    expect(certification).toContain('supersedes the R2/R3 transport')
+    expect(certification).toContain('no bootstrap key file, holder or copying child exists')
+  })
+
+  it('R4-P1-U: Bitbucket deployment scope does not claim automatic-process isolation', () => {
+    expect(bitbucketStep()['deployment']).toBe('muse-spark')
+    const guide = readFileSync(path.join(REPO_ROOT, 'docs/ci-other-systems.md'), 'utf8').replaceAll(
+      /\s+/g,
+      ' ',
+    )
+    expect(guide).toContain('single user script does not establish')
+    expect(guide).toContain('an actual vendor-process leak is neither confirmed nor refuted')
+    expect(templateText('bitbucket')).not.toContain('so no other job process holds')
   })
 })
 
@@ -232,13 +238,13 @@ describe('each system’s own mechanism keeps untrusted runs from the credential
       [undefined, 'on_success'],
     ])
     expect(record(job['variables'])['GIT_DEPTH']).toBe('0')
-    expect(record(job['artifacts'])['paths']).toEqual(['muse-spark-out/'])
+    expect(job['artifacts']).toBeUndefined()
     // The secret is a project variable, never declared in the file.
     expect(Object.keys(record(document['variables']))).not.toContain('MUSE_MODEL_API_KEY')
     // A File-type variable: source preparation and upload see only the path.
     const text = templateText('gitlab')
     expect(text).toContain('MUSE_MODEL_API_KEY_FILE')
-    expect(text).toMatch(/File-type variable/)
+    expect(text).toMatch(/File-type/)
   })
 
   it('Azure: the job condition excludes forks and untrusted pull requests; only the run step maps the secret', () => {
@@ -250,7 +256,11 @@ describe('each system’s own mechanism keeps untrusted runs from the credential
     const steps = (job['steps'] as unknown[]).map((step) => record(step))
     const withEnv = steps.filter((step) => step['env'] !== undefined)
     expect(withEnv).toHaveLength(1)
-    expect(record(withEnv[0]?.['env'])).toEqual({ MUSE_MODEL_API_KEY: '$(MUSE_MODEL_API_KEY)' })
+    expect(record(withEnv[0]?.['env'])).toMatchObject({
+      MUSE_MODEL_API_KEY: '$(MUSE_MODEL_API_KEY)',
+      MUSE_CI_OUTPUT_ROOT:
+        '$(Agent.TempDirectory)/muse-spark-$(Build.BuildId)-$(System.JobAttempt)',
+    })
     expect(typeof withEnv[0]?.['bash']).toBe('string')
     expect(steps[0]).toMatchObject({ checkout: 'self', fetchDepth: 0, persistCredentials: false })
     expect(Object.keys(record(document['variables']))).not.toContain('MUSE_MODEL_API_KEY')
@@ -271,7 +281,7 @@ describe('each system’s own mechanism keeps untrusted runs from the credential
     )
   })
 
-  it('Jenkins: stale output is deleted before checkout; only publisher files archive (findings 3, 4)', () => {
+  it('R4-P1-3: Jenkins archives only job-temp publisher files after its manifest exists', () => {
     const text = templateText('jenkins')
     expect(text).toContain('skipDefaultCheckout(true)')
     const stage = jenkinsStage(text)
@@ -279,15 +289,18 @@ describe('each system’s own mechanism keeps untrusted runs from the credential
     // The vendor start time reaches the launcher for the remaining deadline.
     expect(steps).toContain('env.MUSE_CI_JOB_START_MS = String(currentBuild.startTimeInMillis)')
     // Deletion before checkout: a reused workspace never uploads stale files.
-    expect(steps).toContain("sh 'rm -rf muse-spark-out'")
+    expect(steps).toContain('pwd(tmp: true)')
+    expect(steps).toContain('java.util.UUID.randomUUID()')
     expect(steps).toContain('checkout scm')
-    expect(steps.indexOf('rm -rf muse-spark-out')).toBeLessThan(steps.indexOf('checkout scm'))
     expect(steps.indexOf('checkout scm')).toBeLessThan(steps.indexOf('withCredentials('))
     // The credential stays bound only around the launcher step.
     expect(steps.indexOf('MUSE_CI_JOB_START_MS')).toBeLessThan(steps.indexOf('withCredentials('))
     // Only the publisher's fixed file set archives, never a workspace glob.
     const post = stage.slice(stage.indexOf('post {'))
     expect(post).not.toContain('**')
+    expect(post).toContain('dir(env.MUSE_CI_OUTPUT_ROOT)')
+    expect(post).toContain('fileExists(')
+    expect(post).toContain('followSymlinks: false')
     for (const name of [
       'outputs.json',
       'result.json',
@@ -310,7 +323,8 @@ describe('each system’s own mechanism keeps untrusted runs from the credential
     const step = bitbucketStep()
     expect(step['name']).toBe('Muse Spark')
     expect(Array.isArray(step['script'])).toBe(true)
-    expect(step['artifacts']).toEqual(['muse-spark-out/**'])
+    expect(step['artifacts']).toBeUndefined()
+    expect(step['deployment']).toBe('muse-spark')
     const pipelines = record(document['pipelines'])
     expect(Object.keys(pipelines).toSorted(byText)).toEqual(['branches', 'custom'])
     const main = (record(pipelines['branches'])['main'] as unknown[]).map((item) => record(item))

@@ -6,6 +6,8 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { CI_BOOTSTRAP_UNSET } from '../action/lib/ci-key.mjs'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const SOURCE = path.join(ROOT, 'ci-templates', 'bootstrap.sh')
 
@@ -31,6 +33,8 @@ function sync({ file, system }) {
   const inner = indentOf(lines[begin + 1] ?? lines[begin])
   const body = readFileSync(SOURCE, 'utf8')
     .replace(/\n$/, '')
+    .split('@MUSE_KEY_NAMES@')
+    .join(CI_BOOTSTRAP_UNSET.join(' '))
     .split('\n')
     .map((line) => `${inner}${line.split('@MUSE_SYSTEM@').join(system)}`)
   lines.splice(begin + 1, end - begin - 1, ...body)

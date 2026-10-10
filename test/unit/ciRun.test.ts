@@ -16,7 +16,8 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs'
-import { copyFile, mkdir, rm, writeFile } from 'node:fs/promises'
+import { setTimeout as delay } from 'node:timers/promises'
+import { boundedFiles, fileOperation } from '../../action/lib/ci-files.mjs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { azureBoolean, ciFacts, decideCi } from '../../action/lib/ci-adapters.mjs'
@@ -97,11 +98,14 @@ function runEnv(
   pkg: CiPackage,
   extra: Record<string, string> = {},
 ): Record<string, string | undefined> {
+  const outputRoot = path.join(layout().root, 'output')
+  if (!existsSync(outputRoot)) mkdirSync(outputRoot, { mode: 0o700 })
   return {
     PATH: process.env['PATH'],
     SystemRoot: process.env['SystemRoot'],
     ...systemEnv(system, layout(), clone),
     MUSE_CI_TEMP: mkdtempSync(path.join(layout().root, 'ci-')),
+    MUSE_CI_OUTPUT_ROOT: path.join(layout().root, 'output'),
     MUSE_CI_BOOTSTRAP_START_MS: String(Date.now()),
     MUSE_INPUT_MAX_BUDGET_USD: '1.00',
     MUSE_INPUT_AGENT_PACKAGE: pkg.tarball,
@@ -118,12 +122,7 @@ async function runOn(
   env: Record<string, string | undefined>,
   onSignal?: (signal: 'SIGINT' | 'SIGTERM', run: () => void) => () => void,
   extra?: {
-    io?: {
-      mkdir: typeof mkdir
-      copyFile: typeof copyFile
-      writeFile: typeof writeFile
-      rm: typeof rm
-    }
+    fileOperation?: typeof fileOperation
     finalBounds?: { publishMs?: number; cleanupMs?: number }
   },
 ): Promise<CiRun> {
@@ -140,7 +139,7 @@ async function runOn(
     log: (text) => {
       if (text !== '') run.logged += `${text}\n`
     },
-    ...(extra?.io !== undefined && { io: extra.io }),
+    ...(extra?.fileOperation !== undefined && { fileOperation: extra.fileOperation }),
     ...(extra?.finalBounds !== undefined && { finalBounds: extra.finalBounds }),
     ownerOptions: {
       bounds: FAST_BOUNDS,
@@ -155,7 +154,7 @@ async function runOn(
 }
 
 function published(name: string): string {
-  return readFileSync(path.join(layout().workspace, CI_OUT_DIR, name), 'utf8')
+  return readFileSync(path.join(layout().root, 'output', CI_OUT_DIR, name), 'utf8')
 }
 
 function outputs(): Record<string, string> {
@@ -175,7 +174,7 @@ function expectNoKeyAnywhere(run: CiRun): void {
   expect(hasKey(run.written)).toBe(false)
   expect(hasKey(run.logged)).toBe(false)
   expect(Object.values(run.env).some((value) => value !== undefined && hasKey(value))).toBe(false)
-  const out = path.join(layout().workspace, CI_OUT_DIR)
+  const out = path.join(layout().root, 'output', CI_OUT_DIR)
   if (existsSync(out)) {
     for (const file of readdirSync(out)) {
       expect(hasKey(readFileSync(path.join(out, file), 'utf8')), file).toBe(false)
@@ -317,8 +316,40 @@ describe('key intake, inputs and the job deadline', () => {
       MUSE_MODEL_API_KEY: CI_KEY,
       COPY: CI_KEY,
     }
-    expect(takeCiKey(unmapped)).toBeUndefined()
+    expect(takeCiKey(unmapped)).toBe(CI_KEY)
     expect(unmapped).toEqual({})
+  })
+
+  it('R4-P1-2: a declared alias is a key source; conflicting names refuse and all values are scrubbed', () => {
+    const alias = {
+      MUSE_CI_KEY_ALIASES: 'RENAMED_BINDING',
+      RENAMED_BINDING: CI_KEY,
+      COPY: `Bearer ${CI_KEY}`,
+    }
+    expect(takeCiKey(alias)).toBe(CI_KEY)
+    expect(alias).toEqual({ MUSE_CI_KEY_ALIASES: 'RENAMED_BINDING' })
+    const conflict = {
+      MUSE_MODEL_API_KEY: CI_KEY,
+      META_API_KEY: `LLM_${'d'.repeat(28)}`,
+      COPY: CI_KEY,
+    }
+    expect(takeCiKey(conflict)).toBeUndefined()
+    expect(conflict).toEqual({})
+  })
+
+  it('R4-P2-5: Azure pipeline time includes slow checkout and UseNode; fallback measures real elapsed time', () => {
+    const now = Date.now()
+    const env = {
+      MUSE_CI_JOB_TIMEOUT_MINUTES: '35',
+      MUSE_CI_BOOTSTRAP_START_MS: String(now),
+      MUSE_CI_PIPELINE_STARTED_AT: new Date(now - 16 * 60_000).toISOString(),
+    }
+    expect(() => {
+      checkJobDeadline(env, 'azure', { timeoutMinutes: 20 }, now)
+    }).toThrow('only 19 of 35 remain')
+    expect(
+      jobStartMs({ MUSE_CI_BOOTSTRAP_START_MS: String(now - 7 * 60_000) }, 'bitbucket', now),
+    ).toBe(now - 7 * 60_000)
   })
 
   it('uses the Action’s grammar, refuses GitHub-only inputs and reads Azure booleans', () => {
@@ -374,19 +405,18 @@ describe('key intake, inputs and the job deadline', () => {
     expect(jobStartMs({ MUSE_CI_JOB_START_MS: String(now - 60_000) }, 'jenkins', now)).toBe(
       now - 60_000,
     )
-    // Azure and Bitbucket have no vendor start: the bootstrap's own start
-    // minus the worst-case setup bound.
+    // Fallback measures from bootstrap; vendor timestamps can only make admission more conservative.
     const bootstrap = {
       MUSE_CI_BOOTSTRAP_START_MS: String(now),
       MUSE_CI_JOB_TIMEOUT_MINUTES: '35',
     }
-    expect(jobStartMs(bootstrap, 'azure', now)).toBe(now - 120_000)
+    expect(jobStartMs(bootstrap, 'azure', now)).toBe(now)
     expect(() => {
       checkJobDeadline(bootstrap, 'bitbucket', { timeoutMinutes: 20 }, now)
     }).not.toThrow()
     expect(() => {
       checkJobDeadline(
-        { ...bootstrap, MUSE_CI_BOOTSTRAP_START_MS: String(now - 10 * 60_000) },
+        { ...bootstrap, MUSE_CI_BOOTSTRAP_START_MS: String(now - 16 * 60_000) },
         'bitbucket',
         { timeoutMinutes: 20 },
         now,
@@ -394,9 +424,7 @@ describe('key intake, inputs and the job deadline', () => {
     }).toThrow('needs a job timeout of at least')
     // A malformed vendor start falls back to the bootstrap; a missing
     // bootstrap refuses instead of admitting blind.
-    expect(jobStartMs({ ...bootstrap, CI_JOB_STARTED_AT: 'not-a-date' }, 'gitlab', now)).toBe(
-      now - 120_000,
-    )
+    expect(jobStartMs({ ...bootstrap, CI_JOB_STARTED_AT: 'not-a-date' }, 'gitlab', now)).toBe(now)
     expect(() => bootstrapStartMs({})).toThrow('MUSE_CI_BOOTSTRAP_START_MS')
     expect(requiredJobMinutes({ timeoutMinutes: 20 })).toBeLessThanOrEqual(35)
     expect(requiredRunMs({ timeoutMinutes: 20 })).toBeLessThan(35 * 60_000)
@@ -497,7 +525,7 @@ describe('end to end on each system, in process', PROCESS_SUITE, () => {
     const run = await runOn('bitbucket', runEnv('bitbucket', clone, pkg))
     expect(run.code).toBe(1)
     expect(outputs()).toMatchObject({ status: 'unknown', 'result-path': '' })
-    expect(existsSync(path.join(layout().workspace, CI_OUT_DIR, 'result.json'))).toBe(false)
+    expect(existsSync(path.join(layout().root, 'output', CI_OUT_DIR, 'result.json'))).toBe(false)
   })
 
   it.runIf(isPosix)('SIGTERM stops the run and kills the agent child (finding 7)', async () => {
@@ -538,7 +566,7 @@ describe('end to end on each system, in process', PROCESS_SUITE, () => {
     expect(run.code).toBe(0)
     expect(existsSync(sentinel)).toBe(false)
     // A fresh job workspace for the second run (a stale output refuses first).
-    rmSync(path.join(layout().workspace, CI_OUT_DIR), { recursive: true, force: true })
+    rmSync(path.join(layout().root, 'output', CI_OUT_DIR), { recursive: true, force: true })
     const other = ciPackage(layout().root, { exec: { result: completedResult() } })
     const mismatch = runEnv('gitlab', clone, pkg, { MUSE_INPUT_AGENT_PACKAGE_SHA256: other.sha256 })
     const refused = await runOn('gitlab', mismatch)
@@ -581,31 +609,148 @@ describe('end to end on each system, in process', PROCESS_SUITE, () => {
   )
 })
 
-describe('the output destination is refused before any model call (P1 findings 3, 4)', () => {
-  it.each([['planted directory'], ['planted symlink']])(
-    'a %s where muse-spark-out goes is removed and the run refused',
-    async (_name) => {
+describe('R4: publication and cleanup own cancellable filesystem work', () => {
+  it.each(['planted directory', 'planted symlink'])(
+    'R4-P1-3: ignores a repository %s; publishes only in job temp',
+    async (name) => {
       const clone = cloneFor('gitlab', layout())
       const pkg = ciPackage(layout().root, { exec: { result: completedResult() } })
-      const env = runEnv('gitlab', clone, pkg)
-      const target = path.join(layout().workspace, CI_OUT_DIR)
-      if (_name === 'planted symlink') {
-        symlinkSync(layout().sentinels, target, 'junction')
-      } else {
-        mkdirSync(target)
-        writeFileSync(
-          path.join(target, 'outputs.json'),
-          JSON.stringify({ status: 'completed', 'exit-code': '0' }),
-        )
+      const planted = path.join(layout().workspace, CI_OUT_DIR)
+      if (name === 'planted symlink') symlinkSync(layout().sentinels, planted, 'junction')
+      else {
+        mkdirSync(planted)
+        writeFileSync(path.join(planted, 'outputs.json'), 'forged')
       }
-      await expect(runOn('gitlab', env)).rejects.toThrow('already exists in the workspace')
-      expect(agentReports(pkg)).toEqual([])
-      expect(existsSync(target)).toBe(false)
+      const run = await runOn('gitlab', runEnv('gitlab', clone, pkg))
+      expect(run.code).toBe(0)
+      expect(outputs()['out-dir']).toBe(path.join(layout().root, 'output', CI_OUT_DIR))
+      expect(existsSync(planted)).toBe(true)
     },
   )
 
-  it('refuseExistingOutput passes a clean workspace and publishes only the fixed set', async () => {
-    await expect(refuseExistingOutput(layout().workspace)).resolves.toBeUndefined()
+  it('R4-P2-8: stale-output removal aborts without lying about removal or dispatching', async () => {
+    const clone = cloneFor('gitlab', layout())
+    const pkg = ciPackage(layout().root)
+    const env = runEnv('gitlab', clone, pkg)
+    const target = path.join(layout().root, 'output', CI_OUT_DIR)
+    mkdirSync(target, { recursive: true, mode: 0o700 })
+    const execute: typeof fileOperation = async (operation, signal) => {
+      if (operation.kind === 'remove' && operation.target === target)
+        await delay(2000, undefined, { signal })
+      await fileOperation(operation, signal)
+    }
+    await expect(
+      runOn('gitlab', env, undefined, { fileOperation: execute, finalBounds: { cleanupMs: 1000 } }),
+    ).rejects.toThrow()
+    expect(existsSync(target)).toBe(true)
+    expect(agentReports(pkg)).toEqual([])
+    expect(existsSync(String(env['MUSE_CI_TEMP']))).toBe(false)
+  })
+
+  it('R4-P2-8: removal failure never claims that an existing output was removed', async () => {
+    const target = path.join(layout().root, 'stale')
+    mkdirSync(target)
+    await expect(
+      refuseExistingOutput(target, () => Promise.reject(new Error('EACCES'))),
+    ).rejects.toThrow('EACCES')
+    expect(existsSync(target)).toBe(true)
+  })
+
+  it.each(['malformed facts', 'missing workspace'])(
+    'R4-P2-7: %s still cleans the bootstrap directory',
+    async (reason) => {
+      const clone = cloneFor('jenkins', layout())
+      const pkg = ciPackage(layout().root)
+      const env = runEnv(
+        'jenkins',
+        clone,
+        pkg,
+        reason === 'malformed facts'
+          ? { GIT_COMMIT: 'bad' }
+          : { WORKSPACE: path.join(layout().root, 'missing') },
+      )
+      await expect(runOn('jenkins', env)).rejects.toThrow()
+      expect(existsSync(String(env['MUSE_CI_TEMP']))).toBe(false)
+      expect(agentReports(pkg)).toEqual([])
+    },
+  )
+
+  it('R4-P2-6: late publication cannot write completed outputs after timeout', async () => {
+    const clone = cloneFor('azure', layout())
+    const pkg = ciPackage(layout().root, { exec: { result: completedResult() } })
+    let isAborted = false
+    const execute: typeof fileOperation = async (operation, signal) => {
+      if (operation.kind === 'publish') {
+        try {
+          await delay(150, undefined, { signal })
+        } catch (error) {
+          isAborted = signal.aborted
+          throw error
+        }
+      }
+      await fileOperation(operation, signal)
+    }
+    const run = await runOn('azure', runEnv('azure', clone, pkg), undefined, {
+      fileOperation: execute,
+      finalBounds: { publishMs: 40 },
+    })
+    expect(run.code).toBe(1)
+    expect(isAborted).toBe(true)
+    await delay(180)
+    expect(existsSync(path.join(layout().root, 'output', CI_OUT_DIR))).toBe(false)
+    expect(run.written).not.toContain('MUSE_CI_OUTPUT_READY')
+  })
+
+  it('R4-P2-6: the real filesystem subprocess is killed on abort, including active handles', async () => {
+    const sentinel = path.join(layout().sentinels, 'late-output')
+    let child: ChildProcess | undefined
+    const execute: typeof fileOperation = (operation, signal) =>
+      fileOperation(operation, signal, (_file, _args, options) => {
+        child = spawn(
+          NODE,
+          [
+            '-e',
+            `setTimeout(() => require('node:fs').writeFileSync(${JSON.stringify(sentinel)}, 'late'), 500); setInterval(() => {}, 1000)`,
+          ],
+          options,
+        )
+        return child
+      })
+    await expect(
+      boundedFiles({ kind: 'remove', target: sentinel }, 80, 'test bound', execute),
+    ).rejects.toThrow('test bound')
+    expect(child?.signalCode).toBe('SIGKILL')
+    await delay(550)
+    expect(existsSync(sentinel)).toBe(false)
+  })
+
+  it('R4-P2-6: final cleanup is aborted at its deadline and reports the retained directory', async () => {
+    const clone = cloneFor('azure', layout())
+    const pkg = ciPackage(layout().root, { exec: { result: completedResult() } })
+    const env = runEnv('azure', clone, pkg)
+    let isAborted = false
+    const execute: typeof fileOperation = async (operation, signal) => {
+      if (operation.target === env['MUSE_CI_TEMP']) {
+        try {
+          await delay(1000, undefined, { signal })
+        } catch (error) {
+          isAborted = signal.aborted
+          throw error
+        }
+      }
+      await fileOperation(operation, signal)
+    }
+    const run = await runOn('azure', env, undefined, {
+      fileOperation: execute,
+      finalBounds: { cleanupMs: 30 },
+    })
+    expect(run.code).toBe(0)
+    expect(run.logged).toContain('could not be cleaned')
+    expect(isAborted).toBe(true)
+    expect(existsSync(String(env['MUSE_CI_TEMP']))).toBe(true)
+  })
+
+  it('publishes only the fixed launcher file set', () => {
     expect(CI_PUBLISHED_FILES).toEqual([
       'outputs.json',
       'result.json',
@@ -613,37 +758,6 @@ describe('the output destination is refused before any model call (P1 findings 3
       'fix.patch',
       'manifest.json',
     ])
-  })
-})
-
-/** Never settles: proves a stalled step cannot hold the run open. */
-function stalled(): Promise<never> {
-  return new Promise<never>(() => undefined)
-}
-
-describe('final publication and cleanup keep their own bounds (P2 finding 7)', () => {
-  it('a stalled copy fails the run instead of holding it open', async () => {
-    const clone = cloneFor('azure', layout())
-    const pkg = ciPackage(layout().root, { exec: { result: completedResult() } })
-    const run = await runOn('azure', runEnv('azure', clone, pkg), undefined, {
-      io: { mkdir, copyFile: stalled, writeFile, rm },
-      finalBounds: { publishMs: 50, cleanupMs: 1000 },
-    })
-    expect(run.code).toBe(1)
-    expect(run.logged).toContain('could not be published')
-    expect(existsSync(String(run.env['MUSE_CI_TEMP']))).toBe(false)
-  })
-
-  it('a stalled cleanup is logged and never changes the run result', async () => {
-    const clone = cloneFor('azure', layout())
-    const pkg = ciPackage(layout().root, { exec: { result: completedResult() } })
-    const run = await runOn('azure', runEnv('azure', clone, pkg), undefined, {
-      io: { mkdir, copyFile, writeFile, rm: stalled },
-      finalBounds: { publishMs: 10_000, cleanupMs: 50 },
-    })
-    expect(run.code).toBe(0)
-    expect(run.logged).toContain('could not be cleaned')
-    expect(outputs()).toMatchObject({ status: 'completed' })
   })
 })
 

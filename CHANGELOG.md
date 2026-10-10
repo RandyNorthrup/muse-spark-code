@@ -92,22 +92,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- **Other-CI bootstrap and key handling redesigned, not patched**
-  (CM80CI-R3, review RVCM80CI2). One POSIX bootstrap generated from
-  `ci-templates/bootstrap.sh` into all four templates (a test refuses drift):
-  it unsets every key name and alias into non-exported holders, copies the
-  key into a private file, owns its temp directory with a trap on every exit
-  path, and hands the launcher the key on stdin alone. GitLab takes a
-  File-type variable so source preparation and artifact upload see only a
-  path; Azure maps the secret into the run step's environment only; Jenkins
-  binds it with `withCredentials` around the launcher step only, deletes a
-  stale `muse-spark-out` before checkout and archives only the publisher's
-  five fixed file names; Bitbucket uses a repository (not workspace) Secured
-  variable in its only script step. The launcher refuses a planted or stale
-  output before any model call, admits a turn only on the time remaining
-  from the vendor's job start (else the bootstrap's start minus worst-case
-  setup), removes the whole temp directory on every path out, and runs final
-  publication and cleanup inside their own bounds.
+- **Other-CI credential and publication boundaries** (CM80CI-R4,
+  RVCM80CI3): the shell never reads/copies the key. A generated name list
+  and declared aliases are unset in the download subshell; Node reads the
+  vendor value/File variable directly, refuses conflicting values and strips
+  every value copy before children. Outputs are created outside the clone;
+  Azure/Jenkins upload only publisher files after publication. GitLab and
+  Bitbucket omit their clone-relative upload paths pending external-temp
+  transport. Bitbucket deployment scope replaces the inaccurate repository
+  scope/isolation claim; its automatic processes remain unqualified.
+  Cleanup ownership precedes launcher loading and facts/workspace validation.
+  AbortSignals terminate filesystem workers for publication, stale removal
+  and cleanup; elapsed-time admission uses Azure pipeline time instead of a
+  fixed setup allowance. Fake-tested only; hosted/live receipts remain open.
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.

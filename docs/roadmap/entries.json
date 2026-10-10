@@ -559,7 +559,7 @@
     {
       "id": "M80",
       "title": "Headless runs and a GitHub Action",
-      "summary": "Run one agent turn without an editor, from a GitHub Action or from GitLab, Azure, Jenkins or Bitbucket templates sharing its launcher, to review or fix a change under a hard dollar budget; not certified or supported yet.",
+      "summary": "Run one budgeted agent turn without an editor using the shared CI launcher; other-CI keys are read by Node only and outputs stay in job temp; GitLab/Bitbucket artifact transport and Bitbucket process isolation remain unqualified; not certified or supported.",
       "area": "platform",
       "release": "0.12.0"
     },

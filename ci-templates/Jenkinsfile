@@ -1,28 +1,20 @@
 // Muse Spark Code (Unofficial): Jenkins declarative template (PLAN.md M80/D65, lane CM80CI-R2).
 // Not endorsed by Meta. Guide: docs/ci-other-systems.md.
 //
-// One stage runs the GitHub Action's own launcher, shipped in the
-// muse-spark-code-acp package (ci/lib/ci-run.mjs): the step downloads the
-// pinned package, checks its SHA-256 with sha256sum before anything of it
-// runs, unpacks it outside the workspace and execs the launcher, which
-// installs the same tarball with lifecycle scripts off, checks its identity,
-// reviews (or proposes a fix for) the change and writes muse-spark-out/.
-// It never comments and never pushes. Needs a Linux agent labelled `linux`
-// and a Node 22 tool named `node-22`.
-//
-// Secret: a Secret text credential with id `muse-model-api-key`. It is
-// bound only around the launcher step below, inside the stage whose `when`
-// (evaluated before the stage starts) excludes fork change requests
-// (CHANGE_FORK) and every change request unless
-// MUSE_INPUT_TRUST_PULL_REQUESTS is checked. In a multibranch job keep
-// "Discover pull requests from forks" at a trust level that builds
-// untrusted forks with the target branch's Jenkinsfile, so a fork cannot
-// edit this file. The bootstrap unsets every key name and alias first,
-// copies the value into a private key file (never an exported variable),
-// and the launcher reads the key from its stdin alone. The stage deletes a
-// stale `muse-spark-out` before checking out, and archives only the fixed
-// file names the publisher writes — never a glob over the workspace.
-//
+// Shared bootstrap: download/digest/unpack in a credential-free subshell;
+// the parent never reads/copies the key and execs Node with the original
+// vendor environment. Node takes the source, deletes names and value
+// copies, and sends the value only over trusted exec/scanner stdin.
+// Extra secret bindings MUST be declared by name in MUSE_CI_KEY_ALIASES
+// (space-separated); never bind undeclared credential copies.
+// Output is created by Node outside the repository under job temp.
+// Secret text credential muse-model-api-key is bound only around the
+// guarded launcher step. Keep multibranch fork discovery at a trust level
+// that uses the target branch Jenkinsfile for untrusted forks. A fresh UUID
+// directory under pwd(tmp: true) holds output; post checks its publisher
+// manifest and archives only fixed filenames from that directory.
+// Needs a Linux agent labelled linux and a Node 22 tool named node-22.
+
 // Pin MUSE_AGENT_VERSION to a release that carries ci/ (the first release
 // after 0.17.0) and MUSE_INPUT_AGENT_PACKAGE_SHA256 to that tarball's SHA-256.
 
@@ -30,8 +22,7 @@ pipeline {
   agent { label 'linux' }
   tools { nodejs 'node-22' }
   // MUSE_CI_JOB_TIMEOUT_MINUTES below names the same deadline for the launcher.
-  // The default checkout is skipped so a stale output directory is deleted
-  // before the checkout restores the workspace.
+  // Explicit checkout stays outside the credential binding.
   options { timeout(time: 35, unit: 'MINUTES'); skipDefaultCheckout(true) }
   parameters {
     choice(name: 'MUSE_INPUT_MODE', choices: ['review', 'fix'], description: 'review (plan mode, no edits) or fix (a patch is proposed).')
@@ -64,55 +55,61 @@ pipeline {
         }
       }
       steps {
-        script { env.MUSE_CI_JOB_START_MS = String(currentBuild.startTimeInMillis) }
-        sh 'rm -rf muse-spark-out'
+        script {
+          env.MUSE_CI_JOB_START_MS = String(currentBuild.startTimeInMillis)
+          env.MUSE_CI_OUTPUT_ROOT = "${pwd(tmp: true)}/muse-spark-${java.util.UUID.randomUUID()}"
+        }
         checkout scm
         withCredentials([string(credentialsId: 'muse-model-api-key', variable: 'MUSE_MODEL_API_KEY')]) {
           sh '''
             # BEGIN MUSE BOOTSTRAP (generated from ci-templates/bootstrap.sh - do not edit)
-            # Muse Spark Code (Unofficial): the one POSIX bootstrap for the other-CI
-            # templates (PLAN.md M80/D65). This file is the source of truth:
-            # scripts/sync-ci-bootstrap.mjs copies it into gitlab-ci.yml,
-            # azure-pipelines.yml, Jenkinsfile and bitbucket-pipelines.yml (stamping in
-            # the template's system name), and the template tests refuse any drift.
-            # POSIX sh only.
-            #
-            # Key handling: the two holders below are unset before they are assigned,
-            # so an exported holder arriving from the environment cannot keep its
-            # export attribute; every secret name is unset before any child runs;
-            # the key lands in a private file, never an exported variable, and the
-            # launcher reads it from its stdin alone.
+            # Muse Spark Code (Unofficial): shared POSIX bootstrap, generated into the
+            # four templates by node scripts/sync-ci-bootstrap.mjs. The parent never
+            # reads the credential. Only names/paths/timestamps cross this subshell.
             set +x
-            set -eu
+            set -efu
             umask 077
-            unset muse_key muse_key_file
-            muse_key="${MUSE_MODEL_API_KEY:-}"
-            muse_key_file="${MUSE_MODEL_API_KEY_FILE:-}"
-            unset MUSE_MODEL_API_KEY MUSE_MODEL_API_KEY_FILE MUSE_SPARK_MODEL_API_KEY META_API_KEY
-            muse_start_ms=$(($(date +%s) * 1000))
-            if [ -z "${MUSE_AGENT_VERSION:-}" ] || [ -z "${MUSE_INPUT_AGENT_PACKAGE_SHA256:-}" ]; then echo 'muse-spark: pin MUSE_AGENT_VERSION and MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
-            muse_dir="$(mktemp -d)"
-            trap 'rm -rf "$muse_dir"' EXIT HUP INT TERM
-            if [ -n "$muse_key_file" ] && [ -f "$muse_key_file" ]; then
-              cp "$muse_key_file" "$muse_dir/key" || { echo 'muse-spark: cannot read the key file' >&2; exit 1; }
-            else
-              printf '%s' "$muse_key" > "$muse_dir/key"
-            fi
-            unset muse_key muse_key_file
-            chmod 600 "$muse_dir/key"
-            curl --fail --silent --show-error --location --max-time 120 --output "$muse_dir/agent.tgz" "${MUSE_AGENT_URL:-https://registry.npmjs.org/muse-spark-code-acp/-/muse-spark-code-acp-$MUSE_AGENT_VERSION.tgz}"
-            muse_sum="$(sha256sum "$muse_dir/agent.tgz")"
-            if [ "${muse_sum%% *}" != "$MUSE_INPUT_AGENT_PACKAGE_SHA256" ]; then echo 'muse-spark: the agent package does not match MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
-            mkdir "$muse_dir/launcher"
-            tar -xzf "$muse_dir/agent.tgz" -C "$muse_dir/launcher" --no-same-owner
-            MUSE_CI_TEMP="$muse_dir" MUSE_CI_BOOTSTRAP_START_MS="$muse_start_ms" MUSE_INPUT_AGENT_PACKAGE="$muse_dir/agent.tgz" exec node "$muse_dir/launcher/package/ci/lib/ci-run.mjs" jenkins < "$muse_dir/key"
+            muse_setup="$(
+              unset MUSE_MODEL_API_KEY MUSE_SPARK_MODEL_API_KEY META_API_KEY MUSE_MODEL_API_KEY_FILE muse_key muse_key_file muse_setup muse_dir muse_start_ms muse_sum muse_alias
+              # Extra bindings must be declared by NAME, never by value. The launcher
+              # reads this same name list and also scrubs every copy of the value.
+              for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do
+                case "$muse_alias" in ''|[0-9]*|*[!A-Za-z0-9_]*) echo 'muse-spark: invalid key alias name' >&2; exit 1;; esac
+                unset "$muse_alias"
+              done
+              if [ -z "${MUSE_AGENT_VERSION:-}" ] || [ -z "${MUSE_INPUT_AGENT_PACKAGE_SHA256:-}" ]; then echo 'muse-spark: pin MUSE_AGENT_VERSION and MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
+              muse_start_ms=$(($(date +%s) * 1000))
+              muse_dir="$(mktemp -d)"
+              # timeout(1) bounds the removal where it runs; a missing or broken
+              # timeout must not change the exit status, so plain rm is the fallback.
+              trap 'timeout -s KILL 5 rm -rf "$muse_dir" 2>/dev/null || rm -rf "$muse_dir"' EXIT HUP INT TERM
+              curl --fail --silent --show-error --location --max-time 120 --output "$muse_dir/agent.tgz" "${MUSE_AGENT_URL:-https://registry.npmjs.org/muse-spark-code-acp/-/muse-spark-code-acp-$MUSE_AGENT_VERSION.tgz}"
+              muse_sum="$(sha256sum "$muse_dir/agent.tgz")"
+              if [ "${muse_sum%% *}" != "$MUSE_INPUT_AGENT_PACKAGE_SHA256" ]; then echo 'muse-spark: the agent package does not match MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
+              mkdir "$muse_dir/launcher"
+              tar -xzf "$muse_dir/agent.tgz" -C "$muse_dir/launcher" --no-same-owner
+              printf '%s:%s' "$muse_start_ms" "$muse_dir"
+              trap - EXIT HUP INT TERM
+            )"
+            muse_start_ms="${muse_setup%%:*}"
+            muse_dir="${muse_setup#*:}"
+            # An exec failure still belongs to this shell, using the same sanitized
+            # subshell; successful exec belongs to ci-entry from its first statement.
+            trap '(unset MUSE_MODEL_API_KEY MUSE_SPARK_MODEL_API_KEY META_API_KEY MUSE_MODEL_API_KEY_FILE muse_key muse_key_file muse_setup muse_dir muse_start_ms muse_sum muse_alias; for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do unset "$muse_alias"; done; timeout -s KILL 5 rm -rf "$muse_dir" 2>/dev/null || rm -rf "$muse_dir")' EXIT HUP INT TERM
+            MUSE_CI_TEMP="$muse_dir" MUSE_CI_BOOTSTRAP_START_MS="$muse_start_ms" MUSE_INPUT_AGENT_PACKAGE="$muse_dir/agent.tgz" exec node "$muse_dir/launcher/package/ci/lib/ci-entry.mjs" jenkins
             # END MUSE BOOTSTRAP
           '''
         }
       }
       post {
         always {
-          archiveArtifacts artifacts: 'muse-spark-out/outputs.json, muse-spark-out/result.json, muse-spark-out/events.jsonl, muse-spark-out/fix.patch, muse-spark-out/manifest.json', allowEmptyArchive: true
+          script {
+            if (env.MUSE_CI_OUTPUT_ROOT && fileExists("${env.MUSE_CI_OUTPUT_ROOT}/muse-spark-out/outputs.json")) {
+              dir(env.MUSE_CI_OUTPUT_ROOT) {
+                archiveArtifacts artifacts: 'muse-spark-out/outputs.json, muse-spark-out/result.json, muse-spark-out/events.jsonl, muse-spark-out/fix.patch, muse-spark-out/manifest.json', allowEmptyArchive: true, followSymlinks: false
+              }
+            }
+          }
         }
       }
     }

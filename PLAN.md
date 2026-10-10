@@ -5129,6 +5129,17 @@ decision became D65 at integration (2026-10-02).
 
 **The exception: headless runs in CI (M80, PLAN D65).** GitHub supplies the Model API key to the Action's own run-step process through its environment. The step directly execs the trusted launcher, which deletes that variable before it starts any child and holds the key only in memory until final cleanup. It sends the key only over private standard input to two trusted installed agent commands: `muse-spark-code-acp exec --key-stdin` for the run, and `muse-spark-code-acp scan-secrets --key-stdin` for the exact private staged patch. Both hold it in memory only, clear their references in finally, and never store it. No Git, tool, hook, check, install, apply or other child receives it in an environment, argument or file. The launcher's initial OS environment can remain inspectable by the same user; deleting the variable does not erase that record or guarantee memory zeroization. Nothing else is excepted.
 
+**Other-CI transport (CM80CI-R4, 2026-10-10).** The bootstrap shell never
+reads/copies the value or creates a key file. Its download subshell unsets
+names/aliases from the launcher's generated list; its parent execs Node with
+the original vendor environment. Node takes the vendor source first (GitLab
+File variable is read directly, never copied), refuses conflicting names,
+strips names and values before children and keeps the credential only in
+memory for private stdin and redaction. This replaces R2's environment
+handoff and R3's private key transport file. Vendor-managed secret-file
+creation and automatic phases remain vendor boundaries, not launcher
+children; their qualification limits are explicit in M80's record.
+
 Local OS-store authentication is unchanged. Stdin CI uses neither `auth set`
 nor a throwaway keyring nor an environment-key fallback inside the agent.
 One bounded launcher owns diff generation, exec, extraction, patch Git,
@@ -23315,36 +23326,42 @@ the obsolete bootstrap/reservation/paid policy wording below with v4's policy.
 - **Size:** L. Existing bundle caps remain unchanged; final integrated-tree
   sizes and package/workflow hashes belong to the lead's closing receipt.
 
-**Lanes CM80CI and CM80CI-R2, 2026-10-10 (other CI systems; status: built,
-not certified).** M80's headless run also runs on GitLab CI, Azure
-Pipelines, Jenkins and Bitbucket Pipelines. Review RVCM80CI (3 P1, 10 P2,
-1 P3) found that the first lane's second launcher
-(`ci-templates/muse-spark-run.mjs`) re-implemented the Action badly; lead
-ruling R2: one launcher. The GitHub Action's own scripts are the launcher
-for every system: `action/lib/ci-run.mjs` composes the Action's input
-grammar, installer, sanitized Git, owner, diff, prompt file, exec, result
-extraction, patch and scanner, and `action/lib/ci-adapters.mjs` reads each
-system's event and trust facts. The `muse-spark-code-acp` package carries
-`action/lib` and `action/prompts` as `ci/`. Each template under
-`ci-templates/` is a thin wrapper: unset the secret variable first, download
-the pinned release, check its SHA-256 before anything of it runs, unpack it
-outside the checkout and exec the launcher with the key in one variable.
-Trust uses each system's own mechanism (GitLab Protected variable plus
-`rules:`; Azure's fork secret policy, step-scoped secret and job condition;
-Jenkins `withCredentials` only inside a stage whose `when` excludes
-`CHANGE_FORK` and untrusted change requests; Bitbucket Secured variable and
-a step listed only under branches and custom), and the launcher refuses
-again from the system's variables. The GitHub Action's own steps and
-behaviour are unchanged (two helpers are now exported). Docs:
-`docs/ci-other-systems.md`, README's Other CI systems, Help reference
-`ci-other-systems`, the M80 roadmap entry. Evidence and red drills for all
-fourteen findings: [cm80ci.md](docs/certification/cm80ci.md). No live run
-on these systems and no release carrying `ci/` yet, and the registry path
-still waits on LR, so nothing here is certified. Dependency (AGENTS rule
-9): `yaml` 2.9.1 becomes a declared development dependency for the
-template validators; it was already in the lock as a development
-dependency of knip, vite and eslint-plugin-unicorn (no new download, no
-peer dependencies). No escape hatch (§8 unchanged), no bundle change.
+**Lane CM80CI-R4, 2026-10-10 (other CI systems; built, not certified).**
+The other-CI templates share the GitHub Action's input grammar, installer,
+Git runner, proposal engine and scanner through `action/lib/ci-run.mjs`.
+RVCM80CI3's redesign supersedes R2/R3 credential transport:
+
+- The POSIX bootstrap never reads a key value or copies a key file. Download,
+  digest verification and unpacking run in a subshell that unsets the key
+  names and configured aliases generated from the launcher's single source.
+  The parent execs Node with the vendor's original credential environment.
+- Node first takes the GitLab File-variable value directly from its vendor
+  file, or the other vendors' environment value; conflicting named values
+  refuse. Every named key and alias, and every environment value containing
+  the credential, is deleted before children run. The value stays in memory
+  for private exec/scanner stdin and output scrubbing; no transport file.
+- Publication creates a fresh directory outside the repository under job
+  temp. Only publisher files are upload candidates; early bootstrap or
+  validation failures create no output. Repository artifact fallbacks are
+  forbidden. Vendors unable to upload outside the clone need an explicit
+  external qualification limit rather than an unsafe repository fallback.
+- Cleanup ownership begins at launcher entry, before facts/workspace/input
+  validation. Publication, stale-output removal and final cleanup receive
+  AbortSignals and terminate their filesystem worker at the deadline, so
+  timed-out work cannot resume later. Admission measures actual elapsed time
+  from the earliest available vendor start (Azure pipeline.startTime,
+  GitLab job start, Jenkins build start), otherwise bootstrap start; no fixed
+  two-minute setup assumption.
+- Bitbucket's single-script claim did not prove isolation of vendor-managed
+  clone/setup/upload. Deployment variables are narrower than repository
+  variables. Without a hosted or runner receipt, process isolation remains
+  an external qualification limit, not a claim of support.
+
+The package carries `action/lib` and `action/prompts` as `ci/`. GitHub Action
+behavior remains unchanged. No paid/live calls or hosted vendor run in this
+lane; full quality and hosted/live L/LA/LR receipts remain lead-owned under
+the rig brief. Evidence: [cm80ci.md](docs/certification/cm80ci.md). Existing
+`yaml` 2.9.1 development pin is unchanged; no dependency or bundle-cap change.
 
 ### M81 — Browser check (D49)
 

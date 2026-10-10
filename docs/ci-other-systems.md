@@ -1,165 +1,133 @@
 # Headless runs on other CI systems (Unofficial)
 
-PLAN.md M80/D65, lanes CM80CI and CM80CI-R2. The project's own CI is GitHub
-Actions (PLAN A7), and [the CI guide](ci.md) describes the GitHub Action.
-`ci-templates/` carries one template each for GitLab CI, Azure Pipelines,
-Jenkins and Bitbucket Pipelines. They do not have a launcher of their own:
-each runs the GitHub Action's launcher, with a small adapter for that
-system's event and trust facts.
+PLAN.md M80/D65, CM80CI-R4. The GitLab, Azure, Jenkins and Bitbucket templates
+share the GitHub Action's input grammar, installer, sanitized Git, proposal
+engine, result validator and scanner. Nothing comments or pushes.
 
-## Claim limits
+These templates are **not certified or supported**. Tests use local packages,
+real Git/npm and fabricated credentials with a fake agent. No hosted/live
+receipt exists, and no release carrying `ci/` is claimed. Pin only a release
+that actually carries it; registry-path support still needs M80's LR receipt.
 
-Like the Action, these templates are not certified or supported yet. They
-are tested with fakes only (template validators that parse each file, the
-exact template scripts under `sh -xe` with recording shims, and the launcher
-end to end against a real clone, real Git, real npm and a fake agent). No
-live run on any of these systems exists, and no real key has been used.
-The launcher ships in the `muse-spark-code-acp` package from the first
-release after 0.17.0; until that release exists there is no version to pin.
+## Credential boundary
 
-## How a run works
+The package carries `action/lib` and `action/prompts` as `ci/`. One POSIX
+bootstrap, `ci-templates/bootstrap.sh`, is generated into all four templates
+with `node scripts/sync-ci-bootstrap.mjs`; tests reject drift.
 
-The package carries the Action's own scripts as `ci/lib` (from `action/lib`)
-and its prompt templates as `ci/prompts`. Every template runs the same
-POSIX shell bootstrap in the one step that has the key. The bootstrap lives
-in exactly one place, `ci-templates/bootstrap.sh`; `node
-scripts/sync-ci-bootstrap.mjs` stamps it into the four templates, and the
-template tests refuse any drift:
+1. The parent shell never reads a credential value or copies a key file.
+   Its subshell unsets the known key names generated from
+   `CI_BOOTSTRAP_UNSET` in `action/lib/ci-key.mjs` (re-exported by
+   `ci-run.mjs`), and additional binding
+   names declared in `MUSE_CI_KEY_ALIASES`, before its first child (`date`).
+   Declare additional bindings as space-separated variable **names**, never
+   values. Do not put undeclared credential copies in the job environment:
+   POSIX shell cannot identify an arbitrary copied value without reading it.
+2. The sanitized subshell records bootstrap time, creates private scratch
+   under `TMPDIR`, downloads the pinned package with `curl --max-time 120`,
+   checks SHA-256 with `sha256sum`, and unpacks it with `tar`. It has bounded
+   failure cleanup (`timeout -s KILL 5 rm` with a plain-`rm` fallback where
+   `timeout` is missing or cannot run, so cleanup failure never changes the
+   exit status); no key file is created.
+3. The parent receives only a timestamp and directory path, then execs
+   `node ci/lib/ci-entry.mjs <system>` with the vendor's original environment.
+   The entry registers cleanup before loading the proposal module, covering
+   module-load, facts, workspace and input failures. No key is in argv/stdin.
+4. Node reads the vendor source first: GitLab's File-variable file directly,
+   or `MUSE_MODEL_API_KEY` / `MUSE_SPARK_MODEL_API_KEY` / `META_API_KEY` or a
+   declared alias on the other vendors. Different named values refuse. The
+   names, file path, legacy holders and every environment value containing
+   any supplied key are deleted before any child. The key stays in memory
+   for private `exec --key-stdin` / `scan-secrets --key-stdin` and redaction.
+   Every launcher child receives an explicit allow-listed environment;
+   filesystem workers and exit cleanup receive an empty environment.
 
-1. Every known key name and alias is unset first (`MUSE_MODEL_API_KEY`,
-   `MUSE_MODEL_API_KEY_FILE`, `MUSE_SPARK_MODEL_API_KEY`, `META_API_KEY`),
-   into holders that are themselves unset before assignment, so an exported
-   holder arriving from the environment cannot keep its export attribute.
-   The value (or the File variable's path) is captured before that scrub,
-   and the bootstrap's own start second is recorded.
-2. The key is copied into a private key file (`umask 077`, `chmod 600`),
-   never an exported variable; the holders are unset again at once. A
-   `trap` owns the private `mktemp -d` folder outside the checkout and
-   removes it on every exit path, including download, digest and unpack
-   failures.
-3. The pinned version is downloaded (`curl --max-time 120`) into that
-   folder, and its SHA-256 is compared with
-   `MUSE_INPUT_AGENT_PACKAGE_SHA256` by `sha256sum`. A mismatch stops the step
-   before anything of the package is unpacked or run.
-4. The tarball is unpacked with `tar` (no package manager, so no lifecycle
-   script), and the shell `exec`s `node ci/lib/ci-run.mjs <system>` with the
-   key file on the launcher's stdin. Being an `exec`, the launcher is
-   the step's process: a cancellation signal reaches it directly.
+This controls bootstrap and launcher children. Vendor-managed secret-file
+creation, clone, tool setup and upload are separate qualification boundaries.
+An initial OS environment can remain inspectable by the same user; deletion
+does not erase that record or guarantee memory zeroization.
 
-The launcher (`action/lib/ci-run.mjs`) reads the key from its stdin alone
-(the environment is still scrubbed first, under every name that carries the
-key) and then:
+## Vendor setup and limits
 
-- reads the system's facts (`action/lib/ci-adapters.mjs`) and refuses an
-  existing `muse-spark-out` destination (removing it without following it,
-  so an always-upload finds nothing forged), an unsupported event, a fork,
-  a pull request without `MUSE_INPUT_TRUST_PULL_REQUESTS`, an unprotected
-  GitLab ref, or image generation in review mode, before anything is
-  installed and before any model call;
-- admits the run only on the time REMAINING: the job timeout minus what the
-  job already spent, measured from the vendor's start where one reaches the
-  launcher (GitLab's `CI_JOB_STARTED_AT`, the Jenkins template's
-  `currentBuild.startTimeInMillis`), else from the bootstrap's own start
-  minus the worst-case setup bound;
-- installs the same tarball the Action's way (`install.mjs`): SHA-256 checked
-  again, `npm install --ignore-scripts` into a private prefix with an empty
-  private npm configuration and the registry pinned, then the installed
-  package's name, version and bin checked;
-- makes its own repository from the system's clone without running anything
-  of it: a fresh `git init`, the clone's `HEAD` (and a pull request's target
-  branch) fetched over the local file transport through the Action's
-  sanitized Git, the head the system names verified and checked out;
-- stages the change resource (which change, head, base, any title and
-  description the system supplies) as untrusted data, generates the review
-  diff (merge base to head) cut to `MUSE_INPUT_MAX_DIFF_BYTES`, renders the
-  prompt from `ci/prompts/<mode>.md` and passes it with `--prompt-file`;
-- runs `exec --key-stdin` and, in fix mode, `scan-secrets --key-stdin` under
-  the Action's launcher owner: signals forwarded and the child killed at its
-  bound, both pipes drained under byte bounds, the result accepted only if
-  it validates against the result schema with the matching exit code;
-- writes `muse-spark-out/` in the checkout with `outputs.json` (the
-  publisher's manifest of what it published) and whatever the run published
-  (`result.json`, `events.jsonl`, and in fix mode `fix.patch` and
-  `manifest.json`) — only those fixed names, never a glob — inside its own
-  publication bound, prints the Action's run summary, and removes the whole
-  bootstrap temp directory inside its own cleanup bound (a stalled cleanup
-  is logged and never changes the result);
+| System    | Secret and trust                                                                                                                                                                                                                    | Elapsed job time                                                                              | Upload                                                                                                                                                   |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GitLab    | Protected, Masked/Hidden **File-type** `MUSE_MODEL_API_KEY_FILE`. Rules exclude fork/untrusted merge requests, unprotected refs and tags; launcher checks again. Automatic source preparation sees the path.                        | `CI_JOB_STARTED_AT`, `CI_JOB_TIMEOUT`; earliest timestamp wins.                               | Built-in artifacts require paths inside `CI_PROJECT_DIR`; no repository fallback is configured. External-temp transport remains unqualified.             |
+| Azure     | Secret pipeline/variable-group `MUSE_MODEL_API_KEY`, mapped only into the run step. Keep fork secret access OFF. Job condition excludes forks and untrusted PRs; `True`/`False` are read without case.                              | Conservative `pipeline.startTime`, before checkout/UseNode, plus bootstrap time; 35 minutes.  | Job-temp output, enabled only by the launcher's `MUSE_CI_OUTPUT_READY` marker after successful publication. Early failures select nothing.               |
+| Jenkins   | Secret text credential `muse-model-api-key`, bound around the guarded launcher step only. Multibranch fork discovery must use the target Jenkinsfile for untrusted forks.                                                           | `currentBuild.startTimeInMillis`, plus bootstrap time; 35 minutes.                            | Fresh UUID under `pwd(tmp: true)`, manifest checked, five fixed publisher filenames, `followSymlinks: false`. No checkout artifact path.                 |
+| Bitbucket | Secured **deployment** `MUSE_MODEL_API_KEY` in deployment environment `muse-spark`, with trusted-ref/user restrictions. Deployment scope is narrower than repository/workspace. Branch `main` and custom only, no fork PR pipeline. | Bootstrap elapsed time, or an explicitly supplied earlier `MUSE_CI_JOB_START_MS`; 35 minutes. | Built-in artifacts are clone-relative; no repository fallback is configured. External-temp transport and automatic process isolation remain unqualified. |
 
-Nothing comments on a change or pushes. Results leave through each system's
-artifact upload only.
+Bitbucket's single user script does not establish what automatic clone/setup
+or upload processes receive. The review's additional P1 is confirmed as a
+qualification/documentation gap; an actual vendor-process leak is neither
+confirmed nor refuted without a hosted or runner receipt. Deployment scoping
+reduces exposure but does not close that gap. Bootstrap-only timing on a
+vendor with no earlier timestamp cannot prove coverage of its automatic
+preparation: qualification requires an earlier timestamp or a verified
+vendor timeout boundary. No fixed two-minute setup allowance is assumed.
 
-## Each system's own mechanism
+The templates require Linux, Node 22, curl, sha256sum, tar, mktemp and GNU
+`timeout`; no package-manager lifecycle scripts run during bootstrap. Full
+clone history is required. Same-repository PRs are trusted only with
+`MUSE_INPUT_TRUST_PULL_REQUESTS=true`, since branch writers can edit CI code.
 
-The real boundary is each system's secret scoping: a run that the system
-does not trust never has the key. The template's conditions then keep the
-credential step from even starting, and the launcher refuses again from the
-system's own variables.
+## Run and lifecycle
 
-| System    | Secret                                                                                                             | What keeps untrusted runs away from it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Timeout                                                                                                       | Clone                                                                            |
-| --------- | ------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| GitLab    | `MUSE_MODEL_API_KEY_FILE`: File-type CI/CD variable holding the key, Protected, Masked (and Hidden)                | The job sees a path, never the value, so automatic source preparation and the artifact-upload shell cannot receive the key. GitLab gives a Protected variable only to pipelines of protected branches and tags. The job's `rules:` never run it for a fork merge request, a merge request unless `MUSE_INPUT_TRUST_PULL_REQUESTS` is true, a merge request from an unprotected source branch, an unprotected ref, or a tag. The launcher checks `CI_MERGE_REQUEST_SOURCE_PROJECT_ID`, `CI_MERGE_REQUEST_SOURCE_BRANCH_PROTECTED` and `CI_COMMIT_REF_PROTECTED` again.                                                                                                                                 | `timeout: 35m`; the launcher reads `CI_JOB_TIMEOUT` and admits on the time remaining from `CI_JOB_STARTED_AT` | `GIT_DEPTH: '0'`                                                                 |
-| Azure     | `MUSE_MODEL_API_KEY`: secret pipeline variable or variable-group secret                                            | Azure maps a secret into no step unless the step names it: only the run step's `env:` does. Keep "Make secrets available to builds of forks" off (its default), so fork pull request builds have no secret. The job `condition:` skips fork pull requests and every pull request unless `MUSE_INPUT_TRUST_PULL_REQUESTS` is true. Azure writes booleans as `True`/`False`; its `eq()` and the launcher both compare them without case (`System.PullRequest.IsFork` included). No vendor job-start variable is consumed; the launcher measures from the bootstrap's start minus the worst-case setup bound.                                                                                            | `timeoutInMinutes: 35` and `MUSE_CI_JOB_TIMEOUT_MINUTES: '35'`                                                | `fetchDepth: 0`, `persistCredentials: false`; a pull request is its merge commit |
-| Jenkins   | Secret text credential `muse-model-api-key`                                                                        | `withCredentials` binds it only around the launcher step, inside the one stage whose `when` (with `beforeAgent true`) excludes `CHANGE_FORK` and every change request unless `MUSE_INPUT_TRUST_PULL_REQUESTS` is checked. In a multibranch job keep fork discovery at a trust level that builds untrusted forks with the target branch's Jenkinsfile, so a fork cannot edit this file. The shell starts with `set +x` because Jenkins runs `sh -xe`. The stage deletes a stale `muse-spark-out` before the explicit `checkout scm` (the default checkout is skipped), passes `currentBuild.startTimeInMillis` for the remaining-time deadline, and archives only the five fixed publisher file names. | `timeout(time: 35)` and `MUSE_CI_JOB_TIMEOUT_MINUTES = '35'`                                                  | Explicit `checkout scm`; a change request needs its target branch fetched        |
-| Bitbucket | `MUSE_MODEL_API_KEY`: Secured repository variable (not a workspace variable: the narrowest scope Bitbucket offers) | The pipeline's only script is the one step, so no other job process holds the value. Bitbucket does not start this repository's pipelines for pull requests from forks. The step is listed only under `branches: main` and `custom:` (run by hand by someone with write access), never under `pull-requests:`; add it there only with `MUSE_INPUT_TRUST_PULL_REQUESTS` true, or the launcher refuses the pull request build. No vendor job-start variable is consumed; the launcher measures from the bootstrap's start minus the worst-case setup bound.                                                                                                                                             | `max-time: 35` and `MUSE_CI_JOB_TIMEOUT_MINUTES=35`                                                           | `clone: depth: full`                                                             |
+The launcher refuses unsupported events, forks, untrusted PRs, unprotected
+GitLab refs and images in review mode before installation/spending. Admission
+uses job duration minus measured elapsed time from the earliest supplied
+vendor or bootstrap start, reserving install, checkout, exec and every tail.
 
-Same-repository pull requests are trusted only when you say so, because
-whoever can push a branch can edit the template on that branch, the same
-trust GitHub places in collaborators (see the CI guide's isolation section).
+The pinned tarball is checked again and installed with lifecycle scripts off,
+private npm config and a package identity/bin check. A fresh private repository
+fetches the vendor clone's verified head and base using sanitized Git. The
+change metadata and bounded base/head diff are untrusted files; the trusted
+prompt travels through `--prompt-file`. The Action owner bounds the turn,
+forwards signals, terminates children and drains both pipes. Completed/0 and
+the trusted scanner are required before a text patch can be published.
 
-What each run reviews:
+The output directory is created by the launcher under job temp, outside the
+clone and outside scratch that final cleanup removes. Only `outputs.json`,
+`result.json`, `events.jsonl`, `fix.patch` and `manifest.json` can be copied.
+`outputs.json` is written last. A repository-planted directory or symlink is
+never an upload candidate, even if pin/download/digest/unpack/validation fails.
+An existing job-temp destination is removed within a bound and refused before
+spending; a removal failure never claims successful removal.
 
-- **GitLab merge request:** `CI_MERGE_REQUEST_DIFF_BASE_SHA` to
-  `CI_COMMIT_SHA`. **Push, web, schedule or API pipeline:** `CI_COMMIT_BEFORE_SHA`
-  to `CI_COMMIT_SHA`, or the head's first parent when GitLab gives no
-  earlier commit.
-- **Azure pull request:** the merge commit Azure checks out
-  (`Build.SourceVersion`) against its first parent, the target branch; a
-  checkout that is not a merge commit is refused. **Manual, CI or schedule:**
-  the head's first parent.
-- **Jenkins change request:** `origin/<CHANGE_TARGET>` to `GIT_COMMIT`.
-  **Branch:** the head's first parent.
-- **Bitbucket pull request:** `origin/<BITBUCKET_PR_DESTINATION_BRANCH>` to
-  `BITBUCKET_COMMIT`. **Branch or custom:** the head's first parent.
+Publication, stale-output removal and final cleanup run in a credential-free
+Node filesystem subprocess. Their AbortSignals kill and reap that subprocess
+at the bound: no late completed manifest can appear after timeout. Partial
+publication is removed under a separate cleanup bound. The entry's bounded
+exit fallback covers failures before the run owner. Cleanup failures are
+reported; retained output belongs to the vendor's job-temp retention policy.
 
-## Inputs
+## Inputs and outputs
 
-The inputs are the Action's, under the names its own steps use
-(`MUSE_INPUT_*`), validated by the same code (`tools.mjs`):
-`MUSE_INPUT_MODE`, `MUSE_INPUT_MAX_BUDGET_USD`, `MUSE_INPUT_MAX_REQUESTS`,
-`MUSE_INPUT_TIMEOUT_MINUTES`, `MUSE_INPUT_MODEL`, `MUSE_INPUT_EFFORT`,
-`MUSE_INPUT_ALLOW_CONTRIBUTOR_MODELS`, `MUSE_INPUT_IMAGE_GENERATION`,
-`MUSE_INPUT_MAX_DIFF_BYTES`, `MUSE_INPUT_EXTRA_INSTRUCTIONS`,
-`MUSE_INPUT_HTTPS_PROXY`, `MUSE_INPUT_NO_PROXY` and
-`MUSE_INPUT_EXTRA_CA_CERTS`, plus `MUSE_INPUT_TRUST_PULL_REQUESTS` (default
-false). The template sets `MUSE_INPUT_AGENT_PACKAGE` to the verified
-tarball; you pin `MUSE_AGENT_VERSION` and `MUSE_INPUT_AGENT_PACKAGE_SHA256`.
-The GitHub-only inputs (trigger phrase, pull request number, path, comment,
-artifact upload) are refused when set. An empty value takes the Action's
-default; an explicitly empty budget is refused, as the Action refuses it.
-The task is fixed (`Review this change.` or `Make the change these commits
-need.`); add yours with `MUSE_INPUT_EXTRA_INSTRUCTIONS`.
+Inputs use the Action's `MUSE_INPUT_*` names and grammar: mode, max-budget-usd,
+max-requests, timeout-minutes, model, effort, allow-contributor-models,
+image-generation, max-diff-bytes, extra-instructions, https-proxy, no-proxy,
+extra-ca-certs, plus trust-pull-requests (default false). Pin
+`MUSE_AGENT_VERSION` and `MUSE_INPUT_AGENT_PACKAGE_SHA256`; bootstrap sets
+agent-package. The task is fixed to review/fix; extra-instructions adds trusted
+pipeline-author instructions. GitHub-only inputs are refused. Explicitly
+empty budget values refuse. Images require fix mode, their explicit flag and
+the existing hard dollar budget; subscription billing is unavailable.
 
-## Outputs and exit codes
+`MUSE_CI_KEY_ALIASES` declares extra key bindings by name. The optional
+`MUSE_CI_OUTPUT_ROOT` is an absolute job-temp directory outside the clone;
+Azure/Jenkins set it for their upload steps. Other templates generate a fresh
+random root and print the published path in the summary. Its parent must
+already exist; the launcher creates the root privately. An earlier measured
+`MUSE_CI_JOB_START_MS` can be supplied when a vendor exposes one. Never put
+these roots inside the checkout or fall back there on a failed run.
 
-`muse-spark-out/outputs.json` holds the Action's outputs (status, exit-code,
-out-dir, result-path, events-path, patch-path, patch-withheld, requests,
-cost-usd, cost-is-upper-bound, images, image-attempts, images-uncertain,
-paid-uncertain-usd, diff-truncated), with paths inside `muse-spark-out/`.
-The step exits as the Action's run step does: a signal's own code (130 or
-143, status cancelled), else exec's nonzero code, else 1 for any wrapper
-failure (status unknown, nothing published), else 0. A refusal, a malformed
-system fact, a bad input or an invalid key exits 1 with a fixed message
-before anything is installed or spent.
+`outputs.json` holds the Action's status, exit-code, paths, patch-withheld,
+requests, costs, image/uncertain tallies and diff-truncated outputs. Signal
+exits retain 130/143; exec nonzero remains nonzero; wrapper failure is 1;
+validated success is 0. Facts/inputs/key refusals exit 1 before spending.
 
-## Residual limits
+## Pending qualification
 
-- No live receipt on any of the four systems, and the npm registry path
-  waits for M80's LR receipt as the Action's does.
-- The local fetch runs Git's upload-pack in the system's own clone, which
-  reads that clone's configuration; the system wrote it before any script.
-  Git refuses a clone owned by another user (no `safe.directory` is read).
-- Bitbucket gives no fork variable; the template relies on Bitbucket not
-  starting fork pull request pipelines and never lists the step under
-  `pull-requests:`.
-- As with the Action, the launcher's initial environment can stay readable
-  by the same user, and readable checkout contents can reach Meta.
+Full integrated quality/build/host matrices and M80's L/LA/LR receipts remain
+lead-owned. GitLab/Bitbucket need external-temp artifact transport, and
+Bitbucket needs automatic-process secret-isolation and timeout-boundary
+receipts. No local fake test is presented as a hosted vendor receipt.
