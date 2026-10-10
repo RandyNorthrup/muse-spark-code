@@ -24054,6 +24054,17 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**C-M96-3 team host service (2026-10-10, host lane, `c/m96-3`).** The
+interface every surface binds to is `src/core/team/teamHostService.ts`; its
+implementation `createTeamHostService` loads with dist/team.js, and
+`src/host/teamHostBinding.ts` binds it in VS Code: the Model API host's team
+seams, the Agent map's tree and actions, and the machine setting
+`museSpark.team`. VS Code's worker port runs no agent kind yet, so every
+conversation stays single-model. Open: the engine worker and merge ports, the
+Roles section (C-M96-2), the orchestrator pill, the Muse Code binding
+(C-M96-4), the scheduler and capacity port (C-M96c-1) and the other editors
+(C-M96-5, M96b). Receipts: `docs/certification/m96-x.md`.
+
 **WINTEAM hosted Windows repair (2026-10-07, kubuntu).** Own the native
 lifetime, window hints/load and worker-fence suites, with the minimal product
 changes and Windows-control regressions they need. Resolve short/long native
