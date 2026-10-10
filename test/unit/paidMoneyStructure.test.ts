@@ -254,6 +254,16 @@ export type Holding = { data: Wrap<'foo'> }`,
   next?: Chain
   data: Record<'fooUsd', number>
 }`,
+  'recursiveGeneric.ts': `export type Chain<T> = {
+  next?: Chain<T[]>
+  data: Record<'fooUsd', number>
+}`,
+  'mutualGeneric.ts': `export type A<T> = { b?: B<T[]> }
+export type B<T> = { a?: A<T>; costUsd: number }`,
+  'recursiveGenericInterface.ts': `export interface Chain<T> {
+  next?: Chain<T[]>
+  data: Record<'fooUsd', number>
+}`,
   'exactNestedMapped.ts': `import type { UsdAmount } from '../../../src/shared/usdSchema'
 export type Totals = {
   data: ReadonlyArray<{ [K in 'fooUsd']: UsdAmount }> | Promise<{ [K in 'barUsd']: UsdAmount }>
@@ -410,6 +420,18 @@ describe('exact-money type guard', () => {
 
   it('terminates on a recursive wrapper and still flags its money', () => {
     expect(probe('recursiveWrapper.ts')).toEqual(['recursiveWrapper.ts:fooUsd'])
+  })
+
+  it('terminates on a recursive generic and still flags its money (RVM121F)', () => {
+    expect(probe('recursiveGeneric.ts')).toEqual(['recursiveGeneric.ts:fooUsd'])
+  })
+
+  it('terminates on mutually recursive generics and still flags their money (RVM121F)', () => {
+    expect(probe('mutualGeneric.ts')).toEqual(['mutualGeneric.ts:costUsd'])
+  })
+
+  it('terminates on a recursive generic interface and still flags its money (RVM121F)', () => {
+    expect(probe('recursiveGenericInterface.ts')).toEqual(['recursiveGenericInterface.ts:fooUsd'])
   })
 
   it('leaves nested and generic mapped exact money alone', () => {

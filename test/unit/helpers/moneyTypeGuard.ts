@@ -118,6 +118,29 @@ function declarationName(checker: ts.TypeChecker, node: ts.Node): ts.Node | unde
 }
 
 /**
+ * The generic declaration an instantiated type comes from (RVM121F): a type
+ * alias reference carries its `aliasSymbol`, an interface or class reference
+ * its object-type `target`, and an anonymous object type its own symbol. Two
+ * instantiations of one declaration share this key even though every
+ * instantiation is a new `ts.Type`. A target shared by the whole program is
+ * no declaration: the checker's homomorphic identity
+ * (`{ [K in keyof T]: T[K] }`) anchors every apparent generic
+ * instantiation, and those wrappers forward `getSymbol` to its one shared
+ * `__type` symbol — keying by either once hid
+ * `schedule.ts:accountUsdPerHour`. So only a non-generic anonymous object,
+ * which carries no target at all, keys by its own symbol. Mapped generics
+ * the user declares still key by their alias symbol above; interfaces and
+ * classes key by their named target.
+ */
+function declarationOf(type: ts.Type): object | undefined {
+  if (type.aliasSymbol !== undefined) return type.aliasSymbol
+  const target =
+    (type.flags & ts.TypeFlags.Object) === 0 ? undefined : (type as ts.TypeReference).target
+  if (target === undefined) return type.getSymbol()
+  return target.getSymbol()?.getName() === '__type' ? undefined : target
+}
+
+/**
  * Mapped and inherited properties may have no declaration for the visitor.
  * Judge resolved apparent types, every union/intersection constituent and
  * interface base, so a property need not be common to the whole union.
@@ -142,39 +165,57 @@ function checkAlias(
     if (MONEY_KEY.test(alias)) flagged.add(`${file}:${alias}`)
   }
   const seen = new Set<ts.Type>()
+  // Every instantiation of a generic declaration is a new `ts.Type`
+  // (`Chain<T>` unfolds to `Chain<T[]>`, `Chain<T[][]>`, ...), so the
+  // per-instance set above never repeats on a recursive generic and the
+  // walk overflows the stack. The declarations on the current descent path
+  // are tracked too: a second instantiation of a declaration already being
+  // walked is not expanded again. The money check on the first
+  // instantiation still runs, because it happens in the property loop
+  // before the descent below. Everything else keeps the per-instance set.
+  const activeDecls = new Set<object>()
   const visit = (type: ts.Type): void => {
     if (seen.has(type)) return
     seen.add(type)
-    // A schema is judged by its declared output, never its input side:
-    // `~standard.types.input` accepts versioned-reader numbers the boundary
-    // converts exactly, which no holding ever is.
-    const zod = type.getProperty('_zod')
-    if (zod !== undefined) {
-      const output = checker.getTypeOfSymbol(zod).getProperty('output')
-      if (output !== undefined) visit(checker.getTypeOfSymbol(output))
-      return
+    const decl = declarationOf(type)
+    if (decl !== undefined) {
+      if (activeDecls.has(decl)) return
+      activeDecls.add(decl)
     }
-    const apparent = checker.getApparentType(type)
-    if (apparent !== type) visit(apparent)
-    if (type.isUnionOrIntersection()) for (const member of type.types) visit(member)
-    if (type.isClassOrInterface()) for (const base of checker.getBaseTypes(type)) visit(base)
-    for (const property of type.getProperties()) {
-      const key = property.getName()
-      if (key.startsWith('#')) continue
-      const propertyType = checker.getTypeOfSymbol(property)
-      if (isCallable(checker, propertyType)) continue
-      if (MONEY_HINT.test(key) && hasNumber(checker, propertyType, new Set())) {
-        numeric.add(`${file}:${key}`)
-        if (MONEY_KEY.test(key)) flagged.add(`${file}:${key}`)
+    try {
+      // A schema is judged by its declared output, never its input side:
+      // `~standard.types.input` accepts versioned-reader numbers the boundary
+      // converts exactly, which no holding ever is.
+      const zod = type.getProperty('_zod')
+      if (zod !== undefined) {
+        const output = checker.getTypeOfSymbol(zod).getProperty('output')
+        if (output !== undefined) visit(checker.getTypeOfSymbol(output))
+        return
       }
-      // An ordinary wrapper hides lib-declared mapped money (`Record<...>`
-      // has no syntax here): judge the property type's own properties too.
-      // The visited set keeps recursive types terminating. A schema's
-      // internals are never descended into: it is judged by its declared
-      // output, and `_zod.input` accepts versioned-reader numbers the
-      // boundary converts exactly, which no holding ever is.
-      if (key === '_zod') continue
-      visit(propertyType)
+      const apparent = checker.getApparentType(type)
+      if (apparent !== type) visit(apparent)
+      if (type.isUnionOrIntersection()) for (const member of type.types) visit(member)
+      if (type.isClassOrInterface()) for (const base of checker.getBaseTypes(type)) visit(base)
+      for (const property of type.getProperties()) {
+        const key = property.getName()
+        if (key.startsWith('#')) continue
+        const propertyType = checker.getTypeOfSymbol(property)
+        if (isCallable(checker, propertyType)) continue
+        if (MONEY_HINT.test(key) && hasNumber(checker, propertyType, new Set())) {
+          numeric.add(`${file}:${key}`)
+          if (MONEY_KEY.test(key)) flagged.add(`${file}:${key}`)
+        }
+        // An ordinary wrapper hides lib-declared mapped money (`Record<...>`
+        // has no syntax here): judge the property type's own properties too.
+        // The visited set keeps recursive types terminating. A schema's
+        // internals are never descended into: it is judged by its declared
+        // output, and `_zod.input` accepts versioned-reader numbers the
+        // boundary converts exactly, which no holding ever is.
+        if (key === '_zod') continue
+        visit(propertyType)
+      }
+    } finally {
+      if (decl !== undefined) activeDecls.delete(decl)
     }
   }
   visit(target)
