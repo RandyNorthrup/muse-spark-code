@@ -133,17 +133,28 @@ describe('provider localization', () => {
   })
 
   it('uses the grammatical Russian token noun for the output-cap minimum', () => {
-    // RVMINOUT P3: `one` takes токен and `few` takes токена, matching the
-    // file's existing token plural.
+    // RVMINOUT2 P3: `не менее` governs the genitive, so `one`/`other` take
+    // токена and `few`/`many` take токенов — the same pattern as the file's
+    // existing checksStoppedNotice (раунда/раундов), not the standalone
+    // estimateTokens nominative nouns.
     setUiText(ru, 'ru')
     expect(plural(UI_TEXT.outputCapBelowMinimum, 1)).toBe(
-      'Лимит вывода должен составлять не менее 1 токен.',
+      'Лимит вывода должен составлять не менее 1 токена.',
     )
     expect(plural(UI_TEXT.outputCapBelowMinimum, 2)).toBe(
-      'Лимит вывода должен составлять не менее 2 токена.',
+      'Лимит вывода должен составлять не менее 2 токенов.',
+    )
+    expect(plural(UI_TEXT.outputCapBelowMinimum, 5)).toBe(
+      'Лимит вывода должен составлять не менее 5 токенов.',
     )
     expect(plural(UI_TEXT.outputCapBelowMinimum, 16)).toBe(
       'Лимит вывода должен составлять не менее 16 токенов.',
+    )
+    expect(plural(UI_TEXT.outputCapBelowMinimum, 21)).toBe(
+      'Лимит вывода должен составлять не менее 21 токена.',
+    )
+    expect(plural(UI_TEXT.outputCapBelowMinimum, 22)).toBe(
+      'Лимит вывода должен составлять не менее 22 токенов.',
     )
   })
 })
