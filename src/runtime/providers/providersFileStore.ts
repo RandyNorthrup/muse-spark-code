@@ -70,14 +70,14 @@ export class FileAccountsMetadata implements AccountsMetadataPort {
     try {
       envelope = JSON.parse(text)
     } catch {
-      throw new AccountStoreError('unavailable')
+      throw new AccountStoreError('invalidProvidersFile')
     }
     if (typeof envelope !== 'object' || envelope === null || Array.isArray(envelope))
-      throw new AccountStoreError('unavailable')
+      throw new AccountStoreError('invalidProvidersFile')
     const raw: unknown = 'providers' in envelope ? envelope.providers : undefined
     if (raw === undefined) return { exists: true, envelope, providers: {} }
     if (raw === null || typeof raw !== 'object' || Array.isArray(raw))
-      throw new AccountStoreError('unavailable')
+      throw new AccountStoreError('invalidProvidersFile')
     const providers: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(raw)) providers[key] = value
     return { exists: true, envelope, providers }
@@ -92,7 +92,7 @@ export class FileAccountsMetadata implements AccountsMetadataPort {
     if (value === undefined)
       return Promise.resolve(loaded.exists ? undefined : builtInProvider(provider))
     const entry = providerOf(value)
-    if (entry === undefined) throw new AccountStoreError('unavailable')
+    if (entry === undefined) throw new AccountStoreError('invalidProvidersFile')
     return Promise.resolve(entry)
   }
 
@@ -102,7 +102,7 @@ export class FileAccountsMetadata implements AccountsMetadataPort {
     // Absence takes the built-in base; a present-but-malformed user row
     // refuses and leaves the file untouched instead of being overwritten.
     if (raw !== undefined && providerOf(raw) === undefined)
-      throw new AccountStoreError('unavailable')
+      throw new AccountStoreError('invalidProvidersFile')
     const entry = providerOf(raw) ?? builtInProvider(provider)
     if (entry === undefined) throw new AccountStoreError('invalidAccount')
     mkdirSync(path.dirname(this.file), { recursive: true })

@@ -136,6 +136,26 @@ describe('fileAccountsMetadata', () => {
     await expect(metadata.read('META!')).resolves.toBeUndefined()
   })
 
+  it.each([
+    ['not JSON', '{oops'],
+    ['a JSON array envelope', '[1, 2]'],
+    ['a null providers field', { providers: null }],
+    ['a providers array field', { providers: [] }],
+    ['a malformed provider row', { providers: { meta: { ...ENTRY, auth: 'not-a-method' } } }],
+  ])('reports refused file content with its own code: %s', async (_label, envelope) => {
+    const folder = dir()
+    const file = seed(folder, envelope)
+    const before = readFileSync(file, 'utf8')
+    const metadata = fileAccountsMetadata(folder)
+    // The message carries the code, so this asserts the refusal code rather
+    // than the generic unavailable one a missing connection would use.
+    await expect((async () => await metadata.read('meta'))()).rejects.toThrow(
+      'invalidProvidersFile',
+    )
+    await expectWriteRejected(metadata)
+    expect(readFileSync(file, 'utf8')).toBe(before)
+  })
+
   it('reads unconfigured once the user has a file without a meta row', async () => {
     const folder = dir()
     seed(folder, { providers: {} })
