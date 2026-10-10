@@ -12,7 +12,7 @@ Resource, service and transport pressure reduce admission. Each job has observed
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.showResources`, `museSpark.resumeResources`. Settings: `museSpark.resourceGovernor`, `museSpark.resourceCpuMaxPercent`, `museSpark.resourceMemoryMaxPercent`, `museSpark.resourceMemoryMinFreeGiB`, `museSpark.resourceGpuMaxPercent`, `museSpark.resourceDiskBusyMaxPercent`, `museSpark.resourceDiskMinFreeGiB`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#keeping-your-machine-responsive)
+Commands: `museSpark.showResources`, `museSpark.resumeResources`. Settings: `museSpark.resourceGovernor`, `museSpark.resourceCpuMaxPercent`, `museSpark.resourceMemoryMaxPercent`, `museSpark.resourceMemoryMinFreeGiB`, `museSpark.resourceGpuMaxPercent`, `museSpark.resourceDiskBusyMaxPercent`, `museSpark.resourceDiskMinFreeGiB`, `museSpark.resourceRelocate`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#keeping-your-machine-responsive)
 
 ### Agent receipt
 
@@ -150,7 +150,7 @@ Summarise the conversation so far to free context.
 
 Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#observation-packing-model-api)
+Commands: —. Settings: `museSpark.modelApiAutoCompaction`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#observation-packing-model-api)
 
 ### Share chat…
 
@@ -1105,7 +1105,7 @@ Scheduled turns support text and image inputs; video and audio inputs are unsupp
 
 Surfaces: vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
-Commands: —. Settings: `museSpark.modelApiScheduledPrompts`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api)
+Commands: —. Settings: `museSpark.modelApiScheduledPrompts`, `museSpark.schedules`, `museSpark.scheduleDefaultDelivery`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api)
 
 ### /agents
 
@@ -2155,6 +2155,39 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 }
 ```
 
+### museSpark.schedules
+
+scheduleRuntime=unbound&backend=museCode: Controls the legacy /loop shortcut in Muse Code chat. Schedule management and scheduled prompt execution are unavailable.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
+}
+```
+
+### museSpark.scheduleDefaultDelivery
+
+Selects the delivery written into new schedule drafts; it does not enable scheduled execution.
+
+Type: `"string"`. Default: `"whenIdle"`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "enum": ["steer", "interrupt", "queue", "whenIdle", "newConversation"],
+  "default": "whenIdle"
+}
+```
+
+- `"steer"`:
+- `"interrupt"`:
+- `"queue"`:
+- `"whenIdle"`:
+- `"newConversation"`:
+
 ### museSpark.modelApiSubagents
 
 Bounded paid child agents, with up to four requests per task including retries. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.
@@ -2955,6 +2988,24 @@ Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 }
 ```
 
+### museSpark.resourceRelocate
+
+resourceRelocation: Controls the missing-route note on resource pauses. No relocation route is bound; work stays on this machine.
+
+Type: `"string"`. Default: `"paired"`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "default": "paired",
+  "enum": ["paired", "ask", "off"]
+}
+```
+
+- `"paired"`: resourceRelocation=noRoute: Show the missing-route note when resource pressure pauses work; no paired-device route is bound.
+- `"ask"`: resourceRelocation=noRoute: Show the missing-route note when resource pressure pauses work; no relocation question or transfer runs.
+- `"off"`: resourceRelocation=off: Hide the missing-route note on resource pauses; work stays on this machine.
+
 ### museSpark.questions.deferAfterSeconds
 
 Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.
@@ -2980,6 +3031,19 @@ Type: `"string"`. Default: `""`. Scope: `window`.
 {
   "type": "string",
   "default": ""
+}
+```
+
+### museSpark.modelApiAutoCompaction
+
+conversationStart&modelPricing: Shows the first-turn notice that automatic compaction is awaiting evaluation. Automatic compaction remains inactive; turning this off hides the notice.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
 }
 ```
 
@@ -3219,6 +3283,19 @@ Type: `"string"`. Default: `"transcribe"`. Scope: `machine`.
 
 - `"transcribe"`:
 - `"sendAudio"`:
+
+### museSpark.vault.agentFence
+
+shellOrigin=interactive&agentFence: Controls the credential fence for interactive Model API shell commands. Verification, schedules, workers and hooks remain fenced.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
+}
+```
 
 ## Keyboard shortcuts
 

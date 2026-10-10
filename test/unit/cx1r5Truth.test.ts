@@ -384,6 +384,18 @@ describe('CX1R5: exhaustive current-publication truth matrix', () => {
   })
 
   it('retains the configured-default policy and working enhancement controls', () => {
+    for (const model of [browserReference(), nodeReference()])
+      for (const id of [
+        'museSpark.schedules',
+        'museSpark.scheduleDefaultDelivery',
+        'museSpark.resourceRelocate',
+        'museSpark.modelApiAutoCompaction',
+        'museSpark.vault.agentFence',
+      ])
+        expect(
+          model.settings.some((setting) => setting.id === id),
+          id,
+        ).toBe(true)
     for (const name of [
       'modelApiStrictTools',
       'modelApiParallelReads',
