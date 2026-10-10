@@ -1013,3 +1013,23 @@ the child's CPU time (`process.cpuUsage`) against the same 50 ms. Drill: a
 100 ms CPU spin inside the probe fails it at 124.7 ms; restored byte-exact.
 Mac mini: treesPosix, outputSchema, treesMacNative, treesLifecycleNative
 81 passed.
+
+## Round 7, lead (run 38027675949)
+
+No test failed. Windows shard 1 was cancelled at the 20-minute job limit and
+the five aggregate jobs failed on it. The job left no log. Run 38025649553's
+Windows shard 1 shows why it sits near the limit: 952 s of tests over 213
+files, `modelApiHost` alone 207 s, and the job ran 16-17 minutes in the
+three runs before; only two files changed in this round fall in that shard
+(`manifest` 0.4 s, `companionUpload` 0.6 s). Hosted Windows varies about 60%
+between runs (PLAN.md §8), so the unit job now gives Windows eight shards
+(macOS six, Ubuntu four); no deadline or job limit changes. The manifest
+test pins the layout; drill: restoring six shards in the matrix fails it,
+restored with `sha256sum -c`. Kubuntu: manifest 40/40.
+
+**Hosted confirmation of the macOS cause.** Probe run 38027680216 on the
+round 6 head (`505092084` plus the probe): the probe that keeps the old
+timing, without the reap barrier, read no members in 0 of 150 rounds on
+`macos-26-arm64` (3 of 150 before the parser fix); the lifecycle file
+25/25, sshRunner and estimator 8/8 on windows-latest, M108 25/25 on
+ubuntu-latest. The probe branches are deleted.

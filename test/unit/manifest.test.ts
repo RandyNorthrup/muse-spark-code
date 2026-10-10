@@ -678,18 +678,24 @@ describe('tiered CI (CIFLOW)', () => {
     expect(job('visual')).toContain('needs: visual-shards')
   })
 
-  it('collects every shard per OS (six on Windows and macOS) and gates merged coverage with unchanged thresholds', () => {
-    expect(job('unit')).toContain("shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6]') }}")
+  it('collects every shard per OS (eight on Windows, six on macOS) and gates merged coverage with unchanged thresholds', () => {
     expect(job('unit')).toContain(
-      `exclude: \${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6}]') }}`,
+      "shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6,7,8]') }}",
     )
-    expect(job('unit')).toContain("SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || 6 }}")
+    expect(job('unit')).toContain(
+      `exclude: \${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8},{"os":"macos-latest","shard":7},{"os":"macos-latest","shard":8}]') }}`,
+    )
+    expect(job('unit')).toContain(
+      "SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || matrix.os == 'macos-latest' && 6 || 8 }}",
+    )
     expect(job('unit')).toContain('--shard="$SHARD/$SHARDS" --reporter=default --reporter=blob')
     expect(job('unit')).toContain('--outputFile="blob-reports/shard-$SHARD.json"')
     expect(job('coverage')).toContain('os: [ubuntu-latest, windows-latest, macos-latest]')
     expect(job('coverage')).toContain('pattern: coverage-${{ matrix.os }}-*')
     expect(job('coverage')).toContain('merge-multiple: true')
-    expect(job('coverage')).toContain("SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || 6 }}")
+    expect(job('coverage')).toContain(
+      "SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || matrix.os == 'macos-latest' && 6 || 8 }}",
+    )
     expect(job('coverage')).toContain('for shard in $(seq 1 "$SHARDS"); do')
     expect(job('coverage')).toContain('test -s "blob-reports/shard-$shard.json"')
     expect(job('coverage')).toContain('npx vitest run --merge-reports=blob-reports --coverage')

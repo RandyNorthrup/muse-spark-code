@@ -208,12 +208,13 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
-        shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6]') }}
-        # Windows splits its slower serial run six ways: with five, shard 1 of
-        # run 37980345168 hit the 20-minute limit after 19.1 min of tests with
-        # 26 files left (CIFIX017W2); six project to ≤ 16.2 min. macOS also
-        # runs files one at a time (vitest.config.ts) over six; Ubuntu keeps four.
-        exclude: ${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6}]') }}
+        shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6,7,8]') }}
+        # Windows splits its slower serial run eight ways: with six, shard 1 ran
+        # 16-17 min (952 s of tests; modelApiHost alone 207 s) and crossed the
+        # 20-minute limit in run 38027675949, as hosted Windows varies ~60%
+        # between runs (PLAN.md §8). macOS also runs files one at a time
+        # (vitest.config.ts) over six; Ubuntu keeps four.
+        exclude: ${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8},{"os":"macos-latest","shard":7},{"os":"macos-latest","shard":8}]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -232,7 +233,7 @@ jobs:
         env:
           FAST: ${{ inputs.fast }}
           SHARD: ${{ matrix.shard }}
-          SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || 6 }}
+          SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || matrix.os == 'macos-latest' && 6 || 8 }}
         run: |
           if [ "$FAST" = true ]; then
             npx vitest run
@@ -273,7 +274,7 @@ jobs:
       - name: every shard and the original coverage thresholds are required
         shell: bash
         env:
-          SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || 6 }}
+          SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || matrix.os == 'macos-latest' && 6 || 8 }}
         run: |
           for shard in $(seq 1 "$SHARDS"); do
             test -s "blob-reports/shard-$shard.json"
