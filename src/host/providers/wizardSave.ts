@@ -8,7 +8,12 @@ import { type UsdAmount } from '../../shared/usd'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { ProviderCredentialStore as CredentialStore } from './credentialRecords'
-import type { AddressPolicy, ProviderEntry, ProvidersStore } from './providerPorts'
+import type {
+  AddressPolicy,
+  ProviderEntry,
+  ProviderModelRow,
+  ProvidersStore,
+} from './providerPorts'
 
 /** The wizard's in-memory draft: never written until Save. */
 export interface WizardDraft {
@@ -44,6 +49,30 @@ export interface WizardSaveOutcome {
 }
 
 /**
+ * The scanned windows a save carries into `providers.json` (C-M95-4 R3):
+ * every saved local model keeps its server's reported window in
+ * `modelLimits`, so the request path never meets a missing window. The
+ * server reports no separate output cap, so output is bounded by the
+ * window. Undefined when nothing was carried (a keyed provider, whose
+ * catalogue owns its windows, or no scanned window for a saved model).
+ */
+export function scannedLocalModelLimits(
+  auth: ProviderEntry['auth'],
+  ids: readonly string[],
+  rows: readonly ProviderModelRow[],
+): Record<string, { readonly contextTokens: number; readonly outputTokens: number }> | undefined {
+  if (auth !== 'none') return undefined
+  const byId = new Map(rows.map((row) => [row.id, row]))
+  const limits: Record<string, { contextTokens: number; outputTokens: number }> = {}
+  for (const id of ids) {
+    const context = byId.get(id)?.context
+    if (context !== undefined && Number.isSafeInteger(context) && context > 0)
+      limits[id] = { contextTokens: context, outputTokens: context }
+  }
+  return Object.keys(limits).length > 0 ? limits : undefined
+}
+
+/**
  * Saves a finished draft: the file and the secret together, then the
  * default model, then (for Save and use now) the composer's model. Throws
  * on an invalid draft before writing anything.
@@ -58,10 +87,10 @@ export async function saveWizardDraft(
     draft.provider.address.trim() === '' ||
     draft.defaultModel.trim() === ''
   ) {
-    throw new Error('The provider draft is not complete')
+    throw new Error(UI_TEXT.actionFailed)
   }
   if (draft.provider.auth !== 'none' && (draft.credential ?? '').trim() === '') {
-    throw new Error(`Provider ${draft.provider.id} needs a key`)
+    throw new Error(fill(UI_TEXT.providerNeedsKey, { id: draft.provider.id }))
   }
   const address = await deps.policy.check(draft.provider.address)
   if (address.kind === 'refused') {

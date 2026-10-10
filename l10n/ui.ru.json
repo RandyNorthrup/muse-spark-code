@@ -4315,6 +4315,9 @@
   "providerTestPaid": "Эта проверка отправляет один токен и стоит около {cost}.",
   "providerTestFailed": "Проверка не удалась: {detail}",
   "scanFailed": "Проверка не удалась: {detail}",
+  "llamacppScanMissingWindow": "Список моделей llama.cpp не сообщает активное контекстное окно (зафиксированная сборка {build}).",
+  "localModelWindowUnknown": "У модели {model} нет известного контекстного окна. Повторно просканируйте её провайдера и сохраните.",
+  "providerNeedsKey": "Провайдеру {id} нужен ключ.",
   "wizardPickProvider": "Выберите поставщика",
   "providerFields": {
     "provider": "Поставщик",

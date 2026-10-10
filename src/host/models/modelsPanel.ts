@@ -32,7 +32,7 @@ import type {
   KeyTestResult,
 } from '../providers/providerPorts'
 import type { ProvidersHost } from '../providers/providersHost'
-import type { WizardSaveOutcome } from '../providers/wizardSave'
+import { scannedLocalModelLimits, type WizardSaveOutcome } from '../providers/wizardSave'
 import { OPENROUTER_ORIGIN } from '../providers/openRouter'
 
 export interface ModelsPanelDeps {
@@ -606,8 +606,22 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         if (verdict.kind === 'refused') {
           throw new Error(UI_TEXT.actionFailed)
         }
+        // C-M95-4 R3: a saved local model carries its scanned window
+        // over its previously saved one, so the request path never meets
+        // a missing one.
+        const scanned = rows.get(entry.id)
+        const carried =
+          scanned === undefined
+            ? undefined
+            : scannedLocalModelLimits(entry.auth, entry.models, scanned)
+        const modelLimits =
+          carried === undefined ? entry.modelLimits : { ...entry.modelLimits, ...carried }
         const outcome = await providers.saveDraft({
-          provider: { ...entry, privateNetwork: verdict.kind === 'private' },
+          provider: {
+            ...entry,
+            privateNetwork: verdict.kind === 'private',
+            ...(modelLimits !== undefined && { modelLimits }),
+          },
           credential: draftSecret(entry, message.providerId),
           credentialAuth: 'apiKey',
           defaultModel: draft.defaultModel ?? `${entry.id}/${entry.models[0] ?? ''}`,
@@ -714,12 +728,26 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           ]
         } else {
           const entry = await entryOf(id)
+          const models = [
+            ...entry.models.filter((value) => value !== model),
+            ...(message.ticked ? [model] : []),
+          ]
+          // C-M95-4 R3: a ticked scanned local model carries its window;
+          // an unticked one drops its stale limit.
+          const carried =
+            message.ticked && entry.auth === 'none'
+              ? (scannedLocalModelLimits(entry.auth, [model], rows.get(id) ?? []) ?? {})
+              : {}
+          const kept = Object.fromEntries(
+            Object.entries(entry.modelLimits ?? {}).filter(
+              ([key]) => message.ticked || key !== model,
+            ),
+          )
+          const modelLimits = { ...kept, ...carried }
           await providers.updateProvider({
             ...entry,
-            models: [
-              ...entry.models.filter((value) => value !== model),
-              ...(message.ticked ? [model] : []),
-            ],
+            models,
+            ...(Object.keys(modelLimits).length > 0 && { modelLimits }),
           })
         }
         break

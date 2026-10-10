@@ -4206,6 +4206,9 @@
   "providerTestPaid": "Ce contrôle envoie un jeton et coûte environ {cost}.",
   "providerTestFailed": "Contrôle échoué : {detail}",
   "scanFailed": "Analyse échouée : {detail}",
+  "llamacppScanMissingWindow": "La liste de modèles llama.cpp ne signale aucune fenêtre de contexte active (build capturé {build}).",
+  "localModelWindowUnknown": "Le modèle {model} n’a pas de fenêtre de contexte connue. Analysez de nouveau son fournisseur puis enregistrez-le.",
+  "providerNeedsKey": "Le fournisseur {id} a besoin d’une clé.",
   "wizardPickProvider": "Choisissez un fournisseur",
   "providerFields": {
     "provider": "Fournisseur",

@@ -4206,6 +4206,9 @@
   "providerTestPaid": "Esta comprobación envía un token y cuesta unos {cost}.",
   "providerTestFailed": "Comprobación fallida: {detail}",
   "scanFailed": "Examen fallido: {detail}",
+  "llamacppScanMissingWindow": "La lista de modelos de llama.cpp no informa ninguna ventana de contexto activa (compilación capturada {build}).",
+  "localModelWindowUnknown": "El modelo {model} no tiene una ventana de contexto conocida. Vuelve a analizar su proveedor y guárdalo.",
+  "providerNeedsKey": "El proveedor {id} necesita una clave.",
   "wizardPickProvider": "Elija un proveedor",
   "providerFields": {
     "provider": "Proveedor",

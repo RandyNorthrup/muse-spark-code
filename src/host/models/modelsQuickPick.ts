@@ -10,7 +10,7 @@ import { fill, plural } from '../../shared/l10n/text'
 import type { PickItem } from '../commands/pickItem'
 import type { PresetInfo, ProviderEntry, ProviderModelRow } from '../providers/providerPorts'
 import type { ProvidersHost } from '../providers/providersHost'
-import type { WizardDraft } from '../providers/wizardSave'
+import { scannedLocalModelLimits, type WizardDraft } from '../providers/wizardSave'
 
 export interface ProviderQuickPickUi {
   /** One choice from a list; undefined when dismissed. */
@@ -281,8 +281,15 @@ export async function runAddProviderQuickPick(
   if (!isConfirmed) {
     return undefined
   }
+  // C-M95-4 R3: a saved local model carries its scanned window, so the
+  // request path never meets a missing one.
+  const modelLimits = scannedLocalModelLimits(entry.auth, ticked, scanned.rows)
   const outcome = await providers.saveDraft({
-    provider: { ...entry, models: [...ticked] },
+    provider: {
+      ...entry,
+      models: [...ticked],
+      ...(modelLimits !== undefined && { modelLimits }),
+    },
     credential,
     credentialAuth,
     defaultModel: modelRef,

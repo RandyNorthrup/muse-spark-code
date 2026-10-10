@@ -39,6 +39,7 @@ import { ApiKeyAuthSource, NoAuthSource } from '../backends/modelapi/authSource'
 import { CodecClient, type WireCodec } from '../backends/modelapi/providerClient'
 import { RequestTransport, parseJsonResponse, ModelApiError } from '../backends/modelapi/transport'
 import { withDeadline } from '../timeouts'
+import { fill } from '../../shared/l10n/text'
 import {
   ADDRESS_FAMILIES,
   ANTHROPIC_MAX_ARGUMENT_BYTES,
@@ -682,6 +683,14 @@ export function createConfiguredProviderServices(
       // UTF-8 bytes bound text tokens conservatively and include tool schemas.
       countInputTokens: (body) => Promise.resolve(Buffer.byteLength(JSON.stringify(body))),
       streamResponse: async function* (body, signal, onRetry, budget, admitAttempt, confirmed) {
+        // C-M95-4 R3: a local server's report is its only window. A
+        // windowless local model refuses here with a plain reason instead
+        // of sending Meta-sized history at a small server. Before the
+        // `try`, so the reason reaches the caller instead of `fail()`.
+        const windowTokens =
+          entry.modelLimits?.[native]?.contextTokens ?? record.limits.contextTokens
+        if (windowTokens === undefined && entry.auth === 'none' && preset.wireCapture)
+          throw new Error(fill(UI_TEXT.localModelWindowUnknown, { model: ref }))
         let usage: Usage | undefined
         const dispatch = { attempts: 0 }
         const observe = Object.assign(
@@ -752,6 +761,23 @@ export function createConfiguredProviderServices(
       presets.planKeyPresetById(records.get(ref)?.entry.preset ?? '') !== undefined ||
       meta?.isPlanModel?.(ref) === true,
     readPlanUsage: () => [...(meta?.readPlanUsage?.() ?? []), ...plans],
+    // C-M95-4 R3: the last listing's window for a configured model, for
+    // compaction sizing (the host's `contextModel` seam is synchronous).
+    // A carried `modelLimits` window wins over the catalogue record; an
+    // unlisted model or an unknown window reads undefined.
+    peekContextModel: (ref) => {
+      const bound = records.get(ref)
+      const native = modelRef.parseModelRef(ref)?.modelId
+      if (bound === undefined || native === undefined) return
+      const windowTokens =
+        bound.entry.modelLimits?.[native]?.contextTokens ?? bound.record.limits.contextTokens
+      if (windowTokens === undefined || !Number.isSafeInteger(windowTokens) || windowTokens <= 0)
+        return
+      const format = providersFile.providerFormatSchema.safeParse(
+        bound.entry.format ?? presetFor(bound.entry).format,
+      )
+      return format.success ? { format: format.data, contextTokens: windowTokens } : undefined
+    },
     streamResponse: async function* (body, ...args) {
       if (body.model.includes('/') && !meta?.isPlanModel?.(body.model)) {
         const resolved = await registry.resolve(body.model)
@@ -801,7 +827,9 @@ export function createConfiguredProviderServices(
               : undefined
           if (typeof live !== 'number' || !(live > 0)) {
             throw new Error(
-              `llamacpp list without meta.n_ctx (quirks captured against ${preset.capturedBuild ?? 'an unknown build'})`,
+              fill(UI_TEXT.llamacppScanMissingWindow, {
+                build: preset.capturedBuild ?? 'an unknown build',
+              }),
             )
           }
         }

@@ -4315,6 +4315,9 @@
   "providerTestPaid": "Tato kontrola odešle jeden token a stojí asi {cost}.",
   "providerTestFailed": "Kontrola selhala: {detail}",
   "scanFailed": "Prohledání selhalo: {detail}",
+  "llamacppScanMissingWindow": "Seznam modelů llama.cpp nehlásí žádné živé kontextové okno (zachycené sestavení {build}).",
+  "localModelWindowUnknown": "Model {model} nemá žádné známé kontextové okno. Znovu naskenujte jeho poskytovatele a uložte ho.",
+  "providerNeedsKey": "Poskytovatel {id} potřebuje klíč.",
   "wizardPickProvider": "Vyberte poskytovatele",
   "providerFields": {
     "provider": "Poskytovatel",
