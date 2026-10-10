@@ -210,12 +210,17 @@ export function teamTaskDiffUpdate(input: {
   }
 }
 
-/** A team task announcement or update, as the editor shows it. */
-export const teamTaskUpdateSchema = z.looseObject({
+/** The tool call identity every team announcement and update shares. */
+const teamToolCallFields = {
   toolCallId: z.string().check(z.minLength(1)),
   title: z.optional(z.nullable(z.string())),
   kind: z.optional(z.nullable(z.string())),
   status: z.optional(z.nullable(teamStatusSchema)),
+}
+
+/** A team task announcement or update, as the editor shows it. */
+export const teamTaskUpdateSchema = z.looseObject({
+  ...teamToolCallFields,
   content: z.optional(z.nullable(z.array(teamToolContentSchema))),
 })
 
@@ -303,10 +308,7 @@ export function teamMergeCompletedCall(input: {
 export const teamMergeRequestSchema = z.looseObject({
   sessionId: z.string().check(z.minLength(1)),
   toolCall: z.looseObject({
-    toolCallId: z.string().check(z.minLength(1)),
-    title: z.optional(z.nullable(z.string())),
-    kind: z.optional(z.nullable(z.string())),
-    status: z.optional(z.nullable(teamStatusSchema)),
+    ...teamToolCallFields,
     content: z.array(teamToolContentSchema).check(z.minLength(1)),
   }),
   options: z.array(teamPermissionOptionSchema).check(z.minLength(1)),
