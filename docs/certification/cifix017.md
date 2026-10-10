@@ -904,3 +904,34 @@ rig, so no local red drill is claimed; the hosted run is the evidence.
 
 Host checks: Prettier, ESLint on both files, `typecheck:e2e`,
 `typecheck:unit` exit 0.
+
+**Windows sshRunner exit 75 (taken over from CIR5WIN).** The case ended
+`exitCode: 124` at the fixture's unchanged 10 s job budget (case 14925 ms;
+the file's other cases 0.1–4.8 s; it passed in run 38018090551). The remote
+helper runs the job as `nice -n 10 bash … execute`. On win11, Git Bash's
+`nice -n 10` and `nice -n 5` both give the Windows `BelowNormal` priority
+class (plain: `Normal`). Windows schedules by strict priority with only a
+periodic starvation boost, unlike a POSIX nice share, so on a busy hosted
+runner the clone, checkout, setup and command all wait behind
+normal-priority work, including the fixture's own 20 ms status polls (each a
+Node and Bash start). Production never runs this POSIX helper on Windows
+(Windows runners use the detached Windows launcher), so the Git Bash fake
+remote now defines `nice` to run its command unniced, beside its existing
+`getconf`/`uptime` stubs. On win11 with all 10 logical processors held
+busy, the file passed 26/26 both with the stub (case 8624 ms) and without it
+(8383 ms): this VM does not reproduce the starvation, so the hosted loop
+below carries the evidence. Kubuntu: sshRunner and lifecycle files 29/29.
+
+**macOS native lifecycle (taken over from CIR5MAC).** The hosted runner
+(`macos-26-arm64`) read `[]` for `members()` right after the root exited;
+the grandchild was a member moments earlier. At that instant the root's
+never-reaped `detached` child is a zombie that launchd reaps once the root is
+gone, the only process transition new at that line. A probe looping the
+case 190 times on the Mac mini (macOS 15.7.4 x86_64) under 16 and then 36
+CPU burners found no failure, and macOS 15 prints the zombie's `ps` row in
+the parsed format. The case now waits, with the file's bounded one-millisecond
+loop, until `detached` no longer exists, then asserts with the raw `ps` and
+helper reads for the three pids as the failure message. Drill: forcing the
+expectation to `[]` printed that evidence (the grandchild's `ps` row and
+helper rows; 312 other-user processes unavailable, none relevant), then the
+file was restored and verified with `sha256sum -c`. Mac mini: 3/3.

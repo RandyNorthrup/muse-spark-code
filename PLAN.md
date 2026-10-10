@@ -38035,9 +38035,16 @@ and the frames can arrive in separate reads, so it now also waits for
 `onUsageChanged`; the estimator harness pays the browser's first-navigation
 work once in `beforeAll` (only the first matrix case ever missed, at
 navigation in round 3 and readiness in round 4), keeping every case's
-two-second bound. CIR5WIN root-causes the Windows sshRunner exit-75 case
-reaching its unchanged 10 s job budget; CIR5MAC the macOS native lifecycle
-case losing a recorded setsid grandchild after its parents exit.
+two-second bound. The lead then took the other two over from CIR5WIN and
+CIR5MAC (owner, 2026-10-09). Windows sshRunner exit-75 reached its unchanged
+10 s job budget: Git Bash maps the helper's `nice -n 10` to the BelowNormal
+class, which Windows' strict priority starves behind normal work, so the
+Git Bash fake remote runs the job unniced, as it already stubs `getconf` and
+`uptime`. macOS lifecycle read no members right after the root exits, while
+launchd reaps the root's unreaped `detached` child; the case now waits out
+that reap and reports the raw `ps`/helper reads if it recurs. Neither hosted
+failure reproduced on the rigs (macOS 15 x86_64 rigs against hosted macOS 26
+arm64), so hosted loops on a probe branch supply the evidence.
 
 **ACPM118 scoped rig qualification (2026-10-09, macmini).** The explicit
 rig/common brief prohibits aggregate quality and delegates hosted replay to
