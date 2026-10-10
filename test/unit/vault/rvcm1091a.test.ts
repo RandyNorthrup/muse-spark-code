@@ -133,6 +133,10 @@ describe('RVCM1091A', () => {
       revoke: () => Promise.resolve(),
       answer: () => Promise.resolve(),
       importFile: () => Promise.reject(new Error('unused')),
+      keepImport: () => Promise.resolve(),
+      deleteImport: () => Promise.resolve(),
+      resetBegin: () => Promise.reject(new Error('unused')),
+      resetConfirm: () => Promise.resolve(),
       setup: () => f.management.setup(),
       confirmSetup: async (setupId, authorize) => {
         authorize()
@@ -151,6 +155,8 @@ describe('RVCM1091A', () => {
       status: vi.fn(),
       showError,
       showRecoveryCode: () => Promise.resolve(true),
+      importDone: () => Promise.resolve('keep'),
+      confirmReset: () => Promise.resolve(null),
     })
     await host.handle({ type: 'vaultSetup' })
     // The echo's refresh may hold the writer briefly; the vault exists either way.

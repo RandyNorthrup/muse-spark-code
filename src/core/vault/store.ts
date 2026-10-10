@@ -33,7 +33,7 @@ import {
   vaultHmacSha256,
 } from './crypto'
 
-type VaultFileName = 'vault.v1' | 'slots.v1' | 'pending.v1'
+type VaultFileName = 'vault.v1' | 'slots.v1' | 'pending.v1' | 'reset.v1'
 export interface VaultFilePort {
   readonly maxBytes: number
   read(name: VaultFileName): Promise<Buffer | null>
@@ -286,6 +286,16 @@ const indexSchema = z
       .array(z.strictObject({ metadata: vaultItemMetadataSchema, generation }))
       .check(z.maxLength(VAULT_LIMITS.items)),
     grants: z.array(vaultGrantSchema).check(z.maxLength(VAULT_LIMITS.grants)),
+    // Import receipts (the user's Keep/Delete of an imported source): opaque
+    // value-free records kept encrypted beside the items they name.
+    receipts: z
+      .array(
+        z.strictObject({
+          id: z.string().check(z.regex(/^[a-f0-9-]{36}$/u)),
+          record: z.string().check(z.minLength(1), z.maxLength(VAULT_LIMITS.frameBytes)),
+        }),
+      )
+      .check(z.maxLength(VAULT_LIMITS.items)),
   })
   .check(
     z.refine((index) => {
@@ -338,6 +348,20 @@ function stateMac(key: Uint8Array, vaultId: string, domain: string, body: object
 }
 function slotMac(key: Uint8Array, slots: Omit<Slots, 'mac'>): Buffer {
   return stateMac(key, slots.vaultId, 'vault-slots-v1', slots)
+}
+/** Whether these slot or intent bytes name usable slot records for this vault. */
+function isVaultOpenable(name: 'slots.v1' | 'pending.v1', bytes: Buffer, vaultId: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(bytes.toString('utf8'))
+    if (name === 'slots.v1') {
+      const slots = slotsSchema.safeParse(parsed)
+      return slots.success && slots.data.vaultId === vaultId
+    }
+    const intent = intentSchema.safeParse(parsed)
+    return intent.success && intent.data.snapshot.document.vaultId === vaultId
+  } catch {
+    return false
+  }
 }
 function documentDigest(document: Document): string {
   return createHash('sha256').update(encodeVaultJson(document)).digest('hex')
@@ -476,6 +500,7 @@ export class VaultStore implements VaultStorePort {
     options: VaultStoreOptions,
     vaultId: string,
     records: readonly VaultSlotRecord[],
+    authorize?: () => void,
   ): Promise<VaultStore> {
     const store = new VaultStore(options, vaultId)
     try {
@@ -495,17 +520,23 @@ export class VaultStore implements VaultStorePort {
           await store.recoverPending()
           return
         }
-        await store.publish({ items: [], grants: [] }, [], {
-          v: VAULT_STORE_FORMAT_VERSION,
-          vaultId,
-          generation: 0,
-          auditGeneration: 0,
-          auditHead: '0'.repeat(VAULT_LIMITS.sha256Hex),
-          previousDigest: '0'.repeat(VAULT_LIMITS.sha256Hex),
-          documentDigest: '0'.repeat(VAULT_LIMITS.sha256Hex),
-          records: [...records],
-          mac: '',
-        })
+        await store.publish(
+          { items: [], grants: [], receipts: [] },
+          [],
+          {
+            v: VAULT_STORE_FORMAT_VERSION,
+            vaultId,
+            generation: 0,
+            auditGeneration: 0,
+            auditHead: '0'.repeat(VAULT_LIMITS.sha256Hex),
+            previousDigest: '0'.repeat(VAULT_LIMITS.sha256Hex),
+            documentDigest: '0'.repeat(VAULT_LIMITS.sha256Hex),
+            records: [...records],
+            mac: '',
+          },
+          null,
+          authorize,
+        )
       })
       return store
     } catch (error) {
@@ -529,6 +560,69 @@ export class VaultStore implements VaultStorePort {
       if (document || slots || !pending) return false
       await files.remove('pending.v1')
       return true
+    })
+  }
+  /**
+   * Reset Vault (lead decision, 2026-10-10): offered only when the anchored
+   * vault cannot be opened by any slot or code, because its slot records are
+   * missing or unreadable. Never true for a vault that merely is locked.
+   */
+  static async isLost(files: VaultFilePort, anchoredId: string): Promise<boolean> {
+    try {
+      await this.slotRecords(files, anchoredId)
+      return false
+    } catch (error: unknown) {
+      // Missing or unreadable records only; a busy writer or an I/O error is no loss.
+      if (error instanceof VaultError && error.code === 'invalid') return true
+      throw error
+    }
+  }
+  /**
+   * The reset's file side: appends a value-free audit line to `reset.v1`,
+   * retains any displaced document (quarantine) and removes the vault files,
+   * under the writer lock, refusing a vault that can be opened.
+   */
+  static async resetLost(
+    files: VaultFilePort,
+    anchoredId: string,
+    auditLine: string,
+    authorize: () => void,
+  ): Promise<void> {
+    await files.withWriter(async () => {
+      // Rechecked under the writer: a vault that became openable is never reset.
+      for (const name of ['slots.v1', 'pending.v1'] as const) {
+        const bytes = await files.read(name)
+        if (!bytes) continue
+        try {
+          if (isVaultOpenable(name, bytes, anchoredId)) throw new VaultError('invalid')
+        } finally {
+          bytes.fill(0)
+        }
+      }
+      const previous = await files.read('reset.v1')
+      try {
+        const line = Buffer.from(`${auditLine}\n`, 'utf8')
+        // A Lock while staging must stop the reset before its audit or file removal.
+        await files.writeAtomic(
+          'reset.v1',
+          Buffer.concat([previous ?? Buffer.alloc(0), line]),
+          authorize,
+        )
+      } finally {
+        previous?.fill(0)
+      }
+      const document = await files.read('vault.v1')
+      if (document) {
+        document.fill(0)
+        await files.quarantine('vault.v1')
+        await files.remove('vault.v1')
+      }
+      for (const name of ['slots.v1', 'pending.v1'] as const) {
+        const bytes = await files.read(name)
+        if (!bytes) continue
+        bytes.fill(0)
+        await files.remove(name)
+      }
     })
   }
   /** Whether any vault document exists here: the setup flow's "uncreated" test. */
@@ -728,6 +822,7 @@ export class VaultStore implements VaultStorePort {
     let documentBytes: Buffer | undefined
     let slotBytes: Buffer | undefined
     let pendingBytes: Buffer | undefined
+    const commit = { isRefused: false }
     try {
       const previous = await this.options.anchor.minimum(this.vaultId)
       this.active()
@@ -780,8 +875,13 @@ export class VaultStore implements VaultStorePort {
       // The write-ahead intent is the commit: recovery installs it after a crash.
       // A locked store or a retired caller never reaches it.
       await this.options.files.writeAtomic('pending.v1', pendingBytes, () => {
-        this.active()
-        authorize?.()
+        try {
+          this.active()
+          authorize?.()
+        } catch (error: unknown) {
+          commit.isRefused = true
+          throw error
+        }
       })
       // Committed: the rest only completes the durable intent with bytes
       // already sealed. A Lock arriving now must not report a failure for a
@@ -791,7 +891,10 @@ export class VaultStore implements VaultStorePort {
       await this.options.files.writeAtomic('vault.v1', documentBytes)
       await this.options.files.remove('pending.v1')
     } catch (error) {
-      this.lock()
+      // A clean refusal at the commit wrote nothing: it never locks the vault
+      // for everyone (a cancelled import or a retired grant). Every other
+      // failure still locks, as before.
+      if (!commit.isRefused) this.lock()
       throw error
     } finally {
       mac?.fill(0)
@@ -842,7 +945,7 @@ export class VaultStore implements VaultStorePort {
       plaintext,
     )
     await this.publish(
-      { items: [...remaining, { metadata, generation: next }], grants: index.grants },
+      { ...index, items: [...remaining, { metadata, generation: next }] },
       [
         ...snapshot.document.items.filter((entry) => entry.id !== metadata.id),
         { id: metadata.id, block },
@@ -936,6 +1039,7 @@ export class VaultStore implements VaultStorePort {
       if (index.items.every((item) => item.metadata.id !== id)) throw new VaultError('invalid')
       await this.publish(
         {
+          ...index,
           items: index.items.filter((item) => item.metadata.id !== id),
           // A removed item takes its grants with it: nothing can name it again.
           grants: index.grants.filter((grant) => grant.itemId !== id),
@@ -970,7 +1074,7 @@ export class VaultStore implements VaultStorePort {
       // Checked at the physical commit, after every await: a grant retired
       // while the write waited is never published, nor recovered (RVCM1091A F2).
       await this.publish(
-        { items: index.items, grants: [...others, grant] },
+        { ...index, grants: [...others, grant] },
         snapshot.document.items,
         snapshot.slots,
         null,
@@ -984,7 +1088,7 @@ export class VaultStore implements VaultStorePort {
       const { snapshot, index } = await this.load()
       if (index.grants.every((grant) => grant.id !== id)) return
       await this.publish(
-        { items: index.items, grants: index.grants.filter((grant) => grant.id !== id) },
+        { ...index, grants: index.grants.filter((grant) => grant.id !== id) },
         snapshot.document.items,
         snapshot.slots,
       )
@@ -1003,7 +1107,7 @@ export class VaultStore implements VaultStorePort {
         return false
       await this.publish(
         {
-          items: index.items,
+          ...index,
           grants: index.grants.map((entry) =>
             entry.id === id ? { ...entry, uses: entry.uses + 1 } : entry,
           ),
@@ -1015,6 +1119,103 @@ export class VaultStore implements VaultStorePort {
     })
     this.active()
     return isSpent
+  }
+  /** Throws `locked` once Lock erased the key: an import lease is current only while open. */
+  assertOpen(): void {
+    this.active()
+  }
+  /**
+   * All items or none (lead decision, C-M109-1): every item is new by id and
+   * name, sealed at one generation and published with its receipt in a
+   * single transaction. `verify` reads the staged items back before the
+   * commit; `authorize` runs at the physical commit, like every other write.
+   */
+  async writeBatch(
+    input: readonly VaultItem[],
+    receipt: { id: string; record: string },
+    verify: (read: (id: string) => Promise<VaultItem>) => Promise<void>,
+    authorize: () => void,
+  ): Promise<void> {
+    if (input.length === 0 || input.length > VAULT_LIMITS.items) throw new VaultError('invalid')
+    const parsed = input.map((entry) => {
+      const result = vaultItemSchema.safeParse(entry)
+      if (!result.success) throw new VaultError('invalid')
+      return result.data
+    })
+    const plaintexts = parsed.map((entry) => encodeVaultMaterial(entry.material))
+    try {
+      await this.options.files.withWriter(async () => {
+        const { snapshot, index } = await this.load()
+        const ids = new Set(parsed.map((entry) => entry.metadata.id))
+        const names = new Set(parsed.map((entry) => entry.metadata.name))
+        if (
+          ids.size !== parsed.length ||
+          names.size !== parsed.length ||
+          index.items.some((item) => ids.has(item.metadata.id) || names.has(item.metadata.name)) ||
+          index.items.length + parsed.length > VAULT_LIMITS.items ||
+          index.receipts.some((entry) => entry.id === receipt.id)
+        )
+          throw new VaultError('invalid')
+        const next = snapshot.document.generation + 1
+        const sealed = parsed.map((entry, position) => ({
+          id: entry.metadata.id,
+          block: sealVaultBlock(
+            this.active(),
+            {
+              vaultId: this.vaultId,
+              id: entry.metadata.id,
+              kind: entry.metadata.kind,
+              generation: next,
+            },
+            plaintexts[position] ?? Buffer.alloc(0),
+          ),
+        }))
+        const staged: Index = {
+          ...index,
+          items: [
+            ...index.items,
+            ...parsed.map((entry) => ({ metadata: entry.metadata, generation: next })),
+          ],
+          receipts: [...index.receipts, { id: receipt.id, record: receipt.record }],
+        }
+        const stagedDocument: Document = {
+          ...snapshot.document,
+          generation: next,
+          items: [...snapshot.document.items, ...sealed],
+        }
+        // Decrypt-and-verify before publication: a mismatch publishes nothing.
+        await verify((id) =>
+          ids.has(id)
+            ? Promise.resolve(this.material(stagedDocument, staged, id))
+            : Promise.reject(new VaultError('invalid')),
+        )
+        await this.publish(staged, stagedDocument.items, snapshot.slots, null, authorize)
+      })
+    } finally {
+      for (const plaintext of plaintexts) plaintext.fill(0)
+    }
+  }
+  async readReceipt(id: string): Promise<string | null> {
+    const result = await this.options.files.withWriter(async () => {
+      const { index } = await this.load()
+      return index.receipts.find((entry) => entry.id === id)?.record ?? null
+    })
+    this.active()
+    return result
+  }
+  /** Idempotent; authorize runs at the commit. */
+  async forgetReceipt(id: string, authorize: () => void): Promise<void> {
+    await this.options.files.withWriter(async () => {
+      const { snapshot, index } = await this.load()
+      if (index.receipts.every((entry) => entry.id !== id)) return
+      await this.publish(
+        { ...index, receipts: index.receipts.filter((entry) => entry.id !== id) },
+        snapshot.document.items,
+        snapshot.slots,
+        null,
+        authorize,
+      )
+    })
   }
   async setSlots(records: readonly VaultSlotRecord[]): Promise<void> {
     const parsed = z.array(vaultSlotRecordSchema).safeParse(records)
