@@ -27,6 +27,50 @@ class ForeignRefusal extends Error {
   public override readonly name = 'AccountSwitchRefusedError'
   public readonly code = 'accountSwitchRefused'
 }
+
+function foreignRefusal(message: string): ForeignRefusal {
+  const foreign = new ForeignRefusal(message)
+  expect(foreign).not.toBeInstanceOf(AccountSwitchRefusedError)
+  return foreign
+}
+
+/** A refused switch answers the account option as an invalid request. */
+async function expectRefusedSwitch(
+  client: acp.ClientContext,
+  id: string,
+  stayPut: string,
+): Promise<void> {
+  await expect(
+    client.request('session/set_config_option', {
+      sessionId: id,
+      configId: ACP_CONFIG_IDS.account,
+      value: 'work',
+    }),
+  ).rejects.toMatchObject({
+    code: acp.RequestError.invalidRequest().code,
+    message: expect.stringContaining(stayPut),
+  })
+}
+
+/** Start a controller, emit one vendor-limit stop, and return its notices. */
+async function stopNotice(event: {
+  account: string
+  resetAt: string | null
+}): Promise<ReturnType<typeof vi.fn>> {
+  const h = sessionAccountsRig(),
+    notice = vi.fn()
+  const controller = new AcpAccounts('session', h.port, vi.fn(), notice)
+  await controller.start()
+  h.emit({
+    type: 'stop',
+    provider: 'meta',
+    account: event.account,
+    time: '2026-10-06T12:00:00Z',
+    trigger: { kind: 'vendorLimit', reason: 'rateLimited', resetAt: event.resetAt },
+  })
+  controller.dispose()
+  return notice
+}
 import { until } from './helpers/acpWaits'
 
 function connectedAccounts(isBound = true) {
@@ -836,41 +880,19 @@ describe('M108 ACP accounts', () => {
   })
 
   it('shows stop reset times and the provider usage page', async () => {
-    const h = sessionAccountsRig(),
-      notice = vi.fn()
-    const controller = new AcpAccounts('session', h.port, vi.fn(), notice)
-    await controller.start()
-    h.emit({
-      type: 'stop',
-      provider: 'meta',
-      account: 'default',
-      time: '2026-10-06T12:00:00Z',
-      trigger: { kind: 'vendorLimit', reason: 'rateLimited', resetAt: null },
-    })
+    const notice = await stopNotice({ account: 'default', resetAt: null })
     expect(notice).toHaveBeenCalledWith(
       'meta · Default has no room. Reset time is unknown. https://example.test/usage',
       expect.objectContaining({ type: 'stop' }),
     )
-    controller.dispose()
   })
 
   it('names the blocked account and its reset when the reset is known', async () => {
-    const h = sessionAccountsRig(),
-      notice = vi.fn()
-    const controller = new AcpAccounts('session', h.port, vi.fn(), notice)
-    await controller.start()
-    h.emit({
-      type: 'stop',
-      provider: 'meta',
-      account: 'work',
-      time: '2026-10-06T12:00:00Z',
-      trigger: { kind: 'vendorLimit', reason: 'rateLimited', resetAt: '2026-10-07T12:00:00Z' },
-    })
+    const notice = await stopNotice({ account: 'work', resetAt: '2026-10-07T12:00:00Z' })
     expect(notice).toHaveBeenCalledWith(
       expect.stringContaining('meta · Work has no room. Resets '),
       expect.objectContaining({ type: 'stop' }),
     )
-    controller.dispose()
   })
 
   it('repeats a refused switch with the stay-put text instead of a generic failure', async () => {
@@ -901,16 +923,7 @@ describe('M108 ACP accounts', () => {
         code: acp.RequestError.invalidRequest().code,
         message: expect.stringContaining(stayPut),
       })
-      await expect(
-        client.request('session/set_config_option', {
-          sessionId: id,
-          configId: ACP_CONFIG_IDS.account,
-          value: 'work',
-        }),
-      ).rejects.toMatchObject({
-        code: acp.RequestError.invalidRequest().code,
-        message: expect.stringContaining(stayPut),
-      })
+      await expectRefusedSwitch(client, id, stayPut)
       expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
     })
   })
@@ -921,10 +934,9 @@ describe('M108 ACP accounts', () => {
     await controller.start()
     // A producer bundle carries its own copy of the refusal constructor, so
     // `instanceof` is false here: only the brand travels the boundary.
-    const foreign = new ForeignRefusal(
+    const foreign = foreignRefusal(
       fill(UI_TEXT.accounts.switchUnavailable, { provider: 'meta', account: 'Work' }),
     )
-    expect(foreign).not.toBeInstanceOf(AccountSwitchRefusedError)
     h.port.use = () => Promise.reject(foreign)
     await expect(controller.use('work', () => true)).rejects.toBe(foreign)
     controller.dispose()
@@ -932,22 +944,12 @@ describe('M108 ACP accounts', () => {
 
   it('answers a cross-bundle refusal copy as an invalid request, never an internal error', async () => {
     const h = connectedAccounts()
-    const foreign = new ForeignRefusal(
+    const foreign = foreignRefusal(
       'This session stays on meta · Default. Account switching is unavailable in this runtime.',
     )
-    expect(foreign).not.toBeInstanceOf(AccountSwitchRefusedError)
     h.port.use = () => Promise.reject(foreign)
     await h.run(async (client, id) => {
-      await expect(
-        client.request('session/set_config_option', {
-          sessionId: id,
-          configId: ACP_CONFIG_IDS.account,
-          value: 'work',
-        }),
-      ).rejects.toMatchObject({
-        code: acp.RequestError.invalidRequest().code,
-        message: expect.stringContaining('This session stays on meta · Default.'),
-      })
+      await expectRefusedSwitch(client, id, 'This session stays on meta · Default.')
       expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
     })
   })
