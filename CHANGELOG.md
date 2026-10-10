@@ -102,7 +102,13 @@ happened, not what was planned; superseded entries are kept.
   through one shared helper, so an error, empty or loading shell fails the
   certification with a named reason instead of passing an idle page; the
   native-transport failure path keeps its explicit error assertion
-  (RVCM1141C).
+  (RVCM1141C). The harness Usage page now carries the companion theme nonce
+  the served companion document sets, so its `http` bridge mounts instead of
+  throwing before the view renders; every re-query and refresh wait in those
+  certifications asserts rendered content with no alert (a post-load read
+  failure keeps the marker under the alert), the real-companion run asserts
+  its own editor host line, and the unreadable-resource scene asserts the
+  marker plus the section's own alert (RVCM1141D).
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
