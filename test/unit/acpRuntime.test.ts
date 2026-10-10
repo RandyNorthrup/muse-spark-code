@@ -761,6 +761,41 @@ describe('createRuntimeBackend', () => {
     }
   })
 
+  it.each(['missing', 'unreadable'])(
+    'refuses a %s subscription sign-in with and without a pasted key',
+    async (status) => {
+      const home = folder()
+      if (status === 'unreadable') {
+        mkdirSync(path.join(home, '.config', 'muse'), { recursive: true })
+        writeFileSync(path.join(home, '.config', 'muse', 'auth.json'), '{malformed')
+      }
+      for (const stored of [undefined, KEY]) {
+        const secrets = memorySecrets()
+        if (stored !== undefined) secrets.values.set(SECRET_KEYS.modelApiKey, stored)
+        const runtime = backend(
+          { backend: 'modelApi', subscription: true },
+          secrets,
+          {},
+          dist.folder,
+          fakeModelApi().fetch,
+          undefined,
+          home,
+        )
+        try {
+          expect(await runtime.backend.readiness(false)).toEqual({
+            state: 'signedOut',
+            message:
+              status === 'missing'
+                ? UI_TEXT.subscriptionKey.signInAgain
+                : UI_TEXT.subscriptionKey.cannotRead,
+          })
+        } finally {
+          await runtime.close()
+        }
+      }
+    },
+  )
+
   it('says where it looked when the Muse Code CLI is missing, and builds a Model API host per folder', async () => {
     // The CLI search reads this process's PATH, LOCALAPPDATA and home, so a
     // machine with Muse Code installed must not be the one searched.

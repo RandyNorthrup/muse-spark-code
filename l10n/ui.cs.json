@@ -5537,10 +5537,12 @@
     "signInAgain": "Předplatné Muse Code je zapnuté, ale Muse Code CLI zde nemá žádné přihlášení k předplatnému. Klíč pay-as-you-go (`muse auth set`) se nepočítá. Přihlaste se svým účtem Muse (`muse login`) a zkuste to znovu – nebo místo toho použijte klíč Model API.",
     "cannotRead": "Předplatné Muse Code je zapnuté, ale přihlašovací soubor Muse Code CLI nelze přečíst. Přihlaste Muse Code CLI znovu a zkuste to znovu – nebo místo toho použijte klíč Model API.",
     "keychainBacked": "Předplatné Muse Code je zapnuté, ale toto přihlášení je v přihlašovací klíčence, kterou zde nelze přečíst. Místo toho použijte klíč Model API.",
-    "paidNeedsKey": "Předplatné Muse Code pokrývá chat. Tento placený doplněk potřebuje uložený klíč Model API: uložte jej a zkuste to znovu."
+    "paidNeedsKey": "Předplatné Muse Code pokrývá chat. Tento placený doplněk potřebuje uložený klíč Model API: uložte jej a zkuste to znovu.",
+    "billingChanged": "Účet pro účtování se změnil. Nic nebylo odesláno; zkuste to znovu.",
+    "paidSearch": "Tokeny modelu v této odpovědi se také účtují na váš uložený klíč Model API podle sazeb {price}."
   },
   "acpSubscriptionNeedsModelApi": "{argument} vyžaduje --backend modelApi: předplatné Muse Code hradí volání Model API.",
   "execSubscriptionStdin": "--subscription a --key-stdin nelze kombinovat: jeden klíč na běh.",
   "referenceMuseCodeSubscriptionName": "Předplatné Muse Code",
-  "referenceMuseCodeSubscriptionSummary": "Účtovat volání Model API do tarifu klíčem, který drží Muse Code CLI."
+  "referenceMuseCodeSubscriptionSummary": "Chat Meta využívá předplatné Muse Code; zapnuté placené doplňky vyžadují uložený klíč Model API a souhlas."
 }

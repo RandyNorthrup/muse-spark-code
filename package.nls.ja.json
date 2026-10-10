@@ -251,5 +251,5 @@
   "config.reports.network.enumDescriptions.off": "ローカルソースのみを読み取ります。",
   "config.reports.keepHistory.description": "履歴と比較のため、このコンピューターに種類ごとに最新の 50 件を保存します。",
   "config.reports.agentSources.description": "自分の Claude Code または Codex の使用状況と上限ファイルの読み取りを有効にします。既定はなしです。会話の本文と認証情報ファイルはレポートのソースとして読み取りません。",
-  "config.useMuseCodeSubscription.description": "従量課金キーの代わりに Muse Code サブスクリプションで Model API バックエンドを利用する。呼び出しはカードではなく Muse Code プランに計上され、サインイン後に Muse Code CLI が保持するサブスクリプションキーを使用する。CLI サインインがない、または読み取れない場合、保存済みキーへの請求ではなく Model API 呼び出しを停止する。"
+  "config.useMuseCodeSubscription.description": "Meta Model API チャットには Muse Code CLI のサブスクリプションログインを使用します。ログイン情報がない、または読み取れない場合は、保存済みキーに課金せずチャットを停止します。ホスト型検索、サブエージェント、自動レビューなどの有料追加機能は、料金・予算・利用への通常の同意を得て、保存済みの Model API キーに課金されます。"
 }

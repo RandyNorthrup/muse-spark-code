@@ -251,5 +251,5 @@
   "config.reports.network.enumDescriptions.off": "로컬 출처만 읽습니다.",
   "config.reports.keepHistory.description": "기록 및 비교를 위해 이 컴퓨터에 유형별로 최신 보고서 50개를 보관합니다.",
   "config.reports.agentSources.description": "자신의 Claude Code 또는 Codex 사용량 및 한도 파일 읽기를 허용합니다. 기본값은 없음입니다. 대화 본문과 자격 증명 파일은 보고서 출처로 읽지 않습니다.",
-  "config.useMuseCodeSubscription.description": "종량제 키 대신 Muse Code 구독으로 Model API 백엔드를 사용합니다. 호출은 카드가 아니라 Muse Code 플랜에 합산되며, 로그인 후 Muse Code CLI가 보관하는 구독 키를 사용합니다. CLI 로그인이 없거나 읽을 수 없으면 저장된 키에 청구하는 대신 Model API 호출을 중단합니다."
+  "config.useMuseCodeSubscription.description": "Meta Model API 채팅에 Muse Code CLI 구독 로그인을 사용합니다. 로그인 정보가 없거나 읽을 수 없으면 저장된 키에 요금을 청구하지 않고 채팅을 중단합니다. 호스팅 검색, 하위 에이전트, 자동 검토 등의 유료 추가 기능은 일반적인 가격, 예산 및 사용 동의를 받아 저장된 Model API 키에 요금을 청구합니다."
 }

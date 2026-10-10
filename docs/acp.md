@@ -153,8 +153,13 @@ counts: it is refused, never billed as plan. Usage records these calls as
 **Muse Code plan** with
 no dollar price. A missing or unreadable CLI sign-in refuses with the fix
 instead of billing a stored key; a macOS Keychain-only sign-in cannot be
-read, so use a key there. Paid images still need
-a stored key, and hosted web search stays off while chat bills the plan. `exec --subscription` refuses with `--key-stdin` (one
+read, so turn off subscription mode to use a key there. Billing and the
+credential are bound per attempt; changing the billing account during
+admission refuses before sending. Rotation preserves saved-session ownership.
+Paid images, enabled search, subagents and Auto review need a stored Model API
+key and normal consent. Search also bills that response's model tokens to the
+key, disclosed before use; denial keeps chat on the plan. Disabled extras stay
+quiet. `exec --subscription` refuses with `--key-stdin` (one
 credential per run); a subscription run still needs `--max-budget-usd` and
 `--max-requests`, and its receipt reports `$0` billed for the plan-covered
 chat requests.

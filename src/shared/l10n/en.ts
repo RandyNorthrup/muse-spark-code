@@ -143,6 +143,8 @@ export const EN = {
   // refusals name the fix and never carry the key. (The opt-in's Title Case
   // label comes from its setting id, `museSpark.useMuseCodeSubscription`.)
   subscriptionKey: {
+    paidSearch: 'This response’s model tokens also bill your stored Model API key at {price}.',
+    billingChanged: 'The billing account changed. Nothing was sent; try again.',
     signInAgain:
       'Muse Code subscription is on, but the Muse Code CLI holds no subscription sign-in here. A pay-as-you-go key (`muse auth set`) does not count. Sign in with your Muse account (`muse login`), then try again — or use a Model API key instead.',
     cannotRead:
@@ -340,7 +342,7 @@ export const EN = {
     'Agent controls; Interrupt; Stop; Resume; Close agent; Reopen agent; Mark result read; Send message; Follow-up task',
   referenceMuseCodeSubscriptionName: 'Muse Code subscription',
   referenceMuseCodeSubscriptionSummary:
-    'Bill Model API calls to the Muse Code plan with the key the Muse Code CLI holds.',
+    'Meta chat uses the Muse Code plan; enabled paid extras require a stored Model API key and consent.',
 
   referenceBestOfNRequirements:
     'Candidates require Model API, the paid feature enabled, a trusted Git workspace, Git 2.36 or newer, and no configured Git filter or hook programs. A finite session budget requires an owned parent budget scope shared by candidates. Set attempt and request limits, compare results or cancel, then take selected changes by applying and staging without a commit.',

@@ -369,7 +369,8 @@ function modelApiManager(
         return
       }
     },
-    isSubscriptionBilling: () => subscription.isSubscriptionBilling(),
+    subscriptionAccountId: subscription.accountId(),
+    getBillingRoute: (isPaid) => subscription.route(isPaid),
     workspaceRoot,
     sessionWorkspaceRoot: storedWorkspaceRoot,
     assertWorkspaceCurrent,
@@ -450,14 +451,7 @@ function modelApiManager(
       }
       const entry = await accountingEntry()
       entry.setUiText(UI_TEXT, uiLocale())
-      // A plan-billed run reserves and settles $0 in the paid daily journal.
-      const isPlanBilling = await subscription.isSubscriptionBilling()
-      return entry.withRuntimeAccounting(
-        client,
-        await dailyBudget(),
-        deps.exec?.responseAccounting,
-        isPlanBilling,
-      )
+      return entry.withRuntimeAccounting(client, await dailyBudget(), deps.exec?.responseAccounting)
     },
     reservePaidRequest: async (
       body,

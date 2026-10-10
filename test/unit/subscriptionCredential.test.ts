@@ -1,3 +1,7 @@
+import {
+  subscriptionAccountId,
+  billingKeyDigest,
+} from '../../src/core/backends/modelapi/billingRoute'
 // C-M95-SUB: the host credential wrapper. Fakes only: an in-memory pasted
 // key and an in-memory CLI auth file. No real auth file is ever read here.
 import { describe, expect, it } from 'vitest'
@@ -38,6 +42,34 @@ function fileText(meta: unknown): string {
 }
 
 describe('SubscriptionCredential', () => {
+  it('freezes a route and refuses instead of replacing it with a pasted key', async () => {
+    const file = memorySubscriptionFile()
+    file.writeAccessToken(SUB)
+    const wrapper = new SubscriptionCredential({
+      credentials: { getApiKey: () => Promise.resolve(PASTED) },
+      isEnabled: () => true,
+      platform: 'linux',
+      homeDir: '/home/u',
+      xdgConfigHome: undefined,
+      source: file.source,
+    })
+    const route = await wrapper.route()
+    expect(Object.isFrozen(route)).toBe(true)
+    expect(route?.kind).toBe('museCodePlan')
+    expect(route?.accountId).not.toBe(billingKeyDigest(SUB))
+    file.writeText(fileText({ api_key: PASTED }))
+    await expect(wrapper.route()).rejects.toThrow(UI_TEXT.subscriptionKey.signInAgain)
+    expect(route?.credential).toBe(SUB)
+    await expect(wrapper.route(true)).resolves.toMatchObject({
+      kind: 'payAsYouGo',
+      credential: PASTED,
+    })
+  })
+  it('normalizes Windows separators for the stable subscription identity', () => {
+    expect(subscriptionAccountId(String.raw`C:\Users\fake\.config\muse\auth.json`)).toBe(
+      subscriptionAccountId('C:/Users/fake/.config/muse/auth.json'),
+    )
+  })
   it('uses the pasted key while the opt-in is off', async () => {
     const wrapper = credential({ enabled: false, pasted: PASTED, text: fileText({ api_key: SUB }) })
     await expect(wrapper.getApiKey()).resolves.toBe(PASTED)

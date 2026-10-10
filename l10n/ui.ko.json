@@ -5078,10 +5078,12 @@
     "signInAgain": "Muse Code 구독이 켜져 있지만 Muse Code CLI에 구독 로그인이 없습니다. 종량제 키(`muse auth set`)는 인정되지 않습니다. Muse 계정으로 로그인한 뒤(`muse login`) 다시 시도하세요. 또는 Model API 키를 사용하세요.",
     "cannotRead": "Muse Code 구독이 켜져 있지만 Muse Code CLI 로그인 파일을 읽을 수 없습니다. Muse Code CLI에 다시 로그인한 뒤 다시 시도하세요. 또는 Model API 키를 사용하세요.",
     "keychainBacked": "Muse Code 구독이 켜져 있지만 이 로그인은 로그인 키체인에 있어 여기서 읽을 수 없습니다. Model API 키를 사용하세요.",
-    "paidNeedsKey": "Muse Code 구독은 채팅을 포함합니다. 이 유료 기능에는 저장된 Model API 키가 필요합니다. 키를 저장한 뒤 다시 시도하세요."
+    "paidNeedsKey": "Muse Code 구독은 채팅을 포함합니다. 이 유료 기능에는 저장된 Model API 키가 필요합니다. 키를 저장한 뒤 다시 시도하세요.",
+    "billingChanged": "결제 계정이 변경되었습니다. 아무것도 전송되지 않았습니다. 다시 시도하세요.",
+    "paidSearch": "이 응답의 모델 토큰도 저장된 Model API 키에 다음 요금으로 청구됩니다: {price}."
   },
   "acpSubscriptionNeedsModelApi": "{argument}에는 --backend modelApi가 필요합니다. Muse Code 구독이 Model API 호출 요금을 냅니다.",
   "execSubscriptionStdin": "--subscription과 --key-stdin은 함께 쓸 수 없습니다. 실행당 하나의 자격 증명입니다.",
   "referenceMuseCodeSubscriptionName": "Muse Code 구독",
-  "referenceMuseCodeSubscriptionSummary": "Muse Code CLI가 보관한 키로 Model API 호출을 플랜에 청구합니다."
+  "referenceMuseCodeSubscriptionSummary": "Meta 채팅은 Muse Code 요금제를 사용합니다. 활성화된 유료 추가 기능에는 저장된 Model API 키와 동의가 필요합니다."
 }

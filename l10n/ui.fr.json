@@ -5384,10 +5384,12 @@
     "signInAgain": "L’abonnement Muse Code est activé, mais la CLI Muse Code ne détient ici aucune connexion d’abonnement. Une clé à l’usage (`muse auth set`) ne compte pas. Connectez-vous avec votre compte Muse (`muse login`), puis réessayez — ou utilisez plutôt une clé de Model API.",
     "cannotRead": "L’abonnement Muse Code est activé, mais le fichier de connexion de la CLI Muse Code est illisible. Reconnectez la CLI Muse Code, puis réessayez — ou utilisez plutôt une clé de Model API.",
     "keychainBacked": "L’abonnement Muse Code est activé, mais cette connexion se trouve dans le trousseau de session, illisible ici. Utilisez plutôt une clé de Model API.",
-    "paidNeedsKey": "L’abonnement Muse Code couvre le clavardage. Cette option payante exige une clé de Model API enregistrée : enregistrez-en une, puis réessayez."
+    "paidNeedsKey": "L’abonnement Muse Code couvre le clavardage. Cette option payante exige une clé de Model API enregistrée : enregistrez-en une, puis réessayez.",
+    "billingChanged": "Le compte de facturation a changé. Rien n’a été envoyé ; réessayez.",
+    "paidSearch": "Les jetons du modèle de cette réponse sont aussi facturés à votre clé Model API enregistrée à ces tarifs : {price}."
   },
   "acpSubscriptionNeedsModelApi": "{argument} nécessite --backend modelApi : l’abonnement Muse Code paie les appels Model API.",
   "execSubscriptionStdin": "--subscription et --key-stdin ne peuvent pas être combinés : un identifiant par exécution.",
   "referenceMuseCodeSubscriptionName": "Abonnement Muse Code",
-  "referenceMuseCodeSubscriptionSummary": "Facturer les appels Model API au forfait avec la clé que détient la CLI Muse Code."
+  "referenceMuseCodeSubscriptionSummary": "Le chat Meta utilise le forfait Muse Code ; les options payantes activées nécessitent une clé Model API enregistrée et votre accord."
 }

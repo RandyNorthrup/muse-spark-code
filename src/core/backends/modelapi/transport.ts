@@ -1,3 +1,4 @@
+import type { BillingRoute } from './billingRoute'
 import { notify } from '../../events/notify'
 import type { PaidAuthority } from '../../paid/paidAuthority'
 import type { PaidQuote, SearchSettlement } from '../../../shared/paid'
@@ -377,6 +378,10 @@ export function rateLimitHeaders(headers: Headers): UsageHeaders {
 }
 
 export interface ResponseAttemptGuard {
+  /** Frozen Meta auth/pricing snapshot; never forwarded to another provider's auth. */
+  readonly billingRoute?: BillingRoute | undefined
+  /** Compare-only after admission: a fresh route may refuse, never replace auth. */
+  readonly confirmBillingRoute?: (() => Promise<void>) | undefined
   readonly mediaAccounting?: MediaRequestAccounting
   readonly pacingClass?: PacingClass
   readonly searchQuote?: PaidQuote
@@ -805,7 +810,12 @@ export class RequestTransport {
       }
       let credentials: Awaited<ReturnType<RequestTransport['headers']>>
       try {
-        credentials = await this.headers(url, init.authKey)
+        credentials = await this.headers(
+          url,
+          this.deps.auth === undefined
+            ? (init.authKey ?? admitAttempt?.billingRoute?.credential)
+            : undefined,
+        )
       } catch (error: unknown) {
         if (isAborted(signal)) {
           throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
@@ -869,7 +879,11 @@ export class RequestTransport {
         } finally {
           admission.abort()
         }
-        if (kind !== 'foreground' && credentials.keyDigest !== (await this.currentKeyDigest()))
+        if (
+          kind !== 'foreground' &&
+          (this.deps.auth !== undefined || admitAttempt?.billingRoute === undefined) &&
+          credentials.keyDigest !== (await this.currentKeyDigest())
+        )
           throw new Error(UI_TEXT.notSignedInReason)
       }
       if (isAborted(signal))
@@ -878,6 +892,7 @@ export class RequestTransport {
       // Local consent refusal is outside the transport retry catch: it never
       // becomes another billable attempt.
       await admitAttempt?.prepare?.()
+      await admitAttempt?.confirmBillingRoute?.()
       if (init.paid !== undefined) {
         if (init.paid.isSent) {
           throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)

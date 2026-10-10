@@ -80,6 +80,18 @@ const SEARCH: PaidUseRequest = { feature: 'webSearch', priceUsd: Usd.from(0.0025
 const VOICE: PaidUseRequest = { feature: 'voice' }
 
 describe('paidUseQuestion: verified hosted-search tariffs', () => {
+  it('discloses dollar-billed model tokens on a subscription search response', async () => {
+    const question = await paidUseQuestion({
+      feature: 'webSearch',
+      priceUsd: Usd.from('0.0025').toAmount(),
+      paidModelId: 'muse-spark-1.3',
+    })
+    expect(question.detail).toContain(
+      'This response’s model tokens also bill your stored Model API key',
+    )
+    expect(question.detail).toContain('$1.25')
+    expect(question.detail).toContain('$4.250')
+  })
   it('discloses a positive sub-cent per-thousand search price', async () => {
     const question = await paidUseQuestion({
       feature: 'webSearch',

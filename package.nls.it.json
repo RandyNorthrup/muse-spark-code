@@ -251,5 +251,5 @@
   "config.reports.network.enumDescriptions.off": "Leggi solo fonti locali.",
   "config.reports.keepHistory.description": "Conserva su questo computer gli ultimi 50 rapporti di ogni tipo per la cronologia e i confronti.",
   "config.reports.agentSources.description": "Abilita la lettura dei tuoi file di utilizzo e limiti di Claude Code o Codex. Impostazione predefinita: nessuno. Il testo delle conversazioni e i file di credenziali non vengono mai letti come fonti dei rapporti.",
-  "config.useMuseCodeSubscription.description": "Usare il backend Model API con l’abbonamento Muse Code invece di una chiave a consumo. Le chiamate contano per il piano Muse Code, non per la carta, con la chiave di abbonamento detenuta dalla CLI di Muse Code dopo l’accesso. Un accesso CLI mancante o illeggibile ferma le chiamate Model API invece di addebitare una chiave salvata."
+  "config.useMuseCodeSubscription.description": "Usa l’accesso in abbonamento di Muse Code CLI per la chat Meta Model API. Un accesso assente o illeggibile interrompe la chat senza addebitare una chiave salvata. Gli extra a pagamento, tra cui ricerca ospitata, sottoagenti e revisione automatica, vengono addebitati alla chiave Model API salvata con il normale consenso a prezzo, budget e utilizzo."
 }

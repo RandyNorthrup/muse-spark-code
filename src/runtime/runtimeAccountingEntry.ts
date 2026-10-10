@@ -103,11 +103,6 @@ export function withRuntimeAccounting(
   client: ProviderClient,
   daily: ReturnType<typeof createRuntimeDailyBudget>,
   accounting?: RuntimeResponseAccounting,
-  /**
-   * C-M95-SUB: a plan-billed run reserves and settles $0: the subscription
-   * covers chat, so the paid daily journal keeps nothing from these turns.
-   */
-  isPlanBilling = false,
 ): ProviderClient {
   const wrap = (model: ResolvedModel): ResolvedModel => {
     const original = model.client
@@ -125,6 +120,7 @@ export function withRuntimeAccounting(
           contextTokens < body.max_output_tokens
         )
           throw new Error(UI_TEXT.execModelUnpriced)
+        const isPlanBilling = guard?.billingRoute?.kind === 'museCodePlan'
         const zeroUsd = Usd.from(0).toAmount()
         const reserveUsd = isPlanBilling
           ? zeroUsd

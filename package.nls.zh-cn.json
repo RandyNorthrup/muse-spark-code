@@ -251,5 +251,5 @@
   "config.reports.network.enumDescriptions.off": "仅读取本地来源。",
   "config.reports.keepHistory.description": "在此计算机上保留每种类型最近的 50 份报告，用于历史记录和比较。",
   "config.reports.agentSources.description": "选择读取您自己的 Claude Code 或 Codex 用量和限制文件。默认不启用任何来源。绝不会将会话正文和凭据文件作为报告来源读取。",
-  "config.useMuseCodeSubscription.description": "使用 Muse Code 订阅而非按量付费密钥来驱动 Model API 后端。调用计入 Muse Code 套餐而非银行卡，使用登录后 Muse Code CLI 持有的订阅密钥。缺少或无法读取 CLI 登录时，将停止 Model API 调用，而不是向已存储的密钥计费。"
+  "config.useMuseCodeSubscription.description": "Meta Model API 聊天使用 Muse Code CLI 的订阅登录。登录信息缺失或无法读取时，会停止聊天，而不会向已存储的密钥收费。托管搜索、子代理和自动审查等付费附加功能，在获得常规价格、预算和使用同意后，向已存储的 Model API 密钥收费。"
 }

@@ -961,10 +961,29 @@
     {
       "id": "muse-code-subscription",
       "name": { "ui": "referenceMuseCodeSubscriptionName" },
-      "summary": { "ui": "referenceMuseCodeSubscriptionSummary" },
-      "description": { "ui": "referenceMuseCodeSubscriptionSummary" },
+      "summary": {
+        "conditions": [
+          {
+            "when": "useMuseCodeSubscription&paidFeatureConsent",
+            "text": { "ui": "referenceMuseCodeSubscriptionSummary" }
+          }
+        ]
+      },
+      "description": {
+        "conditions": [
+          {
+            "when": "useMuseCodeSubscription&paidFeatureConsent",
+            "text": { "ui": "referenceMuseCodeSubscriptionSummary" }
+          }
+        ]
+      },
       "commands": [],
-      "settings": ["museSpark.useMuseCodeSubscription"],
+      "settings": [
+        "museSpark.useMuseCodeSubscription",
+        "museSpark.modelApiWebSearch",
+        "museSpark.modelApiSubagents",
+        "museSpark.modelApiAutoReviewer"
+      ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#muse-code-subscription",
       "backends": ["modelApi"],
       "paid": false,
@@ -3299,7 +3318,7 @@
     {
       "id": "museSpark.useMuseCodeSubscription",
       "name": "museSpark.useMuseCodeSubscription",
-      "description": "Drive the Model API backend with the Muse Code subscription instead of a pay-as-you-go key. Calls count against the Muse Code plan, not the card, using the subscription key the Muse Code CLI holds after sign-in. A missing or unreadable CLI sign-in stops Model API calls instead of billing a stored key.",
+      "description": "Use the Muse Code CLI subscription sign-in for Meta Model API chat. A missing or unreadable sign-in stops chat instead of billing a stored key. Paid extras, including hosted search, subagents and Auto review, bill the stored Model API key with normal price, budget and use consent.",
       "descriptionKey": "config.useMuseCodeSubscription.description",
       "type": "boolean",
       "default": false,

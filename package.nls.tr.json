@@ -251,5 +251,5 @@
   "config.reports.network.enumDescriptions.off": "Yalnızca yerel kaynakları oku.",
   "config.reports.keepHistory.description": "Geçmiş ve karşılaştırma için bu bilgisayarda her türün en yeni 50 raporunu sakla.",
   "config.reports.agentSources.description": "Kendi Claude Code veya Codex kullanım ve sınır dosyalarınızın okunmasına izin verin. Varsayılan: hiçbiri. Konuşma metni ve kimlik bilgisi dosyaları rapor kaynağı olarak asla okunmaz.",
-  "config.useMuseCodeSubscription.description": "Model API arka ucunu kullandıkça öde anahtarı yerine Muse Code aboneliğiyle kullanın. Çağrılar karta değil Muse Code planına işler ve girişten sonra Muse Code CLI’nin tuttuğu abonelik anahtarı kullanılır. Eksik veya okunamayan CLI girişi, kayıtlı anahtara faturalandırmak yerine Model API çağrılarını durdurur."
+  "config.useMuseCodeSubscription.description": "Meta Model API sohbeti için Muse Code CLI abonelik oturumunu kullanın. Eksik veya okunamayan oturum bilgileri, kayıtlı anahtara ücret yansıtmak yerine sohbeti durdurur. Barındırılan arama, alt ajanlar ve otomatik inceleme dahil ücretli ek özellikler, normal fiyat, bütçe ve kullanım onayıyla kayıtlı Model API anahtarına faturalandırılır."
 }

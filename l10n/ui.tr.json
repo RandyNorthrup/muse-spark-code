@@ -5231,10 +5231,12 @@
     "signInAgain": "Muse Code aboneliği açık, ancak Muse Code CLI burada abonelik girişi tutmuyor. Kullandıkça öde anahtarı (`muse auth set`) geçerli değildir. Muse hesabınızla giriş yapın (`muse login`) ve tekrar deneyin — ya da Model API anahtarı kullanın.",
     "cannotRead": "Muse Code aboneliği açık, ancak Muse Code CLI giriş dosyası okunamıyor. Muse Code CLI ile yeniden giriş yapın ve tekrar deneyin — ya da Model API anahtarı kullanın.",
     "keychainBacked": "Muse Code aboneliği açık, ancak bu giriş, burada okunamayan giriş anahtar zincirinde. Model API anahtarı kullanın.",
-    "paidNeedsKey": "Muse Code aboneliği sohbeti kapsar. Bu ücretli ekstra için kayıtlı bir Model API anahtarı gerekir: bir tane kaydedip tekrar deneyin."
+    "paidNeedsKey": "Muse Code aboneliği sohbeti kapsar. Bu ücretli ekstra için kayıtlı bir Model API anahtarı gerekir: bir tane kaydedip tekrar deneyin.",
+    "billingChanged": "Faturalandırma hesabı değişti. Hiçbir şey gönderilmedi; yeniden deneyin.",
+    "paidSearch": "Bu yanıttaki model tokenları da saklanan Model API anahtarınıza şu ücretlerle faturalandırılır: {price}."
   },
   "acpSubscriptionNeedsModelApi": "{argument} --backend modelApi gerektirir: Muse Code aboneliği Model API çağrılarını öder.",
   "execSubscriptionStdin": "--subscription ve --key-stdin birleştirilemez: çalıştırmada tek kimlik bilgisi.",
   "referenceMuseCodeSubscriptionName": "Muse Code aboneliği",
-  "referenceMuseCodeSubscriptionSummary": "Model API çağrılarını Muse Code CLI’nin tuttuğu anahtarla plana faturalandırır."
+  "referenceMuseCodeSubscriptionSummary": "Meta sohbeti Muse Code planını kullanır; etkin ücretli ek özellikler için kayıtlı bir Model API anahtarı ve onay gerekir."
 }

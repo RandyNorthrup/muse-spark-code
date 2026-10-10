@@ -1,7 +1,7 @@
 // C-M95-SUB: subscription-billed Meta turns price as plan. Drives one
 // fake turn per case and reads the recorded call the journal would settle.
 import { describe, expect, it } from 'vitest'
-import { createHash } from 'node:crypto'
+import { billingRoute } from '../../src/core/backends/modelapi/billingRoute'
 import { UI_TEXT } from '../../src/shared/constants'
 import { Usd } from '../../src/shared/usd'
 import type { Usage } from '../../src/core/backends/modelapi/schemas'
@@ -39,9 +39,12 @@ function captureRecording(seen: { usage: Partial<Usage> | undefined; context: Re
 
 async function runTurn(options: {
   subscriptionBilling: boolean
+  subscriptionKey?: string
   capUsd?: number
   showReplyUsage?: boolean
   searchOn?: boolean
+  paidKey?: string
+  allowSearch?: boolean
 }): Promise<{
   terminal: string | undefined
   contexts: { usage: Partial<Usage> | undefined; context: RecordedCall }[]
@@ -68,7 +71,28 @@ async function runTurn(options: {
       sessionBudgetUsd: () => Usd.from(options.capUsd ?? 0).toAmount(),
       store: memorySessionStore(),
     }),
-    isSubscriptionBilling: () => Promise.resolve(options.subscriptionBilling),
+    getBillingRoute: (isPaid) => {
+      if (isPaid)
+        return Promise.resolve(
+          options.paidKey === undefined ? undefined : billingRoute('payAsYouGo', options.paidKey),
+        )
+      return Promise.resolve(
+        billingRoute(
+          options.subscriptionBilling ? 'museCodePlan' : 'payAsYouGo',
+          options.subscriptionKey ?? 'LLM|1|secret',
+        ),
+      )
+    },
+    ...(options.allowSearch === true && {
+      allowsPaidUse: (request) => Promise.resolve(request.feature !== 'webSearch' || request.quote),
+      modelCapabilities: () => ({
+        hosted: {
+          webSearch: { state: 'yes', value: { tool: 'web_search' } },
+          maxToolCalls: { state: 'yes', value: true },
+        },
+      }),
+      webSearchMaxPerRequest: () => 1,
+    }),
   })
   try {
     const session = await host.startSession({
@@ -111,6 +135,26 @@ async function runTurn(options: {
 }
 
 describe('subscription billing', () => {
+  it('keeps a disabled paid search quiet on a subscription turn', async () => {
+    const plan = await runTurn({ subscriptionBilling: true })
+    expect(plan.terminal).toBe('completed')
+    expect(plan.searchNotices).not.toContain(UI_TEXT.subscriptionKey.paidNeedsKey)
+  })
+  it('sends consented search using the pasted key and prices its tokens as dollars', async () => {
+    const plan = await runTurn({
+      subscriptionBilling: true,
+      searchOn: true,
+      subscriptionKey: 'opaque plan bearer',
+      paidKey: 'LLM|1|secret',
+      allowSearch: true,
+      capUsd: 1,
+    })
+    expect(plan.terminal).toBe('completed')
+    expect(plan.isSearchBound).toBe(true)
+    expect(plan.searchNotices).not.toContain(UI_TEXT.subscriptionKey.paidNeedsKey)
+    expect(plan.contexts[0]?.context.pricing).toBeUndefined()
+    expect(plan.spentUsd[0]).toBeGreaterThan(0)
+  })
   it('records plan pricing for a subscription-billed Meta turn', async () => {
     const turn = await runTurn({ subscriptionBilling: true })
     expect(turn.terminal).toBe('completed')
@@ -182,18 +226,11 @@ describe('subscription billing', () => {
 })
 
 describe('subscription rotation', () => {
-  it('rebinds the account fences when the CLI rotates the key mid-conversation', async () => {
-    // P2: the CLI rotates the credential between two turns of one
-    // conversation. The fake wire accepts one hardcoded key, so both
-    // turns fail there; what matters is that the second turn is
-    // dispatched at all (the stale account fence no longer refuses the
-    // new digest) and fails exactly like the first. Without the rebind
-    // only one request is dispatched and the second turn fails refusing
-    // the account instead of reaching the wire.
+  it('rotation preserves saved sessions and sends the captured Authorization bytes', async () => {
     const log = new FakeLogOutputChannel()
     const api = fakeModelApi()
     const { source, writeAccessToken } = memorySubscriptionFile()
-    writeAccessToken('subscription-key-one')
+    writeAccessToken('opaque old subscription bearer')
     const credential = new SubscriptionCredential({
       credentials: { getApiKey: () => Promise.resolve(undefined) },
       isEnabled: () => true,
@@ -202,49 +239,78 @@ describe('subscription rotation', () => {
       xdgConfigHome: undefined,
       source,
     })
-    const digest = async (): Promise<string | undefined> => {
-      const key = await credential.getApiKey()
-      return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
-    }
+    const store = memorySessionStore()
+    const firstRoute = await credential.route()
+    const accountBefore = firstRoute?.accountId
+    writeAccessToken('LLM|1|secret')
+    const rotatedRoute = await credential.route()
+    expect(rotatedRoute?.accountId).toBe(accountBefore)
     const client = new ModelApiClient({
       ...fakeModelApiClientSettings(log),
       fetch: api.fetch,
       apiKey: () => credential.getApiKey(),
     })
-    const host = new ModelApiHost({
+    const deps = {
       ...fakeModelApiHostDeps({
         client,
         workspaceRoot: '/workspace',
         io: memoryToolIo({}, '/workspace'),
         log,
       }),
-      getAccountId: digest,
-      isSubscriptionBilling: () => credential.isSubscriptionBilling(),
-    })
+      store,
+      getAccountId: async () => {
+        const route = await credential.route()
+        return route?.accountId
+      },
+      getBillingRoute: (isPaid?: boolean) => credential.route(isPaid),
+      subscriptionAccountId: credential.accountId(),
+    }
+    const host = new ModelApiHost(deps)
+    let id: string
     try {
       const session = await host.startSession({
         workspaceRoot: '/workspace',
         modelId: MODEL,
         approvalMode: 'allowAll',
       })
+      id = session.sessionId
       const turns = watchSessionTurns(session)
-      api.script({ text: 'first answer' })
-      await session.sendTurn([{ type: 'text', text: 'hi' }])
-      await turns.turnDone()
-      writeAccessToken('subscription-key-two')
-      api.script({ text: 'second answer' })
-      await session.sendTurn([{ type: 'text', text: 'again' }])
-      await turns.turnDone()
-      const completed = turns.events.filter((event) => event.type === 'turnCompleted')
-      expect(completed).toHaveLength(2)
-      const reasons = turns.events.flatMap((event) =>
-        event.type === 'turnCompleted' ? [event.reason] : [],
-      )
-      // Both turns reach the wire and fail on its hardcoded key alike.
-      expect(reasons).toEqual(['bad key', 'bad key'])
-      expect(api.requests.filter((request) => request.path === '/responses')).toHaveLength(2)
+      for (const text of ['first', 'second']) {
+        api.script({ text: 'accepted answer' })
+        const done = turns.turnDone()
+        await session.sendTurn([{ type: 'text', text }])
+        await done
+        if (text !== 'first') continue
+        writeAccessToken('opaque new subscription bearer')
+        const rotatedRoute = await credential.route()
+        expect(rotatedRoute?.accountId).toBe(accountBefore)
+        const saved = await host.listSessions({ workspaceRoot: '/workspace', limit: 100 })
+        expect(saved.sessions.map((record) => record.sessionId)).toContain(id)
+        writeAccessToken('LLM|1|secret')
+      }
+      expect(
+        turns.events
+          .filter((event) => event.type === 'turnCompleted')
+          .map((event) => event.terminal),
+      ).toEqual(['completed', 'completed'])
+      expect(
+        api.requests
+          .filter((request) => request.path === '/responses')
+          .map((request) => request.headers['Authorization'] ?? request.headers['authorization']),
+      ).toEqual(['Bearer LLM|1|secret', 'Bearer LLM|1|secret'])
+      await host.flush()
+      expect(store.saved.get(id)?.accountId).toBe(accountBefore)
     } finally {
       await host.close()
+    }
+    writeAccessToken('opaque new subscription bearer')
+    const reopened = new ModelApiHost(deps)
+    try {
+      await reopened.load()
+      const saved = await reopened.listSessions({ workspaceRoot: '/workspace', limit: 100 })
+      expect(saved.sessions.map((record) => record.sessionId)).toContain(id)
+    } finally {
+      await reopened.close()
     }
   })
 })

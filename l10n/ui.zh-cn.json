@@ -5078,10 +5078,12 @@
     "signInAgain": "已启用 Muse Code 订阅，但 Muse Code CLI 在此处没有订阅登录。按量付费密钥（`muse auth set`）不可用。请使用 Muse 帐户登录（`muse login`）后重试，或改用 Model API 密钥。",
     "cannotRead": "已启用 Muse Code 订阅，但无法读取 Muse Code CLI 的登录文件。请重新登录 Muse Code CLI 后重试，或改用 Model API 密钥。",
     "keychainBacked": "已启用 Muse Code 订阅，但此次登录保存在登录钥匙串中，此处无法读取。请改用 Model API 密钥。",
-    "paidNeedsKey": "Muse Code 订阅仅涵盖聊天。此付费功能需要已存储的 Model API 密钥：请存储密钥后重试。"
+    "paidNeedsKey": "Muse Code 订阅仅涵盖聊天。此付费功能需要已存储的 Model API 密钥：请存储密钥后重试。",
+    "billingChanged": "计费账户已更改。未发送任何内容，请重试。",
+    "paidSearch": "此响应的模型令牌也会通过您存储的 Model API 密钥按以下费率计费：{price}。"
   },
   "acpSubscriptionNeedsModelApi": "{argument} 需要 --backend modelApi：Muse Code 订阅支付 Model API 调用费用。",
   "execSubscriptionStdin": "--subscription 与 --key-stdin 不能组合使用：每次运行只能使用一个凭据。",
   "referenceMuseCodeSubscriptionName": "Muse Code 订阅",
-  "referenceMuseCodeSubscriptionSummary": "使用 Muse Code CLI 持有的密钥，将 Model API 调用计入套餐。"
+  "referenceMuseCodeSubscriptionSummary": "Meta 聊天使用 Muse Code 套餐；已启用的付费附加功能需要已存储的 Model API 密钥和同意。"
 }

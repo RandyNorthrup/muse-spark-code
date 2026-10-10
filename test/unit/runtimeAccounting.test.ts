@@ -1,3 +1,7 @@
+import { createProviderRegistry } from '../../src/core/providers/providerRegistry'
+import { metaResolvedModel } from '../../src/core/backends/modelapi/modelPolicy'
+import { billingRoute } from '../../src/core/backends/modelapi/billingRoute'
+import type { ResponseAttemptGuard } from '../../src/core/backends/modelapi/client'
 import { Usd } from '../../src/shared/usd'
 import { fork } from 'node:child_process'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
@@ -58,6 +62,62 @@ const body: CreateResponseBody = {
 }
 
 describe('standalone daily admission', () => {
+  it('prices each attempt after client creation and keeps provider responses dollar-billed', async () => {
+    const daily = dailyBudgetAt(folder())
+    const api = fakeModelApi()
+    const meta = fakeModelApiClient(api, new FakeLogOutputChannel())
+    const registry = createProviderRegistry({
+      models: () =>
+        Promise.resolve([
+          {
+            ref: 'custom/model',
+            origin: 'https://custom.test',
+            contextTokens: 1000,
+            evidence: { capabilities: { toolCalling: true }, maxOutputTokens: 100 },
+            pricing: {
+              kind: 'priced',
+              card: { input: 0.000001, output: 0.000002, source: 'user' },
+            },
+          },
+        ]),
+      createClient: () => Promise.resolve(meta),
+      isCurrent: () => true,
+    })
+    const client = withRuntimeAccounting(
+      Object.assign(meta, {
+        models: {
+          resolve: (ref: string) =>
+            ref.includes('/')
+              ? registry.resolve(ref)
+              : Promise.resolve(metaResolvedModel(ref, meta)),
+        },
+      }),
+      daily,
+    )
+    // The same client exists before login. This attempt's route establishes plan billing.
+    const plan: ResponseAttemptGuard = Object.assign(() => undefined, {
+      billingRoute: billingRoute('museCodePlan', 'LLM|1|secret'),
+    })
+    api.script({ text: 'plan', usage: { input: 100, output: 10, cached: 0 } })
+    await Array.fromAsync(
+      client.streamResponse(body, new AbortController().signal, undefined, undefined, plan),
+    )
+    const full = await daily.reserve(Usd.from(5).toAmount(), new AbortController().signal)
+    await full.settle(Usd.from(0).toAmount())
+    // No Meta route follows a qualified provider model, even on a signed-in host.
+    api.script({ text: 'provider', usage: { input: 100, output: 10, cached: 0 } })
+    await Array.fromAsync(
+      client.streamResponse({ ...body, model: 'custom/model' }, new AbortController().signal),
+    )
+    await expect(
+      daily.reserve(Usd.from(5).toAmount(), new AbortController().signal),
+    ).rejects.toThrow()
+    api.script({ text: 'plan again', usage: { input: 100, output: 10, cached: 0 } })
+    await Array.fromAsync(
+      client.streamResponse(body, new AbortController().signal, undefined, undefined, plan),
+    )
+    expect(api.responseBodies()).toHaveLength(3)
+  })
   it('refuses admission itself when full, before a final dispatch fence', async () => {
     const root = folder()
     writeFileSync(path.join(root, 'settings.json'), '{"paidDailyBudgetUsd":1}')
@@ -104,10 +164,13 @@ describe('standalone daily admission', () => {
       const client = withRuntimeAccounting(
         fakeModelApiClient(api, new FakeLogOutputChannel()),
         daily,
-        undefined,
-        plan,
       )
-      await Array.fromAsync(client.streamResponse(body, new AbortController().signal))
+      const guard: ResponseAttemptGuard = Object.assign(() => undefined, {
+        billingRoute: billingRoute(plan ? 'museCodePlan' : 'payAsYouGo', 'LLM|1|secret'),
+      })
+      await Array.fromAsync(
+        client.streamResponse(body, new AbortController().signal, undefined, undefined, guard),
+      )
       expect(api.responseBodies()).toHaveLength(1)
       // A plan turn settles $0, so the full day remains reservable; the
       // pay-as-you-go control settles dollars and the same reserve refuses.
