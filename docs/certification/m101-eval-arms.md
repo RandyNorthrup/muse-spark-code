@@ -19,18 +19,25 @@ compaction task (`isLongContext`) and one two-defect multi-edit task.
 Frozen digest (`evalHarnessDigest`, SHA-256 over each arm's name,
 mechanism and change source with every task id, split, title, prompt,
 file, verifier, long flag and resolved window, in run order, beside the
-verifier prelude, the window rule's source, the held-deps list and the
-frozen window and approval-mode defaults):
+verifier prelude, the window rule's source, the held-deps list, the
+frozen window and approval-mode defaults, and the arms' source closure:
+every harness-owned file the arms reach, by bytes, plus every outside
+binding they draw, by canonical value — `src/core/eval/armSources.ts`
+walks the static import graph instead of a hand-kept list, and fails
+closed on anything it cannot cover):
 
-`dc3f6372cdfea74e244cb35e2fc19b4fce03d6d706372eb04e1e0bacd3cdd15f`
+`80d6fd0028a04bdad33af83a042bfa2f365500dd348de584260d85909ea95959`
 
 `test/unit/eval/evalFrozen.test.ts` pins the arm list, the task list and
 the digest. Any arm or task change breaks it on purpose; re-freeze by
 recording the new digest here and in that test, never by weakening it.
 Lane E's counted run recomputes the digest and compares it to this value.
-(2026-10-10 R2 re-freeze: review RVCM1012 findings 1–3; the previous
-digest `7f6241a6…45b26` covered names and descriptions only.
-Details in `docs/certification/m101.md`.)
+(2026-10-10 R3 re-freeze: review RVCM1012B findings 1–2; the previous
+digest `dc3f6372…dd15f` hashed each change callback's source but not the
+helpers it references or the values it draws, and the R2 record below
+wrongly claimed no casts were needed. The R2 digest `dc3f6372…dd15f`
+likewise covered names, descriptions and change sources only over the
+original `7f6241a6…45b26`. Details in `docs/certification/m101.md`.)
 
 ## Why the compaction tasks carry their log in the prompt
 
@@ -102,6 +109,19 @@ in `docs/certification/m101.md`.
 | D3    | `flushCompactionMemory` call removed       | both memory tests fail (snapshot; parsed flush call)               | ModelApiHost.ts `eee1b2eb…346fe762a` |
 | D4    | Window 20,000                              | frozen digest fails (resolved per-task windows)                    | constants.ts `44f85608…4bb3fe0acf8`  |
 
+### R3 repairs (2026-10-10, kubuntu; review RVCM1012B findings 1–2)
+
+Each drill broke the guard, watched the named test fail, and restored the
+file byte-exact (SHA-256 verified against the pre-drill value). Full record
+in `docs/certification/m101.md`.
+
+| Drill | Deliberate break                                                    | Assertion that fires                                              | Restored                          |
+| ----- | ------------------------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------- |
+| R3-D1 | `noop` body throws (the review's probe, which the old pin survived) | frozen digest fails (`80d6fd00…`)                                 | mechanisms.ts `2525ecc5…869d4d`   |
+| R3-D2 | New owned helper imported by the auto-compaction arm                | frozen digest moves; the new-helper test proves the walk found it | helper removed, import reverted   |
+| R3-D3 | Function-valued outside binding hashed as `{}` (refusal neutered)   | `fails closed on a function-valued outside binding`               | armSources.ts `24a98227…541830`   |
+| R3-D4 | A PLAN §8 row deleted                                               | `records the dependency-key assertion`                            | PLAN.md (SHA verified on restore) |
+
 ## Gates
 
 All five typecheck projects; ESLint `--max-warnings=0` and Prettier on
@@ -119,5 +139,8 @@ bundle, so the ~180 KB of task prompts never ship).
   counted run is lane E's change.
 - The evaluation window (26,000 tokens) is the fake harness's value;
   the owner decision on the counted run's window size belongs to lane E.
-- No `as` casts, `eslint-disable` entries, new dependencies, or PLAN §8
-  rows were needed.
+- Two `as` assertions in `test/unit/eval/evalFrozen.test.ts` (the
+  dependency-key narrowing and the held-deps widening) carry inline
+  reasons and one PLAN §8 row per site (2026-10-10 R3 repair of review
+  RVCM1012B finding 2, which this line wrongly claimed were unneeded). No
+  `eslint-disable` entries or new dependencies.

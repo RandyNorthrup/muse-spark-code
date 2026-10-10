@@ -29,6 +29,16 @@ happened, not what was planned; superseded entries are kept.
   fake store — snapshot written when allowed, nothing written and the turn
   still compacting when refused. No user-facing change; production stays
   off.
+- **Frozen-digest source closure** (M101 CM1012R3, review RVCM1012B).
+  The frozen digest is now computed over the transitive static-import
+  closure of the arm modules instead of a hand-kept list: every
+  harness-owned file the arms reach contributes its bytes (covering arm
+  helpers such as the admission's `noop`), and every outside binding they
+  draw contributes its canonical value; anything uncoverable fails closed.
+  The held-deps list moved to its own module so the digest need not depend
+  on the driver that drives the production host. The two dependency-key
+  test assertions are recorded in PLAN.md §8. No user-facing change;
+  production stays off.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
