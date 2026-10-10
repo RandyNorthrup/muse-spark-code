@@ -573,6 +573,23 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**M104 F4 round 7 (2026-10-10, RVM104F4G; lead threat-model boundary).**
+The startup measurement's threat model is accidental activity by our own built
+code and dependencies, including ordinary application wrappers (a postMessage
+protocol wrapper, a reassigned reporting global or prototype method):
+instrumentation (page init scripts, prepended worker probe) runs before any
+application script, captures the native senders first, and delivers every
+refusal and the flush acknowledgement over that captured path. Deliberate
+tampering before instrumentation runs is out of scope. Within that model, fix
+the worker-probe masking (captured worker sender/stop, captured page bindings
+and Worker prototype methods), admit fragment references to authenticated
+loader module blobs without admitting unrelated blob URLs, and prepare the
+production fixture through bounded pools of three inside the unchanged
+120-second hook with every assertion retained. Startup stays 1,100 KiB and
+total JavaScript 1,486 KiB. No dependency, production module, support status
+or unrelated guard changes. Browser verification is lead-owned where this
+lane's sandbox cannot launch Chrome; see §7.
+
 **M104 F4 round 6 (2026-10-10, RVM104F4F; lead transport boundary).**
 Before the synchronous render mark, deny every non-HTTP transport and every
 non-built fetch/import, independently of application error handling. Cover
@@ -39021,6 +39038,20 @@ lead-owned, separately from the repaired transport finding. No timeout, cap,
 assertion or guard is weakened; aggregate quality is not claimed. See
 `docs/certification/m104.md`, F4 round 6, for assertions, deliberate failures,
 byte-exact restorations and the scoped final checks.
+
+**M104 F4 round-7 scoped qualification (2026-10-10).** Round 7 answers the
+round-6 deferral with a bounded-pool fixture (pools of three, baseline boot
+sequential, every assertion and the 120-second hook unchanged), but this
+lane's shell sandbox denies the `socketpair` syscall so headless Chrome cannot
+start here and no browser-dependent step could execute in the lane. Run here:
+the browser-free guard regressions (22 tests), their two red drills with
+byte-exact restoration, changed-file lint/format, full typecheck, deadcode,
+duplication, localization and host API. The production build compiles and
+emits here (extension 571.1 KiB) and fails only at the size gate's browser
+measurement. Lead-owned outside the sandbox: the three new browser behavioral
+regressions, the restructured production fixture run, their red drills, and
+the size/split measurement. No timeout, cap, assertion or guard is weakened;
+aggregate quality is not claimed. See `docs/certification/m104.md`, F4 round 7.
 
 **M104 F4 round 6 (2026-10-10, RVM104F4F; lead transport boundary).**
 Before the synchronous render mark, deny every non-HTTP transport and every

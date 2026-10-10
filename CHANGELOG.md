@@ -221,6 +221,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Portable startup measurement now delivers every worker refusal and flush
+  acknowledgement over senders captured before application code runs, so an
+  ordinary postMessage protocol wrapper or reassigned reporting global cannot
+  hide boot activity from the receipt. Fragment references to authenticated
+  loader module blobs stay admitted, and the production fixture prepares its
+  independent builds and boots through a bounded pool inside the unchanged
+  120-second hook deadline. Startup and total delivery caps are unchanged.
 - Portable startup measurement now refuses WebSockets, arbitrary data/blob
   fetches and imports, EventSource, WebTransport and WebRTC data channels,
   including caught failures in frames and workers. The authenticated loader's
