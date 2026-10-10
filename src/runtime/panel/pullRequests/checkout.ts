@@ -1492,6 +1492,9 @@ export class PullRequestCheckoutProtocol {
         if (error instanceof UnknownWriteError) {
           // The reservation may have landed: it goes, so it never blocks the
           // folder (nothing was made for it).
+          // Only reserve/supersede mutate in this try; the store retains
+          // their ReserveResult attempts in this error. instanceof erases
+          // that generic (M123P9, PLAN.md §8).
           const results = error.results as readonly ReserveResult[]
           await this.discardOwn(
             results.flatMap((result) => (result.ok ? [result.reservation] : [])),
