@@ -37369,6 +37369,26 @@ drills. Run complete team suites/request goldens, scoped formatting/lint
 and one unit-project typecheck at repository deadlines. Aggregate quality and the
 accepted production-build blocker remain lead-owned under the rig brief.
 
+**Lane S round 5 — redesign (RVM120S4C, host, 2026-10-10).** Five rounds
+of patches to the final launch gate kept finding P2s, because the gate re-ran
+selection against counts that already held its own admission, and drain
+ownership was released after the last latch check. The launch is now one
+reservation. After consent, one synchronous step ranks the task against live
+facts and counts the attempt (turn, caps, lender slot), recording the loan it
+holds. After the launch journal, the gate only validates that reservation:
+the board still carries the same unrecalled loan on this attempt, the
+assignment, candidate and home entry still authorize it, and the lender is
+live and idle. D109's lending conditions must also still hold, with main
+candidates asked whether they could take this admission in the lender's
+place. The worker starts in the same synchronous step. A refused reservation
+is closed and refunded exactly once through the new
+`BoardContext.refundAttempt`, and its slot and lease go back. Pause or Stop
+during the journal keeps the existing uncertain liability. One drain owner
+loops until the wake latch is clear and releases ownership in that same
+synchronous step. Ownership is published before the first pass, so a
+re-entrant wake joins it. D109's rules and timers are unchanged. Receipts:
+`docs/certification/m120-s.md`, round 5.
+
 - **Goal:** D103 across every balancing surface.
 - **Order:** after the Wednesday set, and before the M110/M111 resume.
   M110's node orchestrator uses it.

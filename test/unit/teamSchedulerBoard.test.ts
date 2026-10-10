@@ -11,8 +11,8 @@ import {
 } from './helpers/teamScheduler'
 
 describe('window task board', () => {
-  it('closes only the unstarted admission while preserving queue age, history and counted caps', () => {
-    const { board, countAttempt } = makeBoard()
+  it('closes only the unstarted admission, refunding exactly its count and preserving queue age and history', () => {
+    const { board, countAttempt, refundAttempt } = makeBoard()
     board.submit([submission('task')], 0)
     const prior = {
       kind: 'borrow' as const,
@@ -41,13 +41,34 @@ describe('window task board', () => {
     expect(board.task('task').loan).toBeUndefined()
     expect(board.task('task').handoff?.chain).toEqual([prior])
     expect(countAttempt).toHaveBeenCalledOnce()
+    expect(refundAttempt).toHaveBeenCalledOnce()
+    expect(refundAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'task', state: 'running', currentAttempt: 1 }),
+      attempt(),
+    )
     expect(teamBoardSchema.parse(board.snapshot())).toEqual(board.snapshot())
+  })
+
+  it('keeps the counted admission on the board when its refund fails', () => {
+    const { board, refundAttempt } = makeBoard(new Map(), {
+      refundAttempt: () => {
+        throw new Error('ledger unavailable')
+      },
+    })
+    board.submit([submission('task')], 0)
+    board.begin('task', attempt())
+    const before = board.snapshot()
+    expect(() => {
+      board.cancelUnstarted('task', 1)
+    }).toThrow('ledger unavailable')
+    expect(refundAttempt).toHaveBeenCalledOnce()
+    expect(board.snapshot()).toEqual(before)
   })
 
   it.each(['ready', 'stale attempt', 'retiring'] as const)(
     'refuses an unstarted closure for %s without changing the board',
     (condition) => {
-      const { board } = makeBoard()
+      const { board, refundAttempt } = makeBoard()
       board.submit([submission('task')], 0)
       if (condition !== 'ready') board.begin('task', attempt())
       if (condition === 'retiring') board.finishAttempt('task', 1, { state: 'retiring' })
@@ -56,6 +77,7 @@ describe('window task board', () => {
         board.cancelUnstarted('task', condition === 'stale attempt' ? 2 : 1)
       }).toThrow(BoardRefusal)
       expect(board.snapshot()).toEqual(before)
+      expect(refundAttempt).not.toHaveBeenCalled()
     },
   )
 
@@ -259,6 +281,7 @@ describe('window task board', () => {
       },
       report: () => '',
       countAttempt: () => true,
+      refundAttempt: vi.fn(),
       archive: vi.fn(),
       archivedTask: () => undefined,
     })

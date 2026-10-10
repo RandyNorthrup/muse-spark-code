@@ -32,6 +32,11 @@ export interface BoardContext {
   workspaceMode(taskId: string): BoardSubmission['workspaceMode']
   report(taskId: string): string
   countAttempt(task: TeamBoardTask, attempt: TeamAttempt): boolean
+  /**
+   * Refunds exactly the admission `countAttempt` counted for this attempt. The
+   * scheduler calls it once, only for an attempt it closes before invoking its worker.
+   */
+  refundAttempt(task: TeamBoardTask, attempt: TeamAttempt): void
   /** The team ledger keeps terminal rows beside the board; journal both before dispatch. */
   archive(tasks: readonly TeamBoardTask[]): void
   archivedTask(taskId: string): unknown
@@ -359,14 +364,16 @@ export class TaskBoard {
     return true
   }
 
-  /** Close an admission whose worker was never invoked; preserve queue age. */
+  /** Close an admission whose worker was never invoked and refund it; preserve queue age. */
   cancelUnstarted(id: string, number: number): void {
     const task = this.requireTask(id)
     const attempt = task.attempts.at(-1)
     if (task.state !== 'running' || number !== task.currentAttempt || attempt?.state !== 'running')
       throw new BoardRefusal('state', [id])
-    // Only the scheduler, before invoking start, can close this admission.
-    // The counted admission remains conservative; no process retirement is claimed.
+    // Only the scheduler, before invoking start, can close this admission. The
+    // refund comes first: if it fails, the counted attempt stays on the board.
+    // No process retirement is claimed.
+    this.context.refundAttempt(structuredClone(task), structuredClone(attempt))
     task.attempts.pop()
     task.currentAttempt--
     task.state = 'ready'

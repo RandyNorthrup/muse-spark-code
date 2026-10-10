@@ -27,6 +27,13 @@ import {
   TEAM_TASKS_PER_TURN_DEFAULT,
   TEAM_QUEUE_MAX_WAIT_MS,
 } from '../../src/shared/constants'
+import {
+  TeamMeter,
+  ZERO_TEAM_METER_USAGE,
+  teamDayKey,
+  type TeamMeterRow,
+} from '../../src/core/team/teamMeter'
+import type { TeamCap } from '../../src/core/team/teamPool'
 import { selectionSnapshot, rolePool } from './helpers/teamFakes'
 import { attempt, entry, makeBoard, pickContext, submission } from './helpers/teamScheduler'
 
@@ -43,11 +50,59 @@ function list(role: string, ids: string[], minutesPerTask = 30): TeamPreferenceL
     })),
   })
 }
-function fixture() {
+interface FixtureOptions {
+  /** The borrowing role's tasks per turn, read back from the real meter. */
+  readonly tasksPerTurn?: number
+  /** The lender's own caps, read back from the real meter. */
+  readonly reviewerCaps?: readonly TeamCap[]
+}
+
+function fixture(options: FixtureOptions = {}) {
   vi.useFakeTimers()
   vi.setSystemTime(0)
-  const { board } = makeBoard()
-  const lists = [list('engineering', ['coder']), list('review', ['reviewer'])]
+  // Every admission is a real meter row, keyed by its attempt; a refund removes exactly it.
+  const rows: TeamMeterRow[] = []
+  const counted = new Map<string, TeamMeterRow>()
+  const thisTurn = new Set<TeamMeterRow>()
+  const meter = new TeamMeter({ rows: () => rows, openReservations: () => [] })
+  const isMetered = options.tasksPerTurn !== undefined || options.reviewerCaps !== undefined
+  const { board, countAttempt, refundAttempt } = makeBoard(new Map(), {
+    countAttempt: (task, attempt) => {
+      const key = JSON.stringify([task.id, attempt.number])
+      if (counted.has(key)) throw new Error('test:countedTwice')
+      const row: TeamMeterRow = {
+        kind: 'task',
+        entryId: attempt.entryId,
+        agentKey: attempt.agentProfileId,
+        roleId: task.roleId,
+        taskId: task.id,
+        dayKey: teamDayKey(attempt.startedAt),
+        startMs: attempt.startedAt,
+        usage: { ...ZERO_TEAM_METER_USAGE, tasks: 1 },
+        estimated: false,
+      }
+      rows.push(row)
+      counted.set(key, row)
+      thisTurn.add(row)
+      return true
+    },
+    refundAttempt: (task, attempt) => {
+      const key = JSON.stringify([task.id, attempt.number])
+      const row = counted.get(key)
+      if (row === undefined) throw new Error('test:refundUncounted')
+      rows.splice(rows.indexOf(row), 1)
+      counted.delete(key)
+      thisTurn.delete(row)
+    },
+  })
+  const leases = { taken: 0, released: 0 }
+  const engineering = list('engineering', ['coder'])
+  const review = list('review', ['reviewer'])
+  if (options.tasksPerTurn !== undefined) engineering.tasksPerTurn = options.tasksPerTurn
+  const lender = review.pool[0]
+  if (lender !== undefined && options.reviewerCaps !== undefined)
+    lender.caps = [...options.reviewerCaps]
+  const lists = [engineering, review]
   const signedOut = new Set(['coder'])
   const unavailable = new Set<string>()
   const assignments = [
@@ -100,6 +155,16 @@ function fixture() {
               runningByEntry: new Map(running.map((attempt) => [attempt.entryId, 1])),
               runningByAgent: new Map(running.map((attempt) => [attempt.agentProfileId, 1])),
               agentLimit: () => 1,
+              ...(isMetered && {
+                startedThisTurn: [...thisTurn].filter((row) => row.roleId === task.roleId).length,
+                used: (entryId: string, cap: TeamCap) =>
+                  Number(
+                    meter.used(entryId, cap, {
+                      taskId: task.id,
+                      dayKey: teamDayKey(Date.now()),
+                    }).value,
+                  ),
+              }),
             }),
             preference,
             availability: new TeamLiveAvailability((candidate) => ({
@@ -113,7 +178,14 @@ function fixture() {
       }),
     headroom: () => 'lane',
     exhausted: vi.fn(),
-    lease: () => ({ release: vi.fn() }),
+    lease: () => {
+      leases.taken++
+      return {
+        release: () => {
+          leases.released++
+        },
+      }
+    },
     authorize: () => Promise.resolve(true),
     journal: vi.fn(() => Promise.resolve()),
     start: vi.fn<SchedulerDependencies['start']>(() => Promise.resolve('started')),
@@ -137,10 +209,78 @@ function fixture() {
     assignments,
     slots,
     events,
+    counted,
+    countAttempt,
+    refundAttempt,
+    leases,
     scheduler: new TeamScheduler(board, slots, deps),
   }
 }
 afterEach(() => vi.useRealTimers())
+
+/** Admissions, refunds and worker starts so far. */
+function ledger(f: ReturnType<typeof fixture>) {
+  return {
+    admissions: f.countAttempt.mock.calls.length,
+    refunds: f.refundAttempt.mock.calls.length,
+    starts: vi.mocked(f.deps.start).mock.calls.length,
+  }
+}
+
+/**
+ * Every admission ended exactly once: started (its meter row, running slot
+ * and lease remain) or released (refunded, with its slot and lease returned).
+ */
+function expectReservationsSettled(f: ReturnType<typeof fixture>): void {
+  const { admissions, refunds, starts } = ledger(f)
+  expect(admissions).toBe(starts + refunds)
+  const started = vi
+    .mocked(f.deps.start)
+    .mock.calls.map(([task]) => JSON.stringify([task.id, task.currentAttempt]))
+  expect(new Set(started).size).toBe(started.length)
+  expect(f.counted.size).toBe(started.length)
+  expect(new Set(f.counted.keys())).toEqual(new Set(started))
+  const slots = f.slots.snapshot()
+  expect(slots).toHaveLength(started.length)
+  expect(
+    new Set(
+      slots.map((slot) =>
+        JSON.stringify([slot.request.taskId, slot.request.attempt, slot.state === 'running']),
+      ),
+    ),
+  ).toEqual(
+    new Set(
+      vi
+        .mocked(f.deps.start)
+        .mock.calls.map(([task]) => JSON.stringify([task.id, task.currentAttempt, true])),
+    ),
+  )
+  expect(f.leases.taken - f.leases.released).toBe(starts)
+}
+
+/** Runs `run` after `depth` chained microtasks; depth 0 runs it at once. */
+function afterMicrotasks(depth: number, run: () => void): void {
+  if (depth === 0) {
+    run()
+    return
+  }
+  queueMicrotask(() => {
+    afterMicrotasks(depth - 1, run)
+  })
+}
+
+function microtasks(depth: number): Promise<void> {
+  return new Promise((resolve) => {
+    afterMicrotasks(depth, resolve)
+  })
+}
+
+function borrowedStarts(f: ReturnType<typeof fixture>): number {
+  return vi
+    .mocked(f.deps.start)
+    .mock.calls.filter(([, worker]) => worker.id === 'reviewer' && worker.roleId === 'engineering')
+    .length
+}
 
 function randomChoices(seed: number): (bound: number) => number {
   let state = seed * 48_271
@@ -251,6 +391,167 @@ function suspendJournal(f: ReturnType<typeof fixture>, shouldHold: (board: TeamB
   }
 }
 
+const revocations = [
+  'assignment',
+  'main work',
+  'native recovery',
+  'candidate',
+  'admission',
+  'selection',
+  'cooldown',
+] as const
+type Revocation = (typeof revocations)[number]
+
+function revoke(f: ReturnType<typeof fixture>, change: Revocation): void {
+  switch (change) {
+    case 'assignment': {
+      f.assignments.length = 0
+      break
+    }
+    case 'main work': {
+      f.board.submit([submission('review', { roleId: 'review' })], Date.now())
+      break
+    }
+    case 'native recovery': {
+      f.signedOut.clear()
+      break
+    }
+    case 'admission': {
+      f.unavailable.add('reviewer')
+      break
+    }
+    case 'candidate': {
+      const candidate = f.lists[1]?.pool[0]
+      if (candidate?.agent) candidate.agent.model = 'replacement-engine'
+      break
+    }
+    case 'selection': {
+      const context = f.deps.context
+      f.deps.context = () => {
+        const base = context()
+        delete base.selection
+        return base
+      }
+      break
+    }
+    case 'cooldown': {
+      f.board.borrowEnded('reviewer', Date.now())
+      break
+    }
+  }
+}
+
+const awaitPoints = ['borrowing journal', 'authorization', 'launch journal'] as const
+
+/** Revokes once, `depth` microtasks into the named await before the borrowed launch. */
+function revokeDuring(
+  f: ReturnType<typeof fixture>,
+  point: (typeof awaitPoints)[number],
+  change: Revocation | undefined,
+  depth: number,
+): { readonly isReached: () => boolean } {
+  let isReached = false
+  const hit = async (): Promise<void> => {
+    isReached = true
+    await microtasks(depth)
+    if (change !== undefined) revoke(f, change)
+  }
+  const journal = f.deps.journal
+  f.deps.journal = vi.fn<SchedulerDependencies['journal']>(async (snapshot) => {
+    await journal(snapshot)
+    const coding = snapshot.tasks.find((task) => task.id === 'coding')
+    const isPoint =
+      point === 'borrowing journal'
+        ? coding?.state === 'ready' && coding.loan?.attempt === coding.currentAttempt + 1
+        : point === 'launch journal' && coding?.state === 'running'
+    if (isPoint && !isReached) await hit()
+  })
+  const authorize = f.deps.authorize
+  f.deps.authorize = async (task, worker) => {
+    if (!isReached && point === 'authorization' && task.id === 'coding' && worker.id === 'reviewer')
+      await hit()
+    return await authorize(task, worker)
+  }
+  return { isReached: () => isReached }
+}
+
+/**
+ * A readiness wake arriving `depth` microtasks after the final journal write
+ * (an empty drain) or after the first worker's start, with the oracle's facts.
+ */
+async function wakeAround(
+  shape: 'final write' | 'worker start' | 'worker start, D75 port',
+  depth: number,
+) {
+  const f = fixture()
+  f.signedOut.clear()
+  let inFlight = 0
+  let maxInFlight = 0
+  const tracked = async <T>(run: () => Promise<T>): Promise<T> => {
+    inFlight++
+    maxInFlight = Math.max(maxInFlight, inFlight)
+    try {
+      return await run()
+    } finally {
+      inFlight--
+    }
+  }
+  const arrived = Promise.withResolvers<undefined>()
+  let arrival: Promise<void> | undefined
+  let isFirstSettled = false
+  let isEarly = false
+  let scheduler = f.scheduler
+  const arrivalId = shape === 'final write' ? 'coding' : 'review'
+  const arrive = (): void => {
+    afterMicrotasks(depth, () => {
+      isEarly = !isFirstSettled
+      f.board.submit(
+        [submission(arrivalId, { roleId: shape === 'final write' ? 'engineering' : 'review' })],
+        Date.now(),
+      )
+      arrival = scheduler.wake()
+      arrived.resolve(undefined)
+    })
+  }
+  let writes = 0
+  const journal = f.deps.journal
+  f.deps.journal = vi.fn<SchedulerDependencies['journal']>((snapshot) =>
+    tracked(() => {
+      if (shape === 'final write' && ++writes === 2) arrive()
+      return journal(snapshot)
+    }),
+  )
+  const authorize = f.deps.authorize
+  f.deps.authorize = (task, worker) => tracked(() => authorize(task, worker))
+  f.deps.start = vi.fn<SchedulerDependencies['start']>((task) => {
+    if (task.id === 'first') arrive()
+    return Promise.resolve('started')
+  })
+  if (shape === 'worker start, D75 port') {
+    const deps = { ...f.deps }
+    delete deps.borrowing
+    scheduler = new TeamScheduler(f.board, f.slots, deps)
+  }
+  if (shape !== 'final write') f.board.submit([submission('first')], 0)
+  const first = (async () => {
+    await scheduler.wake()
+    isFirstSettled = true
+  })()
+  await Promise.all([first, arrived.promise])
+  await arrival
+  const started = vi.mocked(f.deps.start).mock.calls.map(([task]) => task.id)
+  return {
+    isEarly,
+    facts: {
+      arrival: f.board.task(arrivalId).state,
+      starts: started.filter((id) => id === arrivalId).length,
+      isStartedOnce: new Set(started).size === started.length,
+      maxInFlight,
+      ready: f.board.snapshot().tasks.filter((task) => task.state === 'ready').length,
+    },
+  }
+}
+
 describe('M120 borrowing through the real scheduler and pool', () => {
   it('starts in the same synchronous turn as the final loan check', async () => {
     const f = fixture()
@@ -301,50 +602,13 @@ describe('M120 borrowing through the real scheduler and pool', () => {
           snapshot.tasks.some((task) => task.id === 'coding' && task.state === 'running')
         ) {
           hasChanged = true
-          switch (change) {
-            case 'assignment': {
-              f.assignments.length = 0
-              break
-            }
-            case 'main work': {
-              f.board.submit([submission('review', { roleId: 'review' })], Date.now())
-              break
-            }
-            case 'native recovery': {
-              f.signedOut.clear()
-              break
-            }
-            case 'admission': {
-              f.unavailable.add('reviewer')
-              break
-            }
-            case 'candidate': {
-              const candidate = f.lists[1]?.pool[0]
-              if (candidate?.agent) candidate.agent.model = 'replacement-engine'
-              break
-            }
-            case 'selection': {
-              const context = f.deps.context
-              f.deps.context = () => {
-                const base = context()
-                delete base.selection
-                return base
-              }
-              break
-            }
-          }
+          revoke(f, change)
         }
         return Promise.resolve()
       })
       await f.scheduler.wake()
       expect(hasChanged).toBe(true)
-      expect(
-        vi
-          .mocked(f.deps.start)
-          .mock.calls.filter(
-            ([, worker]) => worker.id === 'reviewer' && worker.roleId === 'engineering',
-          ),
-      ).toEqual([])
+      expect(borrowedStarts(f)).toBe(0)
       expect(f.board.task('coding')).toMatchObject({
         state: 'ready',
         currentAttempt: 0,
@@ -587,6 +851,10 @@ describe('M120 borrowing through the real scheduler and pool', () => {
             f.events.findLast((event) => event.taskId === task.id)?.decision.kind,
           )
         }
+        // Every counted admission either started or was refunded, exactly once.
+        const { admissions, refunds, starts } = ledger(f)
+        expect(admissions, `seed ${String(seed)}, step ${String(step)}`).toBe(starts + refunds)
+        expect(f.counted.size).toBe(starts)
         const recoverable = ['busy', 'notAdmitted', 'coolingDown', 'rateLimited', 'capped'] as const
         const reason = recoverable[choose(recoverable.length)]
         if (reason === undefined) throw new Error('test:skip')
@@ -1184,5 +1452,175 @@ describe('M120 borrowing through the real scheduler and pool', () => {
     expect(JSON.stringify(f.board.snapshot())).toBe(bytes)
     expect(f.port.recall).not.toHaveBeenCalled()
     expect(f.port.decisions).not.toHaveBeenCalled()
+  })
+})
+
+describe('M120 round 5: one reservation from selection to spawn, one drain owner', () => {
+  it.each([
+    ['one task per borrowing-role turn', { tasksPerTurn: 1 }],
+    [
+      "the lender's lifetime cap of one task",
+      { reviewerCaps: [{ measure: 'tasks', window: 'lifetime', amount: 1 }] },
+    ],
+  ] as const)(
+    'launches a loan whose own admission fills %s (RVM120S4C 1, real TeamMeter)',
+    async (_limit, options) => {
+      const f = fixture(options)
+      await borrowCoding(f)
+      expect({
+        ...ledger(f),
+        state: f.board.task('coding').state,
+        worker: f.board.task('coding').attempts[0]?.entryId,
+      }).toEqual({ admissions: 1, refunds: 0, starts: 1, state: 'running', worker: 'reviewer' })
+      expectReservationsSettled(f)
+    },
+  )
+
+  it('refunds a revoked loan exactly, so its lender stays borrowable under a lifetime cap of one', async () => {
+    const f = fixture({
+      tasksPerTurn: 1,
+      reviewerCaps: [{ measure: 'tasks', window: 'lifetime', amount: 1 }],
+    })
+    await waitForBorrow(f)
+    const window = revokeDuring(f, 'launch journal', 'assignment', 0)
+    await f.scheduler.wake()
+    expect(window.isReached()).toBe(true)
+    expect(ledger(f)).toEqual({ admissions: 1, refunds: 1, starts: 0 })
+    expect(f.counted.size).toBe(0)
+    expect(f.board.task('coding')).toMatchObject({ state: 'ready', attempts: [] })
+    f.assignments.push({
+      candidateId: 'reviewer',
+      mainRole: 'review',
+      secondaryRoles: ['engineering'],
+    })
+    await f.scheduler.wake()
+    expect(ledger(f)).toEqual({ admissions: 2, refunds: 1, starts: 1 })
+    expect(f.board.task('coding').attempts[0]?.entryId).toBe('reviewer')
+    expectReservationsSettled(f)
+  })
+
+  it('drains a readiness wake arriving 0 to 6 microtasks after the final journal write (RVM120S4C 2)', async () => {
+    const outcomes: { depth: number; starts: number; state: string }[] = []
+    let early = 0
+    for (let depth = 0; depth <= 6; depth++) {
+      const { isEarly, facts } = await wakeAround('final write', depth)
+      if (isEarly) early++
+      outcomes.push({ depth, starts: facts.starts, state: facts.arrival })
+    }
+    expect(outcomes).toEqual(
+      Array.from({ length: 7 }, (_, depth) => ({ depth, starts: 1, state: 'running' })),
+    )
+    // The window between the drain's last latch check and its settling is covered.
+    expect(early).toBeGreaterThanOrEqual(3)
+  })
+
+  it.each(awaitPoints)(
+    'property: a revocation at the %s, at any microtask depth, prevents the borrowed spawn and refunds its reservation',
+    async (point) => {
+      for (const change of [undefined, ...revocations])
+        for (const depth of [0, 1, 3]) {
+          const f = fixture({ tasksPerTurn: 1 })
+          await waitForBorrow(f)
+          const window = revokeDuring(f, point, change, depth)
+          await f.scheduler.wake()
+          const label = `${point}, ${change ?? 'no revocation'}, depth ${String(depth)}`
+          expect(window.isReached(), label).toBe(true)
+          expect(borrowedStarts(f), label).toBe(change === undefined ? 1 : 0)
+          // Only an admission counted before the revocation is refunded, and exactly once.
+          expect(ledger(f).refunds, label).toBe(
+            change !== undefined && point === 'launch journal' ? 1 : 0,
+          )
+          expectReservationsSettled(f)
+          expect(f.deps.journal, label).toHaveBeenLastCalledWith(f.board.snapshot())
+          // Later wakes keep the same accounting.
+          await f.scheduler.wake()
+          expectReservationsSettled(f)
+        }
+    },
+  )
+
+  it.each(['final write', 'worker start', 'worker start, D75 port'] as const)(
+    'property: a wake at any microtask depth around drain completion (%s) is drained once by one owner',
+    async (shape) => {
+      let early = 0
+      for (let depth = 0; depth <= 12; depth++) {
+        const { isEarly, facts } = await wakeAround(shape, depth)
+        if (isEarly) early++
+        expect(facts, `${shape}, depth ${String(depth)}`).toEqual({
+          arrival: 'running',
+          starts: 1,
+          isStartedOnce: true,
+          maxInFlight: 1,
+          ready: 0,
+        })
+      }
+      expect(early).toBeGreaterThanOrEqual(3)
+    },
+  )
+
+  it('joins a wake re-entering from the drain’s synchronous start to that owner, which drains it', async () => {
+    const f = fixture()
+    f.signedOut.clear()
+    f.board.submit([submission('coding')], 0)
+    let inFlight = 0
+    let maxInFlight = 0
+    const journal = f.deps.journal
+    f.deps.journal = vi.fn<SchedulerDependencies['journal']>(async (snapshot) => {
+      inFlight++
+      maxInFlight = Math.max(maxInFlight, inFlight)
+      try {
+        await journal(snapshot)
+      } finally {
+        inFlight--
+      }
+    })
+    let reentered: Promise<void> | undefined
+    let hasReentered = false
+    let isStartedFirst = false
+    const context = f.deps.context
+    f.deps.context = () => {
+      if (!hasReentered) {
+        hasReentered = true
+        reentered = (async () => {
+          await f.scheduler.wake()
+          isStartedFirst = vi.mocked(f.deps.start).mock.calls.length === 1
+        })()
+      }
+      return context()
+    }
+    await f.scheduler.wake()
+    await reentered
+    expect({
+      isStartedFirst,
+      maxInFlight,
+      ticks: vi.mocked(f.port.decisions).mock.calls.length,
+    }).toEqual({ isStartedFirst: true, maxInFlight: 1, ticks: 1 })
+    expect(f.board.task('coding').attempts[0]?.entryId).toBe('coder')
+  })
+
+  it('lets go of ownership when a pass fails, so the next wake drains', async () => {
+    const f = fixture()
+    f.signedOut.clear()
+    f.board.submit([submission('coding')], 0)
+    f.deps.authorize = () => Promise.reject(new Error('consent store unavailable'))
+    let joiner: Promise<unknown> | undefined
+    const journal = f.deps.journal
+    f.deps.journal = vi.fn<SchedulerDependencies['journal']>((snapshot) => {
+      joiner ??= (async () => {
+        try {
+          await f.scheduler.wake()
+          return undefined
+        } catch (error) {
+          return error
+        }
+      })()
+      return journal(snapshot)
+    })
+    await expect(f.scheduler.wake()).rejects.toThrow('consent store unavailable')
+    expect(await joiner).toMatchObject({ message: 'consent store unavailable' })
+    f.deps.authorize = () => Promise.resolve(true)
+    await f.scheduler.wake()
+    expect(f.board.task('coding').state).toBe('running')
+    expectReservationsSettled(f)
   })
 })

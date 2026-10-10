@@ -73,6 +73,7 @@ describe('packaged team factories', () => {
       workspaceMode: () => 'own-branch',
       report: () => '',
       countAttempt: dispatch,
+      refundAttempt: dispatch,
       archive: dispatch,
       archivedTask: vi.fn(),
     })

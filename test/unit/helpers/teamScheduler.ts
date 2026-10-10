@@ -1,5 +1,9 @@
 import { vi } from 'vitest'
-import { TaskBoard, type BoardSubmission } from '../../../src/core/team/scheduler/board'
+import {
+  TaskBoard,
+  type BoardContext,
+  type BoardSubmission,
+} from '../../../src/core/team/scheduler/board'
 import { type PickContext, type SchedulerEntry } from '../../../src/core/team/scheduler/pick'
 import { type SlotRequest } from '../../../src/core/team/scheduler/slots'
 import { type TeamAttempt, type TeamBoardTask } from '../../../src/shared/team'
@@ -15,8 +19,13 @@ export function submission(id: string, patch: Partial<BoardSubmission> = {}): Bo
     ...patch,
   }
 }
-export function makeBoard(archived = new Map<string, TeamBoardTask>()) {
-  const countAttempt = vi.fn(() => true)
+/** Counting defaults to admitting everything; a caller may back it with a real meter. */
+export function makeBoard(
+  archived = new Map<string, TeamBoardTask>(),
+  counting: Partial<Pick<BoardContext, 'countAttempt' | 'refundAttempt'>> = {},
+) {
+  const countAttempt = vi.fn<BoardContext['countAttempt']>(counting.countAttempt ?? (() => true))
+  const refundAttempt = vi.fn<BoardContext['refundAttempt']>(counting.refundAttempt)
   const archive = vi.fn((tasks: readonly TeamBoardTask[]) => {
     for (const task of tasks) archived.set(task.id, structuredClone(task))
   })
@@ -25,10 +34,11 @@ export function makeBoard(archived = new Map<string, TeamBoardTask>()) {
     workspaceMode: (id) => (id === 'reader' ? 'read-only' : 'own-branch'),
     report: () => 'untrusted report',
     countAttempt,
+    refundAttempt,
     archive,
     archivedTask: (id) => archived.get(id),
   })
-  return { board, countAttempt, archive, archived }
+  return { board, countAttempt, refundAttempt, archive, archived }
 }
 export function attempt(number = 1, kind: TeamAttempt['kind'] = 'engine'): TeamAttempt {
   return {

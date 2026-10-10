@@ -81,6 +81,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M120 team launches hold one reservation from selection to worker start. A
+  borrowed agent whose start fills the role's last task of the turn, or its
+  own last lifetime task, now starts instead of refusing itself. A launch
+  refused at the last moment returns its counted task, slot and lease. A
+  readiness wake arriving as a drain finishes is no longer lost (RVM120S4C).
+
 - M120 borrowed launches recheck authorization, native recovery and main-role
   demand synchronously after the launch journal write. Revoked unstarted loans
   return to their queue with the journal closed. Readiness wakes received

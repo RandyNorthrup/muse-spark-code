@@ -3820,10 +3820,14 @@ Loans and their authorization live on the task board. Every projection rechecks
 current assignments, candidate and worker identities, native recovery and
 main-role demand; authorization changes cannot dispatch a cached loan. Active
 loans retain recall ownership when an assignment is removed.
-The same loan check runs synchronously after the launch journal write, with no
-await before worker start. A revoked unstarted loan returns to its queue and
-closes its journal entry. Readiness wakes arriving during the final journal
-write trigger another drain before the wake promises resolve.
+Each launch holds one reservation from selection to worker start: its slot,
+lease and counted task (turn and caps). After the launch journal write, a
+synchronous check validates that reservation without selecting or counting
+again, and the worker starts in the same step. That check covers the loan,
+its authorization, an idle lender, native recovery and main-role demand. A
+refused unstarted loan returns to its queue with its count refunded and its
+journal entry closed. One drain owner handles every readiness wake. It lets
+go only in the same step that finds no wake pending, so a wake is never lost.
 Tasks without a preference snapshot keep the existing selection and cannot
 borrow, but their main-role workload protects lenders and triggers recall. If every
 preferred reviewer is skipped, review stays blocked with those reasons:
