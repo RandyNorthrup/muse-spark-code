@@ -43,6 +43,9 @@ export const nodeLeasePort: LeasePort = {
       if (!isOwn(opened, current)) {
         return false
       }
+      // Acceptance begins the holder's pending rewrite. Its synchronous
+      // view may recognize this file while truncate/write leaves a torn
+      // note; settling this call ends that allowance, including on error.
       await handle.truncate(0)
       // Visible to other processes at once; a lease need not outlive a crash.
       await handle.write(content, 0, 'utf8')

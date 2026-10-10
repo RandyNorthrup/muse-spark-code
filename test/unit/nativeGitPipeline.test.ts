@@ -132,6 +132,56 @@ async function expectTakenOver(dir: string): Promise<void> {
 }
 
 describe('the repository transaction lock', () => {
+  it.each([false, true])(
+    'RVM123G4C: rechecks an overlapping failed sample after renewal (fenced: %s)',
+    async (fenced) => {
+      const dir = mkdtempSync(path.join(tmpdir(), 'm123-renewal-sample-'))
+      const reached = Promise.withResolvers<undefined>()
+      const resume = Promise.withResolvers<undefined>()
+      const acquire = fileLeases.acquireFileLease
+      let renewing: Promise<boolean> | undefined
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+      vi.spyOn(fileLeases, 'acquireFileLease').mockImplementation(async (...args) => {
+        const lease = await acquire(...args)
+        const renew = lease.renew
+        vi.spyOn(lease, 'renew').mockImplementation(
+          () =>
+            (renewing = (async () => {
+              const isRenewed = await renew()
+              reached.resolve(undefined)
+              await resume.promise
+              if (fenced)
+                writeFileSync(
+                  path.join(`${args[0]}.fences`, String(lease.fence + 1).padStart(16, '0')),
+                  '',
+                )
+              return isRenewed
+            })()),
+        )
+        return lease
+      })
+      const lock = await acquireRepositoryLock(dir, new AbortController().signal, never)
+      try {
+        await vi.advanceTimersByTimeAsync(GIT_TRANSACTION_LOCK_REFRESH_MS)
+        await reached.promise
+        vi.spyOn(nodeLeasePort, 'readFileSync').mockImplementationOnce(() => {
+          throw new Error('transient sample failure')
+        })
+        expect(lock.isHeldSync()).toBe(false)
+        expect(vi.getTimerCount()).toBe(1)
+        resume.resolve(undefined)
+        expect(await renewing).toBe(true)
+        await vi.advanceTimersByTimeAsync(0)
+        expect(vi.getTimerCount()).toBe(fenced ? 0 : 1)
+        expect(lock.isHeldSync()).toBe(!fenced)
+      } finally {
+        resume.resolve(undefined)
+        await lock.release()
+        rmSync(dir, { recursive: true, force: true })
+      }
+    },
+  )
+
   it('waits while another holder has it, and takes it once released', async () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'm123-native-lock-'))
     try {
@@ -341,6 +391,63 @@ describe('the seal', () => {
 })
 
 describe('the pipeline', () => {
+  it.each(['memory', 'filesystem'])(
+    'RVM123G4C: dispatches a commit during its own renewal (%s)',
+    async (kind) => {
+      const scratch = scratchRepository()
+      const file = path.join(scratch.dir, '.git', GIT_TRANSACTION_LOCK_FILE)
+      const rewritten = Promise.withResolvers<boolean>()
+      const resume = Promise.withResolvers<undefined>()
+      const rewrite = nodeLeasePort.rewriteOwn
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+      vi.spyOn(performance, 'now').mockReturnValue(GIT_TRANSACTION_LOCK_REFRESH_MS)
+      vi.spyOn(nodeLeasePort, 'rewriteOwn').mockImplementation(async (target, isOwn, content) => {
+        let isWritten: boolean
+        if (kind === 'memory') {
+          isWritten = isOwn(await nodeLeasePort.lstat(target), await nodeLeasePort.readFile(target))
+          const read = nodeLeasePort.readFile
+          const readSync = nodeLeasePort.readFileSync
+          const bytes = Buffer.from(content)
+          vi.spyOn(nodeLeasePort, 'readFile').mockImplementation((name) =>
+            name === file ? Promise.resolve(bytes) : read(name),
+          )
+          vi.spyOn(nodeLeasePort, 'readFileSync').mockImplementation((name) =>
+            name === file ? bytes : readSync(name),
+          )
+        } else {
+          isWritten = await rewrite(target, isOwn, content)
+        }
+        rewritten.resolve(isWritten)
+        await resume.promise
+        if (kind === 'memory') writeFileSync(target, content) // Persist for native retirement.
+        return isWritten
+      })
+      try {
+        writeFileSync(path.join(scratch.dir, 'a.txt'), 'confirmed\n')
+        fixtureGit(scratch.dir, 'add', 'a.txt')
+        const service = serviceFor(scratch.dir, {
+          admitWorkspaceCommand: async (start) => {
+            await vi.advanceTimersByTimeAsync(GIT_TRANSACTION_LOCK_REFRESH_MS)
+            try {
+              expect(await rewritten.promise).toBe(true)
+              const result = await start()
+              expect(lastSubject(scratch.dir)).toBe('Renewal overlap')
+              return result
+            } finally {
+              resume.resolve(undefined)
+            }
+          },
+        })
+        await service.commit('Renewal overlap', false)
+        expect(existsSync(file)).toBe(false)
+        expect(vi.getTimerCount()).toBe(0)
+      } finally {
+        resume.resolve(undefined)
+        rmSync(scratch.base, { recursive: true, force: true })
+      }
+    },
+  )
+
   it('R2: refuses a push whose destination changed while it waited for admission', async () => {
     const scratch = aheadOfOrigin()
     const unapproved = path.join(scratch.base, 'unapproved.git')
