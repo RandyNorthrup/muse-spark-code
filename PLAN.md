@@ -19195,6 +19195,16 @@ in-tree junctions below it, drive-letter spelling) and
 
 ## 3. Open questions (need the owner)
 
+**Q-VIS0171-RELEASE-NOTES (2026-10-10, linuxlt).** The VIS0171 brief permits
+only Title Case, question spacing and provider-picker changes. The three
+What's New scenes replace 0.17.0's version, date and reporting content with
+0.17.1's provider/DeepSeek content: class (d), so the refresh is stopped.
+The lead must explicitly extend the review scope before these scenes can be
+approved. Preserve the manifest, README images, fingerprint and audit hashes
+until then; complete the remaining themes/shards and baseline revert drill
+after that decision. Evidence and the observed scene table are in
+`docs/certification/cifix017.md`, "0.17.1 visual refresh".
+
 **Q-VISREGEN2 resolved by lead (2026-10-09).** Preserve every 0.17.0
 change and Highlight while tightening only that release's wording below
 72,000 decoded bytes. Keep 0.16.0 and older notes byte-exact and all content
@@ -38366,10 +38376,24 @@ is absent. PROVWIZ9 already documents this stale harness contract. Add the
 canonical `modelsPanelFixtures.makeState().sessionBudget` to the fake host
 and a strict production-schema regression; never relax the message schema.
 
-- [ ] Full comparison, classification and changed-frame review.
-- [ ] Reviewed baseline and complete README refresh with freshness tests.
-- [ ] Full replay, owning tests, byte-exact drill and scoped gates.
-- [ ] Certification and hooks-on local commits; reread committed diffs.
+- [x] Repair and drill historical-label readiness and the strict provider-budget fixture.
+- [x] Reconstruct all 9,792 historical frames; compare all 1,632 light-theme candidate frames.
+- [x] Classify 120 observed changed scenes; stop on three class-(d) release-note scenes.
+- [ ] Complete remaining themes/shards and per-frame approval review (Q-VIS0171-RELEASE-NOTES).
+- [ ] Refresh approved baselines, all README shots, fingerprint and current audit hashes; perform the old-baseline drill.
+- [x] Run owning suites and scoped gates; record the blocked outcome, source restoration drill and hooks-on repairs.
+
+**Stopped outcome.** The complete light matrix has 1,440 over-allowance frames
+in 120 scenes: 116 label-only scenes, `models-errors` with labels and the
+provider repair's error/blocker list, and three What's New content scenes.
+Question spacing is already in the recorded source. No observed control-state
+coverage changes occur. The full zero-changed-scene gate remains unqualified;
+no baseline, README image, input fingerprint or audit hash is approved or
+updated. The original manifest remains SHA-256
+`e314783f2e7bcd2d95ecd83327e9e9142fe3fe66ae71a0418524fb118c4fed50`.
+Owning suites pass 136 of 138 cases; the two retained failures correctly name
+stale audit source hashes and the README input fingerprint. Q-VIS0171-RELEASE-NOTES
+and the inherited 21 duplication clones remain release holds.
 
 **PROVWIZ10 scoped qualification (2026-10-09, complete).** Both RVPROVWIZ9C
 P2 repairs pass production/shared-form regressions, including genuine concurrent

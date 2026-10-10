@@ -1206,3 +1206,270 @@ Exact logs and receipts are retained in this lane's ignored `temp/`:
 files, and `vqgold-round2-branch-visual-1.*`. The source comparison and complete
 receipts are also collected in `vqgold-round2-summary.json`. The temporary
 main worktree and dependency symlink are removed after preserving these files.
+
+## 0.17.1 visual refresh (VIS0171, 2026-10-10)
+
+**Stopped under brief step 2's class-(d) rule.** No baseline, README image,
+README input fingerprint or current audit hash is approved or updated. The
+full zero-changed-scene check is not qualified. The remaining five candidate
+themes/shards, frame-by-frame approval review, curated README recapture and
+old-baseline restoration drill wait for Q-VIS0171-RELEASE-NOTES. The lead must
+extend the brief to include the new release-note content before continuing.
+
+Linuxlt, Linux, Node 24.21.0, Chrome **153.0.8010.52**. Starting release head:
+`4acb7015f`; candidate capture inputs after the two necessary harness repairs:
+`575bb25df0bca14e7ec423f3e3dcd1450d770825`. The existing reviewed manifest names
+`fb7a3f005b32756f98280988725e0edf0396b424`, Chrome 150.0.7871.186, and an archive
+absent on this rig. Reconstruction renders that exact recorded Git source in
+this rig's browser. No dependency, theme, threshold, timeout, cap, production
+schema or application UI is changed.
+
+### Commands, counts and prerequisite repairs
+
+- `npm run build` exits 0: extension **550.1 / 600 KiB**, Model API
+  **516.6 / 525 KiB**, checkpoint store **87.3 / 225 KiB**.
+- `npm run check:visual` on the starting head exits 1 during reconstruction
+  after 288 frames: `paid-always/light/320/en` waits for `Auth Method`, while
+  the recorded source renders `Auth method`. Exact case-insensitive account
+  and vault-action selectors retain the painted-label checks for historical
+  and current text. New browser regressions first fail on both old spellings.
+  Hooks-on repair: `7c8338ac5`; log: `temp/vis0171-visual-before.log`.
+- `node temp/vis0171-compare.mjs`, using repository `snapshot`, `captureMatrix`,
+  `saveCapture` and pixel helpers, completes **9,792 historical PNGs**, six
+  themes, both widths and all six states, **447,230,137 bytes / 512 MiB**.
+  Archive: `/var/tmp/l-VIS0171/vis0171-before`; exact metadata:
+  `temp/vis0171-before-captures.json`.
+- That run and the candidate-only retry both fail at
+  `models-configure/light/320/en`: `never rendered: .models-panel section`.
+  A retained failing-page screenshot shows **Connecting to the extension
+  host…**. Parsing its actual fake-host message with the unchanged production
+  schema identifies missing `sessionBudget`. PROVWIZ9 already records this
+  stale harness in this document's companion `provcat.md`; its canonical
+  `modelsPanelFixtures.makeState().sessionBudget` supplies the fixture, and
+  a new strict-schema regression fails before repair. Hooks-on fixture repair:
+  `575bb25df`. Evidence: `temp/vis0171-models-failure.png`,
+  `temp/vis0171-models-schema.log`.
+- `node temp/vis0171-candidate.mjs` after repair completes every scene, width
+  and state in **light: 1,632 frames**. Repository pixel policy finds
+  **1,440 over-allowance frames in 120 scenes**, 12 per scene; 192 frames
+  remain within policy. It then reaches the beginning of dark. On inspecting
+  the release-note frames, stop the foreground capture with SIGTERM as the
+  brief requires. **2,100 candidate PNGs** are retained; the progress record
+  has **1,860 over-allowance comparisons**, no additional changed scene beyond
+  the light list, and **zero observed state-coverage changes**. The deliberate
+  stop closes Chrome; its final `browserContext.close` error is termination
+  evidence, not a new visual failure. Archive:
+  `/var/tmp/l-VIS0171/vis0171-review`; log:
+  `temp/vis0171-candidate-final.log`; raw comparisons:
+  `temp/vis0171-comparison-progress.json`; light summary:
+  `temp/vis0171-stopped-comparison.json`.
+
+Diagnostics use the repository's unmodified `comparePixels` policy and verify
+historical PNG byte hashes. Exact-byte matches require no pixel decoding;
+repeated decoded images are cached within one scene/theme/width only. These
+are comparison receipts, not a substitute green official visual check. No
+candidate manifest is written. The existing manifest remains byte-exact:
+SHA-256 `e314783f2e7bcd2d95ecd83327e9e9142fe3fe66ae71a0418524fb118c4fed50`.
+
+### Class-(d) before/after captures and stop decision
+
+The actual packaged notes change version **0.17.0 → 0.17.1**, release date
+**Oct 8 → Oct 10**, the reporting highlight to the provider-picker highlight,
+and the release body/footer from media/security notes to provider/DeepSeek
+notes. These exceed the permitted label/spacing/picker pixel classes.
+
+| Scene                  | Before capture                                                                           | After capture                                                                            | Decision     |
+| ---------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------ |
+| `whats-new`            | `/var/tmp/l-VIS0171/vis0171-before/whats-new/whats-new/default/light/320.png`            | `/var/tmp/l-VIS0171/vis0171-review/whats-new/whats-new/default/light/320.png`            | (d), stopped |
+| `whats-new-footer`     | `/var/tmp/l-VIS0171/vis0171-before/whats-new/whats-new-footer/default/light/690.png`     | `/var/tmp/l-VIS0171/vis0171-review/whats-new/whats-new-footer/default/light/690.png`     | (d), stopped |
+| `whats-new-highlights` | `/var/tmp/l-VIS0171/vis0171-before/whats-new/whats-new-highlights/default/light/320.png` | `/var/tmp/l-VIS0171/vis0171-review/whats-new/whats-new-highlights/default/light/320.png` | (d), stopped |
+
+The provider/error contact sheets show the intended added error/blocker list
+in `models-errors`, alongside recased labels. Other observed model scenes show
+recased labels. The two question scenes show `Explain Instead`; their answer
+field spacing already exists in the recorded baseline, so no separate (b)
+change is observed. Empty-chat inspection preserves sentence case around the
+Title Case headings and controls. Per-frame approval review remains stopped;
+all classifications below are observations, and all frames remain unapproved.
+Contact sheets: `temp/vis0171-models-review-{0,1,2}.png`.
+
+### Observed changed-scene table
+
+Scope: complete light theme, 320 and 690 px, all six states. Class (a) is
+Title Case; (b) is question spacing (none newly observed); (c) is provider
+repair; (d) is other content. Remaining themes are unqualified.
+
+| Scene                       | Class | Changed light frames | Decision            |
+| --------------------------- | ----- | -------------------: | ------------------- |
+| `account-usage`             | a     |                   12 | Stopped; unapproved |
+| `accounts-dialog`           | a     |                   12 | Stopped; unapproved |
+| `accounts-edit`             | a     |                   12 | Stopped; unapproved |
+| `accounts-section`          | a     |                   12 | Stopped; unapproved |
+| `accounts-swap`             | a     |                   12 | Stopped; unapproved |
+| `accounts-thresholds`       | a     |                   12 | Stopped; unapproved |
+| `agents-details`            | a     |                   12 | Stopped; unapproved |
+| `agents-result`             | a     |                   12 | Stopped; unapproved |
+| `bestofn`                   | a     |                   12 | Stopped; unapproved |
+| `board`                     | a     |                   12 | Stopped; unapproved |
+| `chat-sharing`              | a     |                   12 | Stopped; unapproved |
+| `chat-tool-menu-narrow`     | a     |                   12 | Stopped; unapproved |
+| `context-meter-full`        | a     |                   12 | Stopped; unapproved |
+| `context-meter-warning`     | a     |                   12 | Stopped; unapproved |
+| `crash`                     | a     |                   12 | Stopped; unapproved |
+| `developer-options`         | a     |                   12 | Stopped; unapproved |
+| `diff-tally`                | a     |                   12 | Stopped; unapproved |
+| `elicitation-narrow`        | a     |                   12 | Stopped; unapproved |
+| `empty`                     | a     |                   12 | Stopped; unapproved |
+| `estimator-result`          | a     |                   12 | Stopped; unapproved |
+| `git-pr-narrow`             | a     |                   12 | Stopped; unapproved |
+| `goal`                      | a     |                   12 | Stopped; unapproved |
+| `goal-edit`                 | a     |                   12 | Stopped; unapproved |
+| `handoff`                   | a     |                   12 | Stopped; unapproved |
+| `help-narrow`               | a     |                   12 | Stopped; unapproved |
+| `history-archived`          | a     |                   12 | Stopped; unapproved |
+| `judge-narrow`              | a     |                   12 | Stopped; unapproved |
+| `legal`                     | a     |                   12 | Stopped; unapproved |
+| `long-patch`                | a     |                   12 | Stopped; unapproved |
+| `markdown`                  | a     |                   12 | Stopped; unapproved |
+| `media-controls`            | a     |                   12 | Stopped; unapproved |
+| `mention`                   | a     |                   12 | Stopped; unapproved |
+| `models`                    | a     |                   12 | Stopped; unapproved |
+| `models-configure`          | a     |                   12 | Stopped; unapproved |
+| `models-credential`         | a     |                   12 | Stopped; unapproved |
+| `models-errors`             | a + c |                   12 | Stopped; unapproved |
+| `models-models`             | a     |                   12 | Stopped; unapproved |
+| `models-pick`               | a     |                   12 | Stopped; unapproved |
+| `models-providers`          | a     |                   12 | Stopped; unapproved |
+| `models-scanning`           | a     |                   12 | Stopped; unapproved |
+| `models-suggestions`        | a     |                   12 | Stopped; unapproved |
+| `models-table`              | a     |                   12 | Stopped; unapproved |
+| `models-test-cost`          | a     |                   12 | Stopped; unapproved |
+| `models-undo`               | a     |                   12 | Stopped; unapproved |
+| `modes`                     | a     |                   12 | Stopped; unapproved |
+| `muse-shell`                | a     |                   12 | Stopped; unapproved |
+| `muse-tools`                | a     |                   12 | Stopped; unapproved |
+| `muse-workflow`             | a     |                   12 | Stopped; unapproved |
+| `muse-workflow-map`         | a     |                   12 | Stopped; unapproved |
+| `paid`                      | a     |                   12 | Stopped; unapproved |
+| `paid-always`               | a     |                   12 | Stopped; unapproved |
+| `paid-image`                | a     |                   12 | Stopped; unapproved |
+| `paid-usage`                | a     |                   12 | Stopped; unapproved |
+| `palette`                   | a     |                   12 | Stopped; unapproved |
+| `plan-usage`                | a     |                   12 | Stopped; unapproved |
+| `playbook-map`              | a     |                   12 | Stopped; unapproved |
+| `playbook-notes`            | a     |                   12 | Stopped; unapproved |
+| `playbook-status`           | a     |                   12 | Stopped; unapproved |
+| `prompt-library`            | a     |                   12 | Stopped; unapproved |
+| `question`                  | a     |                   12 | Stopped; unapproved |
+| `question-filled`           | a     |                   12 | Stopped; unapproved |
+| `questions-chip`            | a     |                   12 | Stopped; unapproved |
+| `questions-open`            | a     |                   12 | Stopped; unapproved |
+| `quote-menu`                | a     |                   12 | Stopped; unapproved |
+| `report`                    | a     |                   12 | Stopped; unapproved |
+| `report-destinations`       | a     |                   12 | Stopped; unapproved |
+| `report-narrow`             | a     |                   12 | Stopped; unapproved |
+| `reporting-page`            | a     |                   12 | Stopped; unapproved |
+| `resource-controls`         | a     |                   12 | Stopped; unapproved |
+| `resource-history`          | a     |                   12 | Stopped; unapproved |
+| `resource-task`             | a     |                   12 | Stopped; unapproved |
+| `review-comment`            | a     |                   12 | Stopped; unapproved |
+| `review-findings`           | a     |                   12 | Stopped; unapproved |
+| `review-pane-narrow`        | a     |                   12 | Stopped; unapproved |
+| `schedule-report-action`    | a     |                   12 | Stopped; unapproved |
+| `schedule-settlements`      | a     |                   12 | Stopped; unapproved |
+| `schedules-narrow`          | a     |                   12 | Stopped; unapproved |
+| `schedules-v2-editor`       | a     |                   12 | Stopped; unapproved |
+| `schedules-v2-list`         | a     |                   12 | Stopped; unapproved |
+| `schedules-v2-timeline`     | a     |                   12 | Stopped; unapproved |
+| `secret`                    | a     |                   12 | Stopped; unapproved |
+| `setup-preview`             | a     |                   12 | Stopped; unapproved |
+| `share-narrow`              | a     |                   12 | Stopped; unapproved |
+| `signin-error`              | a     |                   12 | Stopped; unapproved |
+| `signin-install`            | a     |                   12 | Stopped; unapproved |
+| `slash-commands`            | a     |                   12 | Stopped; unapproved |
+| `stop-running`              | a     |                   12 | Stopped; unapproved |
+| `tasks-tab`                 | a     |                   12 | Stopped; unapproved |
+| `team-cards`                | a     |                   12 | Stopped; unapproved |
+| `team-tree`                 | a     |                   12 | Stopped; unapproved |
+| `todo`                      | a     |                   12 | Stopped; unapproved |
+| `tools-open`                | a     |                   12 | Stopped; unapproved |
+| `traffic-conflicts`         | a     |                   12 | Stopped; unapproved |
+| `traffic-lanes`             | a     |                   12 | Stopped; unapproved |
+| `traffic-leases`            | a     |                   12 | Stopped; unapproved |
+| `traffic-mergeQueue`        | a     |                   12 | Stopped; unapproved |
+| `traffic-metrics`           | a     |                   12 | Stopped; unapproved |
+| `usage`                     | a     |                   12 | Stopped; unapproved |
+| `usage-api`                 | a     |                   12 | Stopped; unapproved |
+| `usage-attempts`            | a     |                   12 | Stopped; unapproved |
+| `usage-breakdown`           | a     |                   12 | Stopped; unapproved |
+| `usage-burn`                | a     |                   12 | Stopped; unapproved |
+| `usage-detail`              | a     |                   12 | Stopped; unapproved |
+| `usage-features`            | a     |                   12 | Stopped; unapproved |
+| `usage-limits`              | a     |                   12 | Stopped; unapproved |
+| `usage-page-empty`          | a     |                   12 | Stopped; unapproved |
+| `usage-page-nine-providers` | a     |                   12 | Stopped; unapproved |
+| `usage-providers`           | a     |                   12 | Stopped; unapproved |
+| `usage-savings`             | a     |                   12 | Stopped; unapproved |
+| `usage-share`               | a     |                   12 | Stopped; unapproved |
+| `usage-stacked`             | a     |                   12 | Stopped; unapproved |
+| `usage-steps`               | a     |                   12 | Stopped; unapproved |
+| `usage-tokens`              | a     |                   12 | Stopped; unapproved |
+| `vault-approval`            | a     |                   12 | Stopped; unapproved |
+| `vault-grant`               | a     |                   12 | Stopped; unapproved |
+| `vault-panel`               | a     |                   12 | Stopped; unapproved |
+| `verify`                    | a     |                   12 | Stopped; unapproved |
+| `whats-new`                 | d     |                   12 | Stopped; unapproved |
+| `whats-new-footer`          | d     |                   12 | Stopped; unapproved |
+| `whats-new-highlights`      | d     |                   12 | Stopped; unapproved |
+
+### Default-timeout owning suites and source restoration drill
+
+All commands use `npx vitest run <files> --maxWorkers=3`, at most three files
+per invocation and repository deadlines, with no `--testTimeout` override.
+
+| Files                                                                                | Result                                                                                                                  |
+| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `visualMatrix.test.mjs` before fixture repair                                        | 1 failed, 9 passed; strict production schema rejects missing `sessionBudget`.                                           |
+| `visualReadiness.test.mjs` before selector repair                                    | 2 failed, 5 passed; historical account and vault labels fail.                                                           |
+| `visualMatrix.test.mjs visualReadiness.test.mjs` after repairs and after restoration | 17/17 pass each run.                                                                                                    |
+| `m114Panel.test.mjs m114Audit.test.mjs readmeShots.test.mjs`                         | 93/95 pass: all 71 panel cases pass; stale current audit hashes and README fingerprint remain the two correct failures. |
+| `visualCapture.test.mjs visualStability.test.mjs visualReadiness.test.mjs`           | 19/19 pass after the hooks-on fixture commit.                                                                           |
+| `visualGate.test.mjs m114PanelEvidence.test.mjs visualMatrix.test.mjs`               | 24/24 pass after the hooks-on fixture commit.                                                                           |
+
+The deliberately broken repaired source removes both capitalization fixes and
+the canonical budget field. The two complete suites then report **3 failed,
+14 passed**. Restore both files from saved bytes, verify SHA-256, and rerun:
+**17/17 pass**. Pre-hook repaired-source hashes at the drill:
+
+- `test/harness/goldens/capture.mjs`:
+  `4a020537a27dbef303212d5aef5a8ad384de07e197ed49cb41b69b6841383446`.
+- `test/harness/index.html`:
+  `7212170886731115b5776a7c2847cde100bd93a8b8f68608c98fd70c0fb513bf`.
+
+`temp/vis0171-drill-red.log`, `temp/vis0171-drill-restoration.log` and
+`temp/vis0171-drill-green.log` retain the failures, both exact-byte `OK` lines
+and the restored pass. The commit hook later formats the budget sentence on
+one line; committed code is reread and both schema and real capture owners
+pass afterward. This is the required new-code guard drill. The requested
+old-baseline replacement drill waits for an approved baseline; none exists
+in this stopped lane.
+
+### Scoped gates and remaining holds
+
+Five-project `npm run typecheck`, changed-file ESLint/Prettier, plain
+`npm run deadcode`, localization, host API, reference, tokens, plan and roadmap
+checks pass. `npx jscpd` fails with **21 inherited clones** in `Wizard.tsx`,
+`modelsPanel.test.ts`, `modelsPanelSections.test.tsx`, `modelsQuickPick.test.ts`
+and `wizardSessionBudget.test.ts`; none involve lane-edited files. Preserve
+its zero-clone threshold and leave those source/test repairs with the lead.
+Aggregate `npm run quality` remains lead-owned under the rig/common brief.
+
+Next: lead decision on Q-VIS0171-RELEASE-NOTES, then finish all six candidate
+shards/themes, review every changed frame, run the repository's named update
+into a fresh external archive, regenerate all README shots, update freshness
+records, run the old-baseline SHA-256 drill and obtain the full zero-changed-scene
+pass. Current release qualification remains blocked. Hooks stay installed;
+no merge, rebase, push, paid/live call or external service write occurs. Temporary Git
+sources are cleaned; capture evidence remains. Automatic command review rejects
+removing the stopped browser profile (`rm -f style commands are not permitted`);
+cleanup is stopped and `temp/m114-visual-profile-XYP9zj` remains ignored.
