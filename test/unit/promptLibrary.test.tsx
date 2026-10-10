@@ -108,8 +108,8 @@ describe('shared prompt library', () => {
       <PromptLibrary prompts={prompts} port={port} onClose={onClose} hasWorkspace canImportLinks />,
     )
     expect(screen.getAllByRole('heading', { name: fixture.title })).toHaveLength(2)
-    expect(screen.getByText(/All workspaces/)).toBeDefined()
-    expect(screen.getByText(/This workspace/)).toBeDefined()
+    expect(screen.getByText(/All Workspaces/)).toBeDefined()
+    expect(screen.getByText(/This Workspace/)).toBeDefined()
     fireEvent.change(screen.getByLabelText(UI_TEXT.promptSearch), {
       target: { value: '日本語 selection' },
     })

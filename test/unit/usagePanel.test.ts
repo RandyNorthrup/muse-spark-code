@@ -92,7 +92,7 @@ describe('UsagePanel', () => {
     const { panel, tab } = openPanel()
     expect(window.createWebviewPanel).toHaveBeenCalledWith(
       'museSpark.usagePanel',
-      'Usage & cost',
+      'Usage & Cost',
       1,
       {},
     )
@@ -183,10 +183,10 @@ describe('UsagePanel', () => {
         modal: true,
         detail: expect.stringContaining('1,234 usage records'),
       }),
-      'Delete history',
+      'Delete History',
       'Cancel',
     )
-    confirm.mockResolvedValue('Delete history')
+    confirm.mockResolvedValue('Delete History')
     expect(await ports.confirmDelete(1234, 0)).toBe(true)
     await ports.openSettings()
     await ports.revealFolder()

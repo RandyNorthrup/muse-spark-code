@@ -54,19 +54,19 @@ try {
             )
             await page.locator('.usage-page[aria-busy="false"]').waitFor()
             if (scenario === 'history-off') {
-              await page.getByRole('button', { name: 'Turn on usage history' }).click()
+              await page.getByRole('button', { name: 'Turn On Usage History' }).click()
               await page
-                .getByRole('heading', { name: 'Usage history is off' })
+                .getByRole('heading', { name: 'Usage History Is Off' })
                 .waitFor({ state: 'detached' })
             } else if (scenario === 'nine-providers') {
               for (const range of ['7 days', '30 days', '90 days', 'Today'])
                 await page.getByRole('radio', { name: range }).check()
               for (const group of ['model', 'kind', 'client', 'provider'])
-                await page.getByLabel('Group by').selectOption(group)
+                await page.getByLabel('Group By').selectOption(group)
               for (const metric of ['tokens', 'requests', 'time', 'cost'])
                 await page.getByLabel('Metric').selectOption(metric)
               await page.locator('.usage-page[aria-busy="false"]').waitFor()
-              await page.getByRole('radio', { name: 'Custom range' }).check()
+              await page.getByRole('radio', { name: 'Custom Range' }).check()
               await page.getByLabel('From', { exact: true }).fill('2026-10-01')
               await page.getByLabel('To', { exact: true }).fill('2026-10-05')
               for (const [label, dates] of [
@@ -104,28 +104,28 @@ try {
                 if (!(await page.getByRole('button', { name: 'Refresh', exact: true }).isEnabled()))
                   throw new Error('Native transport failure left Refresh disabled')
                 await page.locator('.usage-page[aria-busy="false"]').waitFor()
-                await page.getByRole('button', { name: 'Try again', exact: true }).click()
+                await page.getByRole('button', { name: 'Try Again', exact: true }).click()
                 await page.getByRole('alert').waitFor({ state: 'detached' })
               }
               await page.getByRole('button', { name: 'Refresh', exact: true }).click()
               await page.locator('.usage-page[aria-busy="false"]').waitFor()
               for (const format of [
-                'Per-call CSV (last 30 days)',
+                'Per-Call CSV (Last 30 Days)',
                 'Summary CSV',
                 'Versioned JSON',
               ]) {
                 await page.getByRole('button', { name: 'Export', exact: true }).click()
                 await page.getByRole('button', { name: format, exact: true }).click()
               }
-              await page.getByRole('button', { name: 'Delete usage history…' }).click()
-              await page.getByRole('button', { name: 'Usage settings' }).click()
-              await page.getByRole('button', { name: 'Open history folder' }).click()
-              await page.getByRole('button', { name: 'Open provider console' }).click()
+              await page.getByRole('button', { name: 'Delete Usage History…' }).click()
+              await page.getByRole('button', { name: 'Usage Settings' }).click()
+              await page.getByRole('button', { name: 'Open History Folder' }).click()
+              await page.getByRole('button', { name: 'Open Provider Console' }).click()
               await page
                 .getByRole('table', { name: 'Breakdown' })
                 .getByRole('button', { name: 'openai', exact: true })
                 .click()
-              await page.getByRole('button', { name: 'Set price' }).click()
+              await page.getByRole('button', { name: 'Set Price' }).click()
               await page.getByRole('button', { name: 'Close', exact: true }).click()
               const posted = await page.evaluate(() =>
                 globalThis.usageHarness.posted.map((message) => message.type),

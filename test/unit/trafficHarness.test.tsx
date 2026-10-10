@@ -14,7 +14,7 @@ function assertScenario(scenario: string, root: HTMLElement): void {
       return
     }
     case 'team-traffic-hints': {
-      expect(root.querySelector('[aria-selected="true"]')?.textContent).toBe('Other windows')
+      expect(root.querySelector('[aria-selected="true"]')?.textContent).toBe('Other Windows')
       return
     }
     case 'team-traffic-recovery': {

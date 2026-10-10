@@ -17,7 +17,7 @@ export function AttachmentMediaCost({
   if (info.kind === 'video' || info.kind === 'audio') {
     labels.push(
       info.durationSeconds === null
-        ? UI_TEXT.media.durationUnknown
+        ? UI_TEXT.media.durationUnknownLabel
         : formatDurationMs(info.durationSeconds * MILLISECONDS_PER_SECOND),
     )
   }

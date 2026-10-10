@@ -27,7 +27,7 @@ describe('static report HTML', () => {
       )
       expect(parsed.documentElement.lang).toBe('en')
       expect(parsed.querySelectorAll('h1')).toHaveLength(1)
-      expect(parsed.querySelector(':scope main h2')?.textContent).toBe('Needs you')
+      expect(parsed.querySelector(':scope main h2')?.textContent).toBe('Needs You')
       for (const table of parsed.querySelectorAll('table')) {
         expect(table.querySelector('caption')?.textContent).not.toBe('')
         for (const header of table.querySelectorAll('th'))

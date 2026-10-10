@@ -296,9 +296,9 @@ export function createModelsPanelFeatures(
         (await vscode.window.showWarningMessage(
           message,
           { modal: true },
-          UI_TEXT.providerPrivateConfirm,
+          UI_TEXT.providerPrivateConfirmLabel,
           UI_TEXT.wizardCancel,
-        )) === UI_TEXT.providerPrivateConfirm,
+        )) === UI_TEXT.providerPrivateConfirmLabel,
       openBrowser: (url) => {
         void vscode.env.openExternal(vscode.Uri.parse(url))
         return Promise.resolve()
@@ -355,7 +355,7 @@ export function createModelsPanelFeatures(
         confirmImport: async (preview) => {
           const lines = preview.rows.map(
             (row) =>
-              `${row.change}: ${row.entry.id} (${row.entry.address})${row.needsKey ? ` · ${UI_TEXT.importNeedsKey}` : ''}`,
+              `${row.change}: ${row.entry.id} (${row.entry.address})${row.needsKey ? ` · ${UI_TEXT.importNeedsKeyLabel}` : ''}`,
           )
           return (
             (await vscode.window.showWarningMessage(

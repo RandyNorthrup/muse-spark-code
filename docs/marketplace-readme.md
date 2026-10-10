@@ -107,12 +107,12 @@ Code” are Meta trademarks. You bring your own credentials.
   attention dock above the composer and kept in the transcript. After a minute
   (`museSpark.questions.deferAfterSeconds`), Muse carries on with work that
   does not need the answer.
-- **Answer later.** An unanswered question becomes an **Open question** you can
+- **Answer later.** An unanswered question becomes an **Open Question** you can
   answer any time using **Answer** on its transcript marker or the open-question chip; **Dismiss** closes it
   without an answer. A late answer reaches Muse once, as your own message, and
   approves nothing.
 - **Find open questions.** The view badge, tab title and History show how many
-  are open; **Next open question** and **Previous open question**
+  are open; **Next Open Question** and **Previous Open Question**
   (Ctrl+Alt+J and Ctrl+Alt+Shift+J) cycle through them.
 - **ACP editors.** Editors with forms get each question as a form, withdrawn at
   the deadline (`--questions-defer-after`); other editors get the text.
@@ -148,16 +148,16 @@ Code” are Meta trademarks. You bring your own credentials.
 
 **0.14.0**
 
-- **Tab completions** (see [Tab completions](https://github.com/RandyNorthrup/muse-spark-code#tab-completions)). Alt+\ invokes
+- **Tab Completions** (see [Tab completions](https://github.com/RandyNorthrup/muse-spark-code#tab-completions)). Alt+\ invokes
   ghost text. First-use consent names the model price and the separate
   $1.00/day default hard budget; your stored Model API key pays on either backend.
-- **Git and pull requests** (see [Git and pull requests](https://github.com/RandyNorthrup/muse-spark-code#git-and-pull-requests)).
+- **Git and Pull Requests** (see [Git and pull requests](https://github.com/RandyNorthrup/muse-spark-code#git-and-pull-requests)).
   Draft a commit or PR in the conversation, commit and push with confirmation,
   and open a foreign PR in a held worktree until you confirm its trust card.
 - **Hooks and plugins** (see [Hooks](https://github.com/RandyNorthrup/muse-spark-code#hooks)). Import popular agent hook formats,
   run Setup and Manual hooks on both backends, and use bounded Amp and OpenCode
   plugins on the Model API backend. Hooks keep their permission and paid-use limits.
-- **Report a problem** (see [Reporting a problem](https://github.com/RandyNorthrup/muse-spark-code#reporting-a-problem)). Preview
+- **Report a Problem** (see [Reporting a problem](https://github.com/RandyNorthrup/muse-spark-code#reporting-a-problem)). Preview
   the exact scrubbed report, remove items, then copy, save or open an issue.
   The report is built locally and the extension sends nothing.
 - **Muse Judge phase 1** (see [Muse Judge](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)). The conversation model
@@ -255,7 +255,7 @@ Muse Code uses its own credential and subscription. Ordinary Model API turns
 are billed to your own key. Interactive Model API enhancements are available
 by default, with explicit false settings respected; their paid calls still
 need consent naming the price and shared daily budget. Paid use asks before
-each call unless you choose **Allow always in this workspace**. The
+each call unless you choose **Allow Always in This Workspace**. The
 subscription pays none of those extension-side paid features. ACP and
 headless paid defaults remain off.
 

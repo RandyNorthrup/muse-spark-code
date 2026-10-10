@@ -17,7 +17,7 @@ const fixture = [
   "import {SecretPromptDialog} from './src/webview/components/SecretPromptDialog';",
   "import {ApprovalCard} from './src/webview/components/ApprovalCard';",
   "import {GooeyMenuContent as GooeyMenu} from './src/webview/components/GooeyMenuContent';",
-  "const labels = ['Allow once', 'Always allow this very long command in this workspace', 'Reject with feedback'];",
+  "const labels = ['Allow Once', 'Always Allow this very long command in this workspace', 'Reject with feedback'];",
   "const approval = {approvalId:'test',requirementId:{approvalId:'test',sourceIndex:0},",
   " subject:{kind:'shell',command:'npm run build'},rawArgs:'{}',isProtectedWrite:false,isJudgeEscalated:false,",
   " availableChoices:labels.map((label,i)=>({choiceId:String(i),label,decision:i===2?'abort':'approved',scope:'once',acceptsFeedback:i===2}))};",
@@ -133,7 +133,7 @@ async function open(theme, width = 320, isWhatsNew = false, motion = 'reduce', s
   })
   await page.route('**/*', (route) => route.abort())
   await page.setContent(
-    `<style>${runtime.css[isWhatsNew ? 1 : 0]}</style>${isWhatsNew ? '<main><h1>What’s New</h1><h2>Release</h2><pre tabindex="0"><code>const x = 1;</code></pre><button>Try it</button><a href="#">Reference</a><label><input type="checkbox">Show on update</label></main>' : markup}`,
+    `<style>${runtime.css[isWhatsNew ? 1 : 0]}</style>${isWhatsNew ? '<main><h1>What’s New</h1><h2>Release</h2><pre tabindex="0"><code>const x = 1;</code></pre><button>Try It</button><a href="#">Reference</a><label><input type="checkbox">Show on update</label></main>' : markup}`,
   )
   const host = JSON.parse(readFileSync(`test/harness/themes/${theme}.json`, 'utf8'))
   await page.evaluate((host) => {
@@ -393,9 +393,9 @@ describe('M114 P2 panel contract', () => {
           expect(box.background).toBe(boxes[0].background)
           expect(contrast(box.color, box.background)).toBeGreaterThanOrEqual(4.5)
         }
-        expect(await buttons.nth(1).textContent()).toContain('Always allow this very long command')
+        expect(await buttons.nth(1).textContent()).toContain('Always Allow this very long command')
         expect(await buttons.nth(1).getAttribute('title')).toContain(
-          'Always allow this very long command',
+          'Always Allow this very long command',
         )
       } finally {
         await page.close()

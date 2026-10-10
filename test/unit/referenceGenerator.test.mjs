@@ -279,7 +279,7 @@ describe('RVHELPREF truth regressions', () => {
       await manager.dispose()
     }
   })
-  it('C01 describes every Auto reviewer and its no-card approval path', () => {
+  it('C01 describes every Auto Reviewer and its no-card approval path', () => {
     const auto = setting('initialPermissionMode').enumDescriptions[3]
     const limits = source.EN.referencePermissionLimits
     for (const backend of ['museCode', 'modelApi']) {

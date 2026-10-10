@@ -629,7 +629,7 @@ export type UiAction =
   /** Commit or Create pressed: the form waits for the host's `gitDone`. */
   | { readonly type: 'gitFormBusy' }
   /**
-   * "Write with Muse" pressed: the user's own message asking for the draft
+   * "Write With Muse" pressed: the user's own message asking for the draft
    * goes in the transcript (the composer's draft stays as it is), and the
    * form waits for the reply.
    */
@@ -2438,7 +2438,7 @@ function withPendingCard(
 }
 
 /**
- * The reply that "Save plan" and "Implement in a fresh conversation" sit
+ * The reply that "Save Plan" and "Implement in a Fresh Conversation" sit
  * under (M79): the conversation's latest reply, in Plan mode, once no turn
  * runs and nothing was sent after it, answering a message this panel sent
  * in Plan mode. Neither backend marks a plan or its approval on the wire,

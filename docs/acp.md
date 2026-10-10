@@ -161,7 +161,7 @@ asks for it. Elsewhere, run it yourself once:
   Keychain sign-in), the agent asks it when the editor checks the sign-in
   again after you sign in (ACP's `authenticate`), and otherwise assumes
   the sign-in holds until a turn says it does not.
-- **Model API key**: `muse-spark-code-acp auth set` asks for the key without
+- **Model API Key**: `muse-spark-code-acp auth set` asks for the key without
   showing it and keeps it in the operating system's credential store:
   Windows Credential Manager, the macOS Keychain, or on Linux the Secret
   Service (GNOME Keyring, KWallet, KeePassXC). `auth status` says whether
@@ -498,12 +498,12 @@ first in the editor's permission prompt, as the VS Code panel's popup
 does, naming what is about to be billed and its price: each prompt that
 may search the web (Meta runs the searches inside the reply, so the
 question comes once per prompt, not per search) and each image. The
-answers are **Allow once**, **Allow always in this workspace** and
+answers are **Allow Once**, **Allow Always in This Workspace** and
 **Deny**; Deny sends the prompt without web search, or makes no image.
 A cancelled prompt, an answer the prompt did not offer, or an editor
 that cannot ask counts as Deny.
 
-**Allow always in this workspace** is offered only when the agent runs
+**Allow Always in This Workspace** is offered only when the agent runs
 with `--trust-workspace`. It is kept for that folder in the agent's data
 folder (`paid-uses.json.d` under `%LOCALAPPDATA%\Muse Spark Code\acp`,
 `~/Library/Application Support/Muse Spark Code/acp` or
@@ -928,7 +928,7 @@ turn and invalidates outstanding permission answers. Hidden and first-party
 items are excluded from the ACP item list.
 
 A broker request maps to `session/request_permission`: `allow_once`,
-`allow_always` labelled **Allow for this session** where policy permits, and
+`allow_always` labelled **Allow for This Session** where policy permits, and
 `reject_once`. No standing Always grant is offered. Answers retain the
 broker's exact id and digest; cancel, expiry, session close/reload, lock, an
 unknown option, or a failed editor request deny. Bypass and paid grants do

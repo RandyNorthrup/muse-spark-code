@@ -157,7 +157,7 @@ describe('lazy companion media UI', () => {
           />
         </Suspense>,
       )
-    } else fireEvent.click(screen.getByRole('button', { name: UI_TEXT.media.uploadStop }))
+    } else fireEvent.click(screen.getByRole('button', { name: UI_TEXT.media.uploadStopLabel }))
     expect(rig.upload.mock.calls[0]?.[3]?.aborted).toBe(true)
     await act(async () => {
       response.resolve({
