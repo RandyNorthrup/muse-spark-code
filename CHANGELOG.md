@@ -18,6 +18,20 @@ happened, not what was planned; superseded entries are kept.
   disclosed zero-sample assumptions until calibration replaces them per kind.
   Starting lanes, price catalogs, history and multi-machine fleets still refuse
   with their handoff names until their lanes land.
+- **`estimate --check-plan`** (M117 CM1171R4). The headless `estimate` command
+  and the ACP agent's `/estimate` accept `--check-plan`, which lists every
+  estimator plan problem in `PLAN.md` — duplicate lanes, malformed `Starts`
+  cells (naming cell and line), unknown prerequisites, unknown rigs and
+  unknown release members — one per line, printing nothing when the plan is
+  clean. The exit code carries the verdict: 0 clean, 1 problems, 2 usage.
+- **Strict `Starts` grammar** (M117 CM1171R4). A `Starts` cell is `day 0`,
+  `first`, `last`, or `after` lane, qualified-lane and whole-milestone refs;
+  parenthetical text is a note and is ignored; anything else refuses with
+  `malformed-starts` instead of inventing or dropping dependencies. Strictness
+  applies to the goal's dependency closure, so rows outside it never block a
+  forecast. A planned lane with `Hours 0` is refused as a missing estimate,
+  and a `MERGED` pull request without a merge timestamp is refused as
+  malformed evidence.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

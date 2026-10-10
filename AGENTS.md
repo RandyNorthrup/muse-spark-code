@@ -200,6 +200,17 @@ them, the milestone plan, and the certification checklist.
     source fingerprint), a milestone without an entry or an entry for a
     milestone PLAN.md does not have (PLAN.md M122; CONTRIBUTING.md has the
     entry format).
+18. **Starts cells are strict.** A `Starts` cell in a PLAN.md lane table is
+    `day 0`, `first`, `last`, or `after <ref>[, <ref> | and <ref>]...`
+    (clauses split on `;`), where a ref is a lane of its own milestone
+    (`0`, `lane 0`), a qualified lane (`M100:T`), or a whole milestone
+    (`M100`, expanding to its lanes). Text in parentheses is a note and is
+    ignored; `after lane 0` means lane `0`; an empty cell binds nothing.
+    Anything else refuses with `malformed-starts` naming the cell and its
+    plan line. Strictness applies to the goal's dependency closure (rows
+    outside it never block a forecast); `estimate --check-plan` lists every
+    problem in the whole plan. Write prose as a parenthetical note, never
+    as a ref. One table per milestone is a lane table.
 
 ## Layout
 
