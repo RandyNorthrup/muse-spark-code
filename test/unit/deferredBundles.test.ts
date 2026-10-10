@@ -218,6 +218,7 @@ beforeAll(async () => {
         teamRunners: 'src/host/runners/teamRunnersEntry.ts',
         teamHost: 'src/host/team/teamHostEntry.ts',
         teamFileIo: 'src/core/team/workers/workerToolIoEntry.ts',
+        teamMerge: 'src/core/team/teamMergeFlow.ts',
       },
       plugins: [
         sharedUiText,

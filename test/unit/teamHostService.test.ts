@@ -3,7 +3,7 @@
 // Every port is a fake that records its calls; nothing here touches a model,
 // git or the disk.
 
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { createTeamHostService } from '../../src/core/team/teamHost'
 import type {
   TeamCardItem,
@@ -21,6 +21,12 @@ import { TEAM_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 
 const ORCHESTRATOR = 'muse-spark-1.3'
 const WORKER_MODEL = 'other-model-7'
+
+// The first merge loads the lazy merge flow; warm it so no test's settle
+// budget pays the transform cost (production loads the built chunk instead).
+beforeAll(async () => {
+  await import('../../src/core/team/teamMergeFlow')
+})
 
 function entry(id: string, model: string | undefined, concurrent = 2): TeamPoolEntry {
   return {
@@ -1489,5 +1495,20 @@ it("R4-4: resetting a queued entry cannot borrow another role's global slot", as
   await service.teamRunner.delegate(delegateOne, context())
   await service.resetEntry('e1')
   expect(h.started).toHaveLength(2)
+  await service.dispose()
+})
+
+it('R4-merge: a missing lazy bundle refuses without hanging the card', async () => {
+  const h = harness(team([entry('e1', WORKER_MODEL)]))
+  const service = await finishedTask(h)
+  vi.doMock('../../src/core/team/teamMergeFlow', () => {
+    throw new Error('missing bundle')
+  })
+  try {
+    const result = await service.teamRunner.merge({ task_id: 'task-1' }, context())
+    expect(result.output).toContain('Error:')
+  } finally {
+    vi.doUnmock('../../src/core/team/teamMergeFlow')
+  }
   await service.dispose()
 })
