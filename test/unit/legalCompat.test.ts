@@ -87,6 +87,16 @@ describe('evaluateDependencyLicenses', () => {
     expect(recognized.requiresReview).toBe(false)
   })
 
+  it('marks malformed expressions for human review with a named reason (RVCM971 P2)', () => {
+    // Finding 6: a malformed declaration leaves the terms unresolved, so
+    // the dependency keeps a review limitation instead of exiting clean.
+    const result = evaluateDependencyLicenses([shippedDep('broken', 'MIT AND')], () => true)
+    expect(result.requiresReview).toBe(true)
+    expect(result.evaluated).toHaveLength(0)
+    expect(result.incomplete.join(' ')).toContain('human review')
+    expect(result.incomplete.join(' ')).toContain('broken')
+  })
+
   it('treats shipped UNLICENSED as should-fix and dev-only as advice', () => {
     const shipped = evaluateDependencyLicenses([shippedDep('secret', 'UNLICENSED')], () => true)
     expect(shipped.findings[0]?.severity).toBe('should-fix')

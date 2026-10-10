@@ -4,12 +4,18 @@
 // auth, no network without `--registry`.
 
 import { describe, expect, it, vi } from 'vitest'
+import { createHash } from 'node:crypto'
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import {
   LEGAL_EXIT,
   LEGAL_RESULT_VERSION,
   LEGAL_TEXT_MAX_CHARS,
   UI_TEXT,
 } from '../../src/shared/constants'
+import { runLegalScan } from '../../src/core/legal/entry'
+import { fingerprint } from '../../src/core/verify/fingerprint'
 import { requestUrl } from './helpers/legalRequest'
 import { scanLegal } from '../../src/core/legal/scan'
 import { FULL_MIT_LICENSE, snapshotFrom } from './legal/helpers'
@@ -54,6 +60,10 @@ function scanResult(overrides?: Partial<LegalScanResult>): LegalScanResult {
     findings: [],
     ...overrides,
   }
+}
+
+function shaText(text: string): string {
+  return createHash('sha256').update(text, 'utf8').digest('hex')
 }
 
 function loudFetch(requested: string[]): typeof fetch {
@@ -143,10 +153,57 @@ describe('M97 legal run (lane R)', () => {
     }
     const result = scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
-      distribution: { bundleInputs: Object.keys(files) },
+      distribution: {
+        bundleInputs: Object.keys(files),
+        bundleInputHashes: Object.fromEntries(
+          Object.entries(files).map(([file, text]) => [file, fingerprint(text)]),
+        ),
+        bundleOutputHashes: {},
+      },
     })
     expect(result.incompleteChecks).toEqual([])
     const context = deps({ scan: fakeScan(result) })
+    const outcome = await runLegalCommand({
+      options: { format: 'json', out: undefined, registry: false },
+      deps: context,
+    })
+    expect(outcome.exitCode).toBe(LEGAL_EXIT.ok)
+  })
+  it('completes a production runLegalScan end to end from real packaging evidence (CM971R2)', async () => {
+    // RVCM971 P2 (finding 2): the production entry derives distribution
+    // from the real packaging config (bundle metafile plus recorded
+    // content hashes), so a fully evidenced workspace completes with no
+    // injected evidence and exits 0 through the real command.
+    const root = mkdtempSync(path.join(tmpdir(), 'legal-e2e-'))
+    const source =
+      '// Copyright (c) 2026 Example Corp\n// SPDX-License-Identifier: MIT\nexport const value = 1\n'
+    const bundle =
+      '// Copyright (c) 2026 Example Corp\n// SPDX-License-Identifier: MIT\nconsole.log(1)\n'
+    const files: Record<string, string> = {
+      LICENSE: FULL_MIT_LICENSE,
+      'package.json': JSON.stringify({ name: 'example', version: '1.0.0', license: 'MIT' }),
+      'src/ok.ts': source,
+      'dist/bundle.js': bundle,
+      'dist/meta/bundle.json': JSON.stringify({
+        inputs: { 'src/ok.ts': { bytes: Buffer.byteLength(source) } },
+        outputs: { 'dist/bundle.js': { bytes: Buffer.byteLength(bundle) } },
+      }),
+      'dist/meta-hashes/bundle.json': JSON.stringify({
+        version: 1,
+        inputs: { 'src/ok.ts': shaText(source) },
+        outputs: { 'dist/bundle.js': shaText(bundle) },
+      }),
+    }
+    for (const [file, text] of Object.entries(files)) {
+      const absolute = path.join(root, file)
+      mkdirSync(path.dirname(absolute), { recursive: true })
+      writeFileSync(absolute, text)
+    }
+    const handle = await runLegalScan({ workspaceRoot: root, input: { headerPolicy: 'optional' } })
+    expect(handle.result.incompleteChecks).toEqual([])
+    expect(handle.result.findings).toEqual([])
+    expect(handle.registryTargets).toEqual([])
+    const context = deps({ scan: () => Promise.resolve(handle) })
     const outcome = await runLegalCommand({
       options: { format: 'json', out: undefined, registry: false },
       deps: context,

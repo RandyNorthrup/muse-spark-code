@@ -4,6 +4,7 @@
 // with the named full-matching incomplete reason downstream.
 
 import { describe, expect, it } from 'vitest'
+import { fingerprint } from '../../src/core/verify/fingerprint'
 import { SPDX_LICENSE_TEXTS, spdxProvenance } from '../../src/core/legal/data'
 import {
   identifyLicenseText,
@@ -58,6 +59,41 @@ describe('matchPinnedLicenseText', () => {
     const match = matchPinnedLicenseText(MIT_MODIFIED)
     expect(match?.id).toBe('MIT')
     expect(match?.exact).toBe(false)
+    expect(match?.differs?.canonicalId).toBe('MIT')
+  })
+
+  it('keeps a Copyright-headed restriction in the match text (RVCM971 P1)', () => {
+    const restricted = `${FULL_MIT_LICENSE}Copyright owners prohibit commercial use without a separate licence.\n`
+    const match = matchPinnedLicenseText(restricted)
+    expect(match?.exact).not.toBe(true)
+    expect(match?.differs?.canonicalId).toBe('MIT')
+  })
+
+  it('keeps a © payment requirement in the match text (RVCM971 P1)', () => {
+    const restricted = `${FULL_MIT_LICENSE}© 2026 Example Corp. A fee of $1 per copy is required.\n`
+    const match = matchPinnedLicenseText(restricted)
+    expect(match?.exact).not.toBe(true)
+    expect(match?.differs?.canonicalId).toBe('MIT')
+  })
+
+  it.each([
+    'You must also pay the author one dollar per installed copy.',
+    'Copyright owners prohibit commercial use without a separate licence.',
+    '© 2026 Example Corp. A fee of $1 per copy is required.',
+    '(c) 2026 Example Corp. All rights reserved for commercial exploitation.',
+    'All rights reserved.',
+    'Commercial use requires a paid licence. Contact the authors.',
+    'THE SOFTWARE MAY NOT BE USED FOR MILITARY PURPOSES.',
+  ])('never reads MIT with an inserted restriction (%s) as exact', (restriction) => {
+    const lines = FULL_MIT_LICENSE.split('\n')
+    const variants = [
+      `${restriction}\n${FULL_MIT_LICENSE}`,
+      `${lines[0] ?? ''}\n${restriction}\n${lines.slice(1).join('\n')}`,
+      `${FULL_MIT_LICENSE}\n${restriction}`,
+    ]
+    for (const variant of variants) {
+      expect(matchPinnedLicenseText(variant)?.exact).not.toBe(true)
+    }
   })
 
   it('prefers the closer word count for shared BSD phrases', () => {
@@ -77,7 +113,9 @@ describe('matchPinnedLicenseText', () => {
     expect(matchPinnedLicenseText(FULL_MIT_LICENSE, [])).toBeUndefined()
   })
 
-  it('reads the GPL suffix from the input wording over injected records', () => {
+  it('reads the GPL stem without a variant suffix, even over body wording', () => {
+    // RVCM971 P2 (finding 5): `any later version` in the body never grants
+    // `-or-later`; the variant resolves from the project's own grant.
     const text = 'Some grant text mentioning any later version of the terms.'
     const records = [
       {
@@ -88,10 +126,27 @@ describe('matchPinnedLicenseText', () => {
         family: 'gpl' as const,
       },
     ]
-    expect(matchPinnedLicenseText(text, records)?.id).toBe('T-1.0-or-later')
+    expect(matchPinnedLicenseText(text, records)?.id).toBe('T-1.0')
     expect(matchPinnedLicenseText('Some grant text with no such clause.', records)?.id).toBe(
-      'T-1.0-only',
+      'T-1.0',
     )
+  })
+
+  it('returns the bare GPL stem for an exact body match', () => {
+    const body = 'Some grant text with several distinctive words here.'
+    const records = [
+      {
+        id: 'T-2.0',
+        hash: fingerprint(normalizeLicenseText(body)),
+        words: normalizeLicenseText(body).split(' ').length,
+        phrases: ['several distinctive words'] as readonly string[],
+        family: 'gpl' as const,
+      },
+    ]
+    const exact = matchPinnedLicenseText(`${body} or (at your option) any later version.`, records)
+    expect(exact?.exact).toBe(false)
+    const verbatim = matchPinnedLicenseText(body, records)
+    expect(verbatim).toMatchObject({ id: 'T-2.0', confidence: 1, exact: true })
   })
 })
 
@@ -107,10 +162,17 @@ describe('identifyLicenseText with pinned data', () => {
     expect(match?.exact).toBe(false)
   })
 
-  it('keeps the GPL version and or-later readings', () => {
+  it('keeps the GPL version reading without a variant suffix', () => {
+    // RVCM971 P2 (finding 5): the heuristic reads the bare stem; the
+    // `-only`/`-or-later` variant resolves from the project's own grant.
     expect(identifyLicenseText('GNU LIBRARY GENERAL PUBLIC LICENSE\nVersion 2\n')?.id).toBe(
-      'LGPL-2.0-only',
+      'LGPL-2.0',
     )
+    expect(
+      identifyLicenseText(
+        'GNU GENERAL PUBLIC LICENSE\nVersion 3\nor (at your option) any later version.',
+      )?.id,
+    ).toBe('GPL-3.0')
   })
 
   it('fails closed to heuristics with an empty record list', () => {

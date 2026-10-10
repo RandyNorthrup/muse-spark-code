@@ -4,6 +4,8 @@
 // third-party notices are checked against what is present.
 
 import { describe, expect, it } from 'vitest'
+import { fingerprint } from '../../src/core/verify/fingerprint'
+import { compareLegalText } from '../../src/core/legal/files'
 import { evaluateDependencyLicenses } from '../../src/core/legal/depLicenses'
 import { dependency } from '../../src/core/legal/dependencies'
 import { checkNotices, computeShipped } from '../../src/core/legal/distribution'
@@ -51,6 +53,59 @@ describe('computeShipped', () => {
       { packageFiles: ['dist/'], vscodeignoreText: '*.map\n' },
     )
     expect(shipped.summary).toContain('approximated')
+  })
+
+  it('proves freshness from matching input and output hashes (RVCM971 P2)', () => {
+    const files = { 'src/ok.ts': 'export const value = 1\n', 'dist/bundle.js': 'console.log(1)\n' }
+    const shipped = computeShipped(snapshotFrom(files), [], {
+      bundleInputs: Object.keys(files),
+      bundleInputHashes: Object.fromEntries(
+        Object.entries(files).map(([file, text]) => [file, fingerprint(text)]),
+      ),
+      bundleOutputHashes: { 'dist/bundle.js': fingerprint(files['dist/bundle.js']) },
+    })
+    expect(shipped.incomplete).toEqual([])
+    expect([...(shipped.shippedFiles ?? [])].toSorted((a, b) => compareLegalText(a, b))).toEqual([
+      'dist/bundle.js',
+      'src/ok.ts',
+    ])
+  })
+
+  it('reads changed bytes without a rebuild as stale (RVCM971 P2)', () => {
+    const shipped = computeShipped(snapshotFrom({ 'src/ok.ts': 'export const extra = 2\n' }), [], {
+      bundleInputs: ['src/ok.ts'],
+      bundleInputHashes: { 'src/ok.ts': fingerprint('export const value = 1\n') },
+      bundleOutputHashes: {},
+    })
+    expect(shipped.incomplete.join(' ')).toContain('stale')
+    expect(shipped.incomplete.join(' ')).toContain('freshness')
+  })
+
+  it('reads file names without hashes as stale, never as fresh (RVCM971 P2)', () => {
+    const shipped = computeShipped(snapshotFrom({ 'src/ok.ts': 'x' }), [], {
+      bundleInputs: ['src/ok.ts'],
+    })
+    expect(shipped.incomplete.join(' ')).toContain('stale')
+    expect(shipped.incomplete.join(' ')).toContain('freshness')
+  })
+
+  it('reads a missing recorded output as stale', () => {
+    const shipped = computeShipped(snapshotFrom({ 'src/ok.ts': 'x' }), [], {
+      bundleInputs: ['src/ok.ts'],
+      bundleInputHashes: { 'src/ok.ts': fingerprint('x') },
+      bundleOutputHashes: { 'dist/bundle.js': fingerprint('console.log(1)\n') },
+    })
+    expect(shipped.incomplete.join(' ')).toContain('stale')
+  })
+
+  it('matches Windows-separator evidence against snapshot paths', () => {
+    const shipped = computeShipped(snapshotFrom({ 'src/ok.ts': 'x' }), [], {
+      bundleInputs: [String.raw`src\ok.ts`],
+      bundleInputHashes: { [String.raw`src\ok.ts`]: fingerprint('x') },
+      bundleOutputHashes: {},
+    })
+    expect(shipped.incomplete).toEqual([])
+    expect([...(shipped.shippedFiles ?? [])]).toEqual(['src/ok.ts'])
   })
 
   it('leaves distribution unknown without evidence', () => {
