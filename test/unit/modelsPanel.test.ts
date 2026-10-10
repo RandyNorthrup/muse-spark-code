@@ -3,73 +3,41 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { window } from 'vscode'
-import { window as fakeWindow, FakeUri } from './mocks/vscode'
 import { createModelsPanelSeam } from '../../src/core/providers/panelSeam'
-import { createModelsPanel, type ModelsPanelDeps } from '../../src/host/models/modelsPanel'
+import type { ModelsPanelDeps } from '../../src/host/models/modelsPanel'
 import {
   parseHostToPanelMessage,
   type ModelsPanelState,
   type PanelDraft,
 } from '../../src/shared/modelsPanel'
-import type { ProvidersStore } from '../../src/host/providers/providerPorts'
-import { EN } from '../../src/shared/l10n/en'
+import type { ProvidersHostDeps } from '../../src/host/providers/providersHost'
+import type { PresetCatalog, ProvidersStore } from '../../src/host/providers/providerPorts'
 import { UI_TEXT } from '../../src/shared/constants'
 import { TEST_ENTRY, testProvidersHost, testRow } from './helpers/m95kFixtures'
-import { FakeWebviewPanel, memoryProvidersStore, memorySessionBudgetConfig } from './helpers/fakes'
+import { type FakeWebviewPanel, memoryProvidersStore } from './helpers/fakes'
+import {
+  chooseOpenRouter,
+  latestState,
+  openModelsPanel,
+  resetModelsPanelWindow,
+  send,
+  testAndTickFirstModel,
+  type OpenedModelsPanel,
+} from './helpers/modelsPanelHarness'
 
-function setup(overrides: Partial<ModelsPanelDeps> = {}): {
-  panel: FakeWebviewPanel
-  warnings: string[]
-  saved: ReturnType<typeof vi.fn>
-  providers: ModelsPanelDeps['providers']
-} {
+function setup(
+  overrides: Partial<ModelsPanelDeps> = {},
+): OpenedModelsPanel & { providers: ModelsPanelDeps['providers'] } {
   const { providers } = testProvidersHost({
     deps: {
       store: memoryProvidersStore(),
       fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
     },
   })
-  const warnings: string[] = []
-  const saved = vi.fn()
-  createModelsPanel({
-    extensionUri: new FakeUri('/ext'),
-    l10n: { locale: 'en', table: EN },
-    providers,
-    log: {
-      trace: () => undefined,
-      info: () => undefined,
-      error: (message) => {
-        warnings.push(message)
-      },
-      warn: (message) => {
-        warnings.push(message)
-      },
-    },
-    writeExportFile: () => Promise.resolve(),
-    readImportFile: () => Promise.resolve(undefined),
-    confirmImport: () => Promise.resolve(true),
-    onWizardSaved: saved,
-    sessionBudget: memorySessionBudgetConfig(),
-    ...overrides,
-  })
-  const panel = fakeWindow.createWebviewPanel.mock.results[0]?.value
-  if (!(panel instanceof FakeWebviewPanel)) {
-    throw new TypeError('Expected panel')
+  return {
+    ...openModelsPanel({ providers, ...overrides }),
+    providers: overrides.providers ?? providers,
   }
-  return { panel, warnings, saved, providers: overrides.providers ?? providers }
-}
-function latestState(panel: FakeWebviewPanel): ModelsPanelState {
-  for (const call of vi.mocked(panel.webview.postMessage).mock.calls.toReversed()) {
-    const parsed = parseHostToPanelMessage(call[0])
-    if (parsed.ok && parsed.message.type === 'modelsPanel/state') {
-      return parsed.message.state
-    }
-  }
-  throw new Error('No valid state')
-}
-async function send(panel: FakeWebviewPanel, message: unknown, done: () => void): Promise<void> {
-  panel.webview.messages.fire(message)
-  await vi.waitFor(done)
 }
 async function sendDraft(
   panel: FakeWebviewPanel,
@@ -80,37 +48,17 @@ async function sendDraft(
     expect(latestState(panel).drafts.wizard).toMatchObject(expected)
   })
 }
-async function chooseOpenRouter(panel: FakeWebviewPanel): Promise<void> {
-  await send(panel, { type: 'providers/select', presetId: 'openrouter' }, () => {
-    expect(latestState(panel).drafts.wizard?.presetId).toBe('openrouter')
-  })
-}
 async function testTickAndSave(
   panel: FakeWebviewPanel,
   providerId: string,
   saved: ReturnType<typeof vi.fn>,
 ) {
-  await send(panel, { type: 'providers/test', acceptCost: false }, () => {
-    expect(latestState(panel).drafts.wizard?.test?.status).toBe('ok')
-  })
-  await send(
-    panel,
-    { type: 'models/tick', scope: { scope: 'wizard' }, ref: `${providerId}/m1`, ticked: true },
-    () => {
-      expect(latestState(panel).drafts.wizard?.models).toEqual(['m1'])
-    },
-  )
+  await testAndTickFirstModel(panel, providerId)
   await send(panel, { type: 'providers/save', useNow: true }, () => {
     expect(saved).toHaveBeenCalledOnce()
   })
 }
-beforeEach(() => {
-  fakeWindow.createWebviewPanel.mockReset()
-  fakeWindow.createWebviewPanel.mockImplementation(
-    (viewType, title) => new FakeWebviewPanel(viewType, title),
-  )
-  vi.mocked(window.showInputBox).mockReset()
-})
+beforeEach(resetModelsPanelWindow)
 describe('Models host contract', () => {
   it('keeps an OAuth credential bound to its issuer after an edited draft address', async () => {
     const test = vi.fn(() => Promise.resolve({ kind: 'ok' as const, models: 1 }))
@@ -271,15 +219,52 @@ function realCatalogue(
     configFile: path.join(tmpdir(), 'models-panel-unused', 'providers.json'),
     subscriptionModels: () => Promise.resolve([]),
   })
+  const providers = catalogueProviders(seam.catalog, store, {
+    ...(loopbackFetch !== undefined && { loopbackFetch }),
+  })
+  return { ids: seam.catalog.ids(), providers, store }
+}
+
+/** Providers over `catalog` whose every scan answers the one model `m1`. */
+function catalogueProviders(
+  catalog: PresetCatalog,
+  store: ProvidersStore = memoryProvidersStore(),
+  extra: Partial<ProvidersHostDeps> = {},
+): ModelsPanelDeps['providers'] {
   const { providers } = testProvidersHost({
     deps: {
       store,
-      catalog: seam.catalog,
+      catalog,
       fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
-      ...(loopbackFetch !== undefined && { loopbackFetch }),
+      ...extra,
     },
   })
-  return { ids: seam.catalog.ids(), providers, store }
+  return providers
+}
+
+/** The preset cards the ready panel lists over the shipped catalogue. */
+async function shippedCards(): Promise<ModelsPanelState['presets']> {
+  const { providers } = realCatalogue()
+  const { panel } = setup({ providers })
+  await send(panel, { type: 'modelsPanel/ready' }, () => {
+    expect(latestState(panel).presets.length).toBeGreaterThan(0)
+  })
+  return latestState(panel).presets
+}
+
+/** `providers` with Mistral's plan preset in a format the card contract refuses. */
+function withRefusedMistralPlan(
+  providers: ModelsPanelDeps['providers'],
+): ModelsPanelDeps['providers'] {
+  return {
+    ...providers,
+    preset: (id: string) => {
+      const preset = providers.preset(id)
+      return id === 'mistral-plan' && preset !== undefined
+        ? { ...preset, format: 'bare-synthetic-format' }
+        : preset
+    },
+  }
 }
 
 /** A loopback fetch that answers 200 only on the given ports. */
@@ -423,12 +408,7 @@ describe('Models panel over the shipped preset catalogue', () => {
     expect(warnings).toEqual([])
   })
   it('gives the Mistral plan key its own label and sentence', async () => {
-    const { providers } = realCatalogue()
-    const { panel } = setup({ providers })
-    await send(panel, { type: 'modelsPanel/ready' }, () => {
-      expect(latestState(panel).presets.length).toBeGreaterThan(0)
-    })
-    const cards = latestState(panel).presets
+    const cards = await shippedCards()
     const mistral = cards.find((card) => card.id === 'mistral')
     const plan = cards.find((card) => card.id === 'mistral-plan')
     expect(mistral).toBeDefined()
@@ -438,12 +418,7 @@ describe('Models panel over the shipped preset catalogue', () => {
     expect(plan?.description).toContain('subscription')
   })
   it('gives Copilot its own sentence, not ChatGPT’s', async () => {
-    const { providers } = realCatalogue()
-    const { panel } = setup({ providers })
-    await send(panel, { type: 'modelsPanel/ready' }, () => {
-      expect(latestState(panel).presets.length).toBeGreaterThan(0)
-    })
-    const cards = latestState(panel).presets
+    const cards = await shippedCards()
     const chatgpt = cards.find((card) => card.id === 'chatgpt')
     const copilot = cards.find((card) => card.id === 'copilot')
     expect(chatgpt).toBeDefined()
@@ -453,16 +428,7 @@ describe('Models panel over the shipped preset catalogue', () => {
   })
   it('leaves out only a preset the card contract refuses, naming no value', async () => {
     const { providers } = realCatalogue()
-    const stale = {
-      ...providers,
-      preset: (id: string) => {
-        const preset = providers.preset(id)
-        return id === 'mistral-plan' && preset !== undefined
-          ? { ...preset, format: 'bare-synthetic-format' }
-          : preset
-      },
-    }
-    const { panel, warnings } = setup({ providers: stale })
+    const { panel, warnings } = setup({ providers: withRefusedMistralPlan(providers) })
     await send(panel, { type: 'modelsPanel/ready' }, () => {
       expect(latestState(panel).presets.map((card) => card.id)).toContain('anthropic')
     })
@@ -486,6 +452,55 @@ async function productionSeam(resolve?: (host: string) => Promise<readonly strin
     ...(resolve !== undefined && { resolve }),
   })
   return { folder, configFile, seam }
+}
+
+/**
+ * An OpenRouter wizard on a private LAN address with its key entered, ready
+ * for Test; `isConsented` answers the private-network question.
+ */
+async function privateAddressDraft(
+  seam: ReturnType<typeof createModelsPanelSeam>,
+  isConsented: boolean,
+  deps: Pick<ProvidersHostDeps, 'tester' | 'fetcher'>,
+): Promise<FakeWebviewPanel> {
+  const host = testProvidersHost({
+    confirmPrivateNetwork: () => Promise.resolve(isConsented),
+    deps: {
+      store: memoryProvidersStore(),
+      policy: seam.policy,
+      ...deps,
+    },
+  })
+  const { panel } = setup({ providers: host.providers })
+  vi.mocked(window.showInputBox).mockResolvedValue('bare-synthetic-secret')
+  await chooseOpenRouter(panel)
+  await send(
+    panel,
+    { type: 'providers/prefill', fields: { address: 'https://lan.example' } },
+    () => {
+      expect(latestState(panel).drafts.wizard?.address).toBe('https://lan.example')
+    },
+  )
+  await send(panel, { type: 'providers/enterKey', mode: 'new' }, () => {
+    expect(latestState(panel).drafts.wizard?.keyPresent).toBe(true)
+  })
+  return panel
+}
+
+/** The panel over the shipped catalogue of `seam`, with both sign-in connectors spied. */
+function signInPanel(
+  seam: ReturnType<typeof createModelsPanelSeam>,
+  extra: Partial<ModelsPanelDeps>,
+) {
+  const connectChatGpt = vi.fn(() => Promise.resolve())
+  const connectCopilot = vi.fn(() => Promise.resolve())
+  const { panel } = setup({
+    providers: catalogueProviders(seam.catalog),
+    connectChatGpt,
+    connectCopilot,
+    ...extra,
+  })
+  return { panel, connectChatGpt, connectCopilot }
 }
 
 describe('PROVWIZ2 round 2 regressions', () => {
@@ -717,29 +732,9 @@ describe('PROVWIZ2 round 2 regressions', () => {
     try {
       const test = vi.fn(() => Promise.resolve({ kind: 'ok' as const, models: 2 }))
       const fetchModels = vi.fn(() => Promise.resolve({ rows: [testRow('m1')] }))
-      const accepted = testProvidersHost({
-        confirmPrivateNetwork: () => Promise.resolve(true),
-        deps: {
-          store: memoryProvidersStore(),
-          policy: seam.policy,
-          tester: { test },
-          fetcher: { fetchModels },
-        },
-      })
-      const { panel } = setup({ providers: accepted.providers })
-      vi.mocked(window.showInputBox).mockResolvedValue('bare-synthetic-secret')
-      await send(panel, { type: 'providers/select', presetId: 'openrouter' }, () => {
-        expect(latestState(panel).drafts.wizard?.presetId).toBe('openrouter')
-      })
-      await send(
-        panel,
-        { type: 'providers/prefill', fields: { address: 'https://lan.example' } },
-        () => {
-          expect(latestState(panel).drafts.wizard?.address).toBe('https://lan.example')
-        },
-      )
-      await send(panel, { type: 'providers/enterKey', mode: 'new' }, () => {
-        expect(latestState(panel).drafts.wizard?.keyPresent).toBe(true)
+      const panel = await privateAddressDraft(seam, true, {
+        tester: { test },
+        fetcher: { fetchModels },
       })
       // The first Test after one consent sends once, with the grant on the
       // entry, and shows its result.
@@ -767,29 +762,9 @@ describe('PROVWIZ2 round 2 regressions', () => {
     try {
       const declinedTest = vi.fn(() => Promise.resolve({ kind: 'ok' as const, models: 2 }))
       const declinedFetch = vi.fn(() => Promise.resolve({ rows: [testRow('m1')] }))
-      const declined = testProvidersHost({
-        confirmPrivateNetwork: () => Promise.resolve(false),
-        deps: {
-          store: memoryProvidersStore(),
-          policy: seam.policy,
-          tester: { test: declinedTest },
-          fetcher: { fetchModels: declinedFetch },
-        },
-      })
-      const { panel } = setup({ providers: declined.providers })
-      vi.mocked(window.showInputBox).mockResolvedValue('bare-synthetic-secret')
-      await send(panel, { type: 'providers/select', presetId: 'openrouter' }, () => {
-        expect(latestState(panel).drafts.wizard?.presetId).toBe('openrouter')
-      })
-      await send(
-        panel,
-        { type: 'providers/prefill', fields: { address: 'https://lan.example' } },
-        () => {
-          expect(latestState(panel).drafts.wizard?.address).toBe('https://lan.example')
-        },
-      )
-      await send(panel, { type: 'providers/enterKey', mode: 'new' }, () => {
-        expect(latestState(panel).drafts.wizard?.keyPresent).toBe(true)
+      const panel = await privateAddressDraft(seam, false, {
+        tester: { test: declinedTest },
+        fetcher: { fetchModels: declinedFetch },
       })
       await send(panel, { type: 'providers/test', acceptCost: false }, () => {
         expect(latestState(panel).notice).toBe(UI_TEXT.actionFailed)
@@ -821,23 +796,8 @@ describe('PROVWIZ2 round 2 regressions', () => {
           models: ['mistral-medium'],
         },
       ])
-      const { providers } = testProvidersHost({
-        deps: {
-          store,
-          catalog: seam.catalog,
-          fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
-        },
-      })
-      const stale = {
-        ...providers,
-        preset: (id: string) => {
-          const preset = providers.preset(id)
-          return id === 'mistral-plan' && preset !== undefined
-            ? { ...preset, format: 'bare-synthetic-format' }
-            : preset
-        },
-      }
-      const { panel, warnings } = setup({ providers: stale })
+      const providers = catalogueProviders(seam.catalog, store)
+      const { panel, warnings } = setup({ providers: withRefusedMistralPlan(providers) })
       await send(panel, { type: 'modelsPanel/ready' }, () => {
         expect(latestState(panel).providers).toHaveLength(2)
       })
@@ -861,16 +821,7 @@ describe('PROVWIZ2 round 2 regressions', () => {
   it('refuses ChatGPT sign-in in a remote window before any connector runs', async () => {
     const { folder, seam } = await productionSeam()
     try {
-      const { providers } = testProvidersHost({
-        deps: {
-          store: memoryProvidersStore(),
-          catalog: seam.catalog,
-          fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
-        },
-      })
-      const connectChatGpt = vi.fn(() => Promise.resolve())
-      const connectCopilot = vi.fn(() => Promise.resolve())
-      const { panel } = setup({ providers, connectChatGpt, connectCopilot, isRemote: true })
+      const { panel, connectChatGpt } = signInPanel(seam, { isRemote: true })
       await send(panel, { type: 'providers/select', presetId: 'chatgpt' }, () => {
         expect(latestState(panel).notice).toBe(UI_TEXT.signInRemoteWindow)
       })
@@ -887,21 +838,7 @@ describe('PROVWIZ2 round 2 regressions', () => {
   it('refuses Copilot sign-in in a confidential workspace before any connector runs', async () => {
     const { folder, seam } = await productionSeam()
     try {
-      const { providers } = testProvidersHost({
-        deps: {
-          store: memoryProvidersStore(),
-          catalog: seam.catalog,
-          fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
-        },
-      })
-      const connectChatGpt = vi.fn(() => Promise.resolve())
-      const connectCopilot = vi.fn(() => Promise.resolve())
-      const { panel } = setup({
-        providers,
-        connectChatGpt,
-        connectCopilot,
-        isConfidential: () => true,
-      })
+      const { panel, connectCopilot } = signInPanel(seam, { isConfidential: () => true })
       await send(panel, { type: 'providers/select', presetId: 'copilot' }, () => {
         expect(latestState(panel).notice).toBe(UI_TEXT.planUi.copilotConfidential)
       })
@@ -914,14 +851,7 @@ describe('PROVWIZ2 round 2 regressions', () => {
   it('refuses a sign-in with no connector as not offered here', async () => {
     const { folder, seam } = await productionSeam()
     try {
-      const { providers } = testProvidersHost({
-        deps: {
-          store: memoryProvidersStore(),
-          catalog: seam.catalog,
-          fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
-        },
-      })
-      const { panel } = setup({ providers })
+      const { panel } = setup({ providers: catalogueProviders(seam.catalog) })
       await send(panel, { type: 'providers/select', presetId: 'chatgpt' }, () => {
         expect(latestState(panel).notice).toBe(UI_TEXT.signInNotOffered)
       })

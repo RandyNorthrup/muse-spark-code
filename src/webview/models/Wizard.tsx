@@ -5,7 +5,7 @@
 // the draft's step and posts its events. Cancel writes nothing: no
 // provider in `providers.json`, no secret in SecretStorage.
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { usdInputSchema, type UsdAmount } from '../../shared/usdSchema'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
@@ -118,6 +118,44 @@ function StepFoot({
         continueLabel={UI_TEXT.wizardContinue}
         continueDisabled={blockers.length > 0}
       />
+    </>
+  )
+}
+
+/**
+ * The closing block of the suggestions and confirm steps: the draft's
+ * errors and blockers, then Back, the step's own primary buttons, and
+ * Cancel.
+ */
+function StepActions({
+  draft,
+  post,
+  onClose,
+  children,
+}: {
+  readonly draft: PanelDraft
+  readonly post: (message: PanelToHostMessage) => void
+  readonly onClose: () => void
+  readonly children: ReactNode
+}) {
+  return (
+    <>
+      <InlineError messages={[...draft.errors, ...draft.blockers]} />
+      <div className="models-row-actions">
+        <button
+          type="button"
+          className="models-button"
+          onClick={() => {
+            post({ type: 'providers/wizard', event: 'back' })
+          }}
+        >
+          {UI_TEXT.wizardBack}
+        </button>
+        {children}
+        <button type="button" className="models-button" onClick={cancelWizard(post, onClose)}>
+          {UI_TEXT.wizardCancel}
+        </button>
+      </div>
     </>
   )
 }
@@ -796,17 +834,7 @@ function SuggestionsStep({ panelState, draft, post, onClose, onNavigateModels }:
           {fill(UI_TEXT.lastDefaultHint, { model: panelState.lastChoices.defaultModelRef })}
         </p>
       )}
-      <InlineError messages={[...draft.errors, ...draft.blockers]} />
-      <div className="models-row-actions">
-        <button
-          type="button"
-          className="models-button"
-          onClick={() => {
-            post({ type: 'providers/wizard', event: 'back' })
-          }}
-        >
-          {UI_TEXT.wizardBack}
-        </button>
+      <StepActions draft={draft} post={post} onClose={onClose}>
         <button
           type="button"
           className="models-button-primary"
@@ -815,10 +843,7 @@ function SuggestionsStep({ panelState, draft, post, onClose, onNavigateModels }:
         >
           {UI_TEXT.wizardContinue}
         </button>
-        <button type="button" className="models-button" onClick={cancelWizard(post, onClose)}>
-          {UI_TEXT.wizardCancel}
-        </button>
-      </div>
+      </StepActions>
     </div>
   )
 }
@@ -846,17 +871,7 @@ function ConfirmStep({
           ))}
         </ul>
       )}
-      <InlineError messages={[...draft.errors, ...draft.blockers]} />
-      <div className="models-row-actions">
-        <button
-          type="button"
-          className="models-button"
-          onClick={() => {
-            post({ type: 'providers/wizard', event: 'back' })
-          }}
-        >
-          {UI_TEXT.wizardBack}
-        </button>
+      <StepActions draft={draft} post={post} onClose={onClose}>
         <button
           type="button"
           className="models-button-primary"
@@ -877,10 +892,7 @@ function ConfirmStep({
         >
           {UI_TEXT.saveAndUseNow}
         </button>
-        <button type="button" className="models-button" onClick={cancelWizard(post, onClose)}>
-          {UI_TEXT.wizardCancel}
-        </button>
-      </div>
+      </StepActions>
     </div>
   )
 }

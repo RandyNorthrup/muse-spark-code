@@ -12,6 +12,7 @@ import type { ProvidersHost } from '../../src/host/providers/providersHost'
 import type { ProviderEntry } from '../../src/host/providers/providerPorts'
 import { scannedTwoModels, TEST_ENTRY, testProvidersHost, testRow } from './helpers/m95kFixtures'
 import { memoryProvidersStore, memorySessionBudgetConfig } from './helpers/fakes'
+import { scriptedUi } from './helpers/providerQuickPickScript'
 
 const GROQ_ENTRY: ProviderEntry = {
   id: 'groq',
@@ -21,37 +22,25 @@ const GROQ_ENTRY: ProviderEntry = {
   models: [],
 }
 
-interface Script {
-  readonly pickOne?: (string | undefined)[]
-  readonly pickMany?: (readonly string[] | undefined)[]
-  readonly inputText?: (string | undefined)[]
-  readonly confirmSave?: boolean[]
+/** OpenRouter saved with `m1` as its default and the spending limit untouched. */
+const OPENROUTER_ADDED = {
+  providerId: 'openrouter',
+  modelRef: 'openrouter/m1',
+  sessionBudgetUsd: undefined,
 }
 
-function scriptedUi(script: Script): ProviderQuickPickUi & {
-  readonly errors: string[]
-  readonly notices: string[]
-} {
-  const errors: string[] = []
-  const notices: string[] = []
-  const pickOne = [...(script.pickOne ?? [])]
-  const pickMany = [...(script.pickMany ?? [])]
-  const inputText = [...(script.inputText ?? [])]
-  const confirmSave = [...(script.confirmSave ?? [])]
-  return {
-    errors,
-    notices,
-    pickOne: () => Promise.resolve(pickOne.shift()),
-    pickMany: () => Promise.resolve(pickMany.shift()),
-    inputText: () => Promise.resolve(inputText.shift()),
-    confirmSave: () => Promise.resolve(confirmSave.shift() ?? false),
-    showError: (message) => {
-      errors.push(message)
-    },
-    showNotice: (message) => {
-      notices.push(message)
-    },
-  }
+/** Runs the quick pick against a fresh, untouched spending limit. */
+function runQuickPick(
+  providers: ProvidersHost,
+  ui: ProviderQuickPickUi,
+  isRemote = false,
+): ReturnType<typeof runAddProviderQuickPick> {
+  return runAddProviderQuickPick({
+    providers,
+    isRemote,
+    ui,
+    sessionBudget: memorySessionBudgetConfig(),
+  })
 }
 
 function suggestiveHost(): { readonly providers: ProvidersHost; readonly composed: string[] } {
@@ -86,12 +75,7 @@ describe('runAddProviderQuickPick', () => {
       pickMany: [['m1']],
       confirmSave: [false],
     })
-    await runAddProviderQuickPick({
-      providers,
-      isRemote: false,
-      ui,
-      sessionBudget: memorySessionBudgetConfig(),
-    })
+    await runQuickPick(providers, ui)
     expect(fetchModels).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'openrouter' }),
       'draft-key',
@@ -107,17 +91,8 @@ describe('runAddProviderQuickPick', () => {
       inputText: ['0'],
       confirmSave: [true],
     })
-    const outcome = await runAddProviderQuickPick({
-      providers,
-      isRemote: false,
-      ui,
-      sessionBudget: memorySessionBudgetConfig(),
-    })
-    expect(outcome).toEqual({
-      providerId: 'openrouter',
-      modelRef: 'openrouter/m1',
-      sessionBudgetUsd: undefined,
-    })
+    const outcome = await runQuickPick(providers, ui)
+    expect(outcome).toEqual(OPENROUTER_ADDED)
     expect(composed).toEqual(['openrouter/m1'])
     expect(ui.notices.at(-1)).toContain('openrouter/m1')
   })
@@ -145,17 +120,8 @@ describe('runAddProviderQuickPick', () => {
       inputText: ['0'],
       confirmSave: [true],
     })
-    const outcome = await runAddProviderQuickPick({
-      providers,
-      isRemote: false,
-      ui,
-      sessionBudget: memorySessionBudgetConfig(),
-    })
-    expect(outcome).toEqual({
-      providerId: 'openrouter',
-      modelRef: 'openrouter/m1',
-      sessionBudgetUsd: undefined,
-    })
+    const outcome = await runQuickPick(providers, ui)
+    expect(outcome).toEqual(OPENROUTER_ADDED)
   })
 
   it('takes the pasted code in a remote window', async () => {
@@ -172,17 +138,8 @@ describe('runAddProviderQuickPick', () => {
       inputText: ['0'],
       confirmSave: [true],
     })
-    const outcome = await runAddProviderQuickPick({
-      providers,
-      isRemote: true,
-      ui,
-      sessionBudget: memorySessionBudgetConfig(),
-    })
-    expect(outcome).toEqual({
-      providerId: 'openrouter',
-      modelRef: 'openrouter/m1',
-      sessionBudgetUsd: undefined,
-    })
+    const outcome = await runQuickPick(providers, ui, true)
+    expect(outcome).toEqual(OPENROUTER_ADDED)
   })
 
   it('writes nothing when cancelled at any step', async () => {
@@ -190,14 +147,7 @@ describe('runAddProviderQuickPick', () => {
     vi.mocked(window.showInputBox).mockResolvedValue('sk-or-pasted')
     // Cancel at the provider pick.
     const ui = scriptedUi({ pickOne: [undefined] })
-    await expect(
-      runAddProviderQuickPick({
-        providers,
-        isRemote: false,
-        ui,
-        sessionBudget: memorySessionBudgetConfig(),
-      }),
-    ).resolves.toBeUndefined()
+    await expect(runQuickPick(providers, ui)).resolves.toBeUndefined()
     // Cancel at the save confirm, after doing everything else.
     const late = scriptedUi({
       pickOne: ['openrouter', 'paste', 'accept'],
@@ -205,14 +155,7 @@ describe('runAddProviderQuickPick', () => {
       inputText: ['0'],
       confirmSave: [false],
     })
-    await expect(
-      runAddProviderQuickPick({
-        providers,
-        isRemote: false,
-        ui: late,
-        sessionBudget: memorySessionBudgetConfig(),
-      }),
-    ).resolves.toBeUndefined()
+    await expect(runQuickPick(providers, late)).resolves.toBeUndefined()
     expect(await providers.providers()).toEqual([GROQ_ENTRY])
   })
 
@@ -222,25 +165,11 @@ describe('runAddProviderQuickPick', () => {
     })
     vi.mocked(window.showInputBox).mockResolvedValue('sk-or-pasted')
     const ui = scriptedUi({ pickOne: ['openrouter', 'paste'] })
-    await expect(
-      runAddProviderQuickPick({
-        providers: refused.providers,
-        isRemote: false,
-        ui,
-        sessionBudget: memorySessionBudgetConfig(),
-      }),
-    ).resolves.toBeUndefined()
+    await expect(runQuickPick(refused.providers, ui)).resolves.toBeUndefined()
     expect(ui.errors).toHaveLength(1)
     const empty = testProvidersHost({})
     const ui2 = scriptedUi({ pickOne: ['openrouter', 'paste'], pickMany: [[]] })
-    await expect(
-      runAddProviderQuickPick({
-        providers: empty.providers,
-        isRemote: false,
-        ui: ui2,
-        sessionBudget: memorySessionBudgetConfig(),
-      }),
-    ).resolves.toBeUndefined()
+    await expect(runQuickPick(empty.providers, ui2)).resolves.toBeUndefined()
     expect(await empty.providers.providers()).toEqual([TEST_ENTRY])
   })
 
@@ -249,14 +178,7 @@ describe('runAddProviderQuickPick', () => {
       deps: { policy: { check: () => ({ kind: 'refused', detail: 'nope' }) } },
     })
     const ui = scriptedUi({ pickOne: ['ollama'], inputText: ['https://lan.example'] })
-    await expect(
-      runAddProviderQuickPick({
-        providers: bad.providers,
-        isRemote: false,
-        ui,
-        sessionBudget: memorySessionBudgetConfig(),
-      }),
-    ).resolves.toBeUndefined()
+    await expect(runQuickPick(bad.providers, ui)).resolves.toBeUndefined()
     expect(ui.errors).toHaveLength(1)
   })
 
@@ -293,12 +215,7 @@ describe('runAddProviderQuickPick', () => {
       inputText: ['https://llm.example', '128000', '4000', '0'],
       confirmSave: [true],
     })
-    const outcome = await runAddProviderQuickPick({
-      providers,
-      isRemote: false,
-      ui,
-      sessionBudget: memorySessionBudgetConfig(),
-    })
+    const outcome = await runQuickPick(providers, ui)
     expect(outcome).toEqual({
       providerId: 'custom',
       modelRef: 'custom/m1',
