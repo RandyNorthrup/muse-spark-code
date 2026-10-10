@@ -574,6 +574,73 @@ describe('Model API argument preview admission', () => {
     }
   })
 
+  it('renders no text for a catalogued MCP tool the request never offered', async () => {
+    // RVCM1062C P2: get_weather is declared in the MCP catalogue, but the
+    // untrusted workspace keeps MCP (and the shell) out of this request's
+    // tool list. The streamed call still opens a row for its byte count,
+    // yet its declared city/unit fields must never render as text.
+    const args = JSON.stringify({ city: 'Oslo', unit: 'celsius' })
+    const weather = {
+      ...fakeMcpSource([]),
+      definitions: () => [
+        {
+          type: 'function' as const,
+          name: 'mcp__weather__get_weather',
+          description: 'the weather',
+          parameters: {
+            type: 'object',
+            properties: { city: { type: 'string' }, unit: { type: 'string' } },
+            required: ['city'],
+          },
+          strict: false,
+        },
+      ],
+    }
+    const h = await setup({ isWorkspaceTrusted: () => false, mcpServers: weather })
+    const bodies: string[] = []
+    const gate = Promise.withResolvers<undefined>()
+    const reached = Promise.withResolvers<undefined>()
+    let attempt = 0
+    const call: FunctionCallItem = {
+      type: 'function_call',
+      id: 'wire-weather',
+      call_id: 'weather-1',
+      name: 'mcp__weather__get_weather',
+      arguments: args,
+    }
+    vi.spyOn(h.client, 'streamResponse').mockImplementation(async function* (body) {
+      bodies.push(JSON.stringify(body))
+      attempt += 1
+      if (attempt > 1) {
+        yield terminal([])
+        return
+      }
+      yield { type: 'response.output_item.added', item: { ...call, arguments: '' } }
+      yield { type: 'response.function_call_arguments.delta', item_id: 'wire-weather', delta: args }
+      reached.resolve(undefined)
+      await gate.promise
+      yield terminal([])
+    })
+    const done = h.turnDone()
+    try {
+      await h.session.sendTurn(WRITE_PROMPT)
+      await reached.promise
+      // The premise: this request offered no weather tool.
+      expect(JSON.stringify(bodies)).not.toContain('get_weather')
+      const preview = previewEvents(h.events).at(-1)?.item.argumentPreview
+      expect(preview?.text).toBe('')
+      expect(preview?.bytes).toBe(Buffer.byteLength(args))
+      expect(JSON.stringify(previewEvents(h.events))).not.toContain('Oslo')
+      expect(JSON.stringify(previewEvents(h.events))).not.toContain('celsius')
+      await h.session.cancel()
+      gate.resolve(undefined)
+      await done
+    } finally {
+      gate.resolve(undefined)
+      await h.host.close()
+    }
+  })
+
   it('displays completed shell commands after M84 scrubbing through every surface', async () => {
     const h = await setup()
     const command = 'echo safe; echo LLM_' + 'x'.repeat(24)
