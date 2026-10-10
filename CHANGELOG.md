@@ -39,6 +39,45 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **Credential vault: protocol v2, setup and recovery underneath** (M109,
+  C-M109-1). The vault still refuses every use with "The broker cannot
+  start…" until its broker process and per-OS connections are installed;
+  nothing new appears on screen yet. Underneath:
+  - The broker protocol moves to v2. It adds management requests (snapshot,
+    edit, remove, import, public key) and pushed lock, revoke, approval and
+    change events. Item values travel only in private frames.
+  - Grants live inside the encrypted vault (store format 2), and their use
+    counts are spent under the vault's cross-process writer lock.
+  - The rollback anchor is one record in the operating system's credential
+    store.
+  - Setup shows a one-time recovery code and writes nothing until you confirm
+    you saved it, in the agent's terminal (`vault setup`, `vault recover`)
+    and as **Set Up Vault** in the vault section.
+  - `dist/vaultRuntime.js` carries the vault for the ACP agent, the CLI and
+    headless runs, without `vscode`.
+  - The SecretStorage slot is dropped for the OS-store slot every editor
+    shares.
+  - On macOS, Touch ID (Keychain biometry) unlock is not offered: it needs an
+    Apple Developer ID.
+  - Review repairs (RVCM1091A):
+    - A setup confirmation keeps its key even if the setup window expires
+      meanwhile.
+    - Grant, item and metadata writes check their authority, the vault's lock
+      and the item's presence at the moment they commit, so nothing retired
+      or removed comes back after recovery.
+    - A new grant is no longer treated as revoked.
+    - A failed event stream is reported (`vault watch` exits 1) and retried.
+    - A cancelled watcher closes its late connection.
+    - The Windows contract requires a native check that the pipe's server
+      runs as the same user.
+  - Review repairs (RVCM1091B, part A):
+    - Lock now erases an unconfirmed setup and any recovery key.
+    - Recovery while unlocked unwraps nothing.
+    - A setup interrupted by a transient store failure completes when you
+      confirm again; an abandoned one no longer blocks a new setup.
+    - When the operating system's credential store is unavailable, the vault
+      now says how to make it available, in every language, instead of
+      "No access".
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did

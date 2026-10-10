@@ -16,7 +16,8 @@ import { UI_TEXT } from '../../shared/constants'
 /** C/B/P/M bind these operations to the real broker and single writer. No values cross the panel. */
 export interface VaultPanelService {
   snapshot(): Promise<unknown>
-  subscribe(changed: (event: unknown) => void): () => void
+  /** `failed` reports a watch that cannot be (re)opened, once per outage. */
+  subscribe(changed: (event: unknown) => void, failed: () => void): () => void
   unlock(authorize: () => void): Promise<void>
   lock(): Promise<void>
   /** Invoke authorize after all awaits, immediately before the physical commit. */
@@ -26,9 +27,13 @@ export interface VaultPanelService {
   grant(grant: VaultGrant, authorize: () => void): Promise<void>
   revoke(grantId: string): Promise<void>
   /** B consumes the answer and delivers any ticket privately to the waiting use route. */
-  answer(answer: VaultApprovalAnswer): Promise<void>
+  answer(answer: VaultApprovalAnswer, authorize: () => void): Promise<void>
   /** M imports only the selected path; never another application's private store. */
   importFile(path: string, authorize: () => void): Promise<void>
+  /** Set Up Vault: the one-time code as owned bytes; nothing is written before confirmSetup. */
+  setup(): Promise<{ setupId: string; code: Buffer }>
+  confirmSetup(setupId: string, authorize: () => void): Promise<void>
+  cancelSetup(setupId: string): Promise<void>
 }
 export interface VaultPanelHostDeps {
   readonly service: VaultPanelService
@@ -43,6 +48,8 @@ export interface VaultPanelHostDeps {
   readonly publish: (message: ReturnType<typeof vaultHostMessageSchema.parse>) => void
   readonly status: (isUnlocked: boolean) => void
   readonly showError: (message: string) => void
+  /** The host's own modal with Copy and I Saved It; true only for I Saved It. */
+  readonly showRecoveryCode: (code: string, signal: AbortSignal) => Promise<boolean>
 }
 
 function wipe(item: VaultItem): void {
@@ -63,52 +70,58 @@ export class VaultPanelHost {
   private readonly unsubscribe: () => void
 
   constructor(private readonly deps: VaultPanelHostDeps) {
-    this.unsubscribe = deps.service.subscribe((raw) => {
-      const parsed = vaultPanelChangeSchema.safeParse(raw)
-      if (!parsed.success || this.disposed) return
-      const event = parsed.data
-      // Approval cards never wait behind native editors: a held password
-      // box must not starve another requester's expiring card.
-      if (event.kind === 'approval') {
-        this.refreshNow()
-        return
-      }
-      // Metadata changes retire older native editors too: a draft finished
-      // after another window's change must not restore the older policy.
-      if (['locked', 'revoked', 'changed'].includes(event.kind)) {
-        if (
-          event.kind === 'locked' &&
-          this.state !== undefined &&
-          event.lockEpoch < this.state.status.lockEpoch
-        )
+    this.unsubscribe = deps.service.subscribe(
+      (raw) => {
+        const parsed = vaultPanelChangeSchema.safeParse(raw)
+        if (!parsed.success || this.disposed) return
+        const event = parsed.data
+        // Approval cards never wait behind native editors: a held password
+        // box must not starve another requester's expiring card.
+        if (event.kind === 'approval') {
+          this.refreshNow()
           return
-        this.generation += 1
-        this.cancellation.abort()
-        this.cancellation = new AbortController()
-        this.queue = Promise.resolve()
-        if (event.kind === 'locked') {
-          this.lockRequested = true
-          this.answered.clear()
-          if (this.state !== undefined) {
-            this.state = {
-              ...this.state,
-              status: {
-                ...this.state.status,
-                state: 'locked',
-                reason: 'locked',
-                lockEpoch: event.lockEpoch,
-              },
-              pending: [],
-            }
-            this.deps.publish(
-              vaultHostMessageSchema.parse({ type: 'vaultState', state: this.state }),
-            )
-          }
-          this.deps.status(false)
         }
-      }
-      void this.refresh()
-    })
+        // Metadata changes retire older native editors too: a draft finished
+        // after another window's change must not restore the older policy.
+        if (['locked', 'revoked', 'changed'].includes(event.kind)) {
+          if (
+            event.kind === 'locked' &&
+            this.state !== undefined &&
+            event.lockEpoch < this.state.status.lockEpoch
+          )
+            return
+          this.generation += 1
+          this.cancellation.abort()
+          this.cancellation = new AbortController()
+          this.queue = Promise.resolve()
+          if (event.kind === 'locked') {
+            this.lockRequested = true
+            this.answered.clear()
+            if (this.state !== undefined) {
+              this.state = {
+                ...this.state,
+                status: {
+                  ...this.state.status,
+                  state: 'locked',
+                  reason: 'locked',
+                  lockEpoch: event.lockEpoch,
+                },
+                pending: [],
+              }
+              this.deps.publish(
+                vaultHostMessageSchema.parse({ type: 'vaultState', state: this.state }),
+              )
+            }
+            this.deps.status(false)
+          }
+        }
+        void this.refresh()
+      },
+      () => {
+        // The broker's event stream is down: say so once, never stay silent (F7).
+        if (!this.disposed) this.deps.showError(UI_TEXT.vault.operationFailed)
+      },
+    )
   }
 
   /** Late completions after disposal report nothing: there is no window left. */
@@ -219,6 +232,40 @@ export class VaultPanelHost {
         await this.load(generation)
         return
       }
+      if (message.type === 'vaultSetup') {
+        const current = await this.load(generation)
+        if (current.status.state !== 'uncreated') throw new Error(UI_TEXT.vault.setupExists)
+        const shown = await this.deps.service.setup()
+        try {
+          const isSaved = await this.deps.showRecoveryCode(
+            shown.code.toString('ascii'),
+            this.cancellation.signal,
+          )
+          if (isSaved) {
+            try {
+              this.authorize(generation)
+              await this.deps.service.confirmSetup(shown.setupId, () => {
+                this.authorize(generation)
+              })
+            } catch (error: unknown) {
+              // A refused confirmation never leaves this setup waiting out its
+              // window: it is withdrawn, so Set Up Vault can start again.
+              try {
+                await this.deps.service.cancelSetup(shown.setupId)
+              } catch {
+                /* Already created, expired or withdrawn: nothing is left to cancel. */
+              }
+              throw error
+            }
+          } else {
+            await this.deps.service.cancelSetup(shown.setupId)
+          }
+        } finally {
+          shown.code.fill(0)
+        }
+        await this.load(generation)
+        return
+      }
       if (message.type === 'vaultUnlock') {
         await this.deps.service.unlock(() => {
           this.authorize(generation)
@@ -304,7 +351,7 @@ export class VaultPanelHost {
             throw new Error(UI_TEXT.vault.useChanged)
           authorize()
           this.answered.add(message.answer.requestId)
-          await this.deps.service.answer(message.answer)
+          await this.deps.service.answer(message.answer, authorize)
           break
         }
         case 'vaultPublicKey': {

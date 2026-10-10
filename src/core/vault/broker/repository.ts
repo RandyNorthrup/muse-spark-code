@@ -12,7 +12,11 @@ import {
 import { type vaultPrivateReadSchema } from '../../../shared/vaultProtocol'
 import { VaultError } from '../crypto'
 import { VaultStore, type VaultFilePort, type VaultGenerationPort } from '../store'
-import { type VaultBrokerRepository, type VaultUnlockPort } from './ports'
+import {
+  VaultStoreUnavailableError,
+  type VaultBrokerRepository,
+  type VaultUnlockPort,
+} from './ports'
 
 /** The anchor also names the one vault this user owns (lead decision 3). */
 export interface VaultAnchorPort extends VaultGenerationPort {
@@ -25,10 +29,20 @@ type RepositoryChange = Parameters<Parameters<VaultBrokerRepository['subscribe']
 export class VaultStoreRepository implements VaultBrokerRepository {
   private store: VaultStore | undefined
   private readonly listeners = new Set<(change: RepositoryChange) => void>()
+  private readonly committed = new Set<() => void>()
   constructor(
     private readonly files: VaultFilePort,
     private readonly anchor: VaultAnchorPort,
   ) {}
+  private notifyCommitted(): void {
+    for (const listener of this.committed) {
+      try {
+        listener()
+      } catch {
+        /* One failing view cannot hide the change from the rest. */
+      }
+    }
+  }
   async open(key: Uint8Array): Promise<VaultStore> {
     const vaultId = await this.anchor.vaultId()
     if (vaultId === null) throw new VaultError('invalid')
@@ -47,11 +61,14 @@ export class VaultStoreRepository implements VaultBrokerRepository {
   }
   async saveGrant(grant: VaultGrant, authorize: () => void): Promise<void> {
     await this.current().saveGrant(grant, authorize)
-    this.notify({ kind: 'grant', id: grant.id })
+    // A new grant revokes nothing: subscribe() carries revocations only, which
+    // the broker applies as revoked (RVCM1091A F3). Views still hear of it.
+    this.notifyCommitted()
   }
   async removeGrant(id: string): Promise<void> {
     await this.current().removeGrant(id)
     this.notify({ kind: 'grant', id })
+    this.notifyCommitted()
   }
   async consumeGrant(id: string, now: number): Promise<boolean> {
     return await this.current().consumeGrant(id, now)
@@ -62,7 +79,14 @@ export class VaultStoreRepository implements VaultBrokerRepository {
       this.listeners.delete(listener)
     }
   }
-  /** Committed item or grant changes; each listener is isolated from the others. */
+  /** Every committed grant change, for views; never a revocation signal. */
+  subscribeCommitted(listener: () => void): () => void {
+    this.committed.add(listener)
+    return () => {
+      this.committed.delete(listener)
+    }
+  }
+  /** Revocations and policy changes the broker must apply; each listener is isolated. */
   notify(change: RepositoryChange): void {
     for (const listener of this.listeners) {
       try {
@@ -98,6 +122,10 @@ export class VaultSlotUnlock implements VaultUnlockPort {
     private readonly provider: VaultSlotProvider,
   ) {}
   /** The recovery code's unwrapped key, consumed by the very next unlock of that slot. */
+  discardRecovery(): void {
+    this.recovery?.key.fill(0)
+    this.recovery = null
+  }
   offerRecovery(slotId: string, key: Buffer): void {
     this.recovery?.key.fill(0)
     this.recovery = { slotId, key }
@@ -123,16 +151,19 @@ export class VaultSlotUnlock implements VaultUnlockPort {
         slotId === null
           ? SILENT_TIERS.flatMap((tier) => records.filter((record) => record.tier === tier))
           : records.filter((record) => record.id === slotId && record.tier !== 'recovery')
+      let isStoreUnavailable = false
       for (const slot of candidates) {
         const port = this.provider.slotFor(slot)
         if (port === null) continue
         try {
           return { key: await port.unwrap(slot, 'unlock'), slot }
-        } catch {
+        } catch (error: unknown) {
           // Another slot may still unlock (a lost TPM falls back to the OS store).
+          if (error instanceof VaultStoreUnavailableError) isStoreUnavailable = true
         }
       }
-      throw new Error(UI_TEXT.vault.locked)
+      // An unusable OS store keeps its fixed repair reason (RVCM1091B 4).
+      throw isStoreUnavailable ? new VaultStoreUnavailableError() : new Error(UI_TEXT.vault.locked)
     } finally {
       offered?.key.fill(0)
     }

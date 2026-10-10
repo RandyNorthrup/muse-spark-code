@@ -1,6 +1,14 @@
 import * as z from 'zod/mini'
 import { VAULT_LIMITS, VAULT_PROTOCOL_VERSION, VAULT_RECOVERY_BYTES } from './constants'
 import {
+  vaultBrokerEventSchema,
+  vaultStatusSchema,
+  vaultWireCounter,
+  vaultWireId,
+  vaultWireText,
+  type VaultStatus,
+} from './vaultStatus'
+import {
   vaultApprovalAnswerSchema,
   vaultApprovalRequestSchema,
   vaultAuditRecordSchema,
@@ -20,40 +28,21 @@ import {
   type VaultUse,
 } from './vault'
 
-const id = z.string().check(z.regex(/^[a-f0-9]{32}$/u))
+const id = vaultWireId
 const digest = z.string().check(z.regex(/^[a-f0-9]{64}$/u))
-const text = z
-  .string()
-  .check(z.minLength(1), z.maxLength(VAULT_LIMITS.text), z.regex(/^[^\0\r\n]*$/u))
-const counter = z.number().check(z.int(), z.nonnegative())
+const text = vaultWireText
+const counter = vaultWireCounter
 const handle = z.string().check(z.regex(/^secret:\/\/[a-z][a-z0-9-]{0,47}$/u))
 const publicItem = vaultItemMetadataSchema.check(
   z.refine((v) => !v.hidden && !v.firstParty && !['devicePair', 'internal'].includes(v.kind)),
 )
 
-export const vaultStatusSchema = z.strictObject({
-  // v2: `uncreated` until Set Up Vault; `setupPending` while the one-time
-  // recovery code waits for "I Saved It" (nothing is written before that).
-  state: z.enum([
-    'uncreated',
-    'setupPending',
-    'locked',
-    'unlocked',
-    'unavailable',
-    'firstPartyOnly',
-  ]),
-  lockEpoch: counter,
-  tier: z.nullable(
-    z.enum(['hardware', 'presence', 'osStore', 'secretStorage', 'passphrase', 'recovery']),
-  ),
-  provider: z.nullable(text),
-  silentUnlock: z.boolean(),
-  itemCount: counter,
-  reason: z.nullable(
-    z.enum(['brokerBlocked', 'slotUnavailable', 'basicText', 'rollback', 'auditInvalid', 'locked']),
-  ),
-})
-export type VaultStatus = z.infer<typeof vaultStatusSchema>
+export {
+  vaultStatusSchema,
+  vaultBrokerEventSchema,
+  type VaultStatus,
+  type VaultBrokerEvent,
+} from './vaultStatus'
 
 /** v2 `snapshot`: the value-free management view (every item, grants, pending cards). */
 export const vaultBrokerSnapshotSchema = z.strictObject({
@@ -201,33 +190,21 @@ export const vaultBrokerResponseSchema = z.strictObject({
     // A refused management call names why, without exception text.
     z.strictObject({
       kind: z.literal('refused'),
-      reason: z.enum(['locked', 'uncreated', 'exists', 'busy', 'invalid', 'rollback', 'io']),
+      reason: z.enum([
+        'locked',
+        'uncreated',
+        'exists',
+        'busy',
+        'invalid',
+        'rollback',
+        'io',
+        'storeUnavailable',
+      ]),
     }),
   ]),
 })
 export type VaultBrokerResponse = z.infer<typeof vaultBrokerResponseSchema>
 
-export const vaultBrokerEventSchema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal('locked'),
-    v: z.literal(VAULT_PROTOCOL_VERSION),
-    lockEpoch: counter,
-  }),
-  z.strictObject({
-    kind: z.literal('revoked'),
-    v: z.literal(VAULT_PROTOCOL_VERSION),
-    requesterId: id,
-    grantId: z.nullable(id),
-  }),
-  z.strictObject({
-    kind: z.literal('approval'),
-    v: z.literal(VAULT_PROTOCOL_VERSION),
-    request: vaultApprovalRequestSchema,
-  }),
-  // v2: an item, grant, slot or setup change committed by any window or the CLI.
-  z.strictObject({ kind: z.literal('changed'), v: z.literal(VAULT_PROTOCOL_VERSION) }),
-])
-export type VaultBrokerEvent = z.infer<typeof vaultBrokerEventSchema>
 /** v2 `watch`: pushed frames carry no sequence, so they never answer a request. */
 export const vaultBrokerEventFrameSchema = z.strictObject({
   v: z.literal(VAULT_PROTOCOL_VERSION),

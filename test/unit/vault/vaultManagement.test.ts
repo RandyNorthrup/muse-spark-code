@@ -1,22 +1,18 @@
 import { describe, expect, it, vi } from 'vitest'
 import { randomBytes } from 'node:crypto'
 import { VAULT_APPROVAL_TTL_MS, KEYRING_SERVICE } from '../../../src/shared/constants'
-import { type VaultSlotRecord } from '../../../src/shared/vault'
-import { type VaultStatus } from '../../../src/shared/vaultProtocol'
 import { VaultStore } from '../../../src/core/vault/store'
 import { VaultError } from '../../../src/core/vault/crypto'
-import { VaultManagementError } from '../../../src/core/vault/broker/ports'
-import { VaultManagement } from '../../../src/core/vault/broker/management'
 import {
-  VaultSlotUnlock,
-  VaultStoreRepository,
-  type VaultAnchorPort,
-} from '../../../src/core/vault/broker/repository'
+  VaultManagementError,
+  VaultStoreUnavailableError,
+} from '../../../src/core/vault/broker/ports'
+import type { VaultManagement } from '../../../src/core/vault/broker/management'
 import { KeyringVaultAnchor, VAULT_ANCHOR_ACCOUNT } from '../../../src/runtime/vault/keyringAnchor'
 import { type KeyringEntryFactory } from '../../../src/runtime/keyStore'
-import { FakeVaultClock, FakeVaultSlot } from '../helpers/vault/core'
 import { approval, grant, metadata } from '../helpers/vault/fixtures'
-import { MemoryVaultFiles, MemoryVaultAnchor, freshVault } from './storeFixtures'
+import { freshVault } from './storeFixtures'
+import { lockedVault, managementFixture, stateOf } from './managementFixture'
 
 /** The OS store as a map; values are generated anchor records, never credentials. */
 function memoryKeyring() {
@@ -31,29 +27,6 @@ function memoryKeyring() {
   })
   return { entries, factory }
 }
-class AnchorWithId extends MemoryVaultAnchor implements VaultAnchorPort {
-  vaultId(): Promise<string | null> {
-    const [first] = this.states.keys()
-    return Promise.resolve(first ?? null)
-  }
-}
-const lockedStatus: VaultStatus = {
-  state: 'locked',
-  lockEpoch: 0,
-  tier: null,
-  provider: null,
-  silentUnlock: true,
-  itemCount: 0,
-  reason: null,
-}
-
-const noUnsubscribe = (): void => {
-  /* The fake platform reports no screen lock. */
-}
-async function stateOf(management: VaultManagement): Promise<string> {
-  const snapshot = await management.snapshot()
-  return snapshot.status.state
-}
 async function itemsOf(management: VaultManagement) {
   const snapshot = await management.snapshot()
   return snapshot.items
@@ -63,54 +36,6 @@ async function confirmNew(management: VaultManagement): Promise<void> {
   shown.code.fill(0)
   await management.confirmSetup(shown.setupId)
 }
-function managementFixture() {
-  const clock = new FakeVaultClock()
-  const files = new MemoryVaultFiles()
-  const anchor = new AnchorWithId()
-  const repository = new VaultStoreRepository(files, anchor)
-  const osStore = new FakeVaultSlot('osStore')
-  const slots = {
-    slotFor: (record: VaultSlotRecord) => (record.tier === 'osStore' ? osStore : null),
-    osStore: (vaultId: string, slotId: string) => ({
-      tier: 'osStore' as const,
-      wrap: async (key: Uint8Array) => {
-        const record = await osStore.wrap(key)
-        return { ...record, vaultId, id: slotId }
-      },
-      unwrap: (slot: VaultSlotRecord, use: string) => osStore.unwrap(slot, use),
-    }),
-    presence: () => Promise.resolve(false),
-    onScreenLock: () => noUnsubscribe,
-  }
-  const unlock = new VaultSlotUnlock(files, anchor, slots)
-  let status: VaultStatus = { ...lockedStatus }
-  const broker = {
-    status: vi.fn(() => Promise.resolve(status)),
-    unlock: vi.fn(async (slotId: string | null) => {
-      const { key } = await unlock.unlock(slotId)
-      try {
-        await repository.open(key)
-      } finally {
-        key.fill(0)
-      }
-      status = { ...status, state: 'unlocked', tier: 'osStore' }
-    }),
-    policyChanged: vi.fn(() => Promise.resolve()),
-  }
-  const importFile = vi.fn(() => Promise.resolve())
-  const management = new VaultManagement({
-    files,
-    anchor,
-    repository,
-    unlock,
-    slots,
-    broker,
-    clock,
-    importFile,
-  })
-  return { clock, files, anchor, repository, osStore, unlock, broker, management, importFile }
-}
-
 describe('C-M109-1 store v2 grants', () => {
   it('saves, spends to its limit, refuses an unknown item and drops grants with their item', async () => {
     const { store } = await freshVault()
@@ -172,13 +97,13 @@ describe('C-M109-1 keyring rollback anchor', () => {
     keyring.entries.set(`${KEYRING_SERVICE}/${VAULT_ANCHOR_ACCOUNT}`, '{"v":1}')
     await expect(anchor.minimum(vaultId)).rejects.toMatchObject({ code: 'rollback' })
   })
-  it('reports an unusable OS store as io, never as no history', async () => {
+  it('reports an unusable OS store as its fixed repair, never as no history (RVCM1091B 4)', async () => {
     const anchor = new KeyringVaultAnchor(() => ({
       getPassword: () => Promise.reject(new Error('generated store failure')),
       setPassword: () => Promise.reject(new Error('generated store failure')),
       deletePassword: () => Promise.reject(new Error('generated store failure')),
     }))
-    await expect(anchor.vaultId()).rejects.toMatchObject({ code: 'io' })
+    await expect(anchor.vaultId()).rejects.toBeInstanceOf(VaultStoreUnavailableError)
   })
 })
 
@@ -272,10 +197,7 @@ describe('C-M109-1 setup flow and management', () => {
   })
   it('recovers through the recovery code when the OS-store slot is lost, and refuses a wrong code', async () => {
     const f = managementFixture()
-    const shown = await f.management.setup()
-    const code = Buffer.from(shown.code)
-    await f.management.confirmSetup(shown.setupId)
-    f.repository.current().lock()
+    const code = await lockedVault(f)
     f.osStore.lost = true
     await expect(f.unlock.unlock(null)).rejects.toThrow()
     const wrong = Buffer.from('0'.repeat(40), 'ascii')
@@ -285,6 +207,21 @@ describe('C-M109-1 setup flow and management', () => {
     await f.management.recover(code)
     expect(f.broker.unlock).toHaveBeenLastCalledWith(recoveryId)
     expect(await stateOf(f.management)).toBe('unlocked')
+    code.fill(0)
+  })
+  it('erases the recovered key when the broker refuses the unlock', async () => {
+    const f = managementFixture()
+    const code = await lockedVault(f)
+    const offered: Buffer[] = []
+    const offer = f.unlock.offerRecovery.bind(f.unlock)
+    vi.spyOn(f.unlock, 'offerRecovery').mockImplementation((slotId, key) => {
+      offered.push(key)
+      offer(slotId, key)
+    })
+    f.broker.unlock.mockRejectedValueOnce(new Error('generated broker refusal'))
+    await expect(f.management.recover(code)).rejects.toThrow('generated broker refusal')
+    expect(offered).toHaveLength(1)
+    expect(offered[0]?.every((byte) => byte === 0)).toBe(true)
     code.fill(0)
   })
   it('lists pending approvals until they expire or the vault locks', async () => {

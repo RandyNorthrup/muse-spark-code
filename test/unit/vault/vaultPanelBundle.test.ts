@@ -1,6 +1,6 @@
 // W's lazy dist/vault.js boundary (PLAN.md D6): the loader refuses a missing
 // or malformed module with `vault.brokerBlocked`, the window commands refuse
-// closed while the broker-backed service is missing (never an empty vault),
+// closed while the panel binding is missing (never an empty vault),
 // and a working bundle's controls are built once and delegated to.
 
 import { describe, expect, it, vi } from 'vitest'
@@ -13,32 +13,15 @@ import {
   type VaultControlsDeps,
   type VaultWindowControls,
 } from '../../../src/host/vault/vaultPanelBundle'
-import type { VaultPanelService } from '../../../src/host/vault/vaultPanelHost'
 import { UI_TEXT } from '../../../src/shared/constants'
 import { uiLocale } from '../../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from '../helpers/fakes'
-
-function service(): VaultPanelService {
-  return {
-    snapshot: vi.fn(() => Promise.reject(new Error('unused'))),
-    subscribe: vi.fn(() => vi.fn()),
-    unlock: vi.fn(() => Promise.reject(new Error('unused'))),
-    lock: vi.fn(() => Promise.resolve()),
-    write: vi.fn(() => Promise.reject(new Error('unused'))),
-    updateMetadata: vi.fn(() => Promise.reject(new Error('unused'))),
-    remove: vi.fn(() => Promise.reject(new Error('unused'))),
-    grant: vi.fn(() => Promise.reject(new Error('unused'))),
-    revoke: vi.fn(() => Promise.resolve()),
-    answer: vi.fn(() => Promise.resolve()),
-    importFile: vi.fn(() => Promise.reject(new Error('unused'))),
-  }
-}
 
 function deps(overrides?: Partial<VaultControlsDeps>): VaultControlsDeps {
   return {
     bundlePath: '/dist/vault.js',
     log: new FakeLogOutputChannel(),
-    service: service(),
+    distDir: '/dist',
     ...overrides,
   }
 }
@@ -125,21 +108,17 @@ describe('vaultBundleLoader', () => {
 })
 
 describe('loadVaultControls', () => {
-  it('refuses closed while the broker-backed service is missing', () => {
+  it('refuses closed while the panel binding is missing', () => {
     const log = new FakeLogOutputChannel()
     const loadBundle = vi.fn(() => {
       throw new Error('must not be reached')
     })
-    const connectMissing = vi.fn(() => {
-      throw new Error('must not be reached')
-    })
-    expect(() =>
-      loadVaultControls(deps({ log, loadBundle, service: undefined }), connectMissing),
-    ).toThrow(UI_TEXT.vault.brokerBlocked)
+    expect(() => loadVaultControls(deps({ log, loadBundle }), undefined)).toThrow(
+      UI_TEXT.vault.brokerBlocked,
+    )
     expect(loadBundle).not.toHaveBeenCalled()
-    expect(connectMissing).not.toHaveBeenCalled()
     expect(log.error).toHaveBeenCalledExactlyOnceWith(
-      'The vault panel needs its broker-backed service; refusing closed',
+      'The vault panel is not mounted in this window; refusing closed',
     )
   })
 
@@ -156,15 +135,11 @@ describe('loadVaultControls', () => {
       () => created as unknown as ReturnType<VaultBundle['createVaultPanelHost']>,
     )
     const bundle: VaultBundle = { createVaultPanelHost }
-    const owned = service()
     const entry = connect()
-    const controls = loadVaultControls(
-      deps({ loadBundle: () => bundle, service: owned }),
-      () => entry,
-    )
+    const controls = loadVaultControls(deps({ loadBundle: () => bundle }), () => entry)
     expect(createVaultPanelHost).toHaveBeenCalledOnce()
     expect(createVaultPanelHost).toHaveBeenCalledWith(
-      { service: owned, ...entry },
+      { distDir: '/dist', ...entry },
       UI_TEXT,
       uiLocale(),
     )
@@ -182,12 +157,12 @@ function registered(load: () => VaultWindowControls) {
 }
 
 describe('registerVaultCommands', () => {
-  it('rejects with the reason while the service is missing', async () => {
+  it('rejects with the reason while the panel binding is missing', async () => {
     const loadBundle = vi.fn(() => {
       throw new Error('must not be reached')
     })
     const { actions, disposable } = registered(() =>
-      loadVaultControls(deps({ loadBundle, service: undefined }), connect),
+      loadVaultControls(deps({ loadBundle }), undefined),
     )
     await expect(actions.get('museSpark.vault')?.()).rejects.toThrow(UI_TEXT.vault.brokerBlocked)
     await expect(actions.get('museSpark.lockVault')?.()).rejects.toThrow(
