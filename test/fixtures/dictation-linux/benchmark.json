@@ -1,0 +1,104 @@
+[
+  {
+    "engine": "vosk",
+    "results": [
+      {
+        "text": "please open the project and run the tests",
+        "seconds": 1.1043101430404931,
+        "errors": 0,
+        "words": 8,
+        "wer": 0.0
+      },
+      {
+        "text": "create a new fell and save the changes",
+        "seconds": 1.0671516149304807,
+        "errors": 1,
+        "words": 8,
+        "wer": 0.125
+      },
+      {
+        "text": "the microfilm record speech on this computer",
+        "seconds": 1.1712146699428558,
+        "errors": 2,
+        "words": 7,
+        "wer": 0.2857142857142857
+      },
+      {
+        "text": "please open the project and run the tests",
+        "seconds": 1.4539601728320122,
+        "errors": 0,
+        "words": 8,
+        "wer": 0.0
+      }
+    ],
+    "vosk_model_load_seconds": 0.5509012138936669
+  },
+  {
+    "engine": "tiny.en",
+    "results": [
+      {
+        "text": "Please open the project and run the tests.",
+        "seconds": 1.6212450640741736,
+        "errors": 0,
+        "words": 8,
+        "wer": 0.0
+      },
+      {
+        "text": "Create a new fellow and save the changes.",
+        "seconds": 1.611660968977958,
+        "errors": 1,
+        "words": 8,
+        "wer": 0.125
+      },
+      {
+        "text": "The microphone records speech on this computer.",
+        "seconds": 1.5855058550368994,
+        "errors": 0,
+        "words": 7,
+        "wer": 0.0
+      },
+      {
+        "text": "Please open the project and run the tests.",
+        "seconds": 1.6439124778844416,
+        "errors": 0,
+        "words": 8,
+        "wer": 0.0
+      }
+    ],
+    "vosk_model_load_seconds": null
+  },
+  {
+    "engine": "base.en",
+    "results": [
+      {
+        "text": "Please open the project and run the tests.",
+        "seconds": 3.253448138013482,
+        "errors": 0,
+        "words": 8,
+        "wer": 0.0
+      },
+      {
+        "text": "Create a new fellow and save the changes.",
+        "seconds": 3.22806169395335,
+        "errors": 1,
+        "words": 8,
+        "wer": 0.125
+      },
+      {
+        "text": "The microphone records speech on this computer.",
+        "seconds": 3.1975547748152167,
+        "errors": 0,
+        "words": 7,
+        "wer": 0.0
+      },
+      {
+        "text": "Please open the project and run the tests.",
+        "seconds": 3.3644152330234647,
+        "errors": 0,
+        "words": 8,
+        "wer": 0.0
+      }
+    ],
+    "vosk_model_load_seconds": null
+  }
+]
