@@ -1,3 +1,4 @@
+import { fakeSurface } from './helpers/fakeSurface'
 import { describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import {
@@ -184,14 +185,8 @@ describe('prompt menus and commands', () => {
 
 function surface(id: string): ChatSurface {
   return {
-    id,
-    documentId: `${id}-document`,
+    ...fakeSurface(id),
     post: vi.fn(),
-    reveal: vi.fn(),
-    markUnread: vi.fn(),
-    setTitle: vi.fn(),
-    reload: vi.fn(),
-    takeRestoredSessionId: () => undefined,
     dispose: vi.fn(),
   }
 }

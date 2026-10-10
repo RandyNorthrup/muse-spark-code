@@ -16,6 +16,16 @@ import { memoryPaidGrants } from './helpers/paidGrants'
 import { removeFolder } from './helpers/temporaryFolders'
 import type { PaidUseRequest } from '../../src/shared/paid'
 
+function searchGrantFailure(error: Error) {
+  const grants = memoryPaidGrants()
+  vi.spyOn(grants, 'writeQuote').mockRejectedValue(error)
+  const log = logger()
+  const paid = new AcpPaidUse({ flagged: ['webSearch'], canRemember: () => true, grants, log })
+  const asker = vi.fn(() => Promise.resolve('always' as const))
+  paid.attach(asker)
+  return { paid, log, asker }
+}
+
 describe('M80 structural headless paid policy', () => {
   it('P4/P7 headless receives requiresAsking and never reads or changes grants or asks editor', async () => {
     const grants = {
@@ -291,12 +301,7 @@ describe('AcpPaidUse', () => {
   })
 
   it('lets an "always" it cannot keep go ahead once, and asks again next time', async () => {
-    const grants = memoryPaidGrants()
-    vi.spyOn(grants, 'writeQuote').mockRejectedValue(new Error('read-only data folder'))
-    const log = logger()
-    const paid = new AcpPaidUse({ flagged: ['webSearch'], canRemember: () => true, grants, log })
-    const asker = vi.fn(() => Promise.resolve('always' as const))
-    paid.attach(asker)
+    const { paid, log, asker } = searchGrantFailure(new Error('read-only data folder'))
     expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toMatchObject(WEB_SEARCH_QUOTE)
     expect(log.warn).toHaveBeenCalledWith(
       'Paid search quote could not be kept: read-only data folder',
@@ -307,13 +312,8 @@ describe('AcpPaidUse', () => {
   })
 
   it('refuses an "always" revoked while the popup was open, and asks again next time', async () => {
-    const grants = memoryPaidGrants()
-    // Search keeps its "always" as a quote grant (0.17); a revoked write refuses.
-    vi.spyOn(grants, 'writeQuote').mockRejectedValue(new PaidOwnerReplacedError())
-    const log = logger()
-    const paid = new AcpPaidUse({ flagged: ['webSearch'], canRemember: () => true, grants, log })
-    const asker = vi.fn(() => Promise.resolve('always' as const))
-    paid.attach(asker)
+    // Search keeps its Always as a quote grant; a revoked write refuses.
+    const { paid, log, asker } = searchGrantFailure(new PaidOwnerReplacedError())
     expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBeFalsy()
     expect(log.warn).toHaveBeenCalledWith(
       'Paid search quote could not be kept: MHP_PAID_OWNER_REPLACED',

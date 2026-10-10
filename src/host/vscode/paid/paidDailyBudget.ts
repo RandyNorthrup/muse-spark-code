@@ -1,12 +1,12 @@
 import { reportingAmount } from '../../../core/usage/reportingAmount'
 import { randomUUID } from 'node:crypto'
 import { PaidAuthority } from '../../../core/paid/paidAuthority'
-import { Usd, legacyUsdSchema, usdInputSchema, type UsdAmount } from '../../../shared/usd'
+import { Usd, usdInputSchema, type UsdAmount } from '../../../shared/usd'
 // D78: daily interactive extras share M82's durable claims across windows.
 import { mkdirSync, readFileSync, renameSync, statSync } from 'node:fs'
 import path from 'node:path'
 import * as vscode from 'vscode'
-import * as z from 'zod/mini'
+import type * as z from 'zod/mini'
 import type { JudgeDailyLedger } from '../../../core/judge/admission'
 import type { ModelApiClientDeps } from '../../../core/backends/modelapi/client'
 import type {
@@ -20,22 +20,14 @@ import { PAID_DAILY_BUDGET, PAID_PRICES_USD, UI_TEXT } from '../../../shared/con
 import { fill } from '../../../shared/l10n/text'
 import { formatUsd } from '../../../shared/l10n/exactUsd'
 import { modelApiPaidTier } from '../../../shared/paid'
-import { createSessionBudgetJournal } from '../../backend/sessionBudgetJournal'
+import {
+  createPaidDailyJournal,
+  paidDailyLimitSchema as limitSchema,
+} from '../../backend/sessionBudgetJournal'
 import { storeErrorCode } from '../../backend/storeErrors'
 import { writeFileAtomically } from '../../fsAtomic'
 import type { UsageBudgetRead } from '../../../core/usage/usageService'
 import { scheduleV2Schema, type ScheduleV2 } from '../../../shared/scheduleV2'
-
-const limitSchema = z.object({
-  limitUsd: legacyUsdSchema.check(
-    z.refine(
-      (amount) =>
-        Usd.from(amount).compare(Usd.from(PAID_DAILY_BUDGET.minimumUsd)) >= 0 &&
-        Usd.from(amount).compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) <= 0,
-    ),
-  ),
-  stopped: z.boolean(),
-})
 
 export function createPaidDailyBudget(deps: {
   readonly authority?: PaidAuthority
@@ -52,11 +44,9 @@ export function createPaidDailyBudget(deps: {
     const today = new Date(deps.now())
     return [today.getFullYear(), today.getMonth() + 1, today.getDate()].join('-')
   }
-  const journal = createSessionBudgetJournal({
+  const journal = createPaidDailyJournal({
     directory: deps.directory,
     sleep: deps.sleep,
-    initialBudget: () =>
-      Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
   })
   const limitPath = (scope: string) =>
     path.join(deps.directory, scope, PAID_DAILY_BUDGET.overrideFile)

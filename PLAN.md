@@ -38219,7 +38219,7 @@ keeping its detailed native qualification catalogue generated too.
 Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
 in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
 
-**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. Verification retains the portable graph cap, duplication and SAST findings, native bridge contract checks, installed qualification and the next resource-chip parity lane as blockers. M104 F3 repairs the four ACP resource fixtures; their complete stdio suite passes. Retained requirements and receipts follow.
+**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. Verification retains the portable graph cap and SAST findings, native bridge contract checks, installed qualification and the next resource-chip parity lane as blockers. M104 F3 repairs the four ACP resource fixtures and the twelve recorded duplication findings; their complete touched suites and the zero-clone gate pass. Retained requirements and receipts follow.
 
 **FIXM104PB / RVM104PB (2026-10-06).** Repair all four P2 findings and the
 P3 evidence error inside B's paid engines and their shared guards. One
@@ -38943,7 +38943,7 @@ rejected them. Preserve the test and its strict native policy. Reconciling
 native normalization/closed shape with the frozen adoption requires a reviewed
 contract change and its complete native matrix; do not silently rewrite the
 1.4 snapshot, change the assertion or invent a one-field blacklist. This
-remains a main-integration blocker alongside the portable cap and ACP failures.
+remains a main-integration blocker alongside the portable cap and native qualification failures; F3 clears the ACP fixtures separately.
 
 **M104INT native matrix qualification blockers (2026-10-09).** Real
 JetBrains JCEF/native-dialog verification reports 80 of 84 tests passing:
@@ -38975,6 +38975,21 @@ guards and assertions; do not make cosmetic token changes or add excludes to
 hide equivalent implementations during this blocked integration join. Record
 the exact clone locations and retain duplication as a main-integration blocker.
 
+**M104 F3 duplication qualification (2026-10-09).** The recorded twelve
+clones are removed by sharing daily limit fields and empty-journal setup in
+the existing journal owner, and equivalent fake/consent/process fixtures in
+their test owners. Host limits retain stripping objects; runtime limits retain
+strict objects, exact decimal bounds and all independent admission/settlement
+guards. Parameterized paid-use cases retain both answers and every assertion.
+The joined Windows vector reader explicitly validates the existing ancestry
+field with the same strict schema as the portable reader; no native assertion
+or OS guard changes. The source/test gate reports zero clones without config
+changes. Replaying the original twelve owners produces fourteen clones (the
+original twelve plus the now-shared fixtures); removing decimal bounds fails
+the two new boundary cases. Both drills restore every file byte-exact. Full
+touched suites pass at repository deadlines, including process/companion
+fixtures. Duplication is no longer a main-integration blocker.
+
 **M104INT SAST review deferral (2026-10-09).** The unchanged auto-rule
 scan reports sixteen blocking findings in six joined owners: Eclipse's
 launcher ProcessBuilder, JetBrains resource/script interpolation and embedded
@@ -38984,7 +38999,7 @@ native/HTML boundary review; do not label them safe merely because they are
 audits or add suppression comments to obtain green. The scan also reports
 one default rule timeout in ModelApiHost's express-SSRF analysis. No rule,
 exclude, deadline or dependency is changed. These results block main integration
-alongside the portable cap, duplication, ACP and native qualification failures.
+alongside the portable cap and native qualification failures; F3 clears duplication and ACP fixtures separately.
 
 **M104INT aggregate formatting cleanup (2026-10-09).** The single final
 quality attempt stops at formatting because native test runs left ignored

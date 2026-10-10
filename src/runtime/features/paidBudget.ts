@@ -1,26 +1,20 @@
 import { mkdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { createSessionBudgetJournal } from '../../host/backend/sessionBudgetJournal'
+import {
+  createPaidDailyJournal,
+  paidDailyLimitSchema,
+} from '../../host/backend/sessionBudgetJournal'
 import { storeErrorCode } from '../../host/backend/storeErrors'
 import type { SessionBudgetClaim } from '../../core/backends/modelapi/sessionBudget'
 import type { JudgeDailyLedger } from '../../core/judge/admission'
 import { PAID_DAILY_BUDGET, UI_TEXT } from '../../shared/constants'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
-import { Usd, usdAmountSchema, legacyUsdSchema, type UsdAmount } from '../../shared/usd'
+import { Usd, usdAmountSchema, type UsdAmount } from '../../shared/usd'
 
 // The same record the VS Code ledger reads: a historical number or an exact string.
-const limitRecord = z.strictObject({
-  limitUsd: legacyUsdSchema.check(
-    z.refine(
-      (amount) =>
-        Usd.from(amount).compare(Usd.from(PAID_DAILY_BUDGET.minimumUsd)) >= 0 &&
-        Usd.from(amount).compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) <= 0,
-    ),
-  ),
-  stopped: z.boolean(),
-})
+const limitRecord = z.strictObject(paidDailyLimitSchema.shape)
 
 export interface RuntimePaidBudgetDeps {
   /** One canonical machine-wide local namespace shared by all editors and providers. */
@@ -39,11 +33,9 @@ export function createRuntimePaidBudget(
   locale: string,
 ) {
   setUiText(table, locale)
-  const journal = createSessionBudgetJournal({
+  const journal = createPaidDailyJournal({
     directory: deps.directory,
     sleep: deps.sleep,
-    initialBudget: () =>
-      Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
   })
   const pending = new Set<Promise<unknown>>()
   let isClosed = false

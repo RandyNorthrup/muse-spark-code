@@ -6,7 +6,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { companionUpload, type CompanionUploadOptions } from '../../src/runtime/companion/upload'
 import { companionMediaUploadSchema } from '../../src/shared/media'
-import { TINY_PNG_BASE64 } from './helpers/fakeModelApi'
+import { TINY_PNG_BASE64, listenFakeHttp } from './helpers/fakeModelApi'
 import { pdfFixture } from './helpers/pdfFixture'
 import { videoFixture, wavFixture, ebmlFixture } from './helpers/media/fixtures'
 
@@ -98,12 +98,7 @@ async function serve(overrides: Partial<CompanionUploadOptions> = {}): Promise<v
   const server = createServer((req, response) => {
     void companionUpload(config(overrides))(req, response)
   })
-  await new Promise<void>((resolve) => {
-    server.listen(0, '127.0.0.1', resolve)
-  })
-  const address = server.address()
-  if (address === null || typeof address === 'string') throw new Error('Missing test address')
-  state.origin = `http://127.0.0.1:${String(address.port)}`
+  state.origin = await listenFakeHttp(server)
   state.close = () =>
     new Promise((resolve, reject) => {
       server.closeAllConnections()

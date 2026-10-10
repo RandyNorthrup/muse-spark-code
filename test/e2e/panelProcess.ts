@@ -10,7 +10,7 @@ import { vi, beforeAll, afterAll } from 'vitest'
 import * as z from 'zod/mini'
 import { redactSecrets } from '../../src/shared/redact'
 import { MHP_METHODS, type MhpParams } from '../../src/shared/hostApi/methods'
-import { fakeModelApi } from '../unit/helpers/fakeModelApi'
+import { fakeModelApi, listenFakeHttp } from '../unit/helpers/fakeModelApi'
 import { buildHostBundles, buildModelApiBundle } from '../unit/helpers/modelApiBundle'
 import { buildPortableBundle } from '../unit/helpers/portableBundle'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
@@ -57,12 +57,7 @@ export async function panelProcessFixture() {
       response.end()
     })
   })
-  await new Promise<void>((resolve) => {
-    server.listen(0, '127.0.0.1', resolve)
-  })
-  const address = server.address()
-  if (address === null || typeof address === 'string') throw new Error('fake API not listening')
-  const origin = `http://127.0.0.1:${String(address.port)}`
+  const origin = await listenFakeHttp(server)
   mkdirSync(dist, { recursive: true })
   const agent = path.join(dist, 'acp.js')
   writeFileSync(

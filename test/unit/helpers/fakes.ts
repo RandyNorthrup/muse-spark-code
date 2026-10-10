@@ -10,8 +10,7 @@ import type { ProviderEntry, ProvidersStore } from '../../../src/host/providers/
 import type { SettingsSource } from '../../../src/host/settings'
 import { EN } from '../../../src/shared/l10n/en'
 import { BASE_LOCALE } from '../../../src/shared/l10n/text'
-import type { HostToWebviewMessage, SettingsSnapshot } from '../../../src/shared/protocol'
-import type { ChatSurface } from '../../../src/host/views/chatSurface'
+import type { SettingsSnapshot } from '../../../src/shared/protocol'
 import type { WebviewHostContext } from '../../../src/host/vscode/views/webviewSetup'
 import { EventEmitter, FakeUri, Position, Range, Uri } from '../mocks/vscode'
 
@@ -257,35 +256,7 @@ export function fakeHostContext(settings: SettingsSnapshot = testSettings): Fake
   }
 }
 
-export interface FakeSurface extends ChatSurface {
-  readonly posted: HostToWebviewMessage[]
-  readonly reveal: ReturnType<typeof vi.fn<() => void>>
-  readonly markUnread: ReturnType<typeof vi.fn<() => void>>
-  readonly setTitle: ReturnType<typeof vi.fn<(title: string) => void>>
-  readonly reload: ReturnType<typeof vi.fn<() => void>>
-  readonly takeRestoredSessionId: ReturnType<typeof vi.fn<() => string | undefined>>
-}
-
-export function fakeSurface(id: string, isSideChat = false): FakeSurface {
-  const posted: HostToWebviewMessage[] = []
-  return {
-    id,
-    isSideChat,
-    documentId: `${id}-document`,
-    posted,
-    post(message) {
-      posted.push(message)
-    },
-    reveal: vi.fn<() => void>(),
-    markUnread: vi.fn<() => void>(),
-    setTitle: vi.fn<(title: string) => void>(),
-    reload: vi.fn<() => void>(),
-    takeRestoredSessionId: vi.fn<() => string | undefined>(),
-    dispose() {
-      // nothing to release in the fake
-    },
-  }
-}
+export { fakeSurface, type FakeSurface } from './fakeSurface'
 
 /** A `SecretStore` backed by a Map, exposed for assertions. */
 /** A `CredentialStore` warning sink for tests that expect none: one fails the test. */
