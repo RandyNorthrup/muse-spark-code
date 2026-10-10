@@ -323,7 +323,7 @@
     "effort": "选择 Muse 在每条回答上投入的工作量。",
     "output": "选择结果格式：text、json或jsonl。",
     "max-budget-usd": "以USD设置本次运行的硬性支出上限。",
-    "team": "--team: 请求团队运行（Model API 后端、acceptEdits 和固定预算）。",
+    "team": "--team: 请求团队运行（Model API 后端、acceptEdits 和固定预算；在团队运行通道落地前被拒绝：每个请求都以 2 退出）。",
     "max-requests": "设置模型请求次数上限。",
     "timeout": "以秒设置运行时间上限。",
     "fail-on-denial": "权限被拒绝时停止运行。",

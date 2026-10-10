@@ -406,7 +406,7 @@ export const EN = {
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the hard spending limit in USD for this run.',
-    team: '--team: Ask for a team run (Model API backend, acceptEdits and a hard budget).',
+    team: '--team: Ask for a team run (Model API backend, acceptEdits and a hard budget; refused until the team runner lane lands: every request exits 2).',
     'max-requests': 'Set the maximum number of model requests.',
     timeout: 'Set the run deadline in seconds.',
     'fail-on-denial': 'Stop the run when a permission request is denied.',

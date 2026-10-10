@@ -323,7 +323,7 @@
     "effort": "Válassza ki, mennyi erőfeszítést tegyen a Muse az egyes válaszokba.",
     "output": "Az eredmény formátumának kiválasztása: text, json vagy jsonl.",
     "max-budget-usd": "A futtatás szigorú kiadási korlátjának megadása USD-ben.",
-    "team": "--team: Csapatfuttatás kérése (Model API backend, acceptEdits és kemény költségkeret).",
+    "team": "--team: Csapatfuttatás kérése (Model API backend, acceptEdits és kemény költségkeret; a csapatfuttató sáv érkezéséig elutasítva: minden kérés 2-vel lép ki).",
     "max-requests": "A modellkérések maximális számának beállítása.",
     "timeout": "A futtatás határidejének beállítása másodpercben.",
     "fail-on-denial": "A futtatás leállítása elutasított engedélynél.",

@@ -323,7 +323,7 @@
     "effort": "Wybierz, ile wysiłku Muse wkłada w każdą odpowiedź.",
     "output": "Wybierz format wyniku: text, json lub jsonl.",
     "max-budget-usd": "Ustaw twardy limit wydatków w USD dla tego uruchomienia.",
-    "team": "--team: Poproś o uruchomienie zespołowe (backend Model API, acceptEdits i sztywny budżet).",
+    "team": "--team: Poproś o uruchomienie zespołowe (backend Model API, acceptEdits i sztywny budżet; odmawiane do czasu toru uruchamiania zespołu: każde żądanie kończy się 2).",
     "max-requests": "Ustaw maksymalną liczbę żądań do modelu.",
     "timeout": "Ustaw limit czasu uruchomienia w sekundach.",
     "fail-on-denial": "Zatrzymaj uruchomienie po odmowie uprawnienia.",

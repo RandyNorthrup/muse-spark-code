@@ -323,7 +323,7 @@
     "effort": "각 답변에 Muse가 들이는 노력을 선택합니다.",
     "output": "결과 형식을 text, json 또는 jsonl로 선택합니다.",
     "max-budget-usd": "이 실행의 엄격한 지출 한도를 USD로 설정합니다.",
-    "team": "--team: 팀 실행 요청(Model API 백엔드, acceptEdits 및 고정 예산).",
+    "team": "--team: 팀 실행 요청(Model API 백엔드, acceptEdits 및 고정 예산. 팀 러너 레인이 마련될 때까지 거부: 모든 요청은 종료 코드 2).",
     "max-requests": "최대 모델 요청 수를 설정합니다.",
     "timeout": "실행 시간 제한을 초 단위로 설정합니다.",
     "fail-on-denial": "권한이 거부되면 실행을 중지합니다.",

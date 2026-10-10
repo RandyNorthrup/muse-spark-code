@@ -6669,7 +6669,7 @@
     {
       "route": "exec",
       "name": "exec: --team",
-      "description": "--team: Ask for a team run (Model API backend, acceptEdits and a hard budget).",
+      "description": "--team: Ask for a team run (Model API backend, acceptEdits and a hard budget; refused until the team runner lane lands: every request exits 2).",
       "text": { "cli": "team" },
       "contract": { "type": "boolean", "repeatable": false, "default": false, "purpose": "team" }
     },

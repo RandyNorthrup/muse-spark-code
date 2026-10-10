@@ -268,10 +268,6 @@ export function parseExec(
     return invalid(UI_TEXT.execMuseCodeOnly)
   if (mode !== 'acceptEdits' && values['image-generation'] === true)
     return invalid(UI_TEXT.execPaidNeedsEdits)
-  if (values['team'] === true) {
-    const admission = teamExecAdmission({ mode, backend })
-    if (!admission.ok) return invalid(admission.reason)
-  }
   const files = values['untrusted-file']
   const untrustedFiles = Array.isArray(files)
     ? files.filter((file: unknown): file is string => typeof file === 'string')
@@ -305,6 +301,13 @@ export function parseExec(
   const model = qualifyProviderModel(provider, rawModel)
   if (rawModel !== undefined && model === undefined) {
     return invalid(UI_TEXT.execUnknownModel)
+  }
+  // The team refusal runs after every other request check, so a team request
+  // never masks a missing prompt, a duplicate source or an unknown provider —
+  // and `execTeamNotReady` only says validation passed once it really did.
+  if (values['team'] === true) {
+    const admission = teamExecAdmission({ mode, backend })
+    if (!admission.ok) return invalid(admission.reason)
   }
   return {
     ok: true,

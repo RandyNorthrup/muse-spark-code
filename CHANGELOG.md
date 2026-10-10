@@ -39,7 +39,10 @@ happened, not what was planned; superseded entries are kept.
   `exec --team` parses and validates (Model API backend, `acceptEdits`,
   hard budget) but exits 2 with an explicit error; it never runs a `--team`
   request as a single session. Team runs in the ACP agent and headless
-  follow in their own lanes.
+  follow in their own lanes. Review hardening: a merge permission carries
+  at least one real diff; option kinds are exactly the SDK's; a completed
+  task re-sends the diffs it showed; Help says `--team` is refused until
+  the runner lane lands; the refusal runs after full request validation.
 
 ### Changed
 

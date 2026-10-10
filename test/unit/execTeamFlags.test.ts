@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { parseExec } from '../../src/runtime/exec/execArgs'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 
 const BUDGET = { backend: 'modelApi', 'max-budget-usd': '1' }
 
@@ -39,6 +40,36 @@ describe('M96b exec --team flags', () => {
   })
   it('rejects a non-boolean --team', () => {
     expect(parseExec({ ...BUDGET, team: 'true' }, ['task']).ok).toBe(false)
+  })
+  // RVCM96B0 finding 6: the team refusal runs after every other request
+  // check, so an invalid team request reports its own defect instead of
+  // hiding behind the not-ready refusal.
+  it('reports unconditional defects before the team refusal', () => {
+    expect(parseExec({ ...BUDGET, team: true, 'permission-mode': 'acceptEdits' }, [])).toEqual({
+      ok: false,
+      reason: UI_TEXT.execPromptMissing,
+    })
+    expect(
+      parseExec({ ...BUDGET, team: true, 'permission-mode': 'acceptEdits', 'prompt-file': 'f' }, [
+        'task',
+      ]),
+    ).toEqual({ ok: false, reason: UI_TEXT.execPromptTwice })
+    expect(
+      parseExec({ ...BUDGET, team: true, 'permission-mode': 'acceptEdits', provider: 'nope!' }, [
+        'task',
+      ]),
+    ).toEqual({ ok: false, reason: fill(UI_TEXT.providerUnknown, { provider: 'nope!' }) })
+    expect(
+      parseExec({ ...BUDGET, team: true, 'permission-mode': 'acceptEdits', 'key-stdin': true }, [
+        '-',
+      ]),
+    ).toEqual({ ok: false, reason: UI_TEXT.execStdinTwice })
+  })
+  // RVCM96B0 finding 5: public Help must not advertise the refused flag as
+  // a working team-run option.
+  it('tells help readers --team is refused until the runner lane lands', () => {
+    expect(UI_TEXT.referenceCliOptions.team).toContain('refused')
+    expect(UI_TEXT.referenceCliOptions.team).toContain('exits 2')
   })
   it('ends --team at the command line with exit 2, never a run', () => {
     expect(

@@ -323,7 +323,7 @@
     "effort": "Zvolte, kolik úsilí Muse věnuje každé odpovědi.",
     "output": "Vybrat formát výsledku: text, json nebo jsonl.",
     "max-budget-usd": "Nastavit pevný limit výdajů v USD pro tento běh.",
-    "team": "--team: Požádat o týmové spuštění (backend Model API, acceptEdits a pevný rozpočet).",
+    "team": "--team: Požádat o týmové spuštění (backend Model API, acceptEdits a pevný rozpočet; do přistání dráhy týmového spouštěče odmítnuto: každý požadavek končí 2).",
     "max-requests": "Nastavit nejvyšší počet požadavků modelu.",
     "timeout": "Nastavit dobu běhu v sekundách.",
     "fail-on-denial": "Zastavit běh při zamítnutí oprávnění.",
