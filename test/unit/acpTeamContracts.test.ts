@@ -29,6 +29,7 @@ import {
   teamTaskToolCallId,
   teamTaskUpdateSchema,
   teamToolContentSchema,
+  type TeamPlanTask,
 } from '../../src/acp/teamContracts'
 import { UI_TEXT } from '../../src/shared/constants'
 
@@ -52,6 +53,13 @@ function atRuntime<T>(input: NoInfer<T> | object | null | number): T {
   // NoInfer keeps malformed input from choosing the typed port's return shape.
   // Deliberately bypass the typed port to test malformed caller values (PLAN.md §8).
   return input as T
+}
+
+function withHole<T>(entries: readonly T[], index: number): T[] {
+  const sparse = [...entries]
+  // Deliberately remove a slot without changing length to exercise sparse caller arrays.
+  Reflect.deleteProperty(sparse, index)
+  return sparse
 }
 
 describe('M96b team tool call ids', () => {
@@ -186,9 +194,33 @@ describe('M96b agent-map plan', () => {
       status: 'in_progress',
     })
     expect(entries.map((entry) => entry._meta)).toEqual([{ teamTask: 't1' }, { teamTask: 't2' }])
-    for (const entry of entries) expect(teamPlanEntrySchema.safeParse(entry).success).toBe(true)
+    expect(z.array(teamPlanEntrySchema).safeParse(entries).success).toBe(true)
     expect(teamPlanEntries([])).toEqual([])
     expect(teamPlanEntrySchema.safeParse({ content: '', priority: 'medium' }).success).toBe(false)
+  })
+
+  it('refuses holes anywhere in the complete returned plan collection', () => {
+    const tasks: TeamPlanTask[] = [
+      { taskId: 't1', title: 'First' },
+      { taskId: 't2', title: 'Second' },
+      { taskId: 't3', title: 'Third' },
+    ]
+    for (const sparse of [
+      withHole(tasks.slice(0, 1), 0),
+      ...tasks.map((_task, index) => withHole(tasks, index)),
+    ])
+      expect(() => teamPlanEntries(sparse)).toThrow(TeamContractError)
+    const entries = teamPlanEntries(tasks)
+    expect(entries).toHaveLength(tasks.length)
+    expect(entries.map((entry) => entry._meta?.['teamTask'])).toEqual(['t1', 't2', 't3'])
+    expect(z.array(teamPlanEntrySchema).safeParse(entries).success).toBe(true)
+  })
+
+  it('refuses a returned plan collection with missing entries', () => {
+    const tasks: TeamPlanTask[] = [{ taskId: 't1', title: 'First' }]
+    // A caller can override map without a cast; validate its complete result too.
+    tasks.map = () => []
+    expect(() => teamPlanEntries(tasks)).toThrow(TeamContractError)
   })
 })
 
@@ -312,6 +344,21 @@ describe('RVCM96B0B builder/schema consistency', () => {
     refusesContent([{ type: 'diff', path: '', oldText: 'a', newText: 'b' }])
   })
 
+  it('refuses holes in every content and permission-option collection', () => {
+    const diffs = [DIFF, DIFF, DIFF]
+    for (const sparse of [
+      withHole([DIFF], 0),
+      ...diffs.map((_diff, index) => withHole(diffs, index)),
+    ])
+      refusesContent(sparse)
+    const options = [...OPTIONS, ...OPTIONS, ...OPTIONS]
+    for (const sparse of [
+      withHole(OPTIONS, 0),
+      ...options.map((_option, index) => withHole(options, index)),
+    ])
+      expect(() => teamMergeRequest({ ...input, options: sparse })).toThrow(TeamContractError)
+  })
+
   it('accepts only frozen content kinds from the SDK schema', () => {
     // Enumerate SDK variants independently: a new SDK kind needs a fixture and review.
     const content = sdkSchema.$defs.ToolCallContent.oneOf.map((variant) => {
@@ -387,7 +434,7 @@ describe('RVCM96B0B builder/schema consistency', () => {
     expect(teamMergeRequestSchema.safeParse(request).success).toBe(true)
   })
 
-  it('random builder inputs either throw typed errors or pass their frozen schemas', () => {
+  it('random builder inputs with sparse collections either throw typed errors or pass their frozen schemas', () => {
     let seed = 96_003
     function pick<T>(values: readonly T[]): T {
       seed = (Math.imul(seed, 1_664_525) + 1_013_904_223) >>> 0
@@ -416,6 +463,8 @@ describe('RVCM96B0B builder/schema consistency', () => {
           [{ type: 'diff', path: '', newText: 'b' }],
           [DIFF, SDK_TOOL_CONTENT['terminal']],
           [null],
+          withHole([DIFF], 0),
+          withHole([DIFF, DIFF, DIFF], pick([0, 1, 2])),
           null,
         ]),
         options: pick([
@@ -423,6 +472,8 @@ describe('RVCM96B0B builder/schema consistency', () => {
           [{ optionId: '', name: 'Yes', kind: 'allow_once' }],
           [{ optionId: 'yes', name: 'Yes', kind: 'unknown' }],
           [],
+          withHole(OPTIONS, 0),
+          withHole([...OPTIONS, ...OPTIONS, ...OPTIONS], pick([0, 1, 2])),
           null,
         ]),
       }
@@ -437,6 +488,16 @@ describe('RVCM96B0B builder/schema consistency', () => {
           report: 'done',
           title: 'First',
         })
+      const tasks =
+        attempt === 0
+          ? [candidate]
+          : pick([
+              [],
+              [candidate],
+              [candidate, { taskId: 't2', title: 'Second' }],
+              withHole([candidate], 0),
+              withHole([candidate, candidate, candidate], pick([0, 1, 2])),
+            ])
       const builders: { name: string; schema: z.ZodMiniType; build: () => unknown }[] = [
         { name: 'diff', schema: teamDiffSchema, build: () => teamDiff(atRuntime(candidate)) },
         {
@@ -471,8 +532,8 @@ describe('RVCM96B0B builder/schema consistency', () => {
         },
         {
           name: 'plan',
-          schema: z.array(teamPlanEntrySchema),
-          build: () => teamPlanEntries(atRuntime([candidate])),
+          schema: z.array(teamPlanEntrySchema).check(z.length(tasks.length)),
+          build: () => teamPlanEntries(atRuntime(tasks)),
         },
       ]
       for (const builder of builders) {

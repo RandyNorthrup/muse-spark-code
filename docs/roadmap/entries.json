@@ -707,7 +707,7 @@
     {
       "id": "M96b",
       "title": "Teams in other editors and headless runs",
-      "summary": "The same teams, roles, pools and caps in the ACP agent and headless runs, with each surface's approval rules and validated contracts, while runtime wiring and acceptance remain pending.",
+      "summary": "The same teams, roles, pools and caps in the ACP agent and headless runs, with each surface's approval rules and contracts that validate complete collections, while runtime wiring and acceptance remain pending.",
       "area": "agents"
     },
     {

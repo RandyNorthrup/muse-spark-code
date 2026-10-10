@@ -26370,15 +26370,23 @@ Status detail retained: planned; starts after M96 merges. C-M96b-0 froze the
 ACP mapping and exec flag contracts (`src/acp/teamContracts.ts`, certified in
 `docs/certification/m96b-0.md`); the wiring follows in C-M96b-1/2.
 
-RVCM96B0B round 3 closes the builder/schema consistency class before lead
-acceptance: every structured builder validates its final value against its
-frozen schema and refuses invalid content with a typed contract error. The
+RVCM96B0B round 3 strengthens builder/schema consistency before lead
+acceptance: structured builders validate their frozen shapes and refuse
+invalid content with a typed contract error. The
 sweep includes diff/report builders, task updates, Bypass merges, permission
 options and plan entries. Regression expectations come from the ACP SDK's
 exported schema, including every option and content kind; seeded random
 builder inputs must either throw or produce a schema-valid value. Red drills
 and scoped rig receipts live in `docs/certification/m96b.md`. No contract
 widening, dependency, runtime wiring or paid/live call is part of this repair.
+
+RVCM96B0C round 4 repairs the remaining plan-collection gap: validate the
+complete returned plan array, including its length and every slot, rather
+than only the entries visited by `map`. Extend regressions and seeded
+property coverage to empty, dense, multi-entry and sparse collections for
+plans, content and permission options; prove the collection guard with a
+byte-exact restored red drill in `docs/certification/m96b.md`. C-M96b-0 lead
+acceptance remains pending; runtime wiring remains C-M96b-1/2's next slice.
 
 - **Goal.** The same team, roles, pools and caps work in the ACP agent (D62)
   and in headless `exec` (D65), with each surface's own way of asking.
