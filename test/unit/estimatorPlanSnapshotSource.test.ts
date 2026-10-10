@@ -24,13 +24,24 @@ const PLAN = `## 6. Milestones
 `
 
 const PULLS = JSON.stringify([{ number: 12, headRefName: 'm112/q', state: 'OPEN', mergedAt: null }])
-const ISSUES = JSON.stringify([{ number: 7, labels: [{ name: 'bug' }] }])
+const NETWORK = {
+  networkPolicy: () =>
+    Promise.resolve({
+      surface: 'editor' as const,
+      mode: 'always' as const,
+      githubSignedIn: true,
+      allowEgress: () => Promise.resolve(true),
+    }),
+}
 
 function ioWith(overrides: Partial<PlanSnapshotSourceIo> = {}): PlanSnapshotSourceIo {
   return {
     readPlanFile: () => Promise.resolve(PLAN),
-    runGit: (args) => Promise.resolve(args.includes('--merged') ? 'm112/0\n' : 'm112/0\nm112/q\n'),
-    runGh: (args) => Promise.resolve(args.includes('pr') ? PULLS : ISSUES),
+    runGit: (args) => {
+      if (args.includes('symbolic-ref')) return Promise.resolve('refs/remotes/origin/main\n')
+      return Promise.resolve(args.includes('--merged') ? 'm112/0\n' : 'm112/0\nm112/q\n')
+    },
+    runGh: () => Promise.resolve(PULLS),
     ...overrides,
   }
 }
@@ -49,7 +60,11 @@ async function resolveThrough(
 ): Promise<string[]> {
   const goal = parseEstimateGoal(text)
   if (goal === undefined) throw new Error(`unparseable goal: ${text}`)
-  const snapshot = createPlanSnapshotSource({ root, io, ...options })
+  const snapshot = createPlanSnapshotSource({
+    root,
+    io,
+    ...(options.networkAllowed && NETWORK),
+  })
   const lanes = await resolveEstimateGoal(goal, ESTIMATOR_AS_OF, {
     snapshot: (snapshotGoal, asOf, signal) =>
       snapshot(snapshotGoal, asOf, signal ?? options.signal),
@@ -94,33 +109,29 @@ describe('M117 plan snapshot source', () => {
     ).rejects.toThrow(/missing-plan/)
   })
 
-  it('counts lanes planned when git is unavailable, never merged', async () => {
-    const io = ioWith({ runGit: () => Promise.reject(new Error('no git')) })
-    expect(await resolveThrough(io, 'M112', '/workspace', { networkAllowed: true })).toEqual([
-      'M112:0:planned',
-      'M112:Q:running',
-    ])
+  it('refuses unavailable git evidence for every goal', async () => {
+    const failed = ioWith({ runGit: () => Promise.reject(new Error('no git')) })
+    await expect(resolveThrough(failed, 'M112')).rejects.toThrow(/source-unavailable: branches/)
   })
 
-  it('resolves without PRs when gh is unavailable or malformed', async () => {
-    // Q stays running from its branch; only the PR link is gone.
-    const down = ioWith({ runGh: () => Promise.reject(new Error('no gh')) })
-    expect(await resolveThrough(down, 'M112', '/workspace', { networkAllowed: true })).toEqual([
-      'M112:0:merged',
-      'M112:Q:running',
-    ])
-    const garbage = ioWith({ runGh: () => Promise.resolve('not json') })
-    expect(await resolveThrough(garbage, 'M112', '/workspace', { networkAllowed: true })).toEqual([
-      'M112:0:merged',
-      'M112:Q:running',
-    ])
+  it('refuses unavailable or malformed enabled PR evidence for every goal', async () => {
+    for (const output of ['not json', '{}']) {
+      const failed = ioWith({ runGh: () => Promise.resolve(output) })
+      await expect(
+        resolveThrough(failed, 'M112', '/workspace', { networkAllowed: true }),
+      ).rejects.toThrow(/source-unavailable: pull-requests/)
+    }
   })
 
   it('maps mergedAt PR evidence to merged lanes', async () => {
     const pulls = JSON.stringify([
       { number: 12, headRefName: 'm112/q', state: 'MERGED', mergedAt: '2026-10-09T00:00:00.000Z' },
     ])
-    const io = ioWith({ runGh: (args) => Promise.resolve(args.includes('pr') ? pulls : ISSUES) })
+    const io = ioWith({
+      runGh: () => Promise.resolve(pulls),
+      runGit: (args) =>
+        Promise.resolve(args.includes('symbolic-ref') ? 'refs/remotes/origin/main\n' : 'm112/0\n'),
+    })
     expect(await resolveThrough(io, 'pr:12', '/workspace', { networkAllowed: true })).toEqual([
       'M112:Q:merged',
     ])
@@ -132,6 +143,7 @@ describe('M117 plan snapshot source', () => {
     const io = ioWith({
       runGit: (args) => {
         gitCalls += 1
+        if (args.includes('symbolic-ref')) return Promise.resolve('refs/remotes/origin/main\n')
         return Promise.resolve(args.includes('--merged') ? 'm112/0\n' : 'm112/0\nm112/q\n')
       },
       runGh: () => {
@@ -148,7 +160,7 @@ describe('M117 plan snapshot source', () => {
     const io = ioWith()
     const goal = parseEstimateGoal('issues:7')
     if (goal === undefined) throw new Error('unparseable goal')
-    const snapshot = createPlanSnapshotSource({ root: '/workspace', io, networkAllowed: true })
+    const snapshot = createPlanSnapshotSource({ root: '/workspace', io, ...NETWORK })
     await expect(snapshot(goal, ESTIMATOR_AS_OF)).rejects.toThrow(/missing-associations: issues/)
     const label = parseEstimateGoal('label:bug')
     if (label === undefined) throw new Error('unparseable goal')
@@ -162,7 +174,7 @@ describe('M117 plan snapshot source', () => {
     const snapshot = createPlanSnapshotSource({
       root: '/workspace',
       io: down,
-      networkAllowed: true,
+      ...NETWORK,
     })
     await expect(snapshot(goal, ESTIMATOR_AS_OF)).rejects.toThrow(
       /source-unavailable: pull-requests/,
@@ -176,7 +188,7 @@ describe('M117 plan snapshot source', () => {
     const snapshot = createPlanSnapshotSource({
       root: '/workspace',
       io: garbage,
-      networkAllowed: true,
+      ...NETWORK,
     })
     await expect(snapshot(goal, ESTIMATOR_AS_OF)).rejects.toThrow(
       /source-unavailable: pull-requests/,
@@ -212,7 +224,7 @@ describe('M117 plan snapshot source', () => {
     const controller = new AbortController()
     const goal = parseEstimateGoal('M112')
     if (goal === undefined) throw new Error('unparseable goal')
-    const snapshot = createPlanSnapshotSource({ root: '/workspace', io, networkAllowed: true })
+    const snapshot = createPlanSnapshotSource({ root: '/workspace', io, ...NETWORK })
     const pending = snapshot(goal, ESTIMATOR_AS_OF, controller.signal)
     controller.abort()
     await expect(pending).rejects.toThrow()

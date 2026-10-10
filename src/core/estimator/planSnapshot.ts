@@ -8,11 +8,11 @@
 // Scoping keeps the snapshot inside ESTIMATE_MAX_ITEMS and makes missing
 // hour estimates fail loudly: a goal whose transitive closure needs an
 // hour-less unfinished lane is refused naming the lanes, instead of
-// estimating a silently partial DAG. Merged lanes without hours stay out
-// (no remaining work); unknown prerequisites, reader drift and unknown rigs
+// estimating a silently partial DAG. Completed lanes retain their identity
+// with zero remaining work; unknown prerequisites, reader drift and unknown rigs
 // refuse with named diagnostics. Milestone-level Starts refs expand
-// to that milestone's unfinished lanes; `last` depends on every other
-// unfinished lane of its milestone; prose fragments that name boards,
+// to that milestone's lanes; `last` depends on every other
+// lane of its milestone; prose fragments that name boards,
 // audits or tools (not lanes) are outside the DAG and ignored. Metered
 // demands the plan never carries (slots, accounts, CI, disk) are disclosed
 // assumptions at the engine fixtures' scale with zero samples — the schedule
@@ -68,7 +68,7 @@ export interface PlanSnapshotEvidence {
 
 const TERMINAL_MILESTONES = new Set(['merged', 'released', 'complete'])
 const MILESTONE_ID = /^M([1-9]\d*[a-z\d]*)$/
-const STOPWORD = /^(?:and|lane|lanes|merge|merges|merged)$/i
+const STOPWORD = /^(?:and|after|with|lane|lanes|merge|merges|merged)$/i
 
 /** File-bearing lane-table columns (PLAN.md's vocabulary, §6 lane tables). */
 const FILE_COLUMNS = new Set([
@@ -94,8 +94,18 @@ const RIG_OS: ReadonlyMap<
   ['windows', { os: 'windows', arch: null }],
 ])
 
+/** Named application diagnostics cross independent bundles by validated shape. */
+export class EstimateDiagnosticError extends Error {
+  public constructor(
+    public readonly estimateDiagnostic: string,
+    message: string,
+  ) {
+    super(message)
+  }
+}
+
 function refuse(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError(detail, fill(UI_TEXT.estimateFailed, { detail }))
 }
 
 /** The snapshot's canonical milestone id: what the goal grammar parses. */
@@ -325,6 +335,7 @@ interface StartsRefs {
   milestones: string[]
   /** A `last` clause: the lane starts after every other unfinished lane. */
   isLast: boolean
+  unresolved: string[]
 }
 
 /** Lane and milestone refs in one Starts cell, against the plan's own ids. */
@@ -337,6 +348,7 @@ function parseStartsRefs(
   const lanes = new Set<string>()
   const milestoneRefs = new Set<string>()
   let isLast = false
+  const unresolved = new Set<string>()
   const claim = (token: string): void => {
     if (STOPWORD.test(token)) return
     const milestoneMatch = /^M([1-9]\d*[a-z\d]*)$/i.exec(token)
@@ -346,9 +358,10 @@ function parseStartsRefs(
       return
     }
     const short = shorts.get(token.toLowerCase())
-    if (short !== undefined) lanes.add(`${self}:${short}`)
+    if (short === undefined) unresolved.add(`${self}:${token}`)
+    else lanes.add(`${self}:${short}`)
   }
-  for (const clause of cell.split(';')) {
+  for (const clause of cell.replaceAll(/[*`]/g, '').split(';')) {
     const trimmed = clause.trim()
     if (trimmed === '') continue
     // `last` depends on every other unfinished lane of the milestone (M112's
@@ -359,18 +372,36 @@ function parseStartsRefs(
       continue
     }
     if (/^first$/i.test(trimmed)) continue
+    if (
+      /^[\w.-]+(?:\s*(?:,|[+&]|\band\b)\s*[\w.-]+)*$/i.test(trimmed) &&
+      !/^(?:day|throughout)\b/i.test(trimmed)
+    ) {
+      for (const token of trimmed.split(/\s*(?:,|[+&]|\band\b)\s*/i)) claim(token)
+      continue
+    }
     let scope = trimmed
-    // M-qualified lanes first ("M100 lanes E, S and G", "M98 2j", "M110t's TP2"):
-    // a name that is no known lane of that milestone is a milestone ref.
+    // Qualified declarations consume explicit lane tokens, never promote an
+    // unknown lane to a milestone. Conjunctions and merge words retain the
+    // milestone reference; possessive lane prose retains its lane identity.
     scope = scope.replaceAll(
-      /\bM([1-9]\d*[a-z\d]*)(?:'s)?(?:\s+lanes?)?\s+([A-Za-z\d]+(?:\s*(?:,|and)\s*[A-Za-z\d]+)*)/gi,
+      /\bM([1-9]\d*[a-z\d]*)(?:['’]s)?(?:\s+lanes?)?(?::|\s+)([\w.-]+(?:['’]s)?(?:\s*(?:,|[+&]|\band\b)\s*[\w.-]+(?:['’]s)?)*)/gi,
       (_span: string, mid: string, names: string) => {
         const canonical = `M${mid.toLowerCase()}`
-        for (const token of names.split(/\s*(?:,|and)\s*/)) {
-          if (token === '' || STOPWORD.test(token)) continue
+        for (const raw of names.split(/\s*(?:,|[+&]|\band\b)\s*/i)) {
+          const token = raw.replace(/['’]s$/i, '')
+          if (token === '') continue
+          if (STOPWORD.test(token)) {
+            if (canonical !== self) milestoneRefs.add(canonical)
+            continue
+          }
+          if (/^M[1-9]\d*[a-z\d]*$/i.test(token)) {
+            if (canonical !== self) milestoneRefs.add(canonical)
+            claim(token)
+            continue
+          }
           const resolved = resolveQualified(canonical, token)
-          if (resolved !== null) lanes.add(resolved)
-          else if (canonical !== self) milestoneRefs.add(canonical)
+          if (resolved === null) unresolved.add(`${canonical}:${token}`)
+          else lanes.add(resolved)
         }
         return ' '
       },
@@ -383,10 +414,12 @@ function parseStartsRefs(
     }
     // Lane lists after after/with ("after 0 and C") and lane keywords.
     const laneLists = scope.matchAll(
-      /(?:\bafter\b|\bwith\b|\blanes?\b)\s+([A-Za-z\d]+(?:\s*(?:,|and)\s*[A-Za-z\d]+)*)/gi,
+      /(?:\bafter\b|\bwith\b|\blanes?\b)\s+([\w.-]+(?:['’]s)?(?:\s*(?:,|[+&]|\band\b)\s*[\w.-]+(?:['’]s)?)*)/gi,
     )
     for (const match of laneLists) {
-      const tokens = (match[1] ?? '').split(/\s*(?:,|and)\s*/)
+      const tokens = (match[1] ?? '')
+        .split(/\s*(?:,|[+&]|\band\b)\s*/i)
+        .map((token) => token.replace(/['’]s$/i, ''))
       for (const token of tokens) {
         if (token !== '') claim(token)
       }
@@ -396,6 +429,7 @@ function parseStartsRefs(
     lanes: [...lanes].toSorted(comparePlanText),
     milestones: [...milestoneRefs].toSorted(comparePlanText),
     isLast,
+    unresolved: [...unresolved].toSorted(comparePlanText),
   }
 }
 
@@ -498,11 +532,21 @@ export function buildPlanSnapshot(
   })
   const drift = facts.drift[0]
   if (drift !== undefined) {
-    refuse(
-      `plan-drift: ${drift.code} ${drift.detail.replaceAll(/\s+/g, ' ').slice(0, ESTIMATE_DRIFT_DETAIL_MAX_CHARS)}`,
+    const detail = `plan-drift: ${drift.code}`
+    throw new EstimateDiagnosticError(
+      detail,
+      fill(UI_TEXT.estimateFailed, {
+        detail: `${detail} ${drift.detail.replaceAll(/\s+/g, ' ').slice(0, ESTIMATE_DRIFT_DETAIL_MAX_CHARS)}`,
+      }),
     )
   }
   const cells = laneTableCells(planText)
+  const unresolved = new Map<string, Set<string>>()
+  const missingRef = (code: string, reference: string): void => {
+    const refs = unresolved.get(code) ?? new Set<string>()
+    refs.add(reference)
+    unresolved.set(code, refs)
+  }
 
   // The full lane graph, including hour-less lanes the closure check rejects.
   const lanes = new Map<string, FullLane & { startsCell: string }>()
@@ -541,7 +585,10 @@ export function buildPlanSnapshot(
       const architectures: ('x64' | 'arm64')[] = []
       for (const name of rigNames) {
         const known = RIG_OS.get(slug(name).replaceAll('-', ''))
-        if (known === undefined) continue
+        if (known === undefined) {
+          if (state !== 'merged') missingRef('unknown-rig', `${id}:${slug(name)}`)
+          continue
+        }
         if (!os.includes(known.os)) os.push(known.os)
         if (known.arch !== null && !architectures.includes(known.arch))
           architectures.push(known.arch)
@@ -556,21 +603,7 @@ export function buildPlanSnapshot(
       const startsCell = row?.starts ?? ''
       const previous = lanes.get(id)
       if (previous !== undefined) {
-        // Two tables reuse an owner letter (M91): merge the declarations.
-        // Hours add (both bodies of work); the least-done state wins.
-        let mergedState: FullLane['state'] = 'planned'
-        if (state === 'merged' && previous.state === 'merged') mergedState = 'merged'
-        else if (state === 'running' || previous.state === 'running') mergedState = 'running'
-        lanes.set(id, {
-          ...previous,
-          hours:
-            previous.hours === null || lane.hours === null ? null : previous.hours + lane.hours,
-          state: mergedState,
-          pr: previous.pr ?? lane.pullRequest,
-          files: [...new Set([...previous.files, ...files])].toSorted(comparePlanText),
-          rigId: previous.rigId ?? rigId,
-          startsCell: [previous.startsCell, startsCell].filter((part) => part !== '').join('; '),
-        })
+        missingRef('duplicate-lane', id)
         continue
       }
       lanes.set(id, {
@@ -599,9 +632,8 @@ export function buildPlanSnapshot(
     const short = shortsByMilestone.get(mid)?.get(token.toLowerCase())
     return short === undefined ? null : `${mid}:${short}`
   }
-  // Starts refs parse per lane; milestone refs and `last` expand only for
-  // lanes the goal's closure reaches, so one milestone's unknown
-  // prerequisite never poisons an unrelated goal.
+  // Parse every declaration before goal scoping. Missing references anywhere
+  // invalidate the plan; scoping only bounds the successful snapshot's lanes.
   const startsByLane = new Map<string, StartsRefs>()
   const withDeps = new Map<string, FullLane>()
   const allLanes = lanes.values()
@@ -612,6 +644,10 @@ export function buildPlanSnapshot(
       resolveQualified,
       lane.mid,
     )
+    for (const ref of refs.unresolved) missingRef('unknown-prerequisite', ref)
+    for (const ref of refs.milestones) {
+      if (!milestoneLanes.has(ref)) missingRef('unknown-prerequisite', ref)
+    }
     startsByLane.set(lane.id, refs)
     withDeps.set(lane.id, {
       ...lane,
@@ -630,14 +666,14 @@ export function buildPlanSnapshot(
       const targets = milestoneLanes.get(ref)
       if (targets === undefined) refuse(`unknown-prerequisite: ${ref}`)
       for (const target of targets) {
-        if (withDeps.get(target)?.state !== 'merged') deps.add(target)
+        deps.add(target)
       }
     }
     // `last` starts after every other unfinished lane of its milestone.
     if (refs.isLast) {
       const siblings = milestoneLanes.get(lane.mid) ?? []
       for (const other of siblings) {
-        if (other !== id && withDeps.get(other)?.state !== 'merged') deps.add(other)
+        if (other !== id) deps.add(other)
       }
     }
     deps.delete(id)
@@ -679,6 +715,20 @@ export function buildPlanSnapshot(
     }
   }
 
+  const mergedPullLanes = new Set<string>()
+  const openPullLanes = new Set<string>()
+  for (const pull of pullRequests.values()) {
+    for (const id of pull.laneIds) {
+      if (pull.states.has('merged')) mergedPullLanes.add(id)
+      if (pull.states.has('open')) openPullLanes.add(id)
+    }
+  }
+  for (const id of lanes.keys()) {
+    const lane = withDeps.get(id)
+    if (lane?.state === 'planned' && mergedPullLanes.has(id) && !openPullLanes.has(id))
+      withDeps.set(id, { ...lane, state: 'merged' })
+  }
+
   // Issues keep their explicit lane associations; unknown lanes fall away.
   const issues = new Map<number, { labels: Set<string>; laneIds: Set<string> }>()
   const evidenceIssues = evidence.issues ?? []
@@ -709,19 +759,46 @@ export function buildPlanSnapshot(
   const assignedByVersion = releaseMembers(planText)
   for (const [version, assigned] of assignedByVersion) {
     if (!versionId.test(version)) continue
-    releases.set(
-      version,
-      new Set([...assigned].filter((id) => milestoneLanes.has(id)).toSorted(comparePlanText)),
-    )
+    for (const id of assigned) {
+      if (!milestoneLanes.has(id)) missingRef('unknown-release-member', `${version}:${id}`)
+    }
+    releases.set(version, new Set([...assigned].toSorted(comparePlanText)))
   }
   for (const release of facts.releases) {
     if (!versionId.test(release.version)) continue
     if (!releases.has(release.version)) releases.set(release.version, new Set())
   }
 
+  const unknownRigs = unresolved.get('unknown-rig')
+  if (unknownRigs !== undefined) {
+    for (const ref of unknownRigs) {
+      const id = ref.slice(0, ref.lastIndexOf(':'))
+      if (withDeps.get(id)?.state === 'merged') unknownRigs.delete(ref)
+    }
+    if (unknownRigs.size === 0) unresolved.delete('unknown-rig')
+  }
+
+  // Validate the whole declaration before goal selection. No unresolved
+  // reference is dropped, promoted to a milestone, or hidden by scoping.
+  if (unresolved.size > 0) {
+    refuse(
+      [...unresolved]
+        .toSorted(([a], [b]) => comparePlanText(a, b))
+        .map(([code, refs]) => `${code}: ${[...refs].toSorted(comparePlanText).join(', ')}`)
+        .join('; '),
+    )
+  }
+
   // The goal's entry points, with goal.ts's not-found semantics.
   const notFound = (): never => {
-    throw new Error(fill(UI_TEXT.estimateNotFound, { goal: JSON.stringify(parsedGoal) }))
+    let reference: string = parsedGoal.kind
+    if ('milestoneId' in parsedGoal) reference = parsedGoal.milestoneId
+    else if ('number' in parsedGoal) reference = String(parsedGoal.number)
+    else if ('release' in parsedGoal) reference = parsedGoal.release
+    throw new EstimateDiagnosticError(
+      `unknown-goal: ${reference}`,
+      fill(UI_TEXT.estimateNotFound, { goal: JSON.stringify(parsedGoal) }),
+    )
   }
   const milestoneEntry = (id: string): string[] => milestoneLanes.get(id) ?? notFound()
   let selected: string[]
@@ -765,23 +842,21 @@ export function buildPlanSnapshot(
     }
   }
 
-  // The transitive closure; merged lanes bind nothing further. An hour-less
-  // unfinished lane in the closure refuses the read instead of a partial
-  // estimate. A merged lane without an hour estimate stays out: it has no
-  // remaining work, and its unknown past prices nothing.
+  // Completed prerequisites retain identity but bind no further work. Missing
+  // unfinished hours refuse; absent historical hours on a completed lane are
+  // represented as zero, without inventing an original estimate.
   const included = new Set<string>()
   const pending = [...selected]
   for (let id = pending.pop(); id !== undefined; id = pending.pop()) {
     if (included.has(id)) continue
     const lane = withDeps.get(id) ?? notFound()
-    if (lane.state === 'merged' && lane.hours === null) continue
     included.add(id)
     if (included.size > ESTIMATE_MAX_ITEMS) refuse('lane-limit')
     if (lane.state !== 'merged') pending.push(...expandDeps(id))
   }
   const isMissing = (id: string): boolean => {
     const hours = withDeps.get(id)?.hours
-    return hours === null || hours === undefined
+    return withDeps.get(id)?.state !== 'merged' && (hours === null || hours === undefined)
   }
   const missing = [...included].filter((id) => isMissing(id)).toSorted(comparePlanText)
   if (missing.length > 0) {
@@ -796,16 +871,7 @@ export function buildPlanSnapshot(
     lanes: laneIds.map((id) => {
       const lane = withDeps.get(id)
       if (lane === undefined) refuse(`missing-estimate: ${id}`)
-      if (lane.hours === null) refuse(`missing-estimate: ${id}`)
-      // A rig the plan names without known OS facts cannot be scheduled
-      // soundly: naming it refuses instead of silently running it locally.
-      if (
-        lane.rigId !== null &&
-        lane.rigAffinity.os.length === 0 &&
-        lane.rigAffinity.architectures.length === 0
-      ) {
-        refuse(`unknown-rig: ${lane.rigId}`)
-      }
+      if (lane.hours === null && lane.state !== 'merged') refuse(`missing-estimate: ${id}`)
       const resources = {
         slots: assumedDemand(1),
         accountRequestsPerHour: assumedDemand(1),
@@ -826,7 +892,7 @@ export function buildPlanSnapshot(
         lane: {
           id: lane.id,
           kind: lane.short.toLowerCase(),
-          estimatedHours: lane.hours,
+          estimatedHours: lane.hours ?? 0,
           elapsedAgentHours: 0,
           minimumRemainingHours: 0,
           state: lane.state,
@@ -839,7 +905,7 @@ export function buildPlanSnapshot(
           resources,
           review: { status: 'unknown' as const },
         },
-        ...(lane.rigId !== null && { rigId: lane.rigId }),
+        ...(lane.state !== 'merged' && lane.rigId !== null && { rigId: lane.rigId }),
       }
     }),
     milestones: [...milestoneLanes]
@@ -879,7 +945,9 @@ export function buildPlanSnapshot(
       ...new Set(
         laneIds.flatMap((id) => {
           const lane = withDeps.get(id)
-          return lane?.rigId === null || lane?.rigId === undefined ? [] : [lane.rigId]
+          return lane?.state === 'merged' || lane?.rigId === null || lane?.rigId === undefined
+            ? []
+            : [lane.rigId]
         }),
       ),
     ]

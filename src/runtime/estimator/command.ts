@@ -1,3 +1,5 @@
+import * as z from 'zod/mini'
+import { redactSecrets } from '../../core/redact'
 import { escapeHtml } from '../../core/htmlText'
 import { ESTIMATE_OPTIONS } from './options'
 import {
@@ -15,6 +17,23 @@ import {
   SECONDS_PER_MINUTE,
 } from '../../shared/constants'
 import { fill, formatNumber, formatUnit, UI_TEXT, uiLocale } from '../../shared/l10n/text'
+
+/** Only validated application diagnostics reach host output; raw IO errors do not. */
+export function estimateFailureText(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'estimateDiagnostic' in error) {
+    const estimateDiagnosticSchema = z
+      .string()
+      .check(
+        z.regex(
+          /^(?:missing-associations|missing-plan|unknown-goal|unknown-prerequisite|unknown-release-member|unknown-rig|duplicate-lane|missing-estimate|source-unavailable|source-incomplete|invalid-lane|plan-drift|lane-limit):?[\w .,:;-]*$/,
+        ),
+      )
+    const parsed = estimateDiagnosticSchema.safeParse(error.estimateDiagnostic)
+    if (parsed.success && redactSecrets(parsed.data) === parsed.data)
+      return fill(UI_TEXT.estimateFailed, { detail: parsed.data })
+  }
+  return fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' })
+}
 
 export interface EstimateCommandOptions {
   readonly goal: EstimateRequest['goal']
@@ -300,8 +319,8 @@ export async function runEstimateCommand(
     const section = await collectEstimate(parsed.options, deps.context(), deps.runner, deps.signal)
     deps.write(renderEstimate(section, parsed.options.format, deps.money))
     return 0
-  } catch {
-    deps.error(fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }))
+  } catch (error: unknown) {
+    deps.error(estimateFailureText(error))
     return 1
   }
 }

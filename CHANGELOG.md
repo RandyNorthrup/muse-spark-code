@@ -83,6 +83,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Strict estimator snapshots** (M117 C-M117-1R3). Unresolved prerequisites,
+  release members and unfinished rig names now refuse together by name;
+  duplicate lane identities cannot merge silently. Completion follows origin's
+  default branch and current lane evidence, while completed goals and
+  prerequisites retain zero remaining work without placement. Failed or capped
+  evidence collection refuses explicitly. Every estimate rereads Reports
+  network, sign-in and trust admission; unused issue collection is removed.
+  ACP, CLI and TUI retain safe named diagnostics. Portable M103/M104 forecast
+  goldens and per-finding red drills cover the review repairs.
+
 - Estimator plan snapshots refuse loudly instead of accepting or inventing
   data (M117 C-M117-1R2). The fleet is stamped with the request's `asOf`
   instead of a second clock, so production estimates pass input validation.

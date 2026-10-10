@@ -37,8 +37,8 @@ export interface PlanSnapshotLoaderDeps {
   readonly log: Logger
   /** The workspace root holding PLAN.md; empty refuses every snapshot. */
   readonly root: string
-  /** Whether the networked `gh` collection may run; defaults to false. */
-  readonly networkAllowed?: boolean | undefined
+  /** Acquired by the source on every estimate; never cached with the bundle. */
+  readonly networkPolicy?: PlanSnapshotSource.PlanSnapshotSourceDeps['networkPolicy']
   /** How the bundle is loaded: Node's `require` unless a test hands in the module. */
   readonly loadBundle?: ((file: string) => unknown) | undefined
 }
@@ -80,7 +80,7 @@ export function planSnapshotLoader(
       bundle.installPlanSnapshotText(UI_TEXT, uiLocale())
       source = bundle.createPlanSnapshotSource({
         root: deps.root,
-        ...(deps.networkAllowed !== undefined && { networkAllowed: deps.networkAllowed }),
+        ...(deps.networkPolicy !== undefined && { networkPolicy: deps.networkPolicy }),
       })
     }
     return await source(goal, asOf, signal)
