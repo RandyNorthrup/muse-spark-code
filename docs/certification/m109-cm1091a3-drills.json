@@ -1,0 +1,102 @@
+{
+  "rig": "linuxlt",
+  "repositoryTimeouts": true,
+  "results": [
+    {
+      "id": "A3-1 creation commit authority",
+      "file": "src/core/vault/store.ts",
+      "test": "test/unit/vault/rvcm1091a2.test.ts",
+      "exit": 1,
+      "summary": ["Tests  1 failed | 7 passed (8)"],
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091a2.test.ts > RVCM1091A2 > P2: a Lock during first creation staging publishes no intent or vault"
+      ],
+      "sha256": {
+        "before": "3c0cb3739e95948ba05e797f046dac7e363e26eb82b2faa3b92d2671d63be3d1",
+        "mutation": "a2e86818a7f361e5bc9912909c41533ac6366c1f71d8044c927f816e7df45a88",
+        "after": "3c0cb3739e95948ba05e797f046dac7e363e26eb82b2faa3b92d2671d63be3d1",
+        "restored": true
+      }
+    },
+    {
+      "id": "A3-2 reset audit commit authority",
+      "file": "src/core/vault/store.ts",
+      "test": "test/unit/vault/rvcm1091a2.test.ts",
+      "exit": 1,
+      "summary": ["Tests  1 failed | 7 passed (8)"],
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091a2.test.ts > RVCM1091A2 > P2: a Lock during reset audit staging preserves the damaged vault and anchor"
+      ],
+      "sha256": {
+        "before": "3c0cb3739e95948ba05e797f046dac7e363e26eb82b2faa3b92d2671d63be3d1",
+        "mutation": "58661c16da8542abeaf09461e4e7d399af2f6900f22b3dc4ff9d3ab78ac73e92",
+        "after": "3c0cb3739e95948ba05e797f046dac7e363e26eb82b2faa3b92d2671d63be3d1",
+        "restored": true
+      }
+    },
+    {
+      "id": "A3-3 localized import ordinal",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/importReset.test.ts",
+      "exit": 1,
+      "summary": ["Tests  1 failed | 8 passed (9)"],
+      "failing": [
+        "FAIL  test/unit/vault/importReset.test.ts > C-M109-1 import end to end > imports a discovered file as hidden items with a value-free report, then deletes the source on request"
+      ],
+      "sha256": {
+        "before": "d33ca688eadef44814c260a5903989386cd898e7683a594df302233dfbcedfb9",
+        "mutation": "96b514b4aefdbe68472f1f7e4acb6aea1419bec9ffe8c036a27df4995e4073bb",
+        "after": "d33ca688eadef44814c260a5903989386cd898e7683a594df302233dfbcedfb9",
+        "restored": true
+      }
+    },
+    {
+      "id": "A3-4 vault runtime feature reference",
+      "file": "src/shared/featureCatalog.ts",
+      "test": "test/unit/featureCatalogDetails.test.ts",
+      "exit": 1,
+      "summary": ["Tests  1 failed | 3 passed (4)"],
+      "failing": [
+        "FAIL  test/unit/featureCatalogDetails.test.ts > feature catalogue details merge > still merges the reference details in"
+      ],
+      "sha256": {
+        "before": "1f71cd53743f944ab56571f6e42dc32dfa349c9f8e90d86286c1aa1dc5c20fb4",
+        "mutation": "dcaf426c1141996c50168864f652b09382a083bdb8ef9513d84426405ffce25a",
+        "after": "1f71cd53743f944ab56571f6e42dc32dfa349c9f8e90d86286c1aa1dc5c20fb4",
+        "restored": true
+      }
+    },
+    {
+      "id": "A3-5 accessible Reset action dispatch",
+      "file": "src/webview/models/sections/vault/VaultSection.tsx",
+      "test": "test/unit/vault/vaultPanel.test.tsx",
+      "exit": 1,
+      "summary": ["Tests  1 failed | 26 passed (27)"],
+      "failing": [
+        "FAIL  test/unit/vault/vaultPanel.test.tsx > U Vault section > offers a named, focusable Reset action only for the lost vault"
+      ],
+      "sha256": {
+        "before": "27f74ba78490b136c7075e302b3c3e54153c6878f1117b4b13cfc56396b2c035",
+        "mutation": "e1c7b524b761cbb8fe10d7d5e4c12e8beb1184f8e7c0de66cdedd529092a5b14",
+        "after": "27f74ba78490b136c7075e302b3c3e54153c6878f1117b4b13cfc56396b2c035",
+        "restored": true
+      }
+    },
+    {
+      "id": "A3-6 preserve the typed reset Lock refusal",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/rvcm1091a2.test.ts",
+      "exit": 1,
+      "summary": ["Tests  1 failed | 7 passed (8)"],
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091a2.test.ts > RVCM1091A2 > P2: a Lock during reset audit staging preserves the damaged vault and anchor"
+      ],
+      "sha256": {
+        "before": "d33ca688eadef44814c260a5903989386cd898e7683a594df302233dfbcedfb9",
+        "mutation": "740f1b2075e9d850395df4ca7c2a30c6bd74ed632c0d6b626c317022380fa4fc",
+        "after": "d33ca688eadef44814c260a5903989386cd898e7683a594df302233dfbcedfb9",
+        "restored": true
+      }
+    }
+  ]
+}

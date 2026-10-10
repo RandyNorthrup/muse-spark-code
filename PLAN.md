@@ -33258,6 +33258,55 @@ does. Three things are open, and the vault goes live when all three land:
 
 No checklist item above is ticked by this step.
 
+**CM1091A3 qualification (2026-10-10, linuxlt).** Apply the host agent's
+prepared round, remove both test clones through the existing management
+fixture, then run the complete vault file list in batches of at most three
+at repository deadlines. Reproduce the foreign-user peer failure on
+82d50d5e4. Run scoped static/build gates, review every changed class and
+certify any repair with a failing regression and byte-exact restoration.
+Commit with installed hooks and the prepared message; no merge, push,
+rebase, subagents or paid/live call. Aggregate quality and Windows replay
+remain lead-owned under the explicit rig/common brief.
+
+Review found and repaired missing commit-time Lock checks in first
+creation and the reset audit write, plus an import label that bypassed
+locale number formatting. Both physical commits now check authority; the
+label's numeric slot goes through `fill`. Failing-before regressions and
+six named removal drills certify the repairs, typed Lock refusal, accessible
+lost-vault Reset action and feature catalog detail. Final vault replay:
+1,499 passed, 34 existing skips, only the identical-base peer failure.
+All eleven scoped gates pass; reference owners pass all 135 tests.
+Certification records the exact results without ticking the installed
+broker or panel checklist.
+
+**C-M109-1 (a) additions (2026-10-10, lead decisions).**
+
+- **Reset Vault.** It is offered only when this user's anchor names a vault
+  that no slot or code can open, because its files are missing or damaged.
+  - Two steps: the plain statement of loss, then the typed word `RESET`.
+  - The store re-checks under the writer lock that no slot records exist
+    before anything changes.
+  - It appends a value-free audit line to `reset.v1` and keeps the
+    displaced document aside.
+  - It clears the anchor by compare-and-delete. Rollback protection restarts
+    with the next setup's new anchor.
+  - Surfaces: the panel, the CLI `vault reset` and the ACP agent's
+    terminal.
+- **Import.** `VaultStore.writeBatch` publishes every item with its
+  encrypted receipt in one transaction, after decrypt-and-verify of the staged
+  items, with authority checked at the commit.
+  - `VaultManagement.importFile` imports only files discovered in the home
+    folder. Items are hidden until the user reviews them.
+  - The report carries names and kinds only, and Keep/Delete follows.
+  - A cancelled requester commits nothing.
+  - A refusal at the commit never locks the vault.
+- **RVCM1091A2 (Grok).**
+  - Every Lock raises a lock generation. Setup, confirm, recover, reset and
+    import re-check it at each await, so nothing a Lock overtook ends
+    unlocked or commits.
+  - A headless open closes its connection on abort and re-checks the signal
+    after registration.
+
 **FIXM109W integrated review repair (2026-10-07, Mac mini).** Verify every
 P1/P2 in `_ctx/codex/M109-findings.md` against integration `a1d2b73e7`,
 including already repaired U findings and the L certificate observation.
@@ -38116,6 +38165,24 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**CM1091A3 scoped rig qualification (2026-10-10, linuxlt).** The explicit
+rig/common brief prohibits aggregate `quality` and delegates it and the
+Windows replay to the lead. Run the complete vault file list at repository
+deadlines, with at most three files per invocation, plus the owning reference
+suite, scoped lint/format, all five type projects, plain knip, duplication,
+localization, reference, host API, plan, roadmap and unchanged bundle budgets.
+The foreign-user peer probe fails identically on base `82d50d5e4` and this
+lane: `sudo-rs` cannot find the generated client under the rig's private
+`TMPDIR`; no assertion, deadline, permission or test is weakened.
+Reviewed repairs and six byte-exact restoration drills are recorded in the
+M109 certification. All eleven scoped gates exit 0. The full visual gate
+starts, but the unchanged 9,792-capture baseline plus candidate render
+exceeds the explicit 120-minute time box at the observed pace; stop its
+owned process group after 288 baseline captures (exit 143), clean only its
+owned directories, and defer full visual approval to the lead with aggregate
+quality. No baseline or tolerance changes. Native Windows replay remains a
+separate lead step.
 
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering

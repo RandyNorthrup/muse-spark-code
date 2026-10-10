@@ -12,6 +12,7 @@ import {
   vaultItemMetadataSchema,
 } from '../../shared/vault'
 import { UI_TEXT } from '../../shared/constants'
+import type { VaultImportReport } from '../../core/vault/broker/ports'
 
 /** C/B/P/M bind these operations to the real broker and single writer. No values cross the panel. */
 export interface VaultPanelService {
@@ -29,7 +30,12 @@ export interface VaultPanelService {
   /** B consumes the answer and delivers any ticket privately to the waiting use route. */
   answer(answer: VaultApprovalAnswer, authorize: () => void): Promise<void>
   /** M imports only the selected path; never another application's private store. */
-  importFile(path: string, authorize: () => void): Promise<void>
+  importFile(path: string, authorize: () => void): Promise<VaultImportReport>
+  keepImport(receipt: string): Promise<void>
+  deleteImport(receipt: string, authorize: () => void): Promise<void>
+  /** Reset Vault: only for a lost vault (lead decision). */
+  resetBegin(): Promise<{ resetId: string; word: string }>
+  resetConfirm(resetId: string, word: string, authorize: () => void): Promise<void>
   /** Set Up Vault: the one-time code as owned bytes; nothing is written before confirmSetup. */
   setup(): Promise<{ setupId: string; code: Buffer }>
   confirmSetup(setupId: string, authorize: () => void): Promise<void>
@@ -48,6 +54,13 @@ export interface VaultPanelHostDeps {
   readonly publish: (message: ReturnType<typeof vaultHostMessageSchema.parse>) => void
   readonly status: (isUnlocked: boolean) => void
   readonly showError: (message: string) => void
+  /** The per-item report (names only) and the person's Keep or Delete of the source. */
+  readonly importDone: (names: readonly string[]) => Promise<'keep' | 'delete'>
+  /**
+   * The host's own two steps: the warning with Continue, then the typed word.
+   * Resolves the typed text, or null when the person stops.
+   */
+  readonly confirmReset: (word: string, signal: AbortSignal) => Promise<string | null>
   /** The host's own modal with Copy and I Saved It; true only for I Saved It. */
   readonly showRecoveryCode: (code: string, signal: AbortSignal) => Promise<boolean>
 }
@@ -232,6 +245,18 @@ export class VaultPanelHost {
         await this.load(generation)
         return
       }
+      if (message.type === 'vaultReset') {
+        const current = await this.load(generation)
+        if (current.status.reason !== 'vaultLost') throw new Error(UI_TEXT.vault.useChanged)
+        const challenge = await this.deps.service.resetBegin()
+        const typed = await this.deps.confirmReset(challenge.word, this.cancellation.signal)
+        if (typed !== null)
+          await this.deps.service.resetConfirm(challenge.resetId, typed, () => {
+            this.authorize(generation)
+          })
+        await this.load(this.generation)
+        return
+      }
       if (message.type === 'vaultSetup') {
         const current = await this.load(generation)
         if (current.status.state !== 'uncreated') throw new Error(UI_TEXT.vault.setupExists)
@@ -369,7 +394,12 @@ export class VaultPanelHost {
           ) {
             throw new Error(UI_TEXT.vault.useChanged)
           }
-          await this.deps.service.importFile(message.path, authorize)
+          const report = await this.deps.service.importFile(message.path, authorize)
+          const choice = await this.deps.importDone(
+            report.items.map((item) => `${item.name} (${item.kind})`),
+          )
+          if (choice === 'delete') await this.deps.service.deleteImport(report.receipt, authorize)
+          else await this.deps.service.keepImport(report.receipt)
           break
         }
       }

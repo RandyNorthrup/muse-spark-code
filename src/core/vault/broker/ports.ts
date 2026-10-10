@@ -113,6 +113,11 @@ export class VaultStoreUnavailableError extends Error {
     this.name = 'VaultStoreUnavailableError'
   }
 }
+/** Value-free: the receipt for Keep/Delete and the imported items' metadata. */
+export interface VaultImportReport {
+  receipt: string
+  items: readonly VaultItemMetadata[]
+}
 /** Why a v2 management call was refused; the channel answers `refused` with it. */
 export type VaultManagementRefusal = Extract<
   VaultBrokerResponse['response'],
@@ -136,7 +141,18 @@ export interface VaultManagementPort {
   edit(item: VaultItem): Promise<void>
   editMetadata(metadata: VaultItemMetadata): Promise<void>
   remove(itemId: string): Promise<void>
-  importFile(path: string): Promise<void>
+  /**
+   * Imports one discovered credential file as a single all-or-none batch.
+   * `isCurrent` is false once the requester cancelled (its connection
+   * closed); it is checked at the commit, so a cancelled import writes nothing.
+   */
+  importFile(path: string, isCurrent: () => boolean): Promise<VaultImportReport>
+  keepImport(receipt: string): Promise<void>
+  deleteImport(receipt: string, isCurrent: () => boolean): Promise<void>
+  /** Reset Vault step 1: only when the anchored vault is lost. */
+  resetBegin(): Promise<{ resetId: string; word: string }>
+  /** Step 2: the typed word; writes the audit line, removes the files, clears the anchor. */
+  resetConfirm(resetId: string, word: string): Promise<void>
   publicKey(itemId: string): Promise<string>
   /** Generates the vault key and recovery code; nothing is written until confirmSetup. */
   setup(): Promise<{ setupId: string; code: Buffer }>

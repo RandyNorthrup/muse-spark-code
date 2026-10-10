@@ -1,0 +1,170 @@
+{
+  "rig": "kubuntu",
+  "results": [
+    {
+      "id": "I1 the batch verifies staged items before any commit",
+      "file": "src/core/vault/store.ts",
+      "test": "test/unit/vault/importReset.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 8 passed (9)",
+      "failing": [
+        "FAIL  test/unit/vault/importReset.test.ts > C-M109-1 batch writer > publishes every item and its receipt together, or nothing when verification fails"
+      ],
+      "sha256": {
+        "before": "222a827a5870d911e851555be128908a790e481d412e632ece7187ea6095ea81",
+        "after": "222a827a5870d911e851555be128908a790e481d412e632ece7187ea6095ea81",
+        "restored": true
+      }
+    },
+    {
+      "id": "I2 the batch checks authority at the commit",
+      "file": "src/core/vault/store.ts",
+      "test": "test/unit/vault/importReset.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 8 passed (9)",
+      "failing": [
+        "FAIL  test/unit/vault/importReset.test.ts > C-M109-1 batch writer > checks authority at the commit and refuses a duplicate name, writing nothing"
+      ],
+      "sha256": {
+        "before": "222a827a5870d911e851555be128908a790e481d412e632ece7187ea6095ea81",
+        "after": "222a827a5870d911e851555be128908a790e481d412e632ece7187ea6095ea81",
+        "restored": true
+      }
+    },
+    {
+      "id": "I3 a cancelled import commits nothing",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/importReset.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 8 passed (9)",
+      "failing": [
+        "FAIL  test/unit/vault/importReset.test.ts > C-M109-1 import end to end > a cancelled or undiscovered import writes nothing"
+      ],
+      "sha256": {
+        "before": "a6f81fda2682c92b52978acaefa289ce20b35458970b1f72a6c21cd32d199d0b",
+        "after": "a6f81fda2682c92b52978acaefa289ce20b35458970b1f72a6c21cd32d199d0b",
+        "restored": true
+      }
+    },
+    {
+      "id": "I4 only discovered files are imported",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/importReset.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 8 passed (9)",
+      "failing": [
+        "FAIL  test/unit/vault/importReset.test.ts > C-M109-1 import end to end > a cancelled or undiscovered import writes nothing"
+      ],
+      "sha256": {
+        "before": "8abd3f99500c821caeb2a419e53b78d95147703f3a12aa62e42a2f8a32609315",
+        "after": "8abd3f99500c821caeb2a419e53b78d95147703f3a12aa62e42a2f8a32609315",
+        "restored": true
+      }
+    },
+    {
+      "id": "I5 imported items are hidden until reviewed",
+      "file": "src/core/vault/migrate/prepareImport.ts",
+      "test": "test/unit/vault/importReset.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 8 passed (9)",
+      "failing": [
+        "FAIL  test/unit/vault/importReset.test.ts > C-M109-1 import end to end > imports a discovered file as hidden items with a value-free report, then deletes the source on request"
+      ],
+      "sha256": {
+        "before": "76a0a2960348d3bb3a33ba0a87ec47ba3a3e0ce0d5f84945c580004af6ea2e19",
+        "after": "76a0a2960348d3bb3a33ba0a87ec47ba3a3e0ce0d5f84945c580004af6ea2e19",
+        "restored": true
+      }
+    },
+    {
+      "id": "I6 a refusal at the commit never locks the vault",
+      "file": "src/core/vault/store.ts",
+      "test": "test/unit/vault/importReset.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 8 passed (9)",
+      "failing": [
+        "FAIL  test/unit/vault/importReset.test.ts > C-M109-1 batch writer > checks authority at the commit and refuses a duplicate name, writing nothing"
+      ],
+      "sha256": {
+        "before": "222a827a5870d911e851555be128908a790e481d412e632ece7187ea6095ea81",
+        "after": "222a827a5870d911e851555be128908a790e481d412e632ece7187ea6095ea81",
+        "restored": true
+      }
+    },
+    {
+      "id": "R1 reset only for a lost vault",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/importReset.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 8 passed (9)",
+      "failing": [
+        "FAIL  test/unit/vault/importReset.test.ts > C-M109-1 Reset Vault > is refused in every other state"
+      ],
+      "sha256": {
+        "before": "a6f81fda2682c92b52978acaefa289ce20b35458970b1f72a6c21cd32d199d0b",
+        "after": "a6f81fda2682c92b52978acaefa289ce20b35458970b1f72a6c21cd32d199d0b",
+        "restored": true
+      }
+    },
+    {
+      "id": "R2 reset needs the exact word",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/importReset.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 8 passed (9)",
+      "failing": [
+        "FAIL  test/unit/vault/importReset.test.ts > C-M109-1 Reset Vault > resets a lost vault after the exact word, writes the audit line and starts a new anchor"
+      ],
+      "sha256": {
+        "before": "a6f81fda2682c92b52978acaefa289ce20b35458970b1f72a6c21cd32d199d0b",
+        "after": "a6f81fda2682c92b52978acaefa289ce20b35458970b1f72a6c21cd32d199d0b",
+        "restored": true
+      }
+    },
+    {
+      "id": "R3 reset rechecks under the writer",
+      "file": "src/core/vault/store.ts",
+      "test": "test/unit/vault/importReset.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 8 passed (9)",
+      "failing": [
+        "FAIL  test/unit/vault/importReset.test.ts > C-M109-1 Reset Vault > is refused at the commit when the vault reappeared between the two steps"
+      ],
+      "sha256": {
+        "before": "222a827a5870d911e851555be128908a790e481d412e632ece7187ea6095ea81",
+        "after": "222a827a5870d911e851555be128908a790e481d412e632ece7187ea6095ea81",
+        "restored": true
+      }
+    },
+    {
+      "id": "R4 reset writes the audit line",
+      "file": "src/core/vault/store.ts",
+      "test": "test/unit/vault/importReset.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 8 passed (9)",
+      "failing": [
+        "FAIL  test/unit/vault/importReset.test.ts > C-M109-1 Reset Vault > resets a lost vault after the exact word, writes the audit line and starts a new anchor"
+      ],
+      "sha256": {
+        "before": "222a827a5870d911e851555be128908a790e481d412e632ece7187ea6095ea81",
+        "after": "222a827a5870d911e851555be128908a790e481d412e632ece7187ea6095ea81",
+        "restored": true
+      }
+    },
+    {
+      "id": "R5 reset clears the anchor",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/importReset.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 8 passed (9)",
+      "failing": [
+        "FAIL  test/unit/vault/importReset.test.ts > C-M109-1 Reset Vault > resets a lost vault after the exact word, writes the audit line and starts a new anchor"
+      ],
+      "sha256": {
+        "before": "a6f81fda2682c92b52978acaefa289ce20b35458970b1f72a6c21cd32d199d0b",
+        "after": "a6f81fda2682c92b52978acaefa289ce20b35458970b1f72a6c21cd32d199d0b",
+        "restored": true
+      }
+    }
+  ]
+}

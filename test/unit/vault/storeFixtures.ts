@@ -23,17 +23,17 @@ import { FakeVaultClock } from '../helpers/vault/core'
 export class MemoryVaultFiles implements VaultFilePort {
   private writing = false
   readonly maxBytes = 16 * 1024 * 1024
-  readonly data = new Map<'vault.v1' | 'slots.v1' | 'pending.v1', Buffer>()
+  readonly data = new Map<'vault.v1' | 'slots.v1' | 'pending.v1' | 'reset.v1', Buffer>()
   readonly quarantined: Buffer[] = []
-  fail: 'vault.v1' | 'slots.v1' | 'pending.v1' | null = null
+  fail: 'vault.v1' | 'slots.v1' | 'pending.v1' | 'reset.v1' | null = null
   /** A test may hold a write after staging, before its commit check (RVCM1091A F2). */
-  hold: ((name: 'vault.v1' | 'slots.v1' | 'pending.v1') => Promise<void>) | null = null
-  read(name: 'vault.v1' | 'slots.v1' | 'pending.v1'): Promise<Buffer | null> {
+  hold: ((name: 'vault.v1' | 'slots.v1' | 'pending.v1' | 'reset.v1') => Promise<void>) | null = null
+  read(name: 'vault.v1' | 'slots.v1' | 'pending.v1' | 'reset.v1'): Promise<Buffer | null> {
     const bytes = this.data.get(name)
     return Promise.resolve(bytes ? ownedBytes(bytes) : null)
   }
   async writeAtomic(
-    name: 'vault.v1' | 'slots.v1' | 'pending.v1',
+    name: 'vault.v1' | 'slots.v1' | 'pending.v1' | 'reset.v1',
     bytes: Uint8Array,
     commit?: () => void,
   ): Promise<void> {
@@ -43,7 +43,7 @@ export class MemoryVaultFiles implements VaultFilePort {
     commit?.()
     this.data.set(name, ownedBytes(bytes))
   }
-  remove(name: 'vault.v1' | 'slots.v1' | 'pending.v1'): Promise<void> {
+  remove(name: 'vault.v1' | 'slots.v1' | 'pending.v1' | 'reset.v1'): Promise<void> {
     this.data.delete(name)
     return Promise.resolve()
   }
@@ -171,15 +171,11 @@ export async function withRngFailure(
   }
 }
 
-/** A fresh vault with one item whose next write of `name` is held until released. */
-export async function heldWriteVault(
-  name: 'vault.v1' | 'slots.v1' | 'pending.v1',
-  item: VaultItem,
+/** Holds a generated file's staged write immediately before its physical commit. */
+export function holdFileWrite(
+  files: MemoryVaultFiles,
+  name: Parameters<MemoryVaultFiles['writeAtomic']>[0],
 ) {
-  const vault = await freshVault()
-  const files = vault.files
-  if (!(files instanceof MemoryVaultFiles)) throw new Error('memory files expected')
-  await vault.store.write(item)
   const held = Promise.withResolvers<undefined>()
   const state = { isHeld: false }
   files.hold = (written) => {
@@ -187,5 +183,17 @@ export async function heldWriteVault(
     state.isHeld = true
     return held.promise
   }
-  return { vault, files, held, state }
+  return { held, state }
+}
+
+/** A fresh vault with one item whose next write of `name` is held until released. */
+export async function heldWriteVault(
+  name: 'vault.v1' | 'slots.v1' | 'pending.v1' | 'reset.v1',
+  item: VaultItem,
+) {
+  const vault = await freshVault()
+  const files = vault.files
+  if (!(files instanceof MemoryVaultFiles)) throw new Error('memory files expected')
+  await vault.store.write(item)
+  return { vault, files, ...holdFileWrite(files, name) }
 }

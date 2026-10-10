@@ -7,7 +7,7 @@ import {
 } from '../../../src/host/vault/vaultPanelHost'
 import { type VaultItem, type VaultItemMetadata } from '../../../src/shared/vault'
 import { panel, item, metadata, approval, grant } from '../helpers/vault/fixtures'
-import { generatedSetup } from '../helpers/vault/runtime'
+import { generatedImport, generatedSetup } from '../helpers/vault/runtime'
 
 function fixture() {
   const state = panel()
@@ -46,7 +46,16 @@ function fixture() {
     }),
     revoke: vi.fn<VaultPanelService['revoke']>(() => Promise.resolve()),
     answer: vi.fn<VaultPanelService['answer']>(() => Promise.resolve()),
-    importFile: vi.fn<VaultPanelService['importFile']>((_path, authorize) => {
+    importFile: vi.fn<VaultPanelService['importFile']>(async (_path, authorize) => {
+      authorize()
+      return await generatedImport()
+    }),
+    keepImport: vi.fn<VaultPanelService['keepImport']>(() => Promise.resolve()),
+    deleteImport: vi.fn<VaultPanelService['deleteImport']>(() => Promise.resolve()),
+    resetBegin: vi.fn<VaultPanelService['resetBegin']>(() =>
+      Promise.resolve({ resetId: 'b'.repeat(32), word: 'RESET' }),
+    ),
+    resetConfirm: vi.fn<VaultPanelService['resetConfirm']>((_id, _word, authorize) => {
       authorize()
       return Promise.resolve()
     }),
@@ -57,6 +66,8 @@ function fixture() {
   const deps = {
     service,
     showRecoveryCode: vi.fn<VaultPanelHostDeps['showRecoveryCode']>(() => Promise.resolve(true)),
+    importDone: vi.fn<VaultPanelHostDeps['importDone']>(() => Promise.resolve('keep')),
+    confirmReset: vi.fn<VaultPanelHostDeps['confirmReset']>(() => Promise.resolve('RESET')),
     now: () => 1000,
     editItem: vi.fn<VaultPanelHostDeps['editItem']>(() => Promise.resolve(null)),
     confirmRemove: vi.fn(() => Promise.resolve(true)),

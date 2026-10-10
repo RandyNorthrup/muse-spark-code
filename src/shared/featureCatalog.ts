@@ -1088,6 +1088,7 @@ export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
 const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
+  vault: ['referenceVault'],
   providers: ['providerOpenRouterServices'],
   estimator: ['estimateCliHelp'],
   permissions: ['referencePermissionLimits'],
