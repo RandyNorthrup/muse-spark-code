@@ -33,6 +33,12 @@ export class CredentialStore {
         string | { readonly id: string; readonly auth: string; readonly models?: readonly string[] }
       )[]
     >,
+    /**
+     * C-M95-SUB: an additional credential outside secret storage (the
+     * opted-in CLI subscription key). Consulted for backend availability
+     * only; the key itself is never stored here.
+     */
+    private readonly hasSubscriptionCredential?: () => PromiseLike<boolean>,
   ) {}
 
   /**
@@ -103,11 +109,15 @@ export class CredentialStore {
   }
 
   /**
-   * A Model API credential of either kind (M95, PLAN.md D74): the Meta key
-   * or any provider's secret. Backend selection and the sign-in gate read
-   * this, never the key alone.
+   * A Model API credential of any kind (M95, PLAN.md D74): the Meta key,
+   * any provider's secret, or the opted-in CLI subscription (C-M95-SUB).
+   * Backend selection and the sign-in gate read this, never the key alone.
    */
   public async hasModelApiCredential(): Promise<boolean> {
-    return (await this.getApiKey()) !== undefined || (await this.hasProviderCredential())
+    return (
+      (await this.getApiKey()) !== undefined ||
+      (await this.hasProviderCredential()) ||
+      (await this.hasSubscriptionCredential?.()) === true
+    )
   }
 }

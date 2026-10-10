@@ -169,6 +169,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiReplyUsage: boolean
   /** Session budget cap in USD for Model API requests; 0 is no cap (M82). */
   readonly modelApiSessionBudgetUsd: UsdAmount
+  /** Drive the Model API backend from the Muse Code subscription (C-M95-SUB). */
+  readonly useMuseCodeSubscription: boolean
   /** Copyright/SPDX header hygiene for the read-only legal scan (M97). */
   readonly legalRegistryLookups: boolean
   readonly legalExplanation: boolean
@@ -303,6 +305,7 @@ const settingSchemas = {
   ),
   dictationEngine: z.enum(['system', 'museVoice']),
   modelApiSessionBudgetUsd: legacyUsdSchema,
+  useMuseCodeSubscription: z.boolean(),
   legalRegistryLookups: z.boolean(),
   legalExplanation: z.boolean(),
   legalHeaderPolicy: z.enum(LEGAL_HEADER_POLICIES),
@@ -449,6 +452,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     usageHistoryDays: readSetting(config, 'usageHistoryDays', log),
     dictationEngine: readSetting(config, 'dictationEngine', log),
     modelApiSessionBudgetUsd: readSetting(config, 'modelApiSessionBudgetUsd', log),
+    useMuseCodeSubscription: readSetting(config, 'useMuseCodeSubscription', log),
     modelApiCommandRules: readSetting(config, 'modelApiCommandRules', log),
     modelApiPermissionProfiles: readSetting(config, 'modelApiPermissionProfiles', log),
     modelApiPermissionProfile: readSetting(config, 'modelApiPermissionProfile', log),
