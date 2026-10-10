@@ -4,10 +4,11 @@
 > turn the judge into our own Jev: a fast, batched, calibrated decision
 > engine that makes the agent quicker and checks its work, set up through a
 > Set Up Local Judge wizard that scans the machine first. The owner also
-> chose an approval fast path (Q-D107, 2026-10-10): on Linux and macOS a
-> held Auto action that is a confined read-only inspect command, or the
-> workspace's own unchanged check script run in a contained sandbox, may
-> skip the slow reviewer when the judge does not veto it within 5 seconds
+> chose an approval fast path (Q-D107, 2026-10-10): a held Auto action that
+> is a confined read-only inspect command (Linux and macOS), or the
+> workspace's own unchanged npm or pnpm check script run in a contained
+> sandbox (Linux only), may skip the slow reviewer when the judge does not
+> veto it within 5 seconds
 > (the reviewer still starts as it does today, so a veto adds no wait). The
 > design is in [design/judge-fast-path.md](design/judge-fast-path.md).
 > Nothing in it is built. This page describes phase 1 as it ships today.
