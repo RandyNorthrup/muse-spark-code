@@ -209,6 +209,12 @@ export class SubscriptionKeySource {
     return read.status === 'ready'
   }
 
+  /** Drops the cached key, for headless runs that clear owned key material. */
+  public clear(): void {
+    this.cached = undefined
+    this.pending = undefined
+  }
+
   /**
    * Redacts the currently cached key from text, for logs and transcripts.
    * Anything never read is nothing to redact; callers handling errors

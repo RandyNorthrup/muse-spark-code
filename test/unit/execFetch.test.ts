@@ -44,7 +44,7 @@ afterAll(async () => {
   await Promise.all(folders.map((created) => removeFolder(created)))
 })
 
-function harness(capUsd = 1, fetcher?: typeof fetch) {
+function harness(capUsd = 1, fetcher?: typeof fetch, isPlanBilling = false) {
   const api = fakeModelApi()
   const ledger = createRunLedger({ capUsd: Usd.from(capUsd).toAmount(), maxRequests: 30 })
   const events: ExecEventBody[] = []
@@ -72,6 +72,7 @@ function harness(capUsd = 1, fetcher?: typeof fetch) {
     ledger,
     selectedModel: model,
     imageGeneration: true,
+    planBilling: isPlanBilling,
     lifecycle: life,
     onLatch: (cause) => {
       life.latch(cause)
@@ -134,6 +135,27 @@ describe('M80 streaming transport boundary', () => {
         usage: 'valid',
         settlement: 'priced',
       })
+    } finally {
+      h.close()
+    }
+  })
+  it('C-M95-SUB plan billing settles $0 billed and still counts the request', async () => {
+    const h = harness(1, undefined, true)
+    h.api.script({ text: 'answer' })
+    try {
+      const response = await h.transport.fetch(`${MODEL_API_BASE_URL}/responses`, post)
+      expect(response.status).toBe(200)
+      await response.text()
+      await h.transport.whenSettled()
+      expect(h.outcomes).toHaveLength(1)
+      expect(h.outcomes[0]).toMatchObject({
+        terminal: 'completed',
+        usage: 'valid',
+        settlement: 'priced',
+      })
+      expect(h.ledger.totals().requests).toBe(1)
+      expect(h.ledger.totals().settledUsd).toBe(Usd.from(0).toAmount())
+      expect(h.ledger.totals().remainingUsd).toBe(Usd.from(1).toAmount())
     } finally {
       h.close()
     }

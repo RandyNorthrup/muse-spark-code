@@ -389,6 +389,8 @@ export const EN = {
       '--trust-workspace                Load the folder’s rules, skills and memory',
     maintenance: 'Run the Setup maintenance event instead of init.',
     'muse-binary': '--muse-binary <path>             The Muse Code CLI to run',
+    subscription:
+      '--subscription                 Drive the Model API backend with the Muse Code subscription instead of a key (its calls count against the plan)',
     'shell-sandbox': '--shell-sandbox auto|muse|off    Muse Code’s shell sandbox',
     'allow-dangerously-skip-permissions':
       '--allow-dangerously-skip-permissions  Offer the Bypass permissions mode',
@@ -469,7 +471,7 @@ export const EN = {
   referenceInstallSkills:
     "Copy project_setup, feature_delivery and quality_retrofit into Muse Code's configuration and link them as skills.",
   referenceExecContract:
-    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.',
+    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --subscription / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.',
   referenceBriefHelp:
     'help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.',
   referenceKeyStdin:
@@ -4117,6 +4119,11 @@ export const EN = {
   acpUnknownArgument: 'Unknown argument: {argument}',
   // {argument}: the paid feature's flag as typed.
   acpPaidNeedsModelApi: '{argument} needs --backend modelApi: paid features bill a Model API key.',
+  // {argument}: the subscription flag as typed.
+  acpSubscriptionNeedsModelApi:
+    '{argument} needs --backend modelApi: the Muse Code subscription pays for Model API calls.',
+  execSubscriptionStdin:
+    '--subscription and --key-stdin cannot be combined: one credential per run.',
   // {command}: the executable's name. The options and values stay as typed.
   acpFontUi: 'UI font',
   acpFontCode: 'Code font',
@@ -4149,6 +4156,7 @@ export const EN = {
     '  --allow-contributor-models       List contributor-tier models (Meta may train on their content)',
     '  --web-search                     Offer paid web search (Model API backend; its price is asked first)',
     '  --image-generation               Offer paid image generation (Model API backend; its price is asked first)',
+    '  --subscription                   Drive the Model API backend with the Muse Code subscription instead of a key',
     '  --no-auto-compaction             Disable automatic compaction',
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',

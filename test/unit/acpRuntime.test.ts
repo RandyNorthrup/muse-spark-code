@@ -251,6 +251,18 @@ describe('parseCommandLine', () => {
     })
   })
 
+  it('C-M95-SUB takes --subscription on the Model API backend only', () => {
+    expect(parseCommandLine(['--backend', 'modelApi', '--subscription'])).toMatchObject({
+      command: 'serve',
+      options: { backend: 'modelApi', subscription: true },
+    })
+    expect(parseCommandLine(['--backend', 'museCode', '--subscription'])).toEqual({
+      command: 'invalid',
+      reason:
+        '--subscription needs --backend modelApi: the Muse Code subscription pays for Model API calls.',
+    })
+  })
+
   it('refuses a paid feature on the Muse Code backend, naming the flag (M63c)', () => {
     expect(parseCommandLine(['--web-search'])).toEqual({
       command: 'invalid',

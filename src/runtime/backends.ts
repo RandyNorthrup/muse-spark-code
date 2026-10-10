@@ -50,6 +50,8 @@ import { createToolIo } from '../host/backend/toolIo'
 import { AccountHosts, connectAccountSession } from '../host/auth/accountHost'
 import { CliAccount, isCliSignedIn } from '../host/auth/cliAccount'
 import { CredentialStore, type SecretStore } from '../host/auth/credentialStore'
+import { SubscriptionCredential } from '../host/auth/subscriptionCredential'
+import { SubscriptionKeySource } from '../core/backends/modelapi/subscriptionKey'
 import type { Logger } from '../host/logger'
 import { createWorkspaceFileLister } from '../host/mention/workspaceFiles'
 import { pageConverter } from '../host/web/pageConverter'
@@ -212,6 +214,7 @@ interface MuseHomes {
 function modelApiManager(
   deps: RuntimeBackendDeps,
   credentials: CredentialStore,
+  subscription: SubscriptionCredential,
   storedWorkspaceRoot: string,
   workspaceRoot: string,
   homes: MuseHomes,
@@ -338,7 +341,8 @@ function modelApiManager(
     log,
     usageRecording: deps.usageRecording,
     hasExternalPaidRecording: deps.exec !== undefined,
-    getApiKey: () => credentials.getApiKey(),
+    getApiKey: () => subscription.getApiKey(),
+    isSubscriptionBilling: () => subscription.isSubscriptionBilling(),
     workspaceRoot,
     sessionWorkspaceRoot: storedWorkspaceRoot,
     assertWorkspaceCurrent,
@@ -533,13 +537,33 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     { readonly manager: ModelApiBackendManager; readonly identity: string }
   >()
   const workspaceEdits = new Map<string, WorkspaceEdits>()
+  // C-M95-SUB: the Model API backend on the Muse Code subscription. The
+  // flag is the one opt-in; without it the pasted key behaves as before.
+  // The source reads only the CLI's auth file, never the secret store.
+  const subscriptionSource = new SubscriptionKeySource({
+    platform: deps.platform,
+    homeDir: deps.homeDir,
+    xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
+  })
   const credentials = new CredentialStore(
     deps.secrets,
     (message) => {
       deps.log.warn(message)
     },
     "the operating system's credential store",
+    undefined,
+    // The --subscription opt-in counts the CLI sign-in for backend
+    // availability; the key itself never enters the store.
+    async () => deps.options.subscription === true && (await subscriptionSource.isReady()),
   )
+  const subscription = new SubscriptionCredential({
+    credentials,
+    isEnabled: () => deps.options.subscription === true,
+    platform: deps.platform,
+    homeDir: deps.homeDir,
+    xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
+    source: subscriptionSource,
+  })
   const paid = new AcpPaidUse({
     flagged: deps.options.paidFeatures,
     canRemember: () => deps.options.trustWorkspace,
@@ -673,6 +697,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     const manager = modelApiManager(
       deps,
       credentials,
+      subscription,
       cwd,
       canonical,
       homes,
