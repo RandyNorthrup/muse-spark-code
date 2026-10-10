@@ -93,6 +93,7 @@ import {
   holdForRoots,
   isReservationOf,
   recordRevision,
+  UnknownWriteError,
   versionOf,
   type Reservation,
   type ReserveResult,
@@ -1211,6 +1212,9 @@ export class PullRequestCheckoutProtocol {
     const changed: OpenPullRequestResult = { ok: false, reason: UI_TEXT.gitOperationChanged }
     // The reservation the gate checks: the claimed one once claimed.
     let held = reserved
+    // A claim whose landing is not known: the record is one of these.
+    let unknownClaims: readonly Reservation[] = []
+    const owned = (): readonly Reservation[] => [...unknownClaims, held]
     let made: MadeFolder | undefined
     const gates: CheckoutGates = {
       run: () => {
@@ -1234,6 +1238,10 @@ export class PullRequestCheckoutProtocol {
       if (claimed.status === 'refused') {
         throw new ReservationLostError(folder)
       }
+      if (claimed.status === 'unknown') {
+        unknownClaims = claimed.reservations
+        throw claimed.error
+      }
       held = claimed.reservation
       if (claimed.status === 'failed') {
         throw claimed.error
@@ -1252,7 +1260,7 @@ export class PullRequestCheckoutProtocol {
         // record, and nothing this one made stays (the port removed it).
         this.deps.log.warn(`A checkout lost its reservation to another: ${folder}`)
       }
-      await this.settleFailure(made, held, error, gates.cleanup)
+      await this.settleFailure(made, owned(), error, gates.cleanup)
       if (error instanceof ReservationLostError) {
         return changed
       }
@@ -1268,14 +1276,14 @@ export class PullRequestCheckoutProtocol {
     const identity = made === undefined ? undefined : await this.deps.git.identityOf(made)
     if (identity === undefined) {
       this.deps.log.warn(`A checkout's folder is no longer the one it made: ${folder}`)
-      await this.discardWithMade(made, held, gates.cleanup)
+      await this.discardWithMade(made, owned(), gates.cleanup)
       return { ok: false, reason: `${UI_TEXT.worktreeAddFailed}: ${folder}` }
     }
     if ((await this.settleComplete(held, identity)) !== 'completed') {
       // Refused or not known: what this checkout made goes, and with it
       // its record while that is still its own.
       this.deps.log.warn(`A finished checkout's record was no longer its own: ${folder}`)
-      await this.discardWithMade(made, held, gates.cleanup)
+      await this.discardWithMade(made, owned(), gates.cleanup)
       return changed
     }
     // Finished and recorded (held, offered again later); opened only while trusted.
@@ -1293,18 +1301,18 @@ export class PullRequestCheckoutProtocol {
   /** A failed checkout's record, settled as its failure allows. Never throws. */
   private async settleFailure(
     made: MadeFolder | undefined,
-    reservation: Reservation,
+    reservations: readonly Reservation[],
     error: unknown,
     gate: GitGate,
   ): Promise<void> {
     if (error instanceof CleanupPendingError) {
       // A writer is still in flight: the record stays pending (held, never
       // offered or trusted) until its cleanup has run.
-      this.deps.log.warn(`A failed checkout is still writing; it stays held: ${reservation.folder}`)
-      void this.discardAfter(error.settled, made, reservation, gate)
+      this.deps.log.warn('A failed checkout is still writing; it stays held')
+      void this.discardAfter(error.settled, made, reservations, gate)
       return
     }
-    await this.discardWithMade(made, reservation, gate)
+    await this.discardWithMade(made, reservations, gate)
   }
 
   /**
@@ -1312,24 +1320,37 @@ export class PullRequestCheckoutProtocol {
    * never made its folder (refused, or the folder was someone else's) goes
    * at once; one whose folder could not be removed stays pending, so the
    * folder stays held, is never offered again and can never be trusted.
-   * Only ever this checkout's own reservation (a compare-and-swap), never
-   * a record that moved on. Never throws.
+   * Only ever this checkout's own reservation, by the latest fence it may
+   * hold (`reservations`: a claim whose landing is not known first, then
+   * the one known), each a compare-and-swap, never a record that moved on.
+   * Never throws.
    */
   private async discardWithMade(
     made: MadeFolder | undefined,
-    reservation: Reservation,
+    reservations: readonly Reservation[],
     gate: GitGate,
   ): Promise<void> {
     const isGone =
       made === undefined || (await this.deps.git.removeMade(this.deps.repositoryRoot, made, gate))
     if (!isGone) {
-      this.deps.log.warn(`A failed checkout left its folder; it stays held: ${reservation.folder}`)
+      this.deps.log.warn('A failed checkout left its folder; it stays held')
       return
     }
-    try {
-      await this.deps.records.discard(reservation)
-    } catch {
-      this.deps.log.warn(`A failed checkout's record could not be discarded: ${reservation.folder}`)
+    await this.discardOwn(reservations)
+  }
+
+  /** The first of `reservations` the record still is, discarded. Never throws. */
+  private async discardOwn(reservations: readonly Reservation[]): Promise<void> {
+    for (const reservation of reservations) {
+      try {
+        if (await this.deps.records.discard(reservation)) {
+          return
+        }
+      } catch {
+        this.deps.log.warn(
+          `A failed checkout's record could not be discarded: ${reservation.folder}`,
+        )
+      }
     }
   }
 
@@ -1337,7 +1358,7 @@ export class PullRequestCheckoutProtocol {
   private async discardAfter(
     settled: Promise<void>,
     made: MadeFolder | undefined,
-    reservation: Reservation,
+    reservations: readonly Reservation[],
     gate: GitGate,
   ): Promise<void> {
     try {
@@ -1345,7 +1366,7 @@ export class PullRequestCheckoutProtocol {
     } catch {
       // The cleanup never rejects; what is left decides either way.
     }
-    await this.discardWithMade(made, reservation, gate)
+    await this.discardWithMade(made, reservations, gate)
   }
 
   /**
@@ -1467,7 +1488,15 @@ export class PullRequestCheckoutProtocol {
             isFolderAbsent,
           )
         }
-      } catch {
+      } catch (error: unknown) {
+        if (error instanceof UnknownWriteError) {
+          // The reservation may have landed: it goes, so it never blocks the
+          // folder (nothing was made for it).
+          const results = error.results as readonly ReserveResult[]
+          await this.discardOwn(
+            results.flatMap((result) => (result.ok ? [result.reservation] : [])),
+          )
+        }
         return changed
       }
       if (reserved.ok) {

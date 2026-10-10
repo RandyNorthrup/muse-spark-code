@@ -321,6 +321,47 @@ function resolvedPath(target: string): string {
   }
 }
 
+/**
+ * The node file operations, failing chosen listings (EACCES), counted from
+ * the first generation published after `arm()`: 1 is that publish's own
+ * proof, 2 the sweep after it (or, unproven, the reconciliation read).
+ */
+function failingListingsAfterLink(failing: readonly number[]) {
+  let isArmed = false
+  let listings: number | undefined
+  let failed = 0
+  const fs: RecordStoreFs = {
+    ...nodeRecordStoreFs,
+    link: async (existing, target) => {
+      await nodeRecordStoreFs.link(existing, target)
+      if (!isArmed || !GENERATION_FILE.test(target)) {
+        return
+      }
+      isArmed = false
+      listings = 0
+    },
+    readdir: async (folder) => {
+      if (listings !== undefined) {
+        listings += 1
+        if (failing.includes(listings)) {
+          failed += 1
+          throw Object.assign(new Error(`EACCES: permission denied, scandir '${folder}'`), {
+            code: 'EACCES',
+          })
+        }
+      }
+      return await nodeRecordStoreFs.readdir(folder)
+    },
+  }
+  return {
+    fs,
+    arm: () => {
+      isArmed = true
+    },
+    failed: () => failed,
+  }
+}
+
 /** The runner's own claim: the folder made exclusively. */
 function claimOf(runner: PullRequestCheckoutGit, folder: string): () => Promise<MadeFolder> {
   return () => runner.claimFolder(folder)
@@ -449,6 +490,8 @@ async function checkoutSetup(
     readonly now?: () => number
     readonly addOwnWorktree?: (call: number) => Promise<void>
     readonly checkOutHeld?: HeldBehavior
+    /** The records over the data folder made for the setup (a file store, say). */
+    readonly records?: (dataFolder: string) => WorktreeRecordStore
   } = {},
 ) {
   const github = fakeGitHub()
@@ -471,7 +514,7 @@ async function checkoutSetup(
     options.addOwnWorktree,
     options.checkOutHeld,
   )
-  const records = createMemoryWorktreeRecordStore(process.platform)
+  const records = options.records?.(dataFolder) ?? createMemoryWorktreeRecordStore(process.platform)
   const heldRoots = [
     heldWorktreesRoot(storageRoot, process.platform),
     heldWorktreesRoot(dataFolder, process.platform),
@@ -1289,6 +1332,43 @@ describe('runtime pull request checkout (M123 lane P)', () => {
     const result = await setup.checkout.open('51', OWN_REMOTES, 'origin')
     expect(result).toEqual({ ok: false, reason: UI_TEXT.gitRestricted })
     expect(setup.opened).toEqual([])
+    const [record] = await setup.records.list()
+    expect(record?.isCheckoutPending).toBeUndefined()
+  })
+
+  it.each([
+    { failing: [2], case: 'the sweep after the claim cannot list' },
+    { failing: [1, 2], case: 'whether the claim landed cannot be known' },
+  ])('leaves no pending record, and opens again at once, when $case', async ({ failing }) => {
+    // RVM123P7 finding 1: the claim's generation lands, then a listing
+    // fails (EACCES). A landed claim is never undone: the checkout goes
+    // on with its new fence; or, not knowing, it drops whichever of its
+    // reservations the record is. Either way nothing stays pending and an
+    // immediate open succeeds.
+    const listings = failingListingsAfterLink(failing)
+    let hasArmed = false
+    const setup = await checkoutSetup({
+      headSha: CAPTURED_PULL_FORK.head.sha,
+      records: (dataFolder) =>
+        recordsAround(
+          createFileWorktreeRecordStore(dataFolder, process.platform, recordingLogger(), {
+            fs: listings.fs,
+          }),
+          async (name, call) => {
+            if (name === 'claim' && !hasArmed) {
+              hasArmed = true
+              listings.arm()
+            }
+            return await call()
+          },
+        ),
+    })
+    await setup.checkout.open('51', OWN_REMOTES, 'origin')
+    expect(listings.failed()).toBe(failing.length)
+    const left = await setup.records.list()
+    expect(left.filter((record) => record.isCheckoutPending === true)).toEqual([])
+    const again = await setup.checkout.open('51', OWN_REMOTES, 'origin')
+    expect(again.ok).toBe(true)
     const [record] = await setup.records.list()
     expect(record?.isCheckoutPending).toBeUndefined()
   })

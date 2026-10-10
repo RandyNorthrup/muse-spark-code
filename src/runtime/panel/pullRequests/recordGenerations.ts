@@ -207,8 +207,9 @@ async function isInEffect(
  * number, `canPublish` said the lock is no longer this writer's, or its
  * stage was swept): read again and apply again; `unverified` when it took
  * the number but its place in history can no longer be proven (its
- * successor was swept meanwhile, or it took a number the sweep had freed):
- * the caller reconciles against the head before applying again.
+ * successor was swept meanwhile, it took a number the sweep had freed, or
+ * the proof could not be read): the caller reconciles against the head
+ * before applying again.
  */
 export type GenerationWrite = 'written' | 'lost' | 'unverified'
 
@@ -259,13 +260,20 @@ export async function writeNextGeneration(
       // Swept later.
     }
   }
-  return (await isInEffect(fs, folder, generation, writeId)) ? 'written' : 'unverified'
+  // Landed: from here on nothing reports it failed. A proof that cannot
+  // be read leaves it unverified, for the caller to reconcile.
+  try {
+    return (await isInEffect(fs, folder, generation, writeId)) ? 'written' : 'unverified'
+  } catch {
+    return 'unverified'
+  }
 }
 
 /**
  * Removes generations older than the kept ones and a crash's leftovers
- * (stages, retired locks) older than the sweep age. Best effort: a failure
- * is retried by the next write.
+ * (stages, retired locks) older than the sweep age. Best effort, after a
+ * write has landed: it never throws (a failure is retried by the next
+ * write), so a landed write is never reported as failed.
  */
 export async function sweepGenerations(
   fs: RecordStoreFs,
@@ -273,7 +281,12 @@ export async function sweepGenerations(
   head: number,
   now: number,
 ): Promise<void> {
-  const listed = await names(fs, folder)
+  let listed: readonly string[]
+  try {
+    listed = await names(fs, folder)
+  } catch {
+    return
+  }
   for (const name of listed) {
     const file = path.join(folder, name)
     try {
