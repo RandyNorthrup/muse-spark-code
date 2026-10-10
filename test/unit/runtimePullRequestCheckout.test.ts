@@ -500,6 +500,8 @@ async function checkoutSetup(
     readonly checkOutHeld?: HeldBehavior
     /** The records over the data folder made for the setup (a file store, say). */
     readonly records?: (dataFolder: string) => WorktreeRecordStore
+    /** The window's lifetime; the fake deps' own by default. */
+    readonly signal?: AbortSignal
   } = {},
 ) {
   const github = fakeGitHub()
@@ -545,6 +547,7 @@ async function checkoutSetup(
     baseUrl: 'https://api.github.test',
     log,
     isTrusted: options.isTrusted ?? (() => true),
+    ...(options.signal !== undefined && { signal: options.signal }),
     records,
     heldRoots,
     git: recording.git,
@@ -945,6 +948,72 @@ describe('runtime pull request checkout (M123 lane P)', () => {
       holdForRoots([result.folder], setup.heldRoots, await setup.records.list(), process.platform),
     ).toBeUndefined()
     expect(await setup.checkout.trustTicket(`${result.folder}-missing`)).toBeUndefined()
+  })
+
+  it.each(['trust revoked', 'window stopped'] as const)(
+    'keeps the hold when, during the release’s folder read, %s (RVINTM123)',
+    async (ending) => {
+      // Armed for the release only: its first check passes, and then trust
+      // ends or the window stops while the folder's identity is read.
+      let releaseChecks: number | undefined
+      const window = new AbortController()
+      const setup = await checkoutSetup({
+        headSha: CAPTURED_PULL_FORK.head.sha,
+        signal: window.signal,
+        isTrusted: () => {
+          if (releaseChecks === undefined) return true
+          releaseChecks += 1
+          if (releaseChecks === 1) {
+            if (ending === 'window stopped') {
+              queueMicrotask(() => {
+                window.abort()
+              })
+            }
+            return true
+          }
+          return ending === 'window stopped'
+        },
+      })
+      const result = await opened51(setup.checkout, 'checkout')
+      const ticket = await ticketFor(setup.checkout, result.folder)
+      releaseChecks = 0
+      const released = await setup.checkout.releaseHold(ticket)
+      expect(released.ok).toBe(false)
+      if (ending === 'trust revoked') expect(released.reason).toBe(UI_TEXT.gitRestricted)
+      expect(
+        holdForRoots([result.folder], setup.heldRoots, await setup.records.list(), process.platform)
+          ?.folder,
+      ).toBe(slashedPath(result.folder))
+    },
+  )
+
+  it('refuses a release whose trust ends after its checks, before it lands (RVINTM123)', async () => {
+    let isTrusted = true
+    const setup = await checkoutSetup({
+      headSha: CAPTURED_PULL_FORK.head.sha,
+      isTrusted: () => isTrusted,
+      records: () => {
+        const store = createMemoryWorktreeRecordStore(process.platform)
+        return {
+          ...store,
+          release: (ticket, now, isCurrent) => {
+            // Trust ends once the release is under way in the store.
+            isTrusted = false
+            return store.release(ticket, now, isCurrent)
+          },
+        }
+      },
+    })
+    const result = await opened51(setup.checkout, 'checkout')
+    const ticket = await ticketFor(setup.checkout, result.folder)
+    expect(await setup.checkout.releaseHold(ticket)).toEqual({
+      ok: false,
+      reason: UI_TEXT.gitRestricted,
+    })
+    expect(
+      holdForRoots([result.folder], setup.heldRoots, await setup.records.list(), process.platform)
+        ?.folder,
+    ).toBe(slashedPath(result.folder))
   })
 
   it('consumes a trust ticket once, for the very folder the checkout finished in', async () => {

@@ -5,6 +5,8 @@
 
 import { describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText } from '../../src/shared/l10n/text'
 import {
   RuntimePullRequests,
   type CreatePullRequestInput,
@@ -207,6 +209,18 @@ describe('runtime pull requests (M123 lane P)', () => {
     expect(confirms[0]?.detail).toContain('RandyNorthrup/muse-spark-code')
     const stored = await links.get(root, 'session')
     expect(stored?.number).toBe(CAPTURED_PULL_OWN.number)
+  })
+
+  it('names the repository in the confirmation in the installed language (RVINTM123)', async () => {
+    const { service, confirms, destination } = await prepared()
+    setUiText({ ...EN, openPullRequestRepository: 'Dépôt marqué : {repository}' }, 'fr')
+    try {
+      await service.create(draft(destination))
+    } finally {
+      setUiText(EN, 'en')
+    }
+    expect(confirms[0]?.detail).toContain('Dépôt marqué : RandyNorthrup/muse-spark-code')
+    expect(confirms[0]?.detail).not.toContain('Repository:')
   })
 
   it('opens a fork ready on the parent with owner:branch', async () => {

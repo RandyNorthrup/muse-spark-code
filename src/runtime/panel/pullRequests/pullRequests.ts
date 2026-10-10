@@ -350,7 +350,9 @@ export class RuntimePullRequests {
     const detail = [
       title,
       input.body,
-      `Repository: ${repositoryLabel(destination.repository)}`,
+      fill(UI_TEXT.openPullRequestRepository, {
+        repository: repositoryLabel(destination.repository),
+      }),
       fill(UI_TEXT.openPullRequestBranches, { head: destination.apiHead, base }),
       input.isDraft ? UI_TEXT.gitStateDraft : UI_TEXT.gitPullRequestFormLabel,
     ].join('\n')
