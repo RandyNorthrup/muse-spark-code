@@ -115,6 +115,17 @@ Stale wording fixed in this round: R13 callers pass machine-local days, not
 UTC (fix, tests and e2e above); current budgets appear where their observed
 local day intersects the chosen period.
 
+Adjacent one-token change kept deliberately: `sharingPorts().read` in
+`src/runtime/main.ts` parsed `['serve']`, which `parseCommandLine` can only
+answer with `invalid` (verified by direct probe: `[]` → `serve`,
+`['serve']` → `invalid`), so chat-history share preview always threw
+`exportHistoryUnavailable`. Parsing `[]` yields default serve options, so the
+read now binds the live runtime in serve mode (or a transient default one in
+CLI mode) and throws the same clean error only on real failure. No sharing
+test covers the real ports (all use fakes), and the share path was not
+exercised end to end here; flagged for the lead's awareness, not as a finding
+fix.
+
 ## Verification
 
 Final clean runs on linuxlt at repository defaults (no raised timeout):
