@@ -79,6 +79,26 @@ export interface LegalScanOptions {
   readonly distribution?: DistributionEvidence
 }
 
+/**
+ * Whether an incomplete entry is a total-absence note (M97 C-M97-1): one
+ * per ecosystem reader, each pushed only when that ecosystem leaves no
+ * manifests, locks or installed metadata behind. Read from the installed
+ * table at call time, never captured at module load, so every language
+ * filters the same entries.
+ */
+function isAbsentEcosystemNote(entry: string): boolean {
+  return [
+    UI_TEXT.legalScanner.m149,
+    UI_TEXT.legalScanner.m155,
+    UI_TEXT.legalScanner.m160,
+    UI_TEXT.legalScanner.m164,
+    UI_TEXT.legalScanner.m170,
+    UI_TEXT.legalScanner.m180,
+    UI_TEXT.legalScanner.m184,
+    UI_TEXT.legalScanner.m196,
+  ].includes(entry)
+}
+
 function ruleOf(category: string): string {
   switch (category) {
     case 'license': {
@@ -239,7 +259,11 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   const sorted = snapshot.files.toSorted((a, b) => compareLegalText(a, b))
   const overCap = sorted.length - LEGAL_FILES_SCANNED_MAX
   const allowed = new Set(overCap > 0 ? sorted.slice(0, LEGAL_FILES_SCANNED_MAX) : sorted)
-  const incomplete: string[] = [...(snapshot.incompleteChecks ?? []), UI_TEXT.legalScanner.m110]
+  // The human-review caveat (M97 C-M97-1) is earned, not blanket: it is
+  // added below only when a license text stayed heuristic or unrecognized,
+  // an asset or source reference needs provenance, or dependency terms
+  // need a human read. A fully evidenced scan exits without it.
+  const incomplete: string[] = [...(snapshot.incompleteChecks ?? [])]
   const cache = new Map<string, string | undefined>()
   let bytesRead = 0
   const deadline = options.deadline ?? Date.now() + LEGAL_SCAN_TIMEOUT_MS
@@ -309,10 +333,16 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
       )
     dependencies.push(...result.dependencies.slice(0, remaining))
     manifests.push(...result.projectLicenses)
-    incomplete.push(...result.incomplete)
+    // An ecosystem with no manifests, locks or installed metadata has
+    // nothing to check: its absence is a complete observation, not
+    // incomplete coverage (M97 C-M97-1). Present-but-unresolvable notes
+    // (unresolved versions, missing licenses) pass through untouched and
+    // still fail the run toward exit 2.
+    incomplete.push(...result.incomplete.filter((entry) => !isAbsentEcosystemNote(entry)))
   }
 
   const observed: LegalDependency[] = []
+  let hasUnrecognizedLicenseText = false
   for (const dep of dependencies) {
     const localFiles = materialInSnapshot(bounded, dep).filter((file) =>
       isLicenseFileName(baseNameOf(file)),
@@ -323,6 +353,7 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
       const match = identifyLicenseText(text)
       if (match === undefined) {
         incomplete.push(fill(UI_TEXT.legalScanner.m117, { v0: dep.name, v1: file }))
+        hasUnrecognizedLicenseText = true
         continue
       }
       if (dep.licenseRaw !== match.id)
@@ -365,6 +396,14 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
 
   const risks = scanAttributionRisks(bounded)
   incomplete.push(...risks.incomplete)
+  if (
+    hasUnrecognizedLicenseText ||
+    licensed.requiresReview ||
+    risks.findings.length > 0 ||
+    project.incomplete.includes(UI_TEXT.legalScanner.m084)
+  ) {
+    incomplete.push(UI_TEXT.legalScanner.m110)
+  }
   const findings: { readonly rule: string; readonly finding: LegalFindingDraft }[] = [
     ...risks.findings.map((finding) => ({ rule: ruleOf(finding.category), finding })),
     ...project.findings.map((finding) => ({ rule: ruleOf(finding.category), finding })),

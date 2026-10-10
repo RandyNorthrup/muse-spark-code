@@ -24,6 +24,13 @@ export interface DependencyLicenseResult {
   readonly findings: readonly LegalFindingDraft[]
   readonly evaluated: readonly EvaluatedDependency[]
   readonly incomplete: readonly string[]
+  /**
+   * True when a dependency's terms need a human read (M97 C-M97-1):
+   * proprietary or UNLICENSED markers, custom references, unrecognized
+   * ids or unknown exceptions. Deprecated or `+` forms stay recognized
+   * advice and do not set this.
+   */
+  readonly requiresReview: boolean
 }
 
 const UNLICENSED = 'UNLICENSED'
@@ -72,6 +79,7 @@ export function evaluateDependencyLicenses(
   const findings: LegalFindingDraft[] = []
   const evaluated: EvaluatedDependency[] = []
   const incomplete: string[] = []
+  let requiresReview = false
 
   for (const dep of dependencies) {
     const isDoesShip = isShipped(dep)
@@ -88,6 +96,7 @@ export function evaluateDependencyLicenses(
     }
     if (raw === UNLICENSED || PROPRIETARY_MARK.test(raw)) {
       findings.push(proprietaryFinding(dep, isDoesShip, raw === UNLICENSED ? UNLICENSED : raw))
+      requiresReview = true
       continue
     }
     const parsed = parseSpdxExpression(raw)
@@ -111,6 +120,7 @@ export function evaluateDependencyLicenses(
     for (const license of listed1) {
       const canonical = license.canonicalId ?? (license.custom ? license.id : undefined)
       if (canonical === undefined || license.custom) {
+        requiresReview = true
         findings.push({
           severity: 'advice',
           category: 'dependencyLicense',
@@ -137,6 +147,7 @@ export function evaluateDependencyLicenses(
           evidenceExcerpt: excerpt(raw),
         })
       } else if (license.exception !== undefined && !license.exception.known) {
+        requiresReview = true
         findings.push({
           severity: 'advice',
           category: 'dependencyLicense',
@@ -189,5 +200,5 @@ export function evaluateDependencyLicenses(
     })
     incomplete.push(fill(UI_TEXT.legalScanner.m033, { v0: first.name }))
   }
-  return { findings, evaluated, incomplete }
+  return { findings, evaluated, incomplete, requiresReview }
 }

@@ -127,9 +127,14 @@ describe('legal coverage and metadata', () => {
   })
 
   it('reports heuristic matching, assets and freshness as unchecked', () => {
+    // C-M97-1: the stub LICENSE stays heuristic (matching) and the asset
+    // keeps human review (assets); the bundle inputs name a file absent
+    // from the inventory, so the stale-input and freshness reasons stay
+    // named. Fresh, complete bundle inputs report no freshness caveat
+    // (see the clean-scan test in legalScan.test.ts).
     const result = scanLegal(snapshotFrom({ LICENSE: 'MIT License\n', 'asset.png': 'png' }), {
       headerPolicy: 'off',
-      distribution: { bundleInputs: ['asset.png'] },
+      distribution: { bundleInputs: ['asset.png', 'missing-bundle.js'] },
     })
     expect(result.incompleteChecks.join(' ')).toContain('matching')
     expect(result.incompleteChecks.join(' ')).toContain('assets')

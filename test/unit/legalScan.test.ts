@@ -8,7 +8,7 @@ import { LEGAL_FILES_SCANNED_MAX, LEGAL_FINDINGS_MAX } from '../../src/shared/co
 import { formatNumber } from '../../src/shared/l10n/text'
 import { scanLegal } from '../../src/core/legal/scan'
 import { legalScanResultSchema } from '../../src/shared/legal'
-import { countingSnapshot, snapshotFrom } from './legal/helpers'
+import { FULL_MIT_LICENSE, countingSnapshot, snapshotFrom } from './legal/helpers'
 
 const headed = `// Copyright (c) 2026 Example Corp
 // SPDX-License-Identifier: MIT
@@ -54,6 +54,24 @@ describe('scanLegal', () => {
     expect(result.dataVersion).not.toBe('')
     expect(result.findings).toEqual([])
     expect(result.exclusions).toEqual([])
+  })
+
+  it('leaves a fully evidenced scan complete with no incomplete checks', () => {
+    // C-M97-1 acceptance: a verbatim license file (Windows line endings),
+    // an agreeing manifest, a headed source file and fresh bundle inputs
+    // carry no blanket caveat, so the run exits 0 or 1 downstream, not 2.
+    const files = {
+      LICENSE: FULL_MIT_LICENSE.replaceAll('\n', '\r\n'),
+      'package.json': JSON.stringify({ name: 'example', version: '1.0.0', license: 'MIT' }),
+      'src/ok.ts': headed,
+    }
+    const result = scanLegal(snapshotFrom(files), {
+      headerPolicy: 'optional',
+      distribution: { bundleInputs: Object.keys(files) },
+    })
+    expect(legalScanResultSchema.safeParse(result).success).toBe(true)
+    expect(result.findings).toEqual([])
+    expect(result.incompleteChecks).toEqual([])
   })
 
   it('sorts findings deterministically with stable rule ids', () => {

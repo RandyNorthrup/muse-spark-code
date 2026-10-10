@@ -185,15 +185,22 @@ export function computeShipped(
   dependencies: readonly LegalDependency[],
   evidence: DistributionEvidence,
 ): ShippedSet {
-  const incomplete: string[] = [UI_TEXT.legalScanner.m035]
+  // Freshness (M97 C-M97-1) is earned, not blanket: bundle inputs that
+  // are all present in the workspace inventory count as fresh, so a fully
+  // evidenced scan can exit without this caveat. Absent or stale inputs
+  // keep both the named stale-input reason and the freshness caveat; the
+  // package-inventory and unknown-distribution branches already carry
+  // their own named freshness reasons (m043, m039).
+  const incomplete: string[] = []
   const fileSet = new Set(snapshot.files)
 
   let shippedFiles: string[] | undefined
   let summary: string
   if (evidence.bundleInputs !== undefined) {
     shippedFiles = evidence.bundleInputs.filter((file) => fileSet.has(file))
-    if (shippedFiles.length !== evidence.bundleInputs.length)
-      incomplete.push(UI_TEXT.legalScanner.m036)
+    if (shippedFiles.length !== evidence.bundleInputs.length) {
+      incomplete.push(UI_TEXT.legalScanner.m036, UI_TEXT.legalScanner.m035)
+    }
     summary = plural(UI_TEXT.legalScanner.m037, shippedFiles.length, { v0: shippedFiles.length })
   } else if (evidence.packageFiles === undefined) {
     summary = UI_TEXT.legalScanner.m038

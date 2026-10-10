@@ -11,6 +11,8 @@ import {
   UI_TEXT,
 } from '../../src/shared/constants'
 import { requestUrl } from './helpers/legalRequest'
+import { scanLegal } from '../../src/core/legal/scan'
+import { FULL_MIT_LICENSE, snapshotFrom } from './legal/helpers'
 import type { LegalRegistryTarget } from '../../src/runtime/legal/legalRegistry'
 import { loadLegalScanner, type LegalScanHandle } from '../../src/runtime/legal/legalScanner'
 import {
@@ -131,6 +133,25 @@ describe('M97 legal run (lane R)', () => {
         expect(outcome.out).toContain(UI_TEXT.legalRegistryOff)
       }
     }
+  })
+  it('exits 0 on a real complete scan, not 2 (C-M97-1 acceptance)', async () => {
+    const files = {
+      LICENSE: FULL_MIT_LICENSE,
+      'package.json': JSON.stringify({ name: 'example', version: '1.0.0', license: 'MIT' }),
+      'src/ok.ts':
+        '// Copyright (c) 2026 Example Corp\n// SPDX-License-Identifier: MIT\nexport const value = 1\n',
+    }
+    const result = scanLegal(snapshotFrom(files), {
+      headerPolicy: 'optional',
+      distribution: { bundleInputs: Object.keys(files) },
+    })
+    expect(result.incompleteChecks).toEqual([])
+    const context = deps({ scan: fakeScan(result) })
+    const outcome = await runLegalCommand({
+      options: { format: 'json', out: undefined, registry: false },
+      deps: context,
+    })
+    expect(outcome.exitCode).toBe(LEGAL_EXIT.ok)
   })
   it('redacts thrown scanner and writer reasons in reports, stderr and --out', async () => {
     for (const format of ['text', 'json'] as const) {
