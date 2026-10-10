@@ -62,6 +62,44 @@ const worktreeRecordSchema = z.object({
    * finished: its folder is never offered as a checkout, even after a crash.
    */
   isCheckoutPending: z.optional(z.boolean()),
+  /**
+   * The per-folder mutation counter (M123, PLAN.md D104): every record
+   * mutation bumps it, so a writer holding an older copy detects it lost
+   * and re-reads instead of overwriting. Absent on records an earlier
+   * version wrote; those read as revision 0.
+   */
+  revision: z.optional(z.number()),
+  /**
+   * The runtime checkout this record names (M123): a random id made at
+   * reservation. A replacement checkout gets a new one, so a trust card
+   * confirmed for the old checkout never matches the new one.
+   */
+  checkoutId: z.optional(z.string()),
+  /**
+   * The finished worktree folder's identity (`dev:ino:birth`, links
+   * resolved), sampled when the checkout completed: trust binds to that
+   * very folder, never to one made again at the same path (the birth time
+   * tells it apart where an inode number is reused).
+   */
+  folderIdentity: z.optional(z.string()),
+  /**
+   * The fence of the records lease hold that last wrote this record (M123,
+   * src/core/locks/fileLease.ts): a checkout's reservation names it, so any
+   * other writer's change to the record is seen as a change.
+   */
+  fence: z.optional(z.number()),
+  /**
+   * Who runs a pending checkout: a process that is gone leaves it to be
+   * taken over. Linux births are clock ticks of the boot `bootId` names.
+   */
+  pendingOwner: z.optional(
+    z.object({
+      host: z.string(),
+      pid: z.number(),
+      processStart: z.number(),
+      bootId: z.optional(z.string()),
+    }),
+  ),
 })
 
 export type WorktreeRecord = z.infer<typeof worktreeRecordSchema>
