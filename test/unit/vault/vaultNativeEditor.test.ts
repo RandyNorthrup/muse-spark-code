@@ -185,8 +185,12 @@ it('U commands and status: opening is explicit; Lock is always available and sta
     revoke: vi.fn(() => Promise.resolve()),
     answer: vi.fn(() => Promise.resolve()),
     importFile: vi.fn(() => Promise.resolve()),
+    setup: vi.fn(() => Promise.reject(new Error('unused'))),
+    confirmSetup: vi.fn(() => Promise.resolve()),
+    cancelSetup: vi.fn(() => Promise.resolve()),
   }
   const deps = {
+    distDir: '/dist',
     service,
     now: () => 1000,
     publish: vi.fn(),

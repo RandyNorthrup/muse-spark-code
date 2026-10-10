@@ -3,7 +3,7 @@ import { constants } from 'node:fs'
 import { createServer, type Server } from 'node:net'
 import { type Duplex } from 'node:stream'
 import { randomBytes } from 'node:crypto'
-import * as z from 'zod/mini'
+import type * as z from 'zod/mini'
 import {
   VAULT_PROTOCOL_VERSION,
   VAULT_APPROVAL_TTL_MS,
@@ -11,11 +11,7 @@ import {
   UI_TEXT,
 } from '../../../shared/constants'
 import {
-  vaultBrokerRequestSchema,
-  vaultBrokerResponseSchema,
   vaultBrokerEventFrameSchema,
-  vaultPrivateRequestSchema,
-  vaultPrivateResponseSchema,
   vaultPrivateMaterialSchema,
   vaultPrivateRecoveryCodeSchema,
   type VaultBrokerRequest,
@@ -36,6 +32,7 @@ import { type VaultBroker } from './broker'
 import { isVaultBootTokenMatch } from './broker'
 import {
   VaultManagementError,
+  VaultStoreUnavailableError,
   type VaultManagementPort,
   type VaultManagementRefusal,
   type VaultUseLifetime,
@@ -45,21 +42,11 @@ import { type RegistrationToken, type ConnectionToken } from './state'
 import { type VaultCeiling } from './policy'
 import { type VaultPeerVerifier, type VaultProcessIdentity } from './peer'
 
-const privateEnvelope = z.strictObject({
-  v: z.literal(VAULT_PROTOCOL_VERSION),
-  sequence: z.number().check(z.int(), z.nonnegative()),
-  request: vaultPrivateRequestSchema,
-})
-export const vaultChannelRequestSchema = z.union([vaultBrokerRequestSchema, privateEnvelope])
-export const vaultChannelResponseSchema = z.union([
-  vaultBrokerResponseSchema,
-  z.strictObject({
-    v: z.literal(VAULT_PROTOCOL_VERSION),
-    sequence: z.number().check(z.int(), z.nonnegative()),
-    response: vaultPrivateResponseSchema,
-  }),
-])
-export type VaultChannelResponse = z.infer<typeof vaultChannelResponseSchema>
+import {
+  vaultChannelRequestSchema,
+  vaultChannelResponseSchema,
+  type VaultChannelResponse,
+} from './frames'
 export type { VaultConnectionIdentity } from './ports'
 export interface VaultSecuredListenerPort {
   /** P creates an owner-only, remote-refusing pipe before handing over any accepted socket. */
@@ -103,6 +90,7 @@ type ManageRequest = Extract<
 /** Store and management failures become a fixed reason, never exception text. */
 function refusal(error: unknown): VaultManagementRefusal | null {
   if (error instanceof VaultManagementError) return error.reason
+  if (error instanceof VaultStoreUnavailableError) return 'storeUnavailable'
   if (!(error instanceof VaultError)) return null
   return error.code === 'authentication' ? 'invalid' : error.code
 }
@@ -176,7 +164,15 @@ export class VaultChannelServer {
       }
       case 'unlock': {
         if (!identity.manage) return denied
-        await broker.unlock(request.slotId)
+        try {
+          await broker.unlock(request.slotId)
+        } catch (error: unknown) {
+          // A fixed reason (an unusable OS store) reaches the person; anything
+          // else still closes the connection without diagnostics.
+          const reason = refusal(error)
+          if (reason === null) throw error
+          return { kind: 'refused', reason }
+        }
         return { kind: 'ok' }
       }
       case 'registerRequester': {

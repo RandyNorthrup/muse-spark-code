@@ -18,10 +18,10 @@ import {
   type VaultBrokerSnapshot,
   type VaultStatus,
 } from '../../../shared/vaultProtocol'
-import { eraseVaultMaterial, randomVaultBytes } from '../crypto'
+import { eraseVaultMaterial, randomVaultBytes, VaultError } from '../crypto'
 import { createRecoverySlot, unlockRecoverySlot } from '../keyslots'
 import { VaultStore, type VaultFilePort } from '../store'
-import { VaultManagementError, type VaultManagementPort } from './ports'
+import { VaultManagementError, VaultStoreUnavailableError, type VaultManagementPort } from './ports'
 import {
   type VaultAnchorPort,
   type VaultSlotProvider,
@@ -54,13 +54,38 @@ interface PendingSetup {
   readonly expiresAt: number
 }
 const newId = (): string => randomBytes(VAULT_LIMITS.idBytes).toString('hex')
+/** An OS-store failure keeps its fixed repair reason; anything else is `io`. */
+function storeRefusal(error: unknown): VaultManagementError {
+  return new VaultManagementError(
+    error instanceof VaultStoreUnavailableError ? 'storeUnavailable' : 'io',
+  )
+}
+/** The store's in-transaction refusal (absent, removed, other kind) as the management reason. */
+async function refusingInvalid(commit: Promise<void>): Promise<void> {
+  try {
+    await commit
+  } catch (error: unknown) {
+    if (error instanceof VaultError && error.code === 'invalid')
+      throw new VaultManagementError('invalid')
+    throw error
+  }
+}
 
 export class VaultManagement implements VaultManagementPort {
   private pending: PendingSetup | null = null
+  /** A setup whose "I Saved It" is being committed: owned here, never expired underneath. */
+  private confirming: PendingSetup | null = null
+  /** Set by Lock during a confirmation: its key is erased, never restored to pending. */
+  private isConfirmationCancelled = false
   private readonly approvals = new Map<string, VaultApprovalRequest>()
   private readonly listeners = new Set<(event: VaultBrokerEvent) => void>()
   private setupTail: Promise<void> = Promise.resolve()
-  constructor(private readonly deps: VaultManagementDeps) {}
+  constructor(private readonly deps: VaultManagementDeps) {
+    // Grant commits from any route reach every watching view.
+    deps.repository.subscribeCommitted(() => {
+      this.changed()
+    })
+  }
 
   private emit(event: VaultBrokerEvent): void {
     for (const listener of this.listeners) {
@@ -107,11 +132,39 @@ export class VaultManagement implements VaultManagementPort {
     return await run
   }
 
+  private async recoverNow(code: Uint8Array): Promise<void> {
+    // Already unlocked: nothing to recover, so no key is unwrapped at all
+    // outside the broker's Lock cleanup (RVCM1091B 2).
+    const status = await this.deps.broker.status()
+    if (status.state === 'unlocked') return
+    const records = await this.deps.unlock.records()
+    const slot = records.find((record) => record.tier === 'recovery')
+    if (slot === undefined) throw new VaultManagementError('invalid')
+    let key: Buffer
+    try {
+      key = unlockRecoverySlot(slot, code)
+    } catch {
+      throw new VaultManagementError('invalid')
+    }
+    this.deps.unlock.offerRecovery(slot.id, key)
+    try {
+      await this.deps.broker.unlock(slot.id)
+    } finally {
+      // A failed unlock never leaves the recovered key waiting in memory.
+      this.deps.unlock.discardRecovery()
+    }
+    this.changed()
+  }
   noteApproval(request: VaultApprovalRequest): void {
     this.approvals.set(request.id, structuredClone(request))
     this.emit({ kind: 'approval', v: 2, request })
   }
   noteLocked(epoch: number): void {
+    // Lock ends everything: an unconfirmed setup's key and any offered
+    // recovery key are erased with the broker's own (RVCM1091B 2).
+    this.discard()
+    if (this.confirming !== null) this.isConfirmationCancelled = true
+    this.deps.unlock.discardRecovery()
     this.approvals.clear()
     this.emit({ kind: 'locked', v: 2, lockEpoch: epoch })
   }
@@ -124,7 +177,7 @@ export class VaultManagement implements VaultManagementPort {
   }
 
   async snapshot(): Promise<VaultBrokerSnapshot> {
-    const pending = this.current()
+    const pending = this.current() ?? this.confirming
     const broker = await this.deps.broker.status()
     const hasVault = await VaultStore.exists(this.deps.files)
     let state: VaultStatus['state'] = hasVault ? broker.state : 'uncreated'
@@ -156,7 +209,8 @@ export class VaultManagement implements VaultManagementPort {
       const items = await store.list()
       if (items.some((entry) => entry.id === item.metadata.id || entry.name === item.metadata.name))
         throw new VaultManagementError('exists')
-      await store.write(item)
+      // Checked again inside the writer transaction (RVCM1091A F6).
+      await refusingInvalid(store.write(item, 'absent'))
     } finally {
       eraseVaultMaterial(item.material)
     }
@@ -168,7 +222,8 @@ export class VaultManagement implements VaultManagementPort {
       const items = await store.list()
       const current = items.find((entry) => entry.id === item.metadata.id)
       if (current?.kind !== item.metadata.kind) throw new VaultManagementError('invalid')
-      await store.write(item)
+      // Presence and kind are rechecked in the commit's own transaction (F6).
+      await refusingInvalid(store.write(item, 'present'))
     } finally {
       eraseVaultMaterial(item.material)
     }
@@ -177,14 +232,9 @@ export class VaultManagement implements VaultManagementPort {
   }
   async editMetadata(input: VaultItemMetadata): Promise<void> {
     const metadata = vaultItemMetadataSchema.parse(input)
-    const store = this.store()
-    const current = await store.read(metadata.id)
-    try {
-      if (current.metadata.kind !== metadata.kind) throw new VaultManagementError('invalid')
-      await store.write({ metadata, material: current.material })
-    } finally {
-      eraseVaultMaterial(current.material)
-    }
+    // One transaction: a removed item is never resurrected and a rotated
+    // secret never overwritten with older material (RVCM1091A F6).
+    await refusingInvalid(this.store().updateMetadata(metadata))
     await this.deps.broker.policyChanged(metadata.id)
     this.changed()
   }
@@ -208,11 +258,17 @@ export class VaultManagement implements VaultManagementPort {
 
   async setup(): Promise<{ setupId: string; code: Buffer }> {
     return await this.serialize(async () => {
-      if (
-        this.current() !== null ||
-        (await this.deps.anchor.vaultId()) !== null ||
-        (await VaultStore.exists(this.deps.files))
-      )
+      if (this.current() !== null) throw new VaultManagementError('exists')
+      let anchored: string | null
+      try {
+        anchored = await this.deps.anchor.vaultId()
+      } catch (error: unknown) {
+        throw storeRefusal(error)
+      }
+      // A first intent left by a failed, expired setup can never be opened:
+      // remove it so setup can start again (RVCM1091B 3).
+      if (anchored === null) await VaultStore.discardAbandonedCreation(this.deps.files)
+      if (anchored !== null || (await VaultStore.exists(this.deps.files)))
         throw new VaultManagementError('exists')
       const vaultId = newId()
       const key = randomVaultBytes(VAULT_KEY_BYTES)
@@ -225,7 +281,8 @@ export class VaultManagement implements VaultManagementPort {
           recovery: slot,
           expiresAt: this.deps.clock.now() + VAULT_APPROVAL_TTL_MS,
         }
-        this.changed()
+        // No change event: nothing is persisted, and the requesting window's
+        // own echo must not retire its code dialog (RVCM1091A F4).
         return { setupId: this.pending.setupId, code }
       } catch (error: unknown) {
         key.fill(0)
@@ -238,20 +295,40 @@ export class VaultManagement implements VaultManagementPort {
     await this.serialize(async () => {
       const pending = this.current()
       if (pending?.setupId !== setupId) throw new VaultManagementError('invalid')
-      let osStore: VaultSlotRecord
+      // Take ownership before the first await: expiry or a snapshot can no
+      // longer erase the key this confirmation wraps (RVCM1091A F1).
+      this.pending = null
+      this.confirming = pending
+      let isCreated = false
       try {
-        osStore = await this.deps.slots.osStore(pending.vaultId, newId()).wrap(pending.key)
-      } catch {
-        // The setup stays pending: the user can retry or cancel.
-        throw new VaultManagementError('io')
+        let osStore: VaultSlotRecord
+        try {
+          osStore = await this.deps.slots.osStore(pending.vaultId, newId()).wrap(pending.key)
+        } catch (error: unknown) {
+          throw storeRefusal(error)
+        }
+        let store: VaultStore
+        try {
+          store = await VaultStore.create(
+            { files: this.deps.files, anchor: this.deps.anchor, key: pending.key },
+            pending.vaultId,
+            [osStore, pending.recovery],
+          )
+        } catch (error: unknown) {
+          throw error instanceof VaultStoreUnavailableError ? storeRefusal(error) : error
+        }
+        store.lock()
+        isCreated = true
+      } finally {
+        this.confirming = null
+        // A failed confirmation stays pending inside its window (retry or
+        // cancel); after the window, after a Lock, or once created, the key
+        // is erased.
+        if (isCreated || this.isConfirmationCancelled || this.deps.clock.now() >= pending.expiresAt)
+          pending.key.fill(0)
+        else this.pending = pending
+        this.isConfirmationCancelled = false
       }
-      const store = await VaultStore.create(
-        { files: this.deps.files, anchor: this.deps.anchor, key: pending.key },
-        pending.vaultId,
-        [osStore, pending.recovery],
-      )
-      store.lock()
-      this.discard()
       this.changed()
     })
     try {
@@ -272,18 +349,10 @@ export class VaultManagement implements VaultManagementPort {
     })
   }
   async recover(code: Uint8Array): Promise<void> {
-    const records = await this.deps.unlock.records()
-    const slot = records.find((record) => record.tier === 'recovery')
-    if (slot === undefined) throw new VaultManagementError('invalid')
-    let key: Buffer
-    try {
-      key = unlockRecoverySlot(slot, code)
-    } catch {
-      throw new VaultManagementError('invalid')
-    }
-    this.deps.unlock.offerRecovery(slot.id, key)
-    await this.deps.broker.unlock(slot.id)
-    this.changed()
+    // Serialized with setup: one offered recovery key at a time.
+    await this.serialize(async () => {
+      await this.recoverNow(code)
+    })
   }
   subscribe(listener: (event: VaultBrokerEvent) => void): () => void {
     this.listeners.add(listener)

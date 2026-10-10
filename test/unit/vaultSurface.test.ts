@@ -145,7 +145,7 @@ describe('M109 H lazy runtime binding', () => {
     const [first, second] = await Promise.all([open(), open()])
     expect(first).toBe(second)
     expect(load).toHaveBeenCalledOnce()
-    expect(load.mock.calls[0]?.[0]?.replaceAll('\\', '/')).toBe('/dist/vault.js')
+    expect(load.mock.calls[0]?.[0]?.replaceAll('\\', '/')).toBe('/dist/vaultRuntime.js')
     expect(create).toHaveBeenCalledOnce()
     expect(create.mock.calls[0]?.[0]).toMatchObject({
       uiText: expect.objectContaining({ vault: expect.any(Object) }),

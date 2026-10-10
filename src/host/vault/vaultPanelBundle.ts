@@ -8,7 +8,7 @@ import { uiLocale } from '../../shared/l10n/text'
 import { fixedMessageLog, lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type { VaultPanelEntryDeps } from './vaultPanelEntry'
-import type { VaultPanelHost, VaultPanelService } from './vaultPanelHost'
+import type { VaultPanelHost } from './vaultPanelHost'
 
 export const VAULT_COMMANDS = { open: 'museSpark.vault', lock: 'museSpark.lockVault' } as const
 export const VAULT_LOCK_KEYBINDING = {
@@ -99,29 +99,26 @@ export function vaultBundleLoader(deps: VaultBundleLoaderDeps): () => VaultBundl
 }
 
 export interface VaultControlsDeps extends VaultBundleLoaderDeps {
-  /**
-   * The panel's broker-backed service. W has no implementation yet (the C/B/P/M
-   * adapter over the broker channel is an open handoff in
-   * docs/certification/m109.md): while it is missing the commands refuse
-   * closed with `vault.brokerBlocked` instead of opening an empty vault.
-   */
-  readonly service: VaultPanelService | undefined
+  /** dist/ beside the running bundle: the bundle builds its broker-backed service from it. */
+  readonly distDir: string
 }
 
 /**
- * The window controls, or an explicit refusal while the service is missing.
- * `connect` supplies the entry's live host bindings (panel opener, native
- * prompts, clock, webview publisher) and runs only once the service exists,
- * so activation registers no placeholder for them.
+ * The window controls, or an explicit refusal while the panel binding is
+ * missing. `connect` supplies the entry's live host bindings (panel opener,
+ * native prompts, clock, webview publisher); the bundle itself builds the
+ * broker-backed service (C-M109-1), so activation loads no client. Until the
+ * Models & Agents panel mounts the vault section, the caller passes
+ * undefined and both commands refuse closed with `vault.brokerBlocked`.
  */
 export function loadVaultControls(
   deps: VaultControlsDeps,
-  connect: () => Omit<VaultPanelEntryDeps, 'service'>,
+  connect: (() => Omit<VaultPanelEntryDeps, 'distDir'>) | undefined,
 ): VaultWindowControls {
-  if (deps.service === undefined) {
-    deps.log.error('The vault panel needs its broker-backed service; refusing closed')
+  if (connect === undefined) {
+    deps.log.error('The vault panel is not mounted in this window; refusing closed')
     throw new Error(UI_TEXT.vault.brokerBlocked)
   }
   const bundle = vaultBundleLoader(deps)()
-  return bundle.createVaultPanelHost({ service: deps.service, ...connect() }, UI_TEXT, uiLocale())
+  return bundle.createVaultPanelHost({ distDir: deps.distDir, ...connect() }, UI_TEXT, uiLocale())
 }
