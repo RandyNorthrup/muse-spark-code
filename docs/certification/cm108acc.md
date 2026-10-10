@@ -114,9 +114,79 @@ Baseline SHAs in `temp/cm108acc-sha-before.log` (gitignored scratch).
 - The dogfood receipts branch never arrived here; scenarios come from the
   brief text. If the receipts name cells beyond list/current/thresholds,
   per-account stop, and switch refusal, they are not covered.
-- Installed `serve` on museCode now shows the meta `account` picker; the
-  model still runs on the subscription. Fine by panel parity, but flag if
-  the picker should hide there until C-M108-2.
+- Installed `serve` on museCode showed the meta `account` picker in R2;
+  the repair below hides it there until C-M108-2 (Model API only).
+
+## Repair — review RVCM108ACC (2026-10-10, same lane, commit 5cc406a1d)
+
+Every finding fixed, no residuals. Siblings swept; each fix has a
+regression that fails without it and a red drill below.
+
+- **F1 (P2, picker on subscription).** `serve` attaches the account port
+  through `serveAccountsPort` (`src/acp/accounts.ts`): Model API only, and
+  a loader failure returns `undefined` instead of refusing `serve`. A
+  failing port is also dropped during adoption (`AcpSession.startAccounts`
+  disposes and continues), so ordinary sessions never depend on accounts
+  (CX1R5). README/PLAN/CHANGELOG corrected to Model API-only.
+- **F2 (P2, packaged refusal lost).** `AccountSwitchRefusedError` carries
+  `code = 'accountSwitchRefused'`, checked by `isAccountSwitchRefusedError`
+  (`src/acp/accountText.ts`); all three `instanceof` sites (agent,
+  accounts, accountText) use the guard. Metafiles prove the need:
+  `src/acp/accountText.ts` ships in four bundles (`dist/acp.js`,
+  `dist/headless.js`, `dist/runtimeAccounts.js`, `dist/runtimeEngine.js`).
+  Sweep of every other custom-class `instanceof` in `src/acp`/`src/runtime`
+  against the same metafiles: `AccountStoreError`, `DeveloperOptionsError`
+  and `ChatGptSignInError` are each single-bundle with same-bundle
+  consumers; `StoreUnavailableError`'s refresh-lock path and `ModelApiError`
+  in `providersCommands` (same dynamic `modelApiEntry` instance throws and
+  checks) hold within one copy; `LocalSourceError`'s three reporting copies
+  each check only their own chunk's errors (`engine.ts` checks only the
+  same-chunk `ReportScopeNotFound`). No other conversion needed.
+- **F3 (P2, first-write overwrite).** `writeAccounts` throws `unavailable`
+  on a present-but-malformed row and leaves the file untouched; `read`
+  serves the built-in Meta entry only when no file exists (a user file
+  without a meta row reads unconfigured). The `runtimeServices` default-key
+  test now covers both: vendor-only file refuses, no file authorizes.
+- **F4 (P2, stop omits account).** `stopped`/`resetUnknown` templates take
+  `{account}` (en + 14 tables); `accountStopText(event, account)` defaults
+  to the event id, `AcpAccounts` passes the label, `runExec` keeps the id.
+  The old omission assertion is corrected; a known-reset case is added.
+- **F5 (P3, pooling reason).** `--account-pool` refuses with the new
+  `accounts.poolUnavailable` (en + 14 tables: needs a bound resource
+  owner, run again without the flag).
+
+Tests (repository timeouts, never raised): `acpAccounts` 35,
+`runtimeServices` 11, `providersFileStore` 12, `runtimeAccountsService` /
+`accountsCommand` / `execAccounts` 42, `acpAgent` 142/143 (one
+pre-existing ChatGPT failure, identical on clean base `95a2ac1be`,
+unrelated to accounts). `check-l10n` 0 problems; `check:reference`,
+`check:roadmap`, `check:host-api` current; `deadcode` clean; `duplication`
+0 clones; `tsc` host + unit clean; eslint/prettier clean on touched files.
+`npm run build` exit 0: extension 550.1/600 KiB, modelApi 515.8/525,
+acp 237.5/850, runtimeEngine 630.0/875, runtimeAccounts 49.4/300.
+
+Red drills (break guard, named test fails, restore byte-exact —
+`sha256sum -c temp/cm108acc-r2-sha-before.log`, all five files OK):
+
+- **D5** `accounts.ts` selector always loads: `serveAccountsPort`
+  modelApi-only test fails (1 failed, 1 passed). Restored.
+- **D6** `agent.ts` `startAccounts` rethrows: adoption-without-accounts
+  test fails. Restored.
+- **D7** guard returns `false`: all four refusal tests fail (stay-put
+  controller + agent routes, cross-bundle controller + agent routes).
+  Restored.
+- **D8** `writeAccounts` falls back to built-in: malformed-row and
+  first-write-race tests fail. Restored; file bytes unchanged asserted.
+- **D9** `accountStopText` drops the account slot: all three stop tests
+  fail (unknown-reset, known-reset, usage-page). Restored.
+- **D10** pool refusal back to `unavailable`: pool-limitation test fails.
+  Restored.
+
+Held for the lead (Muse sandbox cannot run them): the packaged
+`dist/acp.js` serve/CLI round-trip on both backends, and any browser or
+socket test. No live model calls; no credential-store access beyond the
+existing memory-keyring unit tests.
+
 - `git restore .jscpd.json` was used once to recover the tracked jscpd
   config after an accidental delete; verified byte-identical via status.
 - Commit trailer uses Muse Code attribution, not the brief's Codex trailer.
