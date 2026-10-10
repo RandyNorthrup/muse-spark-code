@@ -13,7 +13,7 @@ import { parse } from 'yaml'
 import { parseCiInputs, requiredJobMinutes } from '../../action/lib/ci-run.mjs'
 import { CI_LAUNCHER_SOURCES } from '../../scripts/lib/acpNativeSources.mjs'
 import { byText, REPO_ROOT } from './helpers/actionFixtures'
-import { bootstrapOf, jenkinsStage, templateText } from './helpers/ciTemplateText'
+import { bootstrapOf, bootstrapSource, jenkinsStage, templateText } from './helpers/ciTemplateText'
 
 const INPUTS = [
   'MUSE_INPUT_MODE',
@@ -48,33 +48,56 @@ function inputNames(text: string): string[] {
   return [...new Set(text.match(/MUSE_INPUT_[A-Z0-9_]+/g))].toSorted(byText)
 }
 
-describe('one bootstrap, the same in every template', () => {
+describe('one bootstrap, generated from one source into every template', () => {
+  it.each([...SYSTEMS])('%s: the generated block matches the source', (system) => {
+    const expected = bootstrapSource()
+      .split('@MUSE_SYSTEM@')
+      .join(system)
+      .split('\n')
+      .map((line) => line.trim())
+      .join('\n')
+    const actual = bootstrapOf(system)
+      .split('\n')
+      .map((line) => line.trim())
+      .join('\n')
+    expect(actual).toBe(expected)
+  })
+
   it.each([...SYSTEMS])(
-    '%s: key out first, digest before anything runs, exec of the launcher',
+    '%s: aliases out first, key into a private file, stdin to the launcher',
     (system) => {
       const lines = bootstrapOf(system)
         .split('\n')
         .map((line) => line.trim())
-        .filter((line) => line !== '')
-      expect(lines.slice(0, 4)).toEqual([
-        'set +x',
-        'set -eu',
+        .filter((line) => line !== '' && !line.startsWith('#'))
+      expect(lines.slice(0, 3)).toEqual(['set +x', 'set -eu', 'umask 077'])
+      // The holders are unset before assignment (an exported holder cannot
+      // keep its export attribute), then every secret name and alias is
+      // unset before any child runs.
+      expect(lines.slice(3, 7)).toEqual([
+        'unset muse_key muse_key_file',
         'muse_key="${MUSE_MODEL_API_KEY:-}"',
-        'unset MUSE_MODEL_API_KEY',
+        'muse_key_file="${MUSE_MODEL_API_KEY_FILE:-}"',
+        'unset MUSE_MODEL_API_KEY MUSE_MODEL_API_KEY_FILE MUSE_SPARK_MODEL_API_KEY META_API_KEY',
       ])
+      // The holder is never exported: no export, no key on the exec line.
+      expect(lines.some((line) => line.startsWith('export'))).toBe(false)
+      expect(lines.some((line) => line.includes('MUSE_SPARK_MODEL_API_KEY='))).toBe(false)
+      // The temp directory is owned by a trap on every exit path.
+      expect(lines).toContain('trap \'rm -rf "$muse_dir"\' EXIT HUP INT TERM')
+      // The File variable is read as a file; the value holder is transient.
+      expect(lines.some((line) => line.startsWith('cp "$muse_key_file"'))).toBe(true)
+      expect(lines).toContain('printf \'%s\' "$muse_key" > "$muse_dir/key"')
+      expect(lines).toContain('chmod 600 "$muse_dir/key"')
+      expect(lines.filter((line) => line === 'unset muse_key muse_key_file')).toHaveLength(2)
       const digest = lines.findIndex((line) => line.startsWith('if [ "${muse_sum%% *}"'))
       const unpack = lines.findIndex((line) => line.startsWith('tar -xzf'))
       expect(digest).toBeGreaterThan(0)
       expect(unpack).toBeGreaterThan(digest)
       const last = lines.at(-1) ?? ''
       expect(last).toBe(
-        `MUSE_SPARK_MODEL_API_KEY="$muse_key" MUSE_CI_TEMP="$muse_dir" MUSE_INPUT_AGENT_PACKAGE="$muse_dir/agent.tgz" exec node "$muse_dir/launcher/package/ci/lib/ci-run.mjs" ${system}`,
+        `MUSE_CI_TEMP="$muse_dir" MUSE_CI_BOOTSTRAP_START_MS="$muse_start_ms" MUSE_INPUT_AGENT_PACKAGE="$muse_dir/agent.tgz" exec node "$muse_dir/launcher/package/ci/lib/ci-run.mjs" ${system} < "$muse_dir/key"`,
       )
-      // The key appears only where it is taken and on the exec line.
-      const withKey = lines.filter(
-        (line) => line.includes('muse_key') || line.includes('MODEL_API_KEY'),
-      )
-      expect(withKey).toEqual([lines[2], lines[3], last])
     },
   )
 
@@ -84,7 +107,7 @@ describe('one bootstrap, the same in every template', () => {
         .split('\n')
         .map((line) => line.trim())
         .join('\n')
-        .replace(new RegExp(` ${system}$`, 'm'), ' SYSTEM'),
+        .replace(new RegExp(` ${system} <`, 'm'), ' SYSTEM <'),
     )
     expect(new Set(bodies).size).toBe(1)
   })
@@ -160,7 +183,7 @@ describe('job timeouts cover the launcher’s bounds (finding 12)', () => {
 
   it('Jenkins: options timeout equals the declared MUSE_CI_JOB_TIMEOUT_MINUTES', () => {
     const text = templateText('jenkins')
-    const timeout = /options \{ timeout\(time: (\d+), unit: 'MINUTES'\) \}/.exec(text)?.[1]
+    const timeout = /options \{ timeout\(time: (\d+), unit: 'MINUTES'\)/.exec(text)?.[1]
     const declared = /MUSE_CI_JOB_TIMEOUT_MINUTES = '(\d+)'/.exec(text)?.[1]
     expect(timeout).toBe(declared)
     expect(Number(declared)).toBeGreaterThanOrEqual(needed)
@@ -212,6 +235,10 @@ describe('each system’s own mechanism keeps untrusted runs from the credential
     expect(record(job['artifacts'])['paths']).toEqual(['muse-spark-out/'])
     // The secret is a project variable, never declared in the file.
     expect(Object.keys(record(document['variables']))).not.toContain('MUSE_MODEL_API_KEY')
+    // A File-type variable: source preparation and upload see only the path.
+    const text = templateText('gitlab')
+    expect(text).toContain('MUSE_MODEL_API_KEY_FILE')
+    expect(text).toMatch(/File-type variable/)
   })
 
   it('Azure: the job condition excludes forks and untrusted pull requests; only the run step maps the secret', () => {
@@ -242,6 +269,40 @@ describe('each system’s own mechanism keeps untrusted runs from the credential
     expect(text).toContain(
       "string(credentialsId: 'muse-model-api-key', variable: 'MUSE_MODEL_API_KEY')",
     )
+  })
+
+  it('Jenkins: stale output is deleted before checkout; only publisher files archive (findings 3, 4)', () => {
+    const text = templateText('jenkins')
+    expect(text).toContain('skipDefaultCheckout(true)')
+    const stage = jenkinsStage(text)
+    const steps = stage.slice(stage.indexOf('steps {'), stage.indexOf('post {'))
+    // The vendor start time reaches the launcher for the remaining deadline.
+    expect(steps).toContain('env.MUSE_CI_JOB_START_MS = String(currentBuild.startTimeInMillis)')
+    // Deletion before checkout: a reused workspace never uploads stale files.
+    expect(steps).toContain("sh 'rm -rf muse-spark-out'")
+    expect(steps).toContain('checkout scm')
+    expect(steps.indexOf('rm -rf muse-spark-out')).toBeLessThan(steps.indexOf('checkout scm'))
+    expect(steps.indexOf('checkout scm')).toBeLessThan(steps.indexOf('withCredentials('))
+    // The credential stays bound only around the launcher step.
+    expect(steps.indexOf('MUSE_CI_JOB_START_MS')).toBeLessThan(steps.indexOf('withCredentials('))
+    // Only the publisher's fixed file set archives, never a workspace glob.
+    const post = stage.slice(stage.indexOf('post {'))
+    expect(post).not.toContain('**')
+    for (const name of [
+      'outputs.json',
+      'result.json',
+      'events.jsonl',
+      'fix.patch',
+      'manifest.json',
+    ]) {
+      expect(post).toContain(`muse-spark-out/${name}`)
+    }
+  })
+
+  it('no template passes the key through the environment (stdin only)', () => {
+    for (const system of SYSTEMS) {
+      expect(templateText(system)).not.toContain('MUSE_SPARK_MODEL_API_KEY=')
+    }
   })
 
   it('Bitbucket: the step parses into a real step and is listed only under branches and custom (finding 5)', () => {
