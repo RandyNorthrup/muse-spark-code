@@ -1494,6 +1494,7 @@
   "worktreeDetachedHead": "現在チェックアウトされているコミット",
   "worktreeFolderExists": "そのフォルダーは既に存在します:",
   "worktreeAddFailed": "git はワークツリーを作成できませんでした",
+  "worktreeRecordsWriteUnknown": "ワークツリーの記録が書き込まれた可能性があります",
   "worktreeCreated": "ワークツリーの準備ができました: {path}",
   "worktreeOpen": "新しいウィンドウで開く",
   "worktreeListFailed": "git はワークツリーを一覧表示できませんでした",

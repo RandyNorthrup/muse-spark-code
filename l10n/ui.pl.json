@@ -1545,6 +1545,7 @@
   "worktreeDetachedHead": "obecnie wyewidencjonowane zatwierdzenie",
   "worktreeFolderExists": "Ten folder już istnieje:",
   "worktreeAddFailed": "git nie może utworzyć drzewa roboczego",
+  "worktreeRecordsWriteUnknown": "Rekordy drzew roboczych mogły zostać zapisane",
   "worktreeCreated": "Drzewo robocze gotowe w {path}",
   "worktreeOpen": "Otwórz w nowym oknie",
   "worktreeListFailed": "git nie może wyświetlić listy drzew roboczych",
