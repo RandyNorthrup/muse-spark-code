@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Internal B1 inspect confinement tooling (M125 F1a): Linux per-file Landlock
+  grants, verified system executables, a fixed environment, syscall guards,
+  session self-tests and a portable runner. `npm run build:confine` builds
+  its offline certification artifacts under `temp/`; no editor approval
+  uses this path. macOS stays off pending its captured Seatbelt policy and
+  platform receipt; Windows is excluded by D107. Fresh reviews and F1b's
+  approval integration are required before exposure.
+
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
