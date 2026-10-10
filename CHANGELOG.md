@@ -20,14 +20,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- Failed provider saves undo only their changed fields against the latest stored
-  entry. Rollback preserves concurrent pins, compatibility and token-limit
-  changes, unrelated providers, and provider additions or removals; unchanged
-  saves no longer rewrite the provider file during recovery.
-
-- A successful provider Save followed by a panel-refresh failure now says the
-  provider was saved and asks you to reopen the panel. It retires the saved form
-  and still processes a submitted spending limit, reporting any limit failure.
+- Provider Save validates before writing, then saves changed provider fields,
+  an entered origin-bound key, an explicitly chosen default, an edited spending
+  limit and the requested conversation model in order. Later failures keep
+  completed writes and name saved, failed and skipped steps in all 14 languages.
+  Rollback and its inverse machinery are removed. A key-write failure after an
+  address change shows the key as missing; the old key cannot serve the new origin.
+- Every provider Save outcome attempts panel refresh. A refresh failure appends
+  its warning without hiding entry/key/default/limit errors or saved information.
+  Budget-only partial drafts can retry with a fresh baseline; other partial or
+  stale drafts reopen from the completed writes.
 
 - Provider Save compares edited fields with the opening snapshot inside the
   stored update. Untouched keys retain later rotations or removals, and untouched

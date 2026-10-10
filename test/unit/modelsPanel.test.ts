@@ -619,7 +619,10 @@ describe('PROVWIZ2 round 2 regressions', () => {
       await sendDraft(panel, { type: 'providers/wizard', event: 'next' }, { step: 'models' })
       expect(latestState(panel).drafts.wizard?.blockers).toEqual([UI_TEXT.customLimitsMissing])
       await send(panel, { type: 'providers/save', useNow: false }, () => {
-        expect(latestState(panel).notice).toBe(UI_TEXT.actionFailed)
+        expect(latestState(panel).drafts.wizard?.errors).toEqual([
+          UI_TEXT.providerSaveWriteConflict,
+        ])
+        expect(latestState(panel).notice).toBeUndefined()
       })
       expect(saveDraft).not.toHaveBeenCalled()
       expect(await seam.store.list()).toEqual([])

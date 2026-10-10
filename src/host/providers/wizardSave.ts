@@ -1,12 +1,21 @@
 import { type UsdAmount } from '../../shared/usd'
 // Saving the wizard (M95 lane K, PLAN.md D74, M95 acceptance 19 and the
 // Tests' first-run items): the draft lives in memory only while the wizard
-// runs. **Save** writes `providers.json` and the secret together, sets the
-// default model and asks the conversation to set the composer's model;
+// runs. **Save** validates first, then writes the provider, entered key,
+// chosen default, edited spending limit and requested composer model in order;
 // **Cancel** discards the draft, so nothing is written.
 
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { redactSecrets } from '../../shared/redact'
+import { providerEntrySchema } from '../../core/providers/providersFile'
+import { parseModelRef } from '../../core/providers/modelRef'
+import {
+  applyWizardSessionBudget,
+  validateWizardSessionBudget,
+  type SessionBudgetConfig,
+  type SessionBudgetApplyOutcome,
+} from '../models/sessionBudget'
 import type { ProviderCredentialStore as CredentialStore } from './credentialRecords'
 import type { AddressPolicy, ProviderEntry, ProvidersStore } from './providerPorts'
 
@@ -40,10 +49,18 @@ export interface WizardSaveDeps {
   readonly policy: AddressPolicy
   /** Asks the conversation to set the composer's model (its own refusal stands). */
   readonly setComposerModel: (modelRef: string) => Promise<void>
+  readonly sessionBudget?: {
+    readonly config: SessionBudgetConfig
+    readonly expectedUsd: UsdAmount | undefined
+  }
   readonly isPrivateConfirmed?: (address: string) => boolean
 }
 
 export interface WizardSaveOutcome {
+  /** Completed, failed and skipped steps; absent only on full success. */
+  readonly notice?: string
+  readonly failedStep?: 'credential' | 'default' | 'budget' | 'composer'
+  readonly budget?: SessionBudgetApplyOutcome
   readonly providerId: string
   readonly modelRef: string
   /** Whether the conversation took the composer's model. */
@@ -57,42 +74,6 @@ function editedValue<T>(initial: T, desired: T, current: T): T {
     throw new Error(UI_TEXT.providerEditConflict)
   }
   return desired
-}
-
-/** Undo changed leaves only while they still equal this save's written value. */
-function rollbackValue<T>(previous: T, written: T, current: T): T {
-  if (JSON.stringify(previous) === JSON.stringify(written)) return current
-  if (JSON.stringify(current) === JSON.stringify(written)) return previous
-  if (
-    typeof previous === 'object' &&
-    previous !== null &&
-    typeof written === 'object' &&
-    written !== null &&
-    typeof current === 'object' &&
-    current !== null &&
-    !Array.isArray(previous) &&
-    !Array.isArray(written) &&
-    !Array.isArray(current)
-  ) {
-    const restored = { ...current }
-    for (const key in { ...previous, ...written }) {
-      const value = rollbackValue(
-        Object.hasOwn(previous, key) ? previous[key] : undefined,
-        Object.hasOwn(written, key) ? written[key] : undefined,
-        Object.hasOwn(current, key) ? current[key] : undefined,
-      )
-      // Optional undefined leaves disappear when the provider file is encoded.
-      // Define own properties safely even when a model id names __proto__.
-      Object.defineProperty(restored, key, {
-        value,
-        enumerable: true,
-        configurable: true,
-        writable: true,
-      })
-    }
-    return restored
-  }
-  return current
 }
 
 /** Compare each edited leaf, retaining the latest value for untouched leaves. */
@@ -172,9 +153,8 @@ function editedProvider(
 }
 
 /**
- * Saves a finished draft: the file and the secret together, then the
- * default model, then (for Save and use now) the composer's model. Throws
- * on an invalid draft before writing anything.
+ * Validates before writing; later failures return an honest partial outcome.
+ * Completed writes stay saved. No compensating writes or inverse recovery.
  */
 export async function saveWizardDraft(
   deps: WizardSaveDeps,
@@ -186,14 +166,14 @@ export async function saveWizardDraft(
     draft.provider.address.trim() === '' ||
     draft.defaultModel.trim() === ''
   ) {
-    throw new Error('The provider draft is not complete')
+    throw new Error(UI_TEXT.actionFailed)
   }
   if (
     draft.provider.auth !== 'none' &&
     (draft.credential ?? '').trim() === '' &&
     (draft.editSnapshot === undefined || draft.credential !== undefined)
   ) {
-    throw new Error(`Provider ${draft.provider.id} needs a key`)
+    throw new Error(UI_TEXT.importNeedsKey)
   }
   const address = await deps.policy.check(draft.provider.address)
   if (address.kind === 'refused') {
@@ -215,6 +195,23 @@ export async function saveWizardDraft(
   ) {
     throw new Error(UI_TEXT.actionFailed)
   }
+  if (
+    (draft.setDefault !== false || draft.useNow) &&
+    parseModelRef(draft.defaultModel) === undefined
+  )
+    throw new Error(UI_TEXT.providerText.schema.modelRef)
+  const parsed = providerEntrySchema.safeParse(draft.provider)
+  if (!parsed.success) throw new Error(fill(UI_TEXT.providerSaveFailed, { reason: 'invalid' }))
+  const budgetInvalid = validateWizardSessionBudget(
+    draft.sessionBudgetUsd,
+    deps.sessionBudget?.expectedUsd,
+  )
+  if (
+    budgetInvalid !== undefined ||
+    (draft.sessionBudgetUsd !== undefined && deps.sessionBudget === undefined)
+  ) {
+    throw new Error(UI_TEXT.wizardSessionBudgetInvalid)
+  }
   const previousDefault = await deps.store.defaultModel()
   const previousSecret = await deps.credentials.getProviderCredential(draft.provider.id)
   const snapshot = draft.editSnapshot
@@ -232,8 +229,6 @@ export async function saveWizardDraft(
     }
   }
   const previousEntries = await deps.store.list()
-  let previousEntry: ProviderEntry | undefined
-  let writtenEntry: ProviderEntry | undefined
   if (draft.editing === true) {
     if (previousEntries.every((entry) => entry.id !== draft.provider.id)) {
       throw new Error(UI_TEXT.actionFailed)
@@ -246,22 +241,20 @@ export async function saveWizardDraft(
         }
         return entries.map((entry) => {
           if (entry.id !== draft.provider.id) return entry
-          previousEntry = entry
-          writtenEntry =
-            snapshot === undefined
-              ? draft.provider
-              : editedProvider(snapshot.provider, draft.provider, entry)
-          return writtenEntry
+          return snapshot === undefined
+            ? draft.provider
+            : editedProvider(snapshot.provider, draft.provider, entry)
         })
       })
     }
   } else {
     await deps.store.add(draft.provider)
-    writtenEntry = draft.provider
   }
   let isComposerSet = false
-  let isDefaultWritten = false
-  let isSecretAttempted = false
+  let budget: SessionBudgetApplyOutcome | undefined
+  let step: 'credential' | 'default' | 'budget' | 'composer' = 'credential'
+  const messages = [UI_TEXT.providerSaved]
+  let notice: string | undefined
   try {
     if (
       secret !== '' &&
@@ -274,55 +267,70 @@ export async function saveWizardDraft(
         snapshot !== undefined &&
         JSON.stringify(await deps.credentials.getProviderCredential(draft.provider.id)) !==
           JSON.stringify(previousSecret)
-      ) {
+      )
         throw new Error(UI_TEXT.providerEditConflict)
-      }
-      isSecretAttempted = true
       await deps.credentials.setProviderCredential(draft.provider.id, {
         v: 1,
         auth: draft.credentialAuth === 'oauth' ? 'apiKey' : draft.credentialAuth,
         origin,
         secret,
       })
+      messages.push(UI_TEXT.providerKeySaved)
     }
+    step = 'default'
     if (draft.setDefault !== false && draft.defaultModel !== previousDefault) {
       await deps.store.setDefaultModel(
         draft.defaultModel,
         snapshot === undefined ? undefined : { value: snapshot.defaultModel },
       )
-      isDefaultWritten = true
+      messages.push(UI_TEXT.providerDefaultSaved)
     }
+    step = 'budget'
+    if (deps.sessionBudget !== undefined) {
+      budget = await applyWizardSessionBudget(
+        draft.sessionBudgetUsd,
+        deps.sessionBudget.config,
+        deps.sessionBudget.expectedUsd,
+      )
+      if (budget.status === 'failed' || budget.status === 'conflict') throw new Error(budget.error)
+      if (budget.status === 'written') messages.push(UI_TEXT.providerBudgetSaved)
+    }
+    step = 'composer'
     if (draft.useNow) {
       await deps.setComposerModel(draft.defaultModel)
       isComposerSet = true
     }
   } catch (error) {
-    if (writtenEntry !== undefined) {
-      const written = writtenEntry
-      const previous = previousEntry
-      await deps.store.replaceAll((entries) =>
-        entries.flatMap((entry) => {
-          if (entry.id !== written.id) return [entry]
-          if (previous !== undefined) return [rollbackValue(previous, written, entry)]
-          // Remove this save's addition only if another writer has not edited it.
-          return JSON.stringify(entry) === JSON.stringify(written) ? [] : [entry]
-        }),
-      )
-    }
-    if (isSecretAttempted) {
-      if (previousSecret === undefined) {
-        await deps.credentials.clearProviderCredential(draft.provider.id)
-      } else {
-        await deps.credentials.setProviderCredential(draft.provider.id, previousSecret)
-      }
-    }
-    if (isDefaultWritten) await deps.store.setDefaultModel(previousDefault)
-    throw error
+    const detail = redactSecrets(
+      error instanceof Error && error.message !== '' ? error.message : UI_TEXT.actionFailed,
+      [secret, previousSecret?.secret ?? ''].filter((value) => value !== ''),
+    )
+    if (budget?.status === 'conflict' || budget?.status === 'failed')
+      budget = { ...budget, error: detail }
+    const failureText = {
+      credential: UI_TEXT.providerKeySaveFailed,
+      default: UI_TEXT.providerDefaultSaveFailed,
+      budget: UI_TEXT.sessionBudgetPartialSave,
+      composer: UI_TEXT.providerComposerSaveFailed,
+    }[step]
+    messages.push(fill(failureText, { detail }))
+    if (
+      step === 'credential' &&
+      draft.setDefault !== false &&
+      draft.defaultModel !== previousDefault
+    )
+      messages.push(UI_TEXT.providerDefaultSkipped)
+    if ((step === 'credential' || step === 'default') && draft.sessionBudgetUsd !== undefined)
+      messages.push(UI_TEXT.providerBudgetSkipped)
+    if (step !== 'composer' && draft.useNow) messages.push(UI_TEXT.providerComposerSkipped)
+    notice = messages.join(' ')
   }
   return {
     providerId: draft.provider.id,
     modelRef: draft.defaultModel,
     composerSet: isComposerSet,
     sessionBudgetUsd: draft.sessionBudgetUsd,
+    ...(notice !== undefined && { notice, failedStep: step }),
+    ...(budget !== undefined && { budget }),
   }
 }

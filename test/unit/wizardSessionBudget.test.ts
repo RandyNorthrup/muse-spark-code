@@ -495,7 +495,13 @@ describe('quick pick save path', () => {
     })
     expect(outcome).toBeUndefined()
     expect(ui.errors).toEqual([
-      fill(UI_TEXT.sessionBudgetPartialSave, { detail: 'settings are read-only in this test' }),
+      [
+        UI_TEXT.providerSaved,
+        UI_TEXT.providerKeySaved,
+        UI_TEXT.providerDefaultSaved,
+        fill(UI_TEXT.sessionBudgetPartialSave, { detail: 'settings are read-only in this test' }),
+        UI_TEXT.providerComposerSkipped,
+      ].join(' '),
     ])
     // No setup-success banner: the key-test progress notice may stand, but
     // nothing names the saved provider and model.
@@ -578,7 +584,7 @@ describe('RVPROVWIZ2 production save paths', () => {
     ['provider', 'credential', 'default', 'composer'].flatMap((failure) =>
       ['panel', 'quick pick'].map((mode) => ({ failure, mode })),
     ),
-  )('keeps the prior limit after $failure failure in the $mode', async ({ failure, mode }) => {
+  )('keeps completed writes after $failure failure in the $mode', async ({ failure, mode }) => {
     const f = await productionBudgetFixture(failure)
     if (mode === 'panel') {
       const { panel, saved } = panelSetup({ providers: f.providers, sessionBudget: f.budget })
@@ -586,8 +592,14 @@ describe('RVPROVWIZ2 production save paths', () => {
       await send(panel, { type: 'providers/save', useNow: true }, () => {
         const detail =
           failure === 'composer' ? 'composer refused' : `${failure} persistence refused`
-        expect(latestState(panel).drafts.wizard?.errors).toEqual([detail])
-        expect(latestState(panel).notice).toBeUndefined()
+        if (failure === 'provider') {
+          expect(latestState(panel).drafts.wizard?.errors).toEqual([detail])
+          expect(latestState(panel).notice).toBeUndefined()
+        } else {
+          expect(latestState(panel).drafts.wizard).toBeUndefined()
+          expect(latestState(panel).notice).toContain(detail)
+          expect(latestState(panel).notice).toContain(UI_TEXT.providerSaved)
+        }
       })
       await send(panel, { type: 'providers/wizard', event: 'cancel' }, () => {
         expect(latestState(panel).drafts.wizard).toBeUndefined()
@@ -600,19 +612,27 @@ describe('RVPROVWIZ2 production save paths', () => {
         inputText: ['0'],
         confirmSave: [true],
       })
-      await expect(
-        runAddProviderQuickPick({
-          providers: f.providers,
-          sessionBudget: f.budget,
-          ui,
-          isRemote: false,
-        }),
-      ).rejects.toThrow()
+      const run = runAddProviderQuickPick({
+        providers: f.providers,
+        sessionBudget: f.budget,
+        ui,
+        isRemote: false,
+      })
+      if (failure === 'provider') await expect(run).rejects.toThrow('provider persistence refused')
+      else {
+        expect(await run).toBeUndefined()
+        expect(ui.errors.join(' ')).toContain(UI_TEXT.providerSaved)
+        expect(ui.errors.join(' ')).toContain(
+          failure === 'composer' ? 'composer refused' : `${failure} persistence refused`,
+        )
+      }
       expect(ui.notices.some((notice) => notice.includes('openrouter/m1'))).toBe(false)
     }
-    expect(f.write).not.toHaveBeenCalled()
-    expect(f.controls.effective).toBe(5)
-    expect(await f.store.list()).toEqual([])
+    if (failure === 'composer')
+      expect(f.write).toHaveBeenCalledWith('modelApiSessionBudgetUsd', 0, 'global')
+    else expect(f.write).not.toHaveBeenCalled()
+    expect(f.controls.effective).toBe(failure === 'composer' ? 0 : 5)
+    expect(await f.store.list()).toHaveLength(failure === 'provider' ? 0 : 1)
   })
 
   it('preserves a concurrent setting change when the panel limit was untouched', async () => {
@@ -634,11 +654,10 @@ describe('RVPROVWIZ2 production save paths', () => {
     await prepareOpenRouter(panel, '0', '5')
     // A change during the real provider transaction must be checked
     // after it completes, immediately before the setting write.
-    const saveDraft = f.providers.saveDraft
-    vi.spyOn(f.providers, 'saveDraft').mockImplementation(async (draft) => {
-      const outcome = await saveDraft(draft)
+    const setDefault = f.store.setDefaultModel
+    vi.spyOn(f.store, 'setDefaultModel').mockImplementationOnce(async (...args) => {
+      await setDefault(...args)
       f.controls.effective = 2
-      return outcome
     })
     await send(panel, { type: 'providers/save', useNow: true }, () => {
       expect(latestState(panel).providers).toHaveLength(1)
@@ -702,7 +721,13 @@ describe('RVPROVWIZ2 production save paths', () => {
       }),
     ).toBeUndefined()
     expect(ui.errors).toEqual([
-      fill(UI_TEXT.sessionBudgetPartialSave, { detail: 'settings are read-only' }),
+      [
+        UI_TEXT.providerSaved,
+        UI_TEXT.providerKeySaved,
+        UI_TEXT.providerDefaultSaved,
+        fill(UI_TEXT.sessionBudgetPartialSave, { detail: 'settings are read-only' }),
+        UI_TEXT.providerComposerSkipped,
+      ].join(' '),
     ])
     expect(ui.notices.some((notice) => notice.includes('openrouter/m1'))).toBe(false)
     expect(f.controls.effective).toBe(5)
@@ -744,10 +769,18 @@ describe('RVPROVWIZ2 production save paths', () => {
       const confirmations: string[] = []
       const ui = {
         ...base,
-        confirmSave: (title: string, detail: string) => {
+        confirmSave: async (title: string, detail: string) => {
           confirmations.push(detail)
           if (confirmations.length === 1) f.controls.effective = 2
-          return base.confirmSave(title, detail)
+          else
+            await f.store.replaceAll((entries) =>
+              entries.map((entry) => ({
+                ...entry,
+                pinned: ['m1'],
+                routing: { privacy: 'zdr', order: ['newer'] },
+              })),
+            )
+          return await base.confirmSave(title, detail)
         },
       }
       const outcome = await runAddProviderQuickPick({
@@ -759,7 +792,9 @@ describe('RVPROVWIZ2 production save paths', () => {
       expect(confirmations).toHaveLength(2)
       expect(confirmations[1]).toContain(formatUsd('2'))
       expect(confirmations[1]).toContain(formatUsd('0'))
-      expect(await f.store.list()).toHaveLength(1)
+      expect(await f.store.list()).toMatchObject([
+        { pinned: ['m1'], routing: { privacy: 'zdr', order: ['newer'] } },
+      ])
       if (confirm) {
         expect(f.controls.effective).toBe(0)
         expect(outcome?.modelRef).toBe('openrouter/m1')

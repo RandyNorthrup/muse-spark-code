@@ -19855,6 +19855,37 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### PROVWIZ9 — Ordered save, honest partial outcomes, no rollback (2026-10-09)
+
+Replace PROVWIZ8 recovery after RVPROVWIZ8C's three P2 findings. Validate
+address policy, private consent, provider schema/token limits, credential/default
+snapshots and an edited spending limit before any write. Save changed provider
+fields in one atomic provider-file mutation, then an explicitly entered key
+bound to its origin, an explicitly chosen default, the edited spending limit,
+and finally the current conversation model when requested. Stop on a failed
+step; keep completed writes and name completed, failed and skipped steps in
+all 14 UI languages. Delete rollback and inverse machinery. Every Save outcome
+attempts panel refresh; refresh failure appends information without erasing the
+original outcome. Other partial or stale persisted drafts reopen to finish;
+budget-only partial drafts keep a freshly read comparison baseline for retry.
+
+Prove every failure boundary, same-window snapshot conflicts, the invalid
+inverse and absent-routing review scenarios, and address-change/key-failure
+origin rejection through the production store/shared form. Run complete
+provider/models/capability suites and request goldens at repository deadlines,
+byte-exact red/restored drills, changed-file format/lint, one unit-project tsc,
+localization/reference/host API, static gates, build budgets and visual checks.
+Record receipts in `docs/certification/provcat.md`. Aggregate quality, coverage,
+packages, hosted multi-OS/editor and live qualification remain lead-owned under
+the rig/common brief; inherited duplication hold remains. No dependency, gate,
+hook, paid/live call, merge, rebase, push or subagent changes. Shared editor
+bridges receive the same form; ACP's persisted provider schema stays unchanged.
+
+The accepted cross-window residual remains: Two editor windows saving the same
+provider at the same moment: last writer wins for fields both changed; no secret
+is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation
+onto the shared lease after M123 lands on main.
+
 ### PROVWIZ8 — Save recovery and refresh honesty (2026-10-09)
 
 Repair RVPROVWIZ7C P2-4 and P2-3 on `5f09bc0e2`: a successful provider
@@ -35294,7 +35325,7 @@ OpenCode plugin hooks").
 
 ### M95 — Bring-your-own model providers (D74)
 
-**Provider panel, 0.17.1 residual (PROVWIZ8, lead decision 2026-10-09).**
+**Provider panel, 0.17.1 residual (PROVWIZ9, lead decision 2026-10-09).**
 Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main.
 
 **M95R5 integration (2026-10-05, Windows 11).** Merge lane T with
@@ -39468,13 +39499,12 @@ platform receipt remains lead-owned; no gate or Meta fixture was changed.
   chat `setupComplete`. K tests use M's exact temporary source dependency,
   which is not committed. M must adopt strict `providers/edit` and scoped
   prefill variants. Follow-up: certify the final composed protocol/editor flow.
-- **K-recovery:** rollback compensates ordinary persistence failures; crash
-  atomicity and a different window/process writing during deletion require
-  a shared transaction/generation protocol with lane P. Same-host writes,
-  undo and deadlines are serialized, and replacement ids are rechecked.
-  Remaining risk is credential/setup availability, not credential exfiltration;
-  the origin dispatch guard remains mandatory. Follow-up: cross-window drills
-  with the final store seam and explicit repair when an OS-store rollback fails.
+- **K-recovery (superseded by PROVWIZ9, 2026-10-09):** provider Save validates
+  before writing and retains completed provider/key/default/limit/model steps
+  after a later failure, reporting every partial outcome. No rollback remains.
+  The origin guard prevents an old key serving a newly saved origin. Same-host
+  snapshot comparisons remain; cross-window provider/key serialization awaits
+  PROVSTORE-LOCKLIB after M123. Shared-store crash atomicity remains follow-up.
 - **K-release-base merge:** local `origin/main` at `a95f24cf` conflicts in
   release/build files, every manifest translation, extension and constants.
   Merge was aborted; lead must reconcile the release base on integration.
@@ -44815,6 +44845,20 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**PROVWIZ9 scoped qualification (2026-10-09).** Ordered provider saves remove
+rollback after RVPROVWIZ8C's three P2 findings. All 46 complete owning files
+pass 816 tests at repository deadlines; initial regressions and seven byte-exact
+source drills fail as required and restore source SHA-256. Every partial
+outcome keeps completed writes and refresh warnings append. New-origin rows
+require an origin-bound usable key. Budget-only drafts retain fresh retry
+baselines; quick-pick conflict retries preserve intervening provider edits.
+The explicit rig/common brief delegates aggregate quality, coverage, packages,
+hosted/editor and live qualification to the lead. Retain PROVWIZ8's inherited
+zero-clone hold pending scoped static results; quality is not claimed green.
+Cross-window serialization remains PROVSTORE-LOCKLIB after M123. Final compiler,
+request-golden, individual static/build and visual receipts are recorded under
+PROVWIZ9 in `docs/certification/provcat.md` as they finish.
 
 **PROVWIZ8 scoped qualification and retained duplication hold (2026-10-09).**
 Repair RVPROVWIZ7C P2-3/P2-4 with a per-field inverse in the existing provider
@@ -51874,13 +51918,12 @@ review findings and terminal settlement-pricing failure.
   chat `setupComplete`. K tests use M's exact temporary source dependency,
   which is not committed. M must adopt strict `providers/edit` and scoped
   prefill variants. Follow-up: certify the final composed protocol/editor flow.
-- **K-recovery:** rollback compensates ordinary persistence failures; crash
-  atomicity and a different window/process writing during deletion require
-  a shared transaction/generation protocol with lane P. Same-host writes,
-  undo and deadlines are serialized, and replacement ids are rechecked.
-  Remaining risk is credential/setup availability, not credential exfiltration;
-  the origin dispatch guard remains mandatory. Follow-up: cross-window drills
-  with the final store seam and explicit repair when an OS-store rollback fails.
+- **K-recovery (superseded by PROVWIZ9, 2026-10-09):** provider Save validates
+  before writing and retains completed provider/key/default/limit/model steps
+  after a later failure, reporting every partial outcome. No rollback remains.
+  The origin guard prevents an old key serving a newly saved origin. Same-host
+  snapshot comparisons remain; cross-window provider/key serialization awaits
+  PROVSTORE-LOCKLIB after M123. Shared-store crash atomicity remains follow-up.
 - **K-release-base merge:** local `origin/main` at `a95f24cf` conflicts in
   release/build files, every manifest translation, extension and constants.
   Merge was aborted; lead must reconcile the release base on integration.

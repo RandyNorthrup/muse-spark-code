@@ -130,7 +130,10 @@ export interface ProvidersHost {
     candidates: readonly ProviderModelRow[],
   ) => ModelSuggestion | undefined
   readonly suggestSessionBudget: (modelPrices: readonly string[]) => ModelSuggestion | undefined
-  readonly saveDraft: (draft: WizardDraft) => Promise<WizardSaveOutcome>
+  readonly saveDraft: (
+    draft: WizardDraft,
+    sessionBudget?: Parameters<typeof saveWizardDraft>[0]['sessionBudget'],
+  ) => Promise<WizardSaveOutcome>
 }
 
 /**
@@ -252,7 +255,11 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
           continue
         }
         const record = await deps.credentials.getProviderCredential(entry.id)
-        states.push({ entry, hasKey: record !== undefined, origin: record?.origin })
+        states.push({
+          entry,
+          hasKey: record !== undefined && isOriginBound(record, entry.address),
+          origin: record?.origin,
+        })
       }
       return states
     },
@@ -319,13 +326,14 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
     probe: (preset) => probeLocalServers(preset.localProbes, deps.loopbackFetch),
     suggestDefaultModel: (candidates) => deps.suggest.defaultModel(candidates),
     suggestSessionBudget: (modelPrices) => deps.suggest.sessionBudget(modelPrices),
-    saveDraft: (draft) =>
+    saveDraft: (draft, sessionBudget) =>
       serialize(() =>
         saveWizardDraft(
           {
             store: deps.store,
             credentials: deps.credentials,
             policy: deps.policy,
+            ...(sessionBudget !== undefined && { sessionBudget }),
             setComposerModel: deps.setComposerModel,
             isPrivateConfirmed: (address) => confirmedAddresses.has(address),
           },

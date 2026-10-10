@@ -1607,3 +1607,103 @@ install occurs. No real credential access, model/provider contact, paid/live
 call, merge, rebase, push or publication occurs. Local commits use the original
 installed hooks, with output in `temp/provwiz8-{refresh,rollback}-commit.log`;
 their staged/committed diffs are reread and compared byte-for-byte.
+
+# PROVWIZ9 — Ordered save and honest partial outcomes (RVPROVWIZ8C)
+
+Rig: macbook; base `28578a4ad`; branch `fix/provider-panel`. No subagents,
+merge, rebase, push, paid/live call, credentials, install, hook or gate changes.
+This section supersedes PROVWIZ8's rollback contract. Rollback and inverse
+machinery are deleted, including compensating credential/default writes.
+
+Validation checks address policy/native consent, provider schema and token
+limits, qualified default selection, credential/default snapshots, and an
+edited limit's exact numeric setting representation and comparison baseline.
+Changed provider fields are compared inside the production atomic mutation.
+The order is provider, entered origin-bound key, explicit default, edited limit,
+then requested composer model. Failure stops subsequent steps. Completed steps
+remain stored and their localized messages survive refresh failure. All 14 UI
+tables contain real translations; messages are read at runtime on the host.
+Shared editor bridges use the same React form and host contract; ACP's persisted
+provider schema is unchanged. No installed-editor equivalence is newly certified.
+
+| Failure                       | Stored outcome                                          | Panel outcome                                                                                                        |
+| ----------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Validation / entry write      | No save writes; old entry/key/default/limit survive     | Original error; refresh warning appends if needed; draft retained                                                    |
+| Entered key write             | Provider stays; old key/default/limit survive           | Provider saved; key not saved with reason and re-entry instruction; requested later steps named unchanged            |
+| Explicit default write        | Provider and entered key stay; default/limit survive    | Completed steps named; default not changed with reason; requested later steps named unchanged                        |
+| Edited limit write / conflict | Provider/key/default stay; prior/current limit survives | Completed steps named; limit not changed with reason; requested conversation model unchanged                         |
+| Composer refusal              | Provider/key/default/limit stay                         | Completed steps named; conversation model not changed with reason                                                    |
+| Post-save refresh             | All completed writes stay                               | Full success becomes saved-provider/reopen warning; partial text keeps its exact content and appends refresh warning |
+
+A key-write failure at a changed address leaves the old record bound to its old
+origin. The provider row shows a missing key, and production stored-key lookup
+refuses it. The invalid inverse (60000 context / 40000 output) and absent-routing
+interleavings have no inverse to apply: intended provider edits and newer valid
+mutations remain, with the original failure named. Budget-only partial drafts
+can retry after refreshing their own successful writes; other partial or stale
+drafts retire and reopen from storage. The original review's budget-failure plus
+later panel-refresh failure preserves both saved-provider and partial-limit text.
+
+Initial regressions: complete `providerOrderedSave.test.ts` against the base
+failed 8/9, including retained writes, both review interleavings, changed-origin
+key refusal and limit-before-composer ordering (`temp/provwiz9-before.log`).
+A first implementation run exposed a split `return` before the edited entry;
+fixed directly. Older rollback expectations were updated to assert retained
+state and explicit partial outcomes. Test-only wrappers now forward the real
+budget port. An unsupported edit-suggestion bridge probe was discarded; the
+qualifying edit-limit regression uses admitted `providers/prefill`, the real
+opening budget snapshot and a synthetic settings-write refusal.
+
+Focused production/shared-form run: 57 passed across ordered save, Edit and
+provider-host files (`temp/provwiz9-ui-final.log`). The key-state regression
+first failed against the existing presence-only row; the row now also checks
+origin binding. Further verification, byte-exact drills and visuals follow. Aggregate quality, coverage, package, hosted multi-OS and live
+qualification remain lead-owned. Retain the inherited duplication hold and the
+accepted cross-window residual: Two editor windows saving the same provider at
+the same moment: last writer wins for fields both changed; no secret is exposed;
+follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the
+shared lease after M123 lands on main.
+
+## Complete owning suites and guard-fire receipts
+
+All 46 complete provider/models/capability files pass **816 tests** in sequential
+batches of at most three with `--maxWorkers=3` and repository deadlines. The
+PROVWIZ8 45-file inventory remains intact, plus `providerOrderedSave.test.ts`;
+Edit adds five production/shared-form cases. Logs: `temp/provwiz9-suite-*.log`,
+`temp/provwiz9-suites.json`. One old blocker assertion expected the outer generic
+notice; it now checks the retained draft's specific write/conflict sentence and
+still proves the saver was not called. Initial compiler checks found a duplicate
+test property and an explicitly undefined optional test snapshot; both were
+fixed without casts or suppressions.
+
+Seven deliberate source mutations each failed a complete test file and restored
+SHA-256 bytes exactly in `finally` (`temp/provwiz9-drills.json`):
+
+| Drill                                              | Failed tests | Restored source    |
+| -------------------------------------------------- | -----------: | ------------------ |
+| Restore base rollback saver                        |          8/9 | `wizardSave.ts`    |
+| Remove provider-schema preflight                   |          1/9 | `wizardSave.ts`    |
+| Remove qualified-default preflight                 |          1/9 | `wizardSave.ts`    |
+| Remove budget preflight                            |          1/9 | `wizardSave.ts`    |
+| Treat any stored key as usable at the row's origin |         1/39 | `providersHost.ts` |
+| Replace partial information on refresh failure     |         3/39 | `modelsPanel.ts`   |
+| Leave budget failure metadata unredacted           |          1/9 | `wizardSave.ts`    |
+
+Source digests after each restoration:
+
+- `wizardSave.ts`: `bd4b7e465fd770fd6c33a1d5904d1912ed3206a82bb6c6dc17e0136aada5658d`
+- `providersHost.ts`: `bc53606e4a19d8ae7f030127b6209d94738695de003d0afa93318a597a60bcda`
+- `modelsPanel.ts`: `97d4944e0d94d8be9dfbc084ed9c64105f0803c3a0b96051ca65380d905b6bd3`
+
+The final quick-pick conflict test also mutates routing/pins during confirmation;
+retry reads the saved entry and carries no entered credential or default write,
+so its limit/composer attempt cannot overwrite those newer provider fields.
+
+Final restored focused run: **81 passed** across ordered save, Edit and session
+budget files (`temp/provwiz9-restored-final.log`). Three complete Meta request
+golden files (`metaGolden`, `metaRequestGoldens`, `modelApiGoldenRequests`)
+pass **152 tests**, unchanged request expectations (`temp/provwiz9-goldens.log`).
+No timeout overrides, test-name filters or skipped cases were used.
+
+Final unit-project compiler passes (`npm run typecheck:unit`,
+`temp/provwiz9-tsc-final.log`), covering host/core/shared/React and unit fixtures.

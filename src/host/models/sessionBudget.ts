@@ -100,6 +100,21 @@ function failureDetail(error: unknown): string {
   return error instanceof Error && error.message !== '' ? error.message : UI_TEXT.actionFailed
 }
 
+/** Validate an edited setting before any provider or credential write. */
+export function validateWizardSessionBudget(
+  budget: UsdAmount | undefined,
+  expectedUsd: UsdAmount | undefined,
+): string | undefined {
+  if (budget === undefined) return undefined
+  const numeric = Number(budget)
+  const parsed = legacyUsdSchema.safeParse(numeric)
+  return expectedUsd === undefined ||
+    !parsed.success ||
+    Usd.from(parsed.data).compare(Usd.from(budget)) !== 0
+    ? UI_TEXT.wizardSessionBudgetInvalid
+    : undefined
+}
+
 /**
  * Applies the wizard's budget to the conversation spending limit setting.
  * `undefined` (untouched) and a value equal to the effective one write

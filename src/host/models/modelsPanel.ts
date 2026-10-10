@@ -41,7 +41,7 @@ import type { ScanOutcome } from '../providers/modelScans'
 import { OPENROUTER_ORIGIN } from '../providers/openRouter'
 import { Usd } from '../../shared/usd'
 import { redactSecrets } from '../../shared/redact'
-import { applyWizardSessionBudget, type SessionBudgetConfig } from './sessionBudget'
+import { type SessionBudgetConfig } from './sessionBudget'
 
 export interface ModelsPanelDeps {
   readonly connectChatGpt?: (() => Promise<void>) | undefined
@@ -164,9 +164,9 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   const newModels = new Set<string>()
   // A failed limit write can leave a saved provider. Retrying that draft
   // replaces its saved entry rather than attempting a duplicate add.
-  const savedDrafts = new WeakSet<PanelDraft>()
   // Token limits do not change the saved connection; only connection edits
   // invalidate this exemption from a fresh credential test.
+  const savedDrafts = new WeakSet<PanelDraft>()
   const savedConnections = new WeakSet<PanelDraft>()
   // Keep the entire stored entry on the host, including fields the form
   // does not expose. Only differences from this draft snapshot are saved.
@@ -230,6 +230,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     const entry = structuredClone(await entryOf(id))
     const draft = newDraft(providers.preset(entry.preset), entry)
     draft.defaultModel = await providers.defaultModel()
+    draft.sessionBudgetExpectedUsd = deps.sessionBudget.read().effectiveUsd
     let secret: string | undefined
     try {
       secret = await providers.storedCredential(entry)
@@ -880,118 +881,141 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       }
       case 'providers/save': {
         const draft = draftOf(message.providerId)
-        syncCustomBlockers(draft, true)
-        if (draft.blockers.length > 0) {
-          throw new Error(UI_TEXT.actionFailed)
-        }
-        const entry = draftEntry(draft, message.providerId)
-        const snapshot = editSnapshots.get(draft)
-        draft.errors = []
-        draft.saveConflict = false
-        state.notice = undefined
-        if (draft.test?.status !== 'ok' && !savedConnections.has(draft)) {
-          draft.errors = [UI_TEXT.providerText.wizard.test]
-          break
-        }
-        const verdict = await providers.confirmAddress(entry.address)
-        if (verdict.kind === 'refused') {
-          draft.errors = [
-            verdict.detail === UI_TEXT.providerPrivateConfirm
-              ? verdict.detail
-              : fill(UI_TEXT.providerAddressInvalid, { detail: verdict.detail }),
-          ]
-          break
+        let hasRefreshFailed = false
+        // Every outcome refreshes through this catch. Earlier outcome text survives.
+        const finish = async (isSaved: boolean): Promise<void> => {
+          try {
+            await refresh()
+          } catch {
+            hasRefreshFailed = true
+            log.warn('Models panel could not refresh after provider save')
+            if (isSaved) {
+              state.notice =
+                state.notice === undefined
+                  ? UI_TEXT.providerSavedRefreshFailed
+                  : [state.notice, UI_TEXT.providerRefreshFailed].join(' ')
+            } else {
+              draft.errors.push(UI_TEXT.providerRefreshFailed)
+            }
+          }
+          syncDraftBlockers()
+          publish()
         }
         let outcome: WizardSaveOutcome
+        let entry: ProviderEntry
         try {
-          outcome = await providers.saveDraft({
-            provider: { ...entry, ...(verdict.kind === 'private' && { privateNetwork: true }) },
-            credential:
-              snapshot === undefined || enteredCredentials.has(draft)
-                ? draftSecret(entry, message.providerId)
-                : undefined,
-            credentialAuth: 'apiKey',
-            defaultModel: draft.defaultModel ?? `${entry.id}/${entry.models[0] ?? ''}`,
-            setDefault:
-              snapshot === undefined || draft.defaultModel !== snapshot.fields.defaultModel,
-            ...(snapshot !== undefined && {
-              editSnapshot: {
-                provider: snapshot.entry,
-                credential: snapshot.credential,
-                defaultModel: snapshot.fields.defaultModel,
-              },
-            }),
-            sessionBudgetUsd: draft.sessionBudgetUsd,
-            useNow: message.useNow,
-            editing: message.providerId !== undefined || savedDrafts.has(draft),
-          })
+          syncCustomBlockers(draft, true)
+          if (draft.blockers.length > 0) throw new Error(UI_TEXT.actionFailed)
+          entry = draftEntry(draft, message.providerId)
+          const snapshot = editSnapshots.get(draft)
+          draft.errors = []
+          draft.saveConflict = false
+          state.notice = undefined
+          if (draft.test?.status !== 'ok' && !savedConnections.has(draft)) {
+            draft.errors = [UI_TEXT.providerText.wizard.test]
+            await finish(false)
+            return
+          }
+          const verdict = await providers.confirmAddress(entry.address)
+          if (verdict.kind === 'refused') {
+            draft.errors = [
+              verdict.detail === UI_TEXT.providerPrivateConfirm
+                ? verdict.detail
+                : fill(UI_TEXT.providerAddressInvalid, { detail: verdict.detail }),
+            ]
+            await finish(false)
+            return
+          }
+          outcome = await providers.saveDraft(
+            {
+              provider: { ...entry, ...(verdict.kind === 'private' && { privateNetwork: true }) },
+              credential:
+                snapshot === undefined || enteredCredentials.has(draft)
+                  ? draftSecret(entry, message.providerId)
+                  : undefined,
+              credentialAuth: 'apiKey',
+              defaultModel: draft.defaultModel ?? `${entry.id}/${entry.models[0] ?? ''}`,
+              setDefault:
+                snapshot === undefined || draft.defaultModel !== snapshot.fields.defaultModel,
+              ...(snapshot !== undefined && {
+                editSnapshot: {
+                  provider: snapshot.entry,
+                  credential: snapshot.credential,
+                  defaultModel: snapshot.fields.defaultModel,
+                },
+              }),
+              sessionBudgetUsd: draft.sessionBudgetUsd,
+              useNow: message.useNow,
+              editing: message.providerId !== undefined || savedDrafts.has(draft),
+            },
+            { config: deps.sessionBudget, expectedUsd: draft.sessionBudgetExpectedUsd },
+          )
         } catch (error) {
           fail(draft, error)
-          break
+          await finish(false)
+          return
         }
-        // A later budget failure keeps this draft. Its own successful writes
-        // become the new comparison baseline for the provider-save retry.
-        let hasRefreshFailed = false
-        if (snapshot !== undefined) {
+        savedDrafts.add(draft)
+        const snapshot = editSnapshots.get(draft)
+        if (
+          snapshot !== undefined &&
+          (outcome.failedStep === undefined || outcome.failedStep === 'budget')
+        ) {
           try {
-            const savedEntry = structuredClone(await entryOf(entry.id))
-            const savedCredential = await providers.storedCredential(savedEntry)
-            snapshot.entry = savedEntry
+            snapshot.entry = structuredClone(await entryOf(entry.id))
+            snapshot.credential = await providers.storedCredential(snapshot.entry)
             snapshot.fields = structuredClone(draft)
-            snapshot.credential = savedCredential
             enteredCredentials.delete(draft)
           } catch {
             hasRefreshFailed = true
             log.warn('Models panel saved provider but could not refresh its snapshot')
           }
         }
-        savedDrafts.add(draft)
-        // Provider/credential/default/composer rollback must finish before
-        // any limit write. A later failure is explicitly a partial save.
-        const budget = await applyWizardSessionBudget(
-          draft.sessionBudgetUsd,
-          deps.sessionBudget,
-          draft.sessionBudgetExpectedUsd,
-        )
-        let budgetFailure: string | undefined
-        if (budget.status === 'conflict') {
-          draft.sessionBudgetExpectedUsd = budget.effectiveUsd
-        }
-        if (budget.status === 'conflict' || budget.status === 'failed') {
-          budgetFailure = fill(UI_TEXT.sessionBudgetPartialSave, { detail: budget.error })
-          if (!hasRefreshFailed) {
-            draft.errors = [budgetFailure]
-            break
+        state.notice = outcome.notice
+        if (hasRefreshFailed)
+          state.notice =
+            state.notice === undefined
+              ? UI_TEXT.providerSavedRefreshFailed
+              : [state.notice, UI_TEXT.providerRefreshFailed].join(' ')
+        if (outcome.composerSet) {
+          try {
+            deps.onWizardSaved(outcome)
+          } catch {
+            hasRefreshFailed = true
+            state.notice =
+              state.notice === undefined
+                ? UI_TEXT.providerSavedRefreshFailed
+                : [state.notice, UI_TEXT.providerRefreshFailed].join(' ')
+            log.warn('Models panel saved provider but could not notify its host')
           }
         }
-        // A saved draft without a fresh baseline must be reopened, not retried.
-        credentials.delete(message.providerId ?? 'wizard')
-        if (message.providerId === undefined) {
-          state.drafts.wizard = undefined
+        await finish(true)
+        // A fresh budget-only partial draft may retry its completed writes.
+        // Any stale baseline or other partial outcome must reopen from storage.
+        if (!hasRefreshFailed && outcome.failedStep === 'budget') {
+          draft.errors = [
+            fill(UI_TEXT.sessionBudgetPartialSave, {
+              detail:
+                outcome.budget?.status === 'conflict' || outcome.budget?.status === 'failed'
+                  ? outcome.budget.error
+                  : UI_TEXT.actionFailed,
+            }),
+          ]
+          if (outcome.budget?.status === 'conflict')
+            draft.sessionBudgetExpectedUsd = outcome.budget.effectiveUsd
         } else {
-          state.drafts.edits = Object.fromEntries(
-            Object.entries(state.drafts.edits).filter(([id]) => id !== message.providerId),
-          )
+          credentials.delete(message.providerId ?? 'wizard')
+          enteredCredentials.delete(draft)
+          if (message.providerId === undefined) state.drafts.wizard = undefined
+          else
+            state.drafts.edits = Object.fromEntries(
+              Object.entries(state.drafts.edits).filter(([id]) => id !== message.providerId),
+            )
         }
-        state.notice = hasRefreshFailed
-          ? UI_TEXT.providerSavedRefreshFailed
-          : fill(UI_TEXT.setupComplete, {
-              provider: providers.preset(entry.preset)?.name ?? entry.id,
-              model: outcome.modelRef,
-            })
-        if (outcome.composerSet) {
-          deps.onWizardSaved(outcome)
-        }
-        try {
-          await refresh()
-        } catch {
-          state.notice = UI_TEXT.providerSavedRefreshFailed
-          log.warn('Models panel saved provider but could not refresh its state')
-        }
-        if (budgetFailure !== undefined) {
-          state.notice = [state.notice, budgetFailure].join(' ')
-        }
-        syncDraftBlockers()
+        state.notice ??= fill(UI_TEXT.setupComplete, {
+          provider: providers.preset(entry.preset)?.name ?? entry.id,
+          model: outcome.modelRef,
+        })
         publish()
         return
       }

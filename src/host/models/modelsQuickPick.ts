@@ -11,7 +11,7 @@ import type { PickItem } from '../commands/pickItem'
 import type { PresetInfo, ProviderEntry, ProviderModelRow } from '../providers/providerPorts'
 import type { ProvidersHost } from '../providers/providersHost'
 import type { WizardDraft } from '../providers/wizardSave'
-import { applyWizardSessionBudget, type SessionBudgetConfig } from './sessionBudget'
+import { type SessionBudgetConfig } from './sessionBudget'
 
 export interface ProviderQuickPickUi {
   /** One choice from a list; undefined when dismissed. */
@@ -364,35 +364,44 @@ export async function runAddProviderQuickPick(
   if (!isConfirmed) {
     return undefined
   }
-  const outcome = await providers.saveDraft({
-    provider: {
-      ...entry,
-      models: [...ticked],
-      ...(modelLimits !== undefined && { modelLimits }),
+  let outcome = await providers.saveDraft(
+    {
+      provider: {
+        ...entry,
+        models: [...ticked],
+        ...(modelLimits !== undefined && { modelLimits }),
+      },
+      credential,
+      credentialAuth,
+      defaultModel: modelRef,
+      sessionBudgetUsd,
+      useNow: true,
     },
-    credential,
-    credentialAuth,
-    defaultModel: modelRef,
-    sessionBudgetUsd,
-    useNow: true,
-  })
-  let expectedUsd = budgetState.effectiveUsd
-  for (;;) {
-    const budget = await applyWizardSessionBudget(sessionBudgetUsd, deps.sessionBudget, expectedUsd)
-    if (budget.status === 'conflict') {
-      const isConfirmed = await ui.confirmSave(UI_TEXT.wizardSessionBudget, budget.error)
-      if (isConfirmed) {
-        expectedUsd = budget.effectiveUsd
-        continue
-      }
-      ui.showError(fill(UI_TEXT.sessionBudgetPartialSave, { detail: budget.error }))
-      return undefined
-    }
-    if (budget.status === 'failed') {
-      ui.showError(fill(UI_TEXT.sessionBudgetPartialSave, { detail: budget.error }))
-      return undefined
-    }
-    break
+    { config: deps.sessionBudget, expectedUsd: budgetState.effectiveUsd },
+  )
+  while (outcome.budget?.status === 'conflict') {
+    const isConfirmed = await ui.confirmSave(UI_TEXT.wizardSessionBudget, outcome.budget.error)
+    if (!isConfirmed) break
+    const currentProviders = await providers.providers()
+    const current = currentProviders.find((provider) => provider.id === providerId)
+    if (current === undefined) throw new Error(UI_TEXT.providerEditConflict)
+    outcome = await providers.saveDraft(
+      {
+        provider: current,
+        credentialAuth,
+        editSnapshot: { provider: current, credential: undefined, defaultModel: undefined },
+        defaultModel: modelRef,
+        setDefault: false,
+        sessionBudgetUsd,
+        useNow: true,
+        editing: true,
+      },
+      { config: deps.sessionBudget, expectedUsd: outcome.budget.effectiveUsd },
+    )
+  }
+  if (outcome.notice !== undefined) {
+    ui.showError(outcome.notice)
+    return undefined
   }
   if (outcome.composerSet) {
     ui.showNotice(fill(UI_TEXT.setupComplete, { provider: preset.name, model: outcome.modelRef }))

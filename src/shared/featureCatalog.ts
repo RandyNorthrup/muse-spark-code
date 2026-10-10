@@ -292,16 +292,17 @@ export function featureCatalog(): readonly Feature[] {
         'connectCopilot',
       ],
       // Saved custom limits persist directly from Edit without a new test
-      // while the connection is unchanged; failed saves retain the draft.
+      // while the connection is unchanged; pre-write failures retain the draft.
       // Edit and Change key share a full saved snapshot; unchanged routing,
       // limits, consent and the default survive. Save admits one operation
       // per draft, compares edited fields inside the stored mutation and offers
       // Reload on conflicts. Untouched fields and rotated/removed keys survive
       // consent waits; only an entered key replaces a stored credential.
-      // A failed refresh after Save acknowledges persistence and retires the
-      // form for reopening; the requested spending limit is still processed.
-      // Rollback undoes only this save's changed leaves against the current entry,
-      // preserving unrelated providers and later field changes.
+      // Save validates first, then writes provider/key/default/limit/composer in
+      // order. Completed writes stay on failure; localized outcomes name saved,
+      // failed and skipped steps. Every outcome refreshes without losing earlier
+      // information. Budget-only partial drafts retry on a fresh baseline; other
+      // partial or stale forms reopen. A key bound to an old origin shows missing.
       // Simultaneous cross-window saves remain last-writer-wins until LOCKLIB.
       // Earlier steps remain navigable while final Save validates limits.
       ['suggestedProvider', 'modelApiSessionBudgetUsd'],

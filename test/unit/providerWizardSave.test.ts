@@ -1,6 +1,6 @@
 // M95 lane K (PLAN.md D74, M95 acceptance 19 and the Tests' first-run
-// items): Save writes the file and the secret together, sets the default
-// model and asks for the composer's model; Cancel writes nothing.
+// items): Save validates, then writes in order. Completed writes survive
+// later failures; Cancel writes nothing.
 
 import { describe, expect, it, vi } from 'vitest'
 import { ProviderCredentialStore as CredentialStore } from '../../src/host/providers/credentialRecords'
@@ -49,7 +49,7 @@ function saving(parts: { readonly setComposerModel?: (modelRef: string) => Promi
 }
 
 describe('saveWizardDraft', () => {
-  it('writes the file and the secret together, then the default and composer models', async () => {
+  it('writes the provider, secret, default and composer models in order', async () => {
     const savingParts = saving()
     const composed: string[] = []
     const outcome = await saveWizardDraft(
@@ -93,7 +93,7 @@ describe('saveWizardDraft', () => {
     expect(secretWrite).not.toHaveBeenCalled()
   })
 
-  it('keeps untouched credential rotations even when composer refusal rolls back the save', async () => {
+  it('keeps untouched credential rotations when the composer refuses', async () => {
     const parts = saving()
     await saveWizardDraft({ ...parts, policy: POLICY }, { ...DRAFT, useNow: false })
     const initialSecret = await parts.credentials.getProviderCredential(DRAFT.provider.id)
@@ -123,7 +123,7 @@ describe('saveWizardDraft', () => {
           },
         },
       ),
-    ).rejects.toThrow('composer refused')
+    ).resolves.toMatchObject({ notice: expect.stringContaining('composer refused') })
     expect(await parts.credentials.getProviderCredential(DRAFT.provider.id)).toEqual({
       ...initialSecret,
       secret: 'synthetic-rotated-key',
@@ -131,7 +131,7 @@ describe('saveWizardDraft', () => {
   })
 
   it.each(['unchanged', 'edited', 'added'] as const)(
-    'composer refusal reverses only the %s save and keeps later field/provider changes',
+    'composer refusal keeps the %s save and keeps later field/provider changes',
     async (kind) => {
       const parts = saving()
       const initial: ProviderEntry = {
@@ -186,15 +186,16 @@ describe('saveWizardDraft', () => {
             }),
           },
         ),
-      ).rejects.toThrow('composer refused')
+      ).resolves.toMatchObject({ notice: expect.stringContaining('composer refused') })
       const current = parts.store.current.find((entry) => entry.id === initial.id)
       expect(current).toEqual(
         kind === 'edited'
           ? {
               ...initial,
+              privateNetwork: true,
               pinned: ['m1'],
-              modelLimits: { m1: { contextTokens: 256_000, outputTokens: 4000 } },
-              routing: { privacy: 'zdr', order: ['openai'], allowFallbacks: false },
+              modelLimits: { m1: { contextTokens: 256_000, outputTokens: 8000 } },
+              routing: { privacy: 'any', order: ['openai'], allowFallbacks: false },
             }
           : { ...initial, pinned: ['m1'] },
       )
@@ -206,7 +207,7 @@ describe('saveWizardDraft', () => {
     },
   )
 
-  it('removes only its unchanged addition when the composer refuses after another provider is added', async () => {
+  it('keeps its addition when the composer refuses after another provider is added', async () => {
     const parts = saving()
     const other = { ...DRAFT.provider, id: 'other' }
     await expect(
@@ -221,9 +222,9 @@ describe('saveWizardDraft', () => {
         },
         DRAFT,
       ),
-    ).rejects.toThrow('composer refused')
-    expect(parts.store.current).toEqual([other])
-    expect(await parts.store.defaultModel()).toBeUndefined()
+    ).resolves.toMatchObject({ notice: expect.stringContaining('composer refused') })
+    expect(parts.store.current).toEqual([DRAFT.provider, other])
+    expect(await parts.store.defaultModel()).toBe(DRAFT.defaultModel)
   })
 
   it('does not recreate a provider removed while the composer refuses', async () => {
@@ -241,7 +242,7 @@ describe('saveWizardDraft', () => {
         },
         { ...DRAFT, provider: { ...DRAFT.provider, privateNetwork: true }, editing: true },
       ),
-    ).rejects.toThrow('composer refused')
+    ).resolves.toMatchObject({ notice: expect.stringContaining('composer refused') })
     expect(parts.store.current).toEqual([])
   })
 
@@ -251,7 +252,7 @@ describe('saveWizardDraft', () => {
     { modelId: '__proto__', change: 'added' },
     { modelId: 'constructor', change: 'added' },
   ])(
-    'reverses a $change model-limit field named $modelId alongside a concurrent limit change',
+    'keeps a $change model-limit field named $modelId alongside a concurrent limit change',
     async ({ modelId, change }) => {
       const parts = saving()
       const limits = { m1: { contextTokens: 128_000, outputTokens: 4000 } }
@@ -287,20 +288,20 @@ describe('saveWizardDraft', () => {
             setDefault: false,
           },
         ),
-      ).rejects.toThrow('composer refused')
+      ).resolves.toMatchObject({ notice: expect.stringContaining('composer refused') })
       expect(parts.store.current).toEqual([
         {
           ...initial,
           pinned: ['m1'],
           modelLimits: {
-            ...initial.modelLimits,
+            ...(change === 'removed' ? limits : withModel),
             m1: { contextTokens: 256_000, outputTokens: 4000 },
           },
         },
       ])
-      if (change === 'removed') {
-        expect(Object.hasOwn(parts.store.current[0]?.modelLimits ?? {}, modelId)).toBe(true)
-      }
+      expect(Object.hasOwn(parts.store.current[0]?.modelLimits ?? {}, modelId)).toBe(
+        change === 'added',
+      )
     },
   )
 
@@ -357,7 +358,7 @@ describe('saveWizardDraft', () => {
     expect(parts.store.current).toEqual([DRAFT.provider])
   })
 
-  it('leaves the composer alone without use now, and rolls back its refusal', async () => {
+  it('leaves the composer alone without use now, and retains writes after its refusal', async () => {
     const without = saving()
     const outcome = await saveWizardDraft(
       {
@@ -383,32 +384,36 @@ describe('saveWizardDraft', () => {
         },
         DRAFT,
       ),
-    ).rejects.toThrow('unknown model')
-    expect(refusing.store.current).toEqual([])
-    expect(await refusing.store.defaultModel()).toBeUndefined()
-    expect(await refusing.credentials.getProviderCredential(DRAFT.provider.id)).toBeUndefined()
+    ).resolves.toMatchObject({ notice: expect.stringContaining('unknown model') })
+    expect(refusing.store.current).toEqual([DRAFT.provider])
+    expect(await refusing.store.defaultModel()).toBe(DRAFT.defaultModel)
+    await expect(
+      refusing.credentials.getProviderCredential(DRAFT.provider.id),
+    ).resolves.toMatchObject({ secret: DRAFT.credential })
   })
 
-  it('rolls back a secret-store failure and preserves the prior default', async () => {
+  it('keeps the provider after a secret-store failure and preserves the prior default', async () => {
     const parts = saving()
     await parts.store.setDefaultModel('previous/model')
     vi.spyOn(parts.credentials, 'setProviderCredential').mockRejectedValue(
       new Error('store unavailable'),
     )
-    await expect(saveWizardDraft({ ...parts, policy: POLICY }, DRAFT)).rejects.toThrow(
-      'store unavailable',
-    )
-    expect(parts.store.current).toEqual([])
+    await expect(saveWizardDraft({ ...parts, policy: POLICY }, DRAFT)).resolves.toMatchObject({
+      notice: expect.stringContaining('store unavailable'),
+    })
+    expect(parts.store.current).toEqual([DRAFT.provider])
     expect(await parts.store.defaultModel()).toBe('previous/model')
   })
-  it('rolls back a default-model persistence failure', async () => {
+  it('keeps provider and key after a default-model persistence failure', async () => {
     const parts = saving()
     vi.spyOn(parts.store, 'setDefaultModel').mockRejectedValueOnce(new Error('default unavailable'))
-    await expect(saveWizardDraft({ ...parts, policy: POLICY }, DRAFT)).rejects.toThrow(
-      'default unavailable',
+    await expect(saveWizardDraft({ ...parts, policy: POLICY }, DRAFT)).resolves.toMatchObject({
+      notice: expect.stringContaining('default unavailable'),
+    })
+    expect(parts.store.current).toEqual([DRAFT.provider])
+    await expect(parts.credentials.getProviderCredential(DRAFT.provider.id)).resolves.toMatchObject(
+      { secret: DRAFT.credential },
     )
-    expect(parts.store.current).toEqual([])
-    expect(await parts.credentials.getProviderCredential(DRAFT.provider.id)).toBeUndefined()
   })
   it('requires native private-network consent despite a claimed file grant', async () => {
     const parts = saving()

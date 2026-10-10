@@ -546,13 +546,19 @@ describe('Saved custom provider Edit through the shared form and production stor
       await writeDefault('newer/m1')
       await writeDefault(ref, expected)
     })
-    await saveConflictingEdit()
+    await saveEditSurface()
+    expect(state().notice).toBe(
+      [
+        UI_TEXT.providerSaved,
+        fill(UI_TEXT.providerDefaultSaveFailed, { detail: UI_TEXT.providerEditConflict }),
+      ].join(' '),
+    )
     expect(await seam.store.defaultModel()).toBe('newer/m1')
-    expect(await seam.store.list()).toMatchObject([{ modelLimits: { m1: { outputTokens: 4000 } } }])
+    expect(await seam.store.list()).toMatchObject([{ modelLimits: { m1: { outputTokens: 8000 } } }])
     host.dispose()
   })
 
-  it('rolls back only saved limits after a key-write failure, keeping unrelated concurrent changes', async () => {
+  it('keeps saved limits after a key-write failure, keeping unrelated concurrent changes', async () => {
     const { seam, secrets, state, host } = await editSurface({ flow: 'Change key' })
     const [initial] = await seam.store.list()
     if (initial === undefined) throw new Error('Missing fixture provider')
@@ -581,35 +587,38 @@ describe('Saved custom provider Edit through the shared form and production stor
     })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.saveProvider }))
     await waitFor(() => {
-      expect(screen.getByText('credential write refused')).toBeDefined()
+      expect(state().notice).toBe(
+        [
+          UI_TEXT.providerSaved,
+          fill(UI_TEXT.providerKeySaveFailed, { detail: 'credential write refused' }),
+        ].join(' '),
+      )
     })
     expect(await seam.store.list()).toEqual([
       {
         ...initial,
         pinned: ['m1'],
         compat: { toolChoice: 'omit' },
-        modelLimits: { m1: { contextTokens: 256_000, outputTokens: 4000 } },
+        modelLimits: { m1: { contextTokens: 256_000, outputTokens: 8000 } },
       },
       { ...other, pinned: ['m1'] },
       { ...initial, id: 'added' },
     ])
     expect(await secrets.get(`${PROVIDER_SECRET_PREFIX}custom`)).toContain('synthetic-edit-key')
-    expect(screen.getByLabelText(UI_TEXT.customLimitsOutput)).toHaveValue(8000)
+    expect(screen.queryByLabelText(UI_TEXT.customLimitsOutput)).toBeNull()
     host.dispose()
   })
 
-  it('clears a rejected edit budget and retries against its own successful provider save', async () => {
+  it('rejects an inexact budget before writing, then saves after clearing it', async () => {
     const { seam, post, sessionBudget, state, host } = await editSurface()
     await changeReplyLimit()
-    const wanted = Usd.from(2).toAmount()
+    const wanted = Usd.from('9007199254740993').toAmount()
     post({ type: 'providers/prefill', providerId: 'custom', fields: { sessionBudgetUsd: wanted } })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.saveProvider }))
     await waitFor(() => {
-      expect(state().drafts.edits['custom']?.errors).toEqual([
-        fill(UI_TEXT.sessionBudgetPartialSave, { detail: UI_TEXT.wizardSessionBudgetInvalid }),
-      ])
+      expect(state().drafts.edits['custom']?.errors).toEqual([UI_TEXT.wizardSessionBudgetInvalid])
     })
-    expect(await seam.store.list()).toMatchObject([{ modelLimits: { m1: { outputTokens: 8000 } } }])
+    expect(await seam.store.list()).toMatchObject([{ modelLimits: { m1: { outputTokens: 4000 } } }])
     expect(sessionBudget.read().effectiveUsd).toBe(Usd.from(0).toAmount())
     const providerWrite = vi.spyOn(seam.store, 'replaceAll')
     post({
@@ -621,7 +630,7 @@ describe('Saved custom provider Edit through the shared form and production stor
       expect(state().drafts.edits['custom']?.sessionBudgetUsd).toBeUndefined()
     })
     await saveEditSurface()
-    expect(providerWrite).not.toHaveBeenCalled()
+    expect(providerWrite).toHaveBeenCalledOnce()
     expect(sessionBudget.writes).toEqual([])
     host.dispose()
   })
@@ -632,8 +641,8 @@ describe('Saved custom provider Edit through the shared form and production stor
       const { seam, providers, state, warnings, host } = await editSurface()
       await changeReplyLimit()
       const save = providers.saveDraft
-      vi.spyOn(providers, 'saveDraft').mockImplementationOnce(async (draft) => {
-        const outcome = await save(draft)
+      vi.spyOn(providers, 'saveDraft').mockImplementationOnce(async (draft, budget) => {
+        const outcome = await save(draft, budget)
         const error = new Error('refresh unavailable: synthetic-edit-key')
         if (source === 'provider') {
           vi.spyOn(providers, 'providers').mockRejectedValueOnce(error)
@@ -664,18 +673,20 @@ describe('Saved custom provider Edit through the shared form and production stor
       providerId: 'custom',
       fields: { sessionBudgetUsd: Usd.from(2).toAmount() },
     })
+    vi.spyOn(sessionBudget, 'write').mockRejectedValueOnce(new Error('limit refused'))
     const save = providers.saveDraft
-    vi.spyOn(providers, 'saveDraft').mockImplementationOnce(async (draft) => {
-      const outcome = await save(draft)
+    vi.spyOn(providers, 'saveDraft').mockImplementationOnce(async (draft, budget) => {
+      const outcome = await save(draft, budget)
       vi.spyOn(providers, 'storedCredential').mockRejectedValueOnce(
         new Error('refresh unavailable'),
       )
       return outcome
     })
     await saveEditSurface()
-    expect(state().notice).toContain(UI_TEXT.providerSavedRefreshFailed)
+    expect(state().notice).toContain(UI_TEXT.providerSaved)
+    expect(state().notice).toContain(UI_TEXT.providerRefreshFailed)
     expect(state().notice).toContain(
-      fill(UI_TEXT.sessionBudgetPartialSave, { detail: UI_TEXT.wizardSessionBudgetInvalid }),
+      fill(UI_TEXT.sessionBudgetPartialSave, { detail: 'limit refused' }),
     )
     expect(await seam.store.list()).toMatchObject([{ modelLimits: { m1: { outputTokens: 8000 } } }])
     expect(sessionBudget.read().effectiveUsd).toBe(Usd.from(0).toAmount())
@@ -701,10 +712,145 @@ describe('Saved custom provider Edit through the shared form and production stor
       )
       return previous
     })
-    await saveConflictingEdit()
-    expect(await readFile(configFile, 'utf8')).toBe(before)
+    await saveEditSurface()
+    expect(state().notice).toBe(
+      [
+        UI_TEXT.providerSaved,
+        fill(UI_TEXT.providerKeySaveFailed, { detail: UI_TEXT.providerEditConflict }),
+      ].join(' '),
+    )
+    expect(await readFile(configFile, 'utf8')).not.toBe(before)
+    expect(await seam.store.list()).toMatchObject([{ modelLimits: { m1: { outputTokens: 8000 } } }])
     expect(await secrets.get(`${PROVIDER_SECRET_PREFIX}custom`)).toContain('synthetic-rotated-key')
     host.dispose()
+  })
+
+  it.each(['entry', 'key', 'default', 'limit'] as const)(
+    'keeps the exact %s outcome when its post-save panel refresh also fails (RVPROVWIZ8C P2-3)',
+    async (step) => {
+      const f = await editSurface({
+        flow: step === 'key' ? 'Change key' : 'Edit',
+        defaultModel: 'another/m1',
+      })
+      await changeReplyLimit()
+      const before = await readFile(f.configFile, 'utf8')
+      let expected: string
+      switch (step) {
+        case 'entry': {
+          vi.spyOn(f.seam.store, 'replaceAll').mockRejectedValueOnce(new Error('entry refused'))
+          expected = 'entry refused'
+          break
+        }
+        case 'key': {
+          await testEditConnection(f.state)
+          vi.spyOn(f.secrets, 'store').mockRejectedValueOnce(new Error('key refused'))
+          expected = [
+            UI_TEXT.providerSaved,
+            fill(UI_TEXT.providerKeySaveFailed, { detail: 'key refused' }),
+          ].join(' ')
+          break
+        }
+        case 'default': {
+          f.post({
+            type: 'providers/prefill',
+            providerId: 'custom',
+            fields: { defaultModel: 'custom/m1' },
+          })
+          await waitFor(() => {
+            expect(f.state().drafts.edits['custom']?.defaultModel).toBe('custom/m1')
+          })
+          vi.spyOn(f.seam.store, 'setDefaultModel').mockRejectedValueOnce(
+            new Error('default refused'),
+          )
+          expected = [
+            UI_TEXT.providerSaved,
+            fill(UI_TEXT.providerDefaultSaveFailed, { detail: 'default refused' }),
+          ].join(' ')
+          break
+        }
+        case 'limit': {
+          f.post({
+            type: 'providers/prefill',
+            providerId: 'custom',
+            fields: { sessionBudgetUsd: Usd.from(2).toAmount() },
+          })
+          await waitFor(() => {
+            expect(f.state().drafts.edits['custom']?.sessionBudgetUsd).toBe(Usd.from(2).toAmount())
+          })
+          vi.spyOn(f.sessionBudget, 'write').mockRejectedValueOnce(new Error('limit refused'))
+          expected = [
+            UI_TEXT.providerSaved,
+            fill(UI_TEXT.sessionBudgetPartialSave, { detail: 'limit refused' }),
+          ].join(' ')
+          break
+        }
+      }
+      const save = f.providers.saveDraft
+      vi.spyOn(f.providers, 'saveDraft').mockImplementationOnce(async (...args) => {
+        try {
+          return await save(...args)
+        } finally {
+          vi.spyOn(f.providers, 'providerStates').mockRejectedValueOnce(
+            new Error('panel refresh unavailable: synthetic-edit-key'),
+          )
+        }
+      })
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.saveProvider }))
+      await waitFor(() => {
+        if (step === 'entry')
+          expect(f.state().drafts.edits['custom']?.errors).toEqual([
+            expected,
+            UI_TEXT.providerRefreshFailed,
+          ])
+        else expect(f.state().notice).toBe([expected, UI_TEXT.providerRefreshFailed].join(' '))
+      })
+      if (step === 'entry') expect(await readFile(f.configFile, 'utf8')).toBe(before)
+      else {
+        expect(f.state().drafts.edits['custom']).toBeUndefined()
+        expect(
+          screen.getByText([expected, UI_TEXT.providerRefreshFailed].join(' ')),
+        ).toHaveAttribute('role', 'status')
+        expect(await f.seam.store.list()).toMatchObject([
+          { modelLimits: { m1: { outputTokens: 8000 } } },
+        ])
+      }
+      expect(await f.seam.store.defaultModel()).toBe('another/m1')
+      expect(f.sessionBudget.read().effectiveUsd).toBe(Usd.from(0).toAmount())
+      expect(f.saved).not.toHaveBeenCalled()
+      expect(JSON.stringify(f.state())).not.toContain('synthetic-edit-key')
+      expect(f.warnings.join(' ')).not.toContain('synthetic-edit-key')
+      f.host.dispose()
+    },
+  )
+
+  it('shows a missing key after saving a new origin whose replacement key cannot be stored', async () => {
+    const f = await editSurface()
+    fireEvent.change(screen.getByLabelText(UI_TEXT.providerFields.address), {
+      target: { value: 'https://new.example/v1' },
+    })
+    await waitFor(() => {
+      expect(f.state().drafts.edits['custom']?.address).toBe('https://new.example/v1')
+    })
+    fakeWindow.showInputBox.mockResolvedValueOnce('synthetic-new-origin-key')
+    f.post({ type: 'providers/enterKey', providerId: 'custom', mode: 'change' })
+    await waitFor(() => {
+      expect(f.state().drafts.edits['custom']?.keyPresent).toBe(true)
+    })
+    await testEditConnection(f.state)
+    vi.spyOn(f.secrets, 'store').mockRejectedValueOnce(new Error('key refused'))
+    await saveEditSurface()
+    expect(f.state().providers[0]?.address).toBe('https://new.example/v1')
+    expect(f.state().providers[0]?.key.state).toBe('missing')
+    expect(f.state().notice).toBe(
+      [UI_TEXT.providerSaved, fill(UI_TEXT.providerKeySaveFailed, { detail: 'key refused' })].join(
+        ' ',
+      ),
+    )
+    const [entry] = await f.seam.store.list()
+    if (entry === undefined) throw new Error('Missing fixture provider')
+    await expect(f.providers.storedCredential(entry)).rejects.toThrow(UI_TEXT.importNeedsKey)
+    expect(await f.secrets.get(`${PROVIDER_SECRET_PREFIX}custom`)).toContain('synthetic-edit-key')
+    f.host.dispose()
   })
 
   it('queues one Save, disables the form and keeps its successful outcome on duplicate delivery', async () => {
@@ -712,9 +858,9 @@ describe('Saved custom provider Edit through the shared form and production stor
     await changeReplyLimit()
     const heldSave = Promise.withResolvers<undefined>()
     const save = providers.saveDraft
-    const held = vi.spyOn(providers, 'saveDraft').mockImplementation(async (draft) => {
+    const held = vi.spyOn(providers, 'saveDraft').mockImplementation(async (draft, budget) => {
       await heldSave.promise
-      return await save(draft)
+      return await save(draft, budget)
     })
     post({ type: 'providers/save', providerId: 'custom', useNow: false })
     post({ type: 'providers/save', providerId: 'custom', useNow: false })
