@@ -9,6 +9,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Judge benchmark tooling (repository only, lane JEVBENCH, D107/M125).**
+  `scripts/judge-bench.mjs` judges a labelled decision set through one
+  engine interface (local Ollama SystemOne, local llama-server chat with
+  logprobs, remote Jev wire or remote chat from environment variables) and
+  reports accuracy, per-label precision/recall, per-domain accuracy,
+  unsafe-approve count, Brier, latency p50/p95/max with cold vs warm, tokens
+  and the 5 s veto-window fit. `scripts/judge-bench-decisions.json` holds
+  170 hand-labelled decisions (50 allow / 50 deny / 50 ask plus 20 hard
+  cases, all secrets synthetic). Results and the recommendation live in
+  `docs/certification/judge-bench.md`. Nothing here runs in CI or ships in
+  the extension.
+
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
