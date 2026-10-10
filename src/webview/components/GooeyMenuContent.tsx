@@ -5,6 +5,7 @@ import { webviewKey } from '../../shared/keybindings'
 // https://codepen.io/lbebber/pen/LELBEo); its goo filter is gone (the owner,
 // 2026-10-04: "not with the faded smudge look").
 import {
+  type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
   useEffectEvent,
@@ -366,6 +367,24 @@ export function GooeyMenuContent({ items, label, origin, onClose }: GooeyMenuPro
           const outlineSpace = Math.min(drawnGap, openerRoom)
           // A label cut short by the ellipsis is whole in the tooltip too.
           const isClipped = clipped.get(pillKey(level, item.id)) === true
+          const style: CSSProperties & Record<'--ms-gooey-focus-offset', string> = {
+            left,
+            top,
+            // One size for every pill: the longest label's (the owner).
+            width: isMeasuring ? 'max-content' : pill?.width,
+            // The burst starts at scale(0), and a scaled rectangle measures
+            // 0 px wide: the measuring pass is never painted, so it holds
+            // the animation off and the burst starts on the drawn pass.
+            animationName: isMeasuring ? 'none' : undefined,
+            height: GOOEY_MENU.pillHeight,
+            // Pull focus inward when a short panel compresses spacing or
+            // a narrow fan approaches its opener; keep both neighbours clear.
+            // A custom property, not an inline outline-offset, so the
+            // stylesheet's pressed state keeps its ring inside the pill.
+            '--ms-gooey-focus-offset': `min(var(--ms-focus-offset), calc(${String(outlineSpace)}px - var(--ms-focus-width) - ${String(GOOEY_MENU.outlineClearance)}px))`,
+            transformOrigin: `${String(burst.origin.x - left)}px ${String(burst.origin.y - top)}px`,
+            animationDelay: `${String(index * GOOEY_MENU.staggerMs)}ms`,
+          }
           return (
             <button
               key={item.id}
@@ -384,22 +403,7 @@ export function GooeyMenuContent({ items, label, origin, onClose }: GooeyMenuPro
               aria-haspopup={'children' in item ? 'menu' : undefined}
               tabIndex={item.id === active ? 0 : -1}
               className="gooey-menu-pill"
-              style={{
-                left,
-                top,
-                // One size for every pill: the longest label's (the owner).
-                width: isMeasuring ? 'max-content' : pill?.width,
-                // The burst starts at scale(0), and a scaled rectangle measures
-                // 0 px wide: the measuring pass is never painted, so it holds
-                // the animation off and the burst starts on the drawn pass.
-                animationName: isMeasuring ? 'none' : undefined,
-                height: GOOEY_MENU.pillHeight,
-                // Pull focus inward when a short panel compresses spacing or
-                // a narrow fan approaches its opener; keep both neighbours clear.
-                outlineOffset: `min(var(--ms-focus-offset), calc(${String(outlineSpace)}px - var(--ms-focus-width) - ${String(GOOEY_MENU.outlineClearance)}px))`,
-                transformOrigin: `${String(burst.origin.x - left)}px ${String(burst.origin.y - top)}px`,
-                animationDelay: `${String(index * GOOEY_MENU.staggerMs)}ms`,
-              }}
+              style={style}
               onFocus={() => {
                 setActive(item.id)
               }}
