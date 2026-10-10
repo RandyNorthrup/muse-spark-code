@@ -6,6 +6,14 @@ credential read, no network call beyond `npm` tooling. No cap, gate level,
 ignore or timeout was weakened; all tests ran at the repository timeout
 (no `--testTimeout`).
 
+R3 (same lane, same day) repairs every finding of review RVCM1062B (two
+P1, two P2, one P3 — no residuals) and closes the lead-held external
+blocker with the lead's 2026-10-10 20:13 UTC live run (2 GETs + 4
+contributor POSTs; receipts scrubbed, gitleaks clean over the receipt
+directory before copying). Same probe rules: no paid or live model call
+from this lane (the collector was not run here — no key on rigs), no
+credential read, repository timeouts throughout.
+
 ## Scope
 
 `argumentPreviewCapabilities` was forwarded by
@@ -38,6 +46,14 @@ entry (`src/host/backend/modelApiEntry.ts`), which every host loads:
   `src/runtime/backends.ts` reuses the provider run's registry where a
   provider run exists (unchanged errors elsewhere). A caller-supplied
   preview/cap dep still takes precedence (`??` in the entry).
+- R3 CORRECTION (RVCM1062B): the paragraph above is superseded — neither
+  caller supplies a registry any more. Review found the standalone
+  registries bypassed runtime accounting, rejected subscription models and
+  lost plan usage, and left interactive ACP's cap unbound, so R3 removed
+  both suppliers: the entry binds the selected record through the session
+  client's own resolver (accounting-wrapped headless,
+  subscription-aware extension/ACP), with the standalone registry kept only
+  as a fallback for a client without one. See the R3 record below.
 
 No edit was needed in `src/acp/translate.ts`: the ACP translator already
 renders record-emitted previews, covered by the existing
@@ -45,11 +61,11 @@ renders record-emitted previews, covered by the existing
 
 ## Acceptance (PLAN 31780-31826: items 1, 6, 8)
 
-| Item                       | Verdict                                                                                                                                                                                                                                                                                                                                                                                                          |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Off means today's bytes | Unchanged: golden requests with the feature off are byte-identical (existing M91 fixtures green, untouched); the new off/on golden run proves the default-on byte diff is exactly `max_output_tokens` 32768 → 131072, nothing else.                                                                                                                                                                              |
-| 6. Previews                | Captured U9 argument bytes drive previews through the unmanaged production path (manager → entry → host → real SSE/transport/parser): snapshots accumulate to the captured length; nothing runs, asks or calls a hook before `.done`; no preview bytes reach replay or requests. Declared-tool text rendering from captured bytes awaits raw per-delta payloads (lead-held; only the split point is the test's). |
-| 8. Output                  | Meta turns request 131,072, clamped by the budget; a qualified selected record with `output.maxTokens = 65536` requests 65536 through the production path; one continuation follows `max_output_tokens`, then a notice (existing L2 mechanics, unchanged). Calls in a cut-short reply are answered with an error, never run (existing).                                                                          |
+| Item                       | Verdict                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Off means today's bytes | Unchanged: golden requests with the feature off are byte-identical (existing M91 fixtures green, untouched); the new off/on golden run proves the default-on byte diff is exactly `max_output_tokens` 32768 → 131072, nothing else.                                                                                                                                                                                               |
+| 6. Previews                | Captured U9 argument bytes drive previews through the unmanaged production path (manager → entry → host → real SSE/transport/parser): snapshots accumulate to the captured length; nothing runs, asks or calls a hook before `.done`; no preview bytes reach replay or requests. R3: declared-tool TEXT now renders from the raw 16-frame capture (see R3 record); the R2 stand-in test below stays as the undeclared-tool guard. |
+| 8. Output                  | Meta turns request 131,072, clamped by the budget; a qualified selected record with `output.maxTokens = 65536` requests 65536 through the production path; one continuation follows `max_output_tokens`, then a notice (existing L2 mechanics, unchanged). Calls in a cut-short reply are answered with an error, never run (existing).                                                                                           |
 
 Provider × item rows: `muse-spark-1.3-contributor` on/on; other bare
 `muse-spark-*` off-preview/on-cap (cap is documented for every Muse Spark
@@ -144,13 +160,97 @@ platform-dependent code.
 
 ## Open (lead decisions)
 
-1. Run the Meta collector with the key and install raw U9 delta/done,
-   status and output-cap receipts (`m106-completion-captures.md` gate).
-   Raw per-delta payloads are the one true external blocker left: only
-   with them can declared-tool preview TEXT render from captured bytes
-   (today only the byte-exact arguments, the counted sequence and the
-   fail-closed rendering rule are proven).
+1. ~~Run the Meta collector with the key and install raw U9 delta/done,
+   status and output-cap receipts~~ — CLOSED in R3 by the lead's 2026-10-10
+   20:13 UTC live run (see R3 record below): the raw 16-frame U9 strict
+   stream is installed as `test/fixtures/m106/u9-raw-strict-stream.json`
+   and declared-tool preview TEXT renders from its captured bytes; the
+   output-incomplete refusal receipt documents the 16-token minimum and the
+   collector probes it on the next live run.
 2. Capture U9 streaming rows for other Meta models to widen previews beyond
    the contributor model; attest a qualified model's streaming arguments
    before any qualified preview turns on.
 3. The lead's full gate matrix, hosted CI on three OSes, and Codex/Grok review.
+
+## R3 — RVCM1062B repairs and the closed external blocker (kubuntu, 2026-10-10)
+
+Every finding is fixed, each with a regression test that fails without it
+(drills below, every file restored byte-exact, `sha256sum -c` OK). The
+class of each finding was swept: the preview construction has one site
+(`ModelApiHost.ts:5586`), no other session path resolves through a raw
+registry (remaining `createProviders` mentions are the pass-through type,
+the manager and the panel UI), and the request's unoffered tools stay
+textless.
+
+| Finding                                                                                                                                                                                             | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Regression test                                                                                                                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1 validation/security (`backends.ts:450`): the headless registry bypassed runtime budget admission and accounting                                                                                  | `src/host/backend/modelApiEntry.ts` binds the selected record through the session client's own resolver (the accounting-wrapped headless client) and never consults a standalone registry while one exists; `src/runtime/backends.ts` no longer supplies the raw registry                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `modelApiBackendManager.test.ts` → "resolves qualified records through the session client, never a standalone registry" (registry factory never called, cap 65536)                                |
+| P1 failure paths/lifecycle (`extension.ts:2562`): the standalone registry rejected `chatgpt/…` and `copilot/…`                                                                                      | `src/extension.ts` no longer builds a separate service; a plan ref the fallback registry cannot name resolves against the session client via `metaResolvedModel`, as before any registry existed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | "keeps subscription models selectable beside a subscription-blind registry"                                                                                                                       |
+| P2 capability binding (`modelApiEntry.ts:148`): interactive ACP ignored a qualified record's larger output maximum                                                                                  | the stash is populated from the authoritative `client.models.resolve` in every production path, so interactive ACP (which supplies no `createProviders`) binds 65536                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | "binds the selected record cap through the session client resolver alone"                                                                                                                         |
+| P2 failure paths/usage (`extension.ts:2553`): the separate service lost plan-key usage and plan state                                                                                               | same removal as the P1 extension fix: the session's own subscription-aware service remains the sole plan-identity and usage owner; no second cache or tally exists                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | covered structurally by the never-a-standalone-registry test above                                                                                                                                |
+| List-optionality catch (found by this lane, not the review): the first R3 wrapper always defined `models.list`, which turned a list-less client into a failure and broke all 12 `acpModelApi` tests | `list` is only defined when the client lists or a fallback registry exists                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | "keeps the client-only catalogue when the session resolver lists nothing"; the ACP suite (12/12) guards it end to end                                                                             |
+| P3 docs/reference (`featureCatalog.ts:491`): the preview reference advertised VS Code only                                                                                                          | `argument-preview` names `['vscode', 'acp']` in `featureCatalog.ts` and `referenceSource.ts`; `docs/reference.md` regenerated (`Surfaces: vscode:modelApi, acp:modelApi`); README's preview section states production behaviour in both hosts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | `featureCatalogDetails.test.ts` → "certifies argument previews on both the panel and ACP surfaces"; `npm run check:reference` current                                                             |
+| External blocker: raw U9 strict stream                                                                                                                                                              | lead's 2026-10-10 20:13 UTC run installed byte-exact as `test/fixtures/m106/u9-raw-strict-stream.json` (SHA-256 `b56095c9…45584c42`, matching the live manifest; gitleaks clean before copying). The host renders preview TEXT for offered IDE/MCP tools from their declared string fields (`declaredPreviewFields` in `argumentPreview.ts`, consulted at `ModelApiHost.ts:5586` after the host tools; unoffered tools stay textless). The new test declares the captured `get_weather` schema through the MCP catalogue, streams the 13 codec-visible raw frames (the codec passes the 3 additive `content_part.*` frames untranslated — asserted as the exact skip-set), and proves TEXT renders `Oslo`/`celsius`, bytes reach the captured length, the cap is 131072 and no preview bytes enter requests | `modelApiArgumentPreview.test.ts` → "renders declared-tool preview TEXT from the raw captured U9 frames"; `m106CaptureFixtures.test.ts` → "keeps the raw U9 strict stream as 16 scrubbed frames"  |
+| External blocker: output-incomplete minimum                                                                                                                                                         | the refusal receipt (`max_output_tokens: 1` → HTTP 400, "must be `>= 16`") is installed as `test/fixtures/m106/output-incomplete.json` (SHA-256 `8b8baeb1…846f93a621`) as captured evidence of the server minimum. `sessionBudget.ts` untouched (MINOUT lane owns the product minimum). The collector's probe now runs at 16 tokens with the 1-through-100 prompt, so the next live run observes a genuine incomplete stop                                                                                                                                                                                                                                                                                                                                                                                  | `m106CaptureFixtures.test.ts` → "records the 16-token output minimum as captured refusal evidence"; `m106CaptureCollector.test.ts` → "probes the output limit at the documented 16-token minimum" |
+
+The R2 stand-in U9 test ("replays the captured U9 argument wire…", empty
+text for the undeclared tool) stays unchanged as the declared-fields-only
+guard. Byte-exact live receipts are exempt from prettier by name in
+`.prettierignore` (the file's M91-G precedent: the collector's
+`JSON.stringify` shape would otherwise be collapsed and the SHA pins
+broken); `npx jscpd` over `src`+`test` reports 0 clones.
+
+## R3 red drills (every guard broken on purpose, every file restored byte-exact)
+
+Pre-drill hashes: `modelApiEntry.ts` `c87e2932…6b60a`,
+`ModelApiHost.ts` `a1d0fa70…4885986`, `featureCatalog.ts`
+`55bb952b…75100814cd2`, `capture-m106-meta.mjs` `2b5cf542…92bbabc6b65f`.
+
+1. Entry preference neutralised (`clientModels` branch forced false):
+   "resolves qualified records…" and "binds the selected record cap…"
+   failed (2 expected failures); the subscription test still passed via
+   its own fallback, which drill 2 covers.
+2. Subscription fallback neutralised (`isPlanModel` branch forced false):
+   "keeps subscription models selectable…" failed (1 expected failure).
+3. Entry list forced always-defined (the R3 catch reintroduced): "keeps
+   the client-only catalogue…" failed (1 expected failure). The same
+   break had failed all 12 `acpModelApi` tests organically before the
+   no-list test existed.
+4. Host preview fallback neutralised (MCP/IDE lookup removed): "renders
+   declared-tool preview TEXT…" failed with empty text (1 expected
+   failure). A first attempt at this drill (`?? undefined ??`, which still
+   falls through) did NOT fail and was discarded — recorded so the next
+   lane checks its breaks apply.
+5. Catalogue editors reverted to `['vscode']`: "certifies argument
+   previews…" failed (1 expected failure).
+6. Collector probe reverted to `max_output_tokens: 1`: "probes the output
+   limit…" failed (1 expected failure).
+7. One process note: a mid-drill restore used a stale backup (taken before
+   the `in`-narrowing and list-conditional fixes) and `sha256sum -c`
+   correctly reported FAILED; the two fixes were re-applied by hand and the
+   hash matched the pre-drill value byte-exact before continuing. The
+   backup is refreshed before every drill since.
+
+## R3 gates (kubuntu rig, final pass)
+
+- `npx vitest run` (repository timeouts, `--maxWorkers=3`):
+  `modelApiBackendManager` 31, `modelApiArgumentPreview` 48,
+  `modelApiGoldenRequests` + `execClient` + `modelCapabilitiesBinding`
+  166, `argumentPreview` + `m106Wiring` + `subscriptionIntegration`
+  79 passed / 2 failed (both pre-existing on the base commit
+  `2c52eb9f6`: live ChatGPT sign-in needs network), `toolArgumentPreview`
+  - `runtimeAccounting` + `configuredProviders` 53 passed / 1 failed
+    (pre-existing loopback block in this sandbox, same on base),
+    `acpModelApi` 12, `m106CaptureFixtures` + `featureCatalogDetails` 13,
+    `m106CaptureCollector` 21 — all passed.
+- `npm run typecheck` (all five projects) clean; `eslint
+--max-warnings=0` on every changed file clean; `prettier --check` on
+  every changed file clean (live receipts exempt by name, see above);
+  `node scripts/check-l10n.mjs` 0 problems (no new strings);
+  `npx jscpd` 0 clones; `npm run deadcode` clean (two pre-existing config
+  hints); `npm run check:reference` current; `npm run check:host-api`
+  0 problems.
+- `npm run build` clean: `dist/extension.js` 550.1 KiB (cap 600, was
+  550.5 — the removed lazy registry import outweighs the entry growth),
+  `dist/modelApi.js` 516.8 KiB (cap 525, was 516.1). No new chunk, no new
+  dependency, no guard widened.

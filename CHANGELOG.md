@@ -46,6 +46,19 @@ happened, not what was planned; superseded entries are kept.
   argument previews. Unobserved models keep today's stream and the legacy
   32,768-token request cap. No setting changes; feature-off request bytes
   are unchanged (`docs/certification/m106-capability-binding.md`).
+- Fixed the Model API selected-record binding review findings: the
+  production entry resolves qualified models through the session client's
+  own resolver instead of a standalone registry, so headless `exec` keeps
+  its daily budget admission and run-ledger accounting, ChatGPT and Copilot
+  subscription models stay selectable, plan-key usage stays with the owning
+  service, and interactive ACP binds a qualified record's larger output
+  cap. Declared IDE and MCP tools render preview text from their own
+  string fields, as host tools do; unoffered tools still show a byte count
+  only. The reference lists argument previews on the VS Code and ACP
+  surfaces. Raw Meta capture receipts: the 16-frame U9 strict stream
+  proves declared-tool preview text from captured bytes, and the refused
+  1-token probe documents Meta's 16-token output minimum (the collector
+  probes it next run).
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did

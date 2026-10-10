@@ -2023,15 +2023,13 @@ or GitHub. Its GitHub Marketplace listing is awaiting GitHub's review.
 ## Streamed argument previews
 
 On the Model API backend, a selected model with verified streamed-argument
-support can show an **Argument preview** in its tool row. The implementation
-is available in the shared panel and ACP; enabling it in production still
-requires the capability binding described in the M106 certification record.
-The preview shows only declared top-level string fields after their closing
-quote validates: file paths, shell commands, search patterns and fetch URLs.
-These values pass through the existing credential scrubber before display.
-File content, edits, nested values and other fields stay hidden. Tools with
-no preview declaration, including MCP and foreign tools, show a received
-byte count only.
+support shows an **Argument preview** in its tool row, in the shared panel
+and in ACP. The preview shows only declared top-level string fields after
+their closing quote validates: file paths, shell commands, search patterns
+and fetch URLs. These values pass through the existing credential scrubber
+before display. File content, edits, nested values and other fields stay
+hidden. An offered IDE or MCP tool declares its own string fields the same
+way; a tool the request never offered shows a received byte count only.
 
 An unfinished string never appears. Malformed JSON, duplicate keys,
 non-string values for declared fields or excessive nesting freeze the last
