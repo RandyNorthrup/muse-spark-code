@@ -7,7 +7,8 @@
 > chose an approval fast path (Q-D107, 2026-10-10): on Linux and macOS a
 > held Auto action that is a confined read-only inspect command, or the
 > workspace's own unchanged check script run in a contained sandbox, may
-> skip the slow reviewer when the judge does not veto it in time. The
+> skip the slow reviewer when the judge does not veto it within 5 seconds
+> (the reviewer still starts as it does today, so a veto adds no wait). The
 > design is in [design/judge-fast-path.md](design/judge-fast-path.md).
 > Nothing in it is built. This page describes phase 1 as it ships today.
 
