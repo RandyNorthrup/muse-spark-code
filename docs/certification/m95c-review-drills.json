@@ -147,6 +147,28 @@
       "command": "node node_modules/vitest/vitest.mjs run test/unit/lmProvider.test.ts test/unit/tabLedger.test.ts --maxWorkers=3"
     },
     {
+      "id": "R8",
+      "file": "src/host/models/lmProvider.ts",
+      "tests": ["test/unit/lmProvider.test.ts"],
+      "namedTest": "defaults to reasoning off when the catalogue toggle allows disabling",
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "6a1f06c0ef6da844f7d0b94da05599d1fd68a9136ed414616ed8b6f00fa17cd6",
+      "restoredSha256": "6a1f06c0ef6da844f7d0b94da05599d1fd68a9136ed414616ed8b6f00fa17cd6",
+      "command": "npx vitest run test/unit/lmProvider.test.ts --maxWorkers=3"
+    },
+    {
+      "id": "R9",
+      "file": "src/host/models/lmProvider.ts",
+      "tests": ["test/unit/lmProvider.test.ts"],
+      "namedTest": "an Enable click after the model is removed writes no grant",
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "6a1f06c0ef6da844f7d0b94da05599d1fd68a9136ed414616ed8b6f00fa17cd6",
+      "restoredSha256": "6a1f06c0ef6da844f7d0b94da05599d1fd68a9136ed414616ed8b6f00fa17cd6",
+      "command": "npx vitest run test/unit/lmProvider.test.ts --maxWorkers=3"
+    },
+    {
       "id": "R7-all",
       "file": "src/host/providers/subscriptionFeatures.ts",
       "tests": ["test/unit/subscriptionIntegration.test.ts"],
