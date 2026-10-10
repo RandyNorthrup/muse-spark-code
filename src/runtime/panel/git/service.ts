@@ -307,6 +307,21 @@ export function nativeWorktreeAddArgs(wtPath: string, commit: string): readonly 
 }
 
 /** Why a commit did not run; the adapter answers each in the panel's words. */
+/**
+ * The git the host resolved (`RuntimeGitDeps.gitPath`) as createGitProcess's
+ * locator: used only when absolute, so a relative name never runs a
+ * workspace's own `git` (D24); undefined otherwise, so the run fails as git
+ * missing.
+ */
+export function fixedGitLocator(
+  platform: NodeJS.Platform,
+  executable: string,
+): () => string | undefined {
+  const isAbsolute =
+    platform === 'win32' ? path.win32.isAbsolute(executable) : path.posix.isAbsolute(executable)
+  return () => (isAbsolute ? executable : undefined)
+}
+
 export class CommitRefusedError extends Error {
   public constructor(
     public readonly problem: CommitMessageProblem | 'nothingStaged' | 'nothingToCommit',
@@ -511,7 +526,7 @@ export class NativeGitService {
         fileExists: existsSync,
         spawn,
         // The git the host resolved, never another one on PATH.
-        executable: deps.gitPath,
+        locate: fixedGitLocator(process.platform, deps.gitPath),
       })
     // The directory approved now is the one every later operation must
     // find: its identity is taken in this same tick.
@@ -585,7 +600,7 @@ export class NativeGitService {
         timeoutMs: GIT_TIMEOUT_MS,
         signal: guard.signal,
         beforeRun: this.atSpawn(args, root, guard, held),
-        ...(isUserEnvironment && { isUserEnvironment: true }),
+        ...(isUserEnvironment && { credentialRoutes: GIT_PUSH_CREDENTIAL_VARIABLES }),
       })
     } catch (error: unknown) {
       if (error instanceof NativeGitRefusalError) {
