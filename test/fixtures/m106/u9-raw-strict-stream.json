@@ -1,0 +1,465 @@
+{
+  "provenance": {
+    "timestamp": "2026-10-10T20:13:55.176Z",
+    "sourceSha256": "a8c28c39e982020c52b6398fc81ec12e3ce0f74e5a94a21048af43f31d6138f2",
+    "projection": true,
+    "omitted": [
+      "encrypted_content",
+      "encryptedContent"
+    ]
+  },
+  "request": {
+    "method": "POST",
+    "route": "/responses",
+    "authenticated": true,
+    "body": {
+      "model": "muse-spark-1.3-contributor",
+      "store": false,
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "input": "Use get_weather for Oslo in celsius. Call the tool; do not answer in prose.",
+      "tools": [
+        {
+          "type": "function",
+          "name": "get_weather",
+          "description": "Get the current weather for a city.",
+          "strict": true,
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "city": {
+                "type": "string"
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "celsius"
+                ]
+              }
+            },
+            "required": [
+              "city",
+              "unit"
+            ],
+            "additionalProperties": false
+          }
+        }
+      ],
+      "stream": true,
+      "max_output_tokens": 2000
+    }
+  },
+  "status": 200,
+  "headers": {
+    "content-type": "text/event-stream",
+    "x-ratelimit-limit-requests": "150",
+    "x-ratelimit-limit-tokens": "3000000",
+    "x-ratelimit-remaining-requests": "150",
+    "x-ratelimit-remaining-tokens": "3000000"
+  },
+  "frames": [
+    {
+      "event": "response.created",
+      "data": {
+        "response": {
+          "background": false,
+          "created_at": 1791663234,
+          "error": null,
+          "id": "resp_6aca9c823a0541acb0684547",
+          "incomplete_details": null,
+          "instructions": null,
+          "max_output_tokens": 2000,
+          "model": "muse-spark-1.3-contributor",
+          "object": "response",
+          "output": [],
+          "parallel_tool_calls": true,
+          "reasoning": {
+            "effort": "minimal"
+          },
+          "service_tier": "auto",
+          "status": "in_progress",
+          "store": false,
+          "temperature": 1,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Get the current weather for a city.",
+              "name": "get_weather",
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  },
+                  "unit": {
+                    "enum": [
+                      "celsius"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "city",
+                  "unit"
+                ],
+                "type": "object"
+              },
+              "strict": true,
+              "type": "function"
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1,
+          "truncation": "disabled"
+        },
+        "sequence_number": 0,
+        "type": "response.created"
+      }
+    },
+    {
+      "event": "response.in_progress",
+      "data": {
+        "response": {
+          "background": false,
+          "created_at": 1791663234,
+          "error": null,
+          "id": "resp_6aca9c823a0541acb0684547",
+          "incomplete_details": null,
+          "instructions": null,
+          "max_output_tokens": 2000,
+          "model": "muse-spark-1.3-contributor",
+          "object": "response",
+          "output": [],
+          "parallel_tool_calls": true,
+          "reasoning": {
+            "effort": "minimal"
+          },
+          "service_tier": "auto",
+          "status": "in_progress",
+          "store": false,
+          "temperature": 1,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Get the current weather for a city.",
+              "name": "get_weather",
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  },
+                  "unit": {
+                    "enum": [
+                      "celsius"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "city",
+                  "unit"
+                ],
+                "type": "object"
+              },
+              "strict": true,
+              "type": "function"
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1,
+          "truncation": "disabled"
+        },
+        "sequence_number": 1,
+        "type": "response.in_progress"
+      }
+    },
+    {
+      "event": "response.output_item.added",
+      "data": {
+        "item": {
+          "id": "rs_6aca9c823a0541acb0684547:rs_01a127735e5a75b386f8cbe646d63ec2",
+          "status": "in_progress",
+          "summary": [],
+          "type": "reasoning"
+        },
+        "output_index": 0,
+        "sequence_number": 2,
+        "type": "response.output_item.added"
+      }
+    },
+    {
+      "event": "response.output_item.done",
+      "data": {
+        "item": {
+          "id": "rs_6aca9c823a0541acb0684547:rs_01a127735e5a75b386f8cbe646d63ec2",
+          "status": "completed",
+          "summary": [],
+          "type": "reasoning"
+        },
+        "output_index": 0,
+        "sequence_number": 3,
+        "type": "response.output_item.done"
+      }
+    },
+    {
+      "event": "response.output_item.added",
+      "data": {
+        "item": {
+          "content": [],
+          "id": "rs_01a127735f277530b1b538c2efb6ae17",
+          "phase": "commentary",
+          "role": "assistant",
+          "status": "in_progress",
+          "type": "message"
+        },
+        "output_index": 1,
+        "sequence_number": 4,
+        "type": "response.output_item.added"
+      }
+    },
+    {
+      "event": "response.content_part.added",
+      "data": {
+        "content_index": 0,
+        "item_id": "rs_01a127735f277530b1b538c2efb6ae17",
+        "output_index": 1,
+        "part": {
+          "annotations": [],
+          "logprobs": [],
+          "text": "",
+          "type": "output_text"
+        },
+        "sequence_number": 5,
+        "type": "response.content_part.added"
+      }
+    },
+    {
+      "event": "response.output_text.delta",
+      "data": {
+        "content_index": 0,
+        "delta": "I'll retrieve the Oslo weather in Celsius.",
+        "item_id": "rs_01a127735f277530b1b538c2efb6ae17",
+        "logprobs": [],
+        "output_index": 1,
+        "sequence_number": 6,
+        "type": "response.output_text.delta"
+      }
+    },
+    {
+      "event": "response.output_text.done",
+      "data": {
+        "content_index": 0,
+        "item_id": "rs_01a127735f277530b1b538c2efb6ae17",
+        "logprobs": [],
+        "output_index": 1,
+        "sequence_number": 7,
+        "text": "I'll retrieve the Oslo weather in Celsius.",
+        "type": "response.output_text.done"
+      }
+    },
+    {
+      "event": "response.content_part.done",
+      "data": {
+        "content_index": 0,
+        "item_id": "rs_01a127735f277530b1b538c2efb6ae17",
+        "output_index": 1,
+        "part": {
+          "annotations": [],
+          "logprobs": [],
+          "text": "I'll retrieve the Oslo weather in Celsius.",
+          "type": "output_text"
+        },
+        "sequence_number": 8,
+        "type": "response.content_part.done"
+      }
+    },
+    {
+      "event": "response.output_item.done",
+      "data": {
+        "item": {
+          "content": [
+            {
+              "annotations": [],
+              "logprobs": [],
+              "text": "I'll retrieve the Oslo weather in Celsius.",
+              "type": "output_text"
+            }
+          ],
+          "id": "rs_01a127735f277530b1b538c2efb6ae17",
+          "phase": "commentary",
+          "role": "assistant",
+          "status": "completed",
+          "type": "message"
+        },
+        "output_index": 1,
+        "sequence_number": 9,
+        "type": "response.output_item.done"
+      }
+    },
+    {
+      "event": "response.output_item.added",
+      "data": {
+        "item": {
+          "arguments": "",
+          "call_id": "call_01a127735f837507a7e304d1e29720e6",
+          "id": "fc_01a127735f837507a7e304d1e29720e6",
+          "name": "get_weather",
+          "status": "in_progress",
+          "type": "function_call"
+        },
+        "output_index": 2,
+        "sequence_number": 10,
+        "type": "response.output_item.added"
+      }
+    },
+    {
+      "event": "response.function_call_arguments.delta",
+      "data": {
+        "delta": "{\"city\":\"Oslo\"",
+        "item_id": "fc_01a127735f837507a7e304d1e29720e6",
+        "output_index": 2,
+        "sequence_number": 11,
+        "type": "response.function_call_arguments.delta"
+      }
+    },
+    {
+      "event": "response.function_call_arguments.delta",
+      "data": {
+        "delta": ",\"unit\":\"celsius\"}",
+        "item_id": "fc_01a127735f837507a7e304d1e29720e6",
+        "output_index": 2,
+        "sequence_number": 12,
+        "type": "response.function_call_arguments.delta"
+      }
+    },
+    {
+      "event": "response.function_call_arguments.done",
+      "data": {
+        "arguments": "{\"city\":\"Oslo\",\"unit\":\"celsius\"}",
+        "item_id": "fc_01a127735f837507a7e304d1e29720e6",
+        "name": "get_weather",
+        "output_index": 2,
+        "sequence_number": 13,
+        "type": "response.function_call_arguments.done"
+      }
+    },
+    {
+      "event": "response.output_item.done",
+      "data": {
+        "item": {
+          "arguments": "{\"city\":\"Oslo\",\"unit\":\"celsius\"}",
+          "call_id": "call_01a127735f837507a7e304d1e29720e6",
+          "id": "fc_01a127735f837507a7e304d1e29720e6",
+          "name": "get_weather",
+          "status": "completed",
+          "type": "function_call"
+        },
+        "output_index": 2,
+        "sequence_number": 14,
+        "type": "response.output_item.done"
+      }
+    },
+    {
+      "event": "response.completed",
+      "data": {
+        "response": {
+          "background": false,
+          "completed_at": 1791663235,
+          "created_at": 1791663234,
+          "error": null,
+          "id": "resp_6aca9c823a0541acb0684547",
+          "incomplete_details": null,
+          "instructions": null,
+          "max_output_tokens": 2000,
+          "model": "muse-spark-1.3-contributor",
+          "object": "response",
+          "output": [
+            {
+              "id": "rs_6aca9c823a0541acb0684547:rs_01a127735e5a75b386f8cbe646d63ec2",
+              "status": "completed",
+              "summary": [],
+              "type": "reasoning"
+            },
+            {
+              "content": [
+                {
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": "I'll retrieve the Oslo weather in Celsius.",
+                  "type": "output_text"
+                }
+              ],
+              "id": "rs_01a127735f277530b1b538c2efb6ae17",
+              "phase": "commentary",
+              "role": "assistant",
+              "status": "completed",
+              "type": "message"
+            },
+            {
+              "arguments": "{\"city\":\"Oslo\",\"unit\":\"celsius\"}",
+              "call_id": "call_01a127735f837507a7e304d1e29720e6",
+              "id": "fc_01a127735f837507a7e304d1e29720e6",
+              "name": "get_weather",
+              "status": "completed",
+              "type": "function_call"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "reasoning": {
+            "effort": "minimal"
+          },
+          "service_tier": "auto",
+          "status": "completed",
+          "store": false,
+          "temperature": 1,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Get the current weather for a city.",
+              "name": "get_weather",
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  },
+                  "unit": {
+                    "enum": [
+                      "celsius"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "city",
+                  "unit"
+                ],
+                "type": "object"
+              },
+              "strict": true,
+              "type": "function"
+            }
+          ],
+          "top_logprobs": 0,
+          "top_p": 1,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 573,
+            "input_tokens_details": {
+              "cached_tokens": 113
+            },
+            "output_tokens": 100,
+            "output_tokens_details": {
+              "reasoning_tokens": 17
+            },
+            "total_tokens": 673
+          }
+        },
+        "sequence_number": 15,
+        "type": "response.completed"
+      }
+    }
+  ]
+}

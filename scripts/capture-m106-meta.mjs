@@ -95,8 +95,12 @@ export const CAPTURE_PLAN = [
     authenticated: true,
     body: {
       ...base,
+      // Meta refuses max_output_tokens below 16 (HTTP 400, 2026-10-10
+      // output-incomplete.json receipt): probe at the documented minimum
+      // with a prompt that needs far more, so the run observes a genuine
+      // incomplete stop instead of a refusal.
       input: 'Write the integers from 1 through 100, one per line, without skipping any.',
-      max_output_tokens: 1,
+      max_output_tokens: 16,
     },
   },
 ]

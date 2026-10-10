@@ -90,6 +90,21 @@ function manifest() {
   return manifestSchema.parse(value)
 }
 
+/** The lead's 2026-10-10 live-run envelope both Meta receipts share. */
+const liveRequest = {
+  method: z.literal('POST'),
+  route: z.literal('/responses'),
+  authenticated: z.literal(true),
+}
+const liveReceipt = {
+  provenance: z.object({
+    timestamp: z.iso.datetime(),
+    sourceSha256: z.string().regex(/^[a-f\d]{64}$/),
+    projection: z.literal(true),
+    omitted: z.array(z.string()),
+  }),
+}
+
 describe('C-M106-1 counted Muse Code 1.4.4 captures', () => {
   it('validates scrubbed fixture hashes and counts every launched probe and request once', () => {
     const receipt = manifest()
@@ -255,6 +270,59 @@ describe('C-M106-1 counted Muse Code 1.4.4 captures', () => {
     expect(received(initialization, 2).error?.data['kind']).toBe('notInitialized')
     expect(received(capture('invalid-approval'), 3).error?.message).toContain(
       'unknown variant `default`',
+    )
+  })
+
+  it('records the 16-token output minimum as captured refusal evidence', () => {
+    // RVCM1062B external blocker: the lead's 2026-10-10 live run refused
+    // max_output_tokens: 1. The receipt below is the server's own minimum;
+    // the product-side minimum is a separate lane's work (sessionBudget.ts
+    // untouched here). A 400 here never becomes capability evidence.
+    const receipt = z
+      .object({
+        ...liveReceipt,
+        request: z.object({
+          ...liveRequest,
+          body: z.object({ max_output_tokens: z.number() }),
+        }),
+        status: z.literal(400),
+        response: z.object({
+          error: z.object({
+            code: z.null(),
+            message: z.string(),
+            param: z.literal('max_output_tokens'),
+            type: z.literal('invalid_request_error'),
+          }),
+        }),
+      })
+      .parse(JSON.parse(readFixture('output-incomplete.json')))
+    expect(receipt.request.body.max_output_tokens).toBe(1)
+    expect(receipt.response.error.message).toContain('>= 16')
+    expect(receipt.provenance.omitted).toContain('encrypted_content')
+  })
+
+  it('keeps the raw U9 strict stream as 16 scrubbed frames', () => {
+    const receipt = z
+      .object({
+        ...liveReceipt,
+        request: z.object({ ...liveRequest }),
+        status: z.literal(200),
+        frames: z.array(z.object({ event: z.string(), data: z.record(z.string(), z.unknown()) })),
+      })
+      .parse(JSON.parse(readFixture('u9-raw-strict-stream.json')))
+    expect(receipt.provenance.timestamp).toBe('2026-10-10T20:13:55.176Z')
+    expect(receipt.provenance.sourceSha256).toBe(
+      'a8c28c39e982020c52b6398fc81ec12e3ce0f74e5a94a21048af43f31d6138f2',
+    )
+    expect(receipt.frames).toHaveLength(16)
+    const types = receipt.frames.map((frame) => frame.data['type'])
+    expect(types.filter((type) => type === 'response.function_call_arguments.delta')).toHaveLength(
+      2,
+    )
+    expect(types.at(-1)).toBe('response.completed')
+    const bytes = readFixture('u9-raw-strict-stream.json')
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe(
+      'b56095c9e6b467f078079dc92eb4c2a706d8a07498f170e00106efaa45584c42',
     )
   })
 
