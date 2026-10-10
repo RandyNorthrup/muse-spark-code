@@ -18,7 +18,9 @@ import { LeaseBusyError } from '../../src/core/locks/fileLease'
 import { currentProcessOwner } from '../../src/core/locks/processOwner'
 import type { WorktreeRecord } from '../../src/core/worktreeConversations'
 import {
+  createFileRecordRegistry,
   createFileWorktreeRecordStore,
+  createMemoryRecordRegistry,
   createMemoryWorktreeRecordStore,
   holdForRoots,
   recordRevision,
@@ -813,5 +815,23 @@ describe('worktree records generations (M123 lane P)', () => {
       expect(top[index]?.parent).toBe(top[index - 1]?.writeId)
       expect(top[index]?.fence).toBeGreaterThan(top[index - 1]?.fence ?? Infinity)
     }
+  })
+})
+
+describe('worktree records: a publication’s last check (RVINTM123B)', () => {
+  it.each([
+    ['in memory', () => Promise.resolve(createMemoryRecordRegistry())],
+    [
+      'as files',
+      async () =>
+        createFileRecordRegistry(await mkdtemp(path.join(tmpdir(), 'm123p-last-check-')), log),
+    ],
+  ] as const)('publishes nothing whose caller ended, %s', async (_, made) => {
+    const registry = await made()
+    const record = heldRecord('/data/pr-worktrees/51-abcdef12')
+    expect(await registry.hold((hold) => hold.publish([record], () => false))).toBe('lost')
+    expect(await registry.read()).toEqual([])
+    expect(await registry.hold((hold) => hold.publish([record], () => true))).toBe('written')
+    expect(await registry.read()).toEqual([record])
   })
 })
