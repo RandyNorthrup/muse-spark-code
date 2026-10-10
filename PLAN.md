@@ -38219,7 +38219,23 @@ keeping its detailed native qualification catalogue generated too.
 Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
 in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
 
-**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. M104 F2 repairs the sixteen reported SAST sites with regressions and an offline 16-to-zero reproduction. The unchanged registry SAST rescan remains lead-owned under the lane's network restriction. Verification still retains the portable graph cap, duplication, four ACP fixture failures, native bridge contract checks, installed qualification and the next resource-chip parity lane as blockers. Retained requirements and receipts follow.
+**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. M104 F2 repairs the sixteen reported SAST sites with regressions and an offline 16-to-zero reproduction; its review follow-up restores shell-free Windows npm-agent discovery and absolute Node/script overrides in Eclipse. The unchanged registry SAST rescan remains lead-owned under the lane's network restriction. Verification still retains the portable graph cap, duplication, four ACP fixture failures, native bridge contract checks, installed qualification and the next resource-chip parity lane as blockers. Retained requirements and receipts follow.
+
+**M104 F2 follow-up / RVM104F2C (2026-10-09, before code).** Repair
+Windows Eclipse discovery for the npm-installed ACP agent. Resolve the prefix's
+`muse-spark-code-acp.cmd` to an absolute native `node.exe` and
+`node_modules/muse-spark-code-acp/dist/acp.js`, using npm's global layout,
+never interpreting shim contents or invoking cmd.exe. The generated ACP
+manifest names the package `muse-spark-code-acp` (the brief abbreviates it as
+`muse-spark-code`); require that actual name in package.json and a real script
+inside that package. Keep native `.exe` installs. `MUSE_SPARK_RUNTIME` accepts
+an absolute shim/native path or a strict JSON pair of absolute Node and ACP
+script paths; pass fixed `panel`, `--stdio` arguments separately. Add discovery,
+override, installed-layout/startup and spoof-refusal regressions, exact-base
+failures and byte-exact guard drills. Run Eclipse and retained SAST regressions
+and scoped gates under the shared rig rules. Full quality, registry SAST and
+Windows installed-editor qualification remain lead-owned; no merge, push,
+credential, live/paid call, dependency, shell or gate weakening.
 
 **FIXM104PB / RVM104PB (2026-10-06).** Repair all four P2 findings and the
 P3 evidence error inside B's paid engines and their shared guards. One
@@ -38980,8 +38996,9 @@ duplication remain with their separate owners. No merge, push or live call.
 
 **M104 F2 completed boundaries (2026-10-09, kubuntu).** Eclipse resolves a
 regular executable from an absolute override or absolute PATH directory;
-the fixed `panel`/`--stdio` arguments stay separate. Windows admits `.exe`
-launchers and refuses batch/shell-command strings. All sixteen plugin Java
+the fixed `panel`/`--stdio` arguments stay separate. The RVM104F2C follow-up
+also resolves Windows npm shims to verified native Node and the installed ACP
+script, retaining `.exe` installs and refusing shell-command strings. All sixteen plugin Java
 sources compile against cached target jars, and the portable launcher JUnit
 regressions pass. JetBrains page generation emits no executable bridge
 placeholder; the existing native insertion path supplies its reviewed script

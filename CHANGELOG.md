@@ -214,8 +214,10 @@ happened, not what was planned; superseded entries are kept.
 - Portable panels serialize HTML attributes, translated errors and JSON data in
   their proper contexts and refuse malformed CSP nonces. Xcode's generated
   property lists escape product, version and command labels.
-- Eclipse resolves and validates its runtime executable before launching a
-  fixed argument list; Windows requires the native `.exe` launcher. JetBrains
+- Eclipse resolves and validates its runtime before launching a fixed argument
+  list. Windows npm shims resolve to Node and the verified installed ACP script
+  without a shell; the absolute override also accepts an explicit Node/script
+  JSON pair. Native `.exe` installs remain supported. JetBrains
   delegates bridge insertion to its native host and refuses unreviewed schema
   regular expressions. Native-contract qualification remains open.
 - Portable controllers preserve host readiness, restored selection and session

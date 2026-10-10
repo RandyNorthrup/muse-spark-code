@@ -27,14 +27,29 @@ The launch interface targets an installed `muse-spark-code-acp panel --stdio`.
 The editor initiates initialization with product version, installed language,
 theme, folders, trust and its supported editor services. The first folder is
 the exact runtime working directory. The runtime replies with its independently
-supported services; legacy 1.1/1.2 selections are refused. An absolute
-`MUSE_SPARK_RUNTIME` executable path overrides PATH discovery. There is no
+supported services; legacy 1.1/1.2 selections are refused. There is no
 automatic installation or download. Credential variables are removed before
-launch. Discovery uses only absolute PATH directories and resolves a regular,
-executable file before passing `panel` and `--stdio` as separate arguments.
-Windows requires the installed `.exe` launcher; batch files and command strings
-are refused. Release lane I supplies the installed runtime and platform Node
-fragments; lane B supplies panel mode and lane D the embedded UI bridge.
+launch. Discovery uses only absolute PATH directories and resolves regular,
+executable files before launch, with `panel` and `--stdio` as separate arguments.
+
+On Windows, discovery accepts a native `muse-spark-code-acp.exe` or npm's
+`muse-spark-code-acp.cmd` in the global prefix. The shim is resolved to
+`node.exe` and `<prefix>/node_modules/muse-spark-code-acp/dist/acp.js`; the
+shim's contents are never read or executed. Node must be a regular executable
+beside the shim or in an absolute PATH directory. The script and package.json
+must resolve inside that package, and package.json must name
+`muse-spark-code-acp`. A missing or spoofed layout refuses before launch.
+
+`MUSE_SPARK_RUNTIME` overrides discovery with an absolute native executable
+or npm shim path. It also accepts a strict JSON array of exactly two absolute
+paths, Node followed by the installed ACP script; for example,
+`["C:/Program Files/nodejs/node.exe","C:/Users/you/AppData/Roaming/npm/node_modules/muse-spark-code-acp/dist/acp.js"]`.
+Forward slashes avoid JSON backslash escaping on Windows. The same pair form
+works on Linux/macOS with the native `node` executable. Script/package identity
+checks still apply, and the host appends `panel`, `--stdio`. Command strings,
+extra arguments and arbitrary batch files are refused; no shell is started.
+Release lane I supplies the installed runtime and platform Node fragments;
+lane B supplies panel mode and lane D the embedded UI bridge.
 
 Windows explicitly requests `SWT.EDGE` and refuses an Internet Explorer
 fallback. Linux and macOS explicitly request `SWT.WEBKIT`. On Linux,

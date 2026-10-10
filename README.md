@@ -699,6 +699,12 @@ qualification remain incomplete. See
 [the integration evidence and remaining gaps](docs/certification/m104-int.md)
 and [macOS qualification](docs/certification/m104-pf.md).
 
+Eclipse's experimental native host discovers the Windows npm shim and resolves
+it to Node plus the verified installed ACP script without starting a shell.
+`MUSE_SPARK_RUNTIME` accepts an absolute native/shim path or a JSON pair of
+absolute Node and ACP script paths. See [the Eclipse launch contract](hosts/eclipse/README.md)
+for layout validation and override examples; installed Windows qualification remains open.
+
 The [complete parity inventory](docs/certification/m104-pf-inventory.md) names
 all 56 feature rows, editor families, backend/provider profiles and the
 remaining installed-artifact receipts. Component tests do not promote support.

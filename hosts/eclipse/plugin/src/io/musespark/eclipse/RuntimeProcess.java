@@ -29,27 +29,88 @@ public final class RuntimeProcess implements AutoCloseable {
     private final Consumer<String> log;
     private final Thread tracker;
     private final Thread shutdown;
-    /** Resolve one executable before launch; PATH never falls back to the workspace. */
+    private static final String AGENT_PACKAGE = "muse-spark-code-acp";
+    private static final String RUNTIME_PATH_INVALID = "MHP_RUNTIME_PATH_INVALID";
+    /** Resolve a complete command before launch; PATH never falls back to the workspace. */
     public static List<String> panelCommand(String configured, String searchPath) throws IOException {
-        Path executable = null;
-        boolean windows = File.separatorChar == '\\';
+        return panelCommand(configured, searchPath, File.separatorChar == '\\');
+    }
+    /** Platform selector exposed for cross-platform launch contract tests. */
+    public static List<String> panelCommand(String configured, String searchPath, boolean windows) throws IOException {
         if (configured != null && !configured.isBlank()) {
-            Path candidate = Path.of(configured);
-            if (!candidate.isAbsolute()) throw new IllegalArgumentException("MHP_RUNTIME_PATH_INVALID");
-            executable = candidate.toRealPath();
-        } else {
-            String name = windows ? "muse-spark-code-acp.exe" : "muse-spark-code-acp";
-            for (String directory : (searchPath == null ? "" : searchPath).split(java.util.regex.Pattern.quote(File.pathSeparator))) {
-                if (directory.isBlank() || !Path.of(directory).isAbsolute()) continue;
-                Path candidate = Path.of(directory).resolve(name);
-                if (Files.isRegularFile(candidate) && Files.isExecutable(candidate)) { executable = candidate.toRealPath(); break; }
+            if (configured.stripLeading().startsWith("[")) {
+                var pair = Json.parse(configured);
+                if (!pair.isJsonArray() || pair.getAsJsonArray().size() != 2) throw new IllegalArgumentException(RUNTIME_PATH_INVALID);
+                for (var value : pair.getAsJsonArray())
+                    if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) throw new IllegalArgumentException(RUNTIME_PATH_INVALID);
+                Path node = nativeNode(Path.of(pair.getAsJsonArray().get(0).getAsString()), windows);
+                Path script = agentScript(Path.of(pair.getAsJsonArray().get(1).getAsString()));
+                return List.of(node.toString(), script.toString(), "panel", "--stdio");
             }
+            Path candidate = Path.of(configured);
+            if (!candidate.isAbsolute()) throw new IllegalArgumentException(RUNTIME_PATH_INVALID);
+            return runtimeCommand(candidate, searchPath, windows);
         }
-        if (executable == null || !Files.isRegularFile(executable) || !Files.isExecutable(executable)) throw new IllegalArgumentException("MHP_RUNTIME_PATH_INVALID");
-        // Windows batch launchers require shell interpretation. The installed
-        // native executable is the only Windows launch lane here.
-        if (windows && !executable.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".exe")) throw new IllegalArgumentException("MHP_RUNTIME_PATH_INVALID");
+        for (Path directory : pathDirectories(searchPath)) {
+            Path nativeRuntime = directory.resolve(AGENT_PACKAGE + (windows ? ".exe" : ""));
+            if (Files.isRegularFile(nativeRuntime) && Files.isExecutable(nativeRuntime)) return runtimeCommand(nativeRuntime, searchPath, windows);
+            Path shim = directory.resolve(AGENT_PACKAGE + ".cmd");
+            if (windows && Files.isRegularFile(shim)) return runtimeCommand(shim, searchPath, true);
+        }
+        throw new IllegalArgumentException(RUNTIME_PATH_INVALID);
+    }
+    private static List<Path> pathDirectories(String searchPath) {
+        List<Path> directories = new ArrayList<>();
+        for (String directory : (searchPath == null ? "" : searchPath).split(java.util.regex.Pattern.quote(File.pathSeparator))) {
+            if (directory.isBlank()) continue;
+            try {
+                Path path = Path.of(directory); if (path.isAbsolute()) directories.add(path);
+            } catch (java.nio.file.InvalidPathException ex) { /* An unusable PATH entry never becomes a workspace search. */ }
+        }
+        return directories;
+    }
+    private static List<String> runtimeCommand(Path candidate, String searchPath, boolean windows) throws IOException {
+        Path executable = candidate.toRealPath();
+        if (!Files.isRegularFile(executable)) throw new IllegalArgumentException(RUNTIME_PATH_INVALID);
+        if (windows && executable.getFileName().toString().equalsIgnoreCase(AGENT_PACKAGE + ".cmd")) {
+            // npm puts its Windows shim in the prefix and its package beneath
+            // node_modules. Never read the shim or ask a shell to interpret it.
+            Path prefix = executable.getParent();
+            Path script = agentScript(prefix.resolve("node_modules").resolve(AGENT_PACKAGE).resolve("dist/acp.js"));
+            List<Path> nodeDirectories = new ArrayList<>();
+            nodeDirectories.add(prefix); nodeDirectories.addAll(pathDirectories(searchPath));
+            for (Path directory : nodeDirectories) {
+                Path node = directory.resolve("node.exe");
+                if (Files.isRegularFile(node) && Files.isExecutable(node))
+                    return List.of(nativeNode(node, true).toString(), script.toString(), "panel", "--stdio");
+            }
+            throw new IllegalArgumentException(RUNTIME_PATH_INVALID);
+        }
+        if (!Files.isExecutable(executable) || (windows && !executable.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".exe")))
+            throw new IllegalArgumentException(RUNTIME_PATH_INVALID);
         return List.of(executable.toString(), "panel", "--stdio");
+    }
+    private static Path nativeNode(Path candidate, boolean windows) throws IOException {
+        if (!candidate.isAbsolute()) throw new IllegalArgumentException(RUNTIME_PATH_INVALID);
+        Path node = candidate.toRealPath();
+        if (!Files.isRegularFile(node) || !Files.isExecutable(node) || !node.getFileName().toString().equalsIgnoreCase(windows ? "node.exe" : "node"))
+            throw new IllegalArgumentException(RUNTIME_PATH_INVALID);
+        return node;
+    }
+    private static Path agentScript(Path candidate) throws IOException {
+        if (!candidate.isAbsolute() || !candidate.endsWith(Path.of("dist", "acp.js")))
+            throw new IllegalArgumentException(RUNTIME_PATH_INVALID);
+        Path pkg = candidate.getParent().getParent().toRealPath();
+        Path script = candidate.toRealPath();
+        Path manifest = pkg.resolve("package.json").toRealPath();
+        if (!Files.isRegularFile(script) || !script.equals(pkg.resolve("dist/acp.js")) || !Files.isRegularFile(manifest) || !manifest.equals(pkg.resolve("package.json")))
+            throw new IllegalArgumentException(RUNTIME_PATH_INVALID);
+        var identity = Json.parse(Files.readString(manifest));
+        if (!identity.isJsonObject()) throw new IllegalArgumentException(RUNTIME_PATH_INVALID);
+        var name = identity.getAsJsonObject().get("name");
+        if (name == null || !name.isJsonPrimitive() || !name.getAsJsonPrimitive().isString() || !AGENT_PACKAGE.equals(name.getAsString()))
+            throw new IllegalArgumentException(RUNTIME_PATH_INVALID);
+        return script;
     }
     public RuntimeProcess(Process process, Consumer<String> log) {
         this.process = process; this.log = log;
