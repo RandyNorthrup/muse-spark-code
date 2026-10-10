@@ -254,8 +254,7 @@
       "title": "Muse Voice dictation",
       "summary": "Optional paid dictation with Meta's Muse Voice Transcribe, while your computer's free speech recogniser stays the default; the Model API backend currently refuses it, because its billed audio length has no verified limit.",
       "area": "voice-media",
-      "release": "0.9.0",
-      "labels": ["not available yet"]
+      "release": "0.9.0"
     },
     {
       "id": "M36",
@@ -700,27 +699,25 @@
     {
       "id": "M96",
       "title": "Agent roles and teams",
-      "summary": "Configure agent roles with charters, tools, model pools and task limits, while teams of workers in isolated workspaces cannot be created yet.",
-      "area": "agents",
-      "release": "0.15.0",
-      "labels": ["not available yet"]
+      "summary": "Team integration is in progress.",
+      "area": "agents"
     },
     {
       "id": "M96b",
       "title": "Teams in other editors and headless runs",
-      "summary": "The same teams, roles, pools and caps in the ACP agent for other editors and in headless runs, each asking for approval in its own way.",
+      "summary": "Team integration in other editors and headless runs is in progress.",
       "area": "agents"
     },
     {
       "id": "M96c",
       "title": "Team scheduler and traffic",
-      "summary": "A board of dependent tasks and a scheduler that keep every agent lane busy across worktrees and branches while avoiding collisions between them.",
+      "summary": "Team scheduling and traffic integration is in progress.",
       "area": "agents"
     },
     {
       "id": "M96d",
       "title": "Machine-wide agent coordination",
-      "summary": "Several windows, editors and the ACP agent sharing one machine-wide limit on workers and heavy commands.",
+      "summary": "Machine-wide agent coordination is in progress.",
       "area": "agents"
     },
     {
@@ -752,10 +749,9 @@
     },
     {
       "id": "M101",
-      "title": "Long-task context upgrades",
-      "summary": "Prompts stay cache-stable, the model can search and recall packed tool output exactly, and manual compaction works in ACP editors, while automatic compaction stays off until its evaluation passes.",
-      "area": "agents",
-      "release": "0.15.0"
+      "title": "Long-task context and automatic compaction",
+      "summary": "Long-task context integration, including automatic compaction, is in progress.",
+      "area": "agents"
     },
     {
       "id": "M102",
@@ -779,25 +775,22 @@
     {
       "id": "M105",
       "title": "Video, audio and screen recordings",
-      "summary": "Attach videos, audio files, documents and screen recordings with the cost shown before sending, although sending video and audio to a model is not available yet.",
+      "summary": "Attach videos, audio files, documents and screen recordings with the cost shown before sending, although sending video and audio to a model is in progress.",
       "area": "voice-media",
-      "release": "0.17.0",
-      "labels": ["not available yet"]
+      "release": "0.17.0"
     },
     {
       "id": "M106",
-      "title": "Stronger agent-loop guarantees",
-      "summary": "On the Model API the agent loop uses strict tool contracts, validated side answers and concurrent read-only calls where the selected model supports them, with tool rows streaming while arguments arrive but the argument text not shown yet.",
-      "area": "agents",
-      "release": "0.16.0"
+      "title": "Agent-loop integration",
+      "summary": "Agent-loop integration, including live argument previews, is in progress.",
+      "area": "agents"
     },
     {
       "id": "M107",
       "title": "Resource limits for your machine",
       "summary": "CPU, memory and disk limits narrow then pause new background work without stopping running work; macOS headroom is unknown before libuv 1.52, and moving work to another device is unavailable.",
       "area": "platform",
-      "release": "0.16.0",
-      "labels": ["not available yet"]
+      "release": "0.16.0"
     },
     {
       "id": "M108",
@@ -809,10 +802,8 @@
     {
       "id": "M109",
       "title": "Credential vault for agents",
-      "summary": "The vault commands refuse closed until the broker-backed panel service lands, while first-party keys keep working and agent uses of stored secrets are refused.",
-      "area": "security",
-      "release": "0.17.0",
-      "labels": ["not available yet"]
+      "summary": "Credential vault for agents is in progress.",
+      "area": "security"
     },
     {
       "id": "M110",
@@ -835,10 +826,9 @@
     },
     {
       "id": "M113",
-      "title": "Deterministic reports",
-      "summary": "Run /report for project, quality, milestone, release and change reports built from local facts in Markdown, HTML, JSON or text, with saved history and comparisons, and nothing sent to a model.",
-      "area": "platform",
-      "release": "0.17.0"
+      "title": "Deterministic report integrations",
+      "summary": "Additional report kinds are in progress.",
+      "area": "platform"
     },
     {
       "id": "M114",
@@ -850,25 +840,20 @@
     {
       "id": "M115",
       "title": "Scheduled prompts v2",
-      "summary": "Schedule prompts to run once, repeatedly or on a cron expression, each with its own delivery mode and a hard budget cap, with fires running in live VS Code sessions while terminal and ACP fires stay refused at spend consent.",
-      "area": "agents",
-      "release": "0.17.0",
-      "labels": ["not available yet"]
+      "summary": "Scheduled prompts v2 is in progress.",
+      "area": "agents"
     },
     {
       "id": "M116",
-      "title": "Orchestrator playbook",
-      "summary": "The orchestration rules ship as a built-in skill with local /playbook status, record and settings in the CLI and ACP agent while panel enforcement for subagent, delegate, best-of-N and review dispatches stays pending.",
-      "area": "agents",
-      "release": "0.17.0"
+      "title": "Orchestrator playbook in VS Code",
+      "summary": "Orchestrator playbook integration in the VS Code panel is in progress.",
+      "area": "agents"
     },
     {
       "id": "M117",
       "title": "Capacity estimator",
-      "summary": "Capacity estimation is in place and verified with test data, but /estimate waits on the plan-reader binding and real forecasts are not available yet.",
-      "area": "agents",
-      "release": "0.17.0",
-      "labels": ["not available yet"]
+      "summary": "Capacity estimator is in progress.",
+      "area": "agents"
     },
     {
       "id": "M118",

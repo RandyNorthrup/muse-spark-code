@@ -11,7 +11,6 @@ export function formatAcpUsage(table: UiText, command: string): string {
     sharingHelp(table),
     fill(table.accounts.cliUsage, { command }),
     fill(table.accounts.execHelp, { command }),
-    table.scheduleV2.runtime.usage,
     `${command} resources [status|history|resume] [--json]`,
     `${command} usage resources [--json]`,
     ...(['resource-governor', 'cpu-max', 'memory-max'] as const).map(

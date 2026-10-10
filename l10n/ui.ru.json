@@ -225,7 +225,7 @@
   "estimateSpeedDescription": "Самая быстрая конфигурация, пока ещё одна машина экономит достаточно времени.",
   "estimateCommandTitle": "Открыть оценку ресурсов",
   "estimateUsage": "Использование: /estimate <goal> [--by <date>] [--fleet current|minimum|optimum]",
-  "estimateCliHelp": "Оценить цель с помощью подключённых машин, мест для агентов, учётных записей и CI; без вызова модели. Пока недоступно: снимки отклоняются с M117-W-M113-plan-reader, пока считыватель планов не привязан.",
+  "estimateCliHelp": "В работе.",
   "estimateCiUnavailable": "Минуты CI недоступны",
   "estimateInstalling": "Установка узла",
   "estimatePairing": "Сопряжение узла",
@@ -342,10 +342,10 @@
     "seed": "--seed <seed>: Начальное значение симуляции"
   },
   "referenceScanSecrets": "Ищет секреты в файле патча UTF-8 и завершается с ошибкой при обнаружении. --key-stdin также проверяет точное значение ключа Model API в памяти; ключ не сохраняется.",
-  "referenceVault": "Работайте с персональным хранилищем учетных данных из терминала: состояние, разблокировка, блокировка, список, добавление, гранты, аудит, импорт и наблюдение. Значения никогда не печатаются; их держит брокер.",
-  "referenceVaultHelp": "Показывает использование команды персонального хранилища учетных данных.",
-  "referenceVaultPanel": "Хранилище недоступно, поскольку посредник не установлен.",
-  "referenceVaultLock": "Заблокировать хранилище учётных данных пользователя сейчас; завершает каждое использование в каждом окне.",
+  "referenceVault": "В работе.",
+  "referenceVaultHelp": "В работе.",
+  "referenceVaultPanel": "В работе.",
+  "referenceVaultLock": "В работе.",
   "referenceAuthClear": "Удалить сохранённый ключ Model API.",
   "referenceAuthStatus": "Проверить, сохранён ли ключ Model API.",
   "referenceAccountsTitle": "Several accounts per provider",
@@ -438,7 +438,7 @@
   "referenceTasks": "Открыть задачи этого разговора в отдельной вкладке редактора.",
   "referenceDiagnostics": "Показать локальную диагностику бэкенда и расширения.",
   "referenceReport": "Просмотреть очищенный отчёт перед сохранением или отправкой.",
-  "referenceEstimate": "Оценивает, когда цель будет готова с текущим флотом, или какая конфигурация нужна к дате. Пока недоступно: /estimate ожидает привязки считывателя планов.",
+  "referenceEstimate": "В работе.",
   "referenceTerminal": "Открыть CLI Muse Code в терминале редактора.",
   "referenceRules": "Создать или открыть AGENTS.md в корне рабочей области.",
   "referenceWalkthrough": "Открыть руководство по началу работы.",
@@ -3589,7 +3589,7 @@
   "acpFontIntegrity": "Не удалось проверить файл шрифта: {file}",
   "acpFontInstallFailed": "Не удалось установить пакет шрифтов.",
   "acpFontsUsage": "Использование: {command} fonts install [--from <directory>]",
-  "acpUsage": "Использование:\n  {command} [параметры]              Обслуживать Agent Client Protocol через stdin и stdout\n  {command} [параметры] login        Войти в Muse Code в этом терминале\n  {command} auth set|status|clear  Сохранить, проверить или удалить ключ Meta Model API\n  {command} auth set|status|clear --provider <id>  Сохранить, проверить или удалить ключ провайдера (читается из stdin)\n  {command} providers list|add|test|remove  Управлять провайдерами моделей\n  {command} exec [options] <prompt>  Выполнить один ход без интерфейса\n  {command} scan-secrets <file> [--key-stdin]  Подсчитать вероятные секреты в одном файле (выводит только число)\n  {command} report [options]  Вывести очищенный отчет о проблеме (не запускает backend, не открывает браузер)\n  {command} legal [options]  Запустить сканирование лицензий только для чтения (без бэкенда и входа)\nПараметры:\n  --backend museCode|modelApi      Кто платит: Muse Code (по умолчанию) или ключ Model API\n  --trust-workspace                Загрузить правила, навыки и память папки\n  --muse-binary <путь>             Запускаемый CLI Muse Code\n  --shell-sandbox auto|muse|off    Песочница оболочки Muse Code\n  --questions-defer-after <seconds>  По умолчанию откладывать вопросы через 60 секунд; 0 — никогда, 1–9 считаются 10, максимум 3600\n  --allow-dangerously-skip-permissions  Предлагать режим «Обход разрешений»\n  --allow-contributor-models       Показывать модели уровня contributor (Meta может обучаться на их содержимом)\n  --web-search                     Предлагать платный веб-поиск (бэкенд Model API; сначала запрашивается согласие с ценой)\n  --image-generation               Предлагать платное создание изображений (бэкенд Model API; сначала запрашивается согласие с ценой)\n  --no-auto-compaction             Отключить автоматическое сжатие\n  --verbose                        Записывать все подробности в stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Запустить хуки Setup и выйти",
+  "acpUsage": "Использование:\n  {command} [параметры]              Обслуживать Agent Client Protocol через stdin и stdout\n  {command} [параметры] login        Войти в Muse Code в этом терминале\n  {command} auth set|status|clear  Сохранить, проверить или удалить ключ Meta Model API\n  {command} auth set|status|clear --provider <id>  Сохранить, проверить или удалить ключ провайдера (читается из stdin)\n  {command} providers list|add|test|remove  Управлять провайдерами моделей\n  {command} exec [options] <prompt>  Выполнить один ход без интерфейса\n  {command} scan-secrets <file> [--key-stdin]  Подсчитать вероятные секреты в одном файле (выводит только число)\n  {command} report [options]  Вывести очищенный отчет о проблеме (не запускает backend, не открывает браузер)\n  {command} legal [options]  Запустить сканирование лицензий только для чтения (без бэкенда и входа)\nПараметры:\n  --backend museCode|modelApi      Кто платит: Muse Code (по умолчанию) или ключ Model API\n  --trust-workspace                Загрузить правила, навыки и память папки\n  --muse-binary <путь>             Запускаемый CLI Muse Code\n  --shell-sandbox auto|muse|off    Песочница оболочки Muse Code\n  --questions-defer-after <seconds>  По умолчанию откладывать вопросы через 60 секунд; 0 — никогда, 1–9 считаются 10, максимум 3600\n  --allow-dangerously-skip-permissions  Предлагать режим «Обход разрешений»\n  --allow-contributor-models       Показывать модели уровня contributor (Meta может обучаться на их содержимом)\n  --web-search                     Предлагать платный веб-поиск (бэкенд Model API; сначала запрашивается согласие с ценой)\n  --image-generation               Предлагать платное создание изображений (бэкенд Model API; сначала запрашивается согласие с ценой)\n  --verbose                        Записывать все подробности в stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Запустить хуки Setup и выйти",
   "reportUsage": "Использование:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Выводит очищенный отчет о проблеме в stdout или записывает его в <file> с --out.\n  Не запускает backend, никуда не входит и не открывает браузер.\nПараметры:\n  --out <file>         Записать отчет в файл вместо stdout\n  --description <text>  Что происходило, своими словами\n  --no-facts           Пропустить сведения для поддержки\n  --no-events          Пропустить недавние события",
   "execBudgetRequired": "Model API требует --max-budget-usd.",
   "execNumberInvalid": "Недопустимое число или ограничение; бюджет в USD допускает не более шести знаков после запятой.",
@@ -5531,5 +5531,6 @@
       "few": "{count} разрешения",
       "many": "{count} разрешений"
     }
-  }
+  },
+  "referenceInProgress": "В работе."
 }

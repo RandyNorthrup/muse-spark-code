@@ -1,5 +1,4 @@
-// RVCX1 truth fixes (lane CX1R2): release text must match code behavior.
-// Each test reads the shipped file and fails while the overclaim is present.
+// CX1R3: dormant features must be removed from current user-facing publication.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
@@ -8,147 +7,216 @@ import {
   repositoryUrl,
 } from '../../scripts/lib/whatsNewContent.mjs'
 import manifest from '../../package.json'
+import { formatAcpUsage } from '../../src/runtime/cliOptions'
 import { EN } from '../../src/shared/l10n/en'
+import {
+  encodeWhatsNewContent,
+  parseWhatsNewContent,
+} from '../../src/core/whatsNew/whatsNewContent'
+import { featureCatalog } from '../../src/shared/featureCatalog'
+import { referenceModel } from '../../src/shared/reference/reference.generated'
 
 function repoFile(name: string): string {
   return readFileSync(new URL(`../../${name}`, import.meta.url), 'utf8')
 }
 
-function playbookRow(source: string): string {
-  const hit = source.indexOf('Orchestrator playbook')
-  expect(hit).toBeGreaterThan(-1)
-  return source.slice(hit, hit + 400)
+const readme = repoFile('README.md')
+const roadmap = repoFile('ROADMAP.md')
+const help = referenceModel()
+const releases = parseChangelog(
+  repoFile('CHANGELOG.md'),
+  contributedIds(manifest),
+  repositoryUrl(manifest),
+)
+
+function highlights(version: string): string {
+  const release = releases.find((entry) => entry.version === version)
+  expect(release).toBeDefined()
+  return JSON.stringify(release?.highlights)
 }
 
-function m95bSection(): string {
-  const plan = repoFile('PLAN.md')
-  const start = plan.indexOf('### M95b —')
-  const end = plan.indexOf('### M95c —')
-  expect(start).toBeGreaterThan(-1)
-  expect(end).toBeGreaterThan(start)
-  return plan.slice(start, end)
-}
+describe('RVCX1B F1: live argument claims are removed', () => {
+  it('README never promises rows while arguments arrive', () => {
+    expect(readme).not.toMatch(/tool rows stream|while arguments arrive|no production tool/)
+    expect(readme).not.toContain('The preview shows only declared')
+  })
 
-describe('RVCX1 F1: 0.16.0 argument-preview claims carry a today-qualification', () => {
-  const releases = parseChangelog(
-    repoFile('CHANGELOG.md'),
-    contributedIds(manifest),
-    repositoryUrl(manifest),
+  it('real What’s New parser excludes corrected streaming highlights', () => {
+    expect(highlights('0.16.0')).not.toMatch(
+      /Loop guarantees|while arguments arrive|preview fields/,
+    )
+  })
+
+  it('preview metadata exists but does not establish a production capability binding', () => {
+    expect(repoFile('src/core/backends/modelapi/tools.ts')).toContain('previewFields')
+    expect(featureCatalog().find((feature) => feature.id === 'argument-preview')?.surfaces).toEqual(
+      [],
+    )
+    expect(help.features.some((feature) => feature.id === 'argument-preview')).toBe(false)
+  })
+})
+
+describe('RVCX1B F2: playbook panel claims are removed', () => {
+  it('catalog and generated Help advertise only ACP journal/settings surfaces', () => {
+    for (const features of [featureCatalog(), help.features]) {
+      expect(features.find((feature) => feature.id === 'orchestrator-playbook')?.surfaces).toEqual([
+        'acp:museCode',
+        'acp:modelApi',
+      ])
+    }
+  })
+
+  it('README and current release highlights do not claim panel or Agent-map access', () => {
+    expect(readme).not.toContain('The panel, Agent map, ACP and CLI read the same journal')
+    expect(readme).not.toContain('Nine rules govern orchestrated work')
+    expect(readme).toContain('The CLI `playbook')
+    expect(highlights('0.17.0')).not.toContain('Orchestrator playbook')
+  })
+})
+
+describe('RVCX1B F3: v2 schedule delivery claims are removed on every surface', () => {
+  it('README retains manual /loop and drops v2 paid-fire instructions', () => {
+    expect(readme).toContain('Run now')
+    expect(readme).toContain('`/loop 10m Review the build`')
+    expect(readme).not.toMatch(
+      /schedule add --draft|--scheduled-prompts|Unattended runs are opt-in|fires running in live VS Code/,
+    )
+  })
+
+  it('Help omits v2 command, settings and CLI routes after complete inventory validation', () => {
+    expect(help.commands.map((command) => command.id)).not.toContain('museSpark.schedulePrompt')
+    expect(help.settings.map((setting) => setting.id)).not.toContain('museSpark.schedules')
+    expect(help.cli.map((command) => command.route)).not.toContain('schedule')
+    expect(help.cli.some((command) => command.name.includes('--scheduled-prompts'))).toBe(false)
+  })
+
+  it('compact CLI help omits v2 delivery and inactive compaction instructions', () => {
+    expect(formatAcpUsage(EN, 'muse-spark-code-acp')).not.toMatch(
+      /schedule add --draft|--scheduled-prompts|--no-auto-compaction/,
+    )
+  })
+
+  it('plan and editor records no longer claim live-session firing or a consent failure point', () => {
+    const hosts = repoFile('docs/ide-compatibility/hosts.md')
+    expect(hosts).not.toMatch(/in live sessions|billed fires are refused at spend consent/)
+    expect(repoFile('PLAN.md')).not.toContain('surfaces and live-session fires merged')
+  })
+})
+
+describe('CX1R3 sibling sweep: dormant features have no published usage', () => {
+  it.each(['team-workers', 'vault', 'estimator', 'auto-compaction', 'argument-preview'])(
+    'omits %s from Help and clears its capability inventory',
+    (id) => {
+      expect(help.features.some((feature) => feature.id === id)).toBe(false)
+      expect(featureCatalog().find((feature) => feature.id === id)?.surfaces).toEqual([])
+    },
   )
-  const sixteen = releases.find((release) => release.version === '0.16.0')
-  const shown = JSON.stringify(sixteen?.highlights ?? [])
 
-  it("What's New (built from the 0.16.0 Highlights) says the text is not shown yet", () => {
-    expect(sixteen).toBeDefined()
-    expect(shown).toContain('not shown yet')
+  it('retains only neutral progress text in the dormant source inventory', () => {
+    for (const id of [
+      'team-workers',
+      'vault',
+      'estimator',
+      'auto-compaction',
+      'argument-preview',
+    ]) {
+      const feature = featureCatalog().find((entry) => entry.id === id)
+      expect(feature?.summary).toEqual({ ui: 'referenceInProgress' })
+      expect(feature?.description).toEqual({ ui: 'referenceInProgress' })
+      expect(feature?.details).toEqual([])
+    }
   })
 
-  it('the 0.16.0 Highlights no longer promise streamed argument previews', () => {
-    expect(shown).not.toContain('argument previews')
+  it('removes dormant commands, options and paid availability facts', () => {
+    expect(help.commands.map((command) => command.id)).not.toContain('museSpark.estimate')
+    expect(
+      help.cli.some((command) => ['vault', 'vaultHelp', 'estimate'].includes(command.route)),
+    ).toBe(false)
+    expect(help.cli.some((command) => /--vault|--no-auto-compaction/.test(command.name))).toBe(
+      false,
+    )
+    expect(readme).not.toMatch(
+      /teams of workers|Team workers default on|When a team is active|unreleased scheduler and runner adapters ship|Schedule budgets, consent and rental|P50\/P90 dates|One encrypted vault per user|Automatic compaction, its exact/,
+    )
   })
 
-  it('the README Earlier-in-0.16.0 highlight matches the CHANGELOG wording', () => {
-    const readme = repoFile('README.md')
-    const start = readme.indexOf('### Earlier in 0.16.0')
-    const end = readme.indexOf('### Earlier in 0.15.0')
-    const section = readme.slice(start, end)
-    expect(start).toBeGreaterThan(-1)
-    expect(end).toBeGreaterThan(start)
-    expect(section).toContain('argument text is not shown yet')
-    expect(section).not.toContain('streamed\n  argument previews help you follow')
-  })
-})
-
-describe('RVCX1 F2: estimator Help carries the unavailable qualification', () => {
-  it('the reference title says /estimate waits on the plan-reader binding', () => {
-    expect(EN.referenceEstimate).toContain('Not available yet')
-    expect(EN.referenceEstimate).toContain('/estimate waits on the plan-reader binding')
-  })
-
-  it('the estimator detail names the production refusal', () => {
-    expect(EN.estimateCliHelp).toContain('M117-W-M113-plan-reader')
+  it('keeps only five working report kind instructions', () => {
+    for (const kind of [
+      'usage',
+      'session',
+      'playbook',
+      'issues',
+      'estimate',
+      'fleet',
+      'security',
+      'accounts',
+      'schedules',
+      'keybindings',
+    ]) {
+      expect(readme).not.toContain(`/report ${kind}`)
+    }
+    expect(readme).toContain('/report project')
   })
 
-  it('the generated reference shows both qualifications', () => {
-    const reference = repoFile('docs/reference.md')
-    const start = reference.indexOf('### Estimator')
-    const end = reference.indexOf('### Support')
-    const section = reference.slice(start, end)
-    expect(start).toBeGreaterThan(-1)
-    expect(end).toBeGreaterThan(start)
-    expect(section).toContain('/estimate waits on the plan-reader binding')
-    expect(section).toContain('M117-W-M113-plan-reader')
+  it('roadmap places dormant work in progress with no shipped note or capability claims', () => {
+    const progress = roadmap.slice(roadmap.indexOf('## In progress'), roadmap.indexOf('## Planned'))
+    for (const id of [
+      'M96',
+      'M96b',
+      'M96c',
+      'M96d',
+      'M101',
+      'M106',
+      'M109',
+      'M113',
+      'M115',
+      'M116',
+      'M117',
+    ]) {
+      const row = progress.split('\n').find((line) => line.includes(`<sub>${id}</sub>`))
+      expect(row).toBeDefined()
+      expect(row).toMatch(/(?:is|are) in progress\./)
+      expect(row).not.toMatch(/shipped|release|Schedule prompts|Configure|commands refuse/)
+    }
+    expect(roadmap).not.toMatch(/not available yet|while arguments arrive/i)
   })
 
-  it('the README no longer says the plan reader comes later', () => {
-    const readme = repoFile('README.md')
-    expect(readme).not.toContain('the plan reader that\n  comes later')
-    expect(readme).not.toContain('until the plan reader lands')
-    expect(readme).toContain('the reader is on main but unbound')
-  })
-})
-
-describe('RVCX1 F3: playbook roadmap row qualifies the pending panel enforcement', () => {
-  it('entries.json no longer says the skill governs panel dispatches', () => {
-    const entries = repoFile('docs/roadmap/entries.json')
-    expect(entries).not.toContain("governs the panel's subagent")
-    expect(playbookRow(entries)).toContain('stays pending')
+  it('released history has dated corrections and no dormant feature highlight or Try it', () => {
+    for (const version of ['0.15.0', '0.16.0', '0.17.0']) {
+      expect(highlights(version)).not.toMatch(
+        /Agent roles and teams|automatic compaction|Capacity estimates|Orchestrator playbook|modelApiAutoCompaction/,
+      )
+    }
+    expect(repoFile('CHANGELOG.md').match(/Correction \(2026-10-10\):/g)).toHaveLength(3)
   })
 
-  it('ROADMAP.md carries the same qualification', () => {
-    expect(playbookRow(repoFile('ROADMAP.md'))).toContain('stays pending')
+  it('ships encoded current notes without archived dormant claims or action buttons', () => {
+    const content = parseWhatsNewContent(
+      encodeWhatsNewContent(JSON.stringify({ schema: 1, releases: releases.slice(0, 2) })),
+    )
+    const shown = JSON.stringify(content)
+    expect(shown).not.toMatch(
+      /no production tool declares preview fields|rows stream.*while arguments arrive|P50.*P90|ship the orchestrator-playbook skill with nine rules/i,
+    )
+    expect(shown).not.toContain('Capacity estimates (preview)')
+    expect(shown).not.toContain('modelApiAutoCompaction')
+    expect(shown).toContain('Correction (2026-10-10)')
   })
 
-  it('the README playbook highlight says the panel does not enforce them yet', () => {
-    const readme = repoFile('README.md')
-    expect(readme).toContain('the VS Code panel does not enforce them yet')
-    expect(readme).not.toContain('`/settings` answer locally; the VS Code panel follows.')
+  it('still rejects invalid Try it directives in archived history', () => {
+    expect(() =>
+      parseChangelog(
+        '## [0.17.0] - 2026-10-08\n\n### Highlights\n\n- Historical claim <!-- try: command museSpark.missing -->\n  <!-- whats-new: historical -->\n',
+        contributedIds(manifest),
+        repositoryUrl(manifest),
+      ),
+    ).toThrow('not one the manifest contributes')
   })
 
-  it('the released 0.17.0 Highlights (shipped What’s New) qualify the panel', () => {
-    const changelog = repoFile('CHANGELOG.md')
-    const releases = parseChangelog(changelog, contributedIds(manifest), repositoryUrl(manifest))
-    const seventeen = releases.find((release) => release.version === '0.17.0')
-    const shown = JSON.stringify(seventeen?.highlights ?? [])
-    expect(seventeen).toBeDefined()
-    expect(shown).toContain('the VS Code panel does not enforce them yet')
-    expect(shown).not.toContain('the VS Code panel follows.')
-  })
-})
-
-describe('RVCX1 sweep: teams highlights say teams cannot be created yet', () => {
-  it('the released 0.15.0 Highlights (shipped What’s New) carry the qualification', () => {
-    const changelog = repoFile('CHANGELOG.md')
-    const releases = parseChangelog(changelog, contributedIds(manifest), repositoryUrl(manifest))
-    const fifteen = releases.find((release) => release.version === '0.15.0')
-    const shown = JSON.stringify(fifteen?.highlights ?? [])
-    expect(fifteen).toBeDefined()
-    expect(shown).toContain('teams of workers in isolated workspaces cannot be created yet')
-  })
-
-  it('the README Earlier-in-0.15.0 highlight matches', () => {
-    const readme = repoFile('README.md')
-    const start = readme.indexOf('### Earlier in 0.15.0')
-    const end = readme.indexOf('### Earlier in 0.14.5')
-    const section = readme.slice(start, end)
-    expect(start).toBeGreaterThan(-1)
-    expect(end).toBeGreaterThan(start)
-    expect(section).toContain('teams of workers in isolated workspaces cannot be created yet')
-  })
-})
-
-describe('RVCX1 F4: M95b status matches its open checklist', () => {
-  it('M95b is building with explicit remainders, not built', () => {
-    const section = m95bSection()
-    expect(section).not.toContain('**Status 2026-10-05: built.**')
+  it('M95b remains building with its open acceptance checklist', () => {
+    const plan = repoFile('PLAN.md')
+    const section = plan.slice(plan.indexOf('### M95b —'), plan.indexOf('### M95c —'))
     expect(section).toContain(': building.**')
-    expect(section).toContain('0.15.0 preview')
-  })
-
-  it('the C-X-1 certification no longer says nothing shipped for M95b', () => {
-    const cert = repoFile('docs/certification/cx1.md')
-    expect(cert).not.toContain('M95b/M95c stay\n  `planned` (nothing shipped)')
-    expect(cert).not.toContain('M95b/M95c stay `planned` (nothing shipped)')
-    expect(cert).toContain('M95b `planned` → `building`')
+    expect(section).not.toContain('**Status 2026-10-05: built.**')
   })
 })

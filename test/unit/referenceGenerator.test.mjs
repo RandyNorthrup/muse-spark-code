@@ -26,7 +26,8 @@ const readme = readFileSync(path.join(root, 'README.md'), 'utf8')
 const source = await referenceSources(root)
 const baseline = { model: undefined }
 beforeAll(async () => {
-  baseline.model = await generateReference(root, true)
+  await generateReference(root, true)
+  baseline.model = buildReference(manifest, nls, source, runtime, readme)
 })
 const build = (pkg = manifest, overrides = {}) =>
   pkg === manifest && Object.keys(overrides).length === 0

@@ -1,5 +1,10 @@
 // The generator's build entry: its imports are visible to the dead-code gate.
-export { featureCatalog, COMMAND_REFERENCE, referenceDescription } from '../featureCatalog'
+export {
+  featureCatalog,
+  COMMAND_REFERENCE,
+  referenceDescription,
+  REFERENCE_IN_PROGRESS_FEATURES,
+} from '../featureCatalog'
 export { COMMAND_IDS } from '../constants'
 export { buildPalette } from '../paletteRegistry'
 export { slashCommandsOf } from './slashReference'
@@ -61,24 +66,19 @@ export { parseHandoffPrompt } from '../handoff'
 const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['resources', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi']],
-  ...[
-    'strict-tools',
-    'parallel-reads',
-    'auto-compaction',
-    'cut-short-tools',
-    'structured-side-calls',
-  ].map((id): [string, readonly string[]] => [id, ['vscode:modelApi', 'acp:modelApi']]),
-  ...['argument-preview', 'service-status'].map((id): [string, readonly string[]] => [
-    id,
-    ['vscode:modelApi'],
-  ]),
+  ...['strict-tools', 'parallel-reads', 'cut-short-tools', 'structured-side-calls'].map(
+    (id): [string, readonly string[]] => [id, ['vscode:modelApi', 'acp:modelApi']],
+  ),
+  ...['service-status'].map((id): [string, readonly string[]] => [id, ['vscode:modelApi']]),
   ['native-deletion', ['vscode:museCode']],
   ['output-schema', ['acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['usage', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['legal', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['legal-explanation', ['vscode:museCode', 'vscode:modelApi']],
-  ['team-workers', ['vscode:modelApi']],
+  ['team-workers', []],
+  ['auto-compaction', []],
+  ['argument-preview', []],
   ['compaction', ['vscode:modelApi', 'acp:modelApi']],
   ['custom-agents', ['vscode:modelApi']],
   ['mcp-elicitation', ['vscode:modelApi']],
@@ -146,15 +146,14 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // M112: ACP asks through forms or text and answers with /questions and /answer.
   ['questions', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['reports', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
-  // M116: the playbook journal and settings ride no model call.
-  ['orchestrator-playbook', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M116: CLI/ACP journal commands work; the VS Code panel has no mount.
+  ['orchestrator-playbook', ['acp:museCode', 'acp:modelApi']],
   // M108/W: several accounts per provider on Settings, the CLI and ACP alike.
   ['accounts', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
-  // M109: the vault panel and lock in VS Code, /vault and permission mapping
-  // in ACP, on either backend; values never reach either surface.
-  ['vault', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
-  // M117: the estimator runs the same engine on every surface.
-  ['estimator', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M109: production vault service is unbound on every surface.
+  ['vault', []],
+  // M117: the production plan snapshot port refuses on every surface.
+  ['estimator', []],
   ...['web-fetch', 'images'].map((id): [string, readonly string[]] => [
     id,
     ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
