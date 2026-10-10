@@ -19221,6 +19221,17 @@ in-tree junctions below it, drive-letter spelling) and
 
 ## 3. Open questions (need the owner)
 
+**Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
+explicitly approves the 116 Title Case scenes, `models-errors` with the
+provider-picker repair, and the three What's New scenes as class (b'):
+the page renders 0.17.1's changed release notes. Inspect every changed frame
+before approving the refresh; verify release highlights, sentence case,
+unclipped controls and intact question spacing. Complete all six themes,
+the repository's reviewed baseline update, every curated README recapture,
+freshness records, the full zero-changed-scene replay and the SHA-256
+old-baseline drill. Evidence remains in `docs/certification/cifix017.md`,
+"0.17.1 visual refresh". Stop only for an incorrect frame.
+
 **Q-VISREGEN2 resolved by lead (2026-10-09).** Preserve every 0.17.0
 change and Highlight while tightening only that release's wording below
 72,000 decoded bytes. Keep 0.16.0 and older notes byte-exact and all content
@@ -38379,6 +38390,85 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**VIS0171 0.17.1 visual refresh (2026-10-10, linuxlt).** Compare the full
+9,792-frame matrix on `4acb7015f`; classify every changed scene as Title Case,
+question-field spacing, provider-picker repair, or an unrelated hold. Inspect
+every changed frame before the repository's reviewed update; stop on unrelated
+changes. Regenerate all curated README shots, refresh their existing input
+fingerprint and current audit hashes, and certify a full zero-changed-scene
+replay, complete owning suites at repository deadlines, and an old-baseline
+failure with SHA-256 byte-exact restoration in `docs/certification/cifix017.md`.
+Aggregate quality remains lead-owned under the shared rig brief. No merge,
+push, subagents, paid calls, timeout changes or gate weakening.
+The initial reconstruction fails at `paid-always/light/320`: the current
+driver waits for Title Case `Auth Method` in the historical sentence-case
+source. Make the exact account-label and vault-action selectors accept both
+capitalizations, with browser regressions; preserve their readiness checks.
+The compatibility repair is committed as `7c8338ac5`; the new regressions
+first fail on both historical labels and then all seven readiness tests pass
+at repository deadlines. Five typechecks, changed-file lint/format, plain
+knip, localization, host API, reference, tokens, plan and roadmap pass.
+The unchanged duplication gate reports 21 inherited provider-wizard/test
+clones, none in lane-edited files; leave their repair with the lead rather
+than weakening the zero-clone threshold or expanding this visual lane.
+The complete historical capture succeeds, but two candidate attempts reject
+the fake Models state at `models-configure`: its required `sessionBudget`
+is absent. PROVWIZ9 already documents this stale harness contract. Add the
+canonical `modelsPanelFixtures.makeState().sessionBudget` to the fake host
+and a strict production-schema regression; never relax the message schema.
+
+- [x] Repair and drill historical-label readiness and the strict provider-budget fixture.
+- [x] Reconstruct all 9,792 historical frames; compare all 1,632 light-theme candidate frames.
+- [x] Classify 120 observed changed scenes; stop on three class-(d) release-note scenes.
+- [x] Complete all themes/shards and per-frame approval review under the resolved round-2 authorization.
+- [x] Regenerate all 19 README shots, update their input fingerprint and refresh 20 current audit source hashes.
+- [x] Refresh approved baselines and perform the old-baseline drill.
+- [ ] Complete the full unsharded zero-changed-scene replay.
+- [x] Run owning suites and scoped gates; record the blocked outcome, source restoration drill and hooks-on repairs.
+
+**Round 1 historical stopped outcome.** The complete light matrix has 1,440 over-allowance frames
+in 120 scenes: 116 label-only scenes, `models-errors` with labels and the
+provider repair's error/blocker list, and three What's New content scenes.
+Question spacing is already in the recorded source. No observed control-state
+coverage changes occur. The full zero-changed-scene gate remains unqualified;
+no baseline, README image, input fingerprint or audit hash is approved or
+updated. The original manifest remains SHA-256
+`e314783f2e7bcd2d95ecd83327e9e9142fe3fe66ae71a0418524fb118c4fed50`.
+Owning suites pass 136 of 138 cases; the two retained failures correctly name
+stale audit source hashes and the README input fingerprint. Q-VIS0171-RELEASE-NOTES
+and the inherited 21 duplication clones remain release holds.
+
+**Round 2 reviewed baseline and drill complete; full replay unqualified.** The lead accepts both harness repairs and approves
+the 120 observed scenes, including 0.17.1's release-note content. The earlier
+stop is historical; Q-VIS0171-RELEASE-NOTES is resolved. Finish the complete
+six-theme comparison and per-frame inspection before the named reviewed
+update, then regenerate every README shot and freshness record. Require the
+full official replay and owning suites at repository timeouts, plus an
+old-baseline failure and byte-exact restoration. Aggregate quality and the
+inherited duplication repair remain lead-owned; no merge or push.
+All 19 curated README captures are regenerated and inspected; 18 change and
+`languages.png` is byte-identical. The 20 stale current audit rows are refreshed
+without changing historical grades or evidence. All nine complete owning suites
+pass 138 cases at repository deadlines; five-project typecheck also passes.
+All six themes are captured and reviewed: 8,640 over-allowance frames in the
+120 approved scenes, plus 90 byte-different frames within the unchanged pixel
+allowance. No observed control-state coverage changes occur; question spacing
+and 0.17.1 release highlights are intact. The official baseline update
+and restoration drill pass. The repository update records all 9,792 PNGs /
+450,604,546 bytes / 512 MiB at source `f8db72798`, with every historical
+components/target/applied-state row preserved. The additional 1,255 within-policy
+frames are inspected through 830 native regions on 26 sheets; no defect is
+observed. Manifest owners pass 24/24 after update. Baseline commit: `f7243df25`.
+The old-baseline drill exits 1 at 2,075 changed pixels against allowance 12,
+then restores manifest and PNG byte-exact by SHA-256. The full unsharded replay
+is intentionally stopped to respect the 90-minute rig time box, after 1,152
+reported captures without an observed visual regression. Its terminal-close
+error is interruption evidence, not a new visual failure. No full result is
+written; zero-changed-scene qualification remains pending. Next: run the full
+`npm run check:visual` in terminal mode with enough time for all 9,792 frames,
+then append its actual receipt. Aggregate quality and inherited duplication
+repair remain lead-owned; retained ignored browser profiles need lead cleanup.
 
 **PROVWIZ10 scoped qualification (2026-10-09, complete).** Both RVPROVWIZ9C
 P2 repairs pass production/shared-form regressions, including genuine concurrent
