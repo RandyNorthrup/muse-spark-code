@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { buildPlanSnapshot } from '../../src/core/estimator/planSnapshot'
+import { buildPlanSnapshot, checkPlan } from '../../src/core/estimator/planSnapshot'
 import { resolveEstimateGoal } from '../../src/core/estimator/goal'
 import { parseEstimateGoal } from '../../src/shared/estimate'
 
@@ -94,25 +94,56 @@ describe('M117 plan snapshot on the real PLAN.md', () => {
     ])
   })
 
-  it('refuses release forecasts until every plan declaration resolves', () => {
+  it('reports zero problems for the whole repository plan', () => {
+    expect(checkPlan(planText)).toEqual([])
+  })
+
+  it('estimates M112 on the full plan while unrelated milestones keep their own rows', async () => {
+    await expect(resolveReal('M112')).resolves.toEqual([
+      'M112:0',
+      'M112:A',
+      'M112:Integration',
+      'M112:Q',
+      'M112:U',
+    ])
+  })
+
+  it('estimates M116 on the full plan with its last lane closing the milestone', async () => {
+    await expect(resolveReal('M116')).resolves.toEqual([
+      'M116:0',
+      'M116:I',
+      'M116:K',
+      'M116:P',
+      'M116:U',
+      'M116:W',
+    ])
+  })
+
+  it('refuses release forecasts only on genuinely missing hours, never plan shape', () => {
     const goal = parseEstimateGoal('release:0.16.0')
     if (goal === undefined) throw new Error('unparseable goal')
-    // The full repository plan has unresolved declarations: membership
-    // cannot turn an invalid plan into an empty successful forecast.
-    expect(() => buildPlanSnapshot(planText, goal, AS_OF, {})).toThrow(
-      /unknown-prerequisite:.*M110a0/,
-    )
+    // 0.16.0's M103 lanes have no hour estimates yet: membership resolves
+    // and every declaration parses, so the refusal names the hours.
+    try {
+      buildPlanSnapshot(planText, goal, AS_OF, {})
+      throw new Error('release:0.16.0 unexpectedly succeeded')
+    } catch (error: unknown) {
+      expect(String(error)).toMatch(/missing-estimate: M103/)
+      expect(String(error)).not.toMatch(/unknown-prerequisite|duplicate-lane|malformed-starts/)
+    }
   })
 
-  it('refuses M114 on its prerequisite the plan does not contain', () => {
+  it('refuses M114 only on its unfinished prerequisite hours, never plan shape', () => {
     const goal = parseEstimateGoal('M114')
     if (goal === undefined) throw new Error('unparseable goal')
-    expect(() => buildPlanSnapshot(planText, goal, AS_OF, {})).toThrow(
-      /unknown-prerequisite:.*M110a0/,
-    )
-  })
-
-  it('refuses M112 when unrelated declarations contain unresolved references', async () => {
-    await expect(resolveReal('M112')).rejects.toThrow(/duplicate-lane:.*M91/)
+    // M114's C lane needs M104, whose waiting lanes have no hour estimates:
+    // the closure resolves and the refusal names the hours.
+    try {
+      buildPlanSnapshot(planText, goal, AS_OF, {})
+      throw new Error('M114 unexpectedly succeeded')
+    } catch (error: unknown) {
+      expect(String(error)).toMatch(/missing-estimate: M104/)
+      expect(String(error)).not.toMatch(/unknown-prerequisite|duplicate-lane|malformed-starts/)
+    }
   })
 })
