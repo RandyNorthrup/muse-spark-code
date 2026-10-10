@@ -166,5 +166,25 @@ all 156 frames with zero changed pixels, including 16 Usage scenes affected by
 the shared transport. Its baseline was regenerated from the recorded revision
 with Chrome 153.0.8010.52 on Linux; the manifest stayed unchanged. The
 standalone voice page has its own six reviewed images and Chrome/axe coverage;
-its source revision, hashes, dimensions and coverage are recorded separately.
+its source revision, hashes, dimensions and coverage are recorded in
+[m35-companion-visual.json](m35-companion-visual.json). All six images were
+inspected under `CMICCOMP-2026-10-10-linuxlt-accessibility-responsive-review`;
+the PNG files stay in ignored lane artifacts. This is the lane agent's review;
+the owner's release review remains outstanding.
 The lead retains full quality, full visual matrix and the other OS/editor rows.
+
+### Local commit and handoff
+
+`674c83bb2` contains the guarded implementation and certification hold;
+`ee472698d` fixes stereo sample mixing and records final test/drill counts.
+Both commits ran the repository's installed lint-staged and gitleaks hooks.
+The pre-hook staged diffs and committed diffs were re-read and matched exactly;
+all staged source hashes also matched after each hook. No hook rewrites,
+pushes, merges or rebases. Source revision `ee472698d` owns the reviewed images.
+
+Next: lead integrates the lane, runs full quality/coverage and the complete
+visual matrix, obtains the Windows/macOS recognition/browser and assigned
+C-M63-1/C-M104-1 installed editor/package receipts, then reviews the hidden
+entry points before explicitly removing `COMPANION_VOICE_RELEASE`'s hold.
+This Linux lane cannot certify native speech/TCC on another OS or uninstalled
+editors, and its brief forbids live paid calls. No dependency was installed.
