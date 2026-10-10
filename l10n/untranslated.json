@@ -173,7 +173,8 @@
       "teamTemplateSolo",
       "teamTreeLabel",
       "teamOrchestrator",
-      "teamUsageTitle"
+      "teamUsageTitle",
+      "openPullRequestRepository"
     ],
     "es": [
       "hooksItem",
@@ -251,7 +252,8 @@
       "teamTemplates.solo",
       "teamCapabilityWarning",
       "teamTreeLabel",
-      "teamUsageTitle"
+      "teamUsageTitle",
+      "openPullRequestRepository"
     ],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],

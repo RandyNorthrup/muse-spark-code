@@ -1723,6 +1723,7 @@
   "openPullRequestConfirm": "Abrir a solicitação de pull #{number} em uma nova janela?",
   "openPullRequestBy": "Por {author}",
   "openPullRequestBranches": "De {head} para {base}",
+  "openPullRequestRepository": "Repositório: {repository}",
   "openPullRequestOwnDetail": "Sua própria solicitação de pull: com check-out no commit mais recente, em uma árvore de trabalho ao lado do repositório.",
   "openPullRequestHeldDetail": "Outra pessoa a escreveu: o check-out é feito no armazenamento próprio do Muse Spark, e a nova janela mantém a conversa no modo Planejar, com as regras do projeto, as habilidades, os ganchos e os servidores MCP desta árvore de trabalho desativados, até você confiar nela lá.",
   "openPullRequestUnfilteredDetail": "O Git não faz o checkout: os arquivos são gravados exatamente como o commit os armazena, então nenhum filtro, gancho ou conversão do Git é executado. Arquivos LFS continuam ponteiros e as quebras de linha ficam como no commit; links viram arquivos com o destino deles, e submódulos, pastas vazias. Confiar na árvore de trabalho não os regrava.",

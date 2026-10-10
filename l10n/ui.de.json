@@ -1695,6 +1695,7 @@
   "openPullRequestConfirm": "Pull Request #{number} in einem neuen Fenster öffnen?",
   "openPullRequestBy": "Von {author}",
   "openPullRequestBranches": "Von {head} nach {base}",
+  "openPullRequestRepository": "Repository: {repository}",
   "openPullRequestOwnDetail": "Ihr eigener Pull Request: an seinem Head-Commit in einem Worktree neben dem Repository ausgecheckt.",
   "openPullRequestHeldDetail": "Eine andere Person hat ihn geschrieben: Er wird im eigenen Speicher von Muse Spark ausgecheckt, und das neue Fenster hält die Unterhaltung im Modus „Planen“, mit ausgeschalteten Projektregeln, Skills, Hooks und MCP-Servern dieses Worktrees, bis Sie ihm dort vertrauen.",
   "openPullRequestUnfilteredDetail": "Git checkt ihn nicht aus: Seine Dateien werden genau so geschrieben, wie der Commit sie speichert, daher laufen kein Git-Filter, kein Hook und keine Umwandlung. LFS-Dateien bleiben Zeiger und Zeilenenden bleiben wie committet; Links werden zu Dateien mit ihrem Ziel, Submodule zu leeren Ordnern. Wenn Sie dem Worktree vertrauen, werden sie nicht neu geschrieben.",
