@@ -971,6 +971,11 @@
       "note": "development dependency updates"
     },
     {
+      "id": "DFACPERR",
+      "public": false,
+      "note": "honest ACP refusal errors; goal tracked by M63"
+    },
+    {
       "id": "DIET1",
       "public": false,
       "note": "startup size budget"

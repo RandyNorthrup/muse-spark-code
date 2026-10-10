@@ -80,7 +80,11 @@ happened, not what was planned; superseded entries are kept.
   model, a failed legal scan, and a turn the backend would not take. Sharing
   an empty conversation is refused with "There is no conversation to export
   yet.", and bad share/prompt arguments are invalid params (-32602) with
-  their reason (DFACPERR).
+  their reason (DFACPERR). Follow-up: mode/model/effort commands against a
+  backend session Muse Code evicted read as a missing resource (-32002);
+  caller-owned share/save validation names its flag (-32602) in the installed
+  language; scanner and broker programming faults stay internal errors
+  (-32603) with a fixed reason and nothing raw on the wire.
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
