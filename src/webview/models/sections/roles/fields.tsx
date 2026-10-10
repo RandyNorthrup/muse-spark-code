@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { usePropDraft } from './propDraft'
 import { UI_TEXT } from '../../../../shared/constants'
 import type { TeamModelSettings } from '../../../../shared/team'
 import type { TeamSettingControl } from '../../../../shared/teamPanel'
@@ -121,17 +122,23 @@ export function ModelSettings({
   readonly value: TeamModelSettings | undefined
   readonly onChange: (settings: TeamModelSettings) => void
 }) {
+  // Rapid consecutive edits build on the latest local draft, never on the
+  // host props, which may predate an edit the host has not echoed yet.
+  const [settings, updateSettings] = usePropDraft(value)
   if (controls.length === 0) return null
   return (
     <fieldset className="team-editor-card">
       <legend>{UI_TEXT.teamEditor.settings}</legend>
       {controls.map((control) => {
-        const current = value?.[control.key]
+        const current = settings?.[control.key]
         const change = (next: boolean | string | number | undefined) => {
-          const settings = { ...value }
-          if (next === undefined) Reflect.deleteProperty(settings, control.key)
-          else Object.assign(settings, { [control.key]: next })
-          onChange(settings)
+          const draft = updateSettings((previous) => {
+            const merged = { ...previous }
+            if (next === undefined) Reflect.deleteProperty(merged, control.key)
+            else Object.assign(merged, { [control.key]: next })
+            return merged
+          })
+          onChange(draft)
         }
         return (
           <div key={control.key} className="team-editor-field">

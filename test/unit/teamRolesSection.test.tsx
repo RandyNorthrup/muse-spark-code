@@ -3,6 +3,10 @@ import { useReducer, useState } from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeAll } from 'vitest'
 import { panelRig } from './helpers/teamPanelRig'
+import { teamOffers } from './helpers/teamPanelOffers'
+import type { TeamPanelMessage } from '../../src/shared/teamPanel'
+import { RoleEditor } from '../../src/webview/models/sections/roles/RoleEditor'
+import { PoolEditor } from '../../src/webview/models/sections/roles/PoolEditor'
 import { makeState } from './modelsPanelFixtures'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { TeamPanelSlice } from '../../src/shared/teamPanel'
@@ -199,6 +203,147 @@ describe('M96 U1 Roles UI', () => {
     expect(screen.getAllByRole('combobox', { name: 'Effort' }).length).toBe(1)
     expect(screen.queryByRole('checkbox', { name: 'Verbosity' })).toBeNull()
     expect(screen.getByText(/Moved .* position 1/)).toBeDefined()
+  })
+  it('keeps rapid consecutive setting edits without dropping the first', async () => {
+    // A delayed host reply: both edits post before the host answers, so
+    // each message must build on the latest local draft. The posted
+    // messages are applied to the genuine controller only afterwards.
+    const offers = teamOffers()
+    for (const offer of offers)
+      offer.controls.push(
+        { key: 'outputCap', kind: 'number', label: 'Output Cap', note: '', min: 1 },
+        { key: 'temperature', kind: 'number', label: 'Temperature', note: '' },
+      )
+    const rig = panelRig({ offers: () => Promise.resolve(offers) })
+    await rig.read()
+    await rig.controller.handle({ type: 'roles/template', template: 'pair' })
+    const slice = await rig.read()
+    const role = slice.document.roles.find((item) => item.role === 'engineering')
+    if (role === undefined) throw new Error('No engineering role')
+    const posted: TeamPanelMessage[] = []
+    render(
+      <RoleEditor
+        role={role}
+        slice={slice}
+        post={(message) => {
+          const parsed = teamPanelMessageSchema.safeParse(message)
+          if (!parsed.success) throw new Error('Not a team message')
+          posted.push(parsed.data)
+        }}
+      />,
+    )
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Output Cap' }), {
+      target: { value: '1024' },
+    })
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Temperature' }), {
+      target: { value: '0.5' },
+    })
+    const updates = posted.filter((message) => message.type === 'roles/updateEntry')
+    expect(updates).toHaveLength(2)
+    const [first, second] = updates
+    if (first === undefined || second === undefined) throw new Error('Missing update')
+    expect(second).toMatchObject({
+      type: 'roles/updateEntry',
+      role: 'engineering',
+      fields: { settings: { outputCap: 1024, temperature: 0.5 } },
+    })
+    await rig.controller.handle(first)
+    await rig.controller.handle(second)
+    const after = await rig.read()
+    expect(
+      after.document.roles.find((item) => item.role === 'engineering')?.pool[0]?.settings,
+    ).toMatchObject({ outputCap: 1024, temperature: 0.5 })
+  })
+  it('keeps rapid consecutive cap edits without restoring the stale measure', async () => {
+    const rig = panelRig()
+    await rig.read()
+    await rig.controller.handle({ type: 'roles/template', template: 'pair' })
+    const slice = await rig.read()
+    const role = slice.document.roles.find((item) => item.role === 'engineering')
+    if (role === undefined) throw new Error('No engineering role')
+    const posted: TeamPanelMessage[] = []
+    render(
+      <PoolEditor
+        role={role}
+        slice={slice}
+        post={(message) => {
+          const parsed = teamPanelMessageSchema.safeParse(message)
+          if (!parsed.success) throw new Error('Not a team message')
+          posted.push(parsed.data)
+        }}
+      />,
+    )
+    const block = document.querySelector('.team-editor-cap')
+    if (block === null) throw new Error('No cap block')
+    const selects = block.querySelectorAll('select')
+    const measure = selects[0]
+    const windowSelect = selects[1]
+    const amount = block.querySelector('input[type="number"]')
+    if (measure === undefined || windowSelect === undefined || amount === null)
+      throw new Error('No cap controls')
+    // Three consecutive edits: the third must still build on the first two.
+    fireEvent.change(measure, { target: { value: 'outputTokens' } })
+    fireEvent.change(amount, { target: { value: String(10_000) } })
+    fireEvent.change(windowSelect, { target: { value: 'day' } })
+    const caps = posted.filter((message) => message.type === 'roles/cap')
+    expect(caps).toHaveLength(3)
+    const [first, second, third] = caps
+    if (first === undefined || second === undefined || third === undefined)
+      throw new Error('Missing cap edit')
+    expect(second).toMatchObject({
+      type: 'roles/cap',
+      role: 'engineering',
+      cap: { measure: 'outputTokens', window: 'task', amount: 10_000 },
+    })
+    expect(third).toMatchObject({
+      type: 'roles/cap',
+      role: 'engineering',
+      cap: { measure: 'outputTokens', window: 'day', amount: 10_000 },
+    })
+    await rig.controller.handle(first)
+    await rig.controller.handle(second)
+    await rig.controller.handle(third)
+    const after = await rig.read()
+    expect(
+      after.document.roles.find((item) => item.role === 'engineering')?.pool[0]?.caps[0],
+    ).toEqual({ measure: 'outputTokens', window: 'day', amount: 10_000 })
+  })
+  it('keeps rapid consecutive tool ticks without restoring the first', async () => {
+    const rig = panelRig()
+    await rig.read()
+    await rig.controller.handle({ type: 'roles/template', template: 'pair' })
+    const slice = await rig.read()
+    const role = slice.document.roles.find((item) => item.role === 'engineering')
+    if (role === undefined) throw new Error('No engineering role')
+    const posted: TeamPanelMessage[] = []
+    render(
+      <RoleEditor
+        role={role}
+        slice={slice}
+        post={(message) => {
+          const parsed = teamPanelMessageSchema.safeParse(message)
+          if (!parsed.success) throw new Error('Not a team message')
+          posted.push(parsed.data)
+        }}
+      />,
+    )
+    const boxes = [...document.querySelectorAll('.team-editor-tool input[type="checkbox"]')]
+    if (boxes.length < 2) throw new Error('No tool checkboxes')
+    fireEvent.click(boxes[0])
+    fireEvent.click(boxes[1])
+    const updates = posted.filter((message) => message.type === 'roles/updateRole')
+    expect(updates).toHaveLength(2)
+    const [first, second] = updates
+    if (first === undefined || second === undefined) throw new Error('Missing role update')
+    const allowed =
+      slice.roleViews.find((view) => view.role === 'engineering')?.allowedTools.length ?? 0
+    expect(second.fields.tools).toHaveLength(allowed - 2)
+    await rig.controller.handle(first)
+    await rig.controller.handle(second)
+    const after = await rig.read()
+    expect(after.document.roles.find((item) => item.role === 'engineering')?.tools).toHaveLength(
+      allowed - 2,
+    )
   })
   it('keeps generated charter read-only and edits the user purpose', async () => {
     const rig = await sectionRig('pair')
