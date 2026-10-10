@@ -187,7 +187,9 @@ describe('M96 U1 Roles UI', () => {
     const rig = panelRig()
     const empty = await rig.read()
     await rig.controller.handle({ type: 'roles/template', template: 'full' })
-    const imported = await rig.read()
+    const templateSlice = await rig.read()
+    // A real import arrives with the host's import notice.
+    const imported: TeamPanelSlice = { ...templateSlice, notice: UI_TEXT.teamImportDraft }
     const post = vi.fn<SectionProps['post']>()
     const props = sectionProps(empty, post)
     const view = render(<RolesSection {...props} />)
@@ -199,6 +201,31 @@ describe('M96 U1 Roles UI', () => {
     expect(screen.queryByRole('button', { name: UI_TEXT.wizardContinue })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.teamEditor.save }))
     expect(post.mock.calls.map(([message]) => message.type)).toEqual(['roles/import', 'roles/save'])
+  })
+  it('keeps guided setup when the import picker is cancelled', async () => {
+    const rig = panelRig()
+    const empty = await rig.read()
+    const post = vi.fn<SectionProps['post']>()
+    const view = render(<RolesSection {...sectionProps(empty, post)} />)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providerImport }))
+    expect(post).toHaveBeenCalledWith({ type: 'roles/import' })
+    // Cancelling the native picker delivers no new draft: the same empty
+    // slice renders again and the guide stays.
+    view.rerender(<RolesSection {...sectionProps(empty, post)} />)
+    expect(screen.getByRole('button', { name: UI_TEXT.wizardContinue })).toBeDefined()
+  })
+  it('restores guided setup when the editor is cancelled back to empty', async () => {
+    const rig = panelRig()
+    await rig.read()
+    await rig.controller.handle({ type: 'roles/template', template: 'full' })
+    const templateSlice = await rig.read()
+    const imported: TeamPanelSlice = { ...templateSlice, notice: UI_TEXT.teamImportDraft }
+    const post = vi.fn<SectionProps['post']>()
+    render(<RolesSection {...sectionProps(imported, post)} />)
+    expect(screen.queryByRole('button', { name: UI_TEXT.wizardContinue })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardCancel }))
+    expect(post).toHaveBeenCalledWith({ type: 'roles/reset' })
+    expect(screen.getByRole('button', { name: UI_TEXT.wizardContinue })).toBeDefined()
   })
   it('posts Alt+Up reordering and exposes only supported settings', async () => {
     const rig = await sectionRig('pair')

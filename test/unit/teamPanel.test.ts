@@ -306,6 +306,22 @@ describe('M96 U1 portable panel', () => {
     expect(imported.update).not.toHaveBeenCalled()
     expect(imported.reload).not.toHaveBeenCalled()
   })
+  it('clears the import notice when the draft is reset', async () => {
+    const rig = panelRig()
+    await rig.read()
+    await rig.controller.handle({ type: 'roles/template', template: 'pair' })
+    await rig.controller.handle({ type: 'roles/export' })
+    const text = rig.writeExport.mock.calls[0]?.[0]
+    if (text === undefined) throw new Error('No export')
+    const imported = panelRig({ readImport: () => Promise.resolve(text) })
+    await imported.read()
+    await imported.controller.handle({ type: 'roles/import' })
+    const noticed = await imported.read()
+    expect(noticed.notice).toBe(UI_TEXT.teamImportDraft)
+    await imported.controller.handle({ type: 'roles/reset' })
+    const cleared = await imported.read()
+    expect(cleared.notice).toBeUndefined()
+  })
   it('rejects unknown import keys and marks unavailable references without substituting an agent', async () => {
     const source = panelRig()
     await source.read()

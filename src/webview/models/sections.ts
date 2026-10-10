@@ -6,6 +6,7 @@
 
 import type { ComponentType } from 'react'
 import { UI_TEXT } from '../../shared/constants'
+import { loadDeferredEnglish } from '../../shared/l10n/deferredEnglish'
 import type {
   ModelsPanelSection,
   ModelsPanelState,
@@ -79,10 +80,14 @@ function reduceModels(state: PanelUiState, _action: PanelUiAction): PanelUiState
 }
 
 const RolesSection = deferred(async () => {
+  // The hidden team English travels with its readers, never with the
+  // panel's first paint (in source and tests this installs nothing).
+  await loadDeferredEnglish()
   const module = await import('./sections/roles/RolesSection')
   return { default: module.RolesSection }
 })
 const AgentsSection = deferred(async () => {
+  await loadDeferredEnglish()
   const module = await import('./sections/agents/AgentsSection')
   return { default: module.AgentsSection }
 })
