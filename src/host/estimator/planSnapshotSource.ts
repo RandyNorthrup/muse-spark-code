@@ -170,13 +170,7 @@ export function createPlanSnapshotSource(
       refuseSource(`missing-associations: ${goal.kind}`)
     }
     signal?.throwIfAborted()
-    let planText: string
-    try {
-      planText = await io.readPlanFile(path.join(deps.root, 'PLAN.md'), signal)
-    } catch {
-      signal?.throwIfAborted()
-      refuseMissingPlan(path.join(deps.root, 'PLAN.md'))
-    }
+    const planText = await readWorkspacePlan(io, deps.root, signal)
     signal?.throwIfAborted()
     const branchOutput = await required(
       'branches',
@@ -284,15 +278,22 @@ export function createPlanCheckSource(
   return async (signal) => {
     if (deps.root === '') refuseMissingPlan(deps.root)
     signal?.throwIfAborted()
-    let planText: string
-    try {
-      planText = await io.readPlanFile(path.join(deps.root, 'PLAN.md'), signal)
-    } catch {
-      signal?.throwIfAborted()
-      refuseMissingPlan(path.join(deps.root, 'PLAN.md'))
-    }
+    return checkPlan(await readWorkspacePlan(io, deps.root, signal))
+  }
+}
+
+/** This workspace's PLAN.md text, or a refusal naming the missing file. */
+async function readWorkspacePlan(
+  io: Pick<PlanSnapshotSourceIo, 'readPlanFile'>,
+  root: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  signal?.throwIfAborted()
+  try {
+    return await io.readPlanFile(path.join(root, 'PLAN.md'), signal)
+  } catch {
     signal?.throwIfAborted()
-    return checkPlan(planText)
+    refuseMissingPlan(path.join(root, 'PLAN.md'))
   }
 }
 

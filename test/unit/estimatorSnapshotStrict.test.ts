@@ -12,6 +12,7 @@ import {
 } from '../../src/host/estimator/planSnapshotSource'
 import { planSnapshotLoader } from '../../src/host/estimator/planSnapshotBundle'
 import { createAcpEstimate } from '../../src/acp/estimate'
+import { fakePlanSourceIo } from './helpers/estimator/fakes'
 import { EstimateViewSession } from '../../src/runtime/estimator/session'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { registerSecretValue } from '../../src/core/redact'
@@ -50,14 +51,14 @@ async function resolve(plan = PLAN, evidence: PlanSnapshotEvidence = {}, text = 
   })
 }
 function io(overrides: Partial<PlanSnapshotSourceIo> = {}): PlanSnapshotSourceIo {
-  return {
-    readPlanFile: () => Promise.resolve(PLAN),
-    runGit: (args) => {
-      if (args.includes('symbolic-ref')) return Promise.resolve('refs/remotes/origin/main\n')
-      return Promise.resolve(args.includes('--merged') ? '' : 'm112/0\nm112/q\n')
-    },
-    runGh: () => Promise.resolve('[]'),
-    ...overrides,
+  return fakePlanSourceIo(PLAN, '[]', '', overrides)
+}
+
+/** Git refs answering symbolic-ref plus caller-chosen merged/unmerged lists. */
+function gitRefs(merged: string, unmerged: string): (args: readonly string[]) => Promise<string> {
+  return (args) => {
+    if (args.includes('symbolic-ref')) return Promise.resolve('refs/remotes/origin/main')
+    return Promise.resolve(args.includes('--merged') ? merged : unmerged)
   }
 }
 function policy(overrides: Partial<ReportNetworkPolicy> = {}): ReportNetworkPolicy {
@@ -305,23 +306,13 @@ describe('M117 R3 strict snapshot regressions', () => {
     await expect(
       createPlanSnapshotSource({
         root: '/workspace',
-        io: io({
-          runGit: (args) => {
-            if (args.includes('symbolic-ref')) return Promise.resolve('refs/remotes/origin/main')
-            return Promise.resolve(args.includes('--merged') ? '' : branches)
-          },
-        }),
+        io: io({ runGit: gitRefs('', branches) }),
       })(goal(), AS_OF),
     ).rejects.toThrow(/source-incomplete: branches/)
     await expect(
       createPlanSnapshotSource({
         root: '/workspace',
-        io: io({
-          runGit: (args) => {
-            if (args.includes('symbolic-ref')) return Promise.resolve('refs/remotes/origin/main')
-            return Promise.resolve(args.includes('--merged') ? branches : 'm112/q')
-          },
-        }),
+        io: io({ runGit: gitRefs(branches, 'm112/q') }),
       })(goal(), AS_OF),
     ).rejects.toThrow(/source-incomplete: merged-branches/)
   })

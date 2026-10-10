@@ -448,6 +448,21 @@ function isMalformedStarts(
   return 'malformed' in parsed
 }
 
+/** One lane's Starts cell against the whole plan's ids, shared by the goal
+ * closure validator and the whole-plan check. */
+function parseLaneStarts(
+  lane: PlanGraphLane,
+  graph: Pick<PlanGraph, 'shortsByMilestone' | 'resolveQualified'>,
+): StartsRefs | { malformed: string } {
+  return parseStartsCell(
+    lane.startsCell,
+    lane.id,
+    lane.line,
+    graph.shortsByMilestone.get(lane.mid) ?? new Map<string, string>(),
+    graph.resolveQualified,
+  )
+}
+
 interface FullLane {
   readonly id: string
   readonly short: string
@@ -677,13 +692,7 @@ export function buildPlanSnapshot(
     if (startsByLane.has(id)) return
     const lane = graph.lanes.get(id)
     if (lane === undefined) return
-    const parsed = parseStartsCell(
-      lane.startsCell,
-      lane.id,
-      lane.line,
-      graph.shortsByMilestone.get(lane.mid) ?? new Map<string, string>(),
-      graph.resolveQualified,
-    )
+    const parsed = parseLaneStarts(lane, graph)
     if (isMalformedStarts(parsed)) {
       missingRef('malformed-starts', parsed.malformed.replace(/^malformed-starts: /, ''))
       return
@@ -1074,13 +1083,7 @@ export function checkPlan(planText: string): string[] {
   const graph = collectPlanGraph(facts, laneTableCells(planText))
   for (const id of graph.duplicates) collect('duplicate-lane', id)
   for (const lane of graph.lanes.values()) {
-    const parsed = parseStartsCell(
-      lane.startsCell,
-      lane.id,
-      lane.line,
-      graph.shortsByMilestone.get(lane.mid) ?? new Map<string, string>(),
-      graph.resolveQualified,
-    )
+    const parsed = parseLaneStarts(lane, graph)
     if (isMalformedStarts(parsed)) {
       collect('malformed-starts', parsed.malformed.replace(/^malformed-starts: /, ''))
     } else {
