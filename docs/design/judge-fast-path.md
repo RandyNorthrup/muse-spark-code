@@ -2,9 +2,11 @@
 
 Status: design, 2026-10-09, revised the same day after the owner's
 correction (section 1) and again after the second review (`RVJUDGEFAST2`,
-section 15). Nothing here is built. PLAN.md D107 is the decision
-of record and M125 the milestone; this file holds the reasoning, the
-catalogue and the numbers behind them.
+section 15); revised on 2026-10-10 after the third review
+(`RVJUDGEFAST3`) and the owner's answer to Q-D107 (variant B, section 9).
+Nothing here is built. PLAN.md D107 is the decision of record and M125 the
+milestone; this file holds the reasoning, the catalogue and the numbers
+behind them.
 
 ## 1. The owner's request
 
@@ -46,8 +48,10 @@ This version starts from what the owner asked for:
 
 The standing rule from D50 and D77 does not change. The judge never answers
 the user, never writes code, and is never the only gate for an action (owner
-memory `typesafe-assist-only`, 2026-09-27). Section 9 keeps the one question
-this design leaves to the owner.
+memory `typesafe-assist-only`, 2026-09-27). Section 9 records the owner's
+answer to the one question this design left him (variant B, 2026-10-10):
+the judge becomes one of two gates for skipping the slow reviewer, never
+the only one.
 
 ## 2. What the judge is
 
@@ -155,19 +159,63 @@ P, on any of the three rigs. Two rules follow:
   on the path setup actually runs. Raw inference timings may be shown as
   information, never used for eligibility.
 - **Making the verified path fast is M125 work (lane J), not a
-  relaxation.** The disk proof stays; what changes is when it runs. The
-  full two-pass hash runs at registration, after a preload and whenever the
-  model's identity may have changed. Between full proofs, each content
-  connection keeps 2j's per-connection peer check and revalidates the
-  retained blob handles (2j's retained-handle snapshot: same file
-  identity, size and change time, zero bytes written) instead of rehashing
-  4.5 GB. Any identity change, a new runtime generation or a failed
-  revalidation falls back to the full proof before the next dispatch,
-  never after. Lane J is reviewed as a security change with M98's owner,
-  keeps every 2j red drill, adds drills for a blob replaced, truncated or
-  rewritten in place between proofs, and records the new complete-path
-  timings per platform. Until a platform has those receipts, its local
-  rows are P-only.
+  relaxation.** The disk proof stays; what changes is when it runs, and
+  only where the operating system can guarantee that the proven bytes
+  cannot change unseen between proofs. Metadata is never that guarantee:
+  2j rehashes on purpose because Windows may report cached metadata to an
+  open reader (`local/model.ts`, `docs/certification/m98p2-j.md`), and a
+  writer with attribute access can suppress the next LastWriteTime and
+  ChangeTime updates (`FILE_BASIC_INFORMATION`, the third review). An
+  earlier version of this design revalidated identity, size and change
+  time; that is withdrawn. The shortcut needs a write-exclusion or
+  write-notification mechanism, per platform:
+  - **Windows: write exclusion by share mode.** A native helper (C#,
+    beside `MuseSparkJob.cs`) opens every blob with read access and a
+    share mode of `FILE_SHARE_READ` only (no write or delete sharing)
+    **before** the full proof, and keeps those handles open. While they
+    are held, the system refuses any other open for writing or deleting,
+    and any rename, with a sharing violation; an open that fails because
+    some process already holds the blob for writing means there is no
+    exclusion, and that blob keeps the full proof before every dispatch.
+    The full two-pass proof then hashes through the held handles. Per
+    connection the shortcut checks that the helper is alive and still
+    holds every handle, and that each path still names the held file
+    (file id and volume serial, which a rename-and-replace changes).
+  - **Linux: write notification by read lease.** A native helper (C,
+    built beside `MuseSparkCreated.c`) takes a read lease
+    (`fcntl(F_SETLEASE, F_RDLCK)`) on every blob before the full proof.
+    The kernel grants a read lease only while no process has the file
+    open for writing, and breaks it when one opens it for writing or
+    truncates it: the opener is held until the lease holder releases (at
+    most the system's lease-break time), and the helper, on the break
+    signal, first marks the proof invalid and reports it, and only then
+    releases. A shared writable mapping needs a writable open, so it
+    breaks the lease too. A lease needs the blob to belong to the user, so
+    a store owned by another account (a system Ollama) and a file system
+    without leases keep the full proof before every dispatch. Per
+    connection the shortcut checks that the helper is alive, every lease
+    is held, and each path's device and inode equal the held descriptor's.
+  - **macOS: no shortcut.** No mechanism available to an unprivileged
+    process excludes or reliably reports writes by another process of the
+    same user (`flock` binds only cooperating writers; the user can clear
+    an immutable flag), so the full two-pass proof stays before every
+    dispatch, and local engines on macOS stay P-only unless lane J finds,
+    and drills, such a mechanism.
+
+  Any identity change, a new runtime generation, a helper exit, a broken
+  lease or a lost handle falls back to the full proof before the next
+  dispatch, never after. Lane J is reviewed as a security change with
+  M98's owner, keeps every 2j red drill, and adds, per platform with a
+  shortcut: a blob rewritten in place at the same length with its
+  timestamps suppressed (the third review's case; on Windows the writer's
+  open fails while the handles are held, on Linux the lease breaks before
+  the write); a writer present before the hold (the hold fails, the full
+  proof stays); a writable mapping made before the hold; truncation; a
+  rename-and-replace; the helper killed between proofs. It records the
+  new complete-path timings per platform. The pinned Ollama's own opens of
+  a held blob are captured on Windows first (free, local): if Ollama asks
+  for write access, the hold would block it, and Windows keeps the full
+  proof. Until a platform has those receipts, its local rows are P-only.
 
 ### 4.2 Resolution on this machine
 
@@ -179,28 +227,40 @@ measured latency, not from the table above:
    workspace, only verified local engines remain.
 2. Read each engine's rolling latency for this class's state size: the
    complete call (for a local engine, 2j's verified path including its peer
-   check and disk proof), never raw inference. The window
-   is the last `JUDGE_FAST_LATENCY_WINDOW` = 50 answers, in memory per window
-   and in global storage per machine, with no content. An engine with no
-   samples gets one warm-up probe on synthetic text and is not used until it
-   has a sample.
+   check and disk proof), never raw inference. The window is the last
+   `JUDGE_FAST_LATENCY_WINDOW` = 50 **attempts**, not answers, in memory
+   per window and in global storage per machine, with no content. An
+   attempt that ends in a deadline expiry, a timeout, a transport error or
+   a `no-answer` outcome is recorded as a **miss**, with infinite latency;
+   only a cancellation of our own (the turn ended, the user sent first,
+   dispose) is left out. An engine with no samples gets one warm-up probe
+   on synthetic text and is not used until it has a sample.
 3. Keep the first engine that the class's eligibility rule (section 5)
-   admits for its p95. The same function decides the wizard's
-   recommendation and its Done screen. One that drifts
-   over budget (a loaded CPU) is skipped until it requalifies (step 5). An
-   answer is never awaited past its deadline.
+   admits for its p95 over that window, misses included: three misses in
+   50 attempts already put the p95 at infinity, so an engine that starts to
+   hang or time out fails `eligible` by its third miss and is
+   **suspended** for that class at once. The same function decides the
+   wizard's recommendation and its Done screen. One that drifts over
+   budget (a loaded CPU) is skipped in the same way. A suspended or skipped
+   engine gets no real questions until it requalifies (step 5). An answer
+   is never awaited past its deadline.
 4. If none fits, the class runs its deterministic checks only, and the Judge
    section says why ("no engine answers within 300 ms here; local model
    3.4 s").
-5. **Requalifying a skipped engine.** A skipped engine gets no real
-   questions, so its window cannot recover on its own. A skipped local
-   engine gets one background probe on synthetic text (no workspace
-   content, so it is allowed in a confidential workspace) at most every
-   `JUDGE_FAST_REPROBE_MS` = 60 s, only while no turn is running, cancelled
-   on dispose; a probe within budget re-admits it. A hosted engine is never
-   probed in the background: its samples expire after
-   `JUDGE_FAST_SAMPLE_TTL_MS` = 10 min, and its next use is one warm-up
-   probe admitted under its D78 consent and daily budget, like any call.
+5. **Requalifying a skipped or suspended engine.** It gets no real
+   questions, so its window cannot recover on its own, and the misses in it
+   would keep its p95 infinite. A local engine gets one background probe
+   on synthetic text (no workspace content, so it is allowed in a
+   confidential workspace) at most every `JUDGE_FAST_REPROBE_MS` = 60 s,
+   only while no turn is running, cancelled on dispose. It is re-admitted
+   only after `JUDGE_FAST_REQUALIFY_PROBES` = 3 consecutive probes answer
+   within the class's budget; its window then restarts from those probes,
+   so the misses that suspended it no longer count. A probe that misses
+   resets that count. A hosted engine is never probed in the background:
+   its samples, misses included, expire after `JUDGE_FAST_SAMPLE_TTL_MS` =
+   10 min, and its next use is one warm-up probe admitted under its D78
+   consent and daily budget, like any call; a miss there suspends it
+   again.
 6. **An unloaded local model is recovered by a preload, not a judgment.**
    2j refuses with `source-unavailable` before any inference when the
    registered model is not in `/api/ps` (a fresh runtime, or keep-alive
@@ -239,8 +299,14 @@ engine 1–6 is available, and then only:
   eligible for B's 2 s budget;
 - as one batched call per state (all due questions together), never one per
   question;
-- with D77's existing consent notice, and on Muse Code in one reused judge
-  session rather than a new hidden session per batch.
+- with D77's existing consent notice, and on Muse Code through D77's fresh
+  hidden session per batch, unchanged (`museCodeSameJudge.ts`: a new
+  folder and session per batch, disposed after it). An earlier version of
+  this design reused one judge session here; that is withdrawn (third
+  review). P runs in the background after the reply, so the session's
+  start-up does not delay the user, and keeping D77's isolation means no
+  judged state or history carries from one batch to the next and the
+  same-model adapter and its tests stay as they are.
 
 A user on this fallback is told plainly that a local or hosted judge may
 answer faster, with the measured times of the engines this machine could
@@ -293,8 +359,10 @@ verified path is slower, section 4.1):
 | Chat model, 8–14 s                                     | Never   | Never | Never                                                             | Yes, background, batched |
 
 \* Only once the verified path on that machine measures within the budget
-(lane J). † Its recorded range reaches past 2 s; B only where its measured
-p95 is at most 2 s.
+(lane J; on Windows and Linux through its write-exclusion or lease
+shortcut, never on macOS while the full proof runs before every dispatch).
+† Its recorded range reaches past 2 s; B only where its measured p95 is at
+most 2 s.
 
 Deterministic checks (section 8.4) run in every class in microseconds to a
 few milliseconds, and stand in whenever no engine fits.
@@ -856,75 +924,84 @@ Each cell is what section 5's `eligible` admits on the recorded numbers,
 once lane J's verified path meets them; model-backed accuracy checks
 also need their profiles (7.0).
 
-| User                                        | Inline (I)                                  | Boundary (B)                          | Slack and post-turn (S, P)                                          |
-| ------------------------------------------- | ------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------- |
-| Default, before setup                       | Deterministic checks                        | Deterministic checks                  | Deterministic checks; the chat model in P only if the user opted in |
-| Default, after the wizard installs it (CPU) | Deterministic checks                        | Deterministic checks (over 2 s)       | `tev1:4b`, batched                                                  |
-| A GPU with `tev1:4b`                        | Deterministic checks (0.36 s is over 0.3 s) | `tev1:4b`                             | `tev1:4b`                                                           |
-| An OpenRouter key and consent               | Deterministic checks                        | Jev only where its p95 is at most 2 s | Jev                                                                 |
-| Confidential workspace                      | Deterministic checks                        | Verified local only, as above         | Verified local only; never a hosted engine                          |
-| Any local engine before lane J              | Deterministic checks                        | Deterministic checks                  | P only (6.5–18.4 s verified path)                                   |
+| User                                         | Inline (I)                                  | Boundary (B)                          | Slack and post-turn (S, P)                                          |
+| -------------------------------------------- | ------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------- |
+| Default, before setup                        | Deterministic checks                        | Deterministic checks                  | Deterministic checks; the chat model in P only if the user opted in |
+| Default, after the wizard installs it (CPU)  | Deterministic checks                        | Deterministic checks (over 2 s)       | `tev1:4b`, batched                                                  |
+| A GPU with `tev1:4b`                         | Deterministic checks (0.36 s is over 0.3 s) | `tev1:4b`                             | `tev1:4b`                                                           |
+| An OpenRouter key and consent                | Deterministic checks                        | Jev only where its p95 is at most 2 s | Jev                                                                 |
+| Confidential workspace                       | Deterministic checks                        | Verified local only, as above         | Verified local only; never a hosted engine                          |
+| Any local engine before lane J               | Deterministic checks                        | Deterministic checks                  | P only (6.5–18.4 s verified path)                                   |
+| A local engine on macOS (no lane J shortcut) | Deterministic checks                        | Deterministic checks                  | P only (the full proof runs before every dispatch)                  |
 
-## 9. The approval fast path: the owner's question
+## 9. The approval fast path (variant B, the owner's choice)
 
 Today, in Auto, an action that rules do not allow outright is held for a
 reviewer: M78's Auto reviewer on the Model API, and M90's reviewer on Muse
 Code (`AUTO_REVIEWER_TIMEOUT_MS` = 60 s, `MUSE_CODE_REVIEW_TIMEOUT_MS` = 45
 s). Each review is a big-model call. For a plainly safe command (`cat
-src/a.ts`, `ls src`, `git diff`) that is the largest single wait an agent
+src/a.ts`, `ls src`, `npm test`) that is the largest single wait an agent
 step can have.
 
-### Variant A: advisory only
+### 9.1 The owner's decision
 
-- The judge takes no part in granting approvals. The speed comes from
-  section 6, the accuracy from section 7 (7.1 may keep an action held, never
-  release one).
-- Approval behaviour is byte-identical to today whenever 7.1 does not fire.
+**Q-D107 answered by the owner, 2026-10-10: B, with B1 and B2.** He was
+told that this design recommended A plus a deterministic read-only allow
+list (9.8), and that B2 runs repository code an agent may have edited;
+after that explanation he chose the full fast path. A held Auto action may
+skip the slow reviewer only when:
 
-### Variant B: A, plus a bounded approval fast path
+1. it passes the deterministic floor nothing overrides (forbid and ask
+   rules, evaluators, redirection, `sudo`, installs, destructive git,
+   outside or protected paths, secrets, network, paid, spawn);
+2. it belongs to a built-in class: **B1**, read-only inspect commands, or
+   **B2**, the workspace's own unchanged check scripts;
+3. the judge does not veto within 300 ms; no answer is a veto.
 
-**Why the command line is not enough.** The second review showed that a
-command's spelling cannot prove read-only execution. `cat src/a.ts` runs
-whatever `cat` comes first on `PATH`, and a workspace `bin/cat` the agent
-wrote can do anything. A genuine program can read configuration the
-command line does not show: ripgrep takes `--pre` (a program it runs) from
-`RIPGREP_CONFIG_PATH`; git runs filter drivers, `textconv`, `core.fsmonitor`
-and pagers from repository configuration and `.gitattributes`, and `git
-status` refreshes the index. Today's shell tool runs the line through the
-shell with the inherited environment (`src/host/backend/toolIo.ts`), and
-the vault fence strips neither `PATH` nor those variables
-(`src/core/vault/exec/fence.ts`). So B is built only where the harness
-itself fixes **what runs and what it reads**, and is dropped where it
-cannot.
+Every skip leaves an audit row; undo goes through the turn's checkpoint
+(M72's, as M86 rebuilt it); there are kill switches; a class turns on by
+default only after zero harm in 400 labelled actions for that class. The
+judge is one of two gates, never the only one.
 
-**Where B cannot be built, and is dropped.**
+Lane F builds this; it is planned work, no longer conditional. The rest of
+this section is how it is built so that the three conditions mean what
+they say: the floor and the classes are enforced by the operating system
+while the command runs, not only by reading its command line, and a class
+is off on any platform that cannot give it that enforcement (9.2).
+
+### 9.2 Where B runs
+
+| Class            | Linux                                                                                                              | macOS                                                                                  | Windows | Muse Code (any OS) | Extension running as root |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- | ------- | ------------------ | ------------------------- |
+| B1 inspect       | Landlock (ABI 3 or later) through lane F's confinement helper, after the self-test                                 | Seatbelt through `/usr/bin/sandbox-exec`, after the capture and the self-test          | Off     | Off                | Off                       |
+| B2 check scripts | bubblewrap 0.11.0 or later, not setuid: namespaces and an overlay at the workspace's own path, after the self-test | An APFS clone of the workspace run under Seatbelt, after the capture and the self-test | Off     | Off                | Off                       |
 
 - **Muse Code.** The CLI runs an approved command itself, through its own
   shell, `PATH` and environment; the extension only answers the approval.
-  It cannot fix the executable or its configuration, so B does not exist
-  on Muse Code. Its held approvals go to M90's reviewer exactly as today.
-- **Windows.** The B1 programs are not verified system executables there:
-  in PowerShell `cat` and `ls` are aliases for cmdlets, Git for Windows'
-  copies sit in a folder the user can write, and System32's `find.exe` and
-  `tree.com` are different programs. B1 is empty on Windows, so B gives
-  nothing there.
-- **git.** Its effective configuration includes the repository's own
-  `.git/config` and `.gitattributes`, which the agent can write, and git
-  cannot read a repository while ignoring that repository's configuration.
-  `-c` overrides cannot name filter drivers or diff drivers it has not
-  seen, and `git status` writes the index. No option set makes git
-  read-only against an agent-controlled repository, so git leaves B1.
-- **ripgrep (`rg`).** It is not a system executable on any platform (a
-  user's install, Cargo's folder or the editor's bundled copy), and its
-  `--pre`, `--search-zip` and `--hostname-bin` run other programs. It
-  leaves B1. `tree` and `which` leave too: neither is a system executable
-  everywhere, and neither is worth a verified path.
-- **The extension running as root** (uid 0): root can replace system
-  files, so the ownership check below proves nothing. B is off.
+  It cannot confine what runs, so B does not exist on Muse Code. Its held
+  approvals go to M90's reviewer exactly as today.
+- **Windows.** B1's programs are not verified system executables there (in
+  PowerShell `cat` and `ls` are aliases for cmdlets, Git for Windows'
+  copies sit in a folder the user can write, System32's `find.exe` is a
+  different program), and neither class has a confinement that an
+  unprivileged process can apply without changing the user's files (9.5).
+  Both are off; held actions go to the reviewer as today. A Remote-WSL or
+  SSH workspace follows the rules of the system its extension host runs
+  on.
+- **Root.** Root can replace system files and leave any sandbox, so the
+  ownership checks prove nothing. B is off.
+- **A machine that fails a probe** (an older kernel, Landlock not enabled,
+  user namespaces restricted, an older bubblewrap, a workspace on a file
+  system that cannot be overlaid or cloned) runs the affected class
+  nowhere, and the Judge section names the reason and what would enable
+  it. The extension never changes a system setting, never installs
+  bubblewrap, and never runs a class in place as a fallback.
 
-**What remains: Model API and M95, on Linux and macOS.** A held action
-skips the reviewer, and is allowed, only when **all** of the following
-hold. Otherwise the reviewer runs exactly as today.
+### 9.3 Conditions both classes share
+
+A held action skips the reviewer, and runs inside its class's confinement,
+only when all of the following hold. Otherwise the reviewer runs exactly
+as today.
 
 1. **Mode.** Auto (Model API `onRequest`, M95 providers). Never in Manual,
    Plan, Restricted Mode, a headless run, or a conversation that started
@@ -934,134 +1011,459 @@ hold. Otherwise the reviewer runs exactly as today.
    - any forbid or ask command rule (M78), anywhere in the line;
    - an evaluator (`eval`, `iex`, `-EncodedCommand`);
    - redirection, `tee`, any pipe, a subshell, or any other shell syntax;
-   - `sudo`, a package install or remove, any `git` command, anything with
-     `--force`;
-   - a path outside the workspace, a protected path (D24) or a secret in
-     the arguments (`countSecretMatches`);
-   - the network, a paid tool, a spawn, or a non-read-only MCP tool;
+   - `sudo`, a package install or remove, any `git` command (the owner's
+     "destructive git"; neither class admits any git command, 9.4),
+     anything with `--force`;
+   - a path outside the workspace, a protected path (D24) or a private
+     file (`shared/privateFiles.ts`) in the arguments, or a secret in them
+     (`countSecretMatches`);
+   - the network, a paid tool, a spawn (a sub-agent or a background job),
+     or a non-read-only MCP tool;
    - a confidential workspace using a non-local judge engine.
-3. **The built-in class B1, inspect.** Deterministic, in code, with
-   `match`/`not_match` examples like M78's rules. Every part must hold:
-   - **One argv, no shell.** The line splits into words under a strict
-     grammar: plain words and single-quoted words only, with no `$`,
-     backquote, `~`, `;`, `&`, `|`, `<`, `>`, parentheses, newline or
-     unquoted glob character. Otherwise not B1.
-   - **The program** is one of `ls`, `cat`, `head`, `tail`, `wc`, `stat`,
-     `du`, `grep`, `find`.
-   - **A verified executable, not a `PATH` lookup.** The harness takes the
-     program's absolute path from a fixed per-platform table (`/bin` and
-     `/usr/bin` on Linux; `/bin` and `/usr/bin`, which SIP protects, on
-     macOS), resolves symbolic links, and requires a regular file that is
-     owned by root and is not writable by its group, by others or by the
-     current user, under directories that are each owned by root and
-     not group- or other-writable. It checks this immediately before the
-     run and then executes **that resolved path itself**, by `execve` with
-     the argv and no shell, so what was checked is what runs. The
-     `PATH` the agent or its shell sees plays no part.
-   - **A neutral environment, not the inherited one.** The child gets
-     exactly `PATH=/usr/bin:/bin`, `LC_ALL=C` and `HOME` set to an empty
-     private folder, and nothing else: no `LD_PRELOAD`,
-     `LD_LIBRARY_PATH`, `DYLD_*`, `GREP_OPTIONS`, `POSIXLY_CORRECT` or any
-     other variable. Standard input is `/dev/null`, there is no terminal
-     (so no pager or editor), the working directory is the workspace root,
-     and the normal tool timeout applies. None of the nine programs reads
-     a configuration file, alias or hook.
-   - **Per-program option shapes**, per platform, because GNU and BSD
-     options differ. For example: `ls` `-l -a -A -h -R -1 -t -r -S -d -F`;
-     `cat` `-n`; `head`/`tail` `-n N` and `-c N` (no `-f`, `-F` or
-     `--follow`); `wc` `-l -w -c -m`; `stat` with no options; `du` `-s -h
--k` and a depth limit in the platform's spelling; `grep` `-n -i -r -l
--L -c -E -F -w -v -x -h -H`, `-e PATTERN`, `--include=GLOB` and
-     `--exclude=GLOB` (not `-R`, which follows links, and not `-f`, `-d`
-     or `-D`); `find` the tests `-name -iname -path -ipath -type -mtime
--mmin -size -empty -maxdepth -mindepth`, the operators `!`, `-a` and
-     `-o`, and the action `-print` only (not `-L`, `-H` or `-follow`, and
-     `-fprint*`, `-fls`, `-exec*`, `-ok*` and `-delete` fail by not being
-     listed). Any option off the list, including an unknown one, means
-     "not B1".
-   - **Operands.** Every path operand, after resolving links, is inside the
-     workspace, not a protected path, and a regular file or directory (not
-     a device, FIFO or socket). The recursive forms allowed (`ls -R`,
-     `grep -r`, `find` without `-L`) do not follow links, so a link inside
-     the workspace is never read through to a file outside.
-4. **The judge does not veto** within the inline deadline. It answers 7.1's
-   `risk.destructive` noul with p(yes) under a calibrated threshold (a
-   fitted profile, section 7.0), from an engine eligible for I. No answer,
-   a late answer or an uncalibrated engine means a veto, so the reviewer
-   runs. Since no engine measured so far is eligible for I (section 5), B
-   skips nothing until one is.
+3. **No racing writer that the agent started.** No background job the
+   agent started (D25's shell jobs) is alive in this workspace. A process
+   that swaps a folder for a link, or plants a protected file, while the
+   command runs can only come from one; the user's own tools are the
+   user's.
+4. **The class's confinement is available** on this machine and passed its
+   self-test in this session (9.4, 9.5).
+5. **The judge does not veto** within `JUDGE_FAST_INLINE_DEADLINE_MS` =
+   300 ms. It answers 7.1's `risk.destructive` noul over the command (for
+   B2 also the script's text and the paths changed since the owner's
+   baseline) with p(yes) under a calibrated threshold (a fitted profile,
+   section 7.0), from an engine eligible for I. No answer, a late answer
+   or an uncalibrated engine is a veto, and the reviewer runs. No engine
+   measured so far is eligible for I (section 5), so lane F ships complete
+   but skips nothing until one is; 9.7 asks the owner whether B2 may use
+   its contained run as the veto's window instead.
 
-**B2 (the workspace's own check scripts) is not part of variant B.** A
-stored hash of the script's text does not cover what it runs (the agent
-can change `scripts/check.js` and leave `"test"` unchanged), and command
-writes are outside M86's checkpoints, so "Restore files" could not undo
-them. B2 would need a real execution boundary (a sandbox with a write
-snapshot), which is not in M125.
+### 9.4 B1, inspect: what runs, and what it may read
 
-The safety envelope:
+**What runs** (the second review's fix, kept). Every part must hold:
+
+- **One argv, no shell.** The line splits into words under a strict
+  grammar: plain words and single-quoted words only, with no `$`,
+  backquote, `~`, `;`, `&`, `|`, `<`, `>`, parentheses, newline or unquoted
+  glob character. Otherwise not B1.
+- **The program** is one of `ls`, `cat`, `head`, `tail`, `wc`, `stat`,
+  `du`, `grep`, `find`. Not git (its own repository is a protected path B1
+  must not read, and its configuration and attributes run filter drivers,
+  `textconv`, `core.fsmonitor` and pagers), not ripgrep (no system path on
+  any platform, and its `--pre`, `--search-zip` and `--hostname-bin` run
+  other programs), not `tree` or `which` (not system executables
+  everywhere).
+- **A verified executable, not a `PATH` lookup.** The harness takes the
+  program's absolute path from a fixed per-platform table (`/bin` and
+  `/usr/bin` on Linux; `/bin` and `/usr/bin`, which SIP protects, on
+  macOS), resolves symbolic links, and requires a regular file that is
+  owned by root and is not writable by its group, by others or by the
+  current user, under directories that are each owned by root and not
+  group- or other-writable. It checks this immediately before the run and
+  then executes **that resolved path itself**, by `execve` with the argv
+  and no shell, so what was checked is what runs. The `PATH` the agent or
+  its shell sees plays no part.
+- **A neutral environment, not the inherited one.** The child gets exactly
+  `PATH=/usr/bin:/bin`, `LC_ALL=C` and `HOME` set to an empty private
+  folder, and nothing else: no `LD_PRELOAD`, `LD_LIBRARY_PATH`, `DYLD_*`,
+  `GREP_OPTIONS`, `POSIXLY_CORRECT` or any other variable. Standard input
+  is `/dev/null`, there is no terminal (so no pager or editor), no
+  descriptor but the three standard ones is inherited, the working
+  directory is the workspace root, and the normal tool timeout applies.
+- **Per-program option shapes**, per platform, because GNU and BSD options
+  differ. For example: `ls` `-l -a -A -h -R -1 -t -r -S -d -F`; `cat` `-n`;
+  `head`/`tail` `-n N` and `-c N` (no `-f`, `-F` or `--follow`); `wc` `-l
+-w -c -m`; `stat` with no options; `du` `-s -h -k` and a depth limit in
+  the platform's spelling; `grep` `-n -i -r -l -L -c -E -F -w -v -x -h -H`,
+  `-e PATTERN`, `--include=GLOB` and `--exclude=GLOB` (not `-R`, which
+  follows links, and not `-f`, `-d` or `-D`); `find` the tests `-name
+-iname -path -ipath -type -mtime -mmin -size -empty -maxdepth -mindepth`,
+  the operators `!`, `-a` and `-o`, and the action `-print` only (not `-L`,
+  `-H` or `-follow`, and `-fprint*`, `-fls`, `-exec*`, `-ok*` and `-delete`
+  fail by not being listed). Any option off the list, including an unknown
+  one, means "not B1".
+
+**Why operand checks were not enough (third review).** The previous
+version checked that each operand, after resolving links, lay inside the
+workspace and outside protected paths, and then let the program open it.
+That binds a name, not the file the program reads: a background process
+can replace `src` with a link to another project between the check and the
+open, and the program follows it. `grep -r -e url .` names one ordinary
+folder, yet reads `.git/config` and every other protected file below it.
+And the claim that the admitted recursive forms never follow links was
+wrong: GNU grep follows a symbolic link named on its command line. B1
+therefore confines the read set at the moment of each open, in the kernel.
+
+**The operands, opened without following links.** Lane F's confinement
+helper (`MuseSparkConfine`, native C built for Linux and macOS like
+`muse-created`) opens the workspace root once and checks its identity
+(device and inode) against the workspace's resolved root; links above the
+root are accepted, as everywhere (D105). Each operand must be a plain
+workspace-relative path with no `..` component, and is opened from that
+root without following a link at any depth: on Linux by `openat2` with
+`RESOLVE_BENEATH`, `RESOLVE_NO_SYMLINKS`, `RESOLVE_NO_MAGICLINKS` and
+`RESOLVE_NO_XDEV`; on macOS by `openat` with `O_NOFOLLOW_ANY`. The opened
+descriptor must be a directory, or a regular file with a link count of 1
+(a hard link can name a file outside), on the root's device, and its
+workspace-relative name must be neither protected (D24) nor private. Any
+failure means "not B1".
+
+**The allowed read set.** For a non-recursive form it is the operands
+themselves. For `ls -R`, `grep -r`, `find` and `du`, the helper walks each
+operand tree through the same no-follow descriptors, within
+`JUDGE_FAST_B1_WALK_MAX_ENTRIES` = 20,000 entries and
+`JUDGE_FAST_B1_WALK_MAX_MS` = 100 ms (over either, not B1). It excludes
+every protected or private entry, every link, every regular file with more
+than one link, every entry on another device (a mount), and every device,
+FIFO or socket. A subtree with nothing excluded is allowed whole; a folder
+that contains an excluded entry is allowed entry by entry.
+
+**Linux: Landlock.** The helper sets `no_new_privs` and creates a Landlock
+ruleset that handles every file-system right of the running ABI (at least
+3, which adds truncation; on ABI 4 or later it also refuses TCP bind and
+connect). It grants read-file and read-directory rights only on the
+allowed set, from the descriptors it already opened (so a name swapped
+afterwards does not move a rule); read and execute on the verified program
+and the loader's library folders; read on `/etc/ld.so.cache`,
+`/etc/nsswitch.conf`, `/etc/passwd`, `/etc/group` and `/etc/localtime`
+(names and times for `ls -l`); and nothing else. A
+seccomp filter refuses sockets other than `AF_UNIX`, and `ptrace`. The
+helper closes every descriptor but the three standard ones and calls
+`execve` on the verified program. Landlock checks each open against the
+hierarchy the path actually reaches, so an ancestor or leaf swapped for a
+link after the rules were made leads outside every allowed hierarchy, and
+the open fails with "Permission denied"; a link met during recursion is
+refused the same way. Writing, creating, removing, truncating and running
+any other program are refused because no rule grants them. Landlock's own
+limits stay: it does not restrict `stat` (B1 names only its operands and
+the entries it lists), and its rules allow whole hierarchies, so a
+protected file created inside an allowed subtree while the command runs
+would be readable; condition 3 excludes the agent as that writer.
+
+**macOS: Seatbelt.** The helper runs the verified program through
+`/usr/bin/sandbox-exec` (a root-owned, SIP-protected system file, verified
+like the programs) with a profile it writes for this run: deny by default;
+execute only the verified program; read the allowed set and the system
+part (the dynamic loader and its shared cache, captured on the Mac mini and
+committed); deny reads of any path under the workspace that matches a
+protected or private pattern, which also covers entries created after the
+walk; deny the excluded links, hard links and mounts by literal path; no
+network; service lookups limited to the captured minimum (directory
+services for user names). Seatbelt checks the path an open resolves to, so
+a swapped link resolves outside and is refused. Apple marks `sandbox-exec`
+deprecated but ships it; if a release removes it, or the self-test fails,
+B1 is off on that Mac.
+
+**The self-test.** Once per session, before the first B1 run, the helper
+runs `cat` and `grep -r` over a canary tree it writes in the extension's
+storage. The allowed file must be read; a file outside reached through a
+link, a hard-linked outside file, a `.git/config` and a `.env` canary must
+not appear in the output. Any failure turns B1 off, with the reason.
+
+**What the agent sees.** The program's output, as today. An excluded entry
+shows as the program's own "Permission denied" line, and the transcript
+row counts the entries not read. An output with a secret match is withheld
+and the action goes to the reviewer; B1 has no side effect, so nothing
+else needs undoing.
+
+**Red drills (lane F),** each expected to go to the reviewer or to return
+no byte of the forbidden file:
+
+| Drill                      | Case                                                                                                                                                                                    | Expected                                                                                              |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| B1-1 ancestor swap         | `cat src/a.ts`; `src` replaced by a link to another project's `src` before the helper opens it, and again after the rules are made                                                      | Before: refused by the no-follow open (reviewer). After: the open fails. No byte of the other project |
+| B1-2 leaf swap             | The same, with `src/a.ts` replaced by a link to an outside canary                                                                                                                       | As B1-1                                                                                               |
+| B1-3 protected descendants | `grep -r -e url .` over `.git/config`, a nested `pkg/.git/config`, `.claude/settings.json`, `.env`, `config/.env.production`, `certs/dev.pem` and `AGENTS.md`, each holding the pattern | None of their bytes; each counted as not read                                                         |
+| B1-4 hard link             | `notes.txt` a hard link to an outside canary, as an operand and inside a recursive walk                                                                                                 | Operand: reviewer. Walk: not read                                                                     |
+| B1-5 command-line link     | `grep -r x linkdir`, `linkdir` a link to outside                                                                                                                                        | Reviewer (GNU grep would follow it)                                                                   |
+| B1-6 link in recursion     | `ls -R`, `find .` and `grep -r` over a tree with a link to outside and one to a protected folder                                                                                        | Not read                                                                                              |
+| B1-7 mount                 | A mount inside the workspace (where the rig allows one; otherwise a fake device id in unit tests)                                                                                       | Not read                                                                                              |
+| B1-8 racing writer         | An agent-started background job alive in the workspace                                                                                                                                  | Reviewer                                                                                              |
+| B1-9 no confinement        | Landlock below ABI 3 or not enabled; `sandbox-exec` missing; a self-test canary read                                                                                                    | B1 off, with the reason                                                                               |
+| B1-10 inherited descriptor | A descriptor to an outside canary open in the parent                                                                                                                                    | Not inherited; not read                                                                               |
+| B1-11 secret in output     | A workspace file with a secret-shaped line                                                                                                                                              | Output withheld; reviewer                                                                             |
+
+The second review's drills stay: a workspace `bin/cat` first on `PATH`; a
+`cat` reached through a link into a user-writable folder; a user-writable
+copy in `/usr/local/bin`; `LD_PRELOAD`, `GREP_OPTIONS` and
+`RIPGREP_CONFIG_PATH` set in the parent (absent in the child); every
+writing `not_match` example (the `find` actions, `tail -f`); any `git` or
+`rg` command; root; a Windows host; a Muse Code approval.
+
+### 9.5 B2, check scripts: a contained, discardable run
+
+**Why a hash is not enough, and what is.** A check script runs repository
+code: the tests, the sources they import, setup files, dependencies in
+`node_modules`. The agent may have edited any of it. Pinning the script's
+definition establishes only that the _command_ is the owner's own; it says
+nothing about what the code does. B2's safety therefore comes from
+containment: the run cannot reach the network, cannot write anything that
+survives it, cannot read the user's secrets outside the workspace, and
+leaves no process behind. Its result is delivered only when the run stayed
+a pure check; otherwise it is thrown away and the reviewer runs as today.
+
+**What qualifies.**
+
+- `npm test`, `npm run <script>`, `pnpm <script>`, `pnpm run <script>`,
+  `yarn <script>` or `yarn run <script>`, with `<script>` one of
+  `JUDGE_FAST_B2_SCRIPTS`: `test`, `test:unit`, `lint`, `typecheck`,
+  `type-check`, `check`, `format:check`. No option. After `--`, only plain
+  workspace-relative path operands (a test-file filter), never an option,
+  which could name a setup file or update snapshots.
+- The package manager is resolved from the extension host's `PATH` with
+  every folder inside the workspace removed. Its identity is recorded;
+  containment, not identity, is what bounds it.
+- **The definition is the owner's.** Every file in the script's definition
+  closure is byte-identical to the owner's baseline:
+  - in `package.json`, the `scripts` entries the run invokes (the script,
+    and the `pre` and `post` scripts the package manager runs with it) and
+    the `packageManager` field;
+  - the package-manager configuration in the workspace: `.npmrc` (its
+    `script-shell` and `node-options` change what runs), `.yarnrc`,
+    `.yarnrc.yml` and the file its `yarnPath` names, `.pnpmfile.cjs`,
+    `pnpm-workspace.yaml`;
+  - every workspace file the script's text names (`scripts/check.js`,
+    `vitest.config.ts`).
+- **The owner's baseline** is the version at the last HEAD that moved
+  while no agent turn was running (the user's own commit, pull or
+  checkout), read by the harness from git's object store with no filter,
+  hook or text conversion; on first use, HEAD at the start of the first
+  turn in which the closure has no uncommitted change. A HEAD that moves
+  during a turn is attributed to the agent (it may have run `git commit`
+  through an approved command) and never becomes the baseline. No git
+  repository, or no baseline, means not B2. This answers the first
+  review's case: an agent that edits `scripts/check.js`, `package.json` or
+  `.npmrc`, committed or not, takes the script out of B2 until the user
+  commits.
+
+**The containment, on both platforms.**
+
+- **Writes never reach the workspace.** The check runs against a scratch
+  view of the workspace: an overlay on Linux, an APFS clone on macOS
+  (below). After the run every write is known exactly, and then all of
+  them are discarded, caches included. Nothing is copied back: a cache can
+  hold code that a later run would execute outside the sandbox.
+- **No network.** Linux: a new network namespace with only its own
+  loopback, so the host's loopback services are not reachable either.
+  macOS: the profile refuses every network operation, loopback included,
+  because a profile cannot tell the run's own listeners from the user's
+  local services (a database, Ollama, the extension's own servers); a
+  check that listens on loopback is discarded there (see Delivery).
+- **Reads by allow-list.** The system folders (`/usr`, `/bin`, `/sbin`,
+  `/lib*`, `/etc`, `/opt` on Linux; the system part on macOS), read-only;
+  the resolved install folders of `node` and the package manager,
+  read-only; the workspace through its scratch view; a private temporary
+  folder. The rest of the home folder is absent: no `~/.ssh`, `~/.aws`,
+  `~/.config`, `~/.npmrc`, `~/.gitconfig`, no keyring or secret-service
+  socket, no ssh or gpg agent, no D-Bus session (Linux: an empty tmpfs
+  over the home folder and `$XDG_RUNTIME_DIR`, with the install folders
+  bound back read-only; macOS: deny by default, service lookups limited to
+  the captured minimum). The workspace's own files, `.env` and other
+  private files included, **are** readable: a check may need them.
+- **A fixed environment.** Cleared, then `PATH` (the install folders and
+  system folders), `HOME` (an empty private folder), `TMPDIR` (the private
+  temporary folder), `LANG=C.UTF-8` and `CI=1`, with no terminal. No
+  inherited token.
+- **No process outlives it.** Linux: a new PID namespace with
+  `--die-with-parent` and `--new-session`, so the whole tree ends when the
+  run does or when the user presses Stop. macOS: every child inherits the
+  profile, and the tree is enumerated and killed at the end
+  (`processTree.ts`).
+- **Bounds.** The shell tool's own timeout and output caps, as today
+  (`SHELL_DEFAULT_TIMEOUT_MS`, `SHELL_MAX_TIMEOUT_MS`,
+  `SHELL_OUTPUT_MAX_CHARS`); the scratch view's writes within
+  `JUDGE_FAST_B2_SCRATCH_MAX_MIB` = 2,048 (polled; past it the run is
+  killed and discarded); setting up the scratch view within
+  `JUDGE_FAST_B2_SETUP_MAX_MS` = 2,000 ms (past it, not B2 for this
+  workspace until its size changes). CPU and memory are bounded no more
+  than a reviewer-approved run's are today.
+- **Undo.** The step's checkpoint is taken as for any action (M72's turn
+  checkpoint, as M86 rebuilt it), so the model's own file edits stay
+  restorable as today. B2 adds nothing to undo, because its writes never
+  reach the workspace. It never runs in place relying on a checkpoint
+  instead: M86 records that a command ran but does not undo its writes
+  (M86's acceptance; `docs/PRIVACY.md`), so where neither an overlay nor
+  a clone is possible, B2 is off.
+
+**Delivery.** After the run, its result goes to the agent as the command's
+result, passing or failing, only when all of these hold:
+
+- no write outside `JUDGE_FAST_B2_CACHE_PATHS` (`node_modules/.cache/`,
+  `node_modules/.vite/`, `node_modules/.vitest/`, `*.tsbuildinfo`,
+  `.eslintcache`, `coverage/`, `.nyc_output/`): a check that writes
+  elsewhere (a `lint` script running `eslint --fix`) is not a pure check,
+  and discarding its writes would leave the agent believing in a fix it
+  does not have;
+- no environment-failure marker in the output
+  (`JUDGE_FAST_B2_ENV_MARKERS`: name-resolution and unreachable-network
+  errors, a refused bind or connect, `command not found` or exit 127, a
+  permission or read-only error on a path), which would mean the sandbox,
+  not the code, failed the check;
+- no secret match in the output (`countSecretMatches`);
+- the bounds held, or the run timed out (a timeout is delivered as today's
+  timeout result when nothing else above failed).
+
+Otherwise the run is discarded whole and the action goes to the reviewer
+exactly as today. A write or a marker also marks that script, by its
+closure's digest, "not B2 in this workspace", so it is not tried again
+until its definition changes. The decision to skip meets the 300 ms
+deadline; a discarded run costs its own time on top of today's path, which
+the ship rule counts (section 11), and the marking stops it repeating.
+
+**Linux.** The system's bubblewrap, 0.11.0 or later (the release that
+added overlay mounts; they are not available to a setuid install),
+verified like B1's programs (a root-owned file under root-owned system
+folders), run with `--unshare-all`, `--die-with-parent`, `--new-session`
+and `--clearenv`; the system and install folders bound read-only; an empty
+tmpfs over the home folder, `$XDG_RUNTIME_DIR` and `/tmp`; `--proc` and
+`--dev`; and an overlay mounted at the workspace's own path
+(`--overlay-src` the workspace, `--overlay` with its upper and work
+folders in the extension's storage), so the paths in the output are the
+workspace's. The upper folder lists exactly what the run wrote, deletions
+included; the helper reads it, then removes it. This needs unprivileged
+user namespaces (some distributions restrict them; Ubuntu has done so
+through AppArmor since 23.10) and overlayfs inside a user namespace (Linux
+5.11 or later). A workspace on a file system that an overlay cannot use as
+its lower layer is not B2. The probe and the self-test decide, and the
+Judge section names what is missing ("B2 needs bubblewrap 0.11 or later;
+this system has 0.9.0").
+
+**macOS.** The workspace must be on APFS, on the same volume as the
+extension's storage. The helper clones it (`clonefile`: copy on write, so
+the clone shares the workspace's blocks until written) into a private
+scratch folder and runs the script there under `sandbox-exec` with a
+profile for this run: deny by default; read the system part, the install
+folders and the clone; write only the clone and the private temporary
+folder; no network; service lookups limited to the captured minimum;
+process creation allowed (test runners start workers), every child
+inheriting the profile. After the run the helper compares the clone with
+the workspace entry by entry (type, size, modification time, mode) to find
+the writes, then deletes the clone. Paths under the clone are shown as the
+workspace's in the delivered output. Before lane F relies on any of this,
+the profile's system part, the service lookups a Node check needs, and the
+cost of cloning and comparing per tree size are captured on the Mac mini
+(free, local). What remains different is that the check runs at another
+path: a check whose result depends on the workspace's absolute path may
+differ. M75's replays run each labelled B2 case both in place and in the
+clone, and any disagreement counts as harm.
+
+**Windows: off.** No mechanism an unprivileged process can use gives these
+properties without changing the user's files. An AppContainer reads and
+writes only objects whose access lists grant it, so the workspace copy,
+the toolchain under the user's profile and its caches would all need new
+access entries; loopback inside one needs a machine-wide exemption that
+takes administrator rights; there is no unprivileged overlay, and
+copy-on-write copies exist only on ReFS (a Dev Drive). Windows Sandbox
+needs Pro or Enterprise and virtualization, starts in seconds and has none
+of the user's toolchain. Held check scripts go to the reviewer exactly as
+today. B2 on Windows would be a milestone of its own; it is not planned.
+
+**Risks that remain, each bounded or audited.**
+
+- **The workspace's own secrets are readable inside the run.** A test may
+  load `.env`. Nothing can leave by the network, so the only way out is the
+  check's output to the model. The output is scanned: a match withholds it
+  and sends the action to the reviewer. A secret the scanner does not
+  recognise can reach the model; that is the exposure a reviewer-approved
+  `npm test` has today, since the reviewer sees only the command line.
+- **CPU, memory and time.** Bounded as a reviewer-approved run is: the
+  tool's timeout, Stop and the scratch cap. A discarded run's time counts
+  against B2 in the ship rule.
+- **Correctness of a delivered result.** A sandbox-induced failure that
+  the markers miss reaches the agent as a failing check, and on macOS a
+  path-dependent result may differ. Both count as harm in the labelled
+  set, which must stay at zero.
+- **Escaping the sandbox** needs a kernel or sandbox flaw. B2 uses each
+  platform's own mechanism (bubblewrap's namespaces on Linux, Seatbelt on
+  macOS), never runs as root, and the extension's helper only sets them up.
+- **Persistence.** None by construction: no write survives, caches
+  included; no process survives; nothing outside the scratch area is
+  written.
+
+**Red drills (lane F):**
+
+| Drill                    | Case                                                                                                                                                       | Expected                                                    |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| B2-1 script body         | The agent edits `scripts/check.js`, which the `test` script names; `package.json` unchanged                                                                | Reviewer                                                    |
+| B2-2 script line or hook | The agent edits `scripts.test`, or adds `pretest`                                                                                                          | Reviewer                                                    |
+| B2-3 manager config      | The agent writes `.npmrc` with `node-options=--require ./x.js`, or a `script-shell`                                                                        | Reviewer                                                    |
+| B2-4 agent commit        | The agent commits B2-1's change; HEAD moves during the turn                                                                                                | Reviewer (the baseline is unchanged)                        |
+| B2-5 extra option        | `npm test -- --globalSetup=./x.js`, `npm test -- -u`                                                                                                       | Reviewer                                                    |
+| B2-6 network             | A test file the agent edited fetches an outside address, and connects to a loopback service the host runs                                                  | Fails inside; marker; discarded; reviewer; script marked    |
+| B2-7 home secrets        | The test reads canaries at `~/.ssh/id_ed25519`, `~/.aws/credentials` and `~/.npmrc`, the ssh-agent and D-Bus sockets, and `GITHUB_TOKEN` set in the parent | None present                                                |
+| B2-8 workspace write     | The test rewrites `src/a.ts` and deletes `README.md`                                                                                                       | Workspace byte-identical; writes found; discarded; reviewer |
+| B2-9 write outside       | The test writes `~/x` and `/tmp/x`                                                                                                                         | Absent outside the run                                      |
+| B2-10 secret out         | The test prints the workspace's `.env`                                                                                                                     | Output withheld; reviewer                                   |
+| B2-11 lingering process  | The test starts `setsid sleep 1000 &`                                                                                                                      | No process left after the run                               |
+| B2-12 bounds             | Output over the cap; scratch writes over the cap; a run past its timeout                                                                                   | Killed and discarded, or today's timeout result             |
+| B2-13 no containment     | bubblewrap missing or 0.9, user namespaces refused, a non-APFS volume, a self-test canary leaked                                                           | B2 off, with the reason; never run in place                 |
+| B2-14 elsewhere          | A Windows host, a Muse Code approval, root                                                                                                                 | Reviewer                                                    |
+
+### 9.6 The safety envelope
 
 - **Audit.** Every fast-path allow is a transcript row ("Allowed without
-  review: inspect command") and a flight-recorder entry: class, program,
-  resolved executable, engine, p(yes), threshold and deadline. No content
+  review: inspect command", or "…: check script, contained") and a
+  flight-recorder entry: class, program or script, resolved executable,
+  confinement and its version, the closure's digest (B2), engine, p(yes),
+  threshold and deadline, the entries not read (B1), and the writes found
+  and discarded and the delivery decision with its reason (B2). No content
   goes in logs.
-- **Nothing to undo.** B1 admits no option that writes or runs another
-  program; its executable is a root-owned system file the agent cannot
-  replace; its environment is fixed by the harness. Red drills, each
-  expected to go to the reviewer or to run the verified system binary
-  unaffected: a workspace `bin/cat` wrapper first on `PATH`; a `cat`
-  reached through a link into a user-writable folder; a user-writable copy
-  in `/usr/local/bin`; `LD_PRELOAD`, `GREP_OPTIONS` and
-  `RIPGREP_CONFIG_PATH` set in the parent's environment (absent in the
-  child); every writing `not_match` example (the `find` actions, `tail
--f`); a link operand that leads outside; any `git` or `rg` command; the
-  extension running as root; a Windows host; a Muse Code approval. No
-  checkpoint is promised.
+- **Undo.** B1 writes nothing (the kernel refuses every write). B2 writes
+  nothing that survives. The turn's checkpoint covers the model's own file
+  edits as today.
 - **Kill switches.** Per class in the Judge section, per session from the
   row ("Review these again"), and machine-wide.
-- **Harm bound.** A class turns on by default only after M75 replays and an
-  independent labelled set show zero floor bypasses and a measured harm
-  rate of 0 in at least `JUDGE_FAST_APPROVAL_MIN_LABELS` = 400 labelled
-  actions per class.
+- **The design's invariants hold.** With lane F off, a class off, or the
+  judge not answering, nothing runs before the reviewer, and the reviewer
+  fence's frames, tool outputs and model requests are byte-identical to
+  today (goldens with F off and with the judge abstaining). Nothing already
+  sent changes: a B1 or B2 result is a new tool output. The skip decision
+  has the 300 ms deadline and today's reviewer path as its fallback, and a
+  discarded B2 run falls back to that same path. In a confidential
+  workspace the veto can come only from a deterministic check or a
+  verified local engine; a hosted engine is never one of the two gates
+  there.
+- **Harm bound.** A class turns on by default only after M75 replays and
+  an independent labelled set show zero floor bypasses and zero harm in at
+  least `JUDGE_FAST_APPROVAL_MIN_LABELS` = 400 labelled actions for that
+  class, counted on each platform where it runs, because the confinement
+  differs. Until then it is available and off, and the Judge section says
+  why. Harm includes a forbidden byte read (B1), anything surviving a run,
+  a sandbox-induced failure delivered, and a clone-versus-in-place
+  disagreement (B2).
 
-**What B costs, and what it buys.** It costs a second execution path in
-lane F, beside the shell every other command uses (argv execution of a
-verified executable in a fixed environment), per-platform executable
-tables and GNU and BSD option grammars kept current, the red drills
-above, a fitted `risk.destructive` profile for an I-eligible engine, and
-400 labelled actions per class before it turns on. It buys a skipped
-review for a single read-only command from nine programs, on Linux and
-macOS, on the Model API and M95 only. It skips nothing on Windows, on Muse
-Code, for git, for `rg`, for any pipe, or on any machine without an
+### 9.7 What B costs, what it buys, and one question left
+
+It costs lane F's confinement helper for Linux and macOS (native, per
+architecture), the B2 runners, the owner-baseline tracker, the
+per-platform captures and self-tests, the drills above, a fitted
+`risk.destructive` profile for an I-eligible engine, and 400 labelled
+actions per class and platform. It buys a skipped review for a single
+read-only inspect command on Linux and macOS, and for the workspace's own
+unchanged check scripts on Linux with bubblewrap 0.11.0 or later and on
+macOS on APFS, on the Model API and M95 only. It skips nothing on Windows,
+on Muse Code, for git, for `rg`, for any pipe, or on a machine without an
 I-eligible engine.
 
-### How B relates to the standing rule
+That last limit matters most today: the owner's 300 ms veto deadline needs
+an engine eligible for I, and none is measured (section 5). For B1 nothing
+can be done about it: the command finishes in milliseconds, so there is no
+window to hide a slower veto in. For B2 there is one: the run takes
+seconds, and it is contained and discardable, so a veto that arrives
+before delivery could still discard it. That would let a CPU `tev1:4b` or
+Jev serve B2. It changes the owner's stated term, so it is his decision
+(PLAN.md §3, Q-D107-VETO). Until he answers, B2's veto deadline is 300 ms.
 
-Under B the judge is not the only gate. The deterministic class must admit
-the action first, and the judge can only take a skip away. But it is one of
-two gates for skipping the reviewer, so B narrows how the owner's rule has
-been read: until now the judge has only ever added caution. That is why it
-is the owner's decision.
+### 9.8 How B relates to the standing rule, and what was recommended
 
-### Recommendation: A
-
-- A keeps the standing rule exactly as written.
-- Most of the speed sits elsewhere. The reviewer runs only for held
-  approvals in Auto. The speed decisions act on every turn, in every mode,
-  on every backend.
-- B's reach is now small and its cost real (above). Its safety comes from
-  its deterministic part, so the same win, with the same limits, is
-  reachable as a **built-in deterministic allow set** under M78's rules
-  with no judge in the decision. That would be a separate M78 change for
-  the owner to approve, and it would need B1's whole execution boundary
-  (verified executable, argv execution, fixed environment), not only its
-  grammar, because spelling alone proves nothing.
-- B2 (running the workspace's own scripts) was dropped from B after review:
-  a script can do anything, a model's opinion of the _command line_ says
-  little about the script's _body_, and its writes cannot be restored.
-
-If the owner picks B, M125's lane F builds B1 off by default, on the Model
-API and M95 on Linux and macOS only, and turns it on only after the harm
-bound above is met.
+Under B the judge is not the only gate. The deterministic floor and class
+must admit the action first, the operating system confines what runs, and
+the judge can only take a skip away. But it is one of two gates for
+skipping the reviewer, which narrows how the owner's rule had been read
+(until now the judge only ever added caution); the owner made that choice
+knowingly. Before his answer this design recommended A, plus a built-in
+deterministic read-only allow set under M78 with no judge in the decision,
+and kept B2 out because it runs repository code. He heard both and chose
+B. The allow set is not planned separately; B1 is its stronger form.
 
 ## 10. Backends
 
@@ -1117,8 +1519,13 @@ them through MHP like other panels.
   end-to-end measure is task success on M75 tasks with and without the
   checks.
 - **Engines:** latency (p50, p95, deadline misses) per engine and state
-  size, always the complete call (2j's verified path for local engines);
-  Brier and ECE per family after calibration (lane L's profiles).
+  size, always the complete call (2j's verified path for local engines),
+  every attempt counted and a miss as infinite (section 4.2); Brier and
+  ECE per family after calibration (lane L's profiles).
+- **Approval fast path (section 9), per class and platform:** reviewer
+  calls avoided, step and turn wall time, the share of B2 runs discarded
+  and the time they cost, entries not read (B1), and harm as section 9.6
+  defines it.
 - **Fake replays keep real boundaries.** A tool's output becomes available
   when the tool settles, and the next request is due at once unless the
   trace has a real window (section 5); no fake seeds an engine answer
@@ -1127,11 +1534,23 @@ them through MHP like other panels.
   (time, calls or tokens) is positive, its M75 floors hold, its harm or
   precision bar is met, **and** turn wall time does not regress: p50 and
   p95 per backend and model no worse than without it, counting deadline
-  misses, fallbacks, preloads, any extra control round-trip and
-  cache effects (cached input tokens per request, which must not fall). A
-  token win never excuses a slower turn.
-  Until then it is available but off by default, and the Judge section says
-  "not yet measured on this backend".
+  misses, fallbacks (for B2, discarded runs), preloads, any extra control
+  round-trip and cache effects. A token win never excuses a slower turn.
+- **Cache effects are measured as misses, not as cached totals.** The
+  previous version required cached input tokens per request not to fall.
+  That rejects the savings this design exists for: when triage or context
+  selection keeps 8,000 tokens of noise out of a request, every later
+  request of that arm carries 8,000 fewer cacheable tokens, so its cached
+  total falls even with perfect reuse (third review). The gate is instead
+  the arm's cache misses on material it already sent, by
+  `cacheMissTokens`' definition (`promptCache.ts`: the smaller of the
+  previous and current input, minus the cached tokens), per request, p50
+  and p95: the judge-on arm's misses must be no more than the off arm's,
+  and its uncached input tokens per request no more either. Absolute
+  cached tokens are reported, not gated. The end-to-end wall-time gate
+  above is unchanged.
+- **Until then** a decision is available but off by default, and the Judge
+  section says "not yet measured on this backend".
 - **Shown to the user.** Account & usage gets a "Judge" row: estimated time
   saved, tokens saved, calls avoided, and checks raised and acted on, per
   decision, today and this week, with the method named. Missing data shows
@@ -1172,12 +1591,20 @@ them through MHP like other panels.
   `context.relevance`, `risk.destructive`), the usage rows and the Judge
   section.
 - **Changed, not redesigned, with M98's owner:** 2j's source gains lane
-  J's proof-once, revalidate-per-connection disk proof (section 4.1) and
-  the preload of section 8.2, keeping every provenance check; 2b gains lane
+  J's proof-once disk proof where the platform holds the proven bytes
+  unchanged (Windows: write-excluding handles; Linux: read leases; macOS:
+  none, the full proof stays before every dispatch; section 4.1) and the
+  preload of section 8.2, keeping every provenance check; 2b gains lane
   L's `systemone` technique and binary families (section 7.0), keeping its
   binary labels, splits and identity gate.
 - **Retired from the default path:** the hidden Muse Code session per batch
-  for any I or S decision, and one-question-per-call judging.
+  for any I or S decision, and one-question-per-call judging. The P-class
+  chat-model fallback on Muse Code keeps D77's fresh session per batch
+  unchanged (section 4.3); no reused judge session is introduced.
+- **New with lane F (section 9):** the approval fast path in the Model API
+  host's reviewer fence (M78) and M95's loop, the confinement helper, the
+  B2 runners and the owner-baseline tracker. Phase 1's caution latch and
+  M90's reviewer on Muse Code are unchanged.
 
 ## 13. Local probe, 2026-10-09 (free, first version of this lane)
 
@@ -1232,7 +1659,8 @@ them through MHP like other panels.
 - **The verified path is slow today.** 2j's complete call took 6.5–18.4 s
   warm on the three rigs, mostly its disk proof (section 4.1). Until lane J
   brings it within the budgets without weakening provenance, a local
-  engine serves P only, and the wizard says so. If lane J cannot, the
+  engine serves P only, and the wizard says so. On macOS no shortcut is
+  planned, so a local engine there stays P-only. Where lane J cannot, the
   local judge stays a P engine and the hosted engines carry S.
 - **The model unloads.** Keep-alive expiry or a restarted Ollama empties
   `/api/ps`; recovery needs the consented preload (4.2 step 6), which
@@ -1253,11 +1681,17 @@ them through MHP like other panels.
   approvals need Meta (section 10).
 - **Effort and the cache.** Whether a changed effort affects Meta's prefix
   cache is unknown; receipts record cached tokens per turn.
-- **Variant B.** A wrong skip runs a command without review. The floor,
-  B1's verified executable, fixed environment and positive grammar limit
-  the damage; git, `rg`, Windows and Muse Code were dropped because the
-  harness cannot fix what runs there; B2 was dropped because it runs
-  repository code.
+- **Variant B (chosen).** A wrong skip runs a command without review. For
+  B1 the floor, the verified executable, the fixed environment, the
+  positive grammar and the kernel's confinement of every open limit it to
+  reading allowed workspace files. For B2 the owner's baseline limits it to
+  the owner's own check command, and containment limits what that command
+  can do: no network, no surviving write, no secrets outside the
+  workspace, no surviving process. What remains is in section 9.5: the
+  workspace's own secrets in the output, a run's CPU and time, and a
+  sandbox-induced result. Neither class exists on Windows or Muse Code, or
+  for git or `rg`; both skip nothing until an I-eligible engine exists,
+  unless the owner answers Q-D107-VETO for B2.
 - **Measurement cost.** The M75 arms and the Clef probe make live or paid
   calls (D48). M125's live checks need the owner's go, with counts first.
 
@@ -1278,6 +1712,25 @@ them through MHP like other panels.
   their budgets; the model preload; calibration of SystemOne engines and
   new families; S and first-send triage), addressed in sections 4.1, 4.2,
   5, 6.2, 6.6, 7.0, 8.2, 8.5 and 9.
+- The third review: `RVJUDGEFAST3` (B1's actual read set; lane J's
+  Windows metadata shortcut; qualification without misses; the absolute
+  cached-token gate; the reused Muse Code judge session), addressed in
+  sections 9.4, 4.1, 4.2, 11 and 4.3.
+- The owner's answer to Q-D107 (2026-10-10: B, with B1 and B2), recorded
+  in PLAN.md §3 and D107, and designed in section 9.
+- Landlock: <https://docs.kernel.org/userspace-api/landlock.html> (ABI
+  versions, `no_new_privs`, hierarchy-based rules, the unrestricted
+  `stat`); `openat2(2)` (`RESOLVE_BENEATH`, `RESOLVE_NO_SYMLINKS`); `fcntl(2)`
+  leases (`F_SETLEASE`, lease breaking on open for writing and truncation).
+- bubblewrap 0.11.0, which added `--overlay`, `--tmp-overlay`,
+  `--ro-overlay` and `--overlay-src`, not available to a setuid install:
+  <https://github.com/containers/bubblewrap/releases> (2024-10-30).
+- Windows `CreateFile` share modes (a held handle without write or delete
+  sharing refuses later writers with a sharing violation) and
+  `FILE_BASIC_INFORMATION` (a writer suppressing timestamp updates, as the
+  third review cites).
+- `docs/research/muse-node-2026-10-05.md` §1.5 (Landlock, seccomp) and
+  PLAN.md's record that Muse Code's own Linux sandbox needs bubblewrap.
 - `docs/certification/m98p2-j.md` at `f131ffc88` (2j's complete
   verified-path timings on Windows, Linux and macOS, and the keep-alive
   refusal).

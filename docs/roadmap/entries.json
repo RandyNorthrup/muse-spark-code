@@ -901,7 +901,7 @@
     {
       "id": "M125",
       "title": "A faster, more accurate agent through a fast judge",
-      "summary": "A fast judge answers the agent's small decisions and checks its work while the model is busy, set up by a wizard that first scans whether your computer can run it.",
+      "summary": "A fast judge answers the agent's small decisions and checks its work while the model is busy, set up by a wizard that scans your computer first, and lets sandboxed safe commands skip the slow reviewer on Linux and macOS.",
       "area": "agents"
     },
     {

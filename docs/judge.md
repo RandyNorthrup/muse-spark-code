@@ -3,8 +3,12 @@
 > **Redesign planned (D107).** PLAN.md D107 and milestone M125 plan to
 > turn the judge into our own Jev: a fast, batched, calibrated decision
 > engine that makes the agent quicker and checks its work, set up through a
-> Set Up Local Judge wizard that scans the machine first. The design is in
-> [design/judge-fast-path.md](design/judge-fast-path.md).
+> Set Up Local Judge wizard that scans the machine first. The owner also
+> chose an approval fast path (Q-D107, 2026-10-10): on Linux and macOS a
+> held Auto action that is a confined read-only inspect command, or the
+> workspace's own unchanged check script run in a contained sandbox, may
+> skip the slow reviewer when the judge does not veto it in time. The
+> design is in [design/judge-fast-path.md](design/judge-fast-path.md).
 > Nothing in it is built. This page describes phase 1 as it ships today.
 
 Muse Spark Code (Unofficial) uses the conversation's own model to advise on
