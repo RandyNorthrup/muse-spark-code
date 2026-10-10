@@ -619,7 +619,14 @@ export class ModelApiBackendManager {
   }
 
   public async accountId(): Promise<string | undefined> {
-    const key = await this.deps.getApiKey()
+    let key: string | undefined
+    try {
+      key = await this.deps.getApiKey()
+    } catch {
+      // A refused subscription key reads as no key here; the turn path
+      // surfaces the refusal itself, and paid scopes stay unavailable.
+      return await this.deps.getProviderAccountId?.()
+    }
     return key === undefined
       ? await this.deps.getProviderAccountId?.()
       : createHash('sha256').update(key).digest('hex')

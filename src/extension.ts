@@ -163,6 +163,8 @@ import { AuthService } from './host/auth/authService'
 import { CliAccount, isCliSignedIn } from './host/auth/cliAccount'
 import { runDeviceSignIn } from './host/auth/deviceSignIn'
 import { isValidModelApiKey } from './host/auth/credentialStore'
+import { SubscriptionCredential } from './host/auth/subscriptionCredential'
+import { SubscriptionKeySource } from './core/backends/modelapi/subscriptionKey'
 import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
 import { createFileScheduleStore } from './host/backend/fileScheduleStore'
 import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
@@ -1081,15 +1083,37 @@ async function activateWindow(
       },
     }))
   const providersSeamBundle = () => subscriptionFeatures().seam
-  const credentials = providerCredentials(context.secrets, log, async () => {
-    const features = subscriptionFeatures()
-    const entries = await features.seam.store.list()
-    // Only a live, non-confidential host grant supplies credential-free readiness.
-    return entries.map((entry) =>
-      entry.id === 'copilot' && features.hasCopilotAccess()
-        ? { ...entry, auth: 'none' as const }
-        : entry,
-    )
+  // C-M95-SUB: the Model API backend on the Muse Code subscription. The
+  // source reads only the CLI's auth file (never SecretStorage); the
+  // setting is the one opt-in, so the store gate counts the subscription
+  // only while the user has it on.
+  const subscriptionSource = new SubscriptionKeySource({
+    platform: process.platform,
+    homeDir: homedir(),
+    xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+  })
+  const credentials = providerCredentials(
+    context.secrets,
+    log,
+    async () => {
+      const features = subscriptionFeatures()
+      const entries = await features.seam.store.list()
+      // Only a live, non-confidential host grant supplies credential-free readiness.
+      return entries.map((entry) =>
+        entry.id === 'copilot' && features.hasCopilotAccess()
+          ? { ...entry, auth: 'none' as const }
+          : entry,
+      )
+    },
+    async () => currentSettings().useMuseCodeSubscription && (await subscriptionSource.isReady()),
+  )
+  const subscription = new SubscriptionCredential({
+    credentials,
+    isEnabled: () => currentSettings().useMuseCodeSubscription,
+    platform: process.platform,
+    homeDir: homedir(),
+    xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+    source: subscriptionSource,
   })
   // The paid Model API features (M33–M35, PLAN.md D30): on only with the
   // setting on and the price accepted; every panel shows which are on.
@@ -2550,7 +2574,8 @@ async function activateWindow(
       prepareCheckpointTurn(checkpoints, turnRecorder, sessionId, turnId, log, top),
     afterTurnRuns: (sessionId, turnId, end) =>
       finishCheckpointTurn(checkpoints, turnRecorder, sessionId, turnId, end),
-    getApiKey: () => credentials.getApiKey(),
+    getApiKey: () => subscription.getApiKey(),
+    isSubscriptionBilling: () => subscription.isSubscriptionBilling(),
     workspaceRoot,
     io: checkpointedIo,
     listAttemptFiles: (attemptRoot) =>
@@ -3497,7 +3522,7 @@ async function activateWindow(
           accountFacts: async (kind) => {
             const resolution = backend.resolveLaunch()
             const isCliSession = await hasCliSession()
-            const hasKey = (await credentials.getApiKey()) !== undefined
+            const hasKey = await subscription.hasCredential()
             const signInMethod = signInMethodFor(kind, isCliSession, hasKey)
             const cliVersion = resolution.ok
               ? backend.installedVersion(resolution.launch.installDir)
