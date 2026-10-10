@@ -6,6 +6,7 @@ import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
+import { assertUsageContent, assertUsageError, waitForUsageReady } from './usageReadiness.mjs'
 
 const root = process.cwd()
 const bridges = ['vscode', 'http', 'jcef', 'webView2', 'swt']
@@ -52,7 +53,10 @@ try {
             await page.goto(
               `http://127.0.0.1:${String(port)}/test/harness/usage.html?bridge=${bridge}&scenario=${scenario}&theme=${theme}`,
             )
-            await page.locator('.usage-page[aria-busy="false"]').waitFor()
+            // RVCM1141C: only the ready marker set after real host state
+            // renders certifies the page; an error, empty or loading shell
+            // fails this wait with a named reason.
+            await assertUsageContent(page, { title, scenario })
             if (scenario === 'history-off') {
               await page.getByRole('button', { name: 'Turn on usage history' }).click()
               await page
@@ -65,7 +69,9 @@ try {
                 await page.getByLabel('Group by').selectOption(group)
               for (const metric of ['tokens', 'requests', 'time', 'cost'])
                 await page.getByLabel('Metric').selectOption(metric)
-              await page.locator('.usage-page[aria-busy="false"]').waitFor()
+              // RVCM1141C: re-queries must return to the ready marker, not
+              // merely an idle shell.
+              await waitForUsageReady(page)
               await page.getByRole('radio', { name: 'Custom range' }).check()
               await page.getByLabel('From', { exact: true }).fill('2026-10-01')
               await page.getByLabel('To', { exact: true }).fill('2026-10-05')
@@ -78,7 +84,7 @@ try {
                 await input.focus()
                 for (const date of dates) {
                   await input.fill(date)
-                  await page.locator('.usage-page[aria-busy="false"]').waitFor()
+                  await waitForUsageReady(page)
                   if (
                     !(await input.evaluate(
                       (element) => globalThis.document.activeElement === element,
@@ -89,7 +95,7 @@ try {
                 await input.dispose()
               }
               await page.getByRole('radio', { name: 'Today' }).check()
-              await page.locator('.usage-page[aria-busy="false"]').waitFor()
+              await waitForUsageReady(page)
               if (['jcef', 'webView2', 'swt'].includes(bridge)) {
                 await page.evaluate(() => {
                   globalThis.usageHarness.failNextSend()
@@ -103,12 +109,19 @@ try {
                   throw new Error('Native transport failure has no localized error')
                 if (!(await page.getByRole('button', { name: 'Refresh', exact: true }).isEnabled()))
                   throw new Error('Native transport failure left Refresh disabled')
-                await page.locator('.usage-page[aria-busy="false"]').waitFor()
+                // RVCM1141C: the explicit error path asserts the alert. The
+                // failed refresh keeps the rendered state and its marker
+                // under the alert (`usage/error` never clears `state`), so
+                // this must not be an idle-shell wait.
+                await assertUsageError(page, {
+                  title,
+                  message: 'Usage history could not be read.',
+                })
                 await page.getByRole('button', { name: 'Try again', exact: true }).click()
                 await page.getByRole('alert').waitFor({ state: 'detached' })
               }
               await page.getByRole('button', { name: 'Refresh', exact: true }).click()
-              await page.locator('.usage-page[aria-busy="false"]').waitFor()
+              await waitForUsageReady(page)
               for (const format of [
                 'Per-call CSV (last 30 days)',
                 'Summary CSV',

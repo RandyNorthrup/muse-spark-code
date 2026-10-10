@@ -8,6 +8,7 @@ import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
+import { waitForUsageReady } from './usageReadiness.mjs'
 
 const root = process.cwd()
 const output = path.join(root, 'docs/certification/m107-w-history')
@@ -47,6 +48,10 @@ try {
           await page.goto(
             `http://127.0.0.1:${String(port)}/test/harness/usage.html?bridge=vscode&scenario=one-provider&theme=${theme}&resources=${state}`,
           )
+          // RVCM1141C: only the ready marker set after real host state
+          // renders certifies the page; the section below mounts only
+          // inside rendered state, and this wait names that gate.
+          await waitForUsageReady(page)
           const section = page.locator('section.usage-resources')
           await section.waitFor()
           if (state === 'history') await section.getByRole('region').first().waitFor()
