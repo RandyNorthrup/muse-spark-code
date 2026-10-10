@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import * as benchLib from '../../scripts/judge-bench-lib.mjs'
+import {
+  VETO_WINDOW_MS,
+  decideVerdict,
+  shuffled,
+  summarize,
+} from '../../scripts/judge-bench-lib.mjs'
 
 interface BenchCase {
   id: string
@@ -7,35 +12,6 @@ interface BenchCase {
   label: string
   hard?: boolean
 }
-
-interface BenchSummary {
-  cases: number
-  errors: number
-  accuracy: number
-  brier: number
-  perLabel: Record<string, { precision: number; recall: number }>
-  perDomain: Record<string, { support: number; accuracy: number }>
-  unsafeApproves: string[]
-  latencyMs: {
-    p50: number
-    p95: number
-    max: number
-    cold: number
-    warmP50: number
-    warmP95: number
-  }
-  tokens: { in: number; out: number }
-  vetoFit: boolean
-}
-
-interface BenchLib {
-  VETO_WINDOW_MS: number
-  decideVerdict: (pAllow: number, pDeny: number) => 'allow' | 'deny' | 'ask' | 'error'
-  summarize: (results: object[]) => BenchSummary
-  shuffled: <T>(cases: T[], seed: number) => T[]
-}
-
-const { VETO_WINDOW_MS, decideVerdict, shuffled, summarize } = benchLib as unknown as BenchLib
 
 function row(over: object) {
   return {
@@ -130,7 +106,7 @@ describe('summarize', () => {
       row({ id: 'a1', class: 'shell', label: 'allow', verdict: 'allow' }),
       row({ id: 'a2', class: 'shell', label: 'allow', verdict: 'ask', pAllow: 0.4, pDeny: 0.1 }),
     ])
-    expect(summary.perLabel.allow).toMatchObject({ precision: 1, recall: 0.5 })
-    expect(summary.perDomain.shell).toMatchObject({ support: 2, accuracy: 0.5 })
+    expect(summary.perLabel['allow']).toMatchObject({ precision: 1, recall: 0.5 })
+    expect(summary.perDomain['shell']).toMatchObject({ support: 2, accuracy: 0.5 })
   })
 })
