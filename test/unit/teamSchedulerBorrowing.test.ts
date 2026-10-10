@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { TeamScheduler, type SchedulerDependencies } from '../../src/core/team/teamPool'
+import {
+  TeamScheduler,
+  type SchedulerDependencies,
+  type TeamSelectionSnapshot,
+} from '../../src/core/team/teamPool'
 import { TeamLiveAvailability } from '../../src/core/team/selection'
 import { SchedulerSlots } from '../../src/core/team/scheduler/slots'
 import type {
@@ -7,7 +11,7 @@ import type {
   SchedulerRecallEvent,
 } from '../../src/core/team/scheduler/borrowing'
 import { teamPreferenceListSchema, type TeamPreferenceList } from '../../src/shared/teamPreference'
-import { teamBoardSchema } from '../../src/shared/team'
+import { teamBoardSchema, type TeamBoardTask } from '../../src/shared/team'
 import {
   TEAM_BORROW_DEMAND_WAIT_MS,
   TEAM_BORROW_RECALL_WAIT_MS,
@@ -141,6 +145,50 @@ async function borrowCoding(f: ReturnType<typeof fixture>): Promise<void> {
   await f.scheduler.wake()
 }
 
+function expectNoAttempt(f: ReturnType<typeof fixture>): void {
+  expect(f.deps.start).not.toHaveBeenCalled()
+  expect(f.board.task('coding').attempts).toEqual([])
+  expect(f.slots.snapshot()).toEqual([])
+}
+
+function retireCoding(f: ReturnType<typeof fixture>): void {
+  f.board.finishAttempt('coding', 1, {
+    state: 'retired',
+    endedAt: Date.now(),
+    retirement: { kind: 'proved', method: 'linuxCgroup' },
+  })
+  f.board.transition('coding', 1, 'done', Date.now())
+}
+
+function overrideSelection(
+  f: ReturnType<typeof fixture>,
+  change: (task: TeamBoardTask, snapshot: TeamSelectionSnapshot) => TeamSelectionSnapshot,
+): void {
+  const context = f.deps.context
+  f.deps.context = () => {
+    const base = context()
+    return {
+      ...base,
+      selection: (task) => {
+        const snapshot = base.selection?.(task)
+        if (snapshot === undefined) throw new Error('test:selection')
+        return change(task, snapshot)
+      },
+    }
+  }
+}
+
+async function requestReview(f: ReturnType<typeof fixture>): Promise<void> {
+  f.board.submit([submission('review', { roleId: 'review' })], Date.now())
+  await f.scheduler.wake()
+}
+
+async function expectNoMainRecall(f: ReturnType<typeof fixture>): Promise<void> {
+  await requestReview(f)
+  expect(f.events.at(-1)?.decision).toMatchObject({ kind: 'keep', reason: 'noMainWork' })
+  expect(f.board.task('coding').recallAskedAtMs).toBeUndefined()
+}
+
 describe('M120 borrowing through the real scheduler and pool', () => {
   it.each(['candidate', 'assignment', 'missing candidate', 'missing entry'] as const)(
     'rechecks a replaced %s after authorization without another borrowing tick',
@@ -172,9 +220,7 @@ describe('M120 borrowing through the real scheduler and pool', () => {
         return Promise.resolve(true)
       }
       await f.scheduler.wake()
-      expect(f.deps.start).not.toHaveBeenCalled()
-      expect(f.board.task('coding').attempts).toEqual([])
-      expect(f.slots.snapshot()).toEqual([])
+      expectNoAttempt(f)
     },
   )
 
@@ -209,12 +255,7 @@ describe('M120 borrowing through the real scheduler and pool', () => {
         f.events.push(event)
         expect(f.events).toHaveLength(1)
         if (method === 'retired') {
-          f.board.finishAttempt('coding', 1, {
-            state: 'retired',
-            endedAt: Date.now(),
-            retirement: { kind: 'proved', method: 'linuxCgroup' },
-          })
-          f.board.transition('coding', 1, 'done', Date.now())
+          retireCoding(f)
           await f.scheduler.retired({ taskId: 'coding', attempt: 1 })
         } else await f.scheduler.wake()
       })
@@ -227,28 +268,16 @@ describe('M120 borrowing through the real scheduler and pool', () => {
   it('uses the review snapshot engine when the first running task has no engine callback', async () => {
     const f = fixture()
     await borrowCoding(f)
-    const context = f.deps.context
-    f.deps.context = () => {
-      const base = context()
-      return {
-        ...base,
-        selection: (task) => {
-          const snapshot = base.selection?.(task)
-          if (snapshot === undefined) throw new Error('test:selection')
-          return task.roleId === 'review'
-            ? {
-                ...snapshot,
-                engine: () => 'captured-engine',
-                conditions: { authorEngines: ['captured-engine'] },
-              }
-            : snapshot
-        },
-      }
-    }
-    f.board.submit([submission('review', { roleId: 'review' })], Date.now())
-    await f.scheduler.wake()
-    expect(f.events.at(-1)?.decision).toMatchObject({ kind: 'keep', reason: 'noMainWork' })
-    expect(f.board.task('coding').recallAskedAtMs).toBeUndefined()
+    overrideSelection(f, (task, snapshot) =>
+      task.roleId === 'review'
+        ? {
+            ...snapshot,
+            engine: () => 'captured-engine',
+            conditions: { authorEngines: ['captured-engine'] },
+          }
+        : snapshot,
+    )
+    await expectNoMainRecall(f)
   })
 
   it('keeps a legacy task out of borrowing and dispatches it beside preference tasks', async () => {
@@ -279,25 +308,13 @@ describe('M120 borrowing through the real scheduler and pool', () => {
     f.board.submit([submission('unrelated')], 0)
     f.board.begin('unrelated', { ...attempt(), entryId: 'coder', agentProfileId: 'coder' })
     await borrowCoding(f)
-    const context = f.deps.context
-    f.deps.context = () => {
-      const base = context()
-      return {
-        ...base,
-        selection: (task) => {
-          const snapshot = base.selection?.(task)
-          if (snapshot === undefined) throw new Error('test:selection')
-          if (task.id === 'unrelated') return { ...snapshot, engine: () => 'unrelated-engine' }
-          return task.id === 'coding'
-            ? { ...snapshot, engine: () => 'captured-engine' }
-            : { ...snapshot, conditions: { authorEngines: ['captured-engine'] } }
-        },
-      }
-    }
-    f.board.submit([submission('review', { roleId: 'review' })], Date.now())
-    await f.scheduler.wake()
-    expect(f.events.at(-1)?.decision).toMatchObject({ kind: 'keep', reason: 'noMainWork' })
-    expect(f.board.task('coding').recallAskedAtMs).toBeUndefined()
+    overrideSelection(f, (task, snapshot) => {
+      if (task.id === 'unrelated') return { ...snapshot, engine: () => 'unrelated-engine' }
+      return task.id === 'coding'
+        ? { ...snapshot, engine: () => 'captured-engine' }
+        : { ...snapshot, conditions: { authorEngines: ['captured-engine'] } }
+    })
+    await expectNoMainRecall(f)
   })
 
   it('preserves D75 dispatch when the installed context has no selection callback', async () => {
@@ -348,9 +365,7 @@ describe('M120 borrowing through the real scheduler and pool', () => {
       return Promise.resolve(true)
     }
     await f.scheduler.wake()
-    expect(f.deps.start).not.toHaveBeenCalled()
-    expect(f.board.task('coding').attempts).toEqual([])
-    expect(f.slots.snapshot()).toEqual([])
+    expectNoAttempt(f)
   })
   it('borrows exactly at 60 seconds, journals the chain before launch, and gives one task to the lender', async () => {
     const f = fixture()
@@ -553,8 +568,7 @@ describe('M120 borrowing through the real scheduler and pool', () => {
   it('cancels recall when another main candidate frees and preserves the borrowed task', async () => {
     const f = fixture()
     await borrowCoding(f)
-    f.board.submit([submission('review', { roleId: 'review' })], Date.now())
-    await f.scheduler.wake()
+    await requestReview(f)
     f.lists[1]?.pool.push(...list('review', ['other']).pool)
     await f.scheduler.wake()
     expect(
@@ -569,8 +583,7 @@ describe('M120 borrowing through the real scheduler and pool', () => {
   it('gives each new recall/cancellation a stable distinct id even on the same clock', async () => {
     const f = fixture()
     await borrowCoding(f)
-    f.board.submit([submission('review', { roleId: 'review' })], Date.now())
-    await f.scheduler.wake()
+    await requestReview(f)
     f.deps.authorize = () => Promise.resolve(false)
     f.lists[1]?.pool.push(...list('review', ['other']).pool)
     await f.scheduler.wake()
@@ -595,12 +608,7 @@ describe('M120 borrowing through the real scheduler and pool', () => {
     await f.scheduler.wake()
     vi.setSystemTime(TEAM_BORROW_DEMAND_WAIT_MS)
     await f.scheduler.wake()
-    f.board.finishAttempt('coding', 1, {
-      state: 'retired',
-      endedAt: Date.now(),
-      retirement: { kind: 'proved', method: 'linuxCgroup' },
-    })
-    f.board.transition('coding', 1, 'done', Date.now())
+    retireCoding(f)
     await f.scheduler.retired({ taskId: 'coding', attempt: 1 })
     expect(f.board.snapshot().borrowCooldowns).toEqual([
       { candidateId: 'reviewer', endedAtMs: Date.now() },
