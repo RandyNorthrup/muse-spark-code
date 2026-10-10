@@ -884,7 +884,7 @@
     {
       "id": "M120",
       "title": "Preferred agents and handoff",
-      "summary": "Preferred agents with live availability, loans rechecked after launch journalling, readiness wakes retained during writes, recall delivered once, reviewers who queue temporary shortages and block merge, and handoffs that retain work.",
+      "summary": "Preferred agents with live availability, loans rechecked after journalling, retained readiness wakes, recall delivered once, reviewer shortages that block merge, handoffs that retain work and shared scheduler tools within the original bundle cap.",
       "area": "agents"
     },
     {

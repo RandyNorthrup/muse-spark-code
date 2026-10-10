@@ -1011,6 +1011,15 @@ const DEFERRED_OUTFILES = new Map([
 export const deferredCohort = {
   name: 'deferred-cohort',
   setup(build) {
+    // M120CAP: team.js is already loaded before its scheduler. Its stateless
+    // tool factory shares declarations/model text without another startup chunk.
+    build.onResolve({ filter: /\/teamTools(?:\.[jt]s)?$/ }, (args) =>
+      path.resolve(args.importer) === path.resolve('src/core/team/teamSchedulerEntry.ts') &&
+      path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts')) ===
+        path.resolve('src/core/team/teamTools.ts')
+        ? { path: './team.js', external: true }
+        : undefined,
+    )
     // The shared request/framing implementations stay in the existing backend
     // bundle; providers and ACP require its exported API only when used.
     build.onResolve({ filter: /\/(?:transport|sse|ndjson|modelApiEntry)(?:\.ts)?$/ }, (args) => {

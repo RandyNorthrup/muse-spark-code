@@ -57,6 +57,16 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('bundled What’s New content budget', () => {
+  it('keeps the team scheduler at 75 KiB and refuses 2 KiB over the cap', async () => {
+    const file = 'dist/teamScheduler.js'
+    statSync.mockImplementation((input) => ({ size: input === file ? 75 * 1024 : 0 }))
+    await import('../../scripts/check-bundle-size.mjs')
+    expect(process.exit).not.toHaveBeenCalled()
+    vi.resetModules()
+    statSync.mockImplementation((input) => ({ size: input === file ? 77 * 1024 : 0 }))
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+    expect(console.log).toHaveBeenCalledWith('OVER dist/teamScheduler.js: 77.0 KiB (budget 75 KiB)')
+  })
   it.each([
     ['models', 75],
     ['usage', 50],

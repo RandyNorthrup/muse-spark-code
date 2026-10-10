@@ -37403,6 +37403,25 @@ without a flip fails the typecheck and the coverage test. The running maps in
 the selection snapshot now state that they include admissions journalled but
 not yet started.
 
+**M120CAP (2026-10-10): scheduler bundle qualification.** Measure the
+accepted `6fa76bdf0` scheduler with production options and record its top 25
+inputs, D109/core/rare-path composition and duplication. Share the scheduler
+tool factory through the existing team bundle before considering any cap
+change; keep the normal tick synchronous and behavior unchanged. Re-measure,
+prove the shared implementation and size gate fire with byte-exact drills,
+run scheduler/selection and bundle suites plus scoped static checks, and
+record results in `docs/certification/m120-s.md`. The brief permits a cap of
+floor(measured bytes × 1.15) only if genuine scheduler code still exceeds the
+existing cap after trimming. Aggregate quality and the inherited What's New
+encoder blocker remain lead-owned; no merge, push or live/paid calls.
+
+**M120CAP result (2026-10-10):** the scheduler measures 65,533 B, down
+from 89,070 B; `team.js` grows 3,478 B and the three team bundles save
+20,059 B in total. The original 76,800 B cap remains unchanged. No new
+lazy chunk is needed. Scoped suites and byte-exact guard drills certify the
+shared factory and cap in `docs/certification/m120-s.md`; the inherited
+aggregate encoder failure remains a separate integration blocker.
+
 - **Goal:** D103 across every balancing surface.
 - **Order:** after the Wednesday set, and before the M110/M111 resume.
   M110's node orchestrator uses it.

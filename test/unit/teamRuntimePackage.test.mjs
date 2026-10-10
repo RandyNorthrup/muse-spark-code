@@ -9,6 +9,7 @@ import {
   sharedValidation,
   sharedUiText,
   sharedWire,
+  sharedModelApiBoundaries,
 } from '../../scripts/lib/deferredBundles.mjs'
 import { deferredTeamView } from '../../scripts/lib/deferredTeamView.mjs'
 import { EN } from '../../src/shared/l10n/en'
@@ -55,6 +56,38 @@ describe('packaged team factories', () => {
   afterAll(async () => {
     if (folder !== '') await rm(folder, { recursive: true, force: true })
   })
+  it('shares scheduler tools with the existing team bundle within the unchanged cap', async () => {
+    const { metafile } = await build({
+      entryPoints: ['src/core/team/teamSchedulerEntry.ts'],
+      outfile: 'dist/teamScheduler.js',
+      bundle: true,
+      minify: true,
+      metafile: true,
+      write: false,
+      platform: 'node',
+      format: 'cjs',
+      target: 'node20.18',
+      define: { 'process.env.NODE_ENV': '"production"' },
+      logLevel: 'silent',
+      plugins: [
+        sharedUiText,
+        sharedValidation,
+        deferredCohort,
+        sharedWire,
+        sharedModelApiBoundaries,
+      ],
+    })
+    const output = metafile.outputs['dist/teamScheduler.js']
+    const inputs = Object.keys(output.inputs).map((file) => file.replaceAll('\\', '/'))
+    expect(inputs).not.toContain('src/core/team/teamTools.ts')
+    expect(inputs).not.toContain('src/shared/teamToolSchemas.json')
+    expect(output.bytes).toBeLessThanOrEqual(75 * 1024)
+    expect(output.imports).toContainEqual({
+      path: './team.js',
+      kind: 'require-call',
+      external: true,
+    })
+  })
   it('loads working scheduler and runner capabilities on demand with no constructor dispatch', async () => {
     const runtime = require(path.join(folder, 'team.js')).createTeamRuntime(EN, 'en')
     const schedulerFile = path.join(folder, 'teamScheduler.js')
@@ -63,6 +96,9 @@ describe('packaged team factories', () => {
     expect(require.cache[runnersFile]).toBeUndefined()
     const scheduler = await runtime.loadScheduler()
     const runners = await runtime.loadRunners()
+    expect(scheduler.createSchedulerTeamTools).toBe(
+      require(path.join(folder, 'team.js')).createSchedulerTeamTools,
+    )
     expect(require.cache[schedulerFile]).toBeDefined()
     expect(require.cache[runnersFile]).toBeDefined()
     const dispatch = vi.fn(() => {
