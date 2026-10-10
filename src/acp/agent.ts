@@ -1918,6 +1918,12 @@ class AcpSession {
             preparing.abort.signal,
           )
         } catch (error: unknown) {
+          // An internal sharing fault reaches the wire as the fixed
+          // could-not-complete reason; the raw failure lives only here.
+          if (isAcpSharingFailure(error) && error.code === SHARING_FAILURE_CODES.internalError)
+            this.deps.log.warn(
+              `ACP session ${this.sessionId}: sharing command failed: ${failureForLog(error)}`,
+            )
           throw sharingRequestError(error)
         }
         if ('error' in preparing) throw preparing.error

@@ -202,11 +202,12 @@ export function createAcpSharing(
           if (refusal !== undefined)
             throw new AcpSharingFailure(SHARING_FAILURE_CODES.invalidRequest, refusal)
         }
-        // An empty conversation shares nothing: the CLI's sentence reaches
-        // the client as its own message, never -32603 internal error. Anything
-        // unrecognized stays internal, with the fixed prompt-file reason in
-        // place of paths, prompt text or raw diagnostics.
-        throw new AcpSharingFailure(SHARING_FAILURE_CODES.internalError, UI_TEXT.promptFileInvalid)
+        // Anything unrecognized stays an internal fault with the fixed
+        // could-not-complete reason in place of paths, prompt text or raw
+        // diagnostics: a failed export or an unreadable prompt library is
+        // not a prompt-file format error, and the log (written at the
+        // engine's call site) has the details.
+        throw new AcpSharingFailure(SHARING_FAILURE_CODES.internalError, UI_TEXT.actionFailed)
       }
     },
   }
