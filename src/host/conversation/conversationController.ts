@@ -3,7 +3,6 @@ import type { ProviderUsageRow, AccountFacts, SubscriptionUsage } from '../../sh
 import type { ChatShareSource } from '../../core/sharing/chatShare'
 import { recoveryStamp } from '../../shared/agentRecovery'
 import type { ReportQuestionsReader } from '../../core/reporting/sources/questions'
-import { LocalSourceError } from '../../core/reporting/sources/local'
 import type { SessionHistoryInput } from '../../runtime/reporting/reportInputs'
 import { QuestionRegistry } from '../../core/questions/registry'
 import type { QuestionAnswerText } from '../../core/questions/lateAnswer'
@@ -11031,7 +11030,11 @@ export class ConversationController {
           (context.options.sessionId !== undefined &&
             context.options.sessionId !== this.session?.sessionId)
         )
-          return Promise.reject(new LocalSourceError('history'))
+          // An owned copy of the LocalSourceError brand (localFailureOf):
+          // the conversation bundle carries no runtime import of local.ts.
+          return Promise.reject(
+            Object.assign(new Error('history'), { isLocalSourceError: true, code: 'history' }),
+          )
         const registry = this.session === undefined ? undefined : sessionQuestions.get(this.session)
         if (registry === undefined)
           return Promise.reject(new Error(UI_TEXT.reportSourceReasons.unbound))
