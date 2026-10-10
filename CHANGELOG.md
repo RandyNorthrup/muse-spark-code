@@ -52,6 +52,17 @@ happened, not what was planned; superseded entries are kept.
     shares.
   - On macOS, Touch ID (Keychain biometry) unlock is not offered: it needs an
     Apple Developer ID.
+  - Review repairs (RVCM1091A):
+    - A setup confirmation keeps its key even if the setup window expires
+      meanwhile.
+    - Grant, item and metadata writes check their authority, the vault's lock
+      and the item's presence at the moment they commit, so nothing retired
+      or removed comes back after recovery.
+    - A new grant is no longer treated as revoked.
+    - A failed event stream is reported (`vault watch` exits 1) and retried.
+    - A cancelled watcher closes its late connection.
+    - The Windows contract requires a native check that the pipe's server
+      runs as the same user.
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did

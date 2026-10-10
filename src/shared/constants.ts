@@ -7806,6 +7806,8 @@ export const VAULT_APPROVAL_TTL_MS = 120_000
 export const VAULT_LOCK_DRAIN_MS = 1000
 // C-M109-1: pace of re-opening a `watch` stream the broker closed.
 export const VAULT_WATCH_RETRY_MS = 1000
+// RVCM1091A F7: the panel's watch backoff doubles up to this while the broker is down.
+export const VAULT_WATCH_RETRY_MAX_MS = 30_000
 export const VAULT_ASKPASS_USES = 3
 export const VAULT_ASKPASS_TTL_MS = 600_000
 export const VAULT_SESSION_MAX_DAYS = 30

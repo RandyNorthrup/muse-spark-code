@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { constants } from 'node:fs'
+import { renameSync } from 'node:fs'
 import { link, lstat, mkdir, open, realpath, rename, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -36,7 +37,11 @@ type VaultFileName = 'vault.v1' | 'slots.v1' | 'pending.v1'
 export interface VaultFilePort {
   readonly maxBytes: number
   read(name: VaultFileName): Promise<Buffer | null>
-  writeAtomic(name: VaultFileName, data: Uint8Array): Promise<void>
+  /**
+   * `commit` runs synchronously immediately before the rename that publishes
+   * the file; if it throws, nothing is published and its error is rethrown.
+   */
+  writeAtomic(name: VaultFileName, data: Uint8Array, commit?: () => void): Promise<void>
   /** Retain any displaced document durably without reading it or removing its current path. */
   quarantine(name: 'vault.v1'): Promise<void>
   remove(name: VaultFileName): Promise<void>
@@ -148,8 +153,9 @@ export class NodeVaultFiles implements VaultFilePort {
       await handle?.close()
     }
   }
-  async writeAtomic(name: VaultFileName, data: Uint8Array): Promise<void> {
+  async writeAtomic(name: VaultFileName, data: Uint8Array, commit?: () => void): Promise<void> {
     if (data.byteLength > this.maxBytes) throw new VaultError('invalid')
+    let refusal: { error: unknown } | undefined
     await this.directory()
     const stage = path.join(
       this.root,
@@ -164,10 +170,20 @@ export class NodeVaultFiles implements VaultFilePort {
       await handle.sync()
       await handle.close()
       if (!sameFile(identity, await lstatIdentity(stage))) throw new VaultError('io')
-      await rename(stage, path.join(this.root, name))
+      if (commit) {
+        // Synchronous from the check to the rename: no task can retire authority between them.
+        try {
+          commit()
+        } catch (error: unknown) {
+          refusal = { error }
+          throw error
+        }
+        renameSync(stage, path.join(this.root, name))
+      } else await rename(stage, path.join(this.root, name))
       await this.verify(path.join(this.root, name), 'file')
       await this.syncDirectory()
     } catch {
+      if (refusal) throw refusal.error
       throw new VaultError('io')
     } finally {
       await handle.close()
@@ -666,6 +682,7 @@ export class VaultStore implements VaultStorePort {
     items: Document['items'],
     prior: Slots,
     restoreDigest: string | null = null,
+    authorize?: () => void,
   ): Promise<void> {
     const next = prior.generation + 1
     if (!Number.isSafeInteger(next)) throw new VaultError('invalid')
@@ -734,7 +751,12 @@ export class VaultStore implements VaultStorePort {
         pendingBytes.length > this.options.files.maxBytes
       )
         throw new VaultError('invalid')
-      await this.options.files.writeAtomic('pending.v1', pendingBytes)
+      // The write-ahead intent is the commit: recovery installs it after a crash.
+      // A locked store or a retired caller never reaches it.
+      await this.options.files.writeAtomic('pending.v1', pendingBytes, () => {
+        this.active()
+        authorize?.()
+      })
       this.active()
       await this.options.anchor.advance(this.vaultId, stateOf(slots), previous)
       this.active()
@@ -780,6 +802,29 @@ export class VaultStore implements VaultStorePort {
       plaintext.fill(0)
     }
   }
+  /** Seals one item at the next generation and publishes it with the rest of the index. */
+  private async replaceItem(
+    snapshot: VaultSnapshot,
+    index: Index,
+    remaining: Index['items'],
+    metadata: VaultItem['metadata'],
+    plaintext: Uint8Array,
+  ): Promise<void> {
+    const next = snapshot.document.generation + 1
+    const block = sealVaultBlock(
+      this.active(),
+      { vaultId: this.vaultId, id: metadata.id, kind: metadata.kind, generation: next },
+      plaintext,
+    )
+    await this.publish(
+      { items: [...remaining, { metadata, generation: next }], grants: index.grants },
+      [
+        ...snapshot.document.items.filter((entry) => entry.id !== metadata.id),
+        { id: metadata.id, block },
+      ],
+      snapshot.slots,
+    )
+  }
   lock(): void {
     this.locked = true
     this.key.fill(0)
@@ -807,7 +852,12 @@ export class VaultStore implements VaultStorePort {
       throw error
     }
   }
-  async write(input: VaultItem): Promise<void> {
+  /**
+   * `expect` is checked inside the same writer transaction as the commit, so an
+   * add never replaces an item and an edit never resurrects a removed one
+   * (RVCM1091A F6).
+   */
+  async write(input: VaultItem, expect: 'absent' | 'present' | 'any' = 'any'): Promise<void> {
     // Own the input before the first await; the caller cannot change the approved item mid-write.
     const parsed = vaultItemSchema.safeParse(input)
     if (!parsed.success) throw new VaultError('invalid')
@@ -816,30 +866,44 @@ export class VaultStore implements VaultStorePort {
       await this.options.files.withWriter(async () => {
         const { snapshot, index } = await this.load()
         const { metadata } = parsed.data
+        const current = index.items.find((item) => item.metadata.id === metadata.id)
         const remaining = index.items.filter((item) => item.metadata.id !== metadata.id)
         if (
+          (expect === 'absent' && current !== undefined) ||
+          (expect === 'present' && current?.metadata.kind !== metadata.kind) ||
           remaining.some((item) => item.metadata.name === metadata.name) ||
           remaining.length >= VAULT_LIMITS.items
         )
           throw new VaultError('invalid')
-        const next = snapshot.document.generation + 1
-        const block = sealVaultBlock(
-          this.active(),
-          { vaultId: this.vaultId, id: metadata.id, kind: metadata.kind, generation: next },
-          plaintext,
-        )
-        await this.publish(
-          { items: [...remaining, { metadata, generation: next }], grants: index.grants },
-          [
-            ...snapshot.document.items.filter((entry) => entry.id !== metadata.id),
-            { id: metadata.id, block },
-          ],
-          snapshot.slots,
-        )
+        await this.replaceItem(snapshot, index, remaining, metadata, plaintext)
       })
     } finally {
       plaintext.fill(0)
     }
+  }
+  /** Metadata only, re-sealing the current material in the same transaction (F6). */
+  async updateMetadata(input: unknown): Promise<void> {
+    const parsed = vaultItemMetadataSchema.safeParse(input)
+    if (!parsed.success) throw new VaultError('invalid')
+    const metadata = parsed.data
+    await this.options.files.withWriter(async () => {
+      const { snapshot, index } = await this.load()
+      const current = index.items.find((item) => item.metadata.id === metadata.id)
+      const remaining = index.items.filter((item) => item.metadata.id !== metadata.id)
+      if (
+        current?.metadata.kind !== metadata.kind ||
+        remaining.some((item) => item.metadata.name === metadata.name)
+      )
+        throw new VaultError('invalid')
+      const { material } = this.material(snapshot.document, index, metadata.id)
+      const plaintext = encodeVaultMaterial(material)
+      try {
+        await this.replaceItem(snapshot, index, remaining, metadata, plaintext)
+      } finally {
+        plaintext.fill(0)
+        eraseVaultMaterial(material)
+      }
+    })
   }
   async remove(id: string): Promise<void> {
     await this.options.files.withWriter(async () => {
@@ -865,7 +929,7 @@ export class VaultStore implements VaultStorePort {
     this.active()
     return structuredClone(result)
   }
-  /** Adds or replaces a grant for a present item; authorize runs after every load. */
+  /** Adds or replaces a grant for a present item; authorize runs at the commit. */
   async saveGrant(input: VaultGrant, authorize: () => void): Promise<void> {
     const parsed = vaultGrantSchema.safeParse(input)
     if (!parsed.success) throw new VaultError('invalid')
@@ -878,11 +942,14 @@ export class VaultStore implements VaultStorePort {
         others.length >= VAULT_LIMITS.grants
       )
         throw new VaultError('invalid')
-      authorize()
+      // Checked at the physical commit, after every await: a grant retired
+      // while the write waited is never published, nor recovered (RVCM1091A F2).
       await this.publish(
         { items: index.items, grants: [...others, grant] },
         snapshot.document.items,
         snapshot.slots,
+        null,
+        authorize,
       )
     })
   }

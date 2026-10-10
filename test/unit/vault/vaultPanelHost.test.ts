@@ -487,7 +487,7 @@ describe('C-M109-1 Set Up Vault', () => {
       expect.stringMatching(/^[a-f0-9]{40}$/u),
       expect.any(AbortSignal),
     )
-    expect(f.service.confirmSetup).toHaveBeenCalledWith('a'.repeat(32))
+    expect(f.service.confirmSetup).toHaveBeenCalledWith('a'.repeat(32), expect.any(Function))
     f.deps.showRecoveryCode.mockResolvedValueOnce(false)
     await f.host.handle({ type: 'vaultSetup' })
     expect(f.service.cancelSetup).toHaveBeenCalledWith('a'.repeat(32))
