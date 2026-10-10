@@ -599,6 +599,17 @@ export function featureCatalog(): readonly Feature[] {
       ['acp'],
     ),
     feature(
+      'ci-other-systems',
+      { ui: 'referenceCiOtherTitle' },
+      { ui: 'referenceCiOther' },
+      [],
+      [],
+      'other-ci-systems',
+      ['modelApi'],
+      false,
+      ['acp'],
+    ),
+    feature(
       'web-fetch',
       { ui: 'referenceWebFetchTitle' },
       { ui: 'referenceWebFetchDetail' },

@@ -585,6 +585,14 @@ Surfaces: acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#help-and-reference)
 
+### Other CI systems
+
+Run the same headless review or fix on GitLab CI, Azure Pipelines, Jenkins or Bitbucket Pipelines. Each template takes the key from that system’s secret store into the run step only, refuses forks and untrusted runs before anything is spent, and keeps the Action’s exit codes; no template comments or pushes. See docs/ci-other-systems.md.
+
+Surfaces: acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#other-ci-systems)
+
 ### Web fetch
 
 Fetch public web pages as readable text, with permission and network checks.

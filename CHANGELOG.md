@@ -30,6 +30,16 @@ happened, not what was planned; superseded entries are kept.
   chip and status adapter once their M104 bridges bind them; none does yet.
   ACP and terminals keep `/resources` and `resources status|resume`.
 
+- **Headless runs on GitLab CI, Azure Pipelines, Jenkins and Bitbucket
+  Pipelines** (CM80CI). One template per system under `ci-templates/`,
+  all calling the shared dependency-free `muse-spark-run.mjs` runner with
+  the GitHub Action's inputs (plan or fix mode, budget cap, model), the key
+  from that system's secret store into the run step only, fork and
+  untrusted-run refusal before anything is spent, and the Action's exit
+  codes; none comments or pushes. Validators plus end-to-end runs against
+  a fake agent pass here; no live run on these systems exists yet, so this
+  is not certified (see `docs/ci-other-systems.md`).
+
 ### Changed
 
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4

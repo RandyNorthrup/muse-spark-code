@@ -168,8 +168,8 @@ describe('template run end to end', () => {
     const result = await installAgent(env, { spawn: fakeSpawn })
     expect(result).toEqual({ exitCode: 0 })
     expect(calls).toHaveLength(1)
-    expect(calls[0].argv).toContain('muse-spark-code-acp@0.17.0')
-    expect(calls[0].env).not.toContain('MUSE_SPARK_MODEL_API_KEY')
+    expect(calls[0]!.argv).toContain('muse-spark-code-acp@0.17.0')
+    expect(calls[0]!.env).not.toContain('MUSE_SPARK_MODEL_API_KEY')
   })
 
   it('install refuses a tarball whose digest does not match', async () => {
