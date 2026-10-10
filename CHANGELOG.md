@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Themed Usage & cost companion page** (M114 C-M114-1). The local page
+  now follows the four Muse palettes through the shared design roles: its
+  mode tracks the operating system until an appearance is stored, and it
+  applies the stored interface/code fonts with ligatures, using the
+  installed local fonts once `fonts install` has run and the system stack
+  otherwise. The served page carries a document title, and a broken install
+  missing the theme sheets refuses plainly instead of rendering unthemed.
+  The VS Code panel is unchanged: it keeps the editor's own theme and
+  fonts. Native editor pages follow with C-M114-2.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

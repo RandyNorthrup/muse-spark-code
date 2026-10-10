@@ -35818,6 +35818,15 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
     captures still assigned to M104/C integration; S owns public docs and
     final visual/accessibility certification. See
     `docs/certification/m114-c-companion-and-native-webviews.md`.
+  - **C-M114-1 companion binding (2026-10-10):** the companion half of the
+    binding lands without waiting for M104: the usage page links static
+    `dist/webview/theme.css` (25 KiB cap), mounts the CSS-free consumer
+    with an empty-role Muse-palette port, applies F's stored appearance
+    through its ports, and serves the installed font pack when present;
+    editor and native hosts are untouched. Native rows stay with C-M114-2,
+    the Chromium proof and captures with the unsandboxed run, and final
+    visual/accessibility certification with S. See
+    `docs/certification/c-m114-1-companion-theme.md`.
   - the token names and groups, with each role's VS Code variable and its
     Muse palette values;
   - `build-tokens.mjs`'s outputs and their paths, and the input format TH and
