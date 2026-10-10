@@ -75,7 +75,9 @@ export interface LeasePort {
    * Rewrites `file` in place with `content` only while `isOwn` accepts the
    * opened file, judged on the open handle's own stats and content (so a
    * replacement at the name, even one with a reused file id, is never
-   * written); false otherwise, or when the file is gone.
+   * written); false otherwise, or when the file is gone. Call `isOwn`
+   * immediately before beginning the rewrite: acceptance lets the holder
+   * recognize a torn note until this call settles.
    */
   rewriteOwn(
     file: string,
@@ -148,10 +150,12 @@ export interface FileLease {
   /**
    * Synchronously: the lease runs, the lock file is this very instance and
    * the highest fence is this one. For a gate with no await before it acts.
+   * Own renewal may show either count; a torn note is owned only during
+   * the opened file's accepted rewrite, while the lease still runs.
    */
   isHeldSync(): boolean
   isHeld(): Promise<boolean>
-  /** Extends the lease (rewrites this instance's note); false when no longer held. */
+  /** Extends this instance's lease; false when lost or a renewal already runs. */
   renew(): Promise<boolean>
   /** Removes this instance only, once proven; a lock taken over stays its taker's. Never throws. */
   release(): Promise<void>
@@ -229,13 +233,17 @@ async function observe(port: LeasePort, lockPath: string): Promise<Observation> 
   }
 }
 
-/** The same, synchronously; undefined when it cannot be read whole. */
-function observeSync(port: LeasePort, lockPath: string): LeaseInstance | undefined {
+/** Synchronous sample: steady metadata unless the holder's own rewrite is pending. */
+function observeSync(
+  port: LeasePort,
+  lockPath: string,
+  isRewriting: boolean,
+): LeaseInstance | undefined {
   try {
     const before = port.lstatSync(lockPath)
     const note = parseNote(port.readFileSync(lockPath))
     const after = port.lstatSync(lockPath)
-    return sameFile(before, after) && before.mtimeNs === after.mtimeNs
+    return sameFile(before, after) && (isRewriting || before.mtimeNs === after.mtimeNs)
       ? instanceOf(after, note)
       : undefined
   } catch {
@@ -406,16 +414,27 @@ function heldLease(
   let note = start.note
   let heldSince = start.since
   let isReleased = false
+  let pending: LeaseInstance | undefined
+  let isRewriting = false
   const isRunning = (): boolean => !isReleased && env.monotonic() - heldSince < env.leaseMs
+  const isOwnInstance = (seen: LeaseInstance): boolean =>
+    isSameInstance(seen, instance) ||
+    (pending !== undefined &&
+      (isSameInstance(seen, pending) ||
+        (isRewriting &&
+          seen.noteId === undefined &&
+          sameFile(seen.identity, instance.identity) &&
+          seen.bornNs === instance.bornNs)))
   const isHeldSync = (): boolean => {
     if (!isRunning()) {
       return false
     }
-    const seen = observeSync(env.port, lockPath)
+    const seen = observeSync(env.port, lockPath, isRewriting)
     return (
       seen !== undefined &&
-      isSameInstance(seen, instance) &&
-      readHighestFenceSync(env.port, fences) === fence
+      isOwnInstance(seen) &&
+      readHighestFenceSync(env.port, fences) === fence &&
+      isRunning()
     )
   }
   const isHeld = async (): Promise<boolean> => {
@@ -425,8 +444,9 @@ function heldLease(
     const seen = await observe(env.port, lockPath)
     return (
       seen.kind === 'seen' &&
-      isSameInstance(seen.instance, instance) &&
-      (await readHighestFence(env.port, fences)) === fence
+      isOwnInstance(seen.instance) &&
+      (await readHighestFence(env.port, fences)) === fence &&
+      isRunning()
     )
   }
   return {
@@ -434,7 +454,8 @@ function heldLease(
     isHeldSync,
     isHeld,
     renew: async () => {
-      if (!(await isHeld())) {
+      const isStillHeld = await isHeld()
+      if (pending !== undefined || !isStillHeld) {
         return false
       }
       const renewedSince = env.monotonic()
@@ -442,26 +463,41 @@ function heldLease(
       // Only this very instance is rewritten: file id, birth time, note id
       // and renewal, read through the opened handle itself.
       const owned = instance
-      const isOwn = (opened: BigIntStats, bytes: Buffer) =>
-        isSameInstance(instanceOf(opened, parseNote(bytes)), owned)
-      if (!(await env.port.rewriteOwn(lockPath, isOwn, JSON.stringify(renewed)))) {
-        return false
-      }
-      // Renewed: this instance at the lock's name, with the new renewal,
-      // and still the highest fence.
       const expected: LeaseInstance = { ...owned, renewal: renewed.renewal }
-      const seen = await observe(env.port, lockPath)
-      if (
-        seen.kind !== 'seen' ||
-        !isSameInstance(seen.instance, expected) ||
-        (await readHighestFence(env.port, fences)) !== fence
-      ) {
-        return false
+      pending = expected
+      const isOwn = (opened: BigIntStats, bytes: Buffer): boolean => {
+        if (!isRunning() || !isSameInstance(instanceOf(opened, parseNote(bytes)), owned)) {
+          return false
+        }
+        isRewriting = true
+        return true
       }
-      instance = seen.instance
-      note = renewed
-      heldSince = renewedSince
-      return true
+      try {
+        try {
+          if (!(await env.port.rewriteOwn(lockPath, isOwn, JSON.stringify(renewed)))) {
+            return false
+          }
+        } finally {
+          isRewriting = false
+        }
+        // Renewed: this instance at the name, still within its lease and
+        // with the highest fence. A delayed write cannot revive an expired hold.
+        const seen = await observe(env.port, lockPath)
+        if (
+          seen.kind !== 'seen' ||
+          !isSameInstance(seen.instance, expected) ||
+          (await readHighestFence(env.port, fences)) !== fence ||
+          !isRunning()
+        ) {
+          return false
+        }
+        instance = seen.instance
+        note = renewed
+        heldSince = renewedSince
+        return true
+      } finally {
+        pending = undefined
+      }
     },
     release: async () => {
       if (isReleased) {
