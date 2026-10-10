@@ -351,23 +351,7 @@ function readSetting<K extends SettingKey>(
 ): ExtensionSettings[K] {
   let previousKey: string | undefined
   if (key === 'scheduleDefaultDelivery') previousKey = 'schedules.defaultDelivery'
-  else if (key === 'scheduleAgentCreation') previousKey = 'schedules.agentCreation'
-  let raw = config.get(key) ?? (previousKey === undefined ? undefined : config.get(previousKey))
-  if (key === 'vault.enabled') {
-    const configured = config.inspect?.(key)
-    const hasExplicit =
-      configured === undefined
-        ? raw !== undefined
-        : [configured.globalValue, configured.workspaceValue, configured.workspaceFolderValue].some(
-            (value) => value !== undefined,
-          )
-    if (!hasExplicit) {
-      // A legacy scalar collides with the new group defaults, so inspect its
-      // stored value rather than relying on VS Code's merged group object.
-      const legacy = config.inspect?.('vault')?.globalValue ?? config.get('vault')
-      if (typeof legacy === 'boolean') raw = legacy
-    }
-  }
+  const raw = config.get(key) ?? (previousKey === undefined ? undefined : config.get(previousKey))
   // The keyed schema validates its matching default; TypeScript cannot correlate indexed K (PLAN §8).
   const fallback = settingSchemas[key].parse(SETTING_DEFAULTS[key]) as ExtensionSettings[K]
   if (raw === undefined) {
@@ -387,6 +371,8 @@ function readSetting<K extends SettingKey>(
 }
 
 export function readSettings(config: SettingsSource, log: Logger): ExtensionSettings {
+  // C-X-1: unbound settings retain their stored values, but have no runtime reader.
+  // Typed contracts carry defaults until their actual owners bind.
   return {
     preferredLocation: readSetting(config, 'preferredLocation', log),
     initialPermissionMode: readSetting(config, 'initialPermissionMode', log),
@@ -420,10 +406,10 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiScheduledPrompts: readSetting(config, 'modelApiScheduledPrompts', log),
     schedules: readSetting(config, 'schedules', log),
     scheduleDefaultDelivery: readSetting(config, 'scheduleDefaultDelivery', log),
-    scheduleAgentCreation: readSetting(config, 'scheduleAgentCreation', log),
+    scheduleAgentCreation: SETTING_DEFAULTS.scheduleAgentCreation,
     modelApiSubagents: readSetting(config, 'modelApiSubagents', log),
     modelApiBestOfN: readSetting(config, 'modelApiBestOfN', log),
-    modelApiTeamWorkers: readSetting(config, 'modelApiTeamWorkers', log),
+    modelApiTeamWorkers: SETTING_DEFAULTS.modelApiTeamWorkers,
     modelApiHooks: readSetting(config, 'modelApiHooks', log),
     modelApiShellKeepsDirectory: readSetting(config, 'modelApiShellKeepsDirectory', log),
     modelApiHookModels: readSetting(config, 'modelApiHookModels', log),
@@ -455,8 +441,8 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiRepositoryRules: readSetting(config, 'modelApiRepositoryRules', log),
     modelApiAutoReviewer: readSetting(config, 'modelApiAutoReviewer', log),
     'judge.engine': readSetting(config, 'judge.engine', log),
-    'estimator.optimize': readSetting(config, 'estimator.optimize', log),
-    'estimator.priceLookup': readSetting(config, 'estimator.priceLookup', log),
+    'estimator.optimize': SETTING_DEFAULTS['estimator.optimize'],
+    'estimator.priceLookup': SETTING_DEFAULTS['estimator.priceLookup'],
     museCodeAutoReviewer: readSetting(config, 'museCodeAutoReviewer', log),
     modelApiTab: readSetting(config, 'modelApiTab', log),
     tabModel: readSetting(config, 'tabModel', log),
@@ -472,14 +458,14 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     mediaUploadExpiryDays: readSetting(config, 'mediaUploadExpiryDays', log),
     screenRecordingMaxSeconds: readSetting(config, 'screenRecordingMaxSeconds', log),
     mediaAudioAction: readSetting(config, 'mediaAudioAction', log),
-    accountSwap: readSetting(config, 'accountSwap', log),
-    accountParallel: readSetting(config, 'accountParallel', log),
-    'accounts.severalOnThisDevice': readSetting(config, 'accounts.severalOnThisDevice', log),
-    'vault.enabled': readSetting(config, 'vault.enabled', log),
-    'vault.protection': readSetting(config, 'vault.protection', log),
+    accountSwap: SETTING_DEFAULTS.accountSwap,
+    accountParallel: SETTING_DEFAULTS.accountParallel,
+    'accounts.severalOnThisDevice': SETTING_DEFAULTS['accounts.severalOnThisDevice'],
+    'vault.enabled': SETTING_DEFAULTS['vault.enabled'],
+    'vault.protection': SETTING_DEFAULTS['vault.protection'],
     'vault.agentFence': readSetting(config, 'vault.agentFence', log),
-    'vault.lockAfterIdleMinutes': readSetting(config, 'vault.lockAfterIdleMinutes', log),
-    'vault.lockOnScreenLock': readSetting(config, 'vault.lockOnScreenLock', log),
+    'vault.lockAfterIdleMinutes': SETTING_DEFAULTS['vault.lockAfterIdleMinutes'],
+    'vault.lockOnScreenLock': SETTING_DEFAULTS['vault.lockOnScreenLock'],
   }
 }
 

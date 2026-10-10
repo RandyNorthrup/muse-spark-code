@@ -259,6 +259,7 @@
   "estimateClassStrikes": "每個發現類別的問題輪次",
   "estimateRedesigns": "重新設計事件",
   "estimateDisclosureMissing": "數值的校準揭露不完整。",
+  "estimateRuntimeUnavailable": "此主機無法提供估算。尚未繫結計畫快照。",
   "estimateUnavailable": "無法載入估算器，因此無法執行估算；請重新安裝擴充功能並重新載入視窗。詳細資訊見記錄檔。",
   "estimateStaleBase": "基線已過時 ({lanes})：開始前請先變基。",
   "estimateWaveStarted": "已啟動 {lanes}。",
@@ -438,6 +439,7 @@
   "referenceTasks": "在獨立的編輯器分頁中開啟此對話的工作清單。",
   "referenceDiagnostics": "顯示本機後端和擴充功能的診斷資訊。",
   "referenceReport": "儲存或傳送前預覽已清理的問題報告。",
+  "referenceInProgress": "進行中.",
   "referenceEstimate": "進行中.",
   "referenceTerminal": "在編輯器終端機中開啟 Muse Code CLI。",
   "referenceRules": "在工作區根目錄建立或開啟 AGENTS.md。",
@@ -5072,6 +5074,5 @@
     "grantsCount": {
       "other": "{count} 個授權"
     }
-  },
-  "referenceInProgress": "進行中."
+  }
 }

@@ -259,6 +259,7 @@
   "estimateClassStrikes": "Počet zásahů pro třídu nálezů",
   "estimateRedesigns": "Události změny návrhu",
   "estimateDisclosureMissing": "Údaje o kalibraci číselných hodnot nejsou úplné.",
+  "estimateRuntimeUnavailable": "Odhady nejsou v tomto hostiteli dostupné. Není připojen žádný snímek plánu.",
   "estimateUnavailable": "Odhadovací modul se nepodařilo načíst, takže nelze spustit žádný odhad; přeinstalujte rozšíření a znovu načtěte okno. Podrobnosti jsou v protokolu.",
   "estimateStaleBase": "Zastaralý základ ({lanes}): před zahájením proveďte rebase.",
   "estimateWaveStarted": "Spuštěno {lanes}.",
@@ -438,6 +439,7 @@
   "referenceTasks": "Otevřít úkoly této konverzace na samostatné kartě editoru.",
   "referenceDiagnostics": "Zobrazit místní diagnostiku backendu a rozšíření.",
   "referenceReport": "Před uložením nebo odesláním zobrazit očištěné hlášení problému.",
+  "referenceInProgress": "Probíhá.",
   "referenceEstimate": "Probíhá.",
   "referenceTerminal": "Otevřít Muse Code CLI v terminálu editoru.",
   "referenceRules": "Vytvořit nebo otevřít AGENTS.md v kořenu pracovního prostoru.",
@@ -5531,6 +5533,5 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
-  },
-  "referenceInProgress": "Probíhá."
+  }
 }

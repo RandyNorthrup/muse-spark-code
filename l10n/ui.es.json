@@ -259,6 +259,7 @@
   "estimateClassStrikes": "Rondas con fallos por clase de hallazgo",
   "estimateRedesigns": "Eventos de rediseño",
   "estimateDisclosureMissing": "La información de calibración de los valores numéricos está incompleta.",
+  "estimateRuntimeUnavailable": "Las estimaciones no están disponibles en este host. No hay ninguna instantánea del plan conectada.",
   "estimateUnavailable": "No se pudo cargar el estimador, por lo que ninguna estimación puede ejecutarse; reinstale la extensión y recargue la ventana. El registro tiene los detalles.",
   "estimateStaleBase": "Base desactualizada ({lanes}): haga rebase antes de empezar.",
   "estimateWaveStarted": "Iniciado: {lanes}.",
@@ -438,6 +439,7 @@
   "referenceTasks": "Abrir las tareas de esta conversación en otra pestaña del editor.",
   "referenceDiagnostics": "Mostrar el diagnóstico local del backend y la extensión.",
   "referenceReport": "Revisar un informe depurado antes de guardarlo o enviarlo.",
+  "referenceInProgress": "En curso.",
   "referenceEstimate": "En curso.",
   "referenceTerminal": "Abrir la CLI de Muse Code en el terminal del editor.",
   "referenceRules": "Crear o abrir AGENTS.md en la raíz del espacio de trabajo.",
@@ -5378,6 +5380,5 @@
       "other": "{count} autorizaciones",
       "many": "{count} autorizaciones"
     }
-  },
-  "referenceInProgress": "En curso."
+  }
 }

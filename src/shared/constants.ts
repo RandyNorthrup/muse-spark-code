@@ -550,6 +550,11 @@ export const BACKEND_SETTING = 'museSpark.backend'
 export const IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT = true
 // The panel reads the M115 schedules default the same way.
 export const ARE_SCHEDULES_ON_BY_DEFAULT = true
+// Management surfaces exist, but installed execution/snapshot owners are unbound (C-X-1).
+export const OPTIONAL_RUNTIME_AVAILABILITY: Readonly<{ schedules: boolean; estimator: boolean }> = {
+  schedules: false,
+  estimator: false,
+}
 
 export const SETTING_DEFAULTS = {
   preferredLocation: 'panel' as PreferredLocation,

@@ -18,10 +18,11 @@ import {
 import { referenceModel as browserReference } from '../../src/shared/reference/reference.generated'
 import { referenceModel as nodeReference } from '../../src/runtime/reference.node.generated'
 import { featureCatalog, REFERENCE_IN_PROGRESS_FEATURES } from '../../src/shared/featureCatalog'
+import { OPTIONAL_RUNTIME_AVAILABILITY, UI_TEXT } from '../../src/shared/constants'
+import { buildPalette, slashCommandsOf } from '../../src/shared/paletteRegistry'
+import type { PaletteContext } from '../../src/shared/palette'
 import { EN } from '../../src/shared/l10n/en'
 import { formatAcpUsage } from '../../src/runtime/cliOptions'
-import { createRuntimeEstimate } from '../../src/runtime/estimator/ports'
-import { acpSchedules } from '../../src/acp/schedules'
 import { createAcpAgent } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
 import { FakeAgentHost } from './helpers/fakeAgent'
@@ -40,24 +41,19 @@ const uiTables = glob('l10n/ui.*.json')
 const guides = glob('docs/*.md')
 const walkthroughs = glob('resources/walkthrough/*.md')
 
-// These settings preserve persisted values/defaults and typed consumers only.
+// These settings preserve persisted values/defaults without an installed behavioral owner.
 const compatibilitySettings = [
-  'schedules',
-  'scheduleDefaultDelivery',
   'scheduleAgentCreation',
   'accountSwap',
   'accountParallel',
   'accounts.severalOnThisDevice',
   'vault.enabled',
   'vault.protection',
-  'vault.agentFence',
   'vault.lockAfterIdleMinutes',
   'vault.lockOnScreenLock',
   'estimator.optimize',
   'estimator.priceLookup',
   'modelApiTeamWorkers',
-  'resourceRelocate',
-  'modelApiAutoCompaction',
 ]
 const compatibilityWording: Readonly<Record<string, RegExp>> = {
   en: /compatibility; no runtime effect/,
@@ -75,6 +71,23 @@ const compatibilityWording: Readonly<Record<string, RegExp>> = {
   tr: /Uyumluluk.*etkili değildir/,
   'zh-cn': /兼容性.*不起作用/,
   'zh-tw': /相容性.*不起作用/,
+}
+const activeWording: Readonly<Record<string, RegExp>> = {
+  en: /management|drafts|note|notice|fence/,
+  cs: /správě|návrhů|oznámení|příkazy/,
+  de: /Zeitplanverwaltung|Zeitplanentwürfe|Hinweis|Shellbefehle/,
+  es: /gestión|borradores|aviso|comandos/,
+  fr: /gestion|brouillons|avis|commandes/,
+  hu: /kezeléséhez|vázlatokba|értesítés|jelzi|shellparancsok/,
+  it: /gestione|bozze|avviso|comandi/,
+  ja: /管理|下書き|通知|コマンド/,
+  ko: /관리|초안|알림|명령/,
+  pl: /zarządzania|szkicach|komunikat|poleceń/,
+  'pt-br': /gerenciamento|rascunhos|aviso|comandos/,
+  ru: /управлению|черновики|уведомлени|команд/,
+  tr: /yönetimine|taslaklarına|bildirim|bildirir|komutlarının/,
+  'zh-cn': /管理|草稿|提示|通知|命令/,
+  'zh-tw': /管理|草稿|提示|通知|命令/,
 }
 const claims: Readonly<Record<string, RegExp>> = {
   accounts:
@@ -99,10 +112,16 @@ function refuseUnavailable(): never {
   throw new Error('optional runtime owner unavailable')
 }
 
-async function discoveredCommands(): Promise<string> {
+async function discoveredCommands(
+  isAvailable = false,
+): Promise<{ discovery: string; invocation: string }> {
   const host = new FakeAgentHost()
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const refused = refuseUnavailable
+  const scheduleRun = vi.fn().mockResolvedValue('schedule result')
+  const estimateRun = vi.fn().mockResolvedValue('estimate result')
+  const holdWorkspace = vi.fn().mockResolvedValue(() => Promise.resolve())
+  const answers: string[] = []
   const agent = createAcpAgent({
     backend: {
       kind: 'museCode',
@@ -125,8 +144,8 @@ async function discoveredCommands(): Promise<string> {
       grants: memoryPaidGrants(),
       log,
     }),
-    schedules: { ...acpSchedules(refused), isAvailable: false },
-    estimate: createRuntimeEstimate({ bundlePath: path.join(root, 'absent-estimator.js'), log }),
+    schedules: { isAvailable, run: scheduleRun, holdWorkspace },
+    estimate: { isAvailable, run: estimateRun },
     playbookFor: refused,
     log,
   })
@@ -136,12 +155,29 @@ async function discoveredCommands(): Promise<string> {
     .onNotification('session/update', ({ params }) => {
       if (params.update.sessionUpdate === 'available_commands_update')
         commands.push(...params.update.availableCommands)
+      if (
+        params.update.sessionUpdate === 'agent_message_chunk' &&
+        params.update.content.type === 'text'
+      )
+        answers.push(params.update.content.text)
     })
   await client.connectWith(agent, async (connection) => {
     const { sessionId } = await openHandshakeSession(connection, root)
     const session = host.sessions[0]
     if (session === undefined) throw new Error('missing session')
     session.skills = [
+      {
+        selector: 'schedule',
+        displayName: 'Workspace schedule',
+        description: 'workspace skill',
+        argumentHint: undefined,
+      },
+      {
+        selector: 'estimate',
+        displayName: 'Workspace estimate',
+        description: 'workspace skill',
+        argumentHint: undefined,
+      },
       {
         selector: 'loop',
         displayName: 'Loop',
@@ -153,14 +189,32 @@ async function discoveredCommands(): Promise<string> {
       sessionId,
       prompt: [{ type: 'text', text: '/help' }],
     })
+    for (const text of ['/schedule', '/schedule add {}', '/estimate goal'])
+      await connection.request('session/prompt', { sessionId, prompt: [{ type: 'text', text }] })
     expect(session.sendTurn).not.toHaveBeenCalled()
   })
   expect(commands.map((command) => command.name)).toEqual(
     expect.arrayContaining(['compact', 'report', 'playbook', 'loop']),
   )
-  expect(commands.map((command) => command.name)).not.toEqual(expect.arrayContaining(['schedule']))
-  expect(commands.map((command) => command.name)).not.toEqual(expect.arrayContaining(['estimate']))
-  return JSON.stringify(commands)
+  const names = new Set(commands.map((command) => command.name))
+  expect(names.has('schedule')).toBe(isAvailable)
+  expect(names.has('estimate')).toBe(isAvailable)
+  expect(commands.filter((command) => command.description === 'workspace skill')).toEqual([])
+  if (isAvailable) {
+    expect(scheduleRun).toHaveBeenCalledTimes(2)
+    expect(estimateRun).toHaveBeenCalledOnce()
+  } else {
+    expect(scheduleRun).not.toHaveBeenCalled()
+    expect(estimateRun).not.toHaveBeenCalled()
+    expect(holdWorkspace).not.toHaveBeenCalled()
+    expect(
+      answers.filter((answer) => answer === UI_TEXT.scheduleV2.runtime.unavailable),
+    ).toHaveLength(2)
+    expect(answers.filter((answer) => answer === UI_TEXT.estimateRuntimeUnavailable)).toHaveLength(
+      1,
+    )
+  }
+  return { discovery: JSON.stringify(commands), invocation: JSON.stringify(answers) }
 }
 
 const releases = parseChangelog(
@@ -186,6 +240,13 @@ const surfaces = [
   { name: 'generated Node Help', text: JSON.stringify(nodeReference()), instructions: true },
   { name: 'compact CLI help', text: formatAcpUsage(EN, 'muse-spark-code-acp'), instructions: true },
   { name: 'ACP available_commands_update', text: '', instructions: true },
+  { name: 'ACP dormant invocation', text: '', instructions: true },
+  {
+    name: 'first-turn inactive-compaction notice',
+    text: EN.autoCompactionAwaitingEvaluation,
+    instructions: true,
+  },
+  { name: 'chat palette and completions', text: '', instructions: true },
   { name: 'package.json', text: JSON.stringify(manifest), instructions: false },
   ...packageTables.map((file) => ({ name: file, text: read(file), instructions: false })),
   ...walkthroughs.map((file) => ({ name: file, text: read(file), instructions: true })),
@@ -196,7 +257,45 @@ const surfaces = [
 beforeAll(async () => {
   const discovery = surfaces.find((surface) => surface.name === 'ACP available_commands_update')
   if (discovery === undefined) throw new Error('discovery surface omitted')
-  discovery.text = await discoveredCommands()
+  const result = await discoveredCommands()
+  discovery.text = result.discovery
+  const invocation = surfaces.find((surface) => surface.name === 'ACP dormant invocation')
+  const palette = surfaces.find((surface) => surface.name === 'chat palette and completions')
+  if (invocation === undefined || palette === undefined) throw new Error('runtime surface omitted')
+  invocation.text = result.invocation
+  const context: PaletteContext = {
+    arePromptCommandsBound: true,
+    currentModel: undefined,
+    models: [],
+    effort: 'medium',
+    isThinkingEnabled: false,
+    permissionMode: 'manual',
+    isFocusView: false,
+    useCtrlEnterToSend: false,
+    usage: undefined,
+    backend: 'modelApi',
+    paidFeatures: [],
+    isKeyStored: false,
+    estimateAvailable: OPTIONAL_RUNTIME_AVAILABILITY.estimator,
+    ...(OPTIONAL_RUNTIME_AVAILABILITY.schedules && {
+      schedules: {
+        create: { type: 'openScheduleEditor' },
+        list: { type: 'openScheduleList' },
+        timeline: { type: 'openScheduleTimeline' },
+      },
+    }),
+    skills: ['schedule', 'estimate', 'loop'].map((selector) => ({
+      selector,
+      displayName: selector,
+      description: selector,
+    })),
+  }
+  const groups = buildPalette(context)
+  const commands = slashCommandsOf(groups)
+  expect(commands.map((command) => command.name)).toContain('loop')
+  for (const name of ['schedule', 'estimate'])
+    expect(commands.map((command) => command.name)).not.toContain(name)
+  palette.text = JSON.stringify({ groups, commands })
 })
 
 describe('CX1R5: exhaustive current-publication truth matrix', () => {
@@ -227,6 +326,30 @@ describe('CX1R5: exhaustive current-publication truth matrix', () => {
     const marker = compatibilityWording[locale]
     expect(marker, `missing locale coverage: ${locale}`).toBeDefined()
     if (marker === undefined) throw new Error('missing compatibility translation')
+    for (const key of [
+      'config.schedules.description',
+      'config.schedules.defaultDelivery.description',
+      'config.resourceRelocate.description',
+      'config.resourceRelocate.enumDescriptions.paired',
+      'config.resourceRelocate.enumDescriptions.ask',
+      'config.resourceRelocate.enumDescriptions.off',
+      'config.modelApiAutoCompaction.description',
+      'config.vault.agentFence.description',
+    ]) {
+      expect(table[key], key).not.toMatch(marker)
+      expect(table[key], key).toMatch(activeWording[locale] ?? /missing locale/)
+    }
+    if (locale === 'en') {
+      expect(table['config.schedules.description']).toContain(
+        'Controls access to schedule management',
+      )
+      expect(table['config.schedules.defaultDelivery.description']).toContain('new schedule drafts')
+      expect(table['config.resourceRelocate.description']).toContain('missing-route note')
+      expect(table['config.modelApiAutoCompaction.description']).toContain('first-turn notice')
+      expect(table['config.vault.agentFence.description']).toContain(
+        'interactive Model API shell commands',
+      )
+    }
     for (const name of compatibilitySettings) {
       const entry = manifest.contributes.configuration.properties
       const property = z
@@ -240,6 +363,10 @@ describe('CX1R5: exhaustive current-publication truth matrix', () => {
       for (const key of [property.description, ...(property.enumDescriptions ?? [])])
         expect(table[key.replaceAll('%', '')], name).toMatch(marker)
     }
+  })
+
+  it('publishes built-in schedule discovery only for a bound runtime, with no workspace collision', async () => {
+    await discoveredCommands(true)
   })
 
   it('retains the configured-default policy and working enhancement controls', () => {

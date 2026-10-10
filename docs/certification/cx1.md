@@ -696,3 +696,81 @@ Not run here (sandbox cannot start browsers, GUI apps or socket listeners;
 lead-owned): e2e/integration suites, browser-gated unit suites (harness
 screenshots, accessibility, visual regression), and aggregate `npm run
 quality`. No live/paid calls, no credentials touched, no push.
+
+# CX1R6 certification — RVCX1E, 2026-10-10, kubuntu
+
+This round supersedes the prior claim of exhaustive closure. All four P2 and
+both P3 findings are in scope, including siblings discovered by real runtime
+Help and the Settings-reader sweep. Aggregate quality/publication remain with
+the lead under the explicit rig brief; no dependency, hook, threshold, paid
+call, merge, push or subagent change is authorized here.
+
+## Repairs
+
+| Finding                            | Repair                                                                                                                                                                                                                                                                                                                                                                         | Regression                                                                                                                                                                      |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F1 Settings honesty                | All 15 manifest tables describe schedule management/draft delivery, the resource missing-route note, the first-turn inactive-compaction notice and the working interactive shell credential fence. Compatibility-only values remain stored but `readSettings` no longer reads them or legacy aliases.                                                                          | `cx1r5Truth` translated wording and notice matrix; `settings` guarded getter; `modelApiAutoCompact` disabled notice/one-time notice.                                            |
+| F2 hidden commands still runnable  | Installed chat availability is false for v2 schedules and estimates. Palette/completions reserve their names against workspace skills, and submit refuses with the plain runtime reason. ACP refuses unavailable ports without calling `run` or `holdWorkspace`. Runtime Help uses the discovery list and omits dormant standalone CLI routes. Legacy `/loop` stays available. | Real `cx1r6Chat` render; `cx1r5Truth` palette, ACP invocation and Help rows; whole `App` fixtures explicitly bind fake owners to keep exercising implemented deferred surfaces. |
+| F3 stale release e2e               | Compact help is required to retain ordinary ACP/auth usage and omit schedule draft, unattended and wake grammar. Schedule process refusal and committed-id/cleanup assertions remain.                                                                                                                                                                                          | `schedulesStdio.e2e` complete file.                                                                                                                                             |
+| F4 visual baseline                 | Review and refresh only frames changed by the intentionally corrected current What's New text. Full PNGs remain outside git and the pixel policy stays unchanged.                                                                                                                                                                                                              | Selective red pixel comparison and final full `check:visual`; frame receipt below.                                                                                              |
+| F5 team price acceptance           | Team toggles record no price acceptance and unavailable toggles confirm/write nothing. Review clears old toggle receipts. Bound tasks retain the task-specific priced D48 popup.                                                                                                                                                                                               | `teamWorkersPaid` stale receipt/unavailable toggle/later bind plus existing real consent tests.                                                                                 |
+| F6 inverted workspace skill filter | `schedule` is reserved just like `estimate`: no workspace skill republishes it while unavailable, and bound discovery publishes only the built-in command. Help reuses that same list.                                                                                                                                                                                         | `cx1r5Truth` unavailable/bound ports with colliding schedule and estimate skills.                                                                                               |
+
+The Settings sweep found an additional live reader omitted by the review:
+`extension.ts` supplies `vault.agentFence` to the interactive Model API shell
+boundary. Its description is corrected, not removed; verification, schedules,
+workers and hooks keep their unconditional fence. Other formerly inert readers
+were the generic Settings loader (including old vault/schedule aliases);
+their typed contracts now carry defaults. No persisted opt-out is overwritten.
+
+The release e2e package check also exposed the review's inherited localization
+archive/source order mismatch. UI tables now use the English template's key
+order while retaining every locale-specific plural form and every translation;
+this repairs the exact round-trip comparison without changing the gate.
+A new refusal key distinguishes an unbound plan snapshot from a failed lazy
+estimator chunk, in English and all 14 translated UI tables.
+
+The inherited fifty-token clone in CX1R2/CX1R4 is removed by sharing their
+actual encode/decode fixture (`helpers/currentWhatsNew.ts`). Both owners keep
+all their archival assertions. No duplicate-detection threshold is changed.
+
+Final drills and gate receipts are recorded below after completion.
+
+## Red drills (repository deadlines, whole files, three workers)
+
+Each deliberate mutation exited 1, then restored the exact original bytes;
+SHA-256 was compared in the same finally block. There was no test-name filter
+or timeout override. Hook failures naturally stop dependent matrix cases;
+final whole-file runs do not skip them.
+
+| Finding | Deliberate break                                                             | Named regression failure                                                                                                                              | Restored SHA-256                                                                                                                                                                      |
+| ------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F1      | Restore a stored vault flag reader and the false inert schedules description | test/unit/settings.test.ts > readSettings > never reads compatibility-only stored settings or their legacy aliases                                    | `src/host/settings.ts`: `5fed72955ef375831f2b9bd44d2c5b5f82570ee1b800c10c01331d8f8f960662`; `package.nls.json`: `1f3cfdf1c5fac14211dd1c82f91c00708b7cf19154e63161a563a353ee8bef40`    |
+| F2      | Bind installed chat flags and remove ACP run availability guards             | test/unit/cx1r6Chat.test.tsx > CX1R6 installed chat availability > omits dormant palette rows and completions even with reserved workspace skills     | `src/shared/constants.ts`: `e509524a9ff0d7a9e85396aafab01502f314ee13155a8f1d73674a7a93a1cb82`; `src/acp/agent.ts`: `064069831b2bca5f0669740111db27043cddf9b6fbf12932e4124778d93ada5d` |
+| F3      | Republish schedule usage in compact CLI help                                 | test/e2e/schedulesStdio.e2e.test.ts > schedule CLI process boundary > keeps dormant v2 grammar out of compact help and retains ordinary ACP usage     | `src/runtime/cliOptions.ts`: `fb850b8898fe2292dd420d5d134a93d968156655c5d1ae91f5ee225637dcd54b`                                                                                       |
+| F5      | Disable both team-specific receipt/toggle branches                           | test/unit/teamWorkersPaid.test.ts > teamWorkers paid use (M96) > a team toggle accepts no price and clears stale receipts before a later runtime bind | `src/core/paid/paidFeatures.ts`: `73d1e6c3d815895b53f1abd9d4268b6a2f099e48e4bdb674bbb9d69d169cddba`                                                                                   |
+| F6      | Restore the inverted schedule skill predicate                                | test/unit/cx1r5Truth.test.ts [ test/unit/cx1r5Truth.test.ts ]                                                                                         | `src/acp/agent.ts`: `064069831b2bca5f0669740111db27043cddf9b6fbf12932e4124778d93ada5d`                                                                                                |
+
+The F1 reference-gate drill removed its compatibility-reader error, then ran
+all of `referenceGenerator.test.mjs`: the new named reader regression failed
+while the other 116 tests passed. The gate was restored byte-exact at SHA-256
+`156ff9e7a50baa012150ee6776eafc4f3717e3e07ddab0043f838fb455834810`.
+The F2 editor-command drill removed both registered shim guards, then ran all
+of `cx1r6HostCommands.test.ts`: both direct-command refusal regressions failed.
+`src/extension.ts` was restored byte-exact at SHA-256
+`6e0ccee4a9315d1ae3490d99bd3c672c0edf0d762b695062758e42a1951b06dd`.
+These shims refuse before opening a conversation, draft or schedule panel.
+
+## What's New frame review (F4)
+
+Review `CX1R6-RVCX1E-F4-Whats-New-2026-10-10`: Codex inspected every distinct
+before/after PNG pair at original size, including text wrapping, panel layout,
+links, focus-visible, pressed and disabled states. The 144 changed frames form
+62 byte-identical equivalence groups, enumerated with their before/after hashes
+and complete frame lists in `cx1r6-visual.md`. They cover `whats-new` and
+`whats-new-footer`, all six themes, 320/690 widths and all six states. The
+72 `whats-new-highlights` frames are unchanged. The intentional difference is
+the corrected 0.17.0 release text; no control/layout defect was accepted.
+All other baseline frame records, coverage and pixel policy remain unchanged.
+Full PNGs and comparison sheets stay in the lane's disk-backed temp archive,
+outside git.

@@ -300,7 +300,12 @@ function skillItems(skills: readonly SkillOption[] | undefined): readonly Palett
     ]
   }
   return skills
-    .filter((skill) => skill.selector !== SLASH_COMMAND_NAMES.help)
+    .filter(
+      (skill) =>
+        skill.selector !== SLASH_COMMAND_NAMES.help &&
+        skill.selector !== SLASH_COMMAND_NAMES.estimate &&
+        skill.selector !== 'schedule',
+    )
     .map((skill) => ({
       id: `skill:${skill.selector}`,
       label: `/${skill.selector}`,

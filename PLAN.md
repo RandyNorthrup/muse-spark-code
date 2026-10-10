@@ -1,5 +1,26 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**CX1R6 release truth repair (2026-10-10, kubuntu; 0.17.1).** Close all
+six RVCX1E findings and sweep their siblings within C-X-1. Settings describe
+the editor draft, relocation notice and inactive-compaction notice they still
+control, including the interactive shell credential fence found in the sibling
+sweep, with all fifteen manifest tables and the truth matrix updated. Truly
+inert settings keep persisted values but no longer read them at runtime. The
+reference gate verifies ignored values and zero readers rather than assuming
+all contributed controls honor configured inputs; active value/bound checks
+remain and inverse-boolean probes are added. Active controls lose the false
+deprecation marker and retain explicit catalog condition selectors.
+Dormant v2 schedule and estimator commands refuse plainly on invocation and
+stay absent from the chat palette, completions, ACP discovery and Help;
+legacy `/loop` remains unchanged. Reserve built-in schedule discovery against
+workspace-skill collisions. Unavailable team toggles record no price acceptance.
+Update the release schedule-help e2e. Review every intentionally changed
+What's New frame, update only those baselines, and run the full pixel gate,
+fake-only release e2e, xvfb integration and accessibility once at the end.
+Each finding gets a named failing regression and SHA-256 restored red drill
+in docs/certification/cx1.md. No dependency, guard relaxation, merge, push,
+subagent or paid/live calls; aggregate quality remains lead-owned.
+
 **CX1R5 truth pass (2026-10-10, kubuntu; 0.17.1).** First isolate optional
 account metadata/startup from ACP session creation and certify a normal turn
 through the real SDK router with absent, present and failing metadata. Audit

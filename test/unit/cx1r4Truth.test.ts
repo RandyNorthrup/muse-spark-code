@@ -16,10 +16,7 @@ import { REPORT_KINDS, REPORT_WORKING_KINDS } from '../../src/shared/constants'
 import { featureCatalog } from '../../src/shared/featureCatalog'
 import { REFERENCE_CAPABILITIES } from '../../src/shared/reference/referenceSource'
 import { referenceModel } from '../../src/shared/reference/reference.generated'
-import {
-  encodeWhatsNewContent,
-  parseWhatsNewContent,
-} from '../../src/core/whatsNew/whatsNewContent'
+import { currentWhatsNewText } from './helpers/currentWhatsNew'
 
 function repoFile(name: string): string {
   return readFileSync(new URL(`../../${name}`, import.meta.url), 'utf8')
@@ -138,10 +135,7 @@ describe('CX1R4 F2: previews claim is historical, strict-tool facts stay current
   })
 
   it('encoded current notes exclude the archived previews bullet', () => {
-    const content = parseWhatsNewContent(
-      encodeWhatsNewContent(JSON.stringify({ schema: 1, releases: releases.slice(0, 2) })),
-    )
-    const shown = JSON.stringify(content)
+    const shown = currentWhatsNewText(releases)
     expect(shown).toContain('completed calls remain the execution boundary')
     expect(shown).not.toMatch(/previews load on first use/)
     expect(changelog).toContain('Tool argument previews load on first use.')

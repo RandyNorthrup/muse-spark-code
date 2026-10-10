@@ -259,6 +259,7 @@
   "estimateClassStrikes": "Cicli con errori per classe di rilievi",
   "estimateRedesigns": "Eventi di riprogettazione",
   "estimateDisclosureMissing": "Le informazioni di calibrazione dei valori numerici sono incomplete.",
+  "estimateRuntimeUnavailable": "Le stime non sono disponibili in questo host. Nessuna istantanea del piano è collegata.",
   "estimateUnavailable": "Lo stimatore non può essere caricato, quindi nessuna stima può essere eseguita; reinstalla l’estensione e ricarica la finestra. I dettagli sono nel registro.",
   "estimateStaleBase": "Base obsoleta ({lanes}): esegui il rebase prima di iniziare.",
   "estimateWaveStarted": "Avviato: {lanes}.",
@@ -438,6 +439,7 @@
   "referenceTasks": "Apri le attività di questa conversazione in una scheda separata.",
   "referenceDiagnostics": "Mostra la diagnostica locale del backend e dell’estensione.",
   "referenceReport": "Visualizza un rapporto ripulito prima di salvarlo o inviarlo.",
+  "referenceInProgress": "In corso.",
   "referenceEstimate": "In corso.",
   "referenceTerminal": "Apri la CLI Muse Code nel terminale dell’editor.",
   "referenceRules": "Crea o apri AGENTS.md nella radice dell’area di lavoro.",
@@ -5378,6 +5380,5 @@
       "other": "{count} autorizzazioni",
       "many": "{count} autorizzazioni"
     }
-  },
-  "referenceInProgress": "In corso."
+  }
 }

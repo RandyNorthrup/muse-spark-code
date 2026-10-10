@@ -1,7 +1,7 @@
 import { defaultSettings } from './helpers/defaultSettings'
 import { Usd } from '../../src/shared/usd'
 import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { permissionSettingsOf, readSettings, toSettingsSnapshot } from '../../src/host/settings'
 import { SETTING_DEFAULTS } from '../../src/shared/constants'
 import { FakeLogOutputChannel, fakeSettingsSource } from './helpers/fakes'
@@ -17,7 +17,7 @@ describe('readSettings', () => {
     {
       values: { 'schedules.defaultDelivery': 'queue', 'schedules.agentCreation': 'never' },
       delivery: 'queue',
-      creation: 'never',
+      creation: 'ask',
     },
     {
       values: {
@@ -27,7 +27,7 @@ describe('readSettings', () => {
         'schedules.agentCreation': 'never',
       },
       delivery: 'steer',
-      creation: 'always',
+      creation: 'ask',
     },
     {
       values: { 'schedules.defaultDelivery': 'invalid', 'schedules.agentCreation': true },
@@ -52,13 +52,39 @@ describe('readSettings', () => {
     },
   )
 
+  it('never reads compatibility-only stored settings or their legacy aliases', () => {
+    const inert = new Set([
+      'scheduleAgentCreation',
+      'schedules.agentCreation',
+      'accountSwap',
+      'accountParallel',
+      'accounts.severalOnThisDevice',
+      'vault',
+      'vault.enabled',
+      'vault.protection',
+      'vault.lockAfterIdleMinutes',
+      'vault.lockOnScreenLock',
+      'estimator.optimize',
+      'estimator.priceLookup',
+      'modelApiTeamWorkers',
+    ])
+    const get = vi.fn((key: string) => {
+      if (inert.has(key)) throw new Error('compatibility setting read: ' + key)
+      return undefined
+    })
+    const inspect = vi.fn(() => undefined)
+    readSettings({ get, inspect }, new FakeLogOutputChannel())
+    expect(inspect).not.toHaveBeenCalled()
+    for (const [key] of get.mock.calls) expect(inert.has(key)).toBe(false)
+  })
+
   it('uses a leaf vault flag so its sibling settings stay visible in VS Code', () => {
     const defaults = readSettings(fakeSettingsSource({}), new FakeLogOutputChannel())
     expect(defaults).toMatchObject({ 'vault.enabled': true })
     expect(Object.hasOwn(SETTING_DEFAULTS, 'vault')).toBe(false)
   })
 
-  it('preserves legacy vault opt-outs until the new leaf flag is explicitly configured', () => {
+  it('keeps dormant vault flags unread, including the legacy scalar', () => {
     const log = new FakeLogOutputChannel()
     const get = fakeSettingsSource({ 'vault.enabled': true, vault: { enabled: true } }).get
     const inherited = readSettings(
@@ -68,7 +94,7 @@ describe('readSettings', () => {
       },
       log,
     )
-    expect(inherited).toMatchObject({ 'vault.enabled': false })
+    expect(inherited).toMatchObject({ 'vault.enabled': true })
     const explicit = readSettings(
       {
         get,
@@ -224,11 +250,11 @@ describe('readSettings', () => {
       }),
       log,
     )
-    expect(configured['vault.enabled']).toBe(false)
-    expect(configured['vault.protection']).toBe('hardware')
+    expect(configured['vault.enabled']).toBe(true)
+    expect(configured['vault.protection']).toBe('auto')
     expect(configured['vault.agentFence']).toBe(false)
-    expect(configured['vault.lockAfterIdleMinutes']).toBe(30)
-    expect(configured['vault.lockOnScreenLock']).toBe(false)
+    expect(configured['vault.lockAfterIdleMinutes']).toBe(240)
+    expect(configured['vault.lockOnScreenLock']).toBe(true)
   })
 
   it('falls back to the vault defaults for an invalid protection, idle time or flag (M109)', () => {
@@ -248,7 +274,7 @@ describe('readSettings', () => {
     expect(settings['vault.agentFence']).toBe(true)
     expect(settings['vault.lockAfterIdleMinutes']).toBe(240)
     expect(settings['vault.lockOnScreenLock']).toBe(true)
-    expect(log.warn).toHaveBeenCalledTimes(5)
+    expect(log.warn).toHaveBeenCalledOnce()
   })
 
   it('reads the retention period as a whole number of days, 0 keeping for ever (D26)', () => {
