@@ -1076,7 +1076,6 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     item: Pick<DelegateItem, 'brief' | 'files' | 'reason'>,
     sessionId: string,
     phase: TaskPhase,
-    entry?: StaffedEntry,
   ): TeamTaskRecord => {
     const task: TeamTaskRecord = {
       taskId: deps.newId(),
@@ -1087,7 +1086,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       sessionId,
       startMs: deps.now(),
       controller: new AbortController(),
-      entry: phase === 'starting' ? undefined : entry,
+      entry: undefined,
       phase,
       usage: ZERO_USAGE,
       claims: [],
@@ -1376,7 +1375,6 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       },
       task.sessionId,
       'starting',
-      reviewer,
     )
     review.reviewOf = task
     let isLaunched = false
@@ -1584,7 +1582,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
               item: step.item,
               refused: fill(TEAM_MODEL_TEXT.hostExhausted, { role: step.item.role }),
             }
-          const task = record(step.role, step.item, context.sessionId, 'starting', entry)
+          const task = record(step.role, step.item, context.sessionId, 'starting')
           task.continueFrom = step.continueFrom
           task.isRaised = step.isRaised === true
           try {
