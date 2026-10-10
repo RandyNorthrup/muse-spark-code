@@ -38889,8 +38889,9 @@ and are not transferred or accepted as complete by these launcher repairs.
 **JBDIAG scope (2026-10-09).** The rig/common brief reserves aggregate
 quality/coverage for the lead; this lane runs the complete offline native
 Gradle matrix and scoped repository gates. Production remains unchanged.
-The existing portable-webview build budget (1,321.5/1,100 KiB) remains a
-lead integration blocker; no size cap or assertion is weakened.
+The existing portable-webview build budget (1,321.5/1,100 KiB) and twelve
+unchanged source/test duplication findings remain lead integration blockers;
+no size cap, duplication threshold or assertion is weakened.
 
 **M104INT final-verification fixture repairs (2026-10-09).** Keep every
 changed lane file and bridge/companion suite in the default-deadline inventory.
