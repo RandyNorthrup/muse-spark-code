@@ -19875,6 +19875,18 @@ strings if possible without new keys or a cap change. Update certification and
 planning status. Aggregate quality/release gates remain lead-owned under the
 rig brief; no merge, rebase, push, subagents or paid/live calls.
 
+Completed: both P2 repairs and the existing-string surface-English cap fix.
+Macbook passes 46 complete owning files / 833 tests, 152 request goldens and
+141 Help/browser-English tests at repository deadlines, both SHA-256-exact
+reversion drills, one unit tsc, changed-file lint/format, localization/reference/
+host API, plain Knip and the production build. Surface English is 25595 / 25600
+bytes after shortening `referenceQuestionsDeferral` in English and all 14
+translations, with no new keys or cap change. English/German production visuals
+pass at 690/320 px. Plain jscpd retains the inherited 21 clones / 287 lines /
+1970 tokens; no new clone remains. Next slice: lead review and cross-rig release
+gates, including the inherited duplication hold, then PROVSTORE-LOCKLIB after
+M123 for accepted cross-window last-writer-wins. See certification for receipts.
+
 ### PROVWIZ9 — Ordered save, honest partial outcomes, no rollback (2026-10-09)
 
 Replace PROVWIZ8 recovery after RVPROVWIZ8C's three P2 findings. Validate
@@ -44870,15 +44882,21 @@ is relaxed. No live or paid calls, push, rebase or merge.
 
 ## 7. Gates
 
-**PROVWIZ10 scoped qualification (2026-10-09, in progress).** Both RVPROVWIZ9C
+**PROVWIZ10 scoped qualification (2026-10-09, complete).** Both RVPROVWIZ9C
 P2 repairs pass production/shared-form regressions, including genuine concurrent
-credential changes and retry notices in all 14 translations. Both deliberate
-reversions fail and restore source SHA-256 bytes exactly. Unit-project tsc,
-changed-file ESLint/Prettier and initial localization pass. Complete owning
-suites, goldens and surface-English cap qualification remain before lane close.
+credential changes and retry notices in all 14 translations. All 46 owning
+files pass 833 tests; request goldens pass 152; Help/browser-English files pass 141. Both deliberate reversions fail and restore source SHA-256 bytes exactly;
+the final restored focused run passes 108. One unit tsc, changed-file ESLint/
+Prettier, localization/reference/host API, plain Knip and production build pass.
+The inherited surface-English hold is closed at 25595 / 25600 bytes by shortening
+existing `referenceQuestionsDeferral` in all tables; no cap or gate changes.
+Production English/German visual checks pass at 690/320 px. A new repeated test
+expectation was shared without losing assertions; plain jscpd remains only the
+inherited 21 clones / 287 lines / 1970 tokens at its unchanged zero threshold.
 Aggregate quality/coverage/release/editor/hosted/live gates remain lead-owned
-under the explicit rig brief; no full quality claim. Receipts and next slice:
-`docs/certification/provcat.md`, PROVWIZ10.
+under the explicit rig brief; no full quality claim. Next slice is lead review
+and cross-rig release gates, including the inherited duplication hold, then
+PROVSTORE-LOCKLIB after M123. Receipts: `docs/certification/provcat.md`, PROVWIZ10.
 
 **PROVWIZ9 scoped qualification (2026-10-09).** Ordered provider saves remove
 rollback after RVPROVWIZ8C's three P2 findings. All 46 complete owning files

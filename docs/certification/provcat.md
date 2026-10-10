@@ -1847,8 +1847,8 @@ SHA-256 bytes exactly in `finally` (`temp/provwiz10-drills.json`):
 | Compare origin-refused records against the saved entry's origin again (`wizardSave.ts`) |       1 / 41 | `c5ebd71ea92f14a3b1b92bf1e74d34e946406526ce4aa1d429c203552606d3ed` |
 | Drop prior receipts from the quick-pick retry (`modelsQuickPick.ts`)                    |      15 / 48 | `bbca44df1dfcee34239b8e790e5eb1745625128f48ffa62ec16c6c39046d313e` |
 
-Unit-project tsc passes (`temp/provwiz10-tsc.log`). Complete owning suites,
-goldens and remaining static/cap checks follow before final scoped qualification.
+Unit-project tsc passes (`temp/provwiz10-tsc.log`). Final complete-suite, static
+and cap receipts follow below.
 Aggregate quality, release/editor/hosted/live gates remain lead-owned under
 the rig brief. Next slice after these repairs: lead review and cross-rig
 release gates, then PROVSTORE-LOCKLIB after M123 for the accepted cross-window
@@ -1857,4 +1857,102 @@ last-writer-wins residual.
 Initial changed-file ESLint/Prettier pass, and localization reports 14 UI
 and 14 usage tables / 0 problems. Reference regeneration succeeds (72 features).
 No command, setting or dependency is added. Aggregate quality is delegated by
-the rig brief and is not claimed green; PLAN §7 records remaining scoped checks.
+the rig brief and is not claimed green; PLAN §7 records scoped qualification
+and remaining release gates.
+
+## Final scoped verification and cap repair
+
+All checks run directly on macbook, sequentially with at most three complete
+Vitest files / `--maxWorkers=3`. Repository test deadlines remain unchanged.
+
+| Verification                                                 | Result / receipt                                                                                                                          |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| All 46 owning provider/models/capability files               | 833 passed; `temp/provwiz10-suites.json`, `temp/provwiz10-suite-*.log`                                                                    |
+| `metaGolden`, `metaRequestGoldens`, `modelApiGoldenRequests` | 152 passed; `temp/provwiz10-goldens.log`                                                                                                  |
+| `ReferencePage`, `referenceGenerator`, `browserUiText`       | 141 passed; `temp/provwiz10-reference-tests-final.log`                                                                                    |
+| Both final reversion drills                                  | 1 Edit / 15 translated retry regressions fail; SHA-256 restoration exact; `temp/provwiz10-drills-final.log`, `temp/provwiz10-drills.json` |
+| Final restored Edit / session budget / wizard save           | 108 passed; `temp/provwiz10-restored-final.log`                                                                                           |
+| Unit-project tsc                                             | Exit 0; one run, `temp/provwiz10-tsc.log`                                                                                                 |
+| Changed-file ESLint / Prettier                               | Exit 0; `temp/provwiz10-{eslint,prettier}-final.log`, final budget-file lint after sharing its expectation                                |
+| Localization                                                 | 14 UI / 14 usage tables, 211 manifest strings, 1051 source files; 0 problems                                                              |
+| Reference / host API                                         | Current (72 features) / 0 problems                                                                                                        |
+| Plain Knip                                                   | Exit 0; only the two inherited configuration hints                                                                                        |
+| Production build including size / split / globals / notices  | Exit 0; `temp/provwiz10-build-final.log`                                                                                                  |
+
+An initial Help test caught replacement of the established “Muse receives”
+phrase. The final shorter summary retains that phrase and explicitly names
+seconds; no test was weakened. The duplication check initially found one new
+11-line expectation clone in the retry regression. Sharing that expected
+partial notice between its production retry/control cases keeps all assertions.
+The changed complete session-budget file passes 48 tests. Plain jscpd returns
+to the exact inherited **21 clones / 287 lines / 1970 tokens**, exit 1 at its
+unchanged zero threshold (`temp/provwiz10-duplication-restored.log`). Broader
+cleanup and aggregate quality remain open; no new clone or ignore remains.
+
+The reviewed inherited surface table was **25651 / 25600 bytes**. Existing
+`referenceQuestionsDeferral` was verbose: 872 English bytes, now 708. Its
+pinned-card/Answer/focus behavior, submitted answers, deadline and zero behavior,
+late-message/no-approval rule, navigation, scheduled/headless handling and ACP
+commands remain. The same key is shortened with real translations in all 14
+tables, and `docs/reference.md` is regenerated. No new key, codec, reader split
+or budget change. Final full production closure: **25595 / 25600 bytes**,
+56 bytes smaller and 5 bytes below the cap (`temp/provwiz10-sizes.json`).
+
+Compressed contributions are coupled, rather than additive by string. The
+reviewed table's largest existing value groups remain `referenceCliOptions`
+(4075 raw JSON bytes), `acpUsage` (1829), `planUi` (1764) and
+`referencePermissionLimits` (1563); none changes here. Shortening only
+`referenceQuestionsDeferral` closes the overage. Exploratory shorter CLI wording
+compressed worse and was discarded without changing any table. Cap probe
+estimates are not final build measurements; the production gate above is the
+qualification receipt.
+
+| Final production artifact / closure | Bytes / unchanged cap |
+| ----------------------------------- | --------------------: |
+| Activation                          |       521707 / 614400 |
+| Model API                           |       500425 / 537600 |
+| Providers                           |       137641 / 153600 |
+| Configured providers                |         27721 / 51200 |
+| Models host                         |       118739 / 128000 |
+| Node English                        |        83855 / 128000 |
+| Models browser startup              |       334425 / 512000 |
+| Models body                         |         63633 / 76800 |
+| Chat browser startup                |       750282 / 921600 |
+| Original deferred JS                |         32823 / 51200 |
+| Surface English                     |         25595 / 25600 |
+
+## Visuals, commit verification and next slice
+
+Inspected five fresh PNGs from the production browser bundles behind synthetic
+host data: [repaired key](provwiz10/repaired-key.png) at 690 px, retry receipts
+at 320 px in [English](provwiz10/retry-receipts.png) and
+[German](provwiz10/retry-receipts-de.png), and the shortened Help paragraph at
+320 px in [English](provwiz10/help-deferral.png) and
+[German](provwiz10/help-deferral-de.png). Dark/light themes respectively; all
+notice text and the repaired origin-bound key row are readable, without clipped
+text or document overflow. Every page reports 0 errors and document width equal
+to its viewport. These prove rendering, while the production-store/shared-form
+regressions prove saving; no installed-editor qualification is claimed.
+
+The initial Help capture detected the fake chat host's fixed 690px html/body
+width. The qualifying narrow capture sets only those harness container widths
+to 100%, matching a real editor viewport. Models captures inject the canonical
+budget fixture required by the protocol, as in PROVWIZ9. No product/harness
+source or sandbox bypass changes. Receipts: `temp/provwiz10-visual{,-help}.log`.
+
+First local commit: `0b0100e85`, with original installed `.husky/_` hooks and
+output in `temp/provwiz10-fixes-commit.log`; staged/committed diffs were reread
+and compared byte-for-byte. The closing commit carries the existing-string
+cap repair, shared test expectation, final docs and five visual receipts.
+Commit output and staged/committed diff checks remain in `temp/provwiz10-final-*`.
+No hook path or behavior changes, install, sandbox block, real credential access,
+provider/model contact, paid/live call, merge, rebase, push or publication.
+
+Planning status checked: **PROVWIZ10 implementation and scoped qualification
+complete; both RVPROVWIZ9C P2 findings and the inherited surface-English hold
+closed.** Next slice: lead review and cross-rig release gates, including the
+inherited duplication hold, aggregate quality/coverage/packages and hosted/
+editor/live certification. Shared editor bridges retain the same React form
+and credential-free protocol; ACP's persisted schema is unchanged. The accepted
+cross-window last-writer-wins follow-up remains PROVSTORE-LOCKLIB after M123
+lands on main. No owner decision or additional authorization is needed here.

@@ -581,6 +581,16 @@ async function productionBudgetFixture(failure?: string) {
   return { folder, providers, store: seam.store, controls, budget, write }
 }
 
+function partialLimitNotice(detail: string): string {
+  return [
+    UI_TEXT.providerSaved,
+    UI_TEXT.providerKeySaved,
+    UI_TEXT.providerDefaultSaved,
+    fill(UI_TEXT.sessionBudgetPartialSave, { detail }),
+    UI_TEXT.providerComposerSkipped,
+  ].join(' ')
+}
+
 describe('RVPROVWIZ2 production save paths', () => {
   it.each(
     ['provider', 'credential', 'default', 'composer'].flatMap((failure) =>
@@ -747,15 +757,7 @@ describe('RVPROVWIZ2 production save paths', () => {
       expect(f.controls.effective).toBe(2)
       expect(f.write).toHaveBeenCalledOnce()
       expect(f.write).toHaveBeenCalledWith('modelApiSessionBudgetUsd', 0, 'global')
-      expect(ui.errors).toEqual([
-        [
-          UI_TEXT.providerSaved,
-          UI_TEXT.providerKeySaved,
-          UI_TEXT.providerDefaultSaved,
-          fill(UI_TEXT.sessionBudgetPartialSave, { detail: 'settings are read-only' }),
-          UI_TEXT.providerComposerSkipped,
-        ].join(' '),
-      ])
+      expect(ui.errors).toEqual([partialLimitNotice('settings are read-only')])
       expect(ui.errors.join(' ')).not.toContain('sk-or-synthetic')
       expect(ui.notices.some((notice) => notice.includes('openrouter/m1'))).toBe(false)
     },
@@ -778,15 +780,7 @@ describe('RVPROVWIZ2 production save paths', () => {
         isRemote: false,
       }),
     ).toBeUndefined()
-    expect(ui.errors).toEqual([
-      [
-        UI_TEXT.providerSaved,
-        UI_TEXT.providerKeySaved,
-        UI_TEXT.providerDefaultSaved,
-        fill(UI_TEXT.sessionBudgetPartialSave, { detail: 'settings are read-only' }),
-        UI_TEXT.providerComposerSkipped,
-      ].join(' '),
-    ])
+    expect(ui.errors).toEqual([partialLimitNotice('settings are read-only')])
     expect(ui.notices.some((notice) => notice.includes('openrouter/m1'))).toBe(false)
     expect(f.controls.effective).toBe(5)
     expect(await f.store.list()).toHaveLength(1)

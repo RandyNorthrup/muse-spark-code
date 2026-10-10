@@ -20,6 +20,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Shorten the existing question-deferral Help summary and its 14 translations,
+  restoring the surface-English bundle to its unchanged 25 KiB budget without
+  adding strings or dropping the question, permission or ACP instructions.
 - Reopening provider Edit after an address change whose key write failed can
   save a newly tested replacement key. Concurrent credential changes still
   conflict, and the old key remains unusable at the new origin.
