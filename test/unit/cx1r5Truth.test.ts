@@ -114,7 +114,8 @@ function refuseUnavailable(): never {
 
 async function discoveredCommands(
   isAvailable = false,
-): Promise<{ discovery: string; invocation: string }> {
+  shouldVerify = true,
+): Promise<{ discovery: string; invocation: string; check: () => void }> {
   const host = new FakeAgentHost()
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const refused = refuseUnavailable
@@ -193,28 +194,31 @@ async function discoveredCommands(
       await connection.request('session/prompt', { sessionId, prompt: [{ type: 'text', text }] })
     expect(session.sendTurn).not.toHaveBeenCalled()
   })
-  expect(commands.map((command) => command.name)).toEqual(
-    expect.arrayContaining(['compact', 'report', 'playbook', 'loop']),
-  )
-  const names = new Set(commands.map((command) => command.name))
-  expect(names.has('schedule')).toBe(isAvailable)
-  expect(names.has('estimate')).toBe(isAvailable)
-  expect(commands.filter((command) => command.description === 'workspace skill')).toEqual([])
-  if (isAvailable) {
-    expect(scheduleRun).toHaveBeenCalledTimes(2)
-    expect(estimateRun).toHaveBeenCalledOnce()
-  } else {
-    expect(scheduleRun).not.toHaveBeenCalled()
-    expect(estimateRun).not.toHaveBeenCalled()
-    expect(holdWorkspace).not.toHaveBeenCalled()
-    expect(
-      answers.filter((answer) => answer === UI_TEXT.scheduleV2.runtime.unavailable),
-    ).toHaveLength(2)
-    expect(answers.filter((answer) => answer === UI_TEXT.estimateRuntimeUnavailable)).toHaveLength(
-      1,
+  const check = (): void => {
+    expect(commands.map((command) => command.name)).toEqual(
+      expect.arrayContaining(['compact', 'report', 'playbook', 'loop']),
     )
+    const names = new Set(commands.map((command) => command.name))
+    expect(names.has('schedule')).toBe(isAvailable)
+    expect(names.has('estimate')).toBe(isAvailable)
+    expect(commands.filter((command) => command.description === 'workspace skill')).toEqual([])
+    if (isAvailable) {
+      expect(scheduleRun).toHaveBeenCalledTimes(2)
+      expect(estimateRun).toHaveBeenCalledOnce()
+    } else {
+      expect(scheduleRun).not.toHaveBeenCalled()
+      expect(estimateRun).not.toHaveBeenCalled()
+      expect(holdWorkspace).not.toHaveBeenCalled()
+      expect(
+        answers.filter((answer) => answer === UI_TEXT.scheduleV2.runtime.unavailable),
+      ).toHaveLength(2)
+      expect(
+        answers.filter((answer) => answer === UI_TEXT.estimateRuntimeUnavailable),
+      ).toHaveLength(1)
+    }
   }
-  return { discovery: JSON.stringify(commands), invocation: JSON.stringify(answers) }
+  if (shouldVerify) check()
+  return { discovery: JSON.stringify(commands), invocation: JSON.stringify(answers), check }
 }
 
 const releases = parseChangelog(
@@ -254,10 +258,13 @@ const surfaces = [
   ...uiTables.map((file) => ({ name: file, text: read(file), instructions: false })),
 ]
 
+const runtimeObservation: { checkUnavailable?: () => void } = {}
+
 beforeAll(async () => {
   const discovery = surfaces.find((surface) => surface.name === 'ACP available_commands_update')
   if (discovery === undefined) throw new Error('discovery surface omitted')
-  const result = await discoveredCommands()
+  const result = await discoveredCommands(false, false)
+  runtimeObservation.checkUnavailable = result.check
   discovery.text = result.discovery
   const invocation = surfaces.find((surface) => surface.name === 'ACP dormant invocation')
   const palette = surfaces.find((surface) => surface.name === 'chat palette and completions')
@@ -337,12 +344,13 @@ describe('CX1R5: exhaustive current-publication truth matrix', () => {
       'config.vault.agentFence.description',
     ]) {
       expect(table[key], key).not.toMatch(marker)
-      expect(table[key], key).toMatch(activeWording[locale] ?? /missing locale/)
+      if (key === 'config.schedules.description') {
+        expect(table[key], key).toContain('/loop')
+        expect(table[key], key).toMatch(/Muse[- ]Code/)
+      } else expect(table[key], key).toMatch(activeWording[locale] ?? /missing locale/)
     }
     if (locale === 'en') {
-      expect(table['config.schedules.description']).toContain(
-        'Controls access to schedule management',
-      )
+      expect(table['config.schedules.description']).toContain('Controls the legacy /loop shortcut')
       expect(table['config.schedules.defaultDelivery.description']).toContain('new schedule drafts')
       expect(table['config.resourceRelocate.description']).toContain('missing-route note')
       expect(table['config.modelApiAutoCompaction.description']).toContain('first-turn notice')
@@ -363,6 +371,12 @@ describe('CX1R5: exhaustive current-publication truth matrix', () => {
       for (const key of [property.description, ...(property.enumDescriptions ?? [])])
         expect(table[key.replaceAll('%', '')], name).toMatch(marker)
     }
+  })
+
+  it('refuses unavailable owners and excludes reserved workspace schedule skills from discovery and Help', () => {
+    if (runtimeObservation.checkUnavailable === undefined)
+      throw new Error('missing runtime observation')
+    runtimeObservation.checkUnavailable()
   })
 
   it('publishes built-in schedule discovery only for a bound runtime, with no workspace collision', async () => {

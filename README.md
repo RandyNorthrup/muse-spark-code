@@ -4809,8 +4809,9 @@ Integration work is tracked in the [roadmap](ROADMAP.md#in-progress).
 Dormant schedule-v2 and estimator commands stay out of command discovery and
 refuse when typed. Legacy `/loop` and manual `/compact` keep working.
 Compatibility-only Settings values are retained without runtime reads. The
-schedule management and draft-delivery settings still control their editor
-paths; `resourceRelocate` controls the missing-route note on resource pauses,
+schedule switch controls the legacy `/loop` shortcut in Muse Code chat;
+draft delivery selects the delivery carried in new drafts. `resourceRelocate`
+controls the missing-route note on resource pauses,
 and `modelApiAutoCompaction` controls the first-turn awaiting-evaluation notice,
 with automatic compaction inactive. `vault.agentFence` still controls the
 credential fence for interactive Model API shell commands; verification,

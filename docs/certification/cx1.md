@@ -774,3 +774,41 @@ the corrected 0.17.0 release text; no control/layout defect was accepted.
 All other baseline frame records, coverage and pixel policy remain unchanged.
 Full PNGs and comparison sheets stay in the lane's disk-backed temp archive,
 outside git.
+
+The F4 rollback drill replaced the reviewed manifest with its old bytes and
+ran the production `comparePixels` guard against the verified current PNG for
+`whats-new/whats-new/default/light/320.png`: it rejected 19,667 changed pixels
+against the unchanged allowance of 12. The reviewed manifest was restored
+byte-exact at SHA-256
+`8514d208b9ffe4254e159908ad9dd145e532b60daa35c3e7f37a04d38725cee5`.
+The full selective qualification checked all 216 What's New frames and found
+exactly the 144 reviewed mismatches before refresh. A scratch orchestration
+probe was started before archive copying completed; its stale manifest copy
+was discarded. Every updated PNG hash and the schema were verified before
+starting the full gate; no stale record was accepted.
+
+The final F6 drill reran the complete matrix with the inverted skill predicate:
+the named `refuses unavailable owners and excludes reserved workspace schedule
+skills from discovery and Help` regression failed, and the other 62 tests
+passed. ACP was restored to SHA-256
+`064069831b2bca5f0669740111db27043cddf9b6fbf12932e4124778d93ada5d`.
+Runtime observation is shared in setup; assertions live in this named case so
+its failure does not prevent unrelated matrix rows from running.
+
+The first full visual pass stopped at the non-What's-New slash-completions
+scene (929 pixels): suppressing the v2 group had also suppressed the existing
+native `/loop` row. No baseline was changed for it. The palette now carries
+v2 availability on its schedule actions and guards only the three v2 rows;
+the legacy row follows its previous setting/backend behavior. A real App case
+without a workspace skill and both backend palette cases certify this split.
+The combined separation drill restored the faulty App group guard and removed
+the v2-row guard: all four named legacy/availability cases failed, then both
+sources were restored byte-exact (`App.tsx` SHA-256
+`d6eecfc6836a48dfcd13ccd9d11317aab4848f324b414dc9fc632ae804797dd2`;
+`paletteRegistry.ts` SHA-256
+`a2d2b5ac8870c1b229f24d02a0ba5b15752fc2ce21d4cde3e0bf4ca934e4ca59`).
+
+With direct v2 commands now refusing, the schedules setting's remaining live
+effect is the legacy `/loop` shortcut in Muse Code chat. All 15 manifest
+descriptions say that explicitly and state that management and execution are
+unavailable. It is neither labeled inert nor described as opening a v2 panel.

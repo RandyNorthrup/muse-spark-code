@@ -2,7 +2,7 @@
 
 **CX1R6 release truth repair (2026-10-10, kubuntu; 0.17.1).** Close all
 six RVCX1E findings and sweep their siblings within C-X-1. Settings describe
-the editor draft, relocation notice and inactive-compaction notice they still
+the legacy Muse Code loop shortcut, editor draft, relocation notice and inactive-compaction notice they still
 control, including the interactive shell credential fence found in the sibling
 sweep, with all fifteen manifest tables and the truth matrix updated. Truly
 inert settings keep persisted values but no longer read them at runtime. The
