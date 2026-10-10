@@ -395,6 +395,45 @@
       "evidence": [
         "test/unit/vault/brokerComposition.test.ts > broker composition over part A blocks > a broker lock erases a pending setup through onLocked (fails when noteLocked skips discard)"
       ]
+    },
+    {
+      "name": "chmod-server-owned",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/brokerProcess.ts",
+          "sha256": "1d7800d96dc3d728e73383cf45f0e5a848866806f82b04c357f1e3d747b07ef8"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerProcess.test.ts > POSIX vault broker lifecycle > shuts down when the server fails during the socket permission fix (guard reverted to HEAD bytes: fails with 'expected true to be false' on the server-listening assertion, proving the leak; the pre-existing assertions stayed green without the guard)"
+      ]
+    },
+    {
+      "name": "single-changed-event",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/core/vault/broker/management.ts",
+          "sha256": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerComposition.test.ts > broker composition over part A blocks > a committed grant save reaches watchers through subscribeCommitted (temporary second constructor subscriber, the RVCM1091B2 P3 class: fails with \"expected [ 'changed', 'changed' ] to deeply equal [ 'changed' ]\"; restored byte-exact, git diff empty)"
+      ]
+    },
+    {
+      "name": "readme-key-protection",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "README.md",
+          "sha256": "54c997ca99b73052daeee3da00c5541612377145b1f76f5189528105af5edaa4"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/readmeVaultProtection.test.ts > vault key-protection docs > names only the protection the composed broker wires (old 'also uses the Secure Enclave' sentence restored temporarily: fails on the corrected-sentence assertion; README restored byte-exact afterwards)"
+      ]
     }
   ]
 }
