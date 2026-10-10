@@ -32,6 +32,7 @@ const { isProviderId, parseModelRef } = modelRef
 import type { ServeOptions } from '../cliArgs'
 import { accountIdSchema } from '../../shared/accounts'
 import { ACCOUNT_DEFAULT_ID } from '../../shared/constants'
+import { teamExecAdmission } from '../../acp/teamContracts'
 
 export type ExecMode = 'plan' | 'acceptEdits'
 export type ExecOutput = 'text' | 'json' | 'jsonl'
@@ -55,6 +56,8 @@ export interface ExecOptions {
    */
   readonly provider: string | undefined
   readonly model: string | undefined
+  /** M96b: ask for a team run. The runner lane admits; until then parsing refuses out loud. */
+  readonly team: boolean
   readonly effort: EffortLevel | undefined
   readonly allowsContributorModels: boolean
   readonly output: ExecOutput
@@ -78,6 +81,7 @@ export interface ExecOptions {
 
 const BOOLEAN_OPTIONS = new Set([
   'allow-contributor-models',
+  'team',
   'image-generation',
   'no-auto-compaction',
   'fail-on-denial',
@@ -264,6 +268,10 @@ export function parseExec(
     return invalid(UI_TEXT.execMuseCodeOnly)
   if (mode !== 'acceptEdits' && values['image-generation'] === true)
     return invalid(UI_TEXT.execPaidNeedsEdits)
+  if (values['team'] === true) {
+    const admission = teamExecAdmission({ mode, backend })
+    if (!admission.ok) return invalid(admission.reason)
+  }
   const files = values['untrusted-file']
   const untrustedFiles = Array.isArray(files)
     ? files.filter((file: unknown): file is string => typeof file === 'string')
@@ -304,6 +312,7 @@ export function parseExec(
       ...(typeof values['account'] === 'string' && { account: values['account'] }),
       ...(values['account-pool'] === true && { accountPool: true }),
       backend,
+      team: values['team'] === true,
       cwd: stringValue('cwd'),
       prompt,
       untrustedFiles,
