@@ -23,83 +23,83 @@ export interface ApprovalOwner {
 /** The page's script: text nodes only, never HTML from a request. */
 const PAGE_SCRIPT = String.raw`
 (() => {
-  const text = JSON.parse(document.getElementById('connector-text').textContent);
-  const list = document.getElementById('intents');
-  const status = document.getElementById('status');
-  const say = (words) => { status.textContent = words; };
-  const row = (dl, label, value) => {
-    const dt = document.createElement('dt'); dt.textContent = label;
-    const dd = document.createElement('dd'); dd.textContent = value;
-    dl.append(dt, dd);
-  };
-  const labels = { title: text.fieldTitle, scope: text.fieldScope, tags: text.fieldTags, body: text.fieldBody };
-  async function decide(intent, approve) {
-    const response = await fetch('/post', { method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json', 'X-Muse-Panel': '1' }, body: JSON.stringify({ type: 'decide', intentId: intent.intentId, digest: intent.digest, approve }) });
-    say(response.ok ? (approve ? text.approved : text.denied) : text.decisionFailed);
-  }
-  function render(intents) {
-    list.replaceChildren();
-    if (intents.length === 0) { say(text.empty); return; }
-    say('');
-    for (const intent of intents) {
-      const item = document.createElement('li');
-      const heading = document.createElement('h2');
-      heading.id = 'intent-' + intent.intentId;
-      heading.textContent = intent.tool + ' · ' + intent.workspace;
-      const dl = document.createElement('dl');
-      row(dl, text.client, intent.client);
-      row(dl, text.connection, intent.connectionId);
-      row(dl, text.operation, intent.toolClass);
-      row(dl, text.generation, String(intent.generation));
-      row(dl, text.price, intent.priceMicrousd === 0 ? text.free : String(intent.priceMicrousd));
-      row(dl, text.expires, new Date(intent.expiresAt).toLocaleTimeString());
-      for (const field of intent.fields) {
-        const label = labels[field.label] || field.label;
-        if (field.label === 'body') {
-          const dt = document.createElement('dt'); dt.textContent = label;
-          const dd = document.createElement('dd');
-          const pre = document.createElement('pre'); pre.textContent = field.value; dd.append(pre);
-          dl.append(dt, dd);
-        } else row(dl, label, field.value);
-      }
-      const approve = document.createElement('button');
-      approve.type = 'button'; approve.textContent = text.approve;
-      approve.setAttribute('aria-describedby', heading.id);
-      approve.addEventListener('click', () => { void decide(intent, true); });
-      const deny = document.createElement('button');
-      deny.type = 'button'; deny.textContent = text.deny;
-      deny.setAttribute('aria-describedby', heading.id);
-      deny.addEventListener('click', () => { void decide(intent, false); });
-      const section = document.createElement('section');
-      section.setAttribute('aria-labelledby', heading.id);
-      section.append(heading, dl, approve, deny);
-      item.append(section);
-      list.append(item);
-    }
-  }
-  async function stream() {
-    say(text.loading);
-    const response = await fetch('/events', { method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json', 'X-Muse-Panel': '1' }, body: '{}' });
-    if (!response.ok || response.body === null) throw new Error('EPANEL_STREAM');
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder('utf-8', { fatal: true });
-    let pending = '';
-    for (;;) {
-      const chunk = await reader.read();
-      if (chunk.done) throw new Error('EPANEL_CLOSED');
-      pending += decoder.decode(chunk.value, { stream: true });
-      let boundary = pending.indexOf('\n\n');
-      while (boundary !== -1) {
-        const frame = pending.slice(0, boundary);
-        pending = pending.slice(boundary + 2);
-        if (frame.startsWith('data: ')) render(JSON.parse(frame.slice(6)).intents);
-        boundary = pending.indexOf('\n\n');
-      }
-    }
-  }
-  const retry = document.getElementById('retry');
-  retry.addEventListener('click', () => { location.reload(); });
-  void stream().catch(() => { say(text.failed); retry.hidden = false; retry.focus(); });
+const text = JSON.parse(document.getElementById('connector-text').textContent);
+const list = document.getElementById('intents');
+const status = document.getElementById('status');
+const say = (words) => { status.textContent = words; };
+const row = (dl, label, value) => {
+const dt = document.createElement('dt'); dt.textContent = label;
+const dd = document.createElement('dd'); dd.textContent = value;
+dl.append(dt, dd);
+};
+const labels = { title: text.fieldTitle, scope: text.fieldScope, tags: text.fieldTags, body: text.fieldBody };
+async function decide(intent, approve) {
+const response = await fetch('/post', { method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json', 'X-Muse-Panel': '1' }, body: JSON.stringify({ type: 'decide', intentId: intent.intentId, digest: intent.digest, approve }) });
+say(response.ok ? (approve ? text.approved : text.denied) : text.decisionFailed);
+}
+function render(intents) {
+list.replaceChildren();
+if (intents.length === 0) { say(text.empty); return; }
+say('');
+for (const intent of intents) {
+const item = document.createElement('li');
+const heading = document.createElement('h2');
+heading.id = 'intent-' + intent.intentId;
+heading.textContent = intent.tool + ' · ' + intent.workspace;
+const dl = document.createElement('dl');
+row(dl, text.client, intent.client);
+row(dl, text.connection, intent.connectionId);
+row(dl, text.operation, intent.toolClass);
+row(dl, text.generation, String(intent.generation));
+row(dl, text.price, intent.priceMicrousd === 0 ? text.free : String(intent.priceMicrousd));
+row(dl, text.expires, new Date(intent.expiresAt).toLocaleTimeString());
+for (const field of intent.fields) {
+const label = labels[field.label] || field.label;
+if (field.label === 'body') {
+const dt = document.createElement('dt'); dt.textContent = label;
+const dd = document.createElement('dd');
+const pre = document.createElement('pre'); pre.textContent = field.value; dd.append(pre);
+dl.append(dt, dd);
+} else row(dl, label, field.value);
+}
+const approve = document.createElement('button');
+approve.type = 'button'; approve.textContent = text.approve;
+approve.setAttribute('aria-describedby', heading.id);
+approve.addEventListener('click', () => { void decide(intent, true); });
+const deny = document.createElement('button');
+deny.type = 'button'; deny.textContent = text.deny;
+deny.setAttribute('aria-describedby', heading.id);
+deny.addEventListener('click', () => { void decide(intent, false); });
+const section = document.createElement('section');
+section.setAttribute('aria-labelledby', heading.id);
+section.append(heading, dl, approve, deny);
+item.append(section);
+list.append(item);
+}
+}
+async function stream() {
+say(text.loading);
+const response = await fetch('/events', { method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json', 'X-Muse-Panel': '1' }, body: '{}' });
+if (!response.ok || response.body === null) throw new Error('EPANEL_STREAM');
+const reader = response.body.getReader();
+const decoder = new TextDecoder('utf-8', { fatal: true });
+let pending = '';
+for (;;) {
+const chunk = await reader.read();
+if (chunk.done) throw new Error('EPANEL_CLOSED');
+pending += decoder.decode(chunk.value, { stream: true });
+let boundary = pending.indexOf('\n\n');
+while (boundary !== -1) {
+const frame = pending.slice(0, boundary);
+pending = pending.slice(boundary + 2);
+if (frame.startsWith('data: ')) render(JSON.parse(frame.slice(6)).intents);
+boundary = pending.indexOf('\n\n');
+}
+}
+}
+const retry = document.getElementById('retry');
+retry.addEventListener('click', () => { location.reload(); });
+void stream().catch(() => { say(text.failed); retry.hidden = false; retry.focus(); });
 })();
 `
 
@@ -110,6 +110,8 @@ function renderPage(nonce: string): string {
 }
 
 export interface ApprovalPage {
+  /** Resolves when the real listener and idle timer have retired. */
+  readonly closed: Promise<void>
   readonly launchUrl: () => string
   /** Whether a page window is connected and showing the list. */
   readonly isWatched: () => boolean
@@ -145,6 +147,7 @@ export async function startApprovalPage(owner: ApprovalOwner): Promise<ApprovalP
     },
   })
   return {
+    closed: server.closed,
     launchUrl: () => server.launchUrl(),
     isWatched: () => listeners.size > 0,
     changed: () => {

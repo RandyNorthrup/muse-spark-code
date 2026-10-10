@@ -115,6 +115,12 @@ one answers `unavailable` with its reason, never an empty success.
    The agent's own Allow, Always allow, Auto, Bypass or `trust` settings, any
    argument it sends and any elicitation answer cannot approve it.
 
+   The page closes after 30 minutes of inactivity. The next save request
+   starts a fresh page and opens it in your browser. If the browser opener
+   fails, the request refuses with `approval_unavailable` and its page closes;
+   once the opener recovers, use a fresh request ID to ask for approval again.
+   Disconnect closes any open or starting page before the runtime returns.
+
 Sources for the client commands, all read on **2026-10-09**:
 [Codex MCP](https://learn.chatgpt.com/docs/extend/mcp?surface=cli) (the old
 `developers.openai.com/codex/mcp` URL now redirects there) and its

@@ -20384,6 +20384,22 @@ DACL (RVM124 finding 15) remain deferred. Record:
 [`docs/certification/m124-local.md`](docs/certification/m124-local.md).
 Aggregate quality remains with the lead under the rig/common brief.
 
+**M124 round 7 (2026-10-09, same branch; RVM124R6C P2-1).** Closed: the
+approval page has one runtime-owned lifecycle: `none` → `starting` →
+`open` → `closed`, with `closed` → `starting` on the next request. Idle
+expiry, `EPANEL_CLOSED` and an opener failure after startup retire the page;
+shutdown closes an open or starting page and still waits for registry drain.
+Two recovery regressions use the real entry, grant/store, registry and
+companion server, shortening only the first page's idle delay in the test;
+both fail on `2786f64ec`. Round 6's rejected-opener shutdown case now proves
+immediate listener retirement too. All 105 connector tests pass natively on
+Windows at repository deadlines; three red drills fail their intended
+assertions and restore byte-exact. Remove only the embedded page script's
+392 indentation bytes to make room; its minified executable hash is unchanged.
+Storage ownership/Windows DACL (finding 15), shared approval UI, real-client
+qualification and hosted transport remain deferred; aggregate quality stays
+with the lead. Receipts: `docs/certification/m124-local.md`, round 7.
+
 - **Goal.** Other agents can inspect the user's fleet and evidence, request
   bounded orchestration, ask for deterministic advice/reports, and manage
   schedules/prompts/shares through one connector. Every effect goes through
@@ -40698,6 +40714,19 @@ and four-theme accessibility. All passed; receipts are in
 repository coverage and native/installed-editor/live certification remain
 with release integration. This is a scoped run, not a gate relaxation: no
 rule, ignore, threshold, budget or deadline changed.
+
+**M124 round 7 lane verification (2026-10-09, Windows 11).** Native connector
+tests (105) and companion tests (67) pass at repository deadlines; three
+deliberate lifecycle failures restore byte-exact. The production build passes
+with `connector.js` 102,260/102,400 bytes (140 free) and byte-identical
+activation. One new test-setup clone was removed; the complete duplication
+gate still reports only round 6's two existing clones, in files unchanged
+from `2786f64ec`. Their repair and aggregate quality stay with integration;
+no threshold changes. Scoped lint/format, the unit-project typecheck,
+localization, reference, host API, plan, regenerated roadmap and plain knip
+are the lane checks. Storage ownership/Windows DACL and the other existing
+qualification deferrals remain open. Receipts: `docs/certification/m124-local.md`,
+round 7.
 
 **M124 round 6 lane verification (2026-10-09, Windows 11).** The rig/common
 brief reserves aggregate `npm run quality` for the lead and requires native

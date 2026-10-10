@@ -49,11 +49,16 @@ function line(stream: Writable, text: string): void {
   stream.write(`${text}\n`)
 }
 
-/** Closes the approval page once its start-up has settled; a page that failed to start has nothing to close. */
-async function closePage(starting: Promise<ApprovalPage> | undefined): Promise<void> {
+type PageLifecycle =
+  | { readonly kind: 'none' | 'closed'; readonly page: undefined }
+  | { readonly kind: 'starting'; readonly page: Promise<ApprovalPage> }
+  | { readonly kind: 'open'; readonly page: ApprovalPage }
+
+/** Closes an open or starting page; a page that failed to start has nothing to close. */
+async function closePage(page: PageLifecycle['page']): Promise<void> {
   try {
-    const page = await starting
-    await page?.close()
+    const started = await page
+    await started?.close()
   } catch {
     // It never started: no listener is left.
   }
@@ -103,9 +108,9 @@ export async function runConnector(deps: ConnectorRuntimeDeps): Promise<number> 
     scrub.text,
   )
   const storeFor = (root: string | undefined) => new PromptStore(deps.dataFolder, root)
-  let page: ApprovalPage | undefined
-  let starting: Promise<ApprovalPage> | undefined
+  let lifecycle: PageLifecycle = { kind: 'none', page: undefined }
   let isClosing = false
+  const isAvailable = (page: ApprovalPage) => !isClosing && lifecycle.page === page
   const registry: ConnectorRegistry = new ConnectorRegistry(
     {
       connectionId: command.connectionId,
@@ -140,23 +145,38 @@ export async function runConnector(deps: ConnectorRuntimeDeps): Promise<number> 
       },
       surface: {
         changed: () => {
-          page?.changed()
+          if (lifecycle.kind === 'open') lifecycle.page.changed()
         },
         show: async () => {
+          if (isClosing) return false
+          if (lifecycle.page === undefined)
+            lifecycle = {
+              kind: 'starting',
+              page: (async () => {
+                const page = await startApprovalPage({
+                  pending: () => registry.pending(),
+                  decide: (intentId, digest, isApproved) =>
+                    registry.decide(intentId, digest, isApproved),
+                })
+                lifecycle = { kind: 'open', page }
+                void page.closed.then(() => {
+                  // Only this page can retire its ownership, never a replacement.
+                  if (lifecycle.page === page) lifecycle = { kind: 'closed', page: undefined }
+                })
+                return page
+              })(),
+            }
+          const active = lifecycle
           try {
-            starting ??= startApprovalPage({
-              pending: () => registry.pending(),
-              decide: (intentId, digest, isApproved) =>
-                registry.decide(intentId, digest, isApproved),
-            })
-            page = await starting
+            const page = await active.page
             // A page that finished starting after the client left opens nothing.
-            if (isClosing) return false
+            if (!isAvailable(page)) return false
             if (!page.isWatched()) await deps.openBrowser(page.launchUrl())
-            return true
+            return isAvailable(page)
           } catch {
-            // A failed opener does not relinquish a successfully started page.
-            if (page === undefined) starting = undefined
+            // Opener and EPANEL_CLOSED failures retire the page before a retry.
+            await closePage(active.page)
+            if (lifecycle === active) lifecycle = { kind: 'closed', page: undefined }
             return false
           }
         },
@@ -173,6 +193,6 @@ export async function runConnector(deps: ConnectorRuntimeDeps): Promise<number> 
     // start-up have settled.
     isClosing = true
     await registry.drained()
-    await closePage(starting)
+    await closePage(lifecycle.page)
   }
 }

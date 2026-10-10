@@ -783,6 +783,10 @@ approve it. Stop never asks. Fleet status, agent outcomes, lanes, teams and
 new schedules answer `unavailable` until their owners expose them. The
 hosted connector for ChatGPT and claude.ai is not built.
 
+If the approval page closes on idle, the next save request opens a fresh
+page. A browser opener failure refuses that request and closes its page;
+after the opener recovers, a new save request can ask for approval again.
+
 Grant a connection in your own terminal, and control it from there:
 
 ```sh

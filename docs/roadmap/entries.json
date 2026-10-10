@@ -900,7 +900,7 @@
     {
       "id": "M124",
       "title": "MCP connector for other agents",
-      "summary": "Codex, Claude Code and Gemini CLI can read fleet evidence, reports, schedules and prompts and request actions you approve in Muse Spark Code, with failed approval openers refusing the action and disconnects closing their local server.",
+      "summary": "Codex, Claude Code and Gemini CLI can read fleet evidence, reports, schedules and prompts and request actions you approve in Muse Spark Code, with approval pages restarting after idle or failed openers and disconnects closing their local server.",
       "area": "agents"
     },
     {

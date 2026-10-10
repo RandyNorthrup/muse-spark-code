@@ -135,6 +135,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The local MCP connector restarts an approval page that closed on idle and
+  retries a recovered browser opener on the next save request. Failed openers
+  close their page immediately; disconnect still closes any open or starting
+  page before the runtime returns.
+
 - The local MCP connector closes its approval page's listener and idle timer
   when the client disconnects after the browser opener failed. The requested
   action still refuses with `approval_unavailable`.

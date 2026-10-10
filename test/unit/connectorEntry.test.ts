@@ -4,7 +4,7 @@
 // before that start-up has settled, must close the page, and must never open
 // a browser afterwards. With operations still draining it must stop them
 // first and finish only once they have (registry.drained, held here).
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp } from 'node:fs/promises'
 import { createConnection } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
@@ -13,12 +13,14 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { describe, expect, it, vi } from 'vitest'
 import { CONNECTOR_COMPANION_LIMITS } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
+import * as companion from '../../src/runtime/companion/server'
 import { startApprovalPage, type ApprovalPage } from '../../src/runtime/connector/approvalPage'
 import { parseConnectorCommand, runConnectorCommand } from '../../src/runtime/connector/command'
 import { runConnector, type ConnectorRuntimeDeps } from '../../src/runtime/connector/entry'
 import { ConnectorStore } from '../../src/runtime/connector/store'
 import { ConnectorRegistry } from '../../src/core/connector/registry'
 import { call } from './helpers/companion'
+import { removeFolder } from './helpers/temporaryFolders'
 
 vi.mock('../../src/runtime/connector/approvalPage', () => ({ startApprovalPage: vi.fn() }))
 
@@ -67,25 +69,44 @@ function runtimeDeps(
   }
 }
 
+/** A real connector with captured replies, kept until its client leaves. */
+function serveWithReplies(data: string, openBrowser: (url: string) => Promise<void>) {
+  const stdin = new PassThrough()
+  const deps = runtimeDeps(data, stdin, openBrowser)
+  let text = ''
+  deps.stdout.on('data', (chunk: Buffer) => {
+    text += chunk.toString('utf8')
+  })
+  return {
+    stdin,
+    running: runConnector(deps),
+    output: () => text,
+    clearOutput: () => {
+      text = ''
+    },
+  }
+}
+
 /** The client initializes and requests a save that needs our approval page. */
-function requestSave(stdin: PassThrough): void {
+function requestSave(stdin: PassThrough, id = 1): void {
+  if (id === 1)
+    stdin.write(
+      frame({
+        jsonrpc: '2.0',
+        id: 0,
+        method: 'initialize',
+        params: { protocolVersion: '2025-06-18', clientInfo: { name: 'test' } },
+      }),
+    )
   stdin.write(
     frame({
       jsonrpc: '2.0',
-      id: 0,
-      method: 'initialize',
-      params: { protocolVersion: '2025-06-18', clientInfo: { name: 'test' } },
-    }),
-  )
-  stdin.write(
-    frame({
-      jsonrpc: '2.0',
-      id: 1,
+      id,
       method: 'tools/call',
       params: {
         name: 'muse_prompt_save',
         arguments: {
-          requestId: 'r1',
+          requestId: `r${String(id)}`,
           expectedGeneration: 0,
           scope: 'user',
           title: 'Saved',
@@ -94,6 +115,89 @@ function requestSave(stdin: PassThrough): void {
       },
     }),
   )
+}
+
+/** A fresh socket cannot reuse an HTTP connection that the page already closed. */
+async function expectRetired(url: string): Promise<void> {
+  const socket = createConnection({ host: '127.0.0.1', port: Number(new URL(url).port) })
+  try {
+    const connected = new Promise<void>((resolve, reject) => {
+      socket.once('connect', resolve)
+      socket.once('error', reject)
+    })
+    await expect(connected).rejects.toMatchObject({ code: 'ECONNREFUSED' })
+  } finally {
+    socket.destroy()
+  }
+}
+
+/** Idle expiry must not keep the runtime attached to a dead approval page. */
+async function recoverAfterIdle(data: string, isFirstOpenerRejected: boolean): Promise<void> {
+  await granted(data)
+  const actual = await vi.importActual<{ startApprovalPage: typeof startApprovalPage }>(
+    '../../src/runtime/connector/approvalPage',
+  )
+  vi.mocked(startApprovalPage).mockImplementation(actual.startApprovalPage)
+  const startServer = companion.startCompanionServer
+  const servers: Awaited<ReturnType<typeof startServer>>[] = []
+  const start = vi.spyOn(companion, 'startCompanionServer').mockImplementation(async (options) => {
+    const server = await startServer({
+      ...options,
+      // Only the first idle delay changes; its production close callback is untouched.
+      limits: {
+        ...options.limits,
+        idleTimeoutMs: servers.length === 0 ? 100 : options.limits.idleTimeoutMs,
+      },
+    })
+    servers.push(server)
+    return server
+  })
+  const urls: string[] = []
+  const openBrowser = vi.fn((url: string) => {
+    urls.push(url)
+    return isFirstOpenerRejected && urls.length === 1
+      ? Promise.reject(new Error('test opener failed'))
+      : Promise.resolve()
+  })
+  const { stdin, running, output, clearOutput } = serveWithReplies(data, openBrowser)
+  try {
+    requestSave(stdin)
+    await vi.waitFor(
+      () => {
+        expect(output()).toContain(
+          isFirstOpenerRejected ? 'approval_unavailable' : 'awaitingApproval',
+        )
+      },
+      { timeout: 5000 },
+    )
+    const first = servers[0]
+    if (first === undefined) throw new Error('approval server absent')
+    await first.closed
+    await expectRetired(first.url)
+    clearOutput()
+    requestSave(stdin, 2)
+    await vi.waitFor(
+      () => {
+        expect(output()).toContain('awaitingApproval')
+      },
+      { timeout: 5000 },
+    )
+    expect(start).toHaveBeenCalledTimes(2)
+    expect(openBrowser).toHaveBeenCalledTimes(2)
+    const second = servers[1]
+    if (second === undefined) throw new Error('replacement approval server absent')
+    expect(urls[1]).toContain(second.url)
+    expect(await call(second, '/')).toHaveProperty('status', 200)
+    stdin.end()
+    expect(await running).toBe(0)
+    await second.closed
+    await expectRetired(second.url)
+  } finally {
+    stdin.end()
+    await running
+    for (const server of servers) await server.close()
+    start.mockRestore()
+  }
 }
 
 async function shutDownWhilePageStarts(data: string): Promise<void> {
@@ -119,11 +223,16 @@ async function shutDownWhilePageStarts(data: string): Promise<void> {
   stdin.end()
   await sleep(300)
   expect(isDone).toBe(false)
+  const closed = Promise.withResolvers<undefined>()
   const page: ApprovalPage = {
+    closed: closed.promise,
     launchUrl: () => 'http://127.0.0.1:9/',
     isWatched: () => false,
     changed: vi.fn(),
-    close: vi.fn(() => Promise.resolve()),
+    close: vi.fn(() => {
+      closed.resolve(undefined)
+      return Promise.resolve()
+    }),
   }
   starting.resolve(page)
   expect(await running).toBe(0)
@@ -145,27 +254,21 @@ async function shutDownAfterOpenerRejects(data: string): Promise<void> {
   })
   const timers = vi.spyOn(globalThis, 'setTimeout')
   const clear = vi.spyOn(globalThis, 'clearTimeout')
-  const stdin = new PassThrough()
   let url = ''
   const openBrowser = vi.fn((launchUrl: string) => {
     url = new URL(launchUrl).origin
     return Promise.reject(new Error('test opener failed'))
   })
-  const deps = runtimeDeps(data, stdin, openBrowser)
-  let output = ''
-  deps.stdout.on('data', (chunk: Buffer) => {
-    output += chunk.toString('utf8')
-  })
-  const running = runConnector(deps)
+  const { stdin, running, output } = serveWithReplies(data, openBrowser)
   try {
     requestSave(stdin)
     await vi.waitFor(() => {
-      expect(output).toContain('approval_unavailable')
-      expect(output).toContain('"isError":true')
+      expect(output()).toContain('approval_unavailable')
+      expect(output()).toContain('"isError":true')
     })
     expect(openBrowser).toHaveBeenCalledTimes(1)
-    const response = await call({ url }, '/')
-    expect(response.status).toBe(200)
+    // A rejected opener retires its page immediately, while shutdown still owns cleanup.
+    await expectRetired(url)
     const idleIndex = timers.mock.calls.findIndex(
       ([, delay]) => delay === CONNECTOR_COMPANION_LIMITS.idleTimeoutMs,
     )
@@ -176,16 +279,7 @@ async function shutDownAfterOpenerRejects(data: string): Promise<void> {
     expect(page?.close).toHaveBeenCalledTimes(1)
     expect(clear).toHaveBeenCalledWith(idle.value)
     // A fresh socket proves the listener is gone without reusing HTTP's idle connection.
-    const socket = createConnection({ host: '127.0.0.1', port: Number(new URL(url).port) })
-    try {
-      const connected = new Promise<void>((resolve, reject) => {
-        socket.once('connect', resolve)
-        socket.once('error', reject)
-      })
-      await expect(connected).rejects.toMatchObject({ code: 'ECONNREFUSED' })
-    } finally {
-      socket.destroy()
-    }
+    await expectRetired(url)
   } finally {
     stdin.end()
     await running
@@ -238,13 +332,21 @@ describe('M124 runtime shutdown (RVM124R4 P2-3, RVM124R5 P2-1)', () => {
       'refuses after the browser opener rejects and closes the real approval listener and idle timer at stdin end',
       shutDownAfterOpenerRejects,
     ],
+    [
+      'restarts an idle-closed approval page and invokes the recovered browser opener',
+      (data: string) => recoverAfterIdle(data, true),
+    ],
+    [
+      'restarts an idle-closed approval page after a successful browser opener',
+      (data: string) => recoverAfterIdle(data, false),
+    ],
   ] as const)
     it(label, async () => {
       const data = await mkdtemp(path.join(os.tmpdir(), 'm124-entry-'))
       try {
         await scenario(data)
       } finally {
-        await rm(data, { recursive: true, force: true })
+        await removeFolder(data)
       }
     })
 })

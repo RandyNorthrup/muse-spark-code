@@ -881,3 +881,111 @@ shared React approval/theme/a11y qualification, real-client qualification
 and hosted transport. This lane changes no paid authority or model
 capability handling. Aggregate quality remains with the lead under the
 rig/common brief; no gate, hook, timeout or bundle cap is weakened.
+
+## M124 round 7: runtime-owned approval lifecycle (RVM124R6C, 2026-10-09)
+
+Windows 11 rig, Node 24.21.0, branch `feature/m124-r3`, from
+`2786f64eccc0c85b015db2cb259eb98c142a5500`. Zero model attempts, paid calls,
+credential reads, dependencies, merges or pushes. RVM124R6C P2-1 is closed:
+the runtime keeps one `PageLifecycle`, `none` → `starting` → `open` →
+`closed`, and starts again from `closed` for a new request. Only `starting`
+holds a startup promise; `open` holds its actual page. The companion server's
+existing `closed` promise reaches the runtime through `ApprovalPage`; idle
+retirement drops the page reference. Opener failures and `EPANEL_CLOSED`
+close the affected page before refusing. Shutdown still waits for registry
+drain and closes an open or starting page; a late startup opens no browser.
+
+The two new complete-entry regressions use the real registry, owner grant/store,
+approval factory and companion server. Only the first page's idle delay is
+injected as 100 ms; the production close callback runs unchanged. With the
+original entry, both a rejected and a successful first opener leave the next
+fresh-ID save refused with `approval_unavailable`: 2 failed, 3 passed, exit 1,
+27.74 s. With the repair, the next save reaches `awaitingApproval`, starts a
+second real server and invokes the recovered opener; stdin end then retires
+that second listener. Fresh TCP sockets prove retirement without reusing an
+HTTP idle connection. The rejected-opener case now closes immediately rather
+than waiting for idle; the successful-opener case proves actual idle expiry.
+
+Round 6's real rejected-opener shutdown regression retains the error reply,
+exactly one page close, cleared production idle timer and refused fresh TCP
+connection after return. It additionally proves the listener has already
+retired before stdin end. Delayed startup and registry-drain assertions remain.
+The first repaired run exposed one Windows `ENOTEMPTY` during fixture cleanup
+(4 passed, 1 cleanup failure); this suite now uses the repository's existing
+bounded `removeFolder` helper. No assertion or test/hook deadline changed.
+
+### Native Windows tests and byte-exact fault drills
+
+Complete files, repository timeouts, no `--testTimeout`:
+
+| Command                                                                                                                                     | Result                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `npx.cmd vitest run test/unit/connectorRegistry.test.ts test/unit/connectorEntry.test.ts test/unit/connectorRuntime.test.ts --maxWorkers=3` | 94/94 pass on final source, 27.06 s |
+| `npx.cmd vitest run test/unit/connectorLimitsLock.test.ts test/e2e/connectorStdio.e2e.test.ts --maxWorkers=3`                               | 11/11 pass, 31.69 s                 |
+| `npx.cmd vitest run test/unit/companionGuard.test.ts test/unit/companionServer.test.ts test/unit/companionLifecycle.test.ts --maxWorkers=3` | 67/67 pass, 17.15 s                 |
+
+Each drill runs the complete five-case `connectorEntry.test.ts` file, exits 1
+on its intended assertion, restores the saved bytes in `finally`, and compares
+SHA-256 before and after:
+
+| Drill | Mutation                                                     | Observed failure                                                                                                           |
+| ----- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| R7-F1 | Remove the closed-page callback's ownership reset            | Both recovery cases return `approval_unavailable`; rejected-opener shutdown calls close twice: 3 failed, 2 passed, 33.27 s |
+| R7-F2 | Replace `closePage(active.page)` with `closePage(undefined)` | Rejected-opener listener still accepts a fresh connection: 1 failed, 4 passed, 17.86 s                                     |
+| R7-F3 | Remove the availability check after startup                  | Delayed startup invokes the browser after disconnect: 1 failed, 4 passed, 16.95 s                                          |
+
+Every restored entry hash:
+`26856a6810d2fa5ac442715380f56fb2c9aab885160c438fe46b199212a4f894`.
+The final 94-case connector run above follows all three restorations.
+After sharing the two real-client reply-capture setups to remove a new
+duplication finding, the complete entry file passes again: 5/5, 17.52 s.
+Production source and the drilled guard hashes are unchanged by that test-only
+refactoring.
+
+### Bundle room without changing behavior
+
+The first production build measured `dist/connector.js` at 102,630 bytes,
+230 bytes over its unchanged 102,400-byte cap. Remove only 392 leading-space
+bytes from the embedded `PAGE_SCRIPT` template; add no runtime minifier or
+dependency. Esbuild's minified transform of the old and new scripts is
+byte-identical, SHA-256
+`198d82a60ee35e0d96b298eb9bc41cfb4dec2f05426115a5ef23d343cf612379`.
+The page's DOM rendering, text, security checks and paint do not change.
+
+`npm.cmd run build` exits 0, including tokens, bundle sizes/splits, host globals
+and third-party notices. Final sizes:
+
+| Bundle              | Bytes / cap       | Result                                        |
+| ------------------- | ----------------- | --------------------------------------------- |
+| `dist/connector.js` | 102,260 / 102,400 | 140 bytes free; 75 bytes smaller than round 6 |
+| `dist/acp.js`       | 242,286 / 870,400 | unchanged                                     |
+| `dist/extension.js` | 563,348 / 614,400 | unchanged                                     |
+
+Activation SHA-256 remains
+`34b93af4902136c711cf93d1dc7ad2e96fdf4ef3802756154f355235381e371a`.
+
+### Scoped gates
+
+The unit-project typecheck, `npx.cmd tsc -p test/unit/tsconfig.json --noEmit`,
+exits 0, including its final rerun after sharing the test setup. The repository's
+official `npm.cmd run prepare` installed the required fail-closed hook stubs;
+`core.hooksPath` remains `.husky/_`, with no hook source or check changed.
+Final scoped ESLint `--max-warnings=0` and Prettier checks exit 0 on all changed
+source and documentation paths (CHANGELOG uses its existing repository ignore).
+
+Localization: 14 UI/14 usage tables, 0 problems. Reference (78 features, 258
+CLI entries), host API (375 VS Code APIs, 30 Node built-ins), plan (208
+milestones, 0 drift) and regenerated roadmap (208 entries): exit 0. Plain
+`npm.cmd run deadcode`: exit 0, the same two pre-existing configuration hints.
+The first full `npx.cmd jscpd` found the two known baseline clones plus one
+repeated entry-test setup; sharing that setup removes the new clone. The
+final full check exits 1 only for `connectorStdio.e2e`/`schedulesStdio.e2e`
+and `windowsTrustedPath`, unchanged from `2786f64ec` and already deferred in
+PLAN §7. No ignore or threshold is changed.
+
+Storage ownership/trusted parents/held-handle identity/Windows DACL (inherited
+RVM124 finding 15), shared React approval/theme/a11y, real-client qualification
+and hosted transport remain open. The shared runtime serves every editor;
+this change adds no VS Code-only path, model capability condition or paid
+authority. Aggregate `npm run quality` remains with the lead under the
+rig/common brief; no gate, hook, timeout or bundle cap is weakened.
