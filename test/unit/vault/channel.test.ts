@@ -23,6 +23,7 @@ import { VaultBrokerProcess } from '../../../src/host/vault/brokerProcess'
 import { HostVaultBrokerClient } from '../../../src/host/vault/brokerClient'
 import { RuntimeVaultBrokerClient } from '../../../src/runtime/vault/brokerClient'
 import { brokerFixture, socketDescriptors } from './brokerFixture'
+import { fakeManagement } from '../helpers/vault/fakeManagement'
 import { vaultPrivateReadSchema } from '../../../src/shared/vaultProtocol'
 import { type VaultBroker } from '../../../src/core/vault/broker/broker'
 import { use } from '../helpers/vault/fixtures'
@@ -123,7 +124,17 @@ async function channelSetup(isSubscriberThrowing = false) {
   const peers = new UnixVaultPeerVerifier(native.helper, identify, socketDescriptors)
   fixture.deps.identity.verifyHost = (peer) =>
     Promise.resolve(peer.processId === process.pid && peer.userId === processIdentity.userId)
+  const management = fakeManagement({
+    state: 'unlocked',
+    lockEpoch: 0,
+    tier: 'osStore',
+    provider: 'test',
+    silentUnlock: true,
+    itemCount: 0,
+    reason: null,
+  })
   const deps: VaultChannelDeps = {
+    manage: management.port,
     broker: fixture.broker,
     peers,
     bootToken: claimed.location.bootToken,
@@ -144,7 +155,17 @@ async function channelSetup(isSubscriberThrowing = false) {
   const server = new VaultChannelServer(deps)
   servers.push(server)
   await server.listen(socket)
-  return { ...fixture, brokerDeps: fixture.deps, discovery, claimed, peers, deps, socket, server }
+  return {
+    ...fixture,
+    brokerDeps: fixture.deps,
+    discovery,
+    claimed,
+    peers,
+    deps,
+    socket,
+    server,
+    management,
+  }
 }
 function workerConnection(fixture: Awaited<ReturnType<typeof channelSetup>>) {
   fixture.deps.identify = (identity, hostId) =>
@@ -175,7 +196,7 @@ async function auditRecord(fixture: Awaited<ReturnType<typeof channelSetup>>) {
 }
 function helloFrame(fixture: Awaited<ReturnType<typeof channelSetup>>) {
   return {
-    v: 1,
+    v: 2,
     sequence: 0,
     request: {
       kind: 'hello',
@@ -642,7 +663,7 @@ describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
         socket = await raw(fixture.socket)
       const closed = closedOrReply(socket)
       let hello: unknown = {
-        v: 1,
+        v: 2,
         sequence: 0,
         request: {
           kind: 'hello',
@@ -653,12 +674,12 @@ describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
       }
       switch (attack) {
         case 'version': {
-          hello = { ...helloFrame(fixture), v: 2 }
+          hello = { ...helloFrame(fixture), v: 3 }
           break
         }
         case 'token': {
           hello = {
-            v: 1,
+            v: 2,
             sequence: 0,
             request: {
               kind: 'hello',
@@ -680,12 +701,12 @@ describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
           break
         }
         case 'noHello': {
-          hello = { v: 1, sequence: 0, request: { kind: 'status' } }
+          hello = { v: 2, sequence: 0, request: { kind: 'status' } }
           break
         }
         case 'sequence': {
           hello = {
-            v: 1,
+            v: 2,
             sequence: 1,
             request: {
               kind: 'hello',
@@ -752,7 +773,7 @@ describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
     await expect(
       client.firstPartyRead(
         vaultPrivateReadSchema.parse({
-          v: 1,
+          v: 2,
           kind: 'firstPartyRead',
           itemId: fixture.stored.metadata.id,
           origin: 'https://example.test',
@@ -793,7 +814,7 @@ describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
       socket = await raw(fixture.socket)
     await frame(socket, helloFrame(fixture))
     const stopped = closedOrReply(socket)
-    socket.write(`${JSON.stringify({ v: 1, sequence: 0, request: { kind: 'status' } })}\n`)
+    socket.write(`${JSON.stringify({ v: 2, sequence: 0, request: { kind: 'status' } })}\n`)
     expect(await stopped).toBe('closed')
     await fixture.claimed.release()
   })
@@ -815,7 +836,7 @@ describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
     const fixture = await channelSetup(),
       socket = await raw(fixture.socket)
     const hello = {
-      v: 1,
+      v: 2,
       sequence: 0,
       request: {
         kind: 'hello',
@@ -829,7 +850,7 @@ describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
     const closed = closedOrReply(socket)
     socket.on('error', () => undefined)
     socket.write(
-      `${JSON.stringify({ v: 1, sequence: 1, request: { kind: 'scrub', text: 'x'.repeat(VAULT_LIMITS.frameBytes) } })}\n`,
+      `${JSON.stringify({ v: 2, sequence: 1, request: { kind: 'scrub', text: 'x'.repeat(VAULT_LIMITS.frameBytes) } })}\n`,
     )
     expect(await closed).toBe('closed')
     expect(fixture.deps.perform).not.toHaveBeenCalled()

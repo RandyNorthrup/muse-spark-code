@@ -190,7 +190,7 @@ export async function brokerFixture(options: Partial<VaultBrokerDeps> = {}) {
     return {
       bytes,
       request: {
-        v: 1,
+        v: 2,
         kind: 'firstPartyRead',
         itemId: metadata.id,
         origin: 'https://example.test',

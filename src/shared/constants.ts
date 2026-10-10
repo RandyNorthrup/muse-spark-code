@@ -7794,7 +7794,11 @@ export const DEVELOPER_MACHINE_ID_TMP_SUFFIX_BYTES = 8
 export const DEVELOPER_MACHINE_ID_DOMAIN = 'muse-spark-developer-machine/v1'
 // M109 lane 0: vault format, limits and budgets (D89).
 export const VAULT_FORMAT_VERSION = 1
-export const VAULT_PROTOCOL_VERSION = 1
+// Lead decisions 2026-10-10 (C-M109-1): protocol v2 adds the management kinds,
+// private write frames and pushed events; the store document v2 carries grants
+// in its encrypted index. No v1 vault or broker exists in the field.
+export const VAULT_PROTOCOL_VERSION = 2
+export const VAULT_STORE_FORMAT_VERSION = 2
 export const VAULT_APPROVAL_TTL_MS = 120_000
 // Lock wipes synchronously; audit and process cleanup get this bounded settlement window.
 export const VAULT_LOCK_DRAIN_MS = 1000

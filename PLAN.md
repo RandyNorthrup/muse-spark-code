@@ -33157,6 +33157,79 @@ No dependency, endpoint guard, paid default or budget changes. See
 
 **Status 2026-10-09: released.** Shipped in 0.17.0 (merged via INT0180).
 
+**C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
+vault use is refused. The binding layer was never built: the broker process,
+its ports, peer checks, a setup flow, a runtime bundle and a Linux slot are
+all missing. These decisions settle what PLAN left open. Part (a) is
+the host lane; (b) and (c) are separate rig lanes started from (a)'s
+interface commit.
+
+1. **Broker protocol v2** (`VAULT_PROTOCOL_VERSION` 2).
+   - New manage-only request kinds: `snapshot`, `editMetadata`, `remove`,
+     `import`, `publicKey`, `watch`, `setup`, `confirmSetup` and
+     `cancelSetup`.
+   - Item values travel only in private frames (`add`, `edit`, `recover`);
+     the recovery code leaves only as the private `recoveryCode` response.
+   - `watch` turns the connection into a stream of pushed events: lock,
+     revoke, approval and changed.
+   - No v1 vault or broker exists in the field, so there is no
+     compatibility shim.
+2. **Grants live in the encrypted vault document.** The index carries
+   `grants`, and use counts are spent under the cross-process writer lock.
+   The store format is now `VAULT_STORE_FORMAT_VERSION` 2; block, slot,
+   audit and backup formats keep `VAULT_FORMAT_VERSION` 1.
+3. **The rollback anchor** (`VaultGenerationPort`) is a protected record in
+   the OS store through `@napi-rs/keyring`. D89.15 already accepts the
+   same-user rewrite residual; its wording is unchanged.
+4. **Windows.** A C# named-pipe server helper refuses remote clients and
+   relays to the broker, and also carries protect/verify file commands from
+   `MuseSparkVault.cs`'s guard. The contract is
+   `docs/design/vault-windows-pipe-helper.md`; lane (c) on the Win11 rig
+   builds it.
+5. **`dist/vaultRuntime.js`** exports `createRuntimeVault`, has no `vscode`
+   import, ships in the ACP package, and is what `runtimeVaultLoader` loads.
+   `dist/vault.js` stays the VS Code panel bundle.
+6. **The SecretStorage slot is dropped.** Every host uses the OS-store slot
+   through `@napi-rs/keyring`, the store SecretStorage itself rests on. The
+   broker is a separate process with no editor API. This amends D89.2's
+   table and acceptance 1's `basic_text` sentence.
+7. **Linux in this step: the Secret Service OS-store slot only.**
+   systemd-creds, the TPM2 PIN and the screen-lock signal stay in C-M109-2.
+8. **Setup flow.**
+   - Where: Settings > Vault > **Set Up Vault**, or a prompt the first time
+     anything asks to store a secret, in the panel and the CLI
+     (`vault setup`).
+   - `auto` means an OS-store slot plus a one-time recovery code.
+   - The panel shows the code once, in a dialog with **Copy** and an
+     **I Saved It** confirmation, before the vault becomes usable. Nothing
+     is written until that confirmation.
+   - The CLI prints the code once with the same confirmation prompt;
+     headless mode refuses setup without a TTY.
+   - Labels are Title Case, messages sentence case, and every string is in
+     all 14 tables.
+9. **Unix peer checks.** CI builds `peer.c` the way `muse-created` is built
+   (linux x64/arm64; macOS through `build.sh`). The socket descriptor comes
+   from Node's internal handle, with a §8 row landing beside that code in
+   lane (b).
+10. **Named exception: Touch ID / Keychain biometry unlock (lead decision,
+    2026-10-10).**
+    - **Reason:** no Apple Developer ID. It expired, and the owner cannot
+      renew it, so the data-protection keychain's biometry entitlement is
+      unavailable.
+    - **Equivalent:** on macOS, the login Keychain slot, plus the Secure
+      Enclave slot without biometry where `SecureEnclave.isAvailable`.
+    - **Upstream:** none.
+    - Nothing blocks or waits on it. C-M109-11 states it as not offered.
+
+The split:
+
+- **(a)**, the host lane: the protocol, grants, anchor, setup flow,
+  `dist/vaultRuntime.js`, and the VS Code, CLI, ACP and headless bindings
+  against interfaces.
+- **(b)**, Codex on kubuntu: the broker process, POSIX peer checks and the
+  Linux slot.
+- **(c)**, Codex on the Win11 VM: the Windows natives.
+
 **FIXM109W integrated review repair (2026-10-07, Mac mini).** Verify every
 P1/P2 in `_ctx/codex/M109-findings.md` against integration `a1d2b73e7`,
 including already repaired U findings and the L certificate observation.

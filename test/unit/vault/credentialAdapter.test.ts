@@ -7,7 +7,7 @@ import {
 import { vaultPrivateReadSchema } from '../../../src/shared/vaultProtocol'
 
 const binding = vaultPrivateReadSchema.parse({
-  v: 1,
+  v: 2,
   kind: 'firstPartyRead',
   itemId: 'f'.repeat(32),
   origin: 'https://example.test',

@@ -455,10 +455,10 @@ describe('M109 strict contracts', () => {
   })
 
   it('V4 V5 V13: public protocol is versioned and proposals cannot claim identity or approval', () => {
-    const request: protocol.VaultBrokerRequest = { v: 1, sequence: 0, request: { kind: 'status' } }
+    const request: protocol.VaultBrokerRequest = { v: 2, sequence: 0, request: { kind: 'status' } }
     expect(
       protocol.vaultBrokerRequestSchema.safeParse({
-        v: 2,
+        v: 3,
         sequence: 0,
         request: { kind: 'status' },
       }).success,
@@ -474,14 +474,14 @@ describe('M109 strict contracts', () => {
     ).toBe(false)
     expect(
       protocol.vaultBrokerRequestSchema.safeParse({
-        v: 1,
+        v: 2,
         sequence: 0,
         request: { kind: 'firstPartyRead', itemId: metadata().id },
       }).success,
     ).toBe(false)
     expect(
       protocol.vaultBrokerLockSchema.safeParse({
-        v: 1,
+        v: 2,
         processId: 0,
         startedAt: 0,
         brokerId: 'a'.repeat(32),
@@ -491,7 +491,7 @@ describe('M109 strict contracts', () => {
     ).toBe(false)
     expect(
       protocol.vaultBrokerLockSchema.safeParse({
-        v: 1,
+        v: 2,
         processId: 1,
         startedAt: 0,
         brokerId: 'a'.repeat(32),
@@ -503,7 +503,7 @@ describe('M109 strict contracts', () => {
 
   it('V1 V9: public lists never admit hidden or first-party records or secret fields', () => {
     const response: protocol.VaultBrokerResponse = {
-      v: 1,
+      v: 2,
       sequence: 0,
       response: { kind: 'items', items: [metadata()] },
     }
@@ -522,12 +522,12 @@ describe('M109 strict contracts', () => {
     expect(
       protocol.vaultBrokerEventSchema.safeParse({
         kind: 'locked',
-        v: 1,
+        v: 2,
         lockEpoch: 1,
         value: 'not permitted',
       }).success,
     ).toBe(false)
-    expect(protocol.vaultBrokerEventSchema.parse({ kind: 'locked', v: 1, lockEpoch: 1 }).kind).toBe(
+    expect(protocol.vaultBrokerEventSchema.parse({ kind: 'locked', v: 2, lockEpoch: 1 }).kind).toBe(
       'locked',
     )
   })
@@ -555,7 +555,7 @@ describe('M109 strict contracts', () => {
         reasons: [],
       })
       expect(
-        protocol.vaultBrokerResponseSchema.parse({ v: 1, sequence: 0, response: received })
+        protocol.vaultBrokerResponseSchema.parse({ v: 2, sequence: 0, response: received })
           .response,
       ).toEqual(result)
       if (received.kind !== 'ticket') continue
@@ -571,7 +571,7 @@ describe('M109 strict contracts', () => {
     ])
       expect(
         protocol.vaultBrokerResponseSchema.safeParse({
-          v: 1,
+          v: 2,
           sequence: 0,
           response: { kind: 'ticket', ticket: ticketFixture(), authority },
         }).success,
@@ -614,7 +614,7 @@ describe('M109 strict contracts', () => {
   })
 
   it('V10: device protocol permits only bound signatures and codes', () => {
-    const base = { v: 1, id: 'a'.repeat(32), owningDeviceId: 'b'.repeat(32) }
+    const base = { v: 2, id: 'a'.repeat(32), owningDeviceId: 'b'.repeat(32) }
     expect(
       protocol.vaultRemoteRequestSchema.safeParse({
         ...base,
@@ -637,7 +637,7 @@ describe('M109 strict contracts', () => {
   it('private read material stays on its dedicated channel with a known client and bounded encoding', () => {
     expect(
       protocol.vaultPrivateReadSchema.safeParse({
-        v: 1,
+        v: 2,
         kind: 'firstPartyRead',
         itemId: metadata().id,
         origin: 'https://example.test',
@@ -646,7 +646,7 @@ describe('M109 strict contracts', () => {
     ).toBe(true)
     expect(
       protocol.vaultPrivateReadSchema.safeParse({
-        v: 1,
+        v: 2,
         kind: 'firstPartyRead',
         itemId: metadata().id,
         origin: 'https://example.test',
@@ -655,7 +655,7 @@ describe('M109 strict contracts', () => {
     ).toBe(false)
     expect(
       protocol.vaultPrivateMaterialSchema.safeParse({
-        v: 1,
+        v: 2,
         kind: 'material',
         requestId: 'a'.repeat(32),
         encoding: 'base64',
@@ -664,7 +664,7 @@ describe('M109 strict contracts', () => {
     ).toBe(true)
     expect(
       protocol.vaultPrivateMaterialSchema.safeParse({
-        v: 1,
+        v: 2,
         kind: 'material',
         requestId: 'a'.repeat(32),
         encoding: 'base64',
