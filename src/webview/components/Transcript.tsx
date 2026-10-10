@@ -181,7 +181,7 @@ export interface TranscriptProps {
   readonly onImplementPlan?: ((entryId: string) => void) | undefined
   /** The row whose highlighted text has the Copy / Ask / Comment menu open (M17). */
   readonly quoteMenuEntryId?: string | undefined
-  readonly quoteMenuOrigin?: MenuPoint | undefined
+  readonly quoteMenuOrigin?: MenuPoint | HTMLElement | undefined
   readonly onQuote?: ((intent: QuoteIntent) => void) | undefined
   readonly onCopyQuote?: (() => void) | undefined
   readonly onCloseQuoteMenu?: (() => void) | undefined

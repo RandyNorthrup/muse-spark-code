@@ -109,3 +109,93 @@ it('repeats the mounted scene prefix and focus raster within the lead tolerance'
       `${key}: repeat capture`,
     ).not.toThrow()
 })
+
+it('keeps the 320 px checkpoint Rewind submenu clear of its opener with tooltip ellipses', async () => {
+  await captureMatrix(
+    root,
+    { ...inputs.audit, scenes: ['checkpoint-restore'] },
+    { ...inputs.matrix, states: ['default'] },
+    async (_capture, _bytes, page) => {
+      await page.getByRole('menuitem', { name: 'Rewind', exact: true }).click()
+      await page.clock.runFor(100)
+      const measured = await page.evaluate(() => {
+        const button = globalThis.document
+          .querySelector('.message-user .row-actions-button')
+          .getBoundingClientRect()
+        return {
+          button: {
+            left: button.left,
+            right: button.right,
+            top: button.top,
+            bottom: button.bottom,
+          },
+          pills: [...globalThis.document.querySelectorAll('.gooey-menu-pill')].map((pill) => {
+            const box = pill.getBoundingClientRect()
+            const label = pill.querySelector('.gooey-menu-pill-label')
+            const style = globalThis.getComputedStyle(label)
+            return {
+              left: box.left,
+              right: box.right,
+              top: box.top,
+              bottom: box.bottom,
+              label: label.textContent,
+              title: pill.title,
+              clipped: label.scrollWidth > label.clientWidth,
+              whiteSpace: style.whiteSpace,
+              textOverflow: style.textOverflow,
+            }
+          }),
+        }
+      })
+      expect(measured.pills).toHaveLength(4)
+      for (const [index, pill] of measured.pills.entries()) {
+        expect(pill.right, `${pill.label}: clears opener`).toBeLessThanOrEqual(measured.button.left)
+        expect(pill.left).toBeGreaterThanOrEqual(8)
+        expect(pill.bottom - pill.top).toBe(40)
+        expect(pill.right - pill.left).toBeCloseTo(measured.pills[0].right - measured.pills[0].left)
+        const next = measured.pills[index + 1]
+        if (next !== undefined) expect(next.top - pill.bottom).toBeCloseTo(6, 1)
+        if (!pill.clipped) continue
+        expect(pill.title).toContain(pill.label)
+        expect(pill.whiteSpace).toBe('nowrap')
+        expect(pill.textOverflow).toBe('ellipsis')
+      }
+      expect(measured.pills.some((pill) => pill.clipped)).toBe(true)
+    },
+    undefined,
+    browserEndpoint,
+    rasterization,
+  )
+})
+
+it('moves an open selection fan with its button when the panel widens and narrows', async () => {
+  await captureMatrix(
+    root,
+    { ...inputs.audit, scenes: ['quote-menu'] },
+    { ...inputs.matrix, states: ['default'] },
+    async (_capture, _bytes, page) => {
+      await expectSelectionFan(page)
+      for (const width of [690, 320]) {
+        await page.setViewportSize({ width, height: 760 })
+        await page.evaluate(
+          (nextWidth) =>
+            new Promise((resolve) => {
+              const observer = new globalThis.ResizeObserver(() => {
+                observer.disconnect()
+                resolve()
+              })
+              observer.observe(globalThis.document.documentElement)
+              globalThis.document.documentElement.style.width = `${nextWidth}px`
+              globalThis.document.body.style.width = `${nextWidth}px`
+            }),
+          width,
+        )
+        await page.clock.runFor(100)
+        await expectSelectionFan(page)
+      }
+    },
+    undefined,
+    browserEndpoint,
+    rasterization,
+  )
+})
