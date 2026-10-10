@@ -214,6 +214,10 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
   switch (scene) {
     case 'quote-menu': {
       // The initial context click can precede fonts and the host's final layout.
+      // Close it first: an open row menu makes its prose inert, so selecting
+      // that prose again would collapse the range and open ordinary row actions.
+      await page.locator('[role="menu"]').dispatchEvent('keydown', { key: 'Escape', bubbles: true })
+      await page.clock.runFor(100)
       // Reopen through the real handler at the settled passage, like a pointer.
       await page
         .locator('.message-assistant .message-body p')

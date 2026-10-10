@@ -94,10 +94,11 @@ happened, not what was planned; superseded entries are kept.
   replacing a limit someone changed meanwhile.
 - **Title Case labels.** English buttons, menus, tabs and titles capitalize
   every major word; sentences and messages keep sentence case.
-- **Smaller fixes.** A question's own-answer field no longer overlaps the
-  options and buttons around it, DeepSeek's Thinking off sends DeepSeek's own
-  switch, and a Muse Code older than 1.4.3 that hits its approval-record fault
-  now gets the update command.
+- **Smaller fixes.** Chat action menus fan close around the row's **…**
+  button, highlighted-text actions included; a question's own-answer field no
+  longer overlaps the options and buttons around it, DeepSeek's Thinking off
+  sends DeepSeek's own switch, and a Muse Code older than 1.4.3 that hits its
+  approval-record fault now gets the update command.
 
 ### Changed
 
@@ -123,6 +124,16 @@ happened, not what was planned; superseded entries are kept.
 - A question's "Type your own answer…" field no longer touches the Other
   option above it or the Submit and Explain instead buttons below it; its
   focus ring now has room on both sides.
+
+- Chat action menus fan close around the row's **…** button, with 6 px gaps
+  and a shallower arc. Highlighted-text actions open at the selected row's
+  **…** button (the pointer only when the row has none) and follow it through
+  scrolling, content reflow and panel resizing; a menu closes when its opener
+  disappears or scrolls out of view. Narrow menus, the checkpoint **Rewind**
+  submenu at 320 px included, keep their equal-width pills clear of the
+  opener and cut long labels short with the whole label in a tooltip. Hover
+  and pressed borders stay inside each pill, and keyboard focus rings keep
+  2 px clear of the pills beside them.
 
 - Muse Code approval-ledger fault notices now give the update command on
   versions older than 1.4.3. A live Windows 1.4.3 check accepted the approval

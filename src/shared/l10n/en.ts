@@ -464,7 +464,7 @@ export const EN = {
   referenceRenameKeys: 'Confirm or cancel renaming this conversation.',
   referenceRadialKeys:
     'Navigate actions, jump to the first or last, activate an action, or close or return to the parent menu.',
-  referenceRowKeys: 'ContextMenu / Shift+F10: More actions',
+  referenceRowKeys: 'ContextMenu / Shift+F10: More Actions',
   referenceEffortKeys: 'Choose how much effort Muse puts into each reply.',
   referenceMenuKeys: 'Navigate items, choose or complete a selection, or close the list.',
   referenceArchiveKeys: 'Archive / Unarchive',
@@ -1137,7 +1137,7 @@ export const EN = {
   queuedMenuLabel: 'Queued Message Actions',
   queuedEdit: 'Edit',
   queuedEditTitle: 'Take the message out of the queue and back into the prompt box',
-  queuedDelivered: 'Already delivered to the running turn',
+  queuedDelivered: 'Already Delivered to the Running Turn',
   queuedTooLate: 'This message already reached the model, so it can no longer be edited.',
   queuedEditUnsupported:
     'This conversation cannot take a queued message back, so it cannot be edited.',

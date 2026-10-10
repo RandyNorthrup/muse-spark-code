@@ -70,10 +70,11 @@ hash verification and migrate when read.
   replacing a limit someone changed meanwhile.
 - **Title Case labels.** English buttons, menus, tabs and titles capitalize
   every major word; sentences and messages keep sentence case.
-- **Smaller fixes.** A question's own-answer field no longer overlaps the
-  options and buttons around it, DeepSeek's Thinking off sends DeepSeek's own
-  switch, and a Muse Code older than 1.4.3 that hits its approval-record fault
-  now gets the update command.
+- **Smaller fixes.** Chat action menus fan close around the row's **…**
+  button, highlighted-text actions included; a question's own-answer field no
+  longer overlaps the options and buttons around it, DeepSeek's Thinking off
+  sends DeepSeek's own switch, and a Muse Code older than 1.4.3 that hits its
+  approval-record fault now gets the update command.
 
 ### Earlier in 0.17.0
 
@@ -357,9 +358,9 @@ panel enforcement waits for M96's planner (see
   the run is a card that keeps updating after the reply: its agents with
   their state, time and tokens, and the result it returned. Owner controls
   wait for a live accepted-command capture.
-- **Reply and quote with context.** A reply's ⋯ menu has **Reply to this
-  output**; highlight anything in the chat and right-click for **Ask about
-  this** or **Comment on This**. The passage, its author and your intent
+- **Reply and quote with context.** A reply's ⋯ menu has **Reply to This
+  Output**; highlight anything in the chat and right-click for **Ask About
+  This** or **Comment on This**. The passage, its author and your intent
   travel with the message.
 - **Voice dictation at no cost.** Tap or hold the microphone (`Ctrl+D`) and
   speak; the words land at the caret. Windows and macOS use the recogniser
@@ -433,8 +434,8 @@ so they match the build.
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/question.png" alt="A compact Open question marker with Answer in the transcript and one question card pinned above the composer, with Colour and Toppings tabs, choices, Other, Submit and Explain instead"><br><sub>One question card, pinned above the message box; Answer on its transcript marker brings it into focus</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/quote.png" alt="A reply right-clicked in its highlighted passage: three blue pills, Copy, Ask about this and Comment on this, fanned out from the pointer"><br><sub>Highlight, right-click: <b>Copy</b>, <b>Ask about this</b> or <b>Comment on this</b></sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/rewind.png" alt="A sent message's menu with three blue pills: Fork Conversation, Fork and Rewind, and Rewind"><br><sub>Every sent message's ⋯: fork, fork and rewind code, or open <b>Rewind</b></sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/quote.png" alt="A reply right-clicked in its highlighted passage: three blue pills, Copy, Ask About This and Comment on This, fanned close around the row’s ⋯ button"><br><sub>Highlight, right-click: <b>Copy</b>, <b>Ask About This</b> or <b>Comment on This</b></sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/rewind.png" alt="A sent message's menu with five blue pills close to its ⋯: Fork Conversation, Fork and Rewind, Rewind, Save Prompt and Share Prompt…"><br><sub>Every sent message's ⋯: fork, fork and rewind code, or open <b>Rewind</b></sub></td>
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/modes.png" alt="The Modes menu: Manual, Edit automatically, Plan and Auto, with descriptions and the effort row"><br><sub>Permission modes and effort; <code>Shift+Tab</code> cycles modes</sub></td>
@@ -3153,7 +3154,7 @@ is completed so you can add what follows it), `Tab` completes the name and
 - Thinking rows stream their summary while the model thinks and end as
   "Thought for Ns" (a resumed conversation's read "Thought").
 - Each actionable message, reply, tool output or restore notice has one **More
-  actions** (⋯) button, revealed on hover or keyboard focus and always visible
+  Actions** (⋯) button, revealed on hover or keyboard focus and always visible
   on touch screens. Right-click its row, or press Shift+F10 / the Menu key,
   to open the same radial menu: each action is one crisp blue pill, its icon
   then its name, every pill the same size, in a fan beside the pointer or
@@ -3167,7 +3168,15 @@ is completed so you can add what follows it), `Tab` completes the name and
   offered while a turn runs. A reply has no Retry (a resent prompt would run
   its tools a second time): **Rewind Conversation to Here** on the prompt's
   card puts the prompt back to send again. With text selected in a row,
-  right-clicking that row opens the highlighted-text menu instead.
+  right-clicking that row opens the highlighted-text menu at its ⋯ button.
+  A row without an opener uses the pointer. Both bursts keep 6 px between
+  pills and a shallow arc close to the opener, centred on it when there is
+  room and shifted whole at a panel edge. Pill width is limited by the room
+  beside the opener, keeping it clear even in a narrow panel; long labels
+  end in an ellipsis with their full tooltip. Every element-anchored menu follows its ⋯ button during scrolling,
+  panel resizing and content reflow, and closes if the button leaves the
+  visible panel or is removed. Hover and pressed decoration stays inside
+  each pill; neighbouring keyboard focus rings retain at least 2 px clearance.
 - A reply's ⋯ menu has **Reply to This Output**: the next message carries
   that output (up to 8,000 characters) to the agent as context. Highlight any text in the chat and
   right-click it for **Copy**, **Ask About This** or **Comment on This**; the
@@ -5148,7 +5157,7 @@ duplicate, import, share, and insertion. Scope labels distinguish **My prompts**
 from workspace prompts; **Copy to My Prompts** makes a personal copy.
 
 The composer's compact **Prompt Library** toolbar menu offers **Save Prompt**,
-**Share Prompt** and **Use Saved Prompt…**. Right-click the input for the same
+**Share Prompt…** and **Use Saved Prompt…**. Right-click the input for the same
 actions: VS Code uses its native menu; other shared-panel hosts open the compact
 menu at the pointer. Save and Share appear only with nonblank text. Escape closes
 the compact menu and returns focus to the input. Outside VS Code,

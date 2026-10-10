@@ -1428,7 +1428,7 @@ export function App({
         readonly role: string
         readonly text: string
         readonly epoch: number
-        readonly origin: { readonly x: number; readonly y: number }
+        readonly origin: HTMLElement | { readonly x: number; readonly y: number }
       }
     | undefined
   >(undefined)
@@ -1472,10 +1472,13 @@ export function App({
         return
       }
       event.preventDefault()
+      // Highlighted-text actions fan from this row's “…” button too.
+      const button = row.querySelector<HTMLElement>('.row-actions-button')
+      const origin = button ?? { x: event.clientX, y: event.clientY }
       setQuoteMenu({
         entryId,
         role: row.dataset['role'] ?? 'assistant',
-        origin: { x: event.clientX, y: event.clientY },
+        origin,
         text,
         epoch: store.getState().attachmentEpoch,
       })

@@ -2992,7 +2992,16 @@ li:focus-within > .row-actions .row-actions-button,
   cursor: default;
 }
 
+/* Pointer and selected decoration stays inside the pill, leaving only the
+   keyboard focus ring outside. Resting spacing is derived from its tokens. */
 .gooey-menu-pill:not([aria-disabled='true']):hover,
+.gooey-menu-pill:not([aria-disabled='true']):active,
+.gooey-menu-pill[aria-selected='true'],
+.gooey-menu-pill[aria-pressed='true'] {
+  background: var(--ms-pressed);
+  border-color: var(--ms-on-accent);
+}
+
 .gooey-menu-pill:not([aria-disabled='true']):focus-visible {
   background: var(--ms-pressed);
   outline: var(--ms-focus-width) solid var(--ms-text);
@@ -4471,8 +4480,7 @@ li:focus-within > .row-actions .row-actions-button,
   background: var(--ms-pressed);
 }
 
-.approval .approval-choices > button:active:enabled,
-.gooey-menu-pill:not([aria-disabled='true']):active {
+.approval .approval-choices > button:active:enabled {
   outline: var(--ms-focus-width) solid var(--ms-on-accent);
   outline-offset: calc(-1 * var(--ms-focus-width));
 }

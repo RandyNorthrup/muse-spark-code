@@ -2913,6 +2913,10 @@
             key({ key: 'Enter' })
           })
         },
+        'assistant-menu': () => {
+          transcriptFixture({ isDone: true })
+          whenFound('.message-assistant .row-actions-button', (control) => control.click())
+        },
         'chat-menu': () => {
           steps.rewind()
           whenFound('[aria-haspopup="menu"][role="menuitem"]', (control) => control.click())
@@ -2925,7 +2929,7 @@
           document.body.style.width = '100%'
           steps['chat-menu']()
         },
-        // An edit row's menu (D66 item 17): Open output, Review and, with a
+        // An edit row's menu (D66 item 17): Open Output, Review and, with a
         // session to revert in, Revert.
         'chat-tool-menu': () => {
           send({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 'harness-tools' })
@@ -4729,7 +4733,7 @@
             selection.removeAllRanges()
             selection.addRange(range)
             // Right-clicked inside the passage, as a pointer would: the
-            // pills fan out from there, not from the page's corner.
+            // menu anchors to the selected row’s ⋯ button.
             const box = passage.getBoundingClientRect()
             passage.dispatchEvent(
               new MouseEvent('contextmenu', {

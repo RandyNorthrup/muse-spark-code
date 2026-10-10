@@ -181,7 +181,7 @@ export interface TranscriptProps {
   readonly onImplementPlan?: ((entryId: string) => void) | undefined
   /** The row whose highlighted text has the Copy / Ask / Comment menu open (M17). */
   readonly quoteMenuEntryId?: string | undefined
-  readonly quoteMenuOrigin?: MenuPoint | undefined
+  readonly quoteMenuOrigin?: MenuPoint | HTMLElement | undefined
   readonly onQuote?: ((intent: QuoteIntent) => void) | undefined
   readonly onCopyQuote?: (() => void) | undefined
   readonly onCloseQuoteMenu?: (() => void) | undefined
@@ -195,7 +195,7 @@ export interface TranscriptProps {
    * Edit on a queued card (M87, PLAN.md D66): the ids the host gave it, for
    * `withdrawQueued`. Absent while nothing can take a message back.
    */
-  /** M118-P-REACT-BRIDGE: same handler as the native Save prompt command. */
+  /** M118-P-REACT-BRIDGE: same handler as the native Save Prompt command. */
   readonly onSharePrompt?: ((text: string) => void) | undefined
   readonly onSavePrompt?: ((text: string) => void) | undefined
   readonly onEditQueued?: ((card: QueuedCardRef) => void) | undefined

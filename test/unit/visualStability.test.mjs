@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { beforeAll, beforeEach, expect, inject, it } from 'vitest'
+import { beforeAll, expect, inject, it } from 'vitest'
 import { captureMatrix } from '../harness/goldens/capture.mjs'
 import { comparePixels, decodePng } from '../../scripts/lib/visualImages.mjs'
 import { VISUAL_BUILD_KEY } from './helpers/productionPackage'
@@ -15,6 +15,63 @@ const frames = new Map()
 const repeated = new Map()
 const inputs = { audit: undefined, matrix: undefined }
 const scenes = ['quote-menu']
+
+async function addScrollRoom(page) {
+  await page.evaluate(() => {
+    const scroller = globalThis.document.querySelector('.body-transcript')
+    const tail = globalThis.document.createElement('div')
+    tail.style.minHeight = '1600px'
+    tail.style.flexShrink = '0'
+    scroller.append(tail)
+    scroller.scrollTop += 1
+    scroller.dispatchEvent(new globalThis.Event('scroll'))
+  })
+  await page.clock.runFor(100)
+}
+
+async function expectSelectionFan(page) {
+  const measured = await page.evaluate(() => {
+    const button = globalThis.document
+      .querySelector('.message-assistant .row-actions-button')
+      .getBoundingClientRect()
+    return {
+      x: button.left + button.width / 2,
+      y: button.top + button.height / 2,
+      pills: [...globalThis.document.querySelectorAll('.quote-menu .gooey-menu-pill')].map(
+        (pill) => {
+          const box = pill.getBoundingClientRect()
+          return { left: box.left, right: box.right, top: box.top, bottom: box.bottom }
+        },
+      ),
+    }
+  })
+  expect(measured.pills).toHaveLength(3)
+  for (const [index, pill] of measured.pills.entries()) {
+    const near = measured.x - pill.right
+    expect(near, 'selection pills stay beside the row opener').toBeGreaterThanOrEqual(16)
+    expect(near, 'selection pills stay close to the row opener').toBeLessThanOrEqual(32.02)
+    const next = measured.pills[index + 1]
+    if (next !== undefined) expect(next.top - pill.bottom).toBeCloseTo(6, 1)
+  }
+  expect((measured.pills[0].top + measured.pills.at(-1).bottom) / 2).toBeCloseTo(measured.y, 1)
+}
+
+// Capture the wide selection menu too, with the same shared setup and default timeout.
+beforeAll(async () => {
+  const audit = JSON.parse(await readFile('docs/certification/m114-audit.json', 'utf8'))
+  const matrix = JSON.parse(await readFile('test/harness/visual-matrix.json', 'utf8'))
+  await captureMatrix(
+    root,
+    { ...audit, scenes: ['quote-menu'] },
+    { ...matrix, themes: ['light'], widths: [690] },
+    async (capture, _bytes, page) => {
+      if (capture.state === 'default') await expectSelectionFan(page)
+    },
+    undefined,
+    browserEndpoint,
+    rasterization,
+  )
+})
 for (const index of [0, 1, 2, 3])
   beforeAll(async () => {
     const audit = JSON.parse(await readFile('docs/certification/m114-audit.json', 'utf8'))
@@ -30,28 +87,7 @@ for (const index of [0, 1, 2, 3])
       narrow,
       async (capture, bytes, page) => {
         if (capture.scene === 'quote-menu' && capture.state === 'default') {
-          const anchor = await page.evaluate(() => {
-            const passage = globalThis.document
-              .querySelector('.message-assistant .message-body p')
-              .getBoundingClientRect()
-            const pill = globalThis.document.querySelector('.gooey-menu-pill')
-            // The harness opens the menu with a contextmenu at the passage's
-            // centre; Chrome carries a MouseEvent's client coordinates in whole
-            // pixels (170.5 arrives as 170 under Windows font metrics). Compare
-            // with that centre as the event carried it.
-            return {
-              passageY: new globalThis.MouseEvent('contextmenu', {
-                clientY: passage.top + passage.height / 2,
-              }).clientY,
-              menuY:
-                Number(pill.style.top.replace('px', '')) +
-                Number(pill.style.transformOrigin.split(' ', 2)[1].replace('px', '')),
-            }
-          })
-          expect(anchor.menuY, 'quote menu uses the settled passage').toBeCloseTo(
-            anchor.passageY,
-            1,
-          )
+          await expectSelectionFan(page)
         }
         frames.set(`${capture.scene}/${capture.state}`, decodePng(bytes, 320, 760))
       },
@@ -62,7 +98,7 @@ for (const index of [0, 1, 2, 3])
   })
 // Bound each fresh scene separately at the unchanged default hook deadline.
 for (const index of [0, 1, 2, 3])
-  beforeEach(async () => {
+  beforeAll(async () => {
     if (index === 0) repeated.clear()
     await captureMatrix(
       root,
@@ -86,3 +122,307 @@ it('repeats the mounted scene prefix and focus raster within the lead tolerance'
       `${key}: repeat capture`,
     ).not.toThrow()
 })
+
+it('keeps the 320 px checkpoint Rewind submenu clear of its opener with tooltip ellipses', async () => {
+  await captureMatrix(
+    root,
+    { ...inputs.audit, scenes: ['checkpoint-restore'] },
+    { ...inputs.matrix, states: ['default'] },
+    async (_capture, _bytes, page) => {
+      await page.getByRole('menuitem', { name: 'Rewind', exact: true }).click()
+      await page.clock.runFor(100)
+      const measured = await page.evaluate(() => {
+        const button = globalThis.document
+          .querySelector('.message-user .row-actions-button')
+          .getBoundingClientRect()
+        return {
+          button: {
+            left: button.left,
+            right: button.right,
+            top: button.top,
+            bottom: button.bottom,
+          },
+          pills: [...globalThis.document.querySelectorAll('.gooey-menu-pill')].map((pill) => {
+            const box = pill.getBoundingClientRect()
+            const label = pill.querySelector('.gooey-menu-pill-label')
+            const style = globalThis.getComputedStyle(label)
+            return {
+              left: box.left,
+              right: box.right,
+              top: box.top,
+              bottom: box.bottom,
+              label: label.textContent,
+              title: pill.title,
+              clipped: label.scrollWidth > label.clientWidth,
+              whiteSpace: style.whiteSpace,
+              textOverflow: style.textOverflow,
+            }
+          }),
+        }
+      })
+      expect(measured.pills).toHaveLength(4)
+      for (const [index, pill] of measured.pills.entries()) {
+        expect(pill.right, `${pill.label}: clears opener`).toBeLessThanOrEqual(measured.button.left)
+        expect(pill.left).toBeGreaterThanOrEqual(8)
+        expect(pill.bottom - pill.top).toBe(40)
+        expect(pill.right - pill.left).toBeCloseTo(measured.pills[0].right - measured.pills[0].left)
+        const next = measured.pills[index + 1]
+        if (next !== undefined) expect(next.top - pill.bottom).toBeCloseTo(6, 1)
+        if (!pill.clipped) continue
+        expect(pill.title).toContain(pill.label)
+        expect(pill.whiteSpace).toBe('nowrap')
+        expect(pill.textOverflow).toBe('ellipsis')
+      }
+      expect(measured.pills.some((pill) => pill.clipped)).toBe(true)
+    },
+    undefined,
+    browserEndpoint,
+    rasterization,
+  )
+})
+
+it('moves an open selection fan with its button when the panel widens and narrows', async () => {
+  await captureMatrix(
+    root,
+    { ...inputs.audit, scenes: ['quote-menu'] },
+    { ...inputs.matrix, states: ['default'] },
+    async (_capture, _bytes, page) => {
+      await expectSelectionFan(page)
+      await addScrollRoom(page)
+      // Real panels flow with the viewport. Fixed capture widths would briefly
+      // put the opener outside a shrinking viewport before the next script ran.
+      await page.evaluate(() => {
+        globalThis.document.documentElement.style.width = '100%'
+        globalThis.document.body.style.width = '100%'
+      })
+      for (const width of [690, 320]) {
+        await page.setViewportSize({ width, height: 760 })
+        await page.clock.runFor(100)
+        await expectSelectionFan(page)
+      }
+    },
+    undefined,
+    browserEndpoint,
+    rasterization,
+  )
+})
+
+// Each case owns one real scene at the repository's five-second deadline.
+const menuScenes = [
+  'rewind',
+  'assistant-menu',
+  'chat-tool-menu',
+  'checkpoint-restore',
+  'chat-menu',
+  'quote-menu',
+  'queued-menu',
+  'queued-menu-edit',
+]
+const menuCases = menuScenes.flatMap((scene) =>
+  [320, 480, 900].flatMap((width) =>
+    ['light', 'dark', 'hc-light', 'hc-dark'].map((theme) => [scene, width, theme]),
+  ),
+)
+
+it.each(menuCases)(
+  'keeps adjacent outlines clear in %s / %s px / %s',
+  async (scene, width, theme) => {
+    await captureMatrix(
+      root,
+      { ...inputs.audit, scenes: [scene] },
+      { ...inputs.matrix, themes: [theme], widths: [width], states: ['default'] },
+      async (_capture, _bytes, page) => {
+        const pills = page.locator('.gooey-menu-pill')
+        expect(await pills.count()).toBeGreaterThan(0)
+        await page.evaluate(() => globalThis.document.activeElement.blur())
+        const cdp = await page.context().newCDPSession(page)
+        await cdp.send('DOM.enable')
+        await cdp.send('CSS.enable')
+        const { root: document } = await cdp.send('DOM.getDocument')
+        const { nodeIds } = await cdp.send('DOM.querySelectorAll', {
+          nodeId: document.nodeId,
+          selector: '.gooey-menu-pill',
+        })
+        const opener = await page.evaluate(() => {
+          const button =
+            globalThis.document.querySelector('.row-actions-button[aria-expanded="true"]') ??
+            globalThis.document
+              .querySelector('.quote-menu')
+              ?.closest('li')
+              ?.querySelector('.row-actions-button')
+          if (button === undefined || button === null) throw new Error('Missing menu opener')
+          const rect = button.getBoundingClientRect()
+          return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }
+        })
+        for (let index = 0; index < nodeIds.length - 1; index += 1) {
+          for (const reverse of [false, true]) {
+            const focused = reverse ? index + 1 : index
+            const neighbour = reverse ? index : index + 1
+            for (const state of [
+              'focus+hover',
+              'focus',
+              'hover',
+              'focus+active',
+              'focus+selected',
+              'focus+pressed',
+            ]) {
+              const pointerState = state.endsWith('active') ? ['active'] : []
+              // Separate nodes/attributes update together; measure only after all settle.
+              await Promise.all([
+                cdp.send('CSS.forcePseudoState', {
+                  nodeId: nodeIds[focused],
+                  forcedPseudoClasses: state === 'hover' ? [] : ['focus', 'focus-visible'],
+                }),
+                cdp.send('CSS.forcePseudoState', {
+                  nodeId: nodeIds[neighbour],
+                  forcedPseudoClasses: state.includes('hover') ? ['hover'] : pointerState,
+                }),
+                pills.nth(neighbour).evaluate((pill, nextState) => {
+                  pill.setAttribute('aria-selected', String(nextState.endsWith('selected')))
+                  pill.setAttribute('aria-pressed', String(nextState.endsWith('pressed')))
+                }, state),
+              ])
+              const clearance = await pills.evaluateAll((nodes) =>
+                nodes.map((pill) => {
+                  const rect = pill.getBoundingClientRect()
+                  const style = globalThis.getComputedStyle(pill)
+                  const reach =
+                    style.outlineStyle === 'none'
+                      ? 0
+                      : Math.max(
+                          0,
+                          Number(style.outlineWidth.replace('px', '')) +
+                            Number(style.outlineOffset.replace('px', '')),
+                        )
+                  return {
+                    top: rect.top - reach,
+                    bottom: rect.bottom + reach,
+                    left: rect.left - reach,
+                    right: rect.right + reach,
+                  }
+                }),
+              )
+              expect(
+                clearance[index + 1].top - clearance[index].bottom,
+                `${scene}/${width}/${theme}/${index}/${state}/${reverse}`,
+              ).toBeGreaterThanOrEqual(2)
+              for (const pill of clearance) {
+                expect(
+                  Math.max(
+                    opener.left - pill.right,
+                    pill.left - opener.right,
+                    opener.top - pill.bottom,
+                    pill.top - opener.bottom,
+                  ),
+                  'outlines also clear the opener',
+                ).toBeGreaterThanOrEqual(2)
+              }
+            }
+            await Promise.all([
+              cdp.send('CSS.forcePseudoState', {
+                nodeId: nodeIds[focused],
+                forcedPseudoClasses: [],
+              }),
+              cdp.send('CSS.forcePseudoState', {
+                nodeId: nodeIds[neighbour],
+                forcedPseudoClasses: [],
+              }),
+              pills.nth(neighbour).evaluate((pill) => {
+                pill.removeAttribute('aria-selected')
+                pill.removeAttribute('aria-pressed')
+              }),
+            ])
+          }
+        }
+        await cdp.detach()
+      },
+      undefined,
+      browserEndpoint,
+      rasterization,
+    )
+  },
+)
+
+async function expectFanAtAnchor(fan, point) {
+  const position = await point()
+  const pills = await fan()
+  expect(pills.length).toBeGreaterThan(0)
+  for (const pill of pills) {
+    expect(pill.x).toBeCloseTo(position.x)
+    expect(pill.y).toBeCloseTo(position.y)
+  }
+}
+
+it.each(
+  [
+    ['quote-menu', '.message-assistant'],
+    ['chat-tool-menu', '[data-entry-id="ed1"]'],
+    ['checkpoint-restore', '.message-user'],
+  ].flatMap(([scene, selector]) => [320, 480, 900].map((width) => [scene, selector, width])),
+)(
+  'follows real ancestor scrolling/reflow and dismisses offscreen %s at %s / %s px',
+  async (scene, selector, width) => {
+    await captureMatrix(
+      root,
+      { ...inputs.audit, scenes: [scene] },
+      { ...inputs.matrix, widths: [width], states: ['default'] },
+      async (_capture, _bytes, page) => {
+        // Add genuine scroll room beneath the real row without altering its menu.
+        await addScrollRoom(page)
+        const anchor = page.locator(`${selector} .row-actions-button`).first()
+        const point = async () =>
+          anchor.evaluate((button) => {
+            const box = button.getBoundingClientRect()
+            return { x: box.left + box.width / 2, y: box.top + box.height / 2 }
+          })
+        const fan = async () =>
+          page.locator('.gooey-menu-pill').evaluateAll((nodes) =>
+            nodes.map((pill) => ({
+              x:
+                Number(pill.style.left.replace('px', '')) +
+                Number(pill.style.transformOrigin.split(' ', 1)[0].replace('px', '')),
+              y:
+                Number(pill.style.top.replace('px', '')) +
+                Number(pill.style.transformOrigin.split(' ', 2)[1].replace('px', '')),
+            })),
+          )
+        // Move the row down before scrolling, keeping its opener inside the viewport.
+        await anchor.evaluate((button) => {
+          button.closest('li').style.marginTop = '180px'
+        })
+        await page.clock.runFor(100)
+        await expectFanAtAnchor(fan, point)
+        const before = await point()
+        await page.locator('.body-transcript').evaluate((transcript) => {
+          transcript.scrollTop += 60
+        })
+        await page.clock.runFor(100)
+        const after = await point()
+        expect(after.y).toBeCloseTo(before.y - 60)
+        await expectFanAtAnchor(fan, point)
+        if (scene === 'checkpoint-restore') {
+          await page.getByRole('menuitem', { name: 'Rewind', exact: true }).click()
+          await page.clock.runFor(100)
+          expect(await page.locator('.gooey-menu-pill').count()).toBe(4)
+          const childrenBefore = await fan()
+          await page.locator('.body-transcript').evaluate((transcript) => {
+            transcript.scrollTop += 20
+          })
+          await page.clock.runFor(100)
+          const childrenAfter = await fan()
+          for (const [index, child] of childrenAfter.entries()) {
+            expect(child.y).toBeCloseTo(childrenBefore[index].y - 20)
+          }
+        }
+        await page.locator('.body-transcript').evaluate((transcript) => {
+          transcript.scrollTop += 900
+        })
+        await page.clock.runFor(100)
+        expect(await page.locator('.gooey-menu').count()).toBe(0)
+      },
+      undefined,
+      browserEndpoint,
+      rasterization,
+    )
+  },
+)
