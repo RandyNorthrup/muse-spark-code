@@ -10850,6 +10850,13 @@ export class ConversationController {
     this.post(tree === undefined ? { type: 'clearTeamTree' } : { type: 'teamTree', tree })
   }
 
+  /** This panel's wire approval mode when it holds that conversation; a tree Merge is gated by it. */
+  public teamApprovalMode(sessionId: string): string | undefined {
+    return this.session?.sessionId === sessionId
+      ? approvalModeFor(this.permissionMode, this.deps.hasApprovalUi)
+      : undefined
+  }
+
   /** A team card (waiting, merge) in this panel's conversation only (M96 lane U2's cards). */
   public showTeamCard(sessionId: string, item: TeamCardItem): void {
     if (this.session?.sessionId !== sessionId) return

@@ -115,6 +115,33 @@ export interface TeamOrchestratorPort {
    * backend, or undefined where this editor runs no worker on it.
    */
   readonly defaultAgent?: ((orchestratorModelId: string) => TeamAgentRef | undefined) | undefined
+  /**
+   * The conversation's wire approval mode now (`denyUnmatched` is Plan), or
+   * undefined when no open surface holds that conversation. A merge asked
+   * from the tree uses it as the model's `merge` uses its call context.
+   */
+  readonly approvalMode?: ((sessionId: string) => string | undefined) | undefined
+}
+
+/** Where a task's own copy is, written down before any work so recovery can remove it. */
+export interface TeamTaskWorkspace {
+  readonly folder: string
+  readonly baseCommit: string
+  readonly branch?: string | undefined
+  readonly agentsRef?: string | undefined
+}
+
+/**
+ * The service's hold on one running task, which the worker port calls at its
+ * own boundaries. `admitRequest` runs before every model request and throws
+ * the refusal (trust withdrawn, the paid switch off, a cap met, a stop); the
+ * request is then not sent. `noteUsage` reports the task's usage so far after
+ * each response; `noteWorkspace` records the copy as soon as it exists.
+ */
+export interface TeamTaskMeter {
+  readonly admitRequest: () => void
+  readonly noteUsage: (usage: TeamUsage) => void
+  readonly noteWorkspace: (workspace: TeamTaskWorkspace) => void
 }
 
 /** One task as the service hands it to the editor's worker port. */
@@ -128,6 +155,9 @@ export interface TeamTaskSpec {
   readonly parentSessionId: string
   /** `continue`: the finished task this one reopens, on its own copy and branch. */
   readonly continueFrom?: TeamWorkerOutcome | undefined
+  /** A review: the finished branch this read-only task reviews at its head. */
+  readonly reviewOf?: TeamWorkerOutcome | undefined
+  readonly meter: TeamTaskMeter
 }
 
 /** What a finished worker hands back. */
@@ -191,7 +221,9 @@ export type TeamCardItem =
         readonly filesChanged?: number | undefined
         readonly affectedFiles?: readonly string[] | undefined
         readonly protectedPaths?: readonly string[] | undefined
-        readonly review: 'not-reviewed'
+        readonly review: 'reviewed' | 'same-model' | 'not-reviewed'
+        readonly reviewVerdict?: string | undefined
+        readonly reviewerFindings?: readonly string[] | undefined
       }
       readonly teamDecision?: string | undefined
     }
@@ -217,6 +249,8 @@ export interface TeamMergePort {
       readonly outcome: TeamWorkerOutcome
     },
     signal: AbortSignal,
+    /** The user approved the protected paths the merge card listed. */
+    options: { readonly allowProtected: boolean },
   ) => Promise<TeamMergeOutcome>
   readonly discard: (task: {
     readonly taskId: string

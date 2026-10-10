@@ -4,12 +4,13 @@
 // copy, the branch, the commit, the `agents/` ref, the merge, cleanup) is the
 // production code.
 
-import { mkdtemp, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { createEngineTeamPorts, processTeamGit } from '../../src/host/team/teamEnginePorts'
-import type { TeamTaskSpec } from '../../src/core/team/teamHostService'
+import type { TeamTaskSpec, TeamTaskWorkspace } from '../../src/core/team/teamHostService'
+import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import type { TeamPoolEntry, TeamRoleConfig } from '../../src/shared/team'
 import { FakeAgentSession } from './helpers/fakeAgent'
 import { cleanupTeamRoots, teamFixtureRepo, teamGitRunner, trackTeamRoot } from './helpers/teamGit'
@@ -36,15 +37,20 @@ async function setup(edit: (folder: string) => Promise<void>, message = REPORT) 
   const { root, head } = await teamFixtureRepo(runGit)
   const storage = await mkdtemp(path.join(tmpdir(), 'muse-team-store-'))
   trackTeamRoot(storage)
-  const started: { folder: string; approvalMode: string }[] = []
+  const started: {
+    folder: string
+    approvalMode: string
+    admit: () => void
+    fenceIo: (io: ToolIo) => ToolIo
+  }[] = []
   const ports = createEngineTeamPorts({
     repositoryRoot: () => root,
     storageRoot: storage,
     platform: process.platform,
     isTrusted: () => true,
     listModels: () => Promise.resolve(['other-model', 'muse-spark-1.3']),
-    startWorker: ({ folder, modelId, approvalMode }) => {
-      started.push({ folder, approvalMode })
+    startWorker: ({ folder, modelId, approvalMode, admit, fenceIo }) => {
+      started.push({ folder, approvalMode, admit, fenceIo })
       const session = new FakeAgentSession(`worker-${String(started.length)}`, modelId)
       session.sendTurn.mockImplementation(async () => {
         await edit(folder)
@@ -85,6 +91,11 @@ function spec(
     brief: 'change tracked.txt',
     files: [],
     parentSessionId: 's1',
+    meter: {
+      admitRequest: () => undefined,
+      noteUsage: () => undefined,
+      noteWorkspace: () => undefined,
+    },
     ...extra,
   }
 }
@@ -125,6 +136,7 @@ describe('the engine worker port', () => {
     const merged = await ports.merges.merge(
       { taskId: 'task1', role: ENGINEERING, outcome },
       new AbortController().signal,
+      { allowProtected: false },
     )
     expect(merged).toEqual({ status: 'merged', written: ['tracked.txt'], conflicts: [] })
     expect(await readFile(path.join(root, 'tracked.txt'), 'utf8')).toBe('after\n')
@@ -209,5 +221,98 @@ describe('the engine worker port', () => {
       await processTeamGit(process.platform)(['rev-parse', 'HEAD'], root),
     )
     expect(resolved.trim()).toBe(head)
+  })
+})
+
+describe('the engine worker port after the RVCM963 review', () => {
+  it('1+4: hands the worker host a fence, records its copy, and asks the task before every request', async () => {
+    let isAdmitted = true
+    const workspaces: TeamTaskWorkspace[] = []
+    const { ports, started } = await setup(async (folder) => {
+      await writeFile(path.join(folder, 'tracked.txt'), 'after\n')
+    })
+    const meter = {
+      admitRequest: () => {
+        if (!isAdmitted) throw new Error('revoked')
+      },
+      noteUsage: () => undefined,
+      noteWorkspace: (workspace: TeamTaskWorkspace) => {
+        workspaces.push(workspace)
+      },
+    }
+    const outcome = await ports.workers.run(
+      spec(ENGINEERING, 'task1', { meter }),
+      new AbortController().signal,
+    )
+    expect(workspaces).toEqual([expect.objectContaining({ folder: outcome.folder })])
+    const worker = started[0]
+    expect(() => worker?.admit()).not.toThrow()
+    isAdmitted = false
+    expect(() => worker?.admit()).toThrow('revoked')
+    isAdmitted = true
+    const writes: string[] = []
+    const base: ToolIo = {
+      readFile: () => Promise.resolve(undefined),
+      readBytes: () => Promise.resolve(undefined),
+      writeFile: (absolute) => {
+        writes.push(absolute)
+        return Promise.resolve()
+      },
+      writeFileIfUnchanged: () => Promise.reject(new Error('unused')),
+      pathExists: () => Promise.resolve(false),
+      reserveFile: () => Promise.reject(new Error('unused')),
+      hasUnsavedChanges: () => false,
+      unsavedFiles: () => [],
+      listFiles: () => Promise.resolve([]),
+      searchFiles: () => Promise.reject(new Error('unused')),
+      runShell: () => Promise.reject(new Error('unused')),
+      realPath: (absolute) => Promise.resolve(absolute),
+    }
+    const fenced = worker?.fenceIo(base)
+    const folder = outcome.folder ?? ''
+    await expect(fenced?.writeFile(path.join(folder, '.git', 'config'), 'x')).rejects.toThrow()
+    await fenced?.writeFile(path.join(folder, 'tracked.txt'), 'y')
+    expect(writes).toEqual([path.join(folder, 'tracked.txt')])
+  })
+
+  it('14: merges a protected path only with the approval the merge card gave', async () => {
+    const { root, ports } = await setup(async (folder) => {
+      await mkdir(path.join(folder, '.github', 'workflows'), { recursive: true })
+      await writeFile(path.join(folder, '.github', 'workflows', 'ci.yml'), 'on: push\n')
+    })
+    const outcome = await ports.workers.run(spec(ENGINEERING), new AbortController().signal)
+    await expect(
+      ports.merges.merge(
+        { taskId: 'task1', role: ENGINEERING, outcome },
+        new AbortController().signal,
+        {
+          allowProtected: false,
+        },
+      ),
+    ).rejects.toThrow()
+    const merged = await ports.merges.merge(
+      { taskId: 'task1', role: ENGINEERING, outcome },
+      new AbortController().signal,
+      { allowProtected: true },
+    )
+    expect(merged.status).toBe('merged')
+    expect(await readFile(path.join(root, '.github', 'workflows', 'ci.yml'), 'utf8')).toBe(
+      'on: push\n',
+    )
+  })
+
+  it('5: a merge whose call was cancelled writes nothing', async () => {
+    const { root, ports } = await setup(async (folder) => {
+      await writeFile(path.join(folder, 'tracked.txt'), 'after\n')
+    })
+    const outcome = await ports.workers.run(spec(ENGINEERING), new AbortController().signal)
+    const controller = new AbortController()
+    controller.abort()
+    await expect(
+      ports.merges.merge({ taskId: 'task1', role: ENGINEERING, outcome }, controller.signal, {
+        allowProtected: false,
+      }),
+    ).rejects.toThrow()
+    expect(await readFile(path.join(root, 'tracked.txt'), 'utf8')).toBe('before\n')
   })
 })

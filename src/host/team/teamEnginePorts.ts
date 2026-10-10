@@ -51,6 +51,9 @@ import type {
   TeamWorkerPort,
 } from '../../core/team/teamHostService'
 import type { ResponseAttemptGuard } from '../../core/backends/modelapi/transport'
+import type { ToolIo } from '../../core/backends/modelapi/tools'
+import { fenceWorkerToolIo } from '../../core/team/workers/workerToolIo'
+import { assertWorkerRoot } from '../../core/team/workers/workerFence'
 
 /** One worker conversation the host started in the task's copy. */
 export interface EngineWorkerSession {
@@ -77,6 +80,8 @@ export interface EngineTeamPortsDeps {
     readonly admit: ResponseAttemptGuard
     readonly noteUsage: (modelId: string, usage: SubagentUsage) => void
     readonly parentSessionId: string
+    /** Every file call of the worker's tools goes through the task's fence. */
+    readonly fenceIo: (io: ToolIo) => ToolIo
   }) => Promise<EngineWorkerSession>
   readonly runGit?: TeamGit | undefined
   readonly now: () => number
@@ -193,10 +198,13 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
     if (builtin === undefined) {
       throw new Error(fill(TEAM_MODEL_TEXT.hostRoleNotOffered, { role: spec.role.role }))
     }
-    const mode = spec.role.workspace ?? builtin.workspace
+    // A review reads the reviewed branch at its head, in a scratch copy.
+    const reviewed = spec.reviewOf
+    const mode = reviewed === undefined ? (spec.role.workspace ?? builtin.workspace) : 'read-only'
     if (mode === 'in-place') throw new Error(TEAM_MODEL_TEXT.hostInPlaceNotOffered)
     const previous = spec.continueFrom
-    const baseCommit = previous?.baseCommit ?? (await resolveBaseCommit(runGit, repositoryRoot))
+    const baseCommit =
+      reviewed?.head ?? previous?.baseCommit ?? (await resolveBaseCommit(runGit, repositoryRoot))
     const workspace =
       previous?.folder === undefined
         ? await startTeamWorkspace(runGit, await storage(), deps.platform, {
@@ -208,21 +216,53 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
           })
         : { folder: previous.folder, branch: previous.branch, agentsRef: previous.agentsRef }
     const isNewCopy = previous?.folder === undefined
+    if (isNewCopy)
+      spec.meter.noteWorkspace({
+        folder: workspace.folder,
+        baseCommit,
+        branch: workspace.branch,
+        agentsRef: workspace.agentsRef,
+      })
     let usage = EMPTY_USAGE
     try {
       signal.throwIfAborted()
+      const groups = spec.role.tools ?? TEAM_ROLE_TOOLSETS[builtin.id]
+      const writePaths = spec.role.writePaths ?? builtin.writePaths
+      const fenceInput = {
+        folder: workspace.folder,
+        platform: deps.platform,
+        io: WORKER_NATIVE_IO,
+        workspaceRoot: repositoryRoot,
+      }
+      // The copy's identity is retained now: a replaced copy refuses every later call.
+      const grant = await assertWorkerRoot(fenceInput)
+      const admit = (): void => {
+        signal.throwIfAborted()
+        spec.meter.admitRequest()
+      }
       const worker = await deps.startWorker({
         folder: workspace.folder,
         modelId: spec.entry.agent.model,
         // Edits inside its own copy never ask; a read-only copy takes none.
         approvalMode: mode === 'read-only' ? 'denyUnmatched' : 'allowAll',
-        admit: () => {
-          signal.throwIfAborted()
-        },
+        admit,
         noteUsage: (_modelId, reported) => {
           usage = addUsage(usage, reported)
+          spec.meter.noteUsage(usage)
         },
         parentSessionId: spec.parentSessionId,
+        fenceIo: (io) =>
+          fenceWorkerToolIo(io, {
+            input: { ...fenceInput, grant },
+            role: {
+              roleId: builtin.id,
+              workspaceMode: mode,
+              toolGroups: groups,
+              ...(writePaths !== undefined && { writePaths }),
+              reportShape: spec.role.report ?? builtin.report,
+            },
+            admit,
+          }),
       })
       const adapter = new AgentWorktreeSession(worker.session, noTerminalWork)
       const stop = (): void => {
@@ -233,8 +273,6 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       signal.addEventListener('abort', stop)
       let result
       try {
-        const groups = spec.role.tools ?? TEAM_ROLE_TOOLSETS[builtin.id]
-        const writePaths = spec.role.writePaths ?? builtin.writePaths
         const tools = resolveTeamToolset(
           { groups, writePaths },
           {
@@ -257,10 +295,11 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
           },
           tools,
         )
+        const handoffData = previous?.report ?? reviewed?.report
         const handoff =
-          previous === undefined
+          handoffData === undefined
             ? ''
-            : `\n\n${TEAM_MODEL_TEXT.handoffDataOpen}\n${JSON.stringify(previous.report)}\n${TEAM_MODEL_TEXT.handoffDataClose}`
+            : `\n\n${TEAM_MODEL_TEXT.handoffDataOpen}\n${JSON.stringify(handoffData)}\n${TEAM_MODEL_TEXT.handoffDataClose}`
         result = await runEngineWorker({
           task: {
             taskId: spec.taskId,
@@ -276,7 +315,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
             workspaceMode: mode,
             toolGroups: tools.groups,
             ...(writePaths !== undefined && { writePaths }),
-            reportShape: spec.role.report ?? builtin.report,
+            reportShape: reviewed === undefined ? (spec.role.report ?? builtin.report) : 'review',
           },
           prompt: { charter: charter.generated, body: charter.body, rulesAndSkills: '' },
           isTrusted: deps.isTrusted(),
@@ -389,7 +428,8 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
   }
 
   const merges: TeamMergePort = {
-    merge: async (task) => {
+    merge: async (task, signal, options) => {
+      signal.throwIfAborted()
       const outcome = task.outcome
       if (
         outcome.folder === undefined ||
@@ -410,6 +450,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         actual = undefined
       }
       const writePaths = task.role.writePaths ?? builtin?.writePaths
+      signal.throwIfAborted()
       const result = await applyTeamMerge(
         { runGit, realPath: (candidate) => WORKER_NATIVE_IO.realPath(candidate) },
         {
@@ -420,7 +461,8 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
           agentRefs: [{ ref: outcome.agentsRef, expected: outcome.head, actual }],
           taskFolder: outcome.folder,
         },
-        { platform: deps.platform },
+        // The merge card listed the protected paths; the user's Merge approved them.
+        { platform: deps.platform, allowProtected: options.allowProtected },
       )
       if (result.status === 'merged') {
         await removeTeamWorkspace(

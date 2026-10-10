@@ -498,6 +498,8 @@ export class ModelApiBackendManager {
       readonly budgetUnavailable: () => string
       readonly shellRefusal: string
       readonly readyMessage: string
+      /** A team worker's file calls go through its task's root grant and role (RVCM963 1). */
+      readonly fenceIo?: (io: ToolIo) => ToolIo
     },
   ): Promise<ModelApiHost> {
     // A finite cap requires the parent's owned journal; a temporary host
@@ -523,11 +525,11 @@ export class ModelApiBackendManager {
         browserCheck: undefined,
         codeIntel: undefined,
         isRepoMapInPrompt: undefined,
-        io: {
+        io: (kind.fenceIo ?? ((io: ToolIo) => io))({
           ...this.deps.io,
           listFiles: (signal) => this.deps.listAttemptFiles(worktreeRoot, signal),
           runShell: () => Promise.resolve(unstartedShell(kind.shellRefusal)),
-        },
+        }),
         usageKind: kind.usageKind,
         noteResponseUsage: (modelId, usage) => {
           if (generation === this.generation) noteUsage?.(modelId, usage)
@@ -639,6 +641,7 @@ export class ModelApiBackendManager {
     admitRequest: ResponseAttemptGuard,
     noteUsage: (modelId: string, usage: SubagentUsage) => void,
     budgetScope: OwnedSessionBudgetScope | undefined,
+    fenceIo: (io: ToolIo) => ToolIo,
   ): Promise<ModelApiHost> {
     return await this.worktreeHost(worktreeRoot, admitRequest, noteUsage, budgetScope, {
       usageKind: 'worker',
@@ -646,6 +649,7 @@ export class ModelApiBackendManager {
       budgetUnavailable: () => UI_TEXT.teamBudgetUnavailable,
       shellRefusal: MODEL_TEXT.shellTeamWorker,
       readyMessage: 'Model API team worker host ready in its working copy',
+      fenceIo,
     })
   }
 

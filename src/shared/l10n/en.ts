@@ -4672,6 +4672,12 @@ export const EN = {
   teamTaskNoDiff: 'That team task has no branch to compare.',
   teamTranscriptNotKept:
     "A team worker's conversation closes with its task; its report and its diff stay.",
+  teamTaskBusy: 'That team task is already being merged or discarded.',
+  teamMergeUntrusted: 'Trust this workspace to merge a team task.',
+  teamMergeNeedsConversation:
+    'Open the conversation that started this team task to merge it there.',
+  teamMergePlanMode: 'Merging a team task is refused in Plan mode.',
+  teamReviewStarted: 'A reviewer started checking this branch; merge it once the review is in.',
   webSearchFailed: 'The search failed',
   // Under a reply that cites web pages (M33).
   citationsHeading: 'Sources',
