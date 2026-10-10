@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import type * as NodeFsPromises from 'node:fs/promises'
-import { mkdtemp, readdir, readFile, rm, stat } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, stat } from 'node:fs/promises'
 import { createServer, request, type IncomingHttpHeaders, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -10,6 +10,7 @@ import { companionMediaUploadSchema } from '../../src/shared/media'
 import { TINY_PNG_BASE64 } from './helpers/fakeModelApi'
 import { pdfFixture } from './helpers/pdfFixture'
 import { videoFixture, wavFixture, ebmlFixture } from './helpers/media/fixtures'
+import { removeFolder } from './helpers/temporaryFolders'
 
 const handles = vi.hoisted(() => ({ beforeClose: vi.fn<() => void>() }))
 vi.mock('node:fs/promises', async (original) => {
@@ -151,7 +152,7 @@ beforeEach(async () => {
 afterEach(async () => {
   state.stop.abort()
   await state.close()
-  await rm(state.root, { recursive: true, force: true })
+  await removeFolder(state.root)
 })
 
 describe('guarded companion upload', () => {

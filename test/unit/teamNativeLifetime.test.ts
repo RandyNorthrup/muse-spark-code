@@ -1,7 +1,7 @@
 import process from 'node:process'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, symlink, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -23,6 +23,7 @@ import {
 } from '../../src/host/team/processLifetime'
 import { createTeamJournal } from '../../src/host/team/teamJournal'
 import { createWindowAuthority, createWindowIdentity } from '../../src/host/team/windowIdentity'
+import { removeFolder } from './helpers/temporaryFolders'
 
 // The real job helper compiles under the bootstrap runner; only its admission is a fixture.
 vi.mock('../../src/core/resources/admission', async (original) => {
@@ -58,14 +59,12 @@ beforeAll(async () => {
   })
 }, NATIVE_PROCESS_SUITE_TIMEOUT_MS)
 afterAll(async () => {
-  await rm(native.directory, { recursive: true, force: true })
+  await removeFolder(native.directory)
 })
 afterEach(async () => {
   vi.restoreAllMocks()
   for (const stop of stops.splice(0)) await stop()
-  await Promise.all(
-    directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
-  )
+  await Promise.all(directories.splice(0).map((directory) => removeFolder(directory)))
 })
 
 async function fixture() {

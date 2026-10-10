@@ -935,3 +935,17 @@ helper reads for the three pids as the failure message. Drill: forcing the
 expectation to `[]` printed that evidence (the grandchild's `ps` row and
 helper rows; 312 other-user processes unavailable, none relevant), then the
 file was restored and verified with `sha256sum -c`. Mac mini: 3/3.
+
+**History sweep: Windows cleanup holds.** The failing tests of the last 24
+failed CI runs (all branches) were tallied; tests failing on three or more
+unrelated branches were checked. `execStdio` "M80 E1-E7 built exec" failed
+on all three OSes together in early release rounds (a real per-release fix,
+not a flake). `teamNativeLifetime` failed on Windows only, file-level, on
+release/0.15.0, 0.16.0, 0.17.0 and the docs-only docs/contributor-vetting:
+`EPERM … unlink …\shell-job\MuseSparkJob-….dll` in its after-hook, a helper
+DLL still held for a moment after its process exits. The same class appears
+for `companionUpload` (`EPERM … rmdir …\muse-upload-…`, twice) and
+`reportNetworkBinding` (`ENOTEMPTY … report-cache-binding-…`, once). All
+three cleaned up with a bare recursive `rm`; they now use the repository's
+`removeFolder` (five retries 200 ms apart), which still fails the suite if a
+process is genuinely left holding the folder. win11 59/59, kubuntu 73/73.
