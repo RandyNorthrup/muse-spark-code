@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir } from 'node:fs/promises'
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { build } from 'esbuild'
 import { chromium, type Browser } from 'playwright-core'
@@ -11,6 +11,7 @@ import { WEBVIEW_L10N_ELEMENT_ID } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 import { compactBrowserUiText } from '../../scripts/lib/uiTextRegions.mjs'
+import { companionThemeCss } from '../../scripts/lib/webviewBundles.mjs'
 import { warmBrowser } from './helpers/warmBrowser'
 
 await mkdir('temp', { recursive: true })
@@ -37,6 +38,8 @@ await build({
   plugins: [compactBrowserUiText],
   logLevel: 'silent',
 })
+// The companion page requires the built theme sheets beside its entries.
+await writeFile(path.join(assetsFolder, 'theme.css'), companionThemeCss())
 const browser: Browser = await chromium.launch({ channel: 'chrome', headless: true })
 // Browser-wide first-page work once, under this hook's own limit (CIFIX017).
 beforeAll(async () => {

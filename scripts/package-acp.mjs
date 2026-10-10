@@ -159,6 +159,12 @@ function usageAssets() {
       pending.push(imported.path)
     }
   }
+  // C-M114-1: the companion page's static theme sheets ride beside the
+  // entry, not inside its JavaScript graph; the built file ships too.
+  const themeCss = 'dist/webview/theme.css'
+  if (!existsSync(themeCss) || !statSync(themeCss).isFile())
+    throw new Error(`${themeCss} is missing from the usage browser build`)
+  files.add(themeCss)
   return [...files]
 }
 

@@ -158,6 +158,7 @@ function fixture() {
     'dist/webview/chunks/react.js': {},
   }
   for (const file of Object.keys(outputs)) put(file, '/* usage asset */')
+  put('dist/webview/theme.css', '/* companion theme sheets */')
   put('dist/webview/main.js', '/* chat must not ship */')
   put('dist/webview/usage.js.map', '/* private source paths must not ship */')
   put('dist/meta/usageWebview.json', JSON.stringify({ outputs }))
@@ -188,6 +189,7 @@ describe('usage assets in the ACP package', () => {
     for (const file of [
       'dist/usageService.js',
       'dist/usageCompanion.js',
+      'dist/webview/theme.css',
       ...Object.keys(f.outputs),
     ])
       expect(files).toContain(`package/${file}`)
@@ -211,6 +213,7 @@ describe('usage assets in the ACP package', () => {
     'dist/usageService.js',
     'dist/usageCompanion.js',
     'dist/webview/chunks/detail.js',
+    'dist/webview/theme.css',
     'l10n/usage.de.json',
   ])('refuses missing usage asset before packaging: %s', (file) => {
     const f = fixture()

@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 import { buildLinuxHelper } from './build-linux-helper.mjs'
-import { resourceBrowserValidation, webviewEntryMetafile } from './lib/webviewBundles.mjs'
+import {
+  COMPANION_THEME_CSS_FILE,
+  companionThemeCss,
+  resourceBrowserValidation,
+  webviewEntryMetafile,
+} from './lib/webviewBundles.mjs'
 import { listIntegrationTests } from './lib/integrationTests.mjs'
 // Bundles the extension host entry, the Model API backend, the review, the search worker,
 // web fetch's page converter worker (M69: parse5 and the HTML converter,
@@ -1059,6 +1064,17 @@ const webviewOptions = {
     ...(isProduction ? [lazyBrowserKeybindings] : []),
     browserReviewComment,
     resourceBrowserValidation,
+    // M114 C-M114-1: the companion page's static theme sheets beside the
+    // webview entries, rebuilt with every webview build including watch.
+    {
+      name: 'companion-theme-css',
+      setup(build) {
+        build.onEnd((result) => {
+          if (result.errors.length > 0) return
+          writeFileSync(path.join(WEBVIEW_OUTDIR, COMPANION_THEME_CSS_FILE), companionThemeCss())
+        })
+      },
+    },
     {
       name: 'reference-caller-react',
       setup(build) {
@@ -1510,6 +1526,7 @@ if (isWatch) {
   reportSize(path.join(WEBVIEW_OUTDIR, 'models.css'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'usage.js'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'usage.css'))
+  reportSize(path.join(WEBVIEW_OUTDIR, COMPANION_THEME_CSS_FILE))
   reportSize(PROVIDER_CATALOG_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.js`))
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))

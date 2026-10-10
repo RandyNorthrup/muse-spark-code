@@ -1,5 +1,27 @@
+import { transformSync } from 'esbuild'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+
+// M114 C-M114-1: the companion page's static theme sheets, in themeEntry's
+// order. The companion server links this file after the entry CSS because a
+// dynamic JavaScript import never injects extracted CSS, and bundling it
+// through the usage entry would charge the entry's CSS budget instead.
+export const COMPANION_THEME_CSS_SOURCES = [
+  'src/webview/tokens.css',
+  'design/tokens/generated/host-roles.css',
+  'design/tokens/generated/muse.css',
+  'src/webview/bridges/theme/themeSurface.css',
+]
+export const COMPANION_THEME_CSS_FILE = 'theme.css'
+
+/**
+ * The themed sheets as one minified document; byte-identical in every build.
+ * @returns {string} the minified CSS text
+ */
+export function companionThemeCss() {
+  const combined = COMPANION_THEME_CSS_SOURCES.map((file) => readFileSync(file, 'utf8')).join('\n')
+  return transformSync(combined, { loader: 'css', minify: true }).code
+}
 
 const normalPath = (file) => file.replaceAll('\\', '/')
 

@@ -1,6 +1,67 @@
 import { escapeHtml } from '../../core/htmlText'
-import { IDE_MCP_TOKEN_BYTES } from '../../shared/constants'
+import { IDE_MCP_TOKEN_BYTES, WEBVIEW_L10N_ELEMENT_ID } from '../../shared/constants'
 import { UI_TEXT, uiLocale } from '../../shared/l10n/text'
+
+const NONCE_PATTERN = /^[a-f\d]{32,}$/
+const STYLESHEET_PATTERN = /^\/[A-Za-z\d._-]+(?:\/[A-Za-z\d._-]+)*\.css$/
+const MODULE_PATTERN = /^\/[A-Za-z\d._-]+(?:\/[A-Za-z\d._-]+)*\.js$/
+const SPECIFIER_PATTERN = /^[\w@./-]+$/
+
+/** M114 C-M114-1: the companion's themed page assembly. Every boundary is validated; a violation throws, never an unthemed or half-escaped page. */
+export interface CompanionPageContent {
+  /** The installed display language for the document element. */
+  readonly locale: string
+  /** Caller-localized document title (installed display text, escaped here). */
+  readonly title: string
+  /**
+   * Exact served stylesheet paths, entry first: the shared panel styles,
+   * then the static theme sheets, then the installed local fonts. The theme
+   * rides a static file because a dynamic JavaScript import never injects
+   * extracted CSS, and bundling it would charge the entry's CSS budget.
+   */
+  readonly stylesheets: readonly string[]
+  /** The page's module scripts as exact served paths, entry last. */
+  readonly modules: readonly string[]
+  /** Bare import-map specifiers to their packaged URLs. */
+  readonly imports: Readonly<Record<string, string>>
+  /** Embedded JSON documents, stringified and escaped here. */
+  readonly uiTable: unknown
+  readonly usageTable: unknown
+}
+
+function embeddedJson(value: unknown): string {
+  if (value === undefined || typeof value === 'function') throw new Error('EPANEL_PAGE')
+  let text: string
+  try {
+    text = JSON.stringify(value)
+  } catch {
+    throw new Error('EPANEL_PAGE')
+  }
+  return text.replaceAll('<', String.raw`\u003c`)
+}
+
+/** The authenticated companion page: themed root, packaged assets only, nonce on every script. No credential or launch code is passed. */
+export function renderCompanionPage(nonce: string, content: CompanionPageContent): string {
+  if (!NONCE_PATTERN.test(nonce)) throw new Error('EPANEL_PAGE')
+  for (const sheet of content.stylesheets)
+    if (!STYLESHEET_PATTERN.test(sheet)) throw new Error('EPANEL_PAGE')
+  for (const module of content.modules)
+    if (!MODULE_PATTERN.test(module)) throw new Error('EPANEL_PAGE')
+  for (const [specifier, url] of Object.entries(content.imports)) {
+    if (
+      !SPECIFIER_PATTERN.test(specifier) ||
+      (!url.startsWith('data:text/javascript;charset=utf-8,') && !MODULE_PATTERN.test(url))
+    )
+      throw new Error('EPANEL_PAGE')
+  }
+  const links = content.stylesheets
+    .map((sheet) => `<link rel="stylesheet" href="${sheet}">`)
+    .join('')
+  const scripts = content.modules
+    .map((module) => `<script type="module" nonce="${nonce}" src="${module}"></script>`)
+    .join('')
+  return `<!doctype html><html lang="${escapeHtml(content.locale)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(content.title)}</title>${links}<script nonce="${nonce}" type="importmap">${embeddedJson({ imports: content.imports })}</script><script nonce="${nonce}" id="${WEBVIEW_L10N_ELEMENT_ID}" type="application/json">${embeddedJson(content.uiTable)}</script><script nonce="${nonce}" id="muse-usage-l10n" type="application/json">${embeddedJson(content.usageTable)}</script></head><body data-host-bridge="http"><div id="root" data-theme-nonce="${nonce}"></div>${scripts}</body></html>`
+}
 
 /** The bearer stays in this page's fetch closure, including after installing the trusted UI. */
 export function launchPage(nonce: string): string {
