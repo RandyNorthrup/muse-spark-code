@@ -8,6 +8,7 @@ import type { CreateResponseBody, Usage } from './schemas'
 import { estimateCostUsd } from '../../usage/insights'
 import {
   MODEL_API_BASE_URL,
+  MODEL_API_MIN_OUTPUT_TOKENS,
   MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
   MODEL_API_PRICES_PER_MILLION,
   MODEL_API_MODEL_PREFIX,
@@ -41,6 +42,8 @@ export type Known<T> =
 export interface ModelPolicyEvidence {
   readonly capabilities?: Partial<ModelCapabilities> | undefined
   readonly maxOutputTokens?: number | undefined
+  /** A captured provider minimum for max_output_tokens; unknown keeps 1. */
+  readonly minOutputTokens?: number | undefined
   readonly effortLevels?: readonly string[] | undefined
   readonly canDisableReasoning?: boolean | undefined
   readonly webSearch?: boolean | undefined
@@ -54,7 +57,10 @@ export interface ModelPolicy {
     readonly effortLevels: Known<readonly string[]>
     readonly canDisable: Known<true>
   }
-  readonly output: { readonly maxTokens?: number | undefined }
+  readonly output: {
+    readonly maxTokens?: number | undefined
+    readonly minTokens?: number | undefined
+  }
   readonly hosted: { readonly webSearch: Known<true> }
   readonly pricing: ModelPricing
 }
@@ -110,6 +116,7 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
     },
     output: {
       maxTokens: isMeta ? MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS : evidence.maxOutputTokens,
+      minTokens: isMeta ? MODEL_API_MIN_OUTPUT_TOKENS : evidence.minOutputTokens,
     },
     hosted: { webSearch: isMeta ? { state: 'yes', value: true } : webSearch },
     pricing,
@@ -120,6 +127,15 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
 export function outputLimitFor(policy: ModelPolicy, ceiling: number): number {
   const maximum = policy.output.maxTokens
   return maximum === undefined ? ceiling : Math.min(ceiling, maximum)
+}
+
+/**
+ * The smallest max_output_tokens the provider accepts (Meta's live capture
+ * is 16). Requests below it are rejected by the provider, so a budget that
+ * cannot fit it refuses instead of sending. Unknown keeps 1.
+ */
+export function minOutputTokensForPolicy(policy: Pick<ModelPolicy, 'output'>): number {
+  return policy.output.minTokens ?? 1
 }
 
 /** Do not invent Meta effort tiers for a BYO model with no reasoning evidence. */

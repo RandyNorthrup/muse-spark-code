@@ -6,6 +6,7 @@ import {
   MAX_IMAGE_BYTES,
   MAX_DOCUMENT_BYTES,
   MODEL_API_MEDIA_PER_REQUEST,
+  MODEL_API_MIN_OUTPUT_TOKENS,
   MODEL_API_PDF_PAGE_IMAGES,
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
@@ -304,6 +305,10 @@ export function metaCapabilityRecord(nativeModel: string): ModelCapabilityRecord
         },
         cache: { mode: 'implicit', acceptsKey: true, retention: [...PROMPT_CACHE_RETENTIONS] },
       },
+    },
+    {
+      source: { kind: 'capture', ref: 'docs/certification/min-output-cap.md' },
+      fields: { output: { minTokens: MODEL_API_MIN_OUTPUT_TOKENS } },
     },
   ])
 }

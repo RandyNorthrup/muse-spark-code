@@ -74,6 +74,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- A nearly spent session budget now stops the turn with the budget message
+  instead of a Meta error.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.

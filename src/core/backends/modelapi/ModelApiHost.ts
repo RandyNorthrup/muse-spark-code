@@ -344,6 +344,7 @@ import {
   type ReplayProducer,
   effortForPolicy,
   metaResolvedModel,
+  minOutputTokensForPolicy,
   modelPolicyFor,
   modelPricedUsage,
   requestImageCount,
@@ -3678,6 +3679,7 @@ export class ModelApiSession implements ScheduledAgentSession {
               searchPriceUsd: this.approvedSearchQuote?.tariffUsd,
             }),
             maxOutputTokens,
+            minOutputTokens: minOutputTokensForPolicy(selected.policy),
             images: requestImageCount(body),
             ...(body.model.includes('/') && { price: selected.price }),
           })
@@ -14675,8 +14677,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         shouldKeepTools &&
         (prefix === undefined ||
           prefix.body.tools.every((tool) => tool.type !== MODEL_API_WEB_SEARCH_TOOL))
+      // A summary cap below the provider minimum is a rejected request:
+      // floor at what the selected provider accepts before budgeting it.
       const summaryBudget = Math.max(
-        1,
+        minOutputTokensForPolicy(this.modelPolicy()),
         Math.min(
           COMPACTION_SUMMARY_MAX_TOKENS,
           Math.floor(windowTokens * COMPACTION_SUMMARY_WINDOW_FRACTION),

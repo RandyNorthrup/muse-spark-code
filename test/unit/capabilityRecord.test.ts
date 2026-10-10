@@ -444,6 +444,8 @@ describe('normalized capability record', () => {
     const meta = metaCapabilityRecord('muse-spark-1.3')
     expect(meta.limits.contextTokens).toBe(1_048_576)
     expect(meta.output.maxTokens).toBe(131_072)
+    // Lead live capture 2026-10-10: max_output_tokens below 16 is a 400.
+    expect(meta.output.minTokens).toBe(16)
     expect(capabilityEffortLevels(metaCapabilityRecord('muse-spark-1.3-contributor'))).toEqual(
       capabilityEffortLevels(meta),
     )
