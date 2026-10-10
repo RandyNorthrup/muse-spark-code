@@ -74,6 +74,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The companion page server now listens for shutdown signals, transport
+  errors and an early transport close before it finishes starting, instead
+  of only afterwards. A stop request, error or close that lands while the
+  server is still starting is handled gracefully rather than missed, hung
+  on, or thrown where nothing catches it.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
