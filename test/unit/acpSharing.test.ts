@@ -1,15 +1,22 @@
+import { readFileSync } from 'node:fs'
 import * as acp from '@agentclientprotocol/sdk'
-import { describe, expect, it, vi } from 'vitest'
+import { build } from 'esbuild'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createAcpAgent, type AcpAgentDeps } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
-import { createAcpSharing, type AcpSharingPort } from '../../src/acp/sharing'
+import { createAcpSharing, isAcpSharingFailure, type AcpSharingPort } from '../../src/acp/sharing'
 import { UI_TEXT } from '../../src/shared/constants'
-import { fill } from '../../src/shared/l10n/text'
+import { EN, type UiText } from '../../src/shared/l10n/en'
+import { fill, setUiText } from '../../src/shared/l10n/text'
 import { FakeAgentHost } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { until } from './helpers/acpWaits'
 import { savedPromptFixture } from './helpers/sharingFixtures'
 import { SHARING_CWD, sharingHarness } from './helpers/sharingCommands'
+
+afterEach(() => {
+  setUiText(EN, 'en')
+})
 
 function acpHarness(sharing?: AcpSharingPort) {
   const host = new FakeAgentHost()
@@ -59,6 +66,20 @@ function acpHarness(sharing?: AcpSharingPort) {
 
 function localPrompt(client: acp.ClientContext, sessionId: string, text: string) {
   return client.request('session/prompt', { sessionId, prompt: [{ type: 'text', text }] })
+}
+
+/** A sharing prompt's rejection, captured for code/message/data assertions. */
+async function refusedWire(
+  client: acp.ClientContext,
+  sessionId: string,
+  text: string,
+): Promise<unknown> {
+  try {
+    await localPrompt(client, sessionId, text)
+  } catch (error: unknown) {
+    return error
+  }
+  return undefined
 }
 
 /** A sharing prompt refused without a model turn, release or backend call. */
@@ -288,6 +309,124 @@ describe('M118 ACP local commands over the SDK prompt path', () => {
         ),
       })
     })
+    it.each([
+      ['/share chat --exported-at yesterday', '--exported-at'],
+      ['/share chat --attachment-content ""', '--attachment-content'],
+      ['/prompt save --title Good --tag "" -- body', '--tag'],
+    ])('refuses caller-owned validation as invalid params naming %s', async (text, flag) => {
+      // The mini-zod schemas read these flags; their English diagnostics and
+      // any quoted caller values never reach the client.
+      const local = await refusedPrompt(text, {
+        code: badParams,
+        message: expect.stringContaining(fill(UI_TEXT.acpUnknownArgument, { argument: flag })),
+      })
+      expect(local.write).not.toHaveBeenCalled()
+      expect(local.release).not.toHaveBeenCalled()
+    })
+    it('fails refusals as bundle-crossing failures the engine maps, never SDK errors', async () => {
+      const local = sharingHarness()
+      local.renderPreview.mockRejectedValueOnce(new Error(UI_TEXT.exportNothing))
+      const port = createAcpSharing(local.commands, () => local.ui)
+      let failure: unknown
+      try {
+        await port.execute('/share chat', {
+          cwd: SHARING_CWD,
+          sessionId: 's',
+          isActive: () => true,
+          signal: new AbortController().signal,
+        })
+      } catch (error: unknown) {
+        failure = error
+      }
+      expect(isAcpSharingFailure(failure)).toBe(true)
+      expect(failure).toMatchObject({
+        code: acp.RequestError.invalidRequest().code,
+        message: expect.stringContaining(UI_TEXT.exportNothing),
+      })
+      expect(failure).not.toBeInstanceOf(acp.RequestError)
+    })
+    it('maps an independently bundled sharing copy to its code, not internal error', async () => {
+      // The shipped split: the lazy sharing bundle carries its own failure
+      // class copy, so the engine reads name and code, never `instanceof`.
+      const bundled = await build({
+        entryPoints: ['src/acp/sharing.ts'],
+        bundle: true,
+        platform: 'node',
+        format: 'esm',
+        write: false,
+        logLevel: 'silent',
+      })
+      const source = bundled.outputFiles[0]?.text ?? ''
+      expect(source).not.toContain('"RequestError"')
+      const module = (await import(
+        `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`
+      )) as {
+        createAcpSharing: typeof createAcpSharing
+      }
+      const foreign = module.createAcpSharing(
+        {
+          execute: () => Promise.reject(new Error(UI_TEXT.exportNothing)),
+        } as unknown as Parameters<typeof createAcpSharing>[0],
+        () => ({
+          showPreview: () => Promise.resolve(),
+        }),
+      )
+      const h = acpHarness(foreign)
+      await h.run(async (client, sessionId) => {
+        await expect(localPrompt(client, sessionId, '/share chat')).rejects.toMatchObject({
+          code: acp.RequestError.invalidRequest().code,
+          message: expect.stringContaining(UI_TEXT.exportNothing),
+        })
+        expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+      })
+    })
+    it('keeps an unexpected sharing failure internal with no path or prompt text', async () => {
+      const secret = 'lstat failed under /home/someone/private for sentinel-prompt-text'
+      const local = sharingHarness()
+      local.renderPreview.mockRejectedValueOnce(new Error(secret))
+      const h = acpHarness(createAcpSharing(local.commands, () => local.ui))
+      await h.run(async (client, sessionId) => {
+        const failure = await refusedWire(client, sessionId, '/share chat')
+        expect(failure).toMatchObject({ code: acp.RequestError.internalError().code })
+        const wire = JSON.stringify(failure)
+        expect(wire).not.toContain('/home/someone')
+        expect(wire).not.toContain('sentinel-prompt-text')
+      })
+      expect(local.release).not.toHaveBeenCalled()
+    })
+    it('keeps a prompt-store failure internal with no raw text', async () => {
+      const local = sharingHarness()
+      local.storageFor.mockImplementationOnce(() => ({
+        list: () => Promise.reject(new Error('readdir /home/someone/prompts: denied')),
+        write: local.write,
+        remove: () => Promise.reject(new Error('unused remove in fake')),
+      }))
+      const h = acpHarness(createAcpSharing(local.commands, () => local.ui))
+      await h.run(async (client, sessionId) => {
+        const failure = await refusedWire(client, sessionId, '/prompt list')
+        expect(failure).toMatchObject({ code: acp.RequestError.internalError().code })
+        const wire = JSON.stringify(failure)
+        expect(wire).not.toContain('/home/someone')
+      })
+    })
+    it.each([['/share chat --typo'], [String.raw`/share "a\xb"`]])(
+      'refuses bad slash syntax in the installed language: %s',
+      async (text) => {
+        const table = JSON.parse(
+          readFileSync(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8'),
+        ) as UiText
+        setUiText(table, 'de')
+        try {
+          // Node's "Unknown option" and JSON quote diagnostics never surface.
+          await refusedPrompt(text, {
+            code: badParams,
+            message: expect.stringContaining(fill(UI_TEXT.acpUnknownArgument, { argument: text })),
+          })
+        } finally {
+          setUiText(EN, 'en')
+        }
+      },
+    )
   })
   it('rejects mixed/attached content in a local command', async () => {
     const local = sharingHarness()
