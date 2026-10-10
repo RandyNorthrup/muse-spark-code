@@ -37,7 +37,7 @@ key to the CLI.
 The [roadmap](ROADMAP.md) shows what is in the next release, what is being
 built, what is planned and what each release shipped.
 
-**Contents:** [What's new](#whats-new-in-0170) · [Roadmap](ROADMAP.md) ·
+**Contents:** [What's new](#whats-new-in-0171) · [Roadmap](ROADMAP.md) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
@@ -57,7 +57,24 @@ Schedule budgets, consent and rental cost evidence use exact decimal USD. Saved
 reports write money version 2; historical numeric reports retain their original
 hash verification and migrate when read.
 
-## What's new in 0.17.0
+## What's new in 0.17.1
+
+- **The provider picker works again.** Models & Agents lists every provider
+  again, Anthropic and custom servers included; 0.16.0 and 0.17.0 showed only
+  "That did not work" and an empty list.
+- **Saving a provider keeps what worked.** Save checks everything first, then
+  saves in order; if a later step fails, the saved parts stay saved and the
+  panel says what was not. Edit and Change Key keep the saved connection.
+- **The wizard's spending limit is your real conversation limit.** It shows
+  the current limit, writes only when you change it, and asks before
+  replacing a limit someone changed meanwhile.
+- **Title Case labels.** English buttons, menus, tabs and titles capitalize
+  every major word; sentences and messages keep sentence case.
+- **Smaller fixes.** DeepSeek's Thinking off sends DeepSeek's own switch, and
+  a Muse Code older than 1.4.3 that hits its approval-record fault now gets
+  the update command.
+
+### Earlier in 0.17.0
 
 - **Deterministic reports.** `/report` builds project, quality, milestone,
   release and change reports from local facts, in Markdown, HTML, JSON or text,
