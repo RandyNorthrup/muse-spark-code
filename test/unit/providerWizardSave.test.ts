@@ -65,6 +65,7 @@ describe('saveWizardDraft', () => {
       DRAFT,
     )
     expect(outcome).toEqual({
+      receipts: [UI_TEXT.providerSaved, UI_TEXT.providerKeySaved, UI_TEXT.providerDefaultSaved],
       providerId: 'openrouter',
       modelRef: 'openrouter/openai/gpt-oss-20b',
       composerSet: true,
@@ -118,7 +119,7 @@ describe('saveWizardDraft', () => {
           setDefault: false,
           editSnapshot: {
             provider: DRAFT.provider,
-            credential: DRAFT.credential,
+            credential: initialSecret,
             defaultModel: DRAFT.defaultModel,
           },
         },
@@ -329,7 +330,7 @@ describe('saveWizardDraft', () => {
       provider: { ...initial, routing: { ...initial.routing, privacy: 'any' as const } },
       editSnapshot: {
         provider: initial,
-        credential: DRAFT.credential,
+        credential: await parts.credentials.getProviderCredential(initial.id),
         defaultModel: DRAFT.defaultModel,
       },
     }

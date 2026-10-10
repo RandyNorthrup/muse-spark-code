@@ -303,6 +303,8 @@ export function featureCatalog(): readonly Feature[] {
       // failed and skipped steps. Every outcome refreshes without losing earlier
       // information. Budget-only partial drafts retry on a fresh baseline; other
       // partial or stale forms reopen. A key bound to an old origin shows missing.
+      // Re-entry compares even origin-refused credential records; only concurrent
+      // changes conflict. Confirmed limit retries retain all completed receipts.
       // Simultaneous cross-window saves remain last-writer-wins until LOCKLIB.
       // Earlier steps remain navigable while final Save validates limits.
       ['suggestedProvider', 'modelApiSessionBudgetUsd'],

@@ -9,7 +9,10 @@ import type * as vscode from 'vscode'
 import { PROVIDER_SECRET_PREFIX, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { SecretStore } from '../auth/credentialStore'
-import type { ProviderCredentialStore as CredentialStore } from './credentialRecords'
+import type {
+  CredentialRecord,
+  ProviderCredentialStore as CredentialStore,
+} from './credentialRecords'
 import { isOriginBound } from './credentialRecords'
 import { readOpenRouterKeyUsage } from './openRouter'
 import { connectOpenRouterAccount } from './openRouter'
@@ -99,6 +102,8 @@ export interface ProvidersHost {
   readonly defaultModel: () => Promise<string | undefined>
   readonly updateProvider: (entry: ProviderEntry) => Promise<void>
   readonly storedCredential: (entry: ProviderEntry) => Promise<string | undefined>
+  /** Host-only edit baseline, including credentials refused at the entry's origin. */
+  readonly credentialSnapshot: (id: string) => Promise<CredentialRecord | undefined>
   readonly preset: (id: string) => PresetInfo | undefined
   readonly presetIds: () => readonly string[]
   readonly suggestedPreset: (settingValue: string | undefined) => string | undefined
@@ -204,6 +209,7 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
     providers: () => deps.store.list(),
     defaultModel: () => deps.store.defaultModel(),
     storedCredential: (entry) => credentialFor(deps.credentials, entry),
+    credentialSnapshot: (id) => deps.credentials.getProviderCredential(id),
     updateProvider: (entry) =>
       serialize(async () => {
         const entries = await deps.store.list()

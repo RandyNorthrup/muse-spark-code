@@ -1808,3 +1808,53 @@ re-read; drilled source hashes matched after the hook. The following local
 commit carries the lazy-port correction, final qualification record and visual
 receipts. Final commit output, committed-diff and hash checks are retained under
 `temp/provwiz9-final-*`; no hook path or hook behavior was substituted.
+
+# PROVWIZ10 — Re-entry recovery and retained retry receipts (RVPROVWIZ9C)
+
+Rig: macbook; base `00df4f872`; branch `fix/provider-panel`. Both P2 findings
+are repaired with the production provider store and credential facade. No
+rollback, provider schema, request shape, paid policy or origin guard changes.
+Credentials remain host-only and never join published state or logs.
+
+Edit now snapshots the complete credential record even when its origin is
+refused. Save compares that same record before the first write. The shared
+React regression changes the address, fails the replacement key write, proves
+the old key cannot serve the new origin, reopens Edit, enters/tests another
+key and saves successfully. Two genuine-concurrency controls rotate the key
+at either the new or old origin; both conflict without changing provider,
+default or limit. No key appears in published state or fixed warning logs.
+
+Quick-pick carries completed receipt strings through confirmed budget retries.
+The production-store/facade/settings regression saves provider/key/default,
+observes a concurrent $5 → $2 limit, confirms replacement, then rejects the
+numeric settings write. All completed receipts and the failed limit/skipped
+conversation model remain in the final notice. The same regression runs in
+English and all 14 shipped translations through the production table loader.
+
+Before fixes: 2 qualifying cases failed / 73 passed in the two complete files
+(`temp/provwiz10-before.log`). Initial post-fix runs exposed a test-only
+`present` versus canonical `stored` state assertion and old snapshot-read
+spies; both were corrected. The saver success assertion now includes its
+completed receipts. Focused verification: **108 passed** across complete Edit,
+session-budget and wizard-save files (`temp/provwiz10-ready.log`), repository
+deadlines, no name filters, skips or timeout overrides.
+
+Both deliberate reversion drills failed their complete file and restored source
+SHA-256 bytes exactly in `finally` (`temp/provwiz10-drills.json`):
+
+| Reverted fix                                                                            | Failed tests | Restored SHA-256                                                   |
+| --------------------------------------------------------------------------------------- | -----------: | ------------------------------------------------------------------ |
+| Compare origin-refused records against the saved entry's origin again (`wizardSave.ts`) |       1 / 41 | `c5ebd71ea92f14a3b1b92bf1e74d34e946406526ce4aa1d429c203552606d3ed` |
+| Drop prior receipts from the quick-pick retry (`modelsQuickPick.ts`)                    |      15 / 48 | `bbca44df1dfcee34239b8e790e5eb1745625128f48ffa62ec16c6c39046d313e` |
+
+Unit-project tsc passes (`temp/provwiz10-tsc.log`). Complete owning suites,
+goldens and remaining static/cap checks follow before final scoped qualification.
+Aggregate quality, release/editor/hosted/live gates remain lead-owned under
+the rig brief. Next slice after these repairs: lead review and cross-rig
+release gates, then PROVSTORE-LOCKLIB after M123 for the accepted cross-window
+last-writer-wins residual.
+
+Initial changed-file ESLint/Prettier pass, and localization reports 14 UI
+and 14 usage tables / 0 problems. Reference regeneration succeeds (72 features).
+No command, setting or dependency is added. Aggregate quality is delegated by
+the rig brief and is not claimed green; PLAN §7 records remaining scoped checks.

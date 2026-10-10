@@ -5,7 +5,7 @@
 // its specific error and reports no setup success. Admission then reads
 // the new cap through the real settings reader.
 
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createModelsPanelSeam } from '../../src/core/providers/panelSeam'
@@ -25,10 +25,12 @@ import {
   applyWizardSessionBudget,
   createSessionBudgetConfig,
 } from '../../src/host/models/sessionBudget'
+import { loadUiTable } from '../../src/host/l10n'
+import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { readSettings } from '../../src/host/settings'
 import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
-import { fill, formatUsd } from '../../src/shared/l10n/text'
+import { BASE_LOCALE, fill, formatUsd, setUiText } from '../../src/shared/l10n/text'
 import { parseHostToPanelMessage, type ModelsPanelState } from '../../src/shared/modelsPanel'
 import { Usd, isPositiveUsd } from '../../src/shared/usd'
 import { scannedTwoModels, testProvidersHost } from './helpers/m95kFixtures'
@@ -702,6 +704,62 @@ describe('RVPROVWIZ2 production save paths', () => {
     expect(f.write).not.toHaveBeenCalled()
     expect(await f.store.list()).toHaveLength(1)
   })
+
+  it.each([BASE_LOCALE, ...TABLE_LOCALES])(
+    'keeps all completed receipts after a confirmed quick-pick budget retry fails (%s)',
+    async (language) => {
+      onTestFinished(() => {
+        setUiText(EN, BASE_LOCALE)
+      })
+      const loaded = await loadUiTable({
+        language,
+        readExtensionFile: (segments) => readFile(path.join(process.cwd(), ...segments), 'utf8'),
+        log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      })
+      expect(loaded.locale).toBe(language)
+      const f = await productionBudgetFixture()
+      const base = scriptedUi({
+        pickOne: ['openrouter', 'paste', 'accept'],
+        pickMany: [['m1']],
+        inputText: ['0'],
+        confirmSave: [true, true],
+      })
+      const ui = {
+        ...base,
+        confirmSave: (title: string, detail: string) => {
+          if (title === UI_TEXT.saveProvider) f.controls.effective = 2
+          else f.controls.failWrite = true
+          return base.confirmSave(title, detail)
+        },
+      }
+      expect(
+        await runAddProviderQuickPick({
+          providers: f.providers,
+          sessionBudget: f.budget,
+          ui,
+          isRemote: false,
+        }),
+      ).toBeUndefined()
+      const [entry] = await f.store.list()
+      if (entry === undefined) throw new Error('Missing fixture provider')
+      expect(await f.providers.storedCredential(entry)).toBe('sk-or-synthetic')
+      expect(await f.store.defaultModel()).toBe('openrouter/m1')
+      expect(f.controls.effective).toBe(2)
+      expect(f.write).toHaveBeenCalledOnce()
+      expect(f.write).toHaveBeenCalledWith('modelApiSessionBudgetUsd', 0, 'global')
+      expect(ui.errors).toEqual([
+        [
+          UI_TEXT.providerSaved,
+          UI_TEXT.providerKeySaved,
+          UI_TEXT.providerDefaultSaved,
+          fill(UI_TEXT.sessionBudgetPartialSave, { detail: 'settings are read-only' }),
+          UI_TEXT.providerComposerSkipped,
+        ].join(' '),
+      ])
+      expect(ui.errors.join(' ')).not.toContain('sk-or-synthetic')
+      expect(ui.notices.some((notice) => notice.includes('openrouter/m1'))).toBe(false)
+    },
+  )
 
   it('reports a failed quick-pick limit write after the production provider was saved', async () => {
     const f = await productionBudgetFixture()

@@ -705,7 +705,10 @@ requested conversation model in that order. If a later step fails, completed
 writes stay saved; the panel names what was saved, what failed and what was
 not applied. Reopen the provider to finish a key/default/model failure. An
 address change whose key write fails shows the key as missing: the old key
-remains bound to its old origin and cannot serve the new address. If a field
+remains bound to its old origin and cannot serve the new address. When a provider
+retains that refused key, reopen **Edit**, enter and test a replacement,
+then save it. Confirmed spending-limit retries keep receipts for the provider,
+key and default already saved, even if the retry fails. If a field
 you edited also changed elsewhere, Save
 keeps the form open and offers **Reload** before you save again. Save disables
 its buttons while working and ignores repeated submissions. A refused

@@ -14,7 +14,10 @@ import {
   type SessionBudgetConfig,
   type SessionBudgetApplyOutcome,
 } from '../models/sessionBudget'
-import type { ProviderCredentialStore as CredentialStore } from './credentialRecords'
+import type {
+  CredentialRecord,
+  ProviderCredentialStore as CredentialStore,
+} from './credentialRecords'
 import type { AddressPolicy, ProviderEntry, ProvidersStore } from './providerPorts'
 
 /** The wizard's in-memory draft: never written until Save. */
@@ -33,10 +36,12 @@ export interface WizardDraft {
   /** Save and use now: the conversation's model is set too. */
   readonly useNow: boolean
   readonly editing?: boolean
+  /** Host-only completed writes carried by a confirmed budget retry. */
+  readonly receipts?: readonly string[]
   /** Host-only opening values; a cached credential is not an entered replacement. */
   readonly editSnapshot?: {
     readonly provider: ProviderEntry
-    readonly credential: string | undefined
+    readonly credential: CredentialRecord | undefined
     readonly defaultModel: string | undefined
   }
 }
@@ -55,6 +60,8 @@ export interface WizardSaveDeps {
 }
 
 export interface WizardSaveOutcome {
+  /** Completed writes only, excluding failed/skipped steps; reusable on a budget retry. */
+  readonly receipts?: readonly string[]
   /** Completed, failed and skipped steps; absent only on full success. */
   readonly notice?: string
   readonly failedStep?: 'credential' | 'default' | 'budget' | 'composer'
@@ -211,12 +218,7 @@ export async function saveWizardDraft(
   const previousSecret = await deps.credentials.getProviderCredential(draft.provider.id)
   const snapshot = draft.editSnapshot
   if (snapshot !== undefined) {
-    if (
-      secret !== '' &&
-      (previousSecret?.secret !== snapshot.credential ||
-        (previousSecret !== undefined &&
-          previousSecret.origin !== new URL(snapshot.provider.address).origin))
-    ) {
+    if (secret !== '' && JSON.stringify(previousSecret) !== JSON.stringify(snapshot.credential)) {
       throw new Error(UI_TEXT.providerEditConflict)
     }
     if (draft.setDefault !== false) {
@@ -248,7 +250,7 @@ export async function saveWizardDraft(
   let isComposerSet = false
   let budget: SessionBudgetApplyOutcome | undefined
   let step: 'credential' | 'default' | 'budget' | 'composer' = 'credential'
-  const messages = [UI_TEXT.providerSaved]
+  const receipts = [...new Set([...(draft.receipts ?? []), UI_TEXT.providerSaved])]
   let notice: string | undefined
   try {
     if (
@@ -270,7 +272,7 @@ export async function saveWizardDraft(
         origin,
         secret,
       })
-      messages.push(UI_TEXT.providerKeySaved)
+      receipts.push(UI_TEXT.providerKeySaved)
     }
     step = 'default'
     if (draft.setDefault !== false && draft.defaultModel !== previousDefault) {
@@ -278,7 +280,7 @@ export async function saveWizardDraft(
         draft.defaultModel,
         snapshot === undefined ? undefined : { value: snapshot.defaultModel },
       )
-      messages.push(UI_TEXT.providerDefaultSaved)
+      receipts.push(UI_TEXT.providerDefaultSaved)
     }
     step = 'budget'
     if (deps.sessionBudget !== undefined) {
@@ -288,7 +290,7 @@ export async function saveWizardDraft(
         deps.sessionBudget.expectedUsd,
       )
       if (budget.status === 'failed' || budget.status === 'conflict') throw new Error(budget.error)
-      if (budget.status === 'written') messages.push(UI_TEXT.providerBudgetSaved)
+      if (budget.status === 'written') receipts.push(UI_TEXT.providerBudgetSaved)
     }
     step = 'composer'
     if (draft.useNow) {
@@ -308,7 +310,7 @@ export async function saveWizardDraft(
       budget: UI_TEXT.sessionBudgetPartialSave,
       composer: UI_TEXT.providerComposerSaveFailed,
     }[step]
-    messages.push(fill(failureText, { detail }))
+    const messages = [...receipts, fill(failureText, { detail })]
     if (
       step === 'credential' &&
       draft.setDefault !== false &&
@@ -321,6 +323,7 @@ export async function saveWizardDraft(
     notice = messages.join(' ')
   }
   return {
+    receipts,
     providerId: draft.provider.id,
     modelRef: draft.defaultModel,
     composerSet: isComposerSet,

@@ -388,6 +388,7 @@ export async function runAddProviderQuickPick(
     outcome = await providers.saveDraft(
       {
         provider: current,
+        ...(outcome.receipts !== undefined && { receipts: outcome.receipts }),
         credentialAuth,
         editSnapshot: { provider: current, credential: undefined, defaultModel: undefined },
         defaultModel: modelRef,

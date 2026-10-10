@@ -36,6 +36,7 @@ import type {
   KeyTestResult,
 } from '../providers/providerPorts'
 import type { ProvidersHost } from '../providers/providersHost'
+import { isOriginBound, type CredentialRecord } from '../providers/credentialRecords'
 import type { WizardSaveOutcome } from '../providers/wizardSave'
 import type { ScanOutcome } from '../providers/modelScans'
 import { OPENROUTER_ORIGIN } from '../providers/openRouter'
@@ -175,7 +176,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     {
       entry: ProviderEntry
       fields: PanelDraft
-      credential: string | undefined
+      credential: CredentialRecord | undefined
     }
   >()
   const enteredCredentials = new WeakSet<PanelDraft>()
@@ -232,12 +233,19 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     draft.defaultModel = await providers.defaultModel()
     draft.sessionBudgetExpectedUsd = deps.sessionBudget.read().effectiveUsd
     let secret: string | undefined
+    let credential: CredentialRecord | undefined
     try {
-      secret = await providers.storedCredential(entry)
+      credential = await providers.credentialSnapshot(entry.id)
+      if (entry.auth !== 'none' && entry.auth !== 'subscription') {
+        if (credential !== undefined && !isOriginBound(credential, entry.address)) {
+          throw new Error(UI_TEXT.importNeedsKey)
+        }
+        secret = credential?.secret
+      }
     } catch {
       draft.errors = [UI_TEXT.importNeedsKey]
     }
-    editSnapshots.set(draft, { entry, fields: structuredClone(draft), credential: secret })
+    editSnapshots.set(draft, { entry, fields: structuredClone(draft), credential })
     if (secret !== undefined) {
       credentials.set(entry.id, { secret, origin: new URL(entry.address).origin })
       draft.keyPresent = true
@@ -963,7 +971,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         ) {
           try {
             snapshot.entry = structuredClone(await entryOf(entry.id))
-            snapshot.credential = await providers.storedCredential(snapshot.entry)
+            snapshot.credential = await providers.credentialSnapshot(snapshot.entry.id)
             snapshot.fields = structuredClone(draft)
             enteredCredentials.delete(draft)
           } catch {

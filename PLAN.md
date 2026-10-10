@@ -19855,6 +19855,26 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
+
+Repair both RVPROVWIZ9C P2 findings on `00df4f872`. Edit snapshots and save
+preflight compare the same host-only credential record, including an old key
+refused at the saved origin. Reopening after an address/key-write partial save
+must accept a newly tested replacement while a concurrent credential change
+still conflicts. Confirmed quick-pick limit retries carry completed provider,
+key and default receipts into every later partial outcome, using existing
+translations in all 14 languages. Keep validation before writes, ordered saves,
+no rollback and origin-bound transport security.
+
+Add production/shared-form recovery and conflict regressions and a production
+store/facade/settings retry regression. Revert each fix, observe its complete
+test file fail, restore SHA-256 bytes exactly, then rerun all owning files,
+request goldens, one unit tsc, formatting, ESLint and localization. Inspect the
+inherited surface-English overage; shorten duplicated or verbose existing
+strings if possible without new keys or a cap change. Update certification and
+planning status. Aggregate quality/release gates remain lead-owned under the
+rig brief; no merge, rebase, push, subagents or paid/live calls.
+
 ### PROVWIZ9 — Ordered save, honest partial outcomes, no rollback (2026-10-09)
 
 Replace PROVWIZ8 recovery after RVPROVWIZ8C's three P2 findings. Validate
@@ -44849,6 +44869,16 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**PROVWIZ10 scoped qualification (2026-10-09, in progress).** Both RVPROVWIZ9C
+P2 repairs pass production/shared-form regressions, including genuine concurrent
+credential changes and retry notices in all 14 translations. Both deliberate
+reversions fail and restore source SHA-256 bytes exactly. Unit-project tsc,
+changed-file ESLint/Prettier and initial localization pass. Complete owning
+suites, goldens and surface-English cap qualification remain before lane close.
+Aggregate quality/coverage/release/editor/hosted/live gates remain lead-owned
+under the explicit rig brief; no full quality claim. Receipts and next slice:
+`docs/certification/provcat.md`, PROVWIZ10.
 
 **PROVWIZ9 scoped qualification (2026-10-09).** Ordered provider saves remove
 rollback after RVPROVWIZ8C's three P2 findings. All 46 complete owning files

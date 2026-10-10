@@ -647,7 +647,7 @@ describe('Saved custom provider Edit through the shared form and production stor
         if (source === 'provider') {
           vi.spyOn(providers, 'providers').mockRejectedValueOnce(error)
         } else if (source === 'credential') {
-          vi.spyOn(providers, 'storedCredential').mockRejectedValueOnce(error)
+          vi.spyOn(providers, 'credentialSnapshot').mockRejectedValueOnce(error)
         } else {
           vi.spyOn(providers, 'providerStates').mockRejectedValue(error)
         }
@@ -677,7 +677,7 @@ describe('Saved custom provider Edit through the shared form and production stor
     const save = providers.saveDraft
     vi.spyOn(providers, 'saveDraft').mockImplementationOnce(async (draft, budget) => {
       const outcome = await save(draft, budget)
-      vi.spyOn(providers, 'storedCredential').mockRejectedValueOnce(
+      vi.spyOn(providers, 'credentialSnapshot').mockRejectedValueOnce(
         new Error('refresh unavailable'),
       )
       return outcome
@@ -823,35 +823,84 @@ describe('Saved custom provider Edit through the shared form and production stor
     },
   )
 
-  it('shows a missing key after saving a new origin whose replacement key cannot be stored', async () => {
-    const f = await editSurface()
-    fireEvent.change(screen.getByLabelText(UI_TEXT.providerFields.address), {
-      target: { value: 'https://new.example/v1' },
-    })
-    await waitFor(() => {
-      expect(f.state().drafts.edits['custom']?.address).toBe('https://new.example/v1')
-    })
-    fakeWindow.showInputBox.mockResolvedValueOnce('synthetic-new-origin-key')
-    f.post({ type: 'providers/enterKey', providerId: 'custom', mode: 'change' })
-    await waitFor(() => {
-      expect(f.state().drafts.edits['custom']?.keyPresent).toBe(true)
-    })
-    await testEditConnection(f.state)
-    vi.spyOn(f.secrets, 'store').mockRejectedValueOnce(new Error('key refused'))
-    await saveEditSurface()
-    expect(f.state().providers[0]?.address).toBe('https://new.example/v1')
-    expect(f.state().providers[0]?.key.state).toBe('missing')
-    expect(f.state().notice).toBe(
-      [UI_TEXT.providerSaved, fill(UI_TEXT.providerKeySaveFailed, { detail: 'key refused' })].join(
-        ' ',
-      ),
-    )
-    const [entry] = await f.seam.store.list()
-    if (entry === undefined) throw new Error('Missing fixture provider')
-    await expect(f.providers.storedCredential(entry)).rejects.toThrow(UI_TEXT.importNeedsKey)
-    expect(await f.secrets.get(`${PROVIDER_SECRET_PREFIX}custom`)).toContain('synthetic-edit-key')
-    f.host.dispose()
-  })
+  it.each([undefined, 'https://new.example', 'https://llm.example'])(
+    'repairs an origin-refused key after reopening unless it changed elsewhere (%s)',
+    async (concurrentOrigin) => {
+      const f = await editSurface()
+      fireEvent.change(screen.getByLabelText(UI_TEXT.providerFields.address), {
+        target: { value: 'https://new.example/v1' },
+      })
+      await waitFor(() => {
+        expect(f.state().drafts.edits['custom']?.address).toBe('https://new.example/v1')
+      })
+      fakeWindow.showInputBox.mockResolvedValueOnce('synthetic-new-origin-key')
+      f.post({ type: 'providers/enterKey', providerId: 'custom', mode: 'change' })
+      await waitFor(() => {
+        expect(f.state().drafts.edits['custom']?.keyPresent).toBe(true)
+      })
+      await testEditConnection(f.state)
+      vi.spyOn(f.secrets, 'store').mockRejectedValueOnce(new Error('key refused'))
+      await saveEditSurface()
+      expect(f.state().providers[0]?.address).toBe('https://new.example/v1')
+      expect(f.state().providers[0]?.key.state).toBe('missing')
+      expect(f.state().notice).toBe(
+        [
+          UI_TEXT.providerSaved,
+          fill(UI_TEXT.providerKeySaveFailed, { detail: 'key refused' }),
+        ].join(' '),
+      )
+      const [entry] = await f.seam.store.list()
+      if (entry === undefined) throw new Error('Missing fixture provider')
+      await expect(f.providers.storedCredential(entry)).rejects.toThrow(UI_TEXT.importNeedsKey)
+      expect(await f.secrets.get(`${PROVIDER_SECRET_PREFIX}custom`)).toContain('synthetic-edit-key')
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providerEdit }))
+      await waitFor(() => {
+        expect(screen.getByLabelText(UI_TEXT.providerFields.address)).toHaveValue(
+          'https://new.example/v1',
+        )
+      })
+      expect(f.state().drafts.edits['custom']?.keyPresent).toBe(false)
+      fakeWindow.showInputBox.mockResolvedValueOnce('synthetic-repair-key')
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.changeKey }))
+      await testEditConnection(f.state)
+      const beforeRepair = await readFile(f.configFile, 'utf8')
+      if (concurrentOrigin === undefined) {
+        await saveEditSurface()
+        expect(f.state().providers[0]?.key.state).toBe('stored')
+        expect(await f.providers.storedCredential(entry)).toBe('synthetic-repair-key')
+      } else {
+        await f.secrets.store(
+          `${PROVIDER_SECRET_PREFIX}custom`,
+          JSON.stringify({
+            v: 1,
+            auth: 'apiKey',
+            origin: concurrentOrigin,
+            secret: 'synthetic-concurrent-key',
+          }),
+        )
+        fireEvent.click(screen.getByRole('button', { name: UI_TEXT.saveProvider }))
+        await waitFor(() => {
+          expect(f.state().drafts.edits['custom']?.errors).toEqual([UI_TEXT.providerEditConflict])
+        })
+        expect(await f.secrets.get(`${PROVIDER_SECRET_PREFIX}custom`)).toContain(
+          'synthetic-concurrent-key',
+        )
+      }
+      expect(await readFile(f.configFile, 'utf8')).toBe(beforeRepair)
+      expect(await f.seam.store.defaultModel()).toBe('custom/m1')
+      expect(f.sessionBudget.writes).toEqual([])
+      const published = JSON.stringify(f.state()) + f.warnings.join(' ')
+      for (const secret of [
+        'synthetic-edit-key',
+        'synthetic-new-origin-key',
+        'synthetic-repair-key',
+        'synthetic-concurrent-key',
+      ]) {
+        expect(published).not.toContain(secret)
+      }
+      f.host.dispose()
+    },
+  )
 
   it('queues one Save, disables the form and keeps its successful outcome on duplicate delivery', async () => {
     const { seam, providers, post, state, host } = await editSurface()

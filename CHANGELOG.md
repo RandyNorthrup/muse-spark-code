@@ -20,6 +20,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Reopening provider Edit after an address change whose key write failed can
+  save a newly tested replacement key. Concurrent credential changes still
+  conflict, and the old key remains unusable at the new origin.
+- Confirmed quick-pick spending-limit retries preserve receipts for the
+  provider, key and default already saved when a later write fails, in all
+  14 translated languages.
+
 - Provider Save validates before writing, then saves changed provider fields,
   an entered origin-bound key, an explicitly chosen default, an edited spending
   limit and the requested conversation model in order. Later failures keep

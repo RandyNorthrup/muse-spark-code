@@ -48,7 +48,11 @@ async function fixture() {
     defaultModel: 'custom/m1',
     editing: true,
     useNow: true,
-    editSnapshot: { provider, credential: 'synthetic-old-key', defaultModel: 'other/model' },
+    editSnapshot: {
+      provider,
+      credential: await credentials.getProviderCredential(provider.id),
+      defaultModel: 'other/model',
+    },
   }
   const setComposerModel = vi.fn(() => Promise.resolve())
   const deps = {
