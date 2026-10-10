@@ -635,13 +635,16 @@ on Windows, `~/.local/bin` elsewhere).
 The Model API backend can bill your Muse Code plan instead of a pay-as-you-go
 key. Turn on **Use Muse Code Subscription** (`museSpark.useMuseCodeSubscription`,
 off by default): the extension reads the subscription key the Muse Code CLI
-already holds after sign-in and uses it for Model API calls. Those calls count
-against the plan, never the card; **Account & usage** labels them **Plan**
+already holds after a browser or device-code sign-in and uses it for Model
+API calls. A pay-as-you-go `muse auth set` key never counts: it is refused,
+never billed as plan. Those calls count
+against the plan, never the card; **Account & usage** labels them **Muse Code plan**
 with no dollar price. While the setting is on, a missing or unreadable CLI
 sign-in stops Model API calls with the fix instead of billing a stored key.
 The key is held in memory only: it is never shown, logged, copied into
-settings, or stored anywhere. Paid extras (web search, images, voice) still
-bill a stored Model API key. Outside VS Code, pass `--subscription` to
+settings, or stored anywhere. Paid images still bill a stored Model API key;
+hosted web search stays off while chat bills the plan, and voice keeps using
+the stored key. Outside VS Code, pass `--subscription` to
 `serve` or `exec` (Model API backend only); a headless subscription run
 still needs `--max-budget-usd` and `--max-requests`, and its receipt reports
 `$0` billed for the plan-covered chat requests.

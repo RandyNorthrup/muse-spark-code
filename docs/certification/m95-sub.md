@@ -10,16 +10,22 @@ in-memory fake. No paid or live model call. No new dependency.
 
 One opt-in per host (`museSpark.useMuseCodeSubscription` in VS Code,
 `--subscription` for `serve`/`exec`) drives the Model API backend from the
-subscription key the Muse Code CLI holds after sign-in (`providers.meta`
-`api_key` first, else `access_token`), read fresh from the CLI's auth file
-per OS (XDG honoured, Windows included) on every call: nothing is cached or
-retained between reads, and a 64 KiB size guard refuses oversized files
-before they are read. The key is held in memory only. Opted in but missing/unreadable/unsigned (or a
+subscription key the Muse Code CLI holds after a browser or device-code
+sign-in (`providers.meta` `access_token` only), read fresh from the CLI's
+auth file per OS (XDG honoured, Windows included) on every call: nothing is
+cached or retained between reads, and a 64 KiB size guard refuses oversized
+files before they are read. A `muse auth set` pay-as-you-go file reads as
+unsigned and refuses; it is never billed as plan. The key is held in memory
+only. Opted in but missing/unreadable/unsigned (or a
 macOS Keychain pointer, never read): the turn refuses with the fix; a
 pasted key is never billed silently. Subscription Meta turns record pricing
-`plan` (shared Plan label, no dollar charge), skip the dollar
+`plan` ("Muse Code plan" for Meta plan rows, no dollar charge), settle $0
+through host, runtime journal and ledger, skip the dollar
 session-budget reservation and durable preflight like plan models, and in
-headless runs admit at zero dollars while still counting requests.
+headless runs admit at zero dollars while still counting requests. Paid
+images POST on the stored key (refusing without one); hosted search stays
+off plan-billed turns. Rotation rebinds the account fences; the opt-in
+restarts the backend; refused subscriptions fall back to provider accounts.
 
 ## Commits
 
@@ -27,6 +33,9 @@ headless runs admit at zero dollars while still counting requests.
 - `8f1906348` plan pricing and budget exemption + 3 host-turn tests.
 - `7264b970b` VS Code setting, store gate, manager wiring + 7 tests.
 - `78cb5a50a` serve/exec flag, runtime backend, exec ledger + arg tests.
+- `96338a9c6` RVCMSUBKEY batch 1: P1s, P2-3..P2-7, P3-9, label split, tests.
+- `20f44791e` RVCMSUBKEY batch 2: 100 KiB cap, bounded preflight, regressions.
+- RVCMSUBKEY batch 3 (docs, canary hardening, this record): committed last.
 
 ## Red drills (break the guard, see the named test fail, restore byte-exact)
 
@@ -73,27 +82,88 @@ case (`/usage.js` 401, got 502) fails identically on the pristine base
 failure (local panel server under sandbox), not this lane. No `git stash`
 is used on this lane.
 
+## RVCMSUBKEY red drills (2026-10-10, all findings, restored byte-exact)
+
+Each row: the guard broken, the named test failing, the restore verified
+with `git status`/`git diff` empty for the file. Repository timeouts, at
+most 3 files per run.
+
+- P1-1 (`subscriptionKey.ts` back to `api_key`-first): `sends access_token,
+never a pay-as-you-go api_key beside it`, `refuses a pay-as-you-go muse
+auth set file as unsigned` and the `api_key` unsigned case failed; rest
+  passed. Restored.
+- P1-1 resolver (`refuses a pay-as-you-go file while on`): covered by the
+  same break (resolver reads through the same function).
+- P1-2 registry (`track()` dropped in `getApiKey`): `registers the key it
+sends, so shared redaction covers it` failed; rest passed. The first
+  drill did NOT fail: the canary was `LLM_`-shaped, which the shape
+  patterns redact without the registry. The canary was hardened to an
+  opaque value (`opaque subscription value 8e2b4a`) and the re-drill
+  failed as required. Restored.
+- P1-2 snapshot (scrub dropped in `withCredentialRedaction`): both
+  `headless credential redaction` tests failed (opaque SUB and PASTED
+  persist), proving the canaries evade the patterns and the literals are
+  load-bearing. Restored.
+- P2-3 (subscription-first block dropped in `modelApiReadiness`): `counts
+a live subscription sign-in with no pasted key, before touching the
+store` failed. Restored.
+- P2-4 image (`authKey` not threaded in `imageRequest`): `sends a paid
+image on the stored key while chat bills the subscription` failed.
+  Restored.
+- P2-4 search (`isSubscriptionPlanTurn` gate dropped in
+  `webSearchConsent`): `keeps hosted search off a plan-billed turn`
+  failed. Restored.
+- P2-5 cost (`planPricedAttempt` dropped in `noteUsage`) and journal
+  (dropped in `budgetJournal`): `persists no dollar spend` and `carries no
+dollar cost on the reply usage` failed. Restored.
+- P2-5 label (provider branch dropped in `display.ts`, provider attach
+  dropped in `aggregate.ts`): `names a Meta plan row Muse Code plan` and
+  `keeps a Meta plan row apart` failed, plus the pre-existing `separates
+every certainty` (updated for the split). Restored.
+- P2-5 runtime (`isPlanBilling` forced false): `settles a plan-billed
+turn at $0 in the paid daily journal (plan: true)` failed. Restored.
+- P2-6 rebind (both rebinds dropped): `rebinds the account fences when
+the CLI rotates the key mid-conversation` failed (second turn refused
+  at the fence, one dispatch). Restored.
+- P2-7 (try/catch dropped in the manager `getAccountId` factory):
+  `starts an unrelated provider while the subscription key is refused`
+  failed. Restored.
+- P3-9 (`isMissing` back to ENOENT-only): `reads ENOTDIR from stat as
+missing` failed; EACCES/EPERM still read unreadable. Restored.
+- P3-10 (cap set to 99 KiB): `check-bundle-size` fires OVER on
+  `dist/headless.js`; restored to 100 KiB (`ok`, 102,391 B).
+- P3-11 (`read()` forced unsigned): `reads a real temp config home
+through the resolved path` failed (path assertion still passed),
+  proving the test exercises `read()`, not only `path()`. Restored.
+- P2-8: every path comparison in the lane's tests normalises both sides
+  through one helper; not drillable on linuxlt (no backslashes at rest),
+  verified by construction for Windows CI.
+- P3-12: the output-canary test keeps the canary in the values under
+  test and fails when the literal is dropped (see P1-2 snapshot).
+
 ## Known limits (for the lead)
 
-- No live capture of a subscription key exists here; `api_key`-first is
-  reasoned from `muse auth set`, `access_token` is best-effort. Verify
-  against a live sign-in before changing the precedence.
-- Surfaces show the shared Plan label, not the literal "Muse Code plan"
-  (D103 §4: a distinct certainty would ripple through journal schemas,
-  aggregates, surfaces and 14 usage tables for one label).
+- No live capture of a subscription key exists here; the `access_token`
+  rule is reasoned from the two captured shapes (`AUTH_SET_FILE` →
+  `apiKey`, `DEVICE_LOGIN_FILE` → `accountLogin` in
+  `docs/certification/sign-in-detection.md`). A live sign-in with a
+  subscription that bills the plan would still be the strongest proof.
 - macOS Keychain-backed sign-ins refuse with the fix; file-backed sign-ins
   work on all three OSes.
 - A file rotation landing between a turn's billing snapshot and its auth
   read (milliseconds) can mislabel one record; there is no shared cache,
   each side reads the file fresh.
-- Paid extras (search, images, voice) still bill a stored key on every host.
+- Paid images need a stored key; hosted search stays off plan-billed
+  turns; voice keeps its own stored-key getter.
 - Headless subscription runs still require `--max-budget-usd` (bounds paid
   image spend); the receipt reports `$0` billed for plan-covered chat.
-- `dist/headless.js` budget amended 100 → 120 KiB (D6 amendment, PLAN §7):
-  deliberate +2.2 KiB (100.6 vs 98.4 base, same toolchain), 0.6 over the
-  old cap after slimming removed `zod`, caching and `redact`/`digest`. The
-  size gate fired as designed (OVER at 101.5 pre-slim, 100.6 post-slim).
+- `dist/headless.js` cap restored to 100 KiB (D6 amendment reverted, PLAN
+  §7): 100.0 KiB (102,391 B) with 9 B of headroom. The size gate fired as
+  designed (OVER at 101.5 pre-slim, 100.6, 100.1, then ok).
+- The P2-6 settings-restart half (opt-in toggle restarts the backend) has
+  no dedicated test: it reuses the long-standing backend-restart machinery
+  and has no unit harness. The rotation rebind is fully covered.
 - `npm run check:visual` is blocked on this rig: headless Chrome dies at
   launch (`socketpair: Operation not permitted`, sandbox). The lane's only
-  visual surface is the settings row and usage labels; the lead runs the
-  gate outside the sandbox. No shim or workaround was built.
+  visual surfaces are the settings row, usage labels and the KpiTiles key;
+  the lead runs the gate outside the sandbox. No shim or workaround was built.

@@ -1,34 +1,21 @@
 // C-M95-SUB: the host credential wrapper. Fakes only: an in-memory pasted
 // key and an in-memory CLI auth file. No real auth file is ever read here.
 import { describe, expect, it } from 'vitest'
-import { SubscriptionKeySource } from '../../src/core/backends/modelapi/subscriptionKey'
 import { redactSecrets } from '../../src/shared/redact'
 import { SubscriptionCredential } from '../../src/host/auth/subscriptionCredential'
+import { memorySubscriptionFile } from './helpers/subscriptionFile'
 import { CredentialStore } from '../../src/host/auth/credentialStore'
 import { UI_TEXT } from '../../src/shared/constants'
 
-const SUB = 'LLM_SUBSCRIPTION_WRAPPER_CANARY_abcdef123456'
+// Opaque values no shape pattern matches: only the exact tracked literal
+// can scrub them.
+const SUB = 'opaque subscription value 8e2b4a'
 const PASTED = 'pasted-payg-key'
 
 function sourceFor(text: string | undefined) {
-  const files = new Map<string, string>()
-  const source = new SubscriptionKeySource({
-    platform: 'linux',
-    homeDir: '/home/u',
-    xdgConfigHome: undefined,
-    readFile: (file: string) => {
-      const found = files.get(file)
-      return found === undefined
-        ? Promise.reject(Object.assign(new Error('gone'), { code: 'ENOENT' }))
-        : Promise.resolve(found)
-    },
-    stat: (file: string) =>
-      files.has(file)
-        ? Promise.resolve({ size: 8, mtimeMs: 3 })
-        : Promise.reject(Object.assign(new Error('gone'), { code: 'ENOENT' })),
-  })
-  if (text !== undefined) files.set(source.path(), text)
-  return source
+  const file = memorySubscriptionFile()
+  if (text !== undefined) file.writeText(text)
+  return file.source
 }
 
 function credential(options: {

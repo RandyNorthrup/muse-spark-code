@@ -98,6 +98,7 @@
   "certaintyComputed": "計算値",
   "certaintyUncertain": "不確実",
   "certaintyPlan": "プラン",
+  "certaintyMuseCodePlan": "Muse Code plan",
   "certaintyLocal": "ローカル",
   "certaintyUnpriced": "価格未設定",
   "certaintyEstimated": "推定値",

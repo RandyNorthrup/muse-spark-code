@@ -106,6 +106,7 @@
   "certaintyComputed": "Hesaplanan",
   "certaintyUncertain": "Belirsiz",
   "certaintyPlan": "Plan",
+  "certaintyMuseCodePlan": "Muse Code plan",
   "certaintyLocal": "Yerel",
   "certaintyUnpriced": "Fiyatsız",
   "certaintyEstimated": "Tahmini",
