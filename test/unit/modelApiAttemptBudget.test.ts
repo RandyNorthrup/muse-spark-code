@@ -4,6 +4,7 @@ import { Usd } from '../../src/shared/usd'
 import { mkdtemp, readdir, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AgentSession } from '../../src/core/agent/agentBackend'
 import type { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
@@ -45,7 +46,7 @@ async function setup(initialCap = 0.1) {
     log,
     retentionDays: () => 0,
     now: () => 0,
-    sleep: () => Promise.resolve(undefined),
+    sleep: delay,
   })
   const api = fakeModelApi()
   let cap = initialCap
@@ -124,6 +125,84 @@ async function setup(initialCap = 0.1) {
 }
 
 describe('production best-of-N parent budget binding (M77/M82)', () => {
+  it('fences two concurrent attempt hosts with the parent liability in one durable journal', async () => {
+    const t = await setup()
+    const held = Promise.withResolvers<undefined>()
+    const arrived = Promise.withResolvers<undefined>()
+    try {
+      const parent = watch(t.parentSession)
+      const first = await t.trial('first')
+      const second = await t.trial('second')
+      t.api.script(
+        {
+          text: 'parent reply',
+          usage: { input: 10, output: 5 },
+          hold: held.promise,
+          onRequest: () => {
+            arrived.resolve(undefined)
+          },
+        },
+        { text: 'first attempt reply', usage: { input: 10, output: 5 } },
+        { text: 'second attempt reply', usage: { input: 10, output: 5 } },
+      )
+      await parent.session.sendTurn([{ type: 'text', text: 'parent request' }])
+      await arrived.promise
+      await Promise.all(
+        [first, second].map((host) =>
+          host.session.sendTurn([{ type: 'text', text: 'concurrent request' }]),
+        ),
+      )
+      await Promise.all([first.done(), second.done()])
+      expect(t.api.responseBodies()).toHaveLength(1)
+      expect(t.started).toEqual([])
+      for (const attempt of [first, second]) {
+        expect(attempt.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+          terminal: 'failed',
+        })
+      }
+      const observer = createFileSessionStore({
+        directory: t.directory,
+        log: new FakeLogOutputChannel(),
+        retentionDays: () => 0,
+        now: () => 0,
+        sleep: delay,
+      })
+      const pending = await observer.budget?.read(t.scope.sessionId, t.scope.accountId)
+      expect(Number(pending?.spentUsd)).toBeGreaterThan(0.09)
+      expect(Number(pending?.spentUsd)).toBeLessThanOrEqual(0.1)
+      held.resolve(undefined)
+      await parent.done()
+      for (const attempt of [first, second]) {
+        const retry = watch(attempt.session)
+        await retry.session.sendTurn([{ type: 'text', text: 'after parent settlement' }])
+        await retry.done()
+        expect(retry.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+          terminal: 'completed',
+        })
+      }
+      expect(t.api.responseBodies()).toHaveLength(3)
+      expect(t.started).toEqual(['first', 'second'])
+      const total = await observer.budget?.read(t.scope.sessionId, t.scope.accountId)
+      expect(total).toEqual({
+        spentUsd: Usd.from('0.00010125').toAmount(),
+        hasUnknownHistoricalFees: false,
+      })
+      await t.close()
+      const stored = await t.store.load(t.scope.sessionId)
+      expect(stored?.budgetSpentUsd).toBe(total?.spentUsd)
+      const files = await readdir(t.directory)
+      expect(files.filter((name) => name.endsWith('.json'))).toEqual([`${t.scope.sessionId}.json`])
+      expect(
+        await readdir(
+          path.join(t.directory, 'budget-journal', t.scope.accountId, t.scope.sessionId, 'claims'),
+        ),
+      ).toHaveLength(3)
+    } finally {
+      held.resolve(undefined)
+      await t.close()
+    }
+  })
+
   it('displays parent-owned pending liability without settling it or exposing account identity', async () => {
     const t = await setup()
     try {
@@ -220,6 +299,10 @@ describe('production best-of-N parent budget binding (M77/M82)', () => {
         const attempt = await t.trial('held')
         t.api.script({ text: 'must not send' })
         await attempt.session.sendTurn([{ type: 'text', text: 'held attempt' }])
+        // Prove this host reached the parent's journal before waiting on its publication.
+        await vi.waitFor(() => {
+          expect(spy).toHaveBeenCalledOnce()
+        })
         await published.promise
         switch (change) {
           case 'key': {

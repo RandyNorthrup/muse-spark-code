@@ -32,6 +32,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Session board and best-of-N certification now exercises a parent and two
+  attempt hosts against one real budget journal, mixed-backend keyboard
+  focus, four-theme accessibility at 320 px, Windows junction/symlink/8.3
+  refusal and the Git 2.36 boundary. The queued mutation drills and exact
+  restores are recorded in `docs/certification/m77.md`.
+
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did

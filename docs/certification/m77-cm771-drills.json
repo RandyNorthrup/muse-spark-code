@@ -1,0 +1,455 @@
+{
+  "version": 1,
+  "lane": "CM771",
+  "date": "2026-10-10",
+  "platform": "win32",
+  "sourceRevision": "82d50d5e456d17205623064b0a70caf8a6e34471",
+  "timeouts": "Repository defaults; existing named real-Git suite timeout retained; no CLI override",
+  "drills": [
+    {
+      "id": "lease",
+      "file": "src/core/bestOfN/bestOfNCoordinator.ts",
+      "test": "bestOfNRunner.test.ts",
+      "edits": [["if (this.owner !== undefined)", "if (false)"]],
+      "originalSha256": "ba991b0135b9af39240fff14d33989be142b8784564afb7b6813a2718a64a4ea",
+      "mutationSha256": "a8ff52910dbce6bb403f64ec11a9576d7129fb40366b48e5b453f6e54bc36295",
+      "restoredSha256": "ba991b0135b9af39240fff14d33989be142b8784564afb7b6813a2718a64a4ea",
+      "redExit": 1,
+      "failedTests": 1,
+      "namedFailures": [
+        {
+          "name": "BestOfNRunner guards owns the window before a held popup and refuses a second surface",
+          "message": "Error: promise resolved \"{ runId: 'bon-m1-1', …(7) }\" instead of rejecting"
+        }
+      ],
+      "beforePassed": 46,
+      "restoredPassed": 46
+    },
+    {
+      "id": "account",
+      "file": "src/core/bestOfN/bestOfNRunner.ts",
+      "test": "bestOfNRunner.test.ts",
+      "edits": [["if (accountId !== run.accountId)", "if (false)"]],
+      "originalSha256": "ec14d272abbaa8271310408aacaea218e2f921452e5e0f3a17a5004314c9acdd",
+      "mutationSha256": "e4bb158b7cfa71495b5ccaa156713e5107948f948e8b536d11497cf6c7ea6e4e",
+      "restoredSha256": "ec14d272abbaa8271310408aacaea218e2f921452e5e0f3a17a5004314c9acdd",
+      "redExit": 1,
+      "failedTests": 1,
+      "namedFailures": [
+        {
+          "name": "BestOfNRunner guards refuses account changed while consent waits",
+          "message": "Error: promise resolved \"{ runId: 'bon-m1-1', …(7) }\" instead of rejecting"
+        }
+      ],
+      "beforePassed": 46,
+      "restoredPassed": 46
+    },
+    {
+      "id": "terminal",
+      "file": "src/core/bestOfN/bestOfNRunner.ts",
+      "test": "bestOfNRunner.test.ts",
+      "edits": [["if (event.terminal !== 'completed')", "if (false)"]],
+      "originalSha256": "ec14d272abbaa8271310408aacaea218e2f921452e5e0f3a17a5004314c9acdd",
+      "mutationSha256": "2d9ff26bfe5dda0a0a511bda076d8d593164ae10262bed886bb0576897e835b2",
+      "restoredSha256": "ec14d272abbaa8271310408aacaea218e2f921452e5e0f3a17a5004314c9acdd",
+      "redExit": 1,
+      "failedTests": 3,
+      "namedFailures": [
+        {
+          "name": "BestOfNRunner take and cancel never takes terminal failed",
+          "message": "AssertionError: expected undefined to be 'backend outcome' // Object.is equality"
+        },
+        {
+          "name": "BestOfNRunner take and cancel never takes terminal cancelled",
+          "message": "AssertionError: expected undefined to be 'backend outcome' // Object.is equality"
+        },
+        {
+          "name": "BestOfNRunner take and cancel never takes terminal future_terminal",
+          "message": "AssertionError: expected undefined to be 'backend outcome' // Object.is equality"
+        }
+      ],
+      "beforePassed": 46,
+      "restoredPassed": 46
+    },
+    {
+      "id": "http",
+      "file": "src/core/backends/modelapi/transport.ts",
+      "test": "bestOfNAttempts.test.ts",
+      "edits": [["admitAttempt?.(credentials.keyDigest)", "void credentials.keyDigest"]],
+      "originalSha256": "75a1d2bf5060e8be491e7894605114ee388194b9911c1b6de502bda602b995da",
+      "mutationSha256": "359f7609101470faa2b5c2523ee5fddfcd37c29e49a24d0a1ee270551975d764",
+      "restoredSha256": "75a1d2bf5060e8be491e7894605114ee388194b9911c1b6de502bda602b995da",
+      "redExit": 1,
+      "failedTests": 2,
+      "namedFailures": [
+        {
+          "name": "best-of-N on the fake Model API counts HTTP retries before they run and blocks the next paid request",
+          "message": "AssertionError: expected [ …(6) ] to have a length of 5 but got 6"
+        }
+      ],
+      "beforePassed": 3,
+      "restoredPassed": 3
+    },
+    {
+      "id": "tree",
+      "file": "src/core/bestOfN/bestOfNRunner.ts",
+      "test": "bestOfNSnapshot.test.ts",
+      "edits": [
+        [
+          "bestOfNDiffStatArgs(run.baseRef, tree)",
+          "bestOfNDiffStatArgs(run.baseRef, entry.attempt.branch)"
+        ],
+        [
+          "bestOfNDiffArgs(run.baseRef, tree)",
+          "bestOfNDiffArgs(run.baseRef, entry.attempt.branch)"
+        ],
+        [
+          "          run.baseRef,\n          tree,\n          '--',",
+          "          run.baseRef,\n          entry.attempt.branch,\n          '--',"
+        ]
+      ],
+      "originalSha256": "ec14d272abbaa8271310408aacaea218e2f921452e5e0f3a17a5004314c9acdd",
+      "mutationSha256": "3c62c229a0511ec7ada84959482a6f06d3526721b74f9ec9c5d5dce2d84b9bdd",
+      "restoredSha256": "ec14d272abbaa8271310408aacaea218e2f921452e5e0f3a17a5004314c9acdd",
+      "redExit": 1,
+      "failedTests": 7,
+      "namedFailures": [
+        {
+          "name": "immutable best-of-N snapshots on real Git applies and stages frozen uncommitted text and binary bytes without creating a commit",
+          "message": "AssertionError: expected [] to deeply equal [ 'new.bin', 'tracked.txt' ]"
+        }
+      ],
+      "beforePassed": 13,
+      "restoredPassed": 13
+    },
+    {
+      "id": "index",
+      "file": "src/core/bestOfN/bestOfN.ts",
+      "test": "bestOfNSnapshot.test.ts",
+      "edits": [
+        ["return ['apply', '--index', '--binary', '-']", "return ['apply', '--binary', '-']"]
+      ],
+      "originalSha256": "fb062d7d984bbace9f0e6d85275648ced5cbd6f00d5fc762fe34cd1993493e40",
+      "mutationSha256": "050f0ca1fb9325aa5f116576376e724fa6418df9ac9bdfe5cf010e1c3b3c941b",
+      "restoredSha256": "fb062d7d984bbace9f0e6d85275648ced5cbd6f00d5fc762fe34cd1993493e40",
+      "redExit": 1,
+      "failedTests": 2,
+      "namedFailures": [
+        {
+          "name": "immutable best-of-N snapshots on real Git applies and stages frozen uncommitted text and binary bytes without creating a commit",
+          "message": "AssertionError: expected 'before\\n' to be 'selected\\n' // Object.is equality"
+        }
+      ],
+      "beforePassed": 13,
+      "restoredPassed": 13
+    },
+    {
+      "id": "binary",
+      "file": "src/core/bestOfN/bestOfNRunner.ts",
+      "test": "bestOfNSnapshot.test.ts",
+      "edits": [["          '--binary',\n", ""]],
+      "originalSha256": "ec14d272abbaa8271310408aacaea218e2f921452e5e0f3a17a5004314c9acdd",
+      "mutationSha256": "1bc71b870845b4081d52cd976ac548ce88cc3fde6801b0a4af0ac1f0ed9309a4",
+      "restoredSha256": "ec14d272abbaa8271310408aacaea218e2f921452e5e0f3a17a5004314c9acdd",
+      "redExit": 1,
+      "failedTests": 1,
+      "namedFailures": [
+        {
+          "name": "immutable best-of-N snapshots on real Git applies and stages frozen uncommitted text and binary bytes without creating a commit",
+          "message": "BestOfNError: worktreeFailed: git apply exited with code 1: error: cannot apply binary patch to 'new.bin' without full index line"
+        }
+      ],
+      "beforePassed": 13,
+      "restoredPassed": 13
+    },
+    {
+      "id": "target",
+      "file": "src/core/bestOfN/bestOfNRunner.ts",
+      "test": "bestOfNSnapshot.test.ts",
+      "edits": [
+        [
+          "if (status !== '' || head !== run.baseRef || this.deps.hasDirtyEditors())",
+          "if (this.deps.hasDirtyEditors())"
+        ]
+      ],
+      "originalSha256": "ec14d272abbaa8271310408aacaea218e2f921452e5e0f3a17a5004314c9acdd",
+      "mutationSha256": "1096f5f4f2fe8e6130c8e18651c1bf12ed8bb59e8600c5092fb48635eae39c4d",
+      "restoredSha256": "ec14d272abbaa8271310408aacaea218e2f921452e5e0f3a17a5004314c9acdd",
+      "redExit": 1,
+      "failedTests": 4,
+      "namedFailures": [
+        {
+          "name": "immutable best-of-N snapshots on real Git refuses a changed HEAD even when the index and working bytes remain clean",
+          "message": "Error: promise resolved \"{ runId: 'bon-real-1', …(8) }\" instead of rejecting"
+        }
+      ],
+      "beforePassed": 13,
+      "restoredPassed": 13
+    },
+    {
+      "id": "programs",
+      "file": "src/host/git.ts",
+      "test": "bestOfNSnapshot.test.ts",
+      "edits": [
+        [
+          "const AUTOMATIC_ARGS = [\n  '--no-replace-objects',\n  '-c',\n  'core.hooksPath=/dev/null',\n  '-c',\n  'core.fsmonitor=false',\n  '-c',\n  'maintenance.auto=false',\n  '-c',\n  'gc.auto=0',\n]",
+          "const AUTOMATIC_ARGS = []"
+        ]
+      ],
+      "originalSha256": "bc792b7e6f3e51b39fd25669f4725c45f281a7147681080d82ccc66b19789e2d",
+      "mutationSha256": "78c691fef63b28fd9691c3356beb07ca20b10936f8343bcbe77e0a05173d9d78",
+      "restoredSha256": "bc792b7e6f3e51b39fd25669f4725c45f281a7147681080d82ccc66b19789e2d",
+      "redExit": 1,
+      "failedTests": 2,
+      "namedFailures": [
+        {
+          "name": "immutable best-of-N snapshots on real Git executes no checkout/fsmonitor/GC hook during automatic worktree capture or Take",
+          "message": "AssertionError: expected 'fsmonitor\\ncheckout\\nfsmonitor\\ncheck…' to be '' // Object.is equality"
+        }
+      ],
+      "beforePassed": 13,
+      "restoredPassed": 13
+    },
+    {
+      "id": "filters",
+      "file": "src/host/git.ts",
+      "test": "bestOfNSnapshot.test.ts",
+      "edits": [
+        ["if (names.split('\\0').some((name) => PROGRAM_CONFIG.test(name)))", "if (false)"]
+      ],
+      "originalSha256": "bc792b7e6f3e51b39fd25669f4725c45f281a7147681080d82ccc66b19789e2d",
+      "mutationSha256": "92161914fb932d94ab973b2a256280fa0f054de676548a81ce30c5dfdce5a59e",
+      "restoredSha256": "bc792b7e6f3e51b39fd25669f4725c45f281a7147681080d82ccc66b19789e2d",
+      "redExit": 1,
+      "failedTests": 1,
+      "namedFailures": [
+        {
+          "name": "immutable best-of-N snapshots on real Git refuses a configured clean filter introduced before capture without executing it",
+          "message": "AssertionError: expected 'completed' to be 'failed' // Object.is equality"
+        }
+      ],
+      "beforePassed": 13,
+      "restoredPassed": 13
+    },
+    {
+      "id": "prepare",
+      "file": "src/host/git.ts",
+      "test": "git.test.ts",
+      "edits": [["await beforeRun?.prepare?.()", "void beforeRun?.prepare"]],
+      "originalSha256": "bc792b7e6f3e51b39fd25669f4725c45f281a7147681080d82ccc66b19789e2d",
+      "mutationSha256": "df5ad3c945a2ec879e7e8c14e94b542b5645d8de91d320c5fa546f2750d5dd49",
+      "restoredSha256": "bc792b7e6f3e51b39fd25669f4725c45f281a7147681080d82ccc66b19789e2d",
+      "redExit": 1,
+      "failedTests": 2,
+      "namedFailures": [
+        {
+          "name": "createGitRunner (D24) refuses a retargeted path discovered by final preparation before applying",
+          "message": "Error: promise resolved \"''\" instead of rejecting"
+        }
+      ],
+      "beforePassed": 23,
+      "restoredPassed": 23
+    },
+    {
+      "id": "admission",
+      "file": "src/host/git.ts",
+      "test": "git.test.ts",
+      "edits": [
+        ["    beforeRun?.()\n    if (beforeRun !== undefined)", "    if (beforeRun !== undefined)"]
+      ],
+      "originalSha256": "bc792b7e6f3e51b39fd25669f4725c45f281a7147681080d82ccc66b19789e2d",
+      "mutationSha256": "334a0ecea2c2550a85a16acfe0ba45ba8ce06a8d000161fd61b439cc4366eeef",
+      "restoredSha256": "bc792b7e6f3e51b39fd25669f4725c45f281a7147681080d82ccc66b19789e2d",
+      "redExit": 1,
+      "failedTests": 2,
+      "namedFailures": [
+        {
+          "name": "createGitRunner (D24) runs final preparation after configuration and refuses changed ownership before apply entry",
+          "message": "Error: promise resolved \"'core.repositoryformatversion\\u0000'\" instead of rejecting"
+        }
+      ],
+      "beforePassed": 23,
+      "restoredPassed": 23
+    },
+    {
+      "id": "files",
+      "file": "src/host/backend/modelApiBackendManager.ts",
+      "test": "modelApiAttemptFiles.test.ts",
+      "edits": [
+        [
+          "listFiles: (signal) => this.deps.listAttemptFiles(worktreeRoot, signal),",
+          "listFiles: this.deps.io.listFiles,"
+        ]
+      ],
+      "originalSha256": "d0bd800eaf11ae00d302c842c03c528fe2c38198836e8b7ecca63312b68d75a6",
+      "mutationSha256": "67e06d4c97b35dfa059856c5a354b812fd2b8d0e3fddbb787458f9065ca04f10",
+      "restoredSha256": "d0bd800eaf11ae00d302c842c03c528fe2c38198836e8b7ecca63312b68d75a6",
+      "redExit": 1,
+      "failedTests": 1,
+      "namedFailures": [
+        {
+          "name": "lists new and uncommitted attempt files through the production adapter without parent-only names",
+          "message": "AssertionError: expected '[{\"model\":\"muse-spark-1.3\",\"input\":[{…' to contain 'attempt-only.txt'"
+        }
+      ],
+      "beforePassed": 1,
+      "restoredPassed": 1
+    },
+    {
+      "id": "journal",
+      "file": "src/host/backend/modelApiBackendManager.ts",
+      "test": "modelApiAttemptBudget.test.ts",
+      "edits": [
+        [
+          "        budgetScope,\n        permissionSettings:",
+          "        budgetScope: undefined,\n        permissionSettings:"
+        ]
+      ],
+      "originalSha256": "d0bd800eaf11ae00d302c842c03c528fe2c38198836e8b7ecca63312b68d75a6",
+      "mutationSha256": "5cba75b242914ae3659c73d6fb81fb01bc3533ea614218ec29fc1e1d033ee6fc",
+      "restoredSha256": "d0bd800eaf11ae00d302c842c03c528fe2c38198836e8b7ecca63312b68d75a6",
+      "redExit": 1,
+      "failedTests": 7,
+      "namedFailures": [
+        {
+          "name": "production best-of-N parent budget binding (M77/M82) fences two concurrent attempt hosts with the parent liability in one durable journal",
+          "message": "AssertionError: expected { type: 'turnCompleted', …(5) } to match object { terminal: 'completed' }"
+        }
+      ],
+      "beforePassed": 8,
+      "restoredPassed": 8
+    },
+    {
+      "id": "aliases",
+      "file": "src/host/bestOfN/bestOfNManager.ts",
+      "test": "bestOfNManager.test.ts",
+      "edits": [
+        [
+          "if (pathIdentity(real, deps.platform) !== pathIdentity(root, deps.platform))",
+          "if (false)"
+        ]
+      ],
+      "originalSha256": "3899c03aea307cd4c6bc9034f2c55dea738fb853cd92e2f7094eb2464bf4a291",
+      "mutationSha256": "0402f8d7bb36b3358937d8e394a027d8995fe342005dc7907855181006101042",
+      "restoredSha256": "3899c03aea307cd4c6bc9034f2c55dea738fb853cd92e2f7094eb2464bf4a291",
+      "redExit": 1,
+      "failedTests": 3,
+      "namedFailures": [
+        {
+          "name": "BestOfNManager refuses a real Windows junction repository alias before any Git or attempt",
+          "message": "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times"
+        },
+        {
+          "name": "BestOfNManager refuses a real Windows dir repository alias before any Git or attempt",
+          "message": "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times"
+        },
+        {
+          "name": "BestOfNManager refuses a real Windows short-name repository alias before any Git or attempt",
+          "message": "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times"
+        }
+      ],
+      "beforePassed": 7,
+      "restoredPassed": 7
+    },
+    {
+      "id": "floor",
+      "file": "src/shared/constants.ts",
+      "test": "git.test.ts",
+      "edits": [["BEST_OF_N_MIN_GIT_MINOR = 36", "BEST_OF_N_MIN_GIT_MINOR = 35"]],
+      "originalSha256": "e6c99558077631013fa06b5e9c40b8af47b3af8b922108917f322b422a27eace",
+      "mutationSha256": "1edb709be9dfcc341f8f63795ef8a16a4b71df51cd61258656beface282988e8",
+      "restoredSha256": "e6c99558077631013fa06b5e9c40b8af47b3af8b922108917f322b422a27eace",
+      "redExit": 1,
+      "failedTests": 1,
+      "namedFailures": [
+        {
+          "name": "createGitRunner (D24) refuses automatic Git before 2.36 rather than treating fsmonitor false as an executable",
+          "message": "Error: promise resolved \"'git version 2.35.1\\n'\" instead of rejecting"
+        }
+      ],
+      "beforePassed": 23,
+      "restoredPassed": 23
+    },
+    {
+      "id": "focus",
+      "file": "src/webview/components/SessionBoardDialog.tsx",
+      "test": "SessionBoardDialog.test.tsx",
+      "edits": [
+        [
+          "`${ROW_ID_PREFIX}${activeRow.backend}:${activeRow.sessionId}`",
+          "`${ROW_ID_PREFIX}${activeRow.sessionId}`"
+        ]
+      ],
+      "originalSha256": "0979cfe4c4af7f3476cfe59a38cd5c157412cb68e87f7fb256e5ed5f29632315",
+      "mutationSha256": "50d2f835587fdcf33e03b0bc8dd7e5d66b3c8925e16cb337d172981ab07ff915",
+      "restoredSha256": "0979cfe4c4af7f3476cfe59a38cd5c157412cb68e87f7fb256e5ed5f29632315",
+      "redExit": 1,
+      "failedTests": 1,
+      "namedFailures": [
+        {
+          "name": "SessionBoardDialog keeps keyboard focus and distinguishes native/API rows with the same session id",
+          "message": "Error: expect(element).toHaveAttribute(\"aria-activedescendant\", \"board-row-museCode:shared-id\") // element.getAttribute(\"aria-activedescendant\") === \"board-row-museCode:shared-id\""
+        }
+      ],
+      "beforePassed": 6,
+      "restoredPassed": 6
+    },
+    {
+      "id": "accepted",
+      "file": "src/host/git.ts",
+      "test": "git.test.ts",
+      "edits": [["  'core.fsmonitor=false',\n", ""]],
+      "originalSha256": "bc792b7e6f3e51b39fd25669f4725c45f281a7147681080d82ccc66b19789e2d",
+      "mutationSha256": "60ef69d5a3bdb9209db374d8d7280cbdf8e193d4eab88eccc765cd2ca05f31c7",
+      "restoredSha256": "bc792b7e6f3e51b39fd25669f4725c45f281a7147681080d82ccc66b19789e2d",
+      "redExit": 1,
+      "failedTests": 4,
+      "namedFailures": [
+        {
+          "name": "createGitRunner (D24) accepts automatic Git 2.36.0 with repository program controls",
+          "message": "AssertionError: expected [ '--no-replace-objects', '-c', …(7) ] to include 'core.fsmonitor=false'"
+        },
+        {
+          "name": "createGitRunner (D24) accepts automatic Git 2.36.0.windows.1 with repository program controls",
+          "message": "AssertionError: expected [ '--no-replace-objects', '-c', …(7) ] to include 'core.fsmonitor=false'"
+        },
+        {
+          "name": "createGitRunner (D24) accepts automatic Git 2.55.0 with repository program controls",
+          "message": "AssertionError: expected [ '--no-replace-objects', '-c', …(7) ] to include 'core.fsmonitor=false'"
+        },
+        {
+          "name": "createGitRunner (D24) accepts automatic Git 3.0.0 with repository program controls",
+          "message": "AssertionError: expected [ '--no-replace-objects', '-c', …(7) ] to include 'core.fsmonitor=false'"
+        }
+      ],
+      "beforePassed": 23,
+      "restoredPassed": 23
+    },
+    {
+      "id": "viewport",
+      "file": "scripts/lib/harnessServer.mjs",
+      "test": "scripts/a11y.mjs board-narrow bestofn-narrow",
+      "edits": [
+        ["'board-narrow': { width: 320", "'board-narrow': { width: 321"],
+        ["'bestofn-narrow': { width: 320", "'bestofn-narrow': { width: 321"]
+      ],
+      "originalSha256": "6fbb35d4b3b9b73aa78a985aa360b676b898cae53edbc28a12b35d1146d5b93a",
+      "mutationSha256": "7c9cb31af5828997047a7550ebf2e67cb59658cdcfa174032ff81ceff1c9f074",
+      "restoredSha256": "6fbb35d4b3b9b73aa78a985aa360b676b898cae53edbc28a12b35d1146d5b93a",
+      "redExit": 1,
+      "failedTests": 8,
+      "namedFailures": [
+        {
+          "name": "board-narrow in four themes",
+          "message": "Error: scenario board-narrow never became ready within 10 s"
+        },
+        {
+          "name": "bestofn-narrow in four themes",
+          "message": "Error: scenario bestofn-narrow never became ready within 10 s"
+        }
+      ],
+      "beforePassed": 8,
+      "restoredPassed": 8
+    }
+  ]
+}

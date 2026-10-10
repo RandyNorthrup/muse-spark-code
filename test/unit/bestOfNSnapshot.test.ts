@@ -140,6 +140,15 @@ async function complete(
   )
 }
 
+async function completedWinner(root: string) {
+  const t = await started(root)
+  const winner = t.attempts[0]
+  if (winner === undefined) throw new Error('Expected a winner worktree')
+  await writeFile(path.join(winner.worktreePath, 'tracked.txt'), 'selected\n')
+  await complete(t.attempts, t.updates)
+  return { t, winner }
+}
+
 describe('immutable best-of-N snapshots on real Git', { timeout: REAL_GIT_TEST_MS }, () => {
   it('keeps the captured parent index when its .git pointer is retargeted to a same-HEAD repository', async () => {
     const root = await repository()
@@ -248,6 +257,10 @@ describe('immutable best-of-N snapshots on real Git', { timeout: REAL_GIT_TEST_M
     )
     await complete(t.attempts, t.updates)
     const outside = path.join(roots.at(-1) ?? '', 'outside')
+    // A missing snapshot must fail here, before waiting for an apply that cannot start.
+    expect(t.updates.at(-1)?.runAttempts[0]?.files.map((file) => file.path)).toEqual([
+      'nested/tracked.txt',
+    ])
     await mkdir(outside)
     await writeFile(path.join(outside, 'tracked.txt'), 'nested before\n')
     const taking = t.runner.take(winner.attemptId)
@@ -456,11 +469,7 @@ describe('immutable best-of-N snapshots on real Git', { timeout: REAL_GIT_TEST_M
     'refuses changed target %s without replacing user bytes',
     async (change) => {
       const root = await repository()
-      const t = await started(root)
-      const winner = t.attempts[0]
-      if (winner === undefined) throw new Error('Expected a winner worktree')
-      await writeFile(path.join(winner.worktreePath, 'tracked.txt'), 'selected\n')
-      await complete(t.attempts, t.updates)
+      const { t, winner } = await completedWinner(root)
       await writeFile(path.join(root, 'tracked.txt'), 'user change\n')
       if (change !== 'working') await git(['add', '--all'], root)
       if (change === 'head') await git(['commit', '-m', 'user change'], root)
@@ -471,6 +480,21 @@ describe('immutable best-of-N snapshots on real Git', { timeout: REAL_GIT_TEST_M
       expect(t.updates.at(-1)?.takenBranch).toBeUndefined()
     },
   )
+
+  it('refuses a changed HEAD even when the index and working bytes remain clean', async () => {
+    const root = await repository()
+    const { t, winner } = await completedWinner(root)
+    await git(['commit', '--allow-empty', '-m', 'new parent HEAD'], root)
+    const head = await git(['rev-parse', 'HEAD'], root)
+    const index = await readFile(path.join(root, '.git', 'index'))
+    await expect(t.runner.take(winner.attemptId)).rejects.toMatchObject({
+      refusal: 'targetChanged',
+    })
+    expect(await git(['rev-parse', 'HEAD'], root)).toBe(head)
+    expect(await readFile(path.join(root, '.git', 'index'))).toEqual(index)
+    expect(await readFile(path.join(root, 'tracked.txt'), 'utf8')).toBe('before\n')
+    expect(t.updates.at(-1)?.takenBranch).toBeUndefined()
+  })
 
   it('keeps the attempt index owned even if its .git marker is retargeted to the parent', async () => {
     const root = await repository()
