@@ -19,6 +19,7 @@ import { fakeManagerDeps } from './helpers/modelApiManager'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import { ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
+import { SubscriptionKeyError } from '../../src/core/backends/modelapi/subscriptionKey'
 import { EditReview } from '../../src/host/editor/editReview'
 
 interface HookFixture {
@@ -661,6 +662,56 @@ it('records best-of-N requests once with the attempt kind and its own session', 
     )
   } finally {
     await host.close()
+    await manager.dispose()
+  }
+})
+
+it('starts an unrelated provider while the subscription key is refused', async () => {
+  // P2: the subscription stays on, the CLI signs out, a valid local model
+  // remains configured → the host still becomes ready for that provider
+  // instead of failing its initialization; the turn path (not the
+  // factory) owns the subscription refusal.
+  const meta = fakeModelApi()
+  const provider = fakeModelApi()
+  const log = new FakeLogOutputChannel()
+  const ref = 'team/small'
+  const registry = createProviderRegistry({
+    models: () =>
+      Promise.resolve([
+        {
+          ref,
+          origin: 'https://example.test',
+          pricing: { kind: 'local' },
+          evidence: { capabilities: { toolCalling: true } },
+        },
+      ]),
+    createClient: () => Promise.resolve(fakeModelApiClient(provider, log)),
+    isCurrent: () => true,
+  })
+  const manager = new ModelApiBackendManager(
+    fakeManagerDeps(meta, log, {
+      workspaceRoot: '/ws',
+      bundlePath: 'src/host/backend/modelApiEntry.ts',
+      loadBundle: () => modelApiEntry,
+      createProviders: () => Promise.resolve(registry),
+      getApiKey: () => Promise.reject(new SubscriptionKeyError('missing')),
+      getProviderAccountId: () => Promise.resolve('local-account'),
+    }),
+  )
+  try {
+    const host = await manager.ensureHost()
+    const session = await host.startSession({
+      workspaceRoot: '/ws',
+      modelId: ref,
+      approvalMode: 'allowAll',
+    })
+    const turns = watchSessionTurns(session)
+    provider.script({ text: 'local answer' })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turns.turnDone()
+    const completed = turns.events.findLast((event) => event.type === 'turnCompleted')
+    expect(completed?.type === 'turnCompleted' ? completed.terminal : undefined).toBe('completed')
+  } finally {
     await manager.dispose()
   }
 })

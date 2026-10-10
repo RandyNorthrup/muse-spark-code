@@ -91,6 +91,36 @@ describe('standalone daily admission', () => {
         )
     },
   )
+  it.each([false, true])(
+    'settles a plan-billed turn at $0 in the paid daily journal (plan: %s)',
+    async (plan) => {
+      const daily = createRuntimeDailyBudget({
+        dataFolder: folder(),
+        now: () => Date.now(),
+        sleep: delay,
+      })
+      const api = fakeModelApi()
+      api.script({ text: 'done', usage: { input: 50_000, output: 5000, cached: 0 } })
+      const client = withRuntimeAccounting(
+        fakeModelApiClient(api, new FakeLogOutputChannel()),
+        daily,
+        undefined,
+        plan,
+      )
+      await Array.fromAsync(client.streamResponse(body, new AbortController().signal))
+      expect(api.responseBodies()).toHaveLength(1)
+      // A plan turn settles $0, so the full day remains reservable; the
+      // pay-as-you-go control settles dollars and the same reserve refuses.
+      if (plan) {
+        const claim = await daily.reserve(Usd.from(4.95).toAmount(), new AbortController().signal)
+        expect(claim.reservedUsd).toBe(Usd.from(4.95).toAmount())
+      } else {
+        await expect(
+          daily.reserve(Usd.from(4.95).toAmount(), new AbortController().signal),
+        ).rejects.toThrow()
+      }
+    },
+  )
   it('rechecks a reduced cap and a changed local day at dispatch', async () => {
     const root = folder()
     let now = new Date(2026, 9, 6, 12).getTime()

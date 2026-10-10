@@ -706,6 +706,57 @@ describe('createRuntimeBackend', () => {
     expect(brokenReadiness.state).toBe('unavailable')
   })
 
+  it('counts a live subscription sign-in with no pasted key, before touching the store', async () => {
+    // P2: valid CLI subscription sign-in, --backend modelApi
+    // --subscription, no pasted key → a usable backend, not auth-required.
+    // A store that cannot be read never blocks subscription-only use.
+    const home = folder()
+    mkdirSync(path.join(home, '.config', 'muse'), { recursive: true })
+    writeFileSync(
+      path.join(home, '.config', 'muse', 'auth.json'),
+      JSON.stringify({ schema_version: 1, providers: { meta: { access_token: 'sub-key' } } }),
+    )
+    const runtime = backend(
+      { backend: 'modelApi', subscription: true },
+      memorySecrets(),
+      {},
+      dist.folder,
+      fakeModelApi().fetch,
+      undefined,
+      home,
+    )
+    expect(await runtime.backend.readiness(false)).toEqual({ state: 'ready' })
+    const broken = backend(
+      { backend: 'modelApi', subscription: true },
+      Object.assign(memorySecrets(), { get: () => Promise.reject(new Error('locked')) }),
+      {},
+      dist.folder,
+      fakeModelApi().fetch,
+      undefined,
+      home,
+    )
+    expect(await broken.backend.readiness(false)).toEqual({ state: 'ready' })
+    const payg = folder()
+    mkdirSync(path.join(payg, '.config', 'muse'), { recursive: true })
+    writeFileSync(
+      path.join(payg, '.config', 'muse', 'auth.json'),
+      JSON.stringify({ schema_version: 1, providers: { meta: { api_key: 'payg-key' } } }),
+    )
+    const refused = backend(
+      { backend: 'modelApi', subscription: true },
+      memorySecrets(),
+      {},
+      dist.folder,
+      fakeModelApi().fetch,
+      undefined,
+      payg,
+    )
+    expect(await refused.backend.readiness(false)).toEqual({
+      state: 'signedOut',
+      message: UI_TEXT.acpNoStoredKey,
+    })
+  })
+
   it('says where it looked when the Muse Code CLI is missing, and builds a Model API host per folder', async () => {
     // The CLI search reads this process's PATH, LOCALAPPDATA and home, so a
     // machine with Muse Code installed must not be the one searched.

@@ -48,6 +48,7 @@ import { MuseCodeBackendManager, type ProxySettings } from '../host/backend/muse
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { createToolIo } from '../host/backend/toolIo'
 import { AccountHosts, connectAccountSession } from '../host/auth/accountHost'
+import type { SessionStore } from '../core/backends/modelapi/sessionStore'
 import { CliAccount, isCliSignedIn } from '../host/auth/cliAccount'
 import { CredentialStore, type SecretStore } from '../host/auth/credentialStore'
 import { SubscriptionCredential } from '../host/auth/subscriptionCredential'
@@ -151,6 +152,36 @@ function describe(error: unknown): string {
 function independentEditorStartupPolicy(log: Logger): Promise<void> {
   log.trace('ACP native startup is outside the VS Code checkpoint namespace and restore guarantee')
   return Promise.resolve()
+}
+
+// Snapshot copies are plain structured data. Keep their type/shape while
+// replacing every string leaf before a headless transcript reaches disk.
+export function redactSnapshotCopy(value: unknown, literals: readonly string[]): void {
+  if (typeof value !== 'object' || value === null) return
+  for (const [key, leaf] of Object.entries(value)) {
+    if (typeof leaf === 'string') Reflect.set(value, key, redactSecrets(leaf, literals))
+    else redactSnapshotCopy(leaf, literals)
+  }
+}
+
+/**
+ * A session store whose saves scrub every credential that could have
+ * been sent (the pasted key and the opted-in subscription key) before a
+ * headless transcript reaches disk. The literals resolve per save and
+ * never throw, so an unreadable sign-in cannot break persistence.
+ */
+export function withCredentialRedaction(
+  store: SessionStore,
+  redactionKeys: () => Promise<readonly string[]>,
+): SessionStore {
+  return {
+    ...store,
+    async save(snapshot) {
+      const copy = structuredClone(snapshot)
+      redactSnapshotCopy(copy, await redactionKeys())
+      await store.save(copy)
+    },
+  }
 }
 
 function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undefined) {
@@ -315,29 +346,10 @@ function modelApiManager(
           now: () => Date.now(),
           sleep: deps.sleep,
         })
-  // Snapshot copies are plain structured data. Keep their type/shape while
-  // replacing every string leaf before a headless transcript reaches disk.
-  const redactSnapshot = (value: unknown, literals: readonly string[]): void => {
-    if (typeof value !== 'object' || value === null) return
-    for (const [key, leaf] of Object.entries(value)) {
-      if (typeof leaf === 'string') Reflect.set(value, key, redactSecrets(leaf, literals))
-      else redactSnapshot(leaf, literals)
-    }
-  }
   const headlessStore =
     store === undefined
       ? undefined
-      : {
-          ...store,
-          async save(snapshot: Parameters<typeof store.save>[0]) {
-            // Every credential that could have been sent: the pasted key
-            // and the opted-in subscription key (P1: the exact subscription
-            // value, not only the pasted one).
-            const copy = structuredClone(snapshot)
-            redactSnapshot(copy, await subscription.redactionKeys())
-            await store.save(copy)
-          },
-        }
+      : withCredentialRedaction(store, () => subscription.redactionKeys())
   return new ModelApiBackendManager({
     log,
     usageRecording: deps.usageRecording,

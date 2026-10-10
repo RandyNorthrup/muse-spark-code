@@ -47,6 +47,7 @@ import {
   MODEL_API_PRICES_PER_MILLION,
   PAID_PRICES_USD,
   MODEL_API_IMAGE_MODEL,
+  MUSE_CREDENTIAL_FILE_MAX_BYTES,
   SECRET_KEYS,
   UI_TEXT,
 } from '../../shared/constants'
@@ -54,9 +55,11 @@ import { effortLevelsFor } from '../../shared/effort'
 import { formatUsd as exactUsd, parseUsd } from '../../shared/accountUsd'
 import { modelApiPaidTier } from '../../shared/paid'
 import {
-  SubscriptionKeySource,
+  isMissing,
+  readSubscriptionKeyText,
   subscriptionKeyRefusal,
 } from '../../core/backends/modelapi/subscriptionKey'
+import { credentialFilePath } from '../../core/backends/musecode/credentialPath'
 import type { RuntimeBackend, RuntimeBackendDeps } from '../backends'
 import { serveOptionsFor } from './execArgs'
 import { execAttachmentBlocks, type ExecAttachmentOptions as ExecOptions } from './attachArgs'
@@ -638,15 +641,28 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       }
       // C-M95-SUB: the subscription key joins the scrubbed literals like a
       // pasted key; a missing sign-in refuses with its fix, like stdin's.
-      // The source retains nothing; the key lives in the literals the run
-      // already clears.
-      if (providerRun === undefined && options.subscription && options.backend === 'modelApi') {
-        const source = new SubscriptionKeySource({
+      // Read through the run's own bounded file reader (never the secret
+      // store); the key lives in the literals the run already clears. (The
+      // backend is always modelApi here: both argv layers reject the
+      // opt-in anywhere else.)
+      if (providerRun === undefined && options.subscription) {
+        const file = credentialFilePath({
           platform: deps.platform,
           homeDir: deps.homeDir,
           xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
         })
-        const read = await lifecycle.race(source.read())
+        let text: string
+        try {
+          const bytes = await lifecycle.race(
+            deps.readFile(file, MUSE_CREDENTIAL_FILE_MAX_BYTES, lifecycle.signal),
+          )
+          text = new TextDecoder().decode(bytes)
+        } catch (readError: unknown) {
+          status = 'auth_required'
+          error = subscriptionKeyRefusal(isMissing(readError) ? 'missing' : 'unreadable')
+          return await finish()
+        }
+        const read = readSubscriptionKeyText(text)
         if (read.status !== 'ready') {
           status = 'auth_required'
           error = subscriptionKeyRefusal(read.status)
