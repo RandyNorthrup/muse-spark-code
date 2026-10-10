@@ -1,7 +1,7 @@
 import { Usd } from '../../src/shared/usd'
 // Offline composition over the owner's 2026-10-04 Mistral captures.
 // Tool name/arguments alone are adapted to the real harness read_file tool.
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createServer } from 'node:http'
@@ -874,4 +874,183 @@ describe('configured provider production transport', () => {
       )
     }
   })
+})
+
+describe('output cap minimum admission', () => {
+  const withMinimum = {
+    ...ENTRY,
+    modelCapabilities: { 'ministral-3b-latest': { output: { minTokens: 16 } } },
+  }
+  it.each([0, 1, 15])(
+    'rejects a provider capability cap of %s below its minimum when saved',
+    async (cap) => {
+      const f = await fixture()
+      const written = await writeProvidersFileAtomic(f.configFile, {
+        v: 1,
+        providers: [
+          {
+            ...withMinimum,
+            modelCapabilities: {
+              'ministral-3b-latest': { output: { minTokens: 16, maxTokens: cap } },
+            },
+          },
+        ],
+      })
+      expect(written).toMatchObject({
+        ok: false,
+        reason: 'invalid',
+        detail: expect.stringContaining('Output cap must be at least 16 tokens.'),
+      })
+      expect(await readFile(f.configFile, 'utf8')).not.toContain('minTokens')
+    },
+  )
+  it('refuses an older stored provider cap with the same minimum message', async () => {
+    const f = await fixture()
+    await writeFile(
+      f.configFile,
+      JSON.stringify({
+        v: 1,
+        providers: [
+          {
+            ...withMinimum,
+            modelLimits: { 'ministral-3b-latest': { contextTokens: 8192, outputTokens: 15 } },
+          },
+        ],
+      }),
+    )
+    const send = vi.fn(() => Promise.resolve(response(new Uint8Array())))
+    const services = createConfiguredProviderServices(undefined, { ...f, send })
+    await expect(services.client.models?.resolve(REF)).rejects.toThrow(
+      'Output cap must be at least 16 tokens.',
+    )
+    expect(send).not.toHaveBeenCalled()
+  })
+  it.each([0, 1, 15])(
+    'rejects custom output limit %s below the declared provider minimum',
+    (cap) => {
+      const parsed = providerEntrySchema.safeParse({
+        ...withMinimum,
+        preset: 'custom',
+        modelLimits: { 'ministral-3b-latest': { contextTokens: 8192, outputTokens: cap } },
+      })
+      expect(parsed.success).toBe(false)
+      if (!parsed.success)
+        expect(parsed.error.message).toContain('Output cap must be at least 16 tokens.')
+    },
+  )
+  it('refuses sub-minimum configured requests before send', async () => {
+    const f = await fixture()
+    const written = await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [withMinimum] })
+    expect(written.ok).toBe(true)
+    const send = vi.fn<NonNullable<ConfiguredProviderOptions['send']>>(() =>
+      Promise.resolve(response(new Uint8Array())),
+    )
+    const services = createConfiguredProviderServices(undefined, {
+      ...f,
+      send,
+      resolve: () => Promise.resolve(['8.8.8.8']),
+    })
+    const selected = await services.client.models?.resolve(REF)
+    expect(selected).toBeDefined()
+    if (selected === undefined) throw new Error('missing model')
+    for (const cap of [0, 1, 15]) {
+      await expect(
+        consume(
+          selected.client.streamResponse(
+            { ...body(), max_output_tokens: cap },
+            new AbortController().signal,
+          ),
+        ),
+      ).rejects.toThrow('Output cap must be at least 16 tokens.')
+    }
+    expect(send).not.toHaveBeenCalled()
+    const payload = await stream('03-tool-result-stream.json')
+    send.mockImplementation(() => Promise.resolve(response(payload)))
+    await consume(
+      selected.client.streamResponse(
+        { ...body(), max_output_tokens: 16 },
+        new AbortController().signal,
+      ),
+    )
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(send.mock.calls[0]?.[1]).toContain('"max_tokens":16')
+  })
+})
+
+it('retains Meta’s captured minimum for a custom entry without a declared minimum', async () => {
+  const f = await fixture()
+  const model = 'muse-spark-1.3-contributor'
+  const ref = `${ENTRY.id}/${model}`
+  const entry = {
+    ...ENTRY,
+    preset: 'custom',
+    address: 'https://api.meta.ai/v1',
+    format: 'responses',
+    models: [model],
+    modelLimits: { [model]: { contextTokens: 8192, outputTokens: 64 } },
+  }
+  for (const cap of [0, 1, 15]) {
+    const written = await writeProvidersFileAtomic(f.configFile, {
+      v: 1,
+      providers: [
+        { ...entry, modelLimits: { [model]: { contextTokens: 8192, outputTokens: cap } } },
+      ],
+    })
+    expect(written).toMatchObject({ ok: false, detail: 'Output cap must be at least 16 tokens.' })
+    const override = await writeProvidersFileAtomic(f.configFile, {
+      v: 1,
+      providers: [{ ...entry, modelCapabilities: { [model]: { output: { maxTokens: cap } } } }],
+    })
+    expect(override).toMatchObject({ ok: false, detail: 'Output cap must be at least 16 tokens.' })
+  }
+  const written = await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
+  expect(written.ok).toBe(true)
+  const send = vi.fn(() => Promise.resolve(response(new Uint8Array())))
+  const services = createConfiguredProviderServices(undefined, { ...f, send })
+  const selected = await services.client.models?.resolve(ref)
+  if (selected === undefined) throw new Error('missing model')
+  expect(selected.policy.output.minTokens).toBe(16)
+  await expect(
+    consume(
+      selected.client.streamResponse(
+        { ...body(), model: ref, max_output_tokens: 15 },
+        new AbortController().signal,
+      ),
+    ),
+  ).rejects.toThrow('Output cap must be at least 16 tokens.')
+  expect(send).not.toHaveBeenCalled()
+})
+
+it('preserves the minimum if a stored cap changes before a bound client sends', async () => {
+  const f = await fixture()
+  const entry = {
+    ...ENTRY,
+    modelCapabilities: { 'ministral-3b-latest': { output: { minTokens: 16 } } },
+  }
+  const written = await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
+  expect(written.ok).toBe(true)
+  const send = vi.fn(() => Promise.resolve(response(new Uint8Array())))
+  const services = createConfiguredProviderServices(undefined, {
+    ...f,
+    send,
+    resolve: () => Promise.resolve(['8.8.8.8']),
+  })
+  const selected = await services.client.models?.resolve(REF)
+  if (selected === undefined) throw new Error('missing model')
+  await writeFile(
+    f.configFile,
+    JSON.stringify({
+      v: 1,
+      providers: [
+        {
+          ...entry,
+          modelLimits: { 'ministral-3b-latest': { contextTokens: 8192, outputTokens: 15 } },
+        },
+      ],
+    }),
+  )
+  await expect(
+    consume(selected.client.streamResponse(body(), new AbortController().signal)),
+  ).rejects.toThrow('Output cap must be at least 16 tokens.')
+  expect(send).not.toHaveBeenCalled()
 })

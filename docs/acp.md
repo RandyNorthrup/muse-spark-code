@@ -199,6 +199,13 @@ headless provider inference is claimed.
 The npm package includes the shared catalogue and lazy provider bundles.
 Installed-editor and live provider certification remain open.
 
+Output caps below the selected provider's known minimum are refused when saved
+and before sending, including older stored values. The same translated message
+names the minimum; Meta requires 16 tokens. Custom provider entries declare a
+minimum with `modelCapabilities.<model>.output.minTokens`; their capability cap
+and custom output limit must meet it. ACP config options and CLI/exec flags
+currently expose no separate output-token cap.
+
 The key is never read from an environment variable, a settings file or an
 argument, and never passed to Muse Code. On Linux without a running,
 unlocked Secret Service the Model API backend is unavailable; there is no

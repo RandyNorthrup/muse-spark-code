@@ -1,5 +1,19 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**MINOUT round 2 (2026-10-10, macmini).** Close static output caps below
+a selected provider's captured minimum, including provider-file capability
+overrides and custom limits, team settings, the shared request builder and
+the final Meta/configured-provider/headless send boundaries. Refuse with one
+localized message naming the minimum, without dispatch or silent increases.
+Audit editor settings, CLI flags, ACP configuration and exec options: retain
+their existing interfaces; do not invent an output-cap option where none
+exists. Add regression and byte-exact red drills per applicable path, translate
+new strings in all fourteen languages, and replay configuredProviders in full
+including its loopback test. Run scoped gates under the rig/common brief;
+aggregate quality and hosted cross-platform checks remain lead-owned. No
+merge, push, subagents, credentials or live/paid calls. Certification:
+`docs/certification/min-output-cap.md`.
+
 **CIR4WIN hosted Windows round 4 (2026-10-09, win11).** Root-cause the
 M117 estimator browser harness's first navigation exceeding its unchanged
 two-second bound in run 38018090551, job 114112783549. Reproduce under bounded
@@ -38604,6 +38618,16 @@ was reverted; only the smoke's English opener labels change in this lane.
 No timeout, assertion, scenario, hook or gate is weakened. Evidence:
 `docs/certification/menufan.md` and `temp/menufan/webview-diet.log`.
 
+**MINOUT round 2 scoped qualification (2026-10-10, macmini).** The explicit
+rig/common brief prohibits aggregate quality and full-suite runs; the lead
+owns those gates. Complete owning suites use repository deadlines and at most
+three files per invocation. Run all five type projects, changed-file lint and
+formatting, plain knip, duplication, localization, host API, reference, plan,
+roadmap and production build without weakening any limit. Record per-path
+SHA-256 restoration drills and the full configured-provider loopback receipt
+in `docs/certification/min-output-cap.md`. Hooks stay installed and enabled;
+local commits only, no merge, push or paid/live request.
+
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering
 under bounded CPU/memory pressure before repairing their causes. Keep all
@@ -46836,7 +46860,8 @@ PROVWIRE; `docs/certification/provcat.md`), the owner's Title Case sweep
 `docs/certification/m95-h.md`), the Muse Code 1.4.3 update hint (MUSE143,
 ported from `fix/muse-1.4.3`), the question answer-field spacing fix and the
 chat menus anchored to their row opener (MENUFAN, rounds 1–3, merged on
-`rel0171/final`; `docs/certification/menufan.md`). This is preparation, not publication; the
+`rel0171/final`; `docs/certification/menufan.md`) and the provider
+output-cap minimum (MINOUT, rounds 1–3; `docs/certification/min-output-cap.md`). This is preparation, not publication; the
 public roadmap (M122) lists 0.17.1 as the next release until a
 `0.17.1 released (…)` record follows here.
 

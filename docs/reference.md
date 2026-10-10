@@ -32,6 +32,8 @@ Prices per million tokens.
 
 provider=openrouter&privacy=zdr: Only providers that retain no data are used.
 
+outputMinimum=known: Output caps below the provider’s known minimum are refused when saved and before sending. Meta requires at least 16 tokens.
+
 ```json
 {
   "management": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],

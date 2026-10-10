@@ -3984,6 +3984,10 @@
   "startWithOwnModelDetail": "使用 API 金鑰新增模型提供者並選擇模型。",
   "setupComplete": "已就緒：{provider} · {model}",
   "manageProviders": "管理提供者",
+  "outputCapBelowMinimum": {
+    "other": "輸出上限必須至少為 {count} 個權杖。"
+  },
+  "referenceOutputCapMinimum": "低於提供者已知最小值的輸出上限會在儲存時和傳送前被拒絕。Meta 要求至少 16 個權杖。",
   "modelsPanelTitle": "模型與代理",
   "modelsPanelUnavailable": "此組建中沒有「模型與代理」。",
   "providersSectionTitle": "提供者",

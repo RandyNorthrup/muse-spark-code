@@ -2,6 +2,7 @@ import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
   effortForPolicy,
+  minOutputTokensForPolicy,
   modelPolicyFor,
   modelPricedUsage,
   outputLimitFor,
@@ -101,6 +102,12 @@ describe('resolved model policy', () => {
     expect(
       modelPolicyFor('muse-spark-1.3', { thinkingOff: 'thinking-switch' }).reasoning,
     ).not.toHaveProperty('thinkingOff')
+  })
+
+  it('floors Meta requests at the captured provider minimum and leaves others at one', () => {
+    expect(minOutputTokensForPolicy(modelPolicyFor('muse-spark-1.3'))).toBe(16)
+    expect(minOutputTokensForPolicy(modelPolicyFor(ref))).toBe(1)
+    expect(minOutputTokensForPolicy(modelPolicyFor(ref, { minOutputTokens: 32 }))).toBe(32)
   })
 
   it('retains the exact Meta output cap and effort mapping', () => {
@@ -266,4 +273,19 @@ describe('resolved model policy', () => {
       ),
     ).toBe(Usd.from(0.06).toAmount())
   })
+})
+
+it('rejects a configured cap or provider ceiling below the selected minimum', () => {
+  for (const cap of [1, 15])
+    expect(() => outputLimitFor(modelPolicyFor('muse-spark-1.3'), cap)).toThrow(
+      'Output cap must be at least 16 tokens.',
+    )
+  expect(() =>
+    outputLimitFor(modelPolicyFor(ref, { minOutputTokens: 32, maxOutputTokens: 31 }), 100),
+  ).toThrow('Output cap must be at least 32 tokens.')
+  expect(outputLimitFor(modelPolicyFor('muse-spark-1.3'), 16)).toBe(16)
+  expect(outputLimitFor(modelPolicyFor(ref), 1)).toBe(1)
+  expect(() => outputLimitFor(modelPolicyFor(ref), 0)).toThrow(
+    'Output cap must be at least 1 token.',
+  )
 })

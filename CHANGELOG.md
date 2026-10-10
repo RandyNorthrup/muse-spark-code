@@ -97,8 +97,9 @@ happened, not what was planned; superseded entries are kept.
 - **Smaller fixes.** Chat action menus fan close around the row's **…**
   button, highlighted-text actions included; a question's own-answer field no
   longer overlaps the options and buttons around it, DeepSeek's Thinking off
-  sends DeepSeek's own switch, and a Muse Code older than 1.4.3 that hits its
-  approval-record fault now gets the update command.
+  sends DeepSeek's own switch, a nearly spent budget stops with the budget
+  message instead of a Meta error, and a Muse Code older than 1.4.3 that hits
+  its approval-record fault now gets the update command.
 
 ### Changed
 
@@ -134,6 +135,16 @@ happened, not what was planned; superseded entries are kept.
   opener and cut long labels short with the whole label in a tooltip. Hover
   and pressed borders stay inside each pill, and keyboard focus rings keep
   2 px clear of the pills beside them.
+
+- A nearly spent session budget now stops the turn with the budget message
+  instead of a Meta error: the output cap is recomputed for each request and
+  never sent below the provider's minimum (16 tokens for Meta), which Meta
+  rejected with HTTP 400.
+
+- Static output caps below the selected provider's known minimum are refused
+  when saved and before sending, with the same translated message naming the
+  minimum (16 tokens for Meta). Older stored caps are refused without a request
+  or a silent increase.
 
 - Muse Code approval-ledger fault notices now give the update command on
   versions older than 1.4.3. A live Windows 1.4.3 check accepted the approval

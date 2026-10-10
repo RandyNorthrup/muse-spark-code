@@ -3984,6 +3984,10 @@
   "startWithOwnModelDetail": "API キーでモデルプロバイダーを追加し、モデルを選んでください。",
   "setupComplete": "{provider} · {model} の準備ができました",
   "manageProviders": "プロバイダーを管理",
+  "outputCapBelowMinimum": {
+    "other": "出力上限は少なくとも {count} トークンにする必要があります。"
+  },
+  "referenceOutputCapMinimum": "プロバイダーの既知の最小値を下回る出力上限は、保存時および送信前に拒否されます。Meta では少なくとも 16 トークンが必要です。",
   "modelsPanelTitle": "モデルとエージェント",
   "modelsPanelUnavailable": "モデルとエージェントはこのビルドでは利用できません。",
   "providersSectionTitle": "プロバイダー",

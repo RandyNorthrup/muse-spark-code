@@ -4308,6 +4308,13 @@
   "startWithOwnModelDetail": "Přidejte poskytovatele modelů s klíčem API a vyberte model.",
   "setupComplete": "Hotovo s {provider} · {model}",
   "manageProviders": "Spravovat poskytovatele",
+  "outputCapBelowMinimum": {
+    "one": "Limit výstupních tokenů musí být alespoň {count}.",
+    "other": "Limit výstupních tokenů musí být alespoň {count}.",
+    "few": "Limit výstupních tokenů musí být alespoň {count}.",
+    "many": "Limit výstupních tokenů musí být alespoň {count}."
+  },
+  "referenceOutputCapMinimum": "Limity výstupních tokenů nižší než známé minimum poskytovatele se odmítají při ukládání i před odesláním. Meta vyžaduje alespoň 16 tokenů.",
   "modelsPanelTitle": "Modely a agenti",
   "modelsPanelUnavailable": "Modely a agenti nejsou v tomto sestavení k dispozici.",
   "providersSectionTitle": "Poskytovatelé",

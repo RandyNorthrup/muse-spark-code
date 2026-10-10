@@ -8,6 +8,7 @@ import type { CreateResponseBody, Usage } from './schemas'
 import { estimateCostUsd } from '../../usage/insights'
 import {
   MODEL_API_BASE_URL,
+  MODEL_API_MIN_OUTPUT_TOKENS,
   MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
   MODEL_API_PRICES_PER_MILLION,
   MODEL_API_MODEL_PREFIX,
@@ -18,6 +19,7 @@ import {
 import type { ModelCapabilities } from '../../providers/capabilities'
 import type { ModelPricing, PricedUsage } from '../../providers/priceCard'
 
+import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
 import { effortLevelsFor, resolveReasoning } from '../../../shared/effort'
 import { modelApiPaidTier } from '../../../shared/paid'
 
@@ -42,6 +44,8 @@ export type Known<T> =
 export interface ModelPolicyEvidence {
   readonly capabilities?: Partial<ModelCapabilities> | undefined
   readonly maxOutputTokens?: number | undefined
+  /** A captured provider minimum for max_output_tokens; unknown keeps 1. */
+  readonly minOutputTokens?: number | undefined
   readonly effortLevels?: readonly string[] | undefined
   readonly canDisableReasoning?: boolean | undefined
   /** The preset's documented Thinking-off switch (lane DSTHINK3). */
@@ -58,7 +62,10 @@ export interface ModelPolicy {
     readonly canDisable: Known<true>
     readonly thinkingOff?: 'thinking-switch' | undefined
   }
-  readonly output: { readonly maxTokens?: number | undefined }
+  readonly output: {
+    readonly maxTokens?: number | undefined
+    readonly minTokens?: number | undefined
+  }
   readonly hosted: { readonly webSearch: Known<true> }
   readonly pricing: ModelPricing
 }
@@ -115,6 +122,7 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
     },
     output: {
       maxTokens: isMeta ? MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS : evidence.maxOutputTokens,
+      minTokens: isMeta ? MODEL_API_MIN_OUTPUT_TOKENS : evidence.minOutputTokens,
     },
     hosted: { webSearch: isMeta ? { state: 'yes', value: true } : webSearch },
     pricing,
@@ -124,7 +132,19 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
 /** The harness ceiling is separate from an unknown provider output maximum. */
 export function outputLimitFor(policy: ModelPolicy, ceiling: number): number {
   const maximum = policy.output.maxTokens
-  return maximum === undefined ? ceiling : Math.min(ceiling, maximum)
+  const cap = maximum === undefined ? ceiling : Math.min(ceiling, maximum)
+  const minimum = minOutputTokensForPolicy(policy)
+  if (cap < minimum) throw new RangeError(outputTokenMinimumMessage(minimum))
+  return cap
+}
+
+/**
+ * The smallest max_output_tokens the provider accepts (Meta's live capture
+ * is 16). Requests below it are rejected by the provider, so a budget that
+ * cannot fit it refuses instead of sending. Unknown keeps 1.
+ */
+export function minOutputTokensForPolicy(policy: Pick<ModelPolicy, 'output'>): number {
+  return policy.output.minTokens ?? 1
 }
 
 /**

@@ -3011,6 +3011,29 @@ describe('ModelApiSession: session budget (M82)', () => {
     expect(lastReason(watched.events)).toContain('It was not sent.')
   })
 
+  it('stops with the budget message when the cap affords fewer than sixteen output tokens', async () => {
+    setUiText(EN, BASE_LOCALE)
+    // Meta rejects max_output_tokens below 16, so ten affordable tokens must
+    // refuse exactly like zero: nothing is sent and the turn says why.
+    const probe = setup({ sessionBudgetUsd: Usd.from(10).toAmount() })
+    await budgetTurn(probe, await startSession(probe), 'hi', { text: 'ok' })
+    const [sent] = probe.api.responseBodies()
+    const estimated = estimateInput(sentParts(sent), undefined).inputTokens
+    const capUsd = Usd.from('1.25')
+      .times(estimated)
+      .divide(1_000_000)
+      .add(Usd.from('4.25').times(10).divide(1_000_000))
+      .toAmount()
+    const t = setup({ sessionBudgetUsd: capUsd })
+    const watched = await startSession(t)
+    await budgetTurn(t, watched, 'hi', { text: 'never sent' })
+    expect(t.api.responseBodies()).toEqual([])
+    expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'failed',
+    })
+    expect(lastReason(watched.events)).toContain('It was not sent.')
+  })
+
   it('stops a turn at the request that no longer fits, after the ones that did', async () => {
     setUiText(EN, BASE_LOCALE)
     const t = setup({ sessionBudgetUsd: Usd.from(2.5).toAmount() })
