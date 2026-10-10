@@ -123,7 +123,7 @@ Paid, on by default; the first charge asks once. On the Model API backend, team 
 
 Surfaces: vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
-Commands: —. Settings: `museSpark.modelApiTeamWorkers`, `museSpark.team`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
+Commands: —. Settings: `museSpark.modelApiTeamWorkers`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
 
 ### Legal scan
 
@@ -3231,19 +3231,6 @@ Type: `"number"`. Default: `5`. Scope: `machine`.
 ### museSpark.modelApiTeamWorkers
 
 Paid, on by default; the first charge asks once. On the Model API backend, team tasks run on models billed to your Model API key, and on the Muse Code backend while a key is stored. Enabling this asks you to accept token prices. The first delegate call that starts key tasks asks for approval, naming each model's prices and each task's ceiling, in every permission mode including Bypass, unless you allow team workers always in this workspace. Subscription and local tasks are never billed.
-
-Type: `"boolean"`. Default: `true`. Scope: `machine`.
-
-```json
-{
-  "type": "boolean",
-  "default": true
-}
-```
-
-### museSpark.team
-
-Agent teams: on by default. On, a workspace whose team has a second model, observably loaded, gives new conversations the team tools; with one model every conversation is today's chat. Off, no team loads anywhere. A change applies from the next conversation.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 

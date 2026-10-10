@@ -396,6 +396,7 @@ it.each([
   ['dist/modelApiCodeIntel.js', 100],
   ['dist/mcpPool.js', 75],
   ['dist/structuredSchema.js', 50],
+  ['dist/teamHost.js', 130],
 ])('bounds the new %s artifact at %s KiB', async (file, cap) => {
   statSync.mockImplementation((path) => ({ size: path === file ? cap * 1024 : 0 }))
   await import('../../scripts/check-bundle-size.mjs')

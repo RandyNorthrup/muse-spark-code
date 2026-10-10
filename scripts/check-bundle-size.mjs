@@ -115,9 +115,10 @@ const BUDGETS = [
   // M96c X2: runner adapters 44.6 KiB; D6's 15%, rounded to 25 KiB.
   { path: 'dist/teamRunners.js', budgetKiB: 75 },
   // C-M96-3: the team host service with its engine worker and merge ports,
-  // loaded only for a workspace that stores a team: 112.0 KiB measured;
-  // D6's 15%, rounded up to 25 KiB.
-  { path: 'dist/teamHost.js', budgetKiB: 150 },
+  // loaded only for a workspace that stores a team. Measured 114,909 bytes
+  // (112.2 KiB, production build on Kubuntu, 2026-10-10) x 1.15 = 132,145
+  // bytes (129.05 KiB), rounded up to the KiB (lead, 2026-10-10).
+  { path: 'dist/teamHost.js', budgetKiB: 130 },
   // M96c X2: board/scheduler/tools 57.8 KiB; D6's 15%, rounded to 25 KiB.
   { path: 'dist/teamScheduler.js', budgetKiB: 75 },
   // M91 lane W: the imported hooks' adapters (lane P's contracts and engine),

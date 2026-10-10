@@ -617,9 +617,6 @@ export const SETTING_DEFAULTS = {
   modelApiBestOfN: true,
   // D78: inert without a hooks file; Restricted Mode loads and runs none.
   modelApiTeamWorkers: true,
-  // Agent teams (M96, D75): on, but a workspace runs one only once a role
-  // has a second model, observably loaded (the owner's single-model rule).
-  team: true,
   modelApiHooks: true,
   // The Model API shell keeps its directory between calls (M91 lane S, PLAN.md
   // D70). On by default, the owner's ruling of 2026-10-04 that enhancements
@@ -790,7 +787,6 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiSubagents',
   'modelApiBestOfN',
   'modelApiTeamWorkers',
-  'team',
   'modelApiHooks',
   'modelApiShellKeepsDirectory',
   'modelApiHookModels',
@@ -7297,6 +7293,10 @@ export const TEAM_ENGINE_HARD_CEILING = 20
 // `museSpark.teamMaxWorkers`' default: the lower of the ceiling and twice the
 // logical CPUs (D75).
 export const TEAM_MAX_WORKERS_PER_CPU = 2
+// `museSpark.team` (D75's switch, on unless set false). Not contributed to the
+// manifest until a user can save a team in the Roles section (C-M96-2, lead
+// 2026-10-10): until then it would do nothing a user can see.
+export const TEAM_SWITCH_SETTING = 'team'
 export const TEAM_MUSE_CODE_HOST_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_DEFAULT = 2

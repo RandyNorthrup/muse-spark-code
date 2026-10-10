@@ -24056,14 +24056,15 @@ live) and the controller filters its id as well.
 
 **C-M96-3 team host service (2026-10-10, host lane, `c/m96-3`).** The
 interface every surface binds to is `src/core/team/teamHostService.ts`; its
-implementation `createTeamHostService` loads with dist/team.js, and
-`src/host/teamHostBinding.ts` binds it in VS Code: the Model API host's team
-seams, the Agent map's tree and actions, and the machine setting
-`museSpark.team`. VS Code's worker port runs no agent kind yet, so every
-conversation stays single-model. Open: the engine worker and merge ports, the
-Roles section (C-M96-2), the orchestrator pill, the Muse Code binding
-(C-M96-4), the scheduler and capacity port (C-M96c-1) and the other editors
-(C-M96-5, M96b). Receipts: `docs/certification/m96-x.md`.
+implementation `createTeamHostService` and the engine worker and merge ports
+load with dist/teamHost.js, and `src/host/teamHostBinding.ts` binds them in
+VS Code: the Model API host's team seams, the Agent map's tree and actions,
+the waiting and merge cards, and the hidden switch `museSpark.team`. Engine
+entries run end to end once a team is saved; no user can save one until the
+Roles section (C-M96-2) lands. Open: the Roles section, the orchestrator
+pill, the Muse Code binding (C-M96-4), the scheduler and capacity port
+(C-M96c-1) and the other editors (C-M96-5, M96b). Receipts:
+`docs/certification/m96-x.md`.
 
 **Lane T seam amendment (2026-10-10, lead-accepted, C-M96-3).**
 `ModelApiHostDeps.teamDecisionSource` takes the conversation's own model
@@ -24074,6 +24075,25 @@ picker's default. The Model API declares and clamps `collect` with its own
 bound, `TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE` (60 s, golden `08-team-on`
 updated); the Muse Code team server keeps `TEAM_COLLECT_WAIT_MAX_SECONDS`
 (0) until lane P's timeout capture.
+
+**C-M96-3 round 2 lead decisions (2026-10-10).**
+
+- `collect` waits up to 60 s on the Model API
+  (`TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE`); the Muse Code team server stays
+  at 0.
+- Worker approval modes: `allowAll` inside the task's own copy, whose
+  conversation has the file tools only; `denyUnmatched` for `read-only`
+  roles in their scratch copy.
+- **Raise** on the "waiting for you" card starts that one task on the role's
+  first usable entry past its limits.
+- Session budget: a team worker shares its conversation's session budget
+  scope, and the task is refused when that scope cannot be read.
+- `dist/teamHost.js` is capped by the measured-plus-15% rule, rounded up to
+  the KiB: 114,909 bytes measured (112.2 KiB, production build on Kubuntu)
+  x 1.15 = 132,145 bytes (129.05 KiB), cap 130 KiB.
+- `museSpark.team` is not contributed to the manifest, and the README does
+  not name it, until a user can save a team in the Roles section and run it
+  (C-M96-2). The runtime still honours an explicit `false`.
 
 **WINTEAM hosted Windows repair (2026-10-07, kubuntu).** Own the native
 lifetime, window hints/load and worker-fence suites, with the minimal product

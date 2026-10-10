@@ -91,6 +91,7 @@ import {
   UI_TEXT,
   TEAM_ENGINE_HARD_CEILING,
   TEAM_MAX_WORKERS_PER_CPU,
+  TEAM_SWITCH_SETTING,
   VSCODE_COMMANDS,
   WALKTHROUGH_QUALIFIED_ID,
   WINDOWS_POWERSHELL_TERMINAL_PATH,
@@ -2539,7 +2540,10 @@ async function activateWindow(
         },
       },
       settings: {
-        isTeamOn: () => currentSettings().team,
+        // Hidden until C-M96-2: only an explicit `false` turns the team off.
+        isTeamOn: () =>
+          vscode.workspace.getConfiguration(SETTINGS_SECTION).get<unknown>(TEAM_SWITCH_SETTING) !==
+          false,
         isTeamWorkersOn: () => currentSettings().modelApiTeamWorkers,
         maxWorkers: () =>
           Math.min(TEAM_ENGINE_HARD_CEILING, TEAM_MAX_WORKERS_PER_CPU * availableParallelism()),
