@@ -3,6 +3,9 @@
 2026-10-10, linuxlt, branch `c/m113-2`, base `2c22e56ac`.
 This record supersedes the first-pass certification and its primary-backend,
 budget and lazy-loading limitations. All 22 RVCM1132 findings are repaired.
+Round 3 (section at the end, 2026-10-10, linuxlt) repairs the 8 RVCM1132B
+findings on top; the "Current budgets appear…" claims below are round-2
+wording and are corrected by round 3's local-day stamp.
 No new dependency, paid/live call, credentials, merge, push, gate relaxation
 or hook change. Shared core/runtime logic serves the editor, ACP and CLI.
 No webview paint changed; existing responsive/accessibility surfaces remain.
@@ -177,3 +180,73 @@ per-tool journal usage is not recorded, rollups lack session attribution, and
 historical budget snapshots are not retained. These are explicit rows, not
 assigned review findings left open. Current budgets appear where their observed
 local day intersects the chosen period; no historical budget is invented.
+
+## Round 3 — RVCM1132B repair (Muse, 2026-10-10, linuxlt)
+
+Branch `c/m113-2`, base `d4a9ec028`. All 8 RVCM1132B findings (P1: none;
+P2: 1–5; P3: 6–8) are fixed below with no residuals. The class of each finding
+was swept: the rollup sentence exists only in the usage facts (correct there —
+aggregate totals include rollups) and the session reader; the UTC budget stamp
+was the only non-local day computation; the resolveSession swallow was the only
+failure-to-miss collapse; dollar/percent mixing existed only in the journal
+limit path (foreign agent files keep unitless plain numbers); the ancestor
+symlink walk was the only over-refusal; the history brand was the only
+mislabelled reject. No new dependency, paid/live call, credential, merge,
+push, gate relaxation or hook change. The share-preview parser line was not
+touched (SHAREFIX hotfix owns it).
+
+One-day definition: budgets and report periods use the machine-local day. The
+journal reader stamps `budgetDay` with the exact expression `usageReportQuery`
+uses for its period day, from an explicit `timezoneOffsetMins` both callers
+pass as `new Date().getTimezoneOffset()`. Rig timezone observed as PDT
+(machine-local). Totals and notes agree: usage totals include rollups with the
+"included in totals but not in this breakdown" note on session/account
+breakdowns; session totals sum only attributable records with the new
+"excluded from this session's totals and breakdown" note.
+
+| Finding                                | Fix                                                                                                                                                                                                                  | Regression (fails without)                                                                                           | Red drill                                                                                                                                              |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P2-1 rollup sentence vs session totals | `reportInputs.ts:290` pushes new `rolledUpSessionExcluded` (`en.ts`, all 14 `l10n/ui.*.json`)                                                                                                                        | reportInputs R5 (+ asserts old sentence absent)                                                                      | D1: old sentence → R5 red                                                                                                                              |
+| P2-2 UTC budget day                    | `reportInputs.ts:95,115` local-day stamp; `main.ts`, `reportPanelEntry.ts` pass the offset                                                                                                                           | reportInputs local-day budget test (offset 420, in-range budget row)                                                 | D2: offset ignored → red                                                                                                                               |
+| P2-3 terminal/ACP daily budget         | `runtimeAccountingEntry.ts` `readToday`/`readRuntimeDailyBudget`; `backends.ts` daily+session pair; `main.ts` `reportBudgets` for one-shot CLI; shared `paidDailyToday`/`paidDailyBudgetRead` (`reportingAmount.ts`) | runtimeAccounting readToday; acpRuntime composition; CLI probe shows `paidDaily` Available                           | D9: cap 0 → red; D10: wiring dropped, rebuilt, probe shows budgetsUnavailable → restored, rebuilt, row back; D11: composition dropped → acpRuntime red |
+| P2-4 failed history reads              | `reportInputs.ts:189` first-model fallback, empty catalogue → `failed`; `main.ts:472,568` brands propagate, rest → `failed`                                                                                          | reportInputs no-active-model + empty-catalogue; brand propagation; e2e corrupt-stored-session (invalid, not history) | D3: old throw → 2 red; D12: catch→null → e2e corrupt red, ghost still history                                                                          |
+| P2-5 dollars in percent fields         | `types.ts:159` `unit`; `reportUsage.ts:299,370`; `collect/usage.ts:17,23` percent/usd cells; `sources/session.ts:52,131` scrub carries unit                                                                          | reportUsage R11/R15/maps-windows; collect cell types; paidPortBoundaries scrub                                       | D5: units dropped → 3 red; D6: usd branch off → red; D7: schema line out → red                                                                         |
+| P3-6 symlink ancestors                 | `reportInputs.ts` walk removed; realpath + file lstat + no-follow + rechecks kept                                                                                                                                    | R6 reads through a linked ancestor, still refuses a linked file                                                      | D4: walk restored → R6 red                                                                                                                             |
+| P3-7 questions brand                   | `conversationController.ts:11039` rejects `unbound` (owned brand, no new import: conversation.js stays 244.6/250 KiB)                                                                                                | R14 + disposed-controller case                                                                                       | D8: history brand → R14 red                                                                                                                            |
+| P3-8 cert wording                      | this section; header corrected                                                                                                                                                                                       | —                                                                                                                    | —                                                                                                                                                      |
+
+Drill receipts: every mutation ran the owning file(s) at repository defaults
+(no `--testTimeout`), required the named reds above, and restored byte-exact
+(SHA-256 before == after): `reportInputs.ts` `a6978f68…`, `reportUsage.ts`
+`fe4ca603…`, `collect/usage.ts` `e0fc103c…`, `sources/session.ts` `01826723…`,
+`conversationController.ts` `d512c3f2…`, `runtimeAccountingEntry.ts`
+`e60a754c…`, `main.ts` `dce133bd…`, `backends.ts` `9f7201fe…`. D9/D7 were
+re-drilled after the `paidDailyToday` extraction on the final shape. `npx
+jscpd` forced two extractions during the round (shared daily-budget read,
+test helpers) and reports 0 clones.
+
+Final verification on linuxlt at repository defaults:
+
+- `npm run typecheck` (all five projects): pass.
+- ESLint `--max-warnings=0` on every changed file: pass.
+- Prettier `--check` on every changed file: pass.
+- `node scripts/check-l10n.mjs`: 14 UI tables, 14 usage tables, 0 problems.
+- `npm run deadcode`: exit 0. `npx jscpd`: 0 clones.
+- `npm run check:reference`: current. `npm run check:host-api`: 0 problems.
+- `npm run build`: exit 0 (extension 550.7/600, conversation 244.6/250,
+  reportInputs 68.7/100, reporting 147.4, runtimeAccounting 31.9 KiB).
+- Unit: reportInputs 22, reportUsage 17, collect.usage 4, runtimeAccounting 9,
+  acpRuntime 44, paidDailyBudget 36, paidPortBoundaries 18,
+  reportingPanel+reportsEntry+localSource 39, sessionReportSource+acpReports
+  17, conversationController 682 — all pass.
+- E2e `reports.e2e.test.ts`: 22/22 (21 prior + corrupt-stored-session).
+- CLI probe (built `dist/acp.js`, isolated HOME, `--as-of` now):
+  `paidDaily/… | $0.00 (Reported) | $5.00 (Reported) | … | Available`.
+
+Open, pre-existing, out of scope: `report usage` and `report session` exit 1
+from any directory containing this repository's real PLAN.md (minimal PLAN.md
+works). Reproduced identically on a clean base worktree at `d4a9ec028`
+(fixture-dir runs are unaffected), so it is not a round-3 regression. Root
+cause not isolated; left for the lead. The one-shot CLI share path
+(`sharingPorts(log)` without a runtime, `main.ts`) was deliberately not
+touched for the SHAREFIX merge.

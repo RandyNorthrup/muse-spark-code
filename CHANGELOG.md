@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Session and usage reports agree with their notes and show the shared daily budget everywhere** (CM1132R3).
+  Session totals exclude rolled-up history and say so; budget stamps use the
+  machine-local day like the report period; terminal and ACP usage reports show
+  the shared daily paid budget beside live session budgets; a failed history
+  read reports a failure with its reason instead of missing history; limit rows
+  render dollars as dollars and percentages as percents; session files reached
+  through linked folders read normally while linked files still refuse; and
+  another session's questions report as unbound rather than missing history.
 - **Session and usage reports preserve source honesty and identity** (CM1132R2).
   Concurrent sources share a flushed journal snapshot. Damage, newer versions,
   missing session attribution and unavailable budget snapshots produce partial
