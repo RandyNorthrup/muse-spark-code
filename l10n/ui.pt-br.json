@@ -5077,6 +5077,13 @@
       "many": "Não verificado: {count} requisitos Python sem versão resolvida; licenças transitivas desconhecidas."
     },
     "m196": "Não verificado: faltam manifestos Python, bloqueios e metadados de distribuição.",
+    "m197": {
+      "one": "{v0} difere do texto canônico {v1} em {count} palavra; seus termos modificados precisam de revisão humana",
+      "other": "{v0} difere do texto canônico {v1} em {count} palavras; seus termos modificados precisam de revisão humana",
+      "many": "{v0} difere do texto canônico {v1} em {count} palavras; seus termos modificados precisam de revisão humana"
+    },
+    "m198": "Não verificado: {v0} declara uma expressão de licença malformada ({v1}); seus termos precisam de revisão humana.",
+    "m199": "Não verificado: a licença de {v0} em {v1} difere de sua redação canônica.",
     "unknown": "desconhecido",
     "unresolved": "não resolvido",
     "noLicense": "sem licença",

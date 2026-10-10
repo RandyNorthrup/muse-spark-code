@@ -101,6 +101,9 @@ export function evaluateDependencyLicenses(
     }
     const parsed = parseSpdxExpression(raw)
     if (!parsed.ok) {
+      // A malformed expression leaves the terms unresolved (M97 CM971R2):
+      // the fix report stays should-fix, and the named human-review reason
+      // keeps the run from declaring the analysis complete.
       findings.push({
         severity: 'should-fix',
         category: 'dependencyLicense',
@@ -113,6 +116,8 @@ export function evaluateDependencyLicenses(
         fixable: false,
         evidenceExcerpt: excerpt(raw),
       })
+      requiresReview = true
+      incomplete.push(fill(UI_TEXT.legalScanner.m198, { v0: dep.name, v1: raw }))
       continue
     }
     evaluated.push({ dependency: dep, parsed, shipped: isDoesShip })

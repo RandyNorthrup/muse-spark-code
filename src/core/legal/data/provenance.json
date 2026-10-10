@@ -56,14 +56,14 @@
       "files": [
         {
           "path": "spdxLicenseTexts.json",
-          "sha256": "c33209b815058c29e2b1e9d5f59f76e1b7647b2ff25ec9a0a947ea8a9701d0ae",
+          "sha256": "985862aeb02b398174bb236bbdf37f61c3b35537e7d69f69096f32f460a765e3",
           "tarballSha256": "54cc8d13086187333ca1457c8edaa06d9a412144f076aa7f7c1b59c4f3b0a1ef"
         }
       ],
       "license": "CC0-1.0",
       "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "attribution": "SPDX License List 3.28.0 texts via sindresorhus/spdx-license-list 6.12.0 (CC0-1.0 package). Derived match data only: normalized SHA-256, word counts and short distinctive phrases for 15 licenses (MIT, ISC, Apache-2.0, BSD-2-Clause, BSD-3-Clause, CC0-1.0, Unlicense, MPL-2.0, EPL-2.0, BSL-1.0, GPL-2.0, GPL-3.0, LGPL-2.1, LGPL-3.0, AGPL-3.0); full license texts are not vendored and keep their own terms.",
-      "modifications": "Texts normalized (BOM and copyright-notice lines removed, lowercase, non-alphanumeric runs collapsed) and reduced to hashes, counts and verified phrases; JSON whitespace normalized by Prettier. Every phrase was machine-checked present in its canonical text at derivation time."
+      "modifications": "Texts normalized (BOM removed, only bare copyright-holder lines dropped, lowercase, non-alphanumeric runs collapsed) and reduced to hashes, counts and verified phrases; JSON whitespace normalized by Prettier. Every phrase was machine-checked present in its canonical text at derivation time. Re-derived 2026-10-10 (CM971R2) after the holder-line rule was narrowed to lines that are only a notice: the prior rule had dropped genuine conditions (Apache retention clause, GPL warranty paragraph, AGPL/LGPL copyright-like-laws definition, CC0 section head, MPL patent fragment), whose hashes change here."
     }
   ]
 }

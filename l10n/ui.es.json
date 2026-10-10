@@ -5077,6 +5077,13 @@
       "many": "Sin comprobar: {count} requisitos Python sin versión resuelta; licencias transitivas desconocidas."
     },
     "m196": "Sin comprobar: faltan manifiestos Python, bloqueos y metadatos de distribución.",
+    "m197": {
+      "one": "{v0} difiere del texto canónico {v1} en {count} palabra; sus términos modificados necesitan revisión humana",
+      "other": "{v0} difiere del texto canónico {v1} en {count} palabras; sus términos modificados necesitan revisión humana",
+      "many": "{v0} difiere del texto canónico {v1} en {count} palabras; sus términos modificados necesitan revisión humana"
+    },
+    "m198": "Sin comprobar: {v0} declara una expresión de licencia defectuosa ({v1}); sus términos necesitan revisión humana.",
+    "m199": "Sin comprobar: la licencia de {v0} en {v1} difiere de su redacción canónica.",
     "unknown": "desconocido",
     "unresolved": "sin resolver",
     "noLicense": "sin licencia",

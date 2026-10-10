@@ -4930,6 +4930,12 @@
       "other": "Nem ellenőrzött: {count} Python-követelményhez nincs feloldott verzió; tranzitív licencek ismeretlenek."
     },
     "m196": "Nem ellenőrzött: nincs Python-jegyzék, zár vagy terjesztési metaadat.",
+    "m197": {
+      "one": "{v0} {count} szóval tér el a kanonikus {v1} szövegtől; a módosított feltételek emberi ellenőrzést igényelnek",
+      "other": "{v0} {count} szóval tér el a kanonikus {v1} szövegtől; a módosított feltételek emberi ellenőrzést igényelnek"
+    },
+    "m198": "Nem ellenőrzött: {v0} hibás licenckifejezést ad meg ({v1}); feltételei emberi ellenőrzést igényelnek.",
+    "m199": "Nem ellenőrzött: {v0} licencszövege itt eltér a kanonikus szövegtől: {v1}.",
     "unknown": "ismeretlen",
     "unresolved": "feloldatlan",
     "noLicense": "nincs licenc",
