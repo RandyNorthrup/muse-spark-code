@@ -39,6 +39,7 @@ import { ApiKeyAuthSource, NoAuthSource } from '../backends/modelapi/authSource'
 import { CodecClient, type WireCodec } from '../backends/modelapi/providerClient'
 import { RequestTransport, parseJsonResponse, ModelApiError } from '../backends/modelapi/transport'
 import { withDeadline } from '../timeouts'
+import { Usd } from '../../shared/usd'
 import {
   ADDRESS_FAMILIES,
   ANTHROPIC_MAX_ARGUMENT_BYTES,
@@ -182,12 +183,15 @@ export function createConfiguredProviderServices(
       ? fail()
       : parsed.data.secret
   }
-  const transportFor = (entry: ProviderEntry, supplied?: string) => {
+  const transportFor = (entry: ProviderEntry, supplied?: string, keyTestOrigin?: string) => {
     const preset = presetFor(entry)
-    const base = new URL(entry.address ?? fail())
+    const configuredUrl = new URL(entry.address ?? fail())
+    const base = new URL(keyTestOrigin ?? configuredUrl.href)
     if (
       (!preset.wireCapture && entry.preset !== 'custom' && entry.auth !== 'none') ||
-      (preset.origin.kind === 'fixed' && base.origin !== preset.origin.origin)
+      (preset.origin.kind === 'fixed' && configuredUrl.origin !== preset.origin.origin) ||
+      (keyTestOrigin !== undefined &&
+        (preset.keyTest.kind !== 'provider-key' || preset.keyTest.origin !== keyTestOrigin))
     )
       return fail()
     const auth =
@@ -301,6 +305,11 @@ export function createConfiguredProviderServices(
       verifyEndpoint: async (url: string) => {
         const parsed = new URL(url)
         if (parsed.origin !== base.origin) return fail()
+        if (
+          keyTestOrigin !== undefined &&
+          (preset.keyTest.kind !== 'provider-key' || parsed.pathname !== preset.keyTest.path)
+        )
+          return fail()
         const host = parsed.hostname.replaceAll(/^\[|\]$/g, '')
         const answers =
           isIP(host) === 0
@@ -312,10 +321,11 @@ export function createConfiguredProviderServices(
                 })
               )(host)
             : [host]
-        const verdict = endpointPolicy.checkEndpointUrl(entry.address ?? '', answers)
+        const verdict = endpointPolicy.checkEndpointUrl(base.href, answers)
         if (
           verdict.kind === 'refused' ||
-          (verdict.kind === 'confirm-private' && entry.privateNetwork !== true)
+          (verdict.kind === 'confirm-private' &&
+            (keyTestOrigin !== undefined || entry.privateNetwork !== true))
         )
           return fail()
         const address = answers[0] ?? fail()
@@ -342,38 +352,54 @@ export function createConfiguredProviderServices(
     const prefix = url.pathname.replace(/\/$/, '')
     return { baseUrl: url.origin, path: prefix + path }
   }
+  const getJson = async (
+    entry: ProviderEntry,
+    path: string,
+    supplied: string | undefined,
+    signal: AbortSignal,
+    keyTestOrigin?: string,
+  ) => {
+    const preset = presetFor(entry)
+    const bound = transportFor(entry, supplied, keyTestOrigin)
+    const address =
+      keyTestOrigin === undefined ? baseAndPath(entry, path) : { baseUrl: keyTestOrigin, path }
+    const transport = new RequestTransport({
+      ...bound.transport,
+      auth: bound.auth,
+      verifyEndpoint: bound.verifyEndpoint,
+      baseUrl: address.baseUrl,
+    })
+    const headers: Record<string, string> = {}
+    if ((entry.format ?? preset.format) === 'anthropic') headers['anthropic-version'] = '2023-06-01'
+    if (preset.id === 'openrouter') {
+      const attribution = presets.OPENROUTER_ATTRIBUTION
+      headers[attribution.refererHeader] = attribution.referer
+      headers[attribution.titleHeader] = attribution.title
+      headers[attribution.categoriesHeader] = attribution.categories
+    }
+    const result = await transport.request(
+      address.path,
+      { method: 'GET', accept: 'application/json', headers, retries: 'rateLimitOnly' },
+      signal,
+    )
+    return await parseJsonResponse(result, (json) => z.json().parse(json))
+  }
   const scan = async (
     entry: ProviderEntry,
     supplied?: string,
     signal = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
   ): Promise<readonly NativeModelMetadata[]> => {
     try {
-      const bound = transportFor(entry, supplied)
-      const address = baseAndPath(entry, presetFor(entry).modelsList.path)
-      const transport = new RequestTransport({
-        ...bound.transport,
-        auth: bound.auth,
-        verifyEndpoint: bound.verifyEndpoint,
-        baseUrl: address.baseUrl,
-      })
-      const result = await transport.request(
-        address.path,
-        {
-          method: 'GET',
-          accept: 'application/json',
-          ...(entry.format === 'anthropic' && { headers: { 'anthropic-version': '2023-06-01' } }),
-        },
-        signal,
-      )
-      const value = await parseJsonResponse(result, (json) => json)
-      if (entry.format === 'anthropic')
+      const format = entry.format ?? presetFor(entry).format
+      const value = await getJson(entry, presetFor(entry).modelsList.path, supplied, signal)
+      if (format === 'anthropic')
         return anthropic.parseAnthropicModelsList(value).map((row) => row.native ?? fail())
-      if (entry.format === 'gemini')
+      if (format === 'gemini')
         return gemini.parseGeminiModelsList(value).map((row) => ({
           ...(row.native ?? fail()),
           id: row.id,
         }))
-      return entry.format === 'ollama'
+      return format === 'ollama'
         ? ollama.parseOllamaModelsList(value)
         : modelMetadata.parseNativeModelsList(value)
     } catch {
@@ -801,6 +827,52 @@ export function createConfiguredProviderServices(
           ],
         )
         const four = capabilities.capabilitiesOf({ capabilityRecord: record })
+        const listed = priceCard.listedPriceCard(preset.id, native)
+        const card = listed !== undefined && priceCard.isValidPriceCard(listed) ? listed : undefined
+        const isPlan = presets.planKeyPresetById(entry.preset) !== undefined
+        const isLocal = entry.auth === 'none'
+        const isFree =
+          !isPlan &&
+          (isLocal ||
+            (card !== undefined &&
+              [
+                card.input,
+                card.output,
+                card.cachedInput,
+                card.cacheWrite,
+                card.cacheWrite1h,
+                card.request,
+                card.image,
+                card.longContextTier?.input,
+                card.longContextTier?.output,
+                card.longContextTier?.cachedInput,
+              ].every((rate) => (rate ?? 0) === 0)))
+        let priceFingerprint = 'unpriced'
+        if (isPlan) priceFingerprint = 'plan'
+        else if (isLocal) priceFingerprint = 'local'
+        else if (card !== undefined) {
+          const upstreams = z
+            .array(
+              z.object({
+                provider: z.string(),
+                pricing: z.optional(
+                  z.object({
+                    input: z.number().check(z.nonnegative()),
+                    output: z.number().check(z.nonnegative()),
+                  }),
+                ),
+              }),
+            )
+            .safeParse(native['providers'])
+          priceFingerprint = JSON.stringify({
+            card,
+            upstreams: upstreams.success
+              ? upstreams.data.toSorted((left, right) =>
+                  left.provider.localeCompare(right.provider),
+                )
+              : undefined,
+          })
+        }
         return {
           id,
           label: modelRef.sanitizeModelLabel(
@@ -810,16 +882,54 @@ export function createConfiguredProviderServices(
           vision: four.vision,
           reasoning: four.reasoning,
           context: record.limits.contextTokens,
-          priceFingerprint:
-            presets.planKeyPresetById(entry.preset) === undefined ? 'unpriced' : 'plan',
-          isFree: entry.auth === 'none',
-          isLocal: entry.auth === 'none',
+          priceFingerprint,
+          ...(!isPlan &&
+            card !== undefined && {
+              inputPerMillion: Number(Usd.from(card.input).times(TOKENS_PER_MILLION).toAmount()),
+              outputPerMillion: Number(Usd.from(card.output).times(TOKENS_PER_MILLION).toAmount()),
+              cachedPerMillion:
+                card.cachedInput === undefined
+                  ? undefined
+                  : Number(Usd.from(card.cachedInput).times(TOKENS_PER_MILLION).toAmount()),
+            }),
+          isFree,
+          isLocal,
         }
       })
     },
     test: async (entry: ProviderEntry, key: string) => {
-      const rows = await scan(entry, key)
-      return { kind: 'ok' as const, models: rows.length }
+      const outcome = await presets.runProviderKeyTest(
+        presetFor(entry).keyTest,
+        new URL(entry.address ?? fail()).origin,
+        async (origin, path) => {
+          try {
+            await getJson(
+              entry,
+              path,
+              key,
+              AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+              origin === new URL(entry.address ?? fail()).origin ? undefined : origin,
+            )
+            return { ok: true, modelCount: undefined }
+          } catch {
+            return { ok: false, paid: false, reason: UI_TEXT.providerProbeUnreachable }
+          }
+        },
+        async () => {
+          try {
+            const rows = await scan(entry, key)
+            return { ok: true, modelCount: rows.length }
+          } catch {
+            return { ok: false, paid: false, reason: UI_TEXT.providerProbeUnparseable }
+          }
+        },
+      )
+      if (outcome.ok) return { kind: 'ok' as const, models: outcome.modelCount ?? 0 }
+      // No captured paid-token request is installed; never dispatch one here.
+      return {
+        kind: 'failed' as const,
+        detail: outcome.paid ? UI_TEXT.modelsPanelUnavailable : outcome.reason,
+      }
     },
   }
 }

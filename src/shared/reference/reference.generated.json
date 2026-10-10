@@ -51,7 +51,7 @@
         "museSpark.connectChatGpt",
         "museSpark.connectCopilot"
       ],
-      "settings": ["museSpark.suggestedProvider"],
+      "settings": ["museSpark.suggestedProvider", "museSpark.modelApiSessionBudgetUsd"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#backends",
       "backends": ["museCode", "modelApi"],
       "paid": false,
@@ -60,6 +60,15 @@
         {
           "conditions": [
             { "when": "openRouterServices=absent", "text": { "ui": "providerOpenRouterServices" } }
+          ]
+        },
+        { "ui": "pricePerMillion" },
+        {
+          "conditions": [
+            {
+              "when": "provider=openrouter&privacy=zdr",
+              "text": { "ui": "privacyNoRetentionDetail" }
+            }
           ]
         }
       ],

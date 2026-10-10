@@ -294,6 +294,118 @@ happened, not what was planned; superseded entries are kept.
   `dist/mcpVault.js`, new 25 KiB budget), so the resource governor is back
   within its unchanged 125 KiB budget and activation no longer carries the
   vault MCP start.
+- Shorten the existing question-deferral Help summary and its 14 translations,
+  restoring the surface-English bundle to its unchanged 25 KiB budget without
+  adding strings or dropping the question, permission or ACP instructions.
+- Reopening provider Edit after an address change whose key write failed can
+  save a newly tested replacement key. Concurrent credential changes still
+  conflict, and the old key remains unusable at the new origin.
+- Confirmed quick-pick spending-limit retries preserve receipts for the
+  provider, key and default already saved when a later write fails, in all
+  14 translated languages.
+- Provider Save validates before writing, then saves changed provider fields,
+  an entered origin-bound key, an explicitly chosen default, an edited spending
+  limit and the requested conversation model in order. Later failures keep
+  completed writes and name saved, failed and skipped steps in all 14 languages.
+  Rollback and its inverse machinery are removed. A key-write failure after an
+  address change shows the key as missing; the old key cannot serve the new origin.
+- Every provider Save outcome attempts panel refresh. A refresh failure appends
+  its warning without hiding entry/key/default/limit errors or saved information.
+  Budget-only partial drafts can retry with a fresh baseline; other partial or
+  stale drafts reopen from the completed writes.
+- Provider Save compares edited fields with the opening snapshot inside the
+  stored update. Untouched keys retain later rotations or removals, and untouched
+  provider fields retain changes made during private-network confirmation.
+  Competing edits to the same field stop Save and offer Reload with no overwrite.
+- Provider Edit and Change key share a full copy of the saved connection.
+  Unchanged routing, format, model limits, favourites, compatibility, private
+  access and default model stay intact; only an explicit default choice
+  retargets it. Save preserves untouched concurrent fields, ignores duplicate
+  submissions and disables its buttons while working. Declining private-network
+  access asks for confirmation instead of calling the saved address invalid.
+- Saved custom-provider limits persist directly from Edit without another
+  connection test when the address, format and key are unchanged.
+  Save reports success or its specific failure; failed saves keep the form and
+  typed limits open for retry, and the next Edit shows the saved values.
+- The provider wizard leaves an untouched spending limit alone and compares
+  an edited limit with its prefill at write time. Concurrent changes are shown
+  with a confirmation request. Provider save finishes before the limit write;
+  a later limit failure says the provider was saved and gives the reason,
+  without claiming full success. The panel retains the edit for a safe retry.
+- Editing or changing the key of a saved custom provider keeps its model
+  limits, exposes them for editing, and saves them back. Back from incomplete
+  custom limits keeps the typed values and allows returning to Models;
+  final Save still validates every limit.
+- The provider wizard stores the conversation spending limit as the number
+  its native setting requires, refusing amounts that would lose decimal
+  precision or overflow at that boundary.
+- Models & Agents: **Scan this computer** offers every local server that answers
+  ("Ollama on port 11434"); choosing one opens its wizard with the local port
+  filled, and an empty scan says nothing is running yet and names each local app
+  with its usual port. Previously it kept only the first answer, asked for a
+  local port it never used, and said nothing when nothing answered. Mistral's
+  plan key now has its own "Mistral plan" label and a sentence saying it uses
+  the subscription's credits, not pay-as-you-go billing. The Copilot sign-in
+  has its own sentence (VS Code's granted models, billed to the Copilot plan
+  or AI credits) instead of repeating ChatGPT's notice.
+- Editing an OpenRouter provider or changing its key preserves its saved
+  privacy, provider order and fallback choice through Test and Save, including
+  Change key followed by Edit. New providers still default to no data retention.
+- A failed model scan stops showing Scanning and offers Refresh with a clear
+  reason. Previous model rows remain available; cancelled scans keep their
+  existing behavior.
+- Change key in Models & Agents keeps the replacement when Edit opens.
+  Test uses that draft key; Save keeps it, and Cancel leaves the stored key.
+- OpenRouter's key test checks its key endpoint before saying the key works.
+  The panel and CLI share the same free-check contract, so a successful public
+  model list cannot stand in for a credential check.
+- New OpenRouter setups in Models & Agents default to no data retention,
+  matching the shared setup flow and saved privacy routing.
+- Models & Agents shows captured provider prices and recognizes free cloud
+  models. Free and price filters include the right rows, and a refreshed
+  cache price counts as a price change. Routing metadata updates do not count
+  as price changes.
+- Models & Agents can scan Gemini and Ollama after ordinary setup, and
+  Anthropic's scans and key tests send its required version header. Presets
+  supply the wire format when it is absent from saved configuration.
+- Models & Agents: the provider picker works again. In 0.16.0 it showed only
+  "That did not work" and listed no provider, Anthropic included, because
+  Mistral's plan key carried the Subscription sign-in category the panel's
+  card contract did not accept, and one refused card emptied the list. The
+  contract now has that category, and the host's chip type is derived from
+  it, so the two cannot drift again. ChatGPT and Copilot sign-ins move under
+  the Subscription sign-in chip, where the plan put them, and Custom server
+  (Chat Completions, Responses or Anthropic Messages) is in the picker again.
+  A preset the contract still refuses is left out on its own, with a log line
+  that names the preset and the field but no value. A test opens every
+  shipped preset and adds Anthropic end to end. (The custom-server save in
+  that test used the memory store, so it missed that a custom entry needs
+  per-model limits to save through the production file; corrected below.)
+- Models & Agents: four review findings closed. A custom server now asks, per
+  ticked model, for its context window and longest reply (prefilled from the
+  server's model list where reported); Save stays disabled with the reason
+  until each ticked model has valid limits, and the entry saves through the
+  production file, which a new test proves against a real providers file. The
+  first Test of a private endpoint now carries the consent just granted, so it
+  sends once and shows its result; declining still sends nothing. A saved
+  provider whose preset card is refused stays listed as unavailable with its
+  reason instead of hiding every valid provider. Subscription sign-ins follow
+  availability: an unavailable sign-in shows disabled with its reason in the
+  picker (Copilot stays hidden in confidential workspaces, per the README),
+  and choosing one is refused with that reason before any connector runs.
+- Models & Agents: the provider wizard's spending limit is now the real
+  conversation spending limit (`museSpark.modelApiSessionBudgetUsd`).
+  Previously the wizard accepted a "Session budget" and reported setup
+  success while the enforced cap stayed unchanged, so a typed USD 2 left the
+  conversation unlimited. The suggestions step now labels the field
+  "Spending limit per conversation (USD, 0 = no limit)", shows "This is your
+  setting for every conversation; it is $X now", prefills the current
+  effective value, and the typed number counts on Continue and on Save. An
+  unchanged value writes nothing; a changed one is written at the scope it
+  is effective from (an existing workspace value stays a workspace value).
+  A failed write keeps the typed value, shows its specific error, and
+  reports no setup success. The quick pick does the same through the same
+  shared function instead of dropping the value.
 
 ### Pending
 
@@ -365,6 +477,12 @@ happened, not what was planned; superseded entries are kept.
   so only that clear is withheld when its audit append fails. Every other
   revocation, own-machine Reset included, is still published after an audit
   failure, and the caller still gets the persistence error.
+
+### Documentation
+
+- Correct the provider-wizard round-3 certification text to the round-4
+  contract: provider persistence precedes the spending-limit write, and a
+  later limit failure reports partial success with the provider saved.
 
 ## [0.17.0] - 2026-10-08
 

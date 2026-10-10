@@ -1145,6 +1145,46 @@
       "note": "groundwork for future native panel hosts; shipped hosts already use their own context menu"
     },
     {
+      "id": "PROVWIRE",
+      "public": false,
+      "note": "provider setup review fixes inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ10",
+      "public": false,
+      "note": "provider save review fixes inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ2R4",
+      "public": false,
+      "note": "provider wizard spending-limit review fixes inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ2R5",
+      "public": false,
+      "note": "provider wizard limit review fixes inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ6",
+      "public": false,
+      "note": "provider wizard integration inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ7",
+      "public": false,
+      "note": "provider save review fixes inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ8",
+      "public": false,
+      "note": "provider save review fixes inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ9",
+      "public": false,
+      "note": "provider ordered save inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
       "id": "QPIN",
       "title": "Pinned question card",
       "summary": "An open question or form from the agent stays as one card pinned above the chat box, and its marker in the transcript reopens and focuses it.",

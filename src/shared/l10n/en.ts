@@ -501,7 +501,7 @@ export const EN = {
   referenceQuestions:
     'Choose and Submit an answer, explain in your own words, or Cancel. Muse receives submitted answers and explanations in the conversation.',
   referenceQuestionsDeferral:
-    'In the panel, each question has one interactive card pinned above the composer. The transcript keeps a compact Open question marker; Answer opens or expands the docked card and focuses its first control, including after deferral. MCP forms follow the same rule. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (60 seconds by default; 0 waits indefinitely), Muse continues work that does not depend on the answer; the card becomes an open question that you can answer later or dismiss. A late answer is your own message and approves nothing. Next open question and Previous open question move between open cards. Scheduled prompts defer at once, and headless exec declines questions. In ACP, --questions-defer-after sets the form deadline, /questions lists open questions and /answer <n> <text> answers one.',
+    'Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (default 60 seconds; 0 waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer <n> <text> answers one.',
   referencePermissionLimits:
     'museCode:manual: Muse will ask before running commands; Muse Code edits workspace files without asking\nmuseCode:acceptEdits: On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands\nmuseCode:plan: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking\nmuseCode:bypassPermissions: Muse will edit files and run commands without asking\nmodelApi:manual: Muse will ask for approval before each edit and each command\nmodelApi:acceptEdits: Muse will edit files without asking and ask before running commands\nmodelApi:plan: Muse will explore the code and present a plan before editing\nmuseCode (museSpark.museCodeAutoReviewer=false): Muse Code runs the commands it judges simple without asking and asks before the rest\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse will edit files without asking, except protected files, and ask before commands\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse will edit files without asking, except protected files; a paid reviewer may allow some commands once, and you are asked about the rest\nThese Auto descriptions concern requests not settled by rules. The Model API reviewer additionally requires paid consent and budget admission. A declined or failed review leaves the decision to you. Ordinary ACP has neither reviewer.',
   referenceElicitationTitle: 'MCP elicitation',
@@ -1080,6 +1080,10 @@ export const EN = {
     copilotQuota: 'Your Copilot quota is exhausted. Manage usage or choose another model.',
     copilotRateLimit: 'Copilot is rate limited. Try again later.',
     copilotConsent: 'Allow access to Copilot in its consent dialog to continue.',
+    // Said when a confidential workspace refuses Copilot sign-in.
+    copilotConfidential: 'Copilot is unavailable while this workspace is confidential.',
+    // What Copilot uses and who bills it: VS Code's granted models, the Copilot plan.
+    copilotNotice: 'Copilot models granted to VS Code, billed to your Copilot plan or AI credits.',
     expired: 'ChatGPT granted too little time to finish this request. Sign in again.',
     retry: 'ChatGPT is temporarily unavailable. Try again.',
     // M95b: plan billing, allowance recovery and Copilot's required content note.
@@ -4248,6 +4252,19 @@ export const EN = {
   providerProbeRebinding: 'The address changed networks; the request was refused.',
   providerSaveSecretFailed: 'The credential store operation failed.',
   providerSaveWriteConflict: 'The file could not be written or changed during saving; retry.',
+  providerEditConflict: 'A field you edited changed elsewhere. Reload the form before saving.',
+  providerSaved: 'Provider saved.',
+  providerKeySaved: 'Key saved.',
+  providerDefaultSaved: 'Default model saved.',
+  providerBudgetSaved: 'Spending limit saved.',
+  providerKeySaveFailed: 'The key was not saved: {detail}. Enter it again.',
+  providerDefaultSaveFailed: 'The default model was not changed: {detail}.',
+  providerComposerSaveFailed: 'The current conversation’s model was not changed: {detail}.',
+  providerDefaultSkipped: 'The default model was not changed.',
+  providerBudgetSkipped: 'The spending limit was not changed.',
+  providerComposerSkipped: 'The current conversation’s model was not changed.',
+  providerRefreshFailed: 'The panel could not refresh — reopen it.',
+  providerSavedRefreshFailed: 'Provider saved; the panel could not refresh — reopen it',
   providerSaveBusy: 'Another provider update is running or its lock could not be acquired; retry.',
   providerSaveRecoveryFailed:
     'Saving failed and the {provider} credential could not be restored. Check auth status and re-enter or clear its key before retrying.',
@@ -4964,6 +4981,10 @@ export const EN = {
     aggregator: 'Aggregator',
   },
   scanComputer: 'Scan this computer',
+  // {label}: the local app's name from its preset; {port}: the port that answered.
+  localScanChoice: '{label} on port {port}',
+  // Shown when no local server answered, above each app with its usual port.
+  localScanEmpty: 'Nothing is running on this computer yet.',
   providersScanning: 'Scanning…',
   providerUntested: 'Not tested',
   // A stored credential names only the origin it was entered for, never the key.
@@ -4992,6 +5013,23 @@ export const EN = {
     chat: 'Chat Completions',
     anthropic: 'Anthropic Messages',
   },
+  // A custom server's per-model limits, asked on the wizard's models step.
+  customLimitsContext: 'Context window (tokens)',
+  customLimitsOutput: 'Longest reply (tokens)',
+  // Shown while a chosen custom model still misses a valid limit.
+  customLimitsMissing:
+    'Each chosen model needs its context window and longest reply before saving.',
+  // The quick pick's token-count prompt.
+  customLimitsTokensPlaceholder: 'Tokens, for example 128000',
+  customLimitsInvalid: 'Enter a positive whole number of tokens.',
+  customLimitsOutputCap: 'The longest reply cannot pass the context window.',
+  // {provider}: the saved provider's label; {preset}: its preset id (technical).
+  providerPresetUnsupported:
+    '{provider} is unavailable: this version does not support its preset ({preset}).',
+  // A sign-in the picker shows disabled: no connector in this editor.
+  signInNotOffered: 'Not offered here.',
+  // A sign-in the picker shows disabled: ChatGPT sign-in needs a local window.
+  signInRemoteWindow: 'Unavailable in a remote window. Sign in from a local window.',
   getKey: 'Get a key',
   enterKey: 'Enter key…',
   // {provider}: the preset's name.
@@ -5078,6 +5116,26 @@ export const EN = {
   suggestReasonRecommended: 'The provider’s recommended model.',
   // {cost}: the median of the user's own recent sessions.
   suggestReasonBudgetMedian: 'From your recent sessions (median {cost}).',
+  // The wizard's spending limit IS the conversation spending limit
+  // setting: 0 means no limit, anything else caps every conversation.
+  wizardSessionBudget: 'Spending limit per conversation (USD, 0 = no limit)',
+  // {amount}: the effective limit now; {scope}: where it is set.
+  wizardSessionBudgetNow:
+    'This is your setting for every conversation; it is {amount} now ({scope}).',
+  // Where the spending limit is effective from, as the wizard names it.
+  sessionBudgetScopeWorkspace: 'workspace',
+  sessionBudgetScopeGlobal: 'this computer',
+  wizardSessionBudgetInvalid:
+    'Enter a non-negative amount in dollars, for example 2 (0 means no limit).',
+  // {detail}: why the setting write failed, in the settings' own words.
+  sessionBudgetWriteFailed: 'The spending limit was not saved: {detail}',
+  // {detail}: why the limit could not change after provider persistence succeeded.
+  sessionBudgetPartialSave: 'Provider saved; the spending limit was not changed: {detail}',
+  // {amount}: the concurrent current limit; {requested}: the user's retained edit.
+  sessionBudgetConflict:
+    'The spending limit changed to {amount}. Save again to confirm your limit of {requested}.',
+  // {amount}: what the setting still reads after the write resolved.
+  sessionBudgetStillEffective: 'the setting still reads {amount}',
   // {detail}: why the address is refused, in technical words.
   providerAddressInvalid: 'This address cannot be used: {detail}',
   // {address}: a private-network address, saved only after confirmation.
@@ -5186,6 +5244,7 @@ export const EN = {
       groq: 'Fast inference on Groq hardware, OpenAI-compatible',
       deepseek: 'DeepSeek chat models with thinking on by default',
       mistral: 'Mistral chat models with prompt caching',
+      mistralPlan: 'Uses your Mistral subscription’s credits, not pay-as-you-go billing.',
       together: 'Open models on Together, priced per model',
       fireworks: 'Fast open-model inference on Fireworks',
       huggingface: 'The Hugging Face router across many providers',
@@ -5239,6 +5298,7 @@ export const EN = {
     },
     labels: {
       custom: 'Custom server',
+      mistralPlan: 'Mistral plan',
     },
   },
   // M95: locally authored Anthropic errors; protocol identifiers remain technical.
