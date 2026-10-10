@@ -1056,3 +1056,30 @@ teamHarness's existing production-build hook past its 60 s on this VM
 the file in run 38029777462. The rigs cannot reproduce the hosted cold
 start, so no red drill is claimed; the hosted run is the evidence, as it
 was for the estimator and m114Panel warm-ups, which passed there.
+
+## Round 9, lead (run 38032399929)
+
+**Wall-clock budgets on synchronous work.** Ubuntu `planReader` "parses ten
+thousand milestones within the named plan budget" measured 245 ms against
+`REPORT_PLAN_BUDGET_MS` (200). A sweep of timed assertions separated real
+latency checks (process stops, streaming previews), which keep wall time,
+from budgets on synchronous work: both `planReader` budget cases,
+`scheduleClock` (180 days of cron under 50 ms) and the `journalStore` warm
+scan (300 ms; it had failed three times in earlier CI runs). These now
+compare the fastest of three timed runs (`test/unit/helpers/fastestRun.ts`)
+with the unchanged budget: scheduling only adds time to a run, while work
+that is really too slow misses in every run. `scheduleClock` times first,
+then clears its spy and asserts the call bound on one run; `journalStore`
+still asserts no byte rereads across all its warm reads. Drill: 250 ms of
+real work inside the timed `planReader` call fails it at 300 ms; restored
+with `sha256sum -c`. Kubuntu: the three files with the capture suites 235/235.
+
+**Visual: "Deferred renderer did not settle".** Visual shard 6 failed
+`slash-commands/dracula/320/en`. The paint waits in
+`test/harness/goldens/capture.mjs` advance the frozen page clock in 100
+steps with a 10 ms real pause, so a lazy chunk's real I/O on a busy runner
+could spend every step. The capture page now tracks its in-flight requests
+and each step first waits for them (a request open 15 s fails the scene
+instead of hanging the job); the 100-step bound now counts frozen-clock time
+only. The routes continue to localhost or abort, so every request finishes.
+Pages that are not tracked (the `visualReadiness` unit case) behave as before.

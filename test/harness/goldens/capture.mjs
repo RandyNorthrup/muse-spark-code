@@ -37,10 +37,36 @@ export async function rasterizationFingerprint(context) {
   }
 }
 
+// Chunk requests use real I/O; React's Suspense retry uses the frozen clock.
+// The 100-step bounds below count frozen-clock steps. A busy runner's slow
+// chunk load is waited for here instead of spending those steps on it
+// (hosted run 38032399929: "Deferred renderer did not settle"). A request
+// still open after this long fails the scene rather than hanging the job.
+const REQUEST_SETTLE_MAX_MS = 15_000
+const pendingRequests = new WeakMap()
+
+/** Track the page's in-flight requests for the paint waits below. */
+export function trackRequests(page) {
+  const pending = new Set()
+  pendingRequests.set(page, pending)
+  page.on('request', (request) => pending.add(request))
+  page.on('requestfinished', (request) => pending.delete(request))
+  page.on('requestfailed', (request) => pending.delete(request))
+}
+
+async function requestsSettled(page) {
+  const pending = pendingRequests.get(page)
+  for (let waited = 0; pending !== undefined && pending.size > 0; waited += 10) {
+    if (waited >= REQUEST_SETTLE_MAX_MS)
+      throw new Error(`Requests still open after ${String(REQUEST_SETTLE_MAX_MS)} ms`)
+    await delay(10)
+  }
+}
+
 async function waitForPaint(page, selector) {
-  // Chunk requests use real I/O; React's Suspense retry uses the frozen clock.
   const target = page.locator(selector).first()
   for (let attempt = 0; attempt < 100 && !(await target.isVisible()); attempt += 1) {
+    await requestsSettled(page)
     await page.clock.runFor(100)
     await delay(10)
   }
@@ -51,6 +77,7 @@ async function waitForPaint(page, selector) {
 export async function waitForDeferredPaint(page, scene) {
   const loading = page.locator('[data-deferred-loading],[data-question-slot][aria-busy="true"]')
   for (let attempt = 0; attempt < 100 && (await loading.count()) > 0; attempt += 1) {
+    await requestsSettled(page)
     await page.clock.runFor(100)
     await delay(10)
   }
@@ -354,6 +381,7 @@ export async function captureMatrix(
     }
     const fingerprint = rasterization ?? (await rasterizationFingerprint(browser))
     const page = await browser.newPage()
+    trackRequests(page)
     const errors = []
     page.on('pageerror', (error) => {
       errors.push(error.message)
