@@ -3,6 +3,8 @@
 // duplicate its setup.
 
 import { runEvalTurn, type EvalHostChange } from '../../../src/core/eval/driver'
+import type { MemoryStore } from '../../../src/core/memory/memoryStore'
+import type { ApprovalMode } from '../../../src/shared/permissionModes'
 import { memoryContextIo } from './fakeContextIo'
 import {
   FAKE_MODEL_API_ACCOUNT_ID,
@@ -29,6 +31,9 @@ export async function driveEvalTurn(options: {
   readonly prompt: string
   readonly change?: EvalHostChange | undefined
   readonly turnTimeoutMs?: number | undefined
+  readonly windowTokens?: number | undefined
+  readonly memory?: MemoryStore | undefined
+  readonly approvalMode?: ApprovalMode | undefined
 }): Promise<DrivenEvalTurn> {
   const api = fakeModelApi()
   api.script(...options.replies)
@@ -49,10 +54,13 @@ export async function driveEvalTurn(options: {
         return `id${String(ids)}`
       },
       turnTimeoutMs: options.turnTimeoutMs,
+      memory: options.memory,
     },
     workspace: EVAL_TURN_ROOT,
     prompt: options.prompt,
     change: options.change,
+    windowTokens: options.windowTokens,
+    approvalMode: options.approvalMode,
   })
   return { api, io, outcome }
 }

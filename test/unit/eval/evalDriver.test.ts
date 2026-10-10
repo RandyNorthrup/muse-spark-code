@@ -14,6 +14,7 @@ import {
   type ScriptedReply,
 } from '../helpers/fakeModelApi'
 import { FakeLogOutputChannel } from '../helpers/fakes'
+import { memoryStoreOver } from '../helpers/fakeMemoryIo'
 
 const TOTAL = 'export function sumAll(items) {\n  return items.length\n}\n'
 const SHORT_TURN_MS = 50
@@ -178,6 +179,20 @@ describe('runEvalTurn', () => {
       }),
     ).rejects.toThrow(
       'the mechanism changed allowsPaidUse, isPaidUseRemembered, notePaidUse, noteSubagentUsage, noteReviewerUsage, which',
+    )
+    // M101 R2: the window and the memory store are harness condition, so a
+    // mechanism that moves either (a window override would also move
+    // file-read truncation) does not run.
+    await expect(
+      drive([{ text: 'ok' }], {
+        change: (deps) => ({
+          ...deps,
+          contextModel: () => ({ format: 'responses', contextTokens: 1000 }),
+          memory: memoryStoreOver(new Map()).store,
+        }),
+      }),
+    ).rejects.toThrow(
+      'the mechanism changed contextModel, memory, which the evaluation holds fixed',
     )
     expect(api.requests).toEqual([])
   })
