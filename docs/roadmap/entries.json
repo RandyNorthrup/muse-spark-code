@@ -772,7 +772,7 @@
     {
       "id": "M104",
       "title": "Every feature in every editor",
-      "summary": "Experimental native and companion panels and LSP await qualification: startup budgets include awaited bridge imports in each variant; complete delivery, security, native contracts, installed-editor receipts and resource-chip parity stay open.",
+      "summary": "Experimental native and companion panels and LSP await qualification: startup budgets measure both production boots through the first-render mark; complete delivery, security, native contracts, installed-editor receipts and resource-chip parity stay open.",
       "area": "editors",
       "labels": ["experimental", "untested"]
     },

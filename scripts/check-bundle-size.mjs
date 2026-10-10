@@ -12,6 +12,8 @@ import {
   portableWebviewBudgetGroups,
 } from './lib/webviewBundles.mjs'
 
+import { measurePortableStartup } from './lib/portableStartup.mjs'
+
 const BYTES_PER_KIB = 1024
 // M99: bound the generated notes independently of their ZIP compression.
 const WHATS_NEW_CONTENT_BUDGET_KIB = 40
@@ -348,7 +350,9 @@ for (const { path, budgetKiB } of BUDGETS) {
 // M104 F4: independent startup/delivery caps and their dated measurement
 // evidence are shared with the split check in lib/webviewBundles.mjs.
 const portableMeta = JSON.parse(readFileSync('dist/meta/portable.json', 'utf8'))
-for (const { name, budgetKiB, outputs } of portableWebviewBudgetGroups(portableMeta)) {
+const portableStartup = await measurePortableStartup(portableMeta)
+const portableBudgets = portableWebviewBudgetGroups(portableMeta, portableStartup)
+for (const { name, budgetKiB, outputs } of portableBudgets) {
   const missing = outputs.filter((file) => !existsSync(file))
   if (missing.length > 0) {
     hasFailure = true

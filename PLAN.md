@@ -573,6 +573,16 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**M104 F4 round 4 (2026-10-10, RVM104F4D; lead redesign).** The static
+boot walk missed awaited call arguments and helper bodies, so its accounting and
+`bootImport` guard are replaced by production page boots in headless Chrome.
+Both native and companion use the existing fake transports and authenticated
+loader; the synchronous first-render `muse:chat-mounted` mark bounds requested
+JS/CSS, counted once per variant against the unchanged 1,100 KiB cap. The total
+JavaScript cap remains 1,486 KiB. Measured resource lists, regressions and the
+marker's trust-boundary drill are in `docs/certification/m104.md`, F4 round 4.
+Earlier syntax-derived figures below are historical.
+
 **M104 F4 round 3 (2026-10-10, RVM104F4C).** Startup includes the static
 closures of source-marked dynamic imports awaited before `mountChat`, as well
 as chat and the authenticated loader. Each native/companion variant counts
@@ -37934,6 +37944,23 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**M104 F4 round 4 — measure the boot (2026-10-10, RVM104F4D).** Replace
+source-syntax boot accounting with headless Chrome boots of the production
+native and companion pages using the existing bridge fakes and authenticated
+module loader. A synchronous first-render marker bounds requested JS/CSS;
+charge each built resource once and enforce both variants against the unchanged
+1,100 KiB startup cap. Keep the 1,486 KiB total-JavaScript cap and optional
+placement checks. Remove the AST boot walk and its import-marker guard. Regress
+64 optional imports awaited in mount arguments and an awaited helper, and the
+same imports after the render marker. Record actual chunk lists and the early
+marker failure drill with byte-exact restoration in `docs/certification/m104.md`.
+Full quality and native/editor qualification remain lead-owned.
+The restored production graph measures native **887,044 bytes / 65 resources**
+and companion **908,902 bytes / 72 resources**, including **104,696 CSS bytes**
+per variant; total JavaScript is **1,323,836 bytes / 178 files**. Two independent
+Chrome runs produce identical lists. All 2,869 scoped tests pass at repository
+deadlines; marker, CSS and Windows-path drills fire and restore SHA-256 exact.
+
 **M104 F4 round 3 — awaited boot closures (2026-10-10, RVM104F4C).**
 Derive mandatory pre-mount dynamic imports from `bootImport` markers in the
 portable mount and bridge selector. Guard unmarked imports before `mountChat`;
@@ -38283,7 +38310,7 @@ keeping its detailed native qualification catalogue generated too.
 Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
 in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
 
-**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. F4 round 3 qualifies separate startup/total caps, including awaited native/companion boot closures. SAST findings, native bridge contract checks, installed qualification and the next resource-chip parity lane remain blockers. M104 F3 repairs the four ACP resource fixtures and the twelve recorded duplication findings; their complete touched suites and the zero-clone gate pass. Retained requirements and receipts follow.
+**Status 2026-10-10: waiting.** All five phase-2 lanes are joined locally on Kubuntu. F4 round 4 measures separate startup/total caps by booting both production native/companion variants to the first-render mark. SAST findings, native bridge contract checks, installed qualification and the next resource-chip parity lane remain blockers. M104 F3 repairs the four ACP resource fixtures and the twelve recorded duplication findings; their complete touched suites and the zero-clone gate pass. Retained requirements and receipts follow.
 
 **FIXM104PB / RVM104PB (2026-10-06).** Repair all four P2 findings and the
 P3 evidence error inside B's paid engines and their shared guards. One
@@ -38926,6 +38953,15 @@ and are not transferred or accepted as complete by these launcher repairs.
 ---
 
 ## 7. Gates
+
+**M104 F4 round-4 qualification (2026-10-10).** Both bundle gates charge
+production JS/CSS requested before the first-render marker, using headless
+Chrome and the shared native/companion fakes. No AST boot walk or `bootImport`
+guard remains; optional placement checks use the measured startup union. Both
+reviewer scenarios rebuild the production graph in memory, while post-marker
+idle imports retain deferral. The early-marker drill demonstrates the marker's
+ownership contract; receipts and measured chunks are in `docs/certification/m104.md`.
+Startup and total caps stay unchanged; prior static receipts are historical.
 
 **M104 F4 round-3 qualification (2026-10-10).** The shared startup helper
 derives marked boot imports and guards unmarked pre-mount imports in `mount`

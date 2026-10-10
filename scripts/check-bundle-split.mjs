@@ -104,8 +104,8 @@ import {
   webviewStartupOutputs,
   webviewTeamOutputs,
   portableWebviewBudgetGroups,
-  portableWebviewStartupVariants,
 } from './lib/webviewBundles.mjs'
+import { measurePortableStartup } from './lib/portableStartup.mjs'
 import { UI_TEXT_REGIONS } from './lib/uiTextRegions.mjs'
 
 const BYTES_PER_KIB = 1024
@@ -1553,9 +1553,8 @@ for (const source of Object.keys(webviewMeta.inputs)) {
     problems.push(`VS Code's webview carries portable-only source ${normal}`)
 }
 const portableMeta = normalWebviewMeta(JSON.parse(readFileSync('dist/meta/portable.json', 'utf8')))
-const eagerPortable = new Set(
-  portableWebviewStartupVariants(portableMeta).flatMap(({ outputs }) => outputs),
-)
+const portableStartup = await measurePortableStartup(portableMeta)
+const eagerPortable = new Set(portableStartup.flatMap(({ outputs }) => outputs))
 for (const file of eagerPortable) {
   const sources = Object.keys(portableMeta.outputs[file].inputs)
   for (const source of sources) {
@@ -1611,7 +1610,10 @@ for (const [file, output] of Object.entries(portableMeta.outputs)) {
 }
 // M104 F4: the same startup/total caps and measurement evidence as the size
 // gate. Preserve missing-output diagnostics above instead of statting absence.
-for (const { name, budgetKiB, outputs } of portableWebviewBudgetGroups(portableMeta)) {
+for (const { name, budgetKiB, outputs } of portableWebviewBudgetGroups(
+  portableMeta,
+  portableStartup,
+)) {
   if (outputs.some((file) => !existsSync(file))) continue
   const bytes = outputs.reduce((sum, file) => sum + statSync(file).size, 0)
   if (bytes > budgetKiB * BYTES_PER_KIB)

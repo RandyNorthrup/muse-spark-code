@@ -20,6 +20,7 @@ export function buildProductionPackage(root: string, folder: string): void {
     'media',
     'test/integration',
     'test/packaging',
+    'test/harness/portableBridgeSetup.mjs',
   ])
     cpSync(path.join(root, source), path.join(folder, source), { recursive: true })
   for (const file of [

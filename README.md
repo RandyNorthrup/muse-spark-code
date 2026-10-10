@@ -5416,13 +5416,15 @@ its own bridge, with chat/Tasks in `dist/webview/main.js` and What's New in
 `dist/webview/whatsNew.js`. Native and companion hosts use the separate
 `dist/webview/portable/main.js`, `whatsNew.js`, `bridge.js`, `fallbacks.js` and their shared
 chunks; common React host-service fallbacks and manager pages load through
-`PanelBridge.loadFallbacks()`. Portable JavaScript has two independent caps:
-1,100 KiB for the larger native or companion startup variant, including chat,
-the authenticated loader and static closures of imports awaited before chat mounts,
-and 1,486 KiB for every delivered entry and chunk, including lazy features.
-Shared outputs count once per variant; optional features must remain deferred.
-Pre-mount imports use `bootImport` source markers; both gates reject an unmarked
-import before `mountChat` and derive the boot closures from those markers.
+`PanelBridge.loadFallbacks()`. Portable delivery has two independent caps:
+1,100 KiB for the larger native or companion startup variant's requested JS/CSS,
+and 1,486 KiB for every delivered JavaScript entry and chunk, including lazy features.
+Both bundle gates boot the production page in headless Chrome with the shared
+native/companion browser fakes and authenticated loader. They wait for the
+synchronous first-render `muse:chat-mounted` mark and count built resources
+requested before it once per variant. Imports awaited inside arguments or helpers
+are included; imports requested after the mark remain deferred. Chrome must be
+installed (`CHROME_PATH` can select it). Optional features must remain deferred.
 The VS Code budgets are unchanged. Native
 UI requests on native stdio use the correlated MHP host-service channel.
 Companion windows receive correlated React UI requests on authenticated
@@ -5682,8 +5684,9 @@ the conversation's Git bundle, 125 KiB for
 the shared English fallback (`dist/uiText.js`, also in the ACP package), 50 KiB for
 the search worker, 300 KiB for
 web fetch's page converter worker, 900 KiB for webview startup plus 50 KiB
-for its deferred JavaScript, 1100 KiB for each native/companion startup variant
-including its authenticated loader and awaited pre-mount imports, 1486 KiB for the complete portable graph
+for its deferred JavaScript, 1100 KiB for each measured native/companion startup JS/CSS variant
+including its authenticated loader and built resources requested before chat's
+first-render mark, 1486 KiB for the complete portable graph
 including every lazy JavaScript entry and chunk, and 850 KiB for
 the ACP agent (`dist/acp.js`).
 

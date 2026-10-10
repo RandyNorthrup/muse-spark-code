@@ -221,10 +221,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- Portable startup accounting now includes the native or companion bridge
-  closures awaited before chat mounts. Both bundle gates measure each variant
-  against the unchanged 1,100 KiB cap and reject unmarked pre-mount imports;
-  imports after mount stay deferred. The complete-delivery cap stays 1,486 KiB.
+- Portable startup gates now boot both production bridge variants in headless
+  Chrome and count JS/CSS requested before chat's first-render mark, including
+  imports awaited inside call arguments or helpers. They replace source-syntax
+  accounting and keep the 1,100 KiB startup and 1,486 KiB total-JavaScript caps.
+  Imports requested after the mark remain deferred.
 - Portable controllers preserve host readiness, restored selection and session
   ownership. Paid engine policy and accounting follow the owning runtime; effective
   settings remain specific to each conversation and worktree.

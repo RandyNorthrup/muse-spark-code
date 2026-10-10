@@ -1,6 +1,6 @@
 // Native/companion entry, built independently of VS Code's chat graph.
 import { createRoot } from 'react-dom/client'
-import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID } from '../shared/constants'
+import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID, PORTABLE_CHAT_MOUNTED_MARK } from '../shared/constants'
 import {
   hostToWebviewMessageSchema,
   webviewToHostMessageSchema,
@@ -19,6 +19,10 @@ declare global {
     /** Owning native companion containers submit through the same sequenced bridge. */
     musePanel?: { postMessage(message: unknown): void }
   }
+}
+
+function markChatMounted(): void {
+  performance.mark(PORTABLE_CHAT_MOUNTED_MARK)
 }
 
 async function mount(): Promise<void> {
@@ -68,7 +72,7 @@ async function mount(): Promise<void> {
       />,
     )
   } else {
-    mountChat(rootElement, portableChatBridge(host), reportBridgeFailure)
+    mountChat(rootElement, portableChatBridge(host), reportBridgeFailure, markChatMounted)
   }
 }
 

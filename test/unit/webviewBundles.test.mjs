@@ -6,8 +6,6 @@ import {
   webviewEntryMetafile,
   webviewPanelOutputs,
   portableWebviewBudgetGroups,
-  portableBootImports,
-  portableWebviewStartupVariants,
 } from '../../scripts/lib/webviewBundles.mjs'
 
 const MAIN = 'dist/webview/main.js'
@@ -17,16 +15,6 @@ const GRAMMARS = 'dist/webview/chunks/grammars.js'
 const HISTORY = 'dist/webview/chunks/history.js'
 const SHARED = 'dist/webview/chunks/shared.js'
 const UNKNOWN = 'dist/webview/chunks/unclassified.js'
-const emptyBoot = (file) =>
-  file.endsWith('portable.tsx') ? 'function mount() { mountChat() }' : 'function selectBridge() {}'
-const readBoot = (body) => (file) =>
-  file.endsWith('portable.tsx')
-    ? `async function mount() { ${body} }`
-    : 'function selectBridge() {}'
-const variantBoot = (file) =>
-  file.endsWith('portable.tsx')
-    ? "async function mount() { await bootImport(() => import('./optional')); mountChat(); await import('./later') }"
-    : "async function selectBridge() { await bootImport(() => import('./native'), 'native'); await bootImport(() => import('./companion'), 'companion') }"
 const edge = (path, kind = 'import-statement') => ({ path, kind })
 const output = (imports = [], entryPoint) => ({ imports, entryPoint })
 function metafile() {
@@ -53,64 +41,6 @@ function metafile() {
 }
 
 describe('webview import budgets', () => {
-  it('guards unmarked pre-mount imports, including Promise.all, while post-mount imports stay deferred', () => {
-    for (const body of [
-      "await import('./optional'); mountChat()",
-      "await Promise.all([import('./optional')]); mountChat()",
-    ])
-      expect(() => portableBootImports(readBoot(body))).toThrow('Unmarked portable boot import')
-    expect(portableBootImports(readBoot("mountChat(); await import('./optional')"))).toEqual([])
-    expect(portableBootImports(readBoot("// await import('./ignored')\nmountChat()"))).toEqual([])
-    expect(() => portableBootImports(readBoot(''))).toThrow('Missing portable mountChat boundary')
-  })
-
-  it.each(['/', '\\'])(
-    'derives each marked boot closure and shared dependencies with %s paths',
-    (separator) => {
-      const main = 'dist/webview/portable/main.js'
-      const loader = 'dist/webview/portable/loader.js'
-      const native = 'dist/webview/portable/native.js'
-      const companion = 'dist/webview/portable/companion.js'
-      const optional = 'dist/webview/portable/optional.js'
-      const meta = {
-        outputs: {
-          [main]: output([edge(CORE), edge(optional, 'dynamic-import')]),
-          [loader]: output([edge(CORE)]),
-          [CORE]: output([edge(SHARED)]),
-          [SHARED]: output([edge(CORE)]),
-          [native]: output([edge(SHARED)], 'src/webview/bridges/native.ts'),
-          [companion]: output([edge(SHARED)], 'src/webview/bridges/companion.ts'),
-          [optional]: output([edge(SHARED)], 'src/webview/optional.tsx'),
-        },
-      }
-      meta.outputs = Object.fromEntries(
-        Object.entries(meta.outputs).map(([file, details]) => [
-          file.replaceAll('/', () => separator),
-          {
-            ...details,
-            entryPoint: details.entryPoint?.replaceAll('/', () => separator),
-            imports: details.imports.map((edge) => ({
-              ...edge,
-              path: edge.path.replaceAll('/', () => separator),
-            })),
-          },
-        ]),
-      )
-      const variants = portableWebviewStartupVariants(meta, variantBoot)
-      expect(variants).toEqual([
-        { variant: 'native', outputs: [main, CORE, SHARED, loader, optional, native] },
-        { variant: 'companion', outputs: [main, CORE, SHARED, loader, optional, companion] },
-      ])
-      Reflect.deleteProperty(
-        meta.outputs,
-        native.replaceAll('/', () => separator),
-      )
-      expect(() => portableWebviewStartupVariants(meta, variantBoot)).toThrow(
-        'Missing or duplicated portable boot output',
-      )
-    },
-  )
-
   it('counts shared portable startup dependencies once and retains every lazy JS output', () => {
     const main = 'dist/webview/portable/main.js'
     const loader = 'dist/webview/portable/loader.js'
@@ -132,11 +62,22 @@ describe('webview import budgets', () => {
           [css]: output(),
         },
       },
-      emptyBoot,
+      ['native', 'companion'].map((variant) => ({
+        variant,
+        outputs: [main, CORE, SHARED, loader, css],
+      })),
     )
     expect(groups).toEqual([
-      { name: 'native startup JS', budgetKiB: 1100, outputs: [main, CORE, SHARED, loader] },
-      { name: 'companion startup JS', budgetKiB: 1100, outputs: [main, CORE, SHARED, loader] },
+      {
+        name: 'native startup JS/CSS',
+        budgetKiB: 1100,
+        outputs: [main, CORE, SHARED, loader, css],
+      },
+      {
+        name: 'companion startup JS/CSS',
+        budgetKiB: 1100,
+        outputs: [main, CORE, SHARED, loader, css],
+      },
       {
         name: 'total JS',
         budgetKiB: 1486,

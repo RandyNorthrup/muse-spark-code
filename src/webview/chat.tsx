@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client'
-import { useSyncExternalStore } from 'react'
+import { useLayoutEffect, useSyncExternalStore } from 'react'
 import type { WebviewToHostMessage } from '../shared/protocol'
 import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -43,10 +43,17 @@ function CrashReportDialog({
   )
 }
 
+/** Runs synchronously after the initial chat DOM commit, before passive effects. */
+function ChatMounted({ onMounted }: { readonly onMounted: () => void }) {
+  useLayoutEffect(onMounted, [onMounted])
+  return null
+}
+
 export function mountChat(
   element: Element,
   host: HostBridge,
   onFailure?: (error: unknown) => void,
+  onMounted?: () => void,
 ): void {
   // Exact prices load outside startup (STARTUP017): the mounted surfaces
   // fetch the money chunk through its hooks, each retrying on its own.
@@ -119,6 +126,7 @@ export function mountChat(
         onReload={retrySurface}
       >
         <App store={store} postMessage={postMessage} resources={resources} />
+        {onMounted !== undefined && <ChatMounted onMounted={onMounted} />}
       </ErrorBoundary>
     </>,
   )

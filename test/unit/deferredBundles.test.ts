@@ -310,6 +310,28 @@ beforeAll(async () => {
         platform: 'node',
         format: 'cjs',
         logLevel: 'silent',
+        // These browser outputs are synthetic; only the real Node cap is under test.
+        // A synchronous fake observation port keeps this CommonJS VM fixture synchronous.
+        plugins: [
+          {
+            name: 'synthetic-browser-boot',
+            setup(build) {
+              build.onLoad({ filter: /[/\\]check-bundle-size\.mjs$/ }, (args) => ({
+                contents: readFileSync(args.path, 'utf8').replace(
+                  'await measurePortableStartup(portableMeta)',
+                  'measurePortableStartup(portableMeta)',
+                ),
+                loader: 'js',
+                resolveDir: path.dirname(args.path),
+              }))
+              build.onLoad({ filter: /[/\\]portableStartup\.mjs$/ }, () => ({
+                contents:
+                  "export function measurePortableStartup() { return ['native', 'companion'].map(variant => ({ variant, outputs: ['dist/webview/portable/main.js'] })) }",
+                loader: 'js',
+              }))
+            },
+          },
+        ],
       })
       const output = built.outputFiles[0]
       if (output === undefined) throw new Error(`Missing gate program: ${name}`)

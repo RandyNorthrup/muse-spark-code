@@ -11,6 +11,14 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
+import { runInThisContext } from 'node:vm'
+import { build, transform } from 'esbuild'
+import { chromium } from 'playwright-core'
+import { findChrome } from '../../scripts/lib/chrome.mjs'
+import { compactBrowserUiText } from '../../scripts/lib/uiTextRegions.mjs'
+import { lazyBrowserKeybindings } from '../../scripts/lib/browserKeybindings.mjs'
+import { sharedHighlightGrammar } from '../../scripts/lib/highlightGrammar.mjs'
+import { resourceBrowserValidation } from '../../scripts/lib/webviewBundles.mjs'
 import { createRequire } from 'node:module'
 import { listFiles } from '@vscode/vsce/out/package.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -18,14 +26,25 @@ import {
   webviewDeferredBudgetGroups,
   portableWebviewBudgetGroups,
 } from '../../scripts/lib/webviewBundles.mjs'
+import { measurePortableStartup } from '../../scripts/lib/portableStartup.mjs'
 import { buildProductionPackage } from './helpers/productionPackage'
 
 const ENTRY = 'dist/webview/main.js'
 const SIZE_GATE = path.resolve('scripts/check-bundle-size.mjs')
-const built = { outputs: {}, fixture: '', production: '' }
+const built = {
+  outputs: {},
+  fixture: '',
+  production: '',
+  startup: [],
+  memoryStartup: [],
+  graphs: new Map(),
+  browser: undefined,
+  sizeGate: '',
+  splitGate: '',
+}
 const outputFile = (file) => path.join(built.production, file)
 
-beforeAll(() => {
+beforeAll(async () => {
   mkdirSync('temp', { recursive: true })
   built.production = mkdtempSync(path.resolve('temp/fix78w-production-'))
   mkdirSync(outputFile('dist/webview/chunks'), { recursive: true })
@@ -73,9 +92,6 @@ beforeAll(() => {
   built.fixture = mkdtempSync(path.resolve('temp/fix78w-size-'))
   mkdirSync(path.join(built.fixture, 'dist/meta'), { recursive: true })
   mkdirSync(path.join(built.fixture, 'dist/webview'), { recursive: true })
-  mkdirSync(path.join(built.fixture, 'src/webview/bridges'), { recursive: true })
-  for (const source of ['src/webview/portable.tsx', 'src/webview/bridges/select.ts'])
-    cpSync(outputFile(source), path.join(built.fixture, source))
   for (const match of readFileSync(SIZE_GATE, 'utf8').matchAll(/path: '(dist\/[^']+\.js)'/g)) {
     const file = path.join(built.fixture, match[1])
     mkdirSync(path.dirname(file), { recursive: true })
@@ -86,13 +102,7 @@ beforeAll(() => {
   // Exercise the real allowlist over all real emitted browser files in an
   // owned tree, without traversing other tests’ concurrently growing temp trees.
   cpSync(outputFile('dist/webview'), path.join(built.fixture, 'dist/webview'), { recursive: true })
-  const portable = JSON.parse(readFileSync(outputFile('dist/meta/portable.json'), 'utf8'))
   cpSync(outputFile('dist/meta/portable.json'), path.join(built.fixture, 'dist/meta/portable.json'))
-  // This size fixture varies the original chat budget; retain the complete
-  // portable inventory with zero payloads. Its eager/lazy cap has its own suite.
-  for (const file of Object.keys(portable.outputs)) {
-    if (file.endsWith('.js')) writeFileSync(path.join(built.fixture, file), '')
-  }
   mkdirSync(path.join(built.fixture, 'docs/schemas'), { recursive: true })
   cpSync(
     'docs/schemas/exec-event-v2.schema.json',
@@ -103,9 +113,178 @@ beforeAll(() => {
   }
   cpSync('.vscodeignore', path.join(built.fixture, '.vscodeignore'))
   cpSync('package.json', path.join(built.fixture, 'package.json'))
+  built.browser = await chromium.launch({
+    executablePath: findChrome(),
+    channel: 'chrome',
+    headless: true,
+  })
+  const portableMeta = JSON.parse(readFileSync(outputFile('dist/meta/portable.json'), 'utf8'))
+  built.startup = await measurePortableStartup(
+    portableMeta,
+    (file) => readFileSync(outputFile(file)),
+    built.browser,
+  )
+  // Padding and unrelated Node/legacy-budget drills do not change boot imports.
+  // Reuse the freshly observed resource lists through a fake measurement port;
+  // the in-memory scenario tests below exercise the real browser port separately.
+  for (const gate of ['size', 'split']) {
+    const target = outputFile(`temp/check-bundle-${gate}.mjs`)
+    await build({
+      entryPoints: [`scripts/check-bundle-${gate}.mjs`],
+      outfile: target,
+      bundle: true,
+      format: 'esm',
+      platform: 'node',
+      packages: 'external',
+      logLevel: 'silent',
+      plugins: [
+        {
+          name: 'observed-boot-fixture',
+          setup(build) {
+            build.onLoad({ filter: /[/\\]portableStartup\.mjs$/ }, () => ({
+              contents: `export async function measurePortableStartup() { return ${JSON.stringify(built.startup)} }`,
+              loader: 'js',
+            }))
+          },
+        },
+      ],
+    })
+    if (gate === 'size') built.sizeGate = target
+    else built.splitGate = target
+  }
+  // Evaluate the production option declarations, not a second approximate build configuration.
+  const source = readFileSync('scripts/build.mjs', 'utf8')
+  const declarations = source.slice(
+    source.indexOf('const browserReviewComment ='),
+    source.indexOf('async function buildPortable()'),
+  )
+  const strings = Object.fromEntries(
+    source.matchAll(/const (\w+) = '([^']*)'/g).map((match) => [match[1], match[2]]),
+  )
+  const optionContext = {
+    ...strings,
+    readFileSync,
+    path,
+    esbuild: { transform },
+    isProduction: true,
+    sharedHighlightGrammar,
+    compactBrowserUiText,
+    lazyBrowserKeybindings,
+    resourceBrowserValidation,
+    common: {
+      bundle: true,
+      minify: true,
+      metafile: true,
+      logLevel: 'silent',
+      define: { 'process.env.NODE_ENV': '"production"' },
+    },
+  }
+  const options = runInThisContext(`(context) => {
+    const { ${Object.keys(optionContext).join(',')} } = context;
+    ${declarations}
+    return portableOptions;
+  }`)(optionContext)
+  const original = readFileSync('src/webview/portable.tsx', 'utf8')
+  const imports = Object.values(portableMeta.outputs)
+    .map((output) => output.entryPoint)
+    .filter((source) => source?.startsWith('src/webview/') && source !== 'src/webview/portable.tsx')
+    .slice(0, 64)
+    .map(
+      (source) =>
+        `bootImport(() => import(${JSON.stringify(`./${path.posix.relative('src/webview', source)}`)}))`,
+    )
+    .join(',')
+  expect(imports.match(/bootImport/g)).toHaveLength(64)
+  const mountCall =
+    'mountChat(rootElement, portableChatBridge(host), reportBridgeFailure, markChatMounted)'
+  for (const [scenario, contents] of [
+    ['baseline', original],
+    [
+      'argument',
+      original.replace(
+        mountCall,
+        () =>
+          `mountChat(rootElement, (await Promise.all([${imports}]), portableChatBridge(host)), reportBridgeFailure, markChatMounted)`,
+      ),
+    ],
+    [
+      'helper',
+      original.replace(
+        'async function mount(): Promise<void> {',
+        () =>
+          `async function prepareBoot() { await Promise.all([${imports}]) }\nasync function mount(): Promise<void> { await prepareBoot();`,
+      ),
+    ],
+    [
+      'deferred',
+      original.replace(
+        '  performance.mark(PORTABLE_CHAT_MOUNTED_MARK)',
+        () =>
+          `  performance.mark(PORTABLE_CHAT_MOUNTED_MARK)\n  requestIdleCallback(() => { void Promise.all([${imports}]) })`,
+      ),
+    ],
+  ]) {
+    const graph = await build({
+      ...options,
+      write: false,
+      plugins: [
+        {
+          name: 'boot-regression',
+          setup(build) {
+            build.onLoad({ filter: /[/\\]portable\.tsx$/ }, (args) => ({
+              contents,
+              loader: 'tsx',
+              resolveDir: path.dirname(args.path),
+            }))
+          },
+        },
+        ...options.plugins,
+      ],
+    })
+    const files = new Map(
+      graph.outputFiles.map((file) => [
+        path.relative(process.cwd(), file.path).replaceAll('\\', '/'),
+        file.contents,
+      ]),
+    )
+    const loader = 'dist/webview/portable/loader.js'
+    files.set(loader, readFileSync(outputFile(loader)))
+    graph.metafile.outputs[loader] = portableMeta.outputs[loader]
+    if (scenario === 'baseline') {
+      // The owned clone's dependency junction changes esbuild chunk hashes.
+      // Compare source ownership and emitted byte lengths, independent of that root.
+      const inventory = (meta) =>
+        Object.values(meta.outputs)
+          .map((output) => [
+            Object.keys(output.inputs)
+              .map((file) =>
+                file.replaceAll('\\', '/').replaceAll(/(?:\.\.\/)+(?=node_modules\/)/gu, ''),
+              )
+              .toSorted((a, b) => a.localeCompare(b, 'en')),
+            output.bytes,
+          ])
+          .toSorted((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b), 'en'))
+      expect(inventory(graph.metafile)).toEqual(inventory(portableMeta))
+    }
+    built.graphs.set(scenario, { meta: graph.metafile, files })
+    if (scenario === 'baseline')
+      built.graphs.set('windows', {
+        files,
+        meta: {
+          ...graph.metafile,
+          outputs: Object.fromEntries(
+            Object.entries(graph.metafile.outputs).map(([file, output]) => [
+              file.replaceAll('/', '\\'),
+              output,
+            ]),
+          ),
+        },
+      })
+  }
 }, 120_000)
 
-afterAll(() => {
+afterAll(async () => {
+  await built.browser?.close()
   for (const folder of [built.fixture, built.production])
     if (folder !== '') rmSync(folder, { recursive: true, force: true })
 })
@@ -172,7 +351,7 @@ function sizeFixture(sharedBytes) {
       },
     }),
   )
-  return spawnSync(process.execPath, [SIZE_GATE], { cwd: built.fixture, encoding: 'utf8' })
+  return spawnSync(process.execPath, [built.sizeGate], { cwd: built.fixture, encoding: 'utf8' })
 }
 
 function questionSizeFixture(bytes) {
@@ -184,7 +363,7 @@ function questionSizeFixture(bytes) {
   meta.outputs[file] = { imports: [], entryPoint: 'src/webview/components/QuestionUi.tsx' }
   writeFileSync(path.join(built.fixture, file), Buffer.alloc(bytes))
   writeFileSync(metaPath, JSON.stringify(meta))
-  return spawnSync(process.execPath, [SIZE_GATE], { cwd: built.fixture, encoding: 'utf8' })
+  return spawnSync(process.execPath, [built.sizeGate], { cwd: built.fixture, encoding: 'utf8' })
 }
 
 describe('the production webview chunks (FIX78W)', () => {
@@ -274,74 +453,84 @@ describe('the production webview chunks (FIX78W)', () => {
   })
 
   it.each([
-    ['native startup JS', 1100, 'dist/webview/portable/loader.js'],
-    ['companion startup JS', 1100, 'dist/webview/portable/loader.js'],
+    ['native startup JS/CSS', 1100, 'dist/webview/portable/loader.js'],
+    ['companion startup JS/CSS', 1100, 'dist/webview/portable/loader.js'],
     ['total JS', 1486, 'dist/webview/portable/whatsNew.js'],
-  ])('the split check rejects a one-byte portable %s overflow', (name, cap, target) => {
+  ])('the split check rejects a one-byte portable %s overflow', async (name, cap, target) => {
     const meta = JSON.parse(readFileSync(outputFile('dist/meta/portable.json'), 'utf8'))
-    const outputs = portableWebviewBudgetGroups(meta).find((group) => group.name === name).outputs
+    const outputs = portableWebviewBudgetGroups(meta, built.startup).find(
+      (group) => group.name === name,
+    ).outputs
     const bytes = outputs.reduce((sum, file) => sum + statSync(outputFile(file)).size, 0)
     const file = outputFile(target)
     const original = readFileSync(file)
     try {
       writeFileSync(file, Buffer.concat([original, Buffer.alloc(cap * 1024 - bytes + 1, ' ')]))
-      const result = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
+      const result = spawnSync(process.execPath, [built.splitGate], {
         cwd: built.production,
         encoding: 'utf8',
       })
       expect(result.status).toBe(1)
       expect(result.stderr).toContain(`portable ${name} exceeds ${cap} KiB`)
       if (name === 'total JS')
-        expect(result.stderr).not.toMatch(/portable (native|companion) startup JS exceeds/)
+        expect(result.stderr).not.toMatch(/portable (native|companion) startup JS\/CSS exceeds/)
     } finally {
       writeFileSync(file, original)
     }
     expect(readFileSync(file).equals(original)).toBe(true)
   })
 
-  it('both gates reject the real optional closures awaited before mount while total stays within cap', () => {
-    const meta = JSON.parse(readFileSync(outputFile('dist/meta/portable.json'), 'utf8'))
-    const imports = Object.values(meta.outputs)
-      .map((output) => output.entryPoint)
-      .filter(
-        (source) => source?.startsWith('src/webview/') && source !== 'src/webview/portable.tsx',
-      )
-      .slice(0, 64)
-      .map(
-        (source) =>
-          `bootImport(() => import(${JSON.stringify(`./${path.posix.relative('src/webview', source)}`)}))`,
-      )
-      .join(',')
-    const file = outputFile('src/webview/portable.tsx')
-    const original = readFileSync(file)
-    try {
-      writeFileSync(
-        file,
-        original
-          .toString()
-          .replace(
-            'async function mount(): Promise<void> {',
-            () => `async function mount(): Promise<void> { await Promise.all([${imports}]);`,
-          ),
-      )
-      for (const gate of ['size', 'split']) {
-        const result = spawnSync(process.execPath, [`scripts/check-bundle-${gate}.mjs`], {
-          cwd: built.production,
-          encoding: 'utf8',
-        })
-        expect(result.status).toBe(1)
-        expect(result.stdout + result.stderr).toMatch(
-          /(?:OVER portable (?:native|companion) startup JS|portable (?:native|companion) startup JS exceeds)/,
-        )
-        expect(result.stdout + result.stderr).not.toMatch(
-          /(?:OVER portable total JS|portable total JS exceeds)/,
+  it.each(['baseline', 'windows', 'argument', 'helper', 'deferred'])(
+    'measures production %s imports at the first-render boundary',
+    async (scenario) => {
+      const { meta, files } = built.graphs.get(scenario)
+      const variants = await measurePortableStartup(meta, (file) => files.get(file), built.browser)
+      const groups = portableWebviewBudgetGroups(meta, variants)
+      for (const group of groups) {
+        const bytes = group.outputs.reduce((sum, file) => sum + files.get(file).byteLength, 0)
+        const isOverBudget = bytes > group.budgetKiB * 1024
+        expect(isOverBudget, `${scenario}: ${group.name}: ${bytes} bytes`).toBe(
+          group.name !== 'total JS' && ['argument', 'helper'].includes(scenario),
         )
       }
-    } finally {
-      writeFileSync(file, original)
-    }
-    expect(readFileSync(file).equals(original)).toBe(true)
-  })
+      switch (scenario) {
+        case 'baseline': {
+          built.memoryStartup = variants
+          for (const group of groups) {
+            const baseline = portableWebviewBudgetGroups(
+              JSON.parse(readFileSync(outputFile('dist/meta/portable.json'), 'utf8')),
+              built.startup,
+            ).find((entry) => entry.name === group.name)
+            expect(group.outputs.reduce((sum, file) => sum + files.get(file).byteLength, 0)).toBe(
+              baseline.outputs.reduce((sum, file) => sum + statSync(outputFile(file)).size, 0),
+            )
+            expect(group.outputs).toHaveLength(baseline.outputs.length)
+          }
+          break
+        }
+        case 'windows': {
+          expect(variants).toEqual(built.memoryStartup)
+          break
+        }
+        case 'deferred': {
+          for (const { variant, outputs } of variants) {
+            const baseline = built.startup.find((entry) => entry.variant === variant).outputs
+            // Imports alter chunk hashes; compare their source ownership as well as byte caps.
+            const sources = outputs.flatMap((file) => Object.keys(meta.outputs[file].inputs))
+            const before = baseline.flatMap((file) =>
+              Object.keys(
+                JSON.parse(readFileSync(outputFile('dist/meta/portable.json'), 'utf8')).outputs[
+                  file
+                ].inputs,
+              ),
+            )
+            expect(new Set(sources)).toEqual(new Set(before))
+          }
+          break
+        }
+      }
+    },
+  )
 
   it('keeps usage, action dialogs and estimator within their existing closure caps', () => {
     const groups = webviewDeferredBudgetGroups({ outputs: built.outputs })
@@ -534,7 +723,7 @@ describe('the production webview chunks (FIX78W)', () => {
       if (output === undefined) throw new Error('Missing activation output')
       output.inputs['src/core/resources/governor.ts'] = { bytesInOutput: 1 }
       writeFileSync(file, JSON.stringify(meta))
-      const result = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
+      const result = spawnSync(process.execPath, [built.splitGate], {
         cwd: built.production,
         encoding: 'utf8',
       })
@@ -549,7 +738,7 @@ describe('the production webview chunks (FIX78W)', () => {
   })
 
   it('keeps provider pacing in its lazy Model API inventory', () => {
-    const result = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
+    const result = spawnSync(process.execPath, [built.splitGate], {
       cwd: built.production,
       encoding: 'utf8',
     })
@@ -700,7 +889,7 @@ describe('the production webview chunks (FIX78W)', () => {
   it('rejects a missing static chunk', () => {
     sizeFixture(0)
     rmSync(path.join(built.fixture, 'dist/webview/shared.js'))
-    const result = spawnSync(process.execPath, [SIZE_GATE], {
+    const result = spawnSync(process.execPath, [built.sizeGate], {
       cwd: built.fixture,
       encoding: 'utf8',
     })

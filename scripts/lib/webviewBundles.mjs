@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import ts from 'typescript'
 
 const normalPath = (file) => file.replaceAll('\\', '/')
 
@@ -75,98 +74,6 @@ export function webviewStartupOutputs(meta, entry = 'dist/webview/main.js') {
   return staticOutputs(meta, [entry])
 }
 
-// Parse syntax, not text: comments/strings do not mark imports. Variant labels
-// describe the actual branch; dependency paths always come from import().
-export function portableBootImports(readSource = (file) => readFileSync(file, 'utf8')) {
-  const imports = []
-  for (const [file, name] of [
-    ['src/webview/portable.tsx', 'mount'],
-    ['src/webview/bridges/select.ts', 'selectBridge'],
-  ]) {
-    const tree = ts.createSourceFile(file, readSource(file), ts.ScriptTarget.Latest, true)
-    const boot = tree.statements.find(
-      (node) => ts.isFunctionDeclaration(node) && node.name?.text === name,
-    )
-    if (!boot?.body) throw new Error(`Missing portable boot function: ${file}:${name}`)
-    let mountPosition = Infinity
-    const findMount = (node) => {
-      if (ts.isCallExpression(node) && node.expression.getText(tree) === 'mountChat')
-        mountPosition = Math.min(mountPosition, node.pos)
-      ts.forEachChild(node, findMount)
-    }
-    if (name === 'mount') {
-      findMount(boot.body)
-      if (!Number.isFinite(mountPosition)) throw new Error('Missing portable mountChat boundary')
-    }
-    const visit = (node) => {
-      if (node.pos >= mountPosition) return
-      if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
-        const loader = node.parent
-        const marker = loader.parent
-        if (
-          !ts.isArrowFunction(loader) ||
-          loader.body !== node ||
-          !ts.isCallExpression(marker) ||
-          marker.expression.getText(tree) !== 'bootImport' ||
-          marker.arguments[0] !== loader
-        )
-          throw new Error(`Unmarked portable boot import before mountChat: ${file}`)
-        const argument = node.arguments[0]
-        const tag = marker.arguments[1]
-        let variant = 'both'
-        if (tag !== undefined) variant = ts.isStringLiteral(tag) ? tag.text : ''
-        if (
-          !argument ||
-          !ts.isStringLiteral(argument) ||
-          !['both', 'native', 'companion', 'tasks'].includes(variant)
-        )
-          throw new Error(`Invalid portable bootImport: ${file}`)
-        imports.push({ file, path: argument.text, variant })
-      }
-      ts.forEachChild(node, visit)
-    }
-    visit(boot.body)
-  }
-  return imports
-}
-
-export function portableWebviewStartupVariants(meta, readSource) {
-  const outputs = normalOutputs(meta)
-  const imports = portableBootImports(readSource)
-  return ['native', 'companion'].map((variant) => {
-    const roots = ['dist/webview/portable/main.js', 'dist/webview/portable/loader.js']
-    for (const imported of imports) {
-      if (imported.variant !== 'both' && imported.variant !== variant) continue
-      const stem = path.posix.normalize(
-        path.posix.join(path.posix.dirname(imported.file), imported.path),
-      )
-      const sources = new Set([
-        stem,
-        `${stem}.ts`,
-        `${stem}.tsx`,
-        `${stem}/index.ts`,
-        `${stem}/index.tsx`,
-      ])
-      // esbuild can emit a dynamic entry that reexports code from a shared
-      // carrier. Root its entry (including reexport bytes), then its closure.
-      let carriers = Object.entries(outputs).filter(([, output]) => sources.has(output.entryPoint))
-      if (carriers.length === 0)
-        carriers = Object.entries(outputs).filter(([, output]) =>
-          Object.keys(output.inputs ?? {}).some((input) => sources.has(normalPath(input))),
-        )
-      if (carriers.length !== 1)
-        throw new Error(
-          `Missing or duplicated portable boot output: ${imported.file}:${imported.path}`,
-        )
-      roots.push(carriers[0][0])
-    }
-    return {
-      variant,
-      outputs: staticOutputs(meta, roots).filter((file) => file.endsWith('.js')),
-    }
-  })
-}
-
 // M104 F4, lead decision (2026-10-09): startup keeps 1,100 KiB; the
 // complete graph at 036b42ec4 measured 1,323,336 bytes. Measured +15%,
 // rounded down to a whole KiB: floor(1,323,336 * 1.15 / 1024) = 1,486.
@@ -176,10 +83,10 @@ const PORTABLE_TOTAL_BUDGET_KIB = 1486
 
 // Enforcing the same cap for each variant enforces the worst boot, without
 // charging mutually exclusive native/companion closures together.
-export function portableWebviewBudgetGroups(meta, readSource) {
+export function portableWebviewBudgetGroups(meta, variants) {
   return [
-    ...portableWebviewStartupVariants(meta, readSource).map(({ variant, outputs }) => ({
-      name: `${variant} startup JS`,
+    ...variants.map(({ variant, outputs }) => ({
+      name: `${variant} startup JS/CSS`,
       budgetKiB: PORTABLE_STARTUP_BUDGET_KIB,
       outputs,
     })),

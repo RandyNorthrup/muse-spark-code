@@ -18,7 +18,7 @@ export interface PanelBridge {
   dispose(): void
 }
 
-/** Source marker for imports awaited before chat mounts; both bundle gates read it. */
+/** Documents required boot imports; bundle gates measure the running page. */
 export function bootImport<T>(
   load: () => Promise<T>,
   _variant: 'both' | 'native' | 'companion' | 'tasks' = 'both',

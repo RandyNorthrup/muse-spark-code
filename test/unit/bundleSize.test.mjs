@@ -1,5 +1,8 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
+import { measurePortableStartup } from '../../scripts/lib/portableStartup.mjs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('../../scripts/lib/portableStartup.mjs', () => ({ measurePortableStartup: vi.fn() }))
 
 vi.mock('node:fs', () => ({ existsSync: vi.fn(), readFileSync: vi.fn(), statSync: vi.fn() }))
 
@@ -44,22 +47,18 @@ function mockWebviewMeta(meta, models, whatsNew, portable) {
     },
   }
   readFileSync.mockImplementation((file) => {
-    switch (file) {
-      case 'src/webview/portable.tsx': {
-        return 'function mount() { mountChat() }'
-      }
-      case 'src/webview/bridges/select.ts': {
-        return 'function selectBridge() {}'
-      }
-      default: {
-        return JSON.stringify(pageMetafiles[file] ?? meta)
-      }
-    }
+    return JSON.stringify(pageMetafiles[file] ?? meta)
   })
 }
 
 beforeEach(() => {
   vi.resetModules()
+  measurePortableStartup.mockResolvedValue(
+    ['native', 'companion'].map((variant) => ({
+      variant,
+      outputs: ['dist/webview/portable/main.js', 'dist/webview/portable/loader.js'],
+    })),
+  )
   existsSync.mockReturnValue(true)
   mockWebviewMeta({ outputs: { 'dist/webview/main.js': { imports: [] } } })
   statSync.mockImplementation((file) => ({
@@ -78,6 +77,7 @@ describe('independent portable startup and total budgets', () => {
   const chunk = 'dist/webview/portable/chunks/lazy.js'
   const bridge = 'dist/webview/portable/bridge.js'
   const eager = 'dist/webview/portable/chunks/eager.js'
+  const css = 'dist/webview/portable/main.css'
   const startupBudget = 1100 * 1024
   const totalBudget = 1486 * 1024
   let meta
@@ -92,10 +92,17 @@ describe('independent portable startup and total budgets', () => {
         },
         [loader]: { imports: [] },
         [eager]: { imports: [] },
+        [css]: { imports: [] },
         [chunk]: { imports: [] },
         [bridge]: { imports: [] },
       },
     }
+    measurePortableStartup.mockResolvedValue(
+      ['native', 'companion'].map((variant) => ({
+        variant,
+        outputs: [portable, loader, eager, css],
+      })),
+    )
     mockWebviewMeta(
       { outputs: { 'dist/webview/main.js': { imports: [] } } },
       undefined,
@@ -135,21 +142,21 @@ describe('independent portable startup and total budgets', () => {
     await import('../../scripts/check-bundle-size.mjs')
     expect(process.exit).not.toHaveBeenCalled()
     for (const [name, cap] of [
-      ['native startup JS', 1100],
-      ['companion startup JS', 1100],
+      ['native startup JS/CSS', 1100],
+      ['companion startup JS/CSS', 1100],
       ['total JS', 1486],
     ])
       expect(console.log).toHaveBeenCalledWith(
         `ok   portable ${name}: ${cap}.0 KiB (budget ${cap} KiB)`,
       )
   })
-  it.each([portable, eager, loader])('rejects one byte over startup in %s', async (extra) => {
+  it.each([portable, eager, loader, css])('rejects one byte over startup in %s', async (extra) => {
     statSync.mockImplementation((file) => ({
       size: (file === portable ? startupBudget : 0) + Number(file === extra),
     }))
     await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
     expect(console.log).toHaveBeenCalledWith(
-      'OVER portable native startup JS: 1100.0 KiB (budget 1100 KiB)',
+      'OVER portable native startup JS/CSS: 1100.0 KiB (budget 1100 KiB)',
     )
     expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('OVER portable total'))
   })
@@ -168,36 +175,17 @@ describe('independent portable startup and total budgets', () => {
     await import('../../scripts/check-bundle-size.mjs')
     expect(process.exit).not.toHaveBeenCalled()
     vi.resetModules()
-    meta.outputs[portable].imports.push({ path: chunk, kind: 'import-statement' })
+    measurePortableStartup.mockResolvedValue(
+      ['native', 'companion'].map((variant) => ({
+        variant,
+        outputs: [portable, loader, eager, css, chunk],
+      })),
+    )
     await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
     expect(console.log).toHaveBeenCalledWith(
-      'OVER portable native startup JS: 1100.0 KiB (budget 1100 KiB)',
+      'OVER portable native startup JS/CSS: 1100.0 KiB (budget 1100 KiB)',
     )
     expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('OVER portable total'))
-  })
-  it('rejects an awaited optional boot import above startup, but admits the same import after mount', async () => {
-    meta.outputs[chunk].entryPoint = 'src/webview/optional.tsx'
-    const readMeta = readFileSync.getMockImplementation()
-    let body = "mountChat(); await import('./optional')"
-    readFileSync.mockImplementation((file) =>
-      file === 'src/webview/portable.tsx' ? `async function mount() { ${body} }` : readMeta(file),
-    )
-    const sizes = { [portable]: startupBudget - 1, [chunk]: 2 }
-    statSync.mockImplementation((file) => ({ size: sizes[file] ?? 0 }))
-    await import('../../scripts/check-bundle-size.mjs')
-    expect(process.exit).not.toHaveBeenCalled()
-    vi.resetModules()
-    body = "await bootImport(() => import('./optional')); mountChat()"
-    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
-    expect(console.log).toHaveBeenCalledWith(
-      'OVER portable native startup JS: 1100.0 KiB (budget 1100 KiB)',
-    )
-    expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('OVER portable total'))
-    vi.resetModules()
-    body = "await Promise.all([import('./optional')]); mountChat()"
-    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow(
-      'Unmarked portable boot import',
-    )
   })
   it.each([chunk, loader])('rejects a missing portable output %s', async (missing) => {
     existsSync.mockImplementation((file) => file !== missing)
