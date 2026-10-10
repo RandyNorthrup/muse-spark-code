@@ -9,6 +9,7 @@ import type { TeamEditorRole, TeamPanelMessage, TeamPanelSlice } from '../../../
 import { useState } from 'react'
 import { TextField } from './fields'
 import { PoolEditor } from './PoolEditor'
+import { usePropDraft } from './propDraft'
 
 export function RoleEditor({
   role,
@@ -20,6 +21,9 @@ export function RoleEditor({
   readonly post: (message: TeamPanelMessage) => void
 }) {
   const [toolQuery, setToolQuery] = useState('')
+  // Rapid consecutive ticks build on the latest local tool set, never on
+  // host props that may predate a tick the host has not echoed yet.
+  const [tools, updateTools] = usePropDraft(role.tools)
   const view = slice.roleViews.find((item) => item.role === role.role)
   const update = (fields: Extract<TeamPanelMessage, { type: 'roles/updateRole' }>['fields']) => {
     post({ type: 'roles/updateRole', role: role.role, fields })
@@ -123,13 +127,14 @@ export function RoleEditor({
             <label key={group} className="team-editor-tool">
               <input
                 type="checkbox"
-                checked={role.tools?.includes(group) ?? false}
+                checked={tools?.includes(group) ?? false}
                 onChange={(event) => {
-                  update({
-                    tools: event.target.checked
-                      ? [...(role.tools ?? []), group]
-                      : (role.tools?.filter((item) => item !== group) ?? []),
-                  })
+                  const draft = updateTools((previous) =>
+                    event.target.checked
+                      ? [...(previous ?? []), group]
+                      : (previous?.filter((item) => item !== group) ?? []),
+                  )
+                  update({ tools: draft })
                 }}
               />
               {group}

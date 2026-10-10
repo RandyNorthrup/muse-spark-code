@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { webviewKey } from '../../../../shared/keybindings'
 import { UI_TEXT } from '../../../../shared/constants'
 import { fill, formatNumber } from '../../../../shared/l10n/text'
@@ -6,6 +6,7 @@ import { teamCapMeasures, teamCapWindows } from '../../../../shared/teamConfig'
 import type { TeamEditorRole, TeamPanelMessage, TeamPanelSlice } from '../../../../shared/teamPanel'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { ModelSettings, NumberField } from './fields'
+import { usePropDraft } from './propDraft'
 
 export function PoolEditor({
   role,
@@ -25,6 +26,15 @@ export function PoolEditor({
       fill(UI_TEXT.teamEditor.moveLabel, { entry: entryId, position: formatNumber(index + 1) }),
     )
   }
+  // Rapid consecutive cap edits build on the latest local caps, never on
+  // host props that may predate an edit the host has not echoed yet. The
+  // record keeps its identity while the pool does, so local renders do
+  // not look like new host values to the draft.
+  const poolCaps = useMemo(
+    () => Object.fromEntries(role.pool.map((entry) => [entry.id, entry.caps])),
+    [role.pool],
+  )
+  const [capDrafts, updateCapDrafts] = usePropDraft(poolCaps)
   const view = slice.roleViews.find((item) => item.role === role.role)
   const measureNames = {
     tokens: UI_TEXT.teamUsageTokens,
@@ -82,7 +92,15 @@ export function PoolEditor({
             entry.agent === undefined
               ? fill(UI_TEXT.teamDefaultResolves, { model: slice.defaultRef })
               : (offer?.label ?? entry.agent.model)
-          const capPost = (capIndex: number, cap: (typeof entry.caps)[number] | undefined) => {
+          const caps = capDrafts[entry.id] ?? entry.caps
+          const capPost = (capIndex: number, cap: (typeof caps)[number] | undefined) => {
+            updateCapDrafts((previous) => {
+              const current = previous[entry.id] ?? entry.caps
+              const next = [...current]
+              if (cap === undefined) next.splice(capIndex, 1)
+              else next.splice(capIndex, capIndex === current.length ? 0 : 1, cap)
+              return { ...previous, [entry.id]: next }
+            })
             post({ type: 'roles/cap', role: role.role, entryId: entry.id, index: capIndex, cap })
           }
           return (
@@ -148,7 +166,7 @@ export function PoolEditor({
               <p className="models-hint">{view?.reasons[entry.id]}</p>
               <fieldset className="team-editor-caps">
                 <legend>{UI_TEXT.teamEditor.caps}</legend>
-                {entry.caps.map((cap, capIndex) => (
+                {caps.map((cap, capIndex) => (
                   <div key={capIndex} className="team-editor-cap">
                     {role.custom === true ? null : (
                       <p className="models-hint">
@@ -216,7 +234,7 @@ export function PoolEditor({
                   type="button"
                   className="models-button"
                   onClick={() => {
-                    capPost(entry.caps.length, {
+                    capPost(caps.length, {
                       measure: 'tokens',
                       window: 'lifetime',
                       amount:
