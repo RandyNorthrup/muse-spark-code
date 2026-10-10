@@ -282,7 +282,7 @@ export const EN = {
   estimateCommandTitle: 'Open Estimator',
   estimateUsage: 'Usage: /estimate <goal> [--by <date>] [--fleet current|minimum|optimum]',
   estimateCliHelp:
-    'Estimate a goal using linked machines, agent slots, accounts and CI; no model call.',
+    'Estimate a goal using linked machines, agent slots, accounts and CI; no model call. Not available yet: snapshots refuse with M117-W-M113-plan-reader until the plan reader is bound.',
   estimateCiUnavailable: 'CI minutes unavailable',
   estimateInstalling: 'Installing node',
   estimatePairing: 'Pairing node',
@@ -576,7 +576,7 @@ export const EN = {
   referenceDiagnostics: 'Show local backend and extension diagnostics.',
   referenceReport: 'Preview a scrubbed problem report before saving or sending it.',
   referenceEstimate:
-    'Ship-date forecast for a goal from the current fleet, or the setup a target date needs.',
+    'Ship-date forecast for a goal from the current fleet, or the setup a target date needs. Not available yet: /estimate waits on the plan-reader binding.',
   referenceTerminal: 'Open the Muse Code CLI in the editor’s terminal.',
   referenceRules: 'Create or open AGENTS.md in the workspace root.',
   referenceWalkthrough: 'Open the Getting Started walkthrough.',

@@ -63,21 +63,24 @@ hash verification and migrate when read.
   release and change reports from local facts, in Markdown, HTML, JSON or text,
   with saved history and comparisons; nothing is sent to a model.
 - **Capacity estimates (preview).** `/estimate <goal>` and the Estimator are in
-  place and verified with test data. Real forecasts need the plan reader that
-  comes later; until then they say so instead of guessing.
+  place and verified with test data. Real forecasts wait on the plan-reader
+  binding (the reader is on main but unbound); until then they say so instead
+  of guessing.
 - **Several accounts per provider.** List provider accounts, see the current
   one and its thresholds; a vendor limit blocks only the affected account.
 - **Orchestrator playbook.** The nine orchestration rules ship as a first-party
   skill. In the ACP agent and the CLI, `/playbook status`, `record` and
-  `settings` answer locally; the VS Code panel follows.
+  `settings` answer locally; the VS Code panel does not enforce them yet.
 - **Refreshed design.** Shared design tokens and generated palettes style every
   panel surface; an optional pinned OFL font pack serves standalone installs.
 
 ### Earlier in 0.16.0
 
 - **Loop guarantees.** Strict tool contracts, bounded hosted search and streamed
-  argument previews help you follow Model API tool calls. Independent reads can
-  run concurrently while their results keep call order. The loop bounds
+  tool rows help you follow Model API tool calls. Independent reads can
+  run concurrently while their results keep call order. Today: rows stream while
+  arguments arrive, but the argument text is not shown yet (no production tool
+  declares preview fields). The loop bounds
   continuations, refuses cut-short tool execution and stops repeated unchanged
   calls. Structured side calls validate answers; headless runs can require a
   bounded final-answer schema. See [Agent loop guarantees](#agent-loop-guarantees)
@@ -104,7 +107,8 @@ hash verification and migrate when read.
   preview for eligible Plus/Pro accounts; Copilot uses a compatible VS Code
   host's models. Features follow each selected model's capabilities.
 - **Agent roles and teams.** Configure role pools, task limits and worker
-  review. Paid workers require consent and share the daily budget.
+  review. Paid workers require consent and share the daily budget. Today:
+  teams of workers in isolated workspaces cannot be created yet.
 - **/legal.** Scan licensing, copyright and source evidence without a model
   call, export the report, and confirm supported header repairs. The report
   states its coverage limits; it is not a legal certificate.
@@ -2184,8 +2188,8 @@ The estimator routes are wired, but real forecasts are **not available yet**.
 The composer `/estimate <goal> [--by <date>] [--fleet
 current|minimum|optimum]`, ACP `/estimate`, **Open Estimator**, and standalone
 `muse-spark-code-acp estimate` use one lazy engine. Production snapshots refuse
-with `M117-W-M113-plan-reader` until the plan reader lands; fleet/catalog
-integration also waits for M113. `muse-spark-code-acp estimate --help` shows the
+with `M117-W-M113-plan-reader` until the plan reader is bound (present on main,
+unbound); fleet/catalog integration also waits for M113. `muse-spark-code-acp estimate --help` shows the
 standalone syntax without starting a model or asking for credentials.
 
 - **Verified with fakes.** The engine returns P50/P90 dates, critical-path
