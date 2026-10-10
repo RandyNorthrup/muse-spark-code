@@ -26370,6 +26370,16 @@ Status detail retained: planned; starts after M96 merges. C-M96b-0 froze the
 ACP mapping and exec flag contracts (`src/acp/teamContracts.ts`, certified in
 `docs/certification/m96b-0.md`); the wiring follows in C-M96b-1/2.
 
+RVCM96B0B round 3 closes the builder/schema consistency class before lead
+acceptance: every structured builder validates its final value against its
+frozen schema and refuses invalid content with a typed contract error. The
+sweep includes diff/report builders, task updates, Bypass merges, permission
+options and plan entries. Regression expectations come from the ACP SDK's
+exported schema, including every option and content kind; seeded random
+builder inputs must either throw or produce a schema-valid value. Red drills
+and scoped rig receipts live in `docs/certification/m96b.md`. No contract
+widening, dependency, runtime wiring or paid/live call is part of this repair.
+
 - **Goal.** The same team, roles, pools and caps work in the ACP agent (D62)
   and in headless `exec` (D65), with each surface's own way of asking.
 - **The ACP agent.**
@@ -42647,10 +42657,10 @@ threshold, ignore or rule is changed.
 | `test/unit/transcribeBatch.test.ts`: `'NaN' as UsdAmount`                                 | Intentional malformed canonical port; constructors refuse it, so the existing runtime refusal probe bypasses the brand without a credential or paid call.                                                                       |
 | `test/unit/paidMoneyStructure.test.ts` `trackedDebt` allow-list (41 numeric money fields) | Numeric current money the 0.17 ports did not convert; each entry names milestone M121, which converts it to `UsdAmount` and empties the category. The guard fails on any unlisted money leaf, so the list cannot grow silently. |
 
-| Location                                                                   | Escape hatch                     | Reason                                                                                                                                                                                                                                                                                                                                           |
-| -------------------------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `test/unit/schedulePaid.test.ts:74` (`MALFORMED_USD`)                      | `'NaN' as UsdAmount`             | Defense-in-depth probes inject malformed money into the estimate and durable reservation ports. `Usd.from` and the schema both reject NaN, so no valid constructor can produce this branded value; constructing it inside the probe would bypass the production refusal being tested. Test-only; both refusal assertions are retained.           |
-| `test/unit/acpTeamContracts.test.ts` (`accepts only the SDK option kinds`) | `as unknown as PermissionOption` | Defense-in-depth probes smuggle invalid option kinds past the typed merge port so the builder's own runtime refusal still executes: the SDK type cannot spell an invalid kind, and constructing one inside the probe would bypass the production refusal being tested. Test-only; the schema refusal assertions for the same kinds are retained. |
+| Location                                              | Escape hatch         | Reason                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ----------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/schedulePaid.test.ts:74` (`MALFORMED_USD`) | `'NaN' as UsdAmount` | Defense-in-depth probes inject malformed money into the estimate and durable reservation ports. `Usd.from` and the schema both reject NaN, so no valid constructor can produce this branded value; constructing it inside the probe would bypass the production refusal being tested. Test-only; both refusal assertions are retained.                                                                                            |
+| `test/unit/acpTeamContracts.test.ts` (`atRuntime`)    | `as T`               | Defense-in-depth and seeded property probes inject malformed caller values and SDK-schema-derived strings through typed builder ports. The SDK types cannot spell invalid inputs; this test-only helper exercises production refusal without validating the input first. Every returned value is checked against its frozen schema; valid option and content expectations come independently from the SDK's exported JSON schema. |
 
 | SPAWN017B location          | Escape hatch                               | Reason                                                                                                                                                                   | Removal                                                                            |
 | --------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |

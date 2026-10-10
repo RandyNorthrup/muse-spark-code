@@ -8,7 +8,6 @@
 import * as z from 'zod/mini'
 import type {
   PermissionOption,
-  PermissionOptionKind,
   PlanEntry,
   RequestPermissionRequest,
   ToolCallContent,
@@ -28,9 +27,25 @@ export const TEAM_PLAN_PRIORITY = 'medium'
 /** The separator between the role and the agent in a permission title. */
 const TITLE_SEPARATOR = ' \u{B7} '
 
+/** A caller value cannot be represented by the frozen team contract. */
+export class TeamContractError extends Error {
+  override readonly name = 'TeamContractError'
+}
+
+/** Validate the complete output, preserving D36's unknown additional fields. */
+function checkedContract<T>(schema: z.ZodMiniType, value: T): T {
+  const checked = schema.safeParse(value)
+  if (!checked.success)
+    throw new TeamContractError('M96b: a team builder rejected its frozen contract', {
+      cause: checked.error,
+    })
+  return value
+}
+
 /** A `/` in an id would fake a hierarchy, so task and merge ids never hold one. */
 function checkedId(kind: 'task' | 'merge', id: string): string {
-  if (id === '' || id.includes('/')) throw new Error(`M96b: the team ${kind} id is not addressable`)
+  if (typeof id !== 'string' || id === '' || id.includes('/'))
+    throw new TeamContractError(`M96b: the team ${kind} id is not addressable`)
   return id
 }
 
@@ -56,12 +71,13 @@ const TITLE_LINE_BREAK = /[\r\n\u{2028}\u{2029}]/u
 
 function checkedTitlePart(kind: 'role' | 'agent', value: string): string {
   if (
+    typeof value !== 'string' ||
     value === '' ||
     value.includes(TITLE_SEPARATOR.trim()) ||
     value.includes(AGENT_DETAIL_SEPARATOR) ||
     TITLE_LINE_BREAK.test(value)
   )
-    throw new Error(`M96b: the team ${kind} cannot start a permission title`)
+    throw new TeamContractError(`M96b: the team ${kind} cannot start a permission title`)
   return value
 }
 
@@ -77,7 +93,8 @@ export function formatTeamPermissionTitle(input: {
 }): string {
   const role = checkedTitlePart('role', input.role)
   const agent = checkedTitlePart('agent', input.agent)
-  if (input.detail === '') throw new Error('M96b: a team permission title needs its detail')
+  if (input.detail === '')
+    throw new TeamContractError('M96b: a team permission title needs its detail')
   return fill(UI_TEXT.acpTeamPermissionTitle, { role, agent, detail: input.detail })
 }
 
@@ -154,14 +171,22 @@ export function teamDiff(input: {
   readonly oldText: string | null
   readonly newText: string
 }): ToolCallContent {
-  const path = normalizeTeamPath(input.path)
-  if (path === '') throw new Error('M96b: a team diff needs its path')
-  return { type: 'diff', path, oldText: input.oldText, newText: input.newText }
+  if (typeof input.path !== 'string')
+    throw new TeamContractError('M96b: a team diff needs its path')
+  return checkedContract(teamDiffSchema, {
+    type: 'diff',
+    path: normalizeTeamPath(input.path),
+    oldText: input.oldText,
+    newText: input.newText,
+  })
 }
 
 /** A task's report as its tool call's text content. */
 export function teamReportContent(report: string): ToolCallContent {
-  return { type: 'content', content: { type: 'text', text: report } }
+  return checkedContract(teamToolContentSchema, {
+    type: 'content',
+    content: { type: 'text', text: report },
+  })
 }
 
 // Frozen wire shapes (AGENTS.md rule 7): loose, so anything the wire adds
@@ -192,12 +217,12 @@ export function teamTaskToolCall(input: {
   readonly agent: string
   readonly detail: string
 }): ToolCallUpdate {
-  return {
+  return checkedContract(teamTaskUpdateSchema, {
     toolCallId: teamTaskToolCallId(input.taskId),
     title: formatTeamPermissionTitle(input),
     kind: TEAM_TASK_TOOL_KIND,
     status: 'in_progress',
-  }
+  })
 }
 
 /**
@@ -210,20 +235,20 @@ export function teamTaskReportUpdate(input: {
   readonly report: string
   readonly diffs?: readonly ToolCallContent[]
 }): ToolCallUpdate {
-  return {
+  const diffs = checkedContract(z.array(teamToolContentSchema), input.diffs ?? [])
+  return checkedContract(teamTaskUpdateSchema, {
     toolCallId: teamTaskToolCallId(input.taskId),
     status: 'completed',
-    content: [teamReportContent(input.report), ...(input.diffs ?? [])],
-  }
+    content: [teamReportContent(input.report), ...diffs],
+  })
 }
 
 /**
  * A permission or diff update shows a patch: at least one entry is a real
  * diff, so no accepted update asks for or shows a merge without its patch.
  */
-function checkedDiffs(diffs: readonly ToolCallContent[], message: string): ToolCallContent[] {
-  if (diffs.every((entry) => entry.type !== 'diff')) throw new Error(message)
-  return [...diffs]
+function checkedDiffs(diffs: readonly ToolCallContent[]): ToolCallContent[] {
+  return [...checkedContract(teamMergeContentSchema, diffs)]
 }
 
 /** A working task's file changes: its diffs are the call's content. */
@@ -231,11 +256,11 @@ export function teamTaskDiffUpdate(input: {
   readonly taskId: string
   readonly diffs: readonly ToolCallContent[]
 }): ToolCallUpdate {
-  return {
+  return checkedContract(teamTaskUpdateSchema, {
     toolCallId: teamTaskToolCallId(input.taskId),
     status: 'in_progress',
-    content: checkedDiffs(input.diffs, 'M96b: a team diff update carries its diffs'),
-  }
+    content: checkedDiffs(input.diffs),
+  })
 }
 
 /** The tool call identity every team announcement and update shares. */
@@ -263,12 +288,14 @@ export interface TeamPlanTask {
  * `plan` with one entry per running task (PLAN.md M96b).
  */
 export function teamPlanEntries(tasks: readonly TeamPlanTask[]): PlanEntry[] {
-  return tasks.map((task) => ({
-    content: task.title,
-    priority: TEAM_PLAN_PRIORITY,
-    status: 'in_progress',
-    _meta: { teamTask: checkedId('task', task.taskId) },
-  }))
+  return tasks.map((task) =>
+    checkedContract(teamPlanEntrySchema, {
+      content: task.title,
+      priority: TEAM_PLAN_PRIORITY,
+      status: 'in_progress',
+      _meta: { teamTask: checkedId('task', task.taskId) },
+    }),
+  )
 }
 
 /** One agent-map entry, exactly the SDK `PlanEntry` shape. */
@@ -290,12 +317,6 @@ export const TEAM_PERMISSION_OPTION_KINDS = [
   'reject_always',
 ] as const
 
-function checkedOptionKind(kind: string): PermissionOptionKind {
-  const found = TEAM_PERMISSION_OPTION_KINDS.find((candidate) => candidate === kind)
-  if (found === undefined) throw new Error('M96b: a team merge offers options the editor can show')
-  return found
-}
-
 const teamPermissionOptionSchema = z.looseObject({
   optionId: z.string().check(z.minLength(1)),
   name: z.string(),
@@ -316,14 +337,12 @@ export function teamMergeRequest(input: {
   readonly diffs: readonly ToolCallContent[]
   readonly options: readonly PermissionOption[]
 }): RequestPermissionRequest {
-  if (input.sessionId === '') throw new Error('M96b: a team merge needs its session')
-  const diffs = checkedDiffs(input.diffs, 'M96b: a team merge carries its diff')
-  if (input.options.length === 0) throw new Error('M96b: a team merge offers its options')
-  const options = input.options.map((option) => ({
-    ...option,
-    kind: checkedOptionKind(option.kind),
-  }))
-  return {
+  const diffs = checkedDiffs(input.diffs)
+  const options = checkedContract(
+    z.array(teamPermissionOptionSchema).check(z.minLength(1)),
+    input.options,
+  )
+  return checkedContract(teamMergeRequestSchema, {
     sessionId: input.sessionId,
     toolCall: {
       toolCallId: teamMergeToolCallId(input.mergeId),
@@ -332,8 +351,8 @@ export function teamMergeRequest(input: {
       status: 'pending',
       content: diffs,
     },
-    options,
-  }
+    options: [...options],
+  })
 }
 
 /** The merge where asking is off: the same diffs as one completed call. */
@@ -344,17 +363,17 @@ export function teamMergeCompletedCall(input: {
   readonly detail: string
   readonly diffs: readonly ToolCallContent[]
 }): ToolCallUpdate {
-  return {
+  return checkedContract(teamTaskUpdateSchema, {
     toolCallId: teamMergeToolCallId(input.mergeId),
     title: formatTeamPermissionTitle(input),
     kind: TEAM_TASK_TOOL_KIND,
     status: 'completed',
-    content: checkedDiffs(input.diffs, 'M96b: a team merge carries its diff'),
-  }
+    content: checkedDiffs(input.diffs),
+  })
 }
 
 /**
- * What a merge permission carries: the report-free content with at least one
+ * What a merge permission carries: the frozen content with at least one
  * real diff, so the editor never asks for a merge without showing its patch.
  * (The frozen task content above stays the SDK's own text-or-diff subset:
  * `ToolCallContent` is `content` | `diff` | `terminal`, and nothing frozen

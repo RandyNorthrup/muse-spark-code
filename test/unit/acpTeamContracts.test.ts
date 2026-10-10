@@ -1,7 +1,10 @@
 // M96b contracts (C-M96b-0, PLAN.md D75): the frozen ACP team mapping.
-import type { PermissionOption, ToolCallContent } from '@agentclientprotocol/sdk'
+import type { ContentBlock, PermissionOption, ToolCallContent } from '@agentclientprotocol/sdk'
+import sdkSchema from '@agentclientprotocol/sdk/schema/schema.json'
 import { describe, expect, it } from 'vitest'
+import * as z from 'zod/mini'
 import {
+  TeamContractError,
   TEAM_PERMISSION_OPTION_KINDS,
   TEAM_PLAN_PRIORITY,
   TEAM_TASK_TOOL_KIND,
@@ -31,6 +34,25 @@ import { UI_TEXT } from '../../src/shared/constants'
 
 const DIFF = teamDiff({ path: '/repo/a.ts', oldText: 'a', newText: 'b' })
 const OPTIONS: PermissionOption[] = [{ optionId: 'yes', name: 'Yes', kind: 'allow_once' }]
+const SDK_OPTION_KINDS = sdkSchema.$defs.PermissionOptionKind.oneOf.map((option) => option.const)
+const SDK_CONTENT_BLOCKS: Record<string, ContentBlock> = {
+  text: { type: 'text', text: 'report' },
+  image: { type: 'image', data: 'AA==', mimeType: 'image/png' },
+  audio: { type: 'audio', data: 'AA==', mimeType: 'audio/wav' },
+  resource_link: { type: 'resource_link', uri: 'file:///repo/a.ts', name: 'a.ts' },
+  resource: { type: 'resource', resource: { uri: 'file:///repo/a.ts', text: 'a' } },
+}
+const SDK_TOOL_CONTENT: Record<string, ToolCallContent> = {
+  content: { type: 'content', content: { type: 'text', text: 'report' } },
+  diff: DIFF,
+  terminal: { type: 'terminal', terminalId: 'term' },
+}
+
+function atRuntime<T>(input: NoInfer<T> | object | null | number): T {
+  // NoInfer keeps malformed input from choosing the typed port's return shape.
+  // Deliberately bypass the typed port to test malformed caller values (PLAN.md §8).
+  return input as T
+}
 
 describe('M96b team tool call ids', () => {
   it('namespaces tasks and merges under team/', () => {
@@ -228,15 +250,22 @@ describe('M96b merge permission request', () => {
   // `PermissionOptionKind` — every valid kind passes, anything else fails.
   it('accepts only the SDK option kinds', () => {
     const request = teamMergeRequest(input)
-    for (const kind of TEAM_PERMISSION_OPTION_KINDS) {
+    expect(TEAM_PERMISSION_OPTION_KINDS).toEqual(SDK_OPTION_KINDS)
+    for (const kind of SDK_OPTION_KINDS) {
+      const options: PermissionOption[] = [atRuntime({ optionId: 'yes', name: 'Yes', kind })]
       expect(
         teamMergeRequestSchema.safeParse({
           ...request,
-          options: [{ optionId: 'yes', name: 'Yes', kind }],
+          options,
         }).success,
       ).toBe(true)
+      expect(teamMergeRequest({ ...input, options }).options).toEqual(options)
     }
-    const invalidKinds = ['approved', 'allow', 'ALLOW_ONCE', '', 'allow_once ', 'deny_always']
+    const invalidKinds = [
+      '',
+      'approved',
+      ...SDK_OPTION_KINDS.flatMap((kind) => [kind.toUpperCase(), `${kind} `, `_${kind}`]),
+    ].filter((kind) => !SDK_OPTION_KINDS.includes(kind))
     for (const kind of invalidKinds) {
       expect(
         teamMergeRequestSchema.safeParse({
@@ -244,10 +273,8 @@ describe('M96b merge permission request', () => {
           options: [{ optionId: 'yes', name: 'Yes', kind }],
         }).success,
       ).toBe(false)
-      // The probe below smuggles a string past the typed port on purpose so
-      // the builder's own runtime refusal still executes (PLAN.md §8).
-      const smuggled = { optionId: 'yes', name: 'Yes', kind } as unknown as PermissionOption
-      expect(() => teamMergeRequest({ ...input, options: [smuggled] })).toThrow()
+      const smuggled: PermissionOption = atRuntime({ optionId: 'yes', name: 'Yes', kind })
+      expect(() => teamMergeRequest({ ...input, options: [smuggled] })).toThrow(TeamContractError)
     }
   })
   it('shows the merge as one completed call where asking is off', () => {
@@ -258,6 +285,218 @@ describe('M96b merge permission request', () => {
       status: 'completed',
     })
     expect(teamTaskUpdateSchema.safeParse(call).success).toBe(true)
+  })
+})
+
+describe('RVCM96B0B builder/schema consistency', () => {
+  const input = {
+    sessionId: 's1',
+    mergeId: 'm1',
+    role: 'merger',
+    agent: 'zed',
+    detail: 'Land t1',
+    diffs: [DIFF],
+    options: OPTIONS,
+  }
+
+  function refusesContent(diffs: readonly ToolCallContent[]): void {
+    expect(() => teamMergeRequest({ ...input, diffs })).toThrow(TeamContractError)
+    expect(() => teamMergeCompletedCall({ ...input, diffs })).toThrow(TeamContractError)
+    expect(() => teamTaskDiffUpdate({ taskId: 't1', diffs })).toThrow(TeamContractError)
+    expect(() => teamTaskReportUpdate({ taskId: 't1', report: 'done', diffs })).toThrow(
+      TeamContractError,
+    )
+  }
+
+  it('refuses empty-path diffs in every content builder', () => {
+    refusesContent([{ type: 'diff', path: '', oldText: 'a', newText: 'b' }])
+  })
+
+  it('accepts only frozen content kinds from the SDK schema', () => {
+    // Enumerate SDK variants independently: a new SDK kind needs a fixture and review.
+    const content = sdkSchema.$defs.ToolCallContent.oneOf.map((variant) => {
+      const sample = SDK_TOOL_CONTENT[variant.properties.type.const]
+      if (sample === undefined) throw new Error('Missing SDK tool content fixture')
+      return sample
+    })
+    for (const variant of sdkSchema.$defs.ContentBlock.oneOf) {
+      const sample = SDK_CONTENT_BLOCKS[variant.properties.type.const]
+      if (sample === undefined) throw new Error('Missing SDK content block fixture')
+      content.push({ type: 'content', content: sample })
+    }
+    for (const sample of content) {
+      const isAccepted =
+        sample.type === 'diff' || (sample.type === 'content' && sample.content.type === 'text')
+      expect(teamToolContentSchema.safeParse(sample).success).toBe(isAccepted)
+      const diffs = [DIFF, sample]
+      if (isAccepted) {
+        expect(teamMergeRequest({ ...input, diffs }).toolCall.content).toEqual(diffs)
+        expect(teamMergeCompletedCall({ ...input, diffs }).content).toEqual(diffs)
+        expect(teamTaskDiffUpdate({ taskId: 't1', diffs }).content).toEqual(diffs)
+        expect(teamTaskReportUpdate({ taskId: 't1', report: 'done', diffs }).content).toEqual([
+          teamReportContent('done'),
+          ...diffs,
+        ])
+      } else refusesContent(diffs)
+    }
+    for (const kind of [
+      '',
+      ...sdkSchema.$defs.ToolCallContent.oneOf.map(
+        (variant) => `${variant.properties.type.const}_unknown`,
+      ),
+    ])
+      refusesContent([DIFF, atRuntime({ type: kind })])
+    for (const variant of sdkSchema.$defs.ContentBlock.oneOf)
+      refusesContent([
+        DIFF,
+        atRuntime({
+          type: 'content',
+          content: { type: `${variant.properties.type.const}_unknown` },
+        }),
+      ])
+  })
+
+  it('validates sibling diff, report, option and plan fields', () => {
+    expect(() => teamDiff(atRuntime({ path: '/a', oldText: 1, newText: 'b' }))).toThrow(
+      TeamContractError,
+    )
+    expect(() => teamDiff(atRuntime({ path: '/a', oldText: null, newText: null }))).toThrow(
+      TeamContractError,
+    )
+    expect(() => teamReportContent(atRuntime(null))).toThrow(TeamContractError)
+    expect(() => teamPlanEntries([{ taskId: 't1', title: '' }])).toThrow(TeamContractError)
+    for (const option of [
+      { optionId: '', name: 'Yes', kind: 'allow_once' },
+      { optionId: 'yes', name: null, kind: 'allow_once' },
+    ])
+      expect(() => teamMergeRequest({ ...input, options: [atRuntime(option)] })).toThrow(
+        TeamContractError,
+      )
+  })
+
+  it('preserves unknown fields through validated output', () => {
+    const diff = { type: 'diff', path: '/a', newText: 'b', future: { version: 1 } }
+    const option = { ...OPTIONS[0], future: { version: 1 } }
+    const request = teamMergeRequest({
+      ...input,
+      diffs: [atRuntime(diff)],
+      options: [atRuntime(option)],
+    })
+    expect(request.toolCall.content).toEqual([diff])
+    expect(request.options).toEqual([option])
+    expect(teamMergeRequestSchema.safeParse(request).success).toBe(true)
+  })
+
+  it('random builder inputs either throw typed errors or pass their frozen schemas', () => {
+    let seed = 96_003
+    function pick<T>(values: readonly T[]): T {
+      seed = (Math.imul(seed, 1_664_525) + 1_013_904_223) >>> 0
+      const chosen = values[Math.floor((seed / 4_294_967_296) * values.length)]
+      if (chosen === undefined) throw new Error('Empty random input domain')
+      return chosen
+    }
+    const counts = new Map<string, { accepted: number; refused: number }>()
+    for (let attempt = 0; attempt < 500; attempt++) {
+      const candidate = {
+        taskId: pick(['t1', 't2', '', 'a/b', 1, null]),
+        mergeId: pick(['m1', 'm2', '', 'a/b', 1, null]),
+        sessionId: pick(['s1', '', 1, null]),
+        role: pick(['coder', 'merger', '', 'a: b', 'a\nb', null]),
+        agent: pick(['zed', 'worker', '', 'a · b', 'a\u{2028}b', null]),
+        detail: pick(['Write x', 'Merge', '', 'a: b\nc']),
+        path: pick(['/a', String.raw`C:\repo\a.ts`, '', 1, null]),
+        oldText: pick(['a', '', null, 1]),
+        newText: pick(['b', '', null, 1]),
+        report: pick(['done', '', null, 1]),
+        title: pick(['First', '', null, 1]),
+        diffs: pick([
+          [DIFF],
+          [DIFF, teamReportContent('note')],
+          [],
+          [{ type: 'diff', path: '', newText: 'b' }],
+          [DIFF, SDK_TOOL_CONTENT['terminal']],
+          [null],
+          null,
+        ]),
+        options: pick([
+          ...SDK_OPTION_KINDS.map((kind) => [{ optionId: 'yes', name: 'Yes', kind }]),
+          [{ optionId: '', name: 'Yes', kind: 'allow_once' }],
+          [{ optionId: 'yes', name: 'Yes', kind: 'unknown' }],
+          [],
+          null,
+        ]),
+      }
+      // Seed one valid input for every builder; the property cannot pass by refusing everything.
+      if (attempt === 0)
+        Object.assign(candidate, {
+          ...input,
+          taskId: 't1',
+          path: '/a',
+          oldText: null,
+          newText: 'b',
+          report: 'done',
+          title: 'First',
+        })
+      const builders: { name: string; schema: z.ZodMiniType; build: () => unknown }[] = [
+        { name: 'diff', schema: teamDiffSchema, build: () => teamDiff(atRuntime(candidate)) },
+        {
+          name: 'report',
+          schema: teamToolContentSchema,
+          build: () => teamReportContent(atRuntime(candidate.report)),
+        },
+        {
+          name: 'announcement',
+          schema: teamTaskUpdateSchema,
+          build: () => teamTaskToolCall(atRuntime(candidate)),
+        },
+        {
+          name: 'completion',
+          schema: teamTaskUpdateSchema,
+          build: () => teamTaskReportUpdate(atRuntime(candidate)),
+        },
+        {
+          name: 'working',
+          schema: teamTaskUpdateSchema,
+          build: () => teamTaskDiffUpdate(atRuntime(candidate)),
+        },
+        {
+          name: 'merge',
+          schema: teamMergeRequestSchema,
+          build: () => teamMergeRequest(atRuntime(candidate)),
+        },
+        {
+          name: 'bypass',
+          schema: teamTaskUpdateSchema,
+          build: () => teamMergeCompletedCall(atRuntime(candidate)),
+        },
+        {
+          name: 'plan',
+          schema: z.array(teamPlanEntrySchema),
+          build: () => teamPlanEntries(atRuntime([candidate])),
+        },
+      ]
+      for (const builder of builders) {
+        const count = counts.get(builder.name) ?? { accepted: 0, refused: 0 }
+        counts.set(builder.name, count)
+        let output: unknown
+        try {
+          output = builder.build()
+        } catch (error) {
+          expect(error, `${builder.name}: ${String(attempt)}`).toBeInstanceOf(TeamContractError)
+          count.refused++
+          continue
+        }
+        expect(
+          builder.schema.safeParse(output).success,
+          `${builder.name}: ${String(attempt)}`,
+        ).toBe(true)
+        count.accepted++
+      }
+    }
+    for (const [name, count] of counts) {
+      expect(count.accepted, name).toBeGreaterThan(0)
+      expect(count.refused, name).toBeGreaterThan(0)
+    }
   })
 })
 
