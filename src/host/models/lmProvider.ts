@@ -269,18 +269,25 @@ const reasoningEffortFor = (model: ResolvedModel, options: unknown) => {
   const canRunWithoutReasoning =
     canDisable.state === 'yes' ||
     (effortLevels.state === 'yes' && effortLevels.value.includes('none'))
+  // Meta's thinking-off wire value is `minimal` (`none` is a 400); every
+  // other provider runs without reasoning on `none`.
+  const offEffort = model.policy.identity.provider === 'meta' ? MODEL_API_EFFORT_OFF : 'none'
   if (requested !== undefined) {
+    // An explicit off request runs on the same terms as the default below:
+    // it is honoured whenever the catalogue shows the model can run without
+    // reasoning, even when `none` is not a listed level, and it is sent on
+    // the provider's off wire value.
+    if (requested === 'none') {
+      if (supported.state === 'no') return 'none'
+      return canRunWithoutReasoning ? offEffort : fail()
+    }
     return supported.state !== 'no' &&
       effortLevels.state === 'yes' &&
-      effortLevels.value.includes(requested) &&
-      (requested !== 'none' || canRunWithoutReasoning)
+      effortLevels.value.includes(requested)
       ? requested
       : fail()
   }
   if (supported.state === 'no') return 'none'
-  // Meta's thinking-off wire value is `minimal` (`none` is a 400); every
-  // other provider runs without reasoning on `none`.
-  const offEffort = model.policy.identity.provider === 'meta' ? MODEL_API_EFFORT_OFF : 'none'
   if (effortLevels.state === 'yes') {
     if (canRunWithoutReasoning) return offEffort
     const level = effortLevels.value.find((value) => value !== 'none')
