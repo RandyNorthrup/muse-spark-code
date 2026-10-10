@@ -202,6 +202,8 @@ describe('usage assets in the ACP package', () => {
         expect(archived[file.slice('usage.'.length, -'.json'.length)]).toEqual(
           JSON.parse(readFileSync(path.join(f.root, 'l10n', file), 'utf8')),
         )
+    // The packaged companion's Windows free engine (RVCMICCOMP finding 1).
+    expect(files).toContain('package/native/windows/dictate.ps1')
     expect(files).not.toContain('package/dist/webview/main.js')
     expect(files).not.toContain('package/dist/webview/usage.js.map')
     expect(files).not.toContain('package/l10n/untranslated.json')
