@@ -3,10 +3,75 @@ import { webviewKey } from '../../../../shared/keybindings'
 import { UI_TEXT } from '../../../../shared/constants'
 import { fill, formatNumber } from '../../../../shared/l10n/text'
 import { teamCapMeasures, teamCapWindows } from '../../../../shared/teamConfig'
-import type { TeamEditorRole, TeamPanelMessage, TeamPanelSlice } from '../../../../shared/teamPanel'
+import type {
+  TeamEditorRole,
+  TeamPanelMessage,
+  TeamPanelOffer,
+  TeamPanelSlice,
+} from '../../../../shared/teamPanel'
+import type { ModelFilter } from '../../../../shared/modelsPanel'
 import { SearchableSelect } from '../../components/SearchableSelect'
+import { FilterBar } from '../../components/FilterBar'
 import { ModelSettings, NumberField } from './fields'
 import { usePropDraft } from './propDraft'
+
+/** Whether a catalogue offer passes the pool picker's filters (D75: M95's table with its filters). */
+export function isPoolOfferMatch(offer: TeamPanelOffer, filter: ModelFilter): boolean {
+  const needle = filter.search?.trim().toLowerCase() ?? ''
+  if (
+    needle !== '' &&
+    [offer.label, offerDescription(offer), offer.agent.provider ?? '', offer.agent.model].every(
+      (text) => !text.toLowerCase().includes(needle),
+    )
+  )
+    return false
+  if (filter.toolCalling !== undefined && offer.toolCalling !== filter.toolCalling) return false
+  if (filter.vision !== undefined && (offer.imageInput ?? false) !== filter.vision) return false
+  if (filter.reasoning !== undefined && (offer.reasoning ?? false) !== filter.reasoning)
+    return false
+  if (filter.contextMin !== undefined && (offer.contextWindow ?? -1) < filter.contextMin)
+    return false
+  if (filter.contextMax !== undefined && (offer.contextWindow ?? Infinity) > filter.contextMax)
+    return false
+  if (
+    filter.maxInputPerMillion !== undefined &&
+    (offer.inputRate === undefined || offer.inputRate > filter.maxInputPerMillion)
+  )
+    return false
+  if (
+    filter.maxOutputPerMillion !== undefined &&
+    (offer.outputRate === undefined || offer.outputRate > filter.maxOutputPerMillion)
+  )
+    return false
+  if (
+    filter.maxCachedPerMillion !== undefined &&
+    (offer.cachedRate === undefined || offer.cachedRate > filter.maxCachedPerMillion)
+  )
+    return false
+  if (filter.freeOrLocal !== undefined && isFreeOrLocalOffer(offer) !== filter.freeOrLocal)
+    return false
+  if (
+    filter.providerId !== undefined &&
+    (offer.agent.provider ?? offer.agent.agentId) !== filter.providerId
+  )
+    return false
+  return true
+}
+
+function isFreeOrLocalOffer(offer: TeamPanelOffer): boolean {
+  return offer.agent.pays === 'local' || (offer.inputRate === 0 && offer.outputRate === 0)
+}
+
+/** The option line: provider and model with context and price to compare. */
+export function offerDescription(offer: TeamPanelOffer): string {
+  const parts = [`${offer.agent.provider ?? offer.agent.agentId} · ${offer.agent.model}`]
+  if (offer.contextWindow !== undefined)
+    parts.push(`${formatNumber(offer.contextWindow)} ${UI_TEXT.teamUsageTokens}`)
+  if (offer.inputRate !== undefined && offer.outputRate !== undefined)
+    parts.push(`$${String(offer.inputRate)}/$${String(offer.outputRate)}`)
+  else if (offer.agent.pays === 'local') parts.push(UI_TEXT.teamPoolFree)
+  return parts.join(' · ')
+}
 
 export function PoolEditor({
   role,
@@ -43,6 +108,10 @@ export function PoolEditor({
     spendUsd: UI_TEXT.accounts.spend,
     tasks: UI_TEXT.teamUsageTasks,
   }
+  const [poolFilter, setPoolFilter] = useState<ModelFilter>({})
+  const providers = [
+    ...new Set(slice.offers.map((offer) => offer.agent.provider ?? offer.agent.agentId)),
+  ].toSorted((left, right) => (left < right ? -1 : Number(left > right)))
   const options = [
     {
       value: 'default',
@@ -50,12 +119,14 @@ export function PoolEditor({
       description: UI_TEXT.teamDefaultEntry,
       category: 'default',
     },
-    ...slice.offers.map((offer) => ({
-      value: offer.ref,
-      label: offer.label,
-      description: `${offer.agent.provider ?? offer.agent.agentId} · ${offer.agent.model}`,
-      category: offer.agent.kind,
-    })),
+    ...slice.offers
+      .filter((offer) => isPoolOfferMatch(offer, poolFilter))
+      .map((offer) => ({
+        value: offer.ref,
+        label: offer.label,
+        description: offerDescription(offer),
+        category: offer.agent.kind,
+      })),
   ]
   return (
     <fieldset className="team-editor-card">
@@ -64,6 +135,16 @@ export function PoolEditor({
       <p className="models-visually-hidden" aria-live="polite">
         {announcement}
       </p>
+      <FilterBar
+        filter={poolFilter}
+        searchPlaceholder={UI_TEXT.teamAddEntry}
+        providers={providers}
+        families={[]}
+        onChange={setPoolFilter}
+        onClear={() => {
+          setPoolFilter({})
+        }}
+      />
       <SearchableSelect
         label={UI_TEXT.teamAddEntry}
         placeholder={UI_TEXT.groupModel}

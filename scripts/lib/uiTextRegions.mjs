@@ -367,8 +367,15 @@ export const compactBrowserUiText = {
           helpFiles.every((file) => !readFileSync(file, 'utf8').includes(`UI_TEXT.${key}`)),
       )
       // M108: account and developer English load with their optional surfaces.
-      const teamKeys = deferredKeys.filter(
-        (key) => key === 'teamEditor' || key === 'teamEditorRoles',
+      // U1's role labels and pool markers travel with the team chunk too.
+      const teamKeys = deferredKeys.filter((key) =>
+        [
+          'teamEditor',
+          'teamEditorRoles',
+          'teamReportShapes',
+          'teamToolGroups',
+          'teamPoolFree',
+        ].includes(key),
       )
       const accountKeys = deferredKeys.filter((key) => /^(?:accounts|developer)$/.test(key))
       // STARTUP017: the schedule surfaces' English loads beside them; chat
