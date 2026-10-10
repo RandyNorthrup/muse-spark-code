@@ -1209,6 +1209,12 @@ main worktree and dependency symlink are removed after preserving these files.
 
 ## 0.17.1 visual refresh (VIS0171, 2026-10-10)
 
+Round 2 below supersedes the original stop after the lead explicitly approves
+all 120 changed scenes, including the three current release-note scenes. The
+following round-1 record is retained as historical evidence.
+
+### Round 1 historical stopped record
+
 **Stopped under brief step 2's class-(d) rule.** No baseline, README image,
 README input fingerprint or current audit hash is approved or updated. The
 full zero-changed-scene check is not qualified. The remaining five candidate
@@ -1473,3 +1479,75 @@ no merge, rebase, push, paid/live call or external service write occurs. Tempora
 sources are cleaned; capture evidence remains. Automatic command review rejects
 removing the stopped browser profile (`rm -f style commands are not permitted`);
 cleanup is stopped and `temp/m114-visual-profile-XYP9zj` remains ignored.
+
+### Round 2 approved refresh review (2026-10-10)
+
+The lead's second rig brief accepts `7c8338ac5` and `575bb25df` and approves
+116 label-only scenes (a), `models-errors` with labels and provider-picker
+repair (a + c), and `whats-new`, `whats-new-footer`, `whats-new-highlights`
+with 0.17.1's actual release notes (b'). Q-VIS0171-RELEASE-NOTES is resolved.
+The complete candidate comparison covers **9,792 frames**. All **8,640
+above-allowance frames in 120 scenes** are reviewed across light, dark,
+hc-dark, hc-light, One Dark Pro and Dracula, both 320/690 px widths and all
+six states. Each approved scene has 72 reviewed frames. There are zero
+observed differences in components, control-state targets or applied states.
+
+Every changed frame is indexed to before/after regions at native width.
+Exact pixel-pair deduplication preserves each distinct changed region; all
+**6,402 unique regions on 282 sheets** are inspected. All **20 full-frame
+layout overview sheets** cover the same 8,640 frames. The remaining **90
+byte-different frames within the unchanged pixel allowance** are separately
+inspected through **53 unique native regions on six sheets**; they account
+for only two significant pixels under the repository's antialiasing policy.
+Labels are Title Case, prose stays sentence case, and no new clipping or
+overlap is observed. Both question-field scenes retain their spacing. The
+What's New page shows 0.17.1, Oct 10, and its five provider-picker, saving,
+spending-limit, Title Case and question-field highlights. Metadata, frame
+indexes, SHA-256 hashes, dimensions, classifications and review coverage are
+recorded in `docs/certification/vis0171-visual-review.json`; full PNGs remain
+outside git under `/var/tmp/l-VIS0171/vis0171-frame-review`.
+
+The diagnostic comparison was interrupted by SIGTERM after part of the full
+matrix; the unchanged repository capture helper finishes the missing groups.
+The resulting complete frame/hash index is review evidence, not the official
+visual qualification. The repository's full reviewed update is running into
+fresh archive `/var/tmp/l-VIS0171/vis0171-reviewed-final`, review reference
+`VIS0171-0.17.1-labels-provider-notes-2026-10-10`, with capture inputs committed
+at `b7370023d981463baf56549801fa35496673334e`. Its actual manifest must
+independently preserve every historical coverage row before qualification.
+The full unsharded replay and old-baseline failure/restoration drill remain
+pending at this review checkpoint.
+
+`npm run readme:shots` regenerates and review approves all **19 configured
+README captures**: `agents`, `approval`, `question`, `history`, `languages`,
+`modes`, `paid`, `paid-always`, `palette`, `quote`, `rewind`, `slash-commands`,
+`turn`, `usage`, `voice`, `open-question`, `help`, `deterministic-report` and
+`resources`. Eighteen PNGs change; `languages.png` is byte-identical. The
+banner is not a configured capture. All 20 README PNGs occupy **1,495,903 /
+2,097,152 bytes**. The existing eight-input fingerprint is updated to
+`834d4631d87235b58ca2bc90b69b2a199c0fe7aeb2b0de37d4dccf48160b3ec7`.
+All **20 stale current audit source hashes** are refreshed; a semantic
+before/after comparison proves historical grades and evidence are unchanged.
+
+Final owning tests use `npx vitest run <files> --maxWorkers=3`, no timeout
+flag and at most three complete files per invocation:
+
+| Complete files                                                             | Result               |
+| -------------------------------------------------------------------------- | -------------------- |
+| `m114Panel.test.mjs m114Audit.test.mjs readmeShots.test.mjs`               | 95/95 pass; 111.88 s |
+| `visualCapture.test.mjs visualStability.test.mjs visualReadiness.test.mjs` | 19/19 pass; 140.12 s |
+| `visualGate.test.mjs m114PanelEvidence.test.mjs visualMatrix.test.mjs`     | 24/24 pass; 21.00 s  |
+
+All **138/138** owning cases pass at repository deadlines after freshness
+repairs. Five-project `npm run typecheck` exits 0; changed-file ESLint and
+Prettier, plain Knip, localization, reference, host API, tokens, plan and
+roadmap pass. The unchanged duplication gate retains **21 inherited clones /
+289 duplicated lines / 1,980 tokens** in provider-wizard sources/tests; none
+involve lane-edited files. The rig brief leaves aggregate quality and that
+repair with the lead. No gate, threshold, timeout, production schema, UI
+implementation, dependency or budget cap is changed by this refresh.
+
+Review and scoped verification are committed as completed pieces. The ignored
+round-1 profile cleanup remains with the lead after automatic command review
+rejects its deletion; no cleanup workaround is attempted. No merge, rebase,
+push, subagent, paid/live call or external service write occurs.
