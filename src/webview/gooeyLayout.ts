@@ -58,6 +58,7 @@ function column(
   count: number,
   viewport: MenuViewport,
   natural: number,
+  spacing: number,
 ): readonly GooeyPill[] {
   if (count === 0) {
     return []
@@ -66,7 +67,7 @@ function column(
   const height = GOOEY_MENU.pillHeight
   // A panel too short for the resting gap shares out what room there is.
   const room = viewport.height - 2 * pad
-  const gap = count > 1 ? Math.min(GOOEY_MENU.gap, (room - count * height) / (count - 1)) : 0
+  const gap = count > 1 ? Math.min(spacing, (room - count * height) / (count - 1)) : 0
   const step = height + gap
   const total = count * height + (count - 1) * gap
   const first = clamp(anchor.y - total / 2, pad, viewport.height - pad - total)
@@ -110,6 +111,7 @@ export function gooeyLayout(
   count: number,
   viewport: MenuViewport,
   natural: number,
+  spacing: number = GOOEY_MENU.gap,
 ): GooeyPillLayout {
   const pad = GOOEY_MENU.edgePadding
   const point = {
@@ -117,7 +119,7 @@ export function gooeyLayout(
     y: clamp(origin.y, pad, viewport.height - pad),
   }
   const side: GooeySide = point.x < viewport.width / 2 ? 1 : -1
-  return { origin: point, side, pills: column(point, side, count, viewport, natural) }
+  return { origin: point, side, pills: column(point, side, count, viewport, natural, spacing) }
 }
 
 /**
@@ -131,6 +133,7 @@ export function gooeySecondBurst(
   count: number,
   viewport: MenuViewport,
   natural: number,
+  spacing: number = GOOEY_MENU.gap,
 ): GooeyPillLayout | undefined {
   const pill = layout.pills[index]
   if (pill === undefined) {
@@ -140,6 +143,13 @@ export function gooeySecondBurst(
   return {
     origin: centre,
     side: layout.side,
-    pills: column({ x: layout.origin.x, y: centre.y }, layout.side, count, viewport, natural),
+    pills: column(
+      { x: layout.origin.x, y: centre.y },
+      layout.side,
+      count,
+      viewport,
+      natural,
+      spacing,
+    ),
   }
 }

@@ -3122,8 +3122,10 @@ is completed so you can add what follows it), `Tab` completes the name and
   pills and a shallow arc close to the opener, centred on it when there is
   room and shifted whole at a panel edge. Pill width is limited by the room
   beside the opener, keeping it clear even in a narrow panel; long labels
-  end in an ellipsis with their full tooltip. An open highlighted-text menu
-  follows its row’s ⋯ button when you resize the panel.
+  end in an ellipsis with their full tooltip. Every element-anchored menu follows its ⋯ button during scrolling,
+  panel resizing and content reflow, and closes if the button leaves the
+  visible panel or is removed. Hover and pressed decoration stays inside
+  each pill; neighbouring keyboard focus rings retain at least 2 px clearance.
 - A reply's ⋯ menu has **Reply to This Output**: the next message carries
   that output (up to 8,000 characters) to the agent as context. Highlight any text in the chat and
   right-click it for **Copy**, **Ask About This** or **Comment on This**; the

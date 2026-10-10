@@ -35,7 +35,10 @@ happened, not what was planned; superseded entries are kept.
 - Chat action menus fan closer around the **…** button, with 6 px gaps and
   a shallower arc. Highlighted-text actions open at the selected row’s **…**
   button; rows without an opener use the pointer. English menu labels and
-  titles use Title Case.
+  titles use Title Case. Element-anchored menus follow scrolling and content
+  reflow as well as panel resizing, and close when their opener disappears
+  or scrolls out of view. Hover/pressed borders stay inside pills, with
+  token-derived spacing keeping keyboard focus rings 2 px clear of neighbours.
 
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
