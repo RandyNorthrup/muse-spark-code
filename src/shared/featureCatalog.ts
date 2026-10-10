@@ -495,6 +495,8 @@ export function featureCatalog(): readonly Feature[] {
       [],
       'agent-loop-guarantees',
       ['modelApi'],
+      false,
+      ['vscode', 'acp'],
     ),
     feature(
       'cut-short-tools',

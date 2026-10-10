@@ -68,10 +68,11 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     'cut-short-tools',
     'structured-side-calls',
   ].map((id): [string, readonly string[]] => [id, ['vscode:modelApi', 'acp:modelApi']]),
-  ...['argument-preview', 'service-status'].map((id): [string, readonly string[]] => [
+  ...['argument-preview'].map((id): [string, readonly string[]] => [
     id,
-    ['vscode:modelApi'],
+    ['vscode:modelApi', 'acp:modelApi'],
   ]),
+  ...['service-status'].map((id): [string, readonly string[]] => [id, ['vscode:modelApi']]),
   ['native-deletion', ['vscode:museCode']],
   ['output-schema', ['acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],

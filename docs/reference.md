@@ -376,7 +376,7 @@ Commands: —. Settings: `museSpark.modelApiAutoCompaction`. [Documentation](htt
 
 Waiting for complete arguments…
 
-Surfaces: vscode:modelApi. Paid: no extra feature charge; model usage still applies.
+Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
 

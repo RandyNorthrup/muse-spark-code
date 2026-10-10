@@ -534,10 +534,10 @@
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
       "backends": ["modelApi"],
       "paid": false,
-      "surfaces": ["vscode:modelApi"],
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
       "details": [],
       "facts": {},
-      "editors": ["vscode"]
+      "editors": ["vscode", "acp"]
     },
     {
       "id": "cut-short-tools",

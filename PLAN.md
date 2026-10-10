@@ -31329,18 +31329,25 @@ U9-captured `muse-spark-1.3-contributor` model in VS Code and ACP, Meta turns
 in all three hosts request the documented 131,072-token cap, and unobserved
 models keep today's stream and the legacy 32,768-token cap. Headless `exec`
 drops every `tool_call`/`tool_call_update` before its sink, so it records
-completed tools only and never shows live previews. Both production manager
-callers now supply the M95 registry resolver (`extension.ts` builds it from
-the configured provider services, `runtime/backends.ts` reuses the provider
-run's), and the entry's default cap supplier reads the resolved selected
-record before M95's own policy; the ACP translator already renders
-record-emitted previews. Acceptance 1, 6 and 8 hold at the
-host level with feature-off bytes unchanged; the execute-on-a-delta drill and
-the guard-removal red drill (SHA-256 byte-exact restore) are recorded in
-`docs/certification/m106-capability-binding.md`. Open for the lead: live
-Meta receipts from the collector, per-model U9 rows beyond the contributor
-model, qualified-model preview records once a streaming-argument capture
-attests one, and Codex/Grok review.
+completed tools only and never shows live previews. The entry's default cap
+supplier reads the resolved selected record before M95's own policy; the ACP
+translator already renders record-emitted previews. R3 (RVCM1062B, same day)
+withdrew both standalone registry suppliers: the entry binds the selected
+record through the session client's own resolver (accounting-wrapped
+headless, subscription-aware extension/ACP, with the registry as fallback),
+keeping budget admission, subscription models, plan usage and the interactive
+ACP cap; offered IDE/MCP tools render preview text from their declared
+string fields; the preview reference names VS Code and ACP. The lead's
+2026-10-10 live run closed the receipts blocker (raw 16-frame U9 stream
+proves declared-tool TEXT; the 1-token refusal documents the 16-token
+minimum the collector probes next run). Acceptance 1, 6 and 8 hold at the
+host level with feature-off bytes unchanged; the execute-on-a-delta drill,
+the guard-removal red drill and the six R3 drills (SHA-256 byte-exact
+restores) are recorded in
+`docs/certification/m106-capability-binding.md`. Open for the lead:
+per-model U9 rows beyond the contributor model, qualified-model preview
+records once a streaming-argument capture attests one, and Codex/Grok
+review.
 
 **M106W continuation 3 (2026-10-06, macmini).** Resolve the 15 full-suite
 blockers recorded by W: reconcile only D86-authorized behavior changes, repair
