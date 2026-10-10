@@ -19,9 +19,11 @@ happened, not what was planned; superseded entries are kept.
 - **Editor chat reasoning and consent repair** (RVCM95C2B). Editor chat
   defaults to reasoning off (Meta `minimal`, otherwise `none`) whenever the
   catalogue lists an off level or records that reasoning can be disabled, so
-  no billed level is sent that the caller did not request. An Enable click
-  after the model is removed writes no grant, so re-adding the model asks
-  for fresh consent.
+  no billed level is sent that the caller did not request. An explicit
+  reasoning-off request is honoured on the same terms, including
+  toggle-only catalogues, and is sent on the provider's off wire value. An
+  Enable click after the model is removed writes no grant, so re-adding the
+  model asks for fresh consent.
 
 ### Added
 

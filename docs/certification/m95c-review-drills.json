@@ -169,6 +169,19 @@
       "command": "npx vitest run test/unit/lmProvider.test.ts --maxWorkers=3"
     },
     {
+      "id": "R10",
+      "machine": "linuxlt",
+      "file": "src/host/models/lmProvider.ts",
+      "tests": ["test/unit/lmProvider.test.ts"],
+      "namedTest": "honours a requested off level when only the catalogue toggle allows disabling",
+      "redExit": 1,
+      "restoredExit": 0,
+      "beforeSha256": "97c9b5695bb904e06402a224070c09d1ea80771aa1acc8ab2602bb8c7d8c1cd8",
+      "restoredSha256": "97c9b5695bb904e06402a224070c09d1ea80771aa1acc8ab2602bb8c7d8c1cd8",
+      "command": "npx vitest run test/unit/lmProvider.test.ts --maxWorkers=3",
+      "note": "Broken state re-required a listed `none` for a requested off; both the new toggle-only test and the extended native-Meta requested-off assertion failed. Restored byte-exact by copy; SHA-256 matches."
+    },
+    {
       "id": "R7-all",
       "file": "src/host/providers/subscriptionFeatures.ts",
       "tests": ["test/unit/subscriptionIntegration.test.ts"],

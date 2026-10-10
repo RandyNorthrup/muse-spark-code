@@ -461,6 +461,31 @@ describe('editor chat exposure and admission', () => {
     )
     expect(f.sent[0]?.reasoning.effort).toBe('none')
   })
+  it('honours a requested off level when only the catalogue toggle allows disabling', async () => {
+    const f = await fixture()
+    const model = {
+      ...f.model,
+      policy: modelPolicyFor(ref, {
+        pricing: defaultPricing,
+        maxOutputTokens: 100,
+        capabilities: { reasoning: true },
+        canDisableReasoning: true,
+        effortLevels: ['high', 'xhigh'],
+      }),
+    }
+    const engine = createEditorChat({
+      ...f.deps,
+      models: { resolve: () => Promise.resolve(model) },
+    })
+    await engine.provider.provideLanguageModelChatResponse(
+      { id: ref },
+      messages,
+      { modelOptions: { reasoningEffort: 'none' } },
+      f.progress,
+      f.cancellation.value,
+    )
+    expect(f.sent[0]?.reasoning.effort).toBe('none')
+  })
   it('an Enable click after the model is removed writes no grant', async () => {
     const f = await fixture(defaultPricing, false)
     host.window.showWarningMessage.mockImplementation(() => {
@@ -759,6 +784,14 @@ describe('editor chat exposure and admission', () => {
       f.cancellation.value,
     )
     expect(f.sent[0]).toMatchObject({ model: native, reasoning: { effort: 'minimal' } })
+    await engine.provider.provideLanguageModelChatResponse(
+      { id: selected },
+      messages,
+      { modelOptions: { reasoningEffort: 'none' } },
+      f.progress,
+      f.cancellation.value,
+    )
+    expect(f.sent[1]).toMatchObject({ model: native, reasoning: { effort: 'minimal' } })
   })
   it('keeps completed calls tallied when durable settlement throws', async () => {
     const f = await fixture()
