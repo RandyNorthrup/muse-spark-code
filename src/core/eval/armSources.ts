@@ -1,90 +1,69 @@
-// The frozen arms' source closure (PLAN.md M101, review RVCM1012B finding 1).
+// The frozen arms' source closure (PLAN.md M101, reviews RVCM1012B–C).
 //
 // `evalHarnessDigest` must cover every byte that decides an arm, not only
 // each arm's `change` callback source: a helper the callback references
-// (the auto-compaction admission's `noop`) or an imported value it spreads
-// (the strict-tools arm's capabilities) decides the arm as much as the
-// callback text does. This module therefore walks the static import graph
-// starting at the modules that define the arms, instead of a hand-kept
-// file list a new helper would silently miss:
+// (the auto-compaction admission's `noop`), an imported value it spreads
+// (the strict-tools arm's capabilities) and the implementation behind an
+// accessor it reads all decide the arm as much as the callback text does.
+// The previous repair walked the import graph with a regular-expression
+// scanner and hashed outside bindings by their current runtime values.
+// Review RVCM1012C showed that design cannot hold the freeze: an accessor
+// changes behaviour without changing the hashed value (finding 1), a quote
+// in a comment hides a real edge from the clause pattern and relative
+// dynamic imports are neither followed nor refused (finding 2), and
+// directory resolution disagrees with the real resolver (finding 3).
+// Patching the scanner again would only move the holes.
 //
-// - A file the walk reaches inside the harness's own package
-//   (`src/core/eval/`) contributes its full bytes. A new helper an arm
-//   imports there is discovered automatically.
-// - A relative import that escapes the package contributes the imported
-//   bindings' canonical runtime values, so arm-deciding data (capability
-//   and quirk records, frozen windows and thresholds) is covered wherever
-//   it is built, while the producing module's unrelated bytes (provider
-//   descriptions, UI text) stay out of the freeze.
-// - Anything else fails closed with a naming error: an unlisted outside
-//   module, a missing file, a namespace import of one (names must stay
-//   explicit), a side-effect-only one, or a function-valued binding (a
-//   helper with behaviour belongs in the harness package, where its bytes
-//   are hashed). A future arm dependency that this cannot cover breaks the
-//   digest loudly instead of slipping past it.
-// - `import type` statements are skipped: types are erased before the run,
-//   and the typecheck gate guards them. Bare and `node:` imports are the
-//   platform and the pinned dependencies, not the harness.
-// - The production system under test is deliberately outside the closure:
-//   the arm modules reach it nowhere (the held-deps list lives in
-//   `./heldDeps` precisely so the digest need not depend on the driver,
-//   which drives `ModelApiHost`). Pinning the host would freeze production
-//   code the harness is meant to measure.
+// This module therefore asks the real resolver instead of reimplementing
+// one: each arm root is bundled by esbuild (already a build dependency,
+// never shipped — no production bundle imports the evaluation harness)
+// with `bundle: true, write: false, metafile: true`, and every input file
+// the metafile reports contributes its exact bytes (sorted path +
+// content). Every runtime edge esbuild follows is covered — static
+// imports, re-exports, `require` calls and literal dynamic imports — and
+// directory and index resolution is exactly what the build does, because
+// it is the build. Anything esbuild cannot resolve fails the digest with
+// its own error. A dynamic `import()` or `require()` call whose specifier
+// is not a string literal is left for runtime by the bundler, so the
+// digest refuses it with a clear error instead of hashing around it.
+// `esbuild` itself stays external: the resolver is tooling, not harness
+// behaviour. Bare and `node:` imports the bundler leaves out are the
+// platform, not the harness; bare packages it bundles (today zod, through
+// the task schemas) are hashed by bytes like any other input, pinned by
+// the lockfile.
 //
-// The scanner reads static `import`/`export ... from` statements with one
-// tokenizer pass that skips comments and string literals first, so an
-// import-looking line inside a task fixture (the `main.js` content
-// importing `./util.js`) is never followed. A pathologically quoted
-// regular-expression literal could confuse it; none of the frozen files
-// contains one, and an unresolvable phantom fails closed. Paths are
-// normalized to forward slashes before comparing or hashing, so the digest
-// is stable on Windows; bytes are hashed raw, and the repository pins
-// `eol=lf` (`.gitattributes`), so checkouts agree byte for byte.
+// The production system under test is deliberately outside the closure:
+// the arm modules reach it nowhere (the held-deps list lives in
+// `./heldDeps` precisely so the digest need not depend on the driver,
+// which drives `ModelApiHost`). Pinning the host would freeze production
+// code the harness is meant to measure.
+//
+// Paths are normalized to forward slashes before comparing or hashing, so
+// the digest is stable on Windows; bytes are hashed raw, and the
+// repository pins `eol=lf` (`.gitattributes`), so checkouts agree byte
+// for byte. Every collected key is repository-relative, so the digest
+// agrees across machines; scratch trees outside the repository keep an
+// absolute key, which the frozen roots never produce.
 
 import { createHash } from 'node:crypto'
+import { buildSync } from 'esbuild'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { EVAL_ARM_SOURCE_SEARCH_DEPTH } from '../../shared/constants'
 
-// The outside modules' namespaces, loaded dynamically so the static walk
-// below never sees a namespace import clause of its own: only named imports
-// contribute values, and a namespace import anywhere else fails closed.
-const capabilitiesModule = await import('../providers/capabilities')
-const constantsModule = await import('../../shared/constants')
-const presetsModule = await import('../providers/presets')
-
 /** The modules that define the frozen arms: every arm runs only once `EVAL_ARMS` names it. */
 export const ARM_SOURCE_ROOTS: readonly string[] = ['src/core/eval/mechanisms.ts']
 
-/** One harness-owned file the walk reached, by repository-relative path with its bytes' digest. */
+/** One file the resolver reached, by repository-relative path with its bytes' digest. */
 export interface ArmSourceFile {
   readonly path: string
   readonly sha256: string
 }
 
-/** One imported binding from outside the harness package, with its canonical value. */
-export interface ArmSourceValue {
-  readonly module: string
-  readonly name: string
-  readonly json: unknown
-}
-
-/** The arm closure: every owned file's bytes plus every outside binding's value. */
+/** The arm closure: every file the resolver reached, by bytes. */
 export interface ArmSources {
   readonly files: readonly ArmSourceFile[]
-  readonly values: readonly ArmSourceValue[]
-}
-
-/**
- * Outside modules an arm dependency may draw values from, by
- * repository-relative path. A new one is a deliberate scope decision with
- * its own review, never a silent addition: the walk throws on any other.
- */
-const ARM_VALUE_MODULES: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
-  'src/core/providers/capabilities.ts': Object.fromEntries(Object.entries(capabilitiesModule)),
-  'src/core/providers/presets.ts': Object.fromEntries(Object.entries(presetsModule)),
-  'src/shared/constants.ts': Object.fromEntries(Object.entries(constantsModule)),
 }
 
 /** Compares strings byte-wise, never by locale, so digests agree on every platform. */
@@ -116,57 +95,160 @@ function resolveRepoRoot(): string {
   throw new Error('the frozen arm sources need the repository root above the working directory')
 }
 
-/** Reads the root's bytes and reports whether it is repository-relative. */
-function readRoot(root: string): { absolute: string; key: string; anchored: boolean } {
-  if (path.isAbsolute(root)) {
-    if (!existsSync(root)) throw new Error(`the frozen arm sources cannot read ${slash(root)}`)
-    return { absolute: root, key: slash(root), anchored: false }
-  }
-  const absolute = path.join(resolveRepoRoot(), root)
+/** Resolves a root to an absolute entry file; a missing entry fails the digest. */
+function resolveEntry(root: string, repoRoot: string): string {
+  const absolute = path.isAbsolute(root) ? root : path.join(repoRoot, root)
   if (!existsSync(absolute)) throw new Error(`the frozen arm sources cannot read ${slash(root)}`)
-  return { absolute, key: slash(root), anchored: true }
-}
-
-const SCAN =
-  /(?<skip>\/\*[\s\S]*?\*\/|\/\/[^\n]*|'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*?`)|(?<side>\bimport\s*['"](?<sideSpec>[^'"]+)['"])|(?<clause>\bimport\s+(?!type\b)(?<importClause>[^'";]*?)\bfrom\s*['"](?<importSpec>[^'"]+)['"]|\bexport\s+(?!type\b)[^'";]*?\bfrom\s*['"](?<exportSpec>[^'"]+)['"])/g
-
-/** The module-side names an import clause draws: the default, the named, never inline types. */
-function clauseNames(clause: string, where: string): { namespace: boolean; names: string[] } {
-  if (clause.includes('*')) return { namespace: true, names: [] }
-  const names: string[] = []
-  const def = clause.split('{', 1)[0]?.trim().replace(/,$/, '')
-  if (def !== undefined && def !== '') names.push('default')
-  const group = /\{([^}]*)\}/.exec(clause)?.[1]
-  if (group === undefined) return { namespace: false, names }
-  for (const specifier of group.split(',')) {
-    const trimmed = specifier.trim()
-    if (trimmed === '' || /^type\s+\S/u.test(trimmed)) continue
-    const [name] = trimmed.split(/\s+as\s+/u, 2)
-    if (name === undefined || name === '')
-      throw new Error(`the frozen arm sources cannot parse ${where}`)
-    names.push(name)
-  }
-  return { namespace: false, names }
-}
-
-/** Resolves a relative specifier beside its importer; a missing file fails the digest. */
-function resolveRelative(spec: string, importer: string, absolute: string): string {
-  const base = path.resolve(path.dirname(absolute), spec)
-  const candidates = [base, `${base}.ts`, path.join(base, 'index.ts')]
-  if (spec.endsWith('.js')) candidates.push(`${base.slice(0, -'.js'.length)}.ts`)
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) return candidate
-  }
-  throw new Error(`the frozen arm sources cannot resolve ${spec} from ${slash(importer)}`)
+  return absolute
 }
 
 /**
- * The canonical JSON value: sorted keys, kept array order. Anything that
- * has no JSON meaning (a function, `undefined`, a symbol, a non-finite
- * number, a class instance) throws, so an unhashable binding breaks the
- * digest instead of hashing as `{}` or `null`.
+ * Comments and string literals, skipped before looking for runtime loading
+ * calls, so an import-looking line inside a task fixture (the `main.js`
+ * content importing `./util.js`) or a verifier prelude is never mistaken
+ * for an edge the digest must refuse. A regular-expression literal holding
+ * call-like text would read as a call, since literals are not stripped, so
+ * the patterns below are strings, never literals: string contents always
+ * strip as one unit. (A regular expression in a scanned file that confuses
+ * the strip this way fails loudly, never as a skipped edge.)
  */
-function canonicalize(value: unknown, where: string): unknown {
+const SKIP = new RegExp(
+  '/\\*[\\s\\S]*?\\*/|//[^\\n]*|\'(?:[^\'\\\\\\n]|\\\\.)*\'|"(?:[^"\\\\\\n]|\\\\.)*"|`(?:[^`\\\\]|\\\\.)*?`',
+  'g',
+)
+
+/** The call words, kept out of any literal so this file never spells a call. */
+const IMPORT_WORD = 'import'
+const REQUIRE_WORD = 'require'
+
+/** A runtime loading call: dynamic `import()` or a bare `require()` (never `obj.require`). */
+const LOADER = new RegExp(String.raw`\b${IMPORT_WORD}\s*\(|(?<!\.)\b${REQUIRE_WORD}\s*\(`, 'g')
+
+/**
+ * Refuses a dynamic `import()` or `require()` call whose specifier the
+ * bundler cannot see: it runs at runtime, outside every hashed edge, so
+ * the digest fails closed instead of freezing around it. A string literal
+ * (or a substitution-free template) is the bundler's own edge and needs
+ * no refusal: it is either in the metafile or the build above already
+ * failed on it.
+ */
+/**
+ * Whether a dynamic loading call's template argument is a plain literal:
+ * a closing backtick before any substitution. A substitution reads at
+ * runtime, outside every hashed edge, so it fails the digest.
+ */
+function isLiteralTemplateSpecifier(arg: string, key: string): boolean {
+  let index = 1
+  while (index < arg.length) {
+    const char = arg[index]
+    if (char === '\\') {
+      index += 1
+    } else if (char === '`') {
+      return true
+    } else if (char === '$' && arg[index + 1] === '{') {
+      throw new Error(`the frozen arm sources cannot cover a non-literal dynamic import in ${key}`)
+    }
+    index += 1
+  }
+  return false
+}
+
+function refuseDynamicLoads(source: string, key: string): void {
+  const clean = source.replaceAll(SKIP, (match) => (match.startsWith('/') ? '' : '""'))
+  LOADER.lastIndex = 0
+  for (let found = LOADER.exec(clean); found !== null; found = LOADER.exec(clean)) {
+    // Comments are already stripped above, so only whitespace can precede
+    // the specifier.
+    const arg = clean.slice(found.index + found[0].length).replace(/^\s+/, '')
+    const quote = arg[0]
+    if (quote === "'" || quote === '"') continue
+    if (quote === '`' && isLiteralTemplateSpecifier(arg, key)) continue
+    throw new Error(`the frozen arm sources cannot cover a non-literal dynamic import in ${key}`)
+  }
+}
+
+function digestBytes(bytes: Buffer | string): string {
+  return createHash('sha256').update(bytes).digest('hex')
+}
+
+/**
+ * Walks the arm roots' import closure with the real resolver and returns
+ * every input file's bytes. The same roots and tree always hash the same;
+ * any behaviour-deciding byte moves the digest, wherever it is built —
+ * an accessor implementation as much as an initializer, because bytes are
+ * hashed, never evaluated values.
+ */
+export function collectArmSources(roots: readonly string[] = ARM_SOURCE_ROOTS): ArmSources {
+  const head = roots[0]
+  if (head === undefined) throw new Error('the frozen arm sources need at least one root')
+  const repoRoot = resolveRepoRoot()
+  const digests = new Map<string, string>()
+  for (const root of roots) {
+    const entry = resolveEntry(root, repoRoot)
+    let inputs: Record<string, { bytes: number }>
+    try {
+      const result = buildSync({
+        entryPoints: [entry],
+        bundle: true,
+        write: false,
+        metafile: true,
+        platform: 'node',
+        format: 'cjs',
+        external: ['esbuild'],
+        logLevel: 'silent',
+        absWorkingDir: repoRoot,
+      })
+      inputs = result.metafile.inputs
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('the frozen arm sources')) throw error
+      const detail = error instanceof Error ? error.message.split('\n', 1)[0] : String(error)
+      throw new Error(
+        `the frozen arm sources cannot resolve the arms from ${slash(root)}: ${detail ?? 'unknown failure'}`,
+        { cause: error },
+      )
+    }
+    for (const input of Object.keys(inputs)) {
+      const absolute = path.resolve(repoRoot, input)
+      const relative = path.relative(repoRoot, absolute)
+      // Repository-relative keys keep the frozen digest identical on every
+      // machine. Scratch trees outside the repository (the tests below)
+      // keep their absolute key; the frozen roots never do, which the
+      // repository-relative test below pins.
+      const key = slash(
+        relative === '' || relative.startsWith('..') || path.isAbsolute(relative)
+          ? absolute
+          : relative,
+      )
+      if (digests.has(key)) continue
+      let bytes: Buffer
+      try {
+        bytes = readFileSync(absolute)
+      } catch {
+        throw new Error(`the frozen arm sources cannot read ${key}`)
+      }
+      refuseDynamicLoads(bytes.toString('utf8'), key)
+      digests.set(key, digestBytes(bytes))
+    }
+  }
+  return {
+    files: Array.from(digests, ([filePath, sha256]) => ({ path: filePath, sha256 })).toSorted(
+      (left, right) => comparePath(left.path, right.path),
+    ),
+  }
+}
+
+/**
+ * The canonical JSON value: sorted keys, kept array order, and an own
+ * `__proto__` field kept as data (review RVCM1012C finding 4). Plain
+ * assignment to `out['__proto__']` would change the object's prototype
+ * instead of creating an enumerable own field, so two values differing
+ * only in that field would serialize identically; the field is defined
+ * instead, and survives `JSON.stringify` as `{"__proto__":…}`.
+ * Anything that has no JSON meaning (a function, `undefined`, a symbol,
+ * a non-finite number, a class instance) throws, so an unhashable value
+ * breaks the digest instead of hashing as `{}` or `null`.
+ */
+export function canonicalize(value: unknown, where: string): unknown {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) {
@@ -187,113 +269,17 @@ function canonicalize(value: unknown, where: string): unknown {
   const out: Record<string, unknown> = {}
   const entries = Object.entries(value).toSorted(([left], [right]) => comparePath(left, right))
   for (const [key, entry] of entries) {
-    out[key] = canonicalize(entry, `${where}.${key}`)
+    const canonical = canonicalize(entry, `${where}.${key}`)
+    if (key === '__proto__') {
+      Object.defineProperty(out, key, {
+        value: canonical,
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      })
+    } else {
+      out[key] = canonical
+    }
   }
   return out
-}
-
-function digestBytes(bytes: Buffer | string): string {
-  return createHash('sha256').update(bytes).digest('hex')
-}
-
-/**
- * Walks the static import closure of the arm roots and returns every
- * harness-owned file's bytes plus every outside binding's canonical value.
- * The same roots and tree always hash the same; any behaviour-deciding
- * byte or value moves the digest.
- */
-export function collectArmSources(
-  roots: readonly string[] = ARM_SOURCE_ROOTS,
-  valueModules: Readonly<Record<string, Readonly<Record<string, unknown>>>> = ARM_VALUE_MODULES,
-): ArmSources {
-  const head = roots[0]
-  if (head === undefined) throw new Error('the frozen arm sources need at least one root')
-  const first = readRoot(head)
-  const seenFiles = new Set<string>()
-  const fileList: ArmSourceFile[] = []
-  const seenValues = new Set<string>()
-  const valueList: ArmSourceValue[] = []
-  const queue: { absolute: string; key: string }[] = []
-  for (const root of roots) {
-    const entry = readRoot(root)
-    if (entry.anchored !== first.anchored) {
-      throw new Error('the frozen arm sources need roots from one tree')
-    }
-    queue.push({ absolute: entry.absolute, key: entry.key })
-  }
-  const ownedPrefix = first.anchored ? 'src/core/eval/' : `${slash(path.dirname(first.absolute))}/`
-  const isOwned = (key: string): boolean => key.startsWith(ownedPrefix)
-  const keyOf = (absolute: string): string =>
-    slash(first.anchored ? path.relative(resolveRepoRoot(), absolute) : absolute)
-  while (queue.length > 0) {
-    const current = queue.pop()
-    if (current === undefined) break
-    if (seenFiles.has(current.key)) continue
-    if (!isOwned(current.key)) {
-      throw new Error(`the frozen arm sources never visit ${current.key} directly`)
-    }
-    seenFiles.add(current.key)
-    fileList.push({ path: current.key, sha256: digestBytes(readFileSync(current.absolute)) })
-    const source = readFileSync(current.absolute, 'utf8')
-    SCAN.lastIndex = 0
-    for (let match = SCAN.exec(source); match !== null; match = SCAN.exec(source)) {
-      const groups = match.groups
-      if (groups === undefined || groups['skip'] !== undefined) continue
-      const sideSpec = groups['sideSpec']
-      if (groups['side'] !== undefined) {
-        if (typeof sideSpec === 'string' && sideSpec.startsWith('.')) {
-          const absolute = resolveRelative(sideSpec, current.key, current.absolute)
-          const key = keyOf(absolute)
-          if (!isOwned(key)) {
-            throw new Error(`the frozen arm sources cannot cover ${sideSpec} from ${current.key}`)
-          }
-          queue.push({ absolute, key })
-        }
-        continue
-      }
-      const spec = groups['importSpec'] ?? groups['exportSpec']
-      if (typeof spec !== 'string' || !spec.startsWith('.')) continue
-      const absolute = resolveRelative(spec, current.key, current.absolute)
-      const key = keyOf(absolute)
-      if (isOwned(key)) {
-        queue.push({ absolute, key })
-        continue
-      }
-      const importClause = groups['importClause']
-      if (groups['importSpec'] !== undefined) {
-        if (importClause === undefined) continue
-        const { namespace, names } = clauseNames(importClause, `${current.key} from ${spec}`)
-        const moduleRecord = valueModules[key]
-        if (moduleRecord === undefined) {
-          throw new Error(`the frozen arm sources cannot cover ${spec} from ${current.key}`)
-        }
-        if (namespace) {
-          throw new Error(`the frozen arm sources need named imports from ${spec}`)
-        }
-        for (const name of names) {
-          if (!Object.hasOwn(moduleRecord, name)) {
-            throw new Error(`the frozen arm sources cannot find ${name} in ${spec}`)
-          }
-          const value = moduleRecord[name]
-          if (typeof value === 'function') {
-            throw new TypeError(
-              `the frozen arm sources cannot hash ${name} in ${spec}: a helper belongs in src/core/eval/`,
-            )
-          }
-          const valueKey = JSON.stringify([key, name])
-          if (seenValues.has(valueKey)) continue
-          seenValues.add(valueKey)
-          valueList.push({ module: key, name, json: canonicalize(value, `${key}:${name}`) })
-        }
-        continue
-      }
-      throw new Error(`the frozen arm sources cannot cover ${spec} re-exported from ${current.key}`)
-    }
-  }
-  return {
-    files: fileList.toSorted((left, right) => comparePath(left.path, right.path)),
-    values: valueList.toSorted(
-      (left, right) => comparePath(left.module, right.module) || comparePath(left.name, right.name),
-    ),
-  }
 }
