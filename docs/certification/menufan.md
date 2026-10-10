@@ -374,3 +374,64 @@ and tokens pass. The production build passes the existing size, split,
 host-global, notice and token gates. Aggregate `quality` remains lead-owned,
 as required by the rig/common brief. No threshold, timeout, coverage rule,
 ignore, hook, hook configuration or visual policy changed.
+
+### Round 3 reviewed menu pixels and README
+
+Source commit: `a067f64cfab8c9b20e32094753f924cb1dc4e238`. The staged
+and committed source patches match byte-exact after the installed hooks;
+their SHA-256 is `977dbc996e389b10d62efa962c3f6ba4bb1c125d996ef77a5cea04c7dbb20293`.
+
+The canonical capture renderer produced 576 PNGs: eight menu scenes × six
+themes × 320/690 px × all six states, each 760 px high. Every frame was
+inspected in 16 labelled contact sheets with the complete menu and outline
+margin: clear labels, visible keyboard focus and space between pills in all
+frames. Captures (25,595,158 bytes) remain outside git at
+`/var/tmp/l-MENUFAN/menufan-r3-menu-frames`; contact sheets, their hashes
+and capture facts are recorded in `menufan-r3-visual-review.json`.
+
+Only the two existing menu scenes, `chat-tool-menu-narrow` and `quote-menu`,
+are replaced in the reviewed manifest: 144 captures, 120 changed hashes.
+All 9,648 non-menu records and PNG hashes remain identical to the prior
+baseline. The new archive holds 9,792 verified PNGs / 447,973,530 bytes,
+below the unchanged 536,870,912-byte cap, at
+`/var/tmp/l-MENUFAN/visual-owner-2026-10-10-menu-fan-r3`.
+The existing manifest validator validates coverage; the existing PNG verifier
+checks every archive entry; the existing pixel comparator passes all 144
+menu frames with zero changed pixels. It rejects the stale baseline on 108
+frames under the identical policy. These checks use the canonical modules
+from a lane-local scratch script, without changing any shipped gate.
+
+The README input guard first fails on the stylesheet/harness fingerprint
+(1 failed, 144 passed across its three complete owning files). Recapture via
+`node scripts/readme-shots.mjs --only quote,rewind,history` and
+`npm run harness:shots -- rewind quote-menu history --theme=light` succeeds.
+Only `media/readme/history.png` changes; the other two PNGs stay byte-exact.
+The reviewed README media totals 1,504,088 / 2,097,152 bytes. Refreshing the
+fingerprint then passes all 145 tests in readmeShots/referenceGenerator/visualGate.
+Together with source verification, ten owning files pass 585 tests under the
+repository deadlines and at most three files/workers per run.
+
+Production sizes: activation 550.1 / 600 KiB, Model API 515.8 / 525 KiB,
+checkpoint store 87.3 / 225 KiB and GooeyMenuContent 7.5 / 25 KiB. The shared
+watcher and focus geometry stay in the existing lazy menu chunk. No cap,
+threshold, test timeout, hook, dependency or visual policy changed.
+
+The shipped visual gate passes for the existing menu group:
+`npm run check:visual -- --shard=15/1632` (six states, zero changed pixels).
+All six themes and both widths of both baseline menu scenes are additionally
+verified by the 144-frame canonical comparison above. Receipt:
+`temp/m114-visual-result-15-of-1632.json`, preserved in
+`docs/certification/menufan-r3-visual-review.json`.
+
+A wider `--shard=1/12` attempt was terminated with signal 143 after 72
+captures, with no reported pixel failure. Its retry stopped after 288 logged
+captures on the unchanged `muse-workflow-map/light/320` fixture:
+`never rendered: [data-entry-id="wft1"] .tool-toggle`. No readiness deadline,
+fixture, scene, policy or gate was weakened to bypass that failure. Logs:
+`temp/menufan/r3/visual-shard-final.log` and
+`temp/menufan/r3/visual-shard-final-retry.log`. The full current visual matrix
+is therefore **not certified by this lane**; wider verification remains with
+the lead's aggregate run. Both RVMENUFAN2 findings are fixed, with no remaining
+menu finding. This limitation is separate from the passing menu captures,
+geometric tests and pixel checks. No push, merge, rebase, subagent, paid/live
+call or aggregate quality run occurred.

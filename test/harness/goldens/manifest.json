@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "revision": "71ca4b93e89e60e50225e5d5114f345a4a518042",
-  "review": "owner-2026-10-10-menu-fan",
+  "revision": "a067f64cfab8c9b20e32094753f924cb1dc4e238",
+  "review": "owner-2026-10-10-menu-fan-r3",
   "browser": "150.0.7871.186",
   "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
   "platform": "linux",
-  "archive": "/var/tmp/l-MENUFAN/visual-owner-2026-10-10-menu-fan-final",
-  "totalBytes": 447111110,
+  "archive": "/var/tmp/l-MENUFAN/visual-owner-2026-10-10-menu-fan-r3",
+  "totalBytes": 447973530,
   "environment": {
     "locale": "en",
     "timezone": "UTC",
@@ -1278,8 +1278,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/default/light/320.png",
-      "sha256": "e5bf1814d99815eef8727526c68578314fe90a779cdf608a4f66389423e3e8c7",
-      "bytes": 62872,
+      "sha256": "44f96217781d65bfac8520457828f12f4b3cc797943a4505034cfdefa9f85bfe",
+      "bytes": 62385,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -1295,8 +1295,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/hover/light/320.png",
-      "sha256": "e5bf1814d99815eef8727526c68578314fe90a779cdf608a4f66389423e3e8c7",
-      "bytes": 62872,
+      "sha256": "44f96217781d65bfac8520457828f12f4b3cc797943a4505034cfdefa9f85bfe",
+      "bytes": 62385,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -1312,8 +1312,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/focus-visible/light/320.png",
-      "sha256": "a2443ffe704bbeea9e5df9087bde73611c9ea2d20aecc40e67c9aed2d8dc383a",
-      "bytes": 64296,
+      "sha256": "ef356f6e0d12ddd0c1d768bb102992120d537d1d19416e8510217d6dcad2ae9b",
+      "bytes": 64474,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -1329,8 +1329,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/pressed/light/320.png",
-      "sha256": "2e766ed0664e34b2aebf32f439e732274faef949b5fc43584decb30255f83e82",
-      "bytes": 62869,
+      "sha256": "7370165ac99e4fefcc6660d70b6f6fda1a5edecf3304cf73866125e08dc7fafd",
+      "bytes": 62386,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -1346,8 +1346,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/disabled/light/320.png",
-      "sha256": "2e766ed0664e34b2aebf32f439e732274faef949b5fc43584decb30255f83e82",
-      "bytes": 62869,
+      "sha256": "7370165ac99e4fefcc6660d70b6f6fda1a5edecf3304cf73866125e08dc7fafd",
+      "bytes": 62386,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -1363,8 +1363,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/selected/light/320.png",
-      "sha256": "2e766ed0664e34b2aebf32f439e732274faef949b5fc43584decb30255f83e82",
-      "bytes": 62869,
+      "sha256": "7370165ac99e4fefcc6660d70b6f6fda1a5edecf3304cf73866125e08dc7fafd",
+      "bytes": 62386,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -6420,8 +6420,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/default/light/320.png",
-      "sha256": "5864fdcf553651ca4dd360e57dc161365450903b396630f931f08a39550f6e46",
-      "bytes": 38619,
+      "sha256": "fbb9abf418ac22cbf9cefa451ef2346f24dea2b303680be4c1602aa34e01ae18",
+      "bytes": 49752,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -6434,8 +6434,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/hover/light/320.png",
-      "sha256": "7f7dd02f15ce227a991b167a70d0cfd954642f23b04294a48e416b6f9dd3df73",
-      "bytes": 38628,
+      "sha256": "c31671539c2a2c6051dd224445c3034a63d15b3095dd6c0dc1f1451efb2f7a2a",
+      "bytes": 49811,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -6448,8 +6448,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/focus-visible/light/320.png",
-      "sha256": "7f7dd02f15ce227a991b167a70d0cfd954642f23b04294a48e416b6f9dd3df73",
-      "bytes": 38628,
+      "sha256": "fbb9abf418ac22cbf9cefa451ef2346f24dea2b303680be4c1602aa34e01ae18",
+      "bytes": 49752,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -6462,8 +6462,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/pressed/light/320.png",
-      "sha256": "ca8a78ca7fe6c2ead94aee8f55fe93012ccecd144998eb4ff07b28a6517ee3d5",
-      "bytes": 37611,
+      "sha256": "c31671539c2a2c6051dd224445c3034a63d15b3095dd6c0dc1f1451efb2f7a2a",
+      "bytes": 49811,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -6476,8 +6476,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/disabled/light/320.png",
-      "sha256": "363b754b21bf169958308141a13c617d00755b3b1fcf40918cdaea1aca1316b5",
-      "bytes": 38632,
+      "sha256": "fbb9abf418ac22cbf9cefa451ef2346f24dea2b303680be4c1602aa34e01ae18",
+      "bytes": 49752,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -6490,8 +6490,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/selected/light/320.png",
-      "sha256": "363b754b21bf169958308141a13c617d00755b3b1fcf40918cdaea1aca1316b5",
-      "bytes": 38632,
+      "sha256": "fbb9abf418ac22cbf9cefa451ef2346f24dea2b303680be4c1602aa34e01ae18",
+      "bytes": 49752,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -18582,8 +18582,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/default/light/690.png",
-      "sha256": "d7dec1afa0c09fe6e19bebfc2a062e42d2be0e7d0a08fc592ffa9e5c55fb3986",
-      "bytes": 42797,
+      "sha256": "964cd6c9387d16dc7dd3e8fe5a728982ee3ff948a19eeee7e779ddd2e463ed4c",
+      "bytes": 55082,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -18596,8 +18596,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/hover/light/690.png",
-      "sha256": "d7dec1afa0c09fe6e19bebfc2a062e42d2be0e7d0a08fc592ffa9e5c55fb3986",
-      "bytes": 42797,
+      "sha256": "f42cadae4df9ef45fe5c1fdb8fd852711b14df88b9f842cbf1a35d4f5f01fe45",
+      "bytes": 55118,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -18610,8 +18610,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/focus-visible/light/690.png",
-      "sha256": "d7dec1afa0c09fe6e19bebfc2a062e42d2be0e7d0a08fc592ffa9e5c55fb3986",
-      "bytes": 42797,
+      "sha256": "964cd6c9387d16dc7dd3e8fe5a728982ee3ff948a19eeee7e779ddd2e463ed4c",
+      "bytes": 55082,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -18624,8 +18624,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/pressed/light/690.png",
-      "sha256": "49fdc2166c32900aa3f18d921a6d4552965fd94dc01d655a3535f5d6775b5a8f",
-      "bytes": 41591,
+      "sha256": "f42cadae4df9ef45fe5c1fdb8fd852711b14df88b9f842cbf1a35d4f5f01fe45",
+      "bytes": 55118,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -18638,8 +18638,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/disabled/light/690.png",
-      "sha256": "3b515887cd4865bf04f52a03e6ececfac5d30c619fdd9db47be6a4f2e82f1e5b",
-      "bytes": 42800,
+      "sha256": "964cd6c9387d16dc7dd3e8fe5a728982ee3ff948a19eeee7e779ddd2e463ed4c",
+      "bytes": 55082,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -18652,8 +18652,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/selected/light/690.png",
-      "sha256": "3b515887cd4865bf04f52a03e6ececfac5d30c619fdd9db47be6a4f2e82f1e5b",
-      "bytes": 42800,
+      "sha256": "964cd6c9387d16dc7dd3e8fe5a728982ee3ff948a19eeee7e779ddd2e463ed4c",
+      "bytes": 55082,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -25602,8 +25602,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/default/dark/320.png",
-      "sha256": "cacaa839051c2d36a0ea44ffaae39e418caad7f633d76401f1c4ef0ddb29df09",
-      "bytes": 65720,
+      "sha256": "fcaf872851a058508d69c8d55bd13c91b722f621ddf946f11051074c82d98798",
+      "bytes": 65379,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -25619,8 +25619,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/hover/dark/320.png",
-      "sha256": "cacaa839051c2d36a0ea44ffaae39e418caad7f633d76401f1c4ef0ddb29df09",
-      "bytes": 65720,
+      "sha256": "fcaf872851a058508d69c8d55bd13c91b722f621ddf946f11051074c82d98798",
+      "bytes": 65379,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -25636,8 +25636,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/focus-visible/dark/320.png",
-      "sha256": "c5a0d8be9dfdcc8c495f03be7013c08467d05fc6649011f0ad60662b8b500097",
-      "bytes": 67037,
+      "sha256": "c14bd01a4b24ee44983dfd5b8bf6a5636c43745af40b7524835e266a5b7ea9a8",
+      "bytes": 67387,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -25653,8 +25653,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/pressed/dark/320.png",
-      "sha256": "b5d538ce3bb13ba1329ea00da23cd4060b67eb031ae9a6e01163d4748ae90bb4",
-      "bytes": 65726,
+      "sha256": "7c05128b75f82d061791705fce8389a167a773d30ef1b47603c55310c0d4339a",
+      "bytes": 65376,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -25670,8 +25670,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/disabled/dark/320.png",
-      "sha256": "b5d538ce3bb13ba1329ea00da23cd4060b67eb031ae9a6e01163d4748ae90bb4",
-      "bytes": 65726,
+      "sha256": "7c05128b75f82d061791705fce8389a167a773d30ef1b47603c55310c0d4339a",
+      "bytes": 65376,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -25687,8 +25687,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/selected/dark/320.png",
-      "sha256": "b5d538ce3bb13ba1329ea00da23cd4060b67eb031ae9a6e01163d4748ae90bb4",
-      "bytes": 65726,
+      "sha256": "7c05128b75f82d061791705fce8389a167a773d30ef1b47603c55310c0d4339a",
+      "bytes": 65376,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -30744,8 +30744,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/default/dark/320.png",
-      "sha256": "4dcba7cb8a84ce7b78ceba30ab084c527d758d72eca71637e05cc7d4888c1177",
-      "bytes": 39307,
+      "sha256": "0170a9e9362b04c0fbb74ddcb6aa50d2b8d4236863df69d5cd7b504a3c9ef2b8",
+      "bytes": 51127,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -30758,8 +30758,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/hover/dark/320.png",
-      "sha256": "4dcba7cb8a84ce7b78ceba30ab084c527d758d72eca71637e05cc7d4888c1177",
-      "bytes": 39307,
+      "sha256": "96770a715d814bce4daf2b0699d7f3ecd2bcb22da6e88e6fc4135ce6598c52fe",
+      "bytes": 51321,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -30772,8 +30772,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/focus-visible/dark/320.png",
-      "sha256": "4dcba7cb8a84ce7b78ceba30ab084c527d758d72eca71637e05cc7d4888c1177",
-      "bytes": 39307,
+      "sha256": "0170a9e9362b04c0fbb74ddcb6aa50d2b8d4236863df69d5cd7b504a3c9ef2b8",
+      "bytes": 51127,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -30786,8 +30786,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/pressed/dark/320.png",
-      "sha256": "ed5519a53af056b94f7f32e8663079bf0025af8e24aad547d581bf5b8bb0a713",
-      "bytes": 38430,
+      "sha256": "96770a715d814bce4daf2b0699d7f3ecd2bcb22da6e88e6fc4135ce6598c52fe",
+      "bytes": 51321,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -30800,8 +30800,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/disabled/dark/320.png",
-      "sha256": "ac375a011818d75da2d24f1e51d6a77f7a39eda2a75ba8de990622b99fe74d7a",
-      "bytes": 39310,
+      "sha256": "0170a9e9362b04c0fbb74ddcb6aa50d2b8d4236863df69d5cd7b504a3c9ef2b8",
+      "bytes": 51127,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -30814,8 +30814,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/selected/dark/320.png",
-      "sha256": "ac375a011818d75da2d24f1e51d6a77f7a39eda2a75ba8de990622b99fe74d7a",
-      "bytes": 39310,
+      "sha256": "0170a9e9362b04c0fbb74ddcb6aa50d2b8d4236863df69d5cd7b504a3c9ef2b8",
+      "bytes": 51127,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -42906,8 +42906,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/default/dark/690.png",
-      "sha256": "722d6bf6e965317b2e110943db4eb4dc9829a7935ca542b8880199186d4b8eb8",
-      "bytes": 43173,
+      "sha256": "8b1b20e67917cda89b0a4c8bbaf2e78f12425330be23b0ea89e08b7e83596e2a",
+      "bytes": 56231,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -42920,8 +42920,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/hover/dark/690.png",
-      "sha256": "722d6bf6e965317b2e110943db4eb4dc9829a7935ca542b8880199186d4b8eb8",
-      "bytes": 43173,
+      "sha256": "b5f87c7199d210a248a09c4e776c15b972cbab83ef7af2615982849e49b1efdc",
+      "bytes": 56378,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -42934,8 +42934,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/focus-visible/dark/690.png",
-      "sha256": "722d6bf6e965317b2e110943db4eb4dc9829a7935ca542b8880199186d4b8eb8",
-      "bytes": 43173,
+      "sha256": "8b1b20e67917cda89b0a4c8bbaf2e78f12425330be23b0ea89e08b7e83596e2a",
+      "bytes": 56231,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -42948,8 +42948,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/pressed/dark/690.png",
-      "sha256": "30ce28b78be753b131e12f5eac20c9ffd98461b4c457f4f2407715a152759487",
-      "bytes": 42078,
+      "sha256": "b5f87c7199d210a248a09c4e776c15b972cbab83ef7af2615982849e49b1efdc",
+      "bytes": 56378,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -42962,8 +42962,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/disabled/dark/690.png",
-      "sha256": "980d8e3b9a5400058a0520be9202eddf95c1bdee5ad18eaf7248726bb1638f37",
-      "bytes": 43173,
+      "sha256": "8b1b20e67917cda89b0a4c8bbaf2e78f12425330be23b0ea89e08b7e83596e2a",
+      "bytes": 56231,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -42976,8 +42976,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/selected/dark/690.png",
-      "sha256": "980d8e3b9a5400058a0520be9202eddf95c1bdee5ad18eaf7248726bb1638f37",
-      "bytes": 43173,
+      "sha256": "8b1b20e67917cda89b0a4c8bbaf2e78f12425330be23b0ea89e08b7e83596e2a",
+      "bytes": 56231,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -49926,8 +49926,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/default/hc-dark/320.png",
-      "sha256": "10907ba1c724d27b940a0a553f1b192cef756a53c2e740a750a6531e5b8b613a",
-      "bytes": 61955,
+      "sha256": "ea33400210c1bb92934f9a1b0823134b61080f6873e65b442958dc16ccd8c36f",
+      "bytes": 61397,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -49943,8 +49943,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/hover/hc-dark/320.png",
-      "sha256": "10907ba1c724d27b940a0a553f1b192cef756a53c2e740a750a6531e5b8b613a",
-      "bytes": 61955,
+      "sha256": "ea33400210c1bb92934f9a1b0823134b61080f6873e65b442958dc16ccd8c36f",
+      "bytes": 61397,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -49960,8 +49960,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/focus-visible/hc-dark/320.png",
-      "sha256": "449c3c0094e5a92e6cd27e5b4389c51cf652ebd9226af49e8797c5d4d75499d4",
-      "bytes": 63483,
+      "sha256": "06b5c575cd9cb3f757a0d4707eca8185e2d7dad0dc1c4c678bf7167d52095f29",
+      "bytes": 63435,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -49977,8 +49977,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/pressed/hc-dark/320.png",
-      "sha256": "ad734ae6ff8b8a8f732547afece0d923c51fb30c1e47d724b6bb877f8dbaf9d3",
-      "bytes": 61969,
+      "sha256": "9e3d0c3f8ebd3678f530cbe7805b6a6c6785331f590d1d99d208cc769567383b",
+      "bytes": 61408,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -49994,8 +49994,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/disabled/hc-dark/320.png",
-      "sha256": "ad734ae6ff8b8a8f732547afece0d923c51fb30c1e47d724b6bb877f8dbaf9d3",
-      "bytes": 61969,
+      "sha256": "9e3d0c3f8ebd3678f530cbe7805b6a6c6785331f590d1d99d208cc769567383b",
+      "bytes": 61408,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -50011,8 +50011,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/selected/hc-dark/320.png",
-      "sha256": "ad734ae6ff8b8a8f732547afece0d923c51fb30c1e47d724b6bb877f8dbaf9d3",
-      "bytes": 61969,
+      "sha256": "9e3d0c3f8ebd3678f530cbe7805b6a6c6785331f590d1d99d208cc769567383b",
+      "bytes": 61408,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -55068,8 +55068,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/default/hc-dark/320.png",
-      "sha256": "ad7303b0547ec1ef94ff6933170a08c67a144c3e9db1401569fca954a4dc1880",
-      "bytes": 37009,
+      "sha256": "ab261e50d868e372057cc7b53c8893ac8094bbf99784c74559b9d681ae218be7",
+      "bytes": 46481,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -55082,8 +55082,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/hover/hc-dark/320.png",
-      "sha256": "ad7303b0547ec1ef94ff6933170a08c67a144c3e9db1401569fca954a4dc1880",
-      "bytes": 37009,
+      "sha256": "f7291d6338b78b0ede69a502f915450b0f7d127761856996553b712cb6fc73e9",
+      "bytes": 46268,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -55096,8 +55096,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/focus-visible/hc-dark/320.png",
-      "sha256": "ad7303b0547ec1ef94ff6933170a08c67a144c3e9db1401569fca954a4dc1880",
-      "bytes": 37009,
+      "sha256": "3c636c4fd6ae07a58c9a8e65dee5acf45520f46ad19759e94c772ea50128b299",
+      "bytes": 46481,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -55110,8 +55110,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/pressed/hc-dark/320.png",
-      "sha256": "e177a8802194871a2be822e9a828ba1848c2aec86ffa1321e46b6618efbf4a69",
-      "bytes": 36097,
+      "sha256": "02ad5b6fe1384310bddc61a0d2a965f885c36de629747bd1c52ae721ffea59c1",
+      "bytes": 46269,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -55124,8 +55124,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/disabled/hc-dark/320.png",
-      "sha256": "e8567a5ecd83aacfa822eb57b76501da6bb7e6141b0ad4a09856b90ff74d2812",
-      "bytes": 37027,
+      "sha256": "3c636c4fd6ae07a58c9a8e65dee5acf45520f46ad19759e94c772ea50128b299",
+      "bytes": 46481,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -55138,8 +55138,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/selected/hc-dark/320.png",
-      "sha256": "e8567a5ecd83aacfa822eb57b76501da6bb7e6141b0ad4a09856b90ff74d2812",
-      "bytes": 37027,
+      "sha256": "3c636c4fd6ae07a58c9a8e65dee5acf45520f46ad19759e94c772ea50128b299",
+      "bytes": 46481,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -67230,8 +67230,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/default/hc-dark/690.png",
-      "sha256": "3b73114b9801ac0fe8e42b21e87a91eaf2dbceb0530d2df7684161418a178cb5",
-      "bytes": 40955,
+      "sha256": "1f6fc05cffcab6c460f0ca718f332b2c526cf3926caf88e3ce4a4bad50d02596",
+      "bytes": 51642,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -67244,8 +67244,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/hover/hc-dark/690.png",
-      "sha256": "3b73114b9801ac0fe8e42b21e87a91eaf2dbceb0530d2df7684161418a178cb5",
-      "bytes": 40955,
+      "sha256": "ccb9381574ca9aa6a13c0220a5187c69032243db4120b18d35bfb61b6c97ef8d",
+      "bytes": 51496,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -67258,8 +67258,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/focus-visible/hc-dark/690.png",
-      "sha256": "3b73114b9801ac0fe8e42b21e87a91eaf2dbceb0530d2df7684161418a178cb5",
-      "bytes": 40955,
+      "sha256": "2785952a1630ede4eeae1fcd2c31856d96a263b94b7488308a3d7107be209a8a",
+      "bytes": 51643,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -67272,8 +67272,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/pressed/hc-dark/690.png",
-      "sha256": "8420e412e7620644231251bf961947d5e116e6e36bcb6fd3f149fcb435ee73a5",
-      "bytes": 39734,
+      "sha256": "b938a5bacaf414be3a02a628ad093928eb06d2bd2739d4b69c98410692d70c47",
+      "bytes": 51499,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -67286,8 +67286,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/disabled/hc-dark/690.png",
-      "sha256": "7c62fcb4c53428c1df2c4b8882f441d30646d6cc28063566891d03922dc52c53",
-      "bytes": 40967,
+      "sha256": "2785952a1630ede4eeae1fcd2c31856d96a263b94b7488308a3d7107be209a8a",
+      "bytes": 51643,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -67300,8 +67300,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/selected/hc-dark/690.png",
-      "sha256": "7c62fcb4c53428c1df2c4b8882f441d30646d6cc28063566891d03922dc52c53",
-      "bytes": 40967,
+      "sha256": "2785952a1630ede4eeae1fcd2c31856d96a263b94b7488308a3d7107be209a8a",
+      "bytes": 51643,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -74250,8 +74250,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/default/hc-light/320.png",
-      "sha256": "8ff79ab8cd2a09b862f3c4015417ad4f6fdd6222ae956cfc2b500d7627e58b36",
-      "bytes": 62043,
+      "sha256": "d705efbaa666ff716d2b1b0ad49f890b456587ce5939830403c7e245f956de1c",
+      "bytes": 61589,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -74267,8 +74267,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/hover/hc-light/320.png",
-      "sha256": "8ff79ab8cd2a09b862f3c4015417ad4f6fdd6222ae956cfc2b500d7627e58b36",
-      "bytes": 62043,
+      "sha256": "d705efbaa666ff716d2b1b0ad49f890b456587ce5939830403c7e245f956de1c",
+      "bytes": 61589,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -74284,8 +74284,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/focus-visible/hc-light/320.png",
-      "sha256": "2191dfb4ce4fa6057cfa05526c0f9465f47fec630494bc231151941e152a7395",
-      "bytes": 63571,
+      "sha256": "1c45f9f33215f1881181a92782ed6b0116709d830c4ca386b12a446eb3c259b3",
+      "bytes": 63609,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -74301,8 +74301,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/pressed/hc-light/320.png",
-      "sha256": "4650417076ca2db212ff0e62d5ed2e2d9e4de2ac56acfa9db458eb1468546b9f",
-      "bytes": 62053,
+      "sha256": "7b2ed3b093fd743bc94125195a767ac5618a009d509e1b27444be74de14125ce",
+      "bytes": 61600,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -74318,8 +74318,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/disabled/hc-light/320.png",
-      "sha256": "4650417076ca2db212ff0e62d5ed2e2d9e4de2ac56acfa9db458eb1468546b9f",
-      "bytes": 62053,
+      "sha256": "7b2ed3b093fd743bc94125195a767ac5618a009d509e1b27444be74de14125ce",
+      "bytes": 61600,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -74335,8 +74335,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/selected/hc-light/320.png",
-      "sha256": "4650417076ca2db212ff0e62d5ed2e2d9e4de2ac56acfa9db458eb1468546b9f",
-      "bytes": 62053,
+      "sha256": "7b2ed3b093fd743bc94125195a767ac5618a009d509e1b27444be74de14125ce",
+      "bytes": 61600,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -79392,8 +79392,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/default/hc-light/320.png",
-      "sha256": "3d608eec9b4bf728ed0f80c2d46fd9096095689c693b7a3ec13f1fcad56f1d49",
-      "bytes": 37849,
+      "sha256": "06dab7411335c785b54026dad346bef684f45a4c7612b538b79b2dca14c35fb6",
+      "bytes": 48674,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -79406,8 +79406,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/hover/hc-light/320.png",
-      "sha256": "3d608eec9b4bf728ed0f80c2d46fd9096095689c693b7a3ec13f1fcad56f1d49",
-      "bytes": 37849,
+      "sha256": "d2dd360f987aaeaffde6e4e310300a50b7d05b5d79c1d9dd7ef7e510ccc7233a",
+      "bytes": 48764,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -79420,8 +79420,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/focus-visible/hc-light/320.png",
-      "sha256": "3d608eec9b4bf728ed0f80c2d46fd9096095689c693b7a3ec13f1fcad56f1d49",
-      "bytes": 37849,
+      "sha256": "fabdf92e0e4102d7b3d4165518ed63b0e99fc71f3c980ae8b23eb23937873d23",
+      "bytes": 48669,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -79434,8 +79434,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/pressed/hc-light/320.png",
-      "sha256": "38403180c1d6289fa6070ac67405467b39367979da463da11e0ef8d5029f2e51",
-      "bytes": 36921,
+      "sha256": "18c6d4e647a835fb144ffc6154ba33caad9145b341ef0163e459b45d764f089a",
+      "bytes": 48762,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -79448,8 +79448,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/disabled/hc-light/320.png",
-      "sha256": "b824faf770bd830bcc7683f48232f7bde0ee011322a163f80dcfaeac3c97f104",
-      "bytes": 37891,
+      "sha256": "fabdf92e0e4102d7b3d4165518ed63b0e99fc71f3c980ae8b23eb23937873d23",
+      "bytes": 48669,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -79462,8 +79462,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/selected/hc-light/320.png",
-      "sha256": "b824faf770bd830bcc7683f48232f7bde0ee011322a163f80dcfaeac3c97f104",
-      "bytes": 37891,
+      "sha256": "fabdf92e0e4102d7b3d4165518ed63b0e99fc71f3c980ae8b23eb23937873d23",
+      "bytes": 48669,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -86412,8 +86412,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/default/hc-light/690.png",
-      "sha256": "104d971dfaed941e2b2b687a23fb90803a3c7bbee2accdd5393d4410448e42ff",
-      "bytes": 73309,
+      "sha256": "6c2f0aa27005e9ab6a053943de00baf476ff41fa7b75fbde34890c4f29f82fc4",
+      "bytes": 73360,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -86429,8 +86429,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/hover/hc-light/690.png",
-      "sha256": "104d971dfaed941e2b2b687a23fb90803a3c7bbee2accdd5393d4410448e42ff",
-      "bytes": 73309,
+      "sha256": "6c2f0aa27005e9ab6a053943de00baf476ff41fa7b75fbde34890c4f29f82fc4",
+      "bytes": 73360,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -86446,8 +86446,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/focus-visible/hc-light/690.png",
-      "sha256": "d20fc8d79a12336807019f4495ef846f8cb09ea373d2b18c440f8504098f9b63",
-      "bytes": 75391,
+      "sha256": "77d983d5fc208c764dd73eb055f25dd48e06367b6a4a5a0e370a80369b50339d",
+      "bytes": 75440,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -86463,8 +86463,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/pressed/hc-light/690.png",
-      "sha256": "c557e1ccd25b5fd20021d47b36c6c333825af2dc1beef4d4ac877e6f0f95be6d",
-      "bytes": 73317,
+      "sha256": "68dd27e5b5437f3cd86c44b3ee814be0a7c88df3000131bd209c663ae4227f2a",
+      "bytes": 73368,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -86480,8 +86480,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/disabled/hc-light/690.png",
-      "sha256": "c557e1ccd25b5fd20021d47b36c6c333825af2dc1beef4d4ac877e6f0f95be6d",
-      "bytes": 73317,
+      "sha256": "68dd27e5b5437f3cd86c44b3ee814be0a7c88df3000131bd209c663ae4227f2a",
+      "bytes": 73368,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -86497,8 +86497,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/selected/hc-light/690.png",
-      "sha256": "c557e1ccd25b5fd20021d47b36c6c333825af2dc1beef4d4ac877e6f0f95be6d",
-      "bytes": 73317,
+      "sha256": "68dd27e5b5437f3cd86c44b3ee814be0a7c88df3000131bd209c663ae4227f2a",
+      "bytes": 73368,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -91554,8 +91554,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/default/hc-light/690.png",
-      "sha256": "8b528847305dea261114a214d2d94283d1fb96e70e56f7bd86f103fa19cc9f09",
-      "bytes": 41857,
+      "sha256": "28b584ea50e4e938a0d0aa21f53b8ef4ba8e79d32b46086b05a5f8d8f47eb8f4",
+      "bytes": 53896,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -91568,8 +91568,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/hover/hc-light/690.png",
-      "sha256": "8b528847305dea261114a214d2d94283d1fb96e70e56f7bd86f103fa19cc9f09",
-      "bytes": 41857,
+      "sha256": "0522681c4c1e7e9b13c5625c673f32fbc5613d93c78ca8939acfee9631816f98",
+      "bytes": 53976,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -91582,8 +91582,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/focus-visible/hc-light/690.png",
-      "sha256": "8b528847305dea261114a214d2d94283d1fb96e70e56f7bd86f103fa19cc9f09",
-      "bytes": 41857,
+      "sha256": "989d4bf2445615c41df51fc0dea6ae21006850563141ad4af79274aa111a97cf",
+      "bytes": 53889,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -91596,8 +91596,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/pressed/hc-light/690.png",
-      "sha256": "0ddb254237f9603ba4597b8e08d07397ce812006291ec6de62eb01bdbc65393f",
-      "bytes": 40727,
+      "sha256": "2bb101216c70ef00dde5286ec81165e043b261210aeae13be841dbb9bcc52415",
+      "bytes": 53972,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -91610,8 +91610,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/disabled/hc-light/690.png",
-      "sha256": "b25c1e57ee3a60f3d5e0ce26266120685c19634f8a6d33aa7890eb61fdd92394",
-      "bytes": 41900,
+      "sha256": "989d4bf2445615c41df51fc0dea6ae21006850563141ad4af79274aa111a97cf",
+      "bytes": 53889,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -91624,8 +91624,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/selected/hc-light/690.png",
-      "sha256": "b25c1e57ee3a60f3d5e0ce26266120685c19634f8a6d33aa7890eb61fdd92394",
-      "bytes": 41900,
+      "sha256": "989d4bf2445615c41df51fc0dea6ae21006850563141ad4af79274aa111a97cf",
+      "bytes": 53889,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -98574,8 +98574,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/default/one-dark-pro/320.png",
-      "sha256": "eda6929e0516f3c6310cf54ef3784f9c7cc1ef51a87c15a90ccccb1a525f8a36",
-      "bytes": 68276,
+      "sha256": "4f664c84c0b9bdceab03a401a36b0f919615b414004ff7381096876032cf5d3e",
+      "bytes": 67643,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -98591,8 +98591,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/hover/one-dark-pro/320.png",
-      "sha256": "eda6929e0516f3c6310cf54ef3784f9c7cc1ef51a87c15a90ccccb1a525f8a36",
-      "bytes": 68276,
+      "sha256": "4f664c84c0b9bdceab03a401a36b0f919615b414004ff7381096876032cf5d3e",
+      "bytes": 67643,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -98608,8 +98608,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/focus-visible/one-dark-pro/320.png",
-      "sha256": "8740d886859f81521969e86110849f9732ebe21aab4a9df19f00bb8c8ffbe185",
-      "bytes": 69997,
+      "sha256": "2bf06afcd93c2e04ad5349a6ef63dcd807959cd36fc8af00b1b3776b57b15b13",
+      "bytes": 70044,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -98625,8 +98625,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/pressed/one-dark-pro/320.png",
-      "sha256": "0a55648b2986a2a373a6d2ca1c05dbba2f745bb55a59da380951f9eefe2c6d91",
-      "bytes": 68286,
+      "sha256": "42f712eb671d2b1befa889056ba3db374d60633b661cf15e70ee6643e394919e",
+      "bytes": 67649,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -98642,8 +98642,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/disabled/one-dark-pro/320.png",
-      "sha256": "0a55648b2986a2a373a6d2ca1c05dbba2f745bb55a59da380951f9eefe2c6d91",
-      "bytes": 68286,
+      "sha256": "42f712eb671d2b1befa889056ba3db374d60633b661cf15e70ee6643e394919e",
+      "bytes": 67649,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -98659,8 +98659,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/selected/one-dark-pro/320.png",
-      "sha256": "0a55648b2986a2a373a6d2ca1c05dbba2f745bb55a59da380951f9eefe2c6d91",
-      "bytes": 68286,
+      "sha256": "42f712eb671d2b1befa889056ba3db374d60633b661cf15e70ee6643e394919e",
+      "bytes": 67649,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -103716,8 +103716,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/default/one-dark-pro/320.png",
-      "sha256": "d7bccd00f4c731e184bbf86819d7d10cda76f1cc5b6d520a5ba21efcd416b818",
-      "bytes": 40930,
+      "sha256": "30d2e8605456102888646bbf055e0cbad64a8603faaa7bb856d13a41e1005a01",
+      "bytes": 53209,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -103730,8 +103730,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/hover/one-dark-pro/320.png",
-      "sha256": "d7bccd00f4c731e184bbf86819d7d10cda76f1cc5b6d520a5ba21efcd416b818",
-      "bytes": 40930,
+      "sha256": "977840cbfd7e4f8b7c3e9df4fcdc6b3419bba07faa04615e8a74fc567296a92f",
+      "bytes": 53407,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -103744,8 +103744,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/focus-visible/one-dark-pro/320.png",
-      "sha256": "d7bccd00f4c731e184bbf86819d7d10cda76f1cc5b6d520a5ba21efcd416b818",
-      "bytes": 40930,
+      "sha256": "9f36b8a6c485e7f380cd34528013869c651b3a177b575cc4a9b61ff6c050b94a",
+      "bytes": 53212,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -103758,8 +103758,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/pressed/one-dark-pro/320.png",
-      "sha256": "6adb08864389b29613f23def68960d735151c9335bb368a0ed0f2cce60e66a17",
-      "bytes": 40007,
+      "sha256": "c2abb3106eea622998af7b627f3a51631c8655fcc9359eff5892c8c266580cd9",
+      "bytes": 53409,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -103772,8 +103772,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/disabled/one-dark-pro/320.png",
-      "sha256": "565cc396f89e793120bb3a0494837b93aac5370f64f71507f3b5fce75c1c738c",
-      "bytes": 40954,
+      "sha256": "9f36b8a6c485e7f380cd34528013869c651b3a177b575cc4a9b61ff6c050b94a",
+      "bytes": 53212,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -103786,8 +103786,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/selected/one-dark-pro/320.png",
-      "sha256": "565cc396f89e793120bb3a0494837b93aac5370f64f71507f3b5fce75c1c738c",
-      "bytes": 40954,
+      "sha256": "9f36b8a6c485e7f380cd34528013869c651b3a177b575cc4a9b61ff6c050b94a",
+      "bytes": 53212,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -115878,8 +115878,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/default/one-dark-pro/690.png",
-      "sha256": "81a712c844b964c8513826450ba5b5c046d1768d4a561f1ff4caf4a99347545f",
-      "bytes": 44967,
+      "sha256": "0a177bba2fdd70b0a750fe533552422c9a4c822e45d36f5dd9a14bf5f156d04d",
+      "bytes": 58711,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -115892,8 +115892,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/hover/one-dark-pro/690.png",
-      "sha256": "81a712c844b964c8513826450ba5b5c046d1768d4a561f1ff4caf4a99347545f",
-      "bytes": 44967,
+      "sha256": "f895b0651333a61c7229c37114e9b38ae44c315bf4bcf289616596603bec279e",
+      "bytes": 58855,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -115906,8 +115906,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/focus-visible/one-dark-pro/690.png",
-      "sha256": "81a712c844b964c8513826450ba5b5c046d1768d4a561f1ff4caf4a99347545f",
-      "bytes": 44967,
+      "sha256": "f32aaab5eca8bb0680c1e608ce36f69b8a490f998109e914e6696b0fd7dc8baa",
+      "bytes": 58717,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -115920,8 +115920,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/pressed/one-dark-pro/690.png",
-      "sha256": "4dde9bf26f2df0a2f2df9c38b3ccf5f8784226d2953ab7816b1bb50ce26ef2e5",
-      "bytes": 43870,
+      "sha256": "45d43acd231129aa0c202b7efe9cceeb3b1249b301df5a9128e9ef5fb096b3dd",
+      "bytes": 58862,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -115934,8 +115934,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/disabled/one-dark-pro/690.png",
-      "sha256": "5add14e9dcf7f522bbfa59db72efc1c956b37a3e76e590b4e948400e3a536946",
-      "bytes": 44994,
+      "sha256": "f32aaab5eca8bb0680c1e608ce36f69b8a490f998109e914e6696b0fd7dc8baa",
+      "bytes": 58717,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -115948,8 +115948,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/selected/one-dark-pro/690.png",
-      "sha256": "5add14e9dcf7f522bbfa59db72efc1c956b37a3e76e590b4e948400e3a536946",
-      "bytes": 44994,
+      "sha256": "f32aaab5eca8bb0680c1e608ce36f69b8a490f998109e914e6696b0fd7dc8baa",
+      "bytes": 58717,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -122898,8 +122898,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/default/dracula/320.png",
-      "sha256": "4861033e480f3a7c93a2f124656284acbe006e165ed199655ee525fd1b9dfd4b",
-      "bytes": 68648,
+      "sha256": "756e41dfe8e3bddb74297a8508ea257d4ad50a5b92e81e2ddcbfafe019b2b170",
+      "bytes": 68156,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -122915,8 +122915,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/hover/dracula/320.png",
-      "sha256": "4861033e480f3a7c93a2f124656284acbe006e165ed199655ee525fd1b9dfd4b",
-      "bytes": 68648,
+      "sha256": "756e41dfe8e3bddb74297a8508ea257d4ad50a5b92e81e2ddcbfafe019b2b170",
+      "bytes": 68156,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -122932,8 +122932,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/focus-visible/dracula/320.png",
-      "sha256": "7006410464c7cde4e800c08d2af722ecd6e6131ef059424c9cdde634051dec59",
-      "bytes": 70407,
+      "sha256": "b36785f4e05d36fa3ca74326020c51003a3f42186ffe0d628e5781a0bea00ac6",
+      "bytes": 70680,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -122949,8 +122949,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/pressed/dracula/320.png",
-      "sha256": "44fc594821f80f24c6e15b0dec896e8c101c3c04474a777171c395862073be5f",
-      "bytes": 68649,
+      "sha256": "2d72c4779e07e9f825ba9e485b9d518570941c0141a304a1c39913f22fec4abd",
+      "bytes": 68160,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -122966,8 +122966,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/disabled/dracula/320.png",
-      "sha256": "44fc594821f80f24c6e15b0dec896e8c101c3c04474a777171c395862073be5f",
-      "bytes": 68649,
+      "sha256": "2d72c4779e07e9f825ba9e485b9d518570941c0141a304a1c39913f22fec4abd",
+      "bytes": 68160,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -122983,8 +122983,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/selected/dracula/320.png",
-      "sha256": "44fc594821f80f24c6e15b0dec896e8c101c3c04474a777171c395862073be5f",
-      "bytes": 68649,
+      "sha256": "2d72c4779e07e9f825ba9e485b9d518570941c0141a304a1c39913f22fec4abd",
+      "bytes": 68160,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -128040,8 +128040,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/default/dracula/320.png",
-      "sha256": "f72803515571028d84b563fcd4441ef6c29338cbdcb66f41d3dc6f57f1cd4272",
-      "bytes": 41714,
+      "sha256": "b5ae2aa34cb014db93fcc7d99d72cb382564b764ca859fef47deb1bf6712545e",
+      "bytes": 54190,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -128054,8 +128054,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/hover/dracula/320.png",
-      "sha256": "f72803515571028d84b563fcd4441ef6c29338cbdcb66f41d3dc6f57f1cd4272",
-      "bytes": 41714,
+      "sha256": "d3ed4b99297ac5cb1757ddbc5e069a6ccb4b0b3f6b40567984683e67cc72800c",
+      "bytes": 54189,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -128068,8 +128068,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/focus-visible/dracula/320.png",
-      "sha256": "f72803515571028d84b563fcd4441ef6c29338cbdcb66f41d3dc6f57f1cd4272",
-      "bytes": 41714,
+      "sha256": "4575763f1606ec22693d03e9a76cd023c1aa070f11212fd4f1cb9f392de6d53f",
+      "bytes": 54185,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -128082,8 +128082,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/pressed/dracula/320.png",
-      "sha256": "75d66f41ecdca1f820ba6755c5c060bd17b0b91dc70a776ce3a9d8781dc3e61f",
-      "bytes": 40590,
+      "sha256": "e0376580b62c6ef9d6cc5c6a6b0789ae27788bb6592b0d21a59eb33202b1080c",
+      "bytes": 54185,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -128096,8 +128096,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/disabled/dracula/320.png",
-      "sha256": "556659f9915a6762c0281cdbf0ab5a6c74d137a18d1805ebbaa6fb06a06d61b9",
-      "bytes": 41718,
+      "sha256": "4575763f1606ec22693d03e9a76cd023c1aa070f11212fd4f1cb9f392de6d53f",
+      "bytes": 54185,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -128110,8 +128110,8 @@
       "width": 320,
       "height": 760,
       "file": "panel/quote-menu/selected/dracula/320.png",
-      "sha256": "556659f9915a6762c0281cdbf0ab5a6c74d137a18d1805ebbaa6fb06a06d61b9",
-      "bytes": 41718,
+      "sha256": "4575763f1606ec22693d03e9a76cd023c1aa070f11212fd4f1cb9f392de6d53f",
+      "bytes": 54185,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -135060,8 +135060,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/default/dracula/690.png",
-      "sha256": "4761c409a8f2968483130724001648c07c1eab0f14fcb015358b903746db661c",
-      "bytes": 80677,
+      "sha256": "dcd7dad524a124b8d466b7d8a60597352c0a61bca1440263a555be29b2e2c66f",
+      "bytes": 80681,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -135077,8 +135077,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/hover/dracula/690.png",
-      "sha256": "4761c409a8f2968483130724001648c07c1eab0f14fcb015358b903746db661c",
-      "bytes": 80677,
+      "sha256": "dcd7dad524a124b8d466b7d8a60597352c0a61bca1440263a555be29b2e2c66f",
+      "bytes": 80681,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -135094,8 +135094,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/focus-visible/dracula/690.png",
-      "sha256": "3da46c3fc0c8e6afa8d44ccba1bff271a64f46c2602545da506810f531994a5f",
-      "bytes": 83180,
+      "sha256": "a523c69a5155f409ad043ba5f979231d4685ec82552caca5580cdfdbde8eaa92",
+      "bytes": 83183,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -135111,8 +135111,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/pressed/dracula/690.png",
-      "sha256": "0d0816ab759e5fea94174825ef0c86de18e8998b6b65746c86098a8dd9a10bdb",
-      "bytes": 80679,
+      "sha256": "25cfee3d8777bc2715e34321199d55e37a4595ecea7505b2cb805888f70efa72",
+      "bytes": 80684,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -135128,8 +135128,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/disabled/dracula/690.png",
-      "sha256": "0d0816ab759e5fea94174825ef0c86de18e8998b6b65746c86098a8dd9a10bdb",
-      "bytes": 80679,
+      "sha256": "25cfee3d8777bc2715e34321199d55e37a4595ecea7505b2cb805888f70efa72",
+      "bytes": 80684,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -135145,8 +135145,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/chat-tool-menu-narrow/selected/dracula/690.png",
-      "sha256": "0d0816ab759e5fea94174825ef0c86de18e8998b6b65746c86098a8dd9a10bdb",
-      "bytes": 80679,
+      "sha256": "25cfee3d8777bc2715e34321199d55e37a4595ecea7505b2cb805888f70efa72",
+      "bytes": 80684,
       "components": [
         "src/webview/components/GooeyMenu.tsx",
         "src/webview/components/GooeyMenuContent.tsx"
@@ -140202,8 +140202,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/default/dracula/690.png",
-      "sha256": "921bbdf22a9edec924f7659413dac5eca8d39545ce9f6f042e28e1776b8b652e",
-      "bytes": 45747,
+      "sha256": "0a76ae37851bd8203c7e1e4e6d0c312dc07090ead33fd016f3c4ed0ad201ef16",
+      "bytes": 59680,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -140216,8 +140216,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/hover/dracula/690.png",
-      "sha256": "921bbdf22a9edec924f7659413dac5eca8d39545ce9f6f042e28e1776b8b652e",
-      "bytes": 45747,
+      "sha256": "08779180fa8c5eba327aee4dbc83d8011bfb974410679d0d94f2eecfb79da71b",
+      "bytes": 59694,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -140230,8 +140230,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/focus-visible/dracula/690.png",
-      "sha256": "921bbdf22a9edec924f7659413dac5eca8d39545ce9f6f042e28e1776b8b652e",
-      "bytes": 45747,
+      "sha256": "a5a727241cc5da9ba2c0ce948b8fb43048c8a9d2525617efbfe3cfa1efc02ee7",
+      "bytes": 59683,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -140244,8 +140244,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/pressed/dracula/690.png",
-      "sha256": "ec600eabd4d1e551aafe11dd363fb899cd5e3ded6c0ff0532c1bd53d4fa78249",
-      "bytes": 44448,
+      "sha256": "dad9cb7bdf2e5a2cbf5bd550de6819970c5e9eba440c067f299f5da504317a76",
+      "bytes": 59694,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": "button.gooey-menu-pill",
       "applied": true
@@ -140258,8 +140258,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/disabled/dracula/690.png",
-      "sha256": "beee1db4209e073bd98e8e40e4c978a96d1558363b80c271a63eb428b4e87b2e",
-      "bytes": 45759,
+      "sha256": "a5a727241cc5da9ba2c0ce948b8fb43048c8a9d2525617efbfe3cfa1efc02ee7",
+      "bytes": 59683,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
@@ -140272,8 +140272,8 @@
       "width": 690,
       "height": 760,
       "file": "panel/quote-menu/selected/dracula/690.png",
-      "sha256": "beee1db4209e073bd98e8e40e4c978a96d1558363b80c271a63eb428b4e87b2e",
-      "bytes": 45759,
+      "sha256": "a5a727241cc5da9ba2c0ce948b8fb43048c8a9d2525617efbfe3cfa1efc02ee7",
+      "bytes": 59683,
       "components": ["src/webview/components/QuoteMenu.tsx"],
       "target": null,
       "applied": false
