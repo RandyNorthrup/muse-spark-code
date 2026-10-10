@@ -125,14 +125,6 @@ const REQUIRE_WORD = 'require'
 const LOADER = new RegExp(String.raw`\b${IMPORT_WORD}\s*\(|(?<!\.)\b${REQUIRE_WORD}\s*\(`, 'g')
 
 /**
- * Refuses a dynamic `import()` or `require()` call whose specifier the
- * bundler cannot see: it runs at runtime, outside every hashed edge, so
- * the digest fails closed instead of freezing around it. A string literal
- * (or a substitution-free template) is the bundler's own edge and needs
- * no refusal: it is either in the metafile or the build above already
- * failed on it.
- */
-/**
  * Whether a dynamic loading call's template argument is a plain literal:
  * a closing backtick before any substitution. A substitution reads at
  * runtime, outside every hashed edge, so it fails the digest.
@@ -153,6 +145,14 @@ function isLiteralTemplateSpecifier(arg: string, key: string): boolean {
   return false
 }
 
+/**
+ * Refuses a dynamic `import()` or `require()` call whose specifier the
+ * bundler cannot see: it runs at runtime, outside every hashed edge, so
+ * the digest fails closed instead of freezing around it. A string literal
+ * (or a substitution-free template) is the bundler's own edge and needs
+ * no refusal: it is either in the metafile or the build above already
+ * failed on it.
+ */
 function refuseDynamicLoads(source: string, key: string): void {
   const clean = source.replaceAll(SKIP, (match) => (match.startsWith('/') ? '' : '""'))
   LOADER.lastIndex = 0

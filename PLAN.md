@@ -29898,7 +29898,7 @@ receipts remain the lead's checks under the rig brief.
   hash-outside-bindings-by-value path is removed. Canonical JSON keeps an
   own `__proto__` field via definition, never assignment (finding 4, P3),
   and the digest envelope is canonicalized through it. Re-frozen as
-  `8e4bde…c227c`. Record: updated evidence and R4 drills in
+  `630ffa…f4fc1f`. Record: updated evidence and R4 drills in
   `docs/certification/m101-eval-arms.md`.
 
   **C2 final-review accounting correction.** If shared settlement throws during
