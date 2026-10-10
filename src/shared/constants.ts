@@ -1735,17 +1735,14 @@ export const STDERR_SHOWN_CHARS = 1000
 export const PULL_REQUEST_WORKTREES_DIR = 'pr-worktrees'
 // M123 lane G (RVM123G2 R7, R8): one native Git transaction per repository
 // across every editor and runtime process. The lock file sits in git's
-// common directory; its holder refreshes it, and a waiter takes it over only
-// when the holder's process is gone (same machine) or it went silent this long.
+// common directory; LOCKLIB renews only the owned instance, and checks
+// its monotonic lease and increasing fence at each dispatch.
 export const GIT_TRANSACTION_LOCK_FILE = 'muse-spark-code-git.lock'
 export const GIT_TRANSACTION_LOCK_POLL_MS = 100
-export const GIT_TRANSACTION_LOCK_REFRESH_MS = 5000
 export const GIT_TRANSACTION_LOCK_STALE_MS = 30_000
-// RVM123G3G: the holder checks its lock this often, every git it runs
-// included, and puts it back if it is gone; a newcomer trusts its own new
-// lock only after the settle time, several of the holder's checks.
-export const GIT_TRANSACTION_LOCK_WATCH_MS = 50
-export const GIT_TRANSACTION_LOCK_SETTLE_MS = 250
+const GIT_TRANSACTION_LOCK_LEASE_PARTS = 3
+export const GIT_TRANSACTION_LOCK_REFRESH_MS =
+  GIT_TRANSACTION_LOCK_STALE_MS / GIT_TRANSACTION_LOCK_LEASE_PARTS
 // D104's push and pull request fetch (RVM123G2 R3): the only credential
 // variables a Git child may receive, for those two operations only: the
 // GitHub routes `gh`'s credential helper reads. Never a model or provider key.
