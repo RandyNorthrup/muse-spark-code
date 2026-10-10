@@ -6,6 +6,7 @@ import { build, type Metafile } from 'esbuild'
 import { chromium, type Browser, type LaunchOptions } from 'playwright-core'
 import { z } from 'zod/mini'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { compactBrowserEnglish } from '../../scripts/lib/uiTextRegions.mjs'
 import { parseEstimateGoal } from '../../src/shared/estimate'
 import { resolveEstimateGoal } from '../../src/core/estimator/goal'
 import { prepareEstimateSchedule } from '../../src/core/estimator/schedule'
@@ -32,9 +33,12 @@ beforeAll(async () => {
     splitting: true,
     format: 'esm',
     platform: 'browser',
+    target: 'chrome128',
     jsx: 'automatic',
     minify: true,
     metafile: true,
+    // Match independent production pages: cold navigation must not parse the raw English table.
+    plugins: [compactBrowserEnglish],
     define: { 'process.env.NODE_ENV': '"production"' },
   })
   state.metafile = result.metafile
