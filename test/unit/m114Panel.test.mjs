@@ -82,6 +82,13 @@ beforeAll(async () => {
     path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' },
   )
 })
+// Only this file's first case ever timed out on hosted macOS (six 0.17 runs):
+// the browser's first pages, not the contract. Pay that once here, in a hook
+// with its own limit, so every case keeps its five seconds.
+beforeAll(async () => {
+  const page = await open('dark')
+  await page.close()
+})
 afterAll(async () => {
   await runtime.browser?.close()
   if (runtime.host) await new Promise((resolve) => runtime.host.server.close(resolve))

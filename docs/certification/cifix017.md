@@ -949,3 +949,11 @@ for `companionUpload` (`EPERM … rmdir …\muse-upload-…`, twice) and
 three cleaned up with a bare recursive `rm`; they now use the repository's
 `removeFolder` (five retries 200 ms apart), which still fails the suite if a
 process is genuinely left holding the folder. win11 59/59, kubuntu 73/73.
+
+**macOS m114Panel first case (run 38025649553).** "loads the real lazy menu
+independently of the secret modal focus owner" timed out at 5 s on hosted
+macOS, as it had in five earlier 0.17 runs; it is the file's first case and
+opens two cold pages at once, each parsing the full fixture script. Like the
+estimator, a separate `beforeAll` (its own hook limit; the build-heavy first
+hook keeps its budget) opens and closes one page first; every case keeps the
+default five seconds and all assertions. Mac mini: 70/70, the case 811 ms.
