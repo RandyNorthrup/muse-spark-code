@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Visual baseline reconstruction accepts the recorded sentence-case account
+  and vault labels alongside 0.17.1's Title Case labels. Pixel, coverage and
+  readiness checks retain their existing limits.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

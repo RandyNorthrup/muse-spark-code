@@ -84,7 +84,7 @@ export async function waitForDeferredPaint(page, scene) {
   if ((await loading.count()) > 0) throw new Error(`Deferred renderer did not settle: ${scene}`)
 }
 
-async function openScene(page, root, port, scene, theme, width, height, fixtures) {
+export async function openScene(page, root, port, scene, theme, width, height, fixtures) {
   let resource = `test/harness/index.html?scenario=${width === 320 ? scene : scene.replace(/-narrow$/, '')}&theme=${theme}&bundle=${bundleFor(scene)}`
   if (fixtureScenes.has(scene)) resource = `${fixtures}/index.html?scene=${scene}`
   if (Object.hasOwn(additionalScenes, scene)) {
@@ -144,7 +144,8 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     if (label === undefined) await buttons.first().click()
     else
       await buttons
-        .filter({ hasText: new RegExp(`^${label}$`) })
+        // Recorded source revisions retain sentence-case action labels.
+        .filter({ hasText: new RegExp(`^${label}$`, 'i') })
         .first()
         .click()
     await page.clock.runFor(100)
@@ -163,7 +164,8 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
   if (scene === 'share' || scene === 'share-narrow')
     await waitForPaint(page, '.code-block-body code.hljs [class^="hljs-"]')
   if ((await page.locator('h3.usage-heading', { hasText: /^Account$/ }).count()) > 0) {
-    await waitForPaint(page, 'dl.usage-facts dt:text-is("Auth Method")')
+    // Reconstruct both the recorded sentence-case source and Title Case UI.
+    await waitForPaint(page, 'dl.usage-facts dt:text-matches("^Auth method$", "i")')
     // Its status and usage rows also load lazily behind "Reading usage…".
     const reading = page.locator('[role="status"]', { hasText: /^Reading usage…$/ })
     for (let attempt = 0; attempt < 100 && (await reading.count()) > 0; attempt += 1) {
