@@ -106,6 +106,7 @@
   "certaintyComputed": "Számított",
   "certaintyUncertain": "Bizonytalan",
   "certaintyPlan": "Csomag",
+  "certaintyMuseCodePlan": "Muse Code plan",
   "certaintyLocal": "Helyi",
   "certaintyUnpriced": "Ár nélküli",
   "certaintyEstimated": "Becsült",

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { withCredentialRedaction } from '../../src/runtime/backends'
 import type { SessionStore, StoredSession } from '../../src/core/backends/modelapi/sessionStore'
 import { SubscriptionCredential } from '../../src/host/auth/subscriptionCredential'
-import { SubscriptionKeySource } from '../../src/core/backends/modelapi/subscriptionKey'
+import { memorySubscriptionFile } from './helpers/subscriptionFile'
 
 // Opaque values no shape pattern matches: only the exact literals read
 // from the credentials can scrub them.
@@ -13,23 +13,9 @@ const SUB = 'opaque subscription value 9d4e1a'
 const PASTED = 'opaque pasted value 3b7c2e'
 
 function credential(text: string | undefined, pasted: string | undefined) {
-  const files = new Map<string, string>()
-  const source = new SubscriptionKeySource({
-    platform: 'linux',
-    homeDir: '/home/u',
-    xdgConfigHome: undefined,
-    readFile: (file: string) => {
-      const found = files.get(file)
-      return found === undefined
-        ? Promise.reject(Object.assign(new Error('gone'), { code: 'ENOENT' }))
-        : Promise.resolve(found)
-    },
-    stat: (file: string) =>
-      files.has(file)
-        ? Promise.resolve({ size: 8 })
-        : Promise.reject(Object.assign(new Error('gone'), { code: 'ENOENT' })),
-  })
-  if (text !== undefined) files.set(source.path(), text)
+  const file = memorySubscriptionFile()
+  if (text !== undefined) file.writeText(text)
+  const source = file.source
   return new SubscriptionCredential({
     credentials: { getApiKey: () => Promise.resolve(pasted) },
     isEnabled: () => true,

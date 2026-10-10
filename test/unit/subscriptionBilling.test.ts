@@ -10,7 +10,7 @@ import { createUsageRecord } from '../../src/core/usage/journalRecord'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { SubscriptionCredential } from '../../src/host/auth/subscriptionCredential'
-import { SubscriptionKeySource } from '../../src/core/backends/modelapi/subscriptionKey'
+import { memorySubscriptionFile } from './helpers/subscriptionFile'
 import {
   fakeModelApi,
   fakeModelApiClient,
@@ -192,30 +192,8 @@ describe('subscription rotation', () => {
     // the account instead of reaching the wire.
     const log = new FakeLogOutputChannel()
     const api = fakeModelApi()
-    const files = new Map<string, string>()
-    const source = new SubscriptionKeySource({
-      platform: 'linux',
-      homeDir: '/home/u',
-      xdgConfigHome: undefined,
-      readFile: (file: string) => {
-        const found = files.get(file)
-        return found === undefined
-          ? Promise.reject(Object.assign(new Error('gone'), { code: 'ENOENT' }))
-          : Promise.resolve(found)
-      },
-      stat: (file: string) =>
-        files.has(file)
-          ? Promise.resolve({ size: 8 })
-          : Promise.reject(Object.assign(new Error('gone'), { code: 'ENOENT' })),
-    })
-    const authFile = source.path()
-    const write = (accessToken: string): void => {
-      files.set(
-        authFile,
-        JSON.stringify({ schema_version: 1, providers: { meta: { access_token: accessToken } } }),
-      )
-    }
-    write('subscription-key-one')
+    const { source, writeAccessToken } = memorySubscriptionFile()
+    writeAccessToken('subscription-key-one')
     const credential = new SubscriptionCredential({
       credentials: { getApiKey: () => Promise.resolve(undefined) },
       isEnabled: () => true,
@@ -240,7 +218,6 @@ describe('subscription rotation', () => {
         io: memoryToolIo({}, '/workspace'),
         log,
       }),
-      getApiKey: () => credential.getApiKey(),
       getAccountId: digest,
       isSubscriptionBilling: () => credential.isSubscriptionBilling(),
     })
@@ -254,7 +231,7 @@ describe('subscription rotation', () => {
       api.script({ text: 'first answer' })
       await session.sendTurn([{ type: 'text', text: 'hi' }])
       await turns.turnDone()
-      write('subscription-key-two')
+      writeAccessToken('subscription-key-two')
       api.script({ text: 'second answer' })
       await session.sendTurn([{ type: 'text', text: 'again' }])
       await turns.turnDone()

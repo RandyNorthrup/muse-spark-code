@@ -122,6 +122,7 @@
   "certaintyComputed": "Вычислена",
   "certaintyUncertain": "Неопределённая",
   "certaintyPlan": "План",
+  "certaintyMuseCodePlan": "Muse Code plan",
   "certaintyLocal": "Локальная",
   "certaintyUnpriced": "Без цены",
   "certaintyEstimated": "Оценочная",

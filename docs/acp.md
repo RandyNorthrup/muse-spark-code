@@ -146,12 +146,15 @@ switches on its own.
 | Meta Model API (on your plan)       | `--backend modelApi --subscription` | Your Muse Code plan, per call | The Muse Code CLI, signed in with a subscription key     |
 
 `--subscription` reads the subscription key the Muse Code CLI already holds
+after a browser or device-code sign-in
 and bills Model API calls to the plan instead of a key: no `auth set`
-needed, nothing extra to store. Usage records these calls as **Plan** with
+needed, nothing extra to store. A pay-as-you-go `muse auth set` key never
+counts: it is refused, never billed as plan. Usage records these calls as
+**Muse Code plan** with
 no dollar price. A missing or unreadable CLI sign-in refuses with the fix
 instead of billing a stored key; a macOS Keychain-only sign-in cannot be
-read, so use a key there. Paid extras (web search, images, voice) still need
-a stored key. `exec --subscription` refuses with `--key-stdin` (one
+read, so use a key there. Paid images still need
+a stored key, and hosted web search stays off while chat bills the plan. `exec --subscription` refuses with `--key-stdin` (one
 credential per run); a subscription run still needs `--max-budget-usd` and
 `--max-requests`, and its receipt reports `$0` billed for the plan-covered
 chat requests.

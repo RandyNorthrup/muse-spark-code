@@ -28,7 +28,7 @@ interface HookFixture {
   readonly runHook: NonNullable<ToolIo['runHook']>
 }
 
-it('loads the provider factory only on first BYO resolution and reuses it', async () => {
+function localTeamProvider() {
   const meta = fakeModelApi()
   const provider = fakeModelApi()
   const log = new FakeLogOutputChannel()
@@ -46,6 +46,11 @@ it('loads the provider factory only on first BYO resolution and reuses it', asyn
     createClient: () => Promise.resolve(fakeModelApiClient(provider, log)),
     isCurrent: () => true,
   })
+  return { meta, provider, log, ref, registry }
+}
+
+it('loads the provider factory only on first BYO resolution and reuses it', async () => {
+  const { meta, log, ref, registry } = localTeamProvider()
   const createProviders = vi.fn(() => Promise.resolve(registry))
   const manager = new ModelApiBackendManager(
     fakeManagerDeps(meta, log, {
@@ -671,23 +676,7 @@ it('starts an unrelated provider while the subscription key is refused', async (
   // remains configured → the host still becomes ready for that provider
   // instead of failing its initialization; the turn path (not the
   // factory) owns the subscription refusal.
-  const meta = fakeModelApi()
-  const provider = fakeModelApi()
-  const log = new FakeLogOutputChannel()
-  const ref = 'team/small'
-  const registry = createProviderRegistry({
-    models: () =>
-      Promise.resolve([
-        {
-          ref,
-          origin: 'https://example.test',
-          pricing: { kind: 'local' },
-          evidence: { capabilities: { toolCalling: true } },
-        },
-      ]),
-    createClient: () => Promise.resolve(fakeModelApiClient(provider, log)),
-    isCurrent: () => true,
-  })
+  const { meta, provider, log, ref, registry } = localTeamProvider()
   const manager = new ModelApiBackendManager(
     fakeManagerDeps(meta, log, {
       workspaceRoot: '/ws',

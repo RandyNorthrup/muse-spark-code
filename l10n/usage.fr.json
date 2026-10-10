@@ -114,6 +114,7 @@
   "certaintyComputed": "Calculé",
   "certaintyUncertain": "Incertain",
   "certaintyPlan": "Forfait",
+  "certaintyMuseCodePlan": "Muse Code plan",
   "certaintyLocal": "En local",
   "certaintyUnpriced": "Sans prix",
   "certaintyEstimated": "Estimé",

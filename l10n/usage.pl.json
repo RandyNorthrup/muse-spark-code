@@ -122,6 +122,7 @@
   "certaintyComputed": "Obliczony",
   "certaintyUncertain": "Niepewny",
   "certaintyPlan": "Plan",
+  "certaintyMuseCodePlan": "Muse Code plan",
   "certaintyLocal": "Lokalny",
   "certaintyUnpriced": "Bez ceny",
   "certaintyEstimated": "Szacowany",
