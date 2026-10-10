@@ -2549,7 +2549,6 @@ export class ModelApiSession implements ScheduledAgentSession {
   private readonly parallelReads: boolean
   private readonly outputContinuation: boolean
   private outputFormat: CreateResponseBody['text']
-  private readonly outputCaps = new Map<string, number>()
   private readonly repeatGuard = new RepeatGuard()
   /**
    * The ledger total a resumed session brought (M73), kept so a save keeps
@@ -4236,13 +4235,12 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   private outputCap(): number {
-    const cached = this.outputCaps.get(this.modelId)
-    if (cached !== undefined) return cached
+    // Recomputed per request from the currently resolved record: a cached cap
+    // outlives a provider-file edit between turns (RVMINOUT P2).
     const requested = this.deps.modelOutputMaxTokens?.(this.modelId) ?? MODEL_API_MAX_OUTPUT_TOKENS
     if (!Number.isSafeInteger(requested)) throw new RangeError('invalid output.maxTokens')
     const cap = outputLimitFor(this.modelPolicy(), requested)
     if (!Number.isSafeInteger(cap) || cap < 1) throw new RangeError('invalid output.maxTokens')
-    this.outputCaps.set(this.modelId, cap)
     return cap
   }
 
