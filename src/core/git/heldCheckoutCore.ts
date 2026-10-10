@@ -10,14 +10,17 @@
 //   the checkout through the host's error.
 // - `pullRequestCheckoutConfirmation`: what the confirmation says about
 //   where the pull request goes and how it is held.
+// - `heldDestination` and `namedHookOverrides`: where a path of the
+//   commit may land, and the overrides that switch off every named hook.
 //
 // Pure: the hosts run git and write the files.
 
 import { Buffer } from 'node:buffer'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { confineWorkspacePath, type RealPathIo } from '../workspacePath'
 import type { PullRequest } from './github'
-import type { HeldEntry } from './heldTree'
+import { foldName, type HeldEntry } from './heldTree'
 
 const LINE_FEED = 0x0a
 
@@ -102,4 +105,57 @@ export function pullRequestCheckoutConfirmation(pullRequest: PullRequest, isOwn:
     ...(isOwn ? [] : [UI_TEXT.openPullRequestUnfilteredDetail]),
     UI_TEXT.gitCommandConsequences,
   ].join('\n')
+}
+
+/**
+ * Where a path of the commit lands: inside the worktree, with nothing on the
+ * way that leads elsewhere. Every folder on the way was made by this
+ * checkout with the commit's spelling, so any other canonical spelling is a
+ * link, a junction or a name the volume reads as another (a short name).
+ * Undefined then; each host refuses with `unsafePathReason`.
+ */
+export async function heldDestination(
+  platform: NodeJS.Platform,
+  folder: string,
+  entryPath: string,
+  io: RealPathIo,
+) {
+  const resolution = await confineWorkspacePath(folder, entryPath, platform, io)
+  return resolution.ok &&
+    foldName(resolution.canonical, platform) === foldName(resolution.relative, platform)
+    ? resolution
+    : undefined
+}
+
+const HOOK_KEY = /^hook\.(.+)\.(?:command|event|enabled)$/iu
+
+/**
+ * `fixed`, then every named hook `configuration` (`git config --null
+ * --name-only --list`) defines switched off: new Git configures named hooks
+ * independently of core.hooksPath. Undefined when a name cannot be spelled
+ * as a per-command override (`-c` splits at its first '='): never guess an
+ * escape; the host refuses the checkout.
+ */
+export function namedHookOverrides(
+  configuration: string,
+  fixed: readonly string[],
+): readonly string[] | undefined {
+  const hooks = new Set(
+    configuration.split('\0').flatMap((name) => {
+      const hook = HOOK_KEY.exec(name)?.[1]
+      return hook === undefined ? [] : [hook]
+    }),
+  )
+  if ([...hooks].some((name) => name.includes('=') || /\p{Cc}/u.test(name))) {
+    return undefined
+  }
+  return [
+    ...fixed,
+    ...[...hooks].flatMap((hook) => [
+      '-c',
+      `hook.${hook}.enabled=false`,
+      '-c',
+      `hook.${hook}.event=`,
+    ]),
+  ]
 }

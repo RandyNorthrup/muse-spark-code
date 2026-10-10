@@ -17,17 +17,10 @@ import {
   CAPTURED_STATUS_FAILED,
 } from './helpers/githubCapture'
 import { FAKE_GITHUB_BASE, FAKE_GITHUB_TOKEN, fakeGitHub } from './helpers/fakeGitHub'
-import type { CoreLogger } from '../../src/core/logging'
+import { recordingLogger } from './helpers/recordingLogger'
 
 const REPOSITORY = { owner: 'RandyNorthrup', name: 'muse-spark-code' }
 
-function recordingLogger(): CoreLogger & { readonly lines: string[] } {
-  const lines: string[] = []
-  const record = (line: string) => {
-    lines.push(line)
-  }
-  return { lines, trace: record, info: record, warn: record, error: record }
-}
 const OWN_SHA = CAPTURED_PULL_OWN.head.sha
 
 function client(github = fakeGitHub()) {

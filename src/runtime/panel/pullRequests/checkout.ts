@@ -54,10 +54,15 @@ import {
   WORKTREE_RECORD_SAVE_ATTEMPTS,
 } from '../../../shared/constants'
 import { fill, formatBytes } from '../../../shared/l10n/text'
-import { GitHubClient, GitHubError, isCommitSha, type PullRequest } from '../../../core/git/github'
+import { GitHubClient, isCommitSha, type PullRequest } from '../../../core/git/github'
 import { repositoryLabel } from '../../../core/git/githubRemote'
-import { BlobAnswers, pullRequestCheckoutConfirmation } from '../../../core/git/heldCheckoutCore'
-import { foldName, heldTree, type HeldEntry, unsafePathReason } from '../../../core/git/heldTree'
+import {
+  BlobAnswers,
+  heldDestination,
+  namedHookOverrides,
+  pullRequestCheckoutConfirmation,
+} from '../../../core/git/heldCheckoutCore'
+import { heldTree, type HeldEntry, unsafePathReason } from '../../../core/git/heldTree'
 import {
   pullRequestRefFrom,
   remoteForPullRequest,
@@ -82,12 +87,16 @@ import {
   worktreeFolder,
   worktreeRemoveArgs,
 } from '../../../core/worktrees'
-import { confineWorkspacePath } from '../../../core/workspacePath'
 import { canonicalPath } from '../../../host/canonicalPath'
+import { hasGitProgramControls } from '../../../host/git'
 import { createFileExclusively } from '../../../host/fsAtomic'
 import type { CoreLogger } from '../../../core/logging'
 import { redactSecrets } from '../../../core/redact'
-import { resolveGitHubCredential, type GitHubCredential } from '../../../core/git/tokenSource'
+import {
+  didDropRejectedCredential,
+  resolveGitHubCredential,
+  type GitHubCredential,
+} from '../../../core/git/tokenSource'
 import { PullRequestServiceError, type RuntimePullRequestDeps } from './pullRequests'
 import {
   holdForRoots,
@@ -136,24 +145,8 @@ function untrustedCheckoutArgs(platform: NodeJS.Platform): readonly string[] {
   ]
 }
 
-/** A hook configuration name the overrides below cannot spell. */
-const HOOK_KEY = /^hook\.(.+)\.(?:command|event|enabled)$/iu
-const NUL = '\0'
-
 function checkoutRefusal(): Error {
   return new PullRequestServiceError(UI_TEXT.openPullRequestFiltersUnavailable)
-}
-
-/** Whether `output` of `git --version` takes per-command program controls. */
-function hasProgramControls(output: string): boolean {
-  const version = /^git version (\d+)\.(\d+)/u.exec(output)
-  const major = Number(version?.[1])
-  const minor = Number(version?.[2])
-  return (
-    Number.isSafeInteger(major) &&
-    Number.isSafeInteger(minor) &&
-    (major > 2 || (major === 2 && minor >= UNTRUSTED_CHECKOUT_MIN_GIT_MINOR))
-  )
 }
 
 /**
@@ -502,7 +495,7 @@ async function hookOverrides(
     } catch {
       throw checkoutRefusal()
     }
-    if (!hasProgramControls(output)) {
+    if (!hasGitProgramControls(output, UNTRUSTED_CHECKOUT_MIN_GIT_MINOR)) {
       throw checkoutRefusal()
     }
     git.versionChecked = true
@@ -519,38 +512,19 @@ async function hookOverrides(
   } catch {
     throw checkoutRefusal()
   }
-  // New Git can configure named hooks independently of core.hooksPath.
-  const hooks = new Set(
-    configuration.split(NUL).flatMap((name) => {
-      const hook = HOOK_KEY.exec(name)?.[1]
-      return hook === undefined ? [] : [hook]
-    }),
-  )
-  // -c splits at its first '='; such subsection names cannot be represented
-  // by these per-command overrides. Never guess an escape.
-  if ([...hooks].some((name) => name.includes('=') || /\p{Cc}/u.test(name))) {
+  const overrides = namedHookOverrides(configuration, untrustedCheckoutArgs(git.platform))
+  if (overrides === undefined) {
     throw checkoutRefusal()
   }
-  return [
-    ...untrustedCheckoutArgs(git.platform),
-    ...[...hooks].flatMap((hook) => [
-      '-c',
-      `hook.${hook}.enabled=false`,
-      '-c',
-      `hook.${hook}.event=`,
-    ]),
-  ]
+  return overrides
 }
 
-/** Where a path of the commit lands: inside the worktree, spelled as stored. */
+/** Where a path of the commit lands (`heldDestination`), or the refusal. */
 async function heldDestinationOf(platform: NodeJS.Platform, folder: string, entryPath: string) {
-  const resolution = await confineWorkspacePath(folder, entryPath, platform, {
+  const resolution = await heldDestination(platform, folder, entryPath, {
     realPath: canonicalPath,
   })
-  if (
-    !resolution.ok ||
-    foldName(resolution.canonical, platform) !== foldName(resolution.relative, platform)
-  ) {
+  if (resolution === undefined) {
     throw new PullRequestServiceError(unsafePathReason(entryPath))
   }
   return resolution
@@ -1568,18 +1542,6 @@ export class RuntimePullRequestCheckout {
     })()
   }
 
-  /** A 401 drops the stored credential, so the user signs in again. */
-  private async rejected(credential: GitHubCredential, error: unknown): Promise<boolean> {
-    if (error instanceof GitHubError && error.kind === 'signIn') {
-      const source = this.deps.tokenSources.find(
-        (candidate) => candidate.kind === credential.source,
-      )
-      await source?.rejected(credential)
-      return true
-    }
-    return false
-  }
-
   private async checkOutWith(
     credential: GitHubCredential,
     remote: GitHubRemote,
@@ -1602,7 +1564,7 @@ export class RuntimePullRequestCheckout {
       pullRequest = found
       isOwn = found.author.id === user.id
     } catch (error: unknown) {
-      const isSignIn = await this.rejected(credential, error)
+      const isSignIn = await didDropRejectedCredential(this.deps.tokenSources, credential, error)
       return {
         ok: false,
         reason: `${UI_TEXT.gitHubFailed}: ${failureText(error)}`,
