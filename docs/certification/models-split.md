@@ -11,6 +11,15 @@ Follow-up lane MODELSPLIT2 (2026-10-10) fixes all three findings of review
 RVMODELSPLIT (P2 placeholder jump, P2 budget 0 KiB pass, P3 wrong suite
 names). No finding left open.
 
+Follow-up lane MODELSPLIT3 (2026-10-10) fixes both findings of review
+RVMODELSPLIT2 (P2 empty-reserve box jump, P2 harness wizard scenarios
+starting on the empty reserve). No finding left open. Correction to the
+MODELSPLIT2 record below: the "reserve" was NOT lane-brief-compliant —
+it painted an empty `<section>` whose 0 px box was replaced by the
+content box on commit, and the layout test never measured a box. That
+claim is withdrawn; the fix removes the stand-in instead of defending it
+(see "What changed" and "Why no pre-load box can equal the content box").
+
 ## What changed
 
 - `src/webview/models/DeferredSections.tsx`: `DeferredProvidersSection`
@@ -22,18 +31,25 @@ names). No finding left open.
   (`div.palette.history`, 15 px, later replaced by the section); it is the
   section's own element with its final accessible name (`<section
 aria-label aria-busy="true">`), following the `DeferredQuestionUi`
-  precedent of a layout-preserving fallback. The loading announcement
-  inside it is visually hidden (`role="status"`, `data-deferred-loading`,
-  `models-visually-hidden`: absolute, clipped), so the reserve occupies no
-  visible box and the slot's section is never overlaid or replaced. No new
-  strings (reuses `UI_TEXT.loadingOutput` and the section titles, all read
-  at render per D33), no new dependency. A module-scope chunk preload was
-  considered and dropped: the repo's `unicorn/no-top-level-side-effects`
-  rule forbids it, and it changes no observable behaviour (the wait it
-  shortens is invisible). Loading the sections before first paint from
-  these files is likewise impossible without stalling the whole panel body
-  behind the chunk fetch (its own overlay flash, no nav, no failure
-  announcement) — the reserve above is the lane-brief-compliant option.
+  precedent of a layout-preserving fallback. MODELSPLIT3 (RVMODELSPLIT2
+  P2 × 2, and a correction: that reserve was not brief-compliant — its
+  0 px box was replaced by the content box on commit, and no test measured
+  a box): the fallback is no section at all. While a chunk is in flight
+  the slot holds only the loading announcement (`role="status"`,
+  `data-deferred-loading`, `models-visually-hidden`: absolute, clipped,
+  no box). The first `<section>` painted is the real one, so no stand-in
+  box is ever swapped for the content box, and the harness
+  `.models-panel section` waiter cannot fire before the content exists
+  (wizard scenarios no longer start on an empty reserve missing "Pick a
+  provider"). The marker keeps `data-deferred-loading`, so the visual
+  capture still waits out the chunk. No new strings (reuses
+  `UI_TEXT.loadingOutput`, read at render per D33), no new dependency.
+  A module-scope chunk preload was considered and dropped: the repo's
+  `unicorn/no-top-level-side-effects` rule forbids it, and it changes no
+  observable behaviour (the wait it shortens is invisible). Loading the
+  sections before first paint from these files is likewise impossible
+  without stalling the whole panel body behind the chunk fetch (its own
+  overlay flash, no nav, no failure announcement).
 - `src/webview/models/sections.ts`: the registry keeps its ids, titles,
   icons and `reduceSection` folds; only `Component` now points at the
   deferred surfaces. `ProvidersSection`, `ModelsSection` and `Wizard` (all
@@ -51,29 +67,33 @@ aria-label aria-busy="true">`), following the `DeferredQuestionUi`
   now fails the gate. Both groups go through the same branch.
 - Tests: `test/unit/modelsApp.test.tsx` and
   `test/unit/modelsMoneyLifecycle.test.tsx` await the deferred sections
-  (and assert the loading status, which the hidden fallback keeps);
-  `test/unit/modelsDeferredLayout.test.tsx` (new) holds the providers
-  chunk and asserts the slot already holds the `<section>` with its final
-  name (busy, announcement hidden, no overlay), then commits the same
-  section (same tag, slot and name) with the marker gone;
+  (and assert the loading status, which the marker-only fallback keeps);
+  `test/unit/modelsDeferredLayout.test.tsx` (rewritten MODELSPLIT3) holds
+  the providers chunk and asserts the slot holds NO `<section>` and NO
+  overlay while loading — only the hidden announcement, with nothing else
+  in-flow beside the nav — then commits the real section (final name,
+  marker gone, "Pick a provider" opening the wizard pick step), and
+  asserts a later host state keeps the same committed section element
+  (never unmounted and replaced);
   `test/unit/bundleSize.test.mjs` gains red/green
   boundary cases for both new groups plus the two MISS shapes, and its
   mock metafiles now plant both section chunks (0 bytes) so unrelated
   success paths keep measuring the real gate.
 
-## Measurements (production build, `npm run build`, 2026-10-10, after MODELSPLIT2)
+## Measurements (production build, `npm run build`, 2026-10-10, after MODELSPLIT3)
 
 | Artifact                                      | Before (main) | After                   | Budget                                |
 | --------------------------------------------- | ------------- | ----------------------- | ------------------------------------- |
-| `dist/webview` models body                    | 74.9 KiB      | 38.8 KiB                | 75 KiB (unchanged)                    |
+| `dist/webview` models body                    | 74.9 KiB      | 38.6 KiB                | 75 KiB (unchanged)                    |
 | `dist/webview` models providers section (new) | —             | 27.5 KiB (28,146 bytes) | 31 KiB (measured +15% = 32,367 bytes) |
 | `dist/webview` models models section (new)    | —             | 11.4 KiB (11,685 bytes) | 13 KiB (measured +15% = 13,437 bytes) |
 | `dist/webview/models.js` + static imports     | 337.3 KiB     | 337.3 KiB               | 500 KiB (unchanged)                   |
 
-Headroom over the body's 75 KiB cap is now ~36.2 KiB, covering both feature
+Headroom over the body's 75 KiB cap is now ~36.4 KiB, covering both feature
 branches (~2.1 + ~0.9 KiB) with room to spare. The new group caps follow the
 lane brief exactly (no larger than measured +15%, no 25 KiB rounding). The
-body grew 38.4 → 38.8 KiB under MODELSPLIT2 (the reserve fallback JSX).
+body grew 38.4 → 38.8 KiB under MODELSPLIT2 (the reserve fallback JSX)
+and back to 38.6 KiB under MODELSPLIT3 (the smaller marker-only fallback).
 
 ## Gate-fire proofs (red drills, all restored byte-exact)
 
@@ -103,6 +123,17 @@ body` case fails the size gate with the MISS line (previously only the
    section chunk at exactly its cap (gate passes, `ok` line asserted) and
    at cap + 1 byte (gate exits 1 with the `OVER` line). Both cases pass for
    both groups.
+5. Stand-in section restored (MODELSPLIT3): `DeferredSections.tsx`
+   temporarily painted the MODELSPLIT2 empty `<section>` reserve again.
+   `test/unit/modelsDeferredLayout.test.tsx` failed 1/2 — the no-section-
+   while-loading assertions fire (`:scope .models-panel > section` is no
+   longer null); the committed-section identity test still passed (the
+   post-commit shape is unchanged by the fallback). File restored
+   byte-exact (sha256
+   `b591deebed76ddb1241af5ded9f20ed71ac443970fc3c630720dd8e7b4b888e8`
+   before and after); suite green (2 tests). Drill 1 above is superseded
+   by this one: it tested the withdrawn reserve test, not the current
+   no-stand-in guarantee.
 
 ## Verification runs (kubuntu rig, repo-default timeouts)
 
@@ -110,22 +141,25 @@ body` case fails the size gate with the MISS line (previously only the
 - `npm run build`: green, including the size gate.
 - `npm run typecheck`: green (all projects).
 - `npx eslint --max-warnings=0` and `npx prettier --check` on all changed
-  files: clean (one `unicorn/no-unreadable-for-of-expression` hit fixed by
-  hoisting the group list out of the loop header; one
+  files: clean (MODELSPLIT3: two `await act(sync)` hits fixed with the
+  repo's bare-`act` pattern from `modelsApp.test.tsx`, one
+  `unicorn/prefer-scoped-selector` hit fixed with `:scope`; earlier lane:
+  one `unicorn/no-unreadable-for-of-expression` hit fixed by hoisting the
+  group list out of the loop header; one
   `unicorn/no-top-level-side-effects` hit resolved by dropping the
-  module-scope preload; `unicorn/prefer-scoped-selector`,
-  `unicorn/consistent-conditional-object-spread`,
+  module-scope preload; `unicorn/consistent-conditional-object-spread`,
   `@typescript-eslint/require-await`/`await-thenable` hits in the new tests
   fixed directly).
 - `node scripts/check-l10n.mjs`: 14 UI tables, 14 usage tables, 0 problems.
-  No new user-facing string; the hidden fallback reuses
+  No new user-facing string; the marker-only fallback reuses
   `UI_TEXT.loadingOutput` read at render.
 - Vitest (`npx vitest run <files> --maxWorkers=3`):
-  `bundleSize.test.mjs` (64 tests), `modelsDeferredLayout.test.tsx` (1),
+  `bundleSize.test.mjs` (64 tests), `modelsDeferredLayout.test.tsx` (2),
   `modelsApp.test.tsx` (2), `modelsSections.test.ts` (3),
   `modelsPanelSections.test.tsx` (19), `modelsMoneyLifecycle.test.tsx` (5),
-  `modelsPanelSchemas.test.ts`, `modelsPanel.test.ts`,
-  `providerPanelSeam.test.ts`, `modelsPanelEntry.test.ts` — all pass.
+  `modelsPanelSchemas.test.ts` (12), `modelsPanel.test.ts` (9),
+  `providerPanelSeam.test.ts` (8), `modelsPanelEntry.test.ts` (6) — all
+  pass (66 tests across the models files).
 
 ## For the lead (outside the Muse sandbox — do NOT launch a browser here)
 
@@ -135,28 +169,46 @@ through the fake Muse Code CLI. Neither exists (verified 2026-10-10:
 no `modelsPanel`, `models-panel` or `ProvidersSection` case in either
 directory). The suites that actually cover the models panel:
 
-- Money flows on the harness page (browser, lead-run):
+- Money flows on the harness page (browser, lead-run — the Muse sandbox
+  cannot launch a browser, so these were NOT re-run here):
   `node test/e2e/startupMoney.mjs consent-failed consent-held wizard-cancel`
-  — three cases, all passing here per the review. Consent still waits for
-  the stated cost; a cancelled wizard posts no budget change.
-- Settled pixels (browser, lead-run): the harness models scenes in
-  `test/harness/index.html` with goldens in
+  — the review saw all three fail on the empty reserve (Accept /
+  `#models-budget-override` never appear because the wizard scenario threw
+  on the missing "Pick a provider" button). The marker-only slot restores
+  main's content-gating (scenarios start when the real section commits),
+  and the unit test now clicks "Pick a provider" into the pick step; the
+  lead re-runs these three to confirm. Consent still waits for the stated
+  cost; a cancelled wizard posts no budget change.
+- Settled pixels (browser, lead-run — not run here, same sandbox reason):
+  the harness models scenes in `test/harness/index.html` with goldens in
   `test/harness/goldens/manifest.json` — `models`, `models-configure`,
   `models-credential`, `models-errors`, `models-models`, `models-pick`,
   `models-providers`, `models-scanning`, `models-suggestions`,
   `models-table`, `models-table-filtered`, `models-test-cost`,
-  `models-undo` — via `npm run harness:shots` / `npm run check:visual`
-  (capture waits until `[data-deferred-loading]` is gone, which the hidden
-  fallback keeps).
+  `models-undo` — via `npm run harness:shots` / `npm run check:visual`.
+  The capture's `[data-deferred-loading]` wait still holds (the marker
+  keeps it), and the wizard scenes that page-errored on the empty reserve
+  now start on real content.
 - Box-stability procedure for this lane's fix (browser, lead-run; jsdom
   has no layout, so `test/unit/modelsDeferredLayout.test.tsx` asserts the
-  structural guarantee — no in-flow placeholder element — while pixels
-  need a real browser): open the harness models scene with the providers
-  chunk request held (this build: `dist/webview/chunks/MGMBHPXP.js`;
-  content-hashed, re-resolve after any rebuild), record the content slot's
-  box from mount until settle, then release. Require: no intermediate
-  placeholder box (the old `div.palette.history` was 15 px tall), and the
-  committed `<section>` box identical at commit and after settle.
+  structural guarantee — no section, no overlay, nothing else in-flow
+  beside the nav — while pixels need a real browser): open the harness
+  `models-providers` scene with no chunk held, record the `<section>` box
+  at its first appearance and again after settle, and require the two
+  boxes to be equal. Why commit-to-settle and not fallback-to-content:
+  no pre-load box CAN equal the content box — the content height depends
+  on the host state, which arrives after mount, so any fallback that
+  claims the final size is guessing (the withdrawn reserve proved it: 0 px
+  then 538 px). "Load before first paint" is not available either without
+  stalling the whole panel behind code AND host data, losing the nav, the
+  connecting hint and the per-section failure path. So the slot claims no
+  box until commit (main parity: on main the static sections likewise
+  popped in at host-state arrival), and the guarantee is that the
+  committed box is the first and only section box and never shifts.
+  Caveat for the lead: scenes with a pending paid disclosure
+  (`models-test-cost`) legitimately grow the section when the lazy money
+  chunk states the cost — measure on `models-providers`, whose fixture
+  providers carry no key usage and untested keys (static hint lines).
 
 ## Deliberately out of scope (sibling sweep notes)
 
