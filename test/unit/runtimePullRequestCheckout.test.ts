@@ -368,6 +368,43 @@ function slashedPath(folder: string): string {
   return folder.replaceAll('\\', '/')
 }
 
+/**
+ * Records as files whose next generation, once armed, pauses after its
+ * stage is flushed: past a release's entry check, before the
+ * publication's last check and its link. `afterLink` runs once a
+ * generation has landed.
+ */
+function stagedReleaseRecords() {
+  const staged = deferred()
+  const resume = deferred()
+  const control = { isArmed: false, afterLink: (): void => undefined }
+  const fs: RecordStoreFs = {
+    ...nodeRecordStoreFs,
+    createExclusive: async (file, content, durability) => {
+      await nodeRecordStoreFs.createExclusive(file, content, durability)
+      if (!control.isArmed || !path.basename(file).startsWith('.stage-')) {
+        return
+      }
+      control.isArmed = false
+      staged.resolve()
+      await resume.promise
+    },
+    link: async (existing, target) => {
+      await nodeRecordStoreFs.link(existing, target)
+      if (GENERATION_FILE.test(target)) {
+        control.afterLink()
+      }
+    },
+  }
+  return {
+    control,
+    staged: staged.promise,
+    resume: resume.resolve,
+    records: (dataFolder: string) =>
+      createFileWorktreeRecordStore(dataFolder, process.platform, recordingLogger(), { fs }),
+  }
+}
+
 async function ticketFor(checkout: RuntimePullRequestCheckout, folder: string) {
   const ticket = await checkout.trustTicket(folder)
   if (ticket === undefined) {
@@ -1014,6 +1051,62 @@ describe('runtime pull request checkout (M123 lane P)', () => {
       holdForRoots([result.folder], setup.heldRoots, await setup.records.list(), process.platform)
         ?.folder,
     ).toBe(slashedPath(result.folder))
+  })
+
+  it.each(['trust revoked', 'window stopped'] as const)(
+    'refuses a release when, with its generation staged, %s (RVINTM123B)',
+    async (ending) => {
+      // Trust and the window hold through the release's entry check; only
+      // the publication's last check, after the stage, can refuse it.
+      let isTrusted = true
+      const window = new AbortController()
+      const files = stagedReleaseRecords()
+      const setup = await checkoutSetup({
+        headSha: CAPTURED_PULL_FORK.head.sha,
+        signal: window.signal,
+        isTrusted: () => isTrusted,
+        records: files.records,
+      })
+      const result = await opened51(setup.checkout, 'checkout')
+      const ticket = await ticketFor(setup.checkout, result.folder)
+      files.control.isArmed = true
+      const release = setup.checkout.releaseHold(ticket)
+      await files.staged
+      if (ending === 'trust revoked') {
+        isTrusted = false
+      } else {
+        window.abort()
+      }
+      files.resume()
+      const released = await release
+      expect(released.ok).toBe(false)
+      if (ending === 'trust revoked') expect(released.reason).toBe(UI_TEXT.gitRestricted)
+      expect(
+        holdForRoots([result.folder], setup.heldRoots, await setup.records.list(), process.platform)
+          ?.folder,
+      ).toBe(slashedPath(result.folder))
+    },
+  )
+
+  it('keeps a release that landed before trust ended (RVINTM123B)', async () => {
+    let isTrusted = true
+    const files = stagedReleaseRecords()
+    const setup = await checkoutSetup({
+      headSha: CAPTURED_PULL_FORK.head.sha,
+      isTrusted: () => isTrusted,
+      records: files.records,
+    })
+    const result = await opened51(setup.checkout, 'checkout')
+    const ticket = await ticketFor(setup.checkout, result.folder)
+    // Trust ends only once the release's generation is linked in place.
+    files.control.afterLink = () => {
+      isTrusted = false
+    }
+    expect(await setup.checkout.releaseHold(ticket)).toEqual({ ok: true })
+    expect(isTrusted).toBe(false)
+    expect(
+      holdForRoots([result.folder], setup.heldRoots, await setup.records.list(), process.platform),
+    ).toBeUndefined()
   })
 
   it('consumes a trust ticket once, for the very folder the checkout finished in', async () => {
