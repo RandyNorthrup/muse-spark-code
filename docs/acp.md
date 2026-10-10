@@ -321,6 +321,12 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 
 ## Interactive ACP options
 
+Automatic compaction is hidden from paid features and help until evaluation
+passes. Its Allow once covers this workspace within this agent process;
+a second workspace asks again, and a new process forgets Once. Always remains
+workspace scoped and revocable. The dormant options below document the parser,
+without enabling the feature.
+
 | Argument                               | Effect                                                                                                                                                                                           |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `--backend museCode\|modelApi`         | Which backend, and so who pays (default `museCode`)                                                                                                                                              |

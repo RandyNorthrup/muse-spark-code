@@ -752,7 +752,7 @@
     {
       "id": "M101",
       "title": "Long-task context upgrades",
-      "summary": "Prompts stay cache-stable, the model can search and recall packed tool output exactly, and manual compaction works in ACP editors, while automatic compaction has shared consent and per-attempt accounting but stays off until its evaluation passes.",
+      "summary": "Prompts stay cache-stable, the model can search and recall packed tool output exactly, and manual compaction works in ACP editors, while automatic compaction has one authority for consent and bounded accounting and stays hidden until evaluation passes.",
       "area": "agents",
       "release": "0.15.0"
     },

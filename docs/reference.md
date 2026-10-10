@@ -193,7 +193,7 @@ Commands: —. Settings: `museSpark.legalExplanation`. [Documentation](https://g
 
 ### /compact
 
-autoCompactionEvaluation: Automatic compaction is awaiting evaluation and is inactive.
+Summarize the conversation with /compact and keep recent turns verbatim.
 
 ```json
 {
@@ -204,7 +204,7 @@ autoCompactionEvaluation: Automatic compaction is awaiting evaluation and is ina
 
 Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: `museSpark.modelApiAutoCompaction`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#observation-packing-model-api)
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#observation-packing-model-api)
 
 ### Share chat…
 

@@ -29485,7 +29485,15 @@ integration branch plus this plan). C-M101-1 (2026-10-10, lane CM1011,
 `docs/certification/m101-admission.md`): production
 `admitAutoCompaction`/`autoCompactModel` from the panel and runtime backend
 managers through one shared D78 gate and ledger; dormant behind
-`IS_AUTO_COMPACTION_EVALUATED`. CM1011R2 repairs RVCM1011: first-charge
+`IS_AUTO_COMPACTION_EVALUATED`. CM1011R3 fixes all six RVCM1011B
+findings through ONE admission authority: reserve the actual request's estimated
+input at list price and full output allowance, settle reported usage and refund;
+fence live consent, paid switch, trust and evaluation at preparation and final
+send for every attempt. While unevaluated, omit automatic compaction from
+Settings, paid surfaces, consent and ACP/CLI help. Price acceptance names its
+rates; manual summaries keep their own identity; ACP Once is per workspace
+within the process. No new dependency, live call or evaluation-latch flip.
+CM1011R2 repairs RVCM1011: first-charge
 consent uses the existing paid gate; Stop/storage fail closed; each HTTP
 attempt owns one claim, refunds nonsends and awaits settlement before further
 spending; runtime transport owns its existing daily debit. ACP gains the

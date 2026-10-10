@@ -1179,7 +1179,9 @@ conversation in Plan mode stays in Plan.
 
 Automatic compaction, its exact todo continuation and the memory flush are
 implemented in the shared Model API engine, but **awaiting evaluation and
-inactive**. `museSpark.modelApiAutoCompaction` defaults to `true`; set it to
+inactive**. The automatic feature is absent from Settings, paid surfaces,
+consent cards and ACP/CLI help until evaluation passes. The hidden
+`museSpark.modelApiAutoCompaction` defaults to `true`; set it to
 `false` to turn the mechanism off. ACP and headless use the same core and
 accept `--no-auto-compaction`. ACP requires `--auto-compaction` to offer the
 paid extra and asks through the editor; exec does not authorize it. Muse Code
@@ -1193,9 +1195,13 @@ require at least 50% context occupancy and two ordinary requests since the
 last compaction. At 90% occupancy, protection bypasses those economic guards;
 a classified overflow gets at most one automatic compact-and-retry per turn.
 The first paid charge requires the shared price/daily-budget consent, and
-every attempt is tallied. Allow once covers this window (ACP: this agent
-process); Always is workspace scoped and revocable. Each HTTP retry or
-fallback owns a fresh daily claim; known nonsends refund, and settlement
+every attempt is tallied. Allow once covers this window (ACP: this
+workspace within this agent process); Always is workspace scoped and revocable. Each HTTP retry or
+fallback reserves its actual estimated input at list price plus its full
+output allowance and every other priced part; reported usage settles the
+claim and refunds the difference. Consent, switch, trust and evaluation are
+checked at preparation and immediately before dispatch; revocation stops
+the send. Each attempt owns a fresh daily claim; known nonsends refund, and settlement
 failure ends the turn. Daily Stop, unreadable storage and the hard daily cap
 refuse protection too. Final account/key/budget checks still apply.
 

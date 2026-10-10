@@ -46,6 +46,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Automatic compaction admission, third review** (M101, RVCM1011B): one
+  authority reserves each actual request's input estimate and full output
+  allowance, settles reported usage and refunds the difference. Consent,
+  paid switch, trust and evaluation are checked at preparation and final
+  dispatch, including retries; revocation stops the send. Unevaluated
+  automatic compaction is absent from Settings, paid surfaces and help.
+  Turn-on confirms its rates, manual summary forks keep their own identity,
+  and ACP Once is documented per workspace within the agent process.
+
 - **Automatic compaction admission** (M101, RVCM1011): shared first-charge
   consent precedes spending; daily Stop and unreadable storage refuse even
   near-window protection. Each HTTP attempt gets a fresh claim, known
