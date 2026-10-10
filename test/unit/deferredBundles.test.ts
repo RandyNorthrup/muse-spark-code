@@ -435,6 +435,88 @@ function inputs(name: string): string[] {
 }
 
 describe('deferred cohort bundles', () => {
+  it('allows the named shared scheduler tools, declarations, roster support and model text in team', () => {
+    const team = bundleInputs({ output: 'dist/team.js', metafile: 'dist/meta/team.json' })
+    for (const file of [
+      'src/core/team/teamTools.ts',
+      'src/shared/teamToolSchemas.json',
+      'src/core/team/roster.ts',
+      'src/shared/constants.ts',
+    ])
+      expect(team.has(file)).toBe(true)
+    expect(checkDeferredBundles(bundleInputs)).toEqual([])
+  })
+  it.each(
+    [
+      'src/core/team/teamSchedulerEntry.ts',
+      'src/core/team/teamPool.ts',
+      'src/core/team/selection.ts',
+      'src/core/team/reviewerPick.ts',
+      'src/core/team/borrow.ts',
+      'src/core/team/sameModel.ts',
+      'src/core/team/scheduler/board.ts',
+      'src/core/team/scheduler/slots.ts',
+      'src/core/team/scheduler/borrowing.ts',
+      'src/core/team/scheduler/pick.ts',
+      'src/core/team/scheduler/criticalPath.ts',
+      'src/core/team/scheduler/retire.ts',
+      'src/core/team/scheduler/reviewFlow.ts',
+      'src/core/team/scheduler/stalls.ts',
+      'src/core/team/scheduler/futureImplementation.ts',
+    ].flatMap((file) => [file, file.replaceAll('/', '\\')]),
+  )('rejects scheduler implementation %s in the shared team bundle', (file) => {
+    expect(
+      checkDeferredBundles((bundle) =>
+        bundle.output === 'dist/team.js'
+          ? new Map([...bundleInputs(bundle), [file, 1]])
+          : bundleInputs(bundle),
+      ),
+    ).toEqual([
+      `dist/team.js carries scheduler-owned ${file.replaceAll('\\', '/')}, which belongs in dist/teamScheduler.js`,
+    ])
+  })
+  it('rejects scheduler code made reachable through teamTools in a production build', async () => {
+    const source = 'src/core/team/scheduler/borrowing.ts'
+    const { metafile } = await build({
+      entryPoints: ['src/core/team/teamEntry.ts'],
+      outfile: 'dist/team.js',
+      bundle: true,
+      minify: true,
+      metafile: true,
+      write: false,
+      platform: 'node',
+      format: 'cjs',
+      target: 'node20.18',
+      define: { 'process.env.NODE_ENV': '"production"' },
+      logLevel: 'silent',
+      plugins: [
+        sharedUiText,
+        sharedValidation,
+        deferredCohort,
+        sharedWire,
+        sharedModelApiBoundaries,
+        {
+          name: 'scheduler-ownership-regression',
+          setup(build) {
+            build.onLoad({ filter: /[\\/]src[\\/]core[\\/]team[\\/]teamTools\.ts$/ }, (args) => ({
+              loader: 'ts',
+              contents: `${readFileSync(args.path, 'utf8')}\nimport { SchedulerBorrowing } from './scheduler/borrowing'\nObject.defineProperty(createSchedulerTeamTools, 'reviewDrillScheduler', { value: SchedulerBorrowing })`,
+            }))
+          },
+        },
+      ],
+    })
+    const contaminated = outputInputs(metafileSchema.parse(metafile), 'dist/team.js')
+    expect(contaminated.get(source)).toBeGreaterThan(0)
+    expect(
+      checkDeferredBundles((bundle) =>
+        bundle.output === 'dist/team.js' ? contaminated : bundleInputs(bundle),
+      ),
+    ).toContain(
+      `dist/team.js carries scheduler-owned ${source}, which belongs in dist/teamScheduler.js`,
+    )
+    expect(checkDeferredBundles(bundleInputs)).toEqual([])
+  })
   it('keeps governor execution in its lazy bundle and shares the admission shim', () => {
     for (const name of ['extension', 'modelApi', 'acp', 'browserCheck']) {
       expect(inputs(name)).not.toContain('src/core/resources/governor.ts')

@@ -37422,6 +37422,24 @@ lazy chunk is needed. Scoped suites and byte-exact guard drills certify the
 shared factory and cap in `docs/certification/m120-s.md`; the inherited
 aggregate encoder failure remains a separate integration blocker.
 
+**M120CAP round 2 (RVM120CAP, 2026-10-10): reverse ownership.** Keep
+every scheduler implementation under `src/core/team/scheduler/` and the
+scheduler's entry, pool, selector, reviewer, borrowing and same-model helpers
+out of `team.js`. Only the existing stateless tool factory, declarations,
+roster support and model text are shared there; common boundary schemas and
+utilities retain their existing readers. Add an in-memory production import
+regression, positive shared-module coverage and Windows-path cases. Remove
+the ownership rule once to prove the regression fails, restore byte-exact by
+SHA-256, then rerun bundle suites, teamRuntimePackage, one unit-project tsc,
+changed-file ESLint/Prettier and documentation freshness checks. No cap,
+runtime behavior, merge, push or live/paid call changes; aggregate quality
+and the inherited encoder blocker remain lead-owned.
+
+- [x] Add and prove the reverse scheduler ownership guard.
+- [x] Complete scoped verification and certify the drill (210 tests pass;
+      CAP3 fails with 31 regressions and restores byte-exact).
+- [x] Commit with installed hooks and review their committed diff.
+
 - **Goal:** D103 across every balancing surface.
 - **Order:** after the Wednesday set, and before the M110/M111 resume.
   M110's node orchestrator uses it.

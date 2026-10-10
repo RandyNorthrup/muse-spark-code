@@ -20,6 +20,16 @@ export const SUBSCRIPTION_ONLY = [
 export const CONFIGURED_TRANSPORT_ONLY = ['authSource.ts', 'providerClient.ts']
 export const SHARED_TRANSPORT_ONLY = ['transport.ts', 'sse.ts', 'ndjson.ts']
 const MODEL_API_DIR = 'src/core/backends/modelapi'
+// M120CAP: sharing tools must not move implementation outside the scheduler cap.
+// Shared schemas/utilities and teamTools/roster/model text keep their readers.
+const TEAM_SCHEDULER_ONLY = new Set([
+  'src/core/team/teamSchedulerEntry.ts',
+  'src/core/team/teamPool.ts',
+  'src/core/team/selection.ts',
+  'src/core/team/reviewerPick.ts',
+  'src/core/team/borrow.ts',
+  'src/core/team/sameModel.ts',
+])
 export const MODEL_API_OPTIONAL_ONLY = [
   'codeIntelEntry.ts',
   'codeIntelCalls.ts',
@@ -757,6 +767,14 @@ export function checkDeferredBundles(inputsOf) {
       }
       if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
     }
+  }
+  const team = DEFERRED.find((bundle) => bundle.output === 'dist/team.js')
+  for (const raw of inputsOf(team).keys()) {
+    const file = raw.replaceAll('\\', '/')
+    if (file.startsWith('src/core/team/scheduler/') || TEAM_SCHEDULER_ONLY.has(file))
+      problems.push(
+        `${team.output} carries scheduler-owned ${file}, which belongs in dist/teamScheduler.js`,
+      )
   }
   // POSTSPAWN: the governor never carries the launcher's machinery again.
   for (const file of RESOURCE_LAUNCH_SHARED) {
