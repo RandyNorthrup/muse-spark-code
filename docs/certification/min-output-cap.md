@@ -2,8 +2,9 @@
 
 Macmini rig, `fix/min-output-cap`, base `82d50d5e4` (0.17.0), 2026-10-10.
 No dependency, runtime UI, model call or credential was added. Golden
-requests are byte-identical when no budget is set (the floor only fires
-inside a budget reservation).
+requests are byte-identical for valid caps (no-budget Meta bodies still send
+32,768); sub-minimum static caps are refused at configuration validation and
+before send (round 2).
 
 ## Captured fact
 
@@ -46,7 +47,8 @@ stopping the turn with the honest session-budget message.
   exec (already refused below 16), paid/hook daily ledgers (reserve as-is,
   never lower), codecs (pass the reserved cap through), connection
   probes/lists (send no output cap). A user-configured static output cap
-  below 16 is still sent as configured; only budget lowering refuses.
+  below the provider minimum is refused at configuration validation and
+  before send (round 2); budget lowering also refuses instead of sending.
 
 ## Red drills (macmini, repo-default timeout)
 
@@ -134,3 +136,35 @@ Codex's unsandboxed 13:57 run, and the lead re-runs it outside the sandbox.
 `npm run typecheck` (all five projects), changed-file eslint
 (`--max-warnings=0`), prettier, and `node scripts/check-l10n.mjs` (0 problems)
 are green in this session.
+
+### Round 3 — review RVMINOUT findings (2026-10-10, macmini, same worktree)
+
+All three findings fixed, no residuals.
+
+- P2 (`ModelApiHost.outputCap`, `src/core/backends/modelapi/ModelApiHost.ts`):
+  the per-model `outputCaps` cache is removed; the cap is recomputed per
+  request from the currently resolved record (`modelPolicy()`, refreshed by
+  `resolveModel()` at each turn's `streamAttempt`). A provider-file edit
+  between turns can no longer leave a stale cap behind. Minimal and local to
+  `outputCap`; the sibling stale-cache class on the argument-previews branch
+  is untouched. Regression:
+  `picks up a provider-file edit between turns instead of reusing the first
+cap` (`test/unit/modelApiLoopGuarantees.test.ts`) resolves a custom entry
+  with outputTokens 20, edits the record to outputTokens 64 / minimum 16
+  between turns, and requires 20 then 64 on the wire. The old
+  cache-reuse test is updated to the new contract (`recomputes the selected
+per-model output cap on every request`). Red drill: cache restored, the new
+  test fails with `expected 20 to be 64`; file restored byte-exact (SHA-256
+  `1c19e523…1b53c5` before and after). Owning suite `modelApiLoopGuarantees`
+  44/44 on the final tree.
+- P3 (`l10n/ui.ru.json` `outputCapBelowMinimum`): `one` is now `токен` and
+  `few` is now `токена`, matching the file's existing token plural.
+  Regression: `uses the grammatical Russian token noun for the output-cap
+minimum` (`test/unit/providersL10n.test.ts`) checks 1/2/16 through
+  `plural()`. Red drill: old strings restored, the new test fails; file
+  restored byte-exact (SHA-256 `d611d288…062f42` before and after).
+  `node scripts/check-l10n.mjs` still reports 0 problems.
+- P3 (this file): the round-1 sentences claiming the floor fires only inside
+  a budget reservation and that a sub-minimum static cap is still sent are
+  corrected to the shipped rule (refused at save and at send) in the present
+  tense above.

@@ -131,4 +131,19 @@ describe('provider localization', () => {
       expect(invalid.error.message).toContain(fr.providerText.schema.customLimits)
     }
   })
+
+  it('uses the grammatical Russian token noun for the output-cap minimum', () => {
+    // RVMINOUT P3: `one` takes токен and `few` takes токена, matching the
+    // file's existing token plural.
+    setUiText(ru, 'ru')
+    expect(plural(UI_TEXT.outputCapBelowMinimum, 1)).toBe(
+      'Лимит вывода должен составлять не менее 1 токен.',
+    )
+    expect(plural(UI_TEXT.outputCapBelowMinimum, 2)).toBe(
+      'Лимит вывода должен составлять не менее 2 токена.',
+    )
+    expect(plural(UI_TEXT.outputCapBelowMinimum, 16)).toBe(
+      'Лимит вывода должен составлять не менее 16 токенов.',
+    )
+  })
 })
