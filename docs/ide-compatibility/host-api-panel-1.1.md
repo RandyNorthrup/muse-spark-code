@@ -1,25 +1,33 @@
-# MHP 1.4.0 panel carrier
+# MHP 1.5.0 panel carrier
+
+MHP 1.5 restores the native closed-shape policy after the 1.4 input export.
+Named object shapes refuse unknown fields before dispatch; records and
+explicit catchalls retain their declared entries. The exporter still describes
+inputs before Zod transforms, including exact-money normalization. Arbitrary
+JSON bridge state remains recursive and open. The 1.4 locks are superseded
+through explicit version adoption, never rewritten at the same version.
 
 Reviewed replacement contract for Muse Spark Code (Unofficial), lead decision
-2026-10-06 (M104PA), joined with 0.17 on 2026-10-09 (M104INT). No native plugin has shipped; 1.0/1.1/1.2/1.3 are not negotiated
+2026-10-06 (M104PA), joined with 0.17 on 2026-10-09 (M104INT), with closed input shapes restored by M104 F1.
+No native plugin has shipped; 1.0/1.1/1.2/1.3/1.4 are not negotiated
 or supported. Native D/E/F adoption and assembled-editor qualification remain
 required; this document does not promote editor support.
 
 ## Compatibility and negotiation
 
 Both legacy-named native build inputs, `mhp-v1.schema.json` and
-`mhp-v1.1.schema.json`, now advertise `mhp/1.4.0` and range
-`[mhp/1.4.0, mhp/1.5.0)`. Their locks pin the current shared payloads as a
+`mhp-v1.1.schema.json`, now advertise `mhp/1.5.0` and range
+`[mhp/1.5.0, mhp/1.6.0)`. Their locks pin the current shared payloads as a
 reviewed version change. The first exports editor methods; the second also
 exports panel/bridge/lifecycle schemas. The filenames retain native build
-references; their headers and validators do not retain 1.0/1.1/1.2/1.3.
+references; their headers and validators do not retain 1.0/1.1/1.2/1.3/1.4.
 
 The editor spawns the runtime and sends `initialize` with its host id/version,
 locale, theme tokens, folders, trust and supported capability groups. The
-runtime answers with `protocolVersion: "mhp/1.4.0"` and its capabilities.
+runtime answers with `protocolVersion: "mhp/1.5.0"` and its capabilities.
 `shutdown` is also host-to-runtime; cancellation is bidirectional. A range
-containing 1.4.0 selects only that version. Every incompatible range receives
-`MHP_INCOMPATIBLE_VERSION`; 1.0/1.1/1.2/1.3 and speculative future versions are refused.
+containing 1.5.0 selects only that version. Every incompatible range receives
+`MHP_INCOMPATIBLE_VERSION`; 1.0/1.1/1.2/1.3/1.4 and speculative future versions are refused.
 The earlier runtime-initiated hostMetadata/surfaceHtml proposals are dropped.
 
 `workspace/didChangeTrust` supplies both trust grant and revocation;
@@ -38,7 +46,7 @@ retire old bindings before opening replacement surfaces.
 
 ```json
 {
-  "mhp": "1.4",
+  "mhp": "1.5",
   "kind": "panel",
   "surface": "opaque-id",
   "direction": "toHost",
@@ -91,7 +99,7 @@ then parse the envelope and check contextual admission before dispatch.
 
 ## Surface lifecycle
 
-Lifecycle notifications have `mhp: "1.4", `kind: "surface"`, the full
+Lifecycle notifications have `mhp: "1.5", `kind: "surface"`, the full
 binding (`surface`, `sessionId`, `surfaceKind`) and an `event`. They travel
 host/editor-to-runtime, separately from the editor-service method table.
 
@@ -197,7 +205,7 @@ surface purges its pending frames, reports their exact count, and never reports
 an undelivered message as delivered. These rules are implementation requirements,
 not a claim that this contract-only lane implements the queues.
 
-## MHP 1.4 native services and auxiliary actions
+## MHP 1.5 native services and auxiliary actions
 
 This reviewed adoption replaces 1.2; both snapshots and locks change together.
 Native service results acknowledge actual acceptance: `ui/openFile` returns a

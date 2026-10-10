@@ -66,5 +66,5 @@ public class PanelTest {
         assertThrows(IllegalArgumentException.class, () -> surface.receive(inbound(1)));
     }
     private static PanelSurface surface(String kind, List<JsonObject> sent) throws Exception { return new PanelSurface(new Contract(), "surface", "session", kind, sent::add, id -> 0, code -> fail(code)); }
-    private static JsonObject inbound(long seq) { return Json.object("mhp", "1.4", "kind", "panel", "surface", "surface", "direction", "toPanel", "seq", seq, "payload", Json.object("type", "conversationCleared")); }
+    private static JsonObject inbound(long seq) { return Json.object("mhp", "1.5", "kind", "panel", "surface", "surface", "direction", "toPanel", "seq", seq, "payload", Json.object("type", "conversationCleared")); }
 }

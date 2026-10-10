@@ -155,3 +155,34 @@ test('bounds original UTF-8 and aggregate query bytes before dispatch', () => {
   sent[1].success()
   api.setState({ draft: 'released' })
 })
+
+test('closed inputs refuse every unknown member while JSON state keeps arbitrary entries', () => {
+  const { api } = setup()
+  api.onMessage(() => null)
+  for (const field of ['apiKey', 'token', 'unrelated'])
+    assert.throws(
+      () => api.postMessage({ type: 'ready', [field]: 'fixture-only' }),
+      /MHP_PANEL_INVALID_PAYLOAD/,
+    )
+  api.setState({ unrelated: { nested: true } })
+  assert.deepEqual(globalThis.structuredClone(api.getState()), { unrelated: { nested: true } })
+})
+
+test('exclusive numeric bounds reject their endpoints before dispatch', () => {
+  const { context } = setup()
+  for (const value of [-1, 0, 2, 3])
+    assert.equal(
+      vm.runInContext(
+        `matches({type:'number',readOnly:true,exclusiveMinimum:0,exclusiveMaximum:2},${value})`,
+        context,
+      ),
+      false,
+    )
+  assert.equal(
+    vm.runInContext(
+      "matches({type:'number',readOnly:true,exclusiveMinimum:0,exclusiveMaximum:2},1)",
+      context,
+    ),
+    true,
+  )
+})

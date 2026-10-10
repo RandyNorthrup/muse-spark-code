@@ -17,12 +17,12 @@ public class PeerTest {
         @Override public void panel(JsonObject frame) { panels.add(frame); }
         @Override public void shutdown() { stopped = true; }
     }
-    private static JsonObject initialize() { return Json.object("host", Json.object("id", "eclipse", "version", "4.38"), "protocolRange", Json.object("minimum", "mhp/1.4.0", "maximumExclusive", "mhp/1.5.0"), "capabilities", new String[] {"lifecycle", "workspace", "tab"}, "locale", "en", "theme", Json.object("kind", "dark", "tokens", new JsonObject()), "folders", new JsonArray(), "trusted", false); }
+    private static JsonObject initialize() { return Json.object("host", Json.object("id", "eclipse", "version", "4.38"), "protocolRange", Json.object("minimum", "mhp/1.5.0", "maximumExclusive", "mhp/1.6.0"), "capabilities", new String[] {"lifecycle", "workspace", "tab"}, "locale", "en", "theme", Json.object("kind", "dark", "tokens", new JsonObject()), "folders", new JsonArray(), "trusted", false); }
     private static JsonObject initialCall(JsonObject params) { return Json.object("jsonrpc", "2.0", "id", "runtime-init", "method", "initialize", "params", params); }
     private static JsonObject initialResult(String version, JsonElement capabilities) { return Json.object("jsonrpc", "2.0", "id", "eclipse-init", "result", Json.object("protocolVersion", version, "capabilities", capabilities)); }
     private static void negotiate(MhpPeer peer) throws Exception {
         peer.initialize(initialize());
-        peer.accept(initialResult("mhp/1.4.0", initialize().get("capabilities")).toString());
+        peer.accept(initialResult("mhp/1.5.0", initialize().get("capabilities")).toString());
         peer.initialized().get(2, TimeUnit.SECONDS);
     }
     @Test public void closeReturnsWhileTheRuntimeDoesNotReadItsPipe() throws Exception {
@@ -91,7 +91,7 @@ public class PeerTest {
     @Test public void handshakeCorrelationDirectionAndResultValidation() throws Exception {
         Host host = new Host(); Contract contract = new Contract();
         try (MhpPeer peer = new MhpPeer(contract, new ByteArrayInputStream(new byte[0]), new ByteArrayOutputStream(), host, code -> fail(code))) {
-            String frame = Json.object("mhp", "1.4", "kind", "panel", "surface", "s", "direction", "toPanel", "seq", 1, "payload", Json.object("type", "conversationCleared")).toString();
+            String frame = Json.object("mhp", "1.5", "kind", "panel", "surface", "s", "direction", "toPanel", "seq", 1, "payload", Json.object("type", "conversationCleared")).toString();
             assertThrows(IllegalStateException.class, () -> peer.accept(frame));
             assertThrows(IllegalStateException.class, () -> peer.request("initialize", initialize()));
             negotiate(peer);
@@ -106,8 +106,8 @@ public class PeerTest {
     @Test public void unnegotiatedTrafficAndUnsupportedRuntimeGroupsAreRefused() throws Exception {
         try (MhpPeer peer = new MhpPeer(new Contract(), new ByteArrayInputStream(new byte[0]), new ByteArrayOutputStream(), new Host(), code -> fail(code))) {
             peer.initialize(initialize());
-            assertThrows(IllegalArgumentException.class, () -> peer.accept(initialResult("mhp/1.4.0", Json.GSON.toJsonTree(new String[] {"lifecycle", "hostMetadata"})).toString()));
-            peer.accept(initialResult("mhp/1.4.0", Json.GSON.toJsonTree(new String[] {"lifecycle", "settings", "storage"})).toString());
+            assertThrows(IllegalArgumentException.class, () -> peer.accept(initialResult("mhp/1.5.0", Json.GSON.toJsonTree(new String[] {"lifecycle", "hostMetadata"})).toString()));
+            peer.accept(initialResult("mhp/1.5.0", Json.GSON.toJsonTree(new String[] {"lifecycle", "settings", "storage"})).toString());
             assertTrue(peer.initialized().isDone());
             assertThrows(IllegalStateException.class, () -> peer.request("tab/complete", Json.object("uri", "file:///x", "version", 1, "position", Json.object("line", 0, "character", 0), "context", Json.object("prefix", "", "suffix", "", "trigger", "invoke"))));
             assertThrows(IllegalStateException.class, () -> peer.notify("documents/didClose", Json.object("uri", "file:///x")));
@@ -144,11 +144,11 @@ public class PeerTest {
         Host host = new Host() {
             @Override public JsonElement request(String method, JsonObject params, java.util.function.BooleanSupplier cancelled) { throw new IllegalArgumentException("MHP_CAPABILITY_UNAVAILABLE"); }
         };
-        JsonObject offered = Json.object("host", Json.object("id", "eclipse", "version", "4.38"), "protocolRange", Json.object("minimum", "mhp/1.4.0", "maximumExclusive", "mhp/1.5.0"), "capabilities", new String[] {"lifecycle", "ui"}, "locale", "en", "theme", Json.object("kind", "dark", "tokens", new JsonObject()), "folders", new JsonArray(), "trusted", false);
+        JsonObject offered = Json.object("host", Json.object("id", "eclipse", "version", "4.38"), "protocolRange", Json.object("minimum", "mhp/1.5.0", "maximumExclusive", "mhp/1.6.0"), "capabilities", new String[] {"lifecycle", "ui"}, "locale", "en", "theme", Json.object("kind", "dark", "tokens", new JsonObject()), "folders", new JsonArray(), "trusted", false);
         PipedInputStream input = new PipedInputStream(); PipedOutputStream runtime = new PipedOutputStream(input); ByteArrayOutputStream output = new ByteArrayOutputStream();
         try (MhpPeer peer = new MhpPeer(new Contract(), input, output, host, code -> fail(code))) {
             peer.initialize(offered);
-            peer.accept(initialResult("mhp/1.4.0", initialize().get("capabilities")).toString());
+            peer.accept(initialResult("mhp/1.5.0", initialize().get("capabilities")).toString());
             peer.initialized().get(2, TimeUnit.SECONDS);
             peer.start();
             peer.accept(Json.object("jsonrpc", "2.0", "id", "runtime-1", "method", "ui/openFile", "params", Json.object("title", "fixture")).toString());
@@ -176,7 +176,7 @@ public class PeerTest {
             PipedInputStream input = new PipedInputStream(); PipedOutputStream runtime = new PipedOutputStream(input);
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             try (MhpPeer peer = new MhpPeer(new Contract(), input, output, host, code -> fail(code))) {
-                peer.initialize(offered); peer.accept(initialResult("mhp/1.4.0", offered.get("capabilities")).toString()); peer.initialized().get(2, TimeUnit.SECONDS); peer.start();
+                peer.initialize(offered); peer.accept(initialResult("mhp/1.5.0", offered.get("capabilities")).toString()); peer.initialized().get(2, TimeUnit.SECONDS); peer.start();
                 peer.accept(Json.object("jsonrpc", "2.0", "id", "typed-error", "method", "ui/openFile", "params", Json.object("title", "fixture")).toString());
                 long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
                 String reply = "";
@@ -242,7 +242,7 @@ public class PeerTest {
         Contract contract = new Contract(); Host host = new Host(); PipedInputStream input = new PipedInputStream(); PipedOutputStream runtime = new PipedOutputStream(input); ByteArrayOutputStream output = new ByteArrayOutputStream(); List<String> logs = new ArrayList<>();
         try (MhpPeer peer = new MhpPeer(contract, input, output, host, logs::add)) {
             var initialized = peer.initialize(initialize()); peer.start();
-            byte[] response = (initialResult("mhp/1.4.0", initialize().get("capabilities")).toString() + "\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            byte[] response = (initialResult("mhp/1.5.0", initialize().get("capabilities")).toString() + "\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
             runtime.write(response, 0, 2); runtime.flush(); runtime.write(response, 2, response.length - 2); runtime.flush(); initialized.get(2, TimeUnit.SECONDS);
             runtime.write((Json.object("jsonrpc", "2.0", "id", "runtime-1", "method", "workspace/trust", "params", new JsonObject()).toString() + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8)); runtime.flush();
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);

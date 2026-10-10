@@ -84,7 +84,7 @@ public final class Assets {
         int cspStart = document.indexOf("<meta http-equiv="); int cspEnd = document.indexOf("<meta name=\"viewport\"");
         return new Page(nonce, css, script, bootstrap, document.substring(cspStart, cspEnd), document);
     }
-    public static boolean hasHtmlPort(HtmlPort port) { return port != null && port.supports("mhp/1.4.0", "surfaceHtml"); }
+    public static boolean hasHtmlPort(HtmlPort port) { return port != null && port.supports("mhp/1.5.0", "surfaceHtml"); }
     public static CompletableFuture<String> renderedHtml(Contract contract, HtmlPort port, Path assets, String locale, JsonElement state, JsonObject theme, String surface, String session) throws IOException {
         if (!hasHtmlPort(port)) throw new IllegalArgumentException("MHP_CAPABILITY_UNAVAILABLE");
         Page page = page(assets, locale, "whatsNew", state, theme.getAsJsonObject("tokens"));

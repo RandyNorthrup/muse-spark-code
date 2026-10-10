@@ -28,7 +28,7 @@ namespace MuseSpark.VisualStudio.Test
     private static JObject Call(string method, JObject? parameters = null, JToken? id = null)
         => new JObject { ["jsonrpc"] = "2.0", ["id"] = id ?? new JValue(1), ["method"] = method, ["params"] = parameters ?? new JObject() };
 
-    private static JObject Initialize(string minimum = "mhp/1.4.0", string maximum = "mhp/1.5.0", string[]? capabilities = null)
+    private static JObject Initialize(string minimum = "mhp/1.5.0", string maximum = "mhp/1.6.0", string[]? capabilities = null)
         => Call("initialize", new JObject
         {
           ["host"] = new JObject { ["id"] = "visual-studio", ["version"] = "17.14" },
@@ -47,7 +47,7 @@ namespace MuseSpark.VisualStudio.Test
     [TestMethod]
     public void FrozenExportIsConsumedWithoutContractChanges()
     {
-      Assert.AreEqual("mhp/1.4.0", Contract.Version);
+      Assert.AreEqual("mhp/1.5.0", Contract.Version);
       Assert.AreEqual(78, Contract.Methods.Count);
       Assert.AreEqual(56, ((JArray)(Contract.Export["features"] ?? throw new InvalidOperationException())).Count);
       Assert.IsFalse(Contract.Methods.Properties().Any(p => p.Name.StartsWith("secrets/", StringComparison.Ordinal)));
@@ -79,8 +79,8 @@ namespace MuseSpark.VisualStudio.Test
 
     [DataTestMethod]
     [DataRow("mhp/1.0.0", "mhp/1.2.0")]
-    [DataRow("mhp/1.2.0", "mhp/1.4.0")]
-    [DataRow("mhp/1.5.0", "mhp/2.0.0")]
+    [DataRow("mhp/1.2.0", "mhp/1.5.0")]
+    [DataRow("mhp/1.6.0", "mhp/2.0.0")]
     [DataRow("mhp/2.0.0", "mhp/3.0.0")]
     [DataRow("mhp/999999999999999999999999.0.0", "mhp/999999999999999999999999.0.1")]
     public async Task RejectsIncompatibleVersionRanges(string minimum, string maximum)

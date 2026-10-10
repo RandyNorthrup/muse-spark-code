@@ -320,25 +320,25 @@ final class MhpHostTests: XCTestCase {
     for (frame, code) in [
       (
         [
-          "mhp": "1.4", "kind": "panel", "surface": "missing", "seq": 1, "direction": "toPanel",
+          "mhp": "1.5", "kind": "panel", "surface": "missing", "seq": 1, "direction": "toPanel",
           "payload": ["type": "ready"],
         ] as [String: Any], "MHP_PANEL_UNKNOWN_SURFACE"
       ),
       (
         [
-          "mhp": "1.4", "kind": "panel", "surface": "missing", "seq": true, "direction": "toPanel",
+          "mhp": "1.5", "kind": "panel", "surface": "missing", "seq": true, "direction": "toPanel",
           "payload": [:],
         ], "MHP_PANEL_INVALID_ENVELOPE"
       ),
       (
         [
-          "mhp": "1.4", "kind": "surface", "surface": "missing", "sessionId": "session",
+          "mhp": "1.5", "kind": "surface", "surface": "missing", "sessionId": "session",
           "surfaceKind": "chat", "event": "ready",
         ], "MHP_PANEL_UNKNOWN_SURFACE"
       ),
       (
         [
-          "mhp": "1.4", "kind": "surface", "surface": "missing", "sessionId": "session",
+          "mhp": "1.5", "kind": "surface", "surface": "missing", "sessionId": "session",
           "surfaceKind": "chat", "event": "bogus",
         ], "MHP_PANEL_INVALID_LIFECYCLE"
       ),
@@ -352,7 +352,7 @@ final class MhpHostTests: XCTestCase {
     let count = writes.count
     session.receive(
       try bytes([
-        "mhp": "1.4", "kind": "panelError", "surface": NSNull(), "seq": NSNull(),
+        "mhp": "1.5", "kind": "panelError", "surface": NSNull(), "seq": NSNull(),
         "code": "MHP_PANEL_UNKNOWN_SURFACE",
       ]))
     XCTAssertEqual(writes.count, count, "remote channel faults must not echo")
@@ -395,12 +395,12 @@ final class MhpHostTests: XCTestCase {
       ]))
     let count = writes.count
     let invalid: [[String: Any]] = [
-      ["mhp": "1.4", "kind": "panelError", "code": "MHP_PANEL_UNKNOWN_SURFACE"],
+      ["mhp": "1.5", "kind": "panelError", "code": "MHP_PANEL_UNKNOWN_SURFACE"],
       [
-        "mhp": "1.4", "kind": "panelError", "surface": "unknown", "seq": 1,
+        "mhp": "1.5", "kind": "panelError", "surface": "unknown", "seq": 1,
         "code": "MHP_PANEL_UNKNOWN_SURFACE", "extra": true,
       ],
-      ["mhp": "1.4", "kind": "panelError", "surface": "unknown", "seq": 1, "code": "new-code"],
+      ["mhp": "1.5", "kind": "panelError", "surface": "unknown", "seq": 1, "code": "new-code"],
     ]
     for frame in invalid {
       XCTAssertThrowsError(try schema.checkPanel(frame, kind: "error"))
@@ -410,7 +410,7 @@ final class MhpHostTests: XCTestCase {
     }
     session.receive(
       try bytes([
-        "mhp": "1.4", "kind": "panel", "surface": "another-channel", "seq": 1,
+        "mhp": "1.5", "kind": "panel", "surface": "another-channel", "seq": 1,
         "direction": "toPanel", "payload": ["type": "ready"],
       ]))
     let channelReply = try XCTUnwrap(
@@ -429,7 +429,7 @@ final class MhpHostTests: XCTestCase {
     data.append(10)
     return data
   }
-  private func initialized(_ version: String = "mhp/1.4.0") -> [String: Any] {
+  private func initialized(_ version: String = "mhp/1.5.0") -> [String: Any] {
     [
       "jsonrpc": "2.0", "id": "xcode-initialize",
       "result": [

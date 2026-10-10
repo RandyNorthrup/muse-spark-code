@@ -253,7 +253,14 @@ class NativeBrowserTest : BasePlatformTestCase() {
     )
     val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(WAIT_SECONDS)
     while (marker !in console && System.nanoTime() < deadline) Thread.sleep(POLL_MILLIS)
-    assertTrue(console.joinToString(), marker in console)
+    if (marker !in console) {
+      panel.evaluate(
+        "console.log('MHP_UI_DOM_$id '+document.body.innerText+" +
+          "' launch='+document.documentElement.dataset.launch);",
+      )
+      Thread.sleep(POLL_MILLIS)
+    }
+    assertTrue(marker + " " + console.joinToString(), marker in console)
   }
 
   private fun capture(

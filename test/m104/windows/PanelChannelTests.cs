@@ -29,7 +29,7 @@ namespace MuseSpark.VisualStudio.Test
             Assert.ThrowsException<MhpException>(() => channel.ParseRuntimeMessage(new JObject { ["type"] = "notice", ["level"] = "warning", ["text"] = "fixture" }));
             await channel.OpenAsync();
             await channel.PostAsync(channel.ParseWebviewMessage("{\"type\":\"presentationReady\"}"), CancellationToken.None);
-            Assert.AreEqual("1.4", Last(output).Value<string>("mhp"));
+            Assert.AreEqual("1.5", Last(output).Value<string>("mhp"));
             await channel.ReloadAsync();
             Assert.AreEqual("presentationReady", Last(output)["stateRequest"]?.Value<string>("type"));
             SchemaContract.Load().ValidatePanel(Last(output), "lifecycle");
@@ -72,13 +72,13 @@ namespace MuseSpark.VisualStudio.Test
         ["folders"] = new JArray(new JObject { ["uri"] = "file:///C:/repo/", ["name"] = "repo" }),
         ["trusted"] = false
       }, CancellationToken.None);
-      var result = new JObject { ["jsonrpc"] = "2.0", ["id"] = Last(output)["id"], ["result"] = new JObject { ["protocolVersion"] = "mhp/1.4.0", ["capabilities"] = new JArray("lifecycle", "settings", "storage") } };
+      var result = new JObject { ["jsonrpc"] = "2.0", ["id"] = Last(output)["id"], ["result"] = new JObject { ["protocolVersion"] = "mhp/1.5.0", ["capabilities"] = new JArray("lifecycle", "settings", "storage") } };
       await peer.ReceiveAsync(result.ToString(Formatting.None));
       await initialization;
     }
     private static JObject Envelope(long sequence, string surface = "surface", string direction = "toPanel") => new JObject
     {
-      ["mhp"] = "1.4",
+      ["mhp"] = "1.5",
       ["kind"] = "panel",
       ["surface"] = surface,
       ["direction"] = direction,

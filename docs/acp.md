@@ -1005,7 +1005,7 @@ terminal. No value is accepted or returned in panel messages.
 `muse-spark-code-acp panel --companion` use MHP 1.2 rather than ACP.
 Exactly one transport is required. Backend, workspace-trust, sandbox and
 paid flags retain ACP defaults. A native host negotiates a
-`minimum: mhp/1.4.0`, `maximumExclusive: mhp/1.5.0` range, mandatory
+`minimum: mhp/1.5.0`, `maximumExclusive: mhp/1.6.0` range, mandatory
 lifecycle and the service groups it implements. The runtime requests a
 registered chat surface (stdio) or a launch URL opened through UI (companion).
 Surface `opened` and `ready` precede shared `ready`; sequence numbers start

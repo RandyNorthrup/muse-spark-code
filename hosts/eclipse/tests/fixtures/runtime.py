@@ -5,9 +5,9 @@ import sys
 
 initial = json.loads(sys.stdin.readline())
 assert initial["method"] == "initialize"
-assert initial["params"]["protocolRange"]["minimum"] == "mhp/1.4.0"
+assert initial["params"]["protocolRange"]["minimum"] == "mhp/1.5.0"
 print(json.dumps({"jsonrpc": "2.0", "id": initial["id"], "result": {
-    "protocolVersion": "mhp/1.4.0", "capabilities": initial["params"]["capabilities"]}}), flush=True)
+    "protocolVersion": "mhp/1.5.0", "capabilities": initial["params"]["capabilities"]}}), flush=True)
 for line in sys.stdin:
     frame = json.loads(line)
     if len(sys.argv) == 3 and sys.argv[1] == "--receipts":

@@ -139,10 +139,10 @@ async function fixture(
         bindings.set(surface, binding)
         send({ jsonrpc: '2.0', id, result: { surfaceId: surface } })
         if (params.kind !== 'chat') continue
-        send({ mhp: '1.4', kind: 'surface', ...binding, surfaceKind: 'chat', event: 'opened' })
-        send({ mhp: '1.4', kind: 'surface', ...binding, surfaceKind: 'chat', event: 'ready' })
+        send({ mhp: '1.5', kind: 'surface', ...binding, surfaceKind: 'chat', event: 'opened' })
+        send({ mhp: '1.5', kind: 'surface', ...binding, surfaceKind: 'chat', event: 'ready' })
         send({
-          mhp: '1.4',
+          mhp: '1.5',
           kind: 'panel',
           surface,
           direction: 'toHost',
@@ -236,7 +236,7 @@ async function fixture(
     method: 'initialize',
     params: {
       host: { id: 'fake', version: '1' },
-      protocolRange: { minimum: 'mhp/1.4.0', maximumExclusive: 'mhp/1.5.0' },
+      protocolRange: { minimum: 'mhp/1.5.0', maximumExclusive: 'mhp/1.6.0' },
       capabilities: ['lifecycle', 'surfaces', 'settings', 'storage', ...(isPortable ? ['ui'] : [])],
       locale: 'de',
       theme: { kind: 'dark', tokens: {} },

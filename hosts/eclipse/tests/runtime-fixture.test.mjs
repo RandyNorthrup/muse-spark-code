@@ -15,7 +15,7 @@ function initializeFrame(minimum) {
       id: 'fixture-init',
       method: 'initialize',
       params: {
-        protocolRange: { minimum, maximumExclusive: 'mhp/1.5.0' },
+        protocolRange: { minimum, maximumExclusive: 'mhp/1.6.0' },
         capabilities: ['lifecycle'],
       },
     }) + '\n'
@@ -45,9 +45,9 @@ async function negotiate(minimum) {
   }
 }
 
-test('native fixture negotiates the frozen MHP 1.4 contract', async () => {
-  const reply = await negotiate('mhp/1.4.0')
-  assert.equal(reply.result.protocolVersion, 'mhp/1.4.0')
+test('native fixture negotiates the frozen MHP 1.5 contract', async () => {
+  const reply = await negotiate('mhp/1.5.0')
+  assert.equal(reply.result.protocolVersion, 'mhp/1.5.0')
 })
 
 test('native fixture refuses the superseded 1.2 range', async () => {

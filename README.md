@@ -40,7 +40,7 @@ built, what is planned and what each release shipped.
 The [Xcode native-host prototype](hosts/xcode/README.md) pairs a macOS app
 with Xcode Source Editor commands. Its authenticated container and approved
 buffer-edit path have native core/fake-runtime receipts. Its relay uses the
-shared MHP 1.4 panel contract; editor/voice/Tab integration and installed
+shared MHP 1.5 panel contract; editor/voice/Tab integration and installed
 qualification are still required before it can be offered as a supported host.
 
 **Contents:** [What's new](#whats-new-in-0170) · [Roadmap](ROADMAP.md) ·
@@ -686,7 +686,7 @@ Get it from the
 | **Neovim, Emacs, JupyterLab**                            | Install the ACP agent (below), then follow [docs/acp.md](docs/acp.md#configure-the-editor) (CodeCompanion, agent-shell, Jupyter AI)                                                                                                                |
 
 **Standalone panel carriers (M104, experimental):** `muse-spark-code-acp
-panel --stdio` speaks negotiated MHP 1.4 NDJSON to a native editor host;
+panel --stdio` speaks negotiated MHP 1.5 NDJSON to a native editor host;
 `muse-spark-code-acp panel --companion` opens the authenticated loopback
 carrier through that host's `ui/openExternal` service. Exactly one transport
 is required. Both accept the agent's existing backend, trust and paid-use
@@ -694,7 +694,7 @@ flags; the Model API key stays in the OS credential store. The native host
 must offer lifecycle plus surfaces (stdio) or UI (companion), and answer
 correlated service requests. These commands stream the shared conversation
 through the authenticated portable browser renderer and UI bridge. Native
-MHP 1.4 adoption, auxiliary surfaces, feature adapters and assembled editor
+MHP 1.5 adoption, auxiliary surfaces, feature adapters and assembled editor
 qualification remain incomplete. See
 [the integration evidence and remaining gaps](docs/certification/m104-int.md)
 and [macOS qualification](docs/certification/m104-pf.md).
@@ -5376,10 +5376,11 @@ Optional surfaces also load their shared English text on first use; startup
 keeps first-paint text and the complete translated-table validation contract.
 Surface and keyboard budgets follow the emitted production graph.
 
-The MHP 1.4.0 panel contract for native and companion adapters is
+The MHP 1.5.0 panel contract for native and companion adapters is
 [documented here](docs/ide-compatibility/host-api-panel-1.1.md). Its JSON
-Schemas reuse the shared panel payload validators. The 1.4 adoption records
-the 0.17 payload changes; older peers are refused by the version handshake.
+Schemas reuse the shared panel payload validators. The 1.5 adoption retains
+closed native shapes over pre-normalization inputs, including the 0.17 payloads;
+older peers are refused by the version handshake.
 Regenerate with `node scripts/mhp-schema.mjs`; verify both version locks and
 snapshots with `node scripts/mhp-schema.mjs --check`. Runtime and native
 bridge implementation and editor qualification remain in M104's other lanes.
@@ -5437,7 +5438,7 @@ and auxiliary record providers use exact typed native contracts; absent catalog,
 credential, process or storage attestations leave those services unavailable.
 Standalone paid consent requires a verified selected-model quote and configured
 hard shared ledger; the stock carrier refuses before a popup when either is absent.
-MHP 1.4 adds saved-plan/manager/role/diff/walkthrough messages, fresh diagnostics,
+MHP includes saved-plan/manager/role/diff/walkthrough messages, fresh diagnostics,
 file/save and HTML publication acknowledgements, and protected native GitHub
 leases. OAuth tokens and pasted keys stay with native credential services.
 Native carriers must adopt and qualify the new contract before shipment. The
@@ -5447,17 +5448,17 @@ The VSIX includes the shared `dist/hostProtocol.js` required at extension load;
 its package-member test and production deferred-bundle activation test cover
 that dependency. ACP and native packaging inventories still require F's adoption.
 
-The replacement MHP 1.4.0 contract is frozen in the generated
+The replacement MHP 1.5.0 contract is frozen in the generated
 [service schema](src/shared/hostApi/mhp-v1.schema.json) and
 [panel schema](src/shared/hostApi/mhp-v1.1.schema.json). The legacy-named
-[native guide](docs/ide-compatibility/host-api-panel-1.1.md) awaits F's 1.3 adoption
-update. The editor initiates
+[native guide](docs/ide-compatibility/host-api-panel-1.1.md) describes the closed
+input-shape policy. The editor initiates
 `initialize` with its metadata, locale, theme and capabilities; the runtime
-answers with its capabilities. Only 1.4 is supported. `node scripts/mhp-schema.mjs
---adopt-version=mhp/1.4.0` performed the reviewed version adoption; repeating
+answers with its capabilities. Only 1.5 is supported. `node scripts/mhp-schema.mjs
+--adopt-version=mhp/1.5.0` performed the reviewed version adoption; repeating
 adoption of the current version refuses. `npm run check:mhp` checks the frozen
 snapshots and locks. Their legacy filenames remain native build inputs.
-MHP 1.4 replaces 1.1 and 1.2; both legacy-named snapshots carry the current 1.4 schemas
+MHP 1.5 replaces 1.1 and 1.2, and supersedes 1.3 and 1.4; both legacy-named snapshots carry the current 1.5 schemas
 and reuse the shared panel payload validators.
 Regenerate with `node scripts/mhp-schema.mjs`; verify both version locks and
 snapshots with `node scripts/mhp-schema.mjs --check`. Runtime and native

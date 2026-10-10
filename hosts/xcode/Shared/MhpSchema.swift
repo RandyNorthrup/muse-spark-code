@@ -112,6 +112,12 @@ final class MhpSchema {
       if let bound = schema["maximum"] as? Double, number.doubleValue > bound {
         throw NativeFailure.invalid
       }
+      if let bound = schema["exclusiveMinimum"] as? Double, number.doubleValue <= bound {
+        throw NativeFailure.invalid
+      }
+      if let bound = schema["exclusiveMaximum"] as? Double, number.doubleValue >= bound {
+        throw NativeFailure.invalid
+      }
     }
     if let values = value as? [Any] {
       if let count = schema["minItems"] as? Int, values.count < count {

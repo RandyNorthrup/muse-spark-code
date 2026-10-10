@@ -257,7 +257,7 @@ namespace MuseSpark.VisualStudio.Protocol
     // Reads only through non-throwing checks: the frame has already failed validation.
     private static bool HasPanelHeader(JObject frame) =>
       frame.Count == PanelEnvelopeFields.Length && PanelEnvelopeFields.All(field => frame.Property(field, StringComparison.Ordinal) != null)
-      && Text(frame["mhp"]) == "1.4" && Text(frame["surface"]) is string surface && surface.Length != 0
+      && Text(frame["mhp"]) == "1.5" && Text(frame["surface"]) is string surface && surface.Length != 0
       && (Text(frame["direction"]) == "toHost" || Text(frame["direction"]) == "toPanel")
       && Sequence(frame["seq"]) != null;
 
@@ -278,7 +278,7 @@ namespace MuseSpark.VisualStudio.Protocol
         var sequence = Sequence(seq);
         var error = new JObject
         {
-          ["mhp"] = "1.4",
+          ["mhp"] = "1.5",
           ["kind"] = "panelError",
           ["surface"] = surface,
           ["seq"] = sequence == null ? JValue.CreateNull() : new JValue(sequence.Value),

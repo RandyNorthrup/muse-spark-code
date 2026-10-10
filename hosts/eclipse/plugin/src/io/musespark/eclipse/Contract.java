@@ -34,7 +34,7 @@ public final class Contract {
     public static void verifyVocabulary(JsonElement specification) {
         if (specification.isJsonPrimitive()) return;
         JsonObject node = specification.getAsJsonObject();
-        Set<String> supported = Set.of("$schema", "$defs", "$ref", "type", "properties", "required", "additionalProperties", "propertyNames", "items", "minItems", "maxItems", "uniqueItems", "contains", "const", "enum", "anyOf", "oneOf", "minimum", "maximum", "minLength", "maxLength", "pattern", "format", "not");
+        Set<String> supported = Set.of("$schema", "$defs", "$ref", "type", "properties", "required", "additionalProperties", "propertyNames", "items", "minItems", "maxItems", "uniqueItems", "contains", "const", "enum", "anyOf", "oneOf", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "readOnly", "minLength", "maxLength", "pattern", "format", "not");
         for (String key : node.keySet()) if (!supported.contains(key)) throw new IllegalStateException("MHP_SCHEMA_UNSUPPORTED");
         for (String key : List.of("properties", "$defs")) if (node.has(key)) for (JsonElement child : node.getAsJsonObject(key).asMap().values()) verifyVocabulary(child);
         for (String key : List.of("anyOf", "oneOf")) if (node.has(key)) for (JsonElement child : node.getAsJsonArray(key)) verifyVocabulary(child);
@@ -121,6 +121,7 @@ public final class Contract {
             if (primitive.isNumber()) {
                 BigDecimal number = primitive.getAsBigDecimal();
                 if (rule.has("minimum") && number.compareTo(rule.get("minimum").getAsBigDecimal()) < 0 || rule.has("maximum") && number.compareTo(rule.get("maximum").getAsBigDecimal()) > 0) return false;
+                if (rule.has("exclusiveMinimum") && number.compareTo(rule.get("exclusiveMinimum").getAsBigDecimal()) <= 0 || rule.has("exclusiveMaximum") && number.compareTo(rule.get("exclusiveMaximum").getAsBigDecimal()) >= 0) return false;
             }
         }
         return true;
