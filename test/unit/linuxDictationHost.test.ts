@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -38,15 +38,7 @@ beforeEach(async () => {
   host.showInformationMessage.mockReset()
   host.showErrorMessage.mockReset()
   host.onChange.mockReset().mockReturnValue({ dispose: () => undefined })
-  const native = path.join(state.directory, 'linux', process.arch)
-  await mkdir(native, { recursive: true })
-  const baseline =
-    process.arch === 'arm64' ? LINUX_DICTATION.baseline.arm64 : LINUX_DICTATION.baseline.x64
-  await Promise.all(
-    ['muse-dictate', ...LINUX_DICTATION.libraries, baseline].map(async (name) => {
-      await writeFile(path.join(native, name), '')
-    }),
-  )
+  // Nothing is bundled any more: availability never depends on files on disk.
 })
 afterEach(async () => {
   await rm(state.directory, { recursive: true, force: true })
@@ -93,6 +85,7 @@ describe('Linux editor dictation binding', () => {
       Promise.resolve(download),
     )
     expect(await deps.model.consent(new AbortController().signal)).toBe(true)
+    // One card names both downloads with their sizes (PLAN.md D106).
     expect(host.showInformationMessage).toHaveBeenCalledWith(
       expect.stringContaining('77.7 MB'),
       expect.objectContaining({
@@ -102,6 +95,10 @@ describe('Linux editor dictation binding', () => {
       expect.objectContaining({ title: UI_TEXT.browserRuntimeDownload }),
       expect.objectContaining({ isCloseAffordance: true }),
     )
+    const title = String(host.showInformationMessage.mock.calls[0]?.[0])
+    expect(title).toContain('helper')
+    expect(title).toContain('~7.6 MB')
+    expect(deps.helper.directory).toBe(path.join(state.directory, LINUX_DICTATION.directory))
     const answer = Promise.withResolvers<unknown>()
     host.showInformationMessage.mockReturnValue(answer.promise)
     const stop = new AbortController()

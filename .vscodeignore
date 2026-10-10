@@ -143,9 +143,6 @@ dist/fontsInstall.js
 **/*.otf
 **/*.eot
 
-# CM9LNX: prebuilt engines only; offline weights are acquired after consent.
-!native/linux/x64/muse-dictate
-!native/linux/arm64/muse-dictate
+# CM9LNX/D106: the Linux dictation helper ships as release assets, never in
+# the VSIX (the cap stays unchanged); only its licence notices stay packed.
 !native/dictation-linux/*LICENSE.txt
-!native/linux/x64/*.so*
-!native/linux/arm64/*.so*

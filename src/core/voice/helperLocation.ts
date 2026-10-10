@@ -2,8 +2,10 @@
 //
 // Windows: Windows PowerShell 5.1 under %SystemRoot% runs the bundled script
 // on the .NET Framework's System.Speech. macOS: the Swift helper compiled in
-// CI and shipped in the .vsix. Linux: the bundled offline English helper
-// uses consented, pinned weights acquired separately (CM9LNX). A remote
+// CI and shipped in the .vsix. Linux: the offline English helper and its
+// weights are release assets acquired after one consent (CM9LNX, PLAN.md
+// D106); nothing is bundled, so the microphone is offered before the first
+// download and the files are verified before every start. A remote
 // workspace host cannot hear the local microphone (M26, PLAN.md D29).
 
 import path from 'node:path'
@@ -149,22 +151,18 @@ export function locateDictationHelper(probe: HelperProbe): HelperLocation {
     probe.linuxModelPath !== undefined &&
     (probe.arch === 'x64' || probe.arch === 'arm64')
   ) {
-    const command = path.join(probe.helperDir, 'linux', probe.arch, 'muse-dictate')
-    const libraryDirectory = path.dirname(command)
-    const libraries = [...LINUX_DICTATION.libraries, LINUX_DICTATION.baseline[probe.arch]]
-    if (
-      probe.fileExists(command) &&
-      libraries.every((file) => probe.fileExists(path.join(libraryDirectory, file)))
-    )
-      return {
-        isAvailable: true,
-        invocation: {
-          command,
-          args: ['--model', probe.linuxModelPath],
-          stopGraceMs: LINUX_DICTATION.stopGraceMs,
-          environment: LINUX_DICTATION.environment,
-        },
-      }
+    // The helper is downloaded, not bundled: its presence is proven by
+    // digest before every start (LinuxDictationHelper.ensure), never here.
+    const command = path.join(path.dirname(probe.linuxModelPath), LINUX_DICTATION.helperBinary)
+    return {
+      isAvailable: true,
+      invocation: {
+        command,
+        args: ['--model', probe.linuxModelPath],
+        stopGraceMs: LINUX_DICTATION.stopGraceMs,
+        environment: LINUX_DICTATION.environment,
+      },
+    }
   }
   return {
     isAvailable: false,

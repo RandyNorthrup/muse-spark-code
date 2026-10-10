@@ -54,17 +54,16 @@ export async function stageVsix(root, stage) {
     if (files.every((file) => file.replaceAll('\\', '/') !== `native/linux/${arch}/muse-created`))
       throw new Error(`Required Linux created-path helper excluded from VSIX: ${arch}`)
   const normalized = new Set(files.map((file) => file.replaceAll('\\', '/')))
+  // D106: the Linux dictation helper ships as release assets, never in the
+  // VSIX. Any helper binary staged for packaging refuses the whole stage.
   for (const arch of ['x64', 'arm64']) {
-    const baseline = arch === 'x64' ? 'libggml-cpu-x64.so' : 'libggml-cpu-armv8.0_1.so'
-    for (const name of [
-      'muse-dictate',
-      'libwhisper.so.1',
-      'libggml.so',
-      'libggml-base.so',
-      baseline,
-    ])
-      if (!normalized.has(`native/linux/${arch}/${name}`))
-        throw new Error(`Required Linux dictation runtime excluded from VSIX: ${arch}/${name}`)
+    for (const file of normalized) {
+      if (
+        file === `native/linux/${arch}/muse-dictate` ||
+        (file.startsWith(`native/linux/${arch}/`) && /\.so(\.\d+)*$/.test(file))
+      )
+        throw new Error(`Linux dictation helper must not ship in the VSIX: ${file}`)
+    }
   }
   for (const license of ['whisper-LICENSE.txt', 'model-LICENSE.txt'])
     if (!normalized.has(`native/dictation-linux/${license}`))

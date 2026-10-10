@@ -126,16 +126,6 @@ beforeAll(async () => {
     'dist/webview/referencePage.js',
     'dist/webview/referencePage.css',
     'dist/webview/chunks/UsageDialog-test.js',
-    'native/linux/x64/muse-dictate',
-    'native/linux/x64/libwhisper.so.1',
-    'native/linux/x64/libggml.so',
-    'native/linux/x64/libggml-base.so',
-    'native/linux/x64/libggml-cpu-x64.so',
-    'native/linux/arm64/muse-dictate',
-    'native/linux/arm64/libwhisper.so.1',
-    'native/linux/arm64/libggml.so',
-    'native/linux/arm64/libggml-base.so',
-    'native/linux/arm64/libggml-cpu-armv8.0_1.so',
     'native/dictation-linux/whisper-LICENSE.txt',
     'native/dictation-linux/model-LICENSE.txt',
     'native/linux/x64/muse-created',
@@ -330,7 +320,7 @@ describe('VSIX packaging', () => {
   it.each(excluded)('excludes %s from actual VSCE collection', (file) => {
     expect(fixture.files).not.toContain(file)
   })
-  it('ships the helper, shared runtime and deferred chunks', async () => {
+  it('ships the helpers that stay bundled, never the Linux dictation binaries', async () => {
     const packaged = fixture.packagedFiles
     expect(packaged).toEqual(
       expect.arrayContaining([
@@ -348,16 +338,6 @@ describe('VSIX packaging', () => {
         'dist/screenRecord.js',
         'dist/uiTextMedia.js',
         'dist/webview/chunks/UsageDialog-test.js',
-        'native/linux/x64/muse-dictate',
-        'native/linux/x64/libwhisper.so.1',
-        'native/linux/x64/libggml.so',
-        'native/linux/x64/libggml-base.so',
-        'native/linux/x64/libggml-cpu-x64.so',
-        'native/linux/arm64/muse-dictate',
-        'native/linux/arm64/libwhisper.so.1',
-        'native/linux/arm64/libggml.so',
-        'native/linux/arm64/libggml-base.so',
-        'native/linux/arm64/libggml-cpu-armv8.0_1.so',
         'native/dictation-linux/whisper-LICENSE.txt',
         'native/dictation-linux/model-LICENSE.txt',
         'native/linux/x64/muse-created',
@@ -371,6 +351,16 @@ describe('VSIX packaging', () => {
         'dist/runtime.bundles.json.br',
       ]),
     )
+    for (const arch of ['x64', 'arm64']) {
+      expect(packaged).not.toContain(`native/linux/${arch}/muse-dictate`)
+      for (const library of [
+        'libwhisper.so.1',
+        'libggml.so',
+        'libggml-base.so',
+        arch === 'x64' ? 'libggml-cpu-x64.so' : 'libggml-cpu-armv8.0_1.so',
+      ])
+        expect(packaged).not.toContain(`native/linux/${arch}/${library}`)
+    }
     expect(packaged).not.toContain('docs/marketplace-readme.md')
   })
   it.each(['x64', 'arm64'])(
@@ -392,24 +382,23 @@ describe('VSIX packaging', () => {
     'native/linux/x64/muse-dictate',
     'native/linux/x64/libggml-cpu-x64.so',
     'native/linux/arm64/muse-dictate',
-    'native/linux/arm64/libggml-cpu-armv8.0_1.so',
-    'native/dictation-linux/whisper-LICENSE.txt',
-    'native/dictation-linux/model-LICENSE.txt',
-  ])(
-    'refuses an incomplete Linux dictation package before replacing its stage: %s',
-    async (relative) => {
-      const file = path.join(fixture.root, relative)
-      const original = readFileSync(file)
-      try {
-        rmSync(file)
-        await expect(stageVsix(fixture.root, fixture.stage)).rejects.toThrow(
-          'Required Linux dictation',
-        )
-      } finally {
-        writeFileSync(file, original)
-      }
-    },
-  )
+    'native/linux/arm64/libwhisper.so.1',
+  ])('D106 refuses a stage containing Linux dictation binaries: %s', async (relative) => {
+    const ignore = path.join(fixture.root, '.vscodeignore')
+    const original = readFileSync(ignore, 'utf8')
+    const file = path.join(fixture.root, relative)
+    try {
+      mkdirSync(path.dirname(file), { recursive: true })
+      writeFileSync(file, 'stale bundled binary')
+      writeFileSync(ignore, `${original}!${relative}\n`)
+      await expect(stageVsix(fixture.root, fixture.stage)).rejects.toThrow(
+        'must not ship in the VSIX',
+      )
+    } finally {
+      writeFileSync(ignore, original)
+      rmSync(file)
+    }
+  })
   it.each(TABLE_LOCALES)('round-trips %s byte-exact and leaves source unchanged', (locale) => {
     const file = `l10n/ui.${locale}.json`
     const source = path.join(fixture.root, file)

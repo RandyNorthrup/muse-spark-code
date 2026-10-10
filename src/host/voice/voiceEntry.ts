@@ -15,6 +15,7 @@ import {
 } from '../../core/voice/dictation'
 import type { CaptureLocation } from '../../core/voice/helperLocation'
 import { LinuxDictation, type LinuxDictationDeps } from '../../core/voice/linuxDictation'
+import { LinuxDictationHelper } from '../../core/voice/linuxHelper'
 import { LinuxDictationModel } from '../../core/voice/linuxModel'
 import { MuseVoiceDictation } from '../../core/voice/museVoice'
 import { recorderHelper } from '../../core/voice/recorderHelper'
@@ -112,9 +113,8 @@ export async function removeLinuxDictationModel(directory: string): Promise<void
       await driver.reset()
     }),
   )
-  await new LinuxDictationModel({
-    directory,
-    fetch,
-    consent: () => Promise.resolve(false),
-  }).remove()
+  const never = (): Promise<boolean> => Promise.resolve(false)
+  // OFF removes the helper and the model with their partial downloads alike.
+  await new LinuxDictationHelper({ directory, fetch, consent: never, arch: process.arch }).remove()
+  await new LinuxDictationModel({ directory, fetch, consent: never }).remove()
 }

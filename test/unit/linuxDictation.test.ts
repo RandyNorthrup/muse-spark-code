@@ -15,6 +15,22 @@ const pin = {
   sha256: createHash('sha256').update(bytes).digest('hex'),
   url: 'https://models.example/model.bin',
 }
+// Every helper file carries the same fixture bytes, so one fetcher serves
+// the whole acquisition; the file names and executable flag stay distinct.
+const helperArch = process.arch === 'arm64' ? 'arm64' : 'x64'
+const helperPins = [
+  'muse-dictate',
+  'libwhisper.so.1',
+  'libggml.so',
+  'libggml-base.so',
+  helperArch === 'arm64' ? 'libggml-cpu-armv8.0_1.so' : 'libggml-cpu-x64.so',
+].map((file) => ({
+  asset: `linux-${helperArch}-${file}`,
+  file,
+  bytes: bytes.length,
+  sha256: createHash('sha256').update(bytes).digest('hex'),
+  isExecutable: file === 'muse-dictate',
+}))
 const drivers: LinuxDictation[] = []
 beforeEach(async () => {
   state.directory = await mkdtemp(path.join(tmpdir(), 'm9-driver-'))
@@ -43,6 +59,13 @@ function setup(
     log: SILENT_LOG,
     isEnabled,
     model: { directory: state.directory, pin, fetch: fetcher, consent: canDownload },
+    helper: {
+      directory: state.directory,
+      fetch: fetcher,
+      consent: canDownload,
+      arch: helperArch,
+      pins: helperPins,
+    },
   })
   drivers.push(driver)
   return { driver, listener, spawn, fetcher, isEnabled, child }
@@ -116,7 +139,7 @@ describe('Linux dictation preparation and helper protocol', () => {
     test.child.emitLine({ type: 'listening' })
     expect(test.child.sent).toEqual(['start', 'stop', 'start'])
     expect(test.spawn).toHaveBeenCalledTimes(1)
-    expect(test.fetcher).toHaveBeenCalledTimes(1)
+    expect(test.fetcher).toHaveBeenCalledTimes(helperPins.length + 1)
     expect(test.listener.onText).toHaveBeenCalledWith('last phrase')
     expect(test.listener.onStatus).toHaveBeenLastCalledWith('listening')
   })
@@ -154,8 +177,18 @@ describe('Linux dictation preparation and helper protocol', () => {
       expect(test.spawn).toHaveBeenCalledTimes(1)
     })
     expect(consent).toHaveBeenCalledTimes(2)
-    expect(test.fetcher).toHaveBeenCalledTimes(1)
+    expect(test.fetcher).toHaveBeenCalledTimes(helperPins.length + 1)
     expect(test.listener.onError).not.toHaveBeenCalled()
+  })
+  it('one press with both downloads missing asks once for helper and model', async () => {
+    const consent = vi.fn(() => Promise.resolve(true))
+    const test = setup(consent)
+    test.driver.start()
+    await vi.waitFor(() => {
+      expect(test.spawn).toHaveBeenCalledTimes(1)
+    })
+    expect(consent).toHaveBeenCalledTimes(1)
+    expect(test.fetcher).toHaveBeenCalledTimes(helperPins.length + 1)
   })
   it('a removed-model setting refuses capture, and reset kills a warm helper', async () => {
     const test = setup()
