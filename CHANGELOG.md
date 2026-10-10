@@ -92,6 +92,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Other-CI review findings** (CM80CI-R5, RVCM80CI4): the Azure start
+  variable formats with documented `format()` specifiers only
+  (`{0:yyyy}-{0:MM}-{0:dd}T{0:HH}:{0:mm}:{0:ss}Z` from `pipeline.startTime`),
+  so the pipeline accepts the expression and the launcher keeps real vendor
+  time; the parent trap copies the temp path before unsetting names, so an
+  exec failure still removes the bootstrap directory under `set -u`; the
+  Other CI systems help states the launcher's `system` dimension instead of
+  an invented selector. Fake-tested only; hosted/live receipts remain open.
 - **Other-CI credential and publication boundaries** (CM80CI-R4,
   RVCM80CI3): the shell never reads/copies the key. A generated name list
   and declared aliases are unset in the download subshell; Node reads the
