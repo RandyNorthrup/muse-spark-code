@@ -117,6 +117,7 @@ interface HarnessOptions {
   readonly isTrusted?: boolean
   readonly questionPolicy?: AcpAgentDeps['questions']
   readonly questions?: AcpQuestionRegistryFactory
+  readonly dictation?: AcpAgentDeps['dictation']
 }
 
 function harness(options: HarnessOptions = {}): Harness {
@@ -151,6 +152,7 @@ function harness(options: HarnessOptions = {}): Harness {
       hostFor: () => Promise.resolve(options.backendHost ?? host),
     },
     ...(options.media !== undefined && { media: options.media }),
+    ...(options.dictation !== undefined && { dictation: options.dictation }),
     version: '0.0.0-test',
     questionBundle: () => questionFactories,
     options: {
@@ -622,6 +624,65 @@ describe('the ACP agent (M63)', () => {
       expect(await second).toEqual({ stopReason: 'end_turn' })
       expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
     })
+  })
+
+  it('a companion Send cancelled before admission reports nothing sent', async () => {
+    // RVCMICCOMP finding 2: the race accepted any fulfilled preparation
+    // outcome, so a cancelled preparation still emitted user_message_chunk
+    // and cleared the browser's reviewed text, though no turn started.
+    const sends: ((text: string, signal: AbortSignal) => Promise<void>)[] = []
+    let isGated = false
+    let entered = 0
+    const gate = Promise.withResolvers<undefined>()
+    const h = harness({
+      dictation: (context) => {
+        sends.push(context.send)
+        return Promise.resolve({
+          url: 'http://127.0.0.1/',
+          launchUrl: () => 'http://127.0.0.1/#k=test',
+          close: () => Promise.resolve(),
+          closed: Promise.resolve(),
+        })
+      },
+      questions: (input) => {
+        const inner = fakeAcpQuestions(input)
+        return new Proxy(inner, {
+          get(target, property, receiver): unknown {
+            if (property === 'peekQueued') {
+              return async () => {
+                entered += 1
+                if (isGated) await gate.promise
+                return await target.peekQueued()
+              }
+            }
+            const value: unknown = Reflect.get(target, property, receiver)
+            return value
+          },
+        })
+      },
+    })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await prompt(client, sessionId, '/dictate')
+      expect(sends).toHaveLength(1)
+      isGated = true
+      const sending = sends[0]!('reviewed phrase', new AbortController().signal)
+      try {
+        await until(() => entered > 0)
+        await client.notify('session/cancel', { sessionId })
+        await until(() =>
+          h.log.info.mock.calls.some(([line]) =>
+            String(line).includes('cancelled before its turn'),
+          ),
+        )
+        gate.resolve(undefined)
+        await expect(sending).rejects.toThrow('EVOICE_NOT_SENT')
+      } finally {
+        gate.resolve(undefined)
+      }
+    })
+    expect(h.updates.filter((update) => update.sessionUpdate === 'user_message_chunk')).toEqual([])
+    for (const session of h.host.sessions) expect(session.sendTurn).not.toHaveBeenCalled()
   })
 
   it('reads ACP child patch evidence through the child session without resuming it', async () => {
