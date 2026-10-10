@@ -16,6 +16,12 @@ export interface ScriptedCall {
   readonly callId?: string
   /** A call the reply left uncompleted (M101 item 8): never run, answered with an error. */
   readonly status?: 'completed' | 'incomplete'
+  /**
+   * The streamed argument deltas (M106 R2): they must concatenate to
+   * `arguments` byte-exact. Absent serves one delta with the whole
+   * arguments, as before.
+   */
+  readonly argumentDeltas?: readonly string[]
 }
 
 /** One hosted web search in a reply (M33), streamed before the text. */
@@ -269,11 +275,14 @@ export function streamFor(
         status: 'in_progress',
       },
     })
-    text += frame({
-      type: 'response.function_call_arguments.delta',
-      item_id: id,
-      delta: call.arguments,
-    })
+    const deltas = call.argumentDeltas ?? [call.arguments]
+    for (const delta of deltas) {
+      text += frame({
+        type: 'response.function_call_arguments.delta',
+        item_id: id,
+        delta,
+      })
+    }
     text += frame({
       type: 'response.function_call_arguments.done',
       item_id: id,

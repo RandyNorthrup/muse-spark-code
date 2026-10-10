@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import * as z from 'zod/mini'
 import { Usd } from '../../src/shared/usd'
 import type { UsageRecording } from '../../src/core/usage/recording'
 import { watchSessionTurns } from './helpers/sessionTurns'
@@ -11,7 +13,12 @@ import {
 import * as modelApiEntry from '../../src/host/backend/modelApiEntry'
 import { fakeMcpSource } from './helpers/fakeMcpSource'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import {
+  FAKE_MODEL_API_ACCOUNT_ID,
+  fakeModelApi,
+  fakeModelApiClient,
+  streamFor,
+} from './helpers/fakeModelApi'
 import { createProviderRegistry } from '../../src/core/providers/providerRegistry'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { noopToolIo } from './helpers/fakeToolIo'
@@ -302,6 +309,91 @@ describe('ModelApiBackendManager', () => {
       expect(bodies.length).toBeGreaterThan(0)
       for (const body of bodies) {
         expect(body['max_output_tokens']).toBe(65_536)
+      }
+      expect(JSON.stringify(bodies)).not.toContain('argumentPreview')
+    } finally {
+      await manager.dispose()
+    }
+  })
+
+  it('replays the captured U9 argument wire through the production path', async () => {
+    // RVCM1062 P3: the production preview proof replays CAPTURED bytes, not
+    // invented deltas. The U9 fixture keeps no raw per-delta payloads
+    // (rawArgumentFramesAvailable: false), only the done arguments and the
+    // counted delta sequence (two deltas then done). This turn serves the
+    // byte-exact captured arguments as exactly two deltas through real SSE
+    // framing, the production transport, parser and host (manager → entry
+    // with no caller suppliers), and proves the preview renders the captured
+    // text. Only the split point between the two deltas is the test's.
+    const capture = z
+      .object({
+        streamSummary: z.object({
+          function_call_arguments_delta_events: z.number(),
+          function_call_arguments_done: z.array(
+            z.object({ name: z.string(), arguments: z.string() }),
+          ),
+        }),
+      })
+      .parse(
+        JSON.parse(
+          readFileSync(new URL('../fixtures/m106/u9-strict-stream.json', import.meta.url), 'utf8'),
+        ),
+      )
+    expect(capture.streamSummary.function_call_arguments_delta_events).toBe(2)
+    const done = capture.streamSummary.function_call_arguments_done[0]
+    if (done === undefined) throw new Error('the U9 capture names no completed call')
+    const capturedArguments = done.arguments
+    const halves: readonly [string, string] = [
+      capturedArguments.slice(0, Math.floor(capturedArguments.length / 2)),
+      capturedArguments.slice(Math.floor(capturedArguments.length / 2)),
+    ]
+    expect(halves.join('')).toBe(capturedArguments)
+    const wire = streamFor(
+      {
+        calls: [{ name: done.name, arguments: capturedArguments, argumentDeltas: halves }],
+      },
+      'resp_u9',
+      M106_CAPTURED_META_MODEL,
+    )
+    expect(wire.match(/^event: response\.function_call_arguments\.delta$/gm)).toHaveLength(2)
+    expect(wire).toContain(JSON.stringify(capturedArguments).slice(1, -1))
+    const api = fakeModelApi()
+    const manager = new ModelApiBackendManager(
+      fakeManagerDeps(api, new FakeLogOutputChannel(), {
+        workspaceRoot: '/ws',
+        store: undefined,
+        bundlePath: 'src/host/backend/modelApiEntry.ts',
+        loadBundle: () => modelApiEntry,
+        confirmContributorModel: () => Promise.resolve(true),
+      }),
+    )
+    try {
+      const host = await manager.ensureHost()
+      const session = await host.startSession({
+        workspaceRoot: '/ws',
+        modelId: M106_CAPTURED_META_MODEL,
+        approvalMode: 'allowAll',
+      })
+      const watched = watchSessionTurns(session)
+      api.script({
+        calls: [{ name: done.name, arguments: capturedArguments, argumentDeltas: halves }],
+      })
+      await session.sendTurn([{ type: 'text', text: 'check the weather' }])
+      await watched.turnDone()
+      const previews = watched.events.filter((event) => event.type === 'toolArgumentPreview')
+      expect(previews.length).toBeGreaterThan(0)
+      // The captured tool is undeclared to the host, so the grammar renders
+      // no text (declared fields only) while the captured bytes still drive
+      // every snapshot to the full captured length. Rendering undeclared
+      // model bytes would fail this pin.
+      expect(previews.every((event) => event.item.argumentPreview.text === '')).toBe(true)
+      expect(
+        previews.some((event) => event.item.argumentPreview.bytes === capturedArguments.length),
+      ).toBe(true)
+      const bodies = api.responseBodies()
+      expect(bodies.length).toBeGreaterThan(0)
+      for (const body of bodies) {
+        expect(body['max_output_tokens']).toBe(131_072)
       }
       expect(JSON.stringify(bodies)).not.toContain('argumentPreview')
     } finally {
