@@ -5172,8 +5172,9 @@ boolean remains effective until the new flag is explicitly configured), `museSpa
 hardware plus the OS store, with the recovery code offered at setup),
 `museSpark.vault.agentFence` (on), `museSpark.vault.lockAfterIdleMinutes`
 (240) and `museSpark.vault.lockOnScreenLock` (on). The internal POSIX broker uses Linux Secret Service and the macOS login
-Keychain. Linux needs a signed-in desktop session and an unlocked keyring;
-macOS needs an unlocked login Keychain. Touch ID / Keychain biometry is not
+Keychain. Linux requires an available Secret Service and an unlocked keyring;
+a signed-in desktop session normally supplies them. macOS needs an unlocked
+login Keychain. Touch ID / Keychain biometry is not
 offered: the required Apple Developer ID is unavailable (M109 decision 10).
 Linux hardware unlock and screen-lock integration remain in C-M109-2.
 
