@@ -19,16 +19,21 @@ names). No finding left open.
   `src/webview/playbook/DeferredPlaybook.tsx`, with retry on chunk failure
   (the panel error boundary is never the fallback). RVMODELSPLIT P2 fix:
   the loading fallback is no longer the shared overlay placeholder
-  (`div.palette.history`, 15 px, later replaced by the section); it is a
-  visually hidden status (`role="status"`, `data-deferred-loading`,
-  `models-visually-hidden`: absolute, clipped, no in-flow box), following
-  the `DeferredQuestionUi` precedent of a layout-preserving fallback. The
-  content slot paints nothing visible that the section later replaces, so
-  the visible sequence matches a synchronously rendered panel. No new
-  strings (reuses `UI_TEXT.loadingOutput`, read at render per D33), no new
-  dependency. A module-scope chunk preload was considered and dropped: the
-  repo's `unicorn/no-top-level-side-effects` rule forbids it, and it
-  changes no observable behaviour (the wait it shortens is invisible).
+  (`div.palette.history`, 15 px, later replaced by the section); it is the
+  section's own element with its final accessible name (`<section
+aria-label aria-busy="true">`), following the `DeferredQuestionUi`
+  precedent of a layout-preserving fallback. The loading announcement
+  inside it is visually hidden (`role="status"`, `data-deferred-loading`,
+  `models-visually-hidden`: absolute, clipped), so the reserve occupies no
+  visible box and the slot's section is never overlaid or replaced. No new
+  strings (reuses `UI_TEXT.loadingOutput` and the section titles, all read
+  at render per D33), no new dependency. A module-scope chunk preload was
+  considered and dropped: the repo's `unicorn/no-top-level-side-effects`
+  rule forbids it, and it changes no observable behaviour (the wait it
+  shortens is invisible). Loading the sections before first paint from
+  these files is likewise impossible without stalling the whole panel body
+  behind the chunk fetch (its own overlay flash, no nav, no failure
+  announcement) — the reserve above is the lane-brief-compliant option.
 - `src/webview/models/sections.ts`: the registry keeps its ids, titles,
   icons and `reduceSection` folds; only `Component` now points at the
   deferred surfaces. `ProvidersSection`, `ModelsSection` and `Wizard` (all
@@ -48,8 +53,10 @@ names). No finding left open.
   `test/unit/modelsMoneyLifecycle.test.tsx` await the deferred sections
   (and assert the loading status, which the hidden fallback keeps);
   `test/unit/modelsDeferredLayout.test.tsx` (new) holds the providers
-  chunk and asserts the slot paints no overlay while loading, then commits
-  the section once; `test/unit/bundleSize.test.mjs` gains red/green
+  chunk and asserts the slot already holds the `<section>` with its final
+  name (busy, announcement hidden, no overlay), then commits the same
+  section (same tag, slot and name) with the marker gone;
+  `test/unit/bundleSize.test.mjs` gains red/green
   boundary cases for both new groups plus the two MISS shapes, and its
   mock metafiles now plant both section chunks (0 bytes) so unrelated
   success paths keep measuring the real gate.
@@ -58,23 +65,24 @@ names). No finding left open.
 
 | Artifact                                      | Before (main) | After                   | Budget                                |
 | --------------------------------------------- | ------------- | ----------------------- | ------------------------------------- |
-| `dist/webview` models body                    | 74.9 KiB      | 38.6 KiB                | 75 KiB (unchanged)                    |
+| `dist/webview` models body                    | 74.9 KiB      | 38.8 KiB                | 75 KiB (unchanged)                    |
 | `dist/webview` models providers section (new) | —             | 27.5 KiB (28,146 bytes) | 31 KiB (measured +15% = 32,367 bytes) |
 | `dist/webview` models models section (new)    | —             | 11.4 KiB (11,685 bytes) | 13 KiB (measured +15% = 13,437 bytes) |
 | `dist/webview/models.js` + static imports     | 337.3 KiB     | 337.3 KiB               | 500 KiB (unchanged)                   |
 
-Headroom over the body's 75 KiB cap is now ~36.4 KiB, covering both feature
+Headroom over the body's 75 KiB cap is now ~36.2 KiB, covering both feature
 branches (~2.1 + ~0.9 KiB) with room to spare. The new group caps follow the
 lane brief exactly (no larger than measured +15%, no 25 KiB rounding). The
-body grew 38.4 → 38.6 KiB under MODELSPLIT2 (the hidden fallback JSX).
+body grew 38.4 → 38.8 KiB under MODELSPLIT2 (the reserve fallback JSX).
 
 ## Gate-fire proofs (red drills, all restored byte-exact)
 
-1. Fallback back to the overlay: `DeferredSections.tsx` temporarily dropped
-   both custom fallbacks (shared overlay placeholder again).
-   `test/unit/modelsDeferredLayout.test.tsx` failed
-   (`div.palette` present in the slot). File restored byte-exact (sha256
-   `ccd522df8cd692567da697d3ecba0ce64d78ef59578d2f976119f94d49c8ad47`
+1. Reserve back to the overlay: `DeferredSections.tsx` temporarily dropped
+   the custom fallbacks (shared overlay placeholder again).
+   `test/unit/modelsDeferredLayout.test.tsx` failed — no `<section>` in
+   the slot before load (`div.palette` present instead), so the
+   before/after identity assertions cannot hold. File restored byte-exact
+   (sha256 `d8d89a501b71d031f73d4599c663217e9d9f0654a3cade41befaea6e063957ec`
    before and after); suite green.
 2. MISS guard removed: `scripts/check-bundle-size.mjs` temporarily lost the
    empty-group branch. The 4 new MISS tests failed (the other 60 passed —

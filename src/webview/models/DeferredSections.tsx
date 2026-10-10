@@ -2,20 +2,28 @@
 // panel loads them on first paint through the shared deferred boundary,
 // which announces loading with a status and retries a failed chunk without
 // taking the panel down (the panel error boundary is never the fallback).
-// The loading announcement reserves no visible box: it is a visually hidden
-// status (absolute, clipped), never the shared overlay placeholder, so the
-// content slot paints nothing that the section later replaces (no flash, no
-// jump). The visible sequence matches a synchronously rendered panel.
+// The loading reserve is the section's own element with its final name,
+// never the shared overlay placeholder, and its announcement is visually
+// hidden (absolute, clipped): the slot's section box exists before the
+// chunk arrives and is never overlaid or replaced (no flash, no jump).
 import { UI_TEXT } from '../../shared/constants'
 import { deferred } from '../components/DeferredSurface'
 import type { SectionProps } from './sections'
 
-/** Loading is said to assistive tech without occupying the section's box. */
-function SectionLoading() {
+/**
+ * Loading keeps the section's own element: the slot holds a `<section>`
+ * with the section's final accessible name before the chunk arrives and
+ * the same element after it commits, so no overlay is ever painted and
+ * replaced. The announcement is visually hidden (absolute, clipped) and
+ * the region is marked busy, so the reserve occupies no visible box.
+ */
+function SectionLoading({ label }: { readonly label: string }) {
   return (
-    <p role="status" data-deferred-loading className="models-visually-hidden">
-      {UI_TEXT.loadingOutput}
-    </p>
+    <section aria-label={label} aria-busy="true">
+      <p role="status" data-deferred-loading className="models-visually-hidden">
+        {UI_TEXT.loadingOutput}
+      </p>
+    </section>
   )
 }
 
@@ -25,7 +33,7 @@ const ProvidersSurface = deferred(
     return { default: ProvidersSection }
   },
   false,
-  () => <SectionLoading />,
+  () => <SectionLoading label={UI_TEXT.providersSectionTitle} />,
 )
 
 const ModelsSurface = deferred(
@@ -34,7 +42,7 @@ const ModelsSurface = deferred(
     return { default: ModelsSection }
   },
   false,
-  () => <SectionLoading />,
+  () => <SectionLoading label={UI_TEXT.modelsSectionTitle} />,
 )
 
 export function DeferredProvidersSection(props: SectionProps) {
