@@ -700,7 +700,7 @@
     {
       "id": "M96",
       "title": "Agent roles and teams",
-      "summary": "Planned agent roles with charters, tools, model pools and task limits, and teams in isolated workspaces. Team execution remains hidden pending the remaining bindings and certification.",
+      "summary": "Planned agent roles with charters, tools, model pools and task limits, and teams in isolated workspaces whose execution remains hidden pending the remaining bindings and certification.",
       "area": "agents"
     },
     {
