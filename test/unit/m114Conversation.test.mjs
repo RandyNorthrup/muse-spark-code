@@ -9,6 +9,7 @@ import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { contrastRatio } from '../../scripts/check-tokens.mjs'
 import { digest, readAudit, sourcesAtRevision } from './helpers/m114AuditCapture.mjs'
 import { conversationManifestPath } from './helpers/m114ConversationCapture.mjs'
+import { warmBrowser } from './helpers/warmBrowser'
 
 const themes = ['light', 'dark', 'hc-dark', 'hc-light', 'one-dark-pro', 'dracula']
 const compareNames = (a, b) => {
@@ -185,6 +186,10 @@ describe('M114 P1 after evidence', () => {
       expect(digest(bytes)).toBe(capture.sha256)
     }
   })
+})
+// Browser-wide first-page work once, under this hook's own limit (CIFIX017).
+beforeAll(async () => {
+  await warmBrowser(runtime.browser)
 })
 afterAll(async () => {
   await runtime.browser?.close()

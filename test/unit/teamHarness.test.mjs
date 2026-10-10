@@ -22,6 +22,7 @@ import { PLAYED_SCENARIOS, serveRepo, TRAFFIC_SCENARIOS } from '../../scripts/li
 import { testSettings } from './helpers/fakes'
 import { buildWebviewHtml } from '../../src/host/html'
 import { EN } from '../../src/shared/l10n/en'
+import { warmBrowser } from './helpers/warmBrowser'
 
 // Preparation builds production chunks and inventories the complete real VSIX.
 const REAL_HARNESS_PREPARE_TIMEOUT_MS = 60_000
@@ -114,6 +115,10 @@ beforeAll(async () => {
     await warm.close()
   }
 }, REAL_HARNESS_PREPARE_TIMEOUT_MS)
+// Browser-wide first-page work once, under this hook's own limit (CIFIX017).
+beforeAll(async () => {
+  await warmBrowser(rig.browser)
+})
 afterAll(async () => {
   await rig.browser?.close()
   if (rig.server !== undefined) await new Promise((resolve) => rig.server.close(resolve))

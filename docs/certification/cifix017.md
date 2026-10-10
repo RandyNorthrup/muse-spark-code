@@ -1033,3 +1033,26 @@ timing, without the reap barrier, read no members in 0 of 150 rounds on
 `macos-26-arm64` (3 of 150 before the parser fix); the lifecycle file
 25/25, sshRunner and estimator 8/8 on windows-latest, M108 25/25 on
 ubuntu-latest. The probe branches are deleted.
+
+## Round 8, lead (run 38029777462)
+
+Windows passed all eight shards. One macOS case failed:
+`accountsPanel.a11y` "light section at 320px passes axe and fits the panel",
+5 s, the first case of that file's Chrome page matrix, with files already
+running one at a time. It is the same class as the estimator (Windows) and
+m114Panel (macOS) first cases: a fresh Chrome's first page pays browser-wide
+work once (a renderer start and the first font fallbacks; the shared review
+browser measured 5.5 s of it on a CPU-starved Mac). Rather than another
+single file, every suite that launches its own Chrome now pays it once in a
+`beforeAll` of its own through `test/unit/helpers/warmBrowser.ts` (renders
+sans-serif, monospace and a CJK glyph, waits for fonts): accountsPanel.a11y,
+companionBrowser, companionMediaBrowser, fontsPack, m114Conversation,
+teamHarness, themeBridgeBrowser and usageCompanionChunks. The two suites on
+the shared review browser already have it from `reviewBrowserServer.mjs`;
+the estimator and m114Panel keep their scene warm-ups. No case deadline
+changes. Mac mini and Kubuntu: the eight files 150/150. win11 runs
+teamHarness's existing production-build hook past its 60 s on this VM
+(a Codex lane shares it); that hook is unchanged and hosted Windows passed
+the file in run 38029777462. The rigs cannot reproduce the hosted cold
+start, so no red drill is claimed; the hosted run is the evidence, as it
+was for the estimator and m114Panel warm-ups, which passed there.

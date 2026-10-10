@@ -1,14 +1,19 @@
 import { createServer } from 'node:http'
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core'
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 import { call, headers, startPanel, trackedPanels } from './helpers/companion'
+import { warmBrowser } from './helpers/warmBrowser'
 
 const tracked = trackedPanels()
 // Warm the real browser during file loading, before the assertion hooks. Chrome
 // startup contends with hosted-runner transforms; it is shared by all nine cases.
 const browser: Browser = await chromium.launch({ channel: 'chrome', headless: true })
+// Browser-wide first-page work once, under this hook's own limit (CIFIX017).
+beforeAll(async () => {
+  await warmBrowser(browser)
+})
 // Launch alone does not start a renderer. Warm one before the first timed case;
 // every security case still gets its own fresh context and real navigation.
 const warmContext = await browser.newContext()

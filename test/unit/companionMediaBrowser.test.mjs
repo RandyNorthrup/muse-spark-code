@@ -10,6 +10,7 @@ import { companionUpload } from '../../src/runtime/companion/upload'
 import { videoFixture } from './helpers/media/fixtures'
 import { COMPANION_BROWSER_ENTRY } from './helpers/media/companionBrowser'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
+import { warmBrowser } from './helpers/warmBrowser'
 
 const state = {
   root: '',
@@ -102,6 +103,10 @@ beforeAll(async () => {
   const address = state.server.address()
   if (address === null || typeof address === 'string') throw new Error('Missing test listener')
   state.origin = `http://127.0.0.1:${String(address.port)}`
+})
+// Browser-wide first-page work once, under this hook's own limit (CIFIX017).
+beforeAll(async () => {
+  await warmBrowser(state.browser)
 })
 afterAll(async () => {
   state.cancelled.abort()
