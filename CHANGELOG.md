@@ -46,6 +46,10 @@ happened, not what was planned; superseded entries are kept.
   - Setup shows a one-time recovery code and writes nothing until you confirm
     you saved it, in the agent's terminal (`vault setup`, `vault recover`)
     and as **Set Up Vault** in the vault section.
+  - The Models & Agents panel mounts the vault section (Set Up Vault, lock
+    state, items, grants, recovery) behind the broker gate (C-M109-1 P1):
+    it stays hidden until the broker process and per-OS connections land,
+    so nothing new appears on screen yet.
   - `dist/vaultRuntime.js` carries the vault for the ACP agent, the CLI and
     headless runs, without `vscode`.
   - The SecretStorage slot is dropped for the OS-store slot every editor

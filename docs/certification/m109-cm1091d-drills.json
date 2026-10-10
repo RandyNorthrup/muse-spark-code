@@ -1,0 +1,22 @@
+{
+  "drills": [
+    {
+      "after": "ecc7628cc369506c894a97099f8fea6d3ecc7c70ea75710453d4d5d2ea81aaab",
+      "before": "ecc7628cc369506c894a97099f8fea6d3ecc7c70ea75710453d4d5d2ea81aaab",
+      "id": "D1",
+      "mutation": "Removed `state.vaultOffered = vault !== undefined` from publish() in src/host/models/modelsPanel.ts (the host half of the mount gate).",
+      "red": "npx vitest run test/unit/modelsPanelVault.test.ts: 4 failed / 2 passed. Failed exactly the gate-on tests (offers+routes, publisher validation, deep-links, dispose); the two gate-off tests (hidden, throwing factory) still pass.",
+      "rig": "macmini"
+    },
+    {
+      "after": "4e6e82b18d9eecb57a8fdc1647ed6079f8adade9356f12db7ec95241916dadd5",
+      "before": "4e6e82b18d9eecb57a8fdc1647ed6079f8adade9356f12db7ec95241916dadd5",
+      "id": "D2",
+      "mutation": "Replaced the vault isOffered gate with `() => true` in src/webview/models/sections.ts (the webview half of the mount gate).",
+      "red": "npx vitest run test/unit/modelsSections.test.ts test/unit/modelsPanelVaultSection.test.tsx: 3 failed / 7 passed. Failed the registry gate test and both hidden-webview tests (nav hidden, vault fallback); gate-on tests still pass.",
+      "rig": "macmini"
+    }
+  ],
+  "lane": "CM1091D",
+  "restored": "byte-exact (SHA-256 before == after for both files; full 6/6 host tests pass after restore)"
+}

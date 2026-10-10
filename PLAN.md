@@ -33252,9 +33252,12 @@ does. Three things are open, and the vault goes live when all three land:
 1. `vaultClientPlatform` (`src/runtime/vault/clientPlatform.ts`) is bound by
    lanes (b) and (c).
 2. The broker process composes these pieces.
-3. The Models & Agents panel mounts the vault section. It is not mounted in
-   0.17.0. Settings > Vault > Set Up Vault arrives with M126's settings
-   page.
+3. The Models & Agents panel mounts the vault section (C-M109-1 P1, lane
+   CM1091D, 2026-10-10: mounted behind the broker gate — `vaultOffered`
+   stays false and the navigation stays hidden until 1 and 2 land — and
+   tested with the gate forced on; `docs/certification/m109.md` "C-M109-1
+   P1" records it). Settings > Vault > Set Up Vault arrives with M126's
+   settings page.
 
 No checklist item above is ticked by this step.
 
