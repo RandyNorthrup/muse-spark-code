@@ -14,6 +14,7 @@ import { installUsageTable } from './installUsageTable'
 import { DeferredSurface } from '../components/DeferredSurface'
 import './usage.css'
 import { companionUsagePort } from './companion'
+import { companionStorage, loadCompanionTheme } from './companionTheme'
 
 const UsageApp = lazy(async () => {
   const module = await import('./UsageApp')
@@ -82,6 +83,24 @@ function bridgeKind(value: string | undefined): HostBridgeKind {
 }
 const element = document.querySelector(`#${WEBVIEW_ROOT_ELEMENT_ID}`)
 if (element === null) throw new TypeError('Missing usage root')
+// M114 C-M114-1: the companion page mounts the lazy theme consumer with its
+// stored appearance. Editor and native hosts keep their own fonts and theme.
+if (document.body.dataset['hostBridge'] === 'http') {
+  const nonce = document.querySelector<HTMLElement>(`#${WEBVIEW_ROOT_ELEMENT_ID}`)?.dataset[
+    'themeNonce'
+  ]
+  if (nonce === undefined || nonce === '') throw new TypeError('Missing companion theme nonce')
+  try {
+    await loadCompanionTheme({
+      root: document.documentElement,
+      nonce,
+      storage: companionStorage(),
+      signal: new AbortController().signal,
+    })
+  } catch {
+    // The generated token defaults still paint a complete page.
+  }
+}
 const root = createRoot(element)
 let isInvalidTable = installEmbeddedTable(document) !== undefined
 const tableElement = document.querySelector('#muse-usage-l10n')

@@ -275,6 +275,7 @@ describe('M102 integrated surfaces', () => {
       'export const vendor = "shared"',
     )
     await writeFile(path.join(root, 'dist', 'webview', 'usage.css'), ':root { color: white }')
+    await writeFile(path.join(root, 'dist', 'webview', 'theme.css'), '/* theme */')
     const panel = await openUsageCompanion({
       usage: access,
       assetsFolder: path.join(root, 'dist', 'webview'),

@@ -79,6 +79,7 @@
 !dist/providerCatalog.js
 !dist/webview/usage.js
 !dist/webview/usage.css
+!dist/webview/theme.css
 !dist/webview/whatsNew.js
 !dist/webview/whatsNew.css
 !media/icon.svg
