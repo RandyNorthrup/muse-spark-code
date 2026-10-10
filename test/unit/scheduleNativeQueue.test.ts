@@ -74,7 +74,9 @@ describe('native scheduled queue authority', () => {
         [{ type: 'text', text: 'Follow up' }],
         unattendedRun().run,
       )
-      expect(await f.session.withdrawQueued(queued)).toMatchObject({ status: 'withdrawn' })
+      expect(
+        await f.session.withdrawQueued({ ...queued, userMessageId: queued.userMessageId }),
+      ).toMatchObject({ status: 'withdrawn' })
       expect(f.events).toContainEqual({
         type: 'turnWithdrawn',
         turnId: queued.turnId,

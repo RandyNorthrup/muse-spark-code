@@ -32,6 +32,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Native IDE calls can carry a session-bound identity. Unattended callers
+  use their own grants, retired callers lose access, and colliding request
+  ids cannot cancel another caller's tool. Interactive-only tools refuse
+  unattended calls before showing a popup or making a purchase.
+
 - **Schedule delivery qualification** (C-M115-1). The lazy engine can accept
   host-owned unattended targets, safety and authoritative cost settlement.
   Host publication, safety and cost callbacks retain their owning receivers.

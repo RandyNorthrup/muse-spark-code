@@ -27,6 +27,7 @@ import {
   IDE_MCP_TOKEN_BYTES,
 } from '../../shared/constants'
 import type { Logger } from '../logger'
+import type { UnattendedRun } from '../../core/schedules/unattended'
 import { isSameLoopbackSecret, listenLoopback, readLoopbackBody } from '../mcpLoopback'
 
 /** What `session/start` is told: where the server is and how to authenticate. */
@@ -40,6 +41,11 @@ const BEARER_PREFIX = 'Bearer '
 const JSON_CONTENT_TYPE = 'application/json'
 const POST = 'POST'
 
+interface IdeCaller {
+  readonly identity: string
+  readonly resolve: () => { readonly isReady: boolean; readonly run?: UnattendedRun }
+}
+
 export class IdeMcpServer {
   private readonly token = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
   private server: Server | undefined
@@ -49,6 +55,7 @@ export class IdeMcpServer {
   private starting: Promise<IdeMcpEndpoint> | undefined
   /** The calls being answered, by request id, so a cancellation can stop them (M69). */
   private readonly inFlight = new Map<McpRequestKey, Set<AbortController>>()
+  private readonly callers = new Map<string, IdeCaller>()
 
   public constructor(
     /** The tools offered now, asked on every request. */
@@ -64,9 +71,8 @@ export class IdeMcpServer {
   /**
    * Stops every call in flight under the key (M69). Muse Code 1.4.0 sends
    * `notifications/cancelled` for a stopped turn's call and closes its
-   * request; either one stops the tool. The server has no session identity,
-   * so two sessions' calls with the same id are both stopped: a stopped call
-   * fails, which no call takes as success.
+   * request; either one stops the tool. Bound endpoints scope the key to
+   * their authenticated session; the legacy window endpoint shares keys.
    */
   private cancel(key: McpRequestKey): void {
     const calls = this.inFlight.get(key) ?? []
@@ -81,6 +87,7 @@ export class IdeMcpServer {
     key: McpRequestKey | undefined,
     response: ServerResponse,
     request: IncomingMessage,
+    caller?: IdeCaller,
   ): Promise<McpOutcome> {
     const controller = new AbortController()
     const onClose = () => {
@@ -105,7 +112,7 @@ export class IdeMcpServer {
       controller.signal.throwIfAborted()
       return await handleMcpMessage(
         body,
-        [...this.tools(), ...vault],
+        this.callerTools([...this.tools(), ...vault], caller),
         IDE_MCP_SERVER_INFO,
         controller.signal,
       )
@@ -120,13 +127,45 @@ export class IdeMcpServer {
     }
   }
 
-  private isAuthorised(request: IncomingMessage): boolean {
+  private callerTools(tools: readonly McpTool[], caller?: IdeCaller): readonly McpTool[] {
+    if (caller === undefined) return tools
+    return tools.map((tool) => ({
+      ...tool,
+      call: async (args, signal) => {
+        const owner = caller.resolve()
+        if (!owner.isReady) throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
+        const run = owner.run
+        if (run !== undefined) {
+          const decision = await run.decide(
+            {
+              id: tool.name,
+              class: 'mcp',
+              tool: tool.name,
+              paths: typeof args['path'] === 'string' ? [args['path']] : [],
+              // These tools require their own interactive confirmations. Until
+              // they have a run-scoped executor, no unattended popup or purchase.
+              requiresAsking: tool.annotations?.['readOnlyHint'] !== true,
+              protectedPath: false,
+            },
+            true,
+          )
+          if (!decision.allowed || caller.resolve().run !== run || !run.isActive())
+            throw new Error(decision.reason ?? run.modelText.approvalRefused)
+        }
+        signal.throwIfAborted()
+        return await tool.call(args, signal)
+      },
+    }))
+  }
+
+  private authenticatedCaller(request: IncomingMessage): IdeCaller | true | undefined {
     const header = request.headers[AUTHORIZATION_HEADER]
-    return (
-      typeof header === 'string' &&
-      header.startsWith(BEARER_PREFIX) &&
-      isSameLoopbackSecret(header.slice(BEARER_PREFIX.length), this.token)
-    )
+    if (typeof header !== 'string' || !header.startsWith(BEARER_PREFIX)) return undefined
+    const token = header.slice(BEARER_PREFIX.length)
+    if (isSameLoopbackSecret(token, this.token)) return true
+    for (const [secret, caller] of this.callers)
+      if (isSameLoopbackSecret(token, secret)) return caller
+    return undefined
   }
 
   private async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -138,7 +177,8 @@ export class IdeMcpServer {
       response.writeHead(HTTP_STATUS.notFound).end()
       return
     }
-    if (!this.isAuthorised(request)) {
+    const caller = this.authenticatedCaller(request)
+    if (caller === undefined) {
       this.log.warn('IDE tool server refused a request without the session token')
       response.writeHead(HTTP_STATUS.unauthorized).end()
       return
@@ -149,10 +189,18 @@ export class IdeMcpServer {
       return
     }
     const keys = mcpRequestKeys(body)
+    const scoped = (key: McpRequestKey): McpRequestKey =>
+      caller === true ? key : JSON.stringify([caller.identity, key])
     if (keys.cancelled !== undefined) {
-      this.cancel(keys.cancelled)
+      this.cancel(scoped(keys.cancelled))
     }
-    const outcome = await this.handleInFlight(body, keys.request, response, request)
+    const outcome = await this.handleInFlight(
+      body,
+      keys.request === undefined ? undefined : scoped(keys.request),
+      response,
+      request,
+      caller === true ? undefined : caller,
+    )
     if (response.destroyed) {
       return
     }
@@ -214,6 +262,26 @@ export class IdeMcpServer {
     return this.endpoint
   }
 
+  /** Host-minted identity uses captured MSP HTTP headers; no vendor field is guessed. */
+  public async bindCaller(resolve: IdeCaller['resolve']): Promise<{
+    readonly endpoint: IdeMcpEndpoint
+    dispose(): void
+  }> {
+    const endpoint = await this.start()
+    const secret = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
+    const identity = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
+    this.callers.set(secret, { identity, resolve })
+    return {
+      endpoint: { url: endpoint.url, headers: { Authorization: `${BEARER_PREFIX}${secret}` } },
+      dispose: () => {
+        this.callers.delete(secret)
+        for (const [key, calls] of this.inFlight)
+          if (typeof key === 'string' && key.startsWith(JSON.stringify([identity]).slice(0, -1)))
+            for (const call of calls) call.abort()
+      },
+    }
+  }
+
   /**
    * Listens on an ephemeral loopback port; idempotent, and callable again
    * after a failed start (PLAN.md D25: a first failure no longer leaves the
@@ -232,5 +300,7 @@ export class IdeMcpServer {
     this.server?.close()
     this.server = undefined
     this.endpoint = undefined
+    this.callers.clear()
+    for (const calls of this.inFlight.values()) for (const call of calls) call.abort()
   }
 }

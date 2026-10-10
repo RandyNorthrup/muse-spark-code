@@ -35895,6 +35895,13 @@ delivery only after every VS Code admission and safety acceptance passes.
 The inherited What's New decoded-content refusal is fixed by the accepted
 `fix/whatsnew-budget` branch at integration; this lane preserves its bound.
 
+Native busy queue admission and withdrawal now preserve the user's turn and
+mode until promotion. IDE endpoints now authenticate separate session owners
+and scope cancellation to that owner; unattended read-only calls use the
+schedule grant and interactive-only tools refuse before execution. Windows
+regressions and byte-exact red controls are in `m115-cm1151.md`; automatic
+registration remains held for the complete controller/money/OS receipts.
+
 - [x] Shared workspace watches retain every holder; default-timeout regression
       and deliberate early-retirement drill recorded in `m115-cm1151.md`.
 - [x] Unregistered lazy delivery composition qualified with both fake backends:

@@ -4,6 +4,8 @@ import { IdeMcpServer } from '../../src/host/ide/ideMcpServer'
 import * as loopback from '../../src/host/mcpLoopback'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { postLoopback, postLoopbackJson } from './helpers/loopbackHttp'
+import { unattendedRun } from './helpers/schedules/unattended'
+import { fakeRunContext, fakeSchedule } from './helpers/schedules/fixtures'
 
 const tool: McpTool = {
   name: 'getDiagnostics',
@@ -26,6 +28,112 @@ afterEach(() => {
   for (const server of servers.splice(0)) {
     server.close()
   }
+})
+
+describe('scheduled IDE caller identity', () => {
+  it('refuses an unattended purchase before the interactive tool or popup runs', async () => {
+    const call = vi.fn<McpTool['call']>().mockResolvedValue('charged')
+    const server = new IdeMcpServer(
+      () => [{ ...tool, name: 'purchase', call }],
+      new FakeLogOutputChannel(),
+    )
+    servers.push(server)
+    const { run } = unattendedRun()
+    const caller = await server.bindCaller(() => ({ isReady: true, run }))
+    const response = await postLoopbackJson(caller.endpoint, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'purchase', arguments: {} },
+    })
+    expect(response).toMatchObject({ result: { isError: true } })
+    expect(call).not.toHaveBeenCalled()
+    expect(run.refusedActions).toHaveLength(1)
+  })
+
+  it('reads the correct caller grant while another caller remains interactive', async () => {
+    const call = vi.fn<McpTool['call']>().mockResolvedValue('read')
+    const server = new IdeMcpServer(
+      () => [{ ...tool, annotations: { readOnlyHint: true }, call }],
+      new FakeLogOutputChannel(),
+    )
+    servers.push(server)
+    const denied = unattendedRun()
+    const allowed = unattendedRun({
+      context: fakeRunContext(
+        fakeSchedule({
+          grant: {
+            ...fakeRunContext().grant,
+            rules: [{ id: 'read', kind: 'tool', name: tool.name }],
+          },
+        }),
+      ),
+    })
+    const first = await server.bindCaller(() => ({ isReady: true, run: denied.run }))
+    const second = await server.bindCaller(() => ({ isReady: true, run: allowed.run }))
+    const user = await server.bindCaller(() => ({ isReady: true }))
+    const request = {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: tool.name, arguments: {} },
+    }
+    expect(await postLoopbackJson(first.endpoint, request)).toMatchObject({
+      result: { isError: true },
+    })
+    expect(await postLoopbackJson(second.endpoint, request)).toMatchObject({
+      result: { content: [{ text: 'read' }] },
+    })
+    expect(await postLoopbackJson(user.endpoint, request)).toMatchObject({
+      result: { content: [{ text: 'read' }] },
+    })
+    expect(call).toHaveBeenCalledTimes(2)
+    expect(allowed.audit).toHaveBeenCalledTimes(1)
+    first.dispose()
+    expect(await status(first.endpoint, JSON.stringify(request))).toBe(401)
+  })
+
+  it('refuses unresolved identity and a revoked run before executing the tool', async () => {
+    const call = vi.fn<McpTool['call']>().mockResolvedValue('read')
+    const server = new IdeMcpServer(
+      () => [{ ...tool, annotations: { readOnlyHint: true }, call }],
+      new FakeLogOutputChannel(),
+    )
+    servers.push(server)
+    const { run } = unattendedRun({ isActive: () => false })
+    let isReady = false
+    const caller = await server.bindCaller(() => ({ isReady, run }))
+    const request = {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: tool.name, arguments: {} },
+    }
+    expect(await postLoopbackJson(caller.endpoint, request)).toMatchObject({
+      result: { isError: true },
+    })
+    isReady = true
+    expect(await postLoopbackJson(caller.endpoint, request)).toMatchObject({
+      result: { isError: true },
+    })
+    expect(call).not.toHaveBeenCalled()
+  })
+
+  it('scopes cancellation to one caller even when request ids collide', async () => {
+    const held = holdingTool()
+    const server = new IdeMcpServer(() => [held.tool], new FakeLogOutputChannel())
+    servers.push(server)
+    const first = await server.bindCaller(() => ({ isReady: true }))
+    const second = await server.bindCaller(() => ({ isReady: true }))
+    const pending = postLoopbackJson(first.endpoint, callBody(1))
+    const signal = await held.called
+    await postLoopback(second.endpoint, JSON.stringify(cancelBody(1)))
+    expect(signal.aborted).toBe(false)
+    await postLoopback(first.endpoint, JSON.stringify(cancelBody(1)))
+    expect(signal.aborted).toBe(true)
+    held.finish()
+    await pending
+  })
 })
 
 interface Endpoint {
