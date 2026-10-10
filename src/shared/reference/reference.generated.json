@@ -20,7 +20,7 @@
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
-      "details": [],
+      "details": [{ "ui": "referenceResourceMemory" }],
       "facts": {},
       "editors": ["vscode", "acp"]
     },

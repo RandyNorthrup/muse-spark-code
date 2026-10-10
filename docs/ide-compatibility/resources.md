@@ -5,6 +5,18 @@ W delivers artifacts and settings without inventing missing native wire fields.
 The table records the required equivalent route and what is still unbound.
 Existing host support status is unchanged.
 
+The shared macOS machine sampler counts free, inactive and purgeable pages on
+every runtime. Below libuv 1.52 it requests the reading from the packaged signed
+helper, with one idle child per governor; newer runtimes use Node's API. This
+applies to the VS Code family and every editor using the ACP/headless runtime,
+including Arduino IDE's older Node runtime. Missing/failed native helpers stay
+unknown. The Mac mini parity and lifecycle receipts are in
+[C-M107-2's record](../certification/m107-darwin-memory.md). Windows and Linux
+keep their existing native readings. Installed native chip/status receipts for
+JetBrains, Visual Studio, Eclipse and the companion, and ACP editor receipts
+for Zed, Xcode, Neovim, Emacs, Sublime and JupyterLab, remain with
+C-M104-1/C-M107-8 and C-M107-9; this sampler change adds no editor-specific UI.
+
 | Host                                                                   | Equivalent route                                                                                  | Integration handoff                                                                                                                   |
 | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | VS Code family, remote/WSL                                             | Status item, shared chip/popover, Resume now/Settings/Show resources, Resources history           | Chip, status item, pause notice and both commands bound to the window governor (M107 W chip); history is bound (journal + usage page) |

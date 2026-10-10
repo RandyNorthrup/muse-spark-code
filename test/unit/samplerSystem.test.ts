@@ -10,10 +10,12 @@ import {
 } from '../../src/core/resources/sampler/system'
 import { resourceSampleSchema, resourceSettingsSchema } from '../../src/shared/resources'
 import * as linuxMemory from '../../src/core/resources/sampler/linuxMemory'
+import { DarwinMemoryReader } from '../../src/core/resources/sampler/darwinMemory'
 
 vi.mock('node:os', { spy: true })
 vi.mock('node:child_process', { spy: true })
 vi.mock('../../src/core/resources/sampler/linuxMemory', { spy: true })
+vi.mock('../../src/core/resources/sampler/darwinMemory', { spy: true })
 
 const limits: ResourceProbeLimits = { timeoutMs: 2000, maxOutputBytes: 65_536 }
 const scratch: string[] = []
@@ -27,16 +29,19 @@ afterEach(async () => {
 
 describe('resource sampler OS adapter', () => {
   it.each([
-    { platform: 'darwin', uv: '1.51.0', available: null },
-    { platform: 'darwin', uv: '1.51.999', available: null },
+    { platform: 'darwin', uv: '1.51.0', available: 6000 },
+    { platform: 'darwin', uv: '1.51.999', available: 6000 },
     { platform: 'darwin', uv: '1.52.0', available: 2000 },
     { platform: 'darwin', uv: '1.52.1', available: 2000 },
     { platform: 'darwin', uv: '2.0.0', available: 2000 },
     { platform: 'darwin', uv: 'unknown', available: null },
+    { platform: 'darwin', uv: '1', available: null },
+    { platform: 'darwin', uv: '1.x.0', available: null },
     { platform: 'linux', uv: '1.51.0', available: 100 },
     { platform: 'win32', uv: '1.51.0', available: 100 },
   ])('uses genuine headroom on $platform with libuv $uv', async ({ platform, uv, available }) => {
     const availableMemory = vi.fn(() => 2000)
+    const helperRead = vi.spyOn(DarwinMemoryReader.prototype, 'read').mockResolvedValue(6000)
     vi.stubGlobal('process', {
       ...process,
       platform,
@@ -48,10 +53,46 @@ describe('resource sampler OS adapter', () => {
     vi.mocked(linuxMemory.linuxMemoryLimit).mockResolvedValue(undefined)
     const sampler = createMachineResourceSampler(() => resourceSettingsSchema.parse({}), limits)
     expect(availableMemory).not.toHaveBeenCalled()
+    expect(helperRead).not.toHaveBeenCalled()
     const sample = await sampler.sample()
     expect(sample.memoryAvailableBytes).toBe(available)
     expect(sample.memoryUsedPercent).toBe(available === null ? null : (1 - available / 8000) * 100)
-    expect(availableMemory).toHaveBeenCalledTimes(available === null ? 0 : 1)
+    expect(availableMemory).toHaveBeenCalledTimes(available === null || available === 6000 ? 0 : 1)
+    expect(helperRead).toHaveBeenCalledTimes(available === 6000 ? 1 : 0)
+    sampler.dispose?.()
+  })
+
+  it('keeps failed older-Darwin headroom unknown and disposes its helper', async () => {
+    vi.stubGlobal('process', {
+      ...process,
+      platform: 'darwin',
+      versions: { ...process.versions, uv: '1.51.0' },
+    })
+    vi.spyOn(DarwinMemoryReader.prototype, 'read').mockResolvedValue(null)
+    const dispose = vi.spyOn(DarwinMemoryReader.prototype, 'dispose')
+    const sampler = createMachineResourceSampler(() => resourceSettingsSchema.parse({}), limits)
+    const sample = await sampler.sample()
+    expect(sample.memoryAvailableBytes).toBeNull()
+    expect(sample.memoryUsedPercent).toBeNull()
+    sampler.dispose?.()
+    expect(dispose).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads older-Darwin headroom without a Node available-memory API, including Node 20 hosts', async () => {
+    vi.stubGlobal('process', {
+      ...process,
+      platform: 'darwin',
+      versions: { ...process.versions, uv: '1.46.0' },
+      availableMemory: undefined,
+    })
+    vi.spyOn(DarwinMemoryReader.prototype, 'read').mockResolvedValue(6000)
+    vi.mocked(os.totalmem).mockReturnValue(8000)
+    const sampler = createMachineResourceSampler(() => resourceSettingsSchema.parse({}), limits)
+    expect(await sampler.sample()).toMatchObject({
+      memoryAvailableBytes: 6000,
+      memoryUsedPercent: 25,
+    })
+    sampler.dispose?.()
   })
 
   it('keeps Darwin headroom unknown when the runtime has no available-memory API', async () => {
