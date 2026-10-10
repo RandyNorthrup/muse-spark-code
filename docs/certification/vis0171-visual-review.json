@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "status": "inspection-complete-awaiting-baseline-and-replay",
+  "status": "baseline-reviewed-full-replay-pending",
   "review": "VIS0171-0.17.1-labels-provider-notes-2026-10-10",
-  "sourceRevision": "b7370023d981463baf56549801fa35496673334e",
+  "sourceRevision": "f8db72798c498dff30f70b83375b2098e202f976",
   "previousRevision": "fb7a3f005b32756f98280988725e0edf0396b424",
   "previousManifestSha256": "e314783f2e7bcd2d95ecd83327e9e9142fe3fe66ae71a0418524fb118c4fed50",
   "browser": "153.0.8010.52",
@@ -3318,5 +3318,278 @@
       "before": "0dc17c546c3d74b7f5ba107f04f01f444c09d1d3b2b473ba49bd2f3ebd5e3823",
       "after": "ad3f87715f1059e7ae207fdc41530fdcaef7855d970a314083cd487acf2026ae"
     }
-  ]
+  ],
+  "reviewArchiveIntegrity": {
+    "checked": 9792,
+    "bytes": 450605007,
+    "metadataSha256": "802681717db1996dba187b28f5e5501a49e2a0fe6c99ea6744df32168238b7ad",
+    "archive": "/var/tmp/l-VIS0171/vis0171-round2-review"
+  },
+  "officialBaseline": {
+    "manifestSha256": "b6fed01534712876f83bbcfd841ca7599ca3dc3446df4a38d5639ecc55bd28f5",
+    "revision": "f8db72798c498dff30f70b83375b2098e202f976",
+    "archive": "/var/tmp/l-VIS0171/vis0171-reviewed-final-tty",
+    "captures": 9792,
+    "verifiedBytes": 450604546,
+    "stateCoverageDifferences": 0,
+    "identicalToReviewedFrames": 8537,
+    "withinPolicyFrames": 1255,
+    "significantChangedPixels": 16,
+    "comparison": {
+      "file": "temp/vis0171-round2-official-review-parity.json",
+      "sha256": "ec835f20a02fe36db9349a4c604efdc4285f151d8754072a54cb2ef815e41423"
+    },
+    "allInspected": true,
+    "evidence": [
+      {
+        "theme": "light",
+        "frames": 241,
+        "uniqueRegions": 158,
+        "metadata": {
+          "file": "/var/tmp/l-VIS0171/vis0171-frame-review/official-light.json",
+          "sha256": "cd65340b298044c7c44e2df085f11f6bfa4cadb2170c426c6a915e13565540b5"
+        },
+        "sheets": [
+          {
+            "file": "official-light-00.png",
+            "sha256": "80c625f4b88f7d1b34421a630b019aea9469c6fdc3f30797aaca2afcf0d2de28",
+            "width": 1440,
+            "height": 1600,
+            "regions": 36
+          },
+          {
+            "file": "official-light-01.png",
+            "sha256": "28946868c61edb2d75c9b4957275dbd96fd124d1b1c13df57e6a5e9963d541a1",
+            "width": 1440,
+            "height": 1600,
+            "regions": 35
+          },
+          {
+            "file": "official-light-02.png",
+            "sha256": "c1b7caa5003f52e8a706e05995905936555da4cd33d188cecf7ccc2a396ea2f8",
+            "width": 1440,
+            "height": 1600,
+            "regions": 36
+          },
+          {
+            "file": "official-light-03.png",
+            "sha256": "7b47dbf3dceba023b0b1f7014c8ad6bcd163864ac9efb365d473e1016c7e6d5b",
+            "width": 1440,
+            "height": 1600,
+            "regions": 37
+          },
+          {
+            "file": "official-light-04.png",
+            "sha256": "1ad232084acb3b282d040942c416b371d3f490658a49412fefac576f80818e8c",
+            "width": 1440,
+            "height": 1600,
+            "regions": 14
+          }
+        ]
+      },
+      {
+        "theme": "dark",
+        "frames": 216,
+        "uniqueRegions": 160,
+        "metadata": {
+          "file": "/var/tmp/l-VIS0171/vis0171-frame-review/official-dark.json",
+          "sha256": "db0c9583980a16e763b834f8449acb4476cc614cf1022e84e465259694c14c83"
+        },
+        "sheets": [
+          {
+            "file": "official-dark-00.png",
+            "sha256": "e6624c229dc6574f73fb532a96431952942eede3855e4d37917d407a4dadc228",
+            "width": 1440,
+            "height": 1600,
+            "regions": 37
+          },
+          {
+            "file": "official-dark-01.png",
+            "sha256": "3a227fdff10c611a0894e2cdf97f945d036803009ea38c21f896e10bc5bd3920",
+            "width": 1440,
+            "height": 1600,
+            "regions": 37
+          },
+          {
+            "file": "official-dark-02.png",
+            "sha256": "3b564658e5103c072c1ebb37c6212568a406f00a658d7e261b8961829a0427c1",
+            "width": 1440,
+            "height": 1600,
+            "regions": 36
+          },
+          {
+            "file": "official-dark-03.png",
+            "sha256": "2ccb2a5715a0743be53665688d2253c3c367f5c9e6ef6fdb0a5c1620d8e56e49",
+            "width": 1440,
+            "height": 1600,
+            "regions": 35
+          },
+          {
+            "file": "official-dark-04.png",
+            "sha256": "78c8a1b30a3eff249156da601a11d655b7805081494e9444c7b69b9fc1856d77",
+            "width": 1440,
+            "height": 1600,
+            "regions": 15
+          }
+        ]
+      },
+      {
+        "theme": "hc-dark",
+        "frames": 192,
+        "uniqueRegions": 125,
+        "metadata": {
+          "file": "/var/tmp/l-VIS0171/vis0171-frame-review/official-hc-dark.json",
+          "sha256": "ce07bcdf28acae58a485216ea75d31e7b4cb41323513750933d23871e3d0543e"
+        },
+        "sheets": [
+          {
+            "file": "official-hc-dark-00.png",
+            "sha256": "fe87c4dd14228fe3e265339672cf53cc687367904441a07d8bf0016d098eec13",
+            "width": 1440,
+            "height": 1600,
+            "regions": 37
+          },
+          {
+            "file": "official-hc-dark-01.png",
+            "sha256": "2ddebf8cb8eb8743db76e73fb7892f085f9bbbb6f05c682d152c2cb575570e8d",
+            "width": 1440,
+            "height": 1600,
+            "regions": 37
+          },
+          {
+            "file": "official-hc-dark-02.png",
+            "sha256": "28b2a6d311fbc11d85e4b0feb120886fe04969b18ba2a239c5c9507017c75407",
+            "width": 1440,
+            "height": 1600,
+            "regions": 36
+          },
+          {
+            "file": "official-hc-dark-03.png",
+            "sha256": "9f3b29a94f92b678e0380668e529f1bf155b6d42da4abba448785ca954a44e0a",
+            "width": 1440,
+            "height": 1600,
+            "regions": 15
+          }
+        ]
+      },
+      {
+        "theme": "hc-light",
+        "frames": 176,
+        "uniqueRegions": 107,
+        "metadata": {
+          "file": "/var/tmp/l-VIS0171/vis0171-frame-review/official-hc-light.json",
+          "sha256": "3e99e0570a88640c7acfe885b935166f54ca9f4369e707bc82306d0c57c0b65f"
+        },
+        "sheets": [
+          {
+            "file": "official-hc-light-00.png",
+            "sha256": "2fe360d95c4a14fb17df3be606b32e0ab362b08c9a91abcb18a4a0f4883f463c",
+            "width": 1440,
+            "height": 1600,
+            "regions": 36
+          },
+          {
+            "file": "official-hc-light-01.png",
+            "sha256": "100f79d8faafab9980997ee0d49c69fe2ebfaed927908d9bd814456bfe7f7f3d",
+            "width": 1440,
+            "height": 1600,
+            "regions": 36
+          },
+          {
+            "file": "official-hc-light-02.png",
+            "sha256": "e5dd670ea4387f392174bcb6ba2d7dcfc344221e0696967c409205a7de8b8a72",
+            "width": 1440,
+            "height": 1600,
+            "regions": 35
+          }
+        ]
+      },
+      {
+        "theme": "one-dark-pro",
+        "frames": 243,
+        "uniqueRegions": 157,
+        "metadata": {
+          "file": "/var/tmp/l-VIS0171/vis0171-frame-review/official-one-dark-pro.json",
+          "sha256": "69ca4e65345bab2b140d1db1646ea3a869f31b39b75ed17c10c0ab90180d6487"
+        },
+        "sheets": [
+          {
+            "file": "official-one-dark-pro-00.png",
+            "sha256": "5e0681d7e7743dbba797560ebc3327f657526b1c8cb3103eaba2a524da6eae49",
+            "width": 1440,
+            "height": 1600,
+            "regions": 38
+          },
+          {
+            "file": "official-one-dark-pro-01.png",
+            "sha256": "4879ba93d459843f19d36be9e422ed9445d8a389283423e46e58cdb5b40ffe2b",
+            "width": 1440,
+            "height": 1600,
+            "regions": 36
+          },
+          {
+            "file": "official-one-dark-pro-02.png",
+            "sha256": "673a4e30c304b04434e62f6e182071ef7e19b2c9f725d38061ddd6911de51fc9",
+            "width": 1440,
+            "height": 1600,
+            "regions": 36
+          },
+          {
+            "file": "official-one-dark-pro-03.png",
+            "sha256": "9db232e8e30d046e11525d0a527c120406482007454cb995d0203fe69bc40b65",
+            "width": 1440,
+            "height": 1600,
+            "regions": 35
+          },
+          {
+            "file": "official-one-dark-pro-04.png",
+            "sha256": "736f3d3c73d442fe1cddd907ffec417d0e6dd9d873318f9fd62b7f254dd72d51",
+            "width": 1440,
+            "height": 1600,
+            "regions": 12
+          }
+        ]
+      },
+      {
+        "theme": "dracula",
+        "frames": 187,
+        "uniqueRegions": 123,
+        "metadata": {
+          "file": "/var/tmp/l-VIS0171/vis0171-frame-review/official-dracula.json",
+          "sha256": "b1e6d477684b2c2bdc933c9a078168f31b2291ddb2c2643494e82628d37454c0"
+        },
+        "sheets": [
+          {
+            "file": "official-dracula-00.png",
+            "sha256": "fc4c4a68ded75b3ab02e7b9b3e866550ce8a15c0c041673befd526ce4ac54cd2",
+            "width": 1440,
+            "height": 1600,
+            "regions": 37
+          },
+          {
+            "file": "official-dracula-01.png",
+            "sha256": "0e9b5877fb75af3c349bae16cf674ea435c01c5ca99897a89bcf4880148060bd",
+            "width": 1440,
+            "height": 1600,
+            "regions": 34
+          },
+          {
+            "file": "official-dracula-02.png",
+            "sha256": "4d5b59310bd50bbbdd8b5e44b841d37d554407f19fbda8a1baaea847ae115066",
+            "width": 1440,
+            "height": 1600,
+            "regions": 35
+          },
+          {
+            "file": "official-dracula-03.png",
+            "sha256": "06398181411bf92d7c1fc44dea58e34c94f139b22ded4a3273e88c8fdddbc2be",
+            "width": 1440,
+            "height": 1600,
+            "regions": 17
+          }
+        ]
+      }
+    ]
+  },
+  "manifestSha256": "e28ece7b2e5a6bf234713b405ed9a1bd5469cf9a4658e8e5b39caeedebbdbd21"
 }
