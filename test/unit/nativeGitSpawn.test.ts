@@ -35,9 +35,13 @@ import {
   processGitPath,
   type GitProcess,
 } from '../../src/host/git'
-import { NativeGitRefusalError, NativeGitService } from '../../src/runtime/panel/git/service'
+import {
+  fixedGitLocator,
+  NativeGitRefusalError,
+  NativeGitService,
+} from '../../src/runtime/panel/git/service'
 import { environmentValue } from '../../src/core/backends/musecode/launch'
-import { MCP_JOB_CONFIG_VARIABLE } from '../../src/shared/constants'
+import { GIT_PUSH_CREDENTIAL_VARIABLES, MCP_JOB_CONFIG_VARIABLE } from '../../src/shared/constants'
 import type { RuntimeGitDeps } from '../../src/core/git/runtimeGit'
 import {
   dirtyScratchRepository,
@@ -283,7 +287,7 @@ describe('the spawn boundary', () => {
       cwd: tmpdir(),
       env: userEnv,
       timeoutMs: 10_000,
-      isUserEnvironment: true,
+      credentialRoutes: GIT_PUSH_CREDENTIAL_VARIABLES,
     })
     await run(['status'], { cwd: tmpdir(), env: userEnv, timeoutMs: 10_000 })
     expect(launched).toHaveLength(2)
@@ -317,7 +321,7 @@ describe('the spawn boundary', () => {
           cwd: scratch,
           env: userEnv,
           timeoutMs: 10_000,
-          isUserEnvironment: true,
+          credentialRoutes: GIT_PUSH_CREDENTIAL_VARIABLES,
         }),
       ).rejects.toThrow()
       const spawnOptions = vi.mocked(spawn).mock.calls.at(-1)?.[2]
@@ -340,7 +344,7 @@ describe('the spawn boundary', () => {
         env: { PATH: '' },
         fileExists: () => false,
         spawn,
-        executable: realGit(),
+        locate: fixedGitLocator(process.platform, realGit()),
       })
       await expect(
         pinned(['rev-parse', '--show-toplevel'], {
@@ -357,7 +361,7 @@ describe('the spawn boundary', () => {
         env: process.env,
         fileExists: existsSync,
         spawn,
-        executable: 'git',
+        locate: fixedGitLocator(process.platform, 'git'),
       })
       await expect(
         relative(['rev-parse', '--show-toplevel'], {

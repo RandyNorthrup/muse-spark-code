@@ -8,7 +8,6 @@ import { resourceEnvironment } from '../core/resources/launch'
 
 import { type ExecFileOptions, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import path from 'node:path'
 import { admitResource, resourceWindowsJob, stopResourceTree } from '../core/resources/admission'
 import { spawnMcpJob } from './backend/mcpJobLaunch'
 import { observeResourceProcess } from './resources/resourceAdmission'
@@ -25,7 +24,7 @@ import {
   GIT_FILTER_NAME_MAX_CHARS,
   GIT_METADATA_OPTIONS,
   GIT_OUTPUT_MAX_BYTES,
-  GIT_PUSH_CREDENTIAL_VARIABLES,
+  type GIT_PUSH_CREDENTIAL_VARIABLES,
   GIT_STDERR_MAX_CHARS,
   GIT_TIMEOUT_MS,
   UI_TEXT,
@@ -359,9 +358,10 @@ export interface GitProcessOptions {
    * token variables, as a terminal would), with `GIT_TERMINAL_PROMPT=0`.
    * Everything else keeps the quiet environment. The process never gains
    * anything of ours either way: no `http.extraHeader`, no credential
-   * helper of ours, no token variable.
+   * helper of ours, no token variable. The caller hands the very list
+   * (GIT_PUSH_CREDENTIAL_VARIABLES), so activation does not carry it.
    */
-  readonly isUserEnvironment?: boolean | undefined
+  readonly credentialRoutes?: typeof GIT_PUSH_CREDENTIAL_VARIABLES | undefined
   readonly beforeRun?: BestOfNGitGuard | undefined
   readonly cwd: string
   /** The child's whole environment: nothing else is inherited. */
@@ -389,11 +389,11 @@ export interface GitProcessDeps {
   readonly fileExists: (filePath: string) => boolean
   readonly spawn: typeof spawn
   /**
-   * The git the caller already resolved (M123's `RuntimeGitDeps.gitPath`):
-   * used instead of a PATH search, and only when absolute, so a relative
-   * name never runs a workspace's own `git` (D24).
+   * The git to run instead of a PATH search (M123's native route: the git
+   * the host resolved, absolute only, `fixedGitLocator`), or undefined
+   * when there is none, so the run fails as git missing (D24).
    */
-  readonly executable?: string | undefined
+  readonly locate?: (() => string | undefined) | undefined
 }
 
 /**
@@ -403,12 +403,12 @@ export interface GitProcessDeps {
  * GIT_PUSH_CREDENTIAL_VARIABLES names, never a model or provider key.
  */
 function childGitEnvironment(options: GitProcessOptions): NodeJS.ProcessEnv {
-  return options.isUserEnvironment === true
-    ? {
-        ...withoutCredentials(options.env, GIT_PUSH_CREDENTIAL_VARIABLES),
+  return options.credentialRoutes === undefined
+    ? withoutCredentials(options.env)
+    : {
+        ...withoutCredentials(options.env, options.credentialRoutes),
         GIT_TERMINAL_PROMPT: '0',
       }
-    : withoutCredentials(options.env)
 }
 
 /**
@@ -425,13 +425,6 @@ export function cappedStderr(stderr: string, wasCut: boolean): string {
   return lastSpace === -1 ? '' : stderr.slice(0, lastSpace + 1)
 }
 
-/** An absolute git, as given, or undefined so the run fails as git missing. */
-function fixedExecutable(platform: NodeJS.Platform, executable: string): () => string | undefined {
-  const isAbsolute =
-    platform === 'win32' ? path.win32.isAbsolute(executable) : path.posix.isAbsolute(executable)
-  return () => (isAbsolute ? executable : undefined)
-}
-
 /**
  * git with stdin and binary stdout (M72's checkpoints, M71's held checkout):
  * found as the other runner finds it, no console window, collected stdout
@@ -441,10 +434,7 @@ function fixedExecutable(platform: NodeJS.Platform, executable: string): () => s
  * (a `GIT_DIR`, a `GIT_INDEX_FILE`) reaches it unless the caller says so.
  */
 export function createGitProcess(deps: GitProcessDeps): GitProcess {
-  const gitPath =
-    deps.executable === undefined
-      ? gitLocator(deps)
-      : fixedExecutable(deps.platform, deps.executable)
+  const gitPath = deps.locate ?? gitLocator(deps)
   return async (args, options) => {
     const resource =
       options.checkpointDestination === undefined
