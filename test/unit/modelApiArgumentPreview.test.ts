@@ -3,7 +3,15 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
-import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
+import {
+  ModelApiHost,
+  ModelApiSession,
+  type ModelApiHostDeps,
+} from '../../src/core/backends/modelapi/ModelApiHost'
+import {
+  metaArgumentPreviewCapabilities,
+  metaOutputMaxTokens,
+} from '../../src/core/backends/modelapi/modelCapabilities'
 import {
   type CreateResponseBody,
   type FunctionCallItem,
@@ -15,7 +23,8 @@ import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { memoryToolIo, hookResult } from './helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
-import { startWatchedSession } from './helpers/sessionTurns'
+import { startWatchedSession, watchSessionTurns } from './helpers/sessionTurns'
+import { M106_CAPTURED_META_MODEL } from '../../src/shared/constants'
 import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { ArgumentPreview } from '../../src/core/backends/modelapi/argumentPreview'
@@ -773,6 +782,83 @@ describe('Model API argument preview admission', () => {
       ])
       expect(replayed?.slice(1).every((item) => !Object.hasOwn(item, 'phase'))).toBe(true)
     } finally {
+      await h.host.close()
+    }
+  })
+})
+
+async function productionRig(modelId: string) {
+  const io = memoryToolIo({}, ROOT)
+  const log = new FakeLogOutputChannel()
+  const client = fakeModelApiClient(fakeModelApi(), log)
+  const write = vi.spyOn(io, 'writeFile')
+  const host = new ModelApiHost({
+    ...fakeModelApiHostDeps({ client, workspaceRoot: ROOT, io, log }),
+    argumentPreviewCapabilities: metaArgumentPreviewCapabilities,
+    modelOutputMaxTokens: metaOutputMaxTokens,
+  })
+  const session = await host.startSession({
+    workspaceRoot: ROOT,
+    modelId,
+    approvalMode: 'allowAll',
+  })
+  if (!(session instanceof ModelApiSession)) throw new TypeError('expected a Model API session')
+  return { host, client, session, write, ...watchSessionTurns(session) }
+}
+
+/** The production binding (C-M106-2): the entry's Meta defaults on each selected model. */
+describe('Model API selected-record production binding', () => {
+  it('streams previews and requests the selected cap on the captured model', async () => {
+    const h = await productionRig(M106_CAPTURED_META_MODEL)
+    const stream = controlledStream(h.client, DELTAS)
+    const done = h.turnDone()
+    try {
+      await h.session.sendTurn(WRITE_PROMPT)
+      await stream.reached.promise
+      expect(h.write).not.toHaveBeenCalled()
+      expect(previewEvents(h.events).at(-1)?.item.argumentPreview.text).toContain('new.txt')
+      stream.gate.resolve(undefined)
+      await done
+      expect(h.write).toHaveBeenCalledOnce()
+      expect(stream.bodies[0]).toContain('"max_output_tokens":131072')
+      expect(stream.bodies.join('')).not.toContain('argumentPreview')
+    } finally {
+      stream.gate.resolve(undefined)
+      await h.host.close()
+    }
+  })
+
+  it('withholds previews on an uncaptured Meta model while keeping its selected cap', async () => {
+    const h = await productionRig('muse-spark-1.2')
+    const stream = controlledStream(h.client, DELTAS)
+    const done = h.turnDone()
+    try {
+      await h.session.sendTurn(WRITE_PROMPT)
+      await stream.reached.promise
+      expect(previewEvents(h.events)).toEqual([])
+      stream.gate.resolve(undefined)
+      await done
+      expect(h.write).toHaveBeenCalledOnce()
+      expect(stream.bodies[0]).toContain('"max_output_tokens":131072')
+    } finally {
+      stream.gate.resolve(undefined)
+      await h.host.close()
+    }
+  })
+
+  it('keeps an unobserved model on the legacy cap with no previews', async () => {
+    const h = await productionRig('future-model')
+    const stream = controlledStream(h.client, DELTAS)
+    const done = h.turnDone()
+    try {
+      await h.session.sendTurn(WRITE_PROMPT)
+      await stream.reached.promise
+      expect(previewEvents(h.events)).toEqual([])
+      stream.gate.resolve(undefined)
+      await done
+      expect(stream.bodies[0]).toContain('"max_output_tokens":32768')
+    } finally {
+      stream.gate.resolve(undefined)
       await h.host.close()
     }
   })

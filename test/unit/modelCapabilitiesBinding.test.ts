@@ -2,7 +2,15 @@ import * as z from 'zod/mini'
 import { describe, expect, it } from 'vitest'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
-import { metaModelFacts } from '../../src/core/backends/modelapi/modelCapabilities'
+import {
+  metaArgumentPreviewCapabilities,
+  metaModelFacts,
+  metaOutputMaxTokens,
+} from '../../src/core/backends/modelapi/modelCapabilities'
+import {
+  MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
+  M106_CAPTURED_META_MODEL,
+} from '../../src/shared/constants'
 import {
   restoreOptionalToolArguments,
   withStrictTools,
@@ -45,6 +53,25 @@ it('binds the owner-confirmed Meta capability only to the named Meta records', (
   expect(metaModelFacts('muse-spark-1.3-contributor')?.capabilities.supportsStrictTools).toBe(true)
   expect(metaModelFacts('custom/muse-spark-1.3')).toBeUndefined()
   expect(metaModelFacts('future-model')).toBeUndefined()
+})
+
+it('streams argument previews only on the U9-captured contributor model', () => {
+  expect(metaArgumentPreviewCapabilities(M106_CAPTURED_META_MODEL)).toEqual({
+    tools: { streamingArguments: { state: 'yes', value: true } },
+  })
+  expect(metaArgumentPreviewCapabilities('muse-spark-1.3')).toBeUndefined()
+  expect(metaArgumentPreviewCapabilities('muse-spark-1.2')).toBeUndefined()
+  expect(metaArgumentPreviewCapabilities('custom/muse-spark-1.3')).toBeUndefined()
+  expect(metaArgumentPreviewCapabilities('future-model')).toBeUndefined()
+})
+
+it('requests the documented Meta output cap for bare Muse Spark models only', () => {
+  expect(metaOutputMaxTokens('muse-spark-1.3')).toBe(MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS)
+  expect(metaOutputMaxTokens(M106_CAPTURED_META_MODEL)).toBe(
+    MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
+  )
+  expect(metaOutputMaxTokens('custom/muse-spark-1.3')).toBeUndefined()
+  expect(metaOutputMaxTokens('future-model')).toBeUndefined()
 })
 
 it.each([true, false, undefined])(
