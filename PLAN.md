@@ -35886,6 +35886,15 @@ C-M115-6 owns OS wakes; C-M115-8 owns role/team targets. No live/paid calls in
 this lane. Aggregate quality, Linux/macOS receipts and independent Grok/Codex
 reviews remain with the lead under the rig/common rules.
 
+**Round 2 (2026-10-10).** Complete the controller/workspace and M87 bindings,
+native busy queue with message-scoped authority, authenticated IDE requester
+binding, and the existing schedule consent/reservation/tally composition.
+Certify the native and Model API delivery/mode matrix and three-process claims
+on win11; Linux/macOS and independent reviews stay with the lead. Register
+delivery only after every VS Code admission and safety acceptance passes.
+The inherited What's New decoded-content refusal is fixed by the accepted
+`fix/whatsnew-budget` branch at integration; this lane preserves its bound.
+
 - [x] Shared workspace watches retain every holder; default-timeout regression
       and deliberate early-retirement drill recorded in `m115-cm1151.md`.
 - [x] Unregistered lazy delivery composition qualified with both fake backends:

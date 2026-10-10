@@ -93,6 +93,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Scheduled Muse Code inputs can wait behind a user turn without replacing its
+  permissions. Queue withdrawal uses M87's message handle; revoked authority
+  is refused before promotion. Automatic v2 delivery remains unregistered
+  pending the complete VS Code binding certification (C-M115-1 round 2).
 - Unproved version 1 monthly rollup dollars are refused before money validation,
   preserving the other usage days and the translated precision notice even for
   overflow or negative literals (M121A round 4). Changes that round to zero show

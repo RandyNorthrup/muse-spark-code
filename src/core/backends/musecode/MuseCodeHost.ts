@@ -13,6 +13,7 @@ import { SessionOwner, type SessionToken, type SessionEffect } from '../../sched
 import type { ScheduleApprovalAction } from '../../../shared/scheduleV2'
 import { mspApprovalMode } from '../../../shared/permissionModes'
 import { Buffer } from 'node:buffer'
+import { randomUUID } from 'node:crypto'
 import { observeAgentItem, observeChildReceipt } from '../../agent/agentObservation'
 import { type ChildProcess, spawn } from 'node:child_process'
 // Exact SDK pin: reuse bounded process teardown while wrapping actual submission.
@@ -963,6 +964,16 @@ export class MuseSession implements ScheduledAgentSession {
   private readonly scheduledQuestions = new Set<string>()
   private heldScheduleEvents: { event: AgentEvent; fire: NativeFireToken | undefined }[] | undefined
   private restoringScheduleMode: Promise<void> = Promise.resolve()
+  /** Local M87 admission: queued authority cannot replace the user's live fire. */
+  private readonly scheduledQueue = new Map<
+    string,
+    {
+      readonly parts: readonly TurnPart[]
+      readonly run: UnattendedRun
+      readonly displayText: string | undefined
+    }
+  >()
+  private drainingSchedules = false
   private readonly leaseGeneration: number
 
   public constructor(
@@ -1098,6 +1109,43 @@ export class MuseSession implements ScheduledAgentSession {
     })
   }
 
+  private async drainScheduledQueue(): Promise<void> {
+    const isOpen = () => !this.isDisposed
+    if (this.drainingSchedules || !isOpen()) return
+    this.drainingSchedules = true
+    try {
+      await this.restoringScheduleMode
+      if (!this.owner.isIdle || !isOpen()) return
+      const next = this.scheduledQueue.entries().next().value
+      if (next === undefined) return
+      const [id, queued] = next
+      this.scheduledQueue.delete(id)
+      try {
+        const submission = await this.sendScheduledTurn(
+          queued.parts,
+          queued.run,
+          queued.displayText,
+        )
+        this.emit({ type: 'userMessageTurnChanged', userMessageId: id, turnId: submission.turnId })
+      } catch {
+        if (isOpen())
+          this.emit({
+            type: 'turnCompleted',
+            turnId: id,
+            terminal: 'failed',
+            reason: UI_TEXT.scheduleCommandFailed,
+          })
+      }
+    } catch {
+      // Failed restoration quarantines the session; no queued authority is dispatched.
+      this.log.warn('Scheduled queue could not restore its session mode')
+    } finally {
+      this.drainingSchedules = false
+      if (this.owner.isIdle && isOpen() && this.scheduledQueue.size > 0)
+        void this.drainScheduledQueue()
+    }
+  }
+
   private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
     try {
       return await commandWithin(this.channel, this.leaseGeneration, method, {
@@ -1128,6 +1176,7 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   private finishDispose(): void {
+    this.scheduledQueue.clear()
     this.isDisposed = true
     this.listeners.clear()
     this.logDamagedListeners.clear()
@@ -1539,6 +1588,8 @@ export class MuseSession implements ScheduledAgentSession {
     notify(this.listeners, admitted, this.log, 'museCode.event', (event) => {
       this.reportListenerFailure(event)
     })
+    if (!wasObserved && (admitted.type === 'turnCompleted' || admitted.type === 'sessionStatus'))
+      void this.drainScheduledQueue()
   }
 
   /** @internal Diagnostic delivery cannot recursively report a broken observer. */
@@ -1558,6 +1609,13 @@ export class MuseSession implements ScheduledAgentSession {
   ): Promise<TurnSubmission> {
     const waiter = this.owner.token()
     await run.checkParts(parts)
+    if (!this.owner.isIdle) {
+      if (this.isDisposed) throw new Error(UI_TEXT.surfaceClosed)
+      const id = randomUUID()
+      this.scheduledQueue.set(id, { parts, run, displayText })
+      void this.drainScheduledQueue()
+      return { turnId: id, userMessageId: id, disposition: QUEUED_DISPOSITION }
+    }
     return await this.admitScheduled(waiter, run, () =>
       this.sendTurn(run.parts(parts), displayText, run),
     )
@@ -1651,6 +1709,10 @@ export class MuseSession implements ScheduledAgentSession {
   public async withdrawQueued(ref: QueuedMessageRef): Promise<WithdrawOutcome> {
     if (ref.disposition !== QUEUED_DISPOSITION) {
       return TOO_LATE
+    }
+    if (ref.userMessageId === ref.turnId && this.scheduledQueue.delete(ref.turnId)) {
+      this.emit({ type: 'turnWithdrawn', turnId: ref.turnId, reason: UI_TEXT.turnUnqueued })
+      return { status: 'withdrawn', images: undefined }
     }
     try {
       turnUnqueueResultSchema.parse(await this.command('turn/unqueue', { turnId: ref.turnId }))

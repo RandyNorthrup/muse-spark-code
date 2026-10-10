@@ -55,6 +55,18 @@ export class SessionOwner {
     return current
   }
 
+  public get isIdle(): boolean {
+    return (
+      this.fire === undefined &&
+      this.liveTurns.size === 0 &&
+      this.starts.size === 0 &&
+      !this.restoring &&
+      !this.isQuarantined &&
+      this.mode !== undefined &&
+      this.modePending === undefined
+    )
+  }
+
   public token(): SessionToken {
     return { generation: this.generation, turnId: this.fire?.turnId ?? this.currentTurnId }
   }
