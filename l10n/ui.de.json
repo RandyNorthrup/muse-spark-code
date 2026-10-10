@@ -5070,8 +5070,6 @@
     "commandUsage": "Aufruf: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   },
   "vault": {
-    "secretServiceUnavailable": "Der Tresor kann Secret Service nicht erreichen. Melden Sie sich in einer Desktop-Sitzung an und entsperren Sie deren Schlüsselbund. Versuchen Sie es dann erneut.",
-    "keychainUnavailable": "Der Tresor kann den Anmeldeschlüsselbund nicht erreichen. Entsperren Sie ihn in der Schlüsselbundverwaltung und versuchen Sie es erneut.",
     "title": "Tresor",
     "locked": "Gesperrt",
     "unlocked": "Entsperrt",

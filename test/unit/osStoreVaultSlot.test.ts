@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import { randomBytes } from 'node:crypto'
-import {
-  OsStoreVaultSlot,
-  VaultOsStoreUnavailableError,
-} from '../../src/runtime/vault/slots/osStoreVaultSlot'
+import { OsStoreVaultSlot } from '../../src/runtime/vault/slots/osStoreVaultSlot'
 import { PosixVaultSlots } from '../../src/runtime/vault/slots/posixVaultSlots'
+import { VaultStoreUnavailableError } from '../../src/core/vault/broker/ports'
+import { VaultSlotUnlock } from '../../src/core/vault/broker/repository'
+import { VaultStore } from '../../src/core/vault/store'
 import { slotContext } from './helpers/vault/fixtures'
-import { UI_TEXT } from '../../src/shared/constants'
+import { AnchorWithId } from './vault/managementFixture'
+import { MemoryVaultFiles } from './vault/storeFixtures'
 
 function fixture(platform: NodeJS.Platform = 'linux') {
   let stored: Uint8Array | undefined
@@ -33,6 +34,10 @@ function fixture(platform: NodeJS.Platform = 'linux') {
   const open = vi.fn(() => entry)
   const slot = new OsStoreVaultSlot(context, platform, open)
   return { slot, context, entry, open, inputs, outputs }
+}
+
+const noUnsubscribe = (): void => {
+  /* The fake platform reports no screen lock. */
 }
 
 describe('OS-store vault slot', () => {
@@ -150,16 +155,74 @@ describe('OS-store vault slot', () => {
       })
     expect(f.open).not.toHaveBeenCalled()
   })
-  it('erases owned input and replaces native diagnostics on denied storage', async () => {
+  it('throws the typed store error with no native text on denied storage', async () => {
     const f = fixture(),
       key = randomBytes(32)
     f.entry.setSecret.mockImplementationOnce(() =>
       Promise.reject(new Error('native account path must stay private')),
     )
-    await expect(f.slot.wrap(key)).rejects.toThrow(UI_TEXT.vault.secretServiceUnavailable)
+    // The exact fixed message proves no native text escapes with the error.
+    await expect(f.slot.wrap(key)).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof VaultStoreUnavailableError &&
+        error.name === 'VaultStoreUnavailableError' &&
+        error.message === 'storeUnavailable',
+    )
+    expect(f.entry.deleteCredential).toHaveBeenCalledOnce()
     expect(f.inputs).toEqual([])
     expect(f.entry.setSecret.mock.calls[0]?.[0]).toEqual(Buffer.alloc(32))
     key.fill(0)
+  })
+  it('throws the typed store error when the entry cannot be read', async () => {
+    const f = fixture(),
+      key = randomBytes(32)
+    const record = await f.slot.wrap(key)
+    key.fill(0)
+    f.entry.getSecret.mockRejectedValueOnce(new Error('native D-Bus path must stay private'))
+    await expect(f.slot.unwrap(record, '')).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof VaultStoreUnavailableError && error.message === 'storeUnavailable',
+    )
+    await f.slot.remove()
+  })
+  it('an unusable OS store survives slot unlock as the typed error', async () => {
+    const files = new MemoryVaultFiles()
+    const anchor = new AnchorWithId()
+    const key = randomBytes(32)
+    const context = slotContext()
+    let secrets: Uint8Array | undefined
+    const entry = {
+      getSecret: (): Promise<Uint8Array | null> => Promise.resolve(secrets?.slice() ?? null),
+      setSecret: (value: Uint8Array): Promise<void> => {
+        secrets = Uint8Array.from(value)
+        return Promise.resolve()
+      },
+      deleteCredential: (): Promise<boolean> => {
+        secrets = undefined
+        return Promise.resolve(true)
+      },
+    }
+    const open = (): typeof entry => entry
+    const slot = new OsStoreVaultSlot(context, 'linux', open)
+    try {
+      const record = await slot.wrap(key)
+      const store = await VaultStore.create({ files, anchor, key }, context.vaultId, [record])
+      store.lock()
+      entry.getSecret = () => Promise.reject(new Error('native D-Bus path must stay private'))
+      const unlock = new VaultSlotUnlock(files, anchor, {
+        slotFor: (candidate) => (candidate.tier === 'osStore' ? slot : null),
+        osStore: () => slot,
+        presence: () => Promise.resolve(false),
+        onScreenLock: () => noUnsubscribe,
+      })
+      await expect(unlock.unlock(null)).rejects.toSatisfy(
+        (error: unknown) =>
+          error instanceof VaultStoreUnavailableError && error.message === 'storeUnavailable',
+      )
+    } finally {
+      key.fill(0)
+      secrets?.fill(0)
+    }
   })
   it('refuses malformed stored bytes and wipes them', async () => {
     const f = fixture(),
@@ -176,8 +239,9 @@ describe('OS-store vault slot', () => {
     await expect(f.slot.wrap(new Uint8Array(1))).rejects.toMatchObject({ code: 'invalid' })
     expect(f.open).not.toHaveBeenCalled()
     expect(() => new OsStoreVaultSlot(f.context, 'win32', f.open)).toThrow()
-    expect(new VaultOsStoreUnavailableError('darwin').message).toBe(
-      UI_TEXT.vault.keychainUnavailable,
-    )
+    expect(new VaultStoreUnavailableError()).toMatchObject({
+      name: 'VaultStoreUnavailableError',
+      message: 'storeUnavailable',
+    })
   })
 })

@@ -4920,8 +4920,6 @@
     "commandUsage": "用法：developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   },
   "vault": {
-    "secretServiceUnavailable": "保管庫無法連線至 Secret Service。請登入桌面工作階段並解鎖其鑰匙圈，然後重試。",
-    "keychainUnavailable": "保管庫無法存取登入鑰匙圈。請在「鑰匙圈存取」中解鎖，然後重試。",
     "title": "憑證庫",
     "locked": "已鎖定",
     "unlocked": "已解鎖",

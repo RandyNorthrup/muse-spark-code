@@ -4920,8 +4920,6 @@
     "commandUsage": "用法：developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   },
   "vault": {
-    "secretServiceUnavailable": "保险库无法连接 Secret Service。请登录桌面会话并解锁其密钥环，然后重试。",
-    "keychainUnavailable": "保险库无法访问登录钥匙串。请在“钥匙串访问”中解锁，然后重试。",
     "title": "凭据库",
     "locked": "已锁定",
     "unlocked": "已解锁",

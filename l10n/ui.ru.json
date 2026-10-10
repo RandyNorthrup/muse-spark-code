@@ -5370,8 +5370,6 @@
     "commandUsage": "Использование: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   },
   "vault": {
-    "secretServiceUnavailable": "Хранилище не может подключиться к Secret Service. Войдите в сеанс рабочего стола и разблокируйте его связку ключей, затем повторите попытку.",
-    "keychainUnavailable": "Хранилище не может получить доступ к связке ключей входа. Разблокируйте её в приложении «Связка ключей» и повторите попытку.",
     "title": "Хранилище",
     "locked": "Заблокировано",
     "unlocked": "Разблокировано",

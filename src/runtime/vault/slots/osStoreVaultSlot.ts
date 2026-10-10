@@ -1,7 +1,6 @@
 import * as z from 'zod/mini'
 import {
   KEYRING_SERVICE,
-  UI_TEXT,
   VAULT_FORMAT_VERSION,
   VAULT_KEY_BYTES,
   VAULT_BYTE_MAX,
@@ -12,6 +11,7 @@ import {
   type VaultSlotRecord,
 } from '../../../shared/vault'
 import { areVaultBytesEqual, ownedBytes, VaultError } from '../../../core/vault/crypto'
+import { VaultStoreUnavailableError } from '../../../core/vault/broker/ports'
 
 type SlotContext = Pick<
   VaultSlotRecord,
@@ -49,18 +49,6 @@ async function secretBytes(entry: SecretEntry): Promise<Uint8Array | null> {
   }
 }
 type OpenEntry = (service: string, account: string) => SecretEntry
-
-/** No native error text escapes: it can include paths or secret material. */
-export class VaultOsStoreUnavailableError extends Error {
-  constructor(platform: NodeJS.Platform) {
-    super(
-      platform === 'linux'
-        ? UI_TEXT.vault.secretServiceUnavailable
-        : UI_TEXT.vault.keychainUnavailable,
-    )
-    this.name = 'VaultOsStoreUnavailableError'
-  }
-}
 
 /** Secret Service on Linux and login Keychain on macOS; never a kernel/plain-text fallback. */
 export class OsStoreVaultSlot implements VaultSlotPort {
@@ -101,7 +89,9 @@ export class OsStoreVaultSlot implements VaultSlotPort {
       return await work(entry)
     } catch (error: unknown) {
       if (error instanceof VaultError) throw error
-      throw new VaultOsStoreUnavailableError(this.platform)
+      // No native text: management, slot unlock and the channel map this to
+      // the fixed, localized `storeUnavailable` repair (RVCM1091B 4).
+      throw new VaultStoreUnavailableError()
     }
   }
   async wrap(key: Uint8Array): Promise<VaultSlotRecord> {
