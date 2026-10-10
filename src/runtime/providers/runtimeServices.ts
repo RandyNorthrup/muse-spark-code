@@ -330,7 +330,7 @@ export function createRuntimeAccountServices(
         // One run, one account: the backend's key reads through it. Pool
         // swaps at user caps need the profile-owned pool, so --account-pool
         // refuses loudly instead of running unpooled (D88.5).
-        if (selection.hasPoolFlag) throw new Error(UI_TEXT.accounts.unavailable)
+        if (selection.hasPoolFlag) throw new Error(UI_TEXT.accounts.poolUnavailable)
         return {
           runtime: createBackend({
             ...deps,

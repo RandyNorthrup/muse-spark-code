@@ -5,8 +5,10 @@ import {
   AcpAccounts,
   AccountSwitchRefusedError,
   companionAccountsPanel,
+  serveAccountsPort,
   type AccountsPanelPort,
 } from '../../src/acp/accounts'
+import { fill } from '../../src/shared/l10n/text'
 import { createAcpAgent, type AcpAgentDeps } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
 import { ACP_CONFIG_IDS, UI_TEXT } from '../../src/shared/constants'
@@ -18,6 +20,13 @@ import {
 } from './helpers/runtimeAccounts'
 import { FakeAgentHost } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
+
+/** A refusal copy from another bundle: same shape and brand, but a
+ * different constructor, so `instanceof` the shipped class is false. */
+class ForeignRefusal extends Error {
+  public override readonly name = 'AccountSwitchRefusedError'
+  public readonly code = 'accountSwitchRefused'
+}
 import { until } from './helpers/acpWaits'
 
 function connectedAccounts(isBound = true) {
@@ -818,7 +827,7 @@ describe('M108 ACP accounts', () => {
       // No bundled usage page: the stop still names the blocked account and
       // its reset instead of becoming a failure.
       expect(notice).toHaveBeenLastCalledWith(
-        'meta has no account with room. Reset time is unknown.',
+        'meta · Default has no room. Reset time is unknown.',
         stop,
       )
     }
@@ -839,7 +848,26 @@ describe('M108 ACP accounts', () => {
       trigger: { kind: 'vendorLimit', reason: 'rateLimited', resetAt: null },
     })
     expect(notice).toHaveBeenCalledWith(
-      'meta has no account with room. Reset time is unknown. https://example.test/usage',
+      'meta · Default has no room. Reset time is unknown. https://example.test/usage',
+      expect.objectContaining({ type: 'stop' }),
+    )
+    controller.dispose()
+  })
+
+  it('names the blocked account and its reset when the reset is known', async () => {
+    const h = sessionAccountsRig(),
+      notice = vi.fn()
+    const controller = new AcpAccounts('session', h.port, vi.fn(), notice)
+    await controller.start()
+    h.emit({
+      type: 'stop',
+      provider: 'meta',
+      account: 'work',
+      time: '2026-10-06T12:00:00Z',
+      trigger: { kind: 'vendorLimit', reason: 'rateLimited', resetAt: '2026-10-07T12:00:00Z' },
+    })
+    expect(notice).toHaveBeenCalledWith(
+      expect.stringContaining('meta · Work has no room. Resets '),
       expect.objectContaining({ type: 'stop' }),
     )
     controller.dispose()
@@ -885,6 +913,62 @@ describe('M108 ACP accounts', () => {
       })
       expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
     })
+  })
+
+  it('repeats a cross-bundle refusal copy by its brand instead of a generic failure', async () => {
+    const h = sessionAccountsRig()
+    const controller = new AcpAccounts('session', h.port, vi.fn(), vi.fn())
+    await controller.start()
+    // A producer bundle carries its own copy of the refusal constructor, so
+    // `instanceof` is false here: only the brand travels the boundary.
+    const foreign = new ForeignRefusal(
+      fill(UI_TEXT.accounts.switchUnavailable, { provider: 'meta', account: 'Work' }),
+    )
+    expect(foreign).not.toBeInstanceOf(AccountSwitchRefusedError)
+    h.port.use = () => Promise.reject(foreign)
+    await expect(controller.use('work', () => true)).rejects.toBe(foreign)
+    controller.dispose()
+  })
+
+  it('answers a cross-bundle refusal copy as an invalid request, never an internal error', async () => {
+    const h = connectedAccounts()
+    const foreign = new ForeignRefusal(
+      'This session stays on meta · Default. Account switching is unavailable in this runtime.',
+    )
+    expect(foreign).not.toBeInstanceOf(AccountSwitchRefusedError)
+    h.port.use = () => Promise.reject(foreign)
+    await h.run(async (client, id) => {
+      await expect(
+        client.request('session/set_config_option', {
+          sessionId: id,
+          configId: ACP_CONFIG_IDS.account,
+          value: 'work',
+        }),
+      ).rejects.toMatchObject({
+        code: acp.RequestError.invalidRequest().code,
+        message: expect.stringContaining('This session stays on meta · Default.'),
+      })
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    })
+  })
+})
+
+describe('serveAccountsPort', () => {
+  it('serves the port on the Model API backend only', () => {
+    const expected = sessionAccountsRig().port
+    const load = vi.fn(() => expected)
+    expect(serveAccountsPort('modelApi', load)).toBe(expected)
+    expect(load).toHaveBeenCalledOnce()
+    expect(serveAccountsPort('museCode', load)).toBeUndefined()
+    expect(load).toHaveBeenCalledOnce()
+  })
+
+  it('leaves the session working without accounts when the loader fails', () => {
+    expect(
+      serveAccountsPort('modelApi', () => {
+        throw new Error('bundle missing')
+      }),
+    ).toBeUndefined()
   })
 })
 

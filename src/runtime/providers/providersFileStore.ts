@@ -6,9 +6,11 @@
 // CM108ACC: Meta's Model API is the one provider the runtime natively knows
 // (its key names, its fixed origin, its policy row), so its entry is
 // built in: the CLI, ACP and headless serve the default account with no
-// pre-existing file, and the first metadata write persists the row. Any
-// other provider needs its stored row (a later owner supplies it); nothing
-// here invents its origin or policy mapping.
+// pre-existing file, and the first metadata write persists the row. Once
+// the user has a file the built-in entry no longer applies: an absent row
+// is unconfigured, and a malformed row refuses without touching the file.
+// Any other provider needs its stored row (a later owner supplies it);
+// nothing here invents its origin or policy mapping.
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -54,8 +56,8 @@ export function runtimeProvidersFile(dataDir: string): string {
 export class FileAccountsMetadata implements AccountsMetadataPort {
   public constructor(private readonly file: string) {}
 
-  private load(): { envelope: object; providers: Record<string, unknown> } {
-    if (!existsSync(this.file)) return { envelope: {}, providers: {} }
+  private load(): { exists: boolean; envelope: object; providers: Record<string, unknown> } {
+    if (!existsSync(this.file)) return { exists: false, envelope: {}, providers: {} }
     let text: string
     try {
       text = readFileSync(this.file, 'utf8')
@@ -73,18 +75,22 @@ export class FileAccountsMetadata implements AccountsMetadataPort {
     if (typeof envelope !== 'object' || envelope === null || Array.isArray(envelope))
       throw new AccountStoreError('unavailable')
     const raw: unknown = 'providers' in envelope ? envelope.providers : undefined
-    if (raw === undefined) return { envelope, providers: {} }
+    if (raw === undefined) return { exists: true, envelope, providers: {} }
     if (raw === null || typeof raw !== 'object' || Array.isArray(raw))
       throw new AccountStoreError('unavailable')
     const providers: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(raw)) providers[key] = value
-    return { envelope, providers }
+    return { exists: true, envelope, providers }
   }
 
   public read(provider: string): Promise<AccountProvider | undefined> {
     if (!accountIdSchema.safeParse(provider).success) return Promise.resolve(undefined)
-    const value = this.load().providers[provider]
-    if (value === undefined) return Promise.resolve(builtInProvider(provider))
+    const loaded = this.load()
+    const value = loaded.providers[provider]
+    // The built-in Meta entry serves a missing file only: once the user has
+    // a file, an absent row is unconfigured and a malformed row refuses.
+    if (value === undefined)
+      return Promise.resolve(loaded.exists ? undefined : builtInProvider(provider))
     const entry = providerOf(value)
     if (entry === undefined) throw new AccountStoreError('unavailable')
     return Promise.resolve(entry)
@@ -92,7 +98,12 @@ export class FileAccountsMetadata implements AccountsMetadataPort {
 
   public writeAccounts(provider: string, accounts: readonly Account[]): Promise<void> {
     const { envelope, providers } = this.load()
-    const entry = providerOf(providers[provider]) ?? builtInProvider(provider)
+    const raw = providers[provider]
+    // Absence takes the built-in base; a present-but-malformed user row
+    // refuses and leaves the file untouched instead of being overwritten.
+    if (raw !== undefined && providerOf(raw) === undefined)
+      throw new AccountStoreError('unavailable')
+    const entry = providerOf(raw) ?? builtInProvider(provider)
     if (entry === undefined) throw new AccountStoreError('invalidAccount')
     mkdirSync(path.dirname(this.file), { recursive: true })
     const next = {

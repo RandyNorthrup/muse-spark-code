@@ -8,17 +8,37 @@ import {
   type AccountsReply,
   type AccountsRequest,
 } from '../shared/hostApi/accounts'
-import { ACP_CONFIG_IDS, UI_TEXT } from '../shared/constants'
+import { ACP_CONFIG_IDS, UI_TEXT, type AcpBackendKind } from '../shared/constants'
 import { fill, formatNumber } from '../shared/l10n/text'
 import { formatUsd, parseUsd } from '../shared/accountUsd'
 import {
-  AccountSwitchRefusedError,
   accountStopText,
   accountUsageUrl,
+  isAccountSwitchRefusedError,
   type AccountUsagePort,
 } from './accountText'
 
-export { accountErrorText, AccountSwitchRefusedError } from './accountText'
+export {
+  accountErrorText,
+  AccountSwitchRefusedError,
+  isAccountSwitchRefusedError,
+} from './accountText'
+
+/** The account port a served session attaches: the Model API backend only,
+ * and never a failure. Ordinary sessions never depend on accounts: the
+ * subscription backend runs without a port, and a loader failure leaves the
+ * session working without accounts instead of refusing `serve`. */
+export function serveAccountsPort(
+  backend: AcpBackendKind,
+  load: () => AccountsSessionPort,
+): AccountsSessionPort | undefined {
+  if (backend !== 'modelApi') return undefined
+  try {
+    return load()
+  } catch {
+    return undefined
+  }
+}
 
 type AccountsState = Extract<AccountsReply, { type: 'accounts/state' }>
 export interface AccountsSessionPort extends AccountUsagePort {
@@ -129,9 +149,9 @@ export class AcpAccounts {
     // names the blocked account and its reset instead of becoming a failure.
     try {
       const url = accountUsageUrl(this.port, event.provider)
-      return `${accountStopText(event)} ${url}`
+      return `${accountStopText(event, this.label(event.account))} ${url}`
     } catch {
-      return accountStopText(event)
+      return accountStopText(event, this.label(event.account))
     }
   }
 
@@ -246,7 +266,9 @@ export class AcpAccounts {
       } catch (error: unknown) {
         // The owner refused adoption with the session's stay-put text; any
         // other failure stays a generic unavailable, never raw error text.
-        if (error instanceof AccountSwitchRefusedError) throw error
+        // The brand (not `instanceof`) survives the bundle boundary between
+        // the runtime producer and this consumer.
+        if (isAccountSwitchRefusedError(error)) throw error
         throw new Error(UI_TEXT.accounts.unavailable, { cause: error })
       }
       if (!isCurrent() || !canCommit()) throw new Error(UI_TEXT.accounts.unavailable)

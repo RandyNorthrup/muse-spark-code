@@ -911,7 +911,8 @@ never an argument or a file):
 - `muse-spark-code-acp exec --account <id> <prompt>` pins one run to one account
 
 ACP's `/accounts` (list, current, thresholds) and the `account` picker read
-the same live metadata on both backends. Choosing another account stays
+the same live metadata on the Model API backend; the Muse Code backend runs
+on its subscription with no account picker. Choosing another account stays
 refused: moving a session credential needs the pooled owner, so the session
 keeps its current account and says so. `exec --account-pool` also stays
 refused until that owner lands. A vendor limit stops only its own account,

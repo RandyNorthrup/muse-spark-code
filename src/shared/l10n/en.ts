@@ -5996,6 +5996,8 @@ export const EN = {
       'Headless accounts: {command} exec --account <id> [--account-pool]. CI with --key-stdin uses only the default account and never swaps.',
     unavailable:
       'Accounts are unavailable until this runtime is connected to the shared account service.',
+    poolUnavailable:
+      'Account pooling is unavailable in this runtime: it needs a bound resource owner. Run again without --account-pool.',
     cliUsage:
       'Accounts: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [ordered ids]. Credentials: {command} auth set --provider <id> --account <id> (standard input only).',
     slashDescription: 'List accounts, view thresholds, or choose an account.',
@@ -6025,8 +6027,8 @@ export const EN = {
       'This session stays on {provider} · {account}. Account switching is unavailable in this runtime.',
     swapNotice: 'Now on {provider} · {account}: {previous} reached {threshold}.',
     coldCache: 'Estimated context re-read cost: {cost}.',
-    stopped: '{provider} has no account with room. Resets {reset}.',
-    resetUnknown: '{provider} has no account with room. Reset time is unknown.',
+    stopped: '{provider} · {account} has no room. Resets {reset}.',
+    resetUnknown: '{provider} · {account} has no room. Reset time is unknown.',
     sharedGroup: '{account} shares the same vendor limit group; another key adds no capacity.',
     policy: 'Vendor account policy',
     policyOn: 'Pooling available',

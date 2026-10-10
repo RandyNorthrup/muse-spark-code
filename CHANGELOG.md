@@ -79,10 +79,16 @@ happened, not what was planned; superseded entries are kept.
   built in, so `providers accounts` (list, add, remove, order, thresholds),
   `auth set --provider meta --account <id>`, `exec --account <id>` and
   ACP's `/accounts` (list, current, thresholds) work with no pre-existing
-  file. Choosing another account in a session stays refused until the pooled
-  owner lands, and now says which account the session keeps instead of
-  reporting unavailable; a vendor-limit stop names the blocked account and
-  its reset even with no usage page bundled.
+  file. The `account` picker serves the Model API backend only; the Muse
+  Code backend runs on its subscription, and an accounts failure leaves the
+  session working without accounts. Choosing another account in a session
+  stays refused until the pooled owner lands, and says which account the
+  session keeps instead of reporting unavailable — including across the
+  runtime/ACP bundle boundary. A malformed user row refuses and is left
+  untouched (the built-in entry applies only with no file); a vendor-limit
+  stop names the blocked account and its reset even with no usage page
+  bundled; `exec --account-pool` names the missing pool owner instead of
+  the connection text.
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
