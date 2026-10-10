@@ -34,6 +34,7 @@ import {
   SUBSCRIPTION_STREAM_MAX_BYTES,
   UI_TEXT,
 } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 
 const roots: string[] = []
 afterEach(async () => {
@@ -233,6 +234,11 @@ describe('configured provider production transport', () => {
         address,
         format,
         models: [native],
+        // C-M95-4 R3: a saved local model carries its server's reported
+        // window; the request refuses without one (next test).
+        ...(preset === 'llamacpp' && {
+          modelLimits: { [native]: { contextTokens: 4096, outputTokens: 4096 } },
+        }),
       })
       await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
       f.values.set(
@@ -344,9 +350,84 @@ describe('configured provider production transport', () => {
       data: [{ id: 'qwen3-0.6b', meta: { n_ctx: 4096, n_ctx_train: 40_960 } }],
     })
     expect(good.map((row) => row.context)).toEqual([4096])
+    // C-M95-4 R3: the closed-scan reason lives in the UI table (Add Model
+    // Provider shows it), not in a thrown English sentence. The build names
+    // the preset's `capturedBuild`, mirroring the production fill.
     await expect(
       rowsFor({ data: [{ id: 'qwen3-0.6b', meta: { n_ctx_train: 40_960 } }] }),
-    ).rejects.toThrow('llamacpp list without meta.n_ctx')
+    ).rejects.toThrow(
+      fill(UI_TEXT.llamacppScanMissingWindow, {
+        build: 'b11541 (0.6.0-dev, commit f2918cabb)',
+      }),
+    )
+  })
+
+  it('refuses a windowless local request with a plain reason', async () => {
+    // C-M95-4 R3: a scanned local model saved without its server's window
+    // never reaches the wire Meta-sized; the request refuses instead.
+    const f = await fixture()
+    const entry = providerEntrySchema.parse({
+      id: 'llamacpp',
+      preset: 'llamacpp',
+      address: 'http://127.0.0.1:8080',
+      auth: 'none',
+      models: ['Qwen3-0.6B-Q8_0'],
+    })
+    await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
+    const send = vi.fn<NonNullable<ConfiguredProviderOptions['send']>>(() =>
+      Promise.resolve(response(Buffer.from(''))),
+    )
+    const services = createConfiguredProviderServices(undefined, {
+      ...f,
+      resolve: () => Promise.resolve(['127.0.0.1']),
+      send,
+    })
+    const ref = 'llamacpp/Qwen3-0.6B-Q8_0'
+    const model = await services.registry.resolve(ref)
+    await expect(
+      consume(model.client.streamResponse({ ...body(), model: ref }, new AbortController().signal)),
+    ).rejects.toThrow(fill(UI_TEXT.localModelWindowUnknown, { model: ref }))
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('peeks the carried local window for compaction sizing', async () => {
+    // C-M95-4 R3: the registry's last listing feeds the host's
+    // `contextModel` seam, so manual compact sizes the summary to the
+    // server's reported window and auto-compact sees it. Unlisted models
+    // and unknown windows read undefined (the previous fallback stands;
+    // the request refuses instead).
+    const f = await fixture()
+    const carried = providerEntrySchema.parse({
+      id: 'llamacpp',
+      preset: 'llamacpp',
+      address: 'http://127.0.0.1:8080',
+      auth: 'none',
+      models: ['Qwen3-0.6B-Q8_0'],
+      modelLimits: { 'Qwen3-0.6B-Q8_0': { contextTokens: 4096, outputTokens: 4096 } },
+    })
+    const bare = providerEntrySchema.parse({
+      id: 'llamacpp-bare',
+      preset: 'llamacpp',
+      address: 'http://127.0.0.1:8080',
+      auth: 'none',
+      models: ['Qwen3-0.6B-Q8_0'],
+    })
+    await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [carried, bare] })
+    const services = createConfiguredProviderServices(undefined, {
+      ...f,
+      resolve: () => Promise.resolve(['127.0.0.1']),
+      send: () => Promise.resolve(response(Buffer.from(''))),
+    })
+    expect(services.client.peekContextModel?.('llamacpp/Qwen3-0.6B-Q8_0')).toBeUndefined()
+    const resolved = await services.registry.resolve('llamacpp/Qwen3-0.6B-Q8_0')
+    expect(resolved.contextTokens).toBe(4096)
+    expect(services.client.peekContextModel?.('llamacpp/Qwen3-0.6B-Q8_0')).toEqual({
+      format: 'chat',
+      contextTokens: 4096,
+    })
+    await services.registry.resolve('llamacpp-bare/Qwen3-0.6B-Q8_0')
+    expect(services.client.peekContextModel?.('llamacpp-bare/Qwen3-0.6B-Q8_0')).toBeUndefined()
+    expect(services.client.peekContextModel?.('llamacpp/unknown')).toBeUndefined()
   })
 
   it('never replays thinking to a local server, even one that streams it', async () => {
@@ -370,6 +451,10 @@ describe('configured provider production transport', () => {
       format: 'chat',
       auth: 'none',
       models: ['qwen3-0.6b'],
+      // C-M95-4 R3: requests need a known window; the value below is
+      // incidental to this replay assertion (the LM Studio list reports
+      // none, so a real save carries none and refuses).
+      modelLimits: { 'qwen3-0.6b': { contextTokens: 4096, outputTokens: 4096 } },
     })
     await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
     const services = createConfiguredProviderServices(undefined, {

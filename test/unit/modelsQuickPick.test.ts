@@ -10,7 +10,14 @@ import {
 } from '../../src/host/models/modelsQuickPick'
 import type { ProvidersHost } from '../../src/host/providers/providersHost'
 import type { ProviderEntry } from '../../src/host/providers/providerPorts'
-import { scannedTwoModels, TEST_ENTRY, testProvidersHost, testRow } from './helpers/m95kFixtures'
+import {
+  localWindowedRow,
+  ollamaEntryWithWindow,
+  scannedTwoModels,
+  TEST_ENTRY,
+  testProvidersHost,
+  testRow,
+} from './helpers/m95kFixtures'
 import { memoryProvidersStore } from './helpers/fakes'
 
 const GROQ_ENTRY: ProviderEntry = {
@@ -186,6 +193,26 @@ describe('runAddProviderQuickPick', () => {
       runAddProviderQuickPick({ providers: empty.providers, isRemote: false, ui: ui2 }),
     ).resolves.toBeUndefined()
     expect(await empty.providers.providers()).toEqual([TEST_ENTRY])
+  })
+
+  it('saves a local provider with its scanned window', async () => {
+    // C-M95-4 R3: every scanned local model carries its server's reported
+    // window into `modelLimits`, so the request path never meets a missing
+    // one.
+    const rows = [localWindowedRow('qwen3:8b')]
+    const store = memoryProvidersStore()
+    const { providers } = testProvidersHost({
+      deps: { store, fetcher: { fetchModels: () => Promise.resolve({ rows }) } },
+    })
+    const ui = scriptedUi({
+      pickOne: ['ollama'],
+      inputText: ['http://127.0.0.1:11434'],
+      pickMany: [['qwen3:8b']],
+      confirmSave: [true],
+    })
+    const outcome = await runAddProviderQuickPick({ providers, isRemote: false, ui })
+    expect(outcome).toEqual({ providerId: 'ollama', modelRef: 'ollama/qwen3:8b' })
+    expect(await providers.providers()).toEqual([ollamaEntryWithWindow(['qwen3:8b'])])
   })
 
   it('refuses a bad custom address and records a private one', async () => {
