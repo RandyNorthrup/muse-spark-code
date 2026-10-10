@@ -74,6 +74,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The installed CLI, ACP agent and headless runs share the account service
+  instead of answering "Accounts are unavailable": Meta's Model API entry is
+  built in, so `providers accounts` (list, add, remove, order, thresholds),
+  `auth set --provider meta --account <id>`, `exec --account <id>` and
+  ACP's `/accounts` (list, current, thresholds) work with no pre-existing
+  file. Choosing another account in a session stays refused until the pooled
+  owner lands, and now says which account the session keeps instead of
+  reporting unavailable; a vendor-limit stop names the blocked account and
+  its reset even with no usage page bundled.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.

@@ -47,6 +47,17 @@ async function expectWriteRejected(
   ).rejects.toBeInstanceOf(AccountStoreError)
 }
 
+const DEFAULT_ROW = { id: 'default', label: 'Default', order: 0, thresholds: {} } as const
+
+/** Store the migrated default row for meta in this folder's file. */
+async function writeDefaultAccount(
+  folder: string,
+): Promise<ReturnType<typeof fileAccountsMetadata>> {
+  const metadata = fileAccountsMetadata(folder)
+  await metadata.writeAccounts('meta', [{ ...DEFAULT_ROW }])
+  return metadata
+}
+
 describe('fileAccountsMetadata', () => {
   it('serves the built-in meta entry when the file is absent', async () => {
     const metadata = fileAccountsMetadata(dir())
@@ -64,10 +75,7 @@ describe('fileAccountsMetadata', () => {
   it('round-trips accounts and preserves the rest of the envelope', async () => {
     const folder = dir()
     seed(folder, { version: 2, providers: { meta: { ...ENTRY } } })
-    const metadata = fileAccountsMetadata(folder)
-    await metadata.writeAccounts('meta', [
-      { id: 'default', label: 'Default', order: 0, thresholds: {} },
-    ])
+    const metadata = await writeDefaultAccount(folder)
     await expect(metadata.read('meta')).resolves.toMatchObject({
       id: 'meta',
       accounts: [{ id: 'default', label: 'Default', order: 0, thresholds: {} }],
@@ -79,10 +87,7 @@ describe('fileAccountsMetadata', () => {
   it('persists the built-in meta row on the first write', async () => {
     const folder = dir()
     seed(folder, { providers: {} })
-    const metadata = fileAccountsMetadata(folder)
-    await metadata.writeAccounts('meta', [
-      { id: 'default', label: 'Default', order: 0, thresholds: {} },
-    ])
+    const metadata = await writeDefaultAccount(folder)
     await expect(metadata.read('meta')).resolves.toMatchObject({
       id: 'meta',
       accounts: [{ id: 'default' }],

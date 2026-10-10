@@ -5284,6 +5284,7 @@
     "swapDescription": "Przełącz przed następnym żądaniem po osiągnięciu progu. Każde konto zachowuje własne limity.",
     "parallelDescription": "Rozdzielaj zadania w tle według dostępnego zapasu i pozostawiaj każdego wykonawcę na przypisanym koncie.",
     "current": "Bieżące konto",
+    "switchUnavailable": "Ta sesja pozostaje na {provider} · {account}. Przełączanie kont jest niedostępne w tym środowisku wykonawczym.",
     "swapNotice": "Teraz {provider} · {account}: {previous} osiągnęło {threshold}.",
     "coldCache": "Szacowany koszt ponownego odczytu kontekstu: {cost}.",
     "stopped": "{provider} nie ma konta z wolnym zapasem. Odnowienie: {reset}.",

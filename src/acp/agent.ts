@@ -100,7 +100,12 @@ import type {
   AcpQuestionRegistryFactory,
   AcpQueuedAnswerLease,
 } from './questionDeferral'
-import { AcpAccounts, accountErrorText, type AccountsSessionPort } from './accounts'
+import {
+  AcpAccounts,
+  AccountSwitchRefusedError,
+  accountErrorText,
+  type AccountsSessionPort,
+} from './accounts'
 import {
   acpQuestionClock,
   questionDeferralLoader,
@@ -289,6 +294,10 @@ function isContributorModel(modelId: string): boolean {
 }
 
 function accountRequestError(error: unknown): RequestError {
+  // A refused switch is user-actionable (the session kept its account), not
+  // an internal failure: answer invalidRequest with the stay-put text.
+  if (error instanceof AccountSwitchRefusedError)
+    return RequestError.invalidRequest(undefined, error.message)
   const text = accountErrorText(error)
   return text === UI_TEXT.accounts.invalidAccount
     ? RequestError.invalidParams(undefined, text)

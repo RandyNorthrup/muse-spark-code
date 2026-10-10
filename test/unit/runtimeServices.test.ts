@@ -3,11 +3,15 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MODEL_API_BASE_URL, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import { AccountSwitchRefusedError } from '../../src/acp/accountText'
+import { AccountStoreError } from '../../src/core/providers/accountCredentialRecord'
+import { fill } from '../../src/shared/l10n/text'
 import { runtimeProvidersFile } from '../../src/runtime/providers/providersFileStore'
 import { createRuntimeAccountServices } from '../../src/runtime/providers/runtimeServices'
 import { createRuntimeBackend } from '../../src/runtime/backends'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { memoryKeyring } from './helpers/keyring'
+import { CURRENT_SHAPE_KEYS } from './helpers/modelApiKeys'
 
 const dirs: string[] = []
 
@@ -99,7 +103,17 @@ describe('createRuntimeAccountServices', () => {
         currentAccount: 'default',
       })
       await expect(port.use('session-a', 'missing', () => true)).rejects.toThrow()
-      await expect(port.use('session-a', 'work', () => true)).rejects.toThrow(/unavailable/)
+      // No adoption transaction exists here: the switch is refused with the
+      // session's stay-put text, and the current account is unchanged.
+      const stayPut = fill(UI_TEXT.accounts.switchUnavailable, {
+        provider: 'vendor',
+        account: UI_TEXT.accounts.defaultLabel,
+      })
+      await expect(port.use('session-a', 'work', () => true)).rejects.toThrow(
+        AccountSwitchRefusedError,
+      )
+      await expect(port.use('session-a', 'work', () => true)).rejects.toThrow(stayPut)
+      await expect(port.read('session-a')).resolves.toMatchObject({ currentAccount: 'default' })
       await expect(port.use('session-a', 'default', () => false)).resolves.toMatchObject({
         currentAccount: 'default',
       })
@@ -116,7 +130,10 @@ describe('createRuntimeAccountServices', () => {
       await services.store.order('vendor', ['work', 'default'])
       await expect(port.read('session-a')).resolves.toMatchObject({ currentAccount: 'default' })
       await expect(port.use('session-a', 'work', () => true)).rejects.toThrow(
-        UI_TEXT.accounts.unavailable,
+        fill(UI_TEXT.accounts.switchUnavailable, {
+          provider: 'vendor',
+          account: UI_TEXT.accounts.defaultLabel,
+        }),
       )
       await services.store.remove('vendor', 'default')
       await expect(port.read('session-a')).resolves.toMatchObject({ currentAccount: null })
@@ -197,7 +214,7 @@ describe('createRuntimeAccountServices', () => {
         currentAccount: 'default',
       })
       await expect(configured.accounts.use('run-a', 'default', () => true)).rejects.toThrow(
-        UI_TEXT.accounts.unavailable,
+        fill(UI_TEXT.accounts.switchUnavailable, { provider: 'meta', account: 'Work' }),
       )
       expect(fetch).not.toHaveBeenCalled()
     } finally {
@@ -207,13 +224,35 @@ describe('createRuntimeAccountServices', () => {
     }
   })
 
-  it('uses legacy key fallback only for an absent Meta default binding', async () => {
+  it('serves the stored default key with no metadata row; unknown providers stay unavailable', async () => {
     const services = rig()
     const get = vi.fn(() => Promise.resolve('LLM|1|fake-legacy-key'))
     const fallback = { get, store: () => Promise.resolve(), delete: () => Promise.resolve() }
+    const origin = new URL(MODEL_API_BASE_URL).origin
+    const stored = CURRENT_SHAPE_KEYS[0]
+    // No meta row is stored: the built-in entry still authorizes the write.
+    await services.store.setCredential('meta', 'default', {
+      v: 1,
+      auth: 'apiKey',
+      provider: 'meta',
+      account: 'default',
+      origin,
+      secret: stored,
+    })
     try {
+      // The vault serves the pre-existing key; the fallback mock is untouched.
+      await expect(
+        services.secretsFor('meta', 'default', fallback).get(SECRET_KEYS.modelApiKey),
+      ).resolves.toBe(stored)
+      expect(get).not.toHaveBeenCalled()
+      // A missing account is an invalid account, never a silent default key.
+      await expect(
+        services.secretsFor('meta', 'work', fallback).get(SECRET_KEYS.modelApiKey),
+      ).rejects.toThrow(AccountStoreError)
+      await expect(
+        services.secretsFor('meta', 'work', fallback).get(SECRET_KEYS.modelApiKey),
+      ).rejects.toThrow('invalidAccount')
       for (const [provider, account] of [
-        ['meta', 'work'],
         ['absent', 'default'],
         ['absent', 'work'],
       ]) {
@@ -223,10 +262,6 @@ describe('createRuntimeAccountServices', () => {
           services.secretsFor(provider, account, fallback).get(SECRET_KEYS.modelApiKey),
         ).rejects.toThrow(UI_TEXT.accounts.unavailable)
       }
-      expect(get).not.toHaveBeenCalled()
-      await expect(
-        services.secretsFor('meta', 'default', fallback).get(SECRET_KEYS.modelApiKey),
-      ).resolves.toBe('LLM|1|fake-legacy-key')
     } finally {
       services.dispose()
     }

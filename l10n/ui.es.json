@@ -5135,6 +5135,7 @@
     "swapDescription": "Cambiar antes de la próxima solicitud cuando se alcance un umbral. Cada cuenta conserva sus propios límites.",
     "parallelDescription": "Repartir el trabajo en segundo plano según el margen disponible y mantener cada ejecutor en su cuenta asignada.",
     "current": "Cuenta actual",
+    "switchUnavailable": "Esta sesión permanece en {provider} · {account}. El cambio de cuenta no está disponible en este entorno de ejecución.",
     "swapNotice": "Ahora en {provider} · {account}: {previous} alcanzó {threshold}.",
     "coldCache": "Coste estimado de releer el contexto: {cost}.",
     "stopped": "{provider} no tiene ninguna cuenta con margen. Se restablece: {reset}.",

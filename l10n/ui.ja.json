@@ -4837,6 +4837,7 @@
     "swapDescription": "しきい値に達したら、次のリクエストの前に切り替えます。各アカウントの制限は維持されます。",
     "parallelDescription": "余裕に応じてバックグラウンド処理を分散し、各ワーカーは割り当てられたアカウントを使い続けます。",
     "current": "現在のアカウント",
+    "switchUnavailable": "このセッションは {provider} · {account} のままです。このランタイムではアカウントの切り替えは利用できません。",
     "swapNotice": "{provider} · {account} に切り替えました：{previous} が {threshold} に達しました。",
     "coldCache": "コンテキストを再読する推定費用：{cost}。",
     "stopped": "{provider} に余裕のあるアカウントがありません。リセット：{reset}。",

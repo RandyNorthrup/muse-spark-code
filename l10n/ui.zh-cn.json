@@ -4837,6 +4837,7 @@
     "swapDescription": "达到阈值后，在下一次请求前切换。每个账户保留各自的限额。",
     "parallelDescription": "按剩余容量分配后台工作，并让每个工作进程保持使用分配给它的账户。",
     "current": "当前账户",
+    "switchUnavailable": "此会话仍使用 {provider} · {account}。在此运行时中无法切换账户。",
     "swapNotice": "现已使用 {provider} · {account}：{previous} 已达到 {threshold}。",
     "coldCache": "重新读取上下文的预估费用：{cost}。",
     "stopped": "{provider} 没有仍有余量的账户。重置时间：{reset}。",

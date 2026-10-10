@@ -5135,6 +5135,7 @@
     "swapDescription": "Alternar antes da próxima solicitação quando um limiar for atingido. Cada conta mantém seus próprios limites.",
     "parallelDescription": "Distribuir o trabalho em segundo plano pela margem disponível e manter cada executor na conta atribuída.",
     "current": "Conta atual",
+    "switchUnavailable": "Esta sessão permanece em {provider} · {account}. A troca de conta não está disponível neste runtime.",
     "swapNotice": "Agora em {provider} · {account}: {previous} atingiu {threshold}.",
     "coldCache": "Custo estimado para reler o contexto: {cost}.",
     "stopped": "{provider} não tem conta com capacidade disponível. Redefinição: {reset}.",

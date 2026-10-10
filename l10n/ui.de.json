@@ -4986,6 +4986,7 @@
     "swapDescription": "Beim Erreichen eines Schwellenwerts vor der nächsten Anfrage wechseln. Jedes Konto behält seine eigenen Limits.",
     "parallelDescription": "Hintergrundaufgaben nach verfügbarer Kapazität verteilen und jeden Worker auf seinem zugewiesenen Konto belassen.",
     "current": "Aktuelles Konto",
+    "switchUnavailable": "Diese Sitzung verwendet weiterhin {provider} · {account}. Der Kontowechsel ist in dieser Runtime nicht verfügbar.",
     "swapNotice": "Jetzt auf {provider} · {account}: {previous} hat {threshold} erreicht.",
     "coldCache": "Geschätzte Kosten für erneutes Lesen des Kontexts: {cost}.",
     "stopped": "{provider} hat kein Konto mit freier Kapazität. Zurücksetzung: {reset}.",

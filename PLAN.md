@@ -33139,6 +33139,16 @@ No dependency, endpoint guard, paid default or budget changes. See
   `dist/webview/models.js`. A Meta-only user with one key loads none of it.
   `dist/extension.js` and the chat startup gain nothing, and no cap rises.
 - **Size.** M–L.
+- **CM108ACC — Accounts in the installed runtime (2026-10-10 lane).** The
+  live dogfood run found every CLI/ACP account command answering "Accounts
+  are unavailable until this runtime is connected to the shared account
+  service": the runtime's providers file had no provider row, so the shared
+  store threw on every operation. This lane serves the built-in meta entry
+  (default migration, first write persists), attaches ACP sessions on both
+  backends, refuses switches with the session's stay-put text, and renders
+  vendor-limit stops without a usage link. Per-request selection and pooling
+  stay with C-M108-2; non-meta providers still need their stored row. Cert:
+  `docs/certification/cm108acc.md`.
 - **Certification checklist** (§6.0, plus):
   - [ ] The record's quotes byte-checked, each with its URL, date shown and
         date checked

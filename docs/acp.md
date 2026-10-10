@@ -477,8 +477,9 @@ what waits for M96's planner.
 `/accounts list`, `/accounts current` and `/accounts thresholds [id]`
 read local metadata without a model turn. The command parser and event adapter
 also support `/accounts use <id>` and the `account` session option through an
-injected profile-owned pool. The installed runtime currently refuses changing
-the backend credential; that pool awaits M95/M109. It never reports a swap
+injected profile-owned pool. The installed runtime still refuses changing
+the backend credential — the refusal names the account the session keeps —
+until the pooled owner lands (C-M108-2). It never reports a swap
 while retaining another account's key.
 
 The terminal's `providers accounts` commands manage metadata, ordering,
