@@ -159,11 +159,35 @@ per-model output cap on every request`). Red drill: cache restored, the new
   44/44 on the final tree.
 - P3 (`l10n/ui.ru.json` `outputCapBelowMinimum`): `one` is now `токен` and
   `few` is now `токена`, matching the file's existing token plural.
-  Regression: `uses the grammatical Russian token noun for the output-cap
-minimum` (`test/unit/providersL10n.test.ts`) checks 1/2/16 through
-  `plural()`. Red drill: old strings restored, the new test fails; file
-  restored byte-exact (SHA-256 `d611d288…062f42` before and after).
-  `node scripts/check-l10n.mjs` still reports 0 problems.
+  (Superseded by round 4 below: review RVMINOUT2 shows this sentence needs
+  the genitive, not the standalone nominative nouns.)
+- P3 (this file): the round-1 sentences claiming the floor fires only inside
+  a budget reservation and that a sub-minimum static cap is still sent are
+  corrected to the shipped rule (refused at save and at send) in the present
+  tense above.
+
+### Round 4 — review RVMINOUT2 finding (2026-10-10, macmini, same worktree)
+
+One P3, fixed, no residuals. RVMINOUT2 shows `не менее` governs the
+genitive, so the round-3 nouns were wrong: 1 read `токен` (should be
+`токена`), 2 read `токена` (should be `токенов`); 16 was already the
+correct `many` form `токенов`. Fix (`l10n/ui.ru.json`
+`outputCapBelowMinimum`): `one`/`other` are now `токена` (genitive
+singular; `other` covers fractions, same surface form) and `few`/`many`
+are now `токенов` (genitive plural) — the same pattern as the file's
+existing `checksStoppedNotice` (`раунда`/`раундов`), corroborated by
+Gramota answer 224266 (`не менее одного раза`). Sibling sweep: Polish
+`co najmniej` takes the nominative (1 `token`, 2–4 `tokeny`, 5+
+`tokenów` — already correct), Czech avoids the noun (`alespoň {count}`),
+and the remaining tables have no numeral-driven case, so Russian was the
+only table with this defect. Regression: `uses the grammatical Russian
+token noun for the output-cap minimum`
+(`test/unit/providersL10n.test.ts`) now checks 1/2/5/16/21/22 through
+`plural()` against the genitive wording. Red drill: pre-fix strings
+restored, the test fails (1 failed, 18 passed); file restored byte-exact
+(SHA-256 `309ccdbc…6a7e764c` before and after).
+`node scripts/check-l10n.mjs` still reports 0 problems.
+
 - P3 (this file): the round-1 sentences claiming the floor fires only inside
   a budget reservation and that a sub-minimum static cap is still sent are
   corrected to the shipped rule (refused at save and at send) in the present
