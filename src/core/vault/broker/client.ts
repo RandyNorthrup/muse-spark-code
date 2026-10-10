@@ -5,7 +5,11 @@ import {
   VAULT_LIMITS,
   UI_TEXT,
 } from '../../../shared/constants'
-import { vaultPrivateReadSchema, type VaultBrokerRequest } from '../../../shared/vaultProtocol'
+import {
+  vaultPrivateReadSchema,
+  type VaultBrokerRequest,
+  type VaultPrivateRequest,
+} from '../../../shared/vaultProtocol'
 import {
   vaultChannelRequestSchema,
   vaultChannelResponseSchema,
@@ -97,7 +101,7 @@ export class VaultBrokerClient {
     })
   }
   async send(
-    request: VaultBrokerRequest['request'] | ReturnType<typeof vaultPrivateReadSchema.parse>,
+    request: VaultBrokerRequest['request'] | VaultPrivateRequest,
   ): Promise<VaultChannelResponse['response']> {
     const sequence = this.sequence++
     const frame = vaultChannelRequestSchema.parse({

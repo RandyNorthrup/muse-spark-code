@@ -279,7 +279,7 @@ describe('vault broker lifetime and isolation', () => {
     await fixture.broker.lock()
     await fixture.broker.unlock()
     const request = vaultPrivateReadSchema.parse({
-      v: 1,
+      v: 2,
       kind: 'firstPartyRead',
       itemId: metadata.id,
       origin: 'https://example.test',

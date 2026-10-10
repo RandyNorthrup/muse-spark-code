@@ -122,8 +122,8 @@ describe('U authenticated panel host', () => {
       }
       f.changed.callback(
         kind === 'locked'
-          ? { kind, v: 1, lockEpoch: 1 }
-          : { kind, v: 1, requesterId: approval().requester.id, grantId: null },
+          ? { kind, v: 2, lockEpoch: 1 }
+          : { kind, v: 2, requesterId: approval().requester.id, grantId: null },
       )
       expect(signals[0]?.aborted).toBe(true)
       const entered = item()
@@ -147,8 +147,8 @@ describe('U authenticated panel host', () => {
     f.state.status.lockEpoch = 2
     await f.host.refresh()
     const count = f.deps.publish.mock.calls.length
-    f.changed.callback({ kind: 'locked', v: 1, lockEpoch: 1 })
-    f.changed.callback({ kind: 'locked', v: 1, lockEpoch: 3, value: randomBytes(32) })
+    f.changed.callback({ kind: 'locked', v: 2, lockEpoch: 1 })
+    f.changed.callback({ kind: 'locked', v: 2, lockEpoch: 3, value: randomBytes(32) })
     expect(f.deps.publish.mock.calls.length).toBe(count)
     f.host.dispose()
   })
@@ -433,7 +433,7 @@ describe('U authenticated panel host', () => {
     const request = approval()
     f.state.pending = [request]
     const before = f.deps.publish.mock.calls.length
-    f.changed.callback({ kind: 'approval', v: 1, request })
+    f.changed.callback({ kind: 'approval', v: 2, request })
     await vi.waitFor(() => {
       expect(f.deps.publish.mock.calls.length).toBeGreaterThan(before)
     })

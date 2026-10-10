@@ -3,8 +3,9 @@ import { constants } from 'node:fs'
 import { link, lstat, mkdir, open, realpath, rename, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { VAULT_FORMAT_VERSION, VAULT_KEY_BYTES, VAULT_LIMITS } from '../../shared/constants'
+import { VAULT_KEY_BYTES, VAULT_LIMITS, VAULT_STORE_FORMAT_VERSION } from '../../shared/constants'
 import {
+  vaultGrantSchema,
   vaultItemMetadataSchema,
   vaultItemSchema,
   vaultSlotRecordSchema,
@@ -240,7 +241,7 @@ const generation = z.number().check(z.int(), z.nonnegative(), z.refine(Number.is
 const id = z.string().check(z.regex(/^[a-f0-9]{32}$/u))
 const digest = z.string().check(z.regex(/^[a-f0-9]{64}$/u))
 const documentSchema = z.strictObject({
-  v: z.literal(VAULT_FORMAT_VERSION),
+  v: z.literal(VAULT_STORE_FORMAT_VERSION),
   vaultId: id,
   generation,
   index: vaultBlockSchema,
@@ -249,7 +250,7 @@ const documentSchema = z.strictObject({
     .check(z.maxLength(VAULT_LIMITS.items)),
 })
 const slotsSchema = z.strictObject({
-  v: z.literal(VAULT_FORMAT_VERSION),
+  v: z.literal(VAULT_STORE_FORMAT_VERSION),
   vaultId: id,
   generation,
   auditGeneration: generation,
@@ -259,11 +260,23 @@ const slotsSchema = z.strictObject({
   records: z.array(vaultSlotRecordSchema).check(z.minLength(1), z.maxLength(VAULT_LIMITS.names)),
   mac: z.string(),
 })
-const indexSchema = z.strictObject({
-  items: z
-    .array(z.strictObject({ metadata: vaultItemMetadataSchema, generation }))
-    .check(z.maxLength(VAULT_LIMITS.items)),
-})
+// Store format v2 (lead decision 2026-10-10): grants live in the encrypted
+// index beside the items, so a grant, its use count and its item commit
+// together under the cross-process writer lock and the rollback anchor.
+const indexSchema = z
+  .strictObject({
+    items: z
+      .array(z.strictObject({ metadata: vaultItemMetadataSchema, generation }))
+      .check(z.maxLength(VAULT_LIMITS.items)),
+    grants: z.array(vaultGrantSchema).check(z.maxLength(VAULT_LIMITS.grants)),
+  })
+  .check(
+    z.refine((index) => {
+      const items = new Set(index.items.map((item) => item.metadata.id))
+      const ids = new Set(index.grants.map((grant) => grant.id))
+      return ids.size === index.grants.length && index.grants.every((g) => items.has(g.itemId))
+    }),
+  )
 const snapshotSchema = z.strictObject({ document: documentSchema, slots: slotsSchema })
 const anchorSchema = z.strictObject({
   generation,
@@ -457,8 +470,8 @@ export class VaultStore implements VaultStorePort {
           (await options.anchor.minimum(vaultId))
         )
           throw new VaultError('invalid')
-        await store.publish({ items: [] }, [], {
-          v: VAULT_FORMAT_VERSION,
+        await store.publish({ items: [], grants: [] }, [], {
+          v: VAULT_STORE_FORMAT_VERSION,
           vaultId,
           generation: 0,
           auditGeneration: 0,
@@ -662,7 +675,7 @@ export class VaultStore implements VaultStorePort {
       const previous = await this.options.anchor.minimum(this.vaultId)
       this.active()
       const documentInput: Document = {
-        v: VAULT_FORMAT_VERSION,
+        v: VAULT_STORE_FORMAT_VERSION,
         vaultId: this.vaultId,
         generation: next,
         index: sealVaultBlock(
@@ -677,7 +690,7 @@ export class VaultStore implements VaultStorePort {
       const document = parsedDocument.data
       openIndex(this.active(), document)
       const parsedBody = slotsSchema.safeParse({
-        v: VAULT_FORMAT_VERSION,
+        v: VAULT_STORE_FORMAT_VERSION,
         vaultId: this.vaultId,
         generation: next,
         auditGeneration: prior.auditGeneration,
@@ -802,7 +815,7 @@ export class VaultStore implements VaultStorePort {
           plaintext,
         )
         await this.publish(
-          { items: [...remaining, { metadata, generation: next }] },
+          { items: [...remaining, { metadata, generation: next }], grants: index.grants },
           [
             ...snapshot.document.items.filter((entry) => entry.id !== metadata.id),
             { id: metadata.id, block },
@@ -819,7 +832,11 @@ export class VaultStore implements VaultStorePort {
       const { snapshot, index } = await this.load()
       if (index.items.every((item) => item.metadata.id !== id)) throw new VaultError('invalid')
       await this.publish(
-        { items: index.items.filter((item) => item.metadata.id !== id) },
+        {
+          items: index.items.filter((item) => item.metadata.id !== id),
+          // A removed item takes its grants with it: nothing can name it again.
+          grants: index.grants.filter((grant) => grant.itemId !== id),
+        },
         snapshot.document.items.filter((item) => item.id !== id),
         snapshot.slots,
       )
