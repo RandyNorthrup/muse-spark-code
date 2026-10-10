@@ -51,7 +51,10 @@ happened, not what was planned; superseded entries are kept.
   emitted with missing entries. Every builder snapshots its caller input on
   entry, so custom iterators, getters and overridden methods cannot change a
   validated collection; inputs the snapshot cannot copy (proxies, functions)
-  are refused with the same typed error.
+  are refused with the same typed error. Snapshot arrays are rebuilt from
+  their indexed entries, so own `map`/`constructor` shadows cannot reach
+  native dispatch, and title formatting reuses the entry snapshot instead of
+  copying the input twice.
 
 ### Changed
 
