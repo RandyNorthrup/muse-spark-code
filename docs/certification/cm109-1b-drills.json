@@ -328,6 +328,32 @@
           "sha256": "38066342afa2b259fc7014973deb7bbb6697efb1f0258f24eb4c8d1e8aab3e99"
         }
       ]
+    },
+    {
+      "name": "chmod-error-window",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/brokerProcess.ts",
+          "sha256": "e59259a00ea3e3a0bba83fc1cbdc90a2990e0896164c349f73869ae9d905832f"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerProcess.test.ts > POSIX vault broker lifecycle > shuts down when the server fails during the socket permission fix: expected 0 to be greater than 0"
+      ]
+    },
+    {
+      "name": "entry-signal-buffer",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/vaultBrokerEntry.ts",
+          "sha256": "ceee3f8aa1080dfd9e6cc2947866c61b08571a81aab7b5caf24c85f250c675c1"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/vaultBrokerEntry.test.ts > vault broker entry signal handling > closes a starting broker when a signal arrives before startup resolves: Test timed out in 5000ms"
+      ]
     }
   ]
 }

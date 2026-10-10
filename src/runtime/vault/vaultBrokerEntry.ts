@@ -173,6 +173,57 @@ export async function createVaultBrokerProcess(
   })
 }
 
+/**
+ * Entry-process shutdown: the signal handlers are armed before any startup
+ * await, an early signal is buffered, and the buffer is re-checked after
+ * startup (the same subscribe-then-recheck pattern as the guardian onLost
+ * replay). A buffered signal closes the broker without announcing readiness.
+ * The signal source is injectable for regression tests; production passes the
+ * process object.
+ */
+type VaultBrokerProcessHandle = Pick<
+  Awaited<ReturnType<typeof createVaultBrokerProcess>>,
+  'close' | 'closed'
+>
+
+export async function runVaultBrokerEntry(
+  start: () => Promise<VaultBrokerProcessHandle>,
+  signals: NodeJS.EventEmitter = process,
+): Promise<void> {
+  // Holder, not locals: a signal can arrive on any turn, so narrowing a
+  // `let` at its definition site would misread both fields below.
+  const lifecycle: { handle?: VaultBrokerProcessHandle; hasStopRequest: boolean } = {
+    hasStopRequest: false,
+  }
+  const stop = (): void => {
+    lifecycle.hasStopRequest = true
+    const stopping = lifecycle.handle
+    if (stopping !== undefined)
+      void stopping.close().catch(() => {
+        process.exitCode = 1
+      })
+  }
+  signals.on('SIGINT', stop)
+  signals.on('SIGTERM', stop)
+  try {
+    const handle = await start()
+    lifecycle.handle = handle
+    if (lifecycle.hasStopRequest) {
+      try {
+        await handle.close()
+      } catch {
+        process.exitCode = 1
+      }
+    } else {
+      process.stdout.write('vault-broker-ready\n')
+      await handle.closed
+    }
+  } finally {
+    signals.removeListener('SIGINT', stop)
+    signals.removeListener('SIGTERM', stop)
+  }
+}
+
 /** Internal child entry: only the installed sibling runtime may supply the trusted bindings. */
 async function main(): Promise<void> {
   for (const name of Object.keys(process.env))
@@ -186,24 +237,10 @@ async function main(): Promise<void> {
   }
   if (typeof runtime.createVaultBrokerBindings !== 'function')
     throw new Error(UI_TEXT.vault.brokerBlocked)
-  const processHandle = await createVaultBrokerProcess(
-    context,
-    await runtime.createVaultBrokerBindings(context),
+  const createBindings = runtime.createVaultBrokerBindings
+  await runVaultBrokerEntry(
+    async () => await createVaultBrokerProcess(context, await createBindings(context)),
   )
-  const stop = (): void => {
-    void processHandle.close().catch(() => {
-      process.exitCode = 1
-    })
-  }
-  process.stdout.write('vault-broker-ready\n')
-  process.once('SIGINT', stop)
-  process.once('SIGTERM', stop)
-  try {
-    await processHandle.closed
-  } finally {
-    process.removeListener('SIGINT', stop)
-    process.removeListener('SIGTERM', stop)
-  }
 }
 if (require.main === module) {
   void main().catch(() => {
