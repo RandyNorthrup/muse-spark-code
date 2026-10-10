@@ -1,6 +1,7 @@
 import { realpath, mkdtemp, mkdir, rm, writeFile, stat, readFile, symlink } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
+import type * as Os from 'node:os'
 import * as z from 'zod/mini'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -9,6 +10,7 @@ import {
   type RuntimeSharingPorts,
   runtimeSharingConfidential,
 } from '../../src/runtime/sharing/sharingEntry'
+import { runtimeSharingLoader } from '../../src/runtime/sharing/sharingBundle'
 import { EN } from '../../src/shared/l10n/en'
 import { buildPromptShare } from '../../src/core/sharing/promptShare'
 import { createChatSharePrivacy } from '../../src/core/sharing/privacy'
@@ -22,6 +24,21 @@ vi.mock('node:readline/promises', () => ({
     close: () => undefined,
   }),
 }))
+// Sandboxes without a passwd entry (and CI workers generally) must not decide
+// the share author: the tests pin their own user name.
+vi.mock('node:os', async (importOriginal) => {
+  const actual = await importOriginal<typeof Os>()
+  return {
+    ...actual,
+    userInfo: () => ({
+      uid: 501,
+      gid: 20,
+      username: 'fixture',
+      homedir: '/home/fixture',
+      shell: '/bin/sh',
+    }),
+  }
+})
 const roots: string[] = []
 afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
@@ -263,6 +280,13 @@ describe('M118 production runtime bindings', () => {
     }
     expect(prompt.body).toContain('registered-test-secret')
   })
+  it('reports an unloadable sharing bundle as internal, not a prompt-file error', () => {
+    const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+    const load = runtimeSharingLoader(path.join(os.tmpdir(), 'm118-no-such-bundle.js'), log)
+    // The loader already logged the cause; the user reads the fixed reason.
+    expect(() => load()).toThrow(EN.actionFailed)
+    expect(log.error).toHaveBeenCalled()
+  })
   it('refuses unknown confidential policy and respects explicit workspace settings', async () => {
     const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm118-policy-')))
     roots.push(root)
@@ -273,5 +297,95 @@ describe('M118 production runtime bindings', () => {
     expect(runtimeSharingConfidential(root)).toBe(true)
     await writeFile(file, '{broken')
     expect(runtimeSharingConfidential(root)).toBeUndefined()
+  })
+  it('keeps a defined empty-chat refusal instead of a prompt-file error', async () => {
+    const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm118-empty-')))
+    roots.push(root)
+    const ports: RuntimeSharingPorts = {
+      folders: {
+        platform: process.platform,
+        homeDir: root,
+        env: { XDG_DATA_HOME: root, LOCALAPPDATA: root },
+      },
+      read: () =>
+        Promise.resolve({
+          sessionId: 's1',
+          title: 'Empty',
+          exportedAt: '2026-10-06T12:00:00Z',
+          items: [],
+        }),
+    }
+    const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+    const errors: string[] = []
+    const errorOutput = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      errors.push(String(chunk))
+      return true
+    })
+    try {
+      expect(
+        await runRuntimeSharing(
+          parseSharingArgs(
+            ['share', 'chat', '--cwd', root, '--exported-at', '2026-10-06T12:00:00Z'],
+            's1',
+          ),
+          ports,
+          EN,
+          'en',
+          log,
+        ),
+      ).toBe(7)
+      expect(errors.join('')).toContain(EN.exportNothing)
+      expect(errors.join('')).not.toContain(EN.promptFileInvalid)
+      expect(errors.join('')).not.toContain(EN.actionFailed)
+      expect(log.warn).not.toHaveBeenCalled()
+    } finally {
+      errorOutput.mockRestore()
+    }
+  })
+  it('reports an unexpected headless fault as internal with the fault named in the log', async () => {
+    const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm118-fault-')))
+    roots.push(root)
+    const ports: RuntimeSharingPorts = {
+      folders: {
+        platform: process.platform,
+        homeDir: root,
+        env: { XDG_DATA_HOME: root, LOCALAPPDATA: root },
+      },
+      read: () =>
+        Promise.reject(
+          new TypeError('backend read failed under /home/someone/private for sentinel-share-read'),
+        ),
+    }
+    const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+    const errors: string[] = []
+    const errorOutput = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      errors.push(String(chunk))
+      return true
+    })
+    try {
+      expect(
+        await runRuntimeSharing(
+          parseSharingArgs(
+            ['share', 'chat', '--cwd', root, '--exported-at', '2026-10-06T12:00:00Z'],
+            's1',
+          ),
+          ports,
+          EN,
+          'en',
+          log,
+        ),
+      ).toBe(7)
+      const stderr = errors.join('')
+      expect(stderr).toContain(EN.actionFailed)
+      expect(stderr).not.toContain(EN.promptFileInvalid)
+      expect(stderr).not.toContain('/home/someone')
+      expect(stderr).not.toContain('sentinel-share-read')
+      expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('sharing command failed'))
+      expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('TypeError'))
+      expect(JSON.stringify(log.warn.mock.calls)).not.toContain('/home/someone')
+      expect(JSON.stringify(log.warn.mock.calls)).not.toContain('sentinel-share-read')
+    } finally {
+      errorOutput.mockRestore()
+    }
   })
 })

@@ -54,7 +54,7 @@ import {
   type TurnPart,
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
-import { failureForLog } from '../core/backends/musecode/logText'
+import { failureForLog, internalFaultForLog } from '../core/backends/musecode/logText'
 import { unlessAborted } from '../core/timeouts'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
@@ -1919,10 +1919,11 @@ class AcpSession {
           )
         } catch (error: unknown) {
           // An internal sharing fault reaches the wire as the fixed
-          // could-not-complete reason; the raw failure lives only here.
+          // could-not-complete reason; the log names the underlying fault
+          // the wrapper carries as `cause` (a name only, never raw text).
           if (isAcpSharingFailure(error) && error.code === SHARING_FAILURE_CODES.internalError)
             this.deps.log.warn(
-              `ACP session ${this.sessionId}: sharing command failed: ${failureForLog(error)}`,
+              `ACP session ${this.sessionId}: sharing command failed: ${internalFaultForLog(error)}`,
             )
           throw sharingRequestError(error)
         }

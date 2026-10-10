@@ -38,6 +38,7 @@ import {
 } from '../../shared/constants'
 import { fill, setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
+import { internalFaultForLog } from '../../core/backends/musecode/logText'
 import { PromptCommands, type PromptUiPort } from './promptCommands'
 
 export type PromptCommandName =
@@ -58,6 +59,8 @@ export interface PromptHostDeps {
   }
   readonly isConfidentialWorkspace: () => boolean | undefined
   readonly registeredSecrets: () => Promise<readonly string[]>
+  /** Where an unexpected fault's name is recorded when the user is told the log has it. */
+  readonly log?: Logger
   /** M118-P-RAW-FETCH: exact bytes through the existing pinned transport/GitHub client. */
   readonly readRemote?: (url: string, maxBytes: number) => Promise<string>
 }
@@ -324,7 +327,13 @@ async function commandsFor(deps: PromptHostDeps): Promise<PromptCommands> {
   })
 }
 
-function safePromptFailure(error: unknown): Error {
+function safePromptFailure(error: unknown, log?: Logger): Error {
+  // The defined refusals every sharing surface reports (the same list the
+  // ACP adapter and the headless commands keep), read at use time so the
+  // installed language is the one shown. Anything else is an unexpected
+  // fault, never a prompt-file error: the boundary passes no raw text on,
+  // and the original fault rides along as `cause` (never shown) so the log
+  // the reason points at can name it.
   const safeMessages = [
     UI_TEXT.promptFileInvalid,
     UI_TEXT.promptLimits,
@@ -341,12 +350,14 @@ function safePromptFailure(error: unknown): Error {
     UI_TEXT.shareConfidential,
     UI_TEXT.shareCancelled,
   ]
-  // The boundary discards the original cause: it may contain private paths or prompt text.
-  return new Error(
-    error instanceof Error && safeMessages.includes(error.message)
-      ? error.message
-      : UI_TEXT.promptFileInvalid,
+  if (
+    error instanceof Error &&
+    (safeMessages.includes(error.message) ||
+      error.message.startsWith(`${UI_TEXT.promptVariables}:`))
   )
+    return new Error(error.message)
+  log?.warn(`prompt command failed: ${internalFaultForLog(error)}`)
+  return new Error(UI_TEXT.actionFailed, { cause: error })
 }
 
 /** The lazy factory installs the caller's language before every command. */
@@ -400,7 +411,7 @@ export async function runPromptCommand(
     }
   } catch (error: unknown) {
     if (!hasStarted) hosts.delete(deps)
-    throw safePromptFailure(error)
+    throw safePromptFailure(error, deps.log)
   }
 }
 
@@ -435,6 +446,7 @@ function nativeDeps(ports: PromptActivationPorts): PromptHostDeps {
   deps = {
     workspaceRoot: ports.workspaceRoot,
     state: ports.context.globalState,
+    log: ports.log,
     isConfidentialWorkspace: () => ports.settings().confidentialWorkspace,
     registeredSecrets: async () => {
       const key = await ports.credentials.getApiKey()
@@ -675,7 +687,7 @@ export function createPromptHost(ports: PromptActivationPorts, table: UiText, lo
           const commands = await pending
           await commands.panel('invalidate', {})
         }).catch((error_: unknown) => {
-          ports.log.warn(safePromptFailure(error_).message)
+          ports.log.warn(safePromptFailure(error_, ports.log).message)
         })
     },
     handle: (
@@ -701,7 +713,7 @@ export function createPromptHost(ports: PromptActivationPorts, table: UiText, lo
               type: 'sharingResult',
               id: message.id,
               value: undefined,
-              error: safePromptFailure(error).message,
+              error: safePromptFailure(error, ports.log).message,
             })
         }
       }),

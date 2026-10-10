@@ -40,6 +40,7 @@ async function rig() {
   const read = vi.fn<() => unknown>(() => [])
   const update = vi.fn(() => Promise.resolve())
   const observe = vi.fn<PromptHostDeps['chat']['observe']>()
+  const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const deps: PromptHostDeps = {
     home,
     user: 'fixture',
@@ -53,8 +54,9 @@ async function rig() {
     },
     isConfidentialWorkspace: () => false,
     registeredSecrets: () => Promise.resolve([]),
+    log,
   }
-  return { home, deps, read, observe, update }
+  return { home, deps, read, observe, update, log }
 }
 describe('prompt lazy entry', () => {
   it('never reads or writes the native mirror while sync is disabled', async () => {
@@ -66,9 +68,9 @@ describe('prompt lazy entry', () => {
     expect(update).not.toHaveBeenCalled()
   })
   it('sanitises initialization failures, retries and installs the language on cached calls', async () => {
-    const { deps, read, observe } = await rig()
+    const { deps, read, observe, log } = await rig()
     read.mockImplementationOnce(() => {
-      throw new Error('/private/planted-path')
+      throw new TypeError('/private/planted-path')
     })
     let failure: unknown
     try {
@@ -76,8 +78,12 @@ describe('prompt lazy entry', () => {
     } catch (error: unknown) {
       failure = error
     }
-    expect(failure).toEqual(new Error(EN.promptFileInvalid))
-    expect(failure).not.toHaveProperty('cause')
+    // An unexpected fault is never a prompt-file error; the log names the fault.
+    expect(failure).toBeInstanceOf(Error)
+    expect((failure as Error).message).toBe(EN.actionFailed)
+    expect((failure as Error).cause).toBeInstanceOf(TypeError)
+    expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('TypeError'))
+    expect(JSON.stringify(log.warn.mock.calls)).not.toContain('/private/planted-path')
     expect(observe).not.toHaveBeenCalled()
     vi.mocked(pickOne).mockResolvedValue(undefined)
     await runPromptCommand('library', undefined, deps, EN, 'en')
@@ -95,13 +101,33 @@ describe('prompt lazy entry', () => {
       expect.objectContaining({ title: 'Bibliothèque' }),
     )
   })
+  it('keeps a defined prompt refusal with its own sentence and no log entry', async () => {
+    const { deps, log } = await rig()
+    // Blank editor text is deliberately a prompt-file error (promptCommands.share),
+    // so the boundary keeps the sentence and records nothing.
+    const blank = { 'museSpark.promptSource': 'composer', 'museSpark.promptText': ' '.repeat(3) }
+    await expect(runPromptCommand('sharePrompt', blank, deps, EN, 'en')).rejects.toThrow(
+      EN.promptFileInvalid,
+    )
+    expect(log.warn).not.toHaveBeenCalled()
+  })
+  it('keeps a variable-prompt refusal with its own sentence and no log entry', async () => {
+    const { deps, read, log } = await rig()
+    const variables = `${EN.promptVariables}: audience`
+    read.mockImplementationOnce(() => {
+      throw new Error(variables)
+    })
+    await expect(runPromptCommand('library', undefined, deps, EN, 'en')).rejects.toThrow(variables)
+    expect(log.warn).not.toHaveBeenCalled()
+  })
   it('refuses a malformed bundle, then loads the repaired lazy entry once', async () => {
     const { home } = await rig()
     const file = path.join(home, 'prompts.cjs')
     await writeFile(file, 'module.exports = {}')
     const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), trace: vi.fn() }
     const load = promptBundleLoader(file, log)
-    expect(() => load()).toThrow(EN.promptFileInvalid)
+    // A bundle that cannot load is an installation fault, not a prompt-file error.
+    expect(() => load()).toThrow(EN.actionFailed)
     await writeFile(file, 'module.exports = { createPromptHost() {} }')
     const bundle = load()
     expect(typeof bundle.createPromptHost).toBe('function')

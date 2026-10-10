@@ -52,8 +52,9 @@ export class AcpSharingFailure extends Error {
   public constructor(
     public readonly code: SharingFailureCode,
     message: string,
+    options?: { readonly cause?: unknown },
   ) {
-    super(message)
+    super(message, options)
     this.name = 'AcpSharingFailure'
   }
 }
@@ -124,7 +125,12 @@ export function acpSharingCommands(): ReturnType<AcpSharingPort['commands']> {
  * failure becomes a sanitized internal fault with no raw text (the SDK copies
  * ordinary exception messages into error.data.details).
  */
-function sharingRefusal(message: string): string | undefined {
+/**
+ * A sharing refusal the product defines, for every surface that reports one:
+ * the ACP adapter, the headless `share`/`prompts` commands and the editor
+ * boundary all keep the same sentences. Anything else is an unexpected fault.
+ */
+export function sharingRefusal(message: string): string | undefined {
   const refusals = [
     UI_TEXT.exportNothing,
     UI_TEXT.exportHistoryUnavailable,
@@ -205,9 +211,12 @@ export function createAcpSharing(
         // Anything unrecognized stays an internal fault with the fixed
         // could-not-complete reason in place of paths, prompt text or raw
         // diagnostics: a failed export or an unreadable prompt library is
-        // not a prompt-file format error, and the log (written at the
-        // engine's call site) has the details.
-        throw new AcpSharingFailure(SHARING_FAILURE_CODES.internalError, UI_TEXT.actionFailed)
+        // not a prompt-file format error. The original fault rides along as
+        // `cause` (never on the wire: the engine maps only the fixed
+        // message), so the log the reason points at can name it.
+        throw new AcpSharingFailure(SHARING_FAILURE_CODES.internalError, UI_TEXT.actionFailed, {
+          cause: error,
+        })
       }
     },
   }
