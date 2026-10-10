@@ -31,6 +31,7 @@ export { streamEventSchema, usageSchema } from '../../core/backends/modelapi/sch
 export { pinnedHttpsRequest, pinnedPostRequest } from '../web/pinnedRequest'
 import type { ExtensionHookDefinition } from '../../core/backends/modelapi/extensionHooks'
 import type { HookDefinition, HookLoadDeps } from '../../core/backends/modelapi/hooks'
+import type { ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
 import {
   metaModelFacts,
   metaSideCallFormats,
@@ -128,6 +129,12 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
       ? undefined
       : await import('../../core/backends/modelapi/modelApiMcpEntry.js')
   mcp?.setUiText(deps.uiText, deps.uiLocale)
+  // The selected record's policy, stashed as the host resolves it (session
+  // start and model switch): the synchronous per-request suppliers below read
+  // the registry record for the selected model instead of naming model ids.
+  // Bare Meta models never reach the resolver (the host answers them from
+  // M95's own policy), so they fall through to the shared Meta default.
+  const selectedPolicies = new Map<string, ModelPolicy>()
   const host = new ModelApiHost({
     ...hostDeps,
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,
@@ -135,14 +142,19 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
     modelCapabilities: hostDeps.modelCapabilities ?? metaHostedCapabilities,
     argumentPreviewCapabilities:
       hostDeps.argumentPreviewCapabilities ?? metaArgumentPreviewCapabilities,
-    modelOutputMaxTokens: hostDeps.modelOutputMaxTokens ?? metaOutputMaxTokens,
+    modelOutputMaxTokens:
+      hostDeps.modelOutputMaxTokens ??
+      ((modelId) =>
+        selectedPolicies.get(modelId)?.output.maxTokens ?? metaOutputMaxTokens(modelId)),
     client,
     ...('models' in client && { models: client.models }),
     ...(deps.createProviders !== undefined && {
       models: {
         resolve: async (ref: string) => {
           const registry = await resolveProviders()
-          return await registry.resolve(ref)
+          const resolved = await registry.resolve(ref)
+          selectedPolicies.set(ref, resolved.policy)
+          return resolved
         },
         list: async () => {
           const { list } = await resolveProviders()
