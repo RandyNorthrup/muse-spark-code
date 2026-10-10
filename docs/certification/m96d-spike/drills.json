@@ -1,0 +1,708 @@
+{
+  "platform": "linux",
+  "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+  "testFiles": [
+    "test/unit/m96dCoordinatorSpike.test.ts",
+    "test/unit/m96dCoordinatorEndpoint.test.ts"
+  ],
+  "defaultTimeout": true,
+  "testsObservedFailing": [
+    "F1: an unavailable native endpoint leaves its existing owner and admitted work alive",
+    "M96d RVM96C2 adversarial schedules F1 darwin: ECONNREFUSED from a live owner cannot elect or release",
+    "M96d RVM96C2 adversarial schedules F1 darwin: ENOENT from a live owner cannot elect or release",
+    "M96d RVM96C2 adversarial schedules F1 darwin: EOF from a live owner cannot elect or release",
+    "M96d RVM96C2 adversarial schedules F1 darwin: ERROR_PIPE_BUSY from a live owner cannot elect or release",
+    "M96d RVM96C2 adversarial schedules F1 linux: ECONNREFUSED from a live owner cannot elect or release",
+    "M96d RVM96C2 adversarial schedules F1 linux: ENOENT from a live owner cannot elect or release",
+    "M96d RVM96C2 adversarial schedules F1 linux: EOF from a live owner cannot elect or release",
+    "M96d RVM96C2 adversarial schedules F1 linux: ERROR_PIPE_BUSY from a live owner cannot elect or release",
+    "M96d RVM96C2 adversarial schedules F1 win32: ECONNREFUSED from a live owner cannot elect or release",
+    "M96d RVM96C2 adversarial schedules F1 win32: ENOENT from a live owner cannot elect or release",
+    "M96d RVM96C2 adversarial schedules F1 win32: EOF from a live owner cannot elect or release",
+    "M96d RVM96C2 adversarial schedules F1 win32: ERROR_PIPE_BUSY from a live owner cannot elect or release",
+    "M96d RVM96C2 adversarial schedules F2 darwin: crash after detachedChild retains every launch liability",
+    "M96d RVM96C2 adversarial schedules F2 darwin: crash after intent retains every launch liability",
+    "M96d RVM96C2 adversarial schedules F2 darwin: crash after registration retains every launch liability",
+    "M96d RVM96C2 adversarial schedules F2 darwin: crash after resume retains every launch liability",
+    "M96d RVM96C2 adversarial schedules F2 darwin: crash after spawn retains every launch liability",
+    "M96d RVM96C2 adversarial schedules F2 linux: crash after detachedChild retains every launch liability",
+    "M96d RVM96C2 adversarial schedules F2 linux: crash after intent retains every launch liability",
+    "M96d RVM96C2 adversarial schedules F2 linux: crash after registration retains every launch liability",
+    "M96d RVM96C2 adversarial schedules F2 linux: crash after resume retains every launch liability",
+    "M96d RVM96C2 adversarial schedules F2 linux: crash after spawn retains every launch liability",
+    "M96d RVM96C2 adversarial schedules F2 win32: crash after detachedChild retains every launch liability",
+    "M96d RVM96C2 adversarial schedules F2 win32: crash after intent retains every launch liability",
+    "M96d RVM96C2 adversarial schedules F2 win32: crash after registration retains every launch liability",
+    "M96d RVM96C2 adversarial schedules F2 win32: crash after resume retains every launch liability",
+    "M96d RVM96C2 adversarial schedules F2 win32: crash after spawn retains every launch liability",
+    "M96d RVM96C2 adversarial schedules F2: spawn is impossible before durable intent or after a failed sync",
+    "M96d RVM96C2 adversarial schedules F3 darwin: mistaken user confirmation cannot hand off a pending rename",
+    "M96d RVM96C2 adversarial schedules F3 linux: mistaken user confirmation cannot hand off a pending rename",
+    "M96d RVM96C2 adversarial schedules F3 win32: mistaken user confirmation cannot hand off a pending rename",
+    "M96d RVM96C2 adversarial schedules F4 linux: PID reuse between query and dispatch cannot retarget a signal",
+    "M96d RVM96C2 adversarial schedules F4 macOS: precise observation still cannot authorise a numeric-PID signal",
+    "M96d RVM96C2 adversarial schedules F4 win32: PID reuse between query and dispatch cannot retarget a signal",
+    "M96d RVM96C2 adversarial schedules F4: microseconds distinguish macOS incarnations within one ps second",
+    "M96d release and fallback obligations F4: retirement refuses a changed boot on the same token",
+    "M96d release and fallback obligations F4: retirement refuses a changed kind on the same token",
+    "M96d release and fallback obligations F4: retirement refuses a changed pid on the same token",
+    "M96d release and fallback obligations F4: retirement refuses a changed platform on the same token",
+    "M96d release and fallback obligations F4: retirement refuses a changed start on the same token",
+    "M96d release and fallback obligations F4: retirement refuses a changed validated on the same token",
+    "M96d release and fallback obligations a matching but unsafe process-group or coarse reference cannot release even with a claimed empty tree",
+    "M96d release and fallback obligations darwin exfat: fallback only before enrolment; unresolved work stays held",
+    "M96d release and fallback obligations darwin fat32: fallback only before enrolment; unresolved work stays held",
+    "M96d release and fallback obligations darwin nfs: fallback only before enrolment; unresolved work stays held",
+    "M96d release and fallback obligations darwin unknown: fallback only before enrolment; unresolved work stays held",
+    "M96d release and fallback obligations darwin: complete qualified retirement has a positive release path",
+    "M96d release and fallback obligations darwin: unqualified native helpers or damaged durable state cannot enrol",
+    "M96d release and fallback obligations leader exit, a process group and missing confirmation cannot prove descendant retirement",
+    "M96d release and fallback obligations linux exfat: fallback only before enrolment; unresolved work stays held",
+    "M96d release and fallback obligations linux fat32: fallback only before enrolment; unresolved work stays held",
+    "M96d release and fallback obligations linux nfs: fallback only before enrolment; unresolved work stays held",
+    "M96d release and fallback obligations linux unknown: fallback only before enrolment; unresolved work stays held",
+    "M96d release and fallback obligations linux: complete qualified retirement has a positive release path",
+    "M96d release and fallback obligations linux: unqualified native helpers or damaged durable state cannot enrol",
+    "M96d release and fallback obligations new authority never frees the old ledger and cannot bypass a frozen holder",
+    "M96d release and fallback obligations only exact durable complete retirement releases once; lost acknowledgement cannot reopen it",
+    "M96d release and fallback obligations rejects reordered launch transitions and duplicate grant/intent publication",
+    "M96d release and fallback obligations restart invalidates old retirement authority while preserving unresolved grants",
+    "M96d release and fallback obligations win32 exfat: fallback only before enrolment; unresolved work stays held",
+    "M96d release and fallback obligations win32 fat32: fallback only before enrolment; unresolved work stays held",
+    "M96d release and fallback obligations win32 nfs: fallback only before enrolment; unresolved work stays held",
+    "M96d release and fallback obligations win32 unknown: fallback only before enrolment; unresolved work stays held",
+    "M96d release and fallback obligations win32: complete qualified retirement has a positive release path",
+    "M96d release and fallback obligations win32: unqualified native helpers or damaged durable state cannot enrol"
+  ],
+  "drills": [
+    {
+      "id": "F1-endpoint-release",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        [
+          "this.reachable = false",
+          "this.reachable = false\n    for (const record of this.grants.values()) record.phase = 'terminal'"
+        ]
+      ],
+      "expectedFailure": "F1",
+      "exitCode": 1,
+      "failedCount": 13,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "777427be263f42673a3dd254d4a9f680260c3608c20c708b423be69e6a948fc7",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "9451725bc841962c00ce2084dcb68175dbebad92c5e0224bdfd4c44932db4fe9",
+      "logSha256": "aa5508e8fe58ae3a495df15378df9dd68d25bd4464fb02f54517235008856035"
+    },
+    {
+      "id": "F1-endpoint-election",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["return hasAnchor", "return hasAnchor || !this.reachable"]],
+      "expectedFailure": "F1",
+      "exitCode": 1,
+      "failedCount": 13,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "f03fc249f9757fe4f50cfdc223a5ab07044cbdd1d2fc68a6b5ac2b6d9c5c27fb",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "32c29e2ee654131287b65d0e92b698ea9c8f36bcac7e56cb9b1aeafe43d93a02",
+      "logSha256": "063923f32744349616f2acb9f888d83ea905db06153e4d5f3d4cab77f58de6ae"
+    },
+    {
+      "id": "F1-election-clears-ledger",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["return hasAnchor", "this.grants.clear()\n    return hasAnchor"]],
+      "expectedFailure": "new authority never frees",
+      "exitCode": 1,
+      "failedCount": 14,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "60941883126dd6ea4705e3cdef8d1bdc162b5eaf310267e7e6f856fab881be7f",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "34ebe93fc6b362de2db9c41b00fdd07a0a9480d1880af174e96d13489d97d8bc",
+      "logSha256": "ff1df4277411497d236cdc29a74710c6f1df8c8bc870d0b29ed42d18e90050a9"
+    },
+    {
+      "id": "F1-timer-release",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        [
+          "// A timer affects availability only, never retirement.",
+          "for (const record of this.grants.values()) record.phase = 'terminal'"
+        ]
+      ],
+      "expectedFailure": "F1",
+      "exitCode": 1,
+      "failedCount": 15,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "c0452a317a07776edeb2abe77f5e029fd6a7dcfca0f6bfdf2622f0ba8f91f8f6",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "c45b08403904f0a328588c2d2aa3f7bf9a9aeb6fcbf66735401ffa5a6bbbe3f7",
+      "logSha256": "b9fe84faef913392db7554dd869fe8d892e6a9a6cbcb03832f02bface2846a50"
+    },
+    {
+      "id": "F2-owner-exit-release",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        [
+          "// Owner death cannot discharge pending launches, descendants or effects.",
+          "for (const record of this.grants.values()) record.phase = 'terminal'"
+        ]
+      ],
+      "expectedFailure": "F2",
+      "exitCode": 1,
+      "failedCount": 15,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "9623d472206758d4510cde4dc746e63f7077d7604f6a54f9979b536d9abe501c",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "3f6155b1ab3db10c244a351e8bcecb38882c9ca6645b4521cf014125d95c336e",
+      "logSha256": "4dc8b2e169f448a334a5886f312ee06a226f0da1a336ea50fe1ee65e512eecb4"
+    },
+    {
+      "id": "F2-intent-sync",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["if (!isSynced || record?.phase", "if (record?.phase"]],
+      "expectedFailure": "spawn is impossible",
+      "exitCode": 1,
+      "failedCount": 1,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "ea126949c38a31a6105d21c9b77433946e6f1d2a7bd980910bb071a237218166",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "0ec118ae2f699de8ebe36d0d2bebf7933640b4980600278cbff3f18b47ac2ec8",
+      "logSha256": "ad961589cfa5156031fc794e7f4e06f13dc0dca72f8e1cffe2ecd0a034d57db5"
+    },
+    {
+      "id": "F2-spawn-before-intent",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        ["if (record?.phase !== 'intent') return false", "if (record === undefined) return false"]
+      ],
+      "expectedFailure": "spawn is impossible",
+      "exitCode": 1,
+      "failedCount": 2,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "23f5029acbc4214bba1754190639ab432048f7201a93efdb253331c33c81d44b",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "a6c2130828f3dc1c8bba84a14e75ea0cca5fdf63bd75d086645b8a9a6db2abba",
+      "logSha256": "b023881f52594fa81b0a3bb7b36abdfe3fb72d48b0874a5ec95e5b13f3babdfe"
+    },
+    {
+      "id": "F2-reordered-register",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        [
+          "if (record?.phase !== 'spawned') throw new Error('Not spawned')",
+          "if (record === undefined) throw new Error('Not spawned')"
+        ]
+      ],
+      "expectedFailure": "reordered launch transitions",
+      "exitCode": 1,
+      "failedCount": 1,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "25e367a0393b3b3eed19cceb22134ec3fc0975c336fc2c99da22d1928112f285",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "28452a33ae1acf4e64faa16de3dbe4f3998497c64aafe9470fbea0111fcf2f9e",
+      "logSha256": "94d494d0ac44817b1582185c749db940ae19fd1ee173ccd82217ef4d42172e3b"
+    },
+    {
+      "id": "F2-reordered-resume",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        [
+          "if (record?.phase !== 'registered') throw new Error('Not registered')",
+          "if (record === undefined) throw new Error('Not registered')"
+        ]
+      ],
+      "expectedFailure": "reordered launch transitions",
+      "exitCode": 1,
+      "failedCount": 1,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "020c01b26b4fd383f82e7bae5536a3fed1614c7019498611b31813defe61d48b",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "744d166528e2f30f36fbf5be102e42a0e210c51abff99d40b7298fd4f5cc30df",
+      "logSha256": "7e26246e09ad84e8aacea34aa4f1054c3ec2ae040835a99dda3534edc9d755b0"
+    },
+    {
+      "id": "F3-user-release",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        [
+          "public userConfirmedStopped(_id: string): boolean {\n    return false",
+          "public userConfirmedStopped(_id: string): boolean {\n    const record = this.grants.get(_id)\n    if (record !== undefined) record.phase = 'terminal'\n    return true"
+        ]
+      ],
+      "expectedFailure": "F3",
+      "exitCode": 1,
+      "failedCount": 3,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "4aad529a574c120960b109e8dd520de56c365e2c02d9af94128b3ff52980085c",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "432cff695985e7a7ccb0cd69c458f8fd5c31a5e6ce32666f4b7ccd9403c8184b",
+      "logSha256": "d95b341f55d79d2f7f595a52703144e81f62cb4904d03cb4d196b87fd909d726"
+    },
+    {
+      "id": "F3-pending-rename",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["      record.pendingRename ||\n", ""]],
+      "expectedFailure": "F3",
+      "exitCode": 1,
+      "failedCount": 3,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "84835f093e296324aba18ce188a168d24653381e2430774bcd04ec0b5351eeea",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "7025a28d2f7c36e39ddf7b06cfe1fcc28587cfde31d529f1e8df48e2c70ac484",
+      "logSha256": "b3149d7316cd967b114cb4af36deb5d0247a657bf8fd3528986cd8f40b2f738c"
+    },
+    {
+      "id": "F4-numeric-signal",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [[": expected.token", ": `pid:${String(expected.pid)}`"]],
+      "expectedFailure": "PID reuse between query",
+      "exitCode": 1,
+      "failedCount": 2,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "2aafc23be2af748f6804bfa43523aca946009e2f1d0311ad4cc442aadcb50abb",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "c640c3e7b0dc5e3ac9bd42e8692d29064775da768cd5e5ecb73ecb03fc8141dd",
+      "logSha256": "801329226a50f46ca9a64f998b5cccc1d51817b480927cb3292ad71a45b971f6"
+    },
+    {
+      "id": "F4-coarse-start",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        [
+          "expected.start === observed.start",
+          "expected.start.slice(0, 6) === observed.start.slice(0, 6)"
+        ]
+      ],
+      "expectedFailure": "retirement refuses a changed start",
+      "exitCode": 1,
+      "failedCount": 1,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "97174c2ddaa3e49353b8e72d1eb7808cf8fd07bb5b64fc7fdce177d34ff72fcb",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "7f68aee2c5ae43ad9af6ec2544d11bac117d871b3882b7721f4aca5e22c9e94d",
+      "logSha256": "f8a9e4e3c73028f95abab00df01efde3765d7b498bd9663594cb4b0c7291458a"
+    },
+    {
+      "id": "F4-macOS-numeric-authority",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["    observed.platform === 'darwin' ||\n", ""]],
+      "expectedFailure": "F4 macOS",
+      "exitCode": 1,
+      "failedCount": 1,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "5dee3e13e4bf661c7b01330b3d56ca9402737bca4e8e54d95cfead25b8322419",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "8a26f10bb296c1f55dc0222355255584e2f9eb1bc43e9db5dd323bf3c0704057",
+      "logSha256": "5363bea4a090e15e5b9b73ef926df31a683c39f2494d7601dc924209cb7337b5"
+    },
+    {
+      "id": "F4-unvalidated-captured-reference",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["    expected.validated &&\n", ""]],
+      "expectedFailure": "PID reuse between query",
+      "exitCode": 1,
+      "failedCount": 2,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "5a785b8e3d3b1fad11e777b3f9b1b2c490e11d6f268e17e2297f56b916acad3a",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "0f1616eab67c0c7ed587da6bd4033ed401538a403c71f1e4607e2ea4a8f13d3f",
+      "logSha256": "c95818aa2ce2356015e738d3138c0285c521361206eed6bf8c49ae51934f2d5f"
+    },
+    {
+      "id": "F4-unvalidated-observation",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["    observed.validated &&\n", ""]],
+      "expectedFailure": "retirement refuses a changed validated",
+      "exitCode": 1,
+      "failedCount": 3,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "5c4f92a2a0f3ed7a9921033183164b5e6124ea9d78feedc873d750d002474ac2",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "3fd70a9feda9eb0b455d5169aff6feda2bff552b30a3873bb0fcd7a22aba4a2f",
+      "logSha256": "4119d59a9dd80692d66071fd5bdf6c2bf83ea5e604e9c5ac5ac67c3f811c84f3"
+    },
+    {
+      "id": "F4-incomplete-binding",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        ["    expected.platform === observed.platform &&\n", ""],
+        ["    expected.kind === observed.kind &&\n", ""],
+        ["    expected.token === observed.token &&\n", ""],
+        ["    expected.boot === observed.boot &&\n", ""],
+        ["    expected.start === observed.start &&\n", ""],
+        ["    expected.pid === observed.pid", "true"]
+      ],
+      "expectedFailure": "retirement refuses a changed",
+      "exitCode": 1,
+      "failedCount": 6,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "b88bb04829948fa3d1c1f41922d59861a0fc651bb4af6ba00c4346e2c96bd3fc",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "95b9a3d3a922aad85696d52fe40401fe4b1ce2a6a96ae4bee310e23c79651959",
+      "logSha256": "222e8953a906fffc6c35285a4cc7e7181e6479c8da37f27bf1732c5742ac8471"
+    },
+    {
+      "id": "F4-unsafe-reference-kind",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["      !isStableReference(proof.reference)\n", "      false\n"]],
+      "expectedFailure": "matching but unsafe",
+      "exitCode": 1,
+      "failedCount": 1,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "b7e0f1555931be1dc799c1164560d479c83eeab292831e33c46e1831ef46b455",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "eee1f23b4da9db1b4c6e21e6b48af8518b91076673f72477e7b20e9a6175ce1c",
+      "logSha256": "77e8430cd2b3e340accf4fb219a3b741dc492dcd058130aeca88c231477a225e"
+    },
+    {
+      "id": "retirement-before-sync",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["      !isSynced ||\n", ""]],
+      "expectedFailure": "only exact durable complete retirement",
+      "exitCode": 1,
+      "failedCount": 1,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "424dab0cd923b31378ef24d429aad8de7d50c19565239de58e272f0e6304406d",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "dac087dfe884b3bfd61ec680107be4a064918f8c7b977b7112727a6b2ab05f01",
+      "logSha256": "03be12ff1a24d5a063ca3f3f2b2afef4f8d5effe81b3b6b869fb8cb161ebdac1"
+    },
+    {
+      "id": "retirement-wrong-epoch",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["      proof.epoch !== this.epoch ||\n", ""]],
+      "expectedFailure": "only exact durable complete retirement",
+      "exitCode": 1,
+      "failedCount": 1,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "bd28dd2726d16cfde4a8a6679e5c5ede9aec84bd8f03e5d4e9c552b05896ae36",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "4a526ff2e40f0187d11ea63c66987c811c9f863ed6bd98f718ba25607c6317f7",
+      "logSha256": "517adb8ac9045862b36f39502c78b08f0822826b05c552c6a1c20cb13baa3d1b"
+    },
+    {
+      "id": "retirement-leader-only",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["      !proof.treeEmpty ||\n", ""]],
+      "expectedFailure": "leader exit, a process group",
+      "exitCode": 1,
+      "failedCount": 2,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "bb28e52b504e0c4bfa70be711d59eb88e4d44265f643ff6f7560049695aa04ba",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "5cee112ec0471758777c3267bd6a686c641cf4631c3735e7b114278764a0e3ad",
+      "logSha256": "57fb5efbdc979df6527a88a311d23b9f764a526d213870671302dab3cf170fbb"
+    },
+    {
+      "id": "retirement-undrained-effects",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["      !proof.effectsDrained ||\n", ""]],
+      "expectedFailure": "only exact durable complete retirement",
+      "exitCode": 1,
+      "failedCount": 1,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "8bfe2bda355f8a33a558c1c42dfadb03fba31fe70c8f1b18b2ab4f8eda8256ce",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "3d78a2578f56cdd69dc0c76da2e2a669865d5b1b7e95d29dd7d15095ba337c54",
+      "logSha256": "c0256f928bf068c1f7d8ac1fdab1e5c6bc30595b34a7374dc830e8611467b758"
+    },
+    {
+      "id": "retirement-without-exit",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["      !proof.reference.exited ||\n", ""]],
+      "expectedFailure": "only exact durable complete retirement",
+      "exitCode": 1,
+      "failedCount": 1,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "3b8d52cfb7bd574c40e483de4663cd1af870fe0547a499f69cf4ba6b7f5e7839",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "595f3184603a84025722d975118207869e63ebdb684de41f9815e41255f6da08",
+      "logSha256": "0a405d15c5724b3b71fec11e83c90e711c5c0e957830f4293feb576cf9314b80"
+    },
+    {
+      "id": "retirement-duplicate",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["      record.phase === 'terminal' ||\n", ""]],
+      "expectedFailure": "only exact durable complete retirement",
+      "exitCode": 1,
+      "failedCount": 1,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "1c8a24ae34dfe9ca7eea9fb8c155917643cc039371f3be37c6b85adb9e148fa0",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "82f21819acedd74e68932dd2b86420b5984c52401f1deb6385fa44c69cc96357",
+      "logSha256": "5f61a4a85870a5cd3b2f3ea3eb2f73836336034f61de49701c0450fc692d0168"
+    },
+    {
+      "id": "terminal-not-published",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        [
+          "    record.phase = 'terminal'\n    return true",
+          "    record.phase = 'running'\n    return true"
+        ]
+      ],
+      "expectedFailure": "complete qualified retirement has a positive",
+      "exitCode": 1,
+      "failedCount": 4,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "12fa39cbfd97c0b830bb3592e3fbf3494d3a6ed635f57b3093db0a2f383e9631",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "2c1092cf6cdac668cb3fc44eb5fcbcbe307ac019f6c302fe4abcde4a895f92c6",
+      "logSha256": "0429bc4669683fadd6d9f45d1750885722851511b6b177325aaee0a1e93fb89e"
+    },
+    {
+      "id": "restart-reuses-handle",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        ["        reference: undefined,\n", "        reference: record.reference,\n"]
+      ],
+      "expectedFailure": "restart invalidates old retirement",
+      "exitCode": 1,
+      "failedCount": 1,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "2c1e9eb686af0fca9a7cce4015b467651daa752b9e1bf911a59b14af80b01658",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "62a4d4cd31f052ff5cbc9c960448f788f6f09e5a788bf4277f3dfaa5f63037d1",
+      "logSha256": "88073a02ea37db1f35535b87f03d1d0089f0869d6ab97536240e2f1b31f22b33"
+    },
+    {
+      "id": "restart-forgets-unresolved",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        [
+          "    for (const [id, record] of this.grants)\n",
+          "    for (const [id, record] of this.grants)\n      if (record.phase === 'terminal')\n"
+        ]
+      ],
+      "expectedFailure": "F2",
+      "exitCode": 1,
+      "failedCount": 16,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "45c4378bf9434b82b63486e0cc2ed13dd8b04fe94db491796bc8988c99da5cfa",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "da75e85d950427ccce57ee56aca6c49b20b2a3b9aaaa7614bb4bfbb4d167ec04",
+      "logSha256": "2b7099c9f9ad08b810862c6a3e0685f52154241871f6bd58f2a501a2ff0f677c"
+    },
+    {
+      "id": "fallback-over-open-grants",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["hasUnresolvedGrants || ", ""]],
+      "expectedFailure": "fallback only before enrolment",
+      "exitCode": 1,
+      "failedCount": 15,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "f82376a09e1b496a1423d024356e1919525458fcf4845557b0d06b122f077c52",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "de51e1506ff9477585eb10e61316b2824477a88704487aa2af8af6f064f0472c",
+      "logSha256": "5672ff79f2e21c7441f5bd4736ea6ceffbc9587129f79694723b8a2e922d9770"
+    },
+    {
+      "id": "fallback-unsupported-store",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["prerequisites.filesystem === 'local' && ", ""]],
+      "expectedFailure": "fallback only before enrolment",
+      "exitCode": 1,
+      "failedCount": 12,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "1abedf3a4aea5fb90cd7954db89bf356b36dd9c10bdf137fe5c983bd8721f536",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "cca89101ab047376e2285fd1d5cd092fd8a64d66a6a9bb4f55851a9b9deb7a9e",
+      "logSha256": "7b41352c24fc4c4d15e797b687649098f90b80d408ab233a298f66c8c5d82669"
+    },
+    {
+      "id": "fallback-unqualified-native",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [[" && prerequisites.nativeQualified", ""]],
+      "expectedFailure": "unqualified native helpers",
+      "exitCode": 1,
+      "failedCount": 3,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "7dcad1d16b3705797ff3e3224a59bf5f1eb04fae3da4188e68ebc88b378ed9dd",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "18774a4e27ce00fdfffcd873f2e1fb354c8be0d4a446e19139bed5dfc537e83a",
+      "logSha256": "59fe0ff24b5db92416865ff44df504a231f18b4200df377faccec72905dfc179"
+    },
+    {
+      "id": "fallback-damaged-store",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["hasUnresolvedGrants || !prerequisites.storeValid", "hasUnresolvedGrants"]],
+      "expectedFailure": "unqualified native helpers",
+      "exitCode": 1,
+      "failedCount": 3,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "944740889a6c4c02cd61982078e5022e26ec2dc59e2b9c879beaa211377ac473",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "fc461c606bc684c6b48984f08f1cf9b23a9541b6e3b5c7d18f5549df4168d140",
+      "logSha256": "19d14041444d05eeee4cac0263cddd80fdbeda66d7e8c08b18a8b4ea71af9d97"
+    },
+    {
+      "id": "duplicate-grant-reuse",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["    if (this.grants.has(id)) return false\n", ""]],
+      "expectedFailure": "reordered launch transitions",
+      "exitCode": 1,
+      "failedCount": 2,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "9b43292181c37783913d9f141dee1989d21fe7e9a3941e06df1d949b72d7068a",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "5db0c81764b97b5b85567f6021f81bb4a27807bf2462bf1402626fb8e78f1474",
+      "logSha256": "81ca836e82f98caa556643c4b254d916cb8c67fe4ca31309109fa5070e78803a"
+    },
+    {
+      "id": "F4-macOS-coarse-signal",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        [
+          "expected.start === observed.start",
+          "expected.start.slice(0, 6) === observed.start.slice(0, 6)"
+        ],
+        ["    observed.platform === 'darwin' ||\n", ""]
+      ],
+      "expectedFailure": "microseconds distinguish macOS",
+      "exitCode": 1,
+      "failedCount": 3,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "663037eabd128f6a85c9d998cd336f9cbe46cb2767fafe0e740afdb76e38af5e",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "ab0573ab3ca5b8a7af41a167156af3bd841d5c70b6627082143b4f9a8875cdf0",
+      "logSha256": "a4366cc3adef178a8463bc50cd884c3ca8383407e703c8df3a031d7d1db4d4fd"
+    },
+    {
+      "id": "F3-reordered-freeze",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        [
+          "if (record?.phase !== 'running') throw new Error('Not running')",
+          "if (record === undefined) throw new Error('Not running')"
+        ]
+      ],
+      "expectedFailure": "reordered launch transitions",
+      "exitCode": 1,
+      "failedCount": 1,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "32b5d74bd90e29dc17dd34d782ae160ce739d93fa7d5f82211b43a56df5020ee",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "300a9d6768a694b69971ce0b9ab917d55477f2bb6d66f6845d5699dfeb6e0176",
+      "logSha256": "ea5de1073957bb3215d3aa9d4b249c17c56fce6408c53d1d0c4a4a68801addd3"
+    },
+    {
+      "id": "F3-rename-without-pending-work",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        [
+          "if (record?.pendingRename !== true) return false",
+          "if (record === undefined) return false"
+        ]
+      ],
+      "expectedFailure": "reordered launch transitions",
+      "exitCode": 1,
+      "failedCount": 1,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "d7265e3dccf244cb1cdbbb1363e0f80ec68ea33eec2e197886b8733d4b585361",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "a8114db0a7df15858aa4c05d1833157a19bec0d6baa2ef2f634718b2aba23007",
+      "logSha256": "61ad2aee6ebb414b6f5b6adda489a79bd3a1bf03189752a602cf88c4a136b7bf"
+    },
+    {
+      "id": "resource-exclusion-bypassed",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["held.phase !== 'terminal' &&", "held.phase === 'terminal' &&"]],
+      "expectedFailure": "F1",
+      "exitCode": 1,
+      "failedCount": 36,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "1b705fb6a7e9433f278a666c5dba39694a60b786b211738c37e36c7799162ebf",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "f7f752fbecfe46c396c3e02f02a8f35c53b91bebca5cd766b9de68b5efde27bf",
+      "logSha256": "28acfffc8c5ae9da01c792b2a3938a3ef77beb1381bccb36151422bba52f1772"
+    },
+    {
+      "id": "F4-exited-signal-reference",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [["    observed.exited\n", "    false\n"]],
+      "expectedFailure": "PID reuse between query",
+      "exitCode": 1,
+      "failedCount": 2,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "e232f7648f96f516bbd714df373a2b6c6c8bdafc17b2da0d8f6cbe356f06dbb8",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "438259abc7b80254b4c14957e131181c51ce83f31dbabc3cd07a15c173628177",
+      "logSha256": "e3a950d4588a320f18a4882ea410e2a1cd9151377be188e20d2e38725847afd5"
+    },
+    {
+      "id": "F2-unregistered-retirement",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        ["      record?.reference === undefined ||\n", "      record === undefined ||\n"],
+        [
+          "      !isSameReference(record.reference, proof.reference) ||\n",
+          "      (record.reference !== undefined && !isSameReference(record.reference, proof.reference)) ||\n"
+        ]
+      ],
+      "expectedFailure": "missing confirmation",
+      "exitCode": 1,
+      "failedCount": 2,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "daca57e54a95eec64e3af1b1d63f92576448e88ed49643be100c1672dd628d25",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "782c5ba0a2e0d878d48e2b3e7d008ba9dd120d94322bf8198f7f73ff6b605bdd",
+      "logSha256": "cdac24ec037909b261506be388870bfb249235782323a1904a32e1b0c5702469"
+    },
+    {
+      "id": "F2-duplicate-intent",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        [
+          "if (!isSynced || record?.phase !== 'reserved') return false",
+          "if (!isSynced || record === undefined) return false"
+        ]
+      ],
+      "expectedFailure": "reordered launch transitions",
+      "exitCode": 1,
+      "failedCount": 1,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "439de050561fa248d6ab8e78f5976ad5d843b27fbfdd1bb25c80f06df95ac68e",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "c0d257c10986b353a57cb9bd936f8f77124a79d12684bd74c364b7fc264dfb63",
+      "logSha256": "30cfafeee6cd5fc59d7ebf6ca245021e4334ab519abd24c004b3d7b502c8a500"
+    },
+    {
+      "id": "retirement-wrong-grant",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        [
+          "const record = this.grants.get(proof.grant)",
+          "const record = this.grants.values().next().value"
+        ]
+      ],
+      "expectedFailure": "only exact durable complete retirement",
+      "exitCode": 1,
+      "failedCount": 1,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "377b20e29846aeb4d82f3e2353833d0262087dbb687f081832fabe01b933cd6e",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "1fbff0df4ac56509f049d4b69cc9f6b46579afd8be63361765bc15a8391099e5",
+      "logSha256": "b2ac68acf7aa7bd3e16058605bf2232943f0c89c72ce442d3b88aacfec2592f3"
+    },
+    {
+      "id": "F4-unbound-untyped-proof",
+      "source": "test/unit/helpers/m96dCoordinatorSpecification.ts",
+      "replacements": [
+        ["    expected.platform === observed.platform &&\n", ""],
+        ["    expected.kind === observed.kind &&\n", ""],
+        ["    expected.token === observed.token &&\n", ""],
+        ["    expected.boot === observed.boot &&\n", ""],
+        ["    expected.start === observed.start &&\n", ""],
+        ["    expected.pid === observed.pid", "true"],
+        ["      !isStableReference(proof.reference)\n", "      false\n"]
+      ],
+      "expectedFailure": "retirement refuses a changed platform",
+      "exitCode": 1,
+      "failedCount": 9,
+      "beforeSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "mutatedSha256": "d9445cf572cad1460ee1bcf0f1a56d1afcaf2d1b54332e8d5312eb0338a0be36",
+      "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97",
+      "reportSha256": "11ff4f3271f02f635609080174342aa5da174ac17711f542e0d2d0f5dadc8a36",
+      "logSha256": "f63aca3beddcb031eb097b8b2b1c3a7a3928cf58c86b582b650e84fc167e8865"
+    }
+  ]
+}

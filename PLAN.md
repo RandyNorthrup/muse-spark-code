@@ -19180,6 +19180,16 @@ in-tree junctions below it, drive-letter spelling) and
 
 ## 3. Open questions (need the owner)
 
+- **Q-C-M96d-1 (2026-10-10):** the design spike proposes retaining every
+  unproved launch/effect, no manual lock release, a qualified permanent
+  native anchor/store, and M96c's window-scoped fallback before enrolment
+  where complete execution containment cannot be proved (notably arbitrary
+  macOS commands). The design, failing-first schedules and review are in
+  `docs/design/m96d-coordinator.md` and `docs/certification/m96d-spike.md`.
+  The lead's ruling and independent acceptance remain required before the
+  Claude host's C-M96d-2 build; this lane cannot certify native three-OS
+  adapters or issue that ruling on the lead's behalf.
+
 **Q-VISREGEN2 resolved by lead (2026-10-09).** Preserve every 0.17.0
 change and Highlight while tightening only that release's wording below
 72,000 decoded bytes. Keep 0.16.0 and older notes byte-exact and all content
@@ -27406,7 +27416,34 @@ it process lifetime, the journal, hints and the load guard. The research is
 
 ### M96d — The machine coordinator spike, and the scheduler optimisations (D75)
 
-**Status 2026-10-04: planned.**
+**Status 2026-10-10: planned.** Coordinator design and test-only safety
+specification delivered by C-M96d-1; production implementation, independent
+acceptance and the lead ruling remain outstanding.
+
+**C-M96d-1 design spike (2026-10-10, design and scoped certification complete).** This lane delivers
+the coordinator design and test-only counterexamples for `RVM96C2` 1–4,
+not a production coordinator. First write the adversarial schedules, then
+the executable specification; prove each guard with a failing mutation and
+byte-exact SHA-256 restoration. Review validation/security, failure paths,
+concurrency/lifecycle and documentation together. Record platform proof
+obligations, unsupported-filesystem handling and the pre-enrolment M96c
+window-scoped fallback in `docs/design/m96d-coordinator.md`; record tests,
+review and the lead's outstanding ruling in
+`docs/certification/m96d-spike.md`. No new command, setting, UI, dependency,
+wire shape, machine grant or runtime binding ships in this lane. The Claude
+host owns C-M96d-2's build and native three-OS receipts. Run scoped rig
+checks here; full quality remains the lead's integration gate. No merge,
+push, rebase or live/paid call is authorised by this spike.
+
+Spike work checklist:
+
+- [x] Write the four counterexample schedules before the specification.
+- [x] Specify authority, durable launch, frozen-holder exclusion and exact
+      process references, with an explicit release proof for each resource.
+- [x] Record the three-OS/filesystem matrix and editor rollout boundary.
+- [x] Run red drills, scoped gates and the complete spike review; commit
+      with the installed hooks and re-read their result.
+- [ ] Obtain the lead ruling and independent acceptance before C-M96d-2.
 
 Status detail retained: planned; starts after M96c merges. M96c's first
 delivery left these out:
