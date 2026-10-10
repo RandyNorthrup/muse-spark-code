@@ -69,12 +69,12 @@ describe('webview import budgets', () => {
     )
     expect(groups).toEqual([
       {
-        name: 'native startup JS/CSS',
+        name: 'native startup resources',
         budgetKiB: 1100,
         outputs: [main, CORE, SHARED, loader, css],
       },
       {
-        name: 'companion startup JS/CSS',
+        name: 'companion startup resources',
         budgetKiB: 1100,
         outputs: [main, CORE, SHARED, loader, css],
       },

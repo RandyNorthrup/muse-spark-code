@@ -19,7 +19,7 @@ export function portableBridgeSetup(bridge, wireVersion) {
         else window.fetch = async (input, init) => {
           if (input === '/host/events') return new Response(new ReadableStream({ start() {} }), { headers: { 'Content-Type': 'text/event-stream' } });
           if (input === '/panel/events') return new Response(new ReadableStream({ start(value) { stream = value; } }), { headers: { 'Content-Type': 'text/event-stream' } });
-          if (typeof input === 'string' && input.startsWith('/assets/')) return assetFetch(input, init);
+          if (!['/host/message', '/panel/message', '/panel/surface'].includes(input)) return assetFetch(input, init);
           const frame = JSON.parse(init.body);
           if (frame.kind === 'panel') posts.push(frame.payload);
           return new Response(null, { status: 204 });

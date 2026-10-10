@@ -221,6 +221,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Portable startup accounting now records every built resource served by the
+  browser context, including dedicated-worker fetches, fonts and extensionless
+  outputs. Unknown boot URLs and unroutable shared/service-worker boot activity
+  fail explicitly. Startup and total-JavaScript caps remain unchanged.
 - Portable startup gates now boot both production bridge variants in headless
   Chrome and count JS/CSS requested before chat's first-render mark, including
   imports awaited inside call arguments or helpers. They replace source-syntax

@@ -86,7 +86,7 @@ const PORTABLE_TOTAL_BUDGET_KIB = 1486
 export function portableWebviewBudgetGroups(meta, variants) {
   return [
     ...variants.map(({ variant, outputs }) => ({
-      name: `${variant} startup JS/CSS`,
+      name: `${variant} startup resources`,
       budgetKiB: PORTABLE_STARTUP_BUDGET_KIB,
       outputs,
     })),

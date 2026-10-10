@@ -573,6 +573,19 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**M104 F4 round 5 (2026-10-10, RVM104F4E; lead measurement boundary).**
+Count at the source: context-level routes record every built resource answered
+for any supported target whose request started before the render marker,
+independent of suffix or resource type, once by path/byte-length/SHA-256 identity.
+Non-built requests outside the explicit measurement document/origin contract
+fail with a named diagnostic; unroutable worker activity is explicitly refused.
+Regress awaited Blob-worker deferred fetches, the real built Inter WOFF2,
+an extensionless built resource and a non-built URL. Prove worker coverage and
+non-JavaScript accounting fail under deliberate mutations and restore byte-exact.
+Startup stays 1,100 KiB and total JavaScript 1,486 KiB; retain the current
+887,044 / 908,902-byte production counts unless source accounting finds real bytes.
+Full quality remains lead-owned; scoped checks run directly on Kubuntu.
+
 **M104 F4 round 4 (2026-10-10, RVM104F4D; lead redesign).** The static
 boot walk missed awaited call arguments and helper bodies, so its accounting and
 `bootImport` guard are replaced by production page boots in headless Chrome.
@@ -37944,6 +37957,19 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**M104 F4 round 5 (2026-10-10, RVM104F4E; lead measurement boundary).**
+Count at the source: context-level routes record every built resource answered
+for any supported target whose request started before the render marker,
+independent of suffix or resource type, once by path/byte-length/SHA-256 identity.
+Non-built requests outside the explicit measurement document/origin contract
+fail with a named diagnostic; unroutable worker activity is explicitly refused.
+Regress awaited Blob-worker deferred fetches, the real built Inter WOFF2,
+an extensionless built resource and a non-built URL. Prove worker coverage and
+non-JavaScript accounting fail under deliberate mutations and restore byte-exact.
+Startup stays 1,100 KiB and total JavaScript 1,486 KiB; retain the current
+887,044 / 908,902-byte production counts unless source accounting finds real bytes.
+Full quality remains lead-owned; scoped checks run directly on Kubuntu.
+
 **M104 F4 round 4 — measure the boot (2026-10-10, RVM104F4D).** Replace
 source-syntax boot accounting with headless Chrome boots of the production
 native and companion pages using the existing bridge fakes and authenticated
@@ -38310,7 +38336,7 @@ keeping its detailed native qualification catalogue generated too.
 Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
 in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
 
-**Status 2026-10-10: waiting.** All five phase-2 lanes are joined locally on Kubuntu. F4 round 4 measures separate startup/total caps by booting both production native/companion variants to the first-render mark. SAST findings, native bridge contract checks, installed qualification and the next resource-chip parity lane remain blockers. M104 F3 repairs the four ACP resource fixtures and the twelve recorded duplication findings; their complete touched suites and the zero-clone gate pass. Retained requirements and receipts follow.
+**Status 2026-10-10: waiting.** All five phase-2 lanes are joined locally on Kubuntu. F4 round 5 measures separate startup/total caps by counting source-served resources across routed targets in both production native/companion boots through the first-render mark. SAST findings, native bridge contract checks, installed qualification and the next resource-chip parity lane remain blockers. M104 F3 repairs the four ACP resource fixtures and the twelve recorded duplication findings; their complete touched suites and the zero-clone gate pass. Retained requirements and receipts follow.
 
 **FIXM104PB / RVM104PB (2026-10-06).** Repair all four P2 findings and the
 P3 evidence error inside B's paid engines and their shared guards. One
@@ -38953,6 +38979,30 @@ and are not transferred or accepted as complete by these launcher repairs.
 ---
 
 ## 7. Gates
+
+**M104 F4 round 5 (2026-10-10, RVM104F4E; lead measurement boundary).**
+Count at the source: context-level routes record every built resource answered
+for any supported target whose request started before the render marker,
+independent of suffix or resource type, once by path/byte-length/SHA-256 identity.
+Non-built requests outside the explicit measurement document/origin contract
+fail with a named diagnostic; unroutable worker activity is explicitly refused.
+Regress awaited Blob-worker deferred fetches, the real built Inter WOFF2,
+an extensionless built resource and a non-built URL. Prove worker coverage and
+non-JavaScript accounting fail under deliberate mutations and restore byte-exact.
+Startup stays 1,100 KiB and total JavaScript 1,486 KiB; retain the current
+887,044 / 908,902-byte production counts unless source accounting finds real bytes.
+Full quality remains lead-owned; scoped checks run directly on Kubuntu.
+
+**M104 F4 round-5 shared-rig qualification (2026-10-10).** The complete
+unchanged fallback accessibility file runs at repository deadlines: 2,555
+passing cases across its three-file batch and one five-second timeout in
+`vscode fallback WCAG 2.2 AA > light/zh-cn/confirm at 320px` (1,613.96 seconds
+for the batch). That renderer and its matrix code are unchanged by this lane;
+the matrix does not use the modified transport fake. Retain the failure for
+lead-owned qualification on an available rig; no assertion, timeout or gate
+waiver, and no claim of aggregate quality. Both RVM104F4E source-boundary
+findings are repaired; this external qualification result is recorded separately
+in `docs/certification/m104.md` and the round-five receipt.
 
 **M104 F4 round-4 qualification (2026-10-10).** Both bundle gates charge
 production JS/CSS requested before the first-render marker, using headless

@@ -142,21 +142,34 @@ describe('independent portable startup and total budgets', () => {
     await import('../../scripts/check-bundle-size.mjs')
     expect(process.exit).not.toHaveBeenCalled()
     for (const [name, cap] of [
-      ['native startup JS/CSS', 1100],
-      ['companion startup JS/CSS', 1100],
+      ['native startup resources', 1100],
+      ['companion startup resources', 1100],
       ['total JS', 1486],
     ])
       expect(console.log).toHaveBeenCalledWith(
         `ok   portable ${name}: ${cap}.0 KiB (budget ${cap} KiB)`,
       )
   })
-  it.each([portable, eager, loader, css])('rejects one byte over startup in %s', async (extra) => {
+  it.each([
+    portable,
+    eager,
+    loader,
+    css,
+    'dist/webview/portable/inter.woff2',
+    'dist/webview/portable/boot-payload',
+  ])('rejects one byte over startup in %s', async (extra) => {
+    measurePortableStartup.mockResolvedValue(
+      ['native', 'companion'].map((variant) => ({
+        variant,
+        outputs: [...new Set([portable, loader, eager, css, extra])],
+      })),
+    )
     statSync.mockImplementation((file) => ({
       size: (file === portable ? startupBudget : 0) + Number(file === extra),
     }))
     await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
     expect(console.log).toHaveBeenCalledWith(
-      'OVER portable native startup JS/CSS: 1100.0 KiB (budget 1100 KiB)',
+      'OVER portable native startup resources: 1100.0 KiB (budget 1100 KiB)',
     )
     expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('OVER portable total'))
   })
@@ -183,7 +196,7 @@ describe('independent portable startup and total budgets', () => {
     )
     await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
     expect(console.log).toHaveBeenCalledWith(
-      'OVER portable native startup JS/CSS: 1100.0 KiB (budget 1100 KiB)',
+      'OVER portable native startup resources: 1100.0 KiB (budget 1100 KiB)',
     )
     expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('OVER portable total'))
   })
