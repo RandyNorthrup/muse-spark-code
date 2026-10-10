@@ -68,7 +68,7 @@ All vitest commands use repository timeouts and `--maxWorkers=3`, at most
 three files per invocation. Logs stay under ignored `temp/`.
 
 - `companionVoice.test.ts`, `companionVoicePaid.test.ts`,
-  `companionVoiceSystem.test.ts`: 62 tests passed on Linux.
+  `companionVoiceSystem.test.ts`: 63 tests passed on Linux.
 - `companionVoiceBrowser.test.mjs`: Final Chrome suite passed all eleven tests with
   `--use-fake-device-for-media-stream --use-file-for-fake-audio-capture`.
   Actual encoded audio, consent-before-mic, consent once, editor Allow/Deny/closed
@@ -99,7 +99,7 @@ explicit; generated Help/roadmap stay current. No Preview wording added.
 
 ## Red drills and final gates
 
-48 named mutations failed the owned tests at repository timeouts. Source
+49 named mutations failed the owned tests at repository timeouts. Source
 bytes were restored to the before-drill SHA-256 every time. Full receipts and
 failed test names: [m35-companion-drills.json](m35-companion-drills.json).
 Coverage includes WAV geometry/size/duration, hidden release entry points,
@@ -121,7 +121,7 @@ shutdown is proven in Chrome; packaged CLI/real editor receipts remain held.
 
 ### Final linuxlt receipts
 
-663 distinct tests across 20 owned/affected files passed (76 voice tests and
+664 distinct tests across 20 owned/affected files passed (77 voice tests and
 587 owning regressions). The final reference/runtime/CLI process batch passed
 164/164 after reference generation; the stale-file setup failure was not
 counted as a passing or skipped certification. Earlier reference generation
@@ -146,3 +146,25 @@ Same-day fixes include ACP editor consent routing, flag-off grant revocation,
 a second recording's Send exclusion on both client and host, CLI paid history
 binding and final flush, shared browser transport, and runtime-disconnect page
 shutdown. Native Swift source remains uncompiled on this Linux rig.
+
+### Stereo encoding review
+
+Post-commit audio review found that rounding each stereo channel into Int16
+before adding could wrap a positive full-scale sample to -32768. The portable
+encoder now averages float channels before one clipping/rounding operation;
+full-scale positive/negative, opposing channels, half-scale and overshoot have
+sample assertions. The old algorithm failed the named test, then the file was
+restored to its exact SHA-256 (`stereo-pcm-mixing`). Browser layout is unchanged.
+
+### Visual scope
+
+The unsharded legacy visual check was interrupted with exit 130 after 1,440
+baseline frames: it must regenerate 9,792 baseline frames and compare 9,792
+candidate frames, which exceeds the remaining 180-minute lane time box. This
+is not a passing full-matrix receipt. The supported scoped shard 16/64 passed
+all 156 frames with zero changed pixels, including 16 Usage scenes affected by
+the shared transport. Its baseline was regenerated from the recorded revision
+with Chrome 153.0.8010.52 on Linux; the manifest stayed unchanged. The
+standalone voice page has its own six reviewed images and Chrome/axe coverage;
+its source revision, hashes, dimensions and coverage are recorded separately.
+The lead retains full quality, full visual matrix and the other OS/editor rows.

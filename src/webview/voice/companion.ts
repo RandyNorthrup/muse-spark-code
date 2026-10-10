@@ -6,13 +6,11 @@ import {
   companionVoiceOutputSchema,
   type CompanionVoiceOutput,
 } from '../../shared/companionVoice'
-import { companionWav } from '../../shared/companionWav'
+import { companionPcm, companionWav } from '../../shared/companionWav'
 import {
   COMPANION_VOICE_MAX_SECONDS,
   COMPANION_VOICE_RECORDER_BPS,
   COMPANION_VOICE_MAX_BYTES,
-  COMPANION_VOICE_PCM_MAX,
-  COMPANION_VOICE_PCM_MIN,
   MUSE_VOICE_SAMPLE_RATE,
   MILLISECONDS_PER_SECOND,
   MAX_TEXT_ATTACHMENT_BYTES,
@@ -103,20 +101,11 @@ function boot(): void {
       if (decoded.sampleRate !== MUSE_VOICE_SAMPLE_RATE) throw new Error('EVOICE_RATE')
       const length = Math.min(decoded.length, COMPANION_VOICE_MAX_SECONDS * MUSE_VOICE_SAMPLE_RATE)
       if (length === 0) throw new Error('EVOICE_SIZE')
-      const pcm = new Int16Array(length)
-      for (let channel = 0; channel < decoded.numberOfChannels; channel++) {
-        const floats = decoded.getChannelData(channel)
-        for (let i = 0; i < length; i++) {
-          const value = Math.max(-1, Math.min(1, floats[i] ?? 0))
-          pcm[i] =
-            (pcm[i] ?? 0) +
-            Math.round(
-              (value * (value < 0 ? -COMPANION_VOICE_PCM_MIN : COMPANION_VOICE_PCM_MAX)) /
-                decoded.numberOfChannels,
-            )
-        }
-        floats.fill(0)
-      }
+      const channels: [Float32Array, ...Float32Array[]] = [decoded.getChannelData(0)]
+      for (let channel = 1; channel < decoded.numberOfChannels; channel++)
+        channels.push(decoded.getChannelData(channel))
+      const pcm = companionPcm(channels, length)
+      for (const floats of channels) floats.fill(0)
       const wav = companionWav(pcm)
       pcm.fill(0)
       let encoded = ''

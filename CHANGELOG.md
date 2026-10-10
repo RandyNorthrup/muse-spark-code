@@ -13,6 +13,7 @@ happened, not what was planned; superseded entries are kept.
   CMICCOMP). Adds an authenticated, bounded browser capture and reviewed
   ACP/terminal prompt handoff, Windows/macOS file recognition, and captured
   paid batch transcription with consent, daily admission and usage accounting.
+  Stereo is mixed before PCM rounding to avoid signed sample overflow.
   New entry points stay hidden until all platform/editor receipts pass; no new
   supported command or editor capability is announced.
 
