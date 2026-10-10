@@ -47,6 +47,31 @@ function snapshotInput<T>(value: T): T {
   }
 }
 
+/**
+ * A snapshot array rebuilt from its indexed entries only (PLAN.md M96b):
+ * `structuredClone` keeps enumerable plain-data own properties such as
+ * `map` or `constructor`, which would shadow native dispatch (`snap.map`)
+ * or species lookup with a `TypeError` outside the typed contract. Copying
+ * indexes `0..length-1` into a fresh array drops those shadows; holes stay
+ * holes so the sparse refusals still fire, and a non-array fails closed.
+ * The loop reads indexes only: no `map`/`for-of` may dispatch through the
+ * snapshot's own properties.
+ */
+function checkedArray<T>(values: readonly T[]): T[] {
+  if (!Array.isArray(values))
+    throw new TeamContractError('M96b: a team builder needs its collection')
+  const indexed: readonly T[] = values
+  const out: T[] = []
+  out.length = indexed.length
+  let index = 0
+  while (index < indexed.length) {
+    const entry = indexed[index]
+    if (entry !== undefined) out[index] = entry
+    index += 1
+  }
+  return out
+}
+
 /** Validate the complete output, preserving D36's unknown additional fields. */
 function checkedContract<T>(schema: z.ZodMiniType, value: T): T {
   const checked = schema.safeParse(value)
@@ -106,12 +131,23 @@ export function formatTeamPermissionTitle(input: {
   readonly agent: string
   readonly detail: string
 }): string {
-  const snap = snapshotInput(input)
-  const role = checkedTitlePart('role', snap.role)
-  const agent = checkedTitlePart('agent', snap.agent)
-  if (snap.detail === '')
+  return titleFromParts(snapshotInput(input))
+}
+
+/**
+ * The title from already snapshotted fields: sibling builders format their
+ * own snapshot through this so a public call clones exactly once.
+ */
+function titleFromParts(input: {
+  readonly role: string
+  readonly agent: string
+  readonly detail: string
+}): string {
+  const role = checkedTitlePart('role', input.role)
+  const agent = checkedTitlePart('agent', input.agent)
+  if (input.detail === '')
     throw new TeamContractError('M96b: a team permission title needs its detail')
-  return fill(UI_TEXT.acpTeamPermissionTitle, { role, agent, detail: snap.detail })
+  return fill(UI_TEXT.acpTeamPermissionTitle, { role, agent, detail: input.detail })
 }
 
 const TITLE_SLOTS: ReadonlySet<string> = new Set(['role', 'agent', 'detail'])
@@ -236,7 +272,7 @@ export function teamTaskToolCall(input: {
   const snap = snapshotInput(input)
   return checkedContract(teamTaskUpdateSchema, {
     toolCallId: teamTaskToolCallId(snap.taskId),
-    title: formatTeamPermissionTitle(snap),
+    title: titleFromParts(snap),
     kind: TEAM_TASK_TOOL_KIND,
     status: 'in_progress',
   })
@@ -253,7 +289,7 @@ export function teamTaskReportUpdate(input: {
   readonly diffs?: readonly ToolCallContent[]
 }): ToolCallUpdate {
   const snap = snapshotInput(input)
-  const diffs = checkedContract(z.array(teamToolContentSchema), snap.diffs ?? [])
+  const diffs = checkedContract(z.array(teamToolContentSchema), checkedArray(snap.diffs ?? []))
   return checkedContract(teamTaskUpdateSchema, {
     toolCallId: teamTaskToolCallId(snap.taskId),
     status: 'completed',
@@ -266,7 +302,7 @@ export function teamTaskReportUpdate(input: {
  * diff, so no accepted update asks for or shows a merge without its patch.
  */
 function checkedDiffs(diffs: readonly ToolCallContent[]): ToolCallContent[] {
-  return [...checkedContract(teamMergeContentSchema, diffs)]
+  return [...checkedContract(teamMergeContentSchema, checkedArray(diffs))]
 }
 
 /** A working task's file changes: its diffs are the call's content. */
@@ -308,15 +344,21 @@ export interface TeamPlanTask {
  */
 export function teamPlanEntries(tasks: readonly TeamPlanTask[]): PlanEntry[] {
   const snap = snapshotInput(tasks)
-  return checkedContract(
-    z.array(teamPlanEntrySchema).check(z.length(snap.length)),
-    snap.map((task) => ({
-      content: task.title,
-      priority: TEAM_PLAN_PRIORITY,
-      status: 'in_progress',
-      _meta: { teamTask: checkedId('task', task.taskId) },
-    })),
-  )
+  const entries = checkedArray(snap)
+  const plans: PlanEntry[] = []
+  let index = 0
+  while (index < entries.length) {
+    const task = entries[index]
+    if (task !== undefined)
+      plans.push({
+        content: task.title,
+        priority: TEAM_PLAN_PRIORITY,
+        status: 'in_progress',
+        _meta: { teamTask: checkedId('task', task.taskId) },
+      })
+    index += 1
+  }
+  return checkedContract(z.array(teamPlanEntrySchema).check(z.length(entries.length)), plans)
 }
 
 /** One agent-map entry, exactly the SDK `PlanEntry` shape. */
@@ -362,13 +404,13 @@ export function teamMergeRequest(input: {
   const diffs = checkedDiffs(snap.diffs)
   const options = checkedContract(
     z.array(teamPermissionOptionSchema).check(z.minLength(1)),
-    snap.options,
+    checkedArray(snap.options),
   )
   return checkedContract(teamMergeRequestSchema, {
     sessionId: snap.sessionId,
     toolCall: {
       toolCallId: teamMergeToolCallId(snap.mergeId),
-      title: formatTeamPermissionTitle(snap),
+      title: titleFromParts(snap),
       kind: TEAM_TASK_TOOL_KIND,
       status: 'pending',
       content: diffs,
@@ -388,7 +430,7 @@ export function teamMergeCompletedCall(input: {
   const snap = snapshotInput(input)
   return checkedContract(teamTaskUpdateSchema, {
     toolCallId: teamMergeToolCallId(snap.mergeId),
-    title: formatTeamPermissionTitle(snap),
+    title: titleFromParts(snap),
     kind: TEAM_TASK_TOOL_KIND,
     status: 'completed',
     content: checkedDiffs(snap.diffs),

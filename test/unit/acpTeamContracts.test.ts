@@ -1,7 +1,7 @@
 // M96b contracts (C-M96b-0, PLAN.md D75): the frozen ACP team mapping.
 import type { ContentBlock, PermissionOption, ToolCallContent } from '@agentclientprotocol/sdk'
 import sdkSchema from '@agentclientprotocol/sdk/schema/schema.json'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import {
   TeamContractError,
@@ -67,6 +67,75 @@ function withYields<T>(entries: readonly T[], yielded: readonly T[]): T[] {
   const hostile = [...entries]
   hostile[Symbol.iterator] = () => [...yielded].values()
   return hostile
+}
+
+/** The same indexed entries carrying an enumerable data-valued own property. */
+function withDataShadow<T>(entries: readonly T[], key: string, value: unknown): T[] {
+  const hostile = [...entries]
+  Object.defineProperty(hostile, key, {
+    value,
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  })
+  return hostile
+}
+
+/** The same indexed entries with an explicitly redefined array length. */
+function withLengthShadow<T>(entries: readonly T[]): T[] {
+  const hostile = [...entries]
+  Object.defineProperty(hostile, 'length', { value: hostile.length, writable: true })
+  return hostile
+}
+
+/** Data-valued own properties that must never reach native dispatch. */
+const DATA_SHADOWS: readonly (readonly [string, unknown])[] = [
+  ['map', 'extra'],
+  ['map', null],
+  ['filter', 'extra'],
+  ['forEach', null],
+  ['constructor', 'extra'],
+  ['constructor', null],
+]
+
+/** Every shadow variant of a collection, passed directly and pre-cloned. */
+function shadowVariants<T>(entries: readonly T[]): T[][] {
+  const hostile = [
+    ...DATA_SHADOWS.map(([key, value]) => withDataShadow(entries, key, value)),
+    withLengthShadow(entries),
+    withYields(entries, []),
+  ]
+  return [...hostile, ...hostile.map((variant) => structuredClone(variant))]
+}
+
+/** Runs the builder while counting global `structuredClone` calls. */
+function countClones<T>(build: () => T): { output: T; calls: number } {
+  const real = globalThis.structuredClone
+  let calls = 0
+  vi.stubGlobal('structuredClone', (value: unknown): unknown => {
+    calls += 1
+    return real(value)
+  })
+  try {
+    return { output: build(), calls }
+  } finally {
+    vi.unstubAllGlobals()
+  }
+}
+
+/**
+ * A shadowed collection builds exactly the clean output, or refuses with the
+ * typed contract error — a raw `TypeError` from shadowed dispatch never escapes.
+ */
+function expectCleanOrTyped(build: () => unknown, clean: unknown): void {
+  let output: unknown
+  try {
+    output = build()
+  } catch (error) {
+    expect(error).toBeInstanceOf(TeamContractError)
+    return
+  }
+  expect(output).toEqual(clean)
 }
 
 describe('M96b team tool call ids', () => {
@@ -225,8 +294,8 @@ describe('M96b agent-map plan', () => {
 
   // RVCM96B0D: the entry snapshot cannot copy a function-valued own
   // property, so a caller `map` fails closed with a typed error instead of
-  // shrinking the plan. Symbol-keyed overrides (custom iterators) are
-  // dropped by the clone; string-valued overrides are ignored below.
+  // shrinking the plan. Data-valued shadows are proved harmless by the
+  // RVCM96B0E sweep below, which builds the clean output from them.
   it('refuses a plan collection with an overridden map', () => {
     const tasks: TeamPlanTask[] = [{ taskId: 't1', title: 'First' }]
     // A caller can override map without a cast; the snapshot refuses it.
@@ -721,6 +790,88 @@ describe('RVCM96B0D hostile caller collections use the entry snapshot', () => {
     expect(() => teamTaskDiffUpdate({ taskId: 't1', diffs: hostileDiffs })).toThrow(
       TeamContractError,
     )
+  })
+})
+
+describe('RVCM96B0E array shadows use indexed entries', () => {
+  const SECOND = teamDiff({ path: '/repo/b.ts', oldText: null, newText: 'c' })
+  const CLEAN_DIFFS = [DIFF, SECOND]
+  const CLEAN_OPTIONS: PermissionOption[] = [
+    { optionId: 'yes', name: 'Yes', kind: 'allow_once' },
+    { optionId: 'no', name: 'No', kind: 'reject_once' },
+  ]
+  const CLEAN_TASKS: TeamPlanTask[] = [
+    { taskId: 't1', title: 'First' },
+    { taskId: 't2', title: 'Second' },
+  ]
+  const CLEAN_MERGE = {
+    sessionId: 's1',
+    mergeId: 'm1',
+    role: 'merger',
+    agent: 'zed',
+    detail: 'Land t1',
+    diffs: CLEAN_DIFFS,
+    options: CLEAN_OPTIONS,
+  }
+
+  it('builds content calls from indexed diffs despite own shadows', () => {
+    const working = teamTaskDiffUpdate({ taskId: 't1', diffs: CLEAN_DIFFS })
+    const completed = teamTaskReportUpdate({ taskId: 't1', report: 'done', diffs: CLEAN_DIFFS })
+    const merge = teamMergeRequest(CLEAN_MERGE)
+    const bypass = teamMergeCompletedCall(CLEAN_MERGE)
+    for (const diffs of shadowVariants(CLEAN_DIFFS)) {
+      expectCleanOrTyped(() => teamTaskDiffUpdate({ taskId: 't1', diffs }), working)
+      expectCleanOrTyped(
+        () => teamTaskReportUpdate({ taskId: 't1', report: 'done', diffs }),
+        completed,
+      )
+      expectCleanOrTyped(() => teamMergeRequest({ ...CLEAN_MERGE, diffs }), merge)
+      expectCleanOrTyped(() => teamMergeCompletedCall({ ...CLEAN_MERGE, diffs }), bypass)
+    }
+  })
+
+  it('builds merge requests from indexed options despite own shadows', () => {
+    const merge = teamMergeRequest(CLEAN_MERGE)
+    for (const options of shadowVariants(CLEAN_OPTIONS))
+      expectCleanOrTyped(() => teamMergeRequest({ ...CLEAN_MERGE, options }), merge)
+  })
+
+  it('builds the complete plan from indexed tasks despite own shadows', () => {
+    const plan = teamPlanEntries(CLEAN_TASKS)
+    for (const tasks of shadowVariants(CLEAN_TASKS))
+      expectCleanOrTyped(() => teamPlanEntries(tasks), plan)
+  })
+})
+
+describe('RVCM96B0E one snapshot per public call', () => {
+  const input = {
+    sessionId: 's1',
+    mergeId: 'm1',
+    role: 'merger',
+    agent: 'zed',
+    detail: 'Land t1',
+    diffs: [DIFF],
+    options: OPTIONS,
+  }
+
+  it('snapshots the task announcement once', () => {
+    const { output, calls } = countClones(() =>
+      teamTaskToolCall({ taskId: 't1', role: 'coder', agent: 'zed', detail: 'Write x' }),
+    )
+    expect(calls).toBe(1)
+    expect(output.title).toBe('coder · zed: Write x')
+  })
+
+  it('snapshots the merge request once', () => {
+    const { output, calls } = countClones(() => teamMergeRequest(input))
+    expect(calls).toBe(1)
+    expect(output.toolCall.title).toBe('merger · zed: Land t1')
+  })
+
+  it('snapshots the Bypass merge call once', () => {
+    const { output, calls } = countClones(() => teamMergeCompletedCall(input))
+    expect(calls).toBe(1)
+    expect(output.title).toBe('merger · zed: Land t1')
   })
 })
 
