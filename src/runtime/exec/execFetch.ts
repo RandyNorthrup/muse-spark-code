@@ -56,6 +56,11 @@ export function execFetch(input: {
   ledger: RunLedger
   selectedModel: string
   imageGeneration: boolean
+  /**
+   * C-M95-SUB: plan-billed chat requests admit at zero dollars and settle
+   * at $0 billed; requests are still counted against the run's maximum.
+   */
+  planBilling?: boolean | undefined
   lifecycle: Lifecycle
   onLatch: (cause: StopCause) => void
   emit: (event: ExecEventBody) => void
@@ -139,6 +144,11 @@ export function execFetch(input: {
       return refuse('request_shape', true)
     const tier = modelApiPaidTier(input.selectedModel)
     if (isResponse && tier === undefined) return refuse('unpriced')
+    const zeroPrice = {
+      input: Usd.from(0).toAmount(),
+      cachedInput: Usd.from(0).toAmount(),
+      output: Usd.from(0).toAmount(),
+    }
     // Each caller captures the current tail synchronously. Rechecking after
     // this wait and reserving have no intervening await.
     const previous = barrier
@@ -167,7 +177,7 @@ export function execFetch(input: {
         ? input.ledger.admitResponse({
             model: input.selectedModel,
             maxOutputTokens: responseShape.data.max_output_tokens,
-            price: MODEL_API_PRICES_PER_MILLION[tier],
+            price: input.planBilling === true ? zeroPrice : MODEL_API_PRICES_PER_MILLION[tier],
           })
         : input.ledger.admitImage(endpoint)
     if ('refused' in ticket) {

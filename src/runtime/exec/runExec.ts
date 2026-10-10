@@ -53,6 +53,10 @@ import {
 import { effortLevelsFor } from '../../shared/effort'
 import { formatUsd as exactUsd, parseUsd } from '../../shared/accountUsd'
 import { modelApiPaidTier } from '../../shared/paid'
+import {
+  SubscriptionKeySource,
+  subscriptionKeyRefusal,
+} from '../../core/backends/modelapi/subscriptionKey'
 import type { RuntimeBackend, RuntimeBackendDeps } from '../backends'
 import { serveOptionsFor } from './execArgs'
 import { execAttachmentBlocks, type ExecAttachmentOptions as ExecOptions } from './attachArgs'
@@ -282,6 +286,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   const mediaFactory = deps.media
   const cwd = path.resolve(deps.processCwd, options.cwd ?? deps.processCwd)
   const literals: string[] = []
+  let subscriptionSource: SubscriptionKeySource | undefined
   let isFinished = false
   let isFinishing = false
   const rawLog = createExecLogger({
@@ -632,6 +637,22 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         literals.push(key.key)
         secrets = memory
       }
+      // C-M95-SUB: the subscription key joins the scrubbed literals like a
+      // pasted key; a missing sign-in refuses with its fix, like stdin's.
+      if (providerRun === undefined && options.subscription && options.backend === 'modelApi') {
+        subscriptionSource = new SubscriptionKeySource({
+          platform: deps.platform,
+          homeDir: deps.homeDir,
+          xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
+        })
+        const read = await lifecycle.race(subscriptionSource.read())
+        if (read.status !== 'ready' || read.key === undefined) {
+          status = 'auth_required'
+          error = subscriptionKeyRefusal(read.status)
+          return await finish()
+        }
+        literals.push(read.key)
+      }
       const watchedSecrets: SecretStore = {
         async get(name) {
           const value = await lifecycle.race(Promise.resolve(secrets.get(name)))
@@ -656,6 +677,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           get selectedModel() {
             return model ?? ''
           },
+          // C-M95-SUB: plan-billed chat requests admit at zero dollars and
+          // settle at $0; only paid image spend draws on the budget.
+          planBilling: options.subscription,
           imageGeneration: options.paidFeatures.includes('imageGeneration'),
           lifecycle,
           onLatch: latch,
@@ -976,28 +1000,36 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 error = UI_TEXT.execModelUnpriced
                 return
               }
-              // Ask the ledger's exact arithmetic for the start reservation, in a
-              // separate un-dispatched ledger. No request belongs to this run yet.
-              const preview = createRunLedger({
-                capUsd: Usd.from(EXEC_MAX_BUDGET_USD).toAmount(),
-                maxRequests: 1,
-              }).admitResponse({
-                model: model ?? '',
-                maxOutputTokens: MODEL_API_MAX_OUTPUT_TOKENS,
-                price: MODEL_API_PRICES_PER_MILLION[tier],
-              })
-              if ('refused' in preview) throw new Error(UI_TEXT.execModelUnpriced)
-              const minimum =
-                microUsd(preview.reserveUsd) +
-                (options.paidFeatures.includes('imageGeneration')
-                  ? microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
-                  : ZERO_MICRO_USD)
-              if (microUsd(options.budgetUsd ?? Usd.from(0).toAmount()) < minimum) {
-                error = fill(UI_TEXT.execBudgetMinimum, {
-                  minimum: formatUsd(Usd.fromUnits(minimum, EXEC_USD_DECIMALS), EXEC_USD_DECIMALS),
+              // C-M95-SUB: plan-billed runs hold no dollar reservation; the
+              // required --max-budget-usd still bounds paid image spend and
+              // the ledger below still counts requests.
+              if (!options.subscription) {
+                // Ask the ledger's exact arithmetic for the start reservation, in a
+                // separate un-dispatched ledger. No request belongs to this run yet.
+                const preview = createRunLedger({
+                  capUsd: Usd.from(EXEC_MAX_BUDGET_USD).toAmount(),
+                  maxRequests: 1,
+                }).admitResponse({
+                  model: model ?? '',
+                  maxOutputTokens: MODEL_API_MAX_OUTPUT_TOKENS,
+                  price: MODEL_API_PRICES_PER_MILLION[tier],
                 })
-                latch({ kind: 'budget' })
-                return
+                if ('refused' in preview) throw new Error(UI_TEXT.execModelUnpriced)
+                const minimum =
+                  microUsd(preview.reserveUsd) +
+                  (options.paidFeatures.includes('imageGeneration')
+                    ? microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
+                    : ZERO_MICRO_USD)
+                if (microUsd(options.budgetUsd ?? Usd.from(0).toAmount()) < minimum) {
+                  error = fill(UI_TEXT.execBudgetMinimum, {
+                    minimum: formatUsd(
+                      Usd.fromUnits(minimum, EXEC_USD_DECIMALS),
+                      EXEC_USD_DECIMALS,
+                    ),
+                  })
+                  latch({ kind: 'budget' })
+                  return
+                }
               }
             }
             tap?.beginResponse(1)
@@ -1215,6 +1247,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         // pre-empt cleanup, so stop late diagnostics and drop owned key refs now.
         isFinished = true
         memory?.clear()
+        subscriptionSource?.clear()
+        subscriptionSource = undefined
         literals.length = 0
       }
       try {
@@ -1265,6 +1299,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       restoreUsageRecording?.()
       isFinished = true
       memory?.clear()
+      subscriptionSource?.clear()
+      subscriptionSource = undefined
       literals.length = 0
     }
   }
