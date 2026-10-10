@@ -115,6 +115,78 @@ setting or feature). No `check:tokens`/`check:visual` impact (no visual
 change). The common.md merge step was skipped: the rig note forbids merges
 the brief does not list, and this brief lists none.
 
+## Round 3 — repair of review RVDFACPERR2 (1 P3), 2026-10-10
+
+Worktree `/Users/randy/lanes/DFACPERR2`, rig macmini. No new strings, no new
+commands/settings/features, no new dependency, no widened guard.
+
+- **P3 — honest unexpected-fault message.** `src/acp/sharing.ts:210`: the
+  execute catch-all now throws
+  `AcpSharingFailure(-32603, UI_TEXT.actionFailed)` (`That did not work (the
+Muse Spark log has the details)`) instead of `UI_TEXT.promptFileInvalid`.
+  A failed chat export or an unreadable prompt library is not a prompt-file
+  format error, and the new sentence points at the log. Genuine prompt-file
+  format errors still pass through as defined refusals with their own
+  sentence via the `sharingRefusal` list (unchanged).
+- **Log honesty.** `src/acp/agent.ts:1920-1929`: the sharing call-site catch
+  now logs an internal sharing fault server-side via `failureForLog` (name
+  only, never raw text or paths) before mapping it, so the wire sentence's
+  "the log has the details" is true. Refusals and bad input stay unlogged,
+  as do cancellations (non-`AcpSharingFailure` passes through untouched).
+  This mirrors the legal (`:1191`) and vault (`:1689`) catches.
+
+Sibling sweep (whole class, lane files only): `sharing.ts:138` keeps
+`promptFileInvalid` as a _defined-refusal_ passthrough (thrown deliberately
+by `commands.ts:190` scope/duplicate validation, `:366` prompt-not-found,
+promptStore/promptLibrary/promptImport and the host prompt commands — all
+fixed sentences, nothing raw); `commands.ts:190/:366` stay refusals, not
+unexpected faults; `agent.ts:1890` stays deterministic caller-shape
+validation (-32602, pinned by `rejects mixed/attached content`); legal and
+vault catches already send `actionFailed` with a log entry (review found
+them fine). No other sharing/prompt catch maps an unexpected fault to a
+bad-prompt-file sentence.
+
+## Tests (repository timeouts, no `--testTimeout`)
+
+`test/unit/acpSharing.test.ts` — the two privacy tests now also assert the
+wire message contains `UI_TEXT.actionFailed`, the wire carries no
+`promptFileInvalid` sentence, the server log got a `sharing command failed`
+entry, and the log entries carry no path or prompt text. Both run end to
+end through the real SDK client into the agent.
+
+Results (macmini, this worktree): acpSharing 42/42; acpVault 23/23;
+acpAgent 149/150 — the one failure (`exposes all three ChatGPT actions…`)
+fails identically on pristine lane base `e4111825c` in a temporary worktree
+with this rig's `node_modules` (then removed), pre-existing and unrelated
+(authenticate flow; this lane touches only sharing paths).
+
+## Red drill (byte-exact restore, SHA-256 verified)
+
+Pre-drill hashes: sharing.ts `c325e10f…`, agent.ts `7f30a4fd…`,
+acpSharing.test.ts `e5124e46…`; all three match after the drill.
+
+8. D8 (P3): catch-all back to `UI_TEXT.promptFileInvalid` →
+   `keeps an unexpected sharing failure internal with no path or prompt
+text` and `keeps a prompt-store failure internal with no raw text` both
+   fail; restored (all three hashes match).
+
+## Gates
+
+`npm run typecheck` exit 0 (all five projects); `eslint --max-warnings=0`
+on changed files clean; `prettier --check` on changed files clean;
+`check:l10n` 0 problems (reused key, no new text); `npm run build` exit 0
+with `dist/sharingRuntime.js` 160.8 KiB (budget 175 KiB),
+`dist/extension.js` 550.1 KiB (budget 600 KiB). No `featureCatalog`/
+reference change. No `check:tokens`/`check:visual` impact.
+
+Incidental pre-existing fix (same files, one line): `typecheck:unit`
+failed at lane HEAD `f31798e75` on
+`test/unit/acpAgent.test.ts:998` (`userMessageId: undefined` against
+`exactOptionalPropertyTypes`). The property is simply omitted now; the
+`refuses a turn the backend would not take` test passes unchanged
+(verified with `-t`), and the full typecheck is green. Not a review
+finding; recorded here so the lead sees it.
+
 ## Round 1 record (kept)
 
 The ACP SDK turns any non-`RequestError` thrown by a request handler into
