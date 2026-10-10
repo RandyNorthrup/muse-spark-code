@@ -1862,7 +1862,7 @@ Exact source URLs, versions, acquisition date, original hashes, and vendored
 hashes are recorded in `provenance.json`. Licenses named by the identifiers
 retain their own terms. Runtime scans make no data downloads.
 
-The SPDX license templates under `legal-data/templates/` (20 files: MIT, ISC,
+The SPDX license templates under `legal-data/templates/` (21 files: MIT, MIT-0, ISC,
 Apache-2.0, BSD-2-Clause, BSD-3-Clause, CC0-1.0, Unlicense, MPL-2.0, EPL-2.0,
 BSL-1.0, and the `-only` and `-or-later` templates of GPL-2.0, GPL-3.0,
 LGPL-2.1, LGPL-3.0 and AGPL-3.0) are byte-identical copies of the SPDX

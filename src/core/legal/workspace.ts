@@ -69,6 +69,33 @@ export function readPinnedLegalData(
   }
 }
 
+const BUILD_META_DIR = 'dist/meta'
+const BUILD_HASHES_DIR = 'dist/meta-hashes'
+const NODE_MODULES_SEGMENT = 'node_modules/'
+/** An installed package's own metadata, licence and notice files. */
+const PACKAGE_EVIDENCE_FILE =
+  /^(?:package\.json|(?:licen[cs]e|copying|notice|unlicen[cs]e)(?:[.-][\w.-]*)?)$/iu
+
+/** The workspace files a bundle metafile lists: no generated modules, absolute paths or escapes. */
+function listedPaths(metafile: unknown): string[] {
+  if (typeof metafile !== 'object' || metafile === null) return []
+  const keys: string[] = []
+  for (const field of ['inputs', 'outputs']) {
+    const record: unknown = Reflect.get(metafile, field)
+    if (typeof record === 'object' && record !== null) keys.push(...Object.keys(record))
+  }
+  return keys
+    .map((key) => key.replaceAll('\\', '/'))
+    .filter(
+      (key) =>
+        key !== '' &&
+        !key.startsWith('/') &&
+        !/^[A-Za-z]:\//u.test(key) &&
+        !/^\(?[a-z][\w-]*\)?:/iu.test(key) &&
+        !key.split('/').includes('..'),
+    )
+}
+
 /** Enumeration errors and omitted subtrees travel with the snapshot. */
 export interface LegalWorkspaceSnapshot extends LegalFileSnapshot {
   readonly incompleteChecks: readonly string[]
@@ -107,65 +134,6 @@ export function createLegalSnapshot(
   const checkCancellation = (): void => {
     if (signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
   }
-  const visit = (directory: string, localDirectory: string): void => {
-    checkCancellation()
-    if (!isWithinTime()) return
-    const before = lstatSync(directory, { bigint: true })
-    if (
-      before.isSymbolicLink() ||
-      !before.isDirectory() ||
-      !isWithin(root, realpathSync(directory))
-    ) {
-      incompleteChecks.push(fill(UI_TEXT.legalScanner.m138, { v0: localDirectory || '.' }))
-      return
-    }
-    const dir = opendirSync(directory)
-    const names: string[] = []
-    try {
-      let entry = dir.readSync()
-      while (entry !== null) {
-        checkCancellation()
-        if (!isWithinTime()) return
-        entriesSeen += 1
-        if (entriesSeen > LEGAL_DIRECTORY_ENTRIES_MAX) {
-          incompleteChecks.push(UI_TEXT.legalScanner.m139)
-          return
-        }
-        names.push(entry.name)
-        entry = dir.readSync()
-      }
-    } finally {
-      dir.closeSync()
-    }
-    if (!sameFile(before, lstatSync(directory, { bigint: true }))) {
-      incompleteChecks.push(fill(UI_TEXT.legalScanner.m140, { v0: localDirectory || '.' }))
-      return
-    }
-    const sortedNames = names.toSorted((a, b) => compareLegalText(a, b))
-    for (const name of sortedNames) {
-      checkCancellation()
-      if (entriesSeen > LEGAL_DIRECTORY_ENTRIES_MAX || !isWithinTime()) return
-      const local = localDirectory === '' ? name : `${localDirectory}/${name}`
-      if (name === '.git') {
-        incompleteChecks.push(fill(UI_TEXT.legalScanner.m141, { v0: local }))
-        continue
-      }
-      try {
-        assertWorkspaceRelative(local)
-        const absolute = path.join(directory, name)
-        const sample = lstatSync(absolute, { bigint: true })
-        if (sample.isSymbolicLink())
-          incompleteChecks.push(fill(UI_TEXT.legalScanner.m142, { v0: local }))
-        else if (sample.isDirectory()) visit(absolute, local)
-        else if (sample.isFile()) admitted.set(local, sample)
-        else incompleteChecks.push(fill(UI_TEXT.legalScanner.m143, { v0: local }))
-      } catch (error) {
-        if (signal?.aborted === true) throw error
-        incompleteChecks.push(fill(UI_TEXT.legalScanner.m144, { v0: local }))
-      }
-    }
-  }
-  visit(root, '')
   let hashBytesRead = 0
   /**
    * One admitted read of a member's exact bytes: the same identity checks
@@ -214,6 +182,140 @@ export function createLegalSnapshot(
       if (fd !== undefined) closeSync(fd)
     }
   }
+  /** Admit one regular, confined file by its workspace path (no budget). */
+  const admitFile = (local: string): void => {
+    try {
+      assertWorkspaceRelative(local)
+      const absolute = path.join(root, ...local.split('/'))
+      const sample = lstatSync(absolute, { bigint: true })
+      if (sample.isFile() && isWithin(root, realpathSync(absolute))) admitted.set(local, sample)
+    } catch {
+      checkCancellation()
+    }
+  }
+  /** The regular files directly inside a confined, unlinked directory. */
+  const filesIn = (local: string): string[] => {
+    try {
+      const absolute = path.join(root, ...local.split('/'))
+      const held = lstatSync(absolute)
+      if (held.isSymbolicLink() || !held.isDirectory() || !isWithin(root, realpathSync(absolute)))
+        return []
+      const dir = opendirSync(absolute)
+      const names: string[] = []
+      try {
+        for (let entry = dir.readSync(); entry !== null; entry = dir.readSync())
+          if (entry.isFile()) names.push(entry.name)
+      } finally {
+        dir.closeSync()
+      }
+      return names.toSorted((a, b) => compareLegalText(a, b))
+    } catch {
+      checkCancellation()
+      return []
+    }
+  }
+  /**
+   * Scan scope (lead ruling 2026-10-10): what the workspace distributes is
+   * read first and outside the directory-entry budget. The bundle records
+   * (`dist/meta`, `dist/meta-hashes`), every workspace file they list, and
+   * the metadata and licence files of each installed package they ship
+   * from are admitted before the walk, so they are always reached.
+   */
+  const admitDistribution = (): void => {
+    const records = filesIn(BUILD_META_DIR).filter((name) => name.endsWith('.json'))
+    const packages = new Set<string>()
+    for (const name of records) {
+      admitFile(`${BUILD_META_DIR}/${name}`)
+      admitFile(`${BUILD_HASHES_DIR}/${name}`)
+      const bytes = readAdmitted(
+        `${BUILD_META_DIR}/${name}`,
+        LEGAL_HASH_FILE_MAX_BYTES,
+        LEGAL_HASH_TOTAL_MAX_BYTES,
+        hashBytesRead,
+      )
+      if (bytes === undefined) continue
+      hashBytesRead += bytes.byteLength
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+      } catch {
+        continue
+      }
+      for (const entry of listedPaths(parsed)) {
+        admitFile(entry)
+        const at = entry.lastIndexOf(NODE_MODULES_SEGMENT)
+        if (at === -1) continue
+        const [scope = '', name2 = ''] = entry.slice(at + NODE_MODULES_SEGMENT.length).split('/', 2)
+        packages.add(
+          `${entry.slice(0, at + NODE_MODULES_SEGMENT.length)}${scope.startsWith('@') ? `${scope}/${name2}` : scope}`,
+        )
+      }
+    }
+    for (const directory of packages)
+      for (const name of filesIn(directory))
+        if (PACKAGE_EVIDENCE_FILE.test(name)) admitFile(`${directory}/${name}`)
+  }
+  const visit = (directory: string, localDirectory: string): void => {
+    checkCancellation()
+    if (!isWithinTime()) return
+    const before = lstatSync(directory, { bigint: true })
+    if (
+      before.isSymbolicLink() ||
+      !before.isDirectory() ||
+      !isWithin(root, realpathSync(directory))
+    ) {
+      incompleteChecks.push(fill(UI_TEXT.legalScanner.m138, { v0: localDirectory || '.' }))
+      return
+    }
+    const dir = opendirSync(directory)
+    const names: string[] = []
+    try {
+      let entry = dir.readSync()
+      while (entry !== null) {
+        checkCancellation()
+        if (!isWithinTime()) return
+        entriesSeen += 1
+        if (entriesSeen > LEGAL_DIRECTORY_ENTRIES_MAX) {
+          incompleteChecks.push(UI_TEXT.legalScanner.m139)
+          return
+        }
+        names.push(entry.name)
+        entry = dir.readSync()
+      }
+    } finally {
+      dir.closeSync()
+    }
+    if (!sameFile(before, lstatSync(directory, { bigint: true }))) {
+      incompleteChecks.push(fill(UI_TEXT.legalScanner.m140, { v0: localDirectory || '.' }))
+      return
+    }
+    const sortedNames = names.toSorted((a, b) => compareLegalText(a, b))
+    for (const name of sortedNames) {
+      checkCancellation()
+      if (entriesSeen > LEGAL_DIRECTORY_ENTRIES_MAX || !isWithinTime()) return
+      // Scan scope (lead ruling 2026-10-10): `.git` holds repository
+      // internals and `node_modules` holds installed dependencies; both are
+      // expected and skipped, never incomplete reasons. What ships from
+      // `node_modules` was admitted first, from the build records.
+      if (name === '.git' || name === 'node_modules') continue
+      const local = localDirectory === '' ? name : `${localDirectory}/${name}`
+      try {
+        assertWorkspaceRelative(local)
+        const absolute = path.join(directory, name)
+        const sample = lstatSync(absolute, { bigint: true })
+        if (sample.isSymbolicLink())
+          incompleteChecks.push(fill(UI_TEXT.legalScanner.m142, { v0: local }))
+        else if (sample.isDirectory()) visit(absolute, local)
+        else if (sample.isFile()) admitted.set(local, sample)
+        else incompleteChecks.push(fill(UI_TEXT.legalScanner.m143, { v0: local }))
+      } catch (error) {
+        if (signal?.aborted === true) throw error
+        incompleteChecks.push(fill(UI_TEXT.legalScanner.m144, { v0: local }))
+      }
+    }
+  }
+  admitDistribution()
+  visit(root, '')
   return {
     files: Array.from(admitted.keys(), (entry) => entry).toSorted((a, b) => compareLegalText(a, b)),
     incompleteChecks,

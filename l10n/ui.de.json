@@ -4817,7 +4817,6 @@
     "m138": "Nicht geprüft: {v0} ist ein Link oder entkommenes Verzeichnis.",
     "m139": "Prüfung an Grenze gestoppt: Verzeichniseintragsbudget erreicht; Rest nicht aufgezählt.",
     "m140": "Nicht geprüft: {v0} änderte sich während der Aufzählung.",
-    "m141": "Nicht geprüft: {v0} ist Repository-intern.",
     "m142": "Nicht geprüft: {v0} ist ein Link.",
     "m143": "Nicht geprüft: {v0} ist eine Sonderdatei.",
     "m144": "Nicht geprüft: {v0} konnte nicht zugelassen werden.",
@@ -4880,10 +4879,6 @@
     "m171": "Nicht geprüft: {v0} enthält unlesbare npm-Sperrmetadaten.",
     "m172": "Nicht geprüft: {v0} nutzt eine nicht unterstützte npm-Sperrversion.",
     "m173": "Nicht geprüft: {v0} überschreitet die Verschachtelungsgrenze für npm-Sperrdateien.",
-    "m174": {
-      "one": "Nicht geprüft: {count} npm-Sperreinträge in {v1} haben weder Lizenzmetadaten noch passende installierte Paketdaten.",
-      "other": "Nicht geprüft: {count} npm-Sperreinträge in {v1} haben weder Lizenzmetadaten noch passende installierte Paketdaten."
-    },
     "m175": "Nicht geprüft: {v0} hat keine lesbaren Yarn-Paketeinträge.",
     "m176": {
       "one": "Nicht geprüft: {v0} erfasst Versionen, aber keine Lizenzen für {count} Pakete; installierte Daten könnten helfen.",
@@ -4939,6 +4934,16 @@
     "m204": "Nicht geprüft: Ausgabe {v1} von Bundle {v0} fehlt oder weicht von ihrer Build-Aufzeichnung ab",
     "m205": "Nicht geprüft: die festgelegten SPDX-Vorlagendaten haben die Prüfung nicht bestanden ({v0}); der exakte Lizenztextabgleich ist dafür aus",
     "m206": "Nicht geprüft: Eingabe {v1} von Bundle {v0} hat keinen beim Build erfassten Hash oder passt nicht mehr dazu",
+    "m207": {
+      "one": "Nicht weitergegebene Abhängigkeiten ({count}) haben Lizenztexte, die von ihrer SPDX-Vorlage abweichen oder nicht erkannt werden ({v0}); sie werden nicht weitergegeben und schränken diese Prüfung nicht ein.",
+      "other": "Nicht weitergegebene Abhängigkeiten ({count}) haben Lizenztexte, die von ihrer SPDX-Vorlage abweichen oder nicht erkannt werden ({v0}); sie werden nicht weitergegeben und schränken diese Prüfung nicht ein."
+    },
+    "m208": "Wird eine dieser Abhängigkeiten künftig weitergegeben, prüfen Sie ihren Lizenztext.",
+    "m209": {
+      "one": "Weitere Hinweise für {v0} ({count}) sind nicht aufgeführt; sonst wurde nichts ausgelassen.",
+      "other": "Weitere Hinweise für {v0} ({count}) sind nicht aufgeführt; sonst wurde nichts ausgelassen."
+    },
+    "m210": "Prüfen Sie eine kleinere Auswahl von Pfaden, um sie aufzulisten.",
     "unknown": "unbekannt",
     "unresolved": "nicht aufgelöst",
     "noLicense": "keine Lizenz",

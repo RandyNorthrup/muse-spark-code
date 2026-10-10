@@ -7575,8 +7575,9 @@ export const LEGAL_FILES_SCANNED_MAX = 20_000
 // should-fix findings first and says the report is truncated.
 export const LEGAL_FINDINGS_MAX = 500
 // Independent admission budgets: UTF-8 bytes, directory entries and findings per rule.
+// The text budget covers a distributed workspace's sources (CM971-R3).
 export const LEGAL_FILE_MAX_BYTES = 1_000_000
-export const LEGAL_TOTAL_MAX_BYTES = 10_000_000
+export const LEGAL_TOTAL_MAX_BYTES = 64_000_000
 export const LEGAL_DIRECTORY_ENTRIES_MAX = 20_000
 // Hash-only reads (M97 CM971-R3: build evidence for every bundle input and
 // output, text or binary) keep no bytes, so they get their own bounds.
@@ -7635,6 +7636,14 @@ export const LEGAL_TEMPLATE_ORIGINAL_SLACK_CHARS = 16
 // Leading lines searched for a title-only line (a license's name, which
 // the SPDX guidelines ignore), before or after the copyright line.
 export const LEGAL_TEMPLATE_TITLE_LINES_MAX = 3
+// Words before a copyright marker that may only name the covered work
+// (`pngjs original work Copyright …`).
+export const WORK_LEAD_IN_WORDS_MAX = 5
+// Names of non-shipping dependencies listed in the one informational line.
+export const LEGAL_UNSHIPPED_NAMES_SHOWN = 20
+// Dependency records one scan keeps (locks list every package, including
+// development-only ones); separate from the findings bound.
+export const LEGAL_DEPENDENCIES_MAX = 10_000
 
 // --- The headless `legal` command (M97 lane R, PLAN.md D76) ---
 //

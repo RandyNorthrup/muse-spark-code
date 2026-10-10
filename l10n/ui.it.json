@@ -4945,7 +4945,6 @@
     "m138": "Non verificato: {v0} è un collegamento o directory fuori dal perimetro.",
     "m139": "Analisi fermata al limite: budget di voci raggiunto; resto non enumerato.",
     "m140": "Non verificato: {v0} è cambiato durante l’enumerazione.",
-    "m141": "Non verificato: {v0} è interno al repository.",
     "m142": "Non verificato: {v0} è un collegamento.",
     "m143": "Non verificato: {v0} è un file speciale.",
     "m144": "Non verificato: impossibile ammettere {v0}.",
@@ -5018,11 +5017,6 @@
     "m171": "Non verificato: metadati di blocco npm illeggibili in {v0}.",
     "m172": "Non verificato: versione di blocco npm non supportata in {v0}.",
     "m173": "Non verificato: {v0} supera la profondità di blocco npm.",
-    "m174": {
-      "one": "Non verificato: {count} voce npm in {v1} senza licenza né dati installati corrispondenti.",
-      "other": "Non verificato: {count} voci npm in {v1} senza licenza né dati installati corrispondenti.",
-      "many": "Non verificato: {count} voci npm in {v1} senza licenza né dati installati corrispondenti."
-    },
     "m175": "Non verificato: nessuna voce Yarn leggibile in {v0}.",
     "m176": {
       "one": "Non verificato: {v0} registra versioni senza licenze per {count} pacchetti; i dati installati potrebbero aiutare.",
@@ -5086,6 +5080,18 @@
     "m204": "Non verificato: l’output {v1} del bundle {v0} manca o differisce dal suo record di build",
     "m205": "Non verificato: i dati fissati dei modelli SPDX non hanno superato la verifica ({v0}); il confronto esatto del testo di licenza è disattivato per essi",
     "m206": "Non verificato: l’input {v1} del bundle {v0} non ha un hash acquisito in fase di build o non vi corrisponde più",
+    "m207": {
+      "one": "Dipendenze non distribuite ({count}) con testi di licenza diversi dal modello SPDX o non riconosciuti ({v0}); non sono distribuite, quindi non limitano questa analisi.",
+      "other": "Dipendenze non distribuite ({count}) con testi di licenza diversi dal modello SPDX o non riconosciuti ({v0}); non sono distribuite, quindi non limitano questa analisi.",
+      "many": "Dipendenze non distribuite ({count}) con testi di licenza diversi dal modello SPDX o non riconosciuti ({v0}); non sono distribuite, quindi non limitano questa analisi."
+    },
+    "m208": "Se una di queste dipendenze inizia a essere distribuita, esaminane il testo di licenza.",
+    "m209": {
+      "one": "Altri avvisi per {v0} ({count}) non sono elencati; nient’altro è stato omesso.",
+      "other": "Altri avvisi per {v0} ({count}) non sono elencati; nient’altro è stato omesso.",
+      "many": "Altri avvisi per {v0} ({count}) non sono elencati; nient’altro è stato omesso."
+    },
+    "m210": "Analizza un insieme più piccolo di percorsi per elencarli.",
     "unknown": "sconosciuto",
     "unresolved": "non risolto",
     "noLicense": "nessuna licenza",

@@ -36946,6 +36946,24 @@ Record regression failures, byte-exact red drills and bounded checks in
   templates and equivalent-words list (CM971-R3) stay attributed under
   CC-BY-3.0, Linux Foundation and its Contributors; the licence texts in
   them keep their own terms (release issue I-R11).
+- **Decision 2026-10-10 (lead): scan scope.** A workspace scan judges what
+  the workspace distributes; a product rule for every user's workspace.
+  (1) Distribution is decided from the build records first (or the package
+  manifest's files list when there are none), never by walking
+  `node_modules`; the records, their listed files and the shipped packages'
+  metadata and licence files are admitted before the walk, outside the
+  directory-entry budget, which applies to the rest. An input the bundler
+  shook out (no bytes in any output) does not ship. (2) Licence texts of
+  shipping dependencies must match a template or keep human review;
+  dependencies that do not ship, and undistributed files such as test
+  fixtures, are informational and never make the scan incomplete. (3)
+  `.git` and `node_modules` are expected and skipped, not incomplete
+  reasons. (4) The SPDX guidelines' equivalences apply (quote styles,
+  Markdown emphasis, list markers, whitespace, titles and notices outside
+  the template's slot, an appendix given from its applied notice); real
+  wording differences keep review, and every pinned template is tried
+  (MIT-0 added). Omitted advice in a long report is summarized, not an
+  incomplete reason.
 
 - **Goal.** Both backends offer an evidence-based legal/licensing and header
   hygiene report without modifying the project; the user can then authorize
@@ -46242,10 +46260,9 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 - I-R12 — **this repository's own build records verify; owner: lead.**
   `npm run build` ends with `scripts/check-legal-build-records.mjs`: the
   production scanner over every bundle record and listed file must report
-  no build-evidence reason (87 bundles, 0 reasons on macmini, CM971-R3).
-  A scan of the whole source checkout still exits 2 for reasons outside
-  the build records (`.git`, `node_modules` links and the enumeration and
-  read budgets, development-only dependency texts); scope ruling pending.
+  no build-evidence reason (87 bundles, 0 reasons on macmini, CM971-R3),
+  and the production scan of the whole repository must complete. Under the
+  scan-scope decision above it does: exit 0 on macmini, advice only.
 - I-R9 — **closed; owner: M97FIN.** Merge `242a47f2` incorporates all 20
   finished S/W findings from `aa181639`; combined targeted suites pass.
 - I-R10 — **local aggregate closed; owner: FIN4/lead.** Full

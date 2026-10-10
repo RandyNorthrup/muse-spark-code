@@ -67,6 +67,11 @@ export interface ShippedSet {
   readonly shippedFiles: ReadonlySet<string> | undefined
   /** Production dependencies with no material or no distribution evidence. */
   readonly unknownNames: readonly string[]
+  /**
+   * Root-level files the package carries beside its bundles (a notice
+   * file): every root file the packaging ignore rules do not exclude.
+   */
+  readonly packagedRoot: ReadonlySet<string>
   /** One sentence naming what the obligations were read against. */
   readonly summary: string
   readonly incomplete: readonly string[]
@@ -294,6 +299,25 @@ export function bundleFreshnessProblems(
   return problems
 }
 
+/** Root-level files no packaging ignore rule excludes (`.vscodeignore`). */
+function packagedRootFiles(
+  snapshot: LegalFileSnapshot,
+  evidence: DistributionEvidence,
+): ReadonlySet<string> {
+  const { matchers } =
+    evidence.vscodeignoreText === undefined
+      ? { matchers: [] }
+      : compileIgnore(evidence.vscodeignoreText)
+  const packaged = new Set<string>()
+  for (const file of snapshot.files) {
+    if (file.includes('/')) continue
+    let isPackaged = true
+    for (const { negated, test } of matchers) if (test(file)) isPackaged = negated
+    if (isPackaged) packaged.add(file)
+  }
+  return packaged
+}
+
 /**
  * Work out what ships: the distributed file set from existing bundle
  * inputs or package inventories. Only material in the shipped set counts;
@@ -389,7 +413,11 @@ export function computeShipped(
       shippedDependencies.add(
         JSON.stringify([dep.ecosystem, dep.name, dep.version, dep.evidenceFile]),
       )
-    } else if (dep.scope === 'production') {
+    } else if (dep.scope === 'production' && evidence.bundleInputs === undefined) {
+      // With build records, distribution is decided by them (lead ruling
+      // 2026-10-10): a dependency none of whose files the bundles took in
+      // does not ship. Package inventories stay approximate, so there it
+      // remains unknown.
       unknownNames.push(dep.name)
     }
   }
@@ -399,6 +427,10 @@ export function computeShipped(
     shippedDependencies,
     shippedFiles: shippedSet,
     unknownNames,
+    // Beside bundles, a package carries its root files (a notice); an
+    // explicit package file list already names everything it carries.
+    packagedRoot:
+      evidence.bundleInputs === undefined ? new Set() : packagedRootFiles(snapshot, evidence),
     summary,
     incomplete,
   }
@@ -420,7 +452,10 @@ export function checkNotices(
   const incomplete: string[] = []
   const { shippedNames, unknownNames } = shipped
   notices = notices.filter(
-    (notice) => shipped.shippedFiles === undefined || shipped.shippedFiles.has(notice.path),
+    (notice) =>
+      shipped.shippedFiles === undefined ||
+      shipped.shippedFiles.has(notice.path) ||
+      shipped.packagedRoot.has(notice.path),
   )
   if (shippedNames.size > 0 || unknownNames.length > 0) {
     const unnamed = [...shippedNames, ...unknownNames].filter(

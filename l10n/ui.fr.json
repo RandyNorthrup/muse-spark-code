@@ -4945,7 +4945,6 @@
     "m138": "Non vérifié : {v0} est un lien ou un répertoire sorti du périmètre.",
     "m139": "Analyse arrêtée à la limite : budget d’entrées atteint ; reste non énuméré.",
     "m140": "Non vérifié : {v0} a changé pendant l’énumération.",
-    "m141": "Non vérifié : {v0} appartient aux données internes du dépôt.",
     "m142": "Non vérifié : {v0} est un lien.",
     "m143": "Non vérifié : {v0} est un fichier spécial.",
     "m144": "Non vérifié : {v0} n’a pas pu être admis.",
@@ -5018,11 +5017,6 @@
     "m171": "Non vérifié : métadonnées de verrou npm illisibles dans {v0}.",
     "m172": "Non vérifié : version de verrou npm non prise en charge dans {v0}.",
     "m173": "Non vérifié : {v0} dépasse la profondeur d’imbrication npm.",
-    "m174": {
-      "one": "Non vérifié : {count} entrée npm dans {v1} sans licence ni données installées correspondantes.",
-      "other": "Non vérifié : {count} entrées npm dans {v1} sans licence ni données installées correspondantes.",
-      "many": "Non vérifié : {count} entrées npm dans {v1} sans licence ni données installées correspondantes."
-    },
     "m175": "Non vérifié : aucune entrée Yarn lisible dans {v0}.",
     "m176": {
       "one": "Non vérifié : {v0} fournit des versions sans licences pour {count} paquets ; les données installées pourraient aider.",
@@ -5086,6 +5080,18 @@
     "m204": "Non vérifié : la sortie {v1} du bundle {v0} est absente ou diffère de son enregistrement de build",
     "m205": "Non vérifié : les données de modèles SPDX épinglées ont échoué à la vérification ({v0}) ; la correspondance exacte du texte de licence est désactivée pour elles",
     "m206": "Non vérifié : l’entrée {v1} du bundle {v0} n’a pas d’empreinte capturée au build ou ne lui correspond plus",
+    "m207": {
+      "one": "Dépendances non distribuées ({count}) dont le texte de licence diffère de son modèle SPDX ou n’est pas reconnu ({v0}) ; non distribuées, elles ne limitent pas cette analyse.",
+      "other": "Dépendances non distribuées ({count}) dont le texte de licence diffère de son modèle SPDX ou n’est pas reconnu ({v0}) ; non distribuées, elles ne limitent pas cette analyse.",
+      "many": "Dépendances non distribuées ({count}) dont le texte de licence diffère de son modèle SPDX ou n’est pas reconnu ({v0}) ; non distribuées, elles ne limitent pas cette analyse."
+    },
+    "m208": "Si l’une de ces dépendances est un jour distribuée, examinez son texte de licence.",
+    "m209": {
+      "one": "D’autres conseils pour {v0} ({count}) ne sont pas listés ; rien d’autre n’a été omis.",
+      "other": "D’autres conseils pour {v0} ({count}) ne sont pas listés ; rien d’autre n’a été omis.",
+      "many": "D’autres conseils pour {v0} ({count}) ne sont pas listés ; rien d’autre n’a été omis."
+    },
+    "m210": "Analysez un ensemble de chemins plus réduit pour les lister.",
     "unknown": "inconnu",
     "unresolved": "non résolu",
     "noLicense": "aucune licence",

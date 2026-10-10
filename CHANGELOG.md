@@ -107,6 +107,20 @@ happened, not what was planned; superseded entries are kept.
   educational, only, personal, no, …) are never read as part of a
   copyright holder's name, so such a notice keeps human review.
 
+- A `/legal` scan now judges what the workspace distributes (M97 scan-scope
+  ruling). Distribution is read from the build records first (inputs the
+  bundler shook out do not count), or from the package's files list;
+  `node_modules` is never walked for it, and `.git` and `node_modules` are
+  skipped as expected. Only dependencies that ship can make the scan
+  incomplete; development-only dependencies and test fixtures are listed
+  as information. The matcher applies more of the SPDX guidelines (quote
+  styles, Markdown emphasis such as `*AS IS*`, list markers, titles and
+  copyright lines outside the template's slot, an Apache appendix given
+  from its applied notice) and pins the MIT-0 template. A long report
+  summarizes the advice it leaves out instead of reporting itself
+  incomplete. This repository's own scan now completes (exit 0), and
+  `npm run build` checks that it does.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.

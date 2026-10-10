@@ -167,6 +167,12 @@
           "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/LGPL-3.0-or-later.template.txt"
         },
         {
+          "path": "templates/MIT-0.template.txt",
+          "kind": "template",
+          "sha256": "c897e948891e3e587ba8e14acb51743a3ec69a671ce5a0f07f25ddf24f73de7a",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/MIT-0.template.txt"
+        },
+        {
           "path": "templates/MIT.template.txt",
           "kind": "template",
           "sha256": "6283193f4c437103f80b74e52677fd00271ba762237a33432597a07da79d6dc1",

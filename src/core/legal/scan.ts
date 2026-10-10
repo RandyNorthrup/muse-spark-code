@@ -25,6 +25,8 @@ import {
   LEGAL_EVIDENCE_EXCERPT_MAX_CHARS,
   LEGAL_FINDING_ID_MAX_CHARS,
   LEGAL_PATH_MAX_CHARS,
+  LEGAL_UNSHIPPED_NAMES_SHOWN,
+  LEGAL_DEPENDENCIES_MAX,
   type LegalHeaderPolicy,
 } from '../../shared/constants'
 import { legalScanResultSchema, type LegalScanResult } from '../../shared/legal'
@@ -266,6 +268,30 @@ function workspaceEntries(list: readonly string[]): string[] {
     .map((entry) => normalizeEvidencePath(entry))
 }
 
+/**
+ * The inputs that ship (CM971-R3): those an output carries bytes of
+ * (esbuild's `outputs[…].inputs[…].bytesInOutput`); an input the bundler
+ * read but shook out entirely does not ship. A record whose outputs do
+ * not itemize their inputs counts every listed input.
+ */
+function contributingInputs(outputs: unknown, listed: readonly string[]): string[] {
+  const records = Object.values(keyedRecordSchema.safeParse(outputs).data ?? {})
+  const itemized = records.map(
+    (record) =>
+      keyedRecordSchema.safeParse(keyedRecordSchema.safeParse(record).data?.['inputs']).data,
+  )
+  if (itemized.length === 0 || itemized.includes(undefined)) return [...listed]
+  const carried = new Set<string>()
+  for (const entries of itemized) {
+    const pairs = Object.entries(entries ?? {})
+    for (const [input, detail] of pairs) {
+      const bytes: unknown = keyedRecordSchema.safeParse(detail).data?.['bytesInOutput']
+      if (typeof bytes !== 'number' || bytes > 0) carried.add(normalizeEvidencePath(input))
+    }
+  }
+  return listed.filter((input) => carried.has(input))
+}
+
 function deriveBundleEvidence(snapshot: LegalFileSnapshot): {
   readonly bundleInputs: string[]
   readonly bundles: BundleEvidence[]
@@ -287,7 +313,8 @@ function deriveBundleEvidence(snapshot: LegalFileSnapshot): {
       readJson(snapshot, `${LEGAL_META_HASHES_DIR}${name}.json`),
     ).data
     const bundleInputs = workspaceEntries(metaInputs)
-    for (const input of bundleInputs) inputs.add(input)
+    const carried = contributingInputs(parsed['outputs'], bundleInputs)
+    for (const input of carried) inputs.add(input)
     bundles.push({
       name,
       inputs: bundleInputs,
@@ -452,7 +479,16 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   if (templates.problems.length > 0)
     incomplete.push(fill(UI_TEXT.legalScanner.m205, { v0: templates.problems.join(', ') }))
   if (options.signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
-  const headerView = subsetSnapshot(bounded, paths.length > 0 ? paths : undefined, allowed)
+  // Scan scope (lead ruling 2026-10-10): with distribution known, the
+  // readers judge the distributed workspace: root files (manifests, locks,
+  // licence and notice files), the shipped files and the admitted files of
+  // each shipped package. Test fixtures and other undistributed files stay
+  // out; with distribution unknown, the whole workspace counts.
+  const distributionEvidence = options.distribution ?? deriveDistribution(bounded)
+  const view = distributedView(bounded, distributionEvidence)
+  // Header policy covers the project's own sources, never installed packages.
+  const ownFiles = new Set(view.files.filter((file) => !file.includes(NODE_MODULES_SEGMENT)))
+  const headerView = subsetSnapshot(view, paths.length > 0 ? paths : undefined, ownFiles)
 
   if (overCap > 0) {
     incomplete.push(
@@ -476,8 +512,8 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   const dependencies: LegalDependency[] = []
   const manifests: ManifestLicenseDeclaration[] = []
   for (const reader of readers) {
-    const result = reader(bounded)
-    const remaining = LEGAL_FINDINGS_MAX - dependencies.length
+    const result = reader(view)
+    const remaining = LEGAL_DEPENDENCIES_MAX - dependencies.length
     if (result.dependencies.length > remaining)
       incomplete.push(
         plural(UI_TEXT.legalScanner.m116, result.dependencies.length - remaining, {
@@ -494,9 +530,22 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
     incomplete.push(...result.incomplete.filter((entry) => !isAbsentEcosystemNote(entry)))
   }
 
+  // Scan scope (lead ruling 2026-10-10): a workspace scan judges what the
+  // workspace distributes. Distribution comes from the build records (or
+  // the package's files list); a dependency that provably does not ship is
+  // informational and never makes the scan incomplete. With distribution
+  // unknown, every dependency is judged as if it ships.
+  const preShipped = computeShipped(bounded, dependencies, distributionEvidence)
+  const isReviewed = (dep: LegalDependency): boolean =>
+    preShipped.shippedFiles === undefined ||
+    preShipped.shippedDependencies.has(
+      JSON.stringify([dep.ecosystem, dep.name, dep.version, dep.evidenceFile]),
+    )
+  const informational = new Set<string>()
   const observed: LegalDependency[] = []
   let hasUnrecognizedLicenseText = false
   for (const dep of dependencies) {
+    const isDependencyReviewed = isReviewed(dep)
     // Every licence text the dependency carries or names (M97 CM971-R3):
     // standard licence file names in its material, plus any file its
     // metadata points at (`license-file`, `SEE LICENSE IN`,
@@ -511,6 +560,10 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
       const text = bounded.readFile(file)
       if (text === undefined) continue
       const match = identifyLicenseText(text)
+      if (!isDependencyReviewed) {
+        if (match?.exact !== true) informational.add(dep.name)
+        continue
+      }
       if (match === undefined) {
         incomplete.push(fill(UI_TEXT.legalScanner.m117, { v0: dep.name, v1: file }))
         hasUnrecognizedLicenseText = true
@@ -536,13 +589,12 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
     }
   }
   dependencies.push(...observed)
-  const project = scanProjectLicense(bounded, manifests, projectHeaderGrants(bounded))
+  const project = scanProjectLicense(view, manifests, projectHeaderGrants(view))
   incomplete.push(...project.incomplete)
 
   const headers = scanHeaders(headerView, options.headerPolicy, project.licenses)
   incomplete.push(...headers.incomplete)
 
-  const distributionEvidence = options.distribution ?? deriveDistribution(bounded)
   const evidenceNotices = distributionEvidence.notices ?? []
   const notices = [
     ...evidenceNotices,
@@ -553,18 +605,28 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   const shipped = computeShipped(bounded, dependencies, distributionEvidence)
   incomplete.push(...shipped.incomplete)
 
-  const licensed = evaluateDependencyLicenses(dependencies, (dep) =>
+  const isShipped = (dep: LegalDependency): boolean =>
     shipped.shippedDependencies.has(
       JSON.stringify([dep.ecosystem, dep.name, dep.version, dep.evidenceFile]),
-    ),
+    )
+  const licensed = evaluateDependencyLicenses(
+    dependencies.filter((dep) => isReviewed(dep)),
+    isShipped,
   )
   incomplete.push(...licensed.incomplete)
-  const compat = evaluateCompatibility(licensed.evaluated, project.licenses)
+  // Dependencies that do not ship: their declarations stay visible as
+  // advice, and their gaps are not the scan's.
+  const unshipped = evaluateDependencyLicenses(
+    dependencies.filter((dep) => !isReviewed(dep)),
+    isShipped,
+  )
+  const evaluated = [...licensed.evaluated, ...unshipped.evaluated]
+  const compat = evaluateCompatibility(evaluated, project.licenses)
 
-  const noticeCheck = checkNotices(bounded, licensed.evaluated, shipped, notices)
+  const noticeCheck = checkNotices(bounded, evaluated, shipped, notices)
   incomplete.push(...noticeCheck.incomplete)
 
-  const risks = scanAttributionRisks(bounded)
+  const risks = scanAttributionRisks(view)
   incomplete.push(...risks.incomplete)
   if (
     hasUnrecognizedLicenseText ||
@@ -580,6 +642,10 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
     ...project.findings.map((finding) => ({ rule: ruleOf(finding.category), finding })),
     ...headers.findings.map((finding) => ({ rule: ruleOf(finding.category), finding })),
     ...licensed.findings.map((finding) => ({ rule: 'dependency', finding })),
+    ...unshippedFindings(unshipped.findings, informational).map((finding) => ({
+      rule: 'dependency',
+      finding,
+    })),
     ...compat.map((finding) => ({ rule: 'compat', finding })),
     ...noticeCheck.findings.map((finding) => ({ rule: ruleOf(finding.category), finding })),
   ]
@@ -604,27 +670,53 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
     }
   }
 
+  // Report bounds. Omitted blockers or should-fix findings make the scan
+  // incomplete; omitted advice does not (the facts are complete, only the
+  // list is shortened), so it is summarized per rule instead (CM971-R3).
   const perRule = new Map<string, number>()
-  const withinRules = findings.filter(({ rule }) => {
+  const omittedAdvice = new Map<string, number>()
+  const omit = (rule: string, finding: LegalFindingDraft, reason: string): void => {
+    if (finding.severity === 'advice') omittedAdvice.set(rule, (omittedAdvice.get(rule) ?? 0) + 1)
+    else if (!incomplete.includes(reason)) incomplete.push(reason)
+  }
+  const withinRules = findings.filter(({ rule, finding }) => {
     const count = (perRule.get(rule) ?? 0) + 1
     perRule.set(rule, count)
-    return count <= LEGAL_FINDINGS_PER_RULE_MAX
+    if (count <= LEGAL_FINDINGS_PER_RULE_MAX) return true
+    omit(rule, finding, fill(UI_TEXT.legalScanner.m121, { v0: rule }))
+    return false
   })
-  for (const [rule, count] of perRule) {
-    if (count > LEGAL_FINDINGS_PER_RULE_MAX)
-      incomplete.push(fill(UI_TEXT.legalScanner.m121, { v0: rule }))
-  }
   incomplete.push(
     ...(snapshot.incompleteChecks ?? []).filter((entry) => !incomplete.includes(entry)),
   )
   if (Date.now() >= deadline && !incomplete.includes('scan stopped at limit: elapsed time'))
     incomplete.push(UI_TEXT.legalScanner.m112)
   const truncated = withinRules.length - LEGAL_FINDINGS_MAX
-  const kept = truncated > 0 ? withinRules.slice(0, LEGAL_FINDINGS_MAX) : withinRules
-  if (truncated > 0) {
-    incomplete.push(
-      plural(UI_TEXT.legalScanner.m122, truncated, { v0: truncated, v1: LEGAL_FINDINGS_MAX }),
-    )
+  const totalReason = plural(UI_TEXT.legalScanner.m122, Math.max(truncated, 1), {
+    v0: Math.max(truncated, 1),
+    v1: LEGAL_FINDINGS_MAX,
+  })
+  const kept = withinRules.slice(0, LEGAL_FINDINGS_MAX)
+  for (const { rule, finding } of withinRules.slice(LEGAL_FINDINGS_MAX))
+    omit(rule, finding, totalReason)
+  // Room for one summary per rule with omitted advice.
+  while (kept.length > 0 && kept.length + omittedAdvice.size > LEGAL_FINDINGS_MAX) {
+    const last = kept.pop()
+    if (last !== undefined) omit(last.rule, last.finding, totalReason)
+  }
+  for (const [rule, count] of omittedAdvice) {
+    kept.push({
+      rule,
+      finding: {
+        severity: 'advice',
+        category: SUMMARY_CATEGORY[rule] ?? 'distribution',
+        evidenceSource: UI_TEXT.legalScanner.m045,
+        confidence: 1,
+        explanation: plural(UI_TEXT.legalScanner.m209, count, { v0: rule }),
+        recommendation: UI_TEXT.legalScanner.m210,
+        fixable: false,
+      },
+    })
   }
 
   const counters = new Map<string, number>()
@@ -710,6 +802,81 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
     throw new LegalScanError(fill(UI_TEXT.legalScanner.m124, { v0: parsed.error.message }))
   }
   return parsed.data
+}
+
+/**
+ * Findings about dependencies that do not ship (lead ruling 2026-10-10):
+ * informational advice, plus one advice line naming those whose licence
+ * texts differ from their templates or are unrecognized.
+ */
+/**
+ * The distributed workspace (CM971-R3): root files, the shipped files and
+ * the admitted files of each shipped package; the whole snapshot when
+ * distribution is unknown.
+ */
+function distributedView(
+  snapshot: LegalFileSnapshot,
+  evidence: DistributionEvidence,
+): LegalFileSnapshot {
+  const shippedFiles = computeShipped(snapshot, [], evidence).shippedFiles
+  if (shippedFiles === undefined) return snapshot
+  const packages = new Set<string>()
+  for (const file of shippedFiles) {
+    const at = file.lastIndexOf(NODE_MODULES_SEGMENT)
+    if (at === -1) continue
+    const [scope = '', name = ''] = file.slice(at + NODE_MODULES_SEGMENT.length).split('/', 2)
+    const head = file.slice(0, at + NODE_MODULES_SEGMENT.length)
+    packages.add(`${head}${scope.startsWith('@') ? `${scope}/${name}` : scope}/`)
+  }
+  const kept = new Set(
+    snapshot.files.filter(
+      (file) =>
+        !file.includes('/') ||
+        shippedFiles.has(file) ||
+        [...packages].some((directory) => file.startsWith(directory)),
+    ),
+  )
+  return {
+    files: snapshot.files.filter((file) => kept.has(file)),
+    readFile: (path: string) => (kept.has(path) ? snapshot.readFile(path) : undefined),
+    ...(snapshot.readFileHash !== undefined && {
+      readFileHash: (path: string) => (kept.has(path) ? snapshot.readFileHash?.(path) : undefined),
+    }),
+  }
+}
+
+const NODE_MODULES_SEGMENT = 'node_modules/'
+
+/** The finding category an omitted-advice summary carries, per rule. */
+const SUMMARY_CATEGORY: Readonly<Record<string, LegalFindingDraft['category']>> = {
+  header: 'codeQualityHeader',
+  'project-license': 'license',
+  dependency: 'dependencyLicense',
+  compat: 'dependencyLicense',
+  notice: 'noticeFile',
+}
+
+function unshippedFindings(
+  findings: readonly LegalFindingDraft[],
+  informational: ReadonlySet<string>,
+): LegalFindingDraft[] {
+  const advice = findings.map((finding) => ({ ...finding, severity: 'advice' as const }))
+  if (informational.size === 0) return advice
+  const names = [...informational].toSorted((a, b) => compareLegalText(a, b))
+  return [
+    ...advice,
+    {
+      severity: 'advice',
+      category: 'dependencyLicense',
+      evidenceSource: UI_TEXT.legalScanner.m045,
+      confidence: 1,
+      explanation: plural(UI_TEXT.legalScanner.m207, names.length, {
+        v0: names.slice(0, LEGAL_UNSHIPPED_NAMES_SHOWN).join(', '),
+      }),
+      recommendation: UI_TEXT.legalScanner.m208,
+      fixable: false,
+    },
+  ]
 }
 
 function scanScope(paths: readonly string[]): string {

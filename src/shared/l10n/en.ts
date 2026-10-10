@@ -5834,7 +5834,6 @@ export const EN = {
     m138: 'not checked: {v0} is a link or escaped directory',
     m139: 'scan stopped at limit: directory-entry budget reached; remaining tree not enumerated',
     m140: 'not checked: {v0} changed during enumeration',
-    m141: 'not checked: {v0} is repository internals',
     m142: 'not checked: {v0} is a link',
     m143: 'not checked: {v0} is a special file',
     m144: 'not checked: {v0} could not be admitted',
@@ -5905,11 +5904,6 @@ export const EN = {
     m171: 'not checked: {v0} has unreadable npm lock metadata',
     m172: 'not checked: {v0} uses an unsupported npm lock version',
     m173: 'not checked: {v0} exceeds the npm nested lock depth bound',
-    m174: forms({
-      one: 'not checked: {count} npm lock entry in {v1} carry no license metadata and no installed package data covers them',
-      other:
-        'not checked: {count} npm lock entries in {v1} carry no license metadata and no installed package data covers them',
-    }),
     m175: 'not checked: {v0} has no readable Yarn package entries',
     m176: forms({
       one: 'not checked: {v0} records versions but no license metadata for {count} packages; installed package data would close the gap',
@@ -5971,6 +5965,17 @@ export const EN = {
     m204: 'not checked: bundle {v0} output {v1} is missing or differs from its build record',
     m205: 'not checked: pinned SPDX template data failed verification ({v0}); exact license-text matching is off for it',
     m206: 'not checked: bundle {v0} input {v1} has no build-captured hash or no longer matches it',
+    m207: forms({
+      one: '{count} dependency that does not ship has a licence text that differs from its SPDX template or is unrecognized ({v0}); it is not distributed, so it does not limit this scan',
+      other:
+        '{count} dependencies that do not ship have licence texts that differ from their SPDX templates or are unrecognized ({v0}); they are not distributed, so they do not limit this scan',
+    }),
+    m208: 'If one of these dependencies starts to ship, review its licence text.',
+    m209: forms({
+      one: '{count} more advice finding for {v0} is not listed; nothing else was left out',
+      other: '{count} more advice findings for {v0} are not listed; nothing else was left out',
+    }),
+    m210: 'Scan a smaller set of paths to list them.',
     unknown: 'unknown',
     unresolved: 'unresolved',
     noLicense: 'no license',

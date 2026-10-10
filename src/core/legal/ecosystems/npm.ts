@@ -91,18 +91,17 @@ function readNpmLock(
   snapshot: LegalFileSnapshot,
   file: string,
   incomplete: string[],
-): { readonly dependencies: readonly LegalDependency[]; readonly withoutLicense: number } {
+): { readonly dependencies: readonly LegalDependency[] } {
   const text = snapshot.readFile(file)
   const lock = text === undefined ? undefined : recordOf(parseJson(text))
   const found: LegalDependency[] = []
-  let withoutLicense = 0
   if (lock === undefined) {
     incomplete.push(fill(UI_TEXT.legalScanner.m171, { v0: file }))
-    return { dependencies: found, withoutLicense }
+    return { dependencies: found }
   }
   if (!['1', '2', '3'].includes(String(lock['lockfileVersion']))) {
     incomplete.push(fill(UI_TEXT.legalScanner.m172, { v0: file }))
-    return { dependencies: [], withoutLicense: 0 }
+    return { dependencies: [] }
   }
   const packages = recordOf(lock['packages'])
   if (packages !== undefined) {
@@ -123,9 +122,6 @@ function readNpmLock(
         continue
       }
       const license = stringField(entry, 'license')
-      if (license === undefined) {
-        withoutLicense += 1
-      }
       let scope: LegalDependencyScope = 'production'
       if (Object.entries(entry).some(([field, value]) => field === 'dev' && value === true))
         scope = 'development'
@@ -133,7 +129,7 @@ function readNpmLock(
 
       found.push(dependency('npm', file, name, { version, scope, licenseRaw: license }))
     }
-    return { dependencies: found, withoutLicense }
+    return { dependencies: found }
   }
   const visitLegacy = (entries: Record<string, unknown>, depth: number): void => {
     if (depth > LEGAL_HEADER_LINE_WINDOW) {
@@ -146,7 +142,6 @@ function readNpmLock(
       if (entry === undefined) continue
       const version = stringField(entry, 'version')
       const license = stringField(entry, 'license')
-      if (license === undefined) withoutLicense += 1
       found.push(dependency('npm', file, name, { version, scope: 'unknown', licenseRaw: license }))
       const children = recordOf(entry['dependencies'])
       if (children !== undefined) visitLegacy(children, depth + 1)
@@ -155,7 +150,7 @@ function readNpmLock(
   const legacy = recordOf(lock['dependencies'])
   if (legacy !== undefined) visitLegacy(legacy, 0)
 
-  return { dependencies: found, withoutLicense }
+  return { dependencies: found }
 }
 
 interface YarnEntry {
@@ -338,18 +333,16 @@ export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
     )
     .toSorted((a, b) => compareLegalText(a, b))
   for (const file of listed7) {
-    const { dependencies, withoutLicense } = readNpmLock(snapshot, file, incomplete)
+    // A lock entry without licence data stays a dependency with an unknown
+    // licence; the dependency reader names each one that ships (or every
+    // one when distribution is unknown), so no aggregate note here.
+    const { dependencies } = readNpmLock(snapshot, file, incomplete)
     for (const dep of dependencies) {
       lockedNames.add(dep.name)
       const identity = `${dep.name}@${dep.version ?? ''}:${file}:${dep.licenseRaw ?? ''}`
       if (!locked.has(identity)) {
         locked.set(identity, dep)
       }
-    }
-    if (withoutLicense > 0) {
-      incomplete.push(
-        plural(UI_TEXT.legalScanner.m174, withoutLicense, { v0: withoutLicense, v1: file }),
-      )
     }
   }
 
