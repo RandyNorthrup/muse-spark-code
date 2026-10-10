@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  TeamAgentMarks,
   TeamScheduler,
   type SchedulerDependencies,
   type TeamSelectionSnapshot,
@@ -10,12 +11,17 @@ import { pickReviewer } from '../../src/core/team/reviewerPick'
 import { isSameTeamModel } from '../../src/core/team/sameModel'
 import { SchedulerSlots } from '../../src/core/team/scheduler/slots'
 import type {
+  LoanFact,
   SchedulerBorrowPort,
   SchedulerRecallEvent,
 } from '../../src/core/team/scheduler/borrowing'
-import { SchedulerBorrowing } from '../../src/core/team/scheduler/borrowing'
+import { LOAN_FACTS, SchedulerBorrowing } from '../../src/core/team/scheduler/borrowing'
 import { TaskPicker } from '../../src/core/team/scheduler/pick'
-import { teamPreferenceListSchema, type TeamPreferenceList } from '../../src/shared/teamPreference'
+import {
+  teamPreferenceListSchema,
+  type TeamPreferenceList,
+  type TeamTaskConditions,
+} from '../../src/shared/teamPreference'
 import { teamBoardSchema, type TeamBoardTask } from '../../src/shared/team'
 import type { TeamBoard } from '../../src/shared/team'
 import {
@@ -34,7 +40,7 @@ import {
   type TeamMeterRow,
 } from '../../src/core/team/teamMeter'
 import type { TeamCap } from '../../src/core/team/teamPool'
-import { selectionSnapshot, rolePool } from './helpers/teamFakes'
+import { keyAgent, selectionSnapshot, rolePool } from './helpers/teamFakes'
 import { attempt, entry, makeBoard, pickContext, submission } from './helpers/teamScheduler'
 
 function list(role: string, ids: string[], minutesPerTask = 30): TeamPreferenceList {
@@ -55,6 +61,8 @@ interface FixtureOptions {
   readonly tasksPerTurn?: number
   /** The lender's own caps, read back from the real meter. */
   readonly reviewerCaps?: readonly TeamCap[]
+  /** The lender sends work through Default; its home entry keeps Default's first identity. */
+  readonly isDefaultLender?: boolean
 }
 
 function fixture(options: FixtureOptions = {}) {
@@ -102,6 +110,17 @@ function fixture(options: FixtureOptions = {}) {
   const lender = review.pool[0]
   if (lender !== undefined && options.reviewerCaps !== undefined)
     lender.caps = [...options.reviewerCaps]
+  if (lender !== undefined && options.isDefaultLender === true) delete lender.agent
+  // Facts the selection snapshot reads beyond the board; tests change them live.
+  const live = {
+    defaultAgent: keyAgent({ key: 'default', label: 'Default (muse-spark-1.3)' }),
+    marks: new TeamAgentMarks(),
+    unavailableAgents: new Set<string>(),
+    /** Occupancy outside this task board, per agent key. */
+    elsewhere: new Map<string, number>(),
+    conditions: new Map<string, TeamTaskConditions>(),
+  }
+  const firstDefault = live.defaultAgent
   const lists = [engineering, review]
   const signedOut = new Set(['coder'])
   const unavailable = new Set<string>()
@@ -137,8 +156,8 @@ function fixture(options: FixtureOptions = {}) {
             entry({
               id: candidate.id,
               roleId: role.role,
-              agentProfileId: candidate.id,
-              modelId: candidate.agent?.model ?? '',
+              agentProfileId: candidate.agent === undefined ? firstDefault.key : candidate.id,
+              modelId: candidate.agent?.model ?? firstDefault.modelId,
             }),
           ),
         ),
@@ -148,13 +167,20 @@ function fixture(options: FixtureOptions = {}) {
             .tasks.flatMap((task) => task.attempts.filter((attempt) => attempt.state !== 'retired'))
           const preference = lists.find((role) => role.role === task.roleId)
           if (preference === undefined) throw new Error('test:role')
+          const byAgent = new Map(running.map((attempt) => [attempt.agentProfileId, 1]))
+          for (const [key, count] of live.elsewhere)
+            byAgent.set(key, (byAgent.get(key) ?? 0) + count)
+          const conditions = live.conditions.get(task.id)
           return {
             ...selectionSnapshot({
               nowMs: Date.now(),
               taskId: task.id,
               runningByEntry: new Map(running.map((attempt) => [attempt.entryId, 1])),
-              runningByAgent: new Map(running.map((attempt) => [attempt.agentProfileId, 1])),
+              runningByAgent: byAgent,
               agentLimit: () => 1,
+              defaultAgent: live.defaultAgent,
+              marks: live.marks,
+              available: (agent) => !live.unavailableAgents.has(agent.key),
               ...(isMetered && {
                 startedThisTurn: [...thisTurn].filter((row) => row.roleId === task.roleId).length,
                 used: (entryId: string, cap: TeamCap) =>
@@ -173,6 +199,7 @@ function fixture(options: FixtureOptions = {}) {
               nodeOnline: true,
               admitted: !unavailable.has(candidate.id),
             })),
+            ...(conditions !== undefined && { conditions }),
           }
         },
       }),
@@ -213,6 +240,7 @@ function fixture(options: FixtureOptions = {}) {
     countAttempt,
     refundAttempt,
     leases,
+    live,
     scheduler: new TeamScheduler(board, slots, deps),
   }
 }
@@ -443,18 +471,18 @@ function revoke(f: ReturnType<typeof fixture>, change: Revocation): void {
 
 const awaitPoints = ['borrowing journal', 'authorization', 'launch journal'] as const
 
-/** Revokes once, `depth` microtasks into the named await before the borrowed launch. */
+/** Changes a fact once, `depth` microtasks into the named await before the borrowed launch. */
 function revokeDuring(
   f: ReturnType<typeof fixture>,
   point: (typeof awaitPoints)[number],
-  change: Revocation | undefined,
+  change: (() => void) | undefined,
   depth: number,
 ): { readonly isReached: () => boolean } {
   let isReached = false
   const hit = async (): Promise<void> => {
     isReached = true
     await microtasks(depth)
-    if (change !== undefined) revoke(f, change)
+    change?.()
   }
   const journal = f.deps.journal
   f.deps.journal = vi.fn<SchedulerDependencies['journal']>(async (snapshot) => {
@@ -1482,7 +1510,14 @@ describe('M120 round 5: one reservation from selection to spawn, one drain owner
       reviewerCaps: [{ measure: 'tasks', window: 'lifetime', amount: 1 }],
     })
     await waitForBorrow(f)
-    const window = revokeDuring(f, 'launch journal', 'assignment', 0)
+    const window = revokeDuring(
+      f,
+      'launch journal',
+      () => {
+        revoke(f, 'assignment')
+      },
+      0,
+    )
     await f.scheduler.wake()
     expect(window.isReached()).toBe(true)
     expect(ledger(f)).toEqual({ admissions: 1, refunds: 1, starts: 0 })
@@ -1521,7 +1556,16 @@ describe('M120 round 5: one reservation from selection to spawn, one drain owner
         for (const depth of [0, 1, 3]) {
           const f = fixture({ tasksPerTurn: 1 })
           await waitForBorrow(f)
-          const window = revokeDuring(f, point, change, depth)
+          const window = revokeDuring(
+            f,
+            point,
+            change === undefined
+              ? undefined
+              : () => {
+                  revoke(f, change)
+                },
+            depth,
+          )
           await f.scheduler.wake()
           const label = `${point}, ${change ?? 'no revocation'}, depth ${String(depth)}`
           expect(window.isReached(), label).toBe(true)
@@ -1621,6 +1665,171 @@ describe('M120 round 5: one reservation from selection to spawn, one drain owner
     f.deps.authorize = () => Promise.resolve(true)
     await f.scheduler.wake()
     expect(f.board.task('coding').state).toBe('running')
+    expectReservationsSettled(f)
+  })
+})
+
+/**
+ * One flip per fact the loan admission predicate reads, on a Default lender
+ * (agent key `default`), so each flip falsifies only its own fact. The record
+ * must name every fact: a new fact without a flip fails the typecheck and the
+ * coverage assertion below.
+ */
+const factFlips: Record<LoanFact, (f: ReturnType<typeof fixture>) => void> = {
+  reservation: (f) => {
+    f.board.recallAsked('coding', Date.now())
+  },
+  authorization: (f) => {
+    f.assignments.length = 0
+  },
+  identity: (f) => {
+    f.live.defaultAgent = keyAgent({ key: 'default', modelId: 'replacement-default-engine' })
+  },
+  author: (f) => {
+    f.live.conditions.set('coding', { authorCandidates: ['reviewer'] })
+  },
+  conditions: (f) => {
+    f.live.conditions.set('coding', { features: ['vision'] })
+  },
+  availability: (f) => {
+    f.unavailable.add('reviewer')
+  },
+  limit: (f) => {
+    f.live.marks.markRateLimited('default', Date.now() + TEAM_BORROW_DEMAND_WAIT_MS)
+  },
+  agent: (f) => {
+    f.live.unavailableAgents.add('default')
+  },
+  idle: (f) => {
+    f.live.elsewhere.set('default', 1)
+  },
+  demand: (f) => {
+    f.board.demand('coding', Date.now(), true)
+  },
+  mainCandidate: (f) => {
+    f.signedOut.clear()
+  },
+  mainWork: (f) => {
+    f.board.submit([submission('review', { roleId: 'review' })], Date.now())
+  },
+  cooldown: (f) => {
+    f.board.borrowEnded('reviewer', Date.now())
+  },
+}
+
+function borrowDecisionsFor(f: ReturnType<typeof fixture>, taskId: string): number {
+  return vi
+    .mocked(f.port.decisions)
+    .mock.calls.flatMap(([decisions]) => decisions)
+    .filter((decision) => decision.taskId === taskId && decision.kind === 'borrow').length
+}
+
+describe('M120 round 5, fix 1: one admission predicate for selection and the final gate', () => {
+  it.each([
+    [
+      'installed agent availability',
+      {},
+      (f: ReturnType<typeof fixture>) => {
+        f.live.unavailableAgents.add('reviewer')
+      },
+    ],
+    [
+      'idleness outside the task board',
+      {},
+      (f: ReturnType<typeof fixture>) => {
+        f.live.elsewhere.set('reviewer', 1)
+      },
+    ],
+    [
+      'its resolved Default identity',
+      { isDefaultLender: true },
+      (f: ReturnType<typeof fixture>) => {
+        f.live.defaultAgent = keyAgent({ key: 'default', modelId: 'replacement-default-engine' })
+      },
+    ],
+  ] as const)(
+    'refuses and refunds a loan whose lender loses %s during the launch journal (RVM120S5C)',
+    async (_fact, options, flip) => {
+      const f = fixture(options)
+      await waitForBorrow(f)
+      const window = revokeDuring(
+        f,
+        'launch journal',
+        () => {
+          flip(f)
+        },
+        0,
+      )
+      await f.scheduler.wake()
+      expect(window.isReached()).toBe(true)
+      expect({ ...ledger(f), state: f.board.task('coding').state }).toEqual({
+        admissions: 1,
+        refunds: 1,
+        starts: 0,
+        state: 'ready',
+      })
+      expectReservationsSettled(f)
+    },
+  )
+
+  it('flips cover exactly the facts the predicate reads', () => {
+    expect(new Set(Object.keys(factFlips))).toEqual(new Set(LOAN_FACTS))
+  })
+
+  it.each(LOAN_FACTS)(
+    'property: flipping %s during the launch journal makes the gate refuse on it and refund once',
+    async (fact) => {
+      const validate = vi.spyOn(SchedulerBorrowing.prototype, 'validate')
+      try {
+        const f = fixture({ isDefaultLender: true })
+        await waitForBorrow(f)
+        const window = revokeDuring(
+          f,
+          'launch journal',
+          () => {
+            factFlips[fact](f)
+          },
+          0,
+        )
+        await f.scheduler.wake()
+        expect(window.isReached()).toBe(true)
+        expect(validate.mock.results.map((result): unknown => result.value)).toEqual([fact])
+        expect(borrowedStarts(f)).toBe(0)
+        expect(ledger(f).refunds).toBe(1)
+        expect(f.board.task('coding').attempts.every((item) => item.entryId !== 'reviewer')).toBe(
+          true,
+        )
+        expectReservationsSettled(f)
+      } finally {
+        validate.mockRestore()
+      }
+    },
+  )
+
+  it.each(LOAN_FACTS.filter((fact) => fact !== 'reservation'))(
+    'property: with %s flipped before selection, selection admits no loan through the same predicate',
+    async (fact) => {
+      const f = fixture({ isDefaultLender: true })
+      await waitForBorrow(f)
+      factFlips[fact](f)
+      await f.scheduler.wake()
+      expect(borrowDecisionsFor(f, 'coding')).toBe(0)
+      expect(borrowedStarts(f)).toBe(0)
+      expect(ledger(f).refunds).toBe(0)
+      expectReservationsSettled(f)
+    },
+  )
+
+  it('admits and launches the Default lender when no fact changes', async () => {
+    const f = fixture({ isDefaultLender: true })
+    await borrowCoding(f)
+    expect(borrowDecisionsFor(f, 'coding')).toBe(1)
+    expect({ ...ledger(f), worker: f.board.task('coding').attempts[0]?.entryId }).toEqual({
+      admissions: 1,
+      refunds: 0,
+      starts: 1,
+      worker: 'reviewer',
+    })
     expectReservationsSettled(f)
   })
 })

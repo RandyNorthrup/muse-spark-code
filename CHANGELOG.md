@@ -86,6 +86,9 @@ happened, not what was planned; superseded entries are kept.
   own last lifetime task, now starts instead of refusing itself. A launch
   refused at the last moment returns its counted task, slot and lease. A
   readiness wake arriving as a drain finishes is no longer lost (RVM120S4C).
+  That last-moment check reads the same facts selection did, so a lender that
+  became unavailable, took other work, or whose Default model changed is
+  refused rather than started (RVM120S5C).
 
 - M120 borrowed launches recheck authorization, native recovery and main-role
   demand synchronously after the launch journal write. Revoked unstarted loans

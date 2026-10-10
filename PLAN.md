@@ -37389,6 +37389,20 @@ synchronous step. Ownership is published before the first pass, so a
 re-entrant wake joins it. D109's rules and timers are unchanged. Receipts:
 `docs/certification/m120-s.md`, round 5.
 
+**Round 5 redesign, fix 1 (RVM120S5C, host, 2026-10-10).** The review found
+that the gate read fewer facts than admission. It skipped installed agent
+availability, work outside the task board, and the live Default identity of
+a Default lender. As the lead ruled, one admission predicate for a (task,
+lender, reservation) triple now serves both sides. The borrowing tick, the
+per-pass loan re-validation and the final gate all call it. Selection
+additionally ranks and reserves. The gate re-evaluates only the predicate,
+setting aside its own reservation once, and refunds exactly once on refusal.
+The predicate's facts are named in `LOAN_FACTS`, and a property flips each one
+during the launch journal. That gives a test for every fact, and a new fact
+without a flip fails the typecheck and the coverage test. The running maps in
+the selection snapshot now state that they include admissions journalled but
+not yet started.
+
 - **Goal:** D103 across every balancing surface.
 - **Order:** after the Wednesday set, and before the M110/M111 resume.
   M110's node orchestrator uses it.

@@ -338,9 +338,12 @@ export interface TeamSelectionSnapshot {
   readonly defaultAgent: TeamAgentProfile
   /** Tasks started this orchestrator turn (the per-role `turn` limit). */
   readonly startedThisTurn: number
-  /** Running tasks per entry id. */
+  /** Running tasks per entry id, including admissions journalled but not yet started. */
   readonly runningByEntry: ReadonlyMap<string, number>
-  /** Running tasks per agent key, across every role and conversation. */
+  /**
+   * Running tasks per agent key, across every role and conversation, including
+   * admissions journalled but not yet started: a loan's final gate sets its own aside.
+   */
   readonly runningByAgent: ReadonlyMap<string, number>
   /** Used amount for an entry's cap: ledger rows in the window plus open reservations. */
   readonly usedByEntryCap: (entryId: string, cap: TeamCap) => number | UsdAmount
@@ -991,7 +994,7 @@ export class TeamScheduler {
     if (reservation.loan === undefined) return task.loan?.attempt !== task.currentAttempt
     if (this.borrowing === undefined) return false
     const live = this.deps.context()
-    return this.borrowing.validate(
+    const refusal = this.borrowing.validate(
       {
         ...live,
         now: this.deps.now(),
@@ -1001,6 +1004,7 @@ export class TeamScheduler {
       task,
       reservation.loan,
     )
+    return refusal === undefined
   }
 
   startSweep(): void {

@@ -53,6 +53,46 @@ export class TeamLiveAvailability implements TeamAvailabilityProbe {
   }
 }
 
+function refAgent(ref: NonNullable<TeamCandidate['agent']>): TeamAgentProfile {
+  return {
+    key: ref.agentId,
+    modelId: ref.model,
+    kind: ref.kind,
+    billing: ref.pays,
+    label: ref.agentId,
+  }
+}
+
+/** The agent a candidate sends work through right now: its own, or Default live resolved. */
+export function candidateAgent(
+  candidate: TeamCandidate,
+  snapshot: Pick<TeamSelectionSnapshot, 'defaultAgent'>,
+): TeamAgentProfile {
+  return candidate.agent === undefined ? snapshot.defaultAgent : refAgent(candidate.agent)
+}
+
+/**
+ * The live refusal for one candidate, before any capacity: authorship,
+ * conditions, then the availability probe. `snapshot.conditions` must already
+ * include the authorship (`selectionConditions`).
+ */
+export function liveCandidateSkip(
+  candidate: TeamCandidate,
+  agent: TeamAgentProfile,
+  snapshot: TeamSelectionSnapshot,
+): TeamSkip | undefined {
+  const conditions = snapshot.conditions
+  const isAuthor =
+    isTaskAuthor(candidate.id, agent.modelId, conditions) ||
+    isTaskAuthor(candidate.id, snapshot.engine?.(candidate) ?? agent.modelId, conditions) ||
+    (conditions?.authorEngines ?? []).some((engine) => isSameTeamModel(engine, agent.modelId))
+  const live = snapshot.availability?.probe(candidate, snapshot.nowMs)
+  if (isAuthor) return { candidateId: candidate.id, reason: 'author' }
+  if (!canMeetTaskConditions(candidate.conditions, conditions))
+    return { candidateId: candidate.id, reason: 'conditions' }
+  return live?.available === false ? live.skip : undefined
+}
+
 /** Adapt lane 0's D75-compatible candidates without changing the legacy pool. */
 function preferencePool(list: TeamPreferenceList, pool: TeamRolePool): TeamRolePool {
   if (list.role !== pool.roleId) throw new Error('team:preferenceRole')
@@ -65,13 +105,7 @@ function preferencePool(list: TeamPreferenceList, pool: TeamRolePool): TeamRoleP
       const ref = candidate.agent
       let agent: TeamPoolEntry['agent'] = { defaultEntry: true }
       if (ref !== undefined) {
-        agent = {
-          key: ref.agentId,
-          modelId: ref.model,
-          kind: ref.kind,
-          billing: ref.pays,
-          label: ref.agentId,
-        }
+        agent = refAgent(ref)
         const original = existing?.agent
         if (
           original !== undefined &&
@@ -192,18 +226,7 @@ export function selectTeamEntry(
   for (const entry of pool.entries) {
     const candidate = preference?.pool.find((item) => item.id === entry.id)
     if (candidate !== undefined) {
-      const agent = entryAgent(entry, snapshot)
-      const conditions = snapshot.conditions
-      const isAuthor =
-        isTaskAuthor(candidate.id, agent.modelId, conditions) ||
-        isTaskAuthor(candidate.id, snapshot.engine?.(candidate) ?? agent.modelId, conditions) ||
-        (conditions?.authorEngines ?? []).some((engine) => isSameTeamModel(engine, agent.modelId))
-      const live = snapshot.availability?.probe(candidate, snapshot.nowMs)
-      let skip: TeamSkip | undefined
-      if (isAuthor) skip = { candidateId: entry.id, reason: 'author' }
-      else if (!canMeetTaskConditions(candidate.conditions, conditions))
-        skip = { candidateId: entry.id, reason: 'conditions' }
-      else if (live?.available === false) skip = live.skip
+      const skip = liveCandidateSkip(candidate, entryAgent(entry, snapshot), snapshot)
       if (skip !== undefined) {
         skips.push(skip)
         reasons.push({ entryId: entry.id, reason: 'unavailable', skip })

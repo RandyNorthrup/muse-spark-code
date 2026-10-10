@@ -4,12 +4,13 @@ import {
   TEAM_TASK_MINUTES_DEFAULT,
   TEAM_BORROW_RECALL_WAIT_MS,
 } from '../../../shared/constants'
-import type { TeamBoardTask } from '../../../shared/team'
+import type { TeamAttempt, TeamBoardTask } from '../../../shared/team'
 import {
   isTaskAuthor,
   type TeamCandidate,
   type TeamPreferenceList,
   type TeamRoleAssignment,
+  type TeamSkip,
   type TeamTaskConditions,
 } from '../../../shared/teamPreference'
 import {
@@ -22,7 +23,13 @@ import {
   type BorrowSnapshot,
   type RecallDecision,
 } from '../borrow'
-import { selectTeamEntry, selectionConditions } from '../selection'
+import { isSameTeamModel } from '../sameModel'
+import {
+  candidateAgent,
+  liveCandidateSkip,
+  selectTeamEntry,
+  selectionConditions,
+} from '../selection'
 import type { TeamSelectionSnapshot } from '../teamPool'
 import type { TaskBoard } from './board'
 import type { TaskPicker, PickContext, SchedulerEntry } from './pick'
@@ -46,6 +53,69 @@ export interface SchedulerBorrowPort {
   ): { readonly roleId: string; readonly conditions?: TeamTaskConditions } | undefined
   recall(event: SchedulerRecallEvent): Promise<void>
   decisions(decisions: readonly BorrowDecision[]): void
+}
+
+/**
+ * Every fact the loan admission predicate reads, in the order it reads them.
+ * `reservation` is the final gate's own: the held loan and attempt are unchanged.
+ */
+export const LOAN_FACTS = [
+  'reservation',
+  'authorization',
+  'identity',
+  'author',
+  'conditions',
+  'availability',
+  'limit',
+  'agent',
+  'idle',
+  'demand',
+  'mainCandidate',
+  'mainWork',
+  'cooldown',
+] as const
+export type LoanFact = (typeof LOAN_FACTS)[number]
+
+interface LoanLender {
+  readonly candidateId: string
+  readonly mainRole: string
+}
+
+/** A refused lender fact carries its roster skip; a refused D109 condition is the decision's. */
+type LoanAdmission =
+  | { readonly kind: 'admitted'; readonly candidate: TeamCandidate; readonly home: SchedulerEntry }
+  | { readonly kind: 'refused'; readonly fact: LoanFact; readonly skip?: TeamSkip }
+
+function refused(fact: LoanFact, skip: TeamSkip): LoanAdmission {
+  return { kind: 'refused', fact, skip }
+}
+
+/** Which D109 lending condition a one-lender decision refused on. */
+function lendingFact(decision: BorrowDecision | undefined, isMainFree: boolean): LoanFact {
+  if (isMainFree && decision?.kind === 'none' && decision.reason === 'mainFree')
+    return 'mainCandidate'
+  if (decision === undefined || (decision.kind === 'none' && decision.reason !== 'noLender'))
+    return 'demand'
+  switch (decision.skips[0]?.reason) {
+    case 'borrowCooldown': {
+      return 'cooldown'
+    }
+    case 'mainWorkDue': {
+      return 'mainWork'
+    }
+    case 'conditions': {
+      return 'conditions'
+    }
+    case 'author': {
+      return 'author'
+    }
+    case 'busy': {
+      return 'idle'
+    }
+    default: {
+      return 'authorization'
+    }
+  }
 }
 
 /** Board-derived live D109 state; no independent timers or hidden task queue. */
@@ -269,29 +339,110 @@ export class SchedulerBorrowing {
     ])
   }
 
-  /** The loan's lender while its assignment, candidate and home entry still authorize it. */
-  private lender(
+  /**
+   * The lender while its assignment lists the task's role and its candidate
+   * and home entry exist; with a loan, while they still match its fingerprint.
+   */
+  private authorized(
     context: PickContext,
     task: TeamBoardTask,
-    loan: NonNullable<TeamBoardTask['loan']>,
+    lender: LoanLender,
     lists: readonly TeamPreferenceList[],
-  ): { readonly candidate: TeamCandidate; readonly home: SchedulerEntry } | undefined {
+    loan: TeamBoardTask['loan'],
+  ): LoanAdmission {
     const assignment = this.port
       .assignments()
-      .find((item) => item.candidateId === loan.candidateId && item.mainRole === loan.mainRole)
+      .find((item) => item.candidateId === lender.candidateId && item.mainRole === lender.mainRole)
     const candidate = lists
-      .find((list) => list.role === loan.mainRole)
-      ?.pool.find((item) => item.id === loan.candidateId)
+      .find((list) => list.role === lender.mainRole)
+      ?.pool.find((item) => item.id === lender.candidateId)
     const home = context.entries.find(
-      (item) => item.id === loan.candidateId && item.roleId === loan.mainRole,
+      (item) => item.id === lender.candidateId && item.roleId === lender.mainRole,
     )
-    return candidate !== undefined &&
-      home !== undefined &&
-      assignment?.secondaryRoles.includes(task.roleId) === true &&
+    if (candidate === undefined || home === undefined)
+      return refused('authorization', { candidateId: lender.candidateId, reason: 'nodeOffline' })
+    return assignment?.secondaryRoles.includes(task.roleId) === true &&
       home.eligible(task) &&
-      this.authorization(candidate, home) === loan.authorization
-      ? { candidate, home }
-      : undefined
+      (loan === undefined || this.authorization(candidate, home) === loan.authorization)
+      ? { kind: 'admitted', candidate, home }
+      : refused('authorization', { candidateId: lender.candidateId, reason: 'conditions' })
+  }
+
+  /**
+   * D109's admission predicate for one task and one lender: every fact a loan
+   * rests on except the capacity selection counts once (turn, caps,
+   * concurrency, slot). Selection reads it before ranking and reserving;
+   * the final gate reads only it, so the two cannot disagree. A `held`
+   * attempt is this admission's own and is set aside exactly once from the
+   * lender's live occupancy. `facts` carries D109's lending conditions.
+   */
+  private admission(
+    context: PickContext,
+    task: TeamBoardTask,
+    lender: LoanLender,
+    lists: readonly TeamPreferenceList[],
+    reservation: { readonly loan: TeamBoardTask['loan']; readonly held?: TeamAttempt },
+    facts: BorrowSnapshot,
+  ): LoanAdmission {
+    const authorized = this.authorized(context, task, lender, lists, reservation.loan)
+    if (authorized.kind === 'refused') return authorized
+    const supplied = context.selection?.(task)
+    const { candidate, home } = authorized
+    const skip = (reason: TeamSkip['reason']): TeamSkip => ({
+      candidateId: candidate.id,
+      reason,
+    })
+    if (supplied?.preference === undefined || supplied.availability === undefined)
+      return refused('authorization', skip('conditions'))
+    const conditions = selectionConditions(supplied)
+    const selection: TeamSelectionSnapshot = {
+      ...supplied,
+      nowMs: context.now,
+      ...(conditions !== undefined && { conditions }),
+    }
+    const agent = candidateAgent(candidate, selection)
+    const held = reservation.held
+    if (
+      home.agentProfileId !== agent.key ||
+      !isSameTeamModel(home.modelId, agent.modelId) ||
+      home.kind !== agent.kind ||
+      (held !== undefined &&
+        (held.agentProfileId !== home.agentProfileId ||
+          held.modelId !== home.modelId ||
+          held.kind !== home.kind))
+    )
+      return refused('identity', skip('unhealthy'))
+    const live = liveCandidateSkip(candidate, agent, selection)
+    if (live !== undefined)
+      return refused(
+        live.reason === 'author' || live.reason === 'conditions' ? live.reason : 'availability',
+        live,
+      )
+    const mark = selection.marks.at(agent.key, context.now)
+    if (mark !== undefined)
+      return refused('limit', {
+        ...skip(mark.kind === 'rateLimited' ? 'rateLimited' : 'capped'),
+        untilMs: mark.untilMs,
+      })
+    if (!selection.isAgentAvailable(agent)) return refused('agent', skip('signedOut'))
+    const own = held === undefined ? 0 : 1
+    if (
+      (selection.runningByAgent.get(agent.key) ?? 0) > own ||
+      (selection.runningByEntry.get(home.id) ?? 0) > own
+    )
+      return refused('idle', skip('busy'))
+    const decision = decideBorrow(
+      { ...facts, agents: facts.agents.filter((item) => item.candidateId === candidate.id) },
+      task.id,
+    )[0]
+    if (decision?.kind === 'borrow' && decision.candidateId === candidate.id) return authorized
+    return {
+      kind: 'refused',
+      fact: lendingFact(
+        decision,
+        facts.queued.some((item) => item.taskId === task.id && item.mainCandidateFree),
+      ),
+    }
   }
 
   private recordRecalls(snapshot: BorrowSnapshot, invalid: ReadonlySet<string>): void {
@@ -358,31 +509,16 @@ export class SchedulerBorrowing {
     for (const task of tasks) {
       const proposed = task.loan
       if (proposed === undefined) continue
-      const lender = this.lender(context, task, proposed, lists)
       if (proposed.attempt === task.currentAttempt) {
-        if (lender === undefined) invalid.add(task.id)
+        if (this.authorized(context, task, proposed, lists, proposed).kind === 'refused')
+          invalid.add(task.id)
         continue
       }
-      const decision =
-        lender !== undefined &&
-        task.state === 'ready' &&
-        !task.held &&
-        context.selection?.(task).preference !== undefined
-          ? decideBorrow(
-              {
-                ...snapshot,
-                agents: snapshot.agents.filter(
-                  (agent) => agent.candidateId === proposed.candidateId,
-                ),
-              },
-              task.id,
-            )[0]
+      const lender =
+        task.state === 'ready' && !task.held
+          ? this.admission(context, task, proposed, lists, { loan: proposed }, snapshot)
           : undefined
-      if (
-        lender === undefined ||
-        decision?.kind !== 'borrow' ||
-        decision.candidateId !== proposed.candidateId
-      ) {
+      if (lender?.kind !== 'admitted') {
         this.board.loan(task.id, undefined)
         continue
       }
@@ -432,22 +568,25 @@ export class SchedulerBorrowing {
     for (const queued of ordered) {
       const task = this.board.task(queued.taskId)
       if (context.selection?.(task).preference === undefined) continue
+      // Each lender passes the same admission predicate as the final gate,
+      // then capacity; decideBorrow ranks the lenders that remain.
+      const admitted = new Map<string, { candidate: TeamCandidate; home: SchedulerEntry }>()
       const agents = snapshot.agents.map((agent): BorrowAgent => {
-        if (agent.running !== undefined) return agent
-        const candidate = lists
-          .find((list) => list.role === agent.mainRole)
-          ?.pool.find((item) => item.id === agent.candidateId)
-        const home = context.entries.find(
-          (entry) => entry.id === agent.candidateId && entry.roleId === agent.mainRole,
+        if (
+          agent.running !== undefined ||
+          agent.mainRole === task.roleId ||
+          !agent.secondaryRoles.includes(task.roleId)
         )
-        if (candidate === undefined || home === undefined)
-          return { ...agent, skip: { candidateId: agent.candidateId, reason: 'nodeOffline' } }
+          return agent
         if (taken.has(agent.candidateId))
           return { ...agent, skip: { candidateId: agent.candidateId, reason: 'busy' } }
-        const selection = this.selection(context, task, candidate)
+        const admission = this.admission(context, task, agent, lists, { loan: undefined }, snapshot)
+        if (admission.kind === 'refused')
+          return admission.skip === undefined ? agent : { ...agent, skip: admission.skip }
+        admitted.set(agent.candidateId, admission)
         const result = selectTeamEntry(
           { roleId: task.roleId, entries: [], policy: 'queue', continueOnNext: false },
-          selection,
+          this.selection(context, task, admission.candidate),
           TEAM_TASKS_PER_TURN_DEFAULT,
         )
         const skip = result.kind === 'exhausted' ? result.skips?.[0] : undefined
@@ -457,15 +596,9 @@ export class SchedulerBorrowing {
       if (decision === undefined) continue
       decisions.push(decision)
       if (decision.kind !== 'borrow') continue
-      const agent = agents.find((item) => item.candidateId === decision.candidateId)
-      const candidate = lists
-        .find((list) => list.role === agent?.mainRole)
-        ?.pool.find((item) => item.id === decision.candidateId)
-      const home = context.entries.find(
-        (entry) => entry.id === decision.candidateId && entry.roleId === agent?.mainRole,
-      )
-      if (candidate === undefined || home === undefined)
-        throw new Error('team:borrowCandidateMissing')
+      const lender = admitted.get(decision.candidateId)
+      if (lender === undefined) throw new Error('team:borrowCandidateMissing')
+      const { candidate, home } = lender
       taken.add(decision.candidateId)
       this.board.loan(task.id, {
         candidateId: candidate.id,
@@ -486,25 +619,24 @@ export class SchedulerBorrowing {
   }
 
   /**
-   * The final launch gate for a held loan (D109): it validates and never
-   * selects the lender again. The lender's turn, caps and slot belong to this
-   * admission, which already counted them, so none is read again. The board
-   * must still carry the loan the reservation holds, unrecalled, on this
-   * attempt; the assignment, candidate and home entry must still authorize
-   * it; the lender must be live and idle apart from this loan; and D109's
-   * lending conditions must still hold: the demand wait, no free main
-   * candidate (one that could take this admission in the lender's place),
-   * no main-role work queued or due within the lookahead, and the cooldown.
-   * Reads only: no demand, loan, recall or selection callback is written.
+   * The final launch gate for a held loan (D109): the board must still carry
+   * the loan the reservation holds, unrecalled, on this running attempt, and
+   * the admission predicate selection used must still hold. Nothing is
+   * selected or counted again: the lender's turn, caps, concurrency and slot
+   * belong to this admission. Answers the first refusing fact, if any. Reads
+   * only: no demand, loan, recall or selection callback is written.
    */
-  validate(context: PickContext, task: TeamBoardTask, held: TeamBoardTask['loan']): boolean {
+  validate(
+    context: PickContext,
+    task: TeamBoardTask,
+    held: TeamBoardTask['loan'],
+  ): LoanFact | undefined {
     const loan = task.loan
     const attempt = task.attempts.at(-1)
     if (
       held === undefined ||
       loan === undefined ||
       attempt === undefined ||
-      context.selection === undefined ||
       loan.candidateId !== held.candidateId ||
       loan.mainRole !== held.mainRole ||
       loan.authorization !== held.authorization ||
@@ -515,9 +647,10 @@ export class SchedulerBorrowing {
       attempt.entryId !== loan.candidateId ||
       task.recallAskedAtMs !== undefined
     )
-      return false
+      return 'reservation'
+    if (context.selection === undefined) return 'authorization'
     // The task as selection saw it: its unstarted attempt set aside, so the
-    // lender reads as idle for its own loan.
+    // board reads the lender as idle for its own loan.
     const ready: TeamBoardTask = {
       ...task,
       state: 'ready',
@@ -525,22 +658,6 @@ export class SchedulerBorrowing {
       attempts: task.attempts.slice(0, -1),
     }
     const lists = this.port.lists()
-    const lender = this.lender(context, ready, loan, lists)
-    if (
-      lender?.home.agentProfileId !== attempt.agentProfileId ||
-      lender.home.modelId !== attempt.modelId ||
-      lender.home.kind !== attempt.kind
-    )
-      return false
-    const selection = context.selection(ready)
-    const availability = selection.availability
-    const agentKey = lender.candidate.agent?.agentId ?? selection.defaultAgent.key
-    if (
-      selection.preference === undefined ||
-      availability?.probe(lender.candidate, context.now).available !== true ||
-      selection.marks.at(agentKey, context.now) !== undefined
-    )
-      return false
     const tasks = this.board.snapshot().tasks.map((item) => (item.id === task.id ? ready : item))
     // Main candidates are asked whether this admission could move to them, so
     // its own running place and turn are set aside for this task alone. Reading
@@ -573,11 +690,8 @@ export class SchedulerBorrowing {
     }
     delete quiet.selected
     const facts = this.snapshot(quiet, tasks, lists, false)
-    const decision = decideBorrow(
-      { ...facts, agents: facts.agents.filter((agent) => agent.candidateId === loan.candidateId) },
-      task.id,
-    )[0]
-    return decision?.kind === 'borrow' && decision.candidateId === loan.candidateId
+    const admission = this.admission(context, ready, loan, lists, { loan, held: attempt }, facts)
+    return admission.kind === 'refused' ? admission.fact : undefined
   }
 
   /** The scheduler clears its drain before delivering; callbacks may wake or retire. */

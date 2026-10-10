@@ -3823,8 +3823,10 @@ loans retain recall ownership when an assignment is removed.
 Each launch holds one reservation from selection to worker start: its slot,
 lease and counted task (turn and caps). After the launch journal write, a
 synchronous check validates that reservation without selecting or counting
-again, and the worker starts in the same step. That check covers the loan,
-its authorization, an idle lender, native recovery and main-role demand. A
+again, and the worker starts in the same step. That check reads the same
+admission facts selection read: the loan and its authorization, the lender's
+resolved identity, availability, limits and idleness (on the board and
+elsewhere), native recovery and main-role demand. A
 refused unstarted loan returns to its queue with its count refunded and its
 journal entry closed. One drain owner handles every readiness wake. It lets
 go only in the same step that finds no wake pending, so a wake is never lost.
