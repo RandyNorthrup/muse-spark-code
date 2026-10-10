@@ -1,0 +1,85 @@
+{
+  "provider": "llamacpp",
+  "step": "responses-tools",
+  "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+  "capturedAt": "2026-10-10T17:00:56.254+00:00",
+  "billed": false,
+  "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:8080/v1/responses",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "model": "Qwen3-0.6B-Q8_0",
+      "input": "What is the weather in Paris?",
+      "tools": [
+        {
+          "type": "function",
+          "name": "get_weather",
+          "description": "Get the current weather for a city.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "city": {
+                "type": "string"
+              }
+            },
+            "required": ["city"]
+          }
+        }
+      ],
+      "max_output_tokens": 512
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "server": "llama.cpp",
+      "access-control-allow-origin": "",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "1013",
+      "keep-alive": "timeout=5, max=100"
+    },
+    "body": {
+      "completed_at": 1791651656,
+      "created_at": 1791651656,
+      "id": "resp_UzRp1YIxtO5Kdau3Z50XGM49Vgp9HHoQ",
+      "model": "/var/tmp/l-CM954/m95local/Qwen3-0.6B-Q8_0.gguf",
+      "object": "response",
+      "output": [
+        {
+          "id": "rs_xRIl9rgItBfO0TCoIRzkptjtloXmRUPj",
+          "summary": [],
+          "type": "reasoning",
+          "content": [
+            {
+              "text": "Okay, the user is asking about the weather in Paris. Let me check the tools available. There's a function called get_weather that requires a city parameter. Since they mentioned Paris, I need to call this function with the city set to Paris. I'll make sure to format the tool call correctly in JSON within the specified XML tags.\n",
+              "type": "reasoning_text"
+            }
+          ],
+          "encrypted_content": "",
+          "status": "completed"
+        },
+        {
+          "id": "fc_WZVlXq8YcOrtTZs0scnpvjZbsA86SqIt",
+          "type": "function_call",
+          "status": "completed",
+          "arguments": "{\"city\": \"Paris\"}",
+          "call_id": "call_WZVlXq8YcOrtTZs0scnpvjZbsA86SqIt",
+          "name": "get_weather"
+        }
+      ],
+      "status": "completed",
+      "usage": {
+        "input_tokens": 155,
+        "output_tokens": 92,
+        "total_tokens": 247,
+        "input_tokens_details": {
+          "cached_tokens": 154
+        }
+      }
+    },
+    "chunkBytes": [1013]
+  }
+}

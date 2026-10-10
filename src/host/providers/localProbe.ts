@@ -2,8 +2,10 @@
 // default loopback ports and reports what answered, so the panel prefills
 // it. Plain HTTP, but loopback only (D74's transport rule): the targets come
 // from the presets, and the fetch runs with a short timeout per port. The
-// fetch itself is injected (VS Code's patched fetch, or `node:http`
-// directly where that would proxy loopback: M95 step 1).
+// fetch itself is injected; production passes `fetchLoopback` (`node:http`
+// directly: VS Code's patched fetch honors `http.proxy`, and its loopback
+// bypass depends on the user's settings and VS Code version, so the probe
+// never uses it. Loopback needs no proxy at all.)
 
 import {
   HTTP_STATUS,

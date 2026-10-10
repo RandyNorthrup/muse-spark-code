@@ -265,8 +265,10 @@ export function customQuirksFor(
 
 // The presets. Origins, headers, key shapes, key tests and quirks are from
 // the research (`docs/certification/m95-research.md`) and the live captures
-// (`docs/certification/m95-captures.md`, 2026-10-04). A preset without its
-// own capture (`wireCapture: false`) stays out of the panel (rule 13).
+// (`docs/certification/m95-captures.md`, 2026-10-04; the local servers'
+// own frames in `docs/certification/m95-captures/<llamacpp|lmstudio>/`,
+// 2026-10-10). A preset without its own capture (`wireCapture: false`)
+// stays out of the panel (rule 13).
 
 const OPENAI_PRESET: ProviderPreset = {
   id: 'openai',
@@ -681,14 +683,17 @@ const LMSTUDIO_PRESET: ProviderPreset = {
   keyShape: { kind: 'any', minLength: 1 },
   keyHint: '',
   keyTest: { kind: 'models-list' },
-  modelsList: { path: '/v1/models', windowField: 'max_context_length', priceSource: 'none-local' },
+  // The list carries no window (captured 2026-10-10: entries are id,
+  // object and owned_by only), so the scan leaves it unknown.
+  modelsList: { path: '/v1/models', priceSource: 'none-local' },
   quirks: {
     outputCapParam: 'max_tokens',
     sendsParallelToolCalls: false,
-    reasoningField: 'reasoning',
+    // Captured 2026-10-10: thinking streams as `reasoning_content`.
+    reasoningField: 'reasoning_content',
     cachedUsageFields: [],
   },
-  wireCapture: false,
+  wireCapture: true,
 }
 
 const VLLM_PRESET: ProviderPreset = {
@@ -732,12 +737,14 @@ const LLAMACPP_PRESET: ProviderPreset = {
   modelsList: { path: '/v1/models', windowField: 'n_ctx', priceSource: 'none-local' },
   quirks: {
     outputCapParam: 'max_tokens',
-    toolChoice: 'string-only',
+    // Captured 2026-10-10 (b11541): the object form is accepted and the
+    // template reports `supports_object_arguments`, so this is `auto`.
+    toolChoice: 'auto',
     sendsParallelToolCalls: false,
     reasoningField: 'reasoning_content',
     cachedUsageFields: ['prompt_tokens_details.cached_tokens'],
   },
-  wireCapture: false,
+  wireCapture: true,
 }
 
 const CUSTOM_PRESET: ProviderPreset = {
