@@ -55,7 +55,6 @@ import { listIntegrationTests } from './lib/integrationTests.mjs'
 
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { TextDecoder } from 'node:util'
 import { cpSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
@@ -67,6 +66,11 @@ import {
 
 import { lazyBrowserKeybindings } from './lib/browserKeybindings.mjs'
 import { compressedModelText } from './lib/compressedModelText.mjs'
+import {
+  compiledInputHashes,
+  compiledSourceRecorder,
+  readCompiledSource,
+} from './lib/compiledSources.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
 import { copyCatalogToDist } from './sync-provider-catalog.mjs'
@@ -96,6 +100,21 @@ mkdirSync('dist/legal-data', { recursive: true })
 // Dataset attribution and provenance accompany both packaged scanner bundles.
 cpSync('src/core/legal/data/NOTICE.md', 'dist/legal-data/NOTICE.md', { force: true })
 cpSync('src/core/legal/data/provenance.json', 'dist/legal-data/provenance.json', { force: true })
+// M97 CM971-R3: the pinned SPDX templates ship beside dist/legalScan.js,
+// byte-identical, and the scanner verifies each SHA-256 before use.
+cpSync('src/core/legal/legal-data', 'dist/legal-data', { recursive: true, force: true })
+{
+  const { datasets } = JSON.parse(readFileSync('src/core/legal/data/provenance.json', 'utf8'))
+  const pinned = datasets.find((dataset) => dataset.name === 'spdx-license-templates')
+  if (pinned === undefined) throw new Error('provenance.json lost the SPDX template dataset')
+  for (const file of pinned.files) {
+    const digest = createHash('sha256')
+      .update(readFileSync(path.join('dist/legal-data', file.path)))
+      .digest('hex')
+    if (digest !== file.sha256)
+      throw new Error(`dist/legal-data/${file.path} does not match its pinned SHA-256`)
+  }
+}
 
 const args = new Set(process.argv.slice(2))
 buildLinuxHelper()
@@ -1042,7 +1061,7 @@ const browserReviewComment = {
       return { contents: declaration, loader: 'ts', watchFiles: ['src/shared/constants.ts'] }
     })
     build.onLoad({ filter: /[/\\]components[/\\]ReviewCommentForm\.tsx$/ }, (args) => ({
-      contents: `import { REVIEW_COMMENT_MODEL_TEXT } from '${name}';\n${readFileSync(args.path, 'utf8').replace('  REVIEW_COMMENT_MODEL_TEXT,\n', '')}`,
+      contents: `import { REVIEW_COMMENT_MODEL_TEXT } from '${name}';\n${readCompiledSource(args.path).replace('  REVIEW_COMMENT_MODEL_TEXT,\n', '')}`,
       loader: 'tsx',
       resolveDir: path.dirname(args.path),
       watchFiles: [args.path],
@@ -1065,7 +1084,7 @@ const webviewOptions = {
       name: 'reference-caller-react',
       setup(build) {
         build.onLoad({ filter: /[/\\]ReferencePage\.tsx$/ }, async (args) => {
-          const result = await esbuild.transform(readFileSync(args.path, 'utf8'), {
+          const result = await esbuild.transform(readCompiledSource(args.path), {
             loader: 'tsx',
             jsx: 'transform',
             jsxFactory: 'React.createElement',
@@ -1098,43 +1117,34 @@ const webviewOptions = {
   jsx: 'automatic',
 }
 
-// M97 CM971R2: SHA-256 content hashes beside each bundle metafile, so the
-// legal scanner proves artifact freshness from bytes instead of file
-// names. Hashing matches the scanner's admitted-bytes digest exactly
-// (UTF-8 text decoded fatal with the byte-order mark kept, then SHA-256
-// over the text). Unreadable inputs stay unrecorded and read as stale
-// downstream, never as fresh. A separate folder keeps
-// third-party-notices (which reads every file in dist/meta/) untouched,
-// and the folder is not packaged, like dist/meta/ itself.
+// M97 CM971-R3: SHA-256 hashes beside each bundle metafile (record
+// version 2), so the legal scanner proves artifact freshness from bytes,
+// never from file names. Input hashes come from the build itself: the
+// recorder hashed the exact bytes esbuild compiled (raw bytes, byte-order
+// mark included, as the scanner's native reader hashes them); inputs the
+// recorder never saw or saw change stay unrecorded and read as stale.
+// Output hashes cover the files esbuild just wrote, and an output whose
+// size disagrees with the metafile stays unrecorded. A separate folder
+// keeps third-party-notices (which reads every file in dist/meta/)
+// untouched, and the folder is not packaged, like dist/meta/ itself.
 const META_HASHES_DIR = 'dist/meta-hashes'
-function sha256TextFile(file) {
-  let digest
-  try {
-    const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
-      readFileSync(file),
-    )
-    digest = createHash('sha256').update(text, 'utf8').digest('hex')
-  } catch {
-    // Unreadable inputs stay unrecorded and read as stale downstream.
-  }
-  return digest
-}
 function writeMetafileHashes(name, metafile) {
-  const inputs = {}
-  const metaInputs = Object.keys(metafile.inputs ?? {})
-  for (const input of metaInputs) {
-    const digest = sha256TextFile(input)
-    if (digest !== undefined) inputs[input.replaceAll('\\', '/')] = digest
-  }
+  const inputs = compiledInputHashes(Object.keys(metafile.inputs ?? {}))
   const outputs = {}
-  const metaOutputs = Object.keys(metafile.outputs ?? {})
-  for (const output of metaOutputs) {
-    const digest = sha256TextFile(output)
-    if (digest !== undefined) outputs[output.replaceAll('\\', '/')] = digest
+  const listedOutputs = Object.entries(metafile.outputs ?? {})
+  for (const [output, meta] of listedOutputs) {
+    let bytes
+    try {
+      bytes = readFileSync(output)
+    } catch {
+      continue
+    }
+    if (bytes.byteLength !== meta.bytes) continue
+    outputs[output.replaceAll('\\', '/')] = createHash('sha256').update(bytes).digest('hex')
   }
   writeFileSync(
     path.join(META_HASHES_DIR, `${name}.json`),
-    JSON.stringify({ version: 1, inputs, outputs }),
+    JSON.stringify({ version: 2, inputs, outputs }),
   )
 }
 
@@ -1316,112 +1326,119 @@ if (isWatch) {
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
 } else {
+  // M97 CM971-R3: production bundles record the exact bytes they compile.
+  const shippedBuild = (options) =>
+    esbuild.build(
+      isProduction
+        ? { ...options, plugins: [...(options.plugins ?? []), compiledSourceRecorder] }
+        : options,
+    )
   const shipped = {
-    questionNotes: esbuild.build({
+    questionNotes: shippedBuild({
       ...modelApiOptions,
       entryPoints: ['src/core/questions/deferralEntry.ts'],
       outfile: 'dist/questionNotes.js',
     }),
-    mcpPool: esbuild.build(mcpPoolOptions),
-    modelApiCodeIntel: esbuild.build(modelApiCodeIntelOptions),
-    structuredSchema: esbuild.build(structuredSchemaOptions),
-    extension: esbuild.build(hostOptions),
-    conversation: esbuild.build(conversationOptions),
-    tab: esbuild.build(tabOptions),
-    prompts: esbuild.build(promptsOptions),
-    sharingRuntime: esbuild.build(sharingRuntimeOptions),
-    modelApi: esbuild.build(modelApiOptions),
-    resourceGovernor: esbuild.build(resourceGovernorOptions),
-    resourceProcess: esbuild.build(resourceProcessOptions),
-    resourceJournal: esbuild.build(resourceJournalOptions),
-    resourceAdmission: esbuild.build(resourceAdmissionOptions),
-    providers: esbuild.build(providersOptions),
-    subscriptions: esbuild.build(subscriptionsOptions),
-    configuredProviders: esbuild.build(configuredOptions),
-    review: esbuild.build(reviewOptions),
-    sessionBoard: esbuild.build(sessionBoardOptions),
-    reporting: esbuild.build(reportingOptions),
-    reportingNetwork: esbuild.build(reportingNetworkOptions),
-    reportingDestinations: esbuild.build(reportingDestinationsOptions),
-    reportingPanel: esbuild.build(reportingPanelOptions),
-    reference: esbuild.build(referenceOptions),
-    schedules: esbuild.build(schedulesOptions),
-    reviewer: esbuild.build(reviewerOptions),
-    team: esbuild.build(teamOptions),
-    teamRunners: esbuild.build(teamRunnersOptions),
-    teamScheduler: esbuild.build(teamSchedulerOptions),
-    foreignHooks: esbuild.build(foreignHooksOptions),
-    modelApiHooks: esbuild.build({
+    mcpPool: shippedBuild(mcpPoolOptions),
+    modelApiCodeIntel: shippedBuild(modelApiCodeIntelOptions),
+    structuredSchema: shippedBuild(structuredSchemaOptions),
+    extension: shippedBuild(hostOptions),
+    conversation: shippedBuild(conversationOptions),
+    tab: shippedBuild(tabOptions),
+    prompts: shippedBuild(promptsOptions),
+    sharingRuntime: shippedBuild(sharingRuntimeOptions),
+    modelApi: shippedBuild(modelApiOptions),
+    resourceGovernor: shippedBuild(resourceGovernorOptions),
+    resourceProcess: shippedBuild(resourceProcessOptions),
+    resourceJournal: shippedBuild(resourceJournalOptions),
+    resourceAdmission: shippedBuild(resourceAdmissionOptions),
+    providers: shippedBuild(providersOptions),
+    subscriptions: shippedBuild(subscriptionsOptions),
+    configuredProviders: shippedBuild(configuredOptions),
+    review: shippedBuild(reviewOptions),
+    sessionBoard: shippedBuild(sessionBoardOptions),
+    reporting: shippedBuild(reportingOptions),
+    reportingNetwork: shippedBuild(reportingNetworkOptions),
+    reportingDestinations: shippedBuild(reportingDestinationsOptions),
+    reportingPanel: shippedBuild(reportingPanelOptions),
+    reference: shippedBuild(referenceOptions),
+    schedules: shippedBuild(schedulesOptions),
+    reviewer: shippedBuild(reviewerOptions),
+    team: shippedBuild(teamOptions),
+    teamRunners: shippedBuild(teamRunnersOptions),
+    teamScheduler: shippedBuild(teamSchedulerOptions),
+    foreignHooks: shippedBuild(foreignHooksOptions),
+    modelApiHooks: shippedBuild({
       ...modelApiOptions,
       entryPoints: ['src/core/backends/modelapi/modelApiHooksEntry.ts'],
       outfile: 'dist/modelApiHooks.js',
     }),
-    modelApiMcp: esbuild.build({
+    modelApiMcp: shippedBuild({
       ...modelApiOptions,
       entryPoints: ['src/core/backends/modelapi/modelApiMcpEntry.ts'],
       outfile: 'dist/modelApiMcp.js',
     }),
-    runtimeAccounting: esbuild.build({
+    runtimeAccounting: shippedBuild({
       ...modelApiOptions,
       entryPoints: ['src/runtime/runtimeAccountingEntry.ts'],
       outfile: 'dist/runtimeAccounting.js',
     }),
-    providerPolicy: esbuild.build({
+    providerPolicy: shippedBuild({
       ...modelApiOptions,
       entryPoints: ['src/host/backend/providerPolicyEntry.ts'],
       outfile: 'dist/providerPolicy.js',
     }),
-    runtimeEngine: esbuild.build({
+    runtimeEngine: shippedBuild({
       ...acpOptions,
       entryPoints: ['src/runtime/runtimeEngineEntry.ts'],
       outfile: 'dist/runtimeEngine.js',
     }),
-    hookRuntime: esbuild.build(hookRuntimeOptions),
-    pluginHooks: esbuild.build(pluginHooksOptions),
-    planMarkdown: esbuild.build(planMarkdownOptions),
-    checkpointStore: esbuild.build(checkpointStoreOptions),
-    media: esbuild.build(mediaOptions),
-    screenRecord: esbuild.build(screenRecordOptions),
-    agentImport: esbuild.build(agentImportOptions),
-    conversationGit: esbuild.build(conversationGitOptions),
-    modelApiSessions: esbuild.build(modelApiSessionsOptions),
-    bundledSkills: esbuild.build(bundledSkillsOptions),
-    legalScan: esbuild.build(legalScanOptions),
-    codeIntel: esbuild.build(codeIntelOptions),
-    voice: esbuild.build(voiceOptions),
-    webFetch: esbuild.build(webFetchOptions),
-    mcpVault: esbuild.build(mcpVaultOptions),
-    museCodeReviewer: esbuild.build(museCodeReviewerOptions),
-    modelsPanel: esbuild.build(modelsPanelOptions),
-    usageService: esbuild.build(usageServiceOptions),
-    usageCompanion: esbuild.build(usageCompanionOptions),
-    usagePanel: esbuild.build(usagePanelOptions),
-    extensionHooks: esbuild.build(extensionHooksOptions),
-    vault: esbuild.build(vaultOptions),
-    report: esbuild.build(reportOptions),
-    estimator: esbuild.build(estimatorOptions),
-    recorder: esbuild.build(recorderOptions),
-    whatsNew: esbuild.build(whatsNewOptions),
-    judge: esbuild.build(judgeOptions),
-    scheduleBackground: esbuild.build(scheduleBackgroundOptions),
-    uiText: esbuild.build(uiTextOptions),
+    hookRuntime: shippedBuild(hookRuntimeOptions),
+    pluginHooks: shippedBuild(pluginHooksOptions),
+    planMarkdown: shippedBuild(planMarkdownOptions),
+    checkpointStore: shippedBuild(checkpointStoreOptions),
+    media: shippedBuild(mediaOptions),
+    screenRecord: shippedBuild(screenRecordOptions),
+    agentImport: shippedBuild(agentImportOptions),
+    conversationGit: shippedBuild(conversationGitOptions),
+    modelApiSessions: shippedBuild(modelApiSessionsOptions),
+    bundledSkills: shippedBuild(bundledSkillsOptions),
+    legalScan: shippedBuild(legalScanOptions),
+    codeIntel: shippedBuild(codeIntelOptions),
+    voice: shippedBuild(voiceOptions),
+    webFetch: shippedBuild(webFetchOptions),
+    mcpVault: shippedBuild(mcpVaultOptions),
+    museCodeReviewer: shippedBuild(museCodeReviewerOptions),
+    modelsPanel: shippedBuild(modelsPanelOptions),
+    usageService: shippedBuild(usageServiceOptions),
+    usageCompanion: shippedBuild(usageCompanionOptions),
+    usagePanel: shippedBuild(usagePanelOptions),
+    extensionHooks: shippedBuild(extensionHooksOptions),
+    vault: shippedBuild(vaultOptions),
+    report: shippedBuild(reportOptions),
+    estimator: shippedBuild(estimatorOptions),
+    recorder: shippedBuild(recorderOptions),
+    whatsNew: shippedBuild(whatsNewOptions),
+    judge: shippedBuild(judgeOptions),
+    scheduleBackground: shippedBuild(scheduleBackgroundOptions),
+    uiText: shippedBuild(uiTextOptions),
     ...Object.fromEntries(
       UI_TEXT_REGIONS.map((region, index) => [
         path.basename(region.output, '.js'),
-        esbuild.build(uiTextRegionOptions[index]),
+        shippedBuild(uiTextRegionOptions[index]),
       ]),
     ),
-    validation: esbuild.build(validationOptions),
-    wire: esbuild.build(wireOptions),
-    estimateContracts: esbuild.build(estimateContractsOptions),
-    vaultBoundaries: esbuild.build(vaultBoundariesOptions),
-    modelApiBoundaries: esbuild.build(modelApiBoundariesOptions),
-    browserCheck: esbuild.build(browserCheckOptions),
-    browserRuntime: esbuild.build(browserRuntimeOptions),
-    searchWorker: esbuild.build(searchWorkerOptions),
-    pageWorker: esbuild.build(pageWorkerOptions),
-    imageResizeWorker: esbuild.build(imageResizeWorkerOptions),
-    webview: esbuild.build(webviewOptions),
+    validation: shippedBuild(validationOptions),
+    wire: shippedBuild(wireOptions),
+    estimateContracts: shippedBuild(estimateContractsOptions),
+    vaultBoundaries: shippedBuild(vaultBoundariesOptions),
+    modelApiBoundaries: shippedBuild(modelApiBoundariesOptions),
+    browserCheck: shippedBuild(browserCheckOptions),
+    browserRuntime: shippedBuild(browserRuntimeOptions),
+    searchWorker: shippedBuild(searchWorkerOptions),
+    pageWorker: shippedBuild(pageWorkerOptions),
+    imageResizeWorker: shippedBuild(imageResizeWorkerOptions),
+    webview: shippedBuild(webviewOptions),
   }
   const acp = esbuild.build(acpOptions)
   const headless = esbuild.build(headlessOptions)

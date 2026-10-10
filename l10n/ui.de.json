@@ -4930,12 +4930,15 @@
       "other": "Nicht geprüft: {count} Python-Anforderungen haben keine aufgelöste Version; transitive Lizenzen unbekannt."
     },
     "m196": "Nicht geprüft: Python-Manifeste, Sperrdateien und Distributionsmetadaten fehlen.",
-    "m197": {
-      "one": "{v0} weicht um {count} Wort vom kanonischen {v1}-Text ab; die geänderten Bedingungen brauchen menschliche Prüfung",
-      "other": "{v0} weicht um {count} Wörter vom kanonischen {v1}-Text ab; die geänderten Bedingungen brauchen menschliche Prüfung"
-    },
     "m198": "Nicht geprüft: {v0} nennt einen fehlerhaften Lizenzausdruck ({v1}); seine Bedingungen brauchen menschliche Prüfung.",
     "m199": "Nicht geprüft: Lizenztext für {v0} bei {v1} weicht vom kanonischen Wortlaut ab.",
+    "m200": "{v0} weicht bei „{v2}“ von der SPDX-Vorlage {v1} ab, wo die Vorlage mit „{v3}“ fortfährt; die geänderten Bedingungen brauchen menschliche Prüfung",
+    "m201": "{v0} weicht von der SPDX-Vorlage {v1} ab: „{v2}“ gehört nicht dazu; die geänderten Bedingungen brauchen menschliche Prüfung",
+    "m202": "Nicht geprüft: Bundle {v0} nennt {v1}, das außerhalb des Arbeitsbereichs liegt und nicht geprüft werden kann",
+    "m203": "Nicht geprüft: Build-Aufzeichnungen widersprechen sich beim Inhalt von {v0}",
+    "m204": "Nicht geprüft: Ausgabe {v1} von Bundle {v0} fehlt oder weicht von ihrer Build-Aufzeichnung ab",
+    "m205": "Nicht geprüft: die festgelegten SPDX-Vorlagendaten haben die Prüfung nicht bestanden ({v0}); der exakte Lizenztextabgleich ist dafür aus",
+    "m206": "Nicht geprüft: Eingabe {v1} von Bundle {v0} hat keinen beim Build erfassten Hash oder passt nicht mehr dazu",
     "unknown": "unbekannt",
     "unresolved": "nicht aufgelöst",
     "noLicense": "keine Lizenz",

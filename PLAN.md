@@ -46213,17 +46213,20 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
   complete should-fix exits 0 and blocker exits 1. Real scans retain documented
   human-review/full-matching/freshness limitations and therefore exit 2.
   C-M97-1 (2026-10-10, lane CM971, receipt `docs/certification/m97.md`)
-  lifts this for fully evidenced scans: verbatim license files match pinned
-  SPDX License List 3.28.0 texts, and fresh bundle inputs establish
-  freshness, so a complete real scan exits 0 or 1; remaining gaps stay
-  named and still exit 2.
+  lifts this for fully evidenced scans: license files match the pinned
+  SPDX License List 3.28.0 templates (CM971-R3 redesign), and per-bundle
+  build-captured hashes establish freshness, so a complete real scan exits
+  0 or 1; remaining gaps stay named and still exit 2.
 - I-R8 — **open, documented scanner limit; owner: scanner lane and lead.**
   Identifier/title heuristics are not complete license-text matching or legal
   analysis; static readers cannot resolve arbitrary build logic or linkage.
-  C-M97-1 (2026-10-10) narrows this: verbatim texts match pinned canonical
-  hashes exactly and modified/unrecognized texts keep the named
-  full-matching reason, but modified-term similarity, linkage analysis and
-  legal conclusions remain human-review items, not verdicts.
+  C-M97-1 (2026-10-10) narrows this, and CM971-R3 redesigns it: texts
+  match the pinned SPDX templates under the SPDX matching guidelines, a
+  variable accepts only what it stands for, and modified or unrecognized
+  texts keep the named full-matching reason with the differing span. A
+  capitalised phrase written as part of a copyright holder's name still
+  reads as a name (residual, `docs/certification/m97.md`); linkage analysis
+  and legal conclusions remain human-review items, not verdicts.
 - I-R9 — **closed; owner: M97FIN.** Merge `242a47f2` incorporates all 20
   finished S/W findings from `aa181639`; combined targeted suites pass.
 - I-R10 — **local aggregate closed; owner: FIN4/lead.** Full

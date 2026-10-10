@@ -111,9 +111,12 @@ are in `result`. No automatic fix is available. The reserved
 argument parsing. The older `legal --format json` invocation remains an alias.
 Both refuse prompt text and model/credential flags.
 
-Verbatim license files match pinned SPDX License List 3.28.0 texts exactly,
-and fresh, complete bundle inputs establish artifact freshness, so a fully
+License files match the pinned SPDX License List 3.28.0 templates exactly
+(only a template's variable and optional parts may vary), and per-bundle
+SHA-256 hashes captured by the build establish artifact freshness, so a fully
 evidenced scan with no findings returns exit 0 (exit 1 with a blocker).
+A text that differs from its template is quoted at the differing span for
+human review.
 Heuristic or unrecognized license texts, missing locks or license data,
 dynamic metadata, binary files, links, stale artifacts and bounded-out input
 stay named incomplete checks with exit 2; the absence of an ecosystem's

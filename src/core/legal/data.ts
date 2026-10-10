@@ -6,9 +6,9 @@
 
 import exceptionIds from './data/spdxExceptions.json'
 import deprecatedExceptionIds from './data/spdxExceptionsDeprecated.json'
+import * as z from 'zod/mini'
 import deprecatedIds from './data/spdxLicenseIdsDeprecated.json'
 import currentIds from './data/spdxLicenseIds.json'
-import licenseTextData from './data/spdxLicenseTexts.json'
 import provenance from './data/provenance.json'
 
 /** The vendored SPDX License List identifier set (current ids). */
@@ -66,26 +66,36 @@ export function canonicalExceptionId(id: string): string | undefined {
 }
 
 /**
- * One pinned license-text match record (M97 C-M97-1): the text key (a plain
- * SPDX id, or the version stem for the GPL family whose `-only`/`-or-later`
- * suffix is read from the input's own wording), the SHA-256 of the
- * normalized canonical text, its word count, and short distinctive phrases
- * machine-checked present in that text at derivation time. Full texts are
- * never vendored: the 150 KiB scanner budget carries hashes, not corpora.
+ * One pinned SPDX template file (M97 CM971-R3): its path under
+ * `legal-data/`, what it holds, and the SHA-256 of its exact upstream
+ * bytes. The files themselves ship beside the scanner, not inside it, so
+ * the 150 KiB scanner budget carries only these records.
  */
-export interface SpdxLicenseTextRecord {
-  readonly id: string
-  readonly hash: string
-  readonly words: number
-  readonly phrases: readonly string[]
-  /** `'gpl'` when the suffix is read from the input; otherwise absent. */
-  readonly family?: string
+export interface SpdxTemplateFile {
+  readonly path: string
+  readonly kind: 'template' | 'equivalentWords'
+  readonly sha256: string
 }
 
-const rawTextRecords: readonly SpdxLicenseTextRecord[] = licenseTextData
+const TEMPLATE_DATASET = 'spdx-license-templates'
 
-/** The pinned text-match records, sorted by text key at derivation time. */
-export const SPDX_LICENSE_TEXTS: readonly SpdxLicenseTextRecord[] = rawTextRecords
+const templateFileSchema = z.array(
+  z.object({
+    path: z.string().check(z.regex(/^[\w.-]+(?:\/[\w.-]+)?$/u)),
+    kind: z.enum(['template', 'equivalentWords']),
+    sha256: z.string().check(z.regex(/^[0-9a-f]{64}$/u)),
+  }),
+)
+
+/**
+ * The pinned template files from the provenance record. A missing or
+ * malformed record yields no files, which the loader reports as a named
+ * problem, so matching fails closed instead of guessing.
+ */
+export const SPDX_TEMPLATE_FILES: readonly SpdxTemplateFile[] =
+  templateFileSchema.safeParse(
+    provenance.datasets.find((dataset) => dataset.name === TEMPLATE_DATASET)?.files,
+  ).data ?? []
 
 /** Where the vendored data came from; see `data/provenance.json`. */
 export type SpdxProvenance = typeof provenance

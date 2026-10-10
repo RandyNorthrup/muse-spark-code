@@ -135,7 +135,11 @@ describe('the production legal scanner bundle', () => {
   it('emits and packages the scanner in both distributions with a named size cap', () => {
     const buildScript = readFileSync('scripts/build.mjs', 'utf8')
     expect(buildScript).toContain("const LEGAL_SCAN_ENTRY = 'src/core/legal/entry.ts'")
-    expect(buildScript).toContain('legalScan: esbuild.build(legalScanOptions)')
+    expect(buildScript).toContain('legalScan: shippedBuild(legalScanOptions)')
+    // M97 CM971-R3: the pinned SPDX templates ship beside the scanner.
+    expect(buildScript).toContain(
+      "cpSync('src/core/legal/legal-data', 'dist/legal-data', { recursive: true, force: true })",
+    )
     expect(readFileSync('scripts/package-acp.mjs', 'utf8')).toContain("'legalScan.js'")
     expect(readFileSync('.vscodeignore', 'utf8')).toContain('!dist/legalScan.js')
     expect(readFileSync('.github/workflows/build.yml', 'utf8')).toContain(

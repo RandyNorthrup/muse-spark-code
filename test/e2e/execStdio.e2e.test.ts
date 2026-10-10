@@ -348,6 +348,9 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
   cpSync(path.join(ROOT, 'src', 'core', 'legal', 'data'), path.join(dir, 'dist/legal-data'), {
     recursive: true,
   })
+  cpSync(path.join(ROOT, 'src', 'core', 'legal', 'legal-data'), path.join(dir, 'dist/legal-data'), {
+    recursive: true,
+  })
   writeFileSync(
     path.join(dir, 'test', 'action', 'exec-test-launcher.ts'),
     'console.log("TEST ONLY")\n',
@@ -427,10 +430,14 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
         'dist/legalScan.js',
         'dist/legal-data/NOTICE.md',
         'dist/legal-data/provenance.json',
+        'dist/legal-data/equivalentwords.txt',
+        'dist/legal-data/templates/MIT.template.txt',
       ]) {
-        const source = member.startsWith('dist/legal-data/')
-          ? path.join(ROOT, 'src/core/legal/data', path.basename(member))
-          : path.join(dir, member)
+        let source = path.join(dir, member)
+        if (member.startsWith('dist/legal-data/'))
+          source = ['NOTICE.md', 'provenance.json'].includes(path.basename(member))
+            ? path.join(ROOT, 'src/core/legal/data', path.basename(member))
+            : path.join(ROOT, 'src/core/legal/legal-data', member.slice('dist/legal-data/'.length))
         if (member === 'dist/legalScan.js') {
           const runtime = z
             .object({ bundles: z.record(z.string(), z.string()) })

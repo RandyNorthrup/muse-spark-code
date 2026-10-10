@@ -1,4 +1,4 @@
-import { fill, plural } from '../../shared/l10n/text'
+import { fill } from '../../shared/l10n/text'
 import { UI_TEXT } from '../../shared/constants'
 const UNKNOWN_TEXT_CONFIDENCE = 0.5
 import { compareLegalText } from './files'
@@ -12,7 +12,6 @@ import { compareLegalText } from './files'
 import type { ManifestLicenseDeclaration } from './dependencies'
 import type { LegalFindingDraft } from './finding'
 import type { LegalFileSnapshot } from './files'
-import { BYTE_ORDER_MARK_CODE } from './files'
 import {
   baseNameOf,
   hasBinaryContent,
@@ -21,10 +20,14 @@ import {
   isLicenseFileName,
   topLines,
 } from './files'
-import { canonicalLicenseId, canonicalExceptionId, SPDX_LICENSE_TEXTS } from './data'
-import type { SpdxLicenseTextRecord } from './data'
-import { fingerprint } from '../verify/fingerprint'
-import { parseSpdxExpression, type SpdxNode } from './spdx'
+import { canonicalLicenseId, canonicalExceptionId } from './data'
+import {
+  gplTemplateStems,
+  licenseTemplateSet,
+  readLicenseText,
+  type LicenseTemplateSet,
+} from './licenseTemplates'
+import { parseSpdxExpression, type SpdxLicenseNode, type SpdxNode } from './spdx'
 
 /** What the project-license reader established, for later readers. */
 export interface ProjectLicenseResult {
@@ -32,6 +35,11 @@ export interface ProjectLicenseResult {
   /** Canonical license ids the project declares (files first, else manifests). */
   readonly licenses: readonly string[]
   readonly incomplete: readonly string[]
+  /**
+   * A license text (root or vendored below it) did not match its template
+   * exactly, so its terms need human review (M97 CM971-R3).
+   */
+  readonly requiresReview: boolean
 }
 
 /** A license text's best reading and its confidence. */
@@ -39,19 +47,23 @@ export interface LicenseTextMatch {
   readonly id: string
   readonly confidence: number
   /**
-   * True only when the whole text matches the pinned canonical text
-   * byte-for-byte after normalization (M97 C-M97-1): heuristic title and
-   * clause readings keep `false` and stay covered by the named
-   * full-matching incomplete reason.
+   * True only when the text matches a pinned SPDX template (M97
+   * CM971-R3): every fixed token present in order, nothing after its end,
+   * and only the template's variable and optional parts varying, each
+   * variable holding just what it stands for. Heuristic readings keep
+   * `false` and the named full-matching incomplete reason.
    */
   readonly exact: boolean
   /**
-   * Set when the text covers every distinctive phrase of a pinned record
-   * without matching its hash (M97 CM971R2): the text reads as that
-   * license with modified terms, never as exact. `extraWords` is the
-   * normalized word-count delta against the canonical text.
+   * Set when the text reads closest to a pinned template without
+   * matching it: the template and the first differing span, for human
+   * review.
    */
-  readonly differs?: { readonly canonicalId: string; readonly extraWords: number }
+  readonly differs?: {
+    readonly canonicalId: string
+    readonly span: string
+    readonly expected: string
+  }
 }
 
 const TITLE_PATTERNS: readonly { readonly id: string; readonly pattern: RegExp }[] = [
@@ -78,102 +90,25 @@ const GPL_KIND: readonly { readonly id: string; readonly pattern: RegExp }[] = [
 const GPL_VERSION = /\bversion (\d(?:\.\d)?)/i
 const BSD_SOURCE_BINARY = /\bredistribution and use in source and binary forms\b/i
 
-/** The GPL family's shared-text marker in the pinned match data. */
-const GPL_TEXT_FAMILY = 'gpl'
+/** Confidence precision kept from a template similarity. */
+const CONFIDENCE_STEPS = 1000
 
-/** Confidence of a full distinctive-phrase cover without an exact hash. */
-const PHRASE_COVER_CONFIDENCE = 0.9
-
-/** Confidence of a partial distinctive-phrase cover without an exact hash. */
-const PHRASE_PARTIAL_CONFIDENCE = 0.6
-
-/**
- * A line that starts with a copyright marker (`copyright`, `(c)` or `©`).
- * Markers alone prove nothing: grant clauses and added restrictions can
- * start with one too, so the holder and condition checks below decide.
- */
-const COPYRIGHT_HEAD = /^\s*(copyright\b|\(c\)|©)/i
-
-/**
- * Positive holder evidence: a year, a year placeholder or a
- * copyright marker. A marker-headed line without any of these is not a
- * holder line (M97 CM971R2: `Copyright owners ...` adds conditions).
- */
-const HOLDER_EVIDENCE = /\d{4}|<year>|\[yyyy\]|\{year\}|\(c\)|©|yyyy/i
-
-/**
- * Condition-adding content (M97 CM971R2): obligations, grants, payments
- * and warranty language. A marker-headed line carrying any of this is
- * never a bare holder line, even when it also names a year or marker, so
- * an added restriction always changes the match instead of vanishing.
- */
-const CONDITION_CONTENT =
-  /\$|€|£|¥|\bmust\b|\bshall\b|\brequire\w*|\bprohibit\w*|\bforbid\w*|\brestrict\w*|\bcondition\w*|\bconsent\b|\bagree\w*|\bsubject\b|\bwithout\b|\bprovid\w*|\bfurnish\w*|\bobtain\w*|\bcontact\b|\blimit\w*|\bpermit\w*|\ballow\w*|\bauthori[sz]\w*|\bgrant\w*|\bpermission\b|\blicen[cs]e\w*|\bsublicen[cs]e\w*|\bdistribut\w*|\bredistribut\w*|\bmodif\w*|\bmerg\w*|\bpublish\w*|\bretain\w*|\breproduc\w*|\bcopy\b|\bcopies\b|\bcopied\b|\bpay\w*|\bprice\w*|\bfee[sd]?\b|\bdollar\b|\broyalt\w*|\bcost\b|\bcharge\w*|\bsale[sd]?\b|\bsell\w*|\bcommercial\w*|\bwarrant\w*|\bliab\w*|\binfring\w*|\bpatent\b|\bdamages\b|\bclaim\w*|\btort\b|\bcontract\b|\barising\b|\breserv\w*|\bdeal\b|\binclud\w*|\buse\w*/i
-
-/**
- * Whether a line is only a copyright notice: marker-headed, carrying
- * holder evidence, and free of condition-adding content. Holders and
- * years differ per copy while the grant stays identical, so only such
- * lines may leave the match text.
- */
-export function isCopyrightNoticeLine(line: string): boolean {
-  return COPYRIGHT_HEAD.test(line) && HOLDER_EVIDENCE.test(line) && !CONDITION_CONTENT.test(line)
-}
-
-/**
- * Normalize a license text for full-text matching: drop the byte-order
- * mark, remove copyright-notice lines (holders and years differ per copy
- * while the grant stays identical), lowercase, and collapse every
- * non-alphanumeric run (line endings, punctuation, quote styles) to one
- * space. The derivation tool runs this same algorithm over the canonical
- * SPDX texts; both sides must stay identical or exact matching fails
- * closed into the heuristic readers, never into a wrong license.
- */
-export function normalizeLicenseText(text: string): string {
-  const withoutBom = text.codePointAt(0) === BYTE_ORDER_MARK_CODE ? text.slice(1) : text
-  const kept: string[] = []
-  for (const line of withoutBom.split(/\r\n|\r|\n/)) {
-    if (isCopyrightNoticeLine(line)) continue
-    kept.push(line)
-  }
-  return kept
-    .join('\n')
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, ' ')
-    .trim()
-}
-
-/**
- * Match text against pinned records (M97 C-M97-1): an exact SHA-256 hit
- * first, then the best distinctive-phrase cover (ties broken by closest
- * word count, so BSD-2-Clause beats BSD-3-Clause for a two-clause text).
- * A full phrase cover without a hash hit carries the `differs` detail:
- * the text reads as that license with modified terms. The GPL family
- * matches its bare version stem here; the `-only`/`-or-later` variant
- * resolves downstream from the project's own grant, never from the body
- * (M97 CM971R2). An empty record list (the matcher-off drill) matches
- * nothing, restoring the named full-matching incomplete reason
- * downstream.
- */
 /**
  * The version stems whose `-only`/`-or-later` variant is read from the
- * project's own grant (manifests, README), never from the license body
- * (M97 CM971R2): identical bodies cannot establish which variant the
- * project grants.
+ * project's own grant (manifests, README, source headers and GNU
+ * notices), never from the license body (M97 CM971R2): identical bodies
+ * cannot establish which variant the project grants.
  */
-export function gplTextStems(
-  records: readonly SpdxLicenseTextRecord[] = SPDX_LICENSE_TEXTS,
-): ReadonlySet<string> {
-  return new Set(
-    records.filter((record) => record.family === GPL_TEXT_FAMILY).map((record) => record.id),
-  )
+export function gplTextStems(set: LicenseTemplateSet = licenseTemplateSet()): ReadonlySet<string> {
+  return gplTemplateStems(set)
 }
 
 /**
  * Whether a dependency's declared license agrees with its vendored text
  * reading (M97 CM971R2): an exact string match, or a GPL-family stem
- * reading against the declared `-only`/`-or-later` variant. Anything else
- * is relabelled from the text evidence, never silently adopted.
+ * reading against the declared `-only`, `-or-later` or `+` variant.
+ * Anything else is relabelled from the text evidence, never silently
+ * adopted.
  */
 export function hasLicenseTextAgreement(
   declaredRaw: string | undefined,
@@ -184,15 +119,15 @@ export function hasLicenseTextAgreement(
     declaredRaw === matchId ||
     (declaredRaw !== undefined &&
       stems.has(matchId) &&
-      (declaredRaw === `${matchId}-only` || declaredRaw === `${matchId}-or-later`))
+      [`${matchId}-only`, `${matchId}-or-later`, `${matchId}+`].includes(declaredRaw))
   )
 }
 
 /**
  * Resolve one file-read license id against the project's own grant
  * (M97 CM971R2): a GPL-family stem becomes the single claimed variant
- * (`-only` or `-or-later`) when the manifests and README claim exactly
- * one, and conservative `-only` otherwise. Non-stems pass through.
+ * (`-only` or `-or-later`) when the grants claim exactly one, and
+ * conservative `-only` otherwise. Non-stems pass through.
  */
 export function resolveGplStemVariant(
   id: string,
@@ -204,62 +139,47 @@ export function resolveGplStemVariant(
   return claimed.length === 1 && claimed[0] !== undefined ? claimed[0] : `${id}-only`
 }
 
-export function matchPinnedLicenseText(
-  text: string,
-  records: readonly SpdxLicenseTextRecord[] = SPDX_LICENSE_TEXTS,
-): LicenseTextMatch | undefined {
-  const normalized = normalizeLicenseText(text)
-  if (normalized === '') return undefined
-  const digest = fingerprint(normalized)
-  const exactRecord = records.find((record) => record.hash === digest)
-  if (exactRecord !== undefined) {
-    return { id: exactRecord.id, confidence: 1, exact: true }
-  }
-  let best: SpdxLicenseTextRecord | undefined
-  let bestCovered = 0
-  let bestDistance = Infinity
-  const words = normalized.split(' ').length
-  for (const record of records) {
-    if (record.phrases.length === 0) continue
-    const covered = record.phrases.filter((phrase) => normalized.includes(phrase)).length
-    if (covered === 0) continue
-    const distance = Math.abs(words - record.words)
-    if (covered < bestCovered || (covered === bestCovered && distance >= bestDistance)) continue
-    best = record
-    bestCovered = covered
-    bestDistance = distance
-  }
-  if (best === undefined) return undefined
-  const hasFullCover = bestCovered === best.phrases.length
-  return {
-    id: best.id,
-    confidence: hasFullCover ? PHRASE_COVER_CONFIDENCE : PHRASE_PARTIAL_CONFIDENCE,
-    exact: false,
-    ...(hasFullCover && { differs: { canonicalId: best.id, extraWords: words - best.words } }),
-  }
-}
-
 /**
  * The license a file's text reads as. Shared with the ecosystem readers,
- * which meet the same prose inside vendored packages. A verbatim text
- * matches its pinned canonical hash first; anything else falls through
- * the historical title and clause heuristics, then the pinned phrases.
- * When the heuristics agree with a full-cover pinned reading, the
- * `differs` detail travels with the heuristic match (M97 CM971R2), so a
- * titled but modified text still reads as modified terms.
+ * which meet the same prose inside vendored packages. A text matching a
+ * pinned SPDX template is exact; a text close to one reads as that
+ * license with its first differing span; anything else falls through the
+ * historical title and clause heuristics, never exact.
  */
 export function identifyLicenseText(
   text: string,
-  records: readonly SpdxLicenseTextRecord[] = SPDX_LICENSE_TEXTS,
+  set: LicenseTemplateSet = licenseTemplateSet(),
 ): LicenseTextMatch | undefined {
-  const pinnedExact = matchPinnedLicenseText(text, records)
-  if (pinnedExact?.exact === true) return pinnedExact
-  const heuristic = heuristicLicenseText(text)
-  return heuristic !== undefined &&
-    pinnedExact?.differs !== undefined &&
-    pinnedExact.id === heuristic.id
-    ? { ...heuristic, differs: pinnedExact.differs }
-    : (heuristic ?? pinnedExact)
+  const reading = readLicenseText(text, set)
+  if (reading?.exact === true) return { id: reading.key, confidence: 1, exact: true }
+  if (reading?.difference !== undefined) {
+    return {
+      id: reading.key,
+      confidence: Math.floor(reading.similarity * CONFIDENCE_STEPS) / CONFIDENCE_STEPS,
+      exact: false,
+      differs: {
+        canonicalId: reading.difference.templateId,
+        span: reading.difference.span,
+        expected: reading.difference.expected,
+      },
+    }
+  }
+  return heuristicLicenseText(text)
+}
+
+/** The human-review explanation for a text that differs from its template. */
+function licenseDifferenceText(
+  file: string,
+  differs: NonNullable<LicenseTextMatch['differs']>,
+): string {
+  return differs.expected === ''
+    ? fill(UI_TEXT.legalScanner.m201, { v0: file, v1: differs.canonicalId, v2: differs.span })
+    : fill(UI_TEXT.legalScanner.m200, {
+        v0: file,
+        v1: differs.canonicalId,
+        v2: differs.span === '' ? '…' : differs.span,
+        v3: differs.expected,
+      })
 }
 
 function heuristicLicenseText(text: string): LicenseTextMatch | undefined {
@@ -354,17 +274,29 @@ function readmeLicense(
 }
 
 /** Canonical ids in an expression: recognized ids plus custom references. */
-function canonicalIdsOf(raw: string): string[] {
+/**
+ * A license entry as the grant it makes (M97 CM971-R3): the GPL family's
+ * trailing `+` and `-or-later` read as `<stem>-or-later`, its bare
+ * (deprecated) stem and `-only` as `<stem>-only`; other ids as listed.
+ */
+function grantIdOf(license: SpdxLicenseNode, stems: ReadonlySet<string>): string | undefined {
+  const canonical = license.canonicalId ?? (license.custom ? license.id : undefined)
+  if (canonical === undefined) return undefined
+  const stem = canonical.replace(/-(?:only|or-later)$/u, '')
+  if (!stems.has(stem)) return canonical
+  return license.plus || canonical.endsWith('-or-later') ? `${stem}-or-later` : `${stem}-only`
+}
+
+function canonicalIdsOf(raw: string, stems: ReadonlySet<string> = gplTextStems()): string[] {
   const parsed = parseSpdxExpression(raw)
   if (!parsed.ok) {
     return []
   }
   const ids: string[] = []
-  const listed2 = parsed.licenses
-  for (const license of listed2) {
-    const canonical = license.canonicalId ?? (license.custom ? license.id : undefined)
-    if (canonical !== undefined && !ids.includes(canonical)) {
-      ids.push(canonical)
+  for (const license of parsed.licenses) {
+    const grant = grantIdOf(license, stems)
+    if (grant !== undefined && !ids.includes(grant)) {
+      ids.push(grant)
     }
   }
   return ids
@@ -431,14 +363,16 @@ interface ManifestAssessment {
 export function scanProjectLicense(
   snapshot: LegalFileSnapshot,
   manifests: readonly ManifestLicenseDeclaration[] = [],
+  headerGrants: readonly string[] = [],
 ): ProjectLicenseResult {
   const findings: LegalFindingDraft[] = []
   const incomplete: string[] = []
+  let requiresReview = false
 
   const licenseFiles = rootLicenseFiles(snapshot)
   const fileIds = new Map<string, number>()
-  // Full-text matching (M97 C-M97-1) lifts the heuristic caveat only when
-  // every license file matches its pinned canonical text exactly:
+  // Full-text matching (M97 C-M97-1, CM971-R3) lifts the heuristic caveat
+  // only when every license file matches a pinned SPDX template exactly:
   // anything heuristic, modified, unrecognized, binary or unreadable keeps
   // the named reason instead of exiting clean.
   let isFullyExact = licenseFiles.length > 0
@@ -476,18 +410,18 @@ export function scanProjectLicense(
         file,
         evidenceSource: fill(UI_TEXT.legalScanner.m082, { v0: file }),
         confidence: match.confidence,
-        explanation: plural(UI_TEXT.legalScanner.m197, Math.abs(match.differs.extraWords), {
-          v0: file,
-          v1: match.differs.canonicalId,
-        }),
+        explanation: licenseDifferenceText(file, match.differs),
         recommendation: UI_TEXT.legalScanner.m086,
         fixable: false,
-        evidenceExcerpt: excerpt(topLines(text).join('\n')),
+        evidenceExcerpt: excerpt(
+          match.differs.span === '' ? topLines(text).join('\n') : match.differs.span,
+        ),
       })
     }
   }
   if (!isFullyExact && licenseFiles.length > 0) {
     incomplete.push(UI_TEXT.legalScanner.m084)
+    requiresReview = true
   }
   const rawFileIds = Array.from(fileIds.keys(), (entry) => entry).toSorted((a, b) =>
     compareLegalText(a, b),
@@ -543,15 +477,18 @@ export function scanProjectLicense(
   }
 
   // The GPL family's `-only`/`-or-later` variant comes from the project's
-  // own grant (M97 CM971R2): manifests and the README declaration, never
-  // the license body. A stem with exactly one claimed variant resolves to
-  // it; anything else stays conservative `-only` and any genuine conflict
-  // still surfaces through the differs check below.
+  // own grant (M97 CM971R2, CM971-R3): manifests, the README declaration,
+  // the project's source headers (`SPDX-License-Identifier`, a trailing
+  // `+`) and GNU "any later version" notices, never the license body. A
+  // stem with exactly one claimed variant resolves to it; anything else
+  // stays conservative `-only` and any genuine conflict still surfaces
+  // through the differs check below.
   const grantReadme = readmeLicense(snapshot)
   const grantReadmeIds = grantReadme === undefined ? [] : canonicalIdsOf(grantReadme.raw)
   const grantIds = new Set([
     ...assessments.flatMap((assessment) => assessment.ids),
     ...grantReadmeIds,
+    ...headerGrants.flatMap((raw) => canonicalIdsOf(raw)),
   ])
   const stems = gplTextStems()
   const fileIdList = rawFileIds
@@ -692,21 +629,33 @@ export function scanProjectLicense(
       continue
     }
     const match = identifyLicenseText(text)
+    // A vendored text that is not an exact template match keeps its
+    // human-review limitation (M97 CM971-R3), whatever its file name.
+    if (match?.exact !== true) {
+      requiresReview = true
+      incomplete.push(
+        fill(match === undefined ? UI_TEXT.legalScanner.m117 : UI_TEXT.legalScanner.m199, {
+          v0: dirNameOf(nested),
+          v1: nested,
+        }),
+      )
+    }
+    let explanation = fill(UI_TEXT.legalScanner.m105, { v0: nested })
+    if (match?.differs !== undefined) explanation = licenseDifferenceText(nested, match.differs)
+    else if (match !== undefined)
+      explanation = fill(UI_TEXT.legalScanner.m106, { v0: nested, v1: match.id })
     findings.push({
       severity: 'advice',
       category: 'noticeFile',
       file: nested,
       evidenceSource: fill(UI_TEXT.legalScanner.m082, { v0: nested }),
       confidence: match?.confidence ?? UNKNOWN_TEXT_CONFIDENCE,
-      explanation:
-        match === undefined
-          ? fill(UI_TEXT.legalScanner.m105, { v0: nested })
-          : fill(UI_TEXT.legalScanner.m106, { v0: nested, v1: match.id }),
+      explanation,
       recommendation: UI_TEXT.legalScanner.m107,
       fixable: false,
       evidenceExcerpt: excerpt(topLines(text).join('\n')),
     })
   }
 
-  return { findings, licenses: declared, incomplete }
+  return { findings, licenses: declared, incomplete, requiresReview }
 }

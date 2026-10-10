@@ -5224,14 +5224,15 @@
       "many": "Neověřeno: {count} Python požadavků bez vyřešené verze; tranzitivní licence neznámé."
     },
     "m196": "Neověřeno: Python manifesty, zámky a metadata distribuce chybí.",
-    "m197": {
-      "one": "{v0} se liší od kanonického textu {v1} o {count} slovo; změněné podmínky vyžadují lidskou kontrolu",
-      "other": "{v0} se liší od kanonického textu {v1} o {count} slov; změněné podmínky vyžadují lidskou kontrolu",
-      "few": "{v0} se liší od kanonického textu {v1} o {count} slova; změněné podmínky vyžadují lidskou kontrolu",
-      "many": "{v0} se liší od kanonického textu {v1} o {count} slov; změněné podmínky vyžadují lidskou kontrolu"
-    },
     "m198": "Neověřeno: {v0} uvádí vadný licenční výraz ({v1}); jeho podmínky vyžadují lidskou kontrolu.",
     "m199": "Neověřeno: licence {v0} v {v1} se liší od kanonického znění.",
+    "m200": "{v0} se liší od šablony SPDX {v1} v místě „{v2}“, kde šablona pokračuje „{v3}“; jeho změněné podmínky vyžadují lidskou kontrolu",
+    "m201": "{v0} se liší od šablony SPDX {v1}: „{v2}“ do ní nepatří; jeho změněné podmínky vyžadují lidskou kontrolu",
+    "m202": "Nezkontrolováno: balíček {v0} uvádí {v1}, který leží mimo pracovní prostor a nelze jej ověřit",
+    "m203": "Nezkontrolováno: záznamy sestavení se neshodují v obsahu {v0}",
+    "m204": "Nezkontrolováno: výstup {v1} balíčku {v0} chybí nebo se liší od záznamu sestavení",
+    "m205": "Nezkontrolováno: připnutá data šablon SPDX neprošla ověřením ({v0}); přesné porovnání textu licence je pro ně vypnuto",
+    "m206": "Nezkontrolováno: vstup {v1} balíčku {v0} nemá hash zachycený při sestavení nebo mu už neodpovídá",
     "unknown": "neznámé",
     "unresolved": "nevyřešené",
     "noLicense": "bez licence",
