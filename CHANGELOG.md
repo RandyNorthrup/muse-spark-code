@@ -59,6 +59,16 @@ happened, not what was planned; superseded entries are kept.
   proves declared-tool preview text from captured bytes, and the refused
   1-token probe documents Meta's 16-token output minimum (the collector
   probes it next run).
+- Fixed two follow-up selected-record binding findings (RVCM1062C). A
+  compaction, Git draft or summary fork sent before any prompt on a resumed
+  qualified model now builds its request after the selected record
+  resolves, so it carries the record's output maximum and reasoning effort
+  instead of the legacy 32,768-token cap and the unresolved fallback; the
+  cached maximum is dropped whenever the record or the selection changes.
+  Streamed argument-preview text now comes only from the tools the request
+  itself offered: a tool the request never offered (allowlisted out,
+  untrusted away, or never declared) renders a byte count only, never its
+  fields (`docs/certification/m106-capability-binding.md`).
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did

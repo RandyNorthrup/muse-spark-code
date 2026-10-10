@@ -254,3 +254,70 @@ Pre-drill hashes: `modelApiEntry.ts` `c87e2932…6b60a`,
   550.5 — the removed lazy registry import outweighs the entry growth),
   `dist/modelApi.js` 516.8 KiB (cap 525, was 516.1). No new chunk, no new
   dependency, no guard widened.
+
+## R4 — RVCM1062C repairs (kubuntu, 2026-10-10)
+
+Both P2 findings are fixed, each with a regression test that fails
+without it (drills below, the host file restored byte-exact after each:
+`cmp` against the pre-drill backup OK). The class of each finding was
+swept, not just the cited line. No paid or live model call, no
+credential read; repository timeouts throughout (no `--testTimeout`).
+
+| Finding                                                                                                          | Fix (`src/core/backends/modelapi/ModelApiHost.ts`)                                                                                                                                                                                                                                                                                                                                                           | Regression test                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2 cap ordering (`collectText` built the body before `resolveModel`, and `outputCaps` never dropped)             | `collectText` resolves the selected model before building any request body (hooks, reservation, send), so the cap, the policy-derived tools/effort and the budget builders all read the resolved record; a side-voice-owned request rebuilds after its own resolve. `resolveModel` drops the cached maximum for the ref (record change) and `setModel` drops it for the newly selected id (selection change) | `modelCapabilitiesBinding.test.ts` → "compacts a forked qualified model before any switch at its resolved cap": a fork copies history but resolves nothing, so its compaction is the first request on a 65,536 record with an empty stash. It asserts the fork compacts `accepted`, the compaction POST carries the record's reasoning effort, and the next turn requests 65,536 |
+| P2 preview honesty (preview fields came from the full host/IDE/MCP catalogues, ignoring trust and the allowlist) | `sending()` — the one choke point every sent request passes before streaming (turns and `collectText`) — snapshots the preview fields of exactly the tools in that request's body (`previewFieldsOfOfferedTool`: host tools' curated fields, IDE/MCP tools' declared schema fields). The single preview construction site reads only that snapshot; any other name stays textless with a byte count          | `modelApiArgumentPreview.test.ts` → "renders no text for a catalogued MCP tool the request never offered": `get_weather` is declared in the MCP catalogue but the untrusted workspace keeps MCP out of the request; the streamed call's text is `''` at the full argument byte count and neither `Oslo` nor `celsius` renders                                                    |
+
+Class sweep. Capability caches: `outputCaps` is the only per-model
+computed-capability cache in the host (audited every `Map`/`Set`: the
+rest are operational state — listeners, approvals, shells, children —
+or resolve-time writes with fallbacks, `resolvedModels` /
+`modelKeyDigests`). The `collectText` rebuild covers every other
+policy-derived request field at once (tools calling gate, effort,
+provider fallback), and the normal turn path already resolves before
+building. Preview construction has one site (the `new ArgumentPreview`
+in `applyStreamEvent`); reviewer, side-chat and `exec` requests pass
+through the same `sending()` snapshot, and execution-time refusal of
+unoffered calls is unchanged. No new dependency, no guard widened, no
+user-visible string (no l10n change).
+
+## R4 red drills (every guard broken on purpose, host restored byte-exact)
+
+Host hashes: pre-drill (fixed) `363198e6…5b561`, verified byte-exact
+by `cmp` against the backup after each drill; final `6d476ab2…42c88abbe7`
+(the same content after `prettier --write`). Test files final:
+`modelCapabilitiesBinding.test.ts` `13440e66…03001d90`,
+`modelApiArgumentPreview.test.ts` `e8d77c4c…fa11` (unchanged by drills).
+
+1. Pre-resolve neutralised (the `resolveModel()` call before the hooks
+   removed, invalidations kept): only "compacts a forked qualified
+   model…" failed — `expected { effort: 'none', summary: 'auto' } to
+match object { effort: 'high' }` — while its later-turn 65,536
+   assertions still passed, proving the invalidation half carries the
+   cap and the pre-resolve half carries the record-derived fields.
+   A first attempt at this drill passed unnoticed because the test then
+   asserted only the cap (the compaction POST is min'd with the 8,192
+   summary budget either way); the reasoning-effort pin was added so the
+   guard fires, and the drill re-run to this result.
+2. Catalogue lookup restored at the preview site (the R3 expression put
+   back): only "renders no text for a catalogued MCP tool…" failed —
+   `expected '"city": "Oslo"\n"unit": "celsius"' to be ''` — the
+   review's exact scenario; the other 48 tests in the file (including
+   the U9 declared-tool TEXT test) still passed.
+
+## R4 gates (kubuntu rig, final pass)
+
+- `npx vitest run` (repository timeouts, `--maxWorkers=3`):
+  `modelCapabilitiesBinding` 15 + `modelApiArgumentPreview` 49 = 64
+  passed; `modelApiBackendManager` + `m106Wiring` + `execClient` = 56
+  passed; `modelApiGoldenRequests` + `acpModelApi` + `argumentPreview` =
+  214 passed; `modelApiHost` = 669 passed.
+- `npm run typecheck` (all five projects) clean; `eslint
+--max-warnings=0` on every changed file clean (one
+  `@typescript-eslint/require-await` in the new test fixed by returning
+  `Promise.resolve` instead of `async`); `prettier --check` on every
+  changed file clean; `node scripts/check-l10n.mjs` 0 problems (no new
+  strings).
+- `npm run build` clean: `dist/extension.js` 550.1 KiB (cap 600),
+  `dist/modelApi.js` 517.1 KiB (cap 525, was 516.8 — the fix adds
+  ~0.3 KiB). No new chunk, no new dependency, no guard widened.
