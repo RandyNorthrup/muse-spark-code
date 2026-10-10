@@ -63,6 +63,7 @@ import type { SideCallFormats } from '../../core/backends/modelapi/structuredOut
 import { isPlainRefName, isPlainRefspec, planPush, type PushPlan } from '../../core/git/pushPlan'
 import { wireWordForLog } from '../../core/logging'
 import { redactSecrets } from '../../core/redact'
+import type { RuntimeGitDeps } from '../../core/git/runtimeGit'
 import type { WorktreeHold, WorktreeRecord } from '../../core/worktreeConversations'
 import type { Logger } from '../logger'
 import type {
@@ -146,6 +147,12 @@ export interface GitWindow {
   readonly log: Logger
   /** Formats the existing user turn; no separate draft request is started here. */
   readonly draftOutput?: GitDraftOutputPort | undefined
+  /**
+   * M123's native route (PLAN.md D104) for a VS Code-family host without
+   * the `vscode.git` extension: the runtime adapter's deps over this
+   * window, or undefined when there is no folder or no git on PATH.
+   */
+  readonly nativeGit?: (() => RuntimeGitDeps | undefined) | undefined
 }
 
 /** A new file: where it is, and its path as the prompt names it. */
