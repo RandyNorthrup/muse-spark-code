@@ -63,6 +63,14 @@ happened, not what was planned; superseded entries are kept.
     - A cancelled watcher closes its late connection.
     - The Windows contract requires a native check that the pipe's server
       runs as the same user.
+  - Review repairs (RVCM1091B, part A):
+    - Lock now erases an unconfirmed setup and any recovery key.
+    - Recovery while unlocked unwraps nothing.
+    - A setup interrupted by a transient store failure completes when you
+      confirm again; an abandoned one no longer blocks a new setup.
+    - When the operating system's credential store is unavailable, the vault
+      now says how to make it available, in every language, instead of
+      "No access".
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did

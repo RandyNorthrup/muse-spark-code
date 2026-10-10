@@ -3,13 +3,16 @@ import { randomBytes } from 'node:crypto'
 import { VAULT_APPROVAL_TTL_MS, KEYRING_SERVICE } from '../../../src/shared/constants'
 import { VaultStore } from '../../../src/core/vault/store'
 import { VaultError } from '../../../src/core/vault/crypto'
-import { VaultManagementError } from '../../../src/core/vault/broker/ports'
+import {
+  VaultManagementError,
+  VaultStoreUnavailableError,
+} from '../../../src/core/vault/broker/ports'
 import type { VaultManagement } from '../../../src/core/vault/broker/management'
 import { KeyringVaultAnchor, VAULT_ANCHOR_ACCOUNT } from '../../../src/runtime/vault/keyringAnchor'
 import { type KeyringEntryFactory } from '../../../src/runtime/keyStore'
 import { approval, grant, metadata } from '../helpers/vault/fixtures'
 import { freshVault } from './storeFixtures'
-import { managementFixture, stateOf } from './managementFixture'
+import { lockedVault, managementFixture, stateOf } from './managementFixture'
 
 /** The OS store as a map; values are generated anchor records, never credentials. */
 function memoryKeyring() {
@@ -94,13 +97,13 @@ describe('C-M109-1 keyring rollback anchor', () => {
     keyring.entries.set(`${KEYRING_SERVICE}/${VAULT_ANCHOR_ACCOUNT}`, '{"v":1}')
     await expect(anchor.minimum(vaultId)).rejects.toMatchObject({ code: 'rollback' })
   })
-  it('reports an unusable OS store as io, never as no history', async () => {
+  it('reports an unusable OS store as its fixed repair, never as no history (RVCM1091B 4)', async () => {
     const anchor = new KeyringVaultAnchor(() => ({
       getPassword: () => Promise.reject(new Error('generated store failure')),
       setPassword: () => Promise.reject(new Error('generated store failure')),
       deletePassword: () => Promise.reject(new Error('generated store failure')),
     }))
-    await expect(anchor.vaultId()).rejects.toMatchObject({ code: 'io' })
+    await expect(anchor.vaultId()).rejects.toBeInstanceOf(VaultStoreUnavailableError)
   })
 })
 
@@ -194,10 +197,7 @@ describe('C-M109-1 setup flow and management', () => {
   })
   it('recovers through the recovery code when the OS-store slot is lost, and refuses a wrong code', async () => {
     const f = managementFixture()
-    const shown = await f.management.setup()
-    const code = Buffer.from(shown.code)
-    await f.management.confirmSetup(shown.setupId)
-    f.repository.current().lock()
+    const code = await lockedVault(f)
     f.osStore.lost = true
     await expect(f.unlock.unlock(null)).rejects.toThrow()
     const wrong = Buffer.from('0'.repeat(40), 'ascii')
@@ -211,9 +211,7 @@ describe('C-M109-1 setup flow and management', () => {
   })
   it('erases the recovered key when the broker refuses the unlock', async () => {
     const f = managementFixture()
-    const shown = await f.management.setup()
-    const code = Buffer.from(shown.code)
-    await f.management.confirmSetup(shown.setupId)
+    const code = await lockedVault(f)
     const offered: Buffer[] = []
     const offer = f.unlock.offerRecovery.bind(f.unlock)
     vi.spyOn(f.unlock, 'offerRecovery').mockImplementation((slotId, key) => {

@@ -5464,6 +5464,7 @@
     "recoveryShownOnce": "Kod odzyskiwania (wyświetlany tylko teraz): {code}",
     "savedItPrompt": "Czy zapisano kod odzyskiwania w bezpiecznym miejscu?",
     "busy": "Sejf jest zajęty w innym oknie. Spróbuj ponownie.",
+    "storeUnavailable": "Magazyn poświadczeń systemu operacyjnego jest niedostępny. W systemie Linux zaloguj się do sesji pulpitu z odblokowanym pękiem kluczy (Secret Service); w macOS odblokuj pęk kluczy logowania; w Windows zaloguj się interaktywnie. Następnie spróbuj ponownie.",
     "remoteWarning": "Z innego urządzenia można żądać tylko podpisu lub kodu jednorazowego. Jego użytkownik musi zatwierdzić tam każde użycie.",
     "approvalExpired": "Ta zgoda wygasła. Ponownie poproś o użycie.",
     "useChanged": "Użycie zmieniło się po zatwierdzeniu. Poproś o zgodę na nowe użycie.",

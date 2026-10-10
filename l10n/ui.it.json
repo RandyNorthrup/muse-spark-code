@@ -5314,6 +5314,7 @@
     "recoveryShownOnce": "Codice di recupero (mostrato solo ora): {code}",
     "savedItPrompt": "Hai salvato il codice di recupero in un luogo sicuro?",
     "busy": "La cassaforte è occupata in un’altra finestra. Riprova.",
+    "storeUnavailable": "L’archivio delle credenziali del sistema operativo non è disponibile. Su Linux, accedi a una sessione desktop con il portachiavi sbloccato (Secret Service); su macOS, sblocca il portachiavi di login; su Windows, accedi in modo interattivo. Poi riprova.",
     "remoteWarning": "Da un altro dispositivo si può richiedere solo una firma o un codice monouso. Il suo utente deve approvare ogni uso su quel dispositivo.",
     "approvalExpired": "Questa approvazione è scaduta. Richiedi di nuovo l’utilizzo.",
     "useChanged": "L’utilizzo è cambiato dopo l’approvazione. Richiedi l’approvazione per il nuovo uso.",

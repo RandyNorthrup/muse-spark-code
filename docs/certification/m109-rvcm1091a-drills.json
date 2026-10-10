@@ -11,8 +11,8 @@
         "FAIL  test/unit/vault/rvcm1091a.test.ts > RVCM1091A > F1: setup expiry during a held confirmation never zeroes the key it wraps"
       ],
       "sha256": {
-        "before": "ae9bc0cbc2804f04dcb30643f2352c7c2af53b6c03b95943f07adf80dfd4d200",
-        "after": "ae9bc0cbc2804f04dcb30643f2352c7c2af53b6c03b95943f07adf80dfd4d200",
+        "before": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "after": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
         "restored": true
       }
     },
@@ -27,8 +27,8 @@
         "FAIL  test/unit/vault/rvcm1091a.test.ts > RVCM1091A > F2 class: a store locked while any write waited commits nothing"
       ],
       "sha256": {
-        "before": "689e851f990fd72d7d79c8888fd0e7a87026ef54bdc0921ea3c92b19fda7e2ec",
-        "after": "689e851f990fd72d7d79c8888fd0e7a87026ef54bdc0921ea3c92b19fda7e2ec",
+        "before": "64530f3e1daa78ab65aaafd01aebf3f1dd55d0678cae47849b53e3d8d1cb11f7",
+        "after": "64530f3e1daa78ab65aaafd01aebf3f1dd55d0678cae47849b53e3d8d1cb11f7",
         "restored": true
       }
     },
@@ -42,8 +42,8 @@
         "FAIL  test/unit/vault/rvcm1091a.test.ts > RVCM1091A > F3: saving a grant is not a revocation; removing it is"
       ],
       "sha256": {
-        "before": "eafe8794bc45d20fd3a6f8b6eedc42c90aa31c0e7a526d4897115bfa08b275df",
-        "after": "eafe8794bc45d20fd3a6f8b6eedc42c90aa31c0e7a526d4897115bfa08b275df",
+        "before": "98b03db16fa31c9f297a0831447f0c25282863b03c55ea9d0b33cd446a8ac89e",
+        "after": "98b03db16fa31c9f297a0831447f0c25282863b03c55ea9d0b33cd446a8ac89e",
         "restored": true
       }
     },
@@ -57,8 +57,8 @@
         "FAIL  test/unit/vault/rvcm1091a.test.ts > RVCM1091A > F4: a watched panel's own setup does not retire its I Saved It"
       ],
       "sha256": {
-        "before": "ae9bc0cbc2804f04dcb30643f2352c7c2af53b6c03b95943f07adf80dfd4d200",
-        "after": "ae9bc0cbc2804f04dcb30643f2352c7c2af53b6c03b95943f07adf80dfd4d200",
+        "before": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "after": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
         "restored": true
       }
     },
@@ -72,8 +72,8 @@
         "FAIL  test/unit/vault/rvcm1091a.test.ts > RVCM1091A > F5: a panel retired while its connection was pending sends nothing"
       ],
       "sha256": {
-        "before": "cf6df438eb3a3bcc7679f2e2c1abc6350fe44de075d820ee8f35ca0d96cc6702",
-        "after": "cf6df438eb3a3bcc7679f2e2c1abc6350fe44de075d820ee8f35ca0d96cc6702",
+        "before": "5646be1b7572f6ebab510e2111810ed6c31cb78b41f0288d159d47e5de5aed8f",
+        "after": "5646be1b7572f6ebab510e2111810ed6c31cb78b41f0288d159d47e5de5aed8f",
         "restored": true
       }
     },
@@ -87,8 +87,8 @@
         "FAIL  test/unit/vault/rvcm1091a.test.ts > RVCM1091A > F6: a metadata edit never resurrects an item removed between transactions"
       ],
       "sha256": {
-        "before": "ae9bc0cbc2804f04dcb30643f2352c7c2af53b6c03b95943f07adf80dfd4d200",
-        "after": "ae9bc0cbc2804f04dcb30643f2352c7c2af53b6c03b95943f07adf80dfd4d200",
+        "before": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "after": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
         "restored": true
       }
     },
@@ -102,8 +102,8 @@
         "FAIL  test/unit/vault/rvcm1091a.test.ts > RVCM1091A > F7: a watch that cannot connect fails `vault watch` instead of exiting 0"
       ],
       "sha256": {
-        "before": "cf6df438eb3a3bcc7679f2e2c1abc6350fe44de075d820ee8f35ca0d96cc6702",
-        "after": "cf6df438eb3a3bcc7679f2e2c1abc6350fe44de075d820ee8f35ca0d96cc6702",
+        "before": "5646be1b7572f6ebab510e2111810ed6c31cb78b41f0288d159d47e5de5aed8f",
+        "after": "5646be1b7572f6ebab510e2111810ed6c31cb78b41f0288d159d47e5de5aed8f",
         "restored": true
       }
     },
@@ -117,8 +117,8 @@
         "FAIL  test/unit/vault/rvcm1091a.test.ts > RVCM1091A > F8: cancelling while the watch connection is pending closes the late connection"
       ],
       "sha256": {
-        "before": "cf6df438eb3a3bcc7679f2e2c1abc6350fe44de075d820ee8f35ca0d96cc6702",
-        "after": "cf6df438eb3a3bcc7679f2e2c1abc6350fe44de075d820ee8f35ca0d96cc6702",
+        "before": "5646be1b7572f6ebab510e2111810ed6c31cb78b41f0288d159d47e5de5aed8f",
+        "after": "5646be1b7572f6ebab510e2111810ed6c31cb78b41f0288d159d47e5de5aed8f",
         "restored": true
       }
     },

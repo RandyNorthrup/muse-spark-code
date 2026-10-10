@@ -105,3 +105,25 @@ export function managementFixture(wrapHold?: Promise<void>) {
     wrapping,
   }
 }
+
+/** Starts the confirmation and waits until it holds inside the OS-store wrap. */
+export async function heldConfirmation(
+  f: ReturnType<typeof managementFixture>,
+  setupId: string,
+): Promise<{ confirming: Promise<void> }> {
+  const confirming = f.management.confirmSetup(setupId)
+  await vi.waitFor(() => {
+    if (f.wrapping.started !== 1) throw new Error('waiting for the wrap')
+  })
+  // Wrapped: an async function would otherwise flatten (and await) the confirmation.
+  return { confirming }
+}
+/** Creates the vault, then locks it, returning an owned copy of its recovery code. */
+export async function lockedVault(f: ReturnType<typeof managementFixture>): Promise<Buffer> {
+  const shown = await f.management.setup()
+  const code = Buffer.from(shown.code)
+  shown.code.fill(0)
+  await f.management.confirmSetup(shown.setupId)
+  f.broker.lock()
+  return code
+}

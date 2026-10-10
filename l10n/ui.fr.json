@@ -5314,6 +5314,7 @@
     "recoveryShownOnce": "Code de récupération (affiché seulement maintenant) : {code}",
     "savedItPrompt": "Avez-vous enregistré le code de récupération en lieu sûr ?",
     "busy": "Le coffre-fort est occupé dans une autre fenêtre. Réessayez.",
+    "storeUnavailable": "Le magasin d’identifiants du système d’exploitation n’est pas disponible. Sous Linux, ouvrez une session de bureau avec un trousseau déverrouillé (Secret Service) ; sous macOS, déverrouillez le trousseau de session ; sous Windows, connectez-vous de manière interactive. Puis réessayez.",
     "remoteWarning": "Seuls une signature ou un code à usage unique peuvent être demandés à un autre appareil. Son utilisateur doit approuver chaque usage sur place.",
     "approvalExpired": "Cette approbation a expiré. Demandez à nouveau cette utilisation.",
     "useChanged": "L’utilisation a changé après l’approbation. Demandez une approbation pour le nouvel usage.",

@@ -480,13 +480,21 @@ export class VaultStore implements VaultStorePort {
     const store = new VaultStore(options, vaultId)
     try {
       await options.files.withWriter(async () => {
-        if (
-          (await options.files.read('vault.v1')) ||
-          (await options.files.read('slots.v1')) ||
-          (await options.files.read('pending.v1')) ||
-          (await options.anchor.minimum(vaultId))
-        )
+        const document = await options.files.read('vault.v1')
+        const slots = await options.files.read('slots.v1')
+        const pending = await options.files.read('pending.v1')
+        document?.fill(0)
+        slots?.fill(0)
+        pending?.fill(0)
+        if (document || slots || (await options.anchor.minimum(vaultId)))
           throw new VaultError('invalid')
+        if (pending) {
+          // This setup's own first intent, committed before a transient failure
+          // (an anchor write): it authenticates only under this key and vault
+          // id, and completing it is the retry (RVCM1091B 3).
+          await store.recoverPending()
+          return
+        }
         await store.publish({ items: [], grants: [] }, [], {
           v: VAULT_STORE_FORMAT_VERSION,
           vaultId,
@@ -504,6 +512,24 @@ export class VaultStore implements VaultStorePort {
       store.lock()
       throw error
     }
+  }
+  /**
+   * An initial intent nobody can complete: only `pending.v1`, no slots, no
+   * document and no anchor, so no key can ever open it. Setup removes it so
+   * a fresh setup can start; a vault with any other file is never touched.
+   */
+  static async discardAbandonedCreation(files: VaultFilePort): Promise<boolean> {
+    return await files.withWriter(async () => {
+      const document = await files.read('vault.v1')
+      const slots = await files.read('slots.v1')
+      const pending = await files.read('pending.v1')
+      document?.fill(0)
+      slots?.fill(0)
+      pending?.fill(0)
+      if (document || slots || !pending) return false
+      await files.remove('pending.v1')
+      return true
+    })
   }
   /** Whether any vault document exists here: the setup flow's "uncreated" test. */
   static async exists(files: VaultFilePort): Promise<boolean> {
@@ -757,13 +783,12 @@ export class VaultStore implements VaultStorePort {
         this.active()
         authorize?.()
       })
-      this.active()
+      // Committed: the rest only completes the durable intent with bytes
+      // already sealed. A Lock arriving now must not report a failure for a
+      // change that recovery would install anyway (RVCM1091B 1).
       await this.options.anchor.advance(this.vaultId, stateOf(slots), previous)
-      this.active()
       await this.options.files.writeAtomic('slots.v1', slotBytes)
-      this.active()
       await this.options.files.writeAtomic('vault.v1', documentBytes)
-      this.active()
       await this.options.files.remove('pending.v1')
     } catch (error) {
       this.lock()

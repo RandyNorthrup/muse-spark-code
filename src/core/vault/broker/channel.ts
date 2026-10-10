@@ -32,6 +32,7 @@ import { type VaultBroker } from './broker'
 import { isVaultBootTokenMatch } from './broker'
 import {
   VaultManagementError,
+  VaultStoreUnavailableError,
   type VaultManagementPort,
   type VaultManagementRefusal,
   type VaultUseLifetime,
@@ -89,6 +90,7 @@ type ManageRequest = Extract<
 /** Store and management failures become a fixed reason, never exception text. */
 function refusal(error: unknown): VaultManagementRefusal | null {
   if (error instanceof VaultManagementError) return error.reason
+  if (error instanceof VaultStoreUnavailableError) return 'storeUnavailable'
   if (!(error instanceof VaultError)) return null
   return error.code === 'authentication' ? 'invalid' : error.code
 }
@@ -162,7 +164,15 @@ export class VaultChannelServer {
       }
       case 'unlock': {
         if (!identity.manage) return denied
-        await broker.unlock(request.slotId)
+        try {
+          await broker.unlock(request.slotId)
+        } catch (error: unknown) {
+          // A fixed reason (an unusable OS store) reaches the person; anything
+          // else still closes the connection without diagnostics.
+          const reason = refusal(error)
+          if (reason === null) throw error
+          return { kind: 'refused', reason }
+        }
         return { kind: 'ok' }
       }
       case 'registerRequester': {

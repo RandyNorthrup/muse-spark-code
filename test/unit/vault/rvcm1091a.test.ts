@@ -18,8 +18,8 @@ import { runVaultCommand } from '../../../src/runtime/vault/vaultCommand'
 import { vaultCommandPort } from '../../../src/runtime/vault/vaultRuntimeEntry'
 import { grant, metadata } from '../helpers/vault/fixtures'
 import { commandHarness } from '../helpers/vault/runtime'
-import { MemoryVaultFiles, freshVault } from './storeFixtures'
-import { managementFixture as composed, stateOf } from './managementFixture'
+import { MemoryVaultFiles, freshVault, heldWriteVault } from './storeFixtures'
+import { heldConfirmation, managementFixture as composed, stateOf } from './managementFixture'
 
 const item = (): VaultItem => ({
   metadata: metadata(),
@@ -37,11 +37,8 @@ describe('RVCM1091A', () => {
     const release = Promise.withResolvers<undefined>()
     const f = composed(release.promise)
     const shown = await f.management.setup()
-    const confirming = f.management.confirmSetup(shown.setupId)
     // The confirmation owns the setup and is waiting inside the OS-store wrap.
-    await vi.waitFor(() => {
-      expect(f.wrapping.started).toBe(1)
-    })
+    const { confirming } = await heldConfirmation(f, shown.setupId)
     f.clock.advance(VAULT_APPROVAL_TTL_MS)
     expect(await stateOf(f.management)).toBe('setupPending')
     release.resolve(undefined)
@@ -49,30 +46,20 @@ describe('RVCM1091A', () => {
     expect(f.wrapped).toHaveLength(1)
     expect(f.wrapped[0]?.some((byte) => byte !== 0)).toBe(true)
     // The recovery slot (wrapped at setup) opens the same vault: one key throughout.
-    f.repository.current().lock()
+    f.broker.lock()
     await f.management.recover(shown.code)
     expect(await stateOf(f.management)).toBe('unlocked')
     shown.code.fill(0)
   })
 
   it('F2: a grant retired while its write waited is neither published nor recovered', async () => {
-    const vault = await freshVault()
-    const files = vault.files
-    if (!(files instanceof MemoryVaultFiles)) throw new Error('memory files expected')
-    await vault.store.write(item())
-    const held = Promise.withResolvers<undefined>()
+    const { vault, files, held, state } = await heldWriteVault('pending.v1', item())
     let isRetired = false
-    let isHeld = false
-    files.hold = (name) => {
-      if (name !== 'pending.v1') return Promise.resolve()
-      isHeld = true
-      return held.promise
-    }
     const saving = vault.store.saveGrant(grant(), () => {
       if (isRetired) throw new Error('generated retirement')
     })
     await vi.waitFor(() => {
-      expect(isHeld).toBe(true)
+      expect(state.isHeld).toBe(true)
     })
     isRetired = true
     held.resolve(undefined)

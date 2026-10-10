@@ -190,7 +190,16 @@ export const vaultBrokerResponseSchema = z.strictObject({
     // A refused management call names why, without exception text.
     z.strictObject({
       kind: z.literal('refused'),
-      reason: z.enum(['locked', 'uncreated', 'exists', 'busy', 'invalid', 'rollback', 'io']),
+      reason: z.enum([
+        'locked',
+        'uncreated',
+        'exists',
+        'busy',
+        'invalid',
+        'rollback',
+        'io',
+        'storeUnavailable',
+      ]),
     }),
   ]),
 })

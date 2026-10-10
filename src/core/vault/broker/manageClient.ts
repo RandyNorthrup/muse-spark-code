@@ -39,6 +39,9 @@ export function vaultRefusalMessage(reason: VaultManagementRefusal): string {
     case 'rollback': {
       return UI_TEXT.vault.rollback
     }
+    case 'storeUnavailable': {
+      return UI_TEXT.vault.storeUnavailable
+    }
     case 'invalid':
     case 'io': {
       return UI_TEXT.vault.operationFailed

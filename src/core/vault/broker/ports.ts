@@ -102,6 +102,17 @@ export interface VaultBrokerDeps {
   scrub(text: string): Promise<string>
 }
 
+/**
+ * The OS credential store (Secret Service, Keychain, Credential Manager or
+ * DPAPI) cannot be used here. Slots and the anchor throw it with no native
+ * text; every surface shows its fixed, localized repair (RVCM1091B 4).
+ */
+export class VaultStoreUnavailableError extends Error {
+  constructor() {
+    super('storeUnavailable')
+    this.name = 'VaultStoreUnavailableError'
+  }
+}
 /** Why a v2 management call was refused; the channel answers `refused` with it. */
 export type VaultManagementRefusal = Extract<
   VaultBrokerResponse['response'],
