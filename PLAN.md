@@ -37921,6 +37921,13 @@ aggregate quality/coverage for the lead; no merge, push, live/paid call, policy
 weakening or qualification promotion is authorized. Other blocker groups and
 installed-editor/resource-chip parity remain with their assigned lanes.
 
+**RVM104F1C distribution regression follow-up (2026-10-09).** Derive the
+macOS distribution test's accepted version and superseded/future refusal
+vectors from the shared MHP constant. Prove an old hard-coded accepted version
+fails, restore byte-exact and run every shared-contract job suite exactly as
+`hosts-native.yml` invokes it. Record this scoped repair in M104 F1's
+certification; native matrix and installed-editor blockers remain unchanged.
+
 **FIXM104L9 closing-owner qualification (2026-10-08, complete on macOS).**
 RVM104L8 finding 1 came from the fixture's invalid 128-byte control pathname.
 It now binds and closes a real 84-byte socket at the recorded address.

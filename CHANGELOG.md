@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The native distribution regression follows the shared supported MHP version,
+  accepting the current contract and refusing superseded and future versions.
 - Native panels adopt MHP 1.5 to retain closed payload shapes while validating
   wire inputs before exact-money normalization. Superseded peers are refused;
   arbitrary JSON state and declared record entries keep their existing contracts.
