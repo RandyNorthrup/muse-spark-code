@@ -216,6 +216,7 @@ beforeAll(async () => {
         team: 'src/core/team/teamEntry.ts',
         teamScheduler: 'src/core/team/teamSchedulerEntry.ts',
         teamRunners: 'src/host/runners/teamRunnersEntry.ts',
+        teamHost: 'src/host/team/teamHostEntry.ts',
       },
       plugins: [
         sharedUiText,
