@@ -1,0 +1,235 @@
+{
+  "date": "2026-10-10",
+  "rig": "linuxlt",
+  "branch": "c/m96d-1",
+  "base": "82d50d5e4",
+  "node": "v24.21.0",
+  "scope": "Design and test-only specification; no production coordinator",
+  "sourceFiles": {
+    "test/unit/m96dCoordinatorSpike.test.ts": "e2cf69517d578d4da1defdcc325c2799042ea2d5c886d4c20b7090de46bc3335",
+    "test/unit/m96dCoordinatorEndpoint.test.ts": "e433fa3e8bca9a97ce47ad706b384857cfe7ecdab592b940f9b510c46a649132",
+    "test/unit/helpers/m96dCoordinatorSpecification.ts": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97"
+  },
+  "tests": {
+    "passed": 66,
+    "failed": 0,
+    "pending": 0,
+    "repositoryTimeouts": true,
+    "allNamesObservedFailing": true
+  },
+  "failingFirst": {
+    "failed": 34,
+    "passed": 19,
+    "logSha256": "2184496bf6c8a6f86603ad687a23d3367f5d061b31b9221cbaa5179ea4f59d12"
+  },
+  "drills": {
+    "count": 41,
+    "restoredSha256": "4c11516dea3ba2d42320fbdfa6e778ad2d4e01f50855bcb185784e23580d4f97"
+  },
+  "checks": [
+    {
+      "id": "tests",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/m96dCoordinatorSpike.test.ts",
+        "test/unit/m96dCoordinatorEndpoint.test.ts",
+        "--maxWorkers=3",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=temp/m96d/tests-corrected.json"
+      ],
+      "exitCode": 0,
+      "logSha256": "cbfdf8b7e70cbecf3c76998c292bc59afcbbec5600d38ca2291ecab5ec5d2631",
+      "reportSha256": "82822beb67a0d79854104f8a3138d8a9a04d90eb9a362ff38dee74dc6d9de0a2",
+      "note": "Final run after typed-map repair; repository timeouts"
+    },
+    {
+      "id": "typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exitCode": 0,
+      "elapsedMs": 124451,
+      "logSha256": "fce585106882ec4c81fcc6424b6359762600f3455c419bdd31d6da0cb61bbaaa"
+    },
+    {
+      "id": "eslint",
+      "command": [
+        "npx",
+        "eslint",
+        "--max-warnings=0",
+        "test/unit/m96dCoordinatorSpike.test.ts",
+        "test/unit/m96dCoordinatorEndpoint.test.ts",
+        "test/unit/helpers/m96dCoordinatorSpecification.ts"
+      ],
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "note": "Corrected after Prettier removed nested-ternary parentheses"
+    },
+    {
+      "id": "deadcode",
+      "command": ["npm", "run", "deadcode"],
+      "exitCode": 0,
+      "elapsedMs": 4602,
+      "logSha256": "8f500fb8323e17242a4402fb10d831e79d212136488b1dc36ad4647bfde8a48c"
+    },
+    {
+      "id": "duplication",
+      "command": ["npx", "jscpd"],
+      "exitCode": 0,
+      "elapsedMs": 1527,
+      "logSha256": "78ea5fb5660c2c732f756e045e5fc1fd861d4373efa07b2dbea031943b1281c0"
+    },
+    {
+      "id": "l10n",
+      "command": ["npm", "run", "check:l10n"],
+      "exitCode": 0,
+      "elapsedMs": 2645,
+      "logSha256": "1e0d6e882e90cfbce4e622e64b2522056b16a30e2eac6d1a10d7954d7255637f"
+    },
+    {
+      "id": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exitCode": 0,
+      "elapsedMs": 24792,
+      "logSha256": "55c1479dfced712b791db131d8d99f339864bf61008d4da41b6940000fc55a07"
+    },
+    {
+      "id": "build",
+      "command": ["npm", "run", "build"],
+      "exitCode": 0,
+      "elapsedMs": 10182,
+      "logSha256": "a47aeeb4e2d6a421db6faeb98431a98df032d280cb108719cf94fcb0e6eaded0"
+    },
+    {
+      "id": "reference",
+      "command": ["npm", "run", "check:reference"],
+      "exitCode": 0,
+      "elapsedMs": 2533,
+      "logSha256": "62bcf160fd7798936b5b775cd36edee9ba5f61123e6e268bdd5bf70607cc6535"
+    },
+    {
+      "id": "plan",
+      "command": ["npm", "run", "check:plan"],
+      "exitCode": 0,
+      "elapsedMs": 444,
+      "logSha256": "8fc94aa6a01ca8a9d71d9ca4ce3492404b4e2fa0d2309822dbbe04f7566b698a"
+    },
+    {
+      "id": "roadmap-generate",
+      "command": ["npm", "run", "roadmap:generate"],
+      "exitCode": 0,
+      "elapsedMs": 642,
+      "logSha256": "c0a04b5c951ecb6ba2926a142dc861185fe2da8a69ae8be020196a08b9f7bcc1"
+    },
+    {
+      "id": "roadmap",
+      "command": ["npm", "run", "check:roadmap"],
+      "exitCode": 0,
+      "elapsedMs": 625,
+      "logSha256": "930cb6dac9316a429911b7ef1422c7ff14208a0f93b78cb498d19b0168877799"
+    },
+    {
+      "id": "prettier",
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "test/unit/m96dCoordinatorSpike.test.ts",
+        "test/unit/m96dCoordinatorEndpoint.test.ts",
+        "test/unit/helpers/m96dCoordinatorSpecification.ts",
+        "PLAN.md",
+        "CHANGELOG.md",
+        "ROADMAP.md",
+        "docs/design/m96d-coordinator.md",
+        "docs/certification/m96d-spike.md",
+        "docs/certification/m96d-spike/drills.json",
+        "docs/certification/README.md",
+        "docs/roadmap/entries.json"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 10215,
+      "logSha256": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+    },
+    {
+      "id": "typecheck-unit-corrected",
+      "command": ["npm", "run", "typecheck:unit"],
+      "exitCode": 0,
+      "logSha256": "5b3b3d02a953bf562ffe7d1bd7a1b9a4fb67e82c942625b109560bfd82bb73ab"
+    },
+    {
+      "id": "roadmap-generate-final",
+      "command": ["npm", "run", "roadmap:generate"],
+      "exitCode": 0,
+      "logSha256": "c0a04b5c951ecb6ba2926a142dc861185fe2da8a69ae8be020196a08b9f7bcc1"
+    },
+    {
+      "id": "plan-final",
+      "command": ["npm", "run", "check:plan"],
+      "exitCode": 0,
+      "logSha256": "8fc94aa6a01ca8a9d71d9ca4ce3492404b4e2fa0d2309822dbbe04f7566b698a"
+    },
+    {
+      "id": "roadmap-final",
+      "command": ["npm", "run", "check:roadmap"],
+      "exitCode": 0,
+      "logSha256": "930cb6dac9316a429911b7ef1422c7ff14208a0f93b78cb498d19b0168877799"
+    },
+    {
+      "id": "prettier-final",
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "test/unit/m96dCoordinatorSpike.test.ts",
+        "test/unit/m96dCoordinatorEndpoint.test.ts",
+        "test/unit/helpers/m96dCoordinatorSpecification.ts",
+        "PLAN.md",
+        "CHANGELOG.md",
+        "ROADMAP.md",
+        "docs/design/m96d-coordinator.md",
+        "docs/certification/m96d-spike.md",
+        "docs/certification/m96d-spike/drills.json",
+        "docs/certification/README.md",
+        "docs/roadmap/entries.json"
+      ],
+      "exitCode": 0,
+      "logSha256": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+    }
+  ],
+  "initialLintFailure": {
+    "id": "eslint",
+    "command": [
+      "npx",
+      "eslint",
+      "--max-warnings=0",
+      "test/unit/m96dCoordinatorSpike.test.ts",
+      "test/unit/m96dCoordinatorEndpoint.test.ts",
+      "test/unit/helpers/m96dCoordinatorSpecification.ts"
+    ],
+    "exitCode": 1,
+    "elapsedMs": 14248,
+    "logSha256": "0170aded5bab724608b8529afdaead8569f8fcc077ef65f72fafcfe539fcaa89"
+  },
+  "build": {
+    "activationBytes": 563348,
+    "activationCapKiB": 600,
+    "modelApiBytes": 528186,
+    "modelApiCapKiB": 525,
+    "checkpointBytes": 89366,
+    "checkpointCapKiB": 225,
+    "capsChanged": false
+  },
+  "nativeEvidence": {
+    "linux": "Real Unix endpoint unlink with continuing old-client echo",
+    "darwin": "Native run not performed; qualification/fallback recorded",
+    "win32": "Native run not performed; qualification/fallback recorded",
+    "filesystems": "No FAT/exFAT/NFS device qualification performed"
+  },
+  "remaining": [
+    "Lead ruling Q-C-M96d-1",
+    "Independent acceptance",
+    "Claude host C-M96d-2 native build and editor receipts",
+    "Lead-owned full quality"
+  ]
+}
