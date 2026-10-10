@@ -390,6 +390,26 @@ describe('session and usage report kinds over real journals', () => {
       expect.stringContaining('History for the selected session is unavailable.'),
     )
   })
+
+  it('reports a corrupt stored session as invalid, not missing history', async () => {
+    // A stored envelope that fails validation carries its precise reason even
+    // though the host has no such session either (RVCM1132B finding 4): a
+    // failed read is a failure, never a silent miss collapsed to history.
+    const input: DataFolderInput = {
+      platform: process.platform,
+      env: { XDG_DATA_HOME: path.join(state.liveData, 'data') },
+      homeDir: path.join(state.liveData, 'home'),
+    }
+    const sessions = workspaceSessionsFolder(input, state.live)
+    await writeFile(
+      path.join(sessions, 'corrupt1.json'),
+      JSON.stringify({ version: 999, sessionId: 'corrupt1' }),
+    )
+    const result = await liveCli(['session', '--session', 'corrupt1', '--as-of', LIVE_AS_OF])
+    expect(result.code).toBe(0)
+    expect(result.stdout).toContain('unsupported format or invalid data')
+    expect(result.stdout).not.toContain('History for the selected session is unavailable')
+  })
 })
 
 it('R1 reports primary CLI history through the host without a model turn', async () => {

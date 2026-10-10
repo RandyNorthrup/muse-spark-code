@@ -11032,8 +11032,11 @@ export class ConversationController {
         )
           // An owned copy of the LocalSourceError brand (localFailureOf):
           // the conversation bundle carries no runtime import of local.ts.
+          // Another session's questions (or a disposed controller's) are not
+          // missing history: this source is not bound for that read, so the
+          // reason says unbound (RVCM1132B finding 7).
           return Promise.reject(
-            Object.assign(new Error('history'), { isLocalSourceError: true, code: 'history' }),
+            Object.assign(new Error('unbound'), { isLocalSourceError: true, code: 'unbound' }),
           )
         const registry = this.session === undefined ? undefined : sessionQuestions.get(this.session)
         if (registry === undefined)

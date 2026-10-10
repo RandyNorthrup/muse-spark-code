@@ -3,7 +3,7 @@
 // durable sources: M84's session history and M102's usage journal through
 // aggregate.ts. Ships in dist/reportInputs.js; the hosts pass only identifiers
 // and directories, so activation carries no new import.
-import { open, lstat, realpath } from 'node:fs/promises'
+import { open, realpath } from 'node:fs/promises'
 import { constants as fsConstants } from 'node:fs'
 import { handleIdentity, lstatIdentity, sameFile } from '../../core/fs/fileIdentity'
 import path from 'node:path'
@@ -11,6 +11,8 @@ import { randomUUID } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
   UI_TEXT,
+  MILLISECONDS_PER_SECOND,
+  SECONDS_PER_MINUTE,
   SESSION_EXPORT_MAX_BYTES,
   STORED_SESSION_VERSION,
   REPORT_STORAGE_LINK_COUNT,
@@ -89,6 +91,8 @@ export function createReportJournalReader(input: {
   readonly beforeRead?: () => Promise<void>
   readonly readBudgets?: () => Promise<readonly UsageBudgetRead[]>
   readonly now?: () => number
+  /** Machine-local day, like M102's page; callers pass getTimezoneOffset(). */
+  readonly timezoneOffsetMins?: number
 }): (context: SourceReadContext) => Promise<UsageReportJournal> {
   const runs = new WeakMap<object, Promise<UsageReportJournal>>()
   return (context) => {
@@ -106,8 +110,15 @@ export function createReportJournalReader(input: {
           return journal
         try {
           const budgets = await input.readBudgets()
+          // The same calendar as the report period (usageReportQuery): the
+          // machine-local day, never the UTC stamp (RVCM1132B finding 2).
+          const offset = input.timezoneOffsetMins ?? 0
           const budgetDay =
-            new Date(input.now?.() ?? Date.now()).toISOString().split('T', 1)[0] ?? ''
+            new Date(
+              (input.now?.() ?? Date.now()) - offset * MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE,
+            )
+              .toISOString()
+              .split('T', 1)[0] ?? ''
           return { ...journal, budgets, budgetDay }
         } catch {
           return {
@@ -172,8 +183,11 @@ export async function readHostReportSession(
   const history = await host.readSession(sessionId, { recoverGoal: false })
   if (history.mode === 'none') return null
   const models = await host.listModels(sessionId)
-  const model = models.find((entry) => entry.isActive)
-  if (model === undefined) throw new LocalSourceError('history')
+  // The transcript above is already read: a catalogue that omits the optional
+  // isActive flag must not discard it. Prefer the active row, then the first
+  // row; only an empty catalogue is a failure (RVCM1132B finding 4).
+  const model = models.find((entry) => entry.isActive) ?? models[0]
+  if (model === undefined) throw new LocalSourceError('failed')
   return {
     sessionId,
     backend: host.info.kind,
@@ -192,13 +206,12 @@ export async function readStoredReportSession(
   if (!SESSION_ID_PATTERN.test(sessionId)) return null
   let raw: unknown
   try {
-    // Refuse links in every named ancestor before opening any payload bytes.
-    let ancestor = path.resolve(directory)
-    while (path.dirname(ancestor) !== ancestor) {
-      const entry = await lstat(ancestor)
-      if (entry.isSymbolicLink()) throw new LocalSourceError('refused')
-      ancestor = path.dirname(ancestor)
-    }
+    // Only the session file itself may not be a link: ancestors of the real
+    // directory (a symlinked data folder, home, or /var and /tmp on macOS)
+    // resolve through realpath, whose before/after identity re-checks below
+    // defeat a swap, so they never refuse an ordinary file (RVCM1132B
+    // finding 6). The file's own lstat and the no-follow open still refuse
+    // a linked file before a byte is parsed.
     const root = await realpath(directory)
     const file = path.join(root, `${sessionId}.json`)
     const before = await lstatIdentity(file)
@@ -270,8 +283,11 @@ export function createSessionReportReader(input: {
       if (history === null) throw new LocalSourceError('history')
       const journal = await input.readJournal(context)
       const partials: string[] = journal.partial === undefined ? [] : [journal.partial]
+      // The session totals below sum only the records still attributable to
+      // this session; rolled-up days can never be attributed back to it, so
+      // the disclosure says excluded, never included (RVCM1132B finding 1).
       if (journal.rollups.length > 0)
-        partials.push(UI_TEXT.reportDetailReasons.rolledUpBreakdownExcluded)
+        partials.push(UI_TEXT.reportDetailReasons.rolledUpSessionExcluded)
       if (
         history.items.length > 0 &&
         journal.records.every((record) => record.session !== history.sessionId)

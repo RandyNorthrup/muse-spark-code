@@ -291,7 +291,13 @@ function journalLimits(
   }
   return [...latest]
     .toSorted(([left], [right]) => codeUnitCompare(left, right))
-    .map(([key, entry]) => ({ key, used: entry.used, limit: 100, resetsAt: entry.resetsAt }))
+    .map(([key, entry]) => ({
+      key,
+      used: entry.used,
+      limit: 100,
+      resetsAt: entry.resetsAt,
+      unit: 'percent' as const,
+    }))
 }
 
 function capRows<T>(rows: readonly T[]): { rows: T[]; capped: boolean } {
@@ -361,6 +367,7 @@ export function usageReportFacts(input: {
         used: budget.spentUsd,
         limit: budget.capUsd,
         resetsAt: budget.resetsAt === undefined ? null : new Date(budget.resetsAt).toISOString(),
+        unit: 'usd' as const,
       })
     }
   }

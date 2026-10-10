@@ -288,6 +288,7 @@ describe('usage report facts', () => {
         used: 50,
         limit: 100,
         resetsAt: new Date(NOW + 3_600_000).toISOString(),
+        unit: 'percent',
       },
     ])
   })
@@ -390,6 +391,7 @@ describe('RVCM1132 accounting regressions', () => {
         used: 50,
         limit: 100,
         resetsAt: new Date(NOW + 7_200_000).toISOString(),
+        unit: 'percent',
       },
     ])
     expect(regressionFacts({ journal: journal({ limits: limits.toReversed() }) })).toEqual(expected)
@@ -465,12 +467,13 @@ describe('RVCM1132 accounting regressions', () => {
     // Built, not literal: the joined budget key trips the secret scanner.
     const conversationKey = ['conversation', 's1'].join('/')
     expect(result.usage.limits).toEqual([
-      { key: conversationKey, used: 2, limit: 3, resetsAt: null },
+      { key: conversationKey, used: 2, limit: 3, resetsAt: null, unit: 'usd' },
       {
         key: 'paidDaily/daily',
         used: 0.5,
         limit: 1,
         resetsAt: new Date(NOW + 3_600_000).toISOString(),
+        unit: 'usd',
       },
     ])
     const historical = regressionFacts({ scope: '2026-09', journal: journal({ budgets }) })

@@ -83,6 +83,9 @@ export function createReportingWindow(
       dataFolder: deps.reportUsageDataFolder,
       beforeRead: deps.reportBeforeRead,
       readBudgets: deps.reportReadBudgets,
+      // The budget stamp keeps the machine-local day, like the usage period
+      // and M102's page (RVCM1132B finding 2).
+      timezoneOffsetMins: new Date().getTimezoneOffset(),
     })
     return journalReader(context)
   }

@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { createSessionBudgetJournal } from '../host/backend/sessionBudgetJournal'
+import { paidDailyToday } from '../core/usage/reportingAmount'
+import type { UsageBudgetRead } from '../core/usage/usageService'
 import type { ProviderClient, ResponseAttemptGuard } from '../core/backends/modelapi/client'
 import {
   metaResolvedModel,
@@ -35,6 +37,42 @@ const settingsSchema = z.strictObject({
 })
 const ceilUsd = (cost: UsdAmount) => Usd.from(cost).ceiling(EXEC_USD_DECIMALS).toAmount()
 
+/** The machine-local day scope, the same calendar the usage page buckets by. */
+function dailyScope(now: number): string {
+  const date = new Date(now)
+  return [date.getFullYear(), date.getMonth() + 1, date.getDate()].join('-')
+}
+
+function dailyCapUsd(dataFolder: string): number {
+  try {
+    return (
+      settingsSchema.parse(
+        JSON.parse(readFileSync(path.join(dataFolder, RUNTIME_SETTINGS_FILE), 'utf8')),
+      ).paidDailyBudgetUsd ?? SETTING_DEFAULTS.paidDailyBudgetUsd
+    )
+  } catch (error: unknown) {
+    if (storeErrorCode(error) === 'ENOENT') return SETTING_DEFAULTS.paidDailyBudgetUsd
+    throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
+  }
+}
+
+/**
+ * The shared daily paid budget for report Limits sections, without starting
+ * a backend (RVCM1132B finding 3): the same ledger the runtime reserves
+ * against, read only. A missing ledger reads as zero spend under the
+ * configured cap.
+ */
+export function readRuntimeDailyBudget(deps: {
+  readonly dataFolder: string
+  readonly now: () => number
+}): Promise<readonly UsageBudgetRead[]> {
+  return createRuntimeDailyBudget({
+    dataFolder: deps.dataFolder,
+    now: deps.now,
+    sleep: () => Promise.resolve(),
+  }).readToday()
+}
+
 export function createRuntimeDailyBudget(deps: {
   readonly dataFolder: string
   readonly now: () => number
@@ -46,22 +84,8 @@ export function createRuntimeDailyBudget(deps: {
     initialBudget: () =>
       Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
   })
-  const day = () => {
-    const date = new Date(deps.now())
-    return [date.getFullYear(), date.getMonth() + 1, date.getDate()].join('-')
-  }
-  const capUsd = () => {
-    try {
-      return (
-        settingsSchema.parse(
-          JSON.parse(readFileSync(path.join(deps.dataFolder, RUNTIME_SETTINGS_FILE), 'utf8')),
-        ).paidDailyBudgetUsd ?? SETTING_DEFAULTS.paidDailyBudgetUsd
-      )
-    } catch (error: unknown) {
-      if (storeErrorCode(error) === 'ENOENT') return SETTING_DEFAULTS.paidDailyBudgetUsd
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
-    }
-  }
+  const day = () => dailyScope(deps.now())
+  const capUsd = () => dailyCapUsd(deps.dataFolder)
   return {
     async reserve(costUsd: UsdAmount, signal: AbortSignal): Promise<SessionBudgetClaim> {
       signal.throwIfAborted()
@@ -87,6 +111,23 @@ export function createRuntimeDailyBudget(deps: {
           return claim.check(Usd.from(capUsd()).toAmount())
         },
       }
+    },
+
+    /**
+     * Today's shared budget for report Limits sections: the same shape as
+     * VS Code's dailyPaid.readToday, without the editor's stop/raise state
+     * (the standalone runtime never raises a day or records a stop, so both
+     * stay at their defaults).
+     */
+    async readToday(): Promise<readonly UsageBudgetRead[]> {
+      return await paidDailyToday({
+        readExisting: (id, account) => journal.readExisting(id, account),
+        accountId: PAID_DAILY_BUDGET.accountId,
+        scope: day(),
+        now: deps.now(),
+        capUsd: capUsd(),
+        stopped: false,
+      })
     },
   }
 }

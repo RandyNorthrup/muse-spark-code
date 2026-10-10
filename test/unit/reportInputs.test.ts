@@ -133,6 +133,33 @@ function usageEntry(id: string, session: string, day: string = TODAY) {
   }
 }
 
+function fakeReportHost<const Items extends readonly unknown[]>(
+  items: Items,
+  models: readonly { readonly modelId: string; readonly isActive: boolean }[],
+) {
+  return {
+    info: {
+      kind: 'museCode' as const,
+      serverName: 'fake',
+      serverVersion: '1',
+      grantedCapabilities: [],
+      canEditSessions: true,
+    },
+    readSession: vi.fn(() => Promise.resolve({ mode: 'inline', name: 'Fake', items, todos: [] })),
+    listModels: vi.fn(() =>
+      Promise.resolve(
+        models.map((model) => ({
+          modelId: model.modelId,
+          displayLabel: model.modelId,
+          contextLimit: undefined,
+          isDefault: true,
+          isActive: model.isActive,
+        })),
+      ),
+    ),
+  }
+}
+
 async function journalWith(dataFolder: string, entries: readonly unknown[]): Promise<void> {
   const store = new UsageJournalStore(new NodeUsageFs(dataFolder), {
     writerId: 'test-writer',
@@ -287,7 +314,10 @@ describe('RVCM1132 input regressions', () => {
       context({ sessionId: 's1' }),
     )
     expect(result.record.status).toBe('partial')
-    expect(result.record.reason).toContain(EN.reportDetailReasons.rolledUpBreakdownExcluded)
+    // Session totals sum only attributable records, so the disclosure says
+    // the rollup is excluded from them, never included (RVCM1132B finding 1).
+    expect(result.record.reason).toContain(EN.reportDetailReasons.rolledUpSessionExcluded)
+    expect(result.record.reason).not.toContain(EN.reportDetailReasons.rolledUpBreakdownExcluded)
     expect(result.data?.usage.inputTokens).toBe(100)
   })
 
@@ -429,7 +459,7 @@ describe('RVCM1132 input regressions', () => {
     expect(usageJournal.partial).toContain(EN.reportDetailReasons.budgetsUnavailable)
   })
 
-  it('R6 refuses file links and linked directory ancestors before reading', async () => {
+  it('R6 refuses file links but reads through linked directory ancestors', async () => {
     const root = await dir('linked-report-')
     const sessions = path.join(root, 'sessions')
     const outside = path.join(root, 'outside')
@@ -445,9 +475,11 @@ describe('RVCM1132 input regressions', () => {
       path.join(sessions, 'ancestor'),
       process.platform === 'win32' ? 'junction' : 'dir',
     )
-    await expect(
-      readStoredReportSession(path.join(sessions, 'ancestor'), 'linked'),
-    ).rejects.toMatchObject({ code: 'refused' })
+    // Ancestors of the real directory (a symlinked data folder, home, or
+    // /var and /tmp on macOS) resolve through realpath and never refuse an
+    // ordinary file (RVCM1132B finding 6); only a linked file itself refuses.
+    const through = await readStoredReportSession(path.join(sessions, 'ancestor'), 'linked')
+    expect(through?.sessionId).toBe('linked')
   })
 
   it('R7 refuses a stored session whose envelope has another identity', async () => {
@@ -586,6 +618,72 @@ describe('RVCM1132 input regressions', () => {
       options: { ...context().options, kind: 'milestone', scope: 'M113' },
     })
     expect(milestone.record.status).toBe('notApplicable')
+  })
+
+  it('RVCM1132B stamps budgets on the machine-local day, not UTC', async () => {
+    const data = await dir('budget-day-report-')
+    await journalWith(data, [usageEntry('r1', 's1')])
+    // 2026-10-07T01:00Z is still 2026-10-06 in US Pacific (offset 420).
+    const evening = Date.parse('2026-10-07T01:00:00Z')
+    const readJournal = createReportJournalReader({
+      dataFolder: data,
+      now: () => evening,
+      timezoneOffsetMins: 420,
+      readBudgets: () =>
+        Promise.resolve([
+          {
+            budget: {
+              id: 'daily',
+              kind: 'paidDaily' as const,
+              spentUsd: 0.5,
+              capUsd: 1,
+              stopped: false,
+            },
+          },
+        ]),
+    })
+    const usageOptions = { ...context().options, kind: 'usage' as const, scope: '' }
+    const usageCtx = { ...context(), run: {}, options: usageOptions }
+    const stamped = await readJournal(usageCtx)
+    expect(stamped.budgetDay).toBe('2026-10-06')
+    const usage = await createUsageReportReader({
+      dataFolder: data,
+      readJournal,
+      now: () => evening,
+      timezoneOffsetMins: 420,
+    })(usageCtx)
+    expect(usage.partial ?? '').not.toContain(EN.reportDetailReasons.budgetsUnavailable)
+    expect(usage.usage.limits).toEqual([
+      { key: 'paidDaily/daily', used: 0.5, limit: 1, resetsAt: null, unit: 'usd' },
+    ])
+  })
+
+  it('RVCM1132B keeps a read transcript when no model row is flagged active', async () => {
+    const host = fakeReportHost(
+      storedSession('s1').transcript.map((entry) => entry.item),
+      [{ modelId: 'first-model', isActive: false }],
+    )
+    const result = await readHostReportSession(host, 's1')
+    expect(result?.modelId).toBe('first-model')
+    expect(result?.items).toHaveLength(2)
+  })
+
+  it('RVCM1132B reports an empty model catalogue as a failure, not missing history', async () => {
+    const host = fakeReportHost([], [])
+    await expect(readHostReportSession(host, 's1')).rejects.toMatchObject({ code: 'failed' })
+  })
+
+  it('RVCM1132B surfaces a failed session resolution as a failure, not missing history', async () => {
+    const data = await dir('failed-session-report-')
+    const reader = createSessionReportReader({
+      resolveSession: () => Promise.reject(new LocalSourceError('failed')),
+      readJournal: () => readUsageReportJournal(data),
+    })
+    const result = await sessionSource(reader, [], (text) => text).read(
+      context({ sessionId: 's1' }),
+    )
+    expect(result.record.status).toBe('unavailable')
+    expect(result.record.reason).toBe(EN.reportSourceReasons.failed)
   })
 })
 

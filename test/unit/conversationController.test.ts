@@ -17857,8 +17857,18 @@ describe('RVCM1132 report session ownership', () => {
     })
     expect(foreign.data).toBeNull()
     expect(foreign.record.status).toBe('unavailable')
-    expect(foreign.record.reason).toBe(UI_TEXT.reportSourceReasons.history)
+    // Another session's questions are not missing history: this source is
+    // simply not bound for that read (RVCM1132B finding 7).
+    expect(foreign.record.reason).toBe(UI_TEXT.reportSourceReasons.unbound)
     t.controller.dispose()
+    // A disposed controller's questions are likewise unbound, not missing
+    // history: the same reader rejects once its owner is gone.
+    const disposed = await questionsSource(reader, (text) => text).read({
+      ...context,
+      options: { ...options, sessionId: 's1' },
+    })
+    expect(disposed.data).toBeNull()
+    expect(disposed.record.reason).toBe(UI_TEXT.reportSourceReasons.unbound)
   })
 
   it('R16 refuses history after disposal while a host lookup is pending', async () => {

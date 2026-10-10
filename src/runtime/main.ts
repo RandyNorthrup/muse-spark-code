@@ -113,6 +113,7 @@ import {
   isUsageWriterBundle,
   type UsageRecording,
 } from '../core/usage/recording'
+import type { UsageBudgetRead } from '../core/usage/usageService'
 import { requireFile } from '../host/lazyBundle'
 import { extensionHooksBundle } from '../host/extensionHooksBundle'
 import { fileContextIo } from '../host/backend/contextIo'
@@ -463,11 +464,22 @@ function resourcesFor(
   })
 }
 
+/**
+ * Owned LocalSourceError brand (localFailureOf), like the conversation
+ * bundle's: a failed report read is a failure with its reason, never a
+ * silent miss (RVCM1132B finding 4).
+ */
+function reportReadFailed(): Error {
+  return Object.assign(new Error('failed'), { isLocalSourceError: true, code: 'failed' })
+}
+
 /** No account or backend is touched; W ships this entry in its own lazy chunk. */
 function runtimeReports(
   log: Logger,
   current?: Awaited<ReturnType<typeof runtimeFor>>,
   recording?: UsageRecording,
+  /** One-shot CLI reports have no live runtime but still show the shared daily budget. */
+  reportBudgets?: () => Promise<readonly UsageBudgetRead[]>,
 ): () => ReturnType<typeof createRuntimeReports> {
   const load = reportsLoader({ bundlePath: path.join(distDir, 'reporting.js'), log })
   // M113 C-M113-2: the session and usage inputs ride their own lazy chunk.
@@ -493,10 +505,14 @@ function runtimeReports(
         let journalReader:
           ReturnType<ReturnType<typeof inputs>['createReportJournalReader']> | undefined
         const readJournal = (context: SourceReadContext) => {
+          const readBudgets = reportBudgets ?? current?.readUsageBudgets
           journalReader ??= inputs().createReportJournalReader({
             dataFolder,
             ...(recording !== undefined && { beforeRead: () => recording.flush() }),
-            ...(current !== undefined && { readBudgets: current.readUsageBudgets }),
+            ...(readBudgets !== undefined && { readBudgets }),
+            // The budget stamp keeps the machine-local day, like the usage
+            // period and M102's page (RVCM1132B finding 2).
+            timezoneOffsetMins: new Date().getTimezoneOffset(),
           })
           return journalReader(context)
         }
@@ -517,27 +533,39 @@ function runtimeReports(
                     {
                       resolveSession: async (sessionId) => {
                         if (sessionId === undefined) return null
-                        const stored = await inputs().readStoredReportSession(
-                          workspaceSessionsFolder(
-                            { platform: process.platform, env: process.env, homeDir: homedir() },
-                            cwd,
-                          ),
-                          sessionId,
-                        )
-                        if (stored !== null) return stored
-                        // Default serve options for the on-demand CLI runtime;
-                        // ACP serve reuses its live runtime through `current`.
-                        const parsed = parseCommandLine([])
-                        if (parsed.command !== 'serve') return null
-                        let runtime = current
+                        // A failed read is a failure with its reason, never a
+                        // silent miss: precise stored/host brands propagate,
+                        // and anything else becomes a failure (RVCM1132B
+                        // finding 4). Only null means no session was found.
                         try {
-                          runtime ??= await runtimeFor(parsed.options, log)
-                          const host = await runtime.backend.hostFor(cwd)
-                          return await inputs().readHostReportSession(host, sessionId)
-                        } catch {
-                          return null
-                        } finally {
-                          if (current === undefined) await runtime?.close()
+                          const stored = await inputs().readStoredReportSession(
+                            workspaceSessionsFolder(
+                              { platform: process.platform, env: process.env, homeDir: homedir() },
+                              cwd,
+                            ),
+                            sessionId,
+                          )
+                          if (stored !== null) return stored
+                          // Default serve options for the on-demand CLI runtime;
+                          // ACP serve reuses its live runtime through `current`.
+                          const parsed = parseCommandLine([])
+                          if (parsed.command !== 'serve') return null
+                          let runtime = current
+                          try {
+                            runtime ??= await runtimeFor(parsed.options, log)
+                            const host = await runtime.backend.hostFor(cwd)
+                            return await inputs().readHostReportSession(host, sessionId)
+                          } finally {
+                            if (current === undefined) await runtime?.close()
+                          }
+                        } catch (error) {
+                          if (
+                            typeof error === 'object' &&
+                            error !== null &&
+                            (error as { isLocalSourceError?: unknown }).isLocalSourceError === true
+                          )
+                            throw error
+                          throw reportReadFailed()
                         }
                       },
                       readJournal,
@@ -1576,7 +1604,18 @@ async function main(): Promise<number> {
     }
     case 'reports': {
       try {
-        return await runtimeReports(log)().run(command.args)
+        // The one-shot CLI has no live runtime, but its usage reports still
+        // show the shared daily paid budget, exactly like VS Code and ACP
+        // serve (RVCM1132B finding 3). The ledger read never starts a backend.
+        const dataFolder = agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        })
+        const { readRuntimeDailyBudget } = await import('./runtimeAccountingEntry.js')
+        return await runtimeReports(log, undefined, undefined, () =>
+          readRuntimeDailyBudget({ dataFolder, now: () => Date.now() }),
+        )().run(command.args)
       } catch {
         writeLine(process.stderr, UI_TEXT.reportUi.generationFailed)
         return EXIT_FAILED
