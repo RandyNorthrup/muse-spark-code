@@ -1533,9 +1533,9 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Estimator
 
-Ship-date forecast for a goal from the current fleet, or the setup a target date needs.
+Ship-date forecast for a goal from the current fleet, or the setup a target date needs. Not available yet: /estimate waits on the plan-reader binding.
 
-Estimate a goal using linked machines, agent slots, accounts and CI; no model call.
+Estimate a goal using linked machines, agent slots, accounts and CI; no model call. Not available yet: snapshots refuse with M117-W-M113-plan-reader until the plan reader is bound.
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -1911,7 +1911,7 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 ### Muse Spark: Open Estimator
 
-`museSpark.estimate` — Ship-date forecast for a goal from the current fleet, or the setup a target date needs.
+`museSpark.estimate` — Ship-date forecast for a goal from the current fleet, or the setup a target date needs. Not available yet: /estimate waits on the plan-reader binding.
 
 ## Settings
 
@@ -3640,7 +3640,7 @@ These are defaults; editor customizations take precedence.
 - `schedule`: Usage: schedule add --draft &lt;JSON&gt; [--scheduled-prompts --max-budget-usd &lt;USD&gt;] [--report &lt;kind&gt; --to save:&lt;path&gt;|browser|email:&lt;address&gt; ... --format md|html|json|text] [-- &lt;report args&gt;] | list | remove|run-now|pause|resume|fire &lt;id&gt; | timeline [--hours 24|168] [--cwd &lt;path&gt;] [--json]; schedule run-due [--json]; schedule background off|status [--json]. Exit codes: 0 success, 1 refusal, 2 usage, 3 cleanup warning.
 - `providers accounts`: Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.
 - `developer`: Show or unlock machine-local developer options. Profile operations require a connected resource owner.
-- `estimate <goal> [--by <date>] [--fleet current|minimum|optimum] [--format md|html|json|text] [--seed <seed>]`: Estimate a goal using linked machines, agent slots, accounts and CI; no model call.
+- `estimate <goal> [--by <date>] [--fleet current|minimum|optimum] [--format md|html|json|text] [--seed <seed>]`: Estimate a goal using linked machines, agent slots, accounts and CI; no model call. Not available yet: snapshots refuse with M117-W-M113-plan-reader until the plan reader is bound.
 - `report`: Usage:
   muse-spark-code-acp report [--out &lt;file&gt;] [--description &lt;text&gt;] [--no-facts] [--no-events]
   Prints the scrubbed problem report to stdout, or writes it to &lt;file&gt; with --out.

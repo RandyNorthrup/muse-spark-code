@@ -28853,7 +28853,7 @@ release acceptance are still pending.
 
 ### M95b — Subscription sign-in: ChatGPT plan, Copilot models, plan keys (D74)
 
-**Status 2026-10-05: built.**
+**Status 2026-10-10 (corrects 2026-10-05: acceptance 1–10 still open, so not built; first parts shipped in the 0.15.0 preview, live plan inference, installed-editor receipts and full quality remain): building.**
 
 - **Goal.** A user with a ChatGPT Plus or Pro plan, or a Copilot plan, runs
   the harness on that plan's inference with one click in the same panel,

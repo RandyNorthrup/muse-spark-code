@@ -2657,7 +2657,7 @@
       "nameKey": "command.estimate.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "Ship-date forecast for a goal from the current fleet, or the setup a target date needs.",
+      "description": "Ship-date forecast for a goal from the current fleet, or the setup a target date needs. Not available yet: /estimate waits on the plan-reader binding.",
       "text": { "ui": "referenceEstimate" },
       "canRun": true
     }
@@ -4805,7 +4805,7 @@
     {
       "route": "estimate",
       "name": "estimate <goal> [--by <date>] [--fleet current|minimum|optimum] [--format md|html|json|text] [--seed <seed>]",
-      "description": "Estimate a goal using linked machines, agent slots, accounts and CI; no model call.",
+      "description": "Estimate a goal using linked machines, agent slots, accounts and CI; no model call. Not available yet: snapshots refuse with M117-W-M113-plan-reader until the plan reader is bound.",
       "text": { "ui": "estimateCliHelp" }
     },
     {

@@ -391,7 +391,7 @@ happened, not what was planned; superseded entries are kept.
   one and its thresholds; a vendor limit blocks only the affected account.
 - **Orchestrator playbook.** The nine orchestration rules ship as a first-party
   skill. In the ACP agent and the CLI, `/playbook status`, `record` and
-  `settings` answer locally; the VS Code panel follows.
+  `settings` answer locally. Today: the VS Code panel does not enforce them yet.
 - **Refreshed design.** Shared design tokens and generated palettes style every
   panel surface; an optional pinned OFL font pack serves standalone installs.
 
@@ -797,8 +797,10 @@ happened, not what was planned; superseded entries are kept.
 ### Highlights
 
 - **Loop guarantees.** Strict tool contracts, bounded hosted search and streamed
-  argument previews make Model API work easier to follow; read-only calls can
-  run concurrently while results retain their original order.
+  tool rows make Model API work easier to follow; read-only calls can
+  run concurrently while results retain their original order. Today: rows stream
+  while arguments arrive, but the argument text is not shown yet (no production
+  tool declares preview fields).
 - **Keep your machine responsive.** Machine-scoped CPU and memory thresholds
   throttle, then pause, new background work. Relocation needs a paired device
   or runner route and is not available yet, so work stays on this machine.
@@ -1281,7 +1283,7 @@ happened, not what was planned; superseded entries are kept.
 ### Highlights
 
 - **Bring your own models.** Add OpenAI, Anthropic or Gemini keys, connect local models, or try ChatGPT and Copilot sign-in in Models & Agents; features follow the selected model's capabilities. <!-- try: command museSpark.modelsAndAgents -->
-- **Agent roles and teams.** Configure role pools, task limits and worker review, with explicit paid-worker consent and the shared daily budget. <!-- try: command museSpark.modelsAndAgents -->
+- **Agent roles and teams.** Configure role pools, task limits and worker review, with explicit paid-worker consent and the shared daily budget. Today: teams of workers in isolated workspaces cannot be created yet. <!-- try: command museSpark.modelsAndAgents -->
 - **Scan with /legal.** Review licensing, copyright and source evidence without a model call, then export the report or confirm supported header fixes. <!-- try: command museSpark.legalScan -->
 - **Long-task context and upstream sync.** Pi and SoL-Pi ports preserve packed output, literal recall and cache-stable prompts; automatic compaction is implemented but remains inactive pending its paired evaluation. <!-- try: setting museSpark.modelApiAutoCompaction -->
 - **Usage and cost.** Open the local Usage & Cost page for provider and team totals, reported or estimated tokens, budgets and exports. <!-- try: command museSpark.openUsagePage -->

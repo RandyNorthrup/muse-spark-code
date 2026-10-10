@@ -858,7 +858,7 @@
     {
       "id": "M116",
       "title": "Orchestrator playbook",
-      "summary": "The orchestration rules ship as a built-in skill that governs the panel's subagent, delegate, best-of-N and review dispatches, and /playbook shows status, records and settings locally.",
+      "summary": "The orchestration rules ship as a built-in skill with local /playbook status, record and settings in the CLI and ACP agent while panel enforcement for subagent, delegate, best-of-N and review dispatches stays pending.",
       "area": "agents",
       "release": "0.17.0"
     },
