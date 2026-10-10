@@ -18,6 +18,17 @@ happened, not what was planned; superseded entries are kept.
   counted run; fake baseline/mechanism pairs hold both 0.75 floors.
   Production automatic compaction stays off, awaiting lane E's live
   evaluation.
+- **Repaired M75 evaluation freeze** (M101 CM1012R2, review RVCM1012).
+  Each arm now differs from its pair in one mechanism only: the context
+  window is harness condition shared by both arms (per task, resolved by the
+  runner), and a mechanism that moves the window, the memory store, the
+  client, the workspace or a paid-use hook does not run. The frozen digest
+  now covers each arm's implementation source, each task's resolved window,
+  the verifier prelude, the window rule, the held-deps list and the frozen
+  defaults. The memory evidence drives the real automatic flush through a
+  fake store — snapshot written when allowed, nothing written and the turn
+  still compacting when refused. No user-facing change; production stays
+  off.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
