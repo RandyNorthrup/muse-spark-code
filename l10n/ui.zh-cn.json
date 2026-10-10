@@ -2428,6 +2428,8 @@
   "linuxDictationIntegrity": "听写辅助程序或模型未通过大小或 SHA-256 校验。未开始识别。",
   "linuxDictationBusy": "另一个窗口正在使用听写辅助程序或模型。请停止其录音或下载后重试。",
   "linuxDictationRemoved": "Linux 听写已关闭，辅助程序和模型已删除。开启 linuxDictationModel 并重新加载窗口即可启用。",
+  "linuxDictationRemovalPending": "Linux 听写已关闭，辅助程序和模型正在删除。若要重试删除，请重新加载窗口；若要启用，请开启 linuxDictationModel 并重新加载窗口。",
+  "linuxDictationDisabled": "Linux 听写已关闭。开启 linuxDictationModel 并重新加载窗口即可启用。",
   "linuxDictationRemoveFailed": "无法删除离线听写辅助程序或模型。请检查存储权限、停止其他窗口的下载，然后重新加载此窗口重试。",
   "linuxDictationFailed": "Linux 听写失败",
   "linuxDictationDownloadFailed": "无法下载听写辅助程序或模型。点击麦克风重试；中断的下载可继续。",

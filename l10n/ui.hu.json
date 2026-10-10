@@ -2482,6 +2482,8 @@
   "linuxDictationIntegrity": "A segéd vagy a modell méret- vagy SHA-256-ellenőrzése sikertelen. A felismerés nem indult el.",
   "linuxDictationBusy": "Másik ablak használja a segédet vagy a modellt. Állítsa le ott a felvételt vagy letöltést, majd próbálja újra.",
   "linuxDictationRemoved": "A Linux-diktálás ki van kapcsolva, a segéd és a modell törölve. Kapcsolja be a linuxDictationModel beállítást, és töltse újra az ablakot.",
+  "linuxDictationRemovalPending": "A Linux-diktálás ki van kapcsolva, a segéd és a modell törlése folyamatban van. Töltse újra az ablakot a törlés újrapróbálásához, vagy kapcsolja be a linuxDictationModel beállítást és töltse újra az ablakot az engedélyezéshez.",
+  "linuxDictationDisabled": "A Linux-diktálás ki van kapcsolva. Kapcsolja be a linuxDictationModel beállítást, és töltse újra az ablakot az engedélyezéshez.",
   "linuxDictationRemoveFailed": "Az offline diktálási segéd vagy modell nem törölhető. Ellenőrizze a tároló jogosultságait, állítsa le a többi ablak letöltését, és töltse újra ezt az ablakot.",
   "linuxDictationFailed": "A Linux-diktálás sikertelen",
   "linuxDictationDownloadFailed": "A segéd vagy a modell nem tölthető le. Próbálja újra a mikrofonnal; a megszakadt letöltés folytatható.",

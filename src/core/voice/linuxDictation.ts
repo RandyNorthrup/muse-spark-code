@@ -23,7 +23,9 @@ export class LinuxDictation implements DictationHandle {
   public start(): void {
     if (this.isDisposed || this.isActive) return
     if (!this.deps.isEnabled()) {
-      this.deps.listener.onError(UI_TEXT.linuxDictationRemoved)
+      // No claim about the files: disabling launches cleanup elsewhere and
+      // its outcome is unknown here (RVCM9LNX P3).
+      this.deps.listener.onError(UI_TEXT.linuxDictationDisabled)
       return
     }
     if (this.pending !== undefined) {

@@ -2482,6 +2482,8 @@
   "linuxDictationIntegrity": "Größe oder SHA-256 von Hilfsprogramm oder Sprachmodell stimmt nicht. Die Erkennung wurde nicht gestartet.",
   "linuxDictationBusy": "Ein anderes Fenster verwendet Hilfsprogramm oder Sprachmodell. Dort Aufnahme oder Download stoppen und erneut versuchen.",
   "linuxDictationRemoved": "Linux-Spracheingabe ist aus und Hilfsprogramm und Modell sind entfernt. linuxDictationModel einschalten und das Fenster neu laden.",
+  "linuxDictationRemovalPending": "Linux-Spracheingabe ist aus; Hilfsprogramm und Modell werden gerade entfernt. Laden Sie das Fenster neu, um das Entfernen zu wiederholen, oder schalten Sie linuxDictationModel ein und laden Sie das Fenster neu, um sie zu aktivieren.",
+  "linuxDictationDisabled": "Linux-Spracheingabe ist aus. Schalten Sie linuxDictationModel ein und laden Sie das Fenster neu, um sie zu aktivieren.",
   "linuxDictationRemoveFailed": "Hilfsprogramm oder Offline-Sprachmodell konnte nicht entfernt werden. Prüfen Sie Speicherberechtigungen, stoppen Sie Downloads in anderen Fenstern und laden Sie dieses Fenster neu.",
   "linuxDictationFailed": "Linux-Spracheingabe fehlgeschlagen",
   "linuxDictationDownloadFailed": "Hilfsprogramm oder Sprachmodell konnte nicht heruntergeladen werden. Mit dem Mikrofon erneut versuchen; unterbrochene Downloads können fortgesetzt werden.",

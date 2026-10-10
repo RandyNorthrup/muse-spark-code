@@ -2590,6 +2590,8 @@
   "linuxDictationIntegrity": "Pomocník nebo model diktování neprošel kontrolou velikosti nebo SHA-256. Rozpoznávání nezačalo.",
   "linuxDictationBusy": "Pomocníka nebo model diktování používá jiné okno. Zastavte v něm nahrávání nebo stahování a zkuste to znovu.",
   "linuxDictationRemoved": "Diktování v Linuxu je vypnuté a pomocník i model jsou odstraněné. Zapněte linuxDictationModel a znovu načtěte okno.",
+  "linuxDictationRemovalPending": "Diktování v Linuxu je vypnuté a pomocník i model se právě odstraňují. Načtěte okno znovu pro opakování odstranění, nebo zapněte linuxDictationModel a znovu načtěte okno pro povolení.",
+  "linuxDictationDisabled": "Diktování v Linuxu je vypnuté. Zapněte linuxDictationModel a znovu načtěte okno pro povolení.",
   "linuxDictationRemoveFailed": "Pomocníka nebo offline model diktování nelze odstranit. Zkontrolujte oprávnění úložiště, zastavte stahování v ostatních oknech a znovu načtěte toto okno.",
   "linuxDictationFailed": "Diktování v Linuxu selhalo",
   "linuxDictationDownloadFailed": "Pomocníka nebo model diktování se nepodařilo stáhnout. Zkuste mikrofon znovu; přerušené stahování lze obnovit.",

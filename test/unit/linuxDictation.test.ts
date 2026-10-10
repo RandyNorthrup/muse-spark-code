@@ -190,11 +190,11 @@ describe('Linux dictation preparation and helper protocol', () => {
     expect(consent).toHaveBeenCalledTimes(1)
     expect(test.fetcher).toHaveBeenCalledTimes(helperPins.length + 1)
   })
-  it('a removed-model setting refuses capture, and reset kills a warm helper', async () => {
+  it('a disabled setting refuses capture without claiming removal, and reset kills a warm helper', async () => {
     const test = setup()
     test.isEnabled.mockReturnValue(false)
     test.driver.start()
-    expect(test.listener.onError).toHaveBeenCalledWith(UI_TEXT.linuxDictationRemoved)
+    expect(test.listener.onError).toHaveBeenCalledWith(UI_TEXT.linuxDictationDisabled)
     expect(test.fetcher).not.toHaveBeenCalled()
     test.isEnabled.mockReturnValue(true)
     test.driver.start()
