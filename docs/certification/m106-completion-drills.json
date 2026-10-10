@@ -1,0 +1,173 @@
+[
+  {
+    "drill": "key-literal-scrub",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "? value.replaceAll(key, '<redacted-key>') -> ? value",
+    "test": "test/unit/m106CaptureCollector.test.ts: scrubs literal key echoes",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257"
+  },
+  {
+    "drill": "opaque-reasoning-omit",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": ".filter(([name]) => !OMIT.has(name)) -> .filter(() => true)",
+    "test": "test/unit/m106CaptureCollector.test.ts: scrubs literal key echoes",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257"
+  },
+  {
+    "drill": "key-preflight",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "z.string().min(1).max(KEY_MAX_BYTES).regex(/^\\S+$/).parse(options.key) -> void options.key",
+    "test": "test/unit/m106CaptureCollector.test.ts: clears a refused",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257"
+  },
+  {
+    "drill": "sse-complete-block",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "if (!normalized.endsWith('\\n\\n')) -> if (false)",
+    "test": "test/unit/m106CaptureCollector.test.ts: parses CRLF",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257"
+  },
+  {
+    "drill": "status-validation",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "is_alive: z.boolean() -> is_alive: z.unknown()",
+    "test": "test/unit/m106CaptureCollector.test.ts: refuses status schema errors",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257"
+  },
+  {
+    "drill": "strict-refusal-status",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "if (status !== 400) -> if (false)",
+    "test": "test/unit/m106CaptureCollector.test.ts: refuses status schema errors",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257"
+  },
+  {
+    "drill": "stream-terminal",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "frames.every((frame) => frame.type !== 'response.completed') -> false",
+    "test": "test/unit/m106CaptureCollector.test.ts: missing completion",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257"
+  },
+  {
+    "drill": "stream-identity",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "frame.item_id !== done.item_id || frame.output_index !== done.output_index -> false",
+    "test": "test/unit/m106CaptureCollector.test.ts: changed identity",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257"
+  },
+  {
+    "drill": "stream-arguments",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "deltas.map((frame) => z.string().parse(frame.delta)).join('') !== argumentsText -> false",
+    "test": "test/unit/m106CaptureCollector.test.ts: different done arguments",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257"
+  },
+  {
+    "drill": "recommended-cap",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "response.status !== 'completed' || response.max_output_tokens !== 131_072 -> response.status !== 'completed'",
+    "test": "test/unit/m106CaptureCollector.test.ts: refuses status schema errors",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257"
+  },
+  {
+    "drill": "incomplete-status",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "response.status !== 'incomplete' || -> false ||",
+    "test": "test/unit/m106CaptureCollector.test.ts: refuses status schema errors",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257"
+  },
+  {
+    "drill": "body-bound",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "if (length > BODY_MAX_BYTES) -> if (false)",
+    "test": "test/unit/m106CaptureCollector.test.ts: cancels an oversized response",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257"
+  },
+  {
+    "drill": "no-redirect",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "redirect: 'error' -> redirect: 'follow'",
+    "test": "test/unit/m106CaptureCollector.test.ts: collects six counted receipts",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257"
+  },
+  {
+    "drill": "safe-headers",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": ".filter(([name]) => HEADERS.has(name)) -> .filter(() => true)",
+    "test": "test/unit/m106CaptureCollector.test.ts: collects six counted receipts",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257"
+  },
+  {
+    "drill": "count-before-dispatch",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "else manifest.nonInferenceAttempts++ -> else manifest.nonInferenceAttempts += 0",
+    "test": "test/unit/m106CaptureCollector.test.ts: counts a transport failure",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257"
+  },
+  {
+    "drill": "key-finally",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "    options.key = ''\n    manifest.finishedAt ->     void options.key\n    manifest.finishedAt",
+    "test": "test/unit/m106CaptureCollector.test.ts: counts a transport failure",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257"
+  },
+  {
+    "drill": "new-directory",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "await mkdir(outputDir, { mode: 0o700 }) -> await mkdir(outputDir, { mode: 0o700, recursive: true })",
+    "test": "test/unit/m106CaptureCollector.test.ts: refuses to overwrite",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257"
+  },
+  {
+    "drill": "feedback-disclosure",
+    "file": "test/fixtures/m106/msp-1.4.4-host-feedback.json",
+    "mutation": "\"withFiles\": false -> \"withFiles\": true",
+    "test": "test/unit/m106CaptureFixtures.test.ts: captures feedback upload",
+    "exitCode": 1,
+    "beforeSha256": "cfffa8691ede4493a4c85f1363a208e9028f769739f639ec841296042206e8dc",
+    "restoredSha256": "cfffa8691ede4493a4c85f1363a208e9028f769739f639ec841296042206e8dc"
+  },
+  {
+    "drill": "provider-coverage",
+    "file": "test/fixtures/m106/completion-manifest.json",
+    "mutation": "\"provider\": \"openai\" -> \"provider\": \"removed-openai\"",
+    "test": "test/unit/m106CaptureFixtures.test.ts: names every provider credential",
+    "exitCode": 1,
+    "beforeSha256": "d9be3f116dc3e93afb584373812906928a499248d9431628a164f495340723d9",
+    "restoredSha256": "d9be3f116dc3e93afb584373812906928a499248d9431628a164f495340723d9"
+  }
+]

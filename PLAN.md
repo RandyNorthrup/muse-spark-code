@@ -31293,6 +31293,33 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**C-M106-1 capture completion (2026-10-10, macmini).** Capture the installed
+Muse Code 1.4.4-R5419.1 catalogue, effort and lifecycle frames in an empty
+temporary workspace, using only the rig's own CLI sign-in and contributor
+model. Record feedback's actual refusal or receipt with both file and
+session-record disclosure off, and re-check the removed delete method.
+Count commands and model attempts, scrub profile paths and account data, and
+retain frame provenance under `test/fixtures/m106/`. For Meta's missing raw
+U9 delta/done, status and output-cap evidence, supply a bounded stdin-key
+capture script and fake-only output checks; the lead runs it with the key.
+Every other provider row names its missing credential or local server.
+No production capability is enabled by this lane; C-M106-2 owns the selected
+record bindings, C-M106-3 owns native readers and C-M106-4 owns health/team
+surfaces. The lane brief forbids aggregate quality and branch integration;
+scoped direct rig checks precede the lead's full gate and review.
+
+**C-M106-1 rig results.** Four foreground CLI probes made 18 MSP requests
+and zero model attempts. Fixtures now preserve the 1.4.4 effort catalogue,
+effort changes, session start/close, the note-only feedback upload receipt,
+and the ephemeral-feedback/delete refusals. The Meta collector is verified
+with fake services: 35 owning tests and 19 failing guard drills with exact
+SHA-256 restores; five-project typecheck and the scoped static/build gates
+pass. Raw Meta delta/done, fresh status/output-cap and every other provider
+row remain waiting for the named key or local runtime. Durable History's
+`session/listChanged` remains uncaptured. Lead review, Windows/Linux runs,
+live receipts and M106's release checklist remain open; details are in
+`docs/certification/m106-completion-captures.md`.
+
 **M106W continuation 3 (2026-10-06, macmini).** Resolve the 15 full-suite
 blockers recorded by W: reconcile only D86-authorized behavior changes, repair
 stale fake package/capability/lazy UI fixtures, and fix shipped frame coverage.
@@ -38829,6 +38856,16 @@ typechecks, deadcode, duplication, localization, host API, cycles and production
 build. The lead retains integrated quality and the multi-OS matrix. No gate is
 weakened. The v2 headless money contract remains private/unsupported pending
 M80’s hosted/live receipts; this lane uses fake transports only.
+**C-M106-1 bounded capture certification (2026-10-10).** The explicit rig
+brief forbids aggregate quality, full-suite runs and branch integration.
+Run whole owning files at repository timeouts, all five typechecks and the
+existing scoped lint, format, deadcode, duplication, localization, reference,
+host API, roadmap and production build gates. The lead retains integrated
+quality, Windows/Linux execution and live Meta/provider receipts because no
+key is supplied here. The CLI probes use ephemeral empty workspaces and no
+model turn; only the explicitly scoped synthetic note is uploaded, with
+both disclosures off. No guard, hook, timeout, cap or dependency is changed.
+Evidence: `docs/certification/m106-completion-captures.md`.
 **REDM106L1 scoped certification (2026-10-06).** The rig lane brief and
 shared rules prohibit aggregate `npm run quality`; the lead owns the full
 integration gate. Run all required scoped typechecks, changed-file lint and
