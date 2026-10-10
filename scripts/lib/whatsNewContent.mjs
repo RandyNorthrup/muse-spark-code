@@ -238,11 +238,15 @@ function highlightsOf(nodes, version, repository, allowed) {
 function finishRelease(release, repository, allowed) {
   const sections = []
   let highlights = []
+  // CX1R4 F6: the duplicate-heading check records the heading itself, not the
+  // post-filter item count, so an archived first list still blocks a second.
+  let hasHighlightsHeading = false
   for (const { heading, nodes } of release.parts) {
     if (heading === HIGHLIGHTS_HEADING) {
-      if (highlights.length > 0) {
+      if (hasHighlightsHeading) {
         throw new Error(`CHANGELOG.md ${release.version}: two "### ${HIGHLIGHTS_HEADING}" sections`)
       }
+      hasHighlightsHeading = true
       highlights = highlightsOf(nodes, release.version, repository, allowed)
       continue
     }

@@ -16,7 +16,7 @@
   "resourcePauseNotice": "マシンが高負荷です：{metric} は {reading}（上限 {threshold}）です。新しいバックグラウンド処理を一時停止しています。",
   "resourceOverrideNotice": "{time} まで処理を再開しました。",
   "resourceRelocatedNotice": "このマシンが高負荷のため、待機中の処理を {device} に移動しました。",
-  "resourceRelocationNoRoute": "移動はまだ利用できません。ペアリングされたデバイスまたはランナーへの経路が必要です。処理はこのマシンで続けます。",
+  "resourceRelocationNoRoute": "移動にはペアリングされたデバイスまたはランナーへの経路が必要です。処理はこのマシンで続けます。",
   "resourceUnavailable": "このマシンではこの測定値を取得できません。",
   "resourceGovernorOff": "このマシンではリソース制限がオフです。",
   "resourceStatusRefused": "最新のリソース状態を読み取れなかったため、測定値は表示されません。",
@@ -69,7 +69,7 @@
   "resourceMemoryMinFreeGiBDescription": "利用可能なメモリの最低値（GiB）。このマシンの RAM の15%が上限です。",
   "resourceGpuMaxPercentDescription": "任意の GPU 使用率上限（%）。未設定の場合は GPU を測定しません。",
   "resourceDiskBusyMaxPercentDescription": "任意のディスク稼働率上限（%）。未設定の場合はディスクを測定しません。",
-  "resourceRelocateDescription": "このマシンが高負荷のときに、待機中のチームタスクやチェックを移動できる場所です。移動にはペアリングされたデバイスまたはランナーへの経路が必要で、まだ利用できないため、処理はこのマシンで続けます。",
+  "resourceRelocateDescription": "移動にはペアリングされたデバイスまたはランナーへの経路が必要です。処理はこのマシンで続けます。",
   "resourceRelocatePairedDescription": "移動が利用可能になったら、負荷が通常で承認済みのペアリングされたデバイスを使用します。",
   "resourceRelocateAskDescription": "待機中の処理を移動する前に確認します。",
   "resourceRelocateOffDescription": "処理をこのマシンで続けます。",
@@ -1877,7 +1877,7 @@
     "attached": "レポートをメッセージに添付しました。",
     "saveFailed": "レポートを保存できませんでした。",
     "copyFailed": "レポートをコピーできませんでした。",
-    "unsupportedKind": "レポートの種類 {kind} はまだ利用できません。",
+    "unsupportedKind": "レポートの種類 {kind} は利用できません。",
     "localBudgetExceeded": "ローカルレポートが {duration} を超えました。",
     "confirmFirstSend": "この受信者への初回メールを確認してください。",
     "destinations": "配信先",
@@ -1899,7 +1899,7 @@
     "failed": "ソース全体を読み取れませんでした。",
     "refused": "ソースのパスは非公開か、許可されたフォルダーの外にあります。",
     "disabled": "このエージェント使用量ソースは有効になっていません。",
-    "unbound": "このソースの統合はまだ利用できません。",
+    "unbound": "このソースの統合は利用できません。",
     "history": "選択したセッションの履歴は利用できません。"
   },
   "reportRowsMore": {
@@ -4026,7 +4026,7 @@
   "providerImport": "インポート",
   "providerImportPreviewTitle": "インポートのプレビュー",
   "importNeedsKey": "キーが必要です",
-  "providerOpenRouterServices": "OpenRouterアカウントの接続とキーの使用状況の取得はまだ利用できません。モデルを使うにはキーを貼り付けてください。",
+  "providerOpenRouterServices": "OpenRouterアカウントの接続とキーの使用状況の取得は利用できません。モデルを使うにはキーを貼り付けてください。",
   "refreshModels": "モデルを更新",
   "scanNewModels": {
     "other": "前回のスキャン以降の新しいモデル {count} 件"

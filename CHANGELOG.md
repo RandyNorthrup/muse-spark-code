@@ -388,6 +388,7 @@ Correction (2026-10-10): Credential vault, scheduled prompts v2, capacity estima
 
 - **Several accounts per provider.** List provider accounts, see the current
   one and its thresholds; a vendor limit blocks only the affected account.
+  <!-- whats-new: historical -->
 - **Orchestrator playbook.** The nine orchestration rules ship as a first-party
   skill. In the ACP agent and the CLI, `/playbook status`, `record` and
   `settings` answer locally. Today: the VS Code panel does not enforce them yet.
@@ -861,9 +862,10 @@ Correction (2026-10-10): Live argument previews did not work for users in this r
 ### Added
 
 - M106 strict tool contracts and parallel reads have machine-scoped switches;
-  previews load on first use, completed calls remain the execution boundary,
-  cut-short tool replies fail without running tools, and repeat/continuation
-  guards bound the loop.
+  completed calls remain the execution boundary, cut-short tool replies fail
+  without running tools, and repeat/continuation guards bound the loop.
+- Tool argument previews load on first use.
+  <!-- whats-new: historical -->
 - Hosted search has a per-request bound, immutable consent quotes and exact
   decimal USD accounting. Captured rate-limit headers pace background fan-out;
   transport idle/retry waits remain bounded and cancellable.

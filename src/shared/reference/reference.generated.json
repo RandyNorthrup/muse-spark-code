@@ -859,25 +859,6 @@
       "editors": ["vscode"]
     },
     {
-      "id": "accounts",
-      "name": { "ui": "referenceAccountsTitle" },
-      "summary": { "ui": "referenceAccounts" },
-      "description": { "ui": "referenceAccounts" },
-      "commands": [],
-      "settings": [
-        "museSpark.accountSwap",
-        "museSpark.accountParallel",
-        "museSpark.accounts.severalOnThisDevice"
-      ],
-      "docs": "https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider",
-      "backends": ["museCode", "modelApi"],
-      "paid": false,
-      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
-      "details": [{ "ui": "referenceDeveloper" }],
-      "facts": {},
-      "editors": ["vscode", "acp"]
-    },
-    {
       "id": "permissions",
       "name": { "ui": "permissionModeItem" },
       "summary": { "tip": "permissionMode" },
@@ -3914,39 +3895,6 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "enum": ["transcribe", "sendAudio"], "default": "transcribe" }
-    },
-    {
-      "id": "museSpark.accountSwap",
-      "name": "museSpark.accountSwap",
-      "description": "Swap to the next account with room at the next request boundary after a threshold trip. Each account keeps its own limits. On by default; only this machine’s setting is used.",
-      "descriptionKey": "config.accountSwap.description",
-      "type": "boolean",
-      "default": true,
-      "scope": "machine",
-      "refinements": [],
-      "schema": { "type": "boolean", "default": true }
-    },
-    {
-      "id": "museSpark.accountParallel",
-      "name": "museSpark.accountParallel",
-      "description": "Spread background work across accounts by headroom; each worker sticks to its account. On by default; only this machine’s setting is used.",
-      "descriptionKey": "config.accountParallel.description",
-      "type": "boolean",
-      "default": true,
-      "scope": "machine",
-      "refinements": [],
-      "schema": { "type": "boolean", "default": true }
-    },
-    {
-      "id": "museSpark.accounts.severalOnThisDevice",
-      "name": "museSpark.accounts.severalOnThisDevice",
-      "description": "Allow several accounts of one provider on this PC for testing, each in its own isolated local profile. Turning it on asks the provider’s vendor-terms confirmation first. Off by default; only this machine’s setting is used.",
-      "descriptionKey": "config.accounts.severalOnThisDevice.description",
-      "type": "boolean",
-      "default": false,
-      "scope": "machine",
-      "refinements": [],
-      "schema": { "type": "boolean", "default": false }
     }
   ],
   "slash": [
@@ -4348,12 +4296,6 @@
       "name": "scan-secrets",
       "description": "Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.",
       "text": { "ui": "referenceScanSecrets" }
-    },
-    {
-      "route": "accounts",
-      "name": "providers accounts",
-      "description": "Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.",
-      "text": { "ui": "referenceAccounts" }
     },
     {
       "route": "developer",
@@ -5367,13 +5309,6 @@
     },
     {
       "route": "authSet",
-      "name": "authSet: --account <value>",
-      "description": "--account <id>                    The account to use (auth set, exec).",
-      "text": { "cli": "account" },
-      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
-    },
-    {
-      "route": "authSet",
       "name": "authSet: --trust-workspace",
       "description": "--trust-workspace                Load the folder’s rules, skills and memory",
       "text": { "cli": "trust-workspace" },
@@ -6061,25 +5996,6 @@
       "description": "Choose the model for this run.",
       "text": { "cli": "model" },
       "contract": { "type": "string", "repeatable": false, "purpose": "model" }
-    },
-    {
-      "route": "exec",
-      "name": "exec: --account <value>",
-      "description": "--account <id>                    The account to use (auth set, exec).",
-      "text": { "cli": "account" },
-      "contract": { "type": "string", "repeatable": false, "purpose": "account" }
-    },
-    {
-      "route": "exec",
-      "name": "exec: --account-pool",
-      "description": "--account-pool                  Request account pooling. Requires a bound resource owner; excludes key-stdin in CI.",
-      "text": { "cli": "account-pool" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "account-pool"
-      }
     },
     {
       "route": "exec",

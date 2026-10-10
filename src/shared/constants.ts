@@ -5208,6 +5208,16 @@ export const REPORT_KINDS = [
   'schedules',
   'keybindings',
 ] as const
+// CX1R4 F3: the kinds with production sources on every installed surface.
+// Current command Help and the editor picker list only these; the parsers and
+// history keep accepting every REPORT_KINDS value.
+export const REPORT_WORKING_KINDS = [
+  'project',
+  'milestone',
+  'release',
+  'changes',
+  'quality',
+] as const
 export const REPORT_FORMATS = ['md', 'html', 'json', 'text'] as const
 export const REPORT_FAIL_ON = [
   'unavailable',
