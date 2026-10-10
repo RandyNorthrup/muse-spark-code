@@ -206,7 +206,7 @@ export function selectTeamEntry(
       else if (live?.available === false) skip = live.skip
       if (skip !== undefined) {
         skips.push(skip)
-        reasons.push({ entryId: entry.id, reason: 'unavailable' })
+        reasons.push({ entryId: entry.id, reason: 'unavailable', skip })
         continue
       }
     }

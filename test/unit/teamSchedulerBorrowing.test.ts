@@ -3,13 +3,18 @@ import {
   TeamScheduler,
   type SchedulerDependencies,
   type TeamSelectionSnapshot,
+  answerExhausted,
 } from '../../src/core/team/teamPool'
-import { TeamLiveAvailability } from '../../src/core/team/selection'
+import { TeamLiveAvailability, selectTeamEntry } from '../../src/core/team/selection'
+import { pickReviewer } from '../../src/core/team/reviewerPick'
+import { isSameTeamModel } from '../../src/core/team/sameModel'
 import { SchedulerSlots } from '../../src/core/team/scheduler/slots'
 import type {
   SchedulerBorrowPort,
   SchedulerRecallEvent,
 } from '../../src/core/team/scheduler/borrowing'
+import { SchedulerBorrowing } from '../../src/core/team/scheduler/borrowing'
+import { TaskPicker } from '../../src/core/team/scheduler/pick'
 import { teamPreferenceListSchema, type TeamPreferenceList } from '../../src/shared/teamPreference'
 import { teamBoardSchema, type TeamBoardTask } from '../../src/shared/team'
 import {
@@ -18,8 +23,10 @@ import {
   TEAM_BORROW_COOLDOWN_MS,
   TEAM_MINUTE_MS,
   TEAM_SCHED_TICK_MS,
+  TEAM_TASKS_PER_TURN_DEFAULT,
+  TEAM_QUEUE_MAX_WAIT_MS,
 } from '../../src/shared/constants'
-import { selectionSnapshot } from './helpers/teamFakes'
+import { selectionSnapshot, rolePool } from './helpers/teamFakes'
 import { attempt, entry, makeBoard, pickContext, submission } from './helpers/teamScheduler'
 
 function list(role: string, ids: string[], minutesPerTask = 30): TeamPreferenceList {
@@ -134,6 +141,14 @@ function fixture() {
 }
 afterEach(() => vi.useRealTimers())
 
+function randomChoices(seed: number): (bound: number) => number {
+  let state = seed * 48_271
+  return (bound) => {
+    state = (state * 48_271) % 2_147_483_647
+    return Math.floor((state / 2_147_483_647) * bound)
+  }
+}
+
 async function waitForBorrow(f: ReturnType<typeof fixture>): Promise<void> {
   f.board.submit([submission('coding')], 0)
   await f.scheduler.wake()
@@ -152,12 +167,16 @@ function expectNoAttempt(f: ReturnType<typeof fixture>): void {
 }
 
 function retireCoding(f: ReturnType<typeof fixture>): void {
-  f.board.finishAttempt('coding', 1, {
+  retireTask(f, f.board.task('coding'))
+}
+
+function retireTask(f: ReturnType<typeof fixture>, task: TeamBoardTask): void {
+  f.board.finishAttempt(task.id, task.currentAttempt, {
     state: 'retired',
     endedAt: Date.now(),
     retirement: { kind: 'proved', method: 'linuxCgroup' },
   })
-  f.board.transition('coding', 1, 'done', Date.now())
+  f.board.transition(task.id, task.currentAttempt, 'done', Date.now())
 }
 
 function overrideSelection(
@@ -190,6 +209,326 @@ async function expectNoMainRecall(f: ReturnType<typeof fixture>): Promise<void> 
 }
 
 describe('M120 borrowing through the real scheduler and pool', () => {
+  it('preserves two authorized lenders and launches both loans in one drain', async () => {
+    const f = fixture()
+    f.lists[1]?.pool.push(...list('review', ['reviewer-two']).pool)
+    f.assignments.push({
+      candidateId: 'reviewer-two',
+      mainRole: 'review',
+      secondaryRoles: ['engineering'],
+    })
+    f.board.submit([submission('a-coding'), submission('b-coding')], 0)
+    await f.scheduler.wake()
+    vi.setSystemTime(TEAM_BORROW_DEMAND_WAIT_MS)
+    await f.scheduler.wake()
+    expect(f.board.task('a-coding').attempts[0]?.entryId).toBe('reviewer')
+    expect(f.board.task('b-coding').attempts[0]?.entryId).toBe('reviewer-two')
+    expect(f.deps.start).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not erase a later board loan when an older borrowed attempt retires', async () => {
+    const f = fixture()
+    await borrowCoding(f)
+    const loan = f.board.task('coding').loan
+    if (loan === undefined) throw new Error('test:loan')
+    f.board.finishAttempt('coding', 1, {
+      state: 'retired',
+      endedAt: Date.now(),
+      retirement: { kind: 'proved', method: 'linuxCgroup' },
+    })
+    expect(f.board.prepareNext('coding', 1, Date.now(), 'stall')).toBe(true)
+    const next = { ...loan, attempt: 2 }
+    f.board.loan('coding', next)
+    const recreated = new SchedulerBorrowing(f.board, f.port, new TaskPicker())
+    recreated.retired(f.board.task('coding'), 1)
+    expect(f.board.task('coding').loan).toEqual(next)
+  })
+
+  it.each([1, 7, 19, 41, 73, 101, 149, 211])(
+    'preserves loan, recall and recoverability invariants across 80 random fake-clock steps (seed %s)',
+    async (seed) => {
+      const f = fixture()
+      const choose = randomChoices(seed)
+      const operations = Array.from({ length: 8 }, () => 0)
+      let serial = 0
+      let authorizationChange: number | undefined
+      let isLoanAuthorization = false
+      let authorizations = 0
+      let borrowedStarts = 0
+      overrideSelection(f, (task, snapshot) =>
+        task.id.startsWith('legacy') ? selectionSnapshot() : snapshot,
+      )
+      const arrive = (roleId: string) => {
+        const id = `${choose(2) === 0 ? 'legacy' : 'preferred'}-${String(serial++)}`
+        f.board.submit([submission(id, { roleId })], Date.now())
+      }
+      const changeAuthorization = (change: number) => {
+        if (change === 0) f.signedOut.clear()
+        else if (change === 1) arrive('review')
+        else f.assignments.length = 0
+      }
+      f.deps.authorize = (task) => {
+        if (authorizationChange !== undefined) {
+          if (isLoanAuthorization) expect(task.loan?.candidateId).toBe('reviewer')
+          changeAuthorization(authorizationChange)
+          authorizationChange = undefined
+          authorizations++
+        }
+        return Promise.resolve(true)
+      }
+      f.deps.start = vi.fn<SchedulerDependencies['start']>((task, worker) => {
+        if (worker.roleId !== 'engineering' || worker.id !== 'reviewer')
+          return Promise.resolve('started')
+        borrowedStarts++
+        expect(task.loan).toMatchObject({ candidateId: worker.id, attempt: task.currentAttempt })
+        expect(f.assignments[0]?.secondaryRoles).toContain(task.roleId)
+        expect(f.lists[1]?.pool[0]?.agent?.model).toBe(worker.modelId)
+        const tasks = f.board.snapshot().tasks
+        expect(tasks.some((item) => item.roleId === 'review' && item.state === 'ready')).toBe(false)
+        const isCoderBusy = tasks.some((item) =>
+          item.attempts.some(
+            (attempt) => attempt.entryId === 'coder' && attempt.state !== 'retired',
+          ),
+        )
+        expect(f.signedOut.has('coder') || isCoderBusy).toBe(true)
+        const endedAt = f.board
+          .snapshot()
+          .borrowCooldowns?.find((row) => row.candidateId === worker.id)?.endedAtMs
+        if (endedAt !== undefined)
+          expect(Date.now() - endedAt).toBeGreaterThanOrEqual(TEAM_BORROW_COOLDOWN_MS)
+        return Promise.resolve('started')
+      })
+      await waitForBorrow(f)
+      isLoanAuthorization = true
+      authorizationChange = choose(3)
+      await f.scheduler.wake()
+      isLoanAuthorization = false
+      expect(borrowedStarts).toBe(0)
+      f.board.pause()
+      for (const task of f.board.snapshot().tasks) {
+        if (task.state === 'running') {
+          retireTask(f, task)
+          await f.scheduler.retired({ taskId: task.id, attempt: task.currentAttempt })
+        } else if (task.id !== 'coding') f.board.transition(task.id, 0, 'cancelled', Date.now())
+      }
+      f.signedOut.add('coder')
+      if (f.assignments.length === 0)
+        f.assignments.push({
+          candidateId: 'reviewer',
+          mainRole: 'review',
+          secondaryRoles: ['engineering'],
+        })
+      f.board.resume()
+      vi.setSystemTime(Date.now() + TEAM_BORROW_DEMAND_WAIT_MS)
+      await f.scheduler.wake()
+      const actions: readonly (() => Promise<void>)[] = [
+        () => {
+          arrive('engineering')
+          return Promise.resolve()
+        },
+        () => {
+          arrive('review')
+          return Promise.resolve()
+        },
+        async () => {
+          const running = f.board.snapshot().tasks.filter((task) => task.state === 'running')
+          const task = running[choose(running.length)]
+          if (task === undefined) return
+          retireTask(f, task)
+          await f.scheduler.retired({ taskId: task.id, attempt: task.currentAttempt })
+        },
+        () => {
+          if (f.signedOut.has('coder')) f.signedOut.clear()
+          else f.signedOut.add('coder')
+          return Promise.resolve()
+        },
+        () => {
+          if (f.assignments.length > 0) f.assignments.length = 0
+          else
+            f.assignments.push({
+              candidateId: 'reviewer',
+              mainRole: 'review',
+              secondaryRoles: ['engineering'],
+            })
+          return Promise.resolve()
+        },
+        () => {
+          f.board.borrowEnded('reviewer', Date.now())
+          return Promise.resolve()
+        },
+        () => {
+          vi.setSystemTime(Date.now() + (choose(5) + 1) * TEAM_BORROW_DEMAND_WAIT_MS)
+          return Promise.resolve()
+        },
+        () => {
+          authorizationChange = choose(3)
+          return Promise.resolve()
+        },
+      ]
+      for (let step = 0; step < 80; step++) {
+        const operation = choose(actions.length)
+        operations[operation] = (operations[operation] ?? 0) + 1
+        const action = actions[operation]
+        if (action === undefined) throw new Error('test:action')
+        await action()
+        await f.scheduler.wake()
+        const tasks = f.board.snapshot().tasks
+        for (const task of tasks) {
+          if (task.loan === undefined || task.state !== 'running') continue
+          const isMainWaiting = tasks.some(
+            (item) => item.roleId === task.loan?.mainRole && item.state === 'ready',
+          )
+          if (!isMainWaiting && f.assignments.length > 0) continue
+          expect(task.recallAskedAtMs, `seed ${String(seed)}, step ${String(step)}`).toBeDefined()
+          expect(['recall', 'stop']).toContain(
+            f.events.findLast((event) => event.taskId === task.id)?.decision.kind,
+          )
+        }
+        const recoverable = ['busy', 'notAdmitted', 'coolingDown', 'rateLimited', 'capped'] as const
+        const reason = recoverable[choose(recoverable.length)]
+        if (reason === undefined) throw new Error('test:skip')
+        const preference = list('review', ['queued-reviewer'])
+        preference.exhausted = 'queue'
+        const snapshot = {
+          ...selectionSnapshot({ nowMs: Date.now() }),
+          preference,
+          availability: {
+            probe: () => ({
+              available: false as const,
+              skip: {
+                candidateId: 'queued-reviewer',
+                reason,
+                untilMs: Date.now() + TEAM_BORROW_DEMAND_WAIT_MS,
+              },
+            }),
+          },
+        }
+        const pool = { ...rolePool('review', []), policy: 'queue' as const }
+        const selected = selectTeamEntry(pool, snapshot, TEAM_TASKS_PER_TURN_DEFAULT)
+        if (selected.kind !== 'exhausted') throw new Error('test:exhaustion')
+        const exhausted = answerExhausted(
+          pool,
+          selected.reasons,
+          Date.now(),
+          TEAM_QUEUE_MAX_WAIT_MS,
+        )
+        expect(exhausted.decision).toBe('queue')
+        expect(
+          pickReviewer(
+            [],
+            [{ entryId: 'queued-reviewer', modelId: 'engine-queued-reviewer', hasHeadroom: true }],
+            isSameTeamModel,
+            { snapshot },
+          ),
+        ).toMatchObject({ kind: 'noneEligible', exhausted })
+      }
+      expect(operations.every((count) => count > 0)).toBe(true)
+      expect(authorizations).toBeGreaterThan(0)
+      expect(borrowedStarts).toBeGreaterThan(0)
+    },
+  )
+
+  it('keeps authorization and recall ownership on the board after assignment removal and scheduler recreation', async () => {
+    const f = fixture()
+    await borrowCoding(f)
+    const loan = f.board.task('coding').loan
+    expect(loan).toMatchObject({ candidateId: 'reviewer', mainRole: 'review', attempt: 1 })
+    expect(loan?.authorization).toContain('engine-reviewer')
+    f.assignments.length = 0
+    const recreated = new SchedulerBorrowing(f.board, f.port, new TaskPicker())
+    recreated.apply({ ...f.deps.context(), now: Date.now() })
+    await recreated.deliver()
+    expect(f.events.at(-1)?.decision.kind).toBe('recall')
+    expect(f.board.task('coding').recallAskedAtMs).toBe(Date.now())
+    vi.setSystemTime(Date.now() + TEAM_BORROW_RECALL_WAIT_MS)
+    await f.scheduler.wake()
+    expect(f.events.at(-1)?.decision.kind).toBe('stop')
+  })
+
+  it.each(['candidate', 'entry', 'assignment'] as const)(
+    'recalls an active loan when its authorized %s changes without new main work',
+    async (change) => {
+      const f = fixture()
+      await borrowCoding(f)
+      if (change === 'candidate') {
+        const candidate = f.lists[1]?.pool[0]
+        if (candidate?.agent) candidate.agent.model = 'replacement-engine'
+      } else if (change === 'assignment') f.assignments.length = 0
+      else {
+        const context = f.deps.context
+        f.deps.context = () => {
+          const base = context()
+          return { ...base, entries: base.entries.filter((item) => item.id !== 'reviewer') }
+        }
+      }
+      await f.scheduler.wake()
+      expect(f.events.at(-1)?.decision.kind).toBe('recall')
+      expect(f.board.task('coding').recallAskedAtMs).toBe(Date.now())
+      expect(f.deps.start).toHaveBeenCalledOnce()
+    },
+  )
+
+  it('preserves the first legacy main-role demand time through repeated projections', async () => {
+    const f = fixture()
+    await borrowCoding(f)
+    overrideSelection(f, (task, snapshot) =>
+      task.roleId === 'review' ? selectionSnapshot() : snapshot,
+    )
+    await requestReview(f)
+    const demandedAt = Date.now()
+    vi.setSystemTime(demandedAt + TEAM_BORROW_RECALL_WAIT_MS)
+    await f.scheduler.wake()
+    expect(f.board.task('review').unmetSinceMs).toBe(demandedAt)
+    expect(f.events.at(-1)?.decision.kind).toBe('stop')
+  })
+
+  it.each(['preferred', 'legacy'] as const)(
+    'keeps the lender home when %s main-role work arrives during authorization',
+    async (kind) => {
+      const f = fixture()
+      if (kind === 'legacy')
+        overrideSelection(f, (task, snapshot) =>
+          task.roleId === 'review' ? selectionSnapshot() : snapshot,
+        )
+      await waitForBorrow(f)
+      f.deps.authorize = (task) => {
+        if (task.id === 'coding')
+          f.board.submit([submission('review', { roleId: 'review' })], Date.now())
+        return Promise.resolve(true)
+      }
+      await f.scheduler.wake()
+      expect(f.board.task('coding').attempts).toEqual([])
+      expect(f.board.task('review').attempts[0]?.entryId).toBe('reviewer')
+      expect(f.events).toEqual([])
+    },
+  )
+
+  it('cancels a loan and resets demand when a native candidate recovers during authorization', async () => {
+    const f = fixture()
+    await waitForBorrow(f)
+    f.deps.authorize = () => {
+      f.signedOut.clear()
+      return Promise.resolve(true)
+    }
+    await f.scheduler.wake()
+    expectNoAttempt(f)
+    expect(f.board.task('coding').unmetSinceMs).toBe(Date.now())
+  })
+
+  it('recalls a lender for legacy main-role demand', async () => {
+    const f = fixture()
+    await borrowCoding(f)
+    overrideSelection(f, (task, snapshot) =>
+      task.roleId === 'review' ? selectionSnapshot() : snapshot,
+    )
+    await requestReview(f)
+    expect(f.events.at(-1)?.decision).toMatchObject({
+      kind: 'recall',
+      deadlineMs: Date.now() + TEAM_BORROW_RECALL_WAIT_MS,
+    })
+    expect(f.board.task('coding').recallAskedAtMs).toBe(Date.now())
+  })
+
   it.each(['candidate', 'assignment', 'missing candidate', 'missing entry'] as const)(
     'rechecks a replaced %s after authorization without another borrowing tick',
     async (change) => {

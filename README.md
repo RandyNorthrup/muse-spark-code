@@ -3816,10 +3816,17 @@ can help a secondary role after at least sixty seconds of unmet demand;
 upcoming main-role work and cooldown keep it home. Main-role demand emits a
 recall with a bounded deadline. Recall events have stable ids, are delivered
 once after scheduling drains, and allow the consumer to wake or retire work.
-Tasks without a preference snapshot keep the existing selection. If every
+Loans and their authorization live on the task board. Every projection rechecks
+current assignments, candidate and worker identities, native recovery and
+main-role demand; authorization changes cannot dispatch a cached loan. Active
+loans retain recall ownership when an assignment is removed.
+Tasks without a preference snapshot keep the existing selection and cannot
+borrow, but their main-role workload protects lenders and triggers recall. If every
 preferred reviewer is skipped, review stays blocked with those reasons:
 recoverable shortages queue under the role's queue policy; otherwise it asks
-for an eligible reviewer. The self policy cannot waive review or select an author.
+for an eligible reviewer. Pool and reviewer selection share that classification:
+busy, cooldown, rate-limit and temporary admission waits recover, as do usage
+limits with a reset time. The self policy cannot waive review or select an author.
 The preference editor, installed host bindings
 and execution of handoffs remain pending in the other M120 lanes. With no
 preference list or secondary roles, the existing selection and requests stay

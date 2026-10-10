@@ -592,6 +592,15 @@ export const teamBoardTaskSchema = z
     createdAt: count,
     readyAt: z.optional(count),
     unmetSinceMs: z.optional(count),
+    /** Board-owned loan; authorization pins the assignment, candidate and worker identity. */
+    loan: z.optional(
+      z.strictObject({
+        candidateId: id,
+        mainRole: id,
+        authorization: text,
+        attempt: count.check(z.positive()),
+      }),
+    ),
     recallAskedAtMs: z.optional(count),
     handoff: z.optional(teamHandoffRecordSchema),
     blockedReason: z.optional(text),

@@ -310,6 +310,8 @@ export interface TeamEntryExhaustion {
   readonly reason: TeamExhaustionReason
   readonly cap?: TeamCap
   readonly used?: number
+  /** Live-probe refusal; one queue classification serves pools and reviewers. */
+  readonly skip?: TeamSkip
 }
 
 /**
@@ -503,6 +505,21 @@ const recoverableExhaustionReasons: ReadonlySet<TeamExhaustionReason> = new Set(
 function queueUntilMs(reasons: readonly TeamEntryExhaustion[], nowMs: number): number | undefined {
   let earliest: number | undefined
   for (const refusal of reasons) {
+    if (refusal.skip !== undefined) {
+      const skip = refusal.skip
+      const isRecoverable =
+        [
+          'busy',
+          'notAdmitted',
+          'coolingDown',
+          'rateLimited',
+          'borrowCooldown',
+          'mainWorkDue',
+        ].includes(skip.reason) ||
+        (skip.reason === 'capped' && skip.untilMs !== undefined)
+      if (isRecoverable) earliest = Math.min(earliest ?? Infinity, skip.untilMs ?? nowMs)
+      continue
+    }
     if (refusal.reason === 'cap' && refusal.cap !== undefined) {
       // Only a `day` cap recovers (at midnight); `task` and `lifetime` never do.
       if (refusal.cap.window === 'day') {
@@ -690,9 +707,9 @@ export class TeamScheduler {
     return JSON.stringify([ref.taskId, ref.attempt])
   }
 
-  private hasSlot(task: TeamBoardTask, entry: SchedulerEntry): boolean {
+  private hasSlot(task: TeamBoardTask, entry: SchedulerEntry, replacing?: SlotRequest): boolean {
     const ref = this.request(task, entry)
-    return this.slots.isReserved(ref) || this.slots.refusal(ref) === undefined
+    return this.slots.isReserved(ref) || this.slots.refusal(ref, replacing) === undefined
   }
 
   private canDispatch(): boolean {
@@ -721,13 +738,11 @@ export class TeamScheduler {
     while (this.hasWake && this.canDispatch()) {
       this.hasWake = false
       this.board.refresh(this.deps.now())
-      const tasks = this.board.snapshot().tasks
       const supplied = this.deps.context()
       let context: PickContext = {
         ...supplied,
         now: this.deps.now(),
-        canStart: (task, entry) =>
-          !considered.has(task.id) && supplied.canStart(task, entry) && this.hasSlot(task, entry),
+        canStart: (task, entry) => supplied.canStart(task, entry) && this.hasSlot(task, entry),
       }
       if (this.borrowing !== undefined) {
         if (didBorrow) context = this.borrowing.apply(context)
@@ -738,6 +753,12 @@ export class TeamScheduler {
           )
         }
       }
+      const projected = context
+      context = {
+        ...projected,
+        canStart: (task, entry) => !considered.has(task.id) && projected.canStart(task, entry),
+      }
+      const tasks = this.board.snapshot().tasks
       const pick = this.picker.pick(tasks, context)
       if (!pick) {
         for (const task of tasks)
@@ -773,7 +794,9 @@ export class TeamScheduler {
           let checked: PickContext = {
             ...live,
             now: this.deps.now(),
-            canStart: (task, entry) => live.canStart(task, entry) && this.hasSlot(task, entry),
+            canStart: (task, entry) =>
+              live.canStart(task, entry) &&
+              this.hasSlot(task, entry, task.id === current.id ? ref : undefined),
           }
           if (this.borrowing !== undefined) checked = this.borrowing.apply(checked)
           const refreshed = this.picker.rank([current], checked)[0]?.entry
@@ -870,6 +893,7 @@ export class TeamScheduler {
         this.hasWake = true
       }
     }
+    if (this.borrowing !== undefined) await this.deps.journal(this.board.snapshot())
   }
 
   startSweep(): void {

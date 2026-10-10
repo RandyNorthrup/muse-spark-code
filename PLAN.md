@@ -37343,6 +37343,20 @@ red drills, run all team suites and request goldens at repository timeouts,
 and certify changed-file formatting/lint and all five typechecks. No merge,
 push, live/paid call or aggregate quality (lead-owned under the rig brief).
 
+**Lane S round 3 (RVM120S2C, 2026-10-09).** Make loans authoritative
+board records carrying their assignment/candidate/entry authorization. Every
+projection and authorization recheck synchronously validates those records,
+native-candidate recovery and main-role demand; active loans retain recall
+ownership even after assignments disappear. Every ready task protects its
+main-role lenders and participates in recall, including legacy tasks that
+cannot themselves borrow. Pool selection and reviewer selection share one
+recoverability classification for live skips. Retain the review reproductions
+and add deterministic random fake-clock interleavings covering arrivals,
+completion, authorization changes, cooldowns and recalls. Prove each guard
+with byte-exact drills, run complete team suites/request goldens and scoped
+gates at repository deadlines. Aggregate quality and the inherited encoder
+blocker remain lead-owned; no merge, push or live/paid calls.
+
 - **Goal:** D103 across every balancing surface.
 - **Order:** after the Wednesday set, and before the M110/M111 resume.
   M110's node orchestrator uses it.

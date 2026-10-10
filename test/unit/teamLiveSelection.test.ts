@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { selectTeamEntry, TeamLiveAvailability } from '../../src/core/team/selection'
 import { pickReviewer } from '../../src/core/team/reviewerPick'
+import { answerExhausted } from '../../src/core/team/teamPool'
 import { reviewGate } from '../../src/core/team/reviewGate'
 import { TaskPicker } from '../../src/core/team/scheduler/pick'
 import { teamPreferenceListSchema, type TeamCandidate } from '../../src/shared/teamPreference'
@@ -32,6 +33,72 @@ function select(snapshot: ReturnType<typeof selectionSnapshot>) {
 }
 
 describe('M120 live preference selection', () => {
+  it.each(['signedOut', 'unhealthy', 'nodeOffline', 'conditions', 'author', 'capped'] as const)(
+    'asks for a non-recoverable %s in both pool and reviewer selection',
+    (reason) => {
+      const list = preference(['reviewer'])
+      list.exhausted = 'queue'
+      const snapshot = {
+        ...selectionSnapshot(),
+        preference: list,
+        availability: {
+          probe: () => ({ available: false as const, skip: { candidateId: 'reviewer', reason } }),
+        },
+      }
+      const pool = { ...rolePool('engineering', []), policy: 'queue' as const }
+      const selection = selectTeamEntry(pool, snapshot, TEAM_TASKS_PER_TURN_DEFAULT)
+      if (selection.kind !== 'exhausted') throw new Error('test:exhaustion')
+      expect(answerExhausted(pool, selection.reasons, 0, 120_000).decision).toBe('ask')
+      expect(
+        pickReviewer(
+          [],
+          [{ entryId: 'reviewer', modelId: 'model-reviewer', hasHeadroom: true }],
+          isSameTeamModel,
+          { snapshot },
+        ),
+      ).toMatchObject({ kind: 'noneEligible', exhausted: { decision: 'ask' } })
+    },
+  )
+
+  it.each(['coolingDown', 'notAdmitted', 'rateLimited', 'capped'] as const)(
+    'queues recoverable %s identically for the pool and reviewer gate',
+    (reason) => {
+      const list = preference(['reviewer'])
+      list.exhausted = 'queue'
+      const snapshot = {
+        ...selectionSnapshot({ nowMs: 0 }),
+        preference: list,
+        availability: {
+          probe: () => ({
+            available: false as const,
+            skip: { candidateId: 'reviewer', reason, untilMs: 120_000 },
+          }),
+        },
+      }
+      const pool = { ...rolePool('engineering', []), policy: 'queue' as const }
+      const selection = selectTeamEntry(pool, snapshot, TEAM_TASKS_PER_TURN_DEFAULT)
+      expect(selection.kind).toBe('exhausted')
+      if (selection.kind !== 'exhausted') throw new Error('test:exhaustion')
+      const exhausted = answerExhausted(pool, selection.reasons, 0, 120_000)
+      expect(exhausted.decision).toBe('queue')
+      const reviewer = pickReviewer(
+        [],
+        [{ entryId: 'reviewer', modelId: 'model-reviewer', hasHeadroom: true }],
+        isSameTeamModel,
+        { snapshot },
+      )
+      expect(reviewer).toMatchObject({ kind: 'noneEligible', exhausted })
+      expect(
+        reviewGate({
+          reviewer,
+          reviewedHead: undefined,
+          branchHead: 'head',
+          requireDifferentModel: true,
+        }),
+      ).toMatchObject({ ok: false, exhausted })
+    },
+  )
+
   it.each(['ask', 'queue', 'self'] as const)(
     'blocks an author-only reviewer preference through the review gate under %s policy',
     (exhausted) => {

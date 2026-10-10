@@ -120,15 +120,7 @@ export function pickReviewer(
           skips: selection.kind === 'exhausted' ? (selection.skips ?? []) : [],
           exhausted: answerExhausted(
             pool,
-            selection.kind === 'exhausted'
-              ? selection.reasons.map((reason) =>
-                  selection.skips?.some(
-                    (skip) => skip.candidateId === reason.entryId && skip.reason === 'busy',
-                  )
-                    ? { ...reason, reason: 'concurrent' as const }
-                    : reason,
-                )
-              : [],
+            selection.kind === 'exhausted' ? selection.reasons : [],
             snapshot.nowMs,
             TEAM_QUEUE_MAX_WAIT_MS,
           ),

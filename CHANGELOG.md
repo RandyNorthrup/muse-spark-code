@@ -81,6 +81,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M120 loans live on the task board with their authorization and are rechecked
+  against current assignments, candidates, workers and main-role demand.
+  Work arriving or a native candidate recovering during authorization cancels
+  the loan. Legacy main-role tasks protect lenders and trigger recall; removed
+  assignments retain active recall ownership. Pool and reviewer queue policies
+  now share recovery rules, including cooldowns and temporary admission waits
+  (RVM120S2C).
+
 - M120 scheduler borrowing runs once per wake and delivers stable recall events
   once after the drain, allowing consumers to wake or retire without deadlock.
   Recall uses the agent's own task identity and each review's captured engine

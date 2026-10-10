@@ -884,7 +884,7 @@
     {
       "id": "M120",
       "title": "Preferred agents and handoff",
-      "summary": "Preferred agents for each role, with live availability and skip reasons, secondary-role borrowing with timed recall delivered once, independent reviewers whose exhaustion blocks merge, and tasks that move to another agent partway through without losing work.",
+      "summary": "Preferred agents with live availability, board-owned loans validated against authorization and all main-role work, timed recall delivered once, reviewers who queue temporary shortages and block merge, and handoffs that retain work.",
       "area": "agents"
     },
     {

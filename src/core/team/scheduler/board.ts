@@ -374,6 +374,13 @@ export class TaskBoard {
     )
   }
 
+  loan(id: string, loan: TeamBoardTask['loan']): void {
+    const task = this.requireTask(id)
+    if (loan === undefined) delete task.loan
+    else task.loan = teamBoardTaskSchema.parse({ ...task, loan }).loan
+    if (this.board.tasks.every((item) => item.id !== id)) this.context.archive([task])
+  }
+
   recallAsked(id: string, atMs: number | undefined): void {
     const task = this.requireTask(id)
     if (atMs === undefined) delete task.recallAskedAtMs
