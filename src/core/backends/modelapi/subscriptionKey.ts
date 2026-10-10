@@ -93,18 +93,10 @@ export function readSubscriptionKeyText(text: string): SubscriptionKeyRead {
 
 /** The refusal for a status, naming the fix; it never carries key material. */
 export function subscriptionKeyRefusal(status: Exclude<SubscriptionKeyStatus, 'ready'>): string {
-  switch (status) {
-    case 'missing':
-    case 'unsigned': {
-      return UI_TEXT.subscriptionKey.signInAgain
-    }
-    case 'unreadable': {
-      return UI_TEXT.subscriptionKey.cannotRead
-    }
-    case 'keychain': {
-      return UI_TEXT.subscriptionKey.keychainBacked
-    }
-  }
+  if (status === 'keychain') return UI_TEXT.subscriptionKey.keychainBacked
+  return status === 'unreadable'
+    ? UI_TEXT.subscriptionKey.cannotRead
+    : UI_TEXT.subscriptionKey.signInAgain
 }
 
 /** Thrown (never returned as undefined) when the opted-in key cannot be read. */
@@ -115,8 +107,12 @@ export class SubscriptionKeyError extends Error {
   }
 }
 
-/** No file, as opposed to one that is there and cannot be used. */
-function isMissing(error: unknown): boolean {
+/**
+ * No file, as opposed to one that is there and cannot be used. Shared
+ * with the headless preflight, which reads through the run's own bounded
+ * reader instead of the source.
+ */
+export function isMissing(error: unknown): boolean {
   return (
     typeof error === 'object' &&
     error !== null &&

@@ -1819,6 +1819,50 @@ describe('ModelApiClient', () => {
     expect(once.sleeps).toEqual([])
   })
 
+  it('sends a paid image on the stored key while chat bills the subscription', async () => {
+    // P2: subscription mode on, separate pasted key stored, paid image
+    // approved → the image POST authenticates as the pasted paid key
+    // while chat keeps the subscription credential.
+    const seen: string[] = []
+    const fetch = vi.fn<typeof globalThis.fetch>((_input, init) => {
+      seen.push(String(new Headers(init?.headers).get('authorization')))
+      return Promise.resolve(Response.json({ data: [{ b64_json: 'aGk=' }] }))
+    })
+    const { client } = setup('subscription-credential', fetch, undefined, {
+      paidApiKey: () => Promise.resolve('pasted-paid-key'),
+    })
+    const image = {
+      model: 'muse-image-1.0',
+      prompt: 'a cat',
+      n: 1,
+      size: '1024x1024',
+      response_format: 'b64_json',
+      output_format: 'png',
+    } as const
+    await client.createImage(image, new AbortController().signal)
+    expect(fetch).toHaveBeenCalledOnce()
+    expect(seen).toEqual(['Bearer pasted-paid-key'])
+  })
+  it('refuses a paid image with the fix when no stored key backs the subscription', async () => {
+    const fetch = vi.fn(() => Promise.resolve(Response.json({ data: [{ b64_json: 'aGk=' }] })))
+    const { client } = setup('subscription-credential', fetch, undefined, {
+      paidApiKey: () => Promise.resolve(undefined),
+    })
+    await expect(
+      client.createImage(
+        {
+          model: 'muse-image-1.0',
+          prompt: 'a cat',
+          n: 1,
+          size: '1024x1024',
+          response_format: 'b64_json',
+          output_format: 'png',
+        },
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow(UI_TEXT.subscriptionKey.paidNeedsKey)
+    expect(fetch).not.toHaveBeenCalled()
+  })
   it('refuses without a key and fails on frames it cannot trust', async () => {
     const missing = setup(null)
     await expect(missing.client.listModels()).rejects.toBeInstanceOf(MissingApiKeyError)

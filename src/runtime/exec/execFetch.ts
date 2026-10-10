@@ -144,11 +144,8 @@ export function execFetch(input: {
       return refuse('request_shape', true)
     const tier = modelApiPaidTier(input.selectedModel)
     if (isResponse && tier === undefined) return refuse('unpriced')
-    const zeroPrice = {
-      input: Usd.from(0).toAmount(),
-      cachedInput: Usd.from(0).toAmount(),
-      output: Usd.from(0).toAmount(),
-    }
+    const zeroUsd = Usd.from(0).toAmount()
+    const zeroPrice = { input: zeroUsd, cachedInput: zeroUsd, output: zeroUsd }
     // Each caller captures the current tail synchronously. Rechecking after
     // this wait and reserving have no intervening await.
     const previous = barrier
@@ -177,7 +174,7 @@ export function execFetch(input: {
         ? input.ledger.admitResponse({
             model: input.selectedModel,
             maxOutputTokens: responseShape.data.max_output_tokens,
-            price: input.planBilling === true ? zeroPrice : MODEL_API_PRICES_PER_MILLION[tier],
+            price: input.planBilling ? zeroPrice : MODEL_API_PRICES_PER_MILLION[tier],
           })
         : input.ledger.admitImage(endpoint)
     if ('refused' in ticket) {
