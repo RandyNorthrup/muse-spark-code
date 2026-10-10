@@ -337,6 +337,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   const isClosed = (): boolean => isDisposed
   /** Each probed entry's readiness, kept with the agent identity it was probed for. */
   const probes = new Map<string, { readonly identity: string; readonly isReady: boolean }>()
+  const probeGenerations = new Map<string, number>()
   const tasks = new Map<string, TeamTaskRecord>()
   const allTasks = (): TeamTaskRecord[] => Array.from(tasks.values(), (task) => task)
   /** Tasks counted against each entry's caps since its last reset. */
@@ -670,6 +671,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   }
 
   const launch = (task: TeamTaskRecord, entry: StaffedEntry): void => {
+    if (isClosed() || task.controller.signal.aborted) return
     if (task.queueTimer !== undefined) clearTimeout(task.queueTimer)
     task.entry = entry
     task.phase = 'running'
@@ -725,6 +727,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
    * approve for that task is passed over.
    */
   function pump(): void {
+    if (isClosed()) return
     for (const task of allTasks()) {
       if (task.phase !== 'queued') continue
       if (!deps.settings.isTrusted()) return
@@ -1384,7 +1387,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       // The declared setup probes run only where the team could run: never
       // with the switch off, on Solo, for the orchestrator's own model, for an
       // agent this editor cannot run, or for a key entry while `teamWorkers` is off.
-      if (!deps.settings.isTeamOn() || readTeamWorkspaceHint(deps.state).soloTemplate) return
+      if (isClosed() || !deps.settings.isTeamOn() || readTeamWorkspaceHint(deps.state).soloTemplate)
+        return
       for (const entry of customEntries()) {
         if (
           !deps.workers.canRun(entry.agent) ||
@@ -1393,16 +1397,23 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         )
           continue
         const identity = agentIdentity(entry.agent)
+        const generation = (probeGenerations.get(entry.id) ?? 0) + 1
+        probeGenerations.set(entry.id, generation)
+        let isReady = false
         try {
-          probes.set(entry.id, { identity, isReady: await deps.workers.probe(entry.agent) })
+          isReady = await deps.workers.probe(entry.agent)
         } catch {
-          probes.set(entry.id, { identity, isReady: false })
+          // A failed current probe is unavailable; a stale failure has no owner.
         }
+        if (isClosed()) return
+        if (probeGenerations.get(entry.id) === generation)
+          probes.set(entry.id, { identity, isReady })
       }
       pump()
       changed()
     },
     reload: () => {
+      for (const [id, generation] of probeGenerations) probeGenerations.set(id, generation + 1)
       snapshot = readStoredTeam(deps.state)
       changed()
     },

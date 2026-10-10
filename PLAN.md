@@ -24076,6 +24076,21 @@ bound, `TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE` (60 s, golden `08-team-on`
 updated); the Muse Code team server keeps `TEAM_COLLECT_WAIT_MAX_SECONDS`
 (0) until lane P's timeout capture.
 
+**C-M96-3 round 4 redesign (2026-10-10).** RVCM963C found 21 remaining
+failures on `13d632247`. Replace the clustered admission, accounting, merge
+and recovery paths: one synchronous worker lease owns global/entry/source
+capacity across consent; request reservations retain uncertain liability and
+request-day usage; awaited saves gate launch and copy ownership; one merge
+state machine owns review and the live conversation's decision; file tools
+verify and use the opened handle against the retained root; entry probe
+generations reject stale results and disposal rejects every launch. Persist
+continuation ownership, reset boundaries and completed review verdicts.
+Raise exempts only its task from entry caps, never global capacity, trust or
+paid consent. Teams remain hidden. Each finding needs a baseline regression
+on the reviewed revision and a restored red drill. Local scoped gates only;
+the lead runs full quality and hosted Windows certification. Receipts and
+contract changes: `docs/certification/m96-x.md`.
+
 **C-M96-3 round 3: the RVCM963 review (2026-10-10).** Every finding is
 fixed on `c/m96-3`; teams stay hidden until all of M96 is complete. An
 engine worker's file tools admit each path against the retained root grant
