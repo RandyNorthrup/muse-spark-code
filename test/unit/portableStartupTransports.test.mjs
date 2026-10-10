@@ -230,6 +230,37 @@ it('refuses page activity when application code reassigns the reporting global',
   ).rejects.toThrow('PORTABLE_STARTUP_UNBUILT_REQUEST')
 })
 
+it.each(['http://127.0.0.1/not-built', 'https://unbuilt.invalid/boot.js'])(
+  'refuses a non-built HTTP fetch before native dispatch: %s',
+  async (url) => {
+    // A rejected native fetch can beat CSP reporting under concurrent boots.
+    // Observe dispatch deterministically without a network or scheduling race.
+    const dispatchBrowser = {
+      newContext: async (options) => {
+        const context = await fixture.browser.newContext(options)
+        await context.addInitScript((blockedUrl) => {
+          const fetch = globalThis.fetch.bind(globalThis)
+          Object.assign(globalThis, {
+            fetch: (input, init) => {
+              const url = new URL(
+                input instanceof globalThis.Request ? input.url : input,
+                globalThis.location.href,
+              )
+              if (url.href === blockedUrl) throw new Error('Non-built native fetch dispatched')
+              return fetch(input, init)
+            },
+          })
+        }, url)
+        return context
+      },
+    }
+    const graph = boot(`await fetch(${JSON.stringify(url)}); ${MARK}`)
+    await expect(
+      measurePortableStartup(graph.meta, (file) => graph.files.get(file), dispatchBrowser),
+    ).rejects.toThrow('PORTABLE_STARTUP_UNBUILT_REQUEST')
+  },
+)
+
 it('admits a fragment reference to an authenticated loader module blob', async () => {
   const graph = boot(
     `import { value } from './shared.js'; if(value !== 1) throw new Error('dependency'); await fetch(import.meta.url + '#annotation').then(r => r.text()); ${MARK}`,

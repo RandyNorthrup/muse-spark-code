@@ -186,11 +186,13 @@ export async function measurePortableStartup(
           if (request.resourceType() === 'eventsource') refuseRequest('eventsource')
         })
         await context.addInitScript(
-          ({ loaderUrl, mark }) => {
+          ({ loaderUrl, mark, builtPaths }) => {
             const blobs = new WeakMap()
             const materialized = new Map()
             const admitted = new Set()
             const sources = new Map()
+            const builtOrigin = new URL(loaderUrl).origin
+            const builtResources = new Set(builtPaths)
             let modules
             // Captured before any application script runs: the reporting
             // bindings are installed by exposeBinding init scripts, which were
@@ -274,10 +276,13 @@ export async function measurePortableStartup(
                 // it: a fetch of `import.meta.url + '#...'` still matches the
                 // admitted module URL. Unrelated blob URLs stay refused.
                 const identity = url.href.split('#', 1)[0]
+                // CSP can reject HTTP before its route or report arrives.
+                // Refuse from the immutable inventory before native dispatch.
                 if (
                   isBooting() &&
-                  !['http:', 'https:'].includes(url.protocol) &&
-                  !admitted.has(identity)
+                  (['http:', 'https:'].includes(url.protocol)
+                    ? url.origin !== builtOrigin || !builtResources.has(url.pathname)
+                    : !admitted.has(identity))
                 )
                   refuse(url.protocol)
                 const isLoaderFetch = isFromLoader()
@@ -336,6 +341,7 @@ export async function measurePortableStartup(
           {
             loaderUrl: `${BUILT_SOURCE}loader.js`,
             mark: CHAT_MOUNTED,
+            builtPaths: resourcePaths.keys().toArray(),
           },
         )
         // Chromium routes dedicated workers and frames at context scope, but

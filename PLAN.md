@@ -590,6 +590,14 @@ total JavaScript 1,486 KiB. No dependency, production module, support status
 or unrelated guard changes. Browser verification is lead-owned where this
 lane's sandbox cannot launch Chrome; see §7.
 
+Round-7 outside-sandbox verification must also preserve the named refusal
+when CSP rejects a non-built HTTP fetch before the route observes it. Refuse
+that request through the captured fetch probe before native dispatch, using
+the immutable built resource paths; retain built queries and authenticated
+blob fragments. Regress that refusal by observing native dispatch, and drill
+removal of the inventory check. No cap, deadline, production module or
+support status changes. The Kubuntu outside-sandbox pass is recorded in §7.
+
 **M104 F4 round 6 (2026-10-10, RVM104F4F; lead transport boundary).**
 Before the synchronous render mark, deny every non-HTTP transport and every
 non-built fetch/import, independently of application error handling. Cover
@@ -39052,6 +39060,16 @@ measurement. Lead-owned outside the sandbox: the three new browser behavioral
 regressions, the restructured production fixture run, their red drills, and
 the size/split measurement. No timeout, cap, assertion or guard is weakened;
 aggregate quality is not claimed. See `docs/certification/m104.md`, F4 round 7.
+
+**M104 F4 round-7 outside-sandbox verification (2026-10-10, Kubuntu).**
+The deferred browser runs executed here at repository deadlines, one file or
+build at a time. Transport suite **47 / 47** (30.24 s). Production fixture
+**77 / 77** (104.07 s), inside the unchanged 120-second hook. Sender, fragment
+and HTTP-inventory drills fail the named assertions and restore byte-exact.
+One-at-a-time preparation does not exceed the hook (**77 / 77**, file duration
+120.48 s) and is not claimed as a red hook. `npm run build` exits 0; all 210
+KiB budget lines stay within their unchanged caps. See
+`docs/certification/m104.md`, round-7 outside-sandbox verification.
 
 **M104 F4 round 6 (2026-10-10, RVM104F4F; lead transport boundary).**
 Before the synchronous render mark, deny every non-HTTP transport and every

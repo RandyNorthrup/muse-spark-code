@@ -227,7 +227,9 @@ happened, not what was planned; superseded entries are kept.
   hide boot activity from the receipt. Fragment references to authenticated
   loader module blobs stay admitted, and the production fixture prepares its
   independent builds and boots through a bounded pool inside the unchanged
-  120-second hook deadline. Startup and total delivery caps are unchanged.
+  120-second hook deadline. Non-built HTTP fetches receive the named refusal
+  before native dispatch, including when CSP would otherwise report too late.
+  Startup and total delivery caps are unchanged.
 - Portable startup measurement now refuses WebSockets, arbitrary data/blob
   fetches and imports, EventSource, WebTransport and WebRTC data channels,
   including caught failures in frames and workers. The authenticated loader's
