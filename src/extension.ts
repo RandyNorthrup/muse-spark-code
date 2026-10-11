@@ -4083,11 +4083,16 @@ async function activateWindow(
               source: 'openRouter',
               observedAt: Date.now(),
               windows: [],
+              // OpenRouter's `/key` numbers become exact decimals here (M121).
               account: {
-                usedUsd: snapshot.usedThisMonth,
+                usedUsd: Usd.from(snapshot.usedThisMonth).toAmount(),
                 period: 'month',
-                ...(snapshot.limit !== undefined && { limitUsd: snapshot.limit }),
-                ...(snapshot.remaining !== undefined && { remainingUsd: snapshot.remaining }),
+                ...(snapshot.limit !== undefined && {
+                  limitUsd: Usd.from(snapshot.limit).toAmount(),
+                }),
+                ...(snapshot.remaining !== undefined && {
+                  remainingUsd: Usd.from(snapshot.remaining).toAmount(),
+                }),
               },
             })
           },

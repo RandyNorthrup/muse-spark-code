@@ -82,6 +82,14 @@ happened, not what was planned; superseded entries are kept.
   Regression properties and native canaries cover both review findings
   (M125 F1a); the component remains unavailable to editor approvals.
 
+- Usage, team and schedule money is exact too (M121): journal and usage
+  page totals, provider rows, key usage, team costs, budgets and preview
+  totals, and schedule caps and liabilities are kept as exact decimal
+  dollars and shown through the exact formatters. The usage journal moves
+  to version 2; version 1 records with numeric dollars still read and
+  convert exactly, and a record that cannot convert is refused with an
+  explanation instead of being rounded or zeroed.
+
 ### Fixed
 
 - Local report sources sort every tied list to a total order, so the same
@@ -149,6 +157,31 @@ happened, not what was planned; superseded entries are kept.
     admitted resource lease back.
   - The privacy guide said configured Cursor Tab hooks did not run; they do,
     and the guide, README and this entry now say what they receive.
+
+- Unproved version 1 monthly rollup dollars are refused before money validation,
+  preserving the other usage days and the translated precision notice even for
+  overflow or negative literals (M121A round 4). Changes that round to zero show
+  `0%`; the money guard also checks nested and generic mapped keys.
+
+- Legacy money reads fail closed on overflow, underflow, negative zero and
+  unconvertible exponents (M121A round 3), preserving the precision-refusal
+  notice instead of accepting a rounded zero.
+
+- Usage period-change percentages and cost sorting use exact dollars,
+  including charges smaller than a nano-dollar. Portable usage summaries
+  share the same exact percentage calculation; very small monetary labels
+  keep their digits beyond Intl's precision limit. The money guard resolves
+  union/intersection members, apparent types and inherited interfaces.
+
+- Exact money keeps every promise on every Node version (M121A fix round).
+  Version 1 journals and schedules read dollars through a small JSON parse
+  that keeps each number's written digits, so a literal a double cannot
+  carry is refused on Node 20 exactly as on newer runtimes instead of being
+  rounded into the record. Usage charts label the original amount in every
+  status line, data table and previous-period figure; only the plotted
+  geometry stays approximate, so a single xAI tick no longer reads as ten
+  times its charge. The exact-money type guard now also sees through
+  finite-key records and mapped types.
 
 ### Pending
 
