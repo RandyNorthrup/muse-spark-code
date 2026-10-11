@@ -299,3 +299,4 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
   }
   return state.host
 }
+export { runTreeProgram } from './trees/run'

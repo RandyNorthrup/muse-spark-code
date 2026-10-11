@@ -1,6 +1,7 @@
 import type { ResourceClass, ResourceKind } from '../../shared/resources'
 import type { ResourceLease, ResourceWindowsJob } from './launch'
 import type { ResourceLaunchHost } from './launchHost'
+import type { ResourceTreeRun } from './trees/run'
 import type * as Governor from './resourceGovernorEntry'
 
 type ResourceHostSettings = Governor.ResourceHostSettings
@@ -132,6 +133,12 @@ export async function inResourceClass<T>(
 
 export async function resourceWindowsJob(): Promise<ResourceWindowsJob | undefined> {
   return await state.options?.windowsJob?.()
+}
+
+/** Fixed native helpers share the governor's bounded runner without copying policy. */
+export const runResourceNativeProgram: ResourceTreeRun = async (...args) => {
+  const bundle = await import('./resourceGovernorEntry.js')
+  return await bundle.runTreeProgram(...args)
 }
 
 /** Owner Stop bypasses admission; refusal never authorizes a legacy PID/job fallback. */

@@ -5544,5 +5544,13 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  }
+  },
+  "teamFileHelperMissing": "Zweryfikowany natywny pomocnik plików pracowników jest niedostępny.",
+  "teamFileNativeFailed": "Natywna weryfikacja pliku pracownika nie powiodła się; nie zapisano zawartości pliku.",
+  "teamFileOutside": "Plik znajduje się poza zatwierdzoną kopią roboczą.",
+  "teamFileRoleDenied": "Rola nie zezwala na zapis w tej ścieżce.",
+  "teamFileExists": "Ścieżka nowego pliku jest już zajęta.",
+  "teamFileChanged": "Zarezerwowany plik lub jego folder nadrzędny uległ zmianie.",
+  "referenceTeamFiles": "Zespoły pozostają niedostępne do zakończenia integracji i certyfikacji. Pracownicy silnika i ACP mogą tworzyć pliki za pomocą zweryfikowanego natywnego pomocnika w swojej kopii roboczej i w ścieżkach zapisu dozwolonych dla ich roli.",
+  "teamFileLinked": "Ścieżka pliku zawiera dowiązanie lub inaczej interpretowany element."
 }

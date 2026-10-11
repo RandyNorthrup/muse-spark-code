@@ -5391,5 +5391,13 @@
       "other": "{count} autorisations",
       "many": "{count} autorisations"
     }
-  }
+  },
+  "teamFileHelperMissing": "L’assistant natif vérifié pour les fichiers des agents n’est pas disponible.",
+  "teamFileNativeFailed": "La vérification native du fichier de l’agent a échoué ; aucun contenu de fichier n’a été écrit.",
+  "teamFileOutside": "Le fichier est en dehors de la copie de travail autorisée.",
+  "teamFileRoleDenied": "Le rôle n’autorise pas l’écriture dans ce chemin.",
+  "teamFileExists": "Le chemin du nouveau fichier est déjà occupé.",
+  "teamFileChanged": "Le fichier réservé ou son dossier parent a changé.",
+  "referenceTeamFiles": "Les équipes restent indisponibles en attendant l’intégration et la certification. Les agents du moteur et d’ACP peuvent créer des fichiers avec l’assistant natif vérifié, dans leur copie de travail et les chemins d’écriture autorisés par leur rôle.",
+  "teamFileLinked": "Le chemin du fichier contient un lien ou un composant réinterprété."
 }

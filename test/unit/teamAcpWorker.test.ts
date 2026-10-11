@@ -25,6 +25,7 @@ import {
   type AcpAgentConnection,
   type AcpPermissionInput,
 } from '../../src/core/team/workers/acpWorker'
+import { UI_TEXT } from '../../src/shared/constants'
 import { WorkerUntrustedError } from '../../src/core/team/workers/engineWorker'
 import type { WorkerRolePolicy, WorkerTask } from '../../src/core/team/workers/workerTypes'
 
@@ -374,7 +375,7 @@ describe('acpFsWrite', () => {
       error: 'outside the write paths',
     })
     await expect(acpFsWrite(input, '../out.ts', 'hi')).resolves.toEqual({
-      error: 'outside the working copy',
+      error: UI_TEXT.teamFileOutside,
     })
   })
 
