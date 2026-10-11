@@ -20183,8 +20183,9 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 and this lane's round-2 repair of all seven findings (1 P1, 4 P2, 2 P3),
 plus the same-day round-3 repair of review RVDFACPERR2's single P3, plus
 the same-day round-4 repair of review RVDFACPERR3's three findings
-(1 P2, 2 P3), and round-5 repair of all RVDFACPERR4 findings (4 P2,
-1 P3). Round 5 classifies invalid imported files and editable prompt limits
+(1 P2, 2 P3), round-5 repair of all RVDFACPERR4 findings (4 P2,
+1 P3), and round-6 repair of review RVDFACPERR5's single P2 (a username
+path segment refused its own unchanged export). Round 5 classifies invalid imported files and editable prompt limits
 at their input boundaries, preserves typed headless argument refusals, and
 routes the native Prompt Library and panel initialization through the safe
 catch and failed-promise eviction. Privacy adapters scrub account names only
@@ -20229,6 +20230,9 @@ reruns the formerly timing-out lifecycle test at repository deadlines.
       headless typed arguments retain their flag; common usernames preserve
       ordinary exports while complete path segments/identity fields remain
       scrubbed. Certification records the actual logging scope (RVDFACPERR4).
+- [x] Every scrub marker is atomic from the single shared list, so the
+      confirmation re-scrub is a fixed point and an unchanged username-path
+      export releases in every format and mode (RVDFACPERR5 P2).
 
 ### M122 — Public roadmap (2026-10-08)
 

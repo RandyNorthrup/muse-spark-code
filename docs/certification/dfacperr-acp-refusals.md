@@ -410,6 +410,91 @@ runtime sharing pass. No review finding remains open.
   All tests are local fakes or owned local-file operations; model attempts 0.
   The rig brief reserves `npm run quality` for the lead.
 
+## Round 6 — repair of review RVDFACPERR5 (1 P2), 2026-10-11
+
+Base `bd4a11c37`, same worktree and branch, directly on macmini. No new
+command, setting, localization key, dependency, wire shape or model call.
+The rig brief reserves the aggregate quality run for the lead; this lane
+runs the required targeted suites and static/build gates directly.
+
+Lead design rule (records the class fix, not the cited line): THE SCRUB IS
+IDEMPOTENT AND THE FINAL CHECK IS ITS FIXED POINT. (1) Every marker the
+scrubber itself emits is an atomic token: no later rule may match inside
+it, across it, or treat the text after it as the start of a new absolute
+path. The exemption derives from the single `SCRUB_MARKERS` list in
+`src/shared/share.ts`, never from a hand-written case per marker.
+(2) The release confirmation accepts exactly what the scrub produced: it
+re-runs the same `scrubShareText` and requires `scrub(x) === x`; there is
+no second, independent detector that can disagree. (3) A property test
+over a generated corpus asserts `scrub(scrub(x)) === scrub(x)`, and a
+preview that nothing changed always exports.
+
+| Finding                         | Fix and sibling sweep                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Regression                                                                                                                                                                                                                                                                                                                                                                                                                                  | Red drill |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| P2 username-path export refusal | `src/core/sharing/privacy.ts` `isPathBoundary` exempts every `SCRUB_MARKERS` entry (`[home]`, `[user]`, `[path]`, `[workspace]`, `[redacted]`, `[redacted path]`, `[redacted account]`) instead of only `[home]`. `src/core/sharing/shareRelease.ts` needed no change: `confirm` already re-runs the same scrub and requires the fixed point, and no second detector exists on that path. The prompt adapter (`promptPrivacy.ts`) needed no change: its absolute-path branch already refuses a `/` after `]`, and the new property corpus passes on it unchanged. | `chatShareScrub`: exact review case plus fixed-point property over usernames `user`/`home`/`src`/`team`, POSIX/Windows/UNC roots, nested and repeated username segments, and an identity-rule marker adjacent to a path. `chatShareRelease`: unchanged preview carrying `team/[user]/src/main.ts` confirms to `shared` with one sink call, in all three formats and both modes. `promptPrivacy`: same property corpus as the sibling sweep. | R6-D1     |
+
+Baseline reproduction (before the fix, repository deadlines, no
+`--testTimeout`): the new release test refused with `sharePreviewExpired`
+at `shareRelease.ts:128` with zero sink calls, and the property tests
+showed `team/[user][path]` where `team/[user]/src/main.ts` was expected
+(`user`, `home`, `team` cases). The sibling prompt-adapter corpus passed
+before and after, with no source change.
+
+### Round 6 deliberate red/restored receipt
+
+Whole files, at most three per run, with `--maxWorkers=3` and repository
+deadlines. The mutation produced exit 1 at the named regressions;
+restoration copied back the saved bytes and SHA-256 before/after matched.
+
+| Drill                  | Deliberate break / named failing regression                                                                                                                                        | Restored SHA-256                                                                                   |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| R6-D1-marker-exemption | Restore the `[home]`-only exemption in `isPathBoundary` → the username-segment release test plus the `user`/`home`/`src`/`team` fixed-point property tests (5 failures, 28 passes) | `37ba3f20414124944b3ab557692e080a2ec1674350a3b9c5faccbefbf1ceb318` (`src/core/sharing/privacy.ts`) |
+
+### Round 6 final test receipt
+
+Whole files, directly on macmini, repository timeouts, no `--testTimeout`,
+no skipped or filtered cases:
+
+| Files passed to `npx vitest run … --maxWorkers=3`              |  Passed |
+| -------------------------------------------------------------- | ------: |
+| `promptEntry`, `promptHostLifecycle`, `runtimeSharing`         |      40 |
+| `promptImport`, `promptPrivacy`, `chatShareScrub`              |      46 |
+| `prompts`, `logText`, `acpSharing`                             |      77 |
+| `acpAgent`, `acpVault`, `acpAccounts`                          | 201 + 1 |
+| `promptNative`, `promptStore`, `promptWorkspaceIntegration`    |      20 |
+| `chatShareRange`, `chatShareFilter`, `chatShareFormats`        |      17 |
+| `chatShareRelease`, `chatShareDestinations`, `chatSharingHost` |      20 |
+| **Total: 21 files**                                            | **422** |
+
+All names above resolve to `test/unit/<name>.test.ts`. Ten tests are new
+(1 release, 5 chat scrub, 4 prompt property); every other count matches
+round 5. The single `acpAgent` failure (`exposes all three ChatGPT actions`,
+`chatgpt-status` rejected as temporarily unavailable) is pre-existing on
+this rig, not a regression: it fails identically on a pristine `HEAD`
+export with none of this lane's changes, and nothing on the ChatGPT auth
+path imports the changed scrub files. The review certified 150/150 on
+macbook; macmini refuses that status check at base.
+
+### Round 6 gates and delivery
+
+- `npm run typecheck`: exit 0 across all five projects on the final source.
+- Targeted `npx eslint --max-warnings=0`: exit 0 across every changed TS file.
+- `npx prettier --check` on all changed files and `git diff --check`: exit 0.
+- `npm run check:l10n`: 14 UI tables, 14 usage tables, 0 problems.
+- `npm run check:host-api`: 375 APIs, 48 VS Code-importing files, 0 problems.
+- `npm run check:reference`: 77 features, 71 commands, 100 settings,
+  29 slash commands and 257 CLI entries, current; sharing catalog matches.
+- `node scripts/check-plan.mjs PLAN.md DFACPERR`: built.
+  Roadmap regenerated; `npm run check:roadmap`: exit 0, 208 entries current.
+- `npm run build`: exit 0, including token, size, split, host-global and
+  notice checks. Extension 550.1/600 KiB; prompts 163.6/200 KiB;
+  sharing runtime 162.5/175 KiB; Model API 515.8/525 KiB.
+  Every existing budget is retained.
+- No visual/style change, new feature/command/setting, dependency install,
+  live/paid model call, credential access, branch merge, push or rebase.
+  All tests are local fakes or owned local-file operations; model attempts 0.
+  The rig brief reserves `npm run quality` for the lead.
+
 ## Notes for the lead
 
 - The `-32603` message for unexpected sharing, prompt and headless faults
