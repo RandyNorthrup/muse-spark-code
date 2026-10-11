@@ -489,7 +489,8 @@
       }
     ],
     "registryNetworkReads": 0,
-    "stdoutStartupNotice": "[info] Display language en-us: the panel is in English"
+    "startupNotice": "[info] Display language en-us: the panel is in English",
+    "startupNoticeStream": "stderr"
   },
   "buildRecords": {
     "bundles": 87,
@@ -617,5 +618,22 @@
     "rewrites": [],
     "stagedCommittedDiffEqual": true
   },
-  "fullQuality": "Reserved for the lead by the explicit lane brief; not run here."
+  "fullQuality": "Reserved for the lead by the explicit lane brief; not run here.",
+  "finalHookReview": {
+    "commit": "3fa8df149ab6687e412fd0ba2b15f9fbb45cc66b",
+    "filesRead": 5,
+    "rewrites": [],
+    "stagedCommittedDiffEqual": true
+  },
+  "postCommitScan": {
+    "commit": "3fa8df149ab6687e412fd0ba2b15f9fbb45cc66b",
+    "command": ["node", "dist/acp.js", "exec", "legal-scan", "--json"],
+    "exit": 0,
+    "stdoutValidJson": true,
+    "startupNoticeStream": "stderr",
+    "findings": 149,
+    "incompleteChecks": 0,
+    "blockers": 0,
+    "shouldFix": 0
+  }
 }
