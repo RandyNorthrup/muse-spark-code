@@ -5532,5 +5532,6 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
-  }
+  },
+  "referenceRuntimeSchedules": "Spouštějte příkazy Muse Code bez dozoru z ACP nebo terminálu s trvalými oprávněními, uloženými záznamy spuštění a cílovými konverzacemi na pozadí."
 }

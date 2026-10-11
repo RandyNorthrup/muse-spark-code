@@ -5379,5 +5379,6 @@
       "other": "{count} autorisations",
       "many": "{count} autorisations"
     }
-  }
+  },
+  "referenceRuntimeSchedules": "Exécutez des instructions Muse Code sans surveillance depuis ACP ou le terminal, avec des autorisations permanentes, des historiques persistants et des conversations en arrière-plan comme cibles."
 }

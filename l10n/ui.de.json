@@ -5226,5 +5226,6 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
-  }
+  },
+  "referenceRuntimeSchedules": "Führen Sie Muse-Code-Prompts unbeaufsichtigt über ACP oder das Terminal aus, mit dauerhaften Berechtigungen, gespeicherten Ausführungsprotokollen und Hintergrundgesprächen als Zielen."
 }

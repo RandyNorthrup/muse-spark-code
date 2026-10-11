@@ -5073,5 +5073,6 @@
     "grantsCount": {
       "other": "{count} 個授權"
     }
-  }
+  },
+  "referenceRuntimeSchedules": "透過 ACP 或終端機無人值守執行 Muse Code 提示詞，使用持續授權、永久執行記錄及背景對話目標。"
 }

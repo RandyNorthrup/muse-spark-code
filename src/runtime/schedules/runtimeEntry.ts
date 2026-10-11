@@ -14,11 +14,13 @@ import {
   type ScheduleEditorDeliveryPorts,
 } from '../../host/schedules/deliveryBinding'
 import { agentFileBeside, createVerifyWake } from './wake'
+import type { RuntimeScheduleDeliveryPorts } from './delivery'
 
 export function createRuntimeSchedules(
   table: UiText,
   locale: string,
   delivery?: ScheduleEditorDeliveryPorts,
+  runtimeDelivery?: RuntimeScheduleDeliveryPorts,
 ): Promise<RuntimeSchedulesBinding> {
   setUiText(table, locale)
   const platform = process.platform
@@ -35,6 +37,7 @@ export function createRuntimeSchedules(
     executable: process.execPath,
     agentFile,
     verifyWake: createVerifyWake(process.execPath, agentFile),
+    ...(runtimeDelivery !== undefined && { runtimeDelivery }),
     ...(delivery !== undefined && {
       delivery: (authority) => createScheduleDeliveryBinding(delivery, authority),
     }),

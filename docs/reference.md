@@ -1187,6 +1187,14 @@ Surfaces: vscode:modelApi. Paid: yes; consent required; admission depends on the
 
 Commands: `museSpark.schedulePrompt`, `museSpark.showSchedules`, `museSpark.showScheduleTimeline`. Settings: `museSpark.modelApiScheduledPrompts`, `museSpark.schedules`, `museSpark.scheduleDefaultDelivery`, `museSpark.scheduleAgentCreation`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api)
 
+### /loop
+
+Run unattended Muse Code prompts from ACP or the terminal, with standing grants, persistent fire records and background conversation targets.
+
+Surfaces: acp:museCode. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#runtime-scheduled-delivery)
+
 ### /agents
 
 Turn paid subagents on or off.

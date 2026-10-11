@@ -98,6 +98,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Runtime scheduled delivery (M115).** ACP and terminal Muse Code prompts
+  use live or background sessions, validated workspace paths and durable fire
+  records. Concurrent grant audits retain every use. Refused actions appear
+  in the run; Model API fires refuse before
+  backend startup when no per-schedule paid policy is installed.
+
 - Scheduled Muse Code inputs can wait behind a user turn without replacing its
   permissions. Queue withdrawal uses M87's message handle; revoked authority
   is refused before promotion. Automatic v2 delivery remains unregistered

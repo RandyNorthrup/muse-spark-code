@@ -5379,5 +5379,6 @@
       "other": "{count} autorizações",
       "many": "{count} autorizações"
     }
-  }
+  },
+  "referenceRuntimeSchedules": "Execute prompts do Muse Code sem supervisão pelo ACP ou terminal, com permissões permanentes, registros persistentes de execução e conversas em segundo plano como destinos."
 }

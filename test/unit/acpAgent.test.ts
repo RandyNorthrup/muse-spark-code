@@ -1127,7 +1127,15 @@ describe('the ACP agent (M63)', () => {
         backend: 'museCode',
       })
       expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
-      expect(holdWorkspace).toHaveBeenCalledWith(CWD)
+      expect(holdWorkspace).toHaveBeenCalledWith(
+        CWD,
+        expect.objectContaining({
+          agent: h.host.sessions[0],
+          backend: 'museCode',
+          row: expect.any(Function),
+          deferQuestions: expect.any(Function),
+        }),
+      )
       expect(h.updates).toContainEqual({
         sessionUpdate: 'agent_message_chunk',
         content: { type: 'text', text: 'Schedule list' },

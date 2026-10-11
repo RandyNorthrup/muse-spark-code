@@ -18,6 +18,23 @@ const cwd = path.join(directory, 'workspace')
 const holderSchema = z.enum(['window-1', 'window-2', 'acp'])
 const statusSchema = z.strictObject({ phase: z.enum(['ready', 'settled']), holder: holderSchema })
 const receiptSchema = z.strictObject({ holder: holderSchema, runId: z.string() })
+const children: ChildProcess[] = []
+const exits: Promise<number | null>[] = []
+const store = createScheduleStore(createNodeScheduleFs(data))
+const facts: {
+  dispatches?: z.infer<typeof receiptSchema>[]
+  polling?: PromiseSettledResult<void>[]
+  fires?: Awaited<ReturnType<typeof store.fires>>
+  exits?: (number | null)[]
+} = {}
+// Three real processes fsync shared journal/lease state; perform that costly
+// fixture once, keeping the assertions at the repository's test deadline.
+const CLAIM_FIXTURE_TIMEOUT_MS = 60_000
+const schedule = fakeSchedule({
+  workspaceKey: workspaceKey(cwd),
+  catchUp: 'runOnce',
+  target: { kind: 'conversation', backend: 'museCode', sessionId: 'session-1' },
+})
 
 beforeAll(async () => {
   await build({
@@ -29,8 +46,27 @@ beforeAll(async () => {
     target: 'node22',
     logLevel: 'silent',
   })
-})
+  children.push(
+    ...['window-1', 'window-2', 'acp'].map((holder) =>
+      fork(worker, [data, cwd, receipt, holder], {
+        silent: true,
+        env: { SystemRoot: process.env['SystemRoot'] },
+      }),
+    ),
+  )
+  exits.push(
+    ...children.map(
+      (child) => new Promise<number | null>((resolve) => child.once('exit', resolve)),
+    ),
+  )
+  await Promise.all(children.map((child) => status(child, 'ready')))
+  await store.create(schedule)
+  await raceHolders()
+}, CLAIM_FIXTURE_TIMEOUT_MS)
 afterAll(async () => {
+  for (const child of children)
+    if (child.exitCode === null && child.signalCode === null) child.kill()
+  await Promise.all(exits)
   expect(path.dirname(directory)).toBe(path.resolve('temp'))
   await rm(directory, { recursive: true, force: true })
 })
@@ -65,25 +101,8 @@ function status(child: ChildProcess, phase: 'ready' | 'settled'): Promise<void> 
   })
 }
 
-it('admits one fire across two window holders and an ACP holder in separate processes', async () => {
-  const children = ['window-1', 'window-2', 'acp'].map((holder) =>
-    fork(worker, [data, cwd, receipt, holder], {
-      silent: true,
-      env: { SystemRoot: process.env['SystemRoot'] },
-    }),
-  )
-  const exits = children.map(
-    (child) => new Promise<number | null>((resolve) => child.once('exit', resolve)),
-  )
+async function raceHolders(): Promise<void> {
   try {
-    await Promise.all(children.map((child) => status(child, 'ready')))
-    const store = createScheduleStore(createNodeScheduleFs(data))
-    const schedule = fakeSchedule({
-      workspaceKey: workspaceKey(cwd),
-      catchUp: 'runOnce',
-      target: { kind: 'conversation', backend: 'museCode', sessionId: 'session-1' },
-    })
-    await store.create(schedule)
     const polling: PromiseSettledResult<void>[] = []
     for (let round = 0; round < 2; round += 1) {
       const settled = children.map((child) => status(child, 'settled'))
@@ -97,17 +116,24 @@ it('admits one fire across two window holders and an ACP holder in separate proc
       .trim()
       .split('\n')
       .map((line) => receiptSchema.parse(JSON.parse(line)))
-    expect(dispatches).toHaveLength(1)
-    expect(polling.every((result) => result.status === 'fulfilled')).toBe(true)
+    facts.dispatches = dispatches
+    facts.polling = polling
     const fires = await store.fires(schedule.workspaceKey)
-    expect(fires).toHaveLength(1)
-    expect(fires[0]).toMatchObject({ runId: dispatches[0]?.runId, outcome: 'ran' })
+    facts.fires = fires
     for (const child of children) child.send('close')
-    expect(await Promise.all(exits)).toEqual([0, 0, 0])
+    facts.exits = await Promise.all(exits)
   } finally {
     for (const child of children) {
       if (child.exitCode === null && child.signalCode === null) child.kill()
     }
     await Promise.all(exits)
   }
+}
+
+it('admits one fire across two window holders and an ACP holder in separate processes', () => {
+  expect(facts.dispatches).toHaveLength(1)
+  expect(facts.polling?.every((result) => result.status === 'fulfilled')).toBe(true)
+  expect(facts.fires).toHaveLength(1)
+  expect(facts.fires?.[0]).toMatchObject({ runId: facts.dispatches?.[0]?.runId, outcome: 'ran' })
+  expect(facts.exits).toEqual([0, 0, 0])
 })

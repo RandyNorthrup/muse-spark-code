@@ -5226,5 +5226,6 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
-  }
+  },
+  "referenceRuntimeSchedules": "ACP veya terminalden kalıcı izinler, kalıcı çalıştırma kayıtları ve arka plan konuşma hedefleriyle gözetimsiz Muse Code istemleri çalıştırın."
 }

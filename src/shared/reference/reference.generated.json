@@ -1559,6 +1559,21 @@
       "editors": ["vscode"]
     },
     {
+      "id": "runtime-schedules",
+      "name": { "ui": "loopItem" },
+      "summary": { "ui": "referenceRuntimeSchedules" },
+      "description": { "ui": "referenceRuntimeSchedules" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#runtime-scheduled-delivery",
+      "backends": ["museCode"],
+      "paid": false,
+      "surfaces": ["acp:museCode"],
+      "details": [],
+      "facts": {},
+      "editors": ["acp"]
+    },
+    {
       "id": "subagents",
       "name": { "ui": "agentsCommand" },
       "summary": { "tip": "paid:subagents" },

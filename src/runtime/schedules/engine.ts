@@ -24,6 +24,7 @@ import {
 import { scheduleEventSchema, type ScheduleEvent } from '../../shared/scheduleEvents'
 import {
   scheduleFireRecordSchema,
+  noScheduleCost,
   type ScheduleBackgroundPort,
   type ScheduleDeliveryResult,
   type ScheduleRunContext,
@@ -38,8 +39,10 @@ import { createScheduleControl } from './control'
 import { createWorkspaceRegistry } from './registry'
 import { scheduleTimePlan } from './timePlan'
 import type { ScheduleControlPort } from './command'
+import { createRuntimeScheduleDelivery, type RuntimeScheduleDeliveryPorts } from './delivery'
 
 export interface ScheduleEngineOptions {
+  readonly runtimeDelivery?: RuntimeScheduleDeliveryPorts
   /** A host installs complete unattended delivery; absent hosts stay refused. */
   readonly delivery?: (
     authority: ScheduleAuthorityStore,
@@ -76,6 +79,11 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
   const now = options.now ?? Date.now
   const store = createScheduleStore(options.fs)
   const authority = createAuthorityStore(store, options.fs, 'runtime/grant-audits.json')
+  const registry = createWorkspaceRegistry(options.fs, 'runtime/workspaces.json')
+  const runtimeDelivery =
+    options.runtimeDelivery === undefined
+      ? undefined
+      : createRuntimeScheduleDelivery(options.runtimeDelivery, authority, registry)
   const late: { delivery?: ScheduleDelivery } = {}
   const host: RuntimeScheduleHost = new RuntimeScheduleHost({
     now,
@@ -86,6 +94,29 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
       occurrenceMs: number,
       event?: ScheduleEvent,
     ): Promise<ScheduleDeliveryResult> => {
+      if (
+        options.runtimeDelivery !== undefined &&
+        options.runtimeDelivery.paid === undefined &&
+        schedule.action.kind === 'prompt' &&
+        'backend' in schedule.target &&
+        schedule.target.backend === 'modelApi'
+      )
+        return Promise.resolve(
+          scheduleFireRecordSchema.parse({
+            runId: context.runId,
+            scheduleId: schedule.id,
+            workspaceKey: schedule.workspaceKey,
+            occurrenceMs,
+            observedAtMs: now(),
+            target: schedule.target,
+            delivery: schedule.delivery,
+            outcome: 'refused',
+            reason: UI_TEXT.schedulePaidOff,
+            refusedActions: [],
+            cost: noScheduleCost(),
+            ...(event !== undefined && { event }),
+          }),
+        )
       const delivery = late.delivery
       if (delivery === undefined) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
       return delivery.deliver(schedule, context, occurrenceMs, event)
@@ -95,19 +126,20 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     now,
     monotonicNow: () => performance.now(),
     holds: (workspace: string) => host.holds(workspace),
-    ...(options.delivery?.(authority) ?? {
-      targets: {
-        find: () => Promise.resolve(undefined),
-        open: unavailableTarget,
-        fresh: unavailableTarget,
-      },
-      runs: { run: unavailableTarget },
-      prompt: (schedule: ScheduleV2) => {
-        if (schedule.action.kind !== 'prompt')
-          throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
-        return schedule.action.prompt
-      },
-    }),
+    ...(options.delivery?.(authority) ??
+      runtimeDelivery?.delivery ?? {
+        targets: {
+          find: () => Promise.resolve(undefined),
+          open: unavailableTarget,
+          fresh: unavailableTarget,
+        },
+        runs: { run: unavailableTarget },
+        prompt: (schedule: ScheduleV2) => {
+          if (schedule.action.kind !== 'prompt')
+            throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
+          return schedule.action.prompt
+        },
+      }),
   })
   late.delivery = delivery
   const errors: unknown[] = []
@@ -169,7 +201,6 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     },
   })
   const consent = createBackgroundConsentStore(options.fs, 'runtime/background-consent.json')
-  const registry = createWorkspaceRegistry(options.fs, 'runtime/workspaces.json')
   const platform = options.platform ?? process.platform
   const homeDir = options.homeDir ?? homedir()
   const dataDir = options.dataDir ?? agentDataFolder({ platform, env: process.env, homeDir })
@@ -258,7 +289,7 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
       workspaceRoot: path.resolve(cwd),
       now,
       workspaces: () => registry.list(),
-      onCreate: (createdKey: string) => registry.add(createdKey),
+      onCreate: (createdKey: string) => registry.add(createdKey, path.resolve(cwd)),
       scanDeferred,
     })
     controls.set(key, control)
@@ -286,29 +317,44 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     },
   })
   const watched = new Map<string, number>()
+  const activeTicks = new Set<Promise<void>>()
+  const track = (work: Promise<void>) => {
+    activeTicks.add(work)
+    void work.finally(() => activeTicks.delete(work)).catch(onError)
+  }
   let engineTimer: ReturnType<typeof setInterval> | undefined
-  const watchWorkspace = (cwd: string): Promise<() => Promise<void>> => {
+  const watchWorkspace = async (cwd: string): Promise<() => Promise<void>> => {
     const key = workspaceKey(path.resolve(cwd))
+    await registry.add(key, path.resolve(cwd))
     watched.set(key, (watched.get(key) ?? 0) + 1)
     if (engineTimer === undefined) {
       const tick = () => {
         for (const workspace of watched.keys()) {
           if (!host.holds(workspace)) continue
-          void scheduler
-            .recover(workspace)
-            .catch((error: unknown) => {
-              onError(error)
-            })
-            .then(async () => {
-              await scheduler.poll(workspace)
-            })
-            .catch((error: unknown) => {
-              onError(error)
-            })
+          track(
+            (async () => {
+              try {
+                await scheduler.recover(workspace)
+              } catch (error: unknown) {
+                onError(error)
+              }
+              try {
+                await scheduler.poll(workspace)
+              } catch (error: unknown) {
+                onError(error)
+              }
+            })(),
+          )
         }
-        void scanDeferred().catch((error: unknown) => {
-          onError(error)
-        })
+        track(
+          (async () => {
+            try {
+              await scanDeferred()
+            } catch (error: unknown) {
+              onError(error)
+            }
+          })(),
+        )
       }
       engineTimer = setInterval(tick, SCHEDULE_POLL_INTERVAL_MS)
       tick()
@@ -327,7 +373,7 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
       }
       return Promise.resolve()
     }
-    return Promise.resolve(release)
+    return release
   }
   const runtime = new ScheduleRuntime({
     controlFor: (cwd, _caller) => controlFor(cwd),
@@ -335,10 +381,14 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     surface,
     background,
     watchWorkspace,
+    ...(runtimeDelivery !== undefined && {
+      attachSession: (cwd, session) => runtimeDelivery.attach(cwd, session),
+    }),
     dueWorkspaces: () => registry.list(),
-    close: () => {
+    close: async () => {
+      await runtimeDelivery?.close()
+      await Promise.allSettled(activeTicks)
       controls.clear()
-      return Promise.resolve()
     },
     verifyWake: options.verifyWake ?? (() => Promise.resolve({ scheduledPrompts: false })),
     ...(options.platform !== undefined && { platform: options.platform }),

@@ -27,9 +27,11 @@ export function createAuthorityStore(
   }
   const append = async (audit: ScheduleGrantAudit): Promise<void> => {
     const entry = scheduleGrantAuditSchema.parse(audit)
-    const current = await readAudits()
-    const entries = [...(current[entry.scheduleId] ?? []), entry]
-    await fs.replace(file, JSON.stringify({ ...current, [entry.scheduleId]: entries }))
+    await fs.lock(file, async (guard) => {
+      const current = await readAudits()
+      const entries = [...(current[entry.scheduleId] ?? []), entry]
+      await fs.replace(file, JSON.stringify({ ...current, [entry.scheduleId]: entries }), guard)
+    })
   }
   return {
     async read(workspaceKey: string, scheduleId: string): Promise<ScheduleV2 | undefined> {

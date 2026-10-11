@@ -907,6 +907,24 @@ export function featureCatalog(): readonly Feature[] {
       ),
       details: [{ ui: 'referenceSchedules' }, { ui: 'scheduledMediaSupport' }] as const,
     },
+    {
+      ...feature(
+        'runtime-schedules',
+        { ui: 'loopItem' },
+        { ui: 'referenceRuntimeSchedules' },
+        [],
+        [],
+        'runtime-scheduled-delivery',
+        ['museCode'],
+        false,
+        ['acp'],
+      ),
+      facts: {
+        unattended: true,
+        durableClaims: true,
+        terminal: true,
+      },
+    },
     feature(
       'subagents',
       { ui: 'agentsCommand' },

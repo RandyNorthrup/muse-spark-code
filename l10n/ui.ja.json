@@ -5073,5 +5073,6 @@
     "grantsCount": {
       "other": "{count} 件の許可"
     }
-  }
+  },
+  "referenceRuntimeSchedules": "ACP またはターミナルから、継続的な権限、永続的な実行記録、バックグラウンドの会話ターゲットを使って Muse Code のプロンプトを無人実行します。"
 }

@@ -5073,5 +5073,6 @@
     "grantsCount": {
       "other": "{count} 개 권한"
     }
-  }
+  },
+  "referenceRuntimeSchedules": "ACP 또는 터미널에서 지속적인 권한, 영구 실행 기록 및 백그라운드 대화 대상을 사용하여 Muse Code 프롬프트를 무인 실행합니다."
 }

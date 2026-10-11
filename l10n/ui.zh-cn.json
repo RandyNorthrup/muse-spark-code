@@ -5073,5 +5073,6 @@
     "grantsCount": {
       "other": "{count} 个授权"
     }
-  }
+  },
+  "referenceRuntimeSchedules": "通过 ACP 或终端无人值守运行 Muse Code 提示词，使用持续授权、持久执行记录和后台对话目标。"
 }

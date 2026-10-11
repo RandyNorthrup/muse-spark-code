@@ -123,6 +123,7 @@ import { jobSourceReader } from '../host/backend/jobSource'
 import { reportsLoader } from './reporting/reportsLoader'
 import type { createRuntimeReports } from './reporting/reportsEntry'
 import { runtimeSchedulesBinding } from './schedules/binding'
+import { runtimeScheduleSessionFactory } from './schedules/sessionFactory'
 import { settleScheduleCommand } from './schedules/settle'
 
 import { lazyRuntimeResources } from './resources/load'
@@ -702,7 +703,25 @@ async function serve(
     })
     const isUsageHistoryOn = options.usageHistory ?? true
     const resources = resourcesFor(log, undefined, () => isUsageHistoryOn)
-    const loadSchedules = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
+    const scheduleSessions = runtimeScheduleSessionFactory({
+      current: runtime,
+      create: (backend) => runtimeFor({ ...options, backend }, log),
+      distDir,
+      dataDir: agentDataFolder({
+        platform: process.platform,
+        env: process.env,
+        homeDir: homedir(),
+      }),
+      log,
+      allowsContributorModels: options.allowsContributorModels,
+    })
+    const loadSchedules = runtimeSchedulesBinding(
+      path.join(distDir, 'schedules.js'),
+      log,
+      undefined,
+      undefined,
+      scheduleSessions.ports,
+    )
     let loadedSchedules: Awaited<ReturnType<typeof loadSchedules>> | undefined
     const usage = usageFor(log, recording, runtime, isUsageHistoryOn)
     const journal = await reportJournal(log)
@@ -729,9 +748,9 @@ async function serve(
     const reports = runtimeReports(log)
     const agent = engine.createAcpAgent({
       schedules: {
-        async holdWorkspace(cwd) {
+        async holdWorkspace(cwd, session) {
           loadedSchedules ??= await loadSchedules()
-          return await loadedSchedules.holdWorkspace(cwd)
+          return await loadedSchedules.holdWorkspace(cwd, session)
         },
         async run(text, context) {
           try {
@@ -866,15 +885,19 @@ async function serve(
         await loadedSchedules?.close()
       } finally {
         try {
-          await usage.dispose()
+          await scheduleSessions.close()
         } finally {
           try {
-            resources.dispose()
+            await usage.dispose()
           } finally {
             try {
-              await runtime.close()
+              resources.dispose()
             } finally {
-              await journal.shutdown()
+              try {
+                await runtime.close()
+              } finally {
+                await journal.shutdown()
+              }
             }
           }
         }
@@ -1235,7 +1258,28 @@ async function main(): Promise<number> {
       )().runRuntimeSharing(command, sharingPorts(log), UI_TEXT, uiLocale())
     }
     case 'schedule': {
-      const load = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
+      const scheduleSessions = runtimeScheduleSessionFactory({
+        create: (backend) => {
+          const parsed = parseCommandLine(['serve', '--backend', backend])
+          if (parsed.command !== 'serve') throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+          return runtimeFor(parsed.options, log)
+        },
+        distDir,
+        dataDir: agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        }),
+        log,
+        allowsContributorModels: false,
+      })
+      const load = runtimeSchedulesBinding(
+        path.join(distDir, 'schedules.js'),
+        log,
+        undefined,
+        undefined,
+        scheduleSessions.ports,
+      )
       let afterWake: (() => Promise<void>) | undefined
       try {
         if (
@@ -1284,7 +1328,11 @@ async function main(): Promise<number> {
             try {
               await binding.close()
             } finally {
-              await afterWake?.()
+              try {
+                await scheduleSessions.close()
+              } finally {
+                await afterWake?.()
+              }
             }
           },
         )
@@ -1298,6 +1346,8 @@ async function main(): Promise<number> {
           command.options.isJson ? JSON.stringify({ kind: 'refused', reason }) : reason,
         )
         return EXIT_FAILED
+      } finally {
+        await scheduleSessions.close()
       }
     }
     case 'vault': {

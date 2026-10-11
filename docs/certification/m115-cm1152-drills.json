@@ -1,0 +1,115 @@
+[
+  {
+    "mutation": "delivery-binding",
+    "file": "src/runtime/schedules/engine.ts",
+    "exitCode": 1,
+    "sha256": "de7ea8513d5db28f00edbf4235bf5891854f8edccaa8ab302e32dfaf8e55a76d",
+    "restoredSha256": "de7ea8513d5db28f00edbf4235bf5891854f8edccaa8ab302e32dfaf8e55a76d",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > keeps borrowed parent turn ownership when child turn events arrive",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > normalizes workspace spellings before holding, routing and borrowing ACP targets",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > withdraws a queued scheduled message without cancelling its borrowed user turn",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > delivers steer through scheduled backend entry points",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > delivers interrupt through scheduled backend entry points",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > delivers queue through scheduled backend entry points",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > delivers newConversation through scheduled backend entry points",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > delivers whenIdle through scheduled backend entry points",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > ends an interrupt waiting for backend idle when the runtime closes",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > borrows ACP ownership and records refused actions without interactive approval",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > honors live grants and audits the matched rule",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > opens a background session in the persisted workspace and settles exactly once across restart",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > holds CLI run-now without enabling a polling lifetime"
+    ]
+  },
+  {
+    "mutation": "paid-admission",
+    "file": "src/runtime/schedules/engine.ts",
+    "exitCode": 1,
+    "sha256": "de7ea8513d5db28f00edbf4235bf5891854f8edccaa8ab302e32dfaf8e55a76d",
+    "restoredSha256": "de7ea8513d5db28f00edbf4235bf5891854f8edccaa8ab302e32dfaf8e55a76d",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > records missing paid authority as refused without submitting a Model API request"
+    ]
+  },
+  {
+    "mutation": "root-binding",
+    "file": "src/runtime/schedules/registry.ts",
+    "exitCode": 1,
+    "sha256": "ce06558642013e8ac5bf03fe6e524815de76784c89146b0011d83de5108a4dc1",
+    "restoredSha256": "ce06558642013e8ac5bf03fe6e524815de76784c89146b0011d83de5108a4dc1",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > persisted runtime workspace paths > rejects forged persisted path bindings and preserves legacy keys without guessing a root"
+    ]
+  },
+  {
+    "mutation": "workspace-normalization",
+    "file": "src/runtime/schedules/runtime.ts",
+    "exitCode": 1,
+    "sha256": "7ee4e7a5cabde316a2be7dd9fc4f2db8ba07c3506af6d07ae4b840474ea07318",
+    "restoredSha256": "7ee4e7a5cabde316a2be7dd9fc4f2db8ba07c3506af6d07ae4b840474ea07318",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > normalizes workspace spellings before holding, routing and borrowing ACP targets"
+    ]
+  },
+  {
+    "mutation": "parent-turn",
+    "file": "src/runtime/schedules/delivery.ts",
+    "exitCode": 1,
+    "sha256": "280e79b4369ac16bd0df615cb24822bade7cea55bdc9640beb970dc5a103084e",
+    "restoredSha256": "280e79b4369ac16bd0df615cb24822bade7cea55bdc9640beb970dc5a103084e",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > keeps borrowed parent turn ownership when child turn events arrive"
+    ]
+  },
+  {
+    "mutation": "shutdown-idle",
+    "file": "src/runtime/schedules/delivery.ts",
+    "exitCode": 1,
+    "sha256": "280e79b4369ac16bd0df615cb24822bade7cea55bdc9640beb970dc5a103084e",
+    "restoredSha256": "280e79b4369ac16bd0df615cb24822bade7cea55bdc9640beb970dc5a103084e",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > ends an interrupt waiting for backend idle when the runtime closes"
+    ]
+  },
+  {
+    "mutation": "audit-serialization",
+    "file": "src/runtime/schedules/authorityStore.ts",
+    "exitCode": 1,
+    "sha256": "89d76a9e6c88848280265097d443b51687b72b784fa58b122865096ee1a58930",
+    "restoredSha256": "89d76a9e6c88848280265097d443b51687b72b784fa58b122865096ee1a58930",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > persisted runtime workspace paths > keeps every audit entry when schedules use their grants concurrently"
+    ]
+  },
+  {
+    "mutation": "stdio-delivery",
+    "file": "src/runtime/schedules/engine.ts",
+    "exitCode": 1,
+    "sha256": "de7ea8513d5db28f00edbf4235bf5891854f8edccaa8ab302e32dfaf8e55a76d",
+    "restoredSha256": "de7ea8513d5db28f00edbf4235bf5891854f8edccaa8ab302e32dfaf8e55a76d",
+    "namedFailures": [
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > schedule CLI process boundary > returns a stable JSON refusal when the real scheduler bundle is absent",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > run-due across process restart > opens and settles a background backend session in its persisted workspace",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > run-due across process restart > never dispatches the claimed occurrence again after process restart",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > real ACP runtime route with fake Muse Code CLI > delivers the scheduled prompt and records refused shell actions",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > real ACP runtime route with fake Muse Code CLI > emits refusal rows as session updates without an interactive approval",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > Model API over loopback with supplied paid policy > settles the run and records denied actions without a permission card",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > Model API over loopback with supplied paid policy > sends the scheduled note with the user input over real HTTP"
+    ]
+  },
+  {
+    "mutation": "stdio-paid-refusal",
+    "file": "test/e2e/scheduleRuntimeWorker.ts",
+    "exitCode": 1,
+    "sha256": "a8138da6c43707eaea2a5c7822354a0edb26891b973f24c49662994774fd7001",
+    "restoredSha256": "a8138da6c43707eaea2a5c7822354a0edb26891b973f24c49662994774fd7001",
+    "namedFailures": [
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > run-due across process restart > opens and settles a background backend session in its persisted workspace",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > run-due across process restart > never dispatches the claimed occurrence again after process restart",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > Model API over loopback with supplied paid policy > settles the run and records denied actions without a permission card",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > Model API over loopback with supplied paid policy > sends the scheduled note with the user input over real HTTP",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > Model API without paid policy > records the fire as refused",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > Model API without paid policy > sends no response request and opens no permission card"
+    ]
+  }
+]
