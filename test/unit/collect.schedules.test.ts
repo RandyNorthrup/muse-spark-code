@@ -2,55 +2,18 @@ import { describe, expect, it } from 'vitest'
 import { schedulesSections, type SchedulesView } from '../../src/core/reporting/collect/schedules'
 import { scheduleFireRecordSchema, scheduleV2Schema } from '../../src/shared/scheduleV2'
 import { collectFixture, fullSnapshot, getSection } from './helpers/reporting/collect'
+import {
+  FIXTURE_WORKSPACE_KEY,
+  fireFixture,
+  scheduleFixture,
+} from './helpers/reporting/reportKindFixtures'
 import { availableSource, reportOptions } from './helpers/reporting/snapshot'
 
-const workspaceKey = 'fixture-workspace'
 function schedule(overrides: Record<string, unknown> = {}) {
-  return scheduleV2Schema.parse({
-    version: 2,
-    revision: 0,
-    id: 'sched-1',
-    name: 'Morning build',
-    workspaceKey,
-    action: { kind: 'prompt', prompt: 'Run the gates' },
-    trigger: { kind: 'interval', everyMs: 3_600_000, anchorMs: 1000 },
-    target: { kind: 'newConversation', backend: 'modelApi' },
-    delivery: 'newConversation',
-    whenClosed: 'open',
-    catchUp: 'runOnce',
-    mode: 'manual',
-    grant: { rules: [], destinationIds: [], paidCapUsd: '0' },
-    paidCapUsd: '0',
-    parallel: false,
-    creator: { kind: 'user' },
-    depth: 0,
-    allowAgentReschedule: false,
-    pinned: false,
-    zone: 'UTC',
-    paused: false,
-    createdAtMs: 1000,
-    updatedAtMs: 1000,
-    nextFireAtMs: 2000,
-    fireCount: 0,
-    consecutiveFailures: 0,
-    ...overrides,
-  })
+  return scheduleV2Schema.parse(scheduleFixture(FIXTURE_WORKSPACE_KEY, overrides))
 }
 function fire(overrides: Record<string, unknown> = {}) {
-  return scheduleFireRecordSchema.parse({
-    runId: 'sched-1:1',
-    scheduleId: 'sched-1',
-    workspaceKey,
-    occurrenceMs: 1500,
-    observedAtMs: 1600,
-    target: { kind: 'newConversation', backend: 'modelApi' },
-    delivery: 'newConversation',
-    outcome: 'refused',
-    reason: 'Grant required',
-    refusedActions: [{ actionClass: 'shell', tool: 'exec', reason: 'No grant rule' }],
-    cost: { usd: '1.25', certainty: 'estimated', retainedLiabilityUsd: '0' },
-    ...overrides,
-  })
+  return scheduleFireRecordSchema.parse(fireFixture(overrides))
 }
 const view: SchedulesView = {
   schedules: [

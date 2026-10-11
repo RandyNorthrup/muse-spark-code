@@ -7,51 +7,26 @@ import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { scheduleFireRecordSchema, scheduleV2Schema } from '../../src/shared/scheduleV2'
+import {
+  FIXTURE_WORKSPACE_KEY,
+  fireFixture,
+  scheduleFixture,
+  sectionById,
+} from './helpers/reporting/reportKindFixtures'
 import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/snapshot'
 
 setUiText(EN, 'en')
 
-const workspaceKey = 'fixture-workspace'
-const schedule = scheduleV2Schema.parse({
-  version: 2,
-  revision: 0,
-  id: 'sched-1',
-  name: 'Morning build private-canary',
-  workspaceKey,
-  action: { kind: 'prompt', prompt: 'Run the gates' },
-  trigger: { kind: 'interval', everyMs: 3_600_000, anchorMs: 1000 },
-  target: { kind: 'newConversation', backend: 'modelApi' },
-  delivery: 'newConversation',
-  whenClosed: 'open',
-  catchUp: 'runOnce',
-  mode: 'manual',
-  grant: { rules: [], destinationIds: [], paidCapUsd: '0' },
-  paidCapUsd: '0',
-  parallel: false,
-  creator: { kind: 'user' },
-  depth: 0,
-  allowAgentReschedule: false,
-  pinned: false,
-  zone: 'UTC',
-  paused: false,
-  createdAtMs: 1000,
-  updatedAtMs: 1000,
-  nextFireAtMs: 2000,
-  fireCount: 0,
-  consecutiveFailures: 0,
-})
-const fire = scheduleFireRecordSchema.parse({
-  runId: 'sched-1:1',
-  scheduleId: 'sched-1',
-  workspaceKey,
-  occurrenceMs: 1500,
-  observedAtMs: 1600,
-  target: { kind: 'newConversation', backend: 'modelApi' },
-  delivery: 'newConversation',
-  outcome: 'ran',
-  refusedActions: [],
-  cost: { usd: '2.5', certainty: 'exact', retainedLiabilityUsd: '0' },
-})
+const schedule = scheduleV2Schema.parse(
+  scheduleFixture(FIXTURE_WORKSPACE_KEY, { name: 'Morning build private-canary' }),
+)
+const fire = scheduleFireRecordSchema.parse(
+  fireFixture({
+    outcome: 'ran',
+    refusedActions: [],
+    cost: { usd: '2.5', certainty: 'exact', retainedLiabilityUsd: '0' },
+  }),
+)
 // Storage shapes, not schema instances: the source validates what it reads.
 const stored = <T>(value: T): T => structuredClone(value)
 
@@ -68,14 +43,6 @@ const reader = (
 ): SchedulesReportReader => ({
   read: () => Promise.resolve({ schedules, fires, observedAt: REPORT_FIXTURE_AS_OF }),
 })
-const sectionById = (data: readonly { id: string }[] | null, id: string) => {
-  if (data === null) throw new Error('Expected schedules sections')
-  const section = data.find((entry) => entry.id === id)
-  if (section === undefined) throw new Error(`Missing section ${id}`)
-  return section as unknown as {
-    rows: { cells: Record<string, { type: string; value: unknown }> }[]
-  }
-}
 
 describe('schedules source', () => {
   it('builds the five sections from store rows and fires', async () => {

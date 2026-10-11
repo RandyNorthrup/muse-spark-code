@@ -44,6 +44,22 @@ happened, not what was planned; superseded entries are kept.
   inputs load lazily in `dist/reportInputs.js` (100 KiB budget), off the
   reporting engine's budget, and failures thrown across the bundle boundary
   keep their source code instead of degrading to a generic read failure.
+- **Playbook and schedules report kinds are real end to end** (M113 C-M113-4).
+  `/report playbook` reads M116's orchestrator journal through the owner's
+  replay, so strike counts per module and class match enforcement; design
+  decisions carry their outcomes, gate drills their pass/fail records, and
+  every disabled rule its reason and actor, with route-around refusals in
+  their own section. `--module <glob>` and `--milestone <id>` filter
+  modules while workspace-wide rows stay. `/report schedules` reads M115's
+  store and fire record: upcoming fires with collisions, triggers, targets,
+  delivery, grants and creators, recent fires with outcomes, refused actions
+  and cost with a summed total. Until delivery is registered no v2 fire
+  exists, so the fire sections stay empty instead of invented. Both kinds
+  work in VS Code, ACP and the terminal without a model call, through a new
+  lazy `dist/playbookSchedulesInputs.js` chunk (50.5 KiB measured, 75 KiB
+  budget) beside the session/usage chunk, whose budget stays unchanged;
+  only their two kind-table lines changed, and every other kind still
+  reports unavailable as before.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

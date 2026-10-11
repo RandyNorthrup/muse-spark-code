@@ -6,83 +6,16 @@ import {
 import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
+import {
+  playbookJournalFixture,
+  playbookModuleFixture,
+  sectionById,
+} from './helpers/reporting/reportKindFixtures'
 import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/snapshot'
 
 setUiText(EN, 'en')
 
-const MODULE = { id: 'm1', key: 'src/alpha', files: ['src/alpha/index.ts'], source: 'lane' }
-const journal: readonly unknown[] = [
-  { kind: 'module', value: { module: MODULE, at: 1000 } },
-  {
-    kind: 'round',
-    value: {
-      module: MODULE,
-      implementerId: 'dev',
-      reviewerId: 'rev',
-      implementerSessionId: 's1',
-      reviewerSessionId: 's2',
-      round: 1,
-      phase: 'build',
-      findings: [{ id: 'f1', file: 'src/alpha/index.ts', severity: 'P1', class: 'validation' }],
-      answers: [{ findingId: 'f1', status: 'fixed' }],
-      at: 2000,
-    },
-  },
-  {
-    kind: 'design',
-    value: {
-      id: 'd1',
-      module: MODULE,
-      failureClass: 'Checks raced private-canary',
-      whyPatchesFailed: 'Patches raced',
-      structuralChange: 'One atomic claim',
-      planLocation: 'PLAN.md',
-      redesignLane: 'C-M113-4',
-      outcome: 'remains',
-      at: 4000,
-    },
-  },
-  {
-    kind: 'verification',
-    value: {
-      workId: 'w1',
-      moduleId: 'm1',
-      commit: 'abc123',
-      hookDigest: 'h1',
-      scope: 'commit',
-      result: 'pass',
-      at: 5000,
-    },
-  },
-  {
-    kind: 'settings',
-    value: {
-      teamId: 't1',
-      rules: {
-        threeStrikes: { enabled: true },
-        onePassReview: { enabled: true },
-        contractsFirst: { enabled: true },
-        smallFirst: { enabled: true },
-        offload: { enabled: true },
-        continuousIntegration: { enabled: true },
-        breakOnPurpose: { enabled: true },
-        loudFailures: { enabled: false, reason: 'Too noisy', actor: 'lead', at: 6000 },
-      },
-      patchRoundsMax: 2,
-    },
-  },
-  {
-    kind: 'note',
-    value: {
-      rule: 'neverAround',
-      code: 'lineageRequired',
-      module: 'src/alpha',
-      laneId: 'C-M113-4',
-      at: 8000,
-      needsUser: true,
-    },
-  },
-]
+const journal = playbookJournalFixture()
 
 const scrub = (text: string) => text.replaceAll('private-canary', '[redacted]')
 const context = (kind: 'playbook' | 'usage' = 'playbook') => ({
@@ -94,32 +27,24 @@ const context = (kind: 'playbook' | 'usage' = 'playbook') => ({
 const reader = (records: readonly unknown[]): PlaybookReportReader => ({
   read: () => Promise.resolve({ records, observedAt: REPORT_FIXTURE_AS_OF }),
 })
-const sectionById = (data: readonly { id: string }[] | null, id: string) => {
-  if (data === null) throw new Error('Expected playbook sections')
-  const section = data.find((entry) => entry.id === id)
-  if (section === undefined) throw new Error(`Missing section ${id}`)
-  return section as unknown as {
-    rows: { cells: Record<string, { type: string; value: unknown }> }[]
-  }
-}
 
 describe('playbook source', () => {
   it('builds the five sections from journal records with replayed strikes', async () => {
     const result = await playbookSource(reader(journal), scrub).read(context())
     expect(result.record.status).toBe('ok')
     const totals = sectionById(result.data, 'playbook/totals')
-    expect(totals.rows.map((row) => row.cells)).toEqual([
-      {
-        module: { type: 'text', value: 'src/alpha' },
-        class: { type: 'text', value: 'all' },
-        strikes: { type: 'count', value: 1 },
-        rounds: { type: 'count', value: 1 },
-      },
-    ])
+    // One aggregate round replayed to one strike; the exact section shape
+    // is the collect suite's job, the replayed values are this suite's.
+    expect(totals.rows).toHaveLength(1)
+    const strikes = totals.rows[0]!.cells
+    expect(strikes['module']).toEqual({ type: 'text', value: 'src/alpha' })
+    expect(strikes['class']).toEqual({ type: 'text', value: 'all' })
+    expect(strikes['strikes']).toEqual({ type: 'count', value: 1 })
+    expect(strikes['rounds']).toEqual({ type: 'count', value: 1 })
     const decisions = sectionById(result.data, 'playbook/decisions')
     expect(decisions.rows[0]!.cells).toMatchObject({
       outcome: { type: 'text', value: 'remains' },
-      // Secrets never reach a report cell, even inside journal prose.
+      failure: { type: 'text', value: 'Checks raced [redacted]' },
       date: { type: 'timestamp', value: '1970-01-01T00:00:04.000Z' },
     })
     expect(JSON.stringify(decisions)).not.toContain('private-canary')
@@ -148,14 +73,15 @@ describe('playbook source', () => {
   })
 
   it('reports malformed lines and inconsistent replays as invalid, never empty success', async () => {
+    const module = playbookModuleFixture()
     for (const records of [
-      [{ kind: 'module', value: { module: MODULE } }],
+      [{ kind: 'module', value: { module } }],
       [
-        { kind: 'module', value: { module: MODULE, at: 1000 } },
+        { kind: 'module', value: { module, at: 1000 } },
         {
           kind: 'round',
           value: {
-            module: { ...MODULE, id: 'unknown' },
+            module: { ...module, id: 'unknown' },
             implementerId: 'dev',
             reviewerId: 'rev',
             implementerSessionId: 's1',

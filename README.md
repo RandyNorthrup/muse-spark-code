@@ -224,11 +224,12 @@ visible as unavailable.
 | Quality                     | `/report quality`                                                                           |
 | Usage                       | `/report usage today`; also `7d`, `30d`, `90d`, `week`, `month` or a date range             |
 | Session                     | `/report session`; `--session <id>` reads a stored session (terminal)                       |
-| Playbook                    | `/report playbook`                                                                          |
+| Playbook                    | `/report playbook`; `--module <glob>` and `--milestone <id>` filter modules                 |
 | Issues                      | `/report issues`                                                                            |
 | Estimate                    | `/report estimate M113`                                                                     |
 | Fleet / security / accounts | `/report fleet`, `/report security`, `/report accounts`; future source bindings unavailable |
-| Schedules / keybindings     | `/report schedules`, `/report keybindings`; owning host bindings unavailable                |
+| Schedules                   | `/report schedules`                                                                         |
+| Keybindings                 | `/report keybindings`; owning host binding unavailable                                      |
 
 Each table shows at most ten rows with an omitted-row count; `--full` retains
 all available rows. Next steps follow the plan's declared delivery order and
@@ -250,7 +251,20 @@ journal snapshot per generation. Damaged, incomplete, newer-version or
 unattributable evidence is disclosed in partial source rows. Limits respect
 the selected period; live finite daily and conversation budgets use the
 usage page's snapshots when available in that period. Historical or unbound
-budget snapshots are explicitly unavailable.
+budget snapshots are explicitly unavailable. The playbook report reads the
+orchestrator journal through the same replay the policy uses, so its
+three-strikes counts per module and class match enforcement: design
+decisions with their outcomes, gate drill records, every rule turned off
+with its reason and actor, and the route-around refusals. `--module
+<glob>` keeps matching modules (`*` stays inside one path segment, `**`
+crosses them); `--milestone <id>` keeps modules, lanes and decisions
+naming it; workspace-wide rows stay in both cases. The schedules report
+reads the workspace's schedules and fire record: the timeline of upcoming
+fires with collisions, each schedule's trigger, target, delivery, grant
+and creator, recent fires with outcomes, refused actions and cost. Until
+delivery is registered no v2 fire exists, so the fire sections stay
+empty instead of invented. Both kinds work in VS Code, ACP and the
+terminal without a model call.
 
 The tab provides **Save as…**, **Copy as Markdown**, **Attach to message**,
 **History**, **Diff with previous** and **Refresh**. Save as exports Markdown,
