@@ -39,7 +39,7 @@ import { nextScheduleTime } from '../../core/schedules/time/scheduleTime'
 import { agentDataFolder, workspaceKey } from '../dataFolder'
 import { createAuthorityStore } from './authorityStore'
 import { createBackgroundConsentStore } from './consent'
-import { createScheduleControl } from './control'
+import { createScheduleControl, type ScheduleControlDeps } from './control'
 import { createWorkspaceRegistry } from './registry'
 import { scheduleTimePlan } from './timePlan'
 import type { ScheduleControlPort } from './command'
@@ -348,15 +348,15 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     const key = workspaceKey(path.resolve(cwd))
     const existing = controls.get(key)
     if (existing !== undefined) return Promise.resolve(existing)
+    let consent: ScheduleControlDeps['consent'] = options.consent
+    if (
+      consent === undefined &&
+      runtimeDelivery !== undefined &&
+      options.runtimeDelivery?.billing !== undefined
+    )
+      consent = (schedule, caller) => runtimeDelivery.consent(schedule, path.resolve(cwd), caller)
     const control = createScheduleControl({
-      ...(options.consent === undefined
-        ? runtimeDelivery !== undefined && options.runtimeDelivery?.billing !== undefined
-          ? {
-              consent: (schedule, caller) =>
-                runtimeDelivery.consent(schedule, path.resolve(cwd), caller),
-            }
-          : {}
-        : { consent: options.consent }),
+      ...(consent !== undefined && { consent }),
       store,
       authority,
       scheduler,

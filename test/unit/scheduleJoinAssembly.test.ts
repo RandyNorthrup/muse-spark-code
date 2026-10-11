@@ -82,7 +82,10 @@ it.each(['VS Code window', 'ACP', 'CLI run-due'] as const)(
     let stored: ScheduleV2 | undefined
     let dispatchChecks = 0
     const transport: typeof fetch = async (input, init) => {
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      let url: string
+      if (typeof input === 'string') url = input
+      else if (input instanceof URL) url = input.href
+      else url = input.url
       if (url.endsWith('/responses')) {
         if (stored === undefined) throw new Error('dispatch before schedule persistence')
         const shared = await journal.readExisting(day, PAID_DAILY_BUDGET.accountId)

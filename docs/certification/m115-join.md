@@ -82,3 +82,34 @@ A completed-turn/late-retirement cost regression first failed with outcome
 `refused`, then passed after completion stopped being downgraded by a later
 authority retirement. Known delivered output remains delivered with unknown
 cost; initial authority refusal still records refused before HTTP.
+
+## Final byte ownership and static controls
+
+The first schedule surface excludes paidBinding and runtime-only delivery;
+paid consent/formatter use the existing reviewer helper, while runtime
+session ownership uses runtimeEngine already shipped in the runtime archive.
+No new chunk or cap increase. Production-options measurements follow.
+
+| Existing row         | Before (bytes) | Final (bytes) | Unchanged cap (bytes) |
+| -------------------- | -------------: | ------------: | --------------------: |
+| schedules.js         |         221521 |        197081 |                204800 |
+| runtimeEngine.js     |         649318 |        695408 |                896000 |
+| runtimeAccounting.js |          34062 |         34062 |                 51200 |
+| reviewer.js          |          48228 |         65271 |                 76800 |
+
+These independent measurements do not replace the production gate. Full
+`npm run build` exits 1 before artifacts at the inherited What's New decode
+bound (`encodeWhatsNewContent`, scripts/lib/whatsNewContent.mjs). The accepted
+fix/whatsnew-budget integration remains with the lead; no unlisted branch was
+merged and no guard was bypassed. Full scheduleBackground and SchedulePanel
+rows remain unmeasured until that build can complete.
+
+Final five-project typecheck, Prettier, 14-language localization, reference,
+host API, plan, roadmap and cycles passed. Knip's worker discovery was repaired
+with an explicit entry, not an ignore. Duplication is zero after shared test
+submission waits and shared Windows temp cleanup; assertions remain intact.
+ESLint/Prettier disagreement over nested ternary parentheses was fixed with
+explicit branches. The complete affected matrix/window/Windows-path batch
+passed 109 tests, at repository deadlines. Graph ownership plus window/runtime
+checks passed 72; warmed real-process recovery passed all five at default
+five-second test deadlines.

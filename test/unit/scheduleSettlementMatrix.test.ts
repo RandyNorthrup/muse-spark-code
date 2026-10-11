@@ -141,13 +141,10 @@ describe('scheduler settlement ownership across every exit and entry', () => {
       expect(await store.pending(first.workspaceKey)).toEqual([])
       expect(scheduler.blockedRuns()).toEqual([])
       const fire = fires.find((fire) => fire.scheduleId === first.id)!
-      expect(fire.outcome).toBe(
-        exit === 'returned' || exit === 'cost read failed'
-          ? 'ran'
-          : exit === 'refused'
-            ? 'refused'
-            : 'uncertain',
-      )
+      let expectedOutcome: ScheduleFireRecord['outcome'] = 'uncertain'
+      if (exit === 'returned' || exit === 'cost read failed') expectedOutcome = 'ran'
+      else if (exit === 'refused') expectedOutcome = 'refused'
+      expect(fire.outcome).toBe(expectedOutcome)
       if (fire.outcome === 'uncertain')
         expect(fire).toMatchObject({
           reason: UI_TEXT.scheduleV2.messages.dispatchUncertain,

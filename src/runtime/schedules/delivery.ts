@@ -140,6 +140,21 @@ export function createRuntimeScheduleDelivery(
           if (owner === undefined) ports.row(text)
           else owner.row(text)
         }
+        let paid: ScheduleEditorDeliveryPorts['paid']
+        if (ports.billing !== undefined)
+          paid = async (job, agent, context, authority) => {
+            // Native subscription turns need no Model API billing route.
+            if ('backend' in job.target && job.target.backend === 'museCode')
+              return await ports.paid?.(job, agent, context, authority)
+            if (ports.billing === undefined) throw unavailable()
+            return await createScheduleBilling(await ports.billing(root, agent.modelId)).paid(
+              job,
+              agent,
+              context,
+              authority,
+            )
+          }
+        else if (ports.paid !== undefined) paid = async (...args) => await ports.paid?.(...args)
         const binding = createScheduleDeliveryBinding(
           {
             workspaceRoot: root,
@@ -215,21 +230,7 @@ export function createRuntimeScheduleDelivery(
               // UnattendedRun enforces the portable class/path policy. The
               // runtime installs no additional physical or vault adapters.
             },
-            ...(ports.billing === undefined
-              ? ports.paid === undefined
-                ? {}
-                : { paid: ports.paid }
-              : {
-                  paid: async (job, agent, context, authority) => {
-                    // Native subscription turns need no Model API billing route.
-                    if ('backend' in job.target && job.target.backend === 'museCode')
-                      return await ports.paid?.(job, agent, context, authority)
-                    if (ports.billing === undefined) throw unavailable()
-                    return await createScheduleBilling(
-                      await ports.billing(root, agent.modelId),
-                    ).paid(job, agent, context, authority)
-                  },
-                }),
+            ...(paid !== undefined && { paid }),
           },
           authority,
         )

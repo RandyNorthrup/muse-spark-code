@@ -21,6 +21,11 @@ vi.mock('../../src/core/resources/launcher', async (original) => {
   return { ...actual, execResourceFile: fixtureResourceCommand }
 })
 
+async function removeOwnedDirectory(directory: string) {
+  expect(path.dirname(path.resolve(directory))).toBe(path.resolve(os.tmpdir()))
+  await rm(directory, { recursive: true, force: true })
+}
+
 const vectors = z
   .strictObject({
     version: z.literal(1),
@@ -205,8 +210,7 @@ describe('shared Windows trusted-path vectors', () => {
         await windowsTrustedPathVerifier(run, io).verify(leaf, { leafKind: 'file' }),
       ).toMatchObject({ refused: true, component: leaf })
     } finally {
-      expect(path.dirname(path.resolve(directory))).toBe(path.resolve(os.tmpdir()))
-      await rm(directory, { recursive: true, force: true })
+      await removeOwnedDirectory(directory)
     }
   })
 
@@ -278,8 +282,7 @@ describe('shared Windows trusted-path vectors', () => {
         ok: true,
       })
     } finally {
-      expect(path.dirname(path.resolve(directory))).toBe(path.resolve(os.tmpdir()))
-      await rm(directory, { recursive: true, force: true })
+      await removeOwnedDirectory(directory)
     }
   })
 })

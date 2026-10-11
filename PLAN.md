@@ -35885,10 +35885,11 @@ never this owner's MacBook. Receipts: `docs/certification/m115-join.md`.
 - [x] Join all three reviewed heads with both authority and lifecycle behavior.
 - [x] Core settlement and dispatch journal implemented; known, never-dispatched
       and ambiguous recovery plus legacy fail-closed rows have regressions.
-- [ ] Existing lazy owners: paid consent/pricing uses reviewer.js; runtime
+- [x] Existing lazy owners: paid consent/pricing uses reviewer.js; runtime
       session ownership uses runtimeEngine.js, already in the runtime archive.
       Keep schedules.js at 200 KiB and every existing cap unchanged; measure
-      closure/source ownership and all schedules rows before/after.
+      closure/source ownership; schedules fit the unchanged 200 KiB cap.
+      Full artifact rows await the accepted What's New integration at the lead.
 - [ ] Dependent suites, red drills and scoped gates; lead cross-platform replay.
       The full production assembly test cannot run on MacBook: native resource
       retirement requires the forbidden muse-dictate helper, absent in this

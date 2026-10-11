@@ -273,18 +273,16 @@ export function createScheduler(deps: SchedulerDeps) {
       // but absence/admission cannot keep a dispatched fire replayable.
       try {
         const after = scheduleDeliveryStateSchema.parse(await deps.host.lookupRun(intent.runId))
-        result =
-          after.status === 'settled' || after.status === 'uncertain'
-            ? validateScheduleSettlement(
-                delivery.schedule,
-                delivery.runId,
-                delivery.occurrenceMs,
-                after.fire,
-                delivery.event,
-              )
-            : hasReturned
-              ? await deps.failureSettlement(delivery, error)
-              : uncertain(delivery)
+        if (after.status === 'settled' || after.status === 'uncertain')
+          result = validateScheduleSettlement(
+            delivery.schedule,
+            delivery.runId,
+            delivery.occurrenceMs,
+            after.fire,
+            delivery.event,
+          )
+        else if (hasReturned) result = await deps.failureSettlement(delivery, error)
+        else result = uncertain(delivery)
       } catch {
         result = uncertain(delivery)
       }

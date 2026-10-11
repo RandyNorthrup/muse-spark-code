@@ -44,6 +44,12 @@ class ScheduledSession extends FakeAgentSession implements ScheduledAgentSession
   readonly steerScheduledTurn = vi.fn<ScheduledAgentSession['steerScheduledTurn']>(unusedSteer)
 }
 
+async function waitForSubmission(agent: ScheduledSession) {
+  await vi.waitFor(() => {
+    expect(agent.sendScheduledTurn).toHaveBeenCalledOnce()
+  })
+}
+
 async function fixture(backend: 'museCode' | 'modelApi' = 'museCode') {
   const agent = new ScheduledSession('session-1', 'chosen-model')
   const host = new FakeAgentHost()
@@ -271,9 +277,7 @@ describe('unregistered schedule delivery factory', () => {
       return record
     })()
     try {
-      await vi.waitFor(() => {
-        expect(rig.agent.sendScheduledTurn).toHaveBeenCalledOnce()
-      })
+      await waitForSubmission(rig.agent)
       rig.agent.emit({ type: 'turnCompleted', turnId: 'user-turn', terminal: 'completed' })
       await Promise.resolve()
       expect(isSettled).toBe(false)
@@ -288,9 +292,7 @@ describe('unregistered schedule delivery factory', () => {
     const rig = await fixture()
     const result = rig.run()
     try {
-      await vi.waitFor(() => {
-        expect(rig.agent.sendScheduledTurn).toHaveBeenCalledOnce()
-      })
+      await waitForSubmission(rig.agent)
       rig.abort.abort()
       expect(await result).toMatchObject({ outcome: 'skipped', cost: noScheduleCost() })
       expect(rig.agent.withdrawQueued).toHaveBeenCalledOnce()
@@ -313,9 +315,7 @@ describe('unregistered schedule delivery factory', () => {
     })
     const retired = expect(running).resolves.toMatchObject({ outcome: 'skipped' })
     try {
-      await vi.waitFor(() => {
-        expect(rig.agent.sendScheduledTurn).toHaveBeenCalledOnce()
-      })
+      await waitForSubmission(rig.agent)
       panel.abort()
       await retired
       expect(rig.abort.signal.aborted).toBe(false)
@@ -338,9 +338,7 @@ describe('unregistered schedule delivery factory', () => {
       })
     const running = rig.run()
     try {
-      await vi.waitFor(() => {
-        expect(rig.agent.sendScheduledTurn).toHaveBeenCalledOnce()
-      })
+      await waitForSubmission(rig.agent)
       rig.agent.emit({ type: 'turnCompleted', turnId: 'admitted', terminal: 'completed' })
       isActive = false
       expect(await running).toMatchObject({ outcome: 'ran', cost: { certainty: 'unknown' } })
@@ -362,9 +360,7 @@ describe('unregistered schedule delivery factory', () => {
       cost: { certainty: 'unknown' },
     })
     try {
-      await vi.waitFor(() => {
-        expect(rig.agent.sendScheduledTurn).toHaveBeenCalledOnce()
-      })
+      await waitForSubmission(rig.agent)
       rig.agent.emit({ type: 'turnCompleted', turnId: 'admitted', terminal: 'completed' })
       await settled
       expect(cost).toHaveBeenCalledOnce()
@@ -387,9 +383,7 @@ describe('unregistered schedule delivery factory', () => {
     rig.ports.paid = () => Promise.resolve(accounting)
     const result = rig.run()
     try {
-      await vi.waitFor(() => {
-        expect(rig.agent.sendScheduledTurn).toHaveBeenCalledOnce()
-      })
+      await waitForSubmission(rig.agent)
       rig.agent.emit({ type: 'turnCompleted', turnId: 'admitted', terminal: 'completed' })
       expect(await result).toMatchObject({ outcome: 'ran', cost: noScheduleCost() })
       expect(accounting.reads).toBe(1)
