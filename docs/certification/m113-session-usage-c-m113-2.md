@@ -315,3 +315,72 @@ question grammar's `[\s:—]` lookahead does not accept, so the reader skips
 that entry. It is answered (Resolved 2026-10-04), so no report path reads
 it; widening the grammar is a parser-coverage decision, not a duplicate,
 and is left for the lead.
+
+## Round 5 — RVCM1132D repair (Muse, 2026-10-11, macmini)
+
+Branch `c/m113-2`, base `d9899f417` (fresh worktree on this rig at the round-4
+HEAD). All 4 RVCM1132D findings (P2: 1; P3: 2–4) are fixed by class, not only
+at the cited line; the sweep result is recorded per row. No new dependency,
+paid/live call, credential, merge, push, guard relaxation, l10n change,
+reference change or hook change. No `eslint-disable`, `@ts-expect-error`, `as`
+cast or `any` added.
+
+| Finding                                                 | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Regression (fails without)                                                                                                                                                                                                                                                 | Red drill                                                                                                                                                                                                                                    |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2-1 duplicated ids still throw for milestone questions | New `planItemIdentities` in `collect/common.ts`: the collision-free entry keeps its bare identity (no key churn); entries sharing an id add their text; byte-identical copies add an ordinal. Swept every collector that keys plan items by id: `plan.ts` milestone questions/risks/residuals (`planQuestionRows`, `planRiskRows`, `planResidualRows`) and lanes (`laneRows` triple + distinguishing fields), `repository.ts` project risks/residuals, `session.ts` session questions. `needsYou.ts` already disambiguated and is untouched. | collect.milestone duplicate-ids test (4 questions incl. a byte-identical pair, 2 risks, 2 residuals, 3 lanes incl. an identical pair: all rows kept, all keys unique) + bare-id stability test (`key('question', 'Q-M12')` unchanged); engine milestone-M12 generate below | D1: helper forced to bare identities → collector test red (`expected 4 keys unique, got collision`); restored byte-exact (`sha256sum -c` OK, `common.ts` `64f4d3e7…`)                                                                        |
+| P3-2 budget sentence printed twice on a partial journal | New `pushPartialReason` in `sources/local.ts`: sentence-set semantics — an existing entry containing the sentence skips it, entries contained in the new reason fold into it. Used at all three sites: `reportUsage.ts` `usageReportFacts`, `reportInputs.ts` journal-reader catch (replaces the `Set`+`join` that built the unmatchable joined string) and the session reader.                                                                                                                                                              | reportUsage RVCM1132D test (joined `journalIncomplete + budgetsUnavailable` partial with budgets unset → sentence exactly once); reportInputs RVCM1132D test (damaged journal + thrown budget read → once on journal and usage partials, journalIncomplete kept)           | D2: helper reverted to whole-element `includes` → `expected split length 2 but got 3` red; restored byte-exact (`local.ts` `949e1726…`)                                                                                                      |
+| P3-3 duplicated-id engine test cannot fail              | Fixture now carries a milestones section (`### M12 — Fixture`, `planned`) with every duplicate body mentioning M12, and generates the `milestone M12` kind too (usage/session always passed via `needsYou`). `readPlan` on the fixture returns `plan-format-v1` with 4 questions attached to M12.                                                                                                                                                                                                                                            | engine `generates every kind with a duplicated open-question id` (usage + session + milestone M12 all `generated`)                                                                                                                                                         | D3: with the finding-1 guard broken, the new fixture test fails with `Invalid report document` from `canonical.ts:38` — the review's exit-1 scenario; the old fixture stayed green under the same break (vacuous). Guard restored byte-exact |
+| P3-4 real-PLAN usage took 4.4 s of the 5 s timeout      | `engine.ts` no longer parses the plan twice: the plan source read carries only the scrubbed text (`emptyPlanFacts()` placeholder from `reader.ts`); the single `readPlan` runs below with lane evidence (branches, PRs, certificates). The first parse's result was always discarded, so output is unchanged. Real-PLAN usage `4431 ms → 2669 ms`, session `2202 ms → 2529 ms` (rig variance, ~2.4 s margin). No timeout raised or named.                                                                                                    | `reportEnginePlanParse.test.ts` counts `readPlan` calls through a passthrough mock: exactly 1 per usage generate, 2 total after usage + session                                                                                                                            | D4: evidence-less parse restored → `expected [82, 82] to have a length of 1 but got 2` red; restored byte-exact (`engine.ts` `ae2c77db…`)                                                                                                    |
+
+Drill receipts: every mutation ran the owning file at repository defaults
+(no `--testTimeout`), required the named reds above, and restored byte-exact
+(`sha256sum -c` all OK): `common.ts` `64f4d3e7…`, `local.ts` `949e1726…`,
+`engine.ts` `ae2c77db…` (`reportUsage.ts` `e4df59d7…` untouched by drills).
+`npm run duplication` found 3 clones in the new tests (services-construction
+block across two files; rejected-budget setup twice in-file); extracted
+`reportingServicesFor` into `test/unit/helpers/reporting/runtime.ts` (used by
+both files) and `rejectedBudgetSetup` in `reportInputs.test.ts`: 0 clones.
+
+Final verification on macmini at repository defaults:
+
+- `npm run typecheck` (all projects): pass.
+- ESLint `--max-warnings=0` on every changed file: pass (fixed 3
+  `unicorn/prefer-ternary`, 1 `consistent-type-imports`, 1 boolean-name).
+- Prettier `--check` on every changed file: pass.
+- `node scripts/check-l10n.mjs`: 14 UI tables, 14 usage tables, 252 manifest
+  strings, 1516 source files, 0 problems.
+- `node scripts/check-plan.mjs`: plan-format-v1, 207 milestones, 0 drift.
+- `npm run deadcode`: exit 0 (2 vendor/knip config hints, pre-existing).
+- `npm run duplication`: 0 clones.
+- `npm run check:reference`: current. `npm run check:host-api`: 0 problems.
+- `npm run build`: EXIT 1 on pre-existing `dist/usagePanel.js` OVER 75.1/75
+  KiB (0.1 over). Not this lane: no file changed here is reachable from
+  `src/host/usage/usagePanelEntry.ts` (import-graph proof), so the bundle is
+  byte-identical at base `d9899f417`; the cap call is the owner's. Reporting
+  bundles all ok: reporting 148.9/175, reportInputs 69.3/100, extension
+  550.7/600, conversation 244.6/250, modelApi 515.8/525.
+- Unit at repository defaults, `--maxWorkers=3`: reportInputs 28 (real-PLAN
+  usage 2669 ms, session 2529 ms), reportUsage 18, collect.milestone 11,
+  reportEnginePlanParse 1, collect.session + collect.project + planReader 66,
+  collect.release + collect.quality + collect.changes 19, collect.contract +
+  collect.usage + collect.facets 55, reportContracts + reportInvariants +
+  reportSelections 39, collect.determinism + sessionReportSource pass — all
+  green.
+- Pre-existing failure, verified identical on a clean `d9899f417` worktree:
+  `reportEngine.test.ts` "generates, scrubs, renders and retrieves…" fails
+  with `history.save` throwing "The report could not be saved" in this
+  environment (direct `generate` returns `generated`; `verifyReport` ok).
+  Untouched by this lane; recorded for the lead.
+
+Files changed this round: `src/core/reporting/collect/common.ts`,
+`src/core/reporting/collect/plan.ts`,
+`src/core/reporting/collect/repository.ts`,
+`src/core/reporting/collect/session.ts`,
+`src/core/reporting/plan/reader.ts`,
+`src/core/reporting/sources/local.ts`, `src/core/usage/reportUsage.ts`,
+`src/runtime/reporting/engine.ts`, `src/runtime/reporting/reportInputs.ts`,
+`test/unit/collect.milestone.test.ts`,
+`test/unit/helpers/reporting/runtime.ts`, `test/unit/reportInputs.test.ts`,
+`test/unit/reportUsage.test.ts`, `test/unit/reportEnginePlanParse.test.ts`
+(new), this record. No sibling-lane file, `PLAN.md`, l10n table, catalog,
+dependency, hook, cap or bundle-split change.
