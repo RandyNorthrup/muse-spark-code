@@ -116,26 +116,6 @@
     "reason": "GitHub reads select the bounded credential-stripped contained command adapter."
   },
   {
-    "site": "src/core/resources/launcher.ts#call:execResourceFile:1",
-    "profile": "contained",
-    "reason": "Lazy facade forwards this branch’s profile to the single governed launcher."
-  },
-  {
-    "site": "src/core/resources/launcher.ts#call:handoffResourceFile:1",
-    "profile": "handoff",
-    "reason": "Lazy facade forwards this branch’s profile to the single governed launcher."
-  },
-  {
-    "site": "src/core/resources/launcher.ts#call:spawnResourceProcess:1",
-    "profile": "interactive",
-    "reason": "Lazy facade forwards this branch’s profile to the single governed launcher."
-  },
-  {
-    "site": "src/core/resources/launcher.ts#call:spawnResourceProcess:2",
-    "profile": "contained",
-    "reason": "Lazy facade forwards contained and bootstrap launches to the single governed launcher; hand-offs use handoffResourceFile only."
-  },
-  {
     "site": "src/core/resources/commands.ts#call:spawnResourceProcess:1",
     "profile": "handoff",
     "reason": "handoffResourceFile: fixed OS adapter, waits for its own exit within RESOURCE_HANDOFF_TIMEOUT_MS; never waits for or stops what it opened."
@@ -154,6 +134,26 @@
     "site": "src/core/resources/launch.ts#import:1",
     "profile": "contained",
     "reason": "Type-only process interfaces; profile and terminal/session options are owned by the portable launcher."
+  },
+  {
+    "site": "src/core/resources/launcher.ts#call:execResourceFile:1",
+    "profile": "contained",
+    "reason": "Lazy facade forwards this branch\u2019s profile to the single governed launcher."
+  },
+  {
+    "site": "src/core/resources/launcher.ts#call:handoffResourceFile:1",
+    "profile": "handoff",
+    "reason": "Lazy facade forwards this branch\u2019s profile to the single governed launcher."
+  },
+  {
+    "site": "src/core/resources/launcher.ts#call:spawnResourceProcess:1",
+    "profile": "interactive",
+    "reason": "Lazy facade forwards this branch\u2019s profile to the single governed launcher."
+  },
+  {
+    "site": "src/core/resources/launcher.ts#call:spawnResourceProcess:2",
+    "profile": "contained",
+    "reason": "Lazy facade forwards contained and bootstrap launches to the single governed launcher; hand-offs use handoffResourceFile only."
   },
   {
     "site": "src/core/resources/process.ts#call:execFile:1",
@@ -486,37 +486,37 @@
   {
     "site": "src/runtime/main.ts#call:spawnResourceProcess:1",
     "profile": "interactive",
-    "reason": "`muse login` runs in the user’s terminal session, group and TTY; Ctrl+C reaches it; stopped if the CLI shuts down."
+    "reason": "`muse login` runs in the user\u2019s terminal session, group and TTY; Ctrl+C reaches it; stopped if the CLI shuts down."
   },
   {
-    "site": "src/runtime/panel/git/service.ts#call:execResourceFile:1",
-    "profile": "probe",
-    "reason": "Git reads (status, diff, rev-parse, config, remote) through the governed probe launch: read-only, bounded, credential-free; a refused launch is `busy`."
-  },
-  {
-    "site": "src/runtime/panel/git/service.ts#call:execResourceFile:2",
+    "site": "src/runtime/panel/git/service.ts#import:1",
     "profile": "contained",
-    "reason": "Git writes (add, commit, push, fetch, worktree) through the governed contained launch with the caller's allow-listed environment; a refused launch is `busy`."
+    "reason": "admitted by the shared git runner: admission, Windows job, then the caller's gate and the spawn in one synchronous turn (M123 lock protocol)"
   },
   {
     "site": "src/runtime/panel/pullRequests/checkout.ts#call:execResourceFile:1",
-    "profile": "contained",
-    "reason": "Pull request fetch, index and worktree writes through the governed contained launch; a refused launch is the checkout's own translated reason."
+    "profile": "probe",
+    "reason": "Only explicitly checked read-only arguments; final gate after admission/preparation and at Windows GO."
   },
   {
     "site": "src/runtime/panel/pullRequests/checkout.ts#call:execResourceFile:2",
-    "profile": "probe",
-    "reason": "Pull request git reads (version, config, rev-parse, listing) through the governed probe launch; read-only and bounded."
+    "profile": "contained",
+    "reason": "All other arguments (including writing config/remote forms); final gate after admission/preparation and at Windows GO."
   },
   {
     "site": "src/runtime/panel/pullRequests/checkout.ts#call:spawnResourceProcess:1",
     "profile": "probe",
-    "reason": "The held batch (`cat-file --batch`) reads through the governed probe launch under the checkout's deadline and tree stop."
+    "reason": "Explicitly checked held batch reads; final gate after admission/preparation and at Windows GO."
+  },
+  {
+    "site": "src/runtime/panel/pullRequests/checkout.ts#call:spawnResourceProcess:2",
+    "profile": "contained",
+    "reason": "Any unlisted batch argument form stays contained; final gate after admission/preparation and at Windows GO."
   },
   {
     "site": "src/runtime/panel/pullRequests/checkout.ts#import:1",
     "profile": "contained",
-    "reason": "Type-only process interfaces for the checkout's git port; every launch goes through the governed launcher."
+    "reason": "Process types only; the two start functions pass the caller gate through the governed beforeSpawn hook."
   },
   {
     "site": "src/runtime/reporting/sources.ts#call:execResourceFile:1",
@@ -546,7 +546,7 @@
   {
     "site": "src/runtime/sharing/sharingEntry.ts#call:handoffResourceFile:1",
     "profile": "handoff",
-    "reason": "Share copy (xclip, pbcopy, Set-Clipboard) and browser (xdg-open, open, explorer) adapters; scrubbed stdin, credential-free environment; pause is refused with the governor’s words."
+    "reason": "Share copy (xclip, pbcopy, Set-Clipboard) and browser (xdg-open, open, explorer) adapters; scrubbed stdin, credential-free environment; pause is refused with the governor\u2019s words."
   },
   {
     "site": "src/runtime/vault/slots/macVaultTransport.ts#call:spawnResourceProcess:1",

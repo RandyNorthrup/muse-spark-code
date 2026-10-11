@@ -4,7 +4,7 @@
 // with a recording git port — then end to end on the fixture repositories
 // with the real git runner, every git it starts through the dispatch gate.
 
-import { execFileSync, spawn } from 'node:child_process'
+import { execFile, execFileSync, spawn } from 'node:child_process'
 import { once } from 'node:events'
 import {
   existsSync,
@@ -20,7 +20,7 @@ import { hostname as hostnameOf, tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { resolveExecutable } from '../../src/core/executables'
 import { fileIdentityKey } from '../../src/core/fs/fileIdentity'
 import { isSamePath } from '../../src/core/paths'
@@ -80,6 +80,7 @@ import { CAPTURED_PULL_FORK, CAPTURED_PULL_OWN } from './helpers/githubCapture'
 import { fakeRuntimeGitDeps, fakeTokenSource } from './helpers/github/fakes'
 import { createFixtureRepositories, type FixtureRepositories } from './helpers/github/repositories'
 
+import * as launcher from '../../src/core/resources/launcher'
 const CANARY = 'm123p-checkout-canary'
 const OWN = { owner: 'RandyNorthrup', name: 'muse-spark-code' }
 const OWN_PULLS = '/repos/RandyNorthrup/muse-spark-code/pulls/56'
@@ -95,9 +96,9 @@ async function raceFolder(): Promise<{ readonly folder: string; readonly foreign
 
 // The held checkout's gate calls before the worktree is added: twice per
 // hook listing (once more for git's version, the first time only), once
-// for the tree listing; then the folder is claimed and the add gated.
-const LAST_GATE_BEFORE_CLAIM = 7
-const GATE_BEFORE_ADD = 8
+// for the tree listing, plus one final beforeSpawn check per process; then the folder is claimed and the add gated.
+const LAST_GATE_BEFORE_CLAIM = 11
+const GATE_BEFORE_ADD = 12
 const CAPTURED_ORIGIN = {
   repository: 'RandyNorthrup/muse-spark-code',
   number: 51,
@@ -2127,15 +2128,15 @@ describe('the git dispatch gate (M123 lane P)', () => {
       'utf8',
     )
     const count = (pattern: RegExp) => source.match(pattern)?.length ?? 0
-    expect(count(/\bexecFile\(/gu)).toBe(1)
-    expect(count(/\bspawn\(/gu)).toBe(1)
+    expect(count(/\bexecResourceFile\(/gu)).toBe(2)
+    expect(count(/\bspawnResourceProcess\(/gu)).toBe(2)
     expect(count(/\bprocesses\.run\(/gu)).toBe(1)
     expect(count(/\bprocesses\.start\(/gu)).toBe(1)
-    // The only two: in node's process port.
-    expect(source).toMatch(
-      /run: \(file, args, options\) =>\s+new Promise<string>\(\(resolve, reject\) => \{\s+execFile\(/u,
-    )
-    expect(source).toMatch(/start: \(file, args, options\) => spawn\(/u)
+    // Two start functions pass the caller's final gate through the launcher's hook.
+    expect(count(/beforeSpawn: gate/gu)).toBe(2)
+    expect(source).toMatch(/execResourceFile\('probe', file, args, call\)/u)
+    expect(source).toMatch(/spawnResourceProcess\('probe', file, args, call\)/u)
+    expect(source).toMatch(/beforeSpawn: options\.beforeSpawn/u)
     // Each port call directly after its gate, nothing between.
     expect(source).toMatch(/ {2}gate\(\)\n {2}return git\.processes\.run\(/u)
     expect(source).toMatch(/ {2}gate\(\)\n {2}return git\.processes\.start\(/u)
@@ -2152,6 +2153,24 @@ describe('the git dispatch gate (M123 lane P)', () => {
     expect(count(/\b(?:runGit|startGitBatch)\(/gu)).toBe(calls.length + 2)
   })
 })
+
+/** Real-Git fixture port: synchronous final gate, no machine-pressure policy. */
+const directGitProcesses: GitProcessPort = {
+  run: (file, args, options) =>
+    new Promise<string>((resolve, reject) => {
+      options.beforeSpawn()
+      execFile(file, [...args], { ...options, windowsHide: true }, (error, stdout) => {
+        if (error === null) resolve(stdout)
+        else reject(error instanceof Error ? error : new Error('Fixture Git failed'))
+      })
+    }),
+  start: (file, args, options) => {
+    options.beforeSpawn()
+    return spawn(file, [...args], { ...options, windowsHide: true })
+  },
+}
+
+afterEach(() => vi.restoreAllMocks())
 
 describe('runtime pull request checkout on the fixture repositories (M123 lane P)', () => {
   let fixtures: FixtureRepositories
@@ -2252,7 +2271,7 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
         log,
         ...(options.batchDeadlineMs !== undefined && { batchDeadlineMs: options.batchDeadlineMs }),
         ...(options.createFile !== undefined && { createFile: options.createFile }),
-        ...(options.processes !== undefined && { processes: options.processes }),
+        processes: options.processes ?? directGitProcesses,
       }),
       pathExists: (fsPath) => existsSync(fsPath),
     } satisfies RuntimeCheckoutDeps)
@@ -2373,7 +2392,7 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
       platform: process.platform,
       signal: new AbortController().signal,
       log: recordingLogger(),
-      ...(processes !== undefined && { processes }),
+      processes: processes ?? directGitProcesses,
     })
   }
 
@@ -2570,11 +2589,11 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
       const recording: GitProcessPort = {
         run: (file, args, options) => {
           started.push({ command: commandOf(args), ...marks })
-          return nodeGitProcesses.run(file, args, options)
+          return directGitProcesses.run(file, args, options)
         },
         start: (file, args, options) => {
           started.push({ command: commandOf(args), ...marks })
-          return nodeGitProcesses.start(file, args, options)
+          return directGitProcesses.start(file, args, options)
         },
       }
       if (kind === 'own') {
@@ -2643,11 +2662,11 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
       const recording: GitProcessPort = {
         run: (file, args, options) => {
           startedAfter += isRefused ? 1 : 0
-          return nodeGitProcesses.run(file, args, options)
+          return directGitProcesses.run(file, args, options)
         },
         start: (file, args, options) => {
           startedAfter += isRefused ? 1 : 0
-          return nodeGitProcesses.start(file, args, options)
+          return directGitProcesses.start(file, args, options)
         },
       }
       const runner = heldRunner(recording)
@@ -2790,6 +2809,34 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
     expect(aResult.ok).toBe(true)
     expect(bResult.ok ? bResult.folder : bResult.reason).toBe(
       bResult.ok ? folder : UI_TEXT.gitOperationChanged,
+    )
+  })
+})
+
+describe('checkout profile selection and final gate', () => {
+  it.each([
+    [['config', '--get', 'remote.origin.url'], 'probe'],
+    [['config', 'remote.origin.url', 'changed'], 'contained'],
+    [['remote', '-v'], 'probe'],
+    [['remote', 'add', 'other', 'url'], 'contained'],
+    [['rev-parse', '--verify', 'FETCH_HEAD^{commit}'], 'probe'],
+    [['unknown'], 'contained'],
+  ] as const)('checks the complete arguments %j before choosing %s', async (args, profile) => {
+    const spy = vi.spyOn(launcher, 'execResourceFile').mockResolvedValue({ stdout: '', stderr: '' })
+    const beforeSpawn = vi.fn()
+    await nodeGitProcesses.run('fixture', args, {
+      cwd: tmpdir(),
+      env: {},
+      signal: new AbortController().signal,
+      timeout: 1000,
+      maxBuffer: 1000,
+      beforeSpawn,
+    })
+    expect(spy).toHaveBeenCalledWith(
+      profile,
+      'fixture',
+      args,
+      expect.objectContaining({ beforeSpawn }),
     )
   })
 })

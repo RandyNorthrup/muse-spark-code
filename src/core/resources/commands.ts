@@ -137,7 +137,7 @@ export async function execResourceFile(
           reject(
             Object.assign(new Error('Governed command failed'), {
               ...result,
-              code: isFailed ? -1 : code,
+              code: bytesRead > max ? 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER' : isFailed ? -1 : code,
             }),
           )
       })().catch(reject)
