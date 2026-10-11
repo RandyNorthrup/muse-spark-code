@@ -16,17 +16,18 @@ Sixteen tasks (`src/core/eval/tasks.ts`): nine accept, seven held-out —
 the twelve previous tasks unchanged, plus per split one long-context
 compaction task (`isLongContext`) and one two-defect multi-edit task.
 
-Frozen digest (`evalHarnessDigest`, SHA-256 over each arm's name,
-mechanism and change source with every task id, split, title, prompt,
-file, verifier, long flag and resolved window, in run order, beside the
-verifier prelude, the window rule's source, the held-deps list, the
-frozen window and approval-mode defaults, and the arms' source closure:
-every harness-owned file the arms reach, by bytes, plus every outside
-binding they draw, by canonical value — `src/core/eval/armSources.ts`
-walks the static import graph instead of a hand-kept list, and fails
-closed on anything it cannot cover):
+Current frozen digest (`evalHarnessDigest`, SHA-256 over each arm's
+self-contained emitted bundle and explicitly declared fixture bytes):
 
-`9cfc4744b831524577ec068d8079830f4a1f1b24a29690210a442f4983786278`
+`cede4699ae8cc988b220373c0f1fc0f2f61ddae875c1bbd4991de2b4946f1489`
+
+R7's fixture set is `armSources.ts`, `mechanisms.ts`, `runner.ts`,
+`heldDeps.ts`, `tasks.ts`, and canonical `conditions.json` (the exact selected task data,
+resolved windows, verifier prelude and frozen harness defaults). These are
+byte snapshots, copied beside the bundle and granted exact file reads;
+no source directory or dependency tree is granted. The production host
+under test remains outside the frozen program. Prior freeze algorithms
+and their receipts below are historical, superseded by R7.
 
 `test/unit/eval/evalFrozen.test.ts` pins the arm list, the task list and
 the digest. Any arm or task change breaks it on purpose; re-freeze by
@@ -275,6 +276,113 @@ value after every drill).
 | R6-D1 | Refusal neutered: the walk returns at once             | **9 failures**: every refusal test — the two old bare-form tests, template, concatenation, indirect spellings, the new 27-row E-spelling table, Worker, property sweep, camouflage — while all allow-pins and build-fail pins stay green | armSources.ts `b558fbb1…e2b9` |
 | R6-D2 | Comparison neutered: every relative literal mismatches | **2 failures**: the literal-relative-dynamic-import pin and the property sweep's collect cases — every refusal stays refused                                                                                                             | armSources.ts `b558fbb1…e2b9` |
 
+### R7 redesign (2026-10-10, linuxlt; review RVCM1012F findings 1–5)
+
+**Decision: HASH WHAT RUNS.** `armDefinitions.ts` is imported only inside
+one self-contained esbuild bundle per arm (`bundle: true`, `platform:
+node`, no declared externals; Node built-ins are the only external loads).
+The bundle includes its entry and runs the selected pure arm program.
+`armSources.ts` snapshots its emitted UTF-8 bytes and declared fixture
+bytes; the SHA-256 covers those bytes, with portable logical names.
+No AST scanner, metafile comparison, runtime-loader alias tracker or
+TypeScript compiler dependency remains. The parent never imports the arm
+program; a frozen run ignores its optional direct-test callback.
+
+`executeArmBundle` writes that same snapshot under a realpath-resolved
+private temporary directory, verifies the receipt before execution, and
+starts Node with `--permission` and one `--allow-fs-read` for each exact
+bundle/fixture file. No workers, child processes, writes, addons or loader
+configuration are allowed; the environment is empty. Runtime errors retain
+the Node error code, are reported as failed tasks before any model
+request, and all scratch directories are removed in finally. A named
+two-second deadline uses SIGKILL so an arm cannot ignore termination; the
+regression also verifies cleanup. Child output
+is JSON and then parsed with a strict zod schema; held dependencies cannot
+be returned. The fixed parent host adapters remain byte-frozen as declared
+fixtures. Unfrozen injected callbacks serve fake tests only and never
+receive a `harnessDigest` receipt. Subsets have their own arm/task-set receipt;
+`evalHarnessDigest()` pins the complete four-arm set.
+
+The automatic-compaction admission remains a no-charge test double; this
+change does not qualify real D78 admission, the counted model evaluation,
+or the production latch. The same portable runner serves every editor.
+No dependency, wire shape, UI, price, consent, bundle cap or gate changes.
+
+| Finding                      | Fix                                                                                              | Regression                                                                                                                                                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F1 P2 undeclared file reads  | Exact child filesystem grants, explicit immutable fixture snapshots                              | `blocks module-relative reads through computed paths, renamed reads and URL constructors`; `snapshots declared fixtures by bytes and grants only each exact file`                                                    |
+| F2 P2 indirect runtime loads | Child permissions replace name/alias recognition                                                 | `blocks dynamic require and computed import at runtime`; 16-spelling `blocks the whole indirect-loader class, including every review-F escape`; `denies new Workers and child processes even when code is in memory` |
+| F3 P2 resolver disagreement  | Hash and execute esbuild's output; no second resolver                                            | `uses the real resolver for directory, .jsx and absolute .js mappings`                                                                                                                                               |
+| F4 P2 macOS symlink identity | realpath source and execution roots; no absolute-path hash keys                                  | `keeps emitted bytes and digests identical across roots and symlink aliases`; `canonicalizes the execution directory under a symlinked temp root`                                                                    |
+| F5 P3 undocumented cast      | Delete scanner and its cast; remove both older test casts through compiler-verifiable operations | `removes the scanner and its unverified TypeScript cast`; held-dependency exact-key regression                                                                                                                       |
+
+Node permits `require.resolve` to return a path without reading module
+bytes; the resolution-alias probes therefore resolve and then load the
+file, proving the actual unbundled load is denied. Plain path strings do
+not stand in for a read in these tests. All F-review load/read counterexamples
+are covered without scanner shape recognition. Computed-import fixtures
+use file URLs, so Windows drive letters reach the permission check rather
+than failing as an unsupported URL scheme.
+
+Every drill runs its complete owning file at repository timeouts, sees the
+named regression fail, then restores the edited file byte-exact. SHA-256
+is compared against the pre-drill bytes after each restoration. No filtered
+or skipped cases, timeout overrides, hook changes or gate changes.
+
+| Drill       | Deliberate break                                            | Named assertion                                                                        | Result                           | Restored SHA-256                                                                                           |
+| ----------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| R7-D1       | Remove Node permission and filesystem flags                 | `blocks module-relative reads`                                                         | 5 failed, 11 passed (16); exit 1 | `src/core/eval/armSources.ts` `ea775cec2f1f4d633b3704d573cf9dea4fb231f0e38e04bd79711d443ce6dfaf`           |
+| R7-D2       | Hash a constant instead of supplied bytes                   | `changes the digest for any changed bundled byte`                                      | 5 failed, 11 passed (16); exit 1 | `src/core/eval/armSources.ts` `ea775cec2f1f4d633b3704d573cf9dea4fb231f0e38e04bd79711d443ce6dfaf`           |
+| R7-D3       | Disable esbuild bundling                                    | `uses the real resolver for directory, .jsx and absolute .js mappings`                 | 12 failed, 4 passed (16); exit 1 | `src/core/eval/armSources.ts` `ea775cec2f1f4d633b3704d573cf9dea4fb231f0e38e04bd79711d443ce6dfaf`           |
+| R7-D4       | Remove realpath from the scratch-tree fixture               | `canonicalizes the execution directory under a symlinked temp root`                    | 1 failed, 15 passed (16); exit 1 | `test/unit/eval/evalArmSources.test.ts` `1a915f72e5775c9b4c7637383fda6a3ee8a5cdb9d229507199c91647e60676fe` |
+| R7-D5       | Reintroduce the removed scanner cast marker                 | `removes the scanner and its unverified TypeScript cast`                               | 1 failed, 15 passed (16); exit 1 | `src/core/eval/armSources.ts` `ea775cec2f1f4d633b3704d573cf9dea4fb231f0e38e04bd79711d443ce6dfaf`           |
+| R7-D6       | Allow unknown child option keys                             | `refuses malformed frozen options`                                                     | 1 failed, 18 passed (19); exit 1 | `src/core/eval/mechanisms.ts` `4ccbefdb753e9055c9fd1ba80a1f208e401dbd765e8f4ab62e2d8d6b7bf24480`           |
+| R7-D7       | Rebuild instead of executing the stored snapshot            | `holds the same frozen arm bytes`                                                      | 1 failed, 18 passed (19); exit 1 | `src/core/eval/runner.ts` `659fbdedc600a6303fb25bd52d33dd2269af7ed74db6efb8e680d111d6769c8c`               |
+| R7-D8       | Bypass fixture path admission                               | `refuses fixture traversal, wildcards, bundle collisions and portable duplicate names` | 1 failed, 15 passed (16); exit 1 | `src/core/eval/armSources.ts` `ea775cec2f1f4d633b3704d573cf9dea4fb231f0e38e04bd79711d443ce6dfaf`           |
+| R7-D7-final | Repeat snapshot rebuild after final task binding            | `holds the same frozen arm bytes`                                                      | 1 failed, 19 passed (20); exit 1 | `src/core/eval/runner.ts` `f13f89d314773cb8d9aabe895e130b113dd4abf386188c22e8ab03fe70fc0ce8`               |
+| R7-D9       | Freeze the canonical task list instead of actual run inputs | `binds the receipt to the exact selected task fixture data`                            | 1 failed, 19 passed (20); exit 1 | `src/core/eval/runner.ts` `f13f89d314773cb8d9aabe895e130b113dd4abf386188c22e8ab03fe70fc0ce8`               |
+| R7-D10      | Supply a filesystem path instead of an import file URL      | `blocks dynamic require and computed import at runtime`                                | 1 failed, 15 passed (16); exit 1 | `test/unit/eval/evalArmSources.test.ts` `6e7838df91c3c8c7637b51f35f095253a8a1c4f313f369822cbf1fb78b7671b1` |
+| R7-D11      | Replace deadline SIGKILL with catchable SIGTERM             | `kills a stalled arm despite a SIGTERM handler and cleans its files`                   | 1 failed, 16 passed (17); exit 1 | `src/core/eval/armSources.ts` `2d2c8058273b01b72e5be8c37568f02bac9dc28c27031282eea28ea3e8a5a775`           |
+
+The R7-D5 marker deliberately restores the removed cast spelling in a
+comment, so the scanner-removal regression fails without introducing an
+actual TypeScript escape hatch. R7-D4 recreates the review's non-canonical
+fixture identity under an explicit temporary-directory symlink on Linux.
+The restored suite also tests canonical executable-directory identity.
+
+Final verification on linuxlt: **443 tests in 18 complete files pass**,
+`npx vitest run <files> --maxWorkers=3`, at most three files per invocation,
+repository timeouts, no filters or skipped tests. The final three owning
+files pass after the Windows file-URL fixture correction and hard deadline
+regression (43 tests). Twelve deliberate mutation runs (R7-D1 through D11,
+with D7 repeated after final task binding) fail the named regressions and restore byte-exact.
+
+| Final batch | Files (`test/unit/`)                                            | Result                                          |
+| ----------- | --------------------------------------------------------------- | ----------------------------------------------- |
+| 1           | eval/evalArmSources, eval/evalFrozen, eval/evalRunner           | 43 passed                                       |
+| 2           | eval/evalDriver, eval/evalTasks, eval/evalCompaction            | 58 passed                                       |
+| 3           | eval/evalMultiEdit, eval/evalPacking, eval/evalWorkspacePrivacy | 15 passed                                       |
+| 4           | eval/evalReport, eval/evalWire, eval/evalLiveSupport            | 81 passed                                       |
+| 5           | modelApiGoldenRequests, metaRequestGoldens, modelApiPrefix      | 173 passed; features-off golden bytes unchanged |
+| 6           | autoCompact, modelApiAutoCompact, metaGolden                    | 73 passed                                       |
+
+All five typecheck projects, changed-file ESLint `--max-warnings=0`,
+Prettier, plain knip, jscpd, localization (14 UI / 14 usage tables,
+0 problems), host API (375 VS Code APIs / 48 importing files / 30 Node
+built-ins / 71 theme variables), reference (77 features / 71 commands /
+100 settings / 29 slash / 257 CLI), production build and cycles pass.
+The host API record was regenerated for four additional Node import
+counts; no VS Code API changed. Every existing build/split/global/token
+budget passes: extension **550.1 / 600 KiB**, Model API **515.8 / 525 KiB**,
+checkpoint store **87.3 / 225 KiB**. No evaluation module is newly shipped.
+Roadmap generation and its freshness check, the M101 plan check and final
+document formatting also pass.
+
+The shared lane brief forbids full `npm run quality` and full-unit/coverage
+runs; the lead owns that aggregate matrix. No live/paid model call, browser,
+install, merge, push, rebase, hook change or gate weakening occurred.
+There is no unresolved assigned finding or external blocker.
+
 ## Gates
 
 All five typecheck projects; ESLint `--max-warnings=0` and Prettier on
@@ -292,8 +400,8 @@ bundle, so the ~180 KB of task prompts never ship).
   counted run is lane E's change.
 - The evaluation window (26,000 tokens) is the fake harness's value;
   the owner decision on the counted run's window size belongs to lane E.
-- Two `as` assertions in `test/unit/eval/evalFrozen.test.ts` (the
-  dependency-key narrowing and the held-deps widening) carry inline
-  reasons and one PLAN §8 row per site (2026-10-10 R3 repair of review
-  RVCM1012B finding 2, which this line wrongly claimed were unneeded). No
-  `eslint-disable` entries or new dependencies.
+- R7 removes the scanner cast and both older dependency-key test casts;
+  no new escape hatch or dependency. Lane E must consume the frozen JSON
+  receipt rather than a separately rebuilt arm. Frozen runs ignore
+  `arm.change`; the real D78 admission/ledger binding must enter the fixed
+  parent adapter, with a new freeze, before lane E's counted certification.

@@ -135,6 +135,8 @@ export const evalReportSchema = z.discriminatedUnion('version', [
     arms: z.array(evalArmReportSchema),
     /** Recorded by a run with a packing arm (M73); absent otherwise. */
     packingEngagement: z.optional(evalPackingEngagementSchema),
+    /** Present only when every arm executed its frozen bundle snapshot. */
+    harnessDigest: z.optional(z.string()),
   }),
 ])
 export type EvalReport = z.infer<typeof evalReportSchema>

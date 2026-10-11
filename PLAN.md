@@ -29916,6 +29916,33 @@ receipts remain the lead's checks under the rig brief.
   `d277f9…0b9`. Record: updated evidence and R5 drills in
   `docs/certification/m101-eval-arms.md`.
 
+  **CM1012R7 decision and repair plan (2026-10-10, linuxlt; RVCM1012F).**
+  HASH WHAT RUNS: replace the static runtime-load scanner and metafile/walk
+  comparison with one self-contained esbuild Node bundle per frozen arm.
+  Only Node built-ins remain external. Freeze the SHA-256 of the emitted
+  bundle bytes and explicitly declared fixture bytes; run that same snapshot
+  in a child Node process under `--permission`, with filesystem reads limited
+  to its bundle and fixture snapshots, no child processes and no workers.
+  Frozen arms return validated declarative host options; the parent supplies
+  the fixed host adapters and production system under test. It never executes
+  a frozen arm's source or callback itself. Unfrozen injected callbacks remain
+  fake-test seams and cannot produce a frozen receipt. Runtime permission or
+  output-validation failures become failed task results before model dispatch.
+  Canonicalize every scratch path with realpath, including macOS /var aliases.
+  Remove the unverified template-literal cast with the scanner. Sweep indirect
+  loaders and reads through runtime regression tests; preserve literal .jsx
+  and absolute .js resolver mappings and byte-identical features-off goldens.
+  Execution plan: implement bundle snapshots and runner binding; regressions;
+  red drills with byte-exact restoration; owning suites and lane gates; local
+  hooked commits. Status: implemented; all five findings fixed, 443 tests
+  in 18 complete files pass, and twelve red-drill runs restore byte-exact.
+  Frozen digest `cede4699ae8cc988b220373c0f1fc0f2f61ddae875c1bbd4991de2b4946f1489`.
+  The receipt binds the exact selected task data as well as the arm snapshots;
+  Windows computed imports use file URLs. A hard child deadline and cleanup
+  are proved against an arm that handles SIGTERM. Static/build, roadmap and
+  plan gates pass; the local repair is complete for lead integration. No paid/live
+  calls or dependencies. Certification: `docs/certification/m101-eval-arms.md`.
+
   **C2 final-review accounting correction.** If shared settlement throws during
   an HTTP retry notice, mark that attempt consumed before invoking settlement
   so cleanup cannot settle it a second time. A complete-file regression must
@@ -40792,6 +40819,17 @@ integration locally with hooks, and do not merge steps 3–5. This is a justifie
 review-candidate deferral under rule 2, never a green release claim. The lead
 owns a further size-recovery decision and the later continuation/full gate.
 
+**CM1012R7 lane verification (2026-10-10, linuxlt).** The shared lane
+brief explicitly forbids full `npm run quality` and the full unit/coverage
+run; the lead owns that aggregate matrix. All 443 tests across 18 complete
+owning/importing files pass at repository timeouts, with 3 workers and at
+most 3 files per invocation. All five typecheck projects, changed-file lint
+and formatting, plain knip, duplication, localization, host API, reference,
+cycles and production build pass. The generated host API record refreshes
+four Node import counts; no VS Code API changes. Unchanged caps hold:
+extension 550.1/600 KiB, Model API 515.8/525 KiB, checkpoint store 87.3/225 KiB.
+No browser, install, live or paid call, merge, push, rebase or gate weakening.
+
 ### M95 K repair residuals (2026-10-05)
 
 - **K22 resolved:** final comparable activation is 608,089 bytes against
@@ -43050,10 +43088,10 @@ before a repaired one loads (2026-09-30).
 | `test/unit/modelsPanel.test.ts`               | `as { providers: readonly unknown[] }` on this lane's own export text               | `JSON.parse` returns `any`; the text is the round-tripped export, so the cast names its document shape for the count assertion. A foreign shape never reaches this cast: the malformed-import tests exercise `parseProvidersDocument` directly. Test-only.  | 2026-10-05 |
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
-| CM1012R3 file                                             | Construct                                                                                | Reason                                                                                                                                                                                                                                                                                                                                                                      | Added      |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `test/unit/eval/evalFrozen.test.ts:98` (`changedKeys`)    | `(Object.keys(changed) as (keyof ModelApiHostDeps)[])` on the arm's changed dependencies | TypeScript types `Object.keys` as `string[]` and cannot verify the narrowing. It is sound: `changed` is a `ModelApiHostDeps`, so every key is one of its keys, and the same test's exact-key assertion fails on any surprise the cast could hide. `test/unit/eval/evalFrozen.test.ts` (`records the dependency-key assertion`) fails when this row goes missing. Test-only. | 2026-10-10 |
-| `test/unit/eval/evalFrozen.test.ts:116` (held-deps check) | `(EVAL_HELD_DEPS as readonly string[])` on the held-deps tuple                           | TypeScript cannot verify the tuple-to-`string[]` widening. It is sound: the tuple holds dep-key literals, every one a string, so testing membership against a changed key cannot misfire. Same guard test as above. Test-only.                                                                                                                                              | 2026-10-10 |
+CM1012R7 removes both CM1012R3 dependency-key test assertions through
+`Object.entries` and a typed `Set<string>`, and deletes the scanner containing
+the unverified `ts.NoSubstitutionTemplateLiteral` cast (RVCM1012F finding 5).
+No new escape hatch is introduced.
 
 ## 9. Security assumptions and accepted residual risk
 
