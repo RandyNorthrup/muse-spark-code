@@ -177,6 +177,18 @@ async function isPresent(file: string): Promise<boolean> {
 }
 
 describe('the engine worker port', () => {
+  it('refuses saved settings the worker cannot carry before creating a copy', async () => {
+    const fixture = await setup(() => Promise.resolve())
+    const task = spec({ role: 'engineering', pool: [ENTRY] })
+    await expect(
+      fixture.ports.workers.run(
+        { ...task, entry: { ...task.entry, settings: { temperature: 0.5 } } },
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow()
+    expect(fixture.started).toEqual([])
+  })
+
   it('enforces the saved custom charter while retaining the actual read-only tool fence', async () => {
     const fixture = await setup(() => Promise.resolve())
     const role = teamSnapshotSchema.parse({

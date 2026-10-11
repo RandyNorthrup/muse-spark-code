@@ -163,7 +163,7 @@ export function switchHookPayload(
  */
 export interface TeamSubagentHookFields {
   readonly subagentId: string
-  readonly childSessionId: string
+  readonly childSessionId?: string | undefined
   readonly roleId: string
   readonly entryId: string
   readonly agentProfileId: string
@@ -182,7 +182,7 @@ export interface TeamSubagentHookFields {
 function teamSubagentWireFields(fields: TeamSubagentHookFields): Readonly<Record<string, unknown>> {
   return {
     subagent_id: fields.subagentId,
-    child_session_id: fields.childSessionId,
+    ...(fields.childSessionId !== undefined && { child_session_id: fields.childSessionId }),
     agent_id: fields.taskId,
     agent_type: fields.roleId,
     role_id: fields.roleId,

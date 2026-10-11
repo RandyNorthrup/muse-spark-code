@@ -10,6 +10,8 @@ import { execFile } from 'node:child_process'
 import { mkdir, realpath } from 'node:fs/promises'
 import {
   BYTES_PER_MIB,
+  UI_TEXT,
+  TEAM_BOUND_SETTING_KEYS,
   TEAM_MODEL_TEXT,
   TEAM_ROLE_TOOLSETS,
   TEAM_TASK_MAX_REQUESTS_DEFAULT,
@@ -73,9 +75,11 @@ export interface EngineTeamPortsDeps {
   readonly platform: NodeJS.Platform
   readonly isTrusted: () => boolean
   /** The engine's model list: the declared setup probe reads it. */
+  readonly rates?: TeamWorkerPort['rates']
   readonly listModels: () => Promise<readonly string[]>
   /** A Model API conversation rooted in `folder`, billed as `teamWorkers`. */
   readonly startWorker: (input: {
+    readonly settings?: TeamTaskSpec['entry']['settings']
     readonly folder: string
     readonly modelId: string
     readonly approvalMode: string
@@ -196,6 +200,10 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
   const runTask = async (spec: TeamTaskSpec, signal: AbortSignal): Promise<TeamWorkerOutcome> => {
     signal.throwIfAborted()
     if (!deps.isTrusted()) throw new Error(TEAM_MODEL_TEXT.hostUntrusted)
+    if (
+      Object.keys(spec.entry.settings ?? {}).some((key) => !TEAM_BOUND_SETTING_KEYS.includes(key))
+    )
+      throw new Error(UI_TEXT.teamEditor.invalid)
     const repositoryRoot = repository()
     const builtin = builtinRoles().find((role) => role.id === spec.role.role)
     if (
@@ -321,6 +329,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       const { fenceWorkerToolIo } = await import('../../core/team/workers/workerToolIoEntry')
       check()
       const worker = await deps.startWorker({
+        settings: spec.entry.settings,
         folder: workspace.folder,
         modelId: spec.entry.agent.model,
         // Edits inside its own copy never ask; a read-only copy takes none.
@@ -347,6 +356,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
             },
           }),
       })
+      spec.meter.noteSession?.(worker.session.sessionId)
       const adapter = new AgentWorktreeSession(worker.session, noTerminalWork)
       const stop = (): void => {
         void adapter.cancel().catch(() => {
@@ -438,6 +448,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         await removeTeamWorkspace(runGit, repositoryRoot, await storage(), workspace.folder)
         await spec.meter.noteWorkspace(undefined)
         return {
+          isCeilingReached: result.outcome.ceilingReached,
           report:
             breach.length === 0
               ? report
@@ -477,6 +488,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         .filter((name) => name !== '')
       signal.throwIfAborted()
       return {
+        isCeilingReached: result.outcome.ceilingReached,
         report,
         usage,
         branch,
@@ -510,6 +522,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
   }
 
   const workers: TeamWorkerPort = {
+    ...(deps.rates !== undefined && { rates: deps.rates }),
     canRun: (agent) => agent.kind === 'engine',
     probe: async (agent) => {
       const listed = await deps.listModels()

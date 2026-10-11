@@ -139,6 +139,7 @@ export interface TeamTaskWorkspace {
  * each response; `noteWorkspace` records the copy as soon as it exists.
  */
 export interface TeamTaskMeter {
+  readonly noteSession?: (sessionId: string) => void
   readonly admitRequest: (hasReservation?: boolean) => void
   /** Maximum liability for one transport attempt, durably held before dispatch. */
   readonly reserveRequest: (maximum: TeamUsage) => Promise<number>
@@ -170,6 +171,7 @@ export interface TeamTaskSpec {
 
 /** What a finished worker hands back. */
 export interface TeamWorkerOutcome {
+  readonly isCeilingReached?: boolean | undefined
   readonly report: TeamReport
   readonly usage: TeamUsage
   /** `own-branch` only: the task branch, the base it started from and its head. */
@@ -190,6 +192,7 @@ export interface TeamWorkerOutcome {
  * unavailable, never a silent fallback.
  */
 export interface TeamWorkerPort {
+  readonly rates?: ((agent: TeamAgentRef) => TeamWorkerConfirmation['rates']) | undefined
   readonly canRun: (agent: TeamAgentRef) => boolean
   /** The declared setup probe: the agent's model observably loaded. */
   readonly probe: (agent: TeamAgentRef) => Promise<boolean>
@@ -205,6 +208,17 @@ export interface TeamWorkerPort {
  * conversation is `sessionId`.
  */
 export type TeamCardItem =
+  | {
+      readonly itemId: string
+      readonly kind: 'teamSwitch'
+      readonly status: 'completed'
+      readonly teamSwitch: {
+        readonly roleId: string
+        readonly fromEntry: string
+        readonly toEntry: string
+        readonly reason: string
+      }
+    }
   | {
       readonly itemId: string
       readonly kind: 'teamWaiting'
@@ -280,6 +294,18 @@ export interface TeamPaidPort {
 
 /** Everything `createTeamHostService` takes. */
 export interface TeamHostServiceDeps {
+  readonly hooks?:
+    | {
+        readonly relativePath: (folder: string) => string | undefined
+        readonly fire: (
+          sessionId: string,
+          event: 'TeamAgentSwitch' | 'SubagentStart' | 'SubagentStop' | 'TeammateIdle',
+          fields: Readonly<Record<string, unknown>>,
+          matcher: string,
+          signal: AbortSignal | undefined,
+        ) => Promise<{ readonly refusedReason?: string | undefined; readonly keepWorking: boolean }>
+      }
+    | undefined
   readonly state: TeamStatePort
   readonly settings: TeamSettingsPort
   readonly orchestrator: TeamOrchestratorPort

@@ -548,7 +548,16 @@ export interface ConversationDeps {
         readonly resolveForNewConversation?: (
           pickerModelId: string,
           host: AgentHost,
-        ) => Promise<{ readonly host: AgentHost; readonly modelId: string } | undefined>
+        ) => Promise<
+          | {
+              readonly host: AgentHost
+              readonly modelId: string
+              readonly settings?:
+                | { readonly effort?: string | undefined; readonly outputCap?: number | undefined }
+                | undefined
+            }
+          | undefined
+        >
       }
     | undefined
   readonly newAttachmentId: () => string
@@ -4049,6 +4058,14 @@ export class ConversationController {
       ...(this.isSideChat && { sideChat: true }),
       ...(mcpServers !== undefined && { mcpServers }),
     })
+    if (resolved?.modelId === modelId) {
+      if (resolved.settings?.effort !== undefined)
+        await session.setReasoningEffort(resolved.settings.effort)
+      if (resolved.settings?.outputCap !== undefined) {
+        if (session.setOutputCap === undefined) throw new Error(UI_TEXT.teamEditor.invalid)
+        await session.setOutputCap(resolved.settings.outputCap)
+      }
+    }
     if (mcpServers !== undefined) {
       this.ideSessions.add(session)
     }

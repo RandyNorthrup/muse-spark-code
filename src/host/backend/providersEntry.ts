@@ -26,3 +26,5 @@ export { createModelsPanelSeam } from '../../core/providers/panelSeam'
 export { recordPlanUsage } from '../../core/providers/subscriptions/planUsage'
 export { metaResolvedModel } from '../../core/backends/modelapi/modelPolicy'
 export { isPkceState, pkceRandom } from '../../core/providers/pkce'
+
+export { metaCapabilityRecord } from '../../core/providers/capabilityRecord'

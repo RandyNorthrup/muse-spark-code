@@ -10,6 +10,7 @@ import { Usd } from '../../src/shared/usd'
 import type { TeamEditorDocument } from '../../src/shared/teamPanel'
 import {
   TEAM_TRY_MAX_OUTPUT_TOKENS,
+  TEAM_TRY_MAX_INPUT_TOKENS,
   TEAM_TRY_MAX_REQUESTS,
   UI_TEXT,
 } from '../../src/shared/constants'
@@ -73,6 +74,56 @@ function rig(replies: ScriptedReply[] = []) {
 }
 
 describe('paid team planning preview', () => {
+  it('carries an output cap into the actual request and rejects an invalid cap', async () => {
+    const t = rig([{ text: 'capped answer', usage: { input: 12, output: 3 } }])
+    try {
+      const host = await t.manager.ensureHost()
+      const session = await host.startSession({
+        workspaceRoot,
+        modelId: 'muse-spark-1.3',
+        approvalMode: 'denyUnmatched',
+      })
+      if (session.setOutputCap === undefined) throw new Error('Missing Model API output cap')
+      await expect(session.setOutputCap(0)).rejects.toThrow()
+      await session.setOutputCap(128)
+      await session.setReasoningEffort('high')
+      await session.sendTurn([{ type: 'text', text: 'short answer' }], 'short answer')
+      await vi.waitFor(() => {
+        expect(t.api.requests.find((row) => row.path.endsWith('/responses'))?.body).toMatchObject({
+          max_output_tokens: 128,
+          reasoning: { effort: 'high' },
+        })
+      })
+    } finally {
+      await t.manager.dispose()
+    }
+  })
+  it('refuses input beyond the quoted token ceiling before billed dispatch', async () => {
+    const t = rig([{ text: 'unaffordable', usage: { input: 12, output: 3 } }])
+    const oversized: TeamEditorDocument = {
+      ...document,
+      roles: [
+        {
+          role: 'custom',
+          workspace: 'read-only',
+          tools: ['read', 'report'],
+          report: 'summary',
+          pool: [],
+          custom: true,
+          purpose: 'Audit',
+          guidance: 'x'.repeat(TEAM_TRY_MAX_INPUT_TOKENS * 8),
+        },
+      ],
+    }
+    try {
+      const result = await tryTeam(t.deps, oversized, 'feature-tests', new AbortController().signal)
+      expect(result).toContain('0 attempts')
+      expect(t.maxima).toEqual([])
+      expect(t.api.requests.filter((row) => row.path.endsWith('/responses'))).toEqual([])
+    } finally {
+      await t.manager.dispose()
+    }
+  })
   it('asks once before either retry and settles each exact transport attempt', async () => {
     const t = rig([
       { httpError: { status: 503 } },

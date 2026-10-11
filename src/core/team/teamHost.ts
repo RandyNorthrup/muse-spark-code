@@ -12,6 +12,7 @@
 
 import {
   MILLISECONDS_PER_SECOND,
+  HOOK_MAX_STOP_CONTINUATIONS,
   TEAM_EXHAUSTED_DEFAULT,
   TEAM_MODEL_TEXT,
   TEAM_QUEUE_MAX,
@@ -46,6 +47,16 @@ import {
   decideTeamConversationMode,
   readTeamWorkspaceHint,
 } from '../../shared/teamConversation'
+import { teamAgentSwitchFields, teammateIdleFields } from '../backends/modelapi/extensionHooks'
+import {
+  recordTeamSwitch,
+  switchReasonText,
+  switchHookPayload,
+  teamSubagentStartFields,
+  teamSubagentStopFields,
+  type TeamAgentProfile,
+  type TeamEntryExhaustion,
+} from './teamPool'
 import { builtinRoles, type BuiltinRole } from './builtInRoles'
 import { isSameTeamModel } from './sameModel'
 import { cancelArgs, collectArgs, delegateArgs, mergeArgs, type DelegateArgs } from './teamTools'
@@ -61,6 +72,7 @@ import type {
   TeamMergeDecision,
   TeamStatePort,
   TeamTaskWorkspace,
+  TeamTaskSpec,
   TeamWaitingChoice,
   TeamWorkerOutcome,
 } from './teamHostService'
@@ -82,6 +94,10 @@ type DelegateItem = DelegateArgs['tasks'][number]
 const SETTLED_PHASES: ReadonlySet<TaskPhase> = new Set(['done', 'failed', 'interrupted'])
 
 export interface TeamTaskRecord {
+  delegateGroup?: string | undefined
+  pipelineId?: string | undefined
+  childSessionId?: string | undefined
+  hasStoppedHook?: boolean | undefined
   readonly taskId: string
   readonly role: TeamRoleConfig
   readonly brief: string
@@ -263,11 +279,16 @@ function describePlan(planned: readonly PlanStep[]) {
   })
 }
 
-function confirmationFor(role: string, entry: StaffedEntry): TeamWorkerConfirmation {
+function confirmationFor(
+  role: string,
+  entry: StaffedEntry,
+  rates?: TeamWorkerConfirmation['rates'],
+): TeamWorkerConfirmation {
   return {
     ...(entry.agent.provider !== undefined && { provider: entry.agent.provider }),
     role,
     modelId: entry.agent.model,
+    ...(rates !== undefined && { rates }),
     taskCeilingTokens:
       entry.caps.find((cap) => cap.measure === 'tokens' && cap.window === 'task')?.amount ?? 0,
   }
@@ -344,6 +365,9 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
    * (a picker change applies to the next delegation). Default needs no probe:
    * the orchestrator's own model is the one in use.
    */
+  let delegateOrdinal = 0
+  const selectedEntries = new Map<string, StaffedEntry>()
+  const exhaustedHookRoles = new Set<string>()
   const pool = (role: TeamRoleConfig): readonly StaffedEntry[] =>
     role.pool.flatMap((entry): StaffedEntry[] => {
       if (entry.agent !== undefined) return [{ ...entry, agent: entry.agent, isDefault: false }]
@@ -893,6 +917,94 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     changed()
   }
 
+  const agentProfile = (entry: StaffedEntry): TeamAgentProfile => ({
+    key: `${entry.agent.kind}:${entry.agent.agentId}`,
+    kind: entry.agent.kind,
+    billing: entry.agent.pays,
+    modelId: entry.agent.model,
+    label: entry.agent.model,
+  })
+  const taskHookFields = (task: TeamTaskRecord) => {
+    const entry = task.entry
+    if (entry === undefined) throw new Error(TEAM_MODEL_TEXT.hostStopped)
+    return {
+      subagentId: task.taskId,
+      childSessionId: task.childSessionId,
+      roleId: task.role.role,
+      entryId: entry.id,
+      agentProfileId: agentProfile(entry).key,
+      provider: entry.agent.provider,
+      taskId: task.taskId,
+      parentSessionId: task.sessionId,
+      workspaceMode: roleMode(task.role),
+      branch: task.workspace?.branch ?? task.outcome?.branch,
+      workingCopyPath:
+        task.workspace?.folder === undefined
+          ? undefined
+          : deps.hooks?.relativePath(task.workspace.folder),
+      pipelineId: task.pipelineId,
+      depth: 1,
+      model: entry.agent.model,
+      modelProvider: entry.agent.provider ?? entry.agent.agentId,
+    }
+  }
+  const switchEntry = async (task: TeamTaskRecord, entry: StaffedEntry): Promise<void> => {
+    const key = `${task.sessionId}:${task.role.role}`
+    const previous = selectedEntries.get(key)
+    if (previous !== undefined && previous.id !== entry.id) {
+      const cap = previous.caps.find((item) => capUsed(previous, item) >= item.amount)
+      let lastRefusal: TeamEntryExhaustion | undefined
+      if (cap !== undefined)
+        lastRefusal = { entryId: previous.id, reason: 'cap', cap, used: capUsed(previous, cap) }
+      else if (!isUsable(previous)) lastRefusal = { entryId: previous.id, reason: 'unavailable' }
+      else if (running(previous.id) >= previous.concurrent)
+        lastRefusal = { entryId: previous.id, reason: 'concurrent' }
+      const change = recordTeamSwitch(
+        {
+          roleId: task.role.role,
+          entries: [],
+          policy: task.role.exhausted ?? TEAM_EXHAUSTED_DEFAULT,
+          continueOnNext: false,
+        },
+        previous.id,
+        {
+          kind: 'selected',
+          entry: { ...entry, agent: agentProfile(entry) },
+          agent: agentProfile(entry),
+        },
+        lastRefusal,
+        task.taskId,
+      )
+      if (change !== undefined) {
+        deps.cards.show(task.sessionId, {
+          itemId: `team-switch-${task.taskId}`,
+          kind: 'teamSwitch',
+          status: 'completed',
+          teamSwitch: {
+            roleId: change.roleId,
+            fromEntry: change.fromEntryId,
+            toEntry: change.toEntryId,
+            reason: switchReasonText(change),
+          },
+        })
+        const dispatch = await deps.hooks?.fire(
+          task.sessionId,
+          'TeamAgentSwitch',
+          teamAgentSwitchFields(
+            switchHookPayload(change, agentProfile(previous), agentProfile(entry), task.sessionId),
+          ),
+          task.role.role,
+          task.controller.signal,
+        )
+        if (dispatch?.refusedReason !== undefined) {
+          exhaustedHookRoles.add(key)
+          throw new Error(dispatch.refusedReason)
+        }
+      }
+    }
+    selectedEntries.set(key, entry)
+  }
+
   const finish = async (
     task: TeamTaskRecord,
     phase: TaskPhase,
@@ -908,6 +1020,16 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     if (previous?.phase === 'continued' && task.outcome?.folder === undefined) {
       previous.phase = 'done'
       task.workspace = undefined
+    }
+    if (!task.hasStoppedHook && task.entry !== undefined) {
+      task.hasStoppedHook = true
+      await deps.hooks?.fire(
+        task.sessionId,
+        'SubagentStop',
+        teamSubagentStopFields(taskHookFields(task)),
+        task.role.role,
+        undefined,
+      )
     }
     settleReview(task)
     await persist()
@@ -928,33 +1050,92 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     // execute owns the lease until worker teardown and the final durable handoff.
     const execute = async (): Promise<void> => {
       try {
-        const outcome = await deps.workers.run(
-          {
-            taskId: task.taskId,
-            role: task.role,
-            entry,
-            brief: task.brief,
-            files: task.files,
-            parentSessionId: task.sessionId,
-            continueFrom: task.continueFrom?.outcome,
-            reviewOf: task.reviewOf?.outcome,
-            meter: {
-              admitRequest: (hasReservation) => {
-                admitRequest(task, hasReservation === true)
-              },
-              reserveRequest: (maximum) => reserveRequest(task, maximum),
-              settleRequest: (requestOrdinal, usage, isFinal) =>
-                settleRequest(task, requestOrdinal, usage, isFinal),
-              noteUsage: (usage) => noteUsage(task, usage),
-              noteWorkspace: async (workspace) => {
-                task.workspace = workspace
-                await persist()
-                if (workspace !== undefined) admitRequest(task, true)
-              },
-            },
-          },
+        await switchEntry(task, entry)
+        const start = await deps.hooks?.fire(
+          task.sessionId,
+          'SubagentStart',
+          teamSubagentStartFields(taskHookFields(task)),
+          task.role.role,
           task.controller.signal,
         )
+        if (start?.refusedReason !== undefined) throw new Error(start.refusedReason)
+        const taskSpec: TeamTaskSpec = {
+          taskId: task.taskId,
+          role: task.role,
+          entry,
+          brief: task.brief,
+          files: task.files,
+          parentSessionId: task.sessionId,
+          continueFrom: task.continueFrom?.outcome,
+          reviewOf: task.reviewOf?.outcome,
+          meter: {
+            noteSession: (sessionId) => {
+              task.childSessionId = sessionId
+            },
+            admitRequest: (hasReservation) => {
+              admitRequest(task, hasReservation === true)
+            },
+            reserveRequest: (maximum) => reserveRequest(task, maximum),
+            settleRequest: (requestOrdinal, usage, isFinal) =>
+              settleRequest(task, requestOrdinal, usage, isFinal),
+            noteUsage: (usage) => noteUsage(task, usage),
+            noteWorkspace: async (workspace) => {
+              task.workspace = workspace
+              await persist()
+              if (workspace !== undefined) admitRequest(task, true)
+            },
+          },
+        }
+        let outcome = await deps.workers.run(taskSpec, task.controller.signal)
+        let continuations = 0
+        while (
+          deps.hooks !== undefined &&
+          outcome.isCeilingReached === false &&
+          outcome.folder !== undefined &&
+          task.capped === undefined &&
+          !task.controller.signal.aborted &&
+          continuations < HOOK_MAX_STOP_CONTINUATIONS
+        ) {
+          const siblings = allTasks().filter(
+            (other) =>
+              other !== task &&
+              other.delegateGroup !== undefined &&
+              other.delegateGroup === task.delegateGroup &&
+              other.sessionId === task.sessionId &&
+              other.phase === 'running',
+          ).length
+          if (siblings === 0) break
+          try {
+            admitRequest(task)
+          } catch {
+            break
+          }
+          const idle = await deps.hooks.fire(
+            task.sessionId,
+            'TeammateIdle',
+            teammateIdleFields({
+              name: task.taskId,
+              siblingsRunning: siblings,
+              team: {
+                teammateName: task.taskId,
+                roleId: task.role.role,
+                entryId: entry.id,
+                agentProfileId: agentProfile(entry).key,
+                taskId: task.taskId,
+                parentSessionId: task.sessionId,
+              },
+            }),
+            task.taskId,
+            task.controller.signal,
+          )
+          if (!idle.keepWorking) break
+          admitRequest(task)
+          continuations += 1
+          outcome = await deps.workers.run(
+            { ...taskSpec, continueFrom: outcome },
+            task.controller.signal,
+          )
+        }
         task.outcome =
           task.capped === undefined
             ? outcome
@@ -1083,6 +1264,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       if (roleMode(role) === 'in-place') {
         return { item, refused: TEAM_MODEL_TEXT.hostInPlaceNotOffered }
       }
+      if (exhaustedHookRoles.has(`${context.sessionId}:${role.role}`))
+        return { item, refused: fill(TEAM_MODEL_TEXT.hostExhausted, { role: role.role }) }
       const previous = item.continue === undefined ? undefined : ownTask(item.continue, context)
       if (
         item.continue !== undefined &&
@@ -1325,7 +1508,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         discard,
         exclusive,
         checkOwner: checkMergeOwner,
-        confirmReview: (entry) => confirmationFor(REVIEW_ROLE, entry),
+        confirmReview: (entry) =>
+          confirmationFor(REVIEW_ROLE, entry, deps.workers.rates?.(entry.agent)),
         agentScope: (agent) => paidScope(agent),
         forget: (taskId: string): void => {
           tasks.delete(taskId)
@@ -1375,6 +1559,9 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       if (queuedNow + settledSteps.filter((step) => 'queue' in step).length > TEAM_QUEUE_MAX) {
         return refusal(fill(TEAM_MODEL_TEXT.hostQueueFull, { max: String(TEAM_QUEUE_MAX) }))
       }
+      const parsedGroup = delegateArgs.parse(args)
+      const delegateGroup = `${context.sessionId}:delegate:${String(++delegateOrdinal)}`
+      const pipelineId = parsedGroup.pipeline ?? delegateGroup
       const reserved = new Map<PlanStep, TeamTaskRecord>()
       let hasStarted = false
       try {
@@ -1395,6 +1582,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
               refused: fill(TEAM_MODEL_TEXT.hostExhausted, { role: step.item.role }),
             }
           const task = record(step.role, step.item, context.sessionId, 'starting')
+          task.delegateGroup = delegateGroup
+          task.pipelineId = pipelineId
           task.continueFrom = step.continueFrom
           task.isRaised = step.isRaised === true
           try {
@@ -1418,7 +1607,9 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
             )
         }
         const confirmations = [...named].flatMap(([step, entries]) =>
-          entries.map((entry) => confirmationFor(step.item.role, entry)),
+          entries.map((entry) =>
+            confirmationFor(step.item.role, entry, deps.workers.rates?.(entry.agent)),
+          ),
         )
         context.signal.throwIfAborted()
         if (
@@ -1441,6 +1632,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
             started.push(taskView(task))
           } else if ('queue' in step) {
             const queued = record(step.role, step.item, context.sessionId, 'queued')
+            queued.delegateGroup = delegateGroup
+            queued.pipelineId = pipelineId
             queued.consented = new Set(
               (named.get(step) ?? []).map((entry) => paidScope(entry.agent)),
             )
