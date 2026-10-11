@@ -93,6 +93,13 @@ happened, not what was planned; superseded entries are kept.
       is committed after the Lock.
     - A headless run cancelled while opening the vault gets no session, and
       its connection closes.
+  - Review repairs (RVCM1091A3): queued work loses authority at Lock; imports
+    verify every parent and held file within the home, retain private profile
+    and field identity in encrypted material, and cancel sent requests when
+    the panel retires. Ordinary change notifications preserve Keep/Delete.
+    Reset detects lost documents and damaged pending transactions, refuses
+    unlocked stores, checks every destructive boundary and retires the exact
+    anchor while holding the writer lock.
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did

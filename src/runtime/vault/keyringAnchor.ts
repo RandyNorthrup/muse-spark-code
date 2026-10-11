@@ -75,10 +75,18 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
   }
 
   /** Reset Vault: removes exactly this vault's record; another vault's is refused. */
-  async reset(vaultId: string): Promise<void> {
+  async reset(
+    vaultId: string,
+    expected: VaultGenerationState | null,
+    authorize: () => void,
+  ): Promise<void> {
     const record = await this.read()
-    if (record === null) return
-    if (record.vaultId !== vaultId) throw new VaultError('rollback')
+    authorize()
+    if (record?.vaultId !== vaultId || !isSame(stateOf(record), expected))
+      throw new VaultError('rollback')
+    // No await between authority and dispatch to the OS store. storeOperation
+    // scrubs native failures, so cancellation must be checked outside it.
+    authorize()
     try {
       await storeOperation(() =>
         this.openEntry(KEYRING_SERVICE, VAULT_ANCHOR_ACCOUNT).deletePassword(),
