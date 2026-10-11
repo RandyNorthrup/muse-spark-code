@@ -23,6 +23,7 @@ import { PROVIDER_MANUAL_THINKING_BUDGET } from '../../../../shared/constants'
 import { UI_TEXT } from '../../../../shared/l10n/text'
 
 import { ModelApiError } from '../transport'
+import { UserRefusalError } from '../../../refusal'
 import { CODEC_EMPTY_TOOL_OUTPUT, CODEC_IMAGE_WITHOUT_VISION } from '../../../../shared/constants'
 import { cleanJsonStrings, cleanWireText, isBlankWireText } from './shared'
 import type {
@@ -640,12 +641,16 @@ export function encodeGeminiRequest(
   const thinkingLevel = geminiThinkingLevelForEffort(body.reasoning.effort)
   const record = capabilityRecord ?? capturedCapabilities('gemini', nativeModelId)
   if (body.reasoning.effort !== 'none' && record.reasoning.supported.state === 'no')
-    throw new Error(`${UI_TEXT.providerCapabilityUnsupported} (gemini_reasoning_unsupported)`)
+    throw new UserRefusalError(
+      `${UI_TEXT.providerCapabilityUnsupported} (gemini_reasoning_unsupported)`,
+    )
   if (
     body.reasoning.effort === 'none' &&
     (record.reasoning.forced.state === 'yes' || record.reasoning.canDisable.state === 'no')
   )
-    throw new Error(`${UI_TEXT.providerCapabilityUnsupported} (gemini_thinking_cannot_disable)`)
+    throw new UserRefusalError(
+      `${UI_TEXT.providerCapabilityUnsupported} (gemini_thinking_cannot_disable)`,
+    )
   const modes = record.reasoning.modes.state === 'yes' ? record.reasoning.modes.value : []
   const isBudgetUsed = modes.includes('budget')
   const budget =
@@ -661,9 +666,13 @@ export function encodeGeminiRequest(
       budget > (record.reasoning.budget?.max ?? Infinity) ||
       budget >= body.max_output_tokens)
   )
-    throw new Error(`${UI_TEXT.providerCapabilityUnsupported} (gemini_invalid_thinking_budget)`)
+    throw new UserRefusalError(
+      `${UI_TEXT.providerCapabilityUnsupported} (gemini_invalid_thinking_budget)`,
+    )
   if (thinkingLevel !== undefined && !isBudgetUsed && !modes.includes('level'))
-    throw new Error(`${UI_TEXT.providerCapabilityUnsupported} (gemini_unknown_thinking_mode)`)
+    throw new UserRefusalError(
+      `${UI_TEXT.providerCapabilityUnsupported} (gemini_unknown_thinking_mode)`,
+    )
   const supportedLevel =
     thinkingLevel !== undefined &&
     record.reasoning.effortLevels.state === 'yes' &&

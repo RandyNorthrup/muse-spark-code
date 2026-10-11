@@ -9,6 +9,7 @@ import { mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { mkdir, rmdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
+import { SessionBudgetExceededError } from '../../core/backends/modelapi/sessionBudget'
 import type {
   SessionBudgetClaim,
   SessionBudgetJournal,
@@ -510,13 +511,13 @@ export function createSessionBudgetJournal(
         }
         const total = totalFor(scope)
         if (Usd.from(capUsd).compare(Usd.from(0)) > 0 && total.hasUnknownHistoricalFees) {
-          throw new Error(UI_TEXT.sessionBudgetLegacyFeesUnknown)
+          throw new SessionBudgetExceededError(UI_TEXT.sessionBudgetLegacyFeesUnknown)
         }
         if (
           Usd.from(capUsd).compare(Usd.from(0)) > 0 &&
           total.spent.compare(Usd.from(capUsd)) > 0
         ) {
-          throw new Error(
+          throw new SessionBudgetExceededError(
             fill(UI_TEXT.sessionBudgetStopped, {
               estimate: formatUsd(Usd.from(created.reservedUsd).toAmount()),
               cap: formatUsd(capUsd),

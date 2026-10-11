@@ -9,6 +9,8 @@ import {
   RequestTransport,
   ignoreClosingError,
   redactModelApiError,
+  isUserRefusal,
+  isModelApiError,
   ModelApiError,
   parseJsonResponse,
   type TransportDeps,
@@ -235,6 +237,12 @@ export class CodecClient implements ProviderClient {
         yield validated
       }
     } catch (error: unknown) {
+      if (
+        isUserRefusal(error) &&
+        !isModelApiError(error) &&
+        redact(error.message) === error.message
+      )
+        throw error
       throw redactModelApiError(error, redact, response.status)
     } finally {
       if (response.body !== null && !response.body.locked) {

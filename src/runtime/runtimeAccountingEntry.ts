@@ -184,7 +184,13 @@ export function withRuntimeAccounting(
             prepare: async () => {
               await settle()
               await guard?.prepare?.()
-              claim = await daily.reserve(reserveUsd, signal)
+              try {
+                claim = await daily.reserve(reserveUsd, signal)
+              } catch (error: unknown) {
+                if (error instanceof Error && error.name === 'SessionBudgetExceededError')
+                  accounting?.refuse('budget')
+                throw error
+              }
               if (accounting === undefined) return
               const pricing = model.policy.pricing
               const price =

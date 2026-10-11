@@ -15,6 +15,8 @@ import {
   parseJsonResponse,
   readBoundedText,
   redactModelApiError,
+  isUserRefusal,
+  isModelApiError,
   redactStreamDiagnostics,
   type ConfirmedModelRequest,
   type ResponseAttemptGuard,
@@ -733,6 +735,12 @@ export class ModelApiClient implements TransportProviderClient {
           )
         }
       } catch (error: unknown) {
+        if (
+          isUserRefusal(error) &&
+          !isModelApiError(error) &&
+          redact(error.message) === error.message
+        )
+          throw error
         throw redactModelApiError(error, redact, response.status)
       } finally {
         // An early end (a malformed frame, a stall, the caller stopping)

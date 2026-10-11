@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Configured providers keep budget, consent, model, codec and stale-confirmation
+  refusals visible instead of reporting that Models & Agents is unavailable.
+  Provider diagnostics still pass through credential redaction.
+
 - Unsent headless requests refund both their daily and run reservations, including
   their request count. New unsent daily claims recover after their owner exits;
   requests that may have reached the provider retain their liability.
