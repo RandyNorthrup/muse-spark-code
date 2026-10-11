@@ -1,4 +1,22 @@
 import { randomUUID } from 'node:crypto'
+
+const AUTO_COMPACTION_NOT_AUTHORIZED = 'AutoCompactionNotAuthorizedError'
+
+/** Withdrawal refuses this compaction, independently of the spend ledger. */
+export class AutoCompactionNotAuthorizedError extends Error {
+  public constructor() {
+    super()
+    this.name = AUTO_COMPACTION_NOT_AUTHORIZED
+  }
+}
+
+/** Admission and the lazy Model API host carry separate copies of the class. */
+export function isAutoCompactionNotAuthorizedError(
+  error: unknown,
+): error is AutoCompactionNotAuthorizedError {
+  return error instanceof Error && error.name === AUTO_COMPACTION_NOT_AUTHORIZED
+}
+
 // Asking before each paid use (M58, PLAN.md D48). The owner (2026-09-27):
 // "anything requiring extra payment should promt you with a popup that asks
 // allow once allow always in this workspace or deny".
@@ -255,6 +273,12 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
   readonly detail: string
 }> {
   switch (request.feature) {
+    case 'autoCompaction': {
+      return {
+        title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.autoCompactionName }),
+        detail: `${request.modelId}: ${scheduledRunPrice(request.modelId)}\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatUsd(request.dailyBudgetUsd, 2) })}`,
+      }
+    }
     case 'judge': {
       const price = autoReviewPrice(request.modelId)
       if (price === undefined || Usd.from(request.dailyBudgetUsd).compare(Usd.from(0)) < 0)
@@ -724,6 +748,22 @@ export class PaidUseConsent {
   /** The features that no longer ask in this workspace, in their fixed order. */
   public remembered(): readonly PaidFeature[] {
     return PAID_FEATURES.filter((feature) => this.isRemembered(feature))
+  }
+
+  /** A live fence for an admitted use, including Once and revoked Always grants. */
+  public fence(feature: PaidFeature): () => boolean {
+    const revocation = this.revocation
+    const generation = this.deps.windowOnceGeneration?.(feature)
+    const wasRemembered = this.isRemembered(feature)
+    const wasOnce = this.isWindowOnce(feature)
+    const wasTrusted = this.deps.canRemember()
+    return () =>
+      revocation === this.revocation &&
+      generation === this.deps.windowOnceGeneration?.(feature) &&
+      wasTrusted === this.deps.canRemember() &&
+      this.isEnabled(feature) &&
+      (!wasRemembered || this.isRemembered(feature)) &&
+      (!wasOnce || this.isWindowOnce(feature))
   }
 
   /**

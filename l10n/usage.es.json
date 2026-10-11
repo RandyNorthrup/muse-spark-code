@@ -78,6 +78,11 @@
     "many": "{count} de líneas incompletas omitidas",
     "other": "{count} líneas incompletas omitidas"
   },
+  "inexactRecords": {
+    "one": "{count} registro antiguo no contabilizado: su importe no se pudo leer con exactitud",
+    "many": "{count} de registros antiguos no contabilizados: sus importes no se pudieron leer con exactitud",
+    "other": "{count} registros antiguos no contabilizados: sus importes no se pudieron leer con exactitud"
+  },
   "recordCount": {
     "one": "{count} registro",
     "many": "{count} de registros",

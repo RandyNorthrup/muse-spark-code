@@ -218,7 +218,7 @@ describe('M102 integrated surfaces', () => {
     ).toEqual(['meta', 'museCode', 'openai'])
     expect(journal.records.find((row) => row.provider === 'openai')?.cost).toMatchObject({
       certainty: 'computed',
-      usd: 0.00026,
+      usd: '0.00026',
       source: 'user',
     })
     expect(journal.records.find((row) => row.provider === 'museCode')?.cost).toMatchObject({

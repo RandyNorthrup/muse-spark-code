@@ -84,6 +84,12 @@
     "many": "Pominięto {count} niekompletnych wierszy",
     "other": "Pominięto {count} niekompletnych wierszy"
   },
+  "inexactRecords": {
+    "one": "Nie uwzględniono {count} starszego rekordu: jego kwoty nie można dokładnie odczytać",
+    "few": "Nie uwzględniono {count} starszych rekordów: ich kwot nie można dokładnie odczytać",
+    "many": "Nie uwzględniono {count} starszych rekordów: ich kwot nie można dokładnie odczytać",
+    "other": "Nie uwzględniono {count} starszego rekordu: ich kwot nie można dokładnie odczytać"
+  },
   "recordCount": {
     "one": "{count} rekord",
     "few": "{count} rekordy",

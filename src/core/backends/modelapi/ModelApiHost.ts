@@ -413,6 +413,10 @@ import {
   type AutoCompactModel,
   type AutoCompactDecision,
 } from './autoCompact'
+import {
+  AutoCompactionNotAuthorizedError,
+  isAutoCompactionNotAuthorizedError,
+} from '../../paid/paidConsent'
 import type {
   ContextModel,
   ContextOverflowEvent,
@@ -598,6 +602,11 @@ export interface ModelApiPaidHooks {
   readonly hookModelDailyBudget?: HookModelDailyBudget | undefined
 }
 
+type CompactionAttemptGuard = ResponseAttemptGuard & {
+  /** The final body's calibrated input estimate; rebound for every retry/fallback. */
+  readonly prepareRequest?: (body: CreateResponseBody, inputTokens: number) => Promise<void>
+}
+
 export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDeps {
   /** M105-A: M2 binds the attachment choices to the portable sound router in
    * dist/media.js. Absent until that lane is integrated; no eager media load. */
@@ -632,13 +641,15 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
         readonly signal: AbortSignal
       }) => Promise<
         | {
-            readonly guard: ResponseAttemptGuard
+            readonly guard: CompactionAttemptGuard
             /** Once per dispatched attempt, including uncertain/failed attempts. */
             readonly settle: (
               modelId: string,
               usage: Usage | undefined,
               outcome: 'returned' | 'uncertain' | 'rate-limited',
-            ) => void
+            ) => void | Promise<void>
+            /** Refund any admitted nonsend and drain its settlement. */
+            readonly close?: () => Promise<void>
           }
         | undefined
       >)
@@ -14146,12 +14157,12 @@ export class ModelApiSession implements ScheduledAgentSession {
   private async collectText(
     makeBody: () => CreateResponseBody,
     signal: AbortSignal,
-    extraAdmission?: ResponseAttemptGuard,
+    extraAdmission?: CompactionAttemptGuard,
     settleExtra?: (
       modelId: string,
       usage: Usage | undefined,
       outcome: 'returned' | 'uncertain' | 'rate-limited',
-    ) => void,
+    ) => void | Promise<void>,
   ): Promise<{
     readonly body: CreateResponseBody
     readonly text: string
@@ -14187,6 +14198,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (this.recordedCall !== undefined)
           this.recordedCall = { ...this.recordedCall, kind: 'compaction' }
         const admitAttempt = this.responseAttemptGuard(body, undefined, true)
+        let settling: Promise<void> = Promise.resolve()
         const guarded: ResponseAttemptGuard = Object.assign(
           (keyDigest: string | undefined) => {
             if (revision !== this.modelRevision) throw new AbortedError()
@@ -14194,6 +14206,16 @@ export class ModelApiSession implements ScheduledAgentSession {
             extraAdmission?.(keyDigest)
           },
           {
+            prepare: async () => {
+              await settling
+              await admitAttempt.prepare?.()
+              await extraAdmission?.prepareRequest?.(
+                body,
+                estimateInput(this.media?.budgetParts(body) ?? requestParts(body), undefined)
+                  .inputTokens,
+              )
+              await extraAdmission?.prepare?.()
+            },
             onRequestStarted: () => {
               attemptState.didSend = true
               admitAttempt.onRequestStarted?.()
@@ -14218,13 +14240,16 @@ export class ModelApiSession implements ScheduledAgentSession {
             // Consume first: failed accounting must not settle this attempt again in cleanup.
             attemptState.didSend = false
             attemptState.usage = undefined
-            settleExtra?.(
-              body.model,
-              usage,
-              notice.reason.startsWith(`HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`)
-                ? 'rate-limited'
-                : 'uncertain',
+            settling = Promise.resolve(
+              settleExtra?.(
+                body.model,
+                usage,
+                notice.reason.startsWith(`HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`)
+                  ? 'rate-limited'
+                  : 'uncertain',
+              ),
             )
+            void settling.catch(NO_UNSUBSCRIBE)
             this.allowRateLimitedRetry(notice)
             this.emit({
               type: 'turnRetry',
@@ -14263,12 +14288,18 @@ export class ModelApiSession implements ScheduledAgentSession {
             if (attemptState.didSend) {
               const outcome = attemptState.usage === undefined ? 'uncertain' : 'returned'
               attemptState.didSend = false
-              settleExtra?.(
-                body.model,
-                attemptState.usage,
-                attemptState.isRateLimited ? 'rate-limited' : outcome,
+              await unlessStopped(
+                Promise.resolve(
+                  settleExtra?.(
+                    body.model,
+                    attemptState.usage,
+                    attemptState.isRateLimited ? 'rate-limited' : outcome,
+                  ),
+                ),
+                signal,
               )
             }
+            await unlessStopped(settling, signal)
           } finally {
             await unlessStopped(this.endRequest(), signal)
           }
@@ -14539,8 +14570,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     const goalRevision = this.goalCommandRevision
     const todos = this.todos.map((todo) => ({ ...todo }))
     const ledger = { hasFailed: false }
+    let admission: Awaited<ReturnType<NonNullable<ModelApiHostDeps['admitAutoCompaction']>>>
     try {
-      const admission = await unlessStopped(
+      admission = await unlessStopped(
         this.deps.admitAutoCompaction?.({
           sessionId: this.askingSessionId,
           turnId: turn.turnId,
@@ -14556,23 +14588,33 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (
           this.active !== turn ||
           revision !== this.modelRevision ||
-          goalRevision !== this.goalCommandRevision ||
+          goalRevision !== this.goalCommandRevision
+        )
+          throw new AbortedError()
+        if (
           !(this.deps.autoCompaction?.() ?? SETTING_DEFAULTS.modelApiAutoCompaction) ||
           !(this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED)
         )
-          throw new AbortedError()
+          throw new AutoCompactionNotAuthorizedError()
       }
       assertCurrent()
       if (admission === undefined) {
         this.autoCompact.failed()
         return false
       }
-      const guard: ResponseAttemptGuard = Object.assign(
+      const guard: CompactionAttemptGuard = Object.assign(
         (keyDigest: string | undefined) => {
           assertCurrent()
-          admission.guard(keyDigest)
+          admission?.guard(keyDigest)
         },
-        { onRequestStarted: () => admission.guard.onRequestStarted?.() },
+        {
+          prepareRequest: async (body: CreateResponseBody, inputTokens: number) => {
+            assertCurrent()
+            await admission?.guard.prepareRequest?.(body, inputTokens)
+            await admission?.guard.prepare?.()
+          },
+          onRequestStarted: () => admission?.guard.onRequestStarted?.(),
+        },
       )
       const memoryStop = await this.flushCompactionMemory(turn)
       assertCurrent()
@@ -14580,9 +14622,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.autoCompact.failed()
         return 'stopped'
       }
-      const settle: typeof admission.settle = (...args) => {
+      const settle: NonNullable<typeof admission>['settle'] = async (...args) => {
         try {
-          admission.settle(...args)
+          await admission?.settle(...args)
         } catch (error: unknown) {
           ledger.hasFailed = true
           throw error
@@ -14613,22 +14655,29 @@ export class ModelApiSession implements ScheduledAgentSession {
       return true
     } catch (error: unknown) {
       this.autoCompact.failed()
-      if (ledger.hasFailed) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
+      if (
+        ledger.hasFailed ||
+        (error instanceof Error && error.message === UI_TEXT.sessionBudgetStoreUnavailable)
+      )
+        throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
+      if (isAutoCompactionNotAuthorizedError(error)) return false
       if (isAbortRequested(turn.abort.signal) || error instanceof AbortedError) throw error
       this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.autoCompactionFailed })
       return false
+    } finally {
+      await unlessStopped(admission?.close?.() ?? Promise.resolve(), turn.abort.signal)
     }
   }
 
   private async runCompaction(
     signal: AbortSignal,
-    extraAdmission?: ResponseAttemptGuard,
+    extraAdmission?: CompactionAttemptGuard,
     isSummaryFork = false,
     settleExtra?: (
       modelId: string,
       usage: Usage | undefined,
       outcome: 'returned' | 'uncertain' | 'rate-limited',
-    ) => void,
+    ) => void | Promise<void>,
   ): Promise<CompactOutcome> {
     if (this.teamModeForRequest() === 'team') await this.prepareTeamRuntime()
     if (!this.hasCompactableHistory(isSummaryFork)) {
@@ -14715,7 +14764,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       formats: this.deps.sideCallFormats?.(this.modelId),
       signal,
       isTerminalError: (error) =>
-        error instanceof HookStoppedError || error instanceof SessionBudgetExceededError,
+        error instanceof HookStoppedError ||
+        isAutoCompactionNotAuthorizedError(error) ||
+        error instanceof SessionBudgetExceededError ||
+        (error instanceof Error && error.message === UI_TEXT.sessionBudgetStoreUnavailable),
       notice: (text) => {
         this.emit({ type: 'backendNotice', level: 'warning', text })
       },
@@ -14810,6 +14862,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       itemId: this.deps.newId(),
       kind: 'compaction',
       status: COMPLETED,
+      ...(extraAdmission !== undefined && !isSummaryFork && { paid: 'autoCompaction' as const }),
       fallbackText: UI_TEXT.compactionDone,
     }
     this.emit({ type: 'itemCompleted', item })
@@ -15749,7 +15802,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** C2 calls the core while its active turn holds the replay at a settled boundary. */
   public compactContext(
     signal: AbortSignal,
-    extraAdmission?: ResponseAttemptGuard,
+    extraAdmission?: CompactionAttemptGuard,
   ): Promise<CompactOutcome> {
     return this.runCompaction(signal, extraAdmission)
   }
@@ -16242,10 +16295,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       budget: {
         id: this.sessionId,
         kind: 'conversation',
-        capUsd: Number(capUsd),
-        spentUsd: Number(spentUsd),
+        capUsd: Usd.from(capUsd).toAmount(),
+        spentUsd: Usd.from(spentUsd).toAmount(),
         stopped: isPositiveUsd(capUsd) && Usd.from(spentUsd).compare(Usd.from(capUsd)) >= 0,
-        ...(total?.uncertainUsd !== undefined && { uncertainUsd: Number(total.uncertainUsd) }),
+        ...(total?.uncertainUsd !== undefined && {
+          uncertainUsd: Usd.from(total.uncertainUsd).toAmount(),
+        }),
       },
     }
   }

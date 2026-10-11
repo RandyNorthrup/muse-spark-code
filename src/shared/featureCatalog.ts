@@ -126,6 +126,7 @@ export function referenceDescription(text: ReferenceText): ReferenceText {
         when = 'permission=denied'
         break
       }
+      case 'auto-compaction':
       case 'no-auto-compaction': {
         when = 'autoCompactionEvaluation'
         break
@@ -340,6 +341,8 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['vscode', 'acp'],
     ),
+    // M121: exact costs and period changes; unproved historical months are
+    // withheld with a translated notice in editor and portable usage views.
     feature(
       'usage',
       { ui: 'usagePageTitle' },
@@ -385,9 +388,9 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'compaction',
       { ui: 'compactItem' },
-      { ui: 'autoCompactionAwaitingEvaluation' },
+      { ui: 'referenceManualCompaction' },
       [],
-      ['modelApiAutoCompaction'],
+      [],
       'observation-packing-model-api',
       ['modelApi'],
       false,
@@ -476,17 +479,20 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['vscode', 'acp'],
     ),
-    feature(
-      'auto-compaction',
-      { setting: 'modelApiAutoCompaction' },
-      { setting: 'modelApiAutoCompaction' },
-      [],
-      ['modelApiAutoCompaction'],
-      'agent-loop-guarantees',
-      ['modelApi'],
-      false,
-      ['vscode', 'acp'],
-    ),
+    {
+      ...feature(
+        'auto-compaction',
+        { ui: 'autoCompactionName' },
+        { ui: 'autoCompactionAwaitingEvaluation' },
+        [],
+        ['modelApiAutoCompaction'],
+        'agent-loop-guarantees',
+        ['modelApi'],
+        true,
+        ['vscode', 'acp'],
+      ),
+      details: [{ setting: 'modelApiAutoCompaction' }],
+    },
     feature(
       'argument-preview',
       { ui: 'toolArgumentPreviewLabel' },

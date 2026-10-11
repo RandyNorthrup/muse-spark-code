@@ -1065,6 +1065,7 @@ export const HOOK_EXPANSION_MAX_CHARS = 2048
 // once, Allow always in this workspace, or Deny), shown per use and tallied
 // (the owner's rule: "opt in and loud").
 export const PAID_FEATURES = [
+  'autoCompaction',
   'webSearch',
   'imageGeneration',
   'voice',
@@ -1091,6 +1092,7 @@ export const MUSE_CODE_PAID_FEATURES = [
 export type PaidFeature = (typeof PAID_FEATURES)[number]
 /** Each feature's setting, relative to the `museSpark` section. */
 export const PAID_FEATURE_SETTINGS = {
+  autoCompaction: 'modelApiAutoCompaction',
   webSearch: 'modelApiWebSearch',
   imageGeneration: 'modelApiImageGeneration',
   voice: 'modelApiVoice',
@@ -2096,6 +2098,10 @@ export const COMPACTION_SUMMARY_MAX_TOKENS = 8192
 export const COMPACTION_SUMMARY_WINDOW_FRACTION = 0.05
 // Lane E flips this only with a current passing M75 pair and D78 wiring.
 export const IS_AUTO_COMPACTION_EVALUATED = false
+/** The single runtime reader for the latch, so every gate flips together. */
+export function isAutoCompactionEvaluated(): boolean {
+  return IS_AUTO_COMPACTION_EVALUATED
+}
 export const AUTO_COMPACTION_COOLDOWN_REQUESTS = 2
 export const AUTO_COMPACTION_MIN_OCCUPANCY = 1 / 2
 export const AUTO_COMPACTION_NEAR_WINDOW = 9 / 10
@@ -4011,11 +4017,13 @@ export const ACP_CONFIG_IDS = { model: 'model', effort: 'effort', account: 'acco
 // only with its flag, and each use asked in the editor (M58, D48). Muse
 // Voice needs the panel's microphone, so the agent has none.
 export const ACP_PAID_FEATURES = [
+  'autoCompaction',
   'webSearch',
   'imageGeneration',
 ] as const satisfies readonly PaidFeature[]
 export type AcpPaidFeature = (typeof ACP_PAID_FEATURES)[number]
 export const ACP_PAID_FLAGS = {
+  autoCompaction: 'auto-compaction',
   webSearch: 'web-search',
   imageGeneration: 'image-generation',
 } as const satisfies Readonly<Record<AcpPaidFeature, string>>
@@ -4384,7 +4392,10 @@ export const SECONDS_PER_MINUTE = 60
 export const USAGE_COUNTDOWN_REFRESH_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
 
 // M102 / D82: machine-local usage history, independent of spend ledgers.
-export const USAGE_JOURNAL_VERSION = 1
+// Version 2 (M121) stores dollars as exact decimal text. Both versions share
+// the `v1` folder: a 0.17 reader counts version 2 lines as newer, never loses
+// them, and this reader converts version 1 lines exactly.
+export const USAGE_JOURNAL_VERSION = 2
 export const USAGE_FOLDER = 'usage'
 export const USAGE_SETTINGS_FILE = 'usage-settings.json'
 export const USAGE_VERSION_FOLDER = 'v1'
@@ -7202,41 +7213,41 @@ export const TEAM_ROLE_BASE_EFFORT = {
 
 // One control from Minimal to Max (D75): each level sets the running caps,
 // the effort shift from the role's base, the tokens per task and the team's
-// daily budgets. `ceiling` means the computed ceiling, never hard-coded.
+// daily budgets (dollars as exact decimal text, M121). `ceiling` means the computed ceiling, never hard-coded.
 export const TEAM_INTENSITY_LEVELS = {
   minimal: {
     runningPerRole: 1,
     effortShift: -2,
     tokensPerTask: 100_000,
-    dailyUsd: 2,
+    dailyUsd: '2',
     dailyTokens: 1_000_000,
   },
   light: {
     runningPerRole: 2,
     effortShift: -1,
     tokensPerTask: 200_000,
-    dailyUsd: 5,
+    dailyUsd: '5',
     dailyTokens: 2_500_000,
   },
   balanced: {
     runningPerRole: 4,
     effortShift: 0,
     tokensPerTask: 400_000,
-    dailyUsd: 10,
+    dailyUsd: '10',
     dailyTokens: 5_000_000,
   },
   heavy: {
     runningPerRole: 8,
     effortShift: 1,
     tokensPerTask: 800_000,
-    dailyUsd: 25,
+    dailyUsd: '25',
     dailyTokens: 12_000_000,
   },
   max: {
     runningPerRole: 'ceiling',
     effortShift: 2,
     tokensPerTask: 1_500_000,
-    dailyUsd: 50,
+    dailyUsd: '50',
     dailyTokens: 25_000_000,
   },
 } as const
@@ -7246,7 +7257,8 @@ export const TEAM_INTENSITY_ORDER = ['minimal', 'light', 'balanced', 'heavy', 'm
 export const TEAM_LEARNED_MIN_TASKS = 5
 export const TEAM_MINUTES_PER_HOUR = 60
 export const TEAM_TOKENS_PER_MTOK = 1_000_000
-export const TEAM_PREVIEW_OUTPUT_SHARE = 0.3
+// The output share of a preview step's tokens, in whole percent (exact money, M121).
+export const TEAM_PREVIEW_OUTPUT_PERCENT = 30
 export const TEAM_PREVIEW_USD_FRACTION_DIGITS = 4
 export const TEAM_EXPORT_FORMAT = 'muse-spark-team'
 export const TEAM_EXPORT_VERSION = 1

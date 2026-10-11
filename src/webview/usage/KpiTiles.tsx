@@ -2,13 +2,16 @@ import { USAGE_TEXT } from '../../shared/l10n/usageTable'
 import { fill, formatPercent, plural } from '../../shared/l10n/text'
 import type { UsageTotals, UsageQuery } from '../../shared/usagePage'
 import type { UsageCertainty } from '../../shared/usageJournal'
+import { usdPeriodDelta } from '../../shared/usd'
 import {
   metricValue,
   metricLabel,
   metricText,
   certaintyLabel,
+  costLabel,
   costText,
   totalsFacts,
+  billedCost,
 } from './display'
 
 function certaintyNote(certainty: UsageCertainty): string | undefined {
@@ -52,15 +55,20 @@ export function KpiTiles({
   readonly previous: UsageTotals
   readonly metric: UsageQuery['metric']
 }) {
-  const currentCost = metricValue(totals, metric)
-  const previousCost = metricValue(previous, metric)
+  const previousValue = metric === 'cost' ? undefined : metricValue(previous, metric)
+  const currentValue = metric === 'cost' ? undefined : metricValue(totals, metric)
+  const countChange =
+    currentValue === undefined || previousValue === undefined || previousValue === 0
+      ? undefined
+      : ((currentValue - previousValue) / previousValue) * 100
+  const change =
+    metric === 'cost' ? usdPeriodDelta(billedCost(totals), billedCost(previous)) : countChange
   let comparison: string
   if (previous.records === 0) comparison = USAGE_TEXT.noPreviousPeriod
-  else if (currentCost === undefined || previousCost === undefined || previousCost === 0)
-    comparison = USAGE_TEXT.unknown
+  else if (change === undefined) comparison = USAGE_TEXT.unknown
   else
     comparison = fill(USAGE_TEXT.periodChange, {
-      change: formatPercent(((currentCost - previousCost) / previousCost) * 100),
+      change: formatPercent(change),
     })
   return (
     <section aria-label={USAGE_TEXT.totalCost}>
@@ -69,7 +77,8 @@ export function KpiTiles({
         {USAGE_TEXT.previousPeriod}: {costText(previous)}
       </p>
       <p>
-        {USAGE_TEXT.previousPeriod}: {metricLabel(metric)}: {metricText(previousCost, metric)}
+        {USAGE_TEXT.previousPeriod}: {metricLabel(metric)}:{' '}
+        {metric === 'cost' ? costLabel(previous) : metricText(previousValue, metric)}
       </p>
       <p>{comparison}</p>
       <h2>{USAGE_TEXT.certainty}</h2>

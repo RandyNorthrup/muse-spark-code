@@ -78,6 +78,20 @@ happened, not what was planned; superseded entries are kept.
   literal `.jsx` and absolute `.js` resolution work, and temporary paths are
   canonical on macOS, Windows and Linux. No user-facing feature change;
   production automatic compaction stays off.
+- **Production admission for automatic compaction** (M101 C-M101-1, dormant).
+  The panel backend manager and the runtime backend manager (ACP, exec) now
+  bind the one shared D78 gate and ledger for automatic compaction
+  (`admitAutoCompaction`) and the Meta catalogue model reader
+  (`autoCompactModel`), so every host that offers automatic compaction
+  admits the same way. Every automatic attempt reserves its projected cost
+  from the daily ledger before dispatch, rechecks the claim synchronously
+  at send, and settles once per attempt at its exact cost (known nonsends
+  refunded, uncertain attempts retain their liability); a refused or
+  missing ledger sends nothing. Near-window and overflow protection are
+  never blocked by economics. Nothing changes for users yet: the feature
+  stays off behind the unevaluated latch (`IS_AUTO_COMPACTION_EVALUATED`)
+  and reports "awaiting evaluation", and requests sent while it is off are
+  byte-identical.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
@@ -98,6 +112,34 @@ happened, not what was planned; superseded entries are kept.
   JetBrains, Visual Studio, Eclipse and the companion page can reuse the same
   chip and status adapter once their M104 bridges bind them; none does yet.
   ACP and terminals keep `/resources` and `resources status|resume`.
+
+### Fixed
+
+- **Automatic compaction review repairs** (M101, RVCM1011C): hidden options
+  preserve the complete ACP and CLI manuals, including invalid-argument help.
+  Help filters structured option identities rather than flag substrings.
+  Revoked consent, paid switch, trust or evaluation refuses only that
+  compaction and lets the ordinary turn continue; actual ledger failures
+  still fail closed. The native setting and README describe its currently
+  inactive preference honestly.
+
+- **Automatic compaction admission, third review** (M101, RVCM1011B): one
+  authority reserves each actual request's input estimate and full output
+  allowance, settles reported usage and refunds the difference. Consent,
+  paid switch, trust and evaluation are checked at preparation and final
+  dispatch, including retries; revocation stops the send. Unevaluated
+  automatic compaction is absent from paid surfaces and help; the native
+  setting remains an inactive preference.
+  Turn-on confirms its rates, manual summary forks keep their own identity,
+  and ACP Once is documented per workspace within the agent process.
+
+- **Automatic compaction admission** (M101, RVCM1011): shared first-charge
+  consent precedes spending; daily Stop and unreadable storage refuse even
+  near-window protection. Each HTTP attempt gets a fresh claim, known
+  nonsends refund, and settlement failure ends the owning turn before any
+  continuation. ACP/exec use their transport's sole daily debit. ACP adds
+  `--auto-compaction` as an explicit paid opt-in; exec paid defaults remain
+  off. The evaluated latch remains false.
 
 ### Changed
 
@@ -133,6 +175,13 @@ happened, not what was planned; superseded entries are kept.
   rental cost estimates, reporting facts, account totals and voice consent. Read
   historical numeric records at validated boundaries; saved reports verify their
   original hashes before migration to exact money version 2.
+- Usage, team and schedule money is exact too (M121): journal and usage
+  page totals, provider rows, key usage, team costs, budgets and preview
+  totals, and schedule caps and liabilities are kept as exact decimal
+  dollars and shown through the exact formatters. The usage journal moves
+  to version 2; version 1 records with numeric dollars still read and
+  convert exactly, and a record that cannot convert is refused with an
+  explanation instead of being rounded or zeroed.
 - The resource history journal is one shared bundle that the window's
   governor and the usage page both load, instead of a copy in each; both stay
   inside their size budgets. Usage records read the account id from a small
@@ -181,6 +230,28 @@ happened, not what was planned; superseded entries are kept.
   measuring the context-menu passage, preventing a timing-dependent 14 px
   menu displacement in narrow captures. Pixel allowances are unchanged.
 
+- Unproved version 1 monthly rollup dollars are refused before money validation,
+  preserving the other usage days and the translated precision notice even for
+  overflow or negative literals (M121A round 4). Changes that round to zero show
+  `0%`; the money guard also checks nested and generic mapped keys, including
+  remapped (`as`) names and lib-declared records beneath ordinary wrappers.
+- Legacy money reads fail closed on overflow, underflow, negative zero and
+  unconvertible exponents (M121A round 3), preserving the precision-refusal
+  notice instead of accepting a rounded zero.
+- Usage period-change percentages and cost sorting use exact dollars,
+  including charges smaller than a nano-dollar. Portable usage summaries
+  share the same exact percentage calculation; very small monetary labels
+  keep their digits beyond Intl's precision limit. The money guard resolves
+  union/intersection members, apparent types and inherited interfaces.
+- Exact money keeps every promise on every Node version (M121A fix round).
+  Version 1 journals and schedules read dollars through a small JSON parse
+  that keeps each number's written digits, so a literal a double cannot
+  carry is refused on Node 20 exactly as on newer runtimes instead of being
+  rounded into the record. Usage charts label the original amount in every
+  status line, data table and previous-period figure; only the plotted
+  geometry stays approximate, so a single xAI tick no longer reads as ten
+  times its charge. The exact-money type guard now also sees through
+  finite-key records and mapped types.
 - Schedule runtime tests cover Linux, Windows and macOS rearm ownership
   explicitly; macOS wake shutdown retains its independent after-exit helper.
 

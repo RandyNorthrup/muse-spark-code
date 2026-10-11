@@ -1368,7 +1368,7 @@ describe('uiReducer: team tree, usage and cards (M96 lane U2)', () => {
       tasks: 1,
       inputTokens: 100,
       outputTokens: 50,
-      costUsd: 0.01,
+      costUsd: Usd.from('0.01').toAmount(),
       estimated: false,
     }
     const state = reduceAll([
@@ -4231,7 +4231,7 @@ describe('uiReducer: finished provider setup (M95)', () => {
         pricing: 'priced' as const,
         inputTokens: 1200,
         outputTokens: 300,
-        costUsd: 0.001,
+        costUsd: Usd.from('0.001').toAmount(),
       },
     ]
     const state = reduceAll([host({ type: 'usageReport', backend: 'modelApi', providers })])
