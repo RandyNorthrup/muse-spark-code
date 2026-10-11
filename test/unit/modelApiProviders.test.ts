@@ -12,6 +12,7 @@ import { createSubscriptionClient } from '../../src/core/providers/subscriptions
 import { providerEntrySchema, type ProvidersFile } from '../../src/core/providers/providersFile'
 import type { CreateResponseBody, StreamEvent } from '../../src/core/backends/modelapi/schemas'
 import type { ConfirmedModelRequest } from '../../src/core/backends/modelapi/transport'
+import type { ProviderClient } from '../../src/core/backends/modelapi/client'
 import {
   fakeModelApi,
   fakeModelApiClient,
@@ -559,36 +560,18 @@ describe('registry dispatch through the real host', () => {
       chatgpt: () => Promise.reject(new Error('no ChatGPT sign-in in this test')),
       accountId: () => Promise.resolve('test-account'),
     })
-    const body: CreateResponseBody = {
-      model: 'copilot/claude-test',
-      instructions: 'Test',
-      input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] }],
-      tools: [],
-      tool_choice: 'auto',
-      stream: true,
-      store: false,
-      prompt_cache_key: 'test-cache',
-      prompt_cache_retention: 'in_memory',
-      max_output_tokens: 64,
-      reasoning: { effort: 'none' },
-      include: [],
-    }
+    const body = planBody('copilot/claude-test')
     // A lapsed Copilot confirmation surfaces as an error event carrying the
     // refusal, so the test reads the event instead of a rejection.
-    const events = await Array.fromAsync(
-      client.streamResponse(body, new AbortController().signal, undefined, undefined, undefined, {
-        modelId: body.model,
-        keyDigest: 'stale',
-        runKind: 'hookModel',
-        isStillAllowed: () => false,
-        onRequestStarted: () => undefined,
-      }),
-    )
-    expect(events).toHaveLength(1)
-    const first = events[0]
-    if (first?.type !== 'error') throw new Error('expected a refusal error event')
-    expect(first.message).toContain(UI_TEXT.requestStaleHookModel)
-    expect(first.message).not.toContain('schedule')
+    const events = await streamPlanConfirmed(client, body, {
+      modelId: body.model,
+      keyDigest: 'stale',
+      runKind: 'hookModel',
+      isAllowed: false,
+    })
+    const message = refusalOf(events, 'a refusal error event')
+    expect(message).toContain(UI_TEXT.requestStaleHookModel)
+    expect(message).not.toContain('schedule')
   })
   it('refuses a lapsed record with neutral retry guidance', async () => {
     // RVCM1062E P3: registry resolution knows no operation, so its
@@ -624,6 +607,36 @@ function planBody(model: string): CreateResponseBody {
 
 function noChatGpt(): Promise<never> {
   return Promise.reject(new Error('no ChatGPT sign-in in this test'))
+}
+
+interface PlanConfirmedGate {
+  readonly modelId: string
+  readonly keyDigest: string
+  readonly runKind: ConfirmedModelRequest['runKind']
+  readonly isAllowed: boolean
+}
+
+async function streamPlanConfirmed(
+  client: Pick<ProviderClient, 'streamResponse'>,
+  body: CreateResponseBody,
+  gate: PlanConfirmedGate,
+): Promise<StreamEvent[]> {
+  return await Array.fromAsync(
+    client.streamResponse(body, new AbortController().signal, undefined, undefined, undefined, {
+      modelId: gate.modelId,
+      keyDigest: gate.keyDigest,
+      ...(gate.runKind !== undefined && { runKind: gate.runKind }),
+      isStillAllowed: () => gate.isAllowed,
+      onRequestStarted: () => undefined,
+    }),
+  )
+}
+
+function refusalOf(events: readonly StreamEvent[], what: string): string {
+  expect(events).toHaveLength(1)
+  const first = events[0]
+  if (first?.type !== 'error') throw new Error(`expected ${what}`)
+  return first.message
 }
 
 describe('plan-model confirmed runs', () => {
@@ -690,19 +703,17 @@ describe('plan-model confirmed runs', () => {
     ]
   for (const { runKind, stale } of runKinds) {
     const name = runKind ?? 'unmarked'
+    const gate = (isAllowed: boolean): PlanConfirmedGate => ({
+      modelId: 'copilot/claude-test',
+      keyDigest: isAllowed ? 'test-account' : 'stale',
+      runKind,
+      isAllowed,
+    })
     it(`dispatches a still-allowed ${name} confirmation on a plan model`, async () => {
       const dispatched: CreateResponseBody[] = []
       const client = planClient(dispatched, copilotFile, noChatGpt)
       const body = planBody('copilot/claude-test')
-      const events = await Array.fromAsync(
-        client.streamResponse(body, new AbortController().signal, undefined, undefined, undefined, {
-          modelId: body.model,
-          keyDigest: 'test-account',
-          ...(runKind !== undefined && { runKind }),
-          isStillAllowed: () => true,
-          onRequestStarted: () => undefined,
-        }),
-      )
+      const events = await streamPlanConfirmed(client, body, gate(true))
       // The adapter receives the catalogue model id, and the run completes.
       expect(dispatched).toHaveLength(1)
       expect(dispatched[0]?.model).toBe('claude-test')
@@ -712,85 +723,57 @@ describe('plan-model confirmed runs', () => {
       const dispatched: CreateResponseBody[] = []
       const client = planClient(dispatched, copilotFile, noChatGpt)
       const body = planBody('copilot/claude-test')
-      const events = await Array.fromAsync(
-        client.streamResponse(body, new AbortController().signal, undefined, undefined, undefined, {
-          modelId: body.model,
-          keyDigest: 'stale',
-          ...(runKind !== undefined && { runKind }),
-          isStillAllowed: () => false,
-          onRequestStarted: () => undefined,
-        }),
-      )
+      const events = await streamPlanConfirmed(client, body, gate(false))
       expect(dispatched).toHaveLength(0)
-      expect(events).toHaveLength(1)
-      const first = events[0]
-      if (first?.type !== 'error') throw new Error('expected a refusal error event')
-      expect(first.message).toContain(stale)
-      if (runKind === 'hookModel') expect(first.message).not.toContain('schedule')
+      const message = refusalOf(events, 'a refusal error event')
+      expect(message).toContain(stale)
+      if (runKind === 'hookModel') expect(message).not.toContain('schedule')
     })
   }
   it('refuses a still-allowed confirmation for another model on a plan model', async () => {
     const dispatched: CreateResponseBody[] = []
     const client = planClient(dispatched, copilotFile, noChatGpt)
     const body = planBody('copilot/claude-test')
-    const events = await Array.fromAsync(
-      client.streamResponse(body, new AbortController().signal, undefined, undefined, undefined, {
-        modelId: 'copilot/other-model',
-        keyDigest: 'test-account',
-        runKind: 'hookModel',
-        isStillAllowed: () => true,
-        onRequestStarted: () => undefined,
-      }),
-    )
+    const events = await streamPlanConfirmed(client, body, {
+      modelId: 'copilot/other-model',
+      keyDigest: 'test-account',
+      runKind: 'hookModel',
+      isAllowed: true,
+    })
     expect(dispatched).toHaveLength(0)
-    expect(events).toHaveLength(1)
-    const first = events[0]
-    if (first?.type !== 'error') throw new Error('expected a refusal error event')
-    expect(first.message).toContain(UI_TEXT.requestStaleHookModel)
+    expect(refusalOf(events, 'a refusal error event')).toContain(UI_TEXT.requestStaleHookModel)
   })
   it('refuses a lapsed confirmation on a ChatGPT plan model before sign-in', async () => {
     const chatgpt = vi.fn(noChatGpt)
     const dispatched: CreateResponseBody[] = []
     const client = planClient(dispatched, chatgptFile, chatgpt)
     const body = planBody('chatgpt/gpt-6-astra')
-    const events = await Array.fromAsync(
-      client.streamResponse(body, new AbortController().signal, undefined, undefined, undefined, {
-        modelId: body.model,
-        keyDigest: 'stale',
-        runKind: 'hookModel',
-        isStillAllowed: () => false,
-        onRequestStarted: () => undefined,
-      }),
-    )
+    const events = await streamPlanConfirmed(client, body, {
+      modelId: body.model,
+      keyDigest: 'stale',
+      runKind: 'hookModel',
+      isAllowed: false,
+    })
     expect(chatgpt).not.toHaveBeenCalled()
-    expect(events).toHaveLength(1)
-    const first = events[0]
-    if (first?.type !== 'error') throw new Error('expected a refusal error event')
     // The branch catch maps every non-sign-in failure to its retry text; the
     // refusal still happens before sign-in, so nothing is dispatched.
-    expect(first.message).toBe(UI_TEXT.planUi.retry)
+    expect(refusalOf(events, 'a refusal error event')).toBe(UI_TEXT.planUi.retry)
   })
   it('passes a still-allowed confirmation on a ChatGPT plan model to sign-in', async () => {
     const chatgpt = vi.fn(() => Promise.reject(new Error('synthetic sign-in failure')))
     const dispatched: CreateResponseBody[] = []
     const client = planClient(dispatched, chatgptFile, chatgpt)
     const body = planBody('chatgpt/gpt-6-astra')
-    const events = await Array.fromAsync(
-      client.streamResponse(body, new AbortController().signal, undefined, undefined, undefined, {
-        modelId: body.model,
-        keyDigest: 'test-account',
-        runKind: 'hookModel',
-        isStillAllowed: () => true,
-        onRequestStarted: () => undefined,
-      }),
-    )
+    const events = await streamPlanConfirmed(client, body, {
+      modelId: body.model,
+      keyDigest: 'test-account',
+      runKind: 'hookModel',
+      isAllowed: true,
+    })
     // Past the confirmation gate: sign-in was attempted, and the failure is
     // the sign-in failure, never the stale-confirmation refusal.
     expect(chatgpt).toHaveBeenCalledTimes(1)
-    expect(events).toHaveLength(1)
-    const first = events[0]
-    if (first?.type !== 'error') throw new Error('expected a sign-in error event')
-    expect(first.message).toBe(UI_TEXT.planUi.retry)
+    expect(refusalOf(events, 'a sign-in error event')).toBe(UI_TEXT.planUi.retry)
   })
 })
 
