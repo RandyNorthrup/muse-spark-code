@@ -1,5 +1,28 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**CM352 bounded realtime dictation (2026-10-11, macmini).** Restore the
+Model API microphone through the existing production voice bundle, controller
+and Windows/macOS/Linux capture adapters. Linux start failures are explicit;
+closed adapters never restart or forward stale recorder callbacks. Use C-M35-1's five captured sessions
+(`~/lanes/_captures/CM352/s1..s5.json`, lead-provided capture artifacts;
+five model attempts, 246 audio seconds) for `audioProcessedMs` and `errorType`.
+Cap each recording at 180 seconds by accepted PCM bytes and elapsed time;
+reframe every recorder's PCM into 80 ms messages, with at most one short tail.
+Reserve the cap plus an 80 ms tail allowance at the published list tariff
+before opening the socket, in both D78's daily journal and M82's owned session
+journal when present. Recheck each send. Settle final reported milliseconds,
+rounded down to whole seconds; without a final duration tally local seconds
+and retain uncertain reserved liability. Idle with no sent audio settles zero.
+Ask once per window before spending, retaining workspace Always and revocation.
+Show the duration and estimated price; state that the provider invoice cannot
+be read back. Restore truth-pass publication wording and all translations.
+No paid/live calls, microphone access, merge, push, subagents or new dependency.
+Scoped rig gates replace aggregate quality per the binding lane brief.
+Certification: `docs/certification/cm352.md`; Grok review and physical mic
+receipts on all three OSes remain lead-owned C-M35-3 work. Existing microphone
+surfaces are the VS Code family sidebar and tabs. Companion/native-plugin mic
+surfaces await C-M9-1; ACP/headless have no realtime microphone surface.
+
 **REL0171C release assembly (2026-10-11, host with Kubuntu, the Mac mini,
 Win11 and linuxlt; 0.17.1).** Merge the accepted share-preview fix (SHAREFIX
 `a7052b708`) and the truth pass (C-X-1 `99e9b4106`) into `rel0171/final`.
@@ -4495,6 +4518,13 @@ own parts before it starts.
   both a later Stop and a later failed model request.
 
 ### D48 — A popup before every paid use (M58, 2026-09-27)
+
+**CM352 owner update (2026-10-11).** Extension Muse Voice asks once before the
+first charge with its hourly list price and the shared daily budget. Allow once
+covers this window; Always covers the workspace until revoked. Each recording
+still passes the paid gate and budget/account/context admission and shows a
+loud duration/cost estimate. This replaces the per-recording popup policy for
+the extension microphone; ACP/headless availability and consent stay unchanged.
 
 The owner (2026-09-27): "anything requiring extra payment should promt you
 with a popup that asks allow once allow always in this workspace or deny".
@@ -22559,7 +22589,12 @@ sessions:
 
 ### M35 — Muse Voice dictation, paid and opt-in (D30)
 
-**Status 2026-09-25: built.**
+**Status 2026-10-11: built.**
+
+- Cap: three minutes plus 80 ms reservation headroom; reported-duration tariff
+  settlement and window consent. See [CM352 certification](docs/certification/cm352.md).
+- Physical microphone/editor receipts and external Grok review remain with
+  C-M35-3/the lead; this lane uses captured-frame replay without live calls.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 

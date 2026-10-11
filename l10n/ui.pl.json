@@ -378,7 +378,7 @@
   "referenceSetup": "Uruchomić haki Setup dla init z pliku spark-hooks.json w zaufanym obszarze roboczym.",
   "referenceSkills": "SKILL.md. museCode: Włączaj i wyłączaj umiejętności Muse Code. modelApi: SKILL.md.",
   "referenceDictation": "Dyktowanie głosowe nie jest dostępne w systemie Linux: żadna dystrybucja nie zawiera modułu rozpoznawania mowy, a to rozszerzenie nie dodaje silnika innej firmy. Dyktowanie głosowe nie jest dostępne w oknie zdalnym (SSH, WSL, kontener, tunel lub Codespace): rozszerzenie działa na maszynie zdalnej, która nie słyszy mikrofonu tego komputera. Aby dyktować, otwórz folder w oknie lokalnym.",
-  "referenceVoice": "Płatny głos jest niedostępny w Model API w tej wersji. Muse Code wymaga lokalnego okna, zapisanego klucza Model API i jawnego włączenia. Linux wymaga również arecord lub parec.",
+  "referenceVoice": "Płatny Muse Voice działa z oboma backendami w lokalnym oknie z zapisanym kluczem Model API; Muse Code wymaga wyraźnego włączenia. Nagrania zatrzymują się po trzech minutach i przed połączeniem rezerwują budżet dzienny oraz ewentualny limit rozmowy. Linux wymaga arecord lub parec. Końcowe zgłoszone sekundy określają oszacowanie; nie można odczytać rachunku dostawcy.",
   "referenceBestOfN": "Najlepszy z N Stosuje dokładnie wybrany podgląd i dodaje go do indeksu. Nie tworzy commitu; pomija ignorowane pliki.",
   "referenceNativeAgentsConditions": "Gdy run.subagent_delegation_mode=\"auto\", Muse Code może delegować agentom. Przy \"off\" narzędzia delegowania są niedostępne. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceNativeAgents": "run.workflow_trigger_mode: auto / explicit / off. Sterowanie delegowaniem agentów Muse Code.",
@@ -407,7 +407,7 @@
   "referenceNativeSearch": "Wyszukiwanie i natywny cron Muse Code korzystają z subskrypcji. Natywny cron nie ma sterowania MSP; wyszukiwanie i harmonogramy rozszerzenia to osobne płatne funkcje Model API.",
   "referenceCustomAgents": "Definiuj agentów w projektowych lub osobistych plikach AGENT.md. Wybierz agenta albo poproś o explore lub second-opinion; listy narzędzi ograniczają możliwości. Zadania potomne Model API wymagają zgody na płatnych podagentów.",
   "referenceCodeOutput": "Kopiuj kopiuje kod; Wstaw pisze przy kursorze; Zastosuj zastępuje zaznaczenie edytora. Otwórz pełne wyjście narzędzia; skrócone wyjście można stronicować. Zaznacz tekst rozmowy, aby zacytować go w polu wiadomości, zapytać o niego, dodać komentarz lub skopiować.",
-  "referencePaidContexts": "Interaktywne dodatki Model API pytają przed wydatkiem i korzystają ze wspólnego budżetu dziennego. Obrazy i głos Muse Code wymagają zapisanego klucza Model API i jawnego włączenia; ten budżet ich nie obejmuje. Płatne funkcje ACP są domyślnie wyłączone i wymagają flag Model API oraz zgody edytora; zwykłe ACP nie wymaga twardego budżetu. Obrazy bez interfejsu wymagają acceptEdits, flagi i twardego budżetu. Konto i użycie może zapomnieć zgody obszaru roboczego.",
+  "referencePaidContexts": "Interaktywne dodatki Model API pytają przed wydatkiem i dzielą budżet dzienny. Obrazy Muse Code wymagają zapisanego klucza Model API i jawnego włączenia; ich koszt pozostaje poza tym dziennym rejestrem. Muse Voice rezerwuje wspólny budżet dzienny w obu backendach. Płatne funkcje ACP są domyślnie wyłączone i wymagają flag Model API oraz zgody edytora. Żądania Model API przez ACP i bez interfejsu rezerwują dzienny budżet runtime; bez interfejsu wymagany jest też ścisły budżet wykonania. Obrazy bez interfejsu wymagają acceptEdits i flagi obrazów. Konto i użycie umożliwia zapomnienie zgód na płatne użycie w obszarze roboczym.",
   "referenceAcp": "Zainstalowane umiejętności dodają dynamiczne polecenia, których ta statyczna pomoc nie wymienia. ACP obsługuje tylko lokalne /help, /report, /playbook, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /agents i umiejętności; polecenia panelu, ustawienia i okna w połączonej pomocy to funkcje rozszerzenia.",
   "referenceWebFetchTitle": "Pobieranie stron",
   "referenceWebFetchDetail": "Pobieraj publiczne strony jako czytelny tekst, z kontrolą uprawnień i sieci.",
@@ -2661,7 +2661,7 @@
   "sessionBudgetSearchUnavailable": "Wyszukiwanie w sieci jest niedostępne przy skończonym limicie wydatków: liczba rozliczanych zapytań nie ma zweryfikowanej granicy. Zwykły czat i bezpłatny odczyt stron internetowych pozostają dostępne.",
   "sessionBudgetRetryUnavailable": "Poprzednie żądanie mogło zostać rozliczone. Zachowano całą rezerwację; wyślij nową wiadomość, aby ponowić próbę z nową pulą środków.",
   "sessionBudgetUnknownCharge": "Zużycie nie zostało zweryfikowane. {amount} pozostaje zarezerwowane jako możliwa opłata; nie jest to potwierdzony rachunek.",
-  "sessionBudgetVoiceUnavailable": "Muse Voice jest niedostępne przy skończonym limicie wydatków: rozliczany czas dźwięku nie ma zweryfikowanej granicy. Użyj bezpłatnego dyktowania systemowego.",
+  "sessionBudgetVoiceUnavailable": "Transkrypcja plików Muse Voice jest niedostępna przy skończonym limicie wydatków: rozliczany czas dźwięku nie ma zweryfikowanej granicy. Użyj bezpłatnego dyktowania systemowego.",
   "sessionBudgetVoiceContextChanged": "Muse Voice zatrzymał się, ponieważ rozmowa lub jej uprawnienia uległy zmianie. Rozpocznij nowe nagranie w bieżącej rozmowie.",
   "sessionBudgetUnpriced": "Zatrzymano: budżetu sesji nie da się utrzymać dla modelu {model}, którego ceny to rozszerzenie nie zna. Żądanie nie zostało wysłane.",
   "sessionBudgetOutputLimited": "Odpowiedź osiągnęła limit wyjścia pozostawiony przez budżet sesji (max_output_tokens {tokens}) i może być ucięta.",
@@ -3832,7 +3832,7 @@
   "paidSearchQuote": "Dostawca: {provider} · Model: {model}.",
   "paidUseWebSearchDetail": "Muse może przeszukiwać sieć podczas odpowiadania. Każde wyszukiwanie jest rozliczane z Twojego klucza Model API według stawki {price}, oprócz tokenów dodanych przez jego wyniki. „Odmów” wysyła monit bez wyszukiwania w sieci.",
   "paidUseVoiceTitle": "Nagrywać za pomocą Muse Voice?",
-  "paidUseVoiceDetail": "Muse Voice transkrybuje to nagranie, rozliczane z Twojego klucza Model API według stawki {price}. „Odmów” pozostawia mikrofon wyłączony.",
+  "paidUseVoiceDetail": "Muse Voice obciąża Twój klucz Model API według stawki {price}. Nagrania zatrzymują się po trzech minutach. Zezwól raz obejmuje to okno; Zawsze obejmuje ten obszar roboczy do odwołania. Czas i szacunkowy koszt są wyświetlane; nie można odczytać rachunku dostawcy. Odmów pozostawia mikrofon wyłączony.",
   "paidWebSearchPrice": "{price} za 1000 wyszukiwań",
   "paidImagePrice": "{price} za obraz",
   "paidVoicePrice": "{price} za godzinę dźwięku",
@@ -3840,7 +3840,7 @@
   "paidConfirmTitle": "Włączyć {feature}?",
   "paidConfirmWebSearch": "Model może przeszukiwać sieć podczas odpowiadania. Każde wyszukiwanie jest rozliczane z Twojego klucza Model API według stawki {price}, oprócz tokenów dodanych przez jego wyniki. Przed każdym monitem pojawia się pytanie, chyba że zawsze zezwolisz na wyszukiwanie w sieci w tym obszarze roboczym. Używane tylko w backendzie Model API.",
   "paidConfirmImage": "Model może tworzyć pliki obrazów w obszarze roboczym lub edytować obrazy z obszaru roboczego, tworząc z nich nowe. Każdy obraz jest rozliczany z Twojego klucza Model API według stawki {price}, a przed każdym z nich pojawia się pytanie o zgodę, w każdym trybie uprawnień, chyba że zawsze zezwolisz na obrazy w tym obszarze roboczym. Używane w backendzie Model API oraz w backendzie Muse Code, gdy zapisany jest klucz (nigdy nie jest to rozliczane z subskrypcji).",
-  "paidConfirmVoice": "Mikrofon będzie wysyłać Twoje nagrania do usługi Muse Voice Transcribe firmy Meta zamiast do własnego modułu rozpoznawania mowy Twojego komputera; nagrania są rozliczane z Twojego klucza Model API według stawki {price}. Przed każdym nagraniem pojawia się pytanie, chyba że zawsze zezwolisz na Muse Voice w tym obszarze roboczym. Używane w backendzie Model API oraz w backendzie Muse Code, gdy zapisany jest klucz.",
+  "paidConfirmVoice": "Muse Voice wysyła nagrania do Meta i obciąża Twój klucz Model API według stawki {price}, w obu backendach. Nagrania zatrzymują się po trzech minutach i przed połączeniem rezerwują budżet dzienny oraz ewentualny limit rozmowy. Zezwól raz obejmuje to okno; Zawsze obejmuje ten obszar roboczy do odwołania. Nie można odczytać rachunku dostawcy.",
   "paidConfirmScheduled": "Monit, którego termin nadszedł, czeka na Twoje uruchomienie. Każde uruchomienie pyta przed wywołaniem Model API, chyba że zawsze zezwolisz na zaplanowane uruchomienia w tym obszarze roboczym. {price}. Rozliczane przez Twój klucz Model API; łączna kwota zależy od użytych tokenów.",
   "paidConfirmSubagents": "Agenci podrzędni wysyłają dodatkowe żądania rozliczane z Twojego klucza Model API. {price} Każde nowe zadanie wymaga zgody w każdym trybie uprawnień, także w trybie Bypass, chyba że zawsze zezwolisz na agentów podrzędnych w tym obszarze roboczym. Rzeczywisty koszt zależy od użytych tokenów; inne płatne narzędzia są dodatkowo płatne. Tylko w backendzie Model API.",
   "paidBestOfNName": "Najlepszy z N",
@@ -5584,5 +5584,11 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  }
+  },
+  "museVoiceIdle": "Muse Voice zamknął nagrywanie, ponieważ dźwięk przestał docierać w tempie rzeczywistym.",
+  "museVoiceTransportFailed": "Połączenie z Muse Voice nie powiodło się; nagrywanie zatrzymano.",
+  "museVoiceInvalidDuration": "Muse Voice podał nieprawidłowy czas dźwięku; nagrywanie zatrzymano.",
+  "museVoiceUsageReported": "Muse Voice: {duration}, szacunkowo {cost} według podanego czasu. Nie można odczytać rachunku dostawcy.",
+  "museVoiceUsageEstimated": "Muse Voice: {duration}, szacunkowo {cost} według wysłanego dźwięku. Nie otrzymano końcowego czasu; cała rezerwacja pozostaje niepewna. Nie można odczytać rachunku dostawcy.",
+  "museVoiceUsageEmpty": "Muse Voice: {duration}, szacunkowo {cost}. Nie wysłano dźwięku; opłata za dźwięk nie jest oczekiwana. Nie można odczytać rachunku dostawcy."
 }

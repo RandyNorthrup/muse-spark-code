@@ -378,7 +378,7 @@
   "referenceSetup": "Güvenilen çalışma alanında spark-hooks.json dosyasından init için Setup kancalarını çalıştırın.",
   "referenceSkills": "SKILL.md. museCode: Muse Code becerilerini açın veya kapatın. modelApi: SKILL.md.",
   "referenceDictation": "Sesle dikte Linux'ta kullanılamıyor: hiçbir dağıtım bir konuşma tanıyıcı içermez ve bu uzantı üçüncü taraf bir motor eklemez. Sesle dikte uzak pencerede kullanılamaz (SSH, WSL, kapsayıcı, tünel veya codespace): uzantı uzak makinede çalışır ve bu bilgisayarın mikrofonunu duyamaz. Dikte etmek için klasörü yerel bir pencerede açın.",
-  "referenceVoice": "Bu sürümde Model API için ücretli ses kullanılamaz. Muse Code yerel bir pencere, kayıtlı Model API anahtarı ve açık etkinleştirme gerektirir. Linux ayrıca arecord veya parec gerektirir.",
+  "referenceVoice": "Ücretli Muse Voice, kayıtlı Model API anahtarıyla yerel pencerede her iki arka uçta çalışır; Muse Code açıkça etkinleştirme gerektirir. Kayıtlar üç dakikada durur ve bağlanmadan önce günlük bütçeyi ve varsa görüşme sınırını ayırır. Linux arecord veya parec gerektirir. Son bildirilen saniyeler tahmini belirler; sağlayıcının faturası geri okunamaz.",
   "referenceBestOfN": "N arasından en iyi Seçilen önizlemeyi aynen uygular ve hazırlama alanına ekler. Commit oluşturmaz; yok sayılan dosyalar dışarıda kalır.",
   "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\" olduğunda Muse Code aracılara devredebilir. \"off\" olduğunda devir araçları kullanılamaz. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceNativeAgents": "run.workflow_trigger_mode: auto / explicit / off. Muse Code ajan yetkilendirme denetimleri.",
@@ -407,7 +407,7 @@
   "referenceNativeSearch": "Muse Code web araması ve yerel cron aboneliği kullanır. Yerel cron için MSP denetimi yoktur; uzantının araması ve zamanlamaları ayrı ücretli Model API özellikleridir.",
   "referenceCustomAgents": "Ajanları proje veya kişisel AGENT.md dosyalarında tanımlayın. Bir ajan seçin ya da explore veya second-opinion isteyin; araç izin listeleri yetenekleri sınırlar. Model API alt görevleri ücretli alt ajan onayı gerektirir.",
   "referenceCodeOutput": "Kopyala kodu kopyalar; Ekle imleçte yazar; Uygula editör seçimini değiştirir. Tam araç çıktısını açın; kırpılmış çıktı sayfalanabilir. Görüşme metnini seçerek giriş alanında alıntılayın, hakkında soru sorun, yorum ekleyin veya kopyalayın.",
-  "referencePaidContexts": "Etkileşimli Model API ekleri harcamadan önce sorar ve ortak günlük bütçeyi kullanır. Muse Code görselleri ve sesi kayıtlı Model API anahtarı ve açık etkinleştirme gerektirir; bu bütçe onları kapsamaz. Ücretli ACP özellikleri varsayılan kapalıdır, Model API bayrakları ve editör izni gerektirir; normal ACP zorunlu kesin bütçe istemez. Arayüzsüz görseller acceptEdits, bayrak ve kesin bütçe gerektirir. Hesap ve kullanım çalışma alanı onaylarını unutabilir.",
+  "referencePaidContexts": "Etkileşimli Model API ekleri harcamadan önce sorar ve ortak günlük bütçeyi kullanır. Muse Code görselleri kayıtlı Model API anahtarı ve açık etkinleştirme gerektirir; harcamaları bu günlük defterin dışındadır. Muse Voice her iki arka uçta ortak günlük bütçeyi ayırır. Ücretli ACP özellikleri varsayılan kapalıdır ve Model API bayrakları ile editör izni gerektirir. ACP ve arayüzsüz Model API istekleri çalışma zamanının günlük bütçesini ayırır; arayüzsüz kullanım ayrıca kesin bir çalıştırma bütçesi gerektirir. Arayüzsüz görseller acceptEdits ve görsel bayrağını gerektirir. Hesap ve kullanım, çalışma alanının ücretli kullanım izinlerini unutabilir.",
   "referenceAcp": "Kurulu beceriler bu statik başvuruda listelenmeyen dinamik komutlar ekler. ACP yalnızca yerel /help, /report, /playbook, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /agents ve kurulu becerileri işler; bağlantıdaki panel komutları, ayarlar ve editör iletişimleri uzantı akışlarıdır.",
   "referenceWebFetchTitle": "Web sayfası alma",
   "referenceWebFetchDetail": "İzin ve ağ kontrolleriyle herkese açık web sayfalarını okunabilir metin olarak alın.",
@@ -2553,7 +2553,7 @@
   "sessionBudgetSearchUnavailable": "Sonlu harcama sınırıyla web araması kullanılamaz: ücretlendirilen sorgu sayısının doğrulanmış bir üst sınırı yoktur. Normal sohbet ve ücretsiz web sayfası getirme kullanılabilir kalır.",
   "sessionBudgetRetryUnavailable": "Önceki istek ücretlendirilmiş olabilir. Ayrılan tutarın tamamı korundu; yeni bir bütçeyle tekrar denemek için yeni bir mesaj gönderin.",
   "sessionBudgetUnknownCharge": "Kullanım doğrulanmadı. {amount} olası bir ücret olarak ayrılmış kalır; bu, onaylanmış bir fatura değildir.",
-  "sessionBudgetVoiceUnavailable": "Sonlu harcama sınırıyla Muse Voice kullanılamaz: ücretlendirilen ses süresinin doğrulanmış bir üst sınırı yoktur. Ücretsiz sistem diktesini kullanın.",
+  "sessionBudgetVoiceUnavailable": "Muse Voice dosya transkripsiyonu sonlu harcama sınırıyla kullanılamaz: ücretlendirilen ses süresinin doğrulanmış bir üst sınırı yoktur. Ücretsiz sistem diktesini kullanın.",
   "sessionBudgetVoiceContextChanged": "Sohbet veya izinleri değiştiği için Muse Voice durdu. Geçerli sohbette yeni bir kayıt başlatın.",
   "sessionBudgetUnpriced": "Durduruldu: bu uzantı {model} modelinin fiyatını bilmediği için oturum bütçesi korunamıyor. İstek gönderilmedi.",
   "sessionBudgetOutputLimited": "Yanıt, oturum bütçesinin ona bıraktığı çıkış sınırına (max_output_tokens {tokens}) ulaştı ve yarım kalmış olabilir.",
@@ -3668,7 +3668,7 @@
   "paidSearchQuote": "Sağlayıcı: {provider} · Model: {model}.",
   "paidUseWebSearchDetail": "Muse, yanıt verirken web'de arama yapabilir. Her arama, sonuçlarının eklediği belirteçlere ek olarak Model API anahtarınıza {price} üzerinden faturalandırılır. “İzin verme” istemi web araması olmadan gönderir.",
   "paidUseVoiceTitle": "Muse Voice ile kaydedilsin mi?",
-  "paidUseVoiceDetail": "Muse Voice bu kaydı yazıya döker; bu, Model API anahtarınıza {price} üzerinden faturalandırılır. “İzin verme” mikrofonu kapalı bırakır.",
+  "paidUseVoiceDetail": "Muse Voice, Model API anahtarınızı {price} tarifesiyle ücretlendirir. Kayıtlar üç dakikada durur. Bir kez izin ver bu pencereyi; Her zaman, geri alınana kadar bu çalışma alanını kapsar. Süre ve tahmini maliyet gösterilir; sağlayıcının faturası geri okunamaz. Reddet mikrofonu kapalı bırakır.",
   "paidWebSearchPrice": "1.000 arama başına {price}",
   "paidImagePrice": "görüntü başına {price}",
   "paidVoicePrice": "ses saati başına {price}",
@@ -3676,7 +3676,7 @@
   "paidConfirmTitle": "{feature} açılsın mı?",
   "paidConfirmWebSearch": "Model, yanıt verirken web'de arama yapabilir. Her arama, sonuçlarının eklediği belirteçlere ek olarak Model API anahtarınıza {price} üzerinden faturalandırılır. Bu çalışma alanında web aramasına her zaman izin vermediğiniz sürece her istem önce sorar. Yalnızca Model API arka ucunda kullanılır.",
   "paidConfirmImage": "Model, çalışma alanında görüntü dosyaları oluşturabilir veya çalışma alanındaki görüntüleri düzenleyerek yenilerini üretebilir. Her görüntü Model API anahtarınıza {price} üzerinden faturalandırılır ve bu çalışma alanında görüntülere her zaman izin vermediğiniz sürece, her izin modunda, her görüntüden önce size sorulur. Model API arka ucunda ve bir anahtar depolandığı sürece Muse Code arka ucunda kullanılır (asla aboneliğe faturalandırılmaz).",
-  "paidConfirmVoice": "Mikrofon, kaydettiklerinizi bilgisayarınızın kendi konuşma tanıyıcısı yerine Meta'nın Muse Voice Transcribe hizmetine gönderir; bu, Model API anahtarınıza {price} üzerinden faturalandırılır. Bu çalışma alanında Muse Voice'a her zaman izin vermediğiniz sürece her kayıttan önce sorulur. Model API arka ucunda ve bir anahtar depolandığı sürece Muse Code arka ucunda kullanılır.",
+  "paidConfirmVoice": "Muse Voice kayıtları Meta’ya gönderir ve her iki arka uçta Model API anahtarınızı {price} tarifesiyle ücretlendirir. Kayıtlar üç dakikada durur ve bağlanmadan önce günlük bütçeyi ve varsa görüşme sınırını ayırır. Bir kez izin ver bu pencereyi; Her zaman, geri alınana kadar bu çalışma alanını kapsar. Sağlayıcının faturası geri okunamaz.",
   "paidConfirmScheduled": "Zamanı gelen zamanlanmış istem, çalıştırmanızı bekler. Bu çalışma alanında zamanlanmış çalıştırmalara her zaman izin vermediğiniz sürece, her çalıştırma Model API çağrısından önce onay ister. {price}. Model API anahtarınıza faturalandırılır; toplam, kullanılan tokenlara göre değişir.",
   "paidConfirmSubagents": "Alt ajanlar Model API anahtarınıza ücretlendirilen ek istekler yapar. {price} Bu çalışma alanında alt ajanlara her zaman izin vermediğiniz sürece, İzinleri atla dahil her izin modunda her yeni görev için onay istenir. Gerçek maliyet kullanılan token sayısına bağlıdır; diğer ücretli araçlar ayrıca ücretlendirilir. Yalnızca Model API arka ucunda kullanılabilir.",
   "paidBestOfNName": "N arasından en iyi",
@@ -5276,5 +5276,11 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
-  }
+  },
+  "museVoiceIdle": "Muse Voice, ses gerçek zamanlı hızda gelmediği için kaydı kapattı.",
+  "museVoiceTransportFailed": "Muse Voice bağlantısı başarısız oldu; kayıt durdu.",
+  "museVoiceInvalidDuration": "Muse Voice geçersiz bir ses süresi bildirdi; kayıt durdu.",
+  "museVoiceUsageReported": "Muse Voice: {duration}, bildirilen süreye göre tahmini {cost}. Sağlayıcının faturası geri okunamaz.",
+  "museVoiceUsageEstimated": "Muse Voice: {duration}, gönderilen sese göre tahmini {cost}. Son süre gelmedi; tüm rezerv belirsiz kalır. Sağlayıcının faturası geri okunamaz.",
+  "museVoiceUsageEmpty": "Muse Voice: {duration}, tahmini {cost}. Ses gönderilmedi; ses ücreti beklenmiyor. Sağlayıcının faturası geri okunamaz."
 }

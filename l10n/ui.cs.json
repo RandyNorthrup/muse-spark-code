@@ -378,7 +378,7 @@
   "referenceSetup": "Spustit háčky Setup pro init ze spark-hooks.json v důvěryhodném pracovním prostoru.",
   "referenceSkills": "SKILL.md. museCode: Zapnout nebo vypnout dovednosti Muse Code. modelApi: SKILL.md.",
   "referenceDictation": "Hlasové diktování není v Linuxu k dispozici: žádná distribuce nedodává rozpoznávač řeči a toto rozšíření nepřidává žádný modul třetí strany. Hlasové diktování není ve vzdáleném okně k dispozici (SSH, WSL, kontejner, tunel nebo codespace): rozšíření běží na vzdáleném počítači, který neslyší mikrofon tohoto počítače. Chcete-li diktovat, otevřete složku v místním okně.",
-  "referenceVoice": "Placený hlas není v této verzi dostupný na Model API. Muse Code vyžaduje místní okno, uložený klíč Model API a výslovné zapnutí. Linux navíc vyžaduje arecord nebo parec.",
+  "referenceVoice": "Placené Muse Voice funguje s oběma backendy v místním okně s uloženým klíčem Model API; Muse Code vyžaduje výslovné zapnutí. Nahrávání se zastaví po třech minutách a před připojením rezervuje denní rozpočet a případný limit konverzace. Linux potřebuje arecord nebo parec. Konečné nahlášené sekundy určují odhad; fakturu poskytovatele nelze načíst.",
   "referenceBestOfN": "Nejlepší z N Použije a připraví přesně vybraný náhled. Nevytvoří se commit; ignorované soubory se vynechají.",
   "referenceNativeAgentsConditions": "Když je run.subagent_delegation_mode=\"auto\", Muse Code může delegovat agentům. Při \"off\" nejsou nástroje delegování dostupné. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceNativeAgents": "run.workflow_trigger_mode: auto / explicit / off. Ovládání delegování agentů Muse Code.",
@@ -407,7 +407,7 @@
   "referenceNativeSearch": "Webové hledání a nativní cron Muse Code používají předplatné. Nativní cron nemá řízení MSP; hledání a plánování rozšíření jsou samostatné placené funkce Model API.",
   "referenceCustomAgents": "Definujte agenty v projektových či osobních souborech AGENT.md. Vyberte agenta nebo požádejte o explore či second-opinion; seznamy nástrojů omezují schopnosti. Podúlohy Model API vyžadují souhlas s placenými podagenty.",
   "referenceCodeOutput": "Kopírovat kopíruje kód; Vložit píše u kurzoru; Použít nahradí výběr editoru. Otevřete úplný výstup nástroje; zkrácený výstup lze stránkovat. Vyberte text přepisu a citujte jej v editoru zprávy, položte k němu otázku, přidejte komentář nebo jej zkopírujte.",
-  "referencePaidContexts": "Interaktivní doplňky Model API se ptají před útratou a používají společný denní rozpočet. Obrázky a hlas Muse Code vyžadují uložený klíč Model API a výslovné zapnutí; tento rozpočet je nepokrývá. Placené funkce ACP jsou ve výchozím stavu vypnuté a vyžadují příznaky Model API a souhlas editoru; běžné ACP nevyžaduje pevný rozpočet. Obrázky bez rozhraní vyžadují acceptEdits, příznak a pevný rozpočet. Účet a využití umožňuje zapomenout souhlasy pracovního prostoru.",
+  "referencePaidContexts": "Interaktivní doplňky Model API se ptají před útratou a sdílejí denní rozpočet. Obrázky Muse Code vyžadují uložený klíč Model API a výslovné zapnutí; jejich výdaje jsou mimo tento denní registr. Muse Voice rezervuje sdílený denní rozpočet na obou backendech. Placené funkce ACP jsou ve výchozím stavu vypnuté a vyžadují příznaky Model API a souhlas editoru. Požadavky Model API přes ACP a bez rozhraní rezervují denní rozpočet runtime; bez rozhraní je navíc nutný pevný rozpočet běhu. Obrázky bez rozhraní vyžadují acceptEdits a příznak obrázků. Účet a využití umožňuje zapomenout placené souhlasy pracovního prostoru.",
   "referenceAcp": "Nainstalované dovednosti přidávají dynamické příkazy, které statická příručka neuvádí. ACP zpracovává jen místní /help, /report, /playbook, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /agents a dovednosti; příkazy panelu, nastavení a dialogy propojené příručky patří rozšíření.",
   "referenceWebFetchTitle": "Načítání webu",
   "referenceWebFetchDetail": "Načítejte veřejné webové stránky jako čitelný text s kontrolou oprávnění a sítě.",
@@ -2661,7 +2661,7 @@
   "sessionBudgetSearchUnavailable": "Webové vyhledávání není dostupné s konečným limitem útraty: účtovaný počet dotazů nemá ověřený strop. Běžný chat a bezplatné načítání webových stránek zůstávají dostupné.",
   "sessionBudgetRetryUnavailable": "Předchozí požadavek mohl být účtován. Jeho celá rezervace byla ponechána; pro nový pokus s novým limitem odešlete nový dotaz.",
   "sessionBudgetUnknownCharge": "Spotřeba nebyla ověřena. {amount} zůstává rezervováno jako možný poplatek; nejde o potvrzenou fakturu.",
-  "sessionBudgetVoiceUnavailable": "Muse Voice není dostupné s konečným limitem útraty: účtovaná délka zvuku nemá ověřený strop. Použijte bezplatné systémové diktování.",
+  "sessionBudgetVoiceUnavailable": "Přepis souborů Muse Voice není dostupný s konečným limitem útraty: účtovaná délka zvuku nemá ověřený strop. Použijte bezplatné systémové diktování.",
   "sessionBudgetVoiceContextChanged": "Muse Voice se zastavil, protože se konverzace nebo její oprávnění změnily. Začněte nové nahrávání v aktuální konverzaci.",
   "sessionBudgetUnpriced": "Zastaveno: rozpočet relace nelze dodržet u modelu {model}, jehož cenu toto rozšíření nezná. Požadavek nebyl odeslán.",
   "sessionBudgetOutputLimited": "Odpověď dosáhla výstupního limitu, který jí rozpočet relace ponechal (max_output_tokens {tokens}), a může být zkrácená.",
@@ -3832,7 +3832,7 @@
   "paidSearchQuote": "Poskytovatel: {provider} · Model: {model}.",
   "paidUseWebSearchDetail": "Muse může během odpovídání hledat na webu. Každé hledání se účtuje na váš klíč Model API ve výši {price}, navíc k tokenům, které přidají jeho výsledky. „Zamítnout“ odešle prompt bez hledání na webu.",
   "paidUseVoiceTitle": "Nahrávat pomocí Muse Voice?",
-  "paidUseVoiceDetail": "Muse Voice přepíše tuto nahrávku; účtuje se na váš klíč Model API ve výši {price}. „Zamítnout“ ponechá mikrofon vypnutý.",
+  "paidUseVoiceDetail": "Muse Voice účtuje vašemu klíči Model API sazbu {price}. Nahrávání se zastaví po třech minutách. Povolit jednou platí pro toto okno; Vždy platí pro tento pracovní prostor do odvolání. Zobrazí se délka a odhad ceny; fakturu poskytovatele nelze načíst. Zamítnout nechá mikrofon vypnutý.",
   "paidWebSearchPrice": "{price} za 1 000 hledání",
   "paidImagePrice": "{price} za obrázek",
   "paidVoicePrice": "{price} za hodinu zvuku",
@@ -3840,7 +3840,7 @@
   "paidConfirmTitle": "Zapnout {feature}?",
   "paidConfirmWebSearch": "Model může během odpovídání hledat na webu. Každé hledání se účtuje na váš klíč Model API ve výši {price}, navíc k tokenům, které přidají jeho výsledky. Před každým promptem budete nejprve dotázáni, ledaže hledání na webu vždy povolíte v tomto pracovním prostoru. Používá se jen na back-endu Model API.",
   "paidConfirmImage": "Model může v pracovním prostoru vytvářet soubory obrázků, nebo upravovat obrázky z pracovního prostoru na nové. Každý obrázek se účtuje na váš klíč Model API ve výši {price} a v každém režimu oprávnění budete před každým z nich dotázáni, ledaže obrázky vždy povolíte v tomto pracovním prostoru. Používá se na back-endu Model API a na back-endu Muse Code, dokud je uložen klíč (nikdy se neúčtuje na předplatné).",
-  "paidConfirmVoice": "Mikrofon bude to, co nahrajete, posílat do služby Muse Voice Transcribe od Meta místo do vlastního rozpoznávače řeči vašeho počítače; účtuje se na váš klíč Model API ve výši {price}. Před každou nahrávkou budete nejprve dotázáni, ledaže Muse Voice vždy povolíte v tomto pracovním prostoru. Používá se na back-endu Model API a na back-endu Muse Code, dokud je uložen klíč.",
+  "paidConfirmVoice": "Muse Voice odesílá nahrávky společnosti Meta a účtuje vašemu klíči Model API sazbu {price}, s oběma backendy. Nahrávání se zastaví po třech minutách a před připojením rezervuje denní rozpočet a případný limit konverzace. Povolit jednou platí pro toto okno; Vždy platí pro tento pracovní prostor do odvolání. Fakturu poskytovatele nelze načíst.",
   "paidConfirmScheduled": "Prompt, jehož čas nastal, čeká na vaše spuštění. Každé spuštění vyžaduje potvrzení před jakýmkoli voláním Model API, ledaže naplánovaná spuštění vždy povolíte v tomto pracovním prostoru. {price}. Účtováno vašemu klíči Model API; celková cena závisí na použitých tokenech.",
   "paidConfirmSubagents": "Podřízení agenti vytvářejí další požadavky účtované na váš klíč Model API. {price} Každý nový úkol vyžaduje schválení ve všech režimech oprávnění, včetně režimu Bypass, ledaže podřízené agenty vždy povolíte v tomto pracovním prostoru. Skutečná cena závisí na použitých tokenech; další placené nástroje stojí navíc. Jen pro backend Model API.",
   "paidBestOfNName": "Nejlepší z N",
@@ -5584,5 +5584,11 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
-  }
+  },
+  "museVoiceIdle": "Muse Voice ukončil nahrávání, protože zvuk přestal přicházet v reálném čase.",
+  "museVoiceTransportFailed": "Spojení s Muse Voice selhalo; nahrávání se zastavilo.",
+  "museVoiceInvalidDuration": "Muse Voice nahlásil neplatnou délku zvuku; nahrávání se zastavilo.",
+  "museVoiceUsageReported": "Muse Voice: {duration}, odhad {cost} podle nahlášené délky. Fakturu poskytovatele nelze načíst.",
+  "museVoiceUsageEstimated": "Muse Voice: {duration}, odhad {cost} podle odeslaného zvuku. Konečná délka nepřišla; celá rezervace zůstává nejistá. Fakturu poskytovatele nelze načíst.",
+  "museVoiceUsageEmpty": "Muse Voice: {duration}, odhad {cost}. Nebyl odeslán zvuk; žádný poplatek za zvuk se neočekává. Fakturu poskytovatele nelze načíst."
 }

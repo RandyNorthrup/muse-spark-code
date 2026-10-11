@@ -7,6 +7,16 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Muse Voice now works on Model API with a finite budget, through the existing
+  Windows, macOS and Linux microphone adapters. Three-minute recordings reserve
+  the shared daily budget and any conversation cap before connecting, then
+  settle from the final reported audio duration. The tally shows estimated
+  cost and explains that Meta’s invoice cannot be read back; interrupted audio
+  keeps its reserved liability. Idle streams with no audio settle zero.
+  Allow once covers the window; workspace Always remains revocable.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

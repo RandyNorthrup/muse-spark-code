@@ -378,7 +378,7 @@
   "referenceSetup": "信頼されたワークスペースで spark-hooks.json の init 用 Setup フックを実行します。",
   "referenceSkills": "SKILL.md. museCode: Muse Code のスキルをオンまたはオフにします。 modelApi: SKILL.md.",
   "referenceDictation": "Linux では音声入力を使用できません: 音声認識エンジンを同梱しているディストリビューションがなく、この拡張機能はサードパーティのエンジンを追加しません。 リモート ウィンドウ (SSH、WSL、コンテナー、トンネル、Codespace) では音声入力を使用できません: 拡張機能はリモート マシンで実行されるため、このコンピューターのマイクの音声を受け取れません。音声入力を使用するには、ローカル ウィンドウでフォルダーを開いてください。",
-  "referenceVoice": "このバージョンでは Model API の有料音声は利用できません。Muse Code にはローカルウィンドウ、保存済み Model API キー、明示的な有効化が必要です。Linux では arecord または parec も必要です。",
+  "referenceVoice": "有料の Muse Voice は、保存済みの Model API キーを使い、ローカルウィンドウで両バックエンドから利用できます。Muse Code では明示的な有効化が必要です。録音は３分で停止し、接続前に日次予算と設定された会話の上限を予約します。Linux では arecord または parec が必要です。最終報告の秒数から料金を推定します。提供元の請求額は取得できません。",
   "referenceBestOfN": "ベスト・オブ・N 選択したプレビューをそのまま適用してステージします。コミットは作成せず、無視されたファイルは除外します。",
   "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\" の場合、Muse Codeはエージェントに委任できます。\"off\" の場合、委任ツールは使用できません。 run.workflow_trigger_mode: auto / explicit / off.",
   "referenceNativeAgents": "run.workflow_trigger_mode: auto / explicit / off. Muse Code のエージェント委任の操作。",
@@ -407,7 +407,7 @@
   "referenceNativeSearch": "Muse Code のウェブ検索とネイティブ cron はサブスクリプションを使います。ネイティブ cron に MSP 操作はありません。拡張機能の検索とスケジュールは別の有料 Model API 機能です。",
   "referenceCustomAgents": "プロジェクトまたは個人の AGENT.md でエージェントを定義します。選択するか explore、second-opinion を依頼してください。ツール許可リストが能力を制限します。Model API の子タスクには有料サブエージェントの同意が必要です。",
   "referenceCodeOutput": "コピーはコードをコピー、挿入はカーソル位置に書き込み、適用はエディターの選択範囲を置換します。ツール出力を開くと全文を読めます。省略された出力はページ単位で表示できます。 会話のテキストを選択すると、入力欄への引用、質問、コメントの追加、コピーができます。",
-  "referencePaidContexts": "対話式 Model API の追加機能は支出前に同意を求め、共通の日次予算を使います。Muse Code の画像と音声には保存済み Model API キーと明示的な有効化が必要で、この予算は適用されません。ACP の有料機能は既定で無効で、Model API フラグとエディターの許可が必要です。通常の ACP に必須の厳格な予算はありません。ヘッドレス画像には acceptEdits、フラグ、厳格な予算が必要です。アカウントと使用量からワークスペースの同意を取り消せます。",
+  "referencePaidContexts": "対話型の Model API 追加機能は支出前に確認し、日次予算を共有します。Muse Code の画像には保存済み Model API キーと明示的な有効化が必要で、その支出はこの日次台帳の対象外です。Muse Voice は両バックエンドで共有日次予算を予約します。ACP の有料機能は既定でオフになり、Model API フラグとエディターの許可が必要です。ACP とヘッドレスの Model API リクエストはランタイムの日次予算を予約し、ヘッドレスでは実行ごとの厳格な予算も必要です。ヘッドレスの画像には acceptEdits と画像フラグが必要です。アカウントと使用量でワークスペースの有料利用許可を取り消せます。",
   "referenceAcp": "インストール済みスキルは動的なスラッシュコマンドを追加しますが、この静的な資料には一覧がありません。ACP がローカルで処理するのは /help、/compact、/legal、/usage、/resources, /resources resume, /usage resources, /questions、/answer, /prompt, /share, /agents とスキルだけです。リンク先のパネルコマンド、設定、ダイアログは拡張機能の操作です。",
   "referenceWebFetchTitle": "ウェブ取得",
   "referenceWebFetchDetail": "権限とネットワークを確認し、公開ウェブページを読みやすいテキストとして取得します。",
@@ -2499,7 +2499,7 @@
   "sessionBudgetSearchUnavailable": "有限の支出上限ではウェブ検索を利用できません。課金されるクエリ数に検証済みの上限がありません。通常のチャットと無料のウェブページ取得は引き続き利用できます。",
   "sessionBudgetRetryUnavailable": "前のリクエストは課金された可能性があります。予約額全体を保持しています。新しい予算枠で再試行するには新しいプロンプトを送信してください。",
   "sessionBudgetUnknownCharge": "使用量は確認されていません。課金の可能性に備えて {amount} を引き続き予約しています。確定した請求ではありません。",
-  "sessionBudgetVoiceUnavailable": "有限の支出上限ではMuse Voiceを利用できません。課金される音声時間に検証済みの上限がありません。無料のシステム音声入力を使ってください。",
+  "sessionBudgetVoiceUnavailable": "有限の支出上限では Muse Voice のファイル文字起こしを利用できません。課金される音声時間に検証済みの上限がありません。無料のシステム音声入力を使ってください。",
   "sessionBudgetVoiceContextChanged": "会話またはその権限が変更されたため、Muse Voice は停止しました。現在の会話で新しい録音を開始してください。",
   "sessionBudgetUnpriced": "停止しました: この拡張機能は {model} の価格を把握していないため、セッション予算を守れません。リクエストは送信されませんでした。",
   "sessionBudgetOutputLimited": "応答がセッション予算の残りで許される出力上限 (max_output_tokens {tokens}) に達したため、途中で切れている可能性があります。",
@@ -3586,7 +3586,7 @@
   "paidSearchQuote": "プロバイダー: {provider} · モデル: {model}。",
   "paidUseWebSearchDetail": "Muse は応答中に Web を検索することがあります。検索の料金 ({price}) は Model API キーに請求され、検索結果で増えるトークンの料金も加算されます。「許可しない」を選ぶと、Web 検索なしでプロンプトを送信します。",
   "paidUseVoiceTitle": "Muse Voice で録音しますか？",
-  "paidUseVoiceDetail": "Muse Voice がこの録音を文字起こしし、その料金 ({price}) は Model API キーに請求されます。「許可しない」を選ぶと、マイクはオフのままです。",
+  "paidUseVoiceDetail": "Muse Voice は Model API キーに {price} で課金します。録音は３分で停止します。「１回許可」はこのウィンドウに、「常に許可」は取り消すまでこのワークスペースに適用されます。時間と推定料金を表示しますが、提供元の請求額は取得できません。拒否するとマイクはオフのままです。",
   "paidWebSearchPrice": "検索 1,000 回あたり {price}",
   "paidImagePrice": "画像 1 枚あたり {price}",
   "paidVoicePrice": "音声 1 時間あたり {price}",
@@ -3594,7 +3594,7 @@
   "paidConfirmTitle": "{feature} をオンにしますか?",
   "paidConfirmWebSearch": "モデルは応答中に Web を検索することがあります。検索の料金 ({price}) は Model API キーに請求され、検索結果で増えるトークンの料金も加算されます。このワークスペースで Web 検索を常に許可しない限り、プロンプトごとに事前に確認します。Model API バックエンドでのみ使用されます。",
   "paidConfirmImage": "モデルはワークスペースに画像ファイルを作成したり、ワークスペースの画像を編集して新しい画像にしたりすることがあります。各画像の料金 ({price}) は Model API キーに請求され、このワークスペースで画像を常に許可しない限り、どの権限モードでも、画像を作成する前に毎回確認します。Model API バックエンドで使用されるほか、Model API キーが保存されている間は Muse Code バックエンドでも使用されます (サブスクリプションには請求されません)。",
-  "paidConfirmVoice": "マイクで録音した音声は、コンピューター自体の音声認識エンジンではなく Meta の Muse Voice Transcribe に送信され、その料金 ({price}) は Model API キーに請求されます。このワークスペースで Muse Voice を常に許可しない限り、録音ごとに事前に確認します。Model API バックエンドで使用されるほか、Model API キーが保存されている間は Muse Code バックエンドでも使用されます。",
+  "paidConfirmVoice": "Muse Voice は録音を Meta に送信し、両バックエンドで Model API キーに {price} で課金します。録音は３分で停止し、接続前に日次予算と設定された会話の上限を予約します。「１回許可」はこのウィンドウに、「常に許可」は取り消すまでこのワークスペースに適用されます。提供元の請求額は取得できません。",
   "paidConfirmScheduled": "期限が来た予定されたプロンプトは、実行されるまで待機します。このワークスペースで予定された実行を常に許可しない限り、実行ごとに Model API 呼び出し前に確認します。{price}。Model API キーに請求され、合計額は使用トークン数によって変わります。",
   "paidConfirmSubagents": "子エージェントはModel APIキーに請求される追加リクエストを行います。{price} このワークスペースでサブエージェントを常に許可しない限り、新しいタスクごとに、権限バイパスを含むすべての権限モードで承認を求めます。実際の費用は使用トークン数で変わり、他の有料ツールは別料金です。Model APIバックエンド専用です。",
   "paidBestOfNName": "ベスト・オブ・N",
@@ -5122,5 +5122,11 @@
     "grantsCount": {
       "other": "{count} 件の許可"
     }
-  }
+  },
+  "museVoiceIdle": "音声がリアルタイムのペースで届かなくなったため、Muse Voice は録音を終了しました。",
+  "museVoiceTransportFailed": "Muse Voice への接続に失敗し、録音を停止しました。",
+  "museVoiceInvalidDuration": "Muse Voice が無効な音声時間を報告したため、録音を停止しました。",
+  "museVoiceUsageReported": "Muse Voice：{duration}、報告された時間による推定料金 {cost}。提供元の請求額は取得できません。",
+  "museVoiceUsageEstimated": "Muse Voice：{duration}、送信した音声による推定料金 {cost}。最終時間が届かず、予約額全体が不確定のまま残ります。提供元の請求額は取得できません。",
+  "museVoiceUsageEmpty": "Muse Voice：{duration}、推定料金 {cost}。音声を送信していないため、音声料金は発生しない見込みです。提供元の請求額は取得できません。"
 }
