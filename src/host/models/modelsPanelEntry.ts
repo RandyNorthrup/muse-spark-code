@@ -313,11 +313,17 @@ export function createModelsPanelFeatures(
           load: async () => {
             const binding = host.team
             const configuration = binding?.configuration
-            if (configuration === undefined || !binding?.isEnabled()) return
+            const snapshots = binding?.snapshots
+            if (configuration === undefined || snapshots === undefined || !binding?.isEnabled())
+              return
             const { createTeamPanel } = await import('../../core/team/teamPanelEntry')
             return createTeamPanel(host.l10n.table, host.l10n.locale, {
               ...configuration,
-              isEnabled: () => binding.isEnabled() && binding.configuration === configuration,
+              ...snapshots,
+              isEnabled: () =>
+                binding.isEnabled() &&
+                binding.configuration === configuration &&
+                binding.snapshots === snapshots,
               isTrusted: () => vscode.workspace.isTrusted,
               state: binding.state,
               reload: binding.reload,

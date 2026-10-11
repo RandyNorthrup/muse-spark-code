@@ -8,14 +8,9 @@ import type { TeamPanelMessage } from '../../shared/teamPanel'
 export interface TeamPanelBinding {
   readonly configuration?: Pick<
     TeamPanelDeps,
-    | 'offers'
-    | 'defaultRef'
-    | 'maxWorkers'
-    | 'confirmOrchestrator'
-    | 'remainingDailyBudgetUsd'
-    | 'records'
-    | 'dryRun'
+    'offers' | 'defaultRef' | 'maxWorkers' | 'confirmOrchestrator' | 'dryRun'
   >
+  readonly snapshots?: Pick<TeamPanelDeps, 'remainingDailyBudgetUsd' | 'records'>
   readonly isEnabled: () => boolean
   readonly state: TeamStatePort
   readonly reload: () => void

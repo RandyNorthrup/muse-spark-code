@@ -31,6 +31,44 @@ describe('M96 U1 portable panel', () => {
       suggestions.mockRestore()
     }
   })
+  it('awaits fresh durable budget and history getters on every refresh', async () => {
+    let remaining = Usd.from('0.25').toAmount()
+    let records: autofill.TeamRoleRecord[] = [
+      { role: 'engineering', taskTokens: [100, 200, 300, 400, 500] },
+    ]
+    const suggestions = vi.spyOn(autofill, 'buildTeamSuggestions')
+    try {
+      const rig = panelRig({
+        remainingDailyBudgetUsd: () => Promise.resolve(remaining),
+        records: () => Promise.resolve(records),
+      })
+      const slice = await pairSlice(rig)
+      expect(slice.suggestions.some((item) => item.kind === 'roleBudget')).toBe(true)
+      expect(suggestions.mock.calls.at(-1)?.[0]).toMatchObject({
+        remainingDailyBudgetUsd: remaining,
+        records,
+      })
+      remaining = Usd.from(0).toAmount()
+      records = [{ role: 'engineering', taskTokens: [1, 2] }]
+      const refreshed = await rig.read()
+      expect(refreshed.suggestions.some((item) => item.kind === 'roleBudget')).toBe(false)
+      expect(suggestions.mock.calls.at(-1)?.[0].records).toBe(records)
+    } finally {
+      suggestions.mockRestore()
+    }
+  })
+
+  it.each(['budget', 'history'] as const)(
+    'refuses an unavailable %s source instead of fabricating a snapshot',
+    async (source) => {
+      const unavailable = () => Promise.reject(new Error(`Source unavailable: ${source}`))
+      const rig = panelRig(
+        source === 'budget' ? { remainingDailyBudgetUsd: unavailable } : { records: unavailable },
+      )
+      await expect(rig.read()).rejects.toThrow(UI_TEXT.teamBudgetUnavailable)
+    },
+  )
+
   it('refuses an invalid remaining budget before offering suggestions', async () => {
     const rig = panelRig({ remainingDailyBudgetUsd: () => Usd.from(-1).toAmount() })
     await expect(rig.controller.read()).rejects.toThrow(UI_TEXT.teamEditor.invalid)

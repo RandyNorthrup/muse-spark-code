@@ -4189,6 +4189,13 @@ async function activateWindow(
           log,
           globalState: context.globalState,
           team: {
+            snapshots: {
+              remainingDailyBudgetUsd: () => dailyPaid.judgeLedger.remainingUsd(),
+              records: async () => {
+                const { readTeamRoleRecords } = await import('./core/team/teamPanelEntry')
+                return readTeamRoleRecords({ get: (key) => context.workspaceState.get(key) })
+              },
+            },
             // Setup has no saved-entry prerequisite; the configuration registry gates U1.
             isEnabled: () => teamHost.canConfigure(),
             state: {

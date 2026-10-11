@@ -29,8 +29,8 @@ export interface TeamPanelDeps {
   readonly offers: () => Promise<readonly TeamPanelOffer[]>
   readonly defaultRef: () => string
   readonly maxWorkers: () => number
-  readonly remainingDailyBudgetUsd: () => UsdAmount
-  readonly records: () => readonly TeamRoleRecord[]
+  readonly remainingDailyBudgetUsd: () => UsdAmount | Promise<UsdAmount>
+  readonly records: () => readonly TeamRoleRecord[] | Promise<readonly TeamRoleRecord[]>
   readonly newId: () => string
   readonly reload: () => void
   readonly confirmInPlace: () => Promise<boolean>
@@ -93,8 +93,17 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
     document ??= loadStored()
     return document
   }
-  const view = () => {
-    const remaining = Usd.from(deps.remainingDailyBudgetUsd())
+  const view = async () => {
+    const [budget, history] = await Promise.allSettled([
+      (async () => await deps.remainingDailyBudgetUsd())(),
+      (async () => await deps.records())(),
+    ])
+    assertOpen()
+    if (budget.status === 'rejected')
+      throw new Error(UI_TEXT.teamBudgetUnavailable, { cause: budget.reason })
+    if (history.status === 'rejected')
+      throw new Error(UI_TEXT.teamBudgetUnavailable, { cause: history.reason })
+    const remaining = Usd.from(budget.value)
     if (remaining.compare(Usd.from(0)) < 0) throw new Error(UI_TEXT.teamEditor.invalid)
     return deriveTeamPanel(
       current(),
@@ -106,7 +115,7 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
       isDirty,
       deps.state.get(TEAM_WORKSPACE_KEYS.team) !== undefined,
       remaining.toAmount(),
-      deps.records(),
+      history.value,
     )
   }
   const roleOf = (id: string) => {
@@ -335,7 +344,8 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
         break
       }
       case 'roles/suggestion': {
-        const suggestion = view().suggestions.find(
+        const derived = await view()
+        const suggestion = derived.suggestions.find(
           (item) => item.role === message.role && item.kind === message.kind,
         )
         if (suggestion === undefined) throw new Error(UI_TEXT.teamEditor.invalid)
@@ -365,7 +375,7 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
           const priced = role.pool.filter((entry) => {
             const offer =
               entry.agent === undefined
-                ? offers.find((item) => item.ref === view().defaultRef)
+                ? offers.find((item) => item.ref === derived.defaultRef)
                 : offers.find((item) => isSameAgent(item, entry.agent))
             return (
               offer?.agent.pays === 'key' &&
@@ -394,7 +404,8 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
       }
       case 'roles/try': {
         if (deps.dryRun === undefined) throw new Error(UI_TEXT.teamEditor.invalid)
-        if (view().issues.length > 0) throw new Error(UI_TEXT.teamEditor.invalid)
+        const derived = await view()
+        if (derived.issues.length > 0) throw new Error(UI_TEXT.teamEditor.invalid)
         await deps.dryRun.run(draft, sample)
         assertOpen()
         return
@@ -406,7 +417,7 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
         return
       }
       case 'roles/save': {
-        const derived = view()
+        const derived = await view()
         if (derived.issues.length > 0) throw new Error(UI_TEXT.teamEditor.invalid)
         for (const role of draft.roles)
           if (role.workspace === 'in-place' && !confirmedInPlace.has(role.role)) {
@@ -464,7 +475,7 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
       const found = await deps.offers()
       assertOpen()
       offers = found.map((offer) => teamPanelOfferSchema.parse(offer))
-      const slice = view()
+      const slice = await view()
       slice.notice = notice
       if (deps.dryRun !== undefined) slice.dryRunCost = deps.dryRun.cost()
       return slice

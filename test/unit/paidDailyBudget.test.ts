@@ -20,7 +20,7 @@ import { FakeAccountJournal } from './helpers/accounts/fakes'
 import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
 import { createPaidFeatures } from '../../src/host/paid/paidHost'
 import * as atomicFiles from '../../src/host/fsAtomic'
-import { PAID_DAILY_BUDGET, UI_TEXT } from '../../src/shared/constants'
+import { PAID_DAILY_BUDGET, MILLISECONDS_PER_DAY, UI_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApi, fakeModelApiClientSettings } from './helpers/fakeModelApi'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
@@ -194,6 +194,17 @@ describe('D78 interactive paid daily budget', () => {
       Usd.from(0.1).toAmount(),
     )
     expect(await daily.judgeLedger.remainingUsd()).toBe(Usd.from('0.7').toAmount())
+  })
+
+  it('reads configuration headroom across windows, outstanding claims, settlement and day rollover', async () => {
+    const first = budget(1)
+    const second = budget(1)
+    const claim = await first.reserveExact(Usd.from('0.4').toAmount())
+    expect(await second.judgeLedger.remainingUsd()).toBe(Usd.from('0.6').toAmount())
+    await claim.settle(Usd.from('0.125').toAmount())
+    expect(await second.judgeLedger.remainingUsd()).toBe(Usd.from('0.875').toAmount())
+    state.now += MILLISECONDS_PER_DAY
+    expect(await second.judgeLedger.remainingUsd()).toBe(Usd.from(1).toAmount())
   })
 
   it('reserves token extras at exact decimal prices', async () => {

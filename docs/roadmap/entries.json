@@ -700,7 +700,7 @@
     {
       "id": "M96",
       "title": "Agent roles and teams",
-      "summary": "Agent roles with charters, tools, model pools and task limits, with an editor whose setup readiness is independent of saved entries; configuration sources and certification still keep it and engine workers hidden.",
+      "summary": "The joined team engine and hidden Roles/Agents editor have independent setup readiness and durable budget/history reads, while captured discovery, saved-charter enforcement, overrides and paid Try still need integration.",
       "area": "agents"
     },
     {

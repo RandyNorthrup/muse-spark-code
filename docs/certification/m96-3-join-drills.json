@@ -7,5 +7,45 @@
     "beforeSha256": "662e432fec65fad90b287fa5e98af38646b428c980d6a9b571f0dddcc2cb1208",
     "restoredSha256": "662e432fec65fad90b287fa5e98af38646b428c980d6a9b571f0dddcc2cb1208",
     "regression": "allows first-time configuration without a stored team, loading or probing"
+  },
+  {
+    "port": 3,
+    "mutation": "history",
+    "file": "src/core/team/teamTaskState.ts",
+    "command": "npx vitest run test/unit/teamRoleRecords.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "beforeSha256": "e206f039f6d6dc492c2efb55d07384840c07c1b0ef07f57c050df6f9c9b1cf2e",
+    "restoredSha256": "e206f039f6d6dc492c2efb55d07384840c07c1b0ef07f57c050df6f9c9b1cf2e",
+    "regression": "reads cold saved records"
+  },
+  {
+    "port": 3,
+    "mutation": "balance",
+    "file": "src/core/team/teamPanel.ts",
+    "command": "npx vitest run test/unit/teamPanel.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "beforeSha256": "b9d7e86d966d4580c2940c4dabfd1d9b22ae785892a34e413b9647fc9218c893",
+    "restoredSha256": "b9d7e86d966d4580c2940c4dabfd1d9b22ae785892a34e413b9647fc9218c893",
+    "regression": "awaits fresh durable budget and history getters"
+  },
+  {
+    "port": 3,
+    "mutation": "stale",
+    "file": "src/host/models/modelsPanel.ts",
+    "command": "npx vitest run test/unit/modelsPanelEntry.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "beforeSha256": "883fe8ec52a0a9736d051773ab84cbaa9f2286f3a4cfa860a03f294527a35f05",
+    "restoredSha256": "883fe8ec52a0a9736d051773ab84cbaa9f2286f3a4cfa860a03f294527a35f05",
+    "regression": "hides stale Roles and Agents"
+  },
+  {
+    "port": 3,
+    "mutation": "ledger",
+    "file": "src/host/paid/paidDailyBudget.ts",
+    "command": "npx vitest run test/unit/paidDailyBudget.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "beforeSha256": "8254464f02bccaa455da62b790f77fb684d309c0a03192046a44797f02ebe3ad",
+    "restoredSha256": "8254464f02bccaa455da62b790f77fb684d309c0a03192046a44797f02ebe3ad",
+    "regression": "reads configuration headroom across windows"
   }
 ]

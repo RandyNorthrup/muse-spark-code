@@ -42,6 +42,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Hidden Roles configuration reads its remaining shared daily budget and durable task history afresh. Missing or damaged sources refuse; learned caps use the latest twelve settled terminal tasks per role, excluding interrupted or uncertain usage.
+
 - Hidden team setup now checks editor support, trust and the team switch independently of saved worker entries. Required configuration sources still gate the Roles and Agents sections.
 
 - Hidden M96 team-host correctness: each response settles its own reserved

@@ -101,8 +101,12 @@ beforeEach(() => {
 
 const unsubscribeTeamTree = () => undefined
 
-function teamEditorPanel(hasConfiguration: boolean) {
-  const rig = panelRig({ confirmOrchestrator: vi.fn(() => Promise.resolve()) })
+function teamEditorPanel(
+  hasConfiguration: boolean,
+  hasSnapshots = true,
+  sources: Partial<Parameters<typeof panelRig>[0]> = {},
+) {
+  const rig = panelRig({ confirmOrchestrator: vi.fn(() => Promise.resolve()), ...sources })
   const binding = {
     isEnabled: () => true,
     state: rig.deps.state,
@@ -110,13 +114,17 @@ function teamEditorPanel(hasConfiguration: boolean) {
     onTreeChange: () => unsubscribeTeamTree,
     tree: () => undefined,
     handle: () => Promise.resolve(),
+    ...(hasSnapshots && {
+      snapshots: {
+        remainingDailyBudgetUsd: rig.deps.remainingDailyBudgetUsd,
+        records: rig.deps.records,
+      },
+    }),
     ...(hasConfiguration && {
       configuration: {
         offers: rig.deps.offers,
         defaultRef: rig.deps.defaultRef,
         maxWorkers: rig.deps.maxWorkers,
-        remainingDailyBudgetUsd: rig.deps.remainingDailyBudgetUsd,
-        records: rig.deps.records,
         confirmOrchestrator: rig.deps.confirmOrchestrator,
       },
     }),
@@ -154,6 +162,41 @@ describe('createModelsPanelFeatures', () => {
       factory.mockRestore()
     }
   })
+  it('keeps sections hidden without required durable snapshot getters', async () => {
+    const { panel, latest, rig } = teamEditorPanel(true, false)
+    await vi.waitFor(() => {
+      expect(latest()?.presets.length).toBeGreaterThan(0)
+    })
+    expect(latest()?.roles).toBeUndefined()
+    expect(latest()?.agents).toBeUndefined()
+    expect(rig.update).not.toHaveBeenCalled()
+    panel.dispose()
+  })
+
+  it('hides stale Roles and Agents after a durable source fails and recovers on retry', async () => {
+    let isUnavailable = false
+    const { panel, latest } = teamEditorPanel(true, true, {
+      records: () =>
+        isUnavailable ? Promise.reject(new Error('History unavailable')) : Promise.resolve([]),
+    })
+    await vi.waitFor(() => {
+      expect(latest()?.roles).toBeDefined()
+    })
+    isUnavailable = true
+    panel.webview.messages.fire({ type: 'modelsPanel/ready' })
+    await vi.waitFor(() => {
+      expect(latest()?.roles).toBeUndefined()
+    })
+    expect(latest()?.agents).toBeUndefined()
+    expect(latest()?.presets.length).toBeGreaterThan(0)
+    isUnavailable = false
+    panel.webview.messages.fire({ type: 'modelsPanel/ready' })
+    await vi.waitFor(() => {
+      expect(latest()?.roles).toBeDefined()
+    })
+    panel.dispose()
+  })
+
   it('uses the captured configuration ports and saves without changing the current composer', async () => {
     const { panel, latest, composed, rig } = teamEditorPanel(true)
     await vi.waitFor(() => {

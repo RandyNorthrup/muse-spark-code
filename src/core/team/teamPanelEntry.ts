@@ -7,3 +7,5 @@ export function createTeamPanel(table: UiText, locale: string, deps: TeamPanelDe
   setUiText(table, locale)
   return createTeamPanelController(deps)
 }
+
+export { readTeamRoleRecords } from './teamTaskState'
