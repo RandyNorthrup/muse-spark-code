@@ -12074,7 +12074,10 @@ changes nothing (U14).
      - Replay bytes equal serial execution's.
      - `museSpark.modelApiParallelReads` (default on) turns it off.
    - **Output cap per model.** It comes from the record's `output.maxTokens`;
-     Meta's models get the recommended 131,072 (from 32,768). The reservation
+     Meta's models in VS Code and interactive ACP get the recommended 131,072
+     (from 32,768). Headless exec requests at most 32,768 output tokens, or
+     the record's smaller maximum: its worst-case run-ledger reservation
+     makes a larger ceiling a separate money decision. The reservation
      clamps it to what the budget allows. One continuation follows an
      `incomplete` reply for `max_output_tokens`
      (`MODEL_API_CONTINUATIONS_MAX` = 1), then a notice. Tool calls in a
@@ -31326,7 +31329,9 @@ the captured Meta record when no caller provides them
 (`modelCapabilities.ts`, `modelApiEntry.ts`), so the single binding serves
 VS Code, ACP and exec through their shared entry: previews stream on the
 U9-captured `muse-spark-1.3-contributor` model in VS Code and ACP, Meta turns
-in all three hosts request the documented 131,072-token cap, and unobserved
+in VS Code and interactive ACP request the documented 131,072-token cap.
+Headless exec requests at most 32,768 output tokens (or the record’s smaller
+maximum) to preserve its worst-case reservation; unobserved
 models keep today's stream and the legacy 32,768-token cap. Headless `exec`
 drops every `tool_call`/`tool_call_update` before its sink, so it records
 completed tools only and never shows live previews. The entry's default cap
@@ -31354,6 +31359,22 @@ restores) are recorded in
 per-model U9 rows beyond the contributor model, qualified-model preview
 records once a streaming-argument capture attests one, and Codex/Grok
 review.
+
+**C-M106-2 R10 headless cap repair (2026-10-11, kubuntu).** First reproduce
+c113d3aae's 51 exec failures at repository timeouts. Headless exec keeps its
+32,768-token cap: its ledger reserves each request's worst case before dispatch,
+and quadrupling that reservation is a separate money decision. Resolve one run
+cap from the selected record (the smaller of its maximum and exec's cap, refusing
+below the existing minimum); bind the body, schema, ledger shape check and start
+reservation to that value. VS Code and interactive ACP retain their documented
+record maxima. Add real-stack and fixture-wide agreement regressions, certify
+red drills, run every dependent suite for the branch's complete source diff,
+correct the output-cap claims and translate a real argument-preview help summary.
+The dependent exec replay also revealed that preview-started edits had no
+locations until promotion: carry the completed arguments’ locations through ACP
+promotion and refresh headless edit metadata, while continuing to suppress
+preview payloads. Aggregate quality remains lead-owned under the explicit
+rig/shared brief.
 
 **C-M106-2 R5 review repairs (RVCM1062D, 2026-10-10, kubuntu).** Close both
 P2 findings and their siblings today. Strict-tool conversion preserves the
@@ -31955,7 +31976,9 @@ in `docs/certification/m106-r.md`; no RVM106R residual remains.
      - `then_run` is unchanged.
      - Replay bytes equal serial execution's, for generated batches (a
        property test).
-  8. **Output.** Meta's cap is 131,072, clamped by the budget. One
+  8. **Output.** Meta's cap in VS Code and interactive ACP is 131,072,
+     clamped by the budget. Headless exec requests at most 32,768 tokens,
+     or the record’s smaller maximum, preserving its worst-case reservation. One
      continuation follows `max_output_tokens`, then a notice. Calls in a
      cut-short reply are answered with an error, never run.
   9. **The repeat guard.** The third identical call with the same result is
@@ -38973,6 +38996,28 @@ key is supplied here. The CLI probes use ephemeral empty workspaces and no
 model turn; only the explicitly scoped synthetic note is uploaded, with
 both disclosures off. No guard, hook, timeout, cap or dependency is changed.
 Evidence: `docs/certification/m106-completion-captures.md`.
+**C-M106-2 R10 bounded dependent certification (2026-10-11).** The rig
+brief explicitly adds every dependent suite for the whole branch's source
+diff against 82d50d5e4, including all shared host/runtime and English-table
+consumers. Discover the full graph with Vitest's related selector, then run
+`npx vitest related --run` in complete three-file batches preserving the
+repository's configuration and deadlines. Keep Vitest's public runner open
+between batches if repeated cold setup threatens the time box; use the same
+related selector, three-file bound, ordinary project setup and deadlines. Aggregate quality, independent
+review and the multi-OS release matrix remain lead-owned. No gate or cap is
+weakened; record every outcome and compare any red with the clean base.
+Evidence: `docs/certification/m106-capability-binding.md`.
+
+**R10 time-box deferral (2026-10-11).** The whole-branch related graph has
+1,135 files. The owner's 75-minute rig limit permits 875 complete files here;
+260 remain explicitly unrun, listed individually in
+`docs/certification/m106-r10-dependents.json`. Final observed results are
+19,628 passed, zero failed and 102 existing platform/opt-in skips. The two
+migration timeouts pass on both the branch replay and clean base; the cap
+callback assertion now verifies the resolved record and passes. The complete
+dependent gate remains outstanding; this record does not certify those
+260 files or claim release readiness.
+
 **C-M106-2 R5 bounded repair certification (2026-10-10).** The rig/shared
 brief forbids aggregate quality, full-suite runs and branch integration.
 Run the owning whole test files at repository timeouts with at most three

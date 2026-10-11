@@ -374,7 +374,7 @@ Commands: —. Settings: `museSpark.modelApiAutoCompaction`. [Documentation](htt
 
 ### Argument preview
 
-Waiting for complete arguments…
+Show validated, scrubbed tool arguments as they arrive, before the tool runs.
 
 Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 

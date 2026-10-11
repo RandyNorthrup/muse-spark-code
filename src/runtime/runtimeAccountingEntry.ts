@@ -103,8 +103,10 @@ export function withRuntimeAccounting(
   client: ProviderClient,
   daily: ReturnType<typeof createRuntimeDailyBudget>,
   accounting?: RuntimeResponseAccounting,
+  outputCap?: (policy: ResolvedModel['policy']) => number,
 ): ProviderClient {
   const wrap = (model: ResolvedModel): ResolvedModel => {
+    outputCap?.(model.policy)
     const original = model.client
     const bounded: ModelClient = {
       currentKeyDigest: original.currentKeyDigest.bind(original),

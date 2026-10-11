@@ -373,7 +373,15 @@ describe('M106 loop guarantees', () => {
       131_072, 131_072,
     ])
     expect(cap).toHaveBeenCalledTimes(2)
-    expect(cap).toHaveBeenCalledWith('muse-spark-1.3')
+    expect(cap).toHaveBeenCalledWith(
+      'muse-spark-1.3',
+      expect.objectContaining({
+        ref: 'muse-spark-1.3',
+        policy: expect.objectContaining({
+          output: { maxTokens: MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS },
+        }),
+      }),
+    )
     await rig.session.setModel('muse-spark-1.2')
     rig.api.script({ text: 'Other model.' })
     await send(rig)

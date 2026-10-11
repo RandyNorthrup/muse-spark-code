@@ -750,7 +750,7 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly strictTools?: () => boolean
   readonly parallelReads?: () => boolean
   /** Lane W binds the selected M95 record's output.maxTokens; absent keeps the legacy cap. */
-  readonly modelOutputMaxTokens?: (modelId: string) => number | undefined
+  readonly modelOutputMaxTokens?: (modelId: string, resolved: ResolvedModel) => number | undefined
   /** Fixed for the session, with an explicit off arm for byte-identical requests. */
   readonly outputContinuation?: () => boolean
   /** Trusted host proof of an unchanged complete result, never an MCP annotation. */
@@ -4295,7 +4295,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const cached = this.outputCaps.get(resolved)
     if (cached !== undefined) return cached
     const requested =
-      this.deps.modelOutputMaxTokens?.(resolved.ref) ??
+      this.deps.modelOutputMaxTokens?.(resolved.ref, resolved) ??
       (resolved.ref.includes('/') ? resolved.policy.output.maxTokens : undefined) ??
       MODEL_API_MAX_OUTPUT_TOKENS
     if (!Number.isSafeInteger(requested) || requested < 1)

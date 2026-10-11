@@ -28,7 +28,7 @@ entry (`src/host/backend/modelApiEntry.ts`), which every host loads:
   supplier reads the stash first. Bare Meta models never reach the
   resolver, so they fall through to `metaOutputMaxTokens`, which now
   delegates to M95's own `modelPolicyFor` (the documented 131,072-token
-  maximum, the same record the host's clamp reads). No lane code names a
+  maximum for VS Code and interactive ACP, the same record the host's clamp reads). Headless exec binds its own resolved ceiling of at most 32,768 to preserve its worst-case reservation. No lane code names a
   model id; an unresolved model fails closed to the legacy cap.
 - Preview: `metaArgumentPreviewCapabilities` stays gated on the U9-captured
   `muse-spark-1.3-contributor` model. Evidence is the counted 2026-10-05
@@ -61,11 +61,11 @@ renders record-emitted previews, covered by the existing
 
 ## Acceptance (PLAN 31780-31826: items 1, 6, 8)
 
-| Item                       | Verdict                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Off means today's bytes | Unchanged: golden requests with the feature off are byte-identical (existing M91 fixtures green, untouched); the new off/on golden run proves the default-on byte diff is exactly `max_output_tokens` 32768 → 131072, nothing else.                                                                                                                                                                                               |
-| 6. Previews                | Captured U9 argument bytes drive previews through the unmanaged production path (manager → entry → host → real SSE/transport/parser): snapshots accumulate to the captured length; nothing runs, asks or calls a hook before `.done`; no preview bytes reach replay or requests. R3: declared-tool TEXT now renders from the raw 16-frame capture (see R3 record); the R2 stand-in test below stays as the undeclared-tool guard. |
-| 8. Output                  | Meta turns request 131,072, clamped by the budget; a qualified selected record with `output.maxTokens = 65536` requests 65536 through the production path; one continuation follows `max_output_tokens`, then a notice (existing L2 mechanics, unchanged). Calls in a cut-short reply are answered with an error, never run (existing).                                                                                           |
+| Item                       | Verdict                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Off means today's bytes | Unchanged: golden requests with the feature off are byte-identical (existing M91 fixtures green, untouched); the new off/on golden run proves the default-on byte diff is exactly `max_output_tokens` 32768 → 131072, nothing else.                                                                                                                                                                                                                                                 |
+| 6. Previews                | Captured U9 argument bytes drive previews through the unmanaged production path (manager → entry → host → real SSE/transport/parser): snapshots accumulate to the captured length; nothing runs, asks or calls a hook before `.done`; no preview bytes reach replay or requests. R3: declared-tool TEXT now renders from the raw 16-frame capture (see R3 record); the R2 stand-in test below stays as the undeclared-tool guard.                                                   |
+| 8. Output                  | VS Code and interactive ACP Meta turns request 131,072, clamped by the budget; headless exec requests at most 32,768 (or the record’s smaller maximum) to preserve its worst-case reservation; a qualified selected record with `output.maxTokens = 65536` requests 65536 through the production path; one continuation follows `max_output_tokens`, then a notice (existing L2 mechanics, unchanged). Calls in a cut-short reply are answered with an error, never run (existing). |
 
 Provider × item rows: `muse-spark-1.3-contributor` on/on; other bare
 `muse-spark-*` off-preview/on-cap (cap is documented for every Muse Spark
@@ -152,8 +152,10 @@ render in VS Code and ACP only. Headless `exec` drops every
 `tool_call`/`tool_call_update` before its sink (`execClient.ts`) and its
 engine observer emits completed-tool metadata only, so it records
 completed tools and never shows live previews (pinned by the new exec
-test). The output cap binds in all three hosts: it is a request path they
-share. The suites above run on kubuntu; Windows/macOS receipts, the
+test). VS Code and interactive ACP request the documented record maximum;
+headless exec binds at most 32,768 output tokens (or the record’s smaller
+maximum) to preserve its worst-case reservation. All use the shared request
+path, with the headless run supplying its own single cap. The suites above run on kubuntu; Windows/macOS receipts, the
 `~4-turn` live check, Codex + Grok review and the M106 release checklist
 stay with the lead. The entry and selectors use no path, shell or
 platform-dependent code.
@@ -548,3 +550,414 @@ skipped, filtered, or given a raised timeout.
   disk-backed `$TMPDIR`.
 
 No RVCM1062E finding remains open; no external blocker was encountered.
+
+## R7 — RVCM1062F repair: confirmed runs work on plan models (kubuntu, 2026-10-11)
+
+Review RVCM1062F raised one P3: `subscriptions/registry.ts:216` refused
+EVERY confirmed plan-model request before dispatch, and its message claimed
+the model had changed ("try again") when nothing had — retrying failed the
+same way. No P1 or P2 was raised.
+
+**Which case applied: implement.** Nothing in PLAN forbids a confirmed run
+on a plan model, so the plan-model branch now honours `isStillAllowed()`
+exactly like the other branches. Citations:
+
+- M95b (PLAN §6) promises a ChatGPT-Plus/Pro or Copilot-plan user "runs the
+  harness on that plan's inference"; it lists no confirmed-run exclusion,
+  and neither M106 (D86) nor the decision that introduced
+  `ConfirmedModelRequest` (the contract comment at `transport.ts:348-364`:
+  "the paid gate and session model must still match before every HTTP try")
+  excludes plan models.
+- The hook model IS the session model (`ModelApiHost.ts:8629`), so a hook
+  run on a plan session necessarily carries a plan `modelId`; the old branch
+  broke every hook run on every plan session. Reviews explicitly admit plan
+  pricing without a paid consent (`ModelApiHost.ts:6743`), so a review on a
+  plan session must also pass the subscription gate.
+- The other three branches share one conditional form — Meta
+  (`client.ts:452-458`), BYO (`providerClient.ts:197-205`) and the transport
+  fence (`transport.ts:837-844`): refuse only on identity mismatch or a
+  lapsed gate, otherwise dispatch. The plan-model branch is now the fourth
+  instance of that form. No new string, setting, chunk or dependency; no
+  surface offered or withdrew a combination.
+
+| Finding → fix → test → drill                                                                                                                      | File                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| Plan-model confirmed gate refuses only on model mismatch or `!isStillAllowed()`; hook runs name the hook call, other kinds keep schedule text     | `subscriptions/registry.ts` |
+| Same unconditional throw in the Copilot adapter now refuses only a lapsed or mismatched confirmation before dispatch                              | `copilotClient.ts`          |
+| Still-allowed confirmation dispatches per run kind (`hookModel`, `scheduled`, `review`, unmarked); adapter gets the catalogue model id            | `modelApiProviders` (new)   |
+| Lapsed confirmation per run kind refuses before dispatch with the run's guidance (hook text names no schedule)                                    | `modelApiProviders` (new)   |
+| Still-allowed confirmation for another model refuses even while allowed                                                                           | `modelApiProviders` (new)   |
+| ChatGPT branch: lapsed refuses before sign-in, still-allowed reaches sign-in (branch catch maps both to its retry text, as for every error there) | `modelApiProviders` (new)   |
+| Adapter: lapsed/mismatched refuses, still-allowed dispatches through `sendRequest` with schema-valid events                                       | `copilotClient` (rewritten) |
+| R6 hook-lapse case now lapses for real (`isStillAllowed: () => false`); shared `streamPlanConfirmed`/`refusalOf` harness keeps jscpd at 0 clones  | `modelApiProviders` (edit)  |
+
+### Sibling sweep (every `confirmed !== undefined` site)
+
+- `client.ts:453`, `providerClient.ts:198`, `transport.ts:838`: already
+  conditional — untouched.
+- `schedulesEntry.ts:393`, `conversationController.ts:9769/9776`,
+  `modelApiBackendManager.ts:563`: pre-dispatch identity/allowance checks —
+  already conditional, untouched.
+- `copilotClient.ts:286`: unconditional — fixed (its only production caller,
+  the registry's Copilot branch, never forwards `confirmed`, so the fix
+  changes no live path today; it removes the trap for a direct caller).
+- No other unconditional confirmed throw exists in `src/`.
+
+### R7 red drills
+
+Backups under this lane's disk-backed `$TMPDIR`; both files restored
+byte-exact (SHA-256 `sha256sum -c` OK:
+`registry.ts` `14b576bc…ada880cbfa`,
+`copilotClient.ts` `0a3cd703…27d7134f7272a6c60b1e9b61eb`). Repository
+timeouts throughout, `--maxWorkers=3`; every drill exit was a test failure,
+never a timeout.
+
+1. **Subscription gate:** condition reverted to `if (confirmed !== undefined)`.
+   The five still-allowed cases fail (4 Copilot run kinds + ChatGPT
+   sign-in); the mismatch case still passes (5 failed / 1 passed /
+   23 skipped in the `-t still-allowed` slice).
+2. **Adapter gate:** condition reverted to `if (confirmed !== undefined)`.
+   The rewritten adapter case fails (1 failed / 49 skipped in its
+   `-t still-allowed` slice).
+
+### R7 verification (kubuntu, repository timeouts, `--maxWorkers=3`)
+
+- `modelApiProviders`, `copilotClient`: **79 passed** (whole files).
+- `npm run typecheck`: all projects passed.
+- ESLint `--max-warnings=0` and Prettier `--check` on all four changed files
+  passed. Knip: only the two pre-existing vendor/axe-core hints. jscpd:
+  **0 clones** (the first cut added 6; extracted the shared harness).
+- Localization: 14 UI tables, 14 usage tables, 0 problems (no string added
+  or changed). Reference, host API and feature catalogue untouched: no
+  command, setting or surface changed.
+- Final `npm run build` passed: extension **550.1 / 600 KiB**; Model API
+  **517.4 / 525 KiB** — both unchanged from R6; no budget raised.
+- No browser, live/paid call, credential read, install, push, rebase or
+  merge was performed.
+
+No RVCM1062F finding remains open; no external blocker was encountered.
+
+## R8 — RVCM1062G repairs: the plan-model success path matches every other branch (kubuntu, 2026-10-11)
+
+Review RVCM1062G raised two P2 (the new plan-model success path skips the
+start receipt and never re-checks the paid gate after its awaits) and two
+P3 (the ChatGPT branch rewrites a lapsed confirmation as the generic plan
+retry sentence; the Copilot adapter refuses the catalogue/session id pair
+it otherwise accepts). One class: the plan-model branch must do everything
+the other provider branches do around a confirmed dispatch, in the same
+order — and through the same helper, not a hand copy.
+
+**Fix.** `transport.ts:384/400/420` extracts the shared
+confirmed-dispatch helper the other branches use: `assertConfirmedAllowed`
+(model match plus `isStillAllowed()`, throwing the run's own guidance),
+`noteConfirmedRequestStarted` (confirmed first, then the admission
+observer — the transport order at `transport.ts:1000`), and
+`isStaleConfirmedError` (lets a lapsed-confirmation refusal pass branch
+catches unchanged). Adopted by every branch: Model API (`client.ts:453`),
+configured provider (`providerClient.ts:204`), the registry's Copilot path
+(early gate `registry.ts:225`, adapter dispatch through the guard at
+`registry.ts:233`) and ChatGPT path (early gate plus the post-sign-in
+re-check at `registry.ts:269-270`), and the Copilot adapter (early gate
+`copilotClient.ts:176`, post-count re-check and started note at
+`copilotClient.ts:357-358`). The registry forwards an inert-start copy of
+the confirmation into the adapter (the hook/reviewer pattern), so the
+guard counts the paid use exactly once. The ChatGPT catch at
+`registry.ts:344` yields a lapsed confirmation with its own hook/schedule
+text instead of the retry sentence; the adapter catch at
+`copilotClient.ts:433` lets the same refusals through instead of its
+failure text; the adapter's model match tolerates session `copilot/<id>`
+against catalogue `<id>`. No new string, setting, chunk or dependency; no
+guard widened.
+
+| Finding → fix → test → drill                                                                                                                                                      | File                       |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| Shared gate/started/stale helpers; transport dispatch uses the started helper                                                                                                     | `transport.ts`             |
+| Early gate through the helper (same refusal, media finish preserved)                                                                                                              | `client.ts`                |
+| Early gate through the helper (provider/origin checks kept inline)                                                                                                                | `providerClient.ts`        |
+| Copilot path: gate, inert-start forward, guard folds the real start note                                                                                                          | `registry.ts:225-245`      |
+| ChatGPT path: post-sign-in re-check plus the real start note                                                                                                                      | `registry.ts:269-270`      |
+| Lapsed confirmations keep hook/schedule text on both plan branches                                                                                                                | `registry.ts:344`          |
+| Catalogue/session id tolerance, post-count re-check, started note, stale pass-through                                                                                             | `copilotClient.ts`         |
+| Lapsed ChatGPT refusal names the hook call instead of the retry sentence                                                                                                          | `modelApiProviders` (edit) |
+| Catalogue request id against a session confirmation id dispatches once                                                                                                            | `copilotClient` (new)      |
+| Table test: Model API, configured provider, Copilot, ChatGPT plan × hook/scheduled/review/unmarked × allowed/lapsed/lapsing/mismatched/aborted with the same lifecycle assertions | `modelApiProviders` (new)  |
+
+### Sibling sweep
+
+- Every `confirmed !== undefined` site in `src/` re-checked: the two
+  transport fences keep their key/origin halves (a strict superset of the
+  helper); hook/reviewer entries already fold the start note into admission
+  and pass an inert copy down; `schedulesEntry`/`conversationController`/
+  `modelApiBackendManager` checks are pre-dispatch identity checks, already
+  conditional.
+- Mid-flight lapse honesty swept both plan branches: ChatGPT (registry
+  catch) and Copilot (adapter re-check plus catch pass-through), so a lapse
+  during sign-in or token counting names the run on either branch.
+
+### R8 red drills (every guard broken on purpose, every file restored byte-exact)
+
+Baseline SHA-256 recorded before drilling; `sha256sum -c` OK after every
+restore (`registry.ts` `0e15efe9…46accc66`,
+`copilotClient.ts` `6cd5245c…d7134f72`,
+`transport.ts` `7efcd3fb…59d05b2ff`). Repository timeouts throughout,
+`--maxWorkers=3`; every drill exit was a test failure, never a timeout.
+
+1. **ChatGPT re-check and start note removed** (`registry.ts:269-270` →
+   admit-started only): 8 failed — the 4 still-allowed and 4 mid-dispatch
+   `chatgpt-plan` table cases; lapsed/mismatch/abort still pass.
+2. **Stale pass-through removed** (`registry.ts:344`): 5 failed — the
+   updated ChatGPT lapsed test plus the 4 `chatgpt-plan` lapsed table
+   cases; Copilot lapsed cases still pass (that branch already kept the
+   message).
+3. **Copilot id tolerance reverted to strict equality**: the new
+   `accepts a catalogue request id` adapter case fails (1 failed /
+   50 skipped in its `-t catalogue` slice).
+4. **Adapter re-check removed** (`copilotClient.ts:357`): 4 failed — the
+   `copilot` mid-dispatch table cases across all four run kinds; every
+   other branch still passes.
+5. **Shared gate disabled** (`assertConfirmedAllowed` no-op): 22 failed
+   across the table's lapsed/mid-dispatch/mismatch cases
+   (`modelApiProviders` + `modelApiClient` `-t laps` slice).
+
+### R8 verification (kubuntu, repository timeouts, `--maxWorkers=3`)
+
+- `modelApiProviders`, `copilotClient`: **136 passed** (whole files).
+- `modelApiClient`, `configuredProviders`: **99 passed**, 1 failed — the
+  `pins a loopback HTTP request` case times out at 5000 ms because this
+  sandbox blocks loopback TCP (a bare `node:http` listen + fetch probe
+  fails the same way); that test passes no confirmation, so the changed
+  lines are no-ops for it. Named for the lead to run outside the sandbox.
+- `npm run typecheck`: host, webview and unit projects passed.
+- ESLint `--max-warnings=0` and Prettier `--check` on all seven changed
+  files passed. Knip: only the two pre-existing vendor/axe-core hints.
+  jscpd: **0 clones** (the first cut added 5; extracted the shared guard,
+  registry and refusal helpers plus a static cancellation stub).
+- Localization: 14 UI tables, 14 usage tables, 0 problems (no string added
+  or changed). Reference, host API and feature catalogue untouched: no
+  command, setting or surface changed.
+- Final `npm run build` passed: extension **550.1 / 600 KiB**; Model API
+  **517.5 / 525 KiB** (R7: 517.4) — both within budget; no budget raised.
+- No browser, live/paid call, credential read, install, push, rebase or
+  merge was performed.
+
+No RVCM1062G finding remains open; no external blocker was encountered.
+
+### R9 (RVCM1062H, kubuntu lane CM1062R3) — the last confirmed-dispatch paths
+
+Both findings are the same class as the last two rounds: a provider path
+deciding a confirmed dispatch by itself instead of the shared helper.
+
+- **P2** (`providerClient.ts:200`): a still-allowed schedule or hook
+  confirmation on a configured provider leaves `origin` unset
+  (`ModelApiHost.scheduleConfirmation`, `schedulesEntry.requestFor`, the
+  hook confirmation), and the bound client adds only `providerId`. The
+  codec's strict `confirmed.origin !== this.provider.origin` check refused
+  it before the helper, and the bound `catch` showed the Models & Agents
+  sentence. The codec now routes its provider/origin check through
+  `assertConfirmedAllowed` with an unset-means-pass tolerance matching the
+  transport fence; the refusal, when one is due, is the helper's.
+- **P3** (`configured.ts:707`): the bound `catch` mapped every failure to
+  `modelsPanelUnavailable`, discarding the helper's lapse guidance. It now
+  rethrows stale-confirmation errors unchanged, and the helper runs before
+  the wrong-client fence so a confirmed mismatch refuses with the run's
+  own guidance. The lifecycle table's configured branch and the
+  `credential rotation` boundary case now expect the helper sentence.
+- **Sibling sweep**: every `ConfirmedModelRequest` / confirmed-parameter
+  site in `src` re-checked (11 files). Transport's key/origin fences and
+  the Copilot `confirmation-expired` mapping stay as RVCM1062H blessed
+  them; both are allowlisted with reasons in the new inventory test.
+- **Lifecycle table**: new `configured-provider-schedule` branch (14
+  cases) drives the production path exactly as the client builds it — the
+  confirmation carries no origin and no provider id, the bound client
+  under test adds only the provider id — for every run kind. 70 cases.
+- **Inventory test** (`test/unit/confirmedDispatchInventory.test.ts`):
+  walks `src`, flags any refusal-shaped line near a confirmed reference,
+  and fails on any site outside the read-and-reasoned allowlist; a second
+  test fails if `staleConfirmedError(` is ever built outside
+  `transport.ts`. Paths are normalised to `/` before comparing.
+
+### R9 red drills (guards broken on purpose, files restored byte-exact)
+
+Baseline SHA-256 recorded before drilling; `sha256sum -c` OK after every
+restore. Repository timeouts throughout, `--maxWorkers=3`.
+
+1. **Strict origin pre-check restored** (`providerClient.ts`, P2 as
+   shipped): 4 failed — the still-allowed `configured-provider-schedule`
+   table cases across all four run kinds; the inventory test additionally
+   failed its 2 refusal tests on the reintroduced site.
+2. **Stale rethrow removed** (`configured.ts`, P3 as shipped): 4 failed —
+   the lapsed configured table cases in the `-t lapsed` slice — plus the
+   `credential rotation` boundary case (1 failed / 23 skipped).
+3. An earlier drill attempt that failed to match the prettier-formatted
+   gate text changed nothing and stayed green; it was discarded and
+   re-done on the exact current text above.
+
+### R9 verification (kubuntu, repository timeout, `--maxWorkers=3`)
+
+- `modelApiProviders` (99, incl. the 70-case table),
+  `confirmedDispatchInventory` (3), `copilotClient`: **153 passed**.
+- `modelApiClient`, `configuredProviders`: **99 passed**, 1 failed — the
+  `pins a loopback HTTP request` case times out at 5000 ms. It fails
+  identically on the clean base worktree (HEAD `e56467e87` plus a
+  node_modules symlink, same sandbox): loopback TCP is blocked here, and
+  that test passes no confirmation, so the changed lines are no-ops for
+  it. Named for the lead to run outside the sandbox, as in R8.
+- `npm run typecheck`: clean. ESLint `--max-warnings=0` and Prettier
+  `--check` on all changed files: clean (17 lint diagnostics fixed in the
+  new/edited code, all `unicorn/*` and `prefer-const`). `check:l10n`:
+  14 UI tables, 14 usage tables, 0 problems (no string added or changed).
+- Final `npm run build`: extension **550.1 / 600 KiB**; Model API
+  **517.5 / 525 KiB** — unchanged from R8, no budget raised.
+- No new dependency, no widened guard, no browser, live/paid call,
+  credential read, install, push, rebase or merge.
+
+No RVCM1062H finding remains open; no external blocker was encountered.
+
+## R10 — headless output cap and dependent replay (kubuntu, 2026-10-11)
+
+The owner's decision keeps headless exec at **at most 32,768 output tokens**,
+or the selected record's smaller maximum. Its ledger reserves the worst case
+before every dispatch; raising that reservation changes which existing money
+budgets can run. VS Code and interactive ACP retain the documented record
+maximum (131,072 for Muse Spark), clamped by their interactive budget.
+
+### Reproduction and repair
+
+At untouched HEAD `c113d3aae`, whole `execRun`, `execFetch` and `execClient`
+files returned **51 failed / 89 passed** (48 failures in execRun, three in
+execFetch); the separate confirmed-dispatch inventory returned **3 passed**.
+Together: **51 failed / 92 passed**. No timeout override or model call.
+The refusing check was `execFetch.ts:34`, the schema's
+`z.lte(MODEL_API_MAX_OUTPUT_TOKENS)`; its `safeParse` refusal returned
+`request_shape` before any dispatch. The shared entry supplied 131,072 while
+the schema, ledger shape check (`runLedger.ts:188`) and start reservation
+(`runExec.ts:986`) still used 32,768.
+
+`resolveExecOutputCap` in `src/runtime/exec/runLedger.ts` is the single cap
+calculation: the smaller of the selected policy maximum and exec's ceiling,
+refusing invalid maxima or anything below exec's existing 16-token minimum.
+`runExec` caches it once per run. Qualified records bind it during their
+accounting-wrapped resolution, before start admission; bare Meta models bind
+from that model's policy. The four readers are:
+
+- **Body:** `runtime/backends.ts` supplies the run's callback to
+  `ModelApiHost.outputCap`, with the exact resolved record.
+- **Schema:** `execFetch` builds its request validator at request time against
+  `ledger.outputCap`, after selection has resolved (never at transport setup).
+- **Ledger:** `admitResponse` checks `m > outputCap()` against the same getter supplier.
+- **Start reservation:** `runExec` calls `previewResponseReservation`, which
+  quotes a separate undispatched ledger with the same `ledger.outputCap`.
+
+The documented worst-case quote is unchanged for Meta: 0.108135 USD on the
+contributor tier at 32,768 tokens. The actual real-runtime/ACP/manager/client
+D1 run is admitted and asserts its request body carries 32,768 even though
+that model's record maximum is 131,072. Every one of the **669 catalogue
+model fixtures** also passes through the real runtime manager and client:
+body cap, schema admission/refusal before ledger access, ledger ticket cap,
+and the actual start-reservation helper agree; smaller records use their own
+maximum. Six invalid/minimum fixtures exercise refusal, with no live metadata.
+
+The first repaired exec replay revealed two further branch regressions:
+D3 and D25 wrote their files but reported empty `filesChanged`. A preview
+announces a tool before full arguments exist, with empty locations. ACP now
+carries locations when complete arguments promote that preview, and the exec
+client refreshes tracked edit locations before completion. No preview payload
+reaches its sink. The new client regression and the unchanged real-stack edit
+cases prove the complete file metadata reaches the result.
+
+The inventory's diagnostic prints the exact unlisted file/line/text and tells
+an integrator to add three narrowly reasoned release-train entries: two
+minimum-output refusals validate model output, and a rethrow after a rate-limit
+notice preserves an upstream failure. Those sites do not exist on this branch;
+no allowlist entry was added for them here.
+
+The argument-preview reference now has its own complete sentence,
+`toolArgumentPreviewDescription`, translated in all 14 UI tables, with the
+reference regenerated. CHANGELOG, README, PLAN D86/M106 and this record name
+the headless ceiling and reservation reason; the 131,072 claim is scoped to
+VS Code/interactive ACP (or the explicitly separate developer capture).
+The M106 roadmap entry and generated ROADMAP carry the corrected limit.
+
+The complete dependent replay also caught 29 packaged stdio failures: the
+new translation key followed the truncation key in the JSON tables, while
+English put it before that key. The archive restores English key order and
+its boundary compares the complete serialized tables. Aligning all 14 source
+tables to English's order restored all 29 stdio cases, without changing their
+assertions or translated values. This was a branch defect, not a base red.
+
+### Deliberate red drills
+
+Repository defaults throughout; only the drills select focused tests. Every
+mutated source was restored byte-exact and its SHA-256 rechecked.
+
+| Broken reader/guard                                        | Observed failures                              |
+| ---------------------------------------------------------- | ---------------------------------------------- |
+| Runtime body supplier asks 131,072                         | 2 fixture cases failed                         |
+| Schema accepts up to 32,768 despite a smaller bound record | 2 fixture cases failed before-ledger assertion |
+| Ledger compares against fixed 32,768                       | 2 fixture cases failed                         |
+| Start reservation asks fixed 32,768                        | 2 fixture cases failed                         |
+| Minimum/integer refusal removed                            | 6 cases failed                                 |
+| ACP promotion locations removed                            | D3 and D25 failed                              |
+| Exec edit-location refresh removed                         | 1 client case failed                           |
+| Help summary reverted to the pending label                 | 1 reference case failed                        |
+
+Restoration hashes: runtime backends `83d9269e…89902eb`, exec fetch
+`a31f236c…5175242`, ledger `a9650ff3…7456f3eb`, ACP translator
+`f7bff799…95db78`, exec client `f6a8ac8d…ad286`, feature catalogue
+`56de597d…2dd8998`. The first promotion drill did not match Prettier's
+indentation and made no change; it was corrected to the exact source text
+and produced the two failures above.
+
+### Verification
+
+Final whole exec files: **816 passed**, including all 669 catalogue fixtures,
+six minimum cases and the new edit-promotion regression. The inventory, ledger
+and reference-detail files add **43 passed**: **859 passed, zero failures**
+across the six owning files, using repository timeouts and three workers.
+The same four reproduction files now total **819 passed, zero failures**
+(the additional 676 cases are the new regressions).
+
+All five typechecks passed (host, webview, unit, e2e and integration). Scoped
+ESLint and Prettier passed; localization reports 14 UI/14 usage tables and zero
+problems. Reference is current (77 features); roadmap is current (207 entries);
+host API reports zero problems. Knip has only its two existing configuration
+hints; jscpd finds zero clones. Production build passes every size, split,
+host-global and notice gate: extension **563,348 bytes**, Model API **529,946
+bytes**, and headless **102,344 bytes** against its unchanged 102,400-byte cap.
+The initial build exceeded headless by 29 bytes; simplifying the pure clamp
+and default handling preserved the guards and saved 85 bytes. The final
+whole owning suites above passed again after that repair.
+
+The complete related selector spans 1,135 suites for the branch's whole source
+diff against `82d50d5e4`, including the shared English-table consumers. The first
+17 foreground CLI batches ran at most three complete files each. Repeated cold
+setup took about 20 seconds per batch, so the continuation keeps Vitest's public
+runner open between three-file batches. It parses the same `vitest related
+--run <all changed src files> --maxWorkers=3` options, obtains the complete
+related specifications and runs each complete batch through the public
+`runTestSpecifications` API. Repository setup, worker isolation, assertions,
+timeouts and three-worker limits are unchanged. Its first batch initializes
+the ordinary production, visual and browser fixtures required by the full
+selection.
+
+The owner's 75-minute limit stops this replay at **875 of 1,135 complete
+files**. Final observed results: **19,628 passed, zero failed, 102 existing
+platform/opt-in skips**; **260 files remain unrun**. Every selected file,
+its observed counts or unrun status, the changed-source selector and clean-base
+comparison are recorded in [the per-file receipt](m106-r10-dependents.json).
+This is an incomplete dependent gate, not release certification. The driver
+exited 1 on an intentional scratch-receipt write refusal after its last complete
+batch; its `finally` awaited Vitest close and the shared fixture teardown.
+There were no unhandled test errors.
+
+One callback-contract assertion initially failed because it expected only the
+model identifier. It now also verifies the resolved model's reference and
+documented output policy. Its whole file passed **42/42**. Two migration cases
+initially exceeded their unchanged five-second deadlines; the complete
+`scheduleMigrate.test.ts` replay passed **15/15** here and **15/15** on clean
+base `82d50d5e4`, without source changes. **No base-red file remains.** Both
+replays use the repository timeout and three workers.
+
+Aggregate quality remains lead-owned under
+the explicit rig/common brief; no gate, cap, baseline or repository timeout
+was weakened. No paid/live call, credential read, merge, push or rebase.

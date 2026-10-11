@@ -1,3 +1,5 @@
+import { resolveExecOutputCap } from './exec/runLedger'
+import type { ModelPolicy } from '../core/backends/modelapi/modelPolicy'
 import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
 import { Usd } from '../shared/usd'
 import { loadLegalScanner } from './legal/legalScanner'
@@ -89,6 +91,7 @@ import { paidGrantFile } from './paidGrants'
 import type { AssembledProviderRun } from './exec/providerExec'
 
 export interface ExecRuntimeOptions {
+  readonly outputCap?: (policy: ModelPolicy) => number
   readonly providerRun?: AssembledProviderRun
   readonly responseAccounting?: RuntimeAccountingEntry.RuntimeResponseAccounting
   readonly isEphemeral: boolean
@@ -424,7 +427,12 @@ function modelApiManager(
       }
       const entry = await accountingEntry()
       entry.setUiText(UI_TEXT, uiLocale())
-      return entry.withRuntimeAccounting(client, await dailyBudget(), deps.exec?.responseAccounting)
+      return entry.withRuntimeAccounting(
+        client,
+        await dailyBudget(),
+        deps.exec?.responseAccounting,
+        deps.exec?.outputCap,
+      )
     },
     reservePaidRequest: async (
       body,
@@ -452,7 +460,11 @@ function modelApiManager(
     // selected record through the session client's own resolver, which is
     // the accounting-wrapped headless client, so every priced request keeps
     // its daily reservation and run-ledger admission/settlement.
-    ...(deps.exec !== undefined && { streamIdleMs: deps.exec.streamIdleMs }),
+    ...(deps.exec !== undefined && {
+      streamIdleMs: deps.exec.streamIdleMs,
+      modelOutputMaxTokens: (_ref, resolved) =>
+        deps.exec?.outputCap?.(resolved.policy) ?? resolveExecOutputCap(resolved.policy),
+    }),
     newId: () => randomUUID(),
     now: () => Date.now(),
     sleep: deps.sleep,

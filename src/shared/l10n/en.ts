@@ -109,6 +109,8 @@ export const EN = {
   resourceRelocateOffDescription: 'Keep work on this machine.',
   // M106: loop previews, structured answers, health and explicit feedback.
   toolArgumentPreviewLabel: 'Argument preview',
+  toolArgumentPreviewDescription:
+    'Show validated, scrubbed tool arguments as they arrive, before the tool runs.',
   toolArgumentPreviewTruncated: 'Preview truncated.',
   toolArgumentPreviewPending: 'Waiting for complete arguments…',
   toolArgumentPreviewPreparing: 'Preparing arguments…',

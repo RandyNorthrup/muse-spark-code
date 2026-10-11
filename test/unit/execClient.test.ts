@@ -110,6 +110,28 @@ describe('exec client: pinned ACP constructor seam with Muse Code SDK 1.4.2', ()
     expect(deps.out.chunks.join('')).not.toContain('withheld-')
   })
 
+  it('takes edit locations from promoted complete arguments after a textless preview', async () => {
+    const deps = input()
+    await sendUpdates(deps, [
+      {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'preview-edit',
+        kind: 'edit',
+        status: 'pending',
+        locations: [],
+      },
+      {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: 'preview-edit',
+        status: 'in_progress',
+        locations: [{ path: 'completed.txt' }],
+      },
+      { sessionUpdate: 'tool_call_update', toolCallId: 'preview-edit', status: 'completed' },
+    ])
+    expect(deps.onFilesChanged).toHaveBeenCalledExactlyOnceWith(['completed.txt'])
+    expect(deps.out.chunks).toHaveLength(0)
+  })
+
   it('drops preview-carrying tool updates before the sink and reports only the completed edit', async () => {
     // RVCM1062 P3: headless exec never renders live argument previews. A
     // pending tool_call_update carrying preview content is dropped like
