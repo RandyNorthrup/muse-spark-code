@@ -283,6 +283,12 @@ export const MODELS_PANEL_VIEW_TYPE = 'museSpark.modelsPanel'
 export const MODELS_PANEL_BUNDLE_FILE = 'modelsPanel.js'
 export const MODELS_WEBVIEW_SCRIPT_FILE = 'models.js'
 export const MODELS_WEBVIEW_STYLE_FILE = 'models.css'
+
+// MODELSPLIT4: first-ever section estimates; later loads use measured boxes.
+export const MODELS_SECTION_PENDING_MS = 150
+export const MODELS_SECTION_HEADER_PX = 96
+export const MODELS_PROVIDER_ROW_PX = 150
+export const MODELS_TABLE_ROW_PX = 48
 export const PROVIDER_HARNESS_MIN_CONTEXT_TOKENS = 32_000
 /** SecretStorage account names are `museSpark.provider.<id>` (D74). */
 export const PROVIDER_SECRET_PREFIX = 'museSpark.provider.'

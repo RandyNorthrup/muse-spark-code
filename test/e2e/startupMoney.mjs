@@ -9,10 +9,14 @@ import path from 'node:path'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
+import { trackRequests, waitForDeferredPaint } from '../harness/goldens/capture.mjs'
 
 const TIMEOUT_MS = 5000
 const SETTLE_MS = 300
-const outputs = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs
+const outputs = {
+  ...JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs,
+  ...JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8')).outputs,
+}
 function chunkOf(entry) {
   const found = Object.entries(outputs).find(
     ([, output]) => output.entryPoint?.replaceAll('\\', '/') === entry,
@@ -22,6 +26,8 @@ function chunkOf(entry) {
 }
 const moneyChunk = chunkOf('src/shared/paid.ts')
 const promptChunk = chunkOf('src/webview/schedules/prompt.ts')
+const providersChunk = chunkOf('src/webview/models/ProvidersSection.tsx')
+const modelsChunk = chunkOf('src/webview/models/ModelsSection.tsx')
 const PRICES_FAILED = 'Prices could not load.'
 const RETRY = 'Try Again'
 
@@ -50,6 +56,8 @@ function chunkRoute() {
 
 async function pageFor(scenario, chunk, route, bundle = 'main') {
   const page = await browser.newPage()
+  trackRequests(page)
+  await page.setViewportSize({ width: 690, height: 760 })
   page.setDefaultTimeout(TIMEOUT_MS)
   page.setDefaultNavigationTimeout(TIMEOUT_MS)
   // The shared builder's exact script policy, as webviewDiet.mjs serves it.
@@ -92,7 +100,210 @@ async function retryAfterRestore(page, route, scope = page) {
   ])
 }
 
+async function recordRetainedFrames(page, destination) {
+  await page.evaluate((destination) => {
+    Object.defineProperty(globalThis, 'sectionFrames', { value: [], configurable: true })
+    const record = () => {
+      const panel = globalThis.document.querySelector('.models-panel')
+      const section = panel?.querySelector('section')
+      if (section?.getAttribute('aria-label') === destination) return
+      const box = panel.getBoundingClientRect()
+      globalThis.sectionFrames.push({
+        x: box.x,
+        y: box.y,
+        width: box.width,
+        height: box.height,
+        visible: section !== null && section.getClientRects().length > 0,
+      })
+      globalThis.requestAnimationFrame(record)
+    }
+    globalThis.requestAnimationFrame(record)
+  }, destination)
+}
+
+async function assertRetainedFrames(page, before) {
+  const frames = await page.evaluate(() => globalThis.sectionFrames)
+  assert.ok(frames.length > 0)
+  for (const { visible, ...box } of frames) {
+    assert.ok(visible, 'no blank frame before the new section commits')
+    assert.deepEqual(box, before)
+  }
+  return frames.length
+}
+
 const cases = {
+  async 'sections-navigation'() {
+    const route = chunkRoute()
+    route.mode = 'hold'
+    const { page, errors } = await pageFor('models-providers', modelsChunk, route, 'models')
+    try {
+      await page.locator('section[aria-label="Providers"]').waitFor()
+      const panel = page.locator('.models-panel')
+      const before = await panel.boundingBox()
+      await recordRetainedFrames(page, 'Models')
+      await page.getByRole('button', { name: 'Models', exact: true }).click()
+      await page.locator('.models-nav-item[aria-busy="true"]').waitFor()
+      assert.deepEqual(
+        await panel.boundingBox(),
+        before,
+        'held navigation keeps the whole panel box',
+      )
+      assert.equal(await page.locator('.models-section-skeleton').count(), 0)
+      route.released.resolve()
+      await page.locator('section[aria-label="Models"]').waitFor()
+      const frames = await assertRetainedFrames(page, before)
+      assert.deepEqual(errors, [])
+      console.log(`BOX navigation ${JSON.stringify(before)}; ${frames} retained frames`)
+    } finally {
+      route.released.resolve()
+      await page.close()
+    }
+  },
+  async 'sections-navigation-providers'() {
+    const route = chunkRoute()
+    route.mode = 'hold'
+    const { page, errors } = await pageFor('models-providers', providersChunk, route, 'models')
+    try {
+      await page.locator('.models-section-skeleton').waitFor()
+      const firstBox = await page.locator('.models-panel').boundingBox()
+      await page.getByRole('button', { name: 'Models', exact: true }).click()
+      await page.locator('section[aria-label="Models"]').waitFor()
+      const before = await page.locator('.models-panel').boundingBox()
+      await recordRetainedFrames(page, 'Providers')
+      await page.getByRole('button', { name: 'Providers', exact: true }).click()
+      await page.locator('.models-nav-item[aria-busy="true"]').waitFor()
+      assert.deepEqual(await page.locator('.models-panel').boundingBox(), before)
+      assert.ok(await page.locator('section[aria-label="Models"]').isVisible())
+      assert.equal(await page.locator('.models-section-skeleton').count(), 0)
+      route.released.resolve()
+      await page.locator('section[aria-label="Providers"]').waitFor()
+      const frames = await assertRetainedFrames(page, before)
+      console.log(`BOX reverse navigation ${JSON.stringify(before)}; ${frames} retained frames`)
+      const providersBox = await page.locator('.models-panel').boundingBox()
+      console.log(
+        `BOX first-ever ${JSON.stringify(firstBox)} -> ${JSON.stringify(providersBox)}; adjustment ${providersBox.height - firstBox.height}`,
+      )
+      assert.deepEqual(errors, [])
+    } finally {
+      route.released.resolve()
+      await page.close()
+    }
+  },
+  async 'sections-reload'() {
+    const route = chunkRoute()
+    route.mode = 'hold'
+    const { page, errors } = await pageFor('models-providers', providersChunk, route, 'models')
+    try {
+      await page.locator('.models-section-skeleton').waitFor()
+      const firstBox = await page.locator('.models-panel').boundingBox()
+      route.released.resolve()
+      await page.locator('section[aria-label="Providers"]').waitFor()
+      await page.waitForFunction(
+        () =>
+          JSON.parse(globalThis.sessionStorage.getItem('harness-webview-state'))?.snapshot
+            ?.modelsSectionHeights?.providers > 0,
+      )
+      const box = await page.locator('.models-panel').boundingBox()
+      const height = await page
+        .locator('.models-section-slot')
+        .evaluate((element) => element.getBoundingClientRect().height)
+      console.log(
+        `BOX first-ever direct ${JSON.stringify(firstBox)} -> ${JSON.stringify(box)}; adjustment ${box.height - firstBox.height}`,
+      )
+      route.mode = 'hold'
+      route.released = Promise.withResolvers()
+      await page.reload()
+      await page.locator('.models-section-skeleton').waitFor()
+      assert.deepEqual(
+        await page.locator('.models-panel').boundingBox(),
+        box,
+        'remembered reload keeps the whole panel box',
+      )
+      const skeletonBox = await page.locator('.models-section-skeleton').boundingBox()
+      assert.equal(skeletonBox.height, height)
+      route.released.resolve()
+      await page.locator('section[aria-label="Providers"]').waitFor()
+      assert.deepEqual(await page.locator('.models-panel').boundingBox(), box)
+      assert.deepEqual(errors, [])
+      console.log(`BOX reload ${JSON.stringify(box)}; saved section ${height}`)
+    } finally {
+      route.released.resolve()
+      await page.close()
+    }
+  },
+  async 'sections-failed'() {
+    for (const chunk of [providersChunk, modelsChunk]) {
+      const route = chunkRoute()
+      route.mode = 'abort'
+      const { page, errors } = await pageFor('models-providers', chunk, route, 'models')
+      try {
+        let before
+        if (chunk === modelsChunk) {
+          await page.locator('section[aria-label="Providers"]').waitFor()
+          await page.waitForFunction(
+            () => globalThis.document.querySelector('[data-deferred-loading]') === null,
+          )
+          before = await page.locator('.models-panel').boundingBox()
+          await page.getByRole('button', { name: 'Models', exact: true }).click()
+        }
+        await page.getByRole('alert').waitFor()
+        assert.ok(await page.getByRole('button', { name: RETRY, exact: true }).isVisible())
+        if (before !== undefined)
+          assert.deepEqual(
+            await page.locator('.models-panel').boundingBox(),
+            before,
+            'a failed navigation retains its reserved box',
+          )
+        assert.equal(await page.locator('[data-deferred-loading]').count(), 0)
+        if (chunk === modelsChunk) {
+          await page.getByRole('button', { name: 'Providers', exact: true }).click()
+          await page.locator('section[aria-label="Providers"]').waitFor()
+          await page.getByRole('button', { name: 'Models', exact: true }).click()
+          await page.getByRole('alert').waitFor()
+        }
+        await retryAfterRestore(page, route)
+        await page.locator('section[aria-label="Providers"]').waitFor()
+        if (chunk === modelsChunk) {
+          await page.getByRole('button', { name: 'Models', exact: true }).click()
+          await page.locator('section[aria-label="Models"]').waitFor()
+        }
+        assert.deepEqual(errors, [])
+      } finally {
+        await page.close()
+      }
+    }
+  },
+  async 'money-capture-held'() {
+    const route = chunkRoute()
+    route.mode = 'hold'
+    const { page, errors } = await pageFor('models-models', moneyChunk, route, 'models')
+    try {
+      await page.locator('.models-usage dd').first().waitFor({ state: 'attached' })
+      assert.equal(await page.locator('.models-usage [data-deferred-loading]').count(), 4)
+      let isPainted = false
+      const waiting = (async () => {
+        await waitForDeferredPaint(page, 'models-models')
+        isPainted = true
+      })()
+      await settle(page)
+      assert.equal(isPainted, false, 'capture waits for the held money request')
+      route.released.resolve()
+      // The capture waiter uses a frozen clock in the visual harness.
+      await page.clock.install()
+      await waiting
+      assert.deepEqual(await page.locator('.models-usage dd').allTextContents(), [
+        '$1.20',
+        '$3.40',
+        '$10.00',
+        '$6.60',
+      ])
+      assert.equal(await page.locator('.models-usage [data-deferred-loading]').count(), 0)
+      assert.deepEqual(errors, [])
+    } finally {
+      route.released.resolve()
+      await page.close()
+    }
+  },
   // P2-1: a failed money chunk is said with Retry; Retry recovers every
   // mounted consumer (composer badge, paid row, palette rows, mic tooltip).
   async 'money-chat'() {
@@ -267,6 +478,9 @@ const cases = {
 
 /** The host's schedule props, as a schedule command's opening posts them. */
 async function openScheduleSurface(page) {
+  await page.waitForFunction(() =>
+    globalThis.harnessOutbox.some((message) => message.type === 'ready'),
+  )
   await page.evaluate(() => {
     globalThis.dispatchEvent(
       new globalThis.MessageEvent('message', {
@@ -299,6 +513,7 @@ async function openScheduleSurface(page) {
       }),
     )
   })
+  await page.locator('.schedule-v2-surface').waitFor()
 }
 
 const selected = process.argv.slice(2)

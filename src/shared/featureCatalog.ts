@@ -319,6 +319,8 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['vscode', 'acp'],
     ),
+    // MODELSPLIT4: section transitions preserve the visible document; reload
+    // restores its measured box. Lazy price/usage rows announce loading.
     feature(
       'providers',
       { ui: 'modelsPanelTitle' },

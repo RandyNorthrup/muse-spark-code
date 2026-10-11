@@ -1,12 +1,12 @@
 {
   "version": 1,
   "revision": "cd2d3e687bc26872d57efcac7d0e6777658010da",
-  "review": "REL0171B-0.17.1-menus-settled-2026-10-10",
+  "review": "REL0171B-0.17.1-menus-settled-2026-10-10; MODELSPLIT4-filtered-table-2026-10-11 (72 frames reviewed on browser 150.0.7871.186, due for re-render in the next reviewed visual update)",
   "browser": "153.0.8010.52",
   "rasterization": "a8de1ddfb6e62687899116825ad89f19166af18efdb086980f1c0e365c739033",
   "platform": "linux",
   "archive": "/var/tmp/l-REL0171B/visual-rel0171b-cd2d3e6",
-  "totalBytes": 449813387,
+  "totalBytes": 452147933,
   "environment": {
     "locale": "en",
     "timezone": "UTC",
@@ -4161,7 +4161,9 @@
       "sha256": "dd67cf09e491650b8f5844034a2b5fbfa7a77598db7b32fa05ad58122a75fc73",
       "bytes": 35987,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -4179,7 +4181,9 @@
       "sha256": "dd67cf09e491650b8f5844034a2b5fbfa7a77598db7b32fa05ad58122a75fc73",
       "bytes": 35987,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -4197,7 +4201,9 @@
       "sha256": "ba12843e23b379464aac591ce404410f0d2285c7cfbcfe2a7501682a2ae2b032",
       "bytes": 36522,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -4215,7 +4221,9 @@
       "sha256": "dd67cf09e491650b8f5844034a2b5fbfa7a77598db7b32fa05ad58122a75fc73",
       "bytes": 35987,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -4233,7 +4241,9 @@
       "sha256": "ebdbc8dce956d6536aea1d72a515928a60473c2037e90e9d96498d1f6f5338fb",
       "bytes": 36645,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -4251,7 +4261,9 @@
       "sha256": "1ac64a17f95f97a096025662a0dfa1cc4a21c9770cf5944c280d9c80488d6945",
       "bytes": 36013,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -4538,6 +4550,90 @@
         "src/webview/models/components/FilterBar.tsx"
       ],
       "target": "input.",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "default",
+      "theme": "light",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/default/light/320.png",
+      "sha256": "175961329cd76fa933ffe75da3a622ca2fb6fff953a7d83579d6695ba1c19cdf",
+      "bytes": 27664,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "hover",
+      "theme": "light",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/hover/light/320.png",
+      "sha256": "02581e1447b88928e7c7ef341f66fdb550741b2462f21900990a35ec0439e6c6",
+      "bytes": 27935,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "focus-visible",
+      "theme": "light",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/focus-visible/light/320.png",
+      "sha256": "82d86fbe6dbb75f92317d072a5c7f2d4664b92a5f672593c29876dbde1f6e4b8",
+      "bytes": 28155,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "pressed",
+      "theme": "light",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/pressed/light/320.png",
+      "sha256": "5524c47ccd817d296c88539e990359d2fb665336eded154cb36a8e6158089f82",
+      "bytes": 27960,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "disabled",
+      "theme": "light",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/disabled/light/320.png",
+      "sha256": "7669a473e44a0055779a9ae1cc7b2ad000317b189350980c1bd1d3970bce5138",
+      "bytes": 27696,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "selected",
+      "theme": "light",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/selected/light/320.png",
+      "sha256": "7669a473e44a0055779a9ae1cc7b2ad000317b189350980c1bd1d3970bce5138",
+      "bytes": 27696,
+      "components": [],
+      "target": "button.models-chip models-chip-pressed",
       "applied": true
     },
     {
@@ -16323,7 +16419,9 @@
       "sha256": "3600817f474088f76257075ff8fe525eec16b8daea74ed5a8c30c66288ed75d2",
       "bytes": 40232,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -16341,7 +16439,9 @@
       "sha256": "3600817f474088f76257075ff8fe525eec16b8daea74ed5a8c30c66288ed75d2",
       "bytes": 40232,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -16359,7 +16459,9 @@
       "sha256": "85050970ee02a6095f962b5af79eebcd9ea55ebf56cfc6160a4a3c8c5d1005b5",
       "bytes": 40776,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -16377,7 +16479,9 @@
       "sha256": "3600817f474088f76257075ff8fe525eec16b8daea74ed5a8c30c66288ed75d2",
       "bytes": 40232,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -16395,7 +16499,9 @@
       "sha256": "626ea04a1f3b08e61ff8e810f76f23c9c9813ffeac52ea666cfc3ffbe9ef63ab",
       "bytes": 40443,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -16413,7 +16519,9 @@
       "sha256": "d0d79b166c09df000c38c17b103e59553d19a22e43ca3f906555904f7494a309",
       "bytes": 40225,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -16700,6 +16808,90 @@
         "src/webview/models/components/FilterBar.tsx"
       ],
       "target": "input.",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "default",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/default/light/690.png",
+      "sha256": "4f348b5905c1811d8812746cc0b806286c3d9547fb3f4529e8135a6848c6a574",
+      "bytes": 35913,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "hover",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/hover/light/690.png",
+      "sha256": "1351b9295a58695e72cb8d9e0c27f4fa109f87e7d4bb0d073171fa1983febf27",
+      "bytes": 36299,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "focus-visible",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/focus-visible/light/690.png",
+      "sha256": "161f50b192ca24506c48e937395076c8828c170e50f646b106877c63fe8ef518",
+      "bytes": 36468,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "pressed",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/pressed/light/690.png",
+      "sha256": "8dc7e7f803f02e0ef3dce76b90a79ff05d2fac2915de2e19a16ae06375ce557b",
+      "bytes": 36192,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "disabled",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/disabled/light/690.png",
+      "sha256": "6d9882228136345f2b11822293f95f6b8187a63d9ba4854d9774b800cb92fac8",
+      "bytes": 35915,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "selected",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/selected/light/690.png",
+      "sha256": "6d9882228136345f2b11822293f95f6b8187a63d9ba4854d9774b800cb92fac8",
+      "bytes": 35915,
+      "components": [],
+      "target": "button.models-chip models-chip-pressed",
       "applied": true
     },
     {
@@ -28485,7 +28677,9 @@
       "sha256": "32e24aacebcfafce4eec3bff731f62bf36dd19e346eabd53c7e6a92cef5e750e",
       "bytes": 37628,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -28503,7 +28697,9 @@
       "sha256": "32e24aacebcfafce4eec3bff731f62bf36dd19e346eabd53c7e6a92cef5e750e",
       "bytes": 37628,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -28521,7 +28717,9 @@
       "sha256": "a799fad58076f7a69e6c42046ae5232593b0b41696c6432e2f44dd2de1ee8829",
       "bytes": 38264,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -28539,7 +28737,9 @@
       "sha256": "32e24aacebcfafce4eec3bff731f62bf36dd19e346eabd53c7e6a92cef5e750e",
       "bytes": 37628,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -28557,7 +28757,9 @@
       "sha256": "9a7903484a36897a4d8b10281bd28c7c72663376e556ca941899e77e821e76d3",
       "bytes": 38531,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -28575,7 +28777,9 @@
       "sha256": "872c9329a12c3153200ab521207be04bed461d236546fc708f76500cd151d27c",
       "bytes": 37654,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -28862,6 +29066,90 @@
         "src/webview/models/components/FilterBar.tsx"
       ],
       "target": "input.",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "default",
+      "theme": "dark",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/default/dark/320.png",
+      "sha256": "66dc6d6394e8e75da0cfdff8a191761a7b983c665bee0485db9a4ca2ebac95e9",
+      "bytes": 28561,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "hover",
+      "theme": "dark",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/hover/dark/320.png",
+      "sha256": "96945f197399e98db49da4945ff27a79a449a24db1b9e5b0de8688ce1acf5be1",
+      "bytes": 28852,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "focus-visible",
+      "theme": "dark",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/focus-visible/dark/320.png",
+      "sha256": "aadb9d02ea8c5afaa09666f3bf6e7db79ebd2bc02f9d5a2a51f62cd837c438f3",
+      "bytes": 29054,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "pressed",
+      "theme": "dark",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/pressed/dark/320.png",
+      "sha256": "dd4310984de502ee67a740134afad002de174855d00dabb7a648abe57cb7bc16",
+      "bytes": 28835,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "disabled",
+      "theme": "dark",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/disabled/dark/320.png",
+      "sha256": "0f1e221ab6232c42a5c412202fb691eae6036b4f1137d9fc18b118c8af35d980",
+      "bytes": 28553,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "selected",
+      "theme": "dark",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/selected/dark/320.png",
+      "sha256": "0f1e221ab6232c42a5c412202fb691eae6036b4f1137d9fc18b118c8af35d980",
+      "bytes": 28553,
+      "components": [],
+      "target": "button.models-chip models-chip-pressed",
       "applied": true
     },
     {
@@ -40647,7 +40935,9 @@
       "sha256": "7ee7f866e5ad43fcda518868183832c355769bb02b1b7e7e0c8dce7c70ea0206",
       "bytes": 41268,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -40665,7 +40955,9 @@
       "sha256": "7ee7f866e5ad43fcda518868183832c355769bb02b1b7e7e0c8dce7c70ea0206",
       "bytes": 41268,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -40683,7 +40975,9 @@
       "sha256": "ab0f6e749dd9b28785379d68a8d1de3937488af830d3409df2d9add5079df956",
       "bytes": 41868,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -40701,7 +40995,9 @@
       "sha256": "7ee7f866e5ad43fcda518868183832c355769bb02b1b7e7e0c8dce7c70ea0206",
       "bytes": 41268,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -40719,7 +41015,9 @@
       "sha256": "0a43798d42f3ea14781f54206a340011909f45ecd2023a5221a9f59235037811",
       "bytes": 41543,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -40737,7 +41035,9 @@
       "sha256": "074e11dca9144a3a294d2f1bd17bc3197ccad9b21e19a59c9650e78a91e74c09",
       "bytes": 41267,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -41024,6 +41324,90 @@
         "src/webview/models/components/FilterBar.tsx"
       ],
       "target": "input.",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "default",
+      "theme": "dark",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/default/dark/690.png",
+      "sha256": "f58daa19fe2daeecc3f443f3b8cc7b2889b3043a05514dc03a31668ef06d9ce6",
+      "bytes": 37102,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "hover",
+      "theme": "dark",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/hover/dark/690.png",
+      "sha256": "6f85e4560d0cb4d6bd1f3fa8e9b66fe7d7d07e099f39065bbf6817ae662d980f",
+      "bytes": 37399,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "focus-visible",
+      "theme": "dark",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/focus-visible/dark/690.png",
+      "sha256": "bb29cfb62bd0ca88016ecad81faf12e863b9230b2e04d4365977da281aa3a1cd",
+      "bytes": 37626,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "pressed",
+      "theme": "dark",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/pressed/dark/690.png",
+      "sha256": "556ecb374a7075c06df6f7c01fe00896bb1ea1b58dee5e9cf97c94de5358f1af",
+      "bytes": 37403,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "disabled",
+      "theme": "dark",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/disabled/dark/690.png",
+      "sha256": "0a99ec70cc0881cd3d37eec03cc05efd3d17482dccd15085be78c5eda69f35b4",
+      "bytes": 37101,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "selected",
+      "theme": "dark",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/selected/dark/690.png",
+      "sha256": "0a99ec70cc0881cd3d37eec03cc05efd3d17482dccd15085be78c5eda69f35b4",
+      "bytes": 37101,
+      "components": [],
+      "target": "button.models-chip models-chip-pressed",
       "applied": true
     },
     {
@@ -52809,7 +53193,9 @@
       "sha256": "e579eec64e77db1f0f3256547e978b10e5119413d2bd97ee1d65206c51c6349b",
       "bytes": 33934,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -52827,7 +53213,9 @@
       "sha256": "e579eec64e77db1f0f3256547e978b10e5119413d2bd97ee1d65206c51c6349b",
       "bytes": 33934,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -52845,7 +53233,9 @@
       "sha256": "5924ed3a6356d47ff47f28a35f67da48903ccb901589b36a0c028c5e895d40a6",
       "bytes": 34510,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -52863,7 +53253,9 @@
       "sha256": "e579eec64e77db1f0f3256547e978b10e5119413d2bd97ee1d65206c51c6349b",
       "bytes": 33934,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -52881,7 +53273,9 @@
       "sha256": "d4d44c2ea0a0e5f373717d62b1a64c8ebacf99bc4c90187eabcdb5fe516a1e3d",
       "bytes": 35078,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -52899,7 +53293,9 @@
       "sha256": "96d2ebc5a8ea61ef343a2b654d8b69ceed6d15fc3e1ace516d60387b0db71d94",
       "bytes": 33994,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -53186,6 +53582,90 @@
         "src/webview/models/components/FilterBar.tsx"
       ],
       "target": "input.",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "default",
+      "theme": "hc-dark",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/default/hc-dark/320.png",
+      "sha256": "f84e1b8a45471679e3f707177deac29974c45133131d8acbff47b4ceed97688b",
+      "bytes": 26438,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "hover",
+      "theme": "hc-dark",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/hover/hc-dark/320.png",
+      "sha256": "f84e1b8a45471679e3f707177deac29974c45133131d8acbff47b4ceed97688b",
+      "bytes": 26438,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "focus-visible",
+      "theme": "hc-dark",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/focus-visible/hc-dark/320.png",
+      "sha256": "7c17add4d9262e7b1dbf568108474f88da64c13baa49a5c3ba0318f01a7651ab",
+      "bytes": 26932,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "pressed",
+      "theme": "hc-dark",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/pressed/hc-dark/320.png",
+      "sha256": "a0f931fb83098c16dc737410b42fe4c35b4c0c753d37707ebabd6c52697dab44",
+      "bytes": 26432,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "disabled",
+      "theme": "hc-dark",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/disabled/hc-dark/320.png",
+      "sha256": "a0f931fb83098c16dc737410b42fe4c35b4c0c753d37707ebabd6c52697dab44",
+      "bytes": 26432,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "selected",
+      "theme": "hc-dark",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/selected/hc-dark/320.png",
+      "sha256": "a0f931fb83098c16dc737410b42fe4c35b4c0c753d37707ebabd6c52697dab44",
+      "bytes": 26432,
+      "components": [],
+      "target": "button.models-chip models-chip-pressed",
       "applied": true
     },
     {
@@ -64971,7 +65451,9 @@
       "sha256": "0e227bc65fc29baca65cfa2db4293efed2934b2a6c5ce42c792a762766d09993",
       "bytes": 37497,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -64989,7 +65471,9 @@
       "sha256": "0e227bc65fc29baca65cfa2db4293efed2934b2a6c5ce42c792a762766d09993",
       "bytes": 37497,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -65007,7 +65491,9 @@
       "sha256": "1772af61fa0476ccb26a43820f334500614bf2d3232055fbe793678489b366c8",
       "bytes": 38107,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -65025,7 +65511,9 @@
       "sha256": "0e227bc65fc29baca65cfa2db4293efed2934b2a6c5ce42c792a762766d09993",
       "bytes": 37497,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -65043,7 +65531,9 @@
       "sha256": "96e6abe2006c82a83fb81b41082e2fa6e2f8fefb62c05359a2c5c76800b3255c",
       "bytes": 38055,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -65061,7 +65551,9 @@
       "sha256": "0f56a778ce95fb87a4747f92e0f5edeee2111f0f3ad0db20654a1371933ad3e6",
       "bytes": 37508,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -65348,6 +65840,90 @@
         "src/webview/models/components/FilterBar.tsx"
       ],
       "target": "input.",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "default",
+      "theme": "hc-dark",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/default/hc-dark/690.png",
+      "sha256": "a5b75af9c54679fd729adf28d1d4c336654e1c3d18286a56149403be6fed707e",
+      "bytes": 33638,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "hover",
+      "theme": "hc-dark",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/hover/hc-dark/690.png",
+      "sha256": "e92da19ff0296ac84b79e1852d06182694d028818336324cdfbd5df58e215150",
+      "bytes": 33735,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "focus-visible",
+      "theme": "hc-dark",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/focus-visible/hc-dark/690.png",
+      "sha256": "2511ab09ae89bd17f6222faec73a07c504c33dff9ce183529fff00de010058bc",
+      "bytes": 34270,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "pressed",
+      "theme": "hc-dark",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/pressed/hc-dark/690.png",
+      "sha256": "a86e855611a066544f7ad67cbc1beb32add3c38964c4a3137e4f8dec368bf50b",
+      "bytes": 33668,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "disabled",
+      "theme": "hc-dark",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/disabled/hc-dark/690.png",
+      "sha256": "b8bd6b32ff53e67ed9a62142f38f06c49f2b15b04e25abf3153bc83b1d83625e",
+      "bytes": 33622,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "selected",
+      "theme": "hc-dark",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/selected/hc-dark/690.png",
+      "sha256": "b8bd6b32ff53e67ed9a62142f38f06c49f2b15b04e25abf3153bc83b1d83625e",
+      "bytes": 33622,
+      "components": [],
+      "target": "button.models-chip models-chip-pressed",
       "applied": true
     },
     {
@@ -77133,7 +77709,9 @@
       "sha256": "9fc145fc8ecb69107c499753e8bef6bc967ac10d57309233dddcf011a0d0a889",
       "bytes": 35309,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -77151,7 +77729,9 @@
       "sha256": "9fc145fc8ecb69107c499753e8bef6bc967ac10d57309233dddcf011a0d0a889",
       "bytes": 35309,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -77169,7 +77749,9 @@
       "sha256": "7016e3695525c881475923672ebb2a7d399224ecaad197b18753ae2c1933b324",
       "bytes": 35873,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -77187,7 +77769,9 @@
       "sha256": "9fc145fc8ecb69107c499753e8bef6bc967ac10d57309233dddcf011a0d0a889",
       "bytes": 35309,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -77205,7 +77789,9 @@
       "sha256": "a6e47332d4d2f8bca57529e1a8fec43e660b71eb8c32f55fc607ad73f36bca9c",
       "bytes": 36273,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -77223,7 +77809,9 @@
       "sha256": "ccdc736b405864047766a8b39d3b43d55368eb07e408bf76bf789d289cfc019b",
       "bytes": 35325,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -77510,6 +78098,90 @@
         "src/webview/models/components/FilterBar.tsx"
       ],
       "target": "input.",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "default",
+      "theme": "hc-light",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/default/hc-light/320.png",
+      "sha256": "3c780ff4164e0c1ce0c9b12a59200f08394b9ba40063adb4fc9eaac8a68ed27c",
+      "bytes": 28007,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "hover",
+      "theme": "hc-light",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/hover/hc-light/320.png",
+      "sha256": "3c780ff4164e0c1ce0c9b12a59200f08394b9ba40063adb4fc9eaac8a68ed27c",
+      "bytes": 28007,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "focus-visible",
+      "theme": "hc-light",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/focus-visible/hc-light/320.png",
+      "sha256": "2666f0c1f4bb597a6abf39fbf641e373ff3edaee919edad6b563c81ad6692484",
+      "bytes": 28476,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "pressed",
+      "theme": "hc-light",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/pressed/hc-light/320.png",
+      "sha256": "1366a790615a03ea65fbe2492b5b199dfbd9daaac4329cef6a29036dba070a06",
+      "bytes": 27999,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "disabled",
+      "theme": "hc-light",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/disabled/hc-light/320.png",
+      "sha256": "1366a790615a03ea65fbe2492b5b199dfbd9daaac4329cef6a29036dba070a06",
+      "bytes": 27999,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "selected",
+      "theme": "hc-light",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/selected/hc-light/320.png",
+      "sha256": "1366a790615a03ea65fbe2492b5b199dfbd9daaac4329cef6a29036dba070a06",
+      "bytes": 27999,
+      "components": [],
+      "target": "button.models-chip models-chip-pressed",
       "applied": true
     },
     {
@@ -89295,7 +89967,9 @@
       "sha256": "15e782fb8bc0272bcd117062afed6f380cb54283ca25d95341dba283b084c2e7",
       "bytes": 38775,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -89313,7 +89987,9 @@
       "sha256": "15e782fb8bc0272bcd117062afed6f380cb54283ca25d95341dba283b084c2e7",
       "bytes": 38775,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -89331,7 +90007,9 @@
       "sha256": "2c6e068e87371f69da1ae87ef309067c95cdc12bdba12f11a0b664c059e23cd8",
       "bytes": 39369,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -89349,7 +90027,9 @@
       "sha256": "15e782fb8bc0272bcd117062afed6f380cb54283ca25d95341dba283b084c2e7",
       "bytes": 38775,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -89367,7 +90047,9 @@
       "sha256": "50abff9dc623ebba98aad1fc15718686234b7ba5a1603d5dcc93a4e67b9b516e",
       "bytes": 39180,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -89385,7 +90067,9 @@
       "sha256": "162a97b5730e1c9fb00cf8dc7b619fb0f13e0db2e4b89905c50fb2db5f87ae75",
       "bytes": 38783,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -89672,6 +90356,90 @@
         "src/webview/models/components/FilterBar.tsx"
       ],
       "target": "input.",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "default",
+      "theme": "hc-light",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/default/hc-light/690.png",
+      "sha256": "8eb3d5e79e77d04351a4e7d52f3bb6508fda689a8ccf2ccb6424220a63011412",
+      "bytes": 35701,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "hover",
+      "theme": "hc-light",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/hover/hc-light/690.png",
+      "sha256": "45c007c34f000f5f76063e5e1f25bd6f21ea3e6c601df0b7f797c841eba969d1",
+      "bytes": 35770,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "focus-visible",
+      "theme": "hc-light",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/focus-visible/hc-light/690.png",
+      "sha256": "453033b20e64fb912983e7f1928829eb016b59d9685e3a173e1af680c502ae88",
+      "bytes": 36289,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "pressed",
+      "theme": "hc-light",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/pressed/hc-light/690.png",
+      "sha256": "93f7524d13faf9edaf01221d279d3244d78852f99afb662be92bfd682106deb0",
+      "bytes": 35755,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "disabled",
+      "theme": "hc-light",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/disabled/hc-light/690.png",
+      "sha256": "ce543fa1a9aaea637a0a0767427ad4cd561bf291e9433ec81f8cf54a3ff29ec6",
+      "bytes": 35722,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "selected",
+      "theme": "hc-light",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/selected/hc-light/690.png",
+      "sha256": "ce543fa1a9aaea637a0a0767427ad4cd561bf291e9433ec81f8cf54a3ff29ec6",
+      "bytes": 35722,
+      "components": [],
+      "target": "button.models-chip models-chip-pressed",
       "applied": true
     },
     {
@@ -101457,7 +102225,9 @@
       "sha256": "a83784ef2b5043a7fdf0917bcbf1444cdf10ca229092165e994933436b74efc7",
       "bytes": 40600,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -101475,7 +102245,9 @@
       "sha256": "a83784ef2b5043a7fdf0917bcbf1444cdf10ca229092165e994933436b74efc7",
       "bytes": 40600,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -101493,7 +102265,9 @@
       "sha256": "8b063c676db7bf13f904fd35dc868e88919cf79b62e6c1a16417ef819a4fb4de",
       "bytes": 41161,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -101511,7 +102285,9 @@
       "sha256": "a83784ef2b5043a7fdf0917bcbf1444cdf10ca229092165e994933436b74efc7",
       "bytes": 40600,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -101529,7 +102305,9 @@
       "sha256": "370e41ba7da33dc8a2b155f70b9a6c64d009ebc1aba0bb6849ab370f8cb300e6",
       "bytes": 40997,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -101547,7 +102325,9 @@
       "sha256": "02e9b5cf35d665b827b844fb466549cae62a3d6066f889e5f88ee8291d362b63",
       "bytes": 40650,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -101834,6 +102614,90 @@
         "src/webview/models/components/FilterBar.tsx"
       ],
       "target": "input.",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "default",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/default/one-dark-pro/320.png",
+      "sha256": "567a9081dbaea720446b6300d10250cfa0b4a63b4b6266f56c00b510877913ff",
+      "bytes": 28563,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "hover",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/hover/one-dark-pro/320.png",
+      "sha256": "096233edaea21a334a64eccb035dfffe33c4a669754a1cf65af9456775ab5452",
+      "bytes": 28757,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "focus-visible",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/focus-visible/one-dark-pro/320.png",
+      "sha256": "a32fb515b57e755c466764e0fab3edd89e56278a63a0e98df5d87815704cd2c7",
+      "bytes": 29077,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "pressed",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/pressed/one-dark-pro/320.png",
+      "sha256": "096233edaea21a334a64eccb035dfffe33c4a669754a1cf65af9456775ab5452",
+      "bytes": 28757,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "disabled",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/disabled/one-dark-pro/320.png",
+      "sha256": "faee86d6f361427309746f583e9468cba0556cc07f6d67429ab5a3d4455b4c01",
+      "bytes": 28575,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "selected",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/selected/one-dark-pro/320.png",
+      "sha256": "faee86d6f361427309746f583e9468cba0556cc07f6d67429ab5a3d4455b4c01",
+      "bytes": 28575,
+      "components": [],
+      "target": "button.models-chip models-chip-pressed",
       "applied": true
     },
     {
@@ -113619,7 +114483,9 @@
       "sha256": "0beb881386f4d6c8cee883c93aa70b14640f24f7631e307f9e821ce68ce0e486",
       "bytes": 43996,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -113637,7 +114503,9 @@
       "sha256": "0beb881386f4d6c8cee883c93aa70b14640f24f7631e307f9e821ce68ce0e486",
       "bytes": 43996,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -113655,7 +114523,9 @@
       "sha256": "76f60979394f2cb30e1b4d1ee1c550a73039f1e92fb0359247f5d100d4c514bd",
       "bytes": 44569,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -113673,7 +114543,9 @@
       "sha256": "0beb881386f4d6c8cee883c93aa70b14640f24f7631e307f9e821ce68ce0e486",
       "bytes": 43996,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -113691,7 +114563,9 @@
       "sha256": "a98913e9d60b69768fc9a5a051168d35441631d03f5b10c85ebb14889a328bf6",
       "bytes": 44031,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -113709,7 +114583,9 @@
       "sha256": "00df4fcc1745c7a3da6fa5f4d874b6682ddcef5194374fa3bff385a689e97ece",
       "bytes": 43999,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -113996,6 +114872,90 @@
         "src/webview/models/components/FilterBar.tsx"
       ],
       "target": "input.",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "default",
+      "theme": "one-dark-pro",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/default/one-dark-pro/690.png",
+      "sha256": "5604288cbdc1e593dc15be09333c4b7a70b32d0ea7085857e5a577ea16c786c3",
+      "bytes": 37384,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "hover",
+      "theme": "one-dark-pro",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/hover/one-dark-pro/690.png",
+      "sha256": "f0892a711a73cb87e868f6c7f955fe3b06f5d6654c4f42c907ea68aceb216530",
+      "bytes": 37587,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "focus-visible",
+      "theme": "one-dark-pro",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/focus-visible/one-dark-pro/690.png",
+      "sha256": "f28ced5d22d3446b6f9d339526802ba6d9674093efabca272aea80c33cb2b581",
+      "bytes": 37913,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "pressed",
+      "theme": "one-dark-pro",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/pressed/one-dark-pro/690.png",
+      "sha256": "f0892a711a73cb87e868f6c7f955fe3b06f5d6654c4f42c907ea68aceb216530",
+      "bytes": 37587,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "disabled",
+      "theme": "one-dark-pro",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/disabled/one-dark-pro/690.png",
+      "sha256": "50df8025d41209cf337f11535d0fb9451e981fab9916127bea8acd2208b11d61",
+      "bytes": 37384,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "selected",
+      "theme": "one-dark-pro",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/selected/one-dark-pro/690.png",
+      "sha256": "50df8025d41209cf337f11535d0fb9451e981fab9916127bea8acd2208b11d61",
+      "bytes": 37384,
+      "components": [],
+      "target": "button.models-chip models-chip-pressed",
       "applied": true
     },
     {
@@ -125781,7 +126741,9 @@
       "sha256": "656426be217ec30bc5aa0ba6bb71f6577db39a1cba9edfd3f2310758458d8700",
       "bytes": 39948,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -125799,7 +126761,9 @@
       "sha256": "656426be217ec30bc5aa0ba6bb71f6577db39a1cba9edfd3f2310758458d8700",
       "bytes": 39948,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -125817,7 +126781,9 @@
       "sha256": "8702201b81e28b6ed6a0add3a431dad95017273c4ecfec534ef6906fe85e2551",
       "bytes": 40527,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -125835,7 +126801,9 @@
       "sha256": "656426be217ec30bc5aa0ba6bb71f6577db39a1cba9edfd3f2310758458d8700",
       "bytes": 39948,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -125853,7 +126821,9 @@
       "sha256": "0c1f4dfb11b4877ea18865f7d1b525fc9dddb00730d4b6f2d2d873c23d86e1e7",
       "bytes": 40566,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -125871,7 +126841,9 @@
       "sha256": "636112ff7665c2cc0a7912e238ebc009e5f09817d623eff18d9ed68d2b106576",
       "bytes": 40013,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -126158,6 +127130,90 @@
         "src/webview/models/components/FilterBar.tsx"
       ],
       "target": "input.",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "default",
+      "theme": "dracula",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/default/dracula/320.png",
+      "sha256": "749373f2aa3ea31253624ad826cd35274559b77f99f668d828e81310eda114e3",
+      "bytes": 29932,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "hover",
+      "theme": "dracula",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/hover/dracula/320.png",
+      "sha256": "2b29e90d5160fa6c2e0b1f4cd784ab6e3635cbfe56cc0da1ee73339477c40b88",
+      "bytes": 30153,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "focus-visible",
+      "theme": "dracula",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/focus-visible/dracula/320.png",
+      "sha256": "ccc4c89a1b4fbd9d21712e121e2599b3a5fde504e9b67e30a31ec3020566cb2d",
+      "bytes": 30422,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "pressed",
+      "theme": "dracula",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/pressed/dracula/320.png",
+      "sha256": "2b61ff23d9cf2512ee3cd576d68586476f17e92995618ea6a4536e04b0fe5c78",
+      "bytes": 30156,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "disabled",
+      "theme": "dracula",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/disabled/dracula/320.png",
+      "sha256": "f81c3bcbc8b320221f565c1c3b547fe76f13654d3477b3631c3d941286a6e2d2",
+      "bytes": 29941,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "selected",
+      "theme": "dracula",
+      "width": 320,
+      "height": 760,
+      "file": "panel/models-table-filtered/selected/dracula/320.png",
+      "sha256": "f81c3bcbc8b320221f565c1c3b547fe76f13654d3477b3631c3d941286a6e2d2",
+      "bytes": 29941,
+      "components": [],
+      "target": "button.models-chip models-chip-pressed",
       "applied": true
     },
     {
@@ -137943,7 +138999,9 @@
       "sha256": "df0b5c54ba1fd056427550ac0ecf88c5667dbc0e4b70633e6979cda89ac7141d",
       "bytes": 43533,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -137961,7 +139019,9 @@
       "sha256": "df0b5c54ba1fd056427550ac0ecf88c5667dbc0e4b70633e6979cda89ac7141d",
       "bytes": 43533,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -137979,7 +139039,9 @@
       "sha256": "15010b3110b3e2f8e9443c4fa03d4b8d691ac9338a0da606a406432b6ad431ea",
       "bytes": 44106,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -137997,7 +139059,9 @@
       "sha256": "df0b5c54ba1fd056427550ac0ecf88c5667dbc0e4b70633e6979cda89ac7141d",
       "bytes": 43533,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -138015,7 +139079,9 @@
       "sha256": "3ab6a2edcfc568ec9653b9cdb584ca3a56ed2f9810d790129dc84326fd14f3a6",
       "bytes": 43643,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -138033,7 +139099,9 @@
       "sha256": "f3966a0b1c8341434d7db928532ce2be8096af4044043c57af0d6a496e770851",
       "bytes": 43538,
       "components": [
+        "src/webview/models/DeferredSections.tsx",
         "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/SectionNavigation.tsx",
         "src/webview/models/models.tsx",
         "src/webview/models/panel.tsx"
       ],
@@ -138320,6 +139388,90 @@
         "src/webview/models/components/FilterBar.tsx"
       ],
       "target": "input.",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "default",
+      "theme": "dracula",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/default/dracula/690.png",
+      "sha256": "d9faff1fcd4b425dbf778380f81ec0f133f462178afb4a2d4dedaa698875e129",
+      "bytes": 38394,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "hover",
+      "theme": "dracula",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/hover/dracula/690.png",
+      "sha256": "9fe2f6265925bcfd796838e2cb487d978ffc87a1f2792a78822073114a909493",
+      "bytes": 38674,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "focus-visible",
+      "theme": "dracula",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/focus-visible/dracula/690.png",
+      "sha256": "2ba97c9ac13f7301463df1c5ea97e38daa5d74a6d3a228d80e760c9e1f60c633",
+      "bytes": 38913,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "pressed",
+      "theme": "dracula",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/pressed/dracula/690.png",
+      "sha256": "94ae99dfaa7110ff8122d6bfb8a77579f73e0d2acf40e493674abc30c5a01287",
+      "bytes": 38648,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "disabled",
+      "theme": "dracula",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/disabled/dracula/690.png",
+      "sha256": "fbf99403c1e7fb3d857ed7cd8cfa87d9b91924362dd62237ad2435a410ba823d",
+      "bytes": 38388,
+      "components": [],
+      "target": "button.models-nav-item",
+      "applied": true
+    },
+    {
+      "surface": "panel",
+      "scene": "models-table-filtered",
+      "state": "selected",
+      "theme": "dracula",
+      "width": 690,
+      "height": 760,
+      "file": "panel/models-table-filtered/selected/dracula/690.png",
+      "sha256": "fbf99403c1e7fb3d857ed7cd8cfa87d9b91924362dd62237ad2435a410ba823d",
+      "bytes": 38388,
+      "components": [],
+      "target": "button.models-chip models-chip-pressed",
       "applied": true
     },
     {

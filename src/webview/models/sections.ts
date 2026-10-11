@@ -12,8 +12,7 @@ import type {
   PanelToHostMessage,
 } from '../../shared/modelsPanel'
 import { CodeIcon, PlusIcon } from '../components/icons'
-import { ModelsSection } from './ModelsSection'
-import { ProvidersSection } from './ProvidersSection'
+import { DeferredModelsSection, DeferredProvidersSection } from './DeferredSections'
 import type { PanelUiAction, PanelUiState, WizardLife } from './reducer'
 
 export interface SectionProps {
@@ -82,14 +81,14 @@ export const MODEL_SECTIONS: readonly PanelSectionDef[] = [
     id: 'providers',
     getTitle: () => UI_TEXT.providersSectionTitle,
     icon: PlusIcon,
-    Component: ProvidersSection,
+    Component: DeferredProvidersSection,
     reduceSection: reduceProviders,
   },
   {
     id: 'models',
     getTitle: () => UI_TEXT.modelsSectionTitle,
     icon: CodeIcon,
-    Component: ModelsSection,
+    Component: DeferredModelsSection,
     reduceSection: reduceModels,
   },
 ]
