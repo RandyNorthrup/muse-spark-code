@@ -3,6 +3,7 @@ import { nonnegativeUsdSchema } from './usdSchema'
 // modelApiBoundaries.js; browser consumers retain the same inline code.
 import * as z from 'zod/mini'
 import {
+  isAutoCompactionEvaluated,
   MODEL_API_PRICED_MODELS,
   type MODEL_API_PRICES_PER_MILLION,
   MUSE_CODE_PAID_FEATURES,
@@ -17,6 +18,7 @@ const paidCostSchema = z.optional(nonnegativeUsdSchema)
 
 /** What this window used of each paid feature since it opened. */
 export const paidTallySchema = z.object({
+  autoCompactionRequests: paidCountSchema,
   webSearches: z.number(),
   webSearchCharges: z.optional(
     z.array(
@@ -97,7 +99,9 @@ export function usablePaidFeatures(
   isKeyStored: boolean,
 ): readonly PaidFeature[] {
   if (backend === 'modelApi') {
-    return PAID_FEATURES
+    return PAID_FEATURES.filter(
+      (feature) => feature !== 'autoCompaction' || isAutoCompactionEvaluated(),
+    )
   }
   return backend === 'museCode' && isKeyStored ? MUSE_CODE_PAID_FEATURES : []
 }
@@ -105,6 +109,7 @@ export function usablePaidFeatures(
 /** The feature's short name, as the badge and the dialog show it. */
 export function paidFeatureName(feature: PaidFeature): string {
   const names: Readonly<Record<PaidFeature, string>> = {
+    autoCompaction: UI_TEXT.autoCompactionName,
     webSearch: UI_TEXT.paidWebSearchName,
     imageGeneration: UI_TEXT.paidImageGenerationName,
     voice: UI_TEXT.paidVoiceName,

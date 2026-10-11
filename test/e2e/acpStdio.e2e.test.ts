@@ -296,8 +296,8 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     const wrong = spawnSync(process.execPath, [AGENT, '--colour'], { encoding: 'utf8', env })
     expect(wrong.status).toBe(1)
     expect(wrong.stderr).toContain('--colour')
-    // Usage errors print the short usage block, not the full help.
-    expect(wrong.stderr).toContain(`${fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME })}\n`)
+    expect(wrong.stderr).toContain(`${helpUsage}\n`)
+    expect(wrong.stderr).not.toMatch(/--(?:no-)?auto-compaction/)
   })
 
   it('prints the complete translated usage and reference hint from the installed table', async () => {

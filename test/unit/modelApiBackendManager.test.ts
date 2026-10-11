@@ -11,7 +11,12 @@ import {
 import * as modelApiEntry from '../../src/host/backend/modelApiEntry'
 import { fakeMcpSource } from './helpers/fakeMcpSource'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import {
+  FAKE_MODEL_API_ACCOUNT_ID,
+  fakeModelApi,
+  fakeModelApiClient,
+  type FakeModelApi,
+} from './helpers/fakeModelApi'
 import { createProviderRegistry } from '../../src/core/providers/providerRegistry'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { noopToolIo } from './helpers/fakeToolIo'
@@ -662,5 +667,69 @@ it('records best-of-N requests once with the attempt kind and its own session', 
   } finally {
     await host.close()
     await manager.dispose()
+  }
+})
+
+async function windowHostDeps(
+  api: FakeModelApi,
+  log: FakeLogOutputChannel,
+  reserveAutoCompaction?: () => Promise<undefined>,
+) {
+  const create = vi.spyOn(modelApiEntry, 'createModelApiHost')
+  const manager = new ModelApiBackendManager(
+    fakeManagerDeps(api, log, {
+      workspaceRoot: '/ws',
+      store: undefined,
+      ...(reserveAutoCompaction !== undefined && { reserveAutoCompaction }),
+      bundlePath: 'src/host/backend/modelApiEntry.ts',
+      loadBundle: () => modelApiEntry,
+    }),
+  )
+  await manager.ensureHost()
+  return { manager, host: create.mock.calls.at(-1)?.[0].host, create }
+}
+
+it('binds the shared automatic-compaction admission and model reader to production host construction', async () => {
+  const api = fakeModelApi()
+  const { manager, host, create } = await windowHostDeps(api, new FakeLogOutputChannel(), () =>
+    Promise.resolve(undefined),
+  )
+  try {
+    expect(typeof host?.autoCompactModel).toBe('function')
+    expect(host?.autoCompactModel?.('muse-spark-1.3')?.pricing.kind).toBe('priced')
+    expect(host?.autoCompactModel?.('openai/gpt-5')).toBe(undefined)
+    expect(typeof host?.admitAutoCompaction).toBe('function')
+    // No ledger means no admission: the host then sends no extra request.
+    await expect(
+      host?.admitAutoCompaction?.({
+        sessionId: 'session',
+        turnId: 'turn',
+        modelId: 'muse-spark-1.3',
+        model: { pricing: { kind: 'unpriced' } },
+        decision: {
+          reason: 'cost',
+          newDebt: 1,
+          saving: 2,
+          breakEvenRequests: 3,
+          writeReadRatio: 1,
+        },
+        signal: new AbortController().signal,
+      }),
+    ).resolves.toBe(undefined)
+    await manager.dispose()
+  } finally {
+    create.mockRestore()
+  }
+})
+
+it('leaves automatic compaction without production admission when the ledger is absent', async () => {
+  const api = fakeModelApi()
+  const { manager, host, create } = await windowHostDeps(api, new FakeLogOutputChannel())
+  try {
+    expect(typeof host?.autoCompactModel).toBe('function')
+    expect(host?.admitAutoCompaction).toBe(undefined)
+    await manager.dispose()
+  } finally {
+    create.mockRestore()
   }
 })

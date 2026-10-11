@@ -61,6 +61,21 @@ import { buildModelApiBundle } from './helpers/modelApiBundle'
 import { removeFolder } from './helpers/temporaryFolders'
 
 describe('M80 command and process boundaries', () => {
+  it('automatic compaction is an explicit ACP paid opt-in and never an exec flag', () => {
+    expect(parseCommandLine(['--backend', 'modelApi', '--auto-compaction'])).toMatchObject({
+      command: 'serve',
+      options: { paidFeatures: ['autoCompaction'] },
+    })
+    expect(parseCommandLine(['--backend', 'modelApi'])).toMatchObject({
+      command: 'serve',
+      options: { paidFeatures: [] },
+    })
+    expect(parseCommandLine(['--auto-compaction'])).toMatchObject({ command: 'invalid' })
+    expect(parseCommandLine(['exec', '--auto-compaction', 'hi'])).toMatchObject({
+      command: 'invalid',
+      exitCode: 2,
+    })
+  })
   it('A10 preserves serve usage/1 and parses exec/scanner separately', () => {
     expect(parseCommandLine(['--output', 'json'])).toMatchObject({ command: 'invalid' })
     expect(parseCommandLine(['--output', 'json'])).not.toHaveProperty('exitCode')
