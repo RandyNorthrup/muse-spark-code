@@ -359,6 +359,9 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
 // unchanged 60-second budget belongs to packaging, rather than build + pack.
 buildProductionPackage(ROOT, BUILD_ROOT, inject(PRODUCTION_BUILD_KEY))
 
+// Copy immutable package inputs once before the cold packing deadline starts.
+const coldPackageFixture = packagingFixture()
+
 describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   let preparedPackage: { dir: string; run: ReturnType<typeof command> } | undefined
 
@@ -372,7 +375,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   }
 
   beforeAll(() => {
-    const dir = packagingFixture()
+    const dir = coldPackageFixture
     preparedPackage = {
       dir,
       run: command(

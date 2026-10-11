@@ -127,10 +127,13 @@ function pack(dir: string) {
   })
 }
 
+// Immutable production inputs are prepared during file setup. The existing
+// 60 s archive hook measures packing and export checks, not a second build/copy.
+buildProductionPackage(root, production, inject(PRODUCTION_BUILD_KEY))
+
 describe('ChatGPT ACP package', () => {
   let prepared: { dir: string; run: ReturnType<typeof pack> } | undefined
   beforeAll(() => {
-    buildProductionPackage(root, production, inject(PRODUCTION_BUILD_KEY))
     const dir = fixture()
     prepared = { dir, run: pack(dir) }
   }, ARCHIVE_SETUP_TIMEOUT_MS)

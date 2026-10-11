@@ -150,6 +150,9 @@ beforeAll(async () => {
   buildSync({
     entryPoints: ['src/runtime/main.ts'],
     outfile: builtMain,
+    // Production emits minified CLI code; debug-sized monolith parsing must
+    // not consume the existing 2 s lifecycle assertion before signals run.
+    minify: true,
     bundle: true,
     platform: 'node',
     format: 'cjs',
@@ -881,23 +884,23 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(r.stdout).toBe('')
     expect(r.stderr).not.toContain('native keyring must stay unloaded')
   })
-  it('scanner CLI reads exact stdin literal and emits counts only, including clean and unreadable', async () => {
-    const file = path.join(folder(), 'patch.txt')
-    writeFileSync(file, 'ordinary text')
-    const clean = await builtCommand(['scan-secrets', file], '', 0)
-    expect(clean.code).toBe(0)
-    writeFileSync(file, `ordinary ${FAKE_MODEL_API_KEY}`)
-    const found = await builtCommand(
-      ['scan-secrets', file, '--key-stdin'],
-      `${FAKE_MODEL_API_KEY}\n`,
-      0,
-    )
-    expect(found.code).toBe(10)
-    expect(found.stdout).not.toContain(FAKE_MODEL_API_KEY)
-    expect(found.stderr).not.toContain('native keyring must stay unloaded')
-    const missing = await builtCommand(['scan-secrets', `${file}-missing`], '', 0)
-    expect(missing.code).toBe(2)
-  })
+  it.each([
+    { kind: 'clean', expectedCode: 0 },
+    { kind: 'secret', expectedCode: 10 },
+    { kind: 'unreadable', expectedCode: 2 },
+  ])(
+    'scanner CLI reads exact stdin literal and emits counts only: $kind',
+    async ({ kind, expectedCode }) => {
+      const file = path.join(folder(), 'patch.txt')
+      writeFileSync(file, kind === 'secret' ? `ordinary ${FAKE_MODEL_API_KEY}` : 'ordinary text')
+      const args = ['scan-secrets', kind === 'unreadable' ? `${file}-missing` : file]
+      if (kind === 'secret') args.push('--key-stdin')
+      const result = await builtCommand(args, kind === 'secret' ? `${FAKE_MODEL_API_KEY}\n` : '', 0)
+      expect(result.code).toBe(expectedCode)
+      expect(result.stdout).not.toContain(FAKE_MODEL_API_KEY)
+      expect(result.stderr).not.toContain('native keyring must stay unloaded')
+    },
+  )
   it('D17 real read/write tools start no child, git, hook or shell process', async () => {
     const spies = [
       vi.spyOn(childProcess, 'spawn'),

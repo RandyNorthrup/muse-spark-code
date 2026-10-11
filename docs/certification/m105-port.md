@@ -80,6 +80,46 @@ restored-source verification follows in the complete headless sweep. The
 new parser/encoder export and language tests also pass the real emitted
 factories; setup/compile rejection is reported distinctly from a guard assertion.
 
+## Full-sweep findings
+
+- `execStdio.e2e`: first attempt's package `beforeAll` hits its existing
+  60,000 ms deadline; 29 tests passed including the other two batch files,
+  and 32 package cases could not run. The 12 built exec cases passed. No
+  timeout raised. Final retry passes all 44 cases at unchanged hook/test deadlines after
+  immutable fixture preparation moves out of the packing hook.
+- `acpPackageFixtures`: base forbids handwritten native member names in
+  packaging fixtures; accepted V's tarball assertion named the Windows
+  launcher directly. Use imported `ACP_NATIVE_FILES` to assert every native
+  member with Windows separator normalization. Shared layout and the gate
+  remain unchanged; this strengthens actual tarball coverage.
+- `mediaJobRun` stalled-stat cases correctly ended the encoder inside the
+  100 ms sample bound, before a slow Node startup wrote its marker. The fixture
+  then waited for a marker that could never appear. Assert the sampled port
+  was reached and the actual spawn handle's PID is ended; retain both running
+  and clean-exit cases and every deadline.
+- `execRun` scanner test combined three cold CLI processes inside one 5 s
+  case. Keep all clean/secret/unreadable assertions, split into three cases
+  at the unchanged default deadline, and assert key/native-store exclusion
+  for every result. The separate 2 s stderr-lifecycle cases get a solo rerun;
+  their bound is unchanged.
+- Both cold package hooks included immutable fixture build/copy work in the
+  packing deadline. Prepare those immutable inputs once during file setup,
+  matching the existing exec fixture's production-build treatment. Both
+  archive/export operations retain the same 60,000 ms hook/command limit;
+  all actual tarball, corruption, native and language assertions remain.
+- `usagePackaging` rebuilt all immutable table/native fixtures inside each
+  5 s refusal assertion. Create each isolated input fixture in `beforeEach`;
+  mutation, command and all refusal/prior-stage assertions remain inside the
+  unchanged test deadline. No production gate or fake transport is changed.
+- Solo `execRun` retained one stderr-lifecycle startup failure: only the
+  bootstrap marker ran before the 2 s deadline. The fixture compiled a large
+  unminified CLI monolith although production is minified. Match production
+  minification; keep the same signals, 4 MiB error, output assertions, native
+  store trap and 2 s bound. The complete file gets another final run.
+- Follow-up `62be00c9f` hooks rewrote only `/^playbook/.test(key)` to the
+  equivalent `key.startsWith('playbook')`; re-read staged/committed source.
+  The 104-file sweep and final production build cover the committed form.
+
 ## Verification
 
 Initial host/webview typechecks passed. Unit typecheck exposed the inherited
@@ -96,7 +136,11 @@ All five `npm run typecheck` projects pass with the merged lock (exit 0).
 Fresh locked dependencies now occupy the worktree node_modules directory;
 the original install remains intact under ignored port scratch.
 
-Remaining gates in progress. Final commands use repository default test timeout, at most three
+Final source and fixture checks: all five typecheck projects passed; after
+fixture repairs, unit and e2e projects passed again. Scoped ESLint/Prettier,
+localization/reference/roadmap/plan/host API, plain knip, cycles and the
+production build all exit 0. Extra duplication gate result is documented
+separately below. Final commands use repository default test timeout, at most three
 Vitest files per batch and `--maxWorkers=3`. Aggregate quality/full test sweep
 are prohibited by lane common rules and remain lead-owned. No gate weakened.
 
@@ -150,3 +194,72 @@ Accepted V/VB/redesign code is being ported; this task adds no enablement scope.
 Next slice: lead gate the merge, then Windows/Linux native qualification and
 owner device receipts before installing recording bindings. Historical W/V/VB
 records remain chronology; this record is the port's current evidence.
+
+## Final receipts
+
+- Merge: `f8db55035` (parents `eda2fdfe6`, `35d7b6f54`). Budget/parser
+  follow-up: `62be00c9f`. Final fixture/inventory/certification commit follows.
+- All five typecheck projects pass; unit and e2e projects repeated after final
+  fixture changes pass. Scoped ESLint zero warnings and Prettier pass.
+- Localization zero problems; reference current (77 features, 71 commands,
+  101 settings, 29 slash, 263 CLI); roadmap current (216 entries); plan zero
+  drift. Host inventory: 378 APIs, 49 adapter files, 30 Node built-ins,
+  71 theme variables, zero problems. Plain knip and cycles exit 0.
+- 104 complete files selected in 35 batches of at most three, every run with
+  `--maxWorkers=3` and repository deadlines. After complete-file corrective
+  retries: **2,872 passed, 86 existing OS skips, zero failures and zero todo**.
+  Initial setup/fixture/timing failures are recorded above, not erased.
+- All 44 fake-only packed CLI/end-to-end cases pass; package tests and actual
+  tarball assertions pass. All source mutations restore exact SHA-256 bytes.
+- Final production build exits 0: tokens, every size cap, split ownership,
+  host globals and 92 third-party notices (four optional fonts). No cap rose.
+
+| Bundle                  | Final bytes | Unchanged cap bytes |
+| ----------------------- | ----------: | ------------------: |
+| `extension.js`          |     563,681 |             614,400 |
+| `modelApi.js`           |     523,629 |             537,600 |
+| `productionMedia.js`    |      68,050 |             102,400 |
+| `productionAudio.js`    |      68,436 |              76,800 |
+| `runtimeMedia.js`       |      46,952 |              76,800 |
+| `resourceGovernor.js`   |     111,223 |             128,000 |
+| `resourceProcess.js`    |      27,686 |              51,200 |
+| `modelApiSessions.js`   |      39,077 |              51,200 |
+| `modelApiBoundaries.js` |      37,491 |              51,200 |
+| `usagePanel.js`         |      74,682 |              76,800 |
+
+Model API's stronger diet ratchet is 523,629 B (previously 530,883 B).
+Original deferred JS is 31.9/50 KiB; original deferred pin remains 32.1 KiB.
+Browser startup is 742.7/900 KiB and passes the stricter 743.7 KiB review pin.
+Surface English is 24.3/25 KiB; new deferred playbook English is 3.2/25 KiB.
+
+**Extra duplication gate: FAIL (exit 1).** Unchanged zero threshold:
+
+```text
+Found 29 clones.
+ERROR: jscpd found too many duplicates (0.0%) over threshold (0.0%)
+```
+
+Fresh private `$TMPDIR` source archives with the same checker reproduce
+27 clones on accepted `eda2fdfe6` and two on release `35d7b6f54` (both exit 1).
+The integrated count is their sum. No ignore/threshold changes; broad fixture
+cleanup is explicitly deferred in PLAN §7 to the integration lead. The source
+archives were deleted after comparison. This port does not claim full quality
+is green or that inherited duplication is repaired.
+
+**Skipped by explicit lane rule, not passed:** aggregate `npm run quality` and
+full V8 coverage; installed-editor integration; actual visual/accessibility
+browser gates; `test/unit/companionMediaBrowser.test.mjs`; device recording,
+microphone and signed/native desktop qualification. Their output tail is
+`Not run: PORTM105.rig.md forbids browser/GUI/microphone/capture and common.md
+reserves aggregate quality/full tests for the lead.` No forbidden application
+was launched. Linux desktop lead runs browser/visual/a11y/companion checks;
+Windows lead runs native jobs/ACLs/WGC; owner supplies signed Darwin/device
+receipts. The three completely OS-skipped files here are `jobCreateAtomic`,
+`resourceWindowsLaunch`, `windowsScreenRecorderNative`; other OS skips are
+part of the 86 count. No new skip added.
+
+Planning re-read: `check:plan` and `check:roadmap` are current. M105 remains
+partially delivered/open, while this release-base port's assigned merge,
+headless tests and static/budget checks are complete. Next slice is lead
+integration/duplicate cleanup and native qualification, then owner device
+receipts and recording-driver binding, in the ordered inventory above.

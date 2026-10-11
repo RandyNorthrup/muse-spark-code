@@ -110,6 +110,9 @@ happened, not what was planned; superseded entries are kept.
   Windows encoder handling loads from the existing process chunk; pure session
   and usage schemas are shared, and deferred playbook English has its own
   bounded chunk. Original startup and feature caps remain unchanged.
+  Native/package fixtures use the shared inventory; cold setup and CLI tests
+  keep their original deadlines while isolating immutable preparation and
+  matching production minification.
 
 - Production media is one service per Model API session (M105 W redesign),
   built by one factory in its own lazy bundle, `dist/productionMedia.js`
