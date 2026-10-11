@@ -634,3 +634,108 @@ never a timeout.
   merge was performed.
 
 No RVCM1062F finding remains open; no external blocker was encountered.
+
+## R8 — RVCM1062G repairs: the plan-model success path matches every other branch (kubuntu, 2026-10-11)
+
+Review RVCM1062G raised two P2 (the new plan-model success path skips the
+start receipt and never re-checks the paid gate after its awaits) and two
+P3 (the ChatGPT branch rewrites a lapsed confirmation as the generic plan
+retry sentence; the Copilot adapter refuses the catalogue/session id pair
+it otherwise accepts). One class: the plan-model branch must do everything
+the other provider branches do around a confirmed dispatch, in the same
+order — and through the same helper, not a hand copy.
+
+**Fix.** `transport.ts:384/400/420` extracts the shared
+confirmed-dispatch helper the other branches use: `assertConfirmedAllowed`
+(model match plus `isStillAllowed()`, throwing the run's own guidance),
+`noteConfirmedRequestStarted` (confirmed first, then the admission
+observer — the transport order at `transport.ts:1000`), and
+`isStaleConfirmedError` (lets a lapsed-confirmation refusal pass branch
+catches unchanged). Adopted by every branch: Model API (`client.ts:453`),
+configured provider (`providerClient.ts:204`), the registry's Copilot path
+(early gate `registry.ts:225`, adapter dispatch through the guard at
+`registry.ts:233`) and ChatGPT path (early gate plus the post-sign-in
+re-check at `registry.ts:269-270`), and the Copilot adapter (early gate
+`copilotClient.ts:176`, post-count re-check and started note at
+`copilotClient.ts:357-358`). The registry forwards an inert-start copy of
+the confirmation into the adapter (the hook/reviewer pattern), so the
+guard counts the paid use exactly once. The ChatGPT catch at
+`registry.ts:344` yields a lapsed confirmation with its own hook/schedule
+text instead of the retry sentence; the adapter catch at
+`copilotClient.ts:433` lets the same refusals through instead of its
+failure text; the adapter's model match tolerates session `copilot/<id>`
+against catalogue `<id>`. No new string, setting, chunk or dependency; no
+guard widened.
+
+| Finding → fix → test → drill                                                                                                                                                      | File                       |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| Shared gate/started/stale helpers; transport dispatch uses the started helper                                                                                                     | `transport.ts`             |
+| Early gate through the helper (same refusal, media finish preserved)                                                                                                              | `client.ts`                |
+| Early gate through the helper (provider/origin checks kept inline)                                                                                                                | `providerClient.ts`        |
+| Copilot path: gate, inert-start forward, guard folds the real start note                                                                                                          | `registry.ts:225-245`      |
+| ChatGPT path: post-sign-in re-check plus the real start note                                                                                                                      | `registry.ts:269-270`      |
+| Lapsed confirmations keep hook/schedule text on both plan branches                                                                                                                | `registry.ts:344`          |
+| Catalogue/session id tolerance, post-count re-check, started note, stale pass-through                                                                                             | `copilotClient.ts`         |
+| Lapsed ChatGPT refusal names the hook call instead of the retry sentence                                                                                                          | `modelApiProviders` (edit) |
+| Catalogue request id against a session confirmation id dispatches once                                                                                                            | `copilotClient` (new)      |
+| Table test: Model API, configured provider, Copilot, ChatGPT plan × hook/scheduled/review/unmarked × allowed/lapsed/lapsing/mismatched/aborted with the same lifecycle assertions | `modelApiProviders` (new)  |
+
+### Sibling sweep
+
+- Every `confirmed !== undefined` site in `src/` re-checked: the two
+  transport fences keep their key/origin halves (a strict superset of the
+  helper); hook/reviewer entries already fold the start note into admission
+  and pass an inert copy down; `schedulesEntry`/`conversationController`/
+  `modelApiBackendManager` checks are pre-dispatch identity checks, already
+  conditional.
+- Mid-flight lapse honesty swept both plan branches: ChatGPT (registry
+  catch) and Copilot (adapter re-check plus catch pass-through), so a lapse
+  during sign-in or token counting names the run on either branch.
+
+### R8 red drills (every guard broken on purpose, every file restored byte-exact)
+
+Baseline SHA-256 recorded before drilling; `sha256sum -c` OK after every
+restore (`registry.ts` `0e15efe9…46accc66`,
+`copilotClient.ts` `6cd5245c…d7134f72`,
+`transport.ts` `7efcd3fb…59d05b2ff`). Repository timeouts throughout,
+`--maxWorkers=3`; every drill exit was a test failure, never a timeout.
+
+1. **ChatGPT re-check and start note removed** (`registry.ts:269-270` →
+   admit-started only): 8 failed — the 4 still-allowed and 4 mid-dispatch
+   `chatgpt-plan` table cases; lapsed/mismatch/abort still pass.
+2. **Stale pass-through removed** (`registry.ts:344`): 5 failed — the
+   updated ChatGPT lapsed test plus the 4 `chatgpt-plan` lapsed table
+   cases; Copilot lapsed cases still pass (that branch already kept the
+   message).
+3. **Copilot id tolerance reverted to strict equality**: the new
+   `accepts a catalogue request id` adapter case fails (1 failed /
+   50 skipped in its `-t catalogue` slice).
+4. **Adapter re-check removed** (`copilotClient.ts:357`): 4 failed — the
+   `copilot` mid-dispatch table cases across all four run kinds; every
+   other branch still passes.
+5. **Shared gate disabled** (`assertConfirmedAllowed` no-op): 22 failed
+   across the table's lapsed/mid-dispatch/mismatch cases
+   (`modelApiProviders` + `modelApiClient` `-t laps` slice).
+
+### R8 verification (kubuntu, repository timeouts, `--maxWorkers=3`)
+
+- `modelApiProviders`, `copilotClient`: **136 passed** (whole files).
+- `modelApiClient`, `configuredProviders`: **99 passed**, 1 failed — the
+  `pins a loopback HTTP request` case times out at 5000 ms because this
+  sandbox blocks loopback TCP (a bare `node:http` listen + fetch probe
+  fails the same way); that test passes no confirmation, so the changed
+  lines are no-ops for it. Named for the lead to run outside the sandbox.
+- `npm run typecheck`: host, webview and unit projects passed.
+- ESLint `--max-warnings=0` and Prettier `--check` on all seven changed
+  files passed. Knip: only the two pre-existing vendor/axe-core hints.
+  jscpd: **0 clones** (the first cut added 5; extracted the shared guard,
+  registry and refusal helpers plus a static cancellation stub).
+- Localization: 14 UI tables, 14 usage tables, 0 problems (no string added
+  or changed). Reference, host API and feature catalogue untouched: no
+  command, setting or surface changed.
+- Final `npm run build` passed: extension **550.1 / 600 KiB**; Model API
+  **517.5 / 525 KiB** (R7: 517.4) — both within budget; no budget raised.
+- No browser, live/paid call, credential read, install, push, rebase or
+  merge was performed.
+
+No RVCM1062G finding remains open; no external blocker was encountered.

@@ -131,6 +131,15 @@ happened, not what was planned; superseded entries are kept.
   sent. The subscription client proceeds while the confirmation is still
   allowed and refuses with the run's own guidance only once it has lapsed,
   like the other clients (M106, RVCM1062F).
+- Fixed the RVCM1062G findings on that plan-model success path. A confirmed
+  scheduled run now records its start receipt and scheduled-prompt tally,
+  and a paid-gate lapse during ChatGPT sign-in or Copilot token counting
+  still refuses before anything is sent — through the same
+  confirmed-dispatch helper the other branches use. A lapsed confirmation
+  names the hook, schedule or review instead of the generic plan retry
+  sentence, and a catalogue request id is accepted against a session
+  confirmation id (M106, RVCM1062G;
+  `docs/certification/m106-capability-binding.md`).
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
