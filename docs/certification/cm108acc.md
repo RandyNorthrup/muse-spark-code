@@ -335,3 +335,65 @@ providers-file refusal…` fail (2 failed, 36 skipped). Restored.
   `reports refused file content…: duplicate account ids` and `: a provider
 id that does not match its key` fail (2 failed, 5 passed, 12 skipped).
   Restored.
+
+## Repair — review RVCM108ACC4 (2026-10-11, same lane)
+
+Every finding fixed, no residuals. One class: a refused providers file (and
+its sibling typed failures) reaches the person as its own refusal from one
+mapping point. Each fix has a regression that fails without it and a red
+drill below (D20–D24, `sha256sum -c` OK on all four source files after each
+restore).
+
+- **F1 (P2, `exec --account` reports a keyring outage for a refused
+  providers file).** New `withProvidersFileRefusal`
+  (`src/runtime/providers/runtimeServices.ts`): the single metadata port
+  every runtime caller reads through maps the `invalidProvidersFile` brand
+  to the `accounts.providersInvalid` sentence at the read, keeping the
+  brand (`AccountStoreError` name + code) so typed checks still match;
+  sibling typed failures pass through untouched. `modelApiReadiness`
+  (`src/runtime/backends.ts`) routes the brand to `accountErrorText`
+  instead of the `acpStoreUnavailable` keyring sentence.
+- **F2 (P3, developer multiple-accounts open lets the same refusal escape as
+  a raw stack).** `DeveloperOptions.open` (`src/core/developer/
+developerOptions.ts`) still turns multiple accounts off first, but a
+  failing disable no longer replaces the refusal that stopped the start —
+  the primary error is rethrown. Same masking fixed in `setMultiple(true)`'s
+  catch (a failing stop no longer replaces the start refusal). The process
+  crash line (`src/runtime/main.ts` via new `crashTextForLog` in
+  `src/runtime/exec/execOutput.ts`) prints the refusal sentence for the
+  brand instead of a raw stack; every other crash keeps its stack.
+- Siblings swept: all three refused shapes (unparsable JSON, duplicate
+  account ids, provider id not matching its key) through exec readiness;
+  the ACP session port message; the shared metadata port message plus the
+  CLI `list` sentence with the file untouched; developer open and enable;
+  the crash line for the shipped and a foreign-bundle brand. `FileAccountsMetadata`
+  itself still throws the raw brand (its suite asserts the code); the CLI
+  `accounts list` sentence, the ACP `providersInvalid` code, the
+  switch-refusal, no-adoption and pool-unavailable behaviours are unchanged.
+
+Tests (repository timeouts, never raised): `runtimeServices` 17,
+`runtimeAccountsService` 11, `execOutput` 45. New regressions: exec
+readiness each-table refusal cases (P2 caller); ACP session-port sentence +
+brand (ACP caller); developer open sentence + brand + file untouched, and
+enable-keeps-start-refusal (developer caller); shared-metadata-port
+sentence + brand + CLI list sentence (CLI caller); crash-line sentence for
+both brands plus stack passthrough.
+
+Red drills (break guard, named test fails, restore byte-exact —
+`sha256sum -c` on all four files OK after each restore):
+
+- **D20** wrapper mapping back to a bare rethrow:
+  `reads a refused providers file as its own sentence through the shared
+metadata port` fails (1 failed, 10 skipped). Restored.
+- **D21** readiness brand route removed:
+  `reports a refused providers file as its own refusal from exec
+readiness…` fails (3 failed, 14 skipped). Restored.
+- **D22** open catch back to an unguarded disable:
+  `opens developer multiple-accounts with the providers-file sentence
+instead of a raw failure` fails (1 failed, 16 skipped). Restored.
+- **D23** `setMultiple(true)` catch back to an unguarded stop:
+  `keeps the start refusal when enabling multiple accounts over a refused
+file` fails (1 failed, 16 skipped). Restored.
+- **D24** `crashTextForLog` back to stack-only:
+  `reports a refused providers file as its own sentence instead of a raw
+stack` fails (1 failed, 44 skipped). Restored.

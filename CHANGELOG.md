@@ -93,7 +93,10 @@ happened, not what was planned; superseded entries are kept.
   JSON, duplicate account ids, or a provider id that does not match its
   key) says the file was refused and left unchanged instead of the
   connection sentence — on the terminal, through ACP list/current/thresholds
-  and picker selection, and as the Models panel's own error.
+  and picker selection, as the Models panel's own error, from `exec
+  --account` readiness instead of a keyring-outage message, from developer
+  multiple-accounts open instead of a raw stack, and on the terminal crash
+  line as the sentence itself.
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
