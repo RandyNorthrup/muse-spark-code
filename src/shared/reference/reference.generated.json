@@ -1754,10 +1754,10 @@
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#orchestrator-playbook-policy-m116",
       "backends": ["museCode", "modelApi"],
       "paid": false,
-      "surfaces": ["acp:museCode", "acp:modelApi"],
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
       "details": [],
       "facts": {},
-      "editors": ["acp"]
+      "editors": ["vscode", "acp"]
     },
     {
       "id": "support",

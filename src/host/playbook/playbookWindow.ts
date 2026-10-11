@@ -37,6 +37,7 @@ import type {
   PanelReviewTarget,
 } from '../../runtime/playbook/governor'
 import type { PlaybookChange, PlaybookSurfacePort } from '../../runtime/playbook/command'
+import type { PlaybookAgentRef } from '../../runtime/playbook/panelWire'
 import type { Logger } from '../logger'
 import { loadJobAssembly, runProgram, windowsPowerShell } from '../processTree'
 import {
@@ -122,12 +123,6 @@ export interface PlaybookDispatch {
   readonly targetId: string | undefined
   /** The tool row this dispatch is, when it is one: its notes go there. */
   readonly itemId?: string | undefined
-}
-
-export interface PlaybookAgentRef {
-  readonly itemId: string
-  readonly agentId: string
-  readonly sessionId: string
 }
 
 export interface PlaybookWindow {
@@ -581,8 +576,15 @@ export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
       change: (change: PlaybookChange) =>
         ask(playbookResultSchemas.snapshot, (id) => ({ type: 'change', id, change })),
     },
-    agents: (children) =>
-      ask(playbookResultSchemas.agents, (id) => ({ type: 'agents', id, children: [...children] })),
+    agents: async (children) =>
+      // No rows, or no journal on this machine: nothing to read, and no worker for it.
+      children.length > 0 && (await hasJournals())
+        ? await ask(playbookResultSchemas.agents, (id) => ({
+            type: 'agents',
+            id,
+            children: [...children],
+          }))
+        : {},
     standing: (sessionId) =>
       ask(playbookResultSchemas.standing, (id) => ({ type: 'standing', id, sessionId })),
     openReview: async (sessionId, files, children) => {

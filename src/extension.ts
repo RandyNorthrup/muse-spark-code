@@ -84,6 +84,7 @@ import {
   SANDBOX_NETWORK_DENIED,
   SANDBOX_NETWORK_SETTING,
   PAGE_WORKER_FILE,
+  PLAYBOOK_WINDOW_BUNDLE_FILE,
   SEARCH_WORKER_FILE,
   SETTINGS_SECTION,
   SHELL_SANDBOX_SETTING,
@@ -106,6 +107,9 @@ import {
 import { MuseCodeHost } from './core/backends/musecode/MuseCodeHost'
 import { agentDataFolder } from './runtime/dataFolder'
 import { requireFile } from './host/lazyBundle'
+import type { PlaybookSource } from './host/playbook/playbookAnswer'
+import { playbookWindowLoader } from './host/playbook/playbookBundle'
+import type { PlaybookWindowBundle } from './host/playbook/playbookEntry'
 import { isJudgeEngineOn } from './core/judge/engine'
 import { promptBundleLoader } from './host/prompts/promptBundle'
 import type { createPromptHost } from './host/prompts/promptEntry'
@@ -3261,6 +3265,45 @@ async function activateWindow(
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', 'reportingPanel.js').fsPath,
     log,
   })
+  // M116 (C-M116-6): the window's playbook. Activation holds this loader and
+  // the data it needs; dist/playbook.js loads on the first playbook request
+  // and runs the policy on a worker thread of its own. `/playbook` in the
+  // composer (M126 F9) answers from the same window's journal.
+  const playbookBundlePath = vscode.Uri.joinPath(
+    context.extensionUri,
+    'dist',
+    PLAYBOOK_WINDOW_BUNDLE_FILE,
+  ).fsPath
+  const loadPlaybook = playbookWindowLoader(playbookBundlePath, log)
+  const playbookDataFolder = agentDataFolder({
+    platform: process.platform,
+    env: process.env,
+    homeDir: homedir(),
+  })
+  let playbookWindow: PlaybookWindowBundle | undefined
+  const playbook = (): PlaybookWindowBundle => {
+    playbookWindow ??= loadPlaybook().createPlaybookWindow(
+      {
+        bundlePath: playbookBundlePath,
+        agentDataFolder: playbookDataFolder,
+        workspaceRoot,
+        isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+        platform: process.platform,
+        systemRoot: process.env['SystemRoot'],
+        shellJobAssembly: windowsJobAssembly,
+        reviewCharter: () => bundledSkillsBundle().playbookReviewerCharter(),
+        log,
+      },
+      UI_TEXT,
+      uiLocale(),
+    )
+    return playbookWindow
+  }
+  context.subscriptions.push({
+    dispose: () => {
+      playbookWindow?.dispose()
+    },
+  })
   const reportingPanels = new Map<string, ReportPanel>()
   const showDeterministicReport = async (
     surface: ChatSurface | undefined,
@@ -3340,6 +3383,21 @@ async function activateWindow(
           questions: factory.questionsForHost(questionsStore),
           showDeterministicReport: (argumentsText) =>
             showDeterministicReport(surface, argumentsText),
+          playbookSource: {
+            loadBundle: () => playbook().answerBundle(),
+            agentDataFolder: playbookDataFolder,
+            workspaceRoot,
+            table: l10n.table,
+            locale: l10n.locale,
+            log,
+          } satisfies PlaybookSource,
+          playbookPanel: (message, reply) => {
+            try {
+              void playbook().panel(message, reply)
+            } catch {
+              // The loader logged why; the map then shows no playbook.
+            }
+          },
           tasksTab,
           auth,
           ensureHost: ensureSelectedHost,

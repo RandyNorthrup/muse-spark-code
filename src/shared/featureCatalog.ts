@@ -1122,7 +1122,7 @@ export function featureCatalog(): readonly Feature[] {
 }
 
 export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
-  'orchestrator-playbook': ['acp:museCode', 'acp:modelApi'],
+  'orchestrator-playbook': ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'],
   'web-fetch': ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
   search: ['vscode:modelApi', 'acp:modelApi'],
   images: ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],

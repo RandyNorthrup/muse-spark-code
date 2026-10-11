@@ -339,6 +339,13 @@ describe('a window and its worker', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () =
     ).resolves.toBe('started')
     expect(effect).toHaveBeenCalledOnce()
     expect(completion).not.toHaveBeenCalled()
+    // Nor are an Agent map's rows read from a journal that does not exist, or no rows at all.
+    await expect(
+      setup.window.agents([
+        { itemId: 'row-1', agentId: CHILD.agentId, sessionId: CHILD.sessionId },
+      ]),
+    ).resolves.toEqual({})
+    await expect(setup.window.agents([])).resolves.toEqual({})
     expect(setup.startWorker).not.toHaveBeenCalled()
     expect(existsSync(setup.repository.dataFolder)).toBe(false)
   })

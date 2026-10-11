@@ -47,6 +47,8 @@ describe('M116 lazy surface budget', () => {
       'src/webview/playbook/PlaybookPanel.tsx',
       'src/webview/playbook/PlaybookRows.tsx',
       'src/webview/playbook/PlaybookMap.tsx',
+      'src/webview/playbook/bridge.ts',
+      'src/runtime/playbook/panelWire.ts',
       'src/runtime/playbook/command.ts',
       'src/runtime/playbook/text.ts',
       'src/shared/playbook.ts',

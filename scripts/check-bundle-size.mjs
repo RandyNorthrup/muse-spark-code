@@ -33,7 +33,7 @@ const BUDGETS = [
   { path: 'dist/acpPlaybook.js', budgetKiB: 100 },
   // M116 lane C-M116-6: the VS Code window's playbook (the window's client
   // and, as its worker thread, the governor: policy, journal, outcomes and
-  // the Windows job runner), loaded on the first playbook request: 109.9 KiB
+  // the Windows job runner), loaded on the first playbook request: 111.5 KiB
   // measured, +15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/playbook.js', budgetKiB: 150 },
   // Exact media money no longer enters the registry through locale helpers.

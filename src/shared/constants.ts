@@ -1811,6 +1811,9 @@ export const PLAYBOOK_WORKER_KIND = 'museSparkPlaybook'
 // and the worker ended. Every contained call reports before it starts, and
 // one call is bounded by GIT_TIMEOUT_MS plus its tree sweep.
 export const PLAYBOOK_WORKER_SILENCE_MS = 60_000
+// How long the panel waits for its window's playbook: past the worker's own
+// silence bound, so the window's refusal, not this, is what a page shows.
+export const PLAYBOOK_PANEL_TIMEOUT_MS = 75_000
 // The panel's own orchestration before M96: one team, one planner lane.
 export const PLAYBOOK_PANEL_TEAM = 'panel'
 export const PLAYBOOK_PANEL_LANE = 'panel'

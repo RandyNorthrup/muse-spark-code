@@ -24,6 +24,7 @@ import type {
 
 import { startApprovalJudge, type JudgeAdvisory, type JudgeFence } from '../../core/judge/use'
 import { reportCommandArguments } from '../reporting/reportCommand'
+import { answerPlaybookCommand, type PlaybookSource } from '../playbook/playbookAnswer'
 // One conversation per surface: owns the MSP session for that surface, turns
 // webview requests into backend calls, and streams AgentEvents back. Also the
 // source of truth for the composer settings that outlive a webview reload
@@ -430,6 +431,19 @@ export interface ConversationDeps {
   readonly usageRecording?: UsageRecording | undefined
   /** Local reports: native hosts inject the same operation; absent means unavailable. */
   readonly showDeterministicReport?: (argumentsText: string) => Promise<void>
+  /**
+   * `/playbook` (M116, M126 F9): the workspace journal source the composer
+   * answers from without a model turn; absent keeps the previous model-bound
+   * behaviour (other hosts).
+   */
+  readonly playbookSource?: PlaybookSource | undefined
+  /**
+   * The playbook's own channel (M116): the Agent map's page and rows, parsed
+   * and answered in the window's lazy playbook bundle; absent on a host
+   * without one, whose map then shows no playbook.
+   */
+  readonly playbookPanel?:
+    ((message: unknown, reply: (answer: unknown) => void) => void) | undefined
   readonly surface: ChatSurface
   readonly auth: AuthPort
   readonly ensureHost: () => Promise<AgentHost>
@@ -9883,6 +9897,20 @@ export class ConversationController {
         await this.showDeterministicReport(argumentsText)
         return
       }
+      // `/playbook` is answered from the journal, even while signed out or
+      // while a model turn is running: it never starts a turn (M126 F9).
+      // Attachments stay in the composer, so nothing the answer did not read
+      // is lost.
+      const playbook = await answerPlaybookCommand(this.deps.playbookSource, message.text)
+      if (playbook !== undefined) {
+        this.post({
+          type: 'sendFailed',
+          localId: message.localId,
+          reason: playbook.text,
+          attachmentsKept: true,
+        })
+        return
+      }
     }
     if (!this.isAuthAdmitted() && AUTH_REQUIRED_SESSION_ACTIONS.has(message.type)) {
       this.notice('warning', UI_TEXT.notSignedInReason)
@@ -10241,6 +10269,12 @@ export class ConversationController {
       }
       case 'schedulesRequest': {
         await this.answerSchedules(message.message)
+        break
+      }
+      case 'playbook': {
+        this.deps.playbookPanel?.(message.message, (answer) => {
+          this.post({ type: 'playbook', message: answer })
+        })
         break
       }
       case 'openSchedules': {

@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
+import type { PlaybookRecord } from '../../src/shared/playbook'
+import { playbookPanelRequestSchema } from '../../src/runtime/playbook/panelWire'
 import { surfacePort, surfaceSnapshot } from './playbookSurfaceFixtures'
 import { agentStatusLabel, formatDurationMs } from '../../src/webview/agentFormat'
 import type { WorkflowEntry } from '../../src/webview/state/uiState'
@@ -413,6 +415,166 @@ describe('AgentMap workflows (M47)', () => {
     expect(note).toHaveTextContent('Muse Code’s workflows are off')
     expect(note).not.toHaveTextContent('delegation')
     expect(screen.queryByRole('list', { name: 'Workflows' })).toBeNull()
+  })
+})
+
+/** One answer of the host, as the window receives it. */
+function deliver(message: unknown): void {
+  act(() => {
+    window.dispatchEvent(new MessageEvent('message', { data: { type: 'playbook', message } }))
+  })
+}
+
+/**
+ * The window's playbook as VS Code's host answers the map: every answer in
+ * the `playbook` envelope, on a later turn. `workspaceId` undefined is a
+ * window with no folder open.
+ */
+function hostPlaybook(
+  workspaceId: string | undefined,
+  records: Record<string, PlaybookRecord[]> = {},
+) {
+  const journal = surfacePort(surfaceSnapshot())
+  const requests: unknown[] = []
+  const answer = async (raw: unknown) => {
+    const request = playbookPanelRequestSchema.parse(raw)
+    if (request.type === 'playbookHello') {
+      deliver({ type: 'playbookHello', ...(workspaceId !== undefined && { workspaceId }) })
+      return
+    }
+    if (request.type === 'playbookAgents') {
+      deliver({ type: 'playbookAgents', requestId: request.requestId, records })
+      return
+    }
+    deliver({
+      type: 'playbookState',
+      bridgeId: request.bridgeId,
+      workspaceId: request.workspaceId,
+      requestId: request.requestId,
+      snapshot:
+        request.type === 'playbookRead'
+          ? await journal.read()
+          : await journal.change(request.change),
+    })
+  }
+  const post = vi.fn((raw: unknown) => {
+    requests.push(raw)
+    setTimeout(() => {
+      void answer(raw)
+    }, 0)
+  })
+  return { post, requests, journal }
+}
+
+const typesOf = (requests: readonly unknown[]) =>
+  requests.map((request) => playbookPanelRequestSchema.parse(request).type)
+
+describe('AgentMap and its window’s playbook (M116)', () => {
+  it('asks which journal the window reads, then offers its page and reads it', async () => {
+    const host = hostPlaybook('journal-1')
+    renderMap({ onPlaybook: host.post })
+    fireEvent.click(await screen.findByRole('button', { name: 'Playbook Settings' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Orchestrator Playbook', level: 1 }),
+    ).toBeInTheDocument()
+    expect(host.requests[0]).toEqual({ type: 'playbookHello' })
+    expect(host.requests).toContainEqual(
+      expect.objectContaining({ type: 'playbookRead', workspaceId: 'journal-1' }),
+    )
+  })
+
+  it('is the map it always was while the window says nothing, or has no journal', async () => {
+    const silent = vi.fn()
+    const first = render(
+      <AgentMap {...agentMapProps()} agents={[explorer, reviewer]} onPlaybook={silent} />,
+    )
+    await waitFor(() => {
+      expect(silent).toHaveBeenCalledWith({ type: 'playbookHello' })
+    })
+    expect(screen.queryByRole('button', { name: 'Playbook Settings' })).toBeNull()
+    expect(silent).toHaveBeenCalledOnce()
+    first.unmount()
+    // A window with no folder open answers, and names no journal.
+    const host = hostPlaybook(undefined)
+    renderMap({ onPlaybook: host.post })
+    await waitFor(() => {
+      expect(host.post).toHaveBeenCalledOnce()
+    })
+    await act(async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 20)
+      })
+    })
+    expect(screen.queryByRole('button', { name: 'Playbook Settings' })).toBeNull()
+    expect(typesOf(host.requests)).toEqual(['playbookHello'])
+    expect(screen.getByRole('button', { name: /Map the workspace/u })).toBeInTheDocument()
+  })
+
+  it('reads its rows’ records by the ids the host recorded the agents under', async () => {
+    const host = hostPlaybook('journal-1', { sa1: surfaceSnapshot().records })
+    renderMap({ onPlaybook: host.post })
+    const badge = await screen.findByText(/Concurrency: 3 review rounds/u)
+    expect(badge.closest('button')).toHaveTextContent('Map the workspace')
+    // The reviewer's row has no child session the host recorded: it is not asked about.
+    expect(host.requests).toContainEqual({
+      type: 'playbookAgents',
+      requestId: 1,
+      children: [{ itemId: 'sa1', agentId: 'sub-1', sessionId: 'child-1' }],
+    })
+    expect(screen.getByRole('button', { name: /Review the diff/u })).not.toHaveTextContent(
+      'review rounds',
+    )
+  })
+
+  it('asks about its rows again only when the rows themselves change', async () => {
+    const host = hostPlaybook('journal-1')
+    const props = { ...agentMapProps(), onPlaybook: host.post }
+    const view = render(<AgentMap {...props} agents={[explorer, reviewer]} />)
+    await screen.findByRole('button', { name: 'Playbook Settings' })
+    const asked = () => typesOf(host.requests).filter((type) => type === 'playbookAgents').length
+    await waitFor(() => {
+      expect(asked()).toBe(1)
+    })
+    // The same rows in a new array, as every render of the panel hands them.
+    view.rerender(<AgentMap {...props} agents={[{ ...explorer }, { ...reviewer }]} />)
+    view.rerender(<AgentMap {...props} agents={[{ ...explorer, status: 'failed' }, reviewer]} />)
+    expect(asked()).toBe(1)
+    view.rerender(
+      <AgentMap
+        {...props}
+        agents={[explorer, { ...reviewer, subagentId: 'sub-2', childSessionId: 'child-2' }]}
+      />,
+    )
+    await waitFor(() => {
+      expect(asked()).toBe(2)
+    })
+  })
+
+  it('leaves a host that hands the map its own port alone', async () => {
+    const post = vi.fn()
+    renderMap({ playbookPort: surfacePort(surfaceSnapshot()), onPlaybook: post })
+    await screen.findByRole('button', { name: 'Playbook Settings' })
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it('takes nothing that is not in the playbook’s own envelope', async () => {
+    const post = vi.fn()
+    renderMap({ onPlaybook: post })
+    await waitFor(() => {
+      expect(post).toHaveBeenCalledOnce()
+    })
+    act(() => {
+      // The same words outside the envelope, and an envelope of another channel.
+      for (const data of [
+        { type: 'playbookHello', workspaceId: 'journal-1' },
+        { type: 'schedulesMessage', message: { type: 'playbookHello', workspaceId: 'journal-1' } },
+        { type: 'playbook', message: { type: 'playbookHello', workspaceId: '' } },
+        { type: 'playbook' },
+      ])
+        window.dispatchEvent(new MessageEvent('message', { data }))
+    })
+    expect(screen.queryByRole('button', { name: 'Playbook Settings' })).toBeNull()
+    expect(post).toHaveBeenCalledOnce()
   })
 })
 

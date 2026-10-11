@@ -273,11 +273,13 @@ command. See the [ACP guide](docs/acp.md#deterministic-reports-m113).
 
 ## Orchestrator playbook policy (M116)
 
-The CLI `playbook <status|record|settings ...>` and ACP
-`/playbook <status|record|settings ...>` read journal records and settings
-locally without starting a backend or a model turn. Settings changes need a
-reason and record the owner. The reviewer charter ships as the
-`orchestrator-playbook` skill.
+The CLI `playbook <status|record|settings ...>` and
+`/playbook <status|record|settings ...>` in the ACP agent and in the VS Code
+panel's composer read journal records and settings locally without starting
+a backend or a model turn. In VS Code the Agent map also opens the same
+journal's status, record and settings (**Playbook Settings**). Settings
+changes need a reason and record the owner. The reviewer charter ships as
+the `orchestrator-playbook` skill.
 
 ## Highlights
 

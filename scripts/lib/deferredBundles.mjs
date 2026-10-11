@@ -695,6 +695,7 @@ export const ON_FIRST_USE = [
     files: [
       'src/host/playbook/playbookEntry.ts',
       'src/host/playbook/playbookWindow.ts',
+      'src/host/playbook/playbookPanel.ts',
       'src/host/playbook/playbookWorker.ts',
       'src/host/playbook/workerProtocol.ts',
       'src/host/playbook/containedJob.ts',

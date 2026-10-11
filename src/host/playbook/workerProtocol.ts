@@ -16,11 +16,14 @@ import {
 import {
   playbookDesignDecisionSchema,
   playbookFindingRefSchema,
-  playbookRecordSchema,
   playbookRoundSchema,
   playbookWhyNoteSchema,
 } from '../../shared/playbook'
 import { playbookChangeSchema, playbookSnapshotSchema } from '../../runtime/playbook/command'
+import {
+  playbookAgentRecordsSchema,
+  playbookAgentRefSchema,
+} from '../../runtime/playbook/panelWire'
 
 const id = z.string().check(z.trim(), z.minLength(1), z.maxLength(PLAYBOOK_ID_MAX_CHARS))
 const request = z.int().check(z.gte(1))
@@ -48,8 +51,6 @@ export const panelChildSchema = z.strictObject({
   sessionId: session,
   files: z.array(file).check(z.maxLength(PLAYBOOK_RECORD_MAX)),
 })
-
-const agentRef = z.strictObject({ itemId: session, agentId: session, sessionId: session })
 
 /** The two events a review is settled by; nothing else of a turn crosses. */
 export const playbookReviewEventSchema = z.discriminatedUnion('type', [
@@ -99,7 +100,7 @@ export const toPlaybookWorkerSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('agents'),
     id: request,
-    children: z.array(agentRef).check(z.maxLength(PLAYBOOK_RECORD_MAX)),
+    children: z.array(playbookAgentRefSchema).check(z.maxLength(PLAYBOOK_RECORD_MAX)),
   }),
   z.strictObject({ type: z.literal('standing'), id: request, sessionId: session }),
   z.strictObject({
@@ -166,10 +167,7 @@ export const panelModuleSummarySchema = z.strictObject({
 /** Each request's own answer; the window parses `result.value` with the one it asked for. */
 export const playbookResultSchemas = {
   snapshot: playbookSnapshotSchema,
-  agents: z.record(
-    z.string(),
-    z.array(playbookRecordSchema).check(z.maxLength(PLAYBOOK_RECORD_MAX)),
-  ),
+  agents: playbookAgentRecordsSchema,
   standing: z.array(panelModuleSummarySchema).check(z.maxLength(PLAYBOOK_RECORD_MAX)),
   reviewOpening: z.discriminatedUnion('kind', [
     z.strictObject({ kind: z.literal('ordinary') }),

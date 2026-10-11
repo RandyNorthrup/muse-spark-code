@@ -19,11 +19,11 @@ import {
   type PlaybookWindow,
   type PlaybookWindowDeps,
 } from './playbookWindow'
+import { createPlaybookPanel, type PlaybookPanel } from './playbookPanel'
 import { servePlaybook } from './playbookWorker'
 import { playbookWorkerDataSchema } from './workerProtocol'
 
 export type {
-  PlaybookAgentRef,
   PlaybookConversationEvents,
   PlaybookDispatch,
   PlaybookWindow,
@@ -44,6 +44,8 @@ export interface PlaybookWindowBundle extends PlaybookWindow {
    * agent use, over this window's own journal surface.
    */
   answerBundle(): PlaybookAnswerBundle
+  /** The panel's own channel: the Agent map's page and the rows' records. */
+  readonly panel: PlaybookPanel
 }
 
 /** The window's playbook; the caller's table is installed before any of it words a result. */
@@ -62,6 +64,7 @@ export function createPlaybookWindow(
   })
   return {
     ...window,
+    panel: createPlaybookPanel(window, deps.workspaceRoot !== undefined),
     answerBundle: () => ({
       parsePlaybookCommand,
       createPlaybookSurface: () => window.surface,
