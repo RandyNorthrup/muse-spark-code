@@ -127,3 +127,17 @@ export function accountSwap(): AccountEvent {
 export function forgedState() {
   return { ...sessionAccountsRig().state(), secret: 'account-secret-canary' }
 }
+
+export function duplicateMetaAccounts(origin = 'https://api.meta.ai') {
+  return {
+    id: 'meta',
+    policyProvider: 'meta',
+    product: 'model-api',
+    auth: 'apiKey',
+    origin,
+    accounts: [
+      { id: 'default', label: 'Default', order: 0, thresholds: {} },
+      { id: 'default', label: 'Copy', order: 1, thresholds: {} },
+    ],
+  }
+}

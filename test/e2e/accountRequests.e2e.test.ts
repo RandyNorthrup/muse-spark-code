@@ -187,28 +187,9 @@ async function rig(
     log,
   })
   const requests = await services.requests(client, selection)
-  const host = new ModelApiHost({
-    ...fakeModelApiHostDeps({
-      client,
-      workspaceRoot: '/workspace',
-      io: memoryToolIo({}, '/workspace'),
-      log,
-    }),
-    now: Date.now,
-    accountRequests: requests,
-    store: memorySessionStore(),
-    getAccountId: () => Promise.resolve(createHash('sha256').update(KEY_A).digest('hex')),
-  })
+  const host = createHost(client, requests)
   hosts.push(host)
-  const session = await host.startSession({
-    workspaceRoot: '/workspace',
-    modelId: MODEL,
-    approvalMode: 'promptUnmatched',
-  })
-  const events: AgentEvent[] = []
-  session.onEvent((event) => {
-    events.push(event)
-  })
+  const { session, events } = await observedSession(host)
   const turn = async (terminal = 'completed') => {
     const previous = events.filter((event) => event.type === 'turnCompleted').length
     await session.sendTurn([{ type: 'text', text: 'hello' }])
@@ -285,28 +266,9 @@ describe('installed account request writer', () => {
         client: t.client,
       }),
     }
-    const host = new ModelApiHost({
-      ...fakeModelApiHostDeps({
-        client: t.client,
-        workspaceRoot: '/workspace',
-        io: memoryToolIo({}, '/workspace'),
-        log,
-      }),
-      accountRequests: requests,
-      now: Date.now,
-      store: memorySessionStore(),
-      getAccountId: () => Promise.resolve(createHash('sha256').update(KEY_A).digest('hex')),
-    })
+    const host = createHost(t.client, requests)
     hosts.push(host)
-    const session = await host.startSession({
-      workspaceRoot: '/workspace',
-      modelId: MODEL,
-      approvalMode: 'promptUnmatched',
-    })
-    const events: AgentEvent[] = []
-    session.onEvent((event) => {
-      events.push(event)
-    })
+    const { session, events } = await observedSession(host)
     await session.sendTurn([{ type: 'text', text: 'hello' }])
     await vi.waitFor(() => {
       expect(
@@ -420,11 +382,7 @@ describe('installed account request writer', () => {
       currentAccount: 'work',
     })
     const files = path.join(t.folder, ACCOUNT_REQUEST_STORE.directory)
-    const rows = readdirSync(files)
-      .filter((file) => file.startsWith('claim-'))
-      .map((file) =>
-        accountRequestRowSchema.parse(JSON.parse(readFileSync(path.join(files, file), 'utf8'))),
-      )
+    const rows = readClaims(files)
     expect(rows.map((row) => row.account).toSorted((a, b) => a.localeCompare(b))).toEqual([
       'default',
       'work',
@@ -451,12 +409,7 @@ describe('installed account request writer', () => {
       JSON.parse(readFileSync(path.join(files, limitFile), 'utf8')),
     )
     expect(Date.parse(limit.resetAt)).toBeGreaterThan(Date.now())
-    const claim = readdirSync(files)
-      .filter((file) => file.startsWith('claim-'))
-      .map((file) =>
-        accountRequestRowSchema.parse(JSON.parse(readFileSync(path.join(files, file), 'utf8'))),
-      )
-      .find((row) => row.account === 'default')
+    const claim = readClaims(files).find((row) => row.account === 'default')
     if (claim?.settledUsd == null) throw new Error('missing settled claim')
     expect(Usd.from(claim.settledUsd).toAmount()).toBe('0')
     t.services.dispose()
@@ -477,3 +430,38 @@ describe('installed account request writer', () => {
     t.services.dispose()
   })
 })
+
+function createHost(client: ModelApiClient, requests: AccountRequestPort) {
+  return new ModelApiHost({
+    ...fakeModelApiHostDeps({
+      client,
+      workspaceRoot: '/workspace',
+      io: memoryToolIo({}, '/workspace'),
+      log,
+    }),
+    now: Date.now,
+    accountRequests: requests,
+    store: memorySessionStore(),
+    getAccountId: () => Promise.resolve(createHash('sha256').update(KEY_A).digest('hex')),
+  })
+}
+function readClaims(files: string) {
+  return readdirSync(files)
+    .filter((file) => file.startsWith('claim-'))
+    .map((file) =>
+      accountRequestRowSchema.parse(JSON.parse(readFileSync(path.join(files, file), 'utf8'))),
+    )
+}
+
+async function observedSession(host: ModelApiHost) {
+  const session = await host.startSession({
+    workspaceRoot: '/workspace',
+    modelId: MODEL,
+    approvalMode: 'promptUnmatched',
+  })
+  const events: AgentEvent[] = []
+  session.onEvent((event) => {
+    events.push(event)
+  })
+  return { session, events }
+}

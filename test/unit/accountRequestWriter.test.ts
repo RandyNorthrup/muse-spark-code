@@ -1,7 +1,8 @@
+import { poolMetadata } from './helpers/accounts/metadata'
 import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import { AccountRequestWriter, activeAccountBilling } from '../../src/core/accounts/requestWriter'
-import { AccountStore, type AccountsMetadataPort } from '../../src/core/providers/accounts'
+import { AccountStore } from '../../src/core/providers/accounts'
 import type { AccountCredentialVault } from '../../src/core/providers/accountCredentialRecord'
 import { Usd } from '../../src/shared/usd'
 import { poolRig, poolRequest } from './helpers/accounts/pool'
@@ -11,21 +12,7 @@ const ORIGIN = 'https://provider.invalid'
 function rig() {
   const t = poolRig()
   const keys = new Map(t.rows.map((row) => [row.id, `fake-only-${row.id}`]))
-  const metadata: AccountsMetadataPort = {
-    read: () =>
-      Promise.resolve({
-        id: 'anthropic',
-        policyProvider: 'anthropic',
-        product: 'api',
-        origin: ORIGIN,
-        auth: 'apiKey',
-        accounts: t.rows,
-      }),
-    writeAccounts: (_provider, accounts) => {
-      t.rows.splice(0, t.rows.length, ...accounts)
-      return Promise.resolve()
-    },
-  }
+  const metadata = poolMetadata(t.rows, ORIGIN)
   const vault: AccountCredentialVault = {
     read: (binding) =>
       Promise.resolve({

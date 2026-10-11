@@ -1,4 +1,5 @@
-import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { removeTestFolders } from './helpers/tempFolders'
+import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
 import { linkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -11,7 +12,7 @@ import { UI_TEXT } from '../../src/shared/constants'
 
 const folders: string[] = []
 afterEach(() => {
-  for (const folder of folders.splice(0)) rmSync(folder, { recursive: true, force: true })
+  removeTestFolders(folders)
 })
 function rig() {
   const folder = mkdtempSync(path.join(tmpdir(), 'cm1082-journal-'))
