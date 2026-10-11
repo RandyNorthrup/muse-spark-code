@@ -32,6 +32,7 @@ import { unpackUiTable } from '../../src/shared/l10n/packed'
 import { DEVICE_LOGIN_FILE, LOGOUT_SHELL } from '../unit/helpers/credentialShapes'
 import { memorySecrets } from '../unit/helpers/fakes'
 import { fakeModelApi } from '../unit/helpers/fakeModelApi'
+import { FIXTURE_HOOK_TIMEOUT_MS } from '../unit/helpers/fixtureBudget'
 import { buildModelApiBundle } from '../unit/helpers/modelApiBundle'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
 import { buildAcpFixture, removeAcpFixture } from './acpFixture'
@@ -125,7 +126,7 @@ beforeAll(async () => {
       logLevel: 'silent',
     })
   }
-})
+}, FIXTURE_HOOK_TIMEOUT_MS)
 
 afterAll(async () => {
   const made = [fake.installDir, signedIn, signedOut, loggedOut, workspace, dataHome]

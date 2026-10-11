@@ -94,6 +94,31 @@ afterAll(async () => {
   if (runtime.host) await new Promise((resolve) => runtime.host.server.close(resolve))
 })
 
+// A harness scene has 6.5 s of fake time to play, about 400 animation frames.
+// A scene that ends with a menu open pays for each one: the open menu
+// samples its anchor's geometry every frame, and on hosted macOS that alone
+// spent the case's five seconds. Such a scene is named here with the last
+// thing its scenario renders, and plays only until that is attached.
+const SCENE_PLAY_MS = 6500
+const SCENE_STEP_MS = 100
+const SCENE_READY = { 'chat-tool-menu-narrow': '.gooey-menu-pill' }
+
+async function playScene(page, scene) {
+  const ready = SCENE_READY[scene]
+  if (ready === undefined) {
+    await page.clock.runFor(SCENE_PLAY_MS)
+    return
+  }
+  for (let played = 0; played < SCENE_PLAY_MS; played += SCENE_STEP_MS) {
+    await page.clock.runFor(SCENE_STEP_MS)
+    if ((await page.locator(ready).count()) === 0) continue
+    // The fan measures its pills and places itself in the frames after it mounts.
+    await page.clock.runFor(SCENE_STEP_MS)
+    return
+  }
+  throw new Error(`${scene} never rendered ${ready} in ${SCENE_PLAY_MS} ms of scene time`)
+}
+
 async function openHarness(theme, scene) {
   const page = await runtime.browser.newPage({
     viewport: { width: 320, height: 760 },
@@ -121,7 +146,7 @@ async function openHarness(theme, scene) {
   await page.waitForSelector('textarea,.gate,.todo-surface,.schedule-v2-surface,[role=alert]', {
     state: 'attached',
   })
-  await page.clock.runFor(6500)
+  await playScene(page, scene)
   if (scene === 'history-archived') await page.locator('.history-archive').first().waitFor()
   return page
 }
