@@ -1,8 +1,6 @@
 import { Usd, type UsdAmount } from '../shared/usd'
 // Durable daily admission for the standalone runtime; no VS Code imports.
-import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import * as z from 'zod/mini'
 import { createSessionBudgetJournal } from '../host/backend/sessionBudgetJournal'
 import type { ProviderClient, ResponseAttemptGuard } from '../core/backends/modelapi/client'
 import {
@@ -17,22 +15,13 @@ import type { ResponseObject } from '../core/backends/modelapi/schemas'
 import {
   EXEC_USD_DECIMALS,
   PAID_DAILY_BUDGET,
-  RUNTIME_SETTINGS_FILE,
-  SETTING_DEFAULTS,
   TOKENS_PER_MILLION,
   UI_TEXT,
 } from '../shared/constants'
-import { storeErrorCode } from '../host/backend/storeErrors'
+import { runtimeDailyBudgetUsd } from './dailyBudgetSetting'
 import type { RunLedger, ResponseTicket } from './exec/runLedger'
 import type { LastResponse, Refusal } from './exec/execProtocol'
 
-const settingsSchema = z.strictObject({
-  paidDailyBudgetUsd: z.optional(
-    z
-      .number()
-      .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
-  ),
-})
 const ceilUsd = (cost: UsdAmount) => Usd.from(cost).ceiling(EXEC_USD_DECIMALS).toAmount()
 
 export function createRuntimeDailyBudget(deps: {
@@ -50,18 +39,7 @@ export function createRuntimeDailyBudget(deps: {
     const date = new Date(deps.now())
     return [date.getFullYear(), date.getMonth() + 1, date.getDate()].join('-')
   }
-  const capUsd = () => {
-    try {
-      return (
-        settingsSchema.parse(
-          JSON.parse(readFileSync(path.join(deps.dataFolder, RUNTIME_SETTINGS_FILE), 'utf8')),
-        ).paidDailyBudgetUsd ?? SETTING_DEFAULTS.paidDailyBudgetUsd
-      )
-    } catch (error: unknown) {
-      if (storeErrorCode(error) === 'ENOENT') return SETTING_DEFAULTS.paidDailyBudgetUsd
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
-    }
-  }
+  const capUsd = () => runtimeDailyBudgetUsd(deps.dataFolder)
   return {
     async reserve(costUsd: UsdAmount, signal: AbortSignal): Promise<SessionBudgetClaim> {
       signal.throwIfAborted()

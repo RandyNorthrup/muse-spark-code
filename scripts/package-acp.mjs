@@ -47,6 +47,7 @@ const BUNDLES = [
   'acpPlaybook.js',
   'runtimeQuestions.js',
   'runtimeAccounts.js',
+  'accountPaid.js',
   'questionNotes.js',
   'mcpPool.js',
   'exec.js',

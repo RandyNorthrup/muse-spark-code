@@ -1,6 +1,8 @@
 import { createSchedulesBridge, registerScheduleCommands } from './host/schedules/schedulesBridge'
 import { notify } from './core/events/notify'
 import {
+  ACCOUNT_DEFAULT_ID,
+  ACCOUNT_PAID_STORE,
   PAID_APPROVAL_ORDER_DIRECTORY,
   LEGAL_EXPLANATION_BUNDLE_FILE,
   REFERENCE_BUNDLE_FILE,
@@ -1161,6 +1163,17 @@ async function activateWindow(
       budgetUsd: currentSettings().tabDailyBudgetUsd,
       todayUsd: tab.todayTotalUsd(),
     }),
+    // M108 lane P (D88.7): the stored Model API key is Meta's default account
+    // (D88.2), so every use here keeps this workspace's consent; a use billed
+    // to another account asks for that account, kept in this workspace's
+    // storage. Per-request selection binds this port when it lands (M95/M109).
+    accountPaid: {
+      billing: () => ({ provider: 'meta', account: ACCOUNT_DEFAULT_ID }),
+      folder: path.join(
+        (context.storageUri ?? context.globalStorageUri).fsPath,
+        ACCOUNT_PAID_STORE.folder,
+      ),
+    },
     log,
   })
   // The Auto reviewer on Muse Code (M90, PLAN.md D69): dist/museCodeReviewer.js

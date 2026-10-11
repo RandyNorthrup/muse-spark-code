@@ -29,6 +29,17 @@ happened, not what was planned; superseded entries are kept.
   JetBrains, Visual Studio, Eclipse and the companion page can reuse the same
   chip and status adapter once their M104 bridges bind them; none does yet.
   ACP and terminals keep `/resources` and `resources status|resume`.
+- **Paid consent per account** (M108 lane P). In VS Code and in every ACP
+  editor, a paid use billed to the provider's default account keeps this
+  workspace's consent exactly as before. A use billed to another account asks
+  once before that account's first charge, with the use's own question plus
+  the account, its price and the shared daily budget; **Allow always** is kept
+  per account and tariff, and lapses with **Ask again** or the feature's
+  price. The account consent and its store load on that first use
+  (`dist/accountPaid.js`), never at activation. No editor bills another
+  account interactively yet (headless `exec --account` keeps its explicit
+  paid flags and hard budget), so nothing changes until per-request account
+  selection lands. Help says so in all fourteen languages.
 
 ### Changed
 
@@ -135,6 +146,22 @@ happened, not what was planned; superseded entries are kept.
 - Visual capture waits for restored question rows to finish loading before
   measuring the context-menu passage, preventing a timing-dependent 14 px
   menu displacement in narrow captures. Pixel allowances are unchanged.
+- Account-bound paid consent checks shared revocation and price generations
+  on every use. **Ask again** from another window ends an account's **Allow
+  once** even when that window never loaded account consent; delayed **Allow
+  always** answers after revocation are refused and never saved. ACP's
+  unflagged-feature revocation follows the same rule.
+- Account consent uses the same budget rule in memory and on disk:
+  user/machine ceiling changes keep **Allow always**, while a
+  repository-supplied ceiling re-asks with the new budget before spending.
+- Account-bound paid consent closes the 0.17 consent review's three
+  prerequisites (RVCONSENT017D) before any caller binds it. Each question keeps
+  the revocation epoch it was asked under, so a forced or concurrent question
+  can no longer lend a revoked answer its epoch, and a lost capture is refused
+  rather than saved under the current epoch. An older revocation's clears
+  remove only grants approved before it, never one approved after its advance.
+  A revocation from any window ends "Allow once" for the window, and an answer
+  given under a revoked epoch is never cached for later uses.
 
 - Schedule runtime tests cover Linux, Windows and macOS rearm ownership
   explicitly; macOS wake shutdown retains its independent after-exit helper.

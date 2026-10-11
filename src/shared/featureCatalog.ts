@@ -699,7 +699,7 @@ export function featureCatalog(): readonly Feature[] {
         { ui: 'referenceAccountsTitle' },
         { ui: 'referenceAccounts' },
         [],
-        ['accountSwap', 'accountParallel', 'accounts.severalOnThisDevice'],
+        ['accountSwap', 'accountParallel', 'accounts.severalOnThisDevice', 'paidDailyBudgetUsd'],
         'several-accounts-per-provider',
         undefined,
         false,

@@ -17,6 +17,7 @@ import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from '../../src/acp
 import { AcpPaidUse } from '../../src/acp/paid'
 import * as paidConsent from '../../src/core/paid/paidConsent'
 import type { AcpQuestionRegistryFactory } from '../../src/acp/questionDeferral'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { mkdtemp } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
@@ -116,6 +117,8 @@ interface HarnessOptions {
   readonly paid?: readonly AcpPaidFeature[]
   /** `--trust-workspace`: "Allow always" is offered and kept (M58). */
   readonly isTrusted?: boolean
+  /** M108 lane P: the account the backend bills and where its consent is kept. */
+  readonly paidAccount?: { readonly account: string; readonly folder: string }
   readonly questionPolicy?: AcpAgentDeps['questions']
   readonly questions?: AcpQuestionRegistryFactory
 }
@@ -135,6 +138,12 @@ function harness(options: HarnessOptions = {}): Harness {
     canRemember: () => options.isTrusted === true,
     grants,
     log,
+    ...(options.paidAccount !== undefined && {
+      billing: () => ({ provider: 'meta', account: options.paidAccount?.account ?? '' }),
+      accountFolder: () => options.paidAccount?.folder ?? '',
+      dailyBudgetUsd: () => Usd.from(5).toAmount(),
+      sleep: () => Promise.resolve(),
+    }),
   })
   const deps: AcpAgentDeps = {
     legalScan: options.legalScan,
@@ -2449,6 +2458,27 @@ describe('paid features in the agent (M63c, M58)', () => {
     },
   )
 
+  it('names another account, its tariff and the shared budget in the editor’s prompt (M108 lane P)', async () => {
+    const folder = mkdtempSync(path.join(tmpdir(), 'm108p-acp-account-'))
+    try {
+      const h = harness({
+        kind: 'modelApi',
+        paid: ['webSearch'],
+        answer: choose('paid-allow-once'),
+        paidAccount: { account: 'work', folder },
+      })
+      expect(await answersInOneSession(h, [WEB_SEARCH, WEB_SEARCH])).toEqual([true, true])
+      // Asked once before the first charge for this account, then held for the window.
+      expect(h.permissions).toHaveLength(1)
+      const content = JSON.stringify(h.permissions[0]?.toolCall.content)
+      expect(content).toContain('$2.50 per 1,000 searches')
+      expect(content).toContain('meta · work')
+      expect(content).toContain('Shared daily budget: $5.00')
+      expect(h.grants.byFolder.size).toBe(0)
+    } finally {
+      rmSync(folder, { recursive: true, force: true })
+    }
+  })
   it('denies without asking a feature it has no flag for, and subagents always', async () => {
     const h = harness({ kind: 'modelApi', paid: ['webSearch'], answer: choose('paid-allow-once') })
     expect(await answersInOneSession(h, [IMAGE, SUBAGENT_TASK])).toEqual([false, false])

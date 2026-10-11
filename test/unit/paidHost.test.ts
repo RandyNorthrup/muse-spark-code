@@ -16,6 +16,7 @@ import { fill } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { mockJudgePaidConfiguration } from './helpers/judgePaidConfiguration'
 import { confirmModal } from './helpers/vscodeViews'
+import { answerWith, titleOf } from './helpers/paidModal'
 import { window } from './mocks/vscode'
 import { usageRecordSchema } from '../../src/shared/usageJournal'
 
@@ -53,22 +54,10 @@ function paidWithSettings(
   return { paid, settings }
 }
 
-/** A modal item's label: a plain string, or a `MessageItem`'s title. */
-function titleOf(item: unknown): string {
-  return typeof item === 'string' ? item : (item as vscode.MessageItem).title
-}
-
 /** The popup's buttons, as the last `showWarningMessage` call offered them. */
 function offeredButtons(): string[] {
   const call: unknown[] = vi.mocked(confirmModal).mock.calls.at(-1) ?? []
   return call.slice(2).map((item) => titleOf(item))
-}
-
-/** Answers the next modal with the button titled `title`, or closes it. */
-function answerWith(title: string | undefined): void {
-  vi.mocked(confirmModal).mockImplementationOnce((_message, _options, ...items: unknown[]) =>
-    Promise.resolve(items.find((item) => titleOf(item) === title) as never),
-  )
 }
 
 /** What the popup says for one use: its question and its detail. */

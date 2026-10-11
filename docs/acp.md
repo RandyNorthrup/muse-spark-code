@@ -37,6 +37,13 @@ not apply to this process.
 
 ACP and headless Model API/BYO requests share a hard local-day budget in the agent data folder. Its `settings.json` accepts `{"paidDailyBudgetUsd":5}` (USD; default $5, range $0.50–$500), corresponding to the extension’s `museSpark.paidDailyBudgetUsd`. Reservations use an exclusive cross-process lock before dispatch and settle from verified usage; an interrupted or unpriced request retains its liability. Headless also requires `--max-budget-usd`, and BYO attempts use the same usage journal as interactive turns. Image generation still requires its flag and consent (or the headless flag plus hard run budget). Hosted search is unavailable in this runtime while the hard daily budget is active because its returned fees have no dispatch bound.
 
+Account-bound interactive consent is revoked when another agent starts
+without the feature's flag: an open question's older answer cannot restore
+Always, and a previous Once cannot survive the changed generation. The
+agent's data-folder budget is user-owned; changing it keeps account Always
+while the hard daily cap still binds. Interactive non-default account
+selection remains unavailable until its account owner is connected.
+
 The configuration below names the command and its arguments. Where each
 editor keeps its agent settings is in that editor's documentation, linked
 from [the compatibility plan](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/ide-compatibility.md#32-ides-and-editors-reached-through-a-shared-acp-agent);

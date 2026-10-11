@@ -363,6 +363,8 @@ export function createRuntimeAccountServices(
           runtime: createBackend({
             ...deps,
             secrets: secretsFor('meta', selection.account, deps.secrets),
+            // The account the run bills; its headless paid policy still decides.
+            billingAccount: selection.account,
           }),
           accounts: sessions('meta', selection.account),
         }

@@ -1290,14 +1290,20 @@ class AcpSession {
     return true
   }
 
-  public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
+  public async askPaidUse(
+    request: PaidUseRequest,
+    canRemember: boolean,
+    accountLine?: string,
+  ): Promise<PaidUseAnswer> {
     const pending = this.pending
     const preparing = this.preparing
     // Unique for the client's lifetime: a session loaded again starts afresh.
     const toolCallId = `${ACP_PAID_TOOL_CALL_PREFIX}${randomUUID()}`
     const { title, detail } = await paidUseQuestion(request)
     if (!this.isCurrentPaidPrompt(pending, preparing)) return 'deny'
-    const content = [{ type: 'content' as const, content: { type: 'text' as const, text: detail } }]
+    // M108 lane P: a use billed to another account names it, as the panel does.
+    const text = accountLine === undefined ? detail : `${detail}\n\n${accountLine}`
+    const content = [{ type: 'content' as const, content: { type: 'text' as const, text } }]
     this.send({
       sessionUpdate: 'tool_call',
       toolCallId,
@@ -2507,6 +2513,7 @@ class AgentState {
     sessionId: string,
     request: PaidUseRequest,
     canRemember: boolean,
+    accountLine?: string,
   ): Promise<PaidUseAnswer> {
     const acp = this.sessions.get(sessionId)
     if (acp === undefined) {
@@ -2515,7 +2522,11 @@ class AgentState {
       )
       return 'deny'
     }
-    return await acp.askPaidUse(request, canRemember)
+    return await acp.askPaidUse(
+      request,
+      canRemember,
+      ...(accountLine === undefined ? [] : [accountLine]),
+    )
   }
 
   public async askVaultUse(
@@ -2533,8 +2544,13 @@ class AgentState {
 export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
   const state = new AgentState(deps)
   deps.vault?.attach((sessionId, request) => state.askVaultUse(sessionId, request))
-  deps.paid.attach((sessionId, request, canRemember) =>
-    state.askPaidUse(sessionId, request, canRemember),
+  deps.paid.attach((sessionId, request, canRemember, accountLine) =>
+    state.askPaidUse(
+      sessionId,
+      request,
+      canRemember,
+      ...(accountLine === undefined ? [] : [accountLine]),
+    ),
   )
   return acpAgent({ name: ACP_AGENT_NAME })
     .onRequest('initialize', (context) => {
