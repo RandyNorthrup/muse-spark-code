@@ -1,0 +1,224 @@
+# PLAN.md archive move (2026-10-11)
+
+`PLAN.md` is read whole by `npm run check:plan`, `npm run check:roadmap` and
+`/report`. Their reader refuses a plan over `REPORT_PLAN_MAX_BYTES`
+(4,194,304 bytes). On the release train of 2026-10-11 the file stood at
+4,157,477 bytes, 36,827 short of the bound, and the next branch to merge added
+71,640: both checks failed in the middle of that merge
+(`Plan format at line 1: input-size: maxUtf8Bytes=4194304`). The lead's
+ruling: the bound is a sound product limit and stays; closed history moves to
+`docs/plan-archive/`, and a gate keeps the file from getting that close again.
+
+An earlier move (2026-10-08, `docs/certification/int0170-combined.md`) had put
+147 closed milestone sections in `docs/plan-archive/milestones.md`. This one
+follows its convention for milestones and adds two files.
+
+## Result
+
+|                                   |     Bytes |  Lines | Share of the bound |
+| --------------------------------- | --------: | -----: | -----------------: |
+| `PLAN.md` before (`5161b6476`)    | 4,157,477 | 48,966 |              99.1% |
+| `PLAN.md` after                   | 3,472,457 | 40,836 |              82.8% |
+| Moved out (net of what was added) |   685,020 |  8,130 |                    |
+| The gate's line (85%)             | 3,565,158 |        |                    |
+
+| Pool                                        | Sections | Blocks | Moved bytes | Added to PLAN.md |
+| ------------------------------------------- | -------: | -----: | ----------: | ---------------: |
+| §2 decisions, design record                 |       50 |     51 |     534,696 |           42,653 |
+| §7 gate records dated 2026-10-08 or earlier |        1 |    140 |     164,850 |              432 |
+| §6 closed 0.17.0 sections                   |        7 |      7 |      35,071 |            6,243 |
+
+"Added to PLAN.md" is what stands in the moved text's place: a decision's
+paragraph, the one pointer paragraph in §7, a closed section's kept rows and
+pointer line. A note under the §2 heading says how to read the section. The
+blank lines between moved passages are not counted in either column; the
+first table's figures are the files' sizes.
+
+SHA-256 of the files at this commit:
+
+| File                              | SHA-256                                                            |
+| --------------------------------- | ------------------------------------------------------------------ |
+| `PLAN.md` before                  | `17b1c71ea09e709edf94cec3a1ac73f8cae68fbd821f87720ae527998cafe71f` |
+| `PLAN.md` after                   | `340236ae80ab2cbb9339b76e4f9a184383b24e5c5535386803e665955ac5c8b3` |
+| `docs/plan-archive/decisions.md`  | `76b6aafabe77646a08006605d96d9c770e22da3cd186249ff369dabdd8dc2128` |
+| `docs/plan-archive/gates.md`      | `141e241a52cf694b3fc737b1747c604924695756d4baa112fa3ec8cfdfce903d` |
+| `docs/plan-archive/milestones.md` | `39cf6d360d030fbf3c336d154ce2cbd46001ba2c52e576aeeca40483c52b2c49` |
+
+## What moved
+
+**§2 decisions (50).** Top-level blocks of a decision that no open branch
+touches, that stand next to no touched block, that no test cites and that are
+not live tables. `PLAN.md` keeps the heading, one paragraph that states the
+rule in force and ends with `Full record: …`, and the kept blocks in place.
+Each paragraph was written from the whole decision by a reader that had to
+copy three to eight exact quotes with line numbers supporting it; every quote
+was checked mechanically against the frozen file (432 quotes over 55 drafts,
+0 mismatches), and where a decision amends itself the paragraph states the
+amended rule. Five drafts were not used: the decisions they describe stayed.
+Audit findings tables (D14, D16 to D29) count as record and moved; every
+other table stayed.
+
+| Decision | Moved bytes | Decision | Moved bytes | Decision | Moved bytes |
+| -------- | ----------: | -------- | ----------: | -------- | ----------: |
+| D11      |       3,932 | D32      |       4,947 | D61      |       3,567 |
+| D12      |       9,016 | D33      |       4,287 | D62      |       9,910 |
+| D13      |       8,268 | D37      |       2,040 | D66      |      30,493 |
+| D14      |       5,963 | D38      |      11,158 | D67      |      17,261 |
+| D18      |       6,950 | D39      |       4,390 | D68      |       3,345 |
+| D19      |       8,738 | D40      |       4,902 | D69      |       4,352 |
+| D20      |       3,839 | D41      |       6,947 | D70      |      14,143 |
+| D21      |       8,377 | D42      |       7,256 | D72      |       7,224 |
+| D22      |       3,440 | D43      |       8,525 | D73      |       5,898 |
+| D23      |       4,135 | D45      |       3,818 | D74      |      39,185 |
+| D24      |      18,282 | D46      |       2,771 | D76      |       7,900 |
+| D25      |      10,003 | D47      |       9,642 | D77      |      35,296 |
+| D26      |      41,468 | D48      |       3,116 | D78      |       4,182 |
+| D27      |      19,817 | D50      |       6,251 | D79      |      11,990 |
+| D28      |      21,213 | D51      |       3,294 | D82      |      21,037 |
+| D29      |       5,414 | D60      |       3,753 | D85      |      17,799 |
+|          |             |          |             | D95      |      27,660 |
+|          |             |          |             | D98      |       7,502 |
+
+**§7 gate records (140 of 260).** A record is a `###` heading or a paragraph
+whose bold title carries a date; undated paragraphs belong to the record above
+them. A record moved when its date is 2026-10-08 or earlier, no open branch
+touches it or a record next to it, and its title names no milestone that has
+nothing in a release yet. Kept: 44 a branch touches, 30 of unreleased
+milestones, 16 dated later, and the rest for standing next to a touched record
+or first or last in the section. One paragraph in §7 says where the others
+went.
+
+**§6 closed sections (7).** INT0170, INT0170B, INT0180, FIXCYCLES, FIXCYCLES2,
+MONEY017 and VIS017: built or merged by 2026-10-08, shipped in 0.17.0, touched
+by no open branch. As in the first move, `PLAN.md` keeps the heading, every
+status row, the Goal / Depends on / Gates fields, the checklist, the lane
+tables and the pointer line; the whole section is copied to `milestones.md`.
+
+## What stayed, and why
+
+- **§3, §8, §9, §10** and every milestone that is not fully released: the
+  reader parses them, `/report` diffs §8 and §9 against the last tag, and
+  lanes work in them.
+- **D3 and D6** (version pins and bundle budgets) by the lead's ruling, and
+  D36 and D49, whose bodies are mostly live tables.
+- **The agent roles and team design (D75, M96).** Its heading at old line
+  6120 has no body. Its text stands under D74's first heading (old lines 6124
+  to 6256) and under D82's from old line 6502 to 9743, without a heading of
+  its own. Lanes are working in it; it stays whole, and D82's paragraph says
+  so. Only D82's own text (to the rule at old line 6500) moved. Filing that
+  text under its own heading is left to the M96 lanes.
+- **D1, D7 and D30.** Each states something a later decision or the code has
+  since changed (the backend interface's names, the pre-M4 approval collapse,
+  "off by default" before D78), so a paragraph true to its text would mislead.
+  They stay in full.
+- **D89, D90, D91, D92 and D93**, and most of D73 and D82's team text: open
+  branches touch nearly all of their blocks.
+- **Passages tests cite**: D81's and M73's `Candidate packing default`, M101's
+  lane P1 record, M113's closure lines, the five team phrases of
+  `teamPlanRecord`, M121's sanctioned-money clauses; and the lane tables of
+  M91, M93 and M100.
+
+## Proof that nothing was lost
+
+Every moved passage stands in its archive file between
+`<!-- plan-archive:begin id lines bytes sha256 -->` and
+`<!-- plan-archive:end id -->`. `lines` are its line numbers in `PLAN.md` at
+`5161b6476`.
+
+1. **Per block.** `test/unit/planArchive.test.ts` hashes the bytes of every
+   block against its marker: 198 blocks (51 + 140 + 7), 0 mismatches. It also
+   fails on a marker that no longer parses, a duplicate id and an archive link
+   in `PLAN.md` that leads nowhere.
+2. **Reassembly.** Starting from the new `PLAN.md`, each of the 77 places the
+   move changed was restored from the archive files (the added lines removed,
+   the blocks and the blank lines between them put back; 74 places held
+   blocks, 3 only gained a paragraph). The result is 4,157,477 bytes with
+   SHA-256 `17b1c71e…cafe71f`: the old file, byte for byte.
+3. **Parsed facts.** The product's reader (`src/core/reporting/plan/reader.ts`)
+   gives the same facts for the old and the new file, positions aside: 217
+   milestones (status, date, goal, dependencies, gates, lanes, checklist), 34
+   questions, 139 risks, 276 residuals, 30 release records and 20 delivery
+   entries; 0 drift in both.
+4. **ROADMAP.md** regenerates with no change (`npm run roadmap:generate`).
+
+## Proof that no open branch merges worse
+
+277 unmerged heads committed since 2026-10-06 change `PLAN.md` (the queued
+train branches, `m104/*`, `m126/*`, the M100, M103 and M105 branches and their
+port lanes, M98, M110, M111 and every in-flight `c/*` head). Their own diffs
+touch 2,199 lines of the train's file; each touched block and the blocks next
+to it stayed in place.
+
+Each head's `PLAN.md` was then merged onto the old file and onto the new one
+with `git merge-file --diff-algorithm=histogram` (the diff `git merge` uses
+for file content) and the two results compared:
+
+|                                                    | Old file | New file |
+| -------------------------------------------------- | -------: | -------: |
+| Heads that merge with no conflict                  |       43 |       43 |
+| Conflict regions, all heads                        |    1,003 |    1,003 |
+| Branch-changed lines inside conflict regions       |  113,747 |  113,747 |
+| Heads with a line newly in conflict, or more of it |          |        0 |
+
+A first run with the Myers diff reported 67 old-base heads as worse. All were
+alignment artefacts of that algorithm on bases older than the 2026-10-08 plan
+restructuring (a branch's untouched list item in §3 matched against a
+different paragraph); the histogram diff, the one a merge really uses, shows
+none.
+
+## The gate
+
+`scripts/check-plan.mjs` fails when the plan it checks is larger than 85% of
+`REPORT_PLAN_MAX_BYTES` (3,565,158 bytes), after format drift and before
+anything else, with the size, the line it crossed and where the procedure is:
+
+```
+PLAN.md is 3565159 bytes, over 85% (3565158) of the plan reader's 4194304-byte bound. Move closed history to docs/plan-archive/ before adding more: CONTRIBUTING.md, "Archiving closed history from PLAN.md".
+```
+
+`test/unit/checkPlan.test.ts` (`archive guard`, 4 cases): a plan at exactly
+85% passes; one byte more fails with that message and no other output; format
+drift is still reported first; CONTRIBUTING.md has the section the message
+names and the repository's own plan is under the line.
+
+Room after this move: 92,701 bytes to the gate's line. The branches queued
+for this train add about 244,000 bytes to `PLAN.md` between them, so the gate
+will ask for the next move before they are all in. What becomes archivable
+then: the sections and gate records of 0.17.1 once it is released, and the
+train's own once it ships.
+
+## Runs
+
+Linux laptop rig (Ubuntu 25.10, 8 threads), Node v24.21.0, Vitest 5.0.3,
+repository timeouts, on a snapshot of the finished tree; host: Prettier and
+ESLint (`--max-warnings=0`) on the changed files.
+
+| Run                                                                                                                                                              | Result                                                               |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `planReader`, `checkPlan`, `planArchive`, `planCitation`, `autoCompact`, `geminiCodec`, `m113cLaneClosure`, `teamPlanRecord`, `paidMoneyStructure`, `genRoadmap` | 10 files, 271 passed                                                 |
+| `npm run check:plan`                                                                                                                                             | `plan-format-v1; 217 milestones; 0 drift`                            |
+| `npm run check:roadmap`                                                                                                                                          | `217 entries; ROADMAP.md is current`                                 |
+| `npm run check:reference`                                                                                                                                        | `77 features, 71 commands, 100 settings, 29 slash, 257 CLI; current` |
+| `npm run typecheck:unit`                                                                                                                                         | exit 0                                                               |
+| `prettier --check` on `PLAN.md`, the three archive files and the changed documents                                                                               | clean                                                                |
+| `gitleaks dir docs/plan-archive`                                                                                                                                 | no leaks                                                             |
+
+### Drills
+
+Both at once, on the same rig, then restored and compared by SHA-256
+(`scripts/check-plan.mjs` `e5d10247…190dabcb`, `gates.md` `141e241a…fce903d`):
+
+| Break                                                                               | Red result                                                                                                                                                                                                                                                                                      |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The gate's line lowered to 80% (the plan is at 82.8%)                               | `node scripts/check-plan.mjs` exits 1: `PLAN.md is 3472457 bytes, over 80% (3355443) of the plan reader's 4194304-byte bound. Move closed history to docs/plan-archive/ …`. `checkPlan`: 3 failed (the repository gate case, `passes a plan at exactly 85%`, `fails one byte over`) / 25 passed |
+| One character changed inside archived block `7-0001` (`21 numeric` to `22 numeric`) | `planArchive`: 1 failed / 6 passed, `keeps every marked passage of gates.md byte for byte`: `expected [ '7-0001: sha256' ] to deeply equal []`                                                                                                                                                  |
+
+Together: 2 files failed, 4 tests failed, 31 passed, exit 1.
+
+## Tooling
+
+The move was made with scripts kept outside the repository (the integrator's
+scratchpad): a protection map from every open head's diff, a block mover that
+writes the stubs and the archive files, the reassembly check, the reader
+comparison and the merge simulation. CONTRIBUTING.md, "Archiving closed
+history from PLAN.md", states the procedure they implement.

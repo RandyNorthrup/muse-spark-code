@@ -191,6 +191,20 @@ happened, not what was planned; superseded entries are kept.
   exactly once, under M121's heading, so PLAN edits elsewhere no longer turn
   the suite red and a deleted, reworded, duplicated or moved clause does.
 
+### Documentation
+
+- PLAN.md had grown to 4,157,477 bytes, 36,827 short of the 4 MiB bound at
+  which `check:plan`, `check:roadmap` and `/report` refuse it. Closed history
+  moved to `docs/plan-archive/`, byte for byte: the design record of 50
+  decisions (`decisions.md`; PLAN.md §2 keeps each heading, a paragraph that
+  states the rule in force and a link), 140 gate records dated 2026-10-08 or
+  earlier (`gates.md`) and 7 closed 0.17.0 sections (`milestones.md`).
+  PLAN.md is 3,472,457 bytes. Passages that open branches touch, passages
+  tests cite and live tables stayed in place; every parsed fact is unchanged
+  and ROADMAP.md regenerates identical. `check:plan` now fails when PLAN.md
+  passes 85% of the bound and names the archive procedure in CONTRIBUTING.md,
+  and `test/unit/planArchive.test.ts` hashes every archived passage.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

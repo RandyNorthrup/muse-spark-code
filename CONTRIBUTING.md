@@ -299,6 +299,57 @@ Write for users: no lane, machine, agent or review-round names, no
 credentials, and nothing PLAN or the certification does not support. When
 unsure, say less.
 
+## Archiving closed history from PLAN.md
+
+`PLAN.md` is read whole by `npm run check:plan`, `npm run check:roadmap` and
+`/report`, and their reader refuses a plan over 4 MiB
+(`REPORT_PLAN_MAX_BYTES`). Reaching that bound stops all three at once, in the
+middle of whatever branch added the last paragraph, so `check:plan` fails
+earlier: once the file passes 85% of the bound. When it does, move closed
+history to [`docs/plan-archive/`](docs/plan-archive/) before adding more. What
+moves is kept there byte for byte:
+
+- **`milestones.md`**: sections of closed, released milestones. PLAN.md §6
+  keeps the heading, every status row, the Goal / Depends on / Gates fields,
+  the checklist, the lane tables and the line
+  `- **Archived.** The full section is in …`.
+- **`gates.md`**: §7 gate records of lanes that are verified and no longer
+  worked on. One paragraph in §7 says where they went.
+- **`decisions.md`**: the design record of §2 decisions. PLAN.md §2 keeps the
+  heading and one paragraph that states the rule in force and ends with
+  `Full record: …`. It also keeps, in place, every passage an open branch
+  touches with the passages next to it, every passage a test cites, and every
+  live table (budgets, caps, prices, limits, version pins).
+
+What never moves: §3, §8, §9 and §10; a milestone that is not fully released;
+the status rows, fields, checklists and lane tables of unfinished work;
+anything a test or script cites; D3 and D6.
+
+To archive:
+
+1. List what open work touches: each unmerged branch's own `PLAN.md` diff
+   against its merge base. A passage a branch changes or stands next to stays
+   where it is, so that branch still merges without a modify/delete conflict.
+2. Move whole top-level blocks only: a paragraph, a list item with everything
+   indented under it, a table, a whole ordered list. Never part of one.
+3. Put each moved passage in its archive file between
+   `<!-- plan-archive:begin id="…" lines="…" bytes="…" sha256="…" -->` and
+   `<!-- plan-archive:end id="…" -->`, with one blank line inside each marker.
+   `test/unit/planArchive.test.ts` hashes every block; never edit inside one.
+4. Write each decision's summary from the decision itself, amendments
+   included, and nothing beyond it. Lanes read it first and act on it.
+5. Prove nothing was lost and nothing got harder: rebuild the old `PLAN.md`
+   from the new one plus the archive and compare the bytes; merge every open
+   branch's `PLAN.md` onto the new file and onto the old one, and accept no
+   new and no larger conflict.
+6. Run `npm run check:plan`, `npm run roadmap:generate` (`ROADMAP.md` must not
+   change), `npm run check:reference`, `prettier --check` on `PLAN.md` and
+   the archive files, and the suites that read the plan (`planReader`,
+   `checkPlan`, `planArchive`, `planCitation`, `autoCompact`, `geminiCodec`,
+   `m113cLaneClosure`, `teamPlanRecord`, `paidMoneyStructure`).
+7. Record the bytes before and after, the bytes moved per section and the
+   proofs in [`docs/certification/plan-archive.md`](docs/certification/plan-archive.md).
+
 ## Style
 
 Prettier and ESLint decide formatting and style; the hooks apply them on

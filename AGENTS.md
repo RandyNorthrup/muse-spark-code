@@ -11,7 +11,11 @@ model. Two backends sit behind the `AgentHost` and `AgentSession` interfaces
 Protocol (`@muse-code/sdk`, primary) and the Meta Model API over HTTPS
 (bring-your-own key, secondary). Read `PLAN.md`
 before changing anything: it holds the decisions, the research that justifies
-them, the milestone plan, and the certification checklist.
+them, the milestone plan, and the certification checklist. Closed history
+lives in `docs/plan-archive/`, byte for byte: §2 keeps each decision's rule in
+force and links its full design record (`decisions.md`); closed milestone
+sections are in `milestones.md` and older gate records in `gates.md`. Read the
+archive when a summary is not enough, and never edit inside its blocks.
 
 ## Working rules
 
@@ -405,6 +409,12 @@ scripts/**            esbuild build; bundle-size, bundle-split, host-globals,
                       versions for CI, the ACP
                       agent's package
 docs/certification/   per-milestone gate-fire records and screenshots
+docs/plan-archive/    closed history moved out of PLAN.md, byte for byte
+                      (decisions.md, milestones.md, gates.md); each passage
+                      stands between hashed markers that
+                      test/unit/planArchive.test.ts checks. `check:plan`
+                      fails when PLAN.md passes 85% of the plan reader's
+                      bound; CONTRIBUTING.md has the archive procedure
 docs/ide-compatibility.md, docs/ide-compatibility/
                       the plan for editors beyond VS Code (D60), the
                       generated record of what the extension asks of its host,
