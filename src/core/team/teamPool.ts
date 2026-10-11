@@ -193,7 +193,11 @@ function teamSubagentWireFields(fields: TeamSubagentHookFields): Readonly<Record
     parent_session_id: fields.parentSessionId,
     workspace_mode: fields.workspaceMode,
     ...(fields.branch !== undefined && { branch: fields.branch }),
-    ...(fields.workingCopyPath !== undefined && { working_copy_path: fields.workingCopyPath }),
+    // Workspace-relative with `/` on every platform (M96 lane R2): lane X
+    // may pass a Windows path, so separators are normalised at the wire.
+    ...(fields.workingCopyPath !== undefined && {
+      working_copy_path: fields.workingCopyPath.replaceAll('\\', '/'),
+    }),
     ...(fields.pipelineId !== undefined && { pipeline_id: fields.pipelineId }),
     depth: fields.depth,
     model: fields.model,
