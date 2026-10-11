@@ -17871,6 +17871,33 @@ describe('RVCM1132 report session ownership', () => {
     expect(disposed.record.reason).toBe(UI_TEXT.reportSourceReasons.unbound)
   })
 
+  it('R22 reports questions without a registry as unbound, not a failed read', async () => {
+    const t = setup()
+    const controller = new ConversationController(t.deps)
+    const options = {
+      kind: 'session' as const,
+      scope: '',
+      full: false,
+      network: false,
+      failOn: [],
+      asOf: '2026-10-07T12:00:00Z',
+    }
+    // No open session, so attachQuestions never stored a registry: the
+    // questions source is unavailable with the unbound reason, and the
+    // unbound sentence is kept instead of the failed-read one (RVCM1132C
+    // finding 4).
+    const result = await questionsSource(controller.reportingQuestions(), (text) => text).read({
+      options,
+      asOf: options.asOf,
+      workspaceKey: 'fixture',
+      signal: new AbortController().signal,
+    })
+    expect(result.data).toBeNull()
+    expect(result.record.status).toBe('unavailable')
+    expect(result.record.reason).toBe(UI_TEXT.reportSourceReasons.unbound)
+    controller.dispose()
+  })
+
   it('R16 refuses history after disposal while a host lookup is pending', async () => {
     const gate: { current: Promise<undefined> | undefined; onWait?: () => void } = {
       current: undefined,
