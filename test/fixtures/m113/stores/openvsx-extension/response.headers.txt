@@ -1,0 +1,10 @@
+HTTP/1.1 200 OK
+Content-Length: 4144
+x-ratelimit-remaining: 10799
+content-type: application/json
+etag: "0395e2de25033ea631ecf33921ea82c80"
+x-ratelimit-limit: 10800
+cache-control: no-cache, public
+Accept-Ranges: bytes
+Date: Sun, 11 Oct 2026 17:17:42 GMT
+Vary: Accept-Encoding
