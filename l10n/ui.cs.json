@@ -75,6 +75,7 @@
   "resourceRelocateOffDescription": "Ponechá práci na tomto počítači.",
   "toolArgumentPreviewLabel": "Náhled argumentů",
   "toolArgumentPreviewTruncated": "Náhled byl zkrácen.",
+  "toolArgumentPreviewDescription": "Zobrazuje ověřené argumenty nástroje s odstraněnými citlivými údaji při jejich příchodu, ještě před spuštěním nástroje.",
   "toolArgumentPreviewPending": "Čekání na úplné argumenty…",
   "toolArgumentPreviewPreparing": "Příprava argumentů…",
   "modelApiContinuing": "Byl dosažen limit výstupu. Jednorázové pokračování…",

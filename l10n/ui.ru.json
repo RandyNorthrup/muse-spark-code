@@ -75,6 +75,7 @@
   "resourceRelocateOffDescription": "Оставляет работу на этом компьютере.",
   "toolArgumentPreviewLabel": "Предпросмотр аргументов",
   "toolArgumentPreviewTruncated": "Предпросмотр обрезан.",
+  "toolArgumentPreviewDescription": "Показывает проверенные аргументы инструмента с удалёнными конфиденциальными данными по мере их поступления, до запуска инструмента.",
   "toolArgumentPreviewPending": "Ожидание полных аргументов…",
   "toolArgumentPreviewPreparing": "Подготовка аргументов…",
   "modelApiContinuing": "Достигнут лимит вывода. Продолжение один раз…",

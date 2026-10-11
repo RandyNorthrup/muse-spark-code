@@ -527,8 +527,8 @@
     {
       "id": "argument-preview",
       "name": { "ui": "toolArgumentPreviewLabel" },
-      "summary": { "ui": "toolArgumentPreviewPending" },
-      "description": { "ui": "toolArgumentPreviewPending" },
+      "summary": { "ui": "toolArgumentPreviewDescription" },
+      "description": { "ui": "toolArgumentPreviewDescription" },
       "commands": [],
       "settings": [],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",

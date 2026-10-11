@@ -278,7 +278,7 @@ describe('confirmed-dispatch inventory (RVCM1062H)', () => {
     )
     expect(
       unknown.map((site) => `${site.file}:${String(site.line)}: ${site.text}`),
-      'unlisted confirmed-dispatch refusal site: read it, route it through assertConfirmedAllowed, extend the allowlist',
+      'unlisted confirmed-dispatch refusal site: the list below gives file, line and source text. Read each decision; route confirmation decisions through assertConfirmedAllowed. For a release-train merge only, add separate file/match/why entries for its two output-minimum refusals (model-output validation) and its throw error after a rate-limit notice (unchanged upstream rethrow). Those lines are absent on this branch; do not add broad matches here.',
     ).toEqual([])
   })
   it('builds the stale refusal sentence only in the helper module', () => {

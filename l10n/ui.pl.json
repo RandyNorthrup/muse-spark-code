@@ -75,6 +75,7 @@
   "resourceRelocateOffDescription": "Pozostawia pracę na tym komputerze.",
   "toolArgumentPreviewLabel": "Podgląd argumentów",
   "toolArgumentPreviewTruncated": "Podgląd został skrócony.",
+  "toolArgumentPreviewDescription": "Pokazuje zweryfikowane argumenty narzędzia z usuniętymi poufnymi danymi w miarę ich napływania, przed uruchomieniem narzędzia.",
   "toolArgumentPreviewPending": "Oczekiwanie na kompletne argumenty…",
   "toolArgumentPreviewPreparing": "Przygotowywanie argumentów…",
   "modelApiContinuing": "Osiągnięto limit wyjścia. Jednorazowa kontynuacja…",

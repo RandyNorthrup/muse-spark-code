@@ -75,6 +75,7 @@
   "resourceRelocateOffDescription": "Garde le travail sur cette machine.",
   "toolArgumentPreviewLabel": "Aperçu des arguments",
   "toolArgumentPreviewTruncated": "Aperçu tronqué.",
+  "toolArgumentPreviewDescription": "Affiche les arguments des outils validés et expurgés à mesure qu’ils arrivent, avant l’exécution de l’outil.",
   "toolArgumentPreviewPending": "En attente des arguments complets…",
   "toolArgumentPreviewPreparing": "Préparation des arguments…",
   "modelApiContinuing": "La limite de sortie a été atteinte. Une seule continuation…",

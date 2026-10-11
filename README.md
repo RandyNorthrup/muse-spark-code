@@ -2047,6 +2047,13 @@ active preview to its original call row. Recognized credential patterns
 and registered literals are scrubbed; arbitrary unregistered secrets in a
 declared field remain outside that scrubber's contract.
 
+VS Code and interactive ACP use the selected record’s documented output
+maximum (131,072 tokens for Muse Spark), clamped by their budget. Headless
+`exec` requests at most 32,768 output tokens, or the record’s smaller maximum:
+its run ledger reserves the worst case before dispatch, so raising that cap
+would change what existing headless money budgets can run. Headless exec
+records completed tools and does not display live argument previews.
+
 <!-- /reference: streamed-argument-previews -->
 
 ## Code intelligence

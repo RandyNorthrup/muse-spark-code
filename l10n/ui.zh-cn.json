@@ -75,6 +75,7 @@
   "resourceRelocateOffDescription": "将工作保留在此计算机上。",
   "toolArgumentPreviewLabel": "参数预览",
   "toolArgumentPreviewTruncated": "预览已截断。",
+  "toolArgumentPreviewDescription": "在工具运行前，实时显示已验证并经过敏感信息清理的工具参数。",
   "toolArgumentPreviewPending": "正在等待完整参数…",
   "toolArgumentPreviewPreparing": "正在准备参数…",
   "modelApiContinuing": "已达到输出上限。正在继续一次…",
