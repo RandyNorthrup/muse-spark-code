@@ -3,10 +3,15 @@
 2026-10-11, MacBook rig, branch `c/m113-4b`. Base `a0b69a03b` (c/m113-2)
 then merges `7659369cc` (snap/5369f3df7, accepted report ordering fix;
 session.ts conflict resolved by meaning: c/m113-2's limits-field stripping
-kept with the accepted total-order tie-break sorts) and `44eb2680a`
-(snap/7d0410526, the estimator plan reader, c/m117-1 round 4). The estimator
+kept with the accepted total-order tie-break sorts), `44eb2680a`
+(snap/7d0410526, the estimator plan reader, c/m117-1 round 4) and
+`59290bbd1` (snap/f56fff679, the estimator forecasts branch round 7;
+CHANGELOG kept both sides, ROADMAP and the reference generated files
+regenerated, both sides kept elsewhere). The estimator
 is read only through its public run result (`EstimatorRun.estimate` /
-`EstimateRunPort`); no estimator file is edited by this lane.
+`EstimateRunPort`) and its shared typed diagnostic
+(`src/shared/estimateDiagnostic.ts`); no estimator file is edited by this
+lane.
 No new dependency, string, command, setting, cap, hook, gate relaxation,
 paid/live call or credential. Shared core/runtime logic serves VS Code, ACP
 and the terminal; no webview paint changed.
@@ -27,35 +32,47 @@ with and without `offset: true`). `--as-of` offsets are accepted wherever
 the report schema reads them. Stamps that reach the source are normalized
 with `toISOString()` to the same UTC instant the estimator requires —
 without this, no offset report could ever reach the engine, whose instants
-end in Z. A refused estimate stays a failed source naming the same refusal
-`/estimate` names for the goal, rendered in the report's language; an
-unshaped engine failure stays generic on both surfaces (`/estimate` prints
-`Estimate failed: estimate-unavailable`, the report records the failed code
-with its table sentence). Unparseable scopes are invalid; other kinds are
-notApplicable; unwired hosts stay unavailable.
+end in Z. A refused estimate stays a failed source carrying the estimator's
+own typed diagnostic — the same refusal code and parameters `/estimate`
+names — rendered in the report's language: `no-capacity` keeps the
+capacity sentence, `unknown-goal` keeps the goal sentence with the
+diagnostic's reference (or the request goal when bare), any other valid
+code fails with its detail, and a `missing-estimate` lane list with its
+omitted count is re-rendered from that data in the report's language
+(English seals the producer's bytes; German renders `und 2 weitere`).
+Byte parity with `/estimate` holds wherever the producer carries no prose;
+where it does (`and <n> more`), each surface renders its own words around
+the same data. A refusal without a valid typed diagnostic stays generic on
+both surfaces (`/estimate` prints `Estimate failed: estimate-unavailable`,
+the report records the failed code with its table sentence). Unparseable
+scopes are invalid; other kinds are notApplicable; unwired hosts stay
+unavailable.
 
 ## Finding → fix → regression → deliberate failure
 
 Tests use the exact `E<number>` prefix in `test/unit/estimateReportSource.test.ts`.
 The whole file ran at repository timeouts with `--maxWorkers=3`, no filter.
 
-| #       | Fix                                                                                                                                                                                                                     | Regression | Red drill                                   |
-| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------- |
-| E1–E3   | Unbound/disabled/invalid-goal guards with their codes                                                                                                                                                                   | E1, E2, E3 | —                                           |
-| E4      | Six D93.4 facets projected from the validated run                                                                                                                                                                       | E4         | echo drill below (E4, E5, E5b, E6, E9 fail) |
-| E5/E5b  | `--by`/`--fleet` cross into the request; offset stamps normalized                                                                                                                                                       | E5, E5b    | —                                           |
-| E6      | Request-echo check refuses a stale run instead of inventing rows                                                                                                                                                        | E6         | echo drill below                            |
-| E7/E8   | Null run fails with the estimator fallback; refused run names it                                                                                                                                                        | E7, E8     | drills R1, R2 below                         |
-| E9      | Partial reason scrubbed                                                                                                                                                                                                 | E9         | —                                           |
-| E10     | Content-addressed rows order by key                                                                                                                                                                                     | E10        | —                                           |
-| E11/E12 | Inputs bundle stamps the request instant, forwards request+signal; failures propagate                                                                                                                                   | E11, E12   | drill R3 below                              |
-| E13     | Full collect through the production finalizer; all four formats render                                                                                                                                                  | E13        | —                                           |
-| E14     | Lane lists over ten rows cap with omittedRows                                                                                                                                                                           | E14        | —                                           |
-| E15     | Table over every refusal the estimator can return (typed diagnostics, engine/schedule/capacity/not-found sentences, scrubbed secret; forged and unshaped errors stay generic)                                           | E15        | drills R1, R2 below                         |
-| E16     | Run stamped at the request instant reads fresh with age zero                                                                                                                                                            | E16        | drill R3 below                              |
-| E17     | Every refusal named in the report language under a split-locale estimator (German report over English bundle and reverse; report bytes independent of bundle language; seam diagnostics and attached refusals included) | E17        | drill R6 below                              |
-| E18     | Forged failure sentences (`Estimate failed: ../../etc/passwd`) stay generic in every language, as do forged diagnostics                                                                                                 | E18        | drill R7 below                              |
-| E19     | Collected sections cross as codes only: German-installed collect seals identical bytes, and bottleneck/setup/state cells hold codes                                                                                     | E19        | drill R8 below                              |
+| #       | Fix                                                                                                                                                                                                                                                                                   | Regression | Red drill                                   |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------- |
+| E1–E3   | Unbound/disabled/invalid-goal guards with their codes                                                                                                                                                                                                                                 | E1, E2, E3 | —                                           |
+| E4      | Six D93.4 facets projected from the validated run                                                                                                                                                                                                                                     | E4         | echo drill below (E4, E5, E5b, E6, E9 fail) |
+| E5/E5b  | `--by`/`--fleet` cross into the request; offset stamps normalized                                                                                                                                                                                                                     | E5, E5b    | —                                           |
+| E6      | Request-echo check refuses a stale run instead of inventing rows                                                                                                                                                                                                                      | E6         | echo drill below                            |
+| E7/E8   | Null run fails with the estimator fallback; refused run names it                                                                                                                                                                                                                      | E7, E8     | drills R1, R2 below                         |
+| E9      | Partial reason scrubbed                                                                                                                                                                                                                                                               | E9         | —                                           |
+| E10     | Content-addressed rows order by key                                                                                                                                                                                                                                                   | E10        | —                                           |
+| E11/E12 | Inputs bundle stamps the request instant, forwards request+signal; failures propagate                                                                                                                                                                                                 | E11, E12   | drill R3 below                              |
+| E13     | Full collect through the production finalizer; all four formats render                                                                                                                                                                                                                | E13        | —                                           |
+| E14     | Lane lists over ten rows cap with omittedRows                                                                                                                                                                                                                                         | E14        | —                                           |
+| E15     | Table over every refusal the estimator can return (valid typed diagnostics named — capacity, goal with reference or request goal, engine codes with detail; bare sentences, the retired `goal-not-found` seam, attached guesses and forged diagnostics stay generic; scrubbed secret) | E15        | drills R1, R2, D1 below                     |
+| E16     | Run stamped at the request instant reads fresh with age zero                                                                                                                                                                                                                          | E16        | drill R3 below                              |
+| E17     | Every refusal named in the report language with estimator sentences in any language ignored (German and English reports over English, German and garbage messages)                                                                                                                    | E17        | drill R6 below                              |
+| E18     | Forged failure sentences (`Estimate failed: ../../etc/passwd`) stay generic in every language, as do forged diagnostics — including an invalid diagnostic with a matching capacity sentence                                                                                           | E18        | drills R7, D1 below                         |
+| E19     | Collected sections cross as codes only: German-installed collect seals identical bytes, and bottleneck/setup/state cells hold codes                                                                                                                                                   | E19        | drill R8 below                              |
+| E20     | Malformed diagnostics never guess a named refusal (garbage goal JSON, attached goal/capacity guesses, path traversal with a capacity-shaped message, invented code), in German and English                                                                                            | E20        | drill D1 below                              |
+| E21     | Overlapping German and English generations keep their own refusal language when the estimator calls resolve in the opposite order (production reader factory, process table flipped mid-flight)                                                                                       | E21        | drill D2 below                              |
+| E22     | A real twelve-lane `buildPlanSnapshot` refusal renders from data in the report language (German `und 2 weitere`, no English `and 2 more`; English seals the producer's bytes)                                                                                                         | E22        | drill D3 below                              |
 
 ## Red-drill receipt
 
@@ -85,7 +102,9 @@ the wall clock, so a generation seals identical bytes and reads fresh.
 `estimateDeadline` (midnight UTC, usage error when unusable) instead of
 `T23:59:59+00:00`; `reportRequest.ts` accepts the same date-only form in the
 editor instead of rejecting it at the schema. No new string, command,
-setting, dependency or guard widened.
+setting, dependency or guard widened. (Superseded in one point by the
+RVCM1134G round below: one new string, `estimateMissingMore`, in every
+table for the re-rendered omitted-lane count.)
 
 Red drills (each restored byte-exact, verified with `sha256sum -c` over all
 five source files):
@@ -139,7 +158,137 @@ all five touched files):
 
 Post-restore run: `estimateReportSource.test.ts` 20/20 pass.
 
+RVCM1134G repairs (2026-10-11, same rig/branch): all four findings, one
+class each, no new dependency, no guard widened. First merged
+`snap/f56fff679` (the estimator's forecasts branch, round 7: one failure
+value, a shared view state, one renderer) with `git merge --no-ff`,
+resolving CHANGELOG (both sides' entries), ROADMAP and the reference
+generated files (regenerated from merged sources) and keeping both sides
+elsewhere. Then the report consumes the estimator's typed diagnostic
+directly:
+
+- P1 (validation/failure honesty): `estimate.ts` deletes its own decoding
+  of sentences and JSON guesses (diagnostic grammar, engine-detail regex,
+  attached-`estimateRefusal` reading, template decode, `refusalTemplates`
+  on the reader and in both wirings). The shared `estimateDiagnostic`
+  validates code plus parameters; a refusal without a valid typed
+  diagnostic renders the honest generic refusal and is never guessed into
+  a named one. Sibling sweep: no other sentence/JSON decoding remains in
+  this kind's files (`grep` for the removed identifiers finds only the new
+  tests).
+- P2 (concurrency/lifecycle): the report's text table is captured once
+  when the report request starts — the reader factory snapshots its own
+  `table`/`locale` arguments onto the reader; readers built without the
+  factory snapshot the installed table synchronously before the first
+  await — and nothing in this kind's files reads the process-wide table
+  after an await. Counts use fresh `Intl` instances over the captured
+  locale, never the installed formatters. Sibling sweep: `collect` is pure
+  (no `UI_TEXT`); the E7 fallback detail also renders from captured text.
+- P3 (localization/failure honesty): no pre-rendered words cross from the
+  estimator — the `missing-estimate` lane list and omitted count arrive as
+  data and the report re-renders them (`estimateMissingMore` in every
+  table, `node scripts/check-l10n.mjs` 0 problems). Sibling sweep over
+  every estimator `refuse`/`DiagnosticError` site: the only other
+  producer-side prose is the `Error` message argument (never read by the
+  report) — all diagnostic payloads are identifiers, references or counts.
+- P3 docs: CHANGELOG and this record now state only the verified seam —
+  same validated code and parameters as `/estimate`, each surface
+  rendering its own words around them — instead of the premature parity
+  and completion claims.
+
+Red drills (each restored byte-exact, verified with `sha256sum -c`; hashes
+below are the restored tree):
+
+- D1: name the generic code (`estimate-unavailable` renders
+  `Estimate failed: estimate-unavailable` instead of returning undefined).
+  E15, E18 and E20 fail, 20 pass.
+- D2: render from the installed table after the await
+  (`installedReportText()` in the catch instead of the captured `text`).
+  E21 alone fails, 22 pass.
+- D3: reuse the raw `missing-estimate` detail instead of parsing it. E22
+  alone fails (German keeps `and 2 more`), 22 pass.
+
+Restored hashes (`sha256sum -c` clean over all three drill files):
+
+- `src/core/reporting/sources/estimate.ts`: `0e9d3d9b8f6cbcfe3a0b1897554acecbf0c851f3e6388de283ada15d296726f0` (drill tree `d0e13cb1…`, then the pre-commit hook's two renames: `??` for the text fallback, `isStrict` for the shape flag — behavior identical, drills re-verified by the post-restore run below)
+- `src/runtime/reporting/reportInputs.ts`: `b70b76a6dbf1ebfdade69e2b4f736e17694e9260a2f3f3a5f952abb39e3e8d97`
+- `src/shared/l10n/en.ts`: `a3dc1ab525ac9289d1af0984246f83906e42dd32a37f2e73f8f1436f3d6e236c`
+
+Post-restore run: `estimateReportSource.test.ts` 23/23 pass.
+
 ## Suites run (MacBook, repository timeouts, `--maxWorkers=3`)
+
+RVCM1134G round (final tree, after the `snap/f56fff679` merge and the
+typed-diagnostic rewrite):
+
+- `test/unit/estimateReportSource.test.ts`: 23/23 pass (E1–E19 rewritten
+  for the typed contract, plus new E20 malformed-diagnostic honesty, E21
+  overlapping-generation language capture and E22 twelve-lane producer
+  rendering).
+- `test/unit/reportInputs.test.ts`, `test/unit/reportsEntry.test.ts`,
+  `test/unit/sessionReportSource.test.ts`: 45/45 pass.
+- `test/unit/agentUsageSource.test.ts`, `test/unit/gitSource.test.ts`,
+  `test/unit/changelogSource.test.ts`: 40/40 pass.
+- `test/unit/reportsHost.test.ts`: pass;
+  `test/unit/reportNetworkBinding.test.ts`: 1 failure (`shares one
+serialized cache…`: `history.save` → `ownStart` → child spawn `EPERM`
+  in this sandbox — same writer-lock probe as `reportEngine.test.ts`
+  below, not this lane); `test/unit/paidMoneyStructure.test.ts`: the same
+  five pre-existing leaves the review recorded
+  (`journalStore.ts:apiEquivalentUsd`/`usd`,
+  `reportingAmount.ts:capUsd`/`spentUsd`/`uncertainUsd`), none in this
+  lane's files.
+- `test/unit/spawnBoundaries.test.ts`,
+  `test/unit/reportingPanel.test.ts`, `test/unit/reportsCommand.test.ts`:
+  51/51 pass.
+- `test/unit/reportingRequest.test.ts`,
+  `test/unit/m113cLaneClosure.test.ts`: pass;
+  `test/unit/estimateCommand.test.ts`: 1 failure (`dispatches estimate
+help…`): the test spawns node with an env of only `PATH`+`LANG`, and
+  node 24 fails at startup (`uv_os_homedir` ENOENT) with no `HOME` in this
+  sandbox. Replicated outside vitest: the current tree's bundled entry
+  prints help (exit 0) with `HOME` set and fails identically without it —
+  environmental, not this lane.
+- `test/unit/runtimeAccountsBundle.test.ts`,
+  `test/unit/teamActivationGraph.test.ts`: pass (9/9).
+- `test/unit/acpReports.test.ts`,
+  `test/unit/estimatorDiagnostics.test.ts`,
+  `test/unit/localSource.test.ts`: 323/323 pass.
+- `test/unit/cliUsageProcess.test.ts`, `test/unit/execRun.test.ts`:
+  99/99 pass.
+- `test/unit/runtimeChatGpt.test.ts`: 29 fail / 6 pass — every failure
+  goes through the `runMain` harness (fake process env without `HOME`,
+  synthetic keyring, localhost callbacks), all sandbox-blocked. Reran the
+  file on a pristine scratch clone of the merge commit without this
+  round's edits: identical 29/6. Not this lane.
+- `test/e2e/reports.e2e.test.ts`: 21 fail / 1 pass — CLI-child spawns,
+  identical 21/1 on the pristine merge-commit clone. Not this lane.
+- `test/unit/reportEngine.test.ts`: NOT RUN HERE (the writer-lock probe;
+  the brief's standing rule). The lead runs it outside the sandbox, where
+  the reviewer saw 4/4 pass.
+- All five typechecks (`typecheck:host`, `:webview`, `:unit`, `:e2e`,
+  `:integration`): green on the final tree.
+- eslint `--max-warnings=0` and `prettier --check` on all touched files:
+  clean (three test-file findings fixed: hoisted helper,
+  `Promise.withResolvers`, definite-assignment declaration).
+- `npx knip`: clean (two pre-existing config hints only). `npx jscpd`:
+  0 clones (the four per-test `reasonFor` helpers folded into one).
+- `npm run build`: `dist/reporting.js` 168.0 KiB (budget 175),
+  `dist/reportInputs.js` 69.1 KiB (budget 100), `dist/estimator.js` 70.8
+  KiB (budget 75), `dist/extension.js` 555.5 KiB (budget 600). Still OVER:
+  `dist/usagePanel.js` 75.2 KiB (budget 75) — pre-existing, outside this
+  lane's import graph, recorded in the previous round.
+- `node scripts/check-bundle-split.mjs`: green.
+  `node scripts/cycles.mjs`: 1 cycle
+  (`src/shared/estimateDiagnostic.ts` ↔ `src/shared/estimate.ts`) —
+  inherited from the merged `snap/f56fff679` round 7 (verified identical
+  on the pristine merge commit); fixing it means editing the estimator's
+  files, outside this lane, so it stays for the lead.
+- `node scripts/check-l10n.mjs`: 0 problems (14 UI + 14 usage tables; new
+  `estimateMissingMore` in every table). `npm run check:reference`, `npm
+run check:roadmap`, `npm run check:host-api`: green.
+
+Earlier rounds (kept for the record):
 
 - `test/unit/estimateReportSource.test.ts`: 20/20 pass (E1–E16 with the new E15 table and E16 freshness lock, plus E17 cross-language refusals, E18 forged-sentence honesty and E19 codes-only collect).
 - `test/unit/reportsCommand.test.ts`, `test/unit/reportingRequest.test.ts`, `test/unit/sessionReportSource.test.ts`: pass (32/32 across the three files).
@@ -189,24 +338,26 @@ permitted`, exit 126), and the macOS save path needs that probe for the
   grammar; request echo-checked; no secrets enter rows (lane/file/machine
   tokens only; catalog prices omitted); partials scrubbed.
 - Failure paths and honesty: unbound/disabled/invalid/failed codes with
-  their table reasons; refusals keep the failed code and name the same
-  refusal `/estimate` names, rendered in the report's language (typed
-  `estimateDiagnostic` / attached `estimateRefusal` first, else the
-  estimator bundle's templates carried on the reader, else the installed
-  table for the same-language estimator); unshaped failures stay generic
-  (report: failed table sentence; `/estimate`: `estimate-unavailable`) and
-  forged failure sentences stay generic in every language; `--full` with
-  capped rows throws `report/incompleteFullSource` through the shared
-  forward path; row keys digest-hashed with an index disambiguator so
-  duplicate engine rows cannot fail the section.
+  their table reasons; refusals keep the failed code and carry the
+  estimator's validated typed diagnostic (code plus structured parameters,
+  never a rendered sentence or a guess), rendered in the report language
+  captured when the request starts; refusals without a valid diagnostic
+  stay generic (report: failed table sentence; `/estimate`:
+  `estimate-unavailable`) and forged failure sentences stay generic in
+  every language; `--full` with capped rows throws
+  `report/incompleteFullSource` through the shared forward path; row keys
+  digest-hashed with an index disambiguator so duplicate engine rows
+  cannot fail the section.
 - Concurrency/lifecycle: reads share the generation stamp and honor the
   source timeout/cancellation through `localSource`; the VS Code reader is
   built per read behind the lazy inputs bundle; headless estimators are
   cached per workspace root and never read `process.cwd()` per read.
 - Docs: README already promises `/report estimate M113` with no caveat, so
-  no README change was needed; CHANGELOG `[Unreleased]` entry added; PLAN
-  M113 status entry added; no new strings (all labels pre-exist in every
-  table); no featureCatalog change (no new command, setting or feature).
+  no README change was needed; CHANGELOG `[Unreleased]` entry added and
+  reworded to the verified seam in the RVCM1134G round; PLAN M113 status
+  entry added; one new string (`estimateMissingMore`, in every table) for
+  the re-rendered omitted-lane count; no featureCatalog change (no new
+  command, setting or feature).
 
 ## Goldens
 
