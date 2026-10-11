@@ -592,6 +592,11 @@ export function registerSecretValue(value: string): () => void {
   }
 }
 
+/** An error in words for the panel or session: external text is redacted first. */
+export function describeError(error: unknown): string {
+  return redactSecrets(error instanceof Error ? error.message : String(error))
+}
+
 /** Exact run/account keys precede patterns, including percent-containing keys. */
 export function redactSecrets(
   text: string,

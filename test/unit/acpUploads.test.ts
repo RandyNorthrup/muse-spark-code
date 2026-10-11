@@ -1,47 +1,13 @@
-import * as acp from '@agentclientprotocol/sdk'
-import { describe, expect, it, vi } from 'vitest'
-import { createAcpAgent, type AcpAgentDeps } from '../../src/acp/agent'
-import { AcpPaidUse } from '../../src/acp/paid'
+import { describe, expect, it } from 'vitest'
 import { runUploadsCommand, uploadsText, type AcpUploadsPort } from '../../src/acp/uploads'
 import { UI_TEXT } from '../../src/shared/constants'
-import { FakeAgentHost } from './helpers/fakeAgent'
-import { memoryPaidGrants } from './helpers/paidGrants'
+import { fakeUploadedFilesLedger, uploadedFilesReportFixture } from './helpers/uploadedFiles'
+import { connectedAgent } from './helpers/acpConnected'
 
-const report = {
-  provider: 'meta',
-  isReadOnly: false,
-  poolBytes: 100,
-  usedBytes: 15,
-  files: [
-    {
-      fileId: 'file-one',
-      name: 'clip.mp4',
-      bytes: 3,
-      expiresAt: 1_800_000_000,
-      ours: true,
-      sessions: [],
-    },
-    {
-      fileId: 'file-other',
-      name: 'other.pdf',
-      bytes: 12,
-      expiresAt: 1_800_000_000,
-      ours: false,
-      sessions: [],
-    },
-  ],
-}
+const report = uploadedFilesReportFixture()
 
-function fakePort(): AcpUploadsPort & {
-  read: ReturnType<typeof vi.fn>
-  deleteFile: ReturnType<typeof vi.fn>
-  deleteAllOurs: ReturnType<typeof vi.fn>
-} {
-  return {
-    read: vi.fn(() => Promise.resolve(report)),
-    deleteFile: vi.fn(() => Promise.resolve()),
-    deleteAllOurs: vi.fn(() => Promise.resolve()),
-  }
+function fakePort() {
+  return fakeUploadedFilesLedger(report)
 }
 
 function sentTexts(sent: string[]): string {
@@ -153,61 +119,18 @@ describe('runUploadsCommand', () => {
 })
 
 function connectedUploads(uploads?: AcpUploadsPort) {
-  const host = new FakeAgentHost()
-  const updates: acp.SessionUpdate[] = []
-  const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
-  const deps: AcpAgentDeps = {
-    ...(uploads !== undefined && { uploads }),
-    questions: 'decline',
-    backend: {
-      kind: 'modelApi',
-      readiness: () => Promise.resolve({ state: 'ready' }),
-      hostFor: () => Promise.resolve(host),
-    },
+  const h = connectedAgent({
+    editor: 'uploads-editor',
     version: 'uploads-test',
-    options: { canBypass: false, allowsContributorModels: false, initialMode: 'manual' },
-    signIn: {
-      id: 'account-key',
-      name: 'Account key',
-      description: 'Test auth',
-      args: [],
-      command: 'test-auth',
-    },
-    defaultCwd: process.cwd(),
-    paid: new AcpPaidUse({
-      flagged: [],
-      canRemember: () => false,
-      grants: memoryPaidGrants(),
-      log,
-    }),
-    log,
-  }
-  const agent = createAcpAgent(deps)
-  const client = acp
-    .client({ name: 'uploads-editor' })
-    .onNotification('session/update', ({ params }) => {
-      updates.push(params.update)
-    })
+    ...(uploads !== undefined && { extra: { uploads } }),
+  })
   const texts = () =>
-    updates.flatMap((update) =>
+    h.updates.flatMap((update) =>
       update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
         ? [update.content.text]
         : [],
     )
-  const run = async (op: (client: acp.ClientContext, id: string) => Promise<void>) => {
-    await client.connectWith(agent, async (connection) => {
-      await connection.request('initialize', {
-        protocolVersion: acp.PROTOCOL_VERSION,
-        clientCapabilities: {},
-      })
-      const session = await connection.request('session/new', {
-        cwd: process.cwd(),
-        mcpServers: [],
-      })
-      await op(connection, session.sessionId)
-    })
-  }
-  return { updates, texts, run }
+  return { ...h, texts }
 }
 
 describe('/uploads through the agent', () => {

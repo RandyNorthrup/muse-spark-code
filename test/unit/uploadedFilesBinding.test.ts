@@ -4,31 +4,9 @@ import {
   runDeleteUploadedFilesCommand,
 } from '../../src/host/conversation/uploadedFilesBinding'
 import { UI_TEXT } from '../../src/shared/constants'
+import { uploadedFilesReportFixture } from './helpers/uploadedFiles'
 
-const report = {
-  provider: 'meta',
-  isReadOnly: false,
-  poolBytes: 100,
-  usedBytes: 15,
-  files: [
-    {
-      fileId: 'file-one',
-      name: 'clip.mp4',
-      bytes: 3,
-      expiresAt: 1_800_000_000,
-      ours: true,
-      sessions: [],
-    },
-    {
-      fileId: 'file-other',
-      name: 'other.pdf',
-      bytes: 12,
-      expiresAt: 1_800_000_000,
-      ours: false,
-      sessions: [],
-    },
-  ],
-}
+const report = uploadedFilesReportFixture()
 
 function setup(options?: { missingAccount?: boolean }) {
   const ledger = {
@@ -49,6 +27,14 @@ function setup(options?: { missingAccount?: boolean }) {
   return { binding, uploads, ledger }
 }
 
+function fakeDialogs(picked: readonly string[] | undefined) {
+  return {
+    pick: vi.fn(() => Promise.resolve(picked)),
+    inform: vi.fn(),
+    fail: vi.fn(),
+  }
+}
+
 describe('uploaded-files host binding', () => {
   it('supplies the conversation port from the current account ledger', async () => {
     const t = setup()
@@ -67,11 +53,7 @@ describe('uploaded-files host binding', () => {
 
   it('deletes the chosen files and shows a failed delete with its reason', async () => {
     const t = setup()
-    const dialogs = {
-      pick: vi.fn(() => Promise.resolve(['file-one', 'file-other'])),
-      inform: vi.fn(),
-      fail: vi.fn(),
-    }
+    const dialogs = fakeDialogs(['file-one', 'file-other'])
     t.ledger.deleteFile.mockRejectedValueOnce(new Error('Offline'))
     await runDeleteUploadedFilesCommand({
       list: t.binding.list,
@@ -88,11 +70,7 @@ describe('uploaded-files host binding', () => {
   it('says so and deletes nothing with no uploads, and stops on dismissal', async () => {
     const t = setup()
     t.ledger.accountReport.mockResolvedValue({ ...report, files: [] })
-    const empty = {
-      pick: vi.fn(),
-      inform: vi.fn(),
-      fail: vi.fn(),
-    }
+    const empty = fakeDialogs(undefined)
     await runDeleteUploadedFilesCommand({
       list: t.binding.list,
       remove: t.binding.remove,
@@ -102,11 +80,7 @@ describe('uploaded-files host binding', () => {
     expect(empty.inform).toHaveBeenCalledWith(UI_TEXT.media.filesEmpty)
     expect(empty.pick).not.toHaveBeenCalled()
     expect(t.ledger.deleteFile).not.toHaveBeenCalled()
-    const dismissed = {
-      pick: vi.fn(() => Promise.resolve(undefined)),
-      inform: vi.fn(),
-      fail: vi.fn(),
-    }
+    const dismissed = fakeDialogs(undefined)
     await runDeleteUploadedFilesCommand({
       list: t.binding.list,
       remove: t.binding.remove,
@@ -123,11 +97,7 @@ describe('uploaded-files host binding', () => {
       list: t.binding.list,
       remove: t.binding.remove,
       confirmForeign,
-      dialogs: {
-        pick: vi.fn(() => Promise.resolve(['file-other'])),
-        inform: vi.fn(),
-        fail: vi.fn(),
-      },
+      dialogs: fakeDialogs(['file-other']),
     })
     const confirm = t.ledger.deleteFile.mock.calls[0]?.[1] as
       ((name: string) => Promise<boolean>) | undefined

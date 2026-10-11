@@ -3,18 +3,17 @@
 // command behind it. No VS Code import here: the surfaces (webview post,
 // modal confirmation, QuickPick) arrive as callbacks, so tests drive this
 // module directly and each host binds it thinly.
-import { redactSecrets } from '../../core/redact'
 import type { UploadLedger } from '../../core/media/uploadLedger'
-import { createUploadedFilesPort, type UploadedFilesPort } from '../../core/media/uploadedFiles'
-import { MILLISECONDS_PER_SECOND, UI_TEXT } from '../../shared/constants'
-import { fill, formatBytes, formatDateTime } from '../../shared/l10n/text'
+import {
+  createUploadedFilesPort,
+  uploadExpiryText,
+  type UploadedFilesPort,
+} from '../../core/media/uploadedFiles'
+import { UI_TEXT } from '../../shared/constants'
+import { fill, formatBytes } from '../../shared/l10n/text'
+import { describeError } from '../../shared/redact'
 import { uploadedFilesReportSchema, type UploadedFilesReport } from '../../shared/media'
 import type { ConversationUploadedFilesPort } from './conversationController'
-
-/** External text for the panel: redacted first, since it can carry secrets. */
-function describe(error: unknown): string {
-  return redactSecrets(error instanceof Error ? error.message : String(error))
-}
 
 export interface UploadedFilesBindingDeps {
   /** The account's ledger over the production storage and Files wire. */
@@ -80,13 +79,7 @@ export interface DeleteUploadedFilesCommandDeps {
 }
 
 function pickDescription(file: UploadedFilesReport['files'][number]): string {
-  const expiry =
-    file.expiresAt === undefined
-      ? UI_TEXT.media.fileNoExpiry
-      : fill(UI_TEXT.media.fileExpiry, {
-          expiry: formatDateTime(file.expiresAt * MILLISECONDS_PER_SECOND),
-        })
-  return `${formatBytes(file.bytes)} · ${expiry}`
+  return `${formatBytes(file.bytes)} · ${uploadExpiryText(file.expiresAt)}`
 }
 
 /**
@@ -101,7 +94,7 @@ export async function runDeleteUploadedFilesCommand(
   try {
     report = await deps.list()
   } catch (error: unknown) {
-    deps.dialogs.fail(`${UI_TEXT.usageUnavailable}: ${describe(error)}`)
+    deps.dialogs.fail(`${UI_TEXT.usageUnavailable}: ${describeError(error)}`)
     return
   }
   if (report.files.length === 0) {
@@ -124,7 +117,9 @@ export async function runDeleteUploadedFilesCommand(
         deps.confirmForeign(fill(UI_TEXT.media.otherAppFileConfirmation, { name: fileName })),
       )
     } catch (error: unknown) {
-      deps.dialogs.fail(fill(UI_TEXT.media.uploadDeleteFailed, { name, reason: describe(error) }))
+      deps.dialogs.fail(
+        fill(UI_TEXT.media.uploadDeleteFailed, { name, reason: describeError(error) }),
+      )
     }
   }
 }

@@ -2,8 +2,6 @@ import * as acp from '@agentclientprotocol/sdk'
 import { describe, expect, it, vi } from 'vitest'
 import { usdInputSchema } from '../../src/shared/usdSchema'
 import { AcpAccounts, companionAccountsPanel, type AccountsPanelPort } from '../../src/acp/accounts'
-import { createAcpAgent, type AcpAgentDeps } from '../../src/acp/agent'
-import { AcpPaidUse } from '../../src/acp/paid'
 import { ACP_CONFIG_IDS, UI_TEXT } from '../../src/shared/constants'
 import {
   accountSwap,
@@ -11,62 +9,19 @@ import {
   forgedState,
   sessionAccountsRig,
 } from './helpers/runtimeAccounts'
-import { FakeAgentHost } from './helpers/fakeAgent'
-import { memoryPaidGrants } from './helpers/paidGrants'
 import { until } from './helpers/acpWaits'
+import { connectedAgent } from './helpers/acpConnected'
 
 function connectedAccounts(isBound = true) {
   const h = sessionAccountsRig()
-  const host = new FakeAgentHost()
-  const updates: acp.SessionUpdate[] = []
-  const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
-  const deps: AcpAgentDeps = {
-    ...(isBound && { accounts: h.port }),
-    // M112 made the question binding required; these rigs never ask one.
-    questions: 'decline',
-    backend: {
-      kind: 'modelApi',
-      readiness: () => Promise.resolve({ state: 'ready' }),
-      hostFor: () => Promise.resolve(host),
-    },
-    version: 'accounts-test',
-    options: { canBypass: false, allowsContributorModels: false, initialMode: 'manual' },
-    signIn: {
-      id: 'account-key',
-      name: 'Account key',
-      description: 'Test auth',
-      args: [],
-      command: 'test-auth',
-    },
-    defaultCwd: process.cwd(),
-    paid: new AcpPaidUse({
-      flagged: [],
-      canRemember: () => false,
-      grants: memoryPaidGrants(),
-      log,
+  return {
+    ...h,
+    ...connectedAgent({
+      editor: 'account-editor',
+      version: 'accounts-test',
+      ...(isBound && { extra: { accounts: h.port } }),
     }),
-    log,
   }
-  const agent = createAcpAgent(deps)
-  const client = acp
-    .client({ name: 'account-editor' })
-    .onNotification('session/update', ({ params }) => {
-      updates.push(params.update)
-    })
-  const run = async (op: (client: acp.ClientContext, id: string) => Promise<void>) => {
-    await client.connectWith(agent, async (connection) => {
-      await connection.request('initialize', {
-        protocolVersion: acp.PROTOCOL_VERSION,
-        clientCapabilities: {},
-      })
-      const session = await connection.request('session/new', {
-        cwd: process.cwd(),
-        mcpServers: [],
-      })
-      await op(connection, session.sessionId)
-    })
-  }
-  return { ...h, host, updates, run }
 }
 
 function holdAccountRead(h: ReturnType<typeof sessionAccountsRig>) {

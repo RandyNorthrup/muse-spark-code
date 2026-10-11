@@ -169,6 +169,15 @@ function deletes(t: Rig) {
   return t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')
 }
 
+/** An upload no session refers to: spared by automatic cleanup, deletable early. */
+async function ensureUnreferenced(t: Rig) {
+  const ledger = await productionUploads(t)(t.accountId)
+  const ref = await ledger.ensure('s1', sha256, source, new AbortController().signal)
+  await ledger.syncSession('s1', [ref])
+  await ledger.releaseSession('s1')
+  return ref
+}
+
 describe('uploaded-files production composition', () => {
   it('threads the configured expiry days into the provider upload', async () => {
     const t = rig('expiry', [{ created_at: 1000, expires_at: 1000 + 30 * 86_400 }])
@@ -186,10 +195,7 @@ describe('uploaded-files production composition', () => {
   it('serves the VS Code consumers from the production port and deletes the chosen file', async () => {
     const t = rig('vscode', [YOUNG])
     const { binding, posted } = vsCodeBinding(t)
-    const ledger = await productionUploads(t)(t.accountId)
-    const ref = await ledger.ensure('s1', sha256, source, new AbortController().signal)
-    await ledger.syncSession('s1', [ref])
-    await ledger.releaseSession('s1')
+    const ref = await ensureUnreferenced(t)
     // The controller's readUploadedFiles sequence: read, validate, post.
     const read = uploadedFilesReportSchema.parse(await binding.port.read())
     binding.port.post(read)
@@ -220,10 +226,7 @@ describe('uploaded-files production composition', () => {
 
   it('serves ACP /uploads from the same production ledger', async () => {
     const t = rig('acp', [YOUNG])
-    const ledger = await productionUploads(t)(t.accountId)
-    const ref = await ledger.ensure('s1', sha256, source, new AbortController().signal)
-    await ledger.syncSession('s1', [ref])
-    await ledger.releaseSession('s1')
+    const ref = await ensureUnreferenced(t)
     const port = createUploadedFilesPort({
       ledger: () => productionUploads(t)(t.accountId),
     })

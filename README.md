@@ -3057,11 +3057,14 @@ integration owners; editor font settings continue to decide inside editors.
   Screen Recording** can inspect an existing Linux recording, but admission
   still requires the media bindings. Remote windows need the companion route,
   whose server is pending M104. The Windows VM has no working direct-capture
-  receipt. `mediaMaxUploadMiB` caps an upload. Uploads carry a seven-day
-  expiry; `mediaUploadExpiryDays` is not yet applied to them. Deleting a
-  session, or the `cleanupPeriodDays` purge, deletes its provider files that no
-  other session uses. **Delete Uploaded Files…** is not bound in this build.
-  These commands do not establish provider/editor certification.
+  receipt. `mediaMaxUploadMiB` caps an upload. Uploads carry
+  `mediaUploadExpiryDays` (seven days by default, 1–30); automatic clean-up
+  offers an upload once no session refers to it and the provider expiry has
+  passed. Deleting a session, or the `cleanupPeriodDays` purge, releases its
+  uploads the same way. **Delete Uploaded Files…** lists the account ledger
+  and deletes the chosen files early (ACP `/uploads`, same); a file another
+  session still uses is never deleted. These commands do not establish
+  provider/editor certification.
 
   | Backend/model                                | Images and PDFs                                                                                                                                                                                                                           | Video                                                                                                                                                                                               | Standalone audio                                                                          |
   | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |

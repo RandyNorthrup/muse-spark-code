@@ -99,6 +99,7 @@
   "modelApiServiceFailure": "서비스에서 오류를 반환했습니다. 상태를 확인하거나 다시 시도하세요.",
   "feedbackFailed": "피드백을 보낼 수 없습니다.",
   "usagePageTitle": "사용량 및 비용",
+  "uploadsName": "업로드된 파일",
   "paletteUsagePage": "여러 편집기의 비용, 토큰 및 한도를 추적합니다.",
   "openUsagePage": "사용량 페이지 열기",
   "acpUsageDescription": "모델별 사용량과 비용을 표시하거나 사용량 페이지를 엽니다.",

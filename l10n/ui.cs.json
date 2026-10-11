@@ -99,6 +99,7 @@
   "modelApiServiceFailure": "Služba vrátila chybu. Zkontrolujte její stav nebo to zkuste znovu.",
   "feedbackFailed": "Zpětnou vazbu se nepodařilo odeslat.",
   "usagePageTitle": "Využití a náklady",
+  "uploadsName": "Nahrané soubory",
   "paletteUsagePage": "Sledujte náklady, tokeny a limity ve všech editorech.",
   "openUsagePage": "Otevřít stránku využití",
   "acpUsageDescription": "Zobrazit využití a náklady všech modelů nebo otevřít stránku využití.",

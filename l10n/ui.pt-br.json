@@ -99,6 +99,7 @@
   "modelApiServiceFailure": "O serviço retornou um erro. Verifique o status ou tente novamente.",
   "feedbackFailed": "Não foi possível enviar os comentários.",
   "usagePageTitle": "Uso e custo",
+  "uploadsName": "Arquivos enviados",
   "paletteUsagePage": "Acompanhar custos, tokens e limites em todos os editores.",
   "openUsagePage": "Abrir página de uso",
   "acpUsageDescription": "Mostrar o uso e o custo de todos os modelos ou abrir a página de uso.",

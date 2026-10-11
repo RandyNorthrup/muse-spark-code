@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- M105 lane F (C-M105-8): Delete Uploaded Files is bound. Uploads carry
+  `museSpark.mediaUploadExpiryDays` (7 days by default, 1–30); automatic
+  clean-up offers an upload once no session refers to it and the provider
+  expiry has passed, while explicit deletion removes it early. The VS Code
+  command lists the account ledger and deletes the chosen files, the usage
+  dialog lists and deletes them too, and ACP `/uploads` lists, deletes one
+  file, or deletes all ours. No live provider receipt certified yet.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive

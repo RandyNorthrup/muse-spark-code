@@ -3,9 +3,10 @@
 // provider's delete call. A foreign file is kept with its reason: this
 // single-shot command cannot ask the modal question VS Code asks.
 import { RequestError } from '@agentclientprotocol/sdk'
-import { redactSecrets } from '../core/redact'
-import { MILLISECONDS_PER_SECOND, UI_TEXT } from '../shared/constants'
-import { fill, formatBytes, formatDateTime, formatList } from '../shared/l10n/text'
+import { uploadExpiryText } from '../core/media/uploadedFiles'
+import { UI_TEXT } from '../shared/constants'
+import { describeError } from '../shared/redact'
+import { fill, formatBytes, formatList } from '../shared/l10n/text'
 import { uploadedFilesReportSchema, type UploadedFilesReport } from '../shared/media'
 
 export interface AcpUploadsPort {
@@ -17,18 +18,8 @@ export interface AcpUploadsPort {
   deleteAllOurs(): Promise<void>
 }
 
-/** External text for the session: redacted first, since it can carry secrets. */
-function describe(error: unknown): string {
-  return redactSecrets(error instanceof Error ? error.message : String(error))
-}
-
 function rowLine(file: UploadedFilesReport['files'][number]): string {
-  const expiry =
-    file.expiresAt === undefined
-      ? UI_TEXT.media.fileNoExpiry
-      : fill(UI_TEXT.media.fileExpiry, {
-          expiry: formatDateTime(file.expiresAt * MILLISECONDS_PER_SECOND),
-        })
+  const expiry = uploadExpiryText(file.expiresAt)
   const ownership = file.ours ? UI_TEXT.media.filesOurs : UI_TEXT.media.filesOtherApp
   const sessions =
     file.sessions.length === 0
@@ -48,7 +39,7 @@ async function readReport(files: AcpUploadsPort): Promise<UploadedFilesReport> {
   try {
     return uploadedFilesReportSchema.parse(await files.read())
   } catch (error: unknown) {
-    throw RequestError.internalError(undefined, describe(error))
+    throw RequestError.internalError(undefined, describeError(error))
   }
 }
 
@@ -75,7 +66,7 @@ export async function runUploadsCommand(
     try {
       await files.deleteAllOurs()
     } catch (error: unknown) {
-      throw RequestError.internalError(undefined, describe(error))
+      throw RequestError.internalError(undefined, describeError(error))
     }
     input.send(uploadsText(await readReport(files)))
     return 'handled'
@@ -97,7 +88,7 @@ export async function runUploadsCommand(
   } catch (error: unknown) {
     throw RequestError.invalidParams(
       undefined,
-      fill(UI_TEXT.media.uploadDeleteFailed, { name: file.name, reason: describe(error) }),
+      fill(UI_TEXT.media.uploadDeleteFailed, { name: file.name, reason: describeError(error) }),
     )
   }
   input.send(uploadsText(await readReport(files)))

@@ -99,6 +99,7 @@
   "modelApiServiceFailure": "服務傳回錯誤。請查看其狀態或重試。",
   "feedbackFailed": "無法提交意見回饋。",
   "usagePageTitle": "用量與費用",
+  "uploadsName": "已上傳的檔案",
   "paletteUsagePage": "追蹤各編輯器中的費用、權杖和限額。",
   "openUsagePage": "開啟用量頁面",
   "acpUsageDescription": "顯示各模型的用量與費用，或開啟用量頁面。",
