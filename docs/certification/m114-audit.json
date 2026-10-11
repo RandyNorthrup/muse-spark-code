@@ -10523,7 +10523,7 @@
   "sources": [
     {
       "file": "src/webview/App.tsx",
-      "sha256": "3cdf482511388ef5c6e75616d1a77f6755fdba0c63aa4dd5b7b239290b1b70b1"
+      "sha256": "25fd8bb0c99c08dc3b907a2ebcdc7f07ddd431230a898397f6915b8db41669af"
     },
     {
       "file": "src/webview/TasksApp.tsx",
@@ -11395,7 +11395,7 @@
     },
     {
       "file": "src/webview/schedules/prompt.ts",
-      "sha256": "68f34595f7dcfa2f32d2aad846e45c66e5fe75fd57dd287c089120e24f2c8daa"
+      "sha256": "8136968528d9a2c74587eb04e9dd4d9a654225dcf5e21c30de2d31d5bff4dbad"
     },
     {
       "file": "src/webview/schedules/reportAction.css",

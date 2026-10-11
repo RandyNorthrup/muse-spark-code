@@ -88,7 +88,8 @@ describe('M117 ACP estimate', () => {
         stopReason: 'end_turn',
       })
     })
-    expect(messages(h.updates)).toContain('M117-W-estimator-binding')
+    // C-X-1: an unbound estimator answers with the plain runtime reason.
+    expect(messages(h.updates)).toContain(UI_TEXT.estimateRuntimeUnavailable)
     expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
   })
 

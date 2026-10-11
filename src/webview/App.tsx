@@ -30,6 +30,7 @@ import {
   MUSE_DELEGATION_ENABLED,
   REVIEW_SLASH_COMMAND,
   ARE_SCHEDULES_ON_BY_DEFAULT,
+  OPTIONAL_RUNTIME_AVAILABILITY,
   IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT,
   type PaidFeature,
   type SubagentAction,
@@ -1200,6 +1201,14 @@ export function App({
     // draft clears and the host's `estimatorSection` reveals it. The full
     // parse loads with the composer so startup carries only the prefix check.
     if (isEstimateCommandText(text)) {
+      if (!OPTIONAL_RUNTIME_AVAILABILITY.estimator) {
+        dispatch({
+          type: 'noticeRaised',
+          level: 'warning',
+          text: UI_TEXT.estimateRuntimeUnavailable,
+        })
+        return
+      }
       dispatch({ type: 'draftChanged', draft: '' })
       setIsPinnedToEnd(true)
       void import('./estimator/composer')
@@ -1235,6 +1244,22 @@ export function App({
     // its props already here, dispatches the mapped draft or request.
     // `/loop` below stays on the v1 store until its migration ships.
     if (/^\/schedule(?:\s|$)/i.test(text.trim())) {
+      if (!OPTIONAL_RUNTIME_AVAILABILITY.schedules) {
+        // The reason's words belong to the schedule surfaces' English, which
+        // startup does not carry (STARTUP017): the lazy prompt mapping reads
+        // them, as it does for a bound command below. The draft stays.
+        void loadSchedulePrompt().then((mapping) => {
+          dispatch({
+            type: 'noticeRaised',
+            level: 'warning',
+            text:
+              mapping === undefined
+                ? UI_TEXT.scheduleCommandFailed
+                : mapping.scheduleUnavailableReason(),
+          })
+        })
+        return
+      }
       dispatch({ type: 'draftChanged', draft: '' })
       setIsPinnedToEnd(true)
       const props = current.schedulesSurface
@@ -2546,6 +2571,7 @@ export function App({
       arePromptCommandsBound: true,
       ...((state.settings?.schedules ?? ARE_SCHEDULES_ON_BY_DEFAULT) && {
         schedules: {
+          isAvailable: OPTIONAL_RUNTIME_AVAILABILITY.schedules,
           create: { type: 'openScheduleEditor' as const },
           list: { type: 'openScheduleList' as const },
           timeline: { type: 'openScheduleTimeline' as const },
@@ -2563,9 +2589,7 @@ export function App({
       backend: state.auth.backend,
       paidFeatures: state.paid.features,
       isKeyStored: state.paid.isKeyStored,
-      // The estimator is bound in this surface (M117): its row inserts
-      // `/estimate`, which the submit path handles below.
-      estimateAvailable: true,
+      estimateAvailable: OPTIONAL_RUNTIME_AVAILABILITY.estimator,
     }),
     [
       state.paid.isKeyStored,

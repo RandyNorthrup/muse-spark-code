@@ -1,6 +1,7 @@
 import type { UsdAmount } from '../shared/usdSchema'
 // ACP /schedule translates to the same validated requests as the terminal.
 import { UI_TEXT } from '../shared/constants'
+import { slashCommandText } from '../shared/mentions'
 import { parseScheduleCommand } from '../runtime/schedules/args'
 import { runScheduleCommand, type ScheduleControlPort } from '../runtime/schedules/command'
 
@@ -12,6 +13,7 @@ export interface AcpScheduleContext {
   readonly maxBudgetUsd?: UsdAmount
 }
 export interface AcpSchedulePort {
+  readonly isAvailable?: boolean
   run(text: string, context: AcpScheduleContext): Promise<string>
   holdWorkspace?(cwd: string): Promise<(() => Promise<void>) | undefined>
 }
@@ -21,7 +23,9 @@ export function acpSchedules(
 ): AcpSchedulePort {
   return {
     async run(text, context) {
-      const tail = text.replace(/^\/schedule(?:\s+|$)/, '').trim()
+      const tail = slashCommandText(text)
+        .replace(/^\/schedule(?:\s+|$)/, '')
+        .trim()
       // JSON stays intact, including spaces, Unicode and quoted prompt text.
       const draft = /^add\s+([\s\S]+)$/.exec(tail)
       const ordinaryArgs = tail === '' ? ['list'] : tail.split(/\s+/)

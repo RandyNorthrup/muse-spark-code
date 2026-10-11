@@ -199,7 +199,7 @@ describe('M113 reports command', () => {
     expect(await runReportsCommand(['project'], normal.deps)).toBe(REPORT_EXIT_CODES.generated)
     const missing = reportsHarness({ services: {} })
     expect(await runReportsCommand(['project'], missing.deps)).toBe(REPORT_EXIT_CODES.failed)
-    expect(missing.stderr).toHaveBeenCalledWith('Report kind project is not available yet.')
+    expect(missing.stderr).toHaveBeenCalledWith('Report kind project is unavailable.')
     expect(await runReportsCommand(['project', '--bogus'], reportsHarness().deps)).toBe(
       REPORT_EXIT_CODES.usage,
     )
