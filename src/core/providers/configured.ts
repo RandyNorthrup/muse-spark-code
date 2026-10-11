@@ -1,3 +1,4 @@
+import { resolveAttemptBillingRoute } from '../backends/modelapi/billingRoute'
 // Shared configured-provider transport. Hosts supply their own secret store;
 // every send rechecks configuration, credential origin and pinned DNS answers.
 import { createHash, randomUUID } from 'node:crypto'
@@ -359,6 +360,10 @@ export function createConfiguredProviderServices(
       const result = await transport.request(
         address.path,
         {
+          billingRoute: await resolveAttemptBillingRoute({
+            feature: 'catalogue',
+            isMetaDirect: false,
+          }),
           method: 'GET',
           accept: 'application/json',
           ...(entry.format === 'anthropic' && { headers: { 'anthropic-version': '2023-06-01' } }),

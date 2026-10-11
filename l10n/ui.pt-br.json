@@ -5385,7 +5385,7 @@
     "cannotRead": "A assinatura do Muse Code está ativada, mas o arquivo de login da CLI do Muse Code não pode ser lido. Entre de novo na CLI do Muse Code e tente outra vez, ou use uma chave da Model API.",
     "keychainBacked": "A assinatura do Muse Code está ativada, mas este login está nas Chaves do login, que não podem ser lidas aqui. Use uma chave da Model API.",
     "paidNeedsKey": "A assinatura do Muse Code cobre o chat. Este extra pago precisa de uma chave da Model API armazenada: armazene uma e tente de novo.",
-    "billingChanged": "A conta de cobrança mudou. Nada foi enviado; tente novamente.",
+    "billingChanged": "A conta de cobrança mudou. Esta tentativa foi recusada; tente novamente.",
     "paidSearch": "Os tokens do modelo nesta resposta também são cobrados na sua chave de Model API armazenada nestas tarifas: {price}."
   },
   "acpSubscriptionNeedsModelApi": "{argument} requer --backend modelApi: a assinatura do Muse Code paga as chamadas da Model API.",

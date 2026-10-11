@@ -1,3 +1,8 @@
+import { memorySessionStore } from './helpers/fakeSessionStore'
+import {
+  billingRoute,
+  conversationOwnerSchema,
+} from '../../src/core/backends/modelapi/billingRoute'
 import { Usd } from '../../src/shared/usd'
 import type { UsageRecording } from '../../src/core/usage/recording'
 import { watchSessionTurns } from './helpers/sessionTurns'
@@ -130,6 +135,72 @@ function manager(workspaceRoot: string | undefined) {
 }
 
 describe('ModelApiBackendManager', () => {
+  it.each([false, true])(
+    'routes Best-of-N candidates to the paid key with parent scope=%s',
+    async (scoped) => {
+      const api = fakeModelApi(['LLM|1|secret', 'opaque plan bearer'])
+      const log = new FakeLogOutputChannel()
+      const store = memorySessionStore()
+      const owner = conversationOwnerSchema.parse('a'.repeat(64))
+      const manager = new ModelApiBackendManager(
+        fakeManagerDeps(api, log, {
+          workspaceRoot: '/ws',
+          store,
+          bundlePath: 'src/host/backend/modelApiEntry.ts',
+          loadBundle: () => modelApiEntry,
+          getAccountId: () => Promise.resolve(owner),
+          getApiKey: () => Promise.resolve('opaque plan bearer'),
+          getPaidApiKey: () => Promise.resolve('LLM|1|secret'),
+          getBillingRoute: (isPaid) =>
+            Promise.resolve(
+              billingRoute(
+                isPaid ? 'payAsYouGo' : 'museCodePlan',
+                isPaid ? 'LLM|1|secret' : 'opaque plan bearer',
+                owner,
+              ),
+            ),
+        }),
+      )
+      try {
+        const host = await manager.ensureHost()
+        const parent = await host.startSession({
+          workspaceRoot: '/ws',
+          modelId: 'muse-spark-1.3',
+          approvalMode: 'allowAll',
+        })
+        const scope = scoped ? await manager.bestOfNBudgetScope(parent.sessionId) : undefined
+        if (scoped) {
+          expect(scope?.accountId).toBe(owner)
+          expect(scope?.payerCredential).toBe(await manager.accountId())
+          expect(scope?.isStillAllowed(await manager.accountId())).toBe(true)
+        }
+        const attempt = await manager.buildAttemptHost(
+          '/attempt',
+          Object.assign(() => undefined, { paidFeature: 'bestOfN' as const }),
+          undefined,
+          scope,
+        )
+        const candidate = await attempt.startSession({
+          workspaceRoot: '/attempt',
+          modelId: 'muse-spark-1.3',
+          approvalMode: 'allowAll',
+        })
+        const watched = watchSessionTurns(candidate)
+        api.script({ text: 'candidate' })
+        const done = watched.turnDone()
+        await candidate.sendTurn([{ type: 'text', text: 'candidate' }])
+        await done
+        expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+          terminal: 'completed',
+        })
+        expect(api.requests[0]?.headers['Authorization']).toBe('Bearer LLM|1|secret')
+        await attempt.close()
+      } finally {
+        await manager.dispose()
+      }
+    },
+  )
+
   it('offers the window browser check only to the window host, never a best-of-N attempt (M81)', async () => {
     const check = vi.fn<NonNullable<ModelApiBackendManagerDeps['browserCheck']>['check']>(() =>
       Promise.resolve({ ok: false, failure: { kind: 'runtimeMissing' } }),

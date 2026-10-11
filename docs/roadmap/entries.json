@@ -679,7 +679,7 @@
     {
       "id": "M95",
       "title": "Bring your own models",
-      "summary": "Use other providers or local servers with origin-bound authentication and model capabilities; Meta subscription chat binds billing to each attempt, preserves history on rotation, and keeps consented paid extras on the stored Model API key.",
+      "summary": "Use providers or local servers with origin-bound auth and model capabilities; subscription chat binds every attempt to one route, preserves history across rotation and Windows path casing, and keeps consented extras on the stored key across account changes.",
       "area": "models-providers",
       "release": "0.15.0"
     },

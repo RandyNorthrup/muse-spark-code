@@ -192,3 +192,16 @@ describe('CredentialStore with a subscription', () => {
     await expect(plain.hasModelApiCredential()).resolves.toBe(false)
   })
 })
+
+it.each([
+  [
+    String.raw`D:\Users\Fake\..\fake\.config\muse\auth.json`,
+    'd:/users/fake/.config/muse/auth.json',
+  ],
+  [
+    String.raw`\\Server\Share\Users\Fake\..\fake\muse\auth.json`,
+    '//server/share/users/fake/muse/auth.json',
+  ],
+])('resolves and case-folds Windows sign-in identity %s', (input, expected) => {
+  expect(subscriptionAccountId(input)).toBe(subscriptionAccountId(expected))
+})

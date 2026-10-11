@@ -5079,7 +5079,7 @@
     "cannotRead": "已启用 Muse Code 订阅，但无法读取 Muse Code CLI 的登录文件。请重新登录 Muse Code CLI 后重试，或改用 Model API 密钥。",
     "keychainBacked": "已启用 Muse Code 订阅，但此次登录保存在登录钥匙串中，此处无法读取。请改用 Model API 密钥。",
     "paidNeedsKey": "Muse Code 订阅仅涵盖聊天。此付费功能需要已存储的 Model API 密钥：请存储密钥后重试。",
-    "billingChanged": "计费账户已更改。未发送任何内容，请重试。",
+    "billingChanged": "计费账户已更改。本次尝试已被拒绝，请重试。",
     "paidSearch": "此响应的模型令牌也会通过您存储的 Model API 密钥按以下费率计费：{price}。"
   },
   "acpSubscriptionNeedsModelApi": "{argument} 需要 --backend modelApi：Muse Code 订阅支付 Model API 调用费用。",

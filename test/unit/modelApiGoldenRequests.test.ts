@@ -727,7 +727,8 @@ describe('M98 integrated Model API source', () => {
         if (receipt === 'complete') expect(response.usage?.inputTokens).toBeGreaterThan(0)
         else expect(response.usage).toBeUndefined()
       }
-      expect(admitted).toHaveBeenCalledWith(connection.keyDigest)
+      const payer = await connection.resolvePayer()
+      expect(admitted).toHaveBeenCalledWith(payer.payerCredential)
       expect(JSON.stringify(main)).toBe(snapshot)
       expect(JSON.stringify(harness.session.history())).toBe(history)
       await expect(connection.transport.send(main, new AbortController().signal)).rejects.toThrow(

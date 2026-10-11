@@ -1,3 +1,7 @@
+import {
+  conversationOwnerSchema,
+  payerCredentialSchema,
+} from '../../src/core/backends/modelapi/billingRoute'
 import { Usd } from '../../src/shared/usd'
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
@@ -344,7 +348,8 @@ async function voiceBudget(name: string, capUsd = 0) {
   const current = { capUsd, isOwnerCurrent: true }
   const scope: OwnedSessionBudgetScope = Object.freeze({
     sessionId: 'voice-parent',
-    accountId,
+    accountId: conversationOwnerSchema.parse(accountId),
+    payerCredential: payerCredentialSchema.parse(accountId),
     journal,
     capUsd: () => Usd.from(current.capUsd).toAmount(),
     isStillAllowed: (digest: string | undefined) => current.isOwnerCurrent && digest === accountId,

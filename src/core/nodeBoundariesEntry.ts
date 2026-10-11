@@ -2,3 +2,4 @@
 export * from '../shared/modelApiBoundariesEntry'
 export * from './pathIdentity'
 export * from './windowsPathSpelling'
+export * from './paid/paidAuthority'

@@ -1,3 +1,4 @@
+import { payerCredentialSchema } from '../../src/core/backends/modelapi/billingRoute'
 // Real Git, real uncommitted files, no model calls. Disposable repositories
 // live under the OS temp directory, never under the checkout's gate inputs.
 
@@ -91,7 +92,7 @@ async function started(
     isBestOfNOn: () => true,
     allowsPaidUse: () => Promise.resolve(true),
     notePaidUse: () => undefined,
-    getAccountId: () => Promise.resolve('offline-account'),
+    getAccountId: () => Promise.resolve(payerCredentialSchema.parse('offline-account')),
     hasDirtyEditors: () => false,
     validatePaths: () => Promise.resolve(undefined),
     validateWorktree: () => Promise.resolve(undefined),

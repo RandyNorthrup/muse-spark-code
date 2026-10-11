@@ -1,3 +1,4 @@
+import { payerCredentialSchema } from '../../src/core/backends/modelapi/billingRoute'
 import { metaResolvedModel, modelPolicyFor } from '../../src/core/backends/modelapi/modelPolicy'
 import { FORMAT_QUIRKS } from '../../src/core/providers/presets'
 import { Usd, type UsdAmount } from '../../src/shared/usd'
@@ -2553,7 +2554,7 @@ describe('Model API scheduled prompts (M52)', () => {
     isNextListDelayed = true
     const pending = schedules.list()
     await listed.promise
-    account = 'another-account'
+    account = payerCredentialSchema.parse('another-account')
     release.resolve(undefined)
     expect(await pending).toEqual([])
     expect(events.findLast((event) => event.type === 'schedulesChanged')).toMatchObject({
@@ -3661,7 +3662,9 @@ describe('ModelApiSession: session budget (M82)', () => {
       const total = await bound.scope.journal.read(bound.scope.sessionId, bound.scope.accountId)
       expect(Number(total.spentUsd)).toBeCloseTo(standardCost(10, 5), 12)
       const closing = bound.parent.host.close()
-      expect(bound.scope.isStillAllowed(FAKE_MODEL_API_ACCOUNT_ID)).toBe(false)
+      expect(
+        bound.scope.isStillAllowed(payerCredentialSchema.parse(FAKE_MODEL_API_ACCOUNT_ID)),
+      ).toBe(false)
       await expect(bound.parent.host.getOwnedBudgetScope(bound.scope.sessionId)).rejects.toThrow(
         UI_TEXT.historyUnavailable,
       )
@@ -3778,12 +3781,16 @@ describe('ModelApiSession: session budget (M82)', () => {
     }
     let closing: Promise<void> | undefined
     try {
-      expect(scope.isStillAllowed(FAKE_MODEL_API_ACCOUNT_ID)).toBe(true)
+      expect(scope.isStillAllowed(payerCredentialSchema.parse(FAKE_MODEL_API_ACCOUNT_ID))).toBe(
+        true,
+      )
       await watched.session.sendTurn([{ type: 'text', text: 'held final key' }])
       await keyStarted.promise
       closing = t.host.close()
       await hookStarted.promise
-      expect(scope.isStillAllowed(FAKE_MODEL_API_ACCOUNT_ID)).toBe(false)
+      expect(scope.isStillAllowed(payerCredentialSchema.parse(FAKE_MODEL_API_ACCOUNT_ID))).toBe(
+        false,
+      )
       keyHeld.resolve('LLM|1|secret')
       await watched.turnDone()
       expect(t.api.responseBodies()).toEqual([])

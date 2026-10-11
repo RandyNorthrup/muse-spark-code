@@ -1,3 +1,4 @@
+import { resolveAttemptBillingRoute } from '../../src/core/backends/modelapi/billingRoute'
 import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import { describe, expect, it, vi } from 'vitest'
@@ -207,7 +208,13 @@ describe('shared provider transport', () => {
     )
     let failure: unknown
     try {
-      await transport.request('/models', { method: 'GET', accept: 'application/json' }, undefined)
+      await transport.request(
+        '/models',
+        {
+          ...(await catalogueInit()),
+        },
+        undefined,
+      )
     } catch (error: unknown) {
       failure = error
     }
@@ -243,7 +250,13 @@ describe('shared provider transport', () => {
       }),
     )
     await expect(
-      transport.request('/models', { method: 'GET', accept: 'application/json' }, undefined),
+      transport.request(
+        '/models',
+        {
+          ...(await catalogueInit()),
+        },
+        undefined,
+      ),
     ).rejects.toMatchObject({ message: '[redacted]', status: 401 })
   })
   it.each([301, 307])(
@@ -264,7 +277,13 @@ describe('shared provider transport', () => {
         }),
       )
       await expect(
-        transport.request('/models', { method: 'GET', accept: 'application/json' }, undefined),
+        transport.request(
+          '/models',
+          {
+            ...(await catalogueInit()),
+          },
+          undefined,
+        ),
       ).rejects.toMatchObject({ status })
       expect(sent).toEqual([`${ORIGIN}/models`])
     },
@@ -275,7 +294,9 @@ describe('shared provider transport', () => {
     await expect(
       new RequestTransport(deps({ apiKey, fetch })).request(
         'https://other.test/path',
-        { method: 'GET', accept: 'application/json' },
+        {
+          ...(await catalogueInit()),
+        },
         undefined,
       ),
     ).rejects.toMatchObject({ kind: 'origin_mismatch' })
@@ -301,7 +322,13 @@ describe('shared provider transport', () => {
         },
       }),
     )
-    await transport.request('/models', { method: 'GET', accept: 'application/json' }, undefined)
+    await transport.request(
+      '/models',
+      {
+        ...(await catalogueInit()),
+      },
+      undefined,
+    )
     expect(sent).toEqual([`Bearer ${KEY}`, 'Bearer rotated-opaque'])
     expect(apiKey).toHaveBeenCalledTimes(2)
     expect(verifyEndpoint).toHaveBeenCalledTimes(2)
@@ -325,7 +352,9 @@ describe('shared provider transport', () => {
     await expect(
       transport.request(
         '/models',
-        { method: 'GET', accept: 'application/json' },
+        {
+          ...(await catalogueInit()),
+        },
         undefined,
         undefined,
         undefined,
@@ -355,7 +384,9 @@ describe('shared provider transport', () => {
       await expect(
         transport.request(
           '/models',
-          { method: 'GET', accept: 'application/json' },
+          {
+            ...(await catalogueInit()),
+          },
           stop.signal,
           undefined,
           undefined,
@@ -391,7 +422,9 @@ describe('shared provider transport', () => {
     )
     const result = transport.request(
       '/models',
-      { method: 'GET', accept: 'application/json' },
+      {
+        ...(await catalogueInit()),
+      },
       undefined,
       (notice) => {
         retries.push(notice)
@@ -439,8 +472,7 @@ describe('shared provider transport', () => {
     await new RequestTransport(deps({ fetch })).request(
       '/models',
       {
-        method: 'GET',
-        accept: 'application/json',
+        ...(await catalogueInit()),
         headers: { authorization: 'wrong', 'content-type': 'wrong', accept: 'wrong' },
       },
       undefined,
@@ -454,7 +486,9 @@ describe('shared provider transport', () => {
     await expect(
       new RequestTransport(deps({ fetch })).request(
         '/models',
-        { method: 'GET', accept: 'application/json' },
+        {
+          ...(await catalogueInit()),
+        },
         undefined,
       ),
     ).rejects.toMatchObject({ message: 'echo [redacted]', kind: '[redacted]', code: '[redacted]' })
@@ -946,3 +980,11 @@ describe('CodecClient injected seam', () => {
     expect(source.locked).toBe(false)
   })
 })
+
+async function catalogueInit() {
+  return {
+    billingRoute: await resolveAttemptBillingRoute({ feature: 'catalogue', isMetaDirect: false }),
+    method: 'GET' as const,
+    accept: 'application/json',
+  }
+}

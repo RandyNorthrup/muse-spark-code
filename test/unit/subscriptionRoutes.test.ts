@@ -1,3 +1,4 @@
+import { resolveAttemptBillingRoute } from '../../src/core/backends/modelapi/billingRoute'
 import { describe, expect, it, vi } from 'vitest'
 import type { PaidUseRequest } from '../../src/shared/paid'
 import type { PaidFeature } from '../../src/shared/constants'
@@ -176,6 +177,49 @@ async function turn(s: Awaited<ReturnType<typeof start>>, text = 'hello') {
 }
 
 describe('immutable billing routes', () => {
+  it('refuses a legacy payer change before a retry can join pacing', async () => {
+    const api = fakeModelApi()
+    let key = KEY
+    const acquire = vi.fn(() => Promise.resolve())
+    const client = new ModelApiClient({
+      ...fakeModelApiClientSettings(new FakeLogOutputChannel()),
+      fetch: api.fetch,
+      apiKey: () => Promise.resolve(key),
+      sleep: () => {
+        key = 'opaque changed payer'
+        return Promise.resolve()
+      },
+      pacing: { acquire, snapshot: () => ({ requests: 0, tokens: 0 }), observe: vi.fn() },
+    })
+    api.script({ httpError: { status: 503 } }, { text: 'must not dispatch' })
+    await expect(
+      Array.fromAsync(
+        client.streamResponse(
+          {
+            model: MODEL,
+            input: [],
+            instructions: '',
+            tools: [],
+            tool_choice: 'auto',
+            reasoning: { effort: 'high', summary: 'auto' },
+            stream: true,
+            store: false,
+            include: [],
+            max_output_tokens: 100,
+            prompt_cache_key: 'legacy-retry',
+            prompt_cache_retention: '24h',
+          },
+          new AbortController().signal,
+          undefined,
+          undefined,
+          Object.assign(() => undefined, { paidFeature: 'subagents' as const }),
+        ),
+      ),
+    ).rejects.toThrow(UI_TEXT.subscriptionKey.billingChanged)
+    expect(acquire).toHaveBeenCalledOnce()
+    expect(api.responseBodies()).toHaveLength(1)
+  })
+
   it('uses the pasted key for Auto review on a subscription conversation', async () => {
     const t = setup({
       paid: ['autoReviewer'],
@@ -321,7 +365,16 @@ describe('immutable billing routes', () => {
     api.script({ text: 'snapshot answer' })
     await transport.request(
       '/responses',
-      { method: 'POST', accept: 'text/event-stream', body: { model: MODEL } },
+      {
+        billingRoute: await resolveAttemptBillingRoute({
+          feature: 'ordinary',
+          isMetaDirect: true,
+          snapshot: guard.billingRoute,
+        }),
+        method: 'POST',
+        accept: 'text/event-stream',
+        body: { model: MODEL },
+      },
       new AbortController().signal,
       undefined,
       undefined,
@@ -449,6 +502,11 @@ describe('immutable billing routes', () => {
     await transport.request(
       '/responses',
       {
+        billingRoute: await resolveAttemptBillingRoute({
+          feature: 'ordinary',
+          isMetaDirect: true,
+          snapshot: route,
+        }),
         method: 'POST',
         accept: 'text/event-stream',
         body: { model: MODEL },
@@ -462,4 +520,54 @@ describe('immutable billing routes', () => {
     expect(auth).toHaveBeenCalled()
     expect(api.requests[0]?.headers['Authorization']).toBe(`Bearer ${KEY}`)
   })
+})
+
+it('rebinds subscription to provider and back without restarting the host', async () => {
+  const t = setup({ cap: 1 })
+  try {
+    const s = await start(t)
+    t.api.script({ text: 'plan' })
+    expect(await turn(s)).toMatchObject({ terminal: 'completed' })
+    t.file.writeText('{}')
+    const provider = await t.host.startSession({
+      workspaceRoot: '/workspace',
+      modelId: PROVIDER,
+      approvalMode: 'allowAll',
+    })
+    const watch = watchSessionTurns(provider)
+    t.providerApi.script({ text: 'provider' })
+    const done = watch.turnDone()
+    await provider.sendTurn([{ type: 'text', text: 'provider turn' }])
+    await done
+    t.file.writeAccessToken(KEY)
+    const page = await t.host.listSessions({ workspaceRoot: '/workspace', limit: 100 })
+    expect(page.sessions.some((entry) => entry.sessionId === s.session.sessionId)).toBe(true)
+    await expect(t.host.resumeSession(s.session.sessionId, MODEL)).resolves.toBeDefined()
+    const next = await start(t)
+    t.api.script({ text: 'plan again' })
+    expect(await turn(next)).toMatchObject({ terminal: 'completed' })
+  } finally {
+    await t.host.close()
+  }
+})
+
+it('describes a refused retry after an earlier response was dispatched', async () => {
+  let attempts = 0
+  const t = setup({
+    pacing: () => {
+      attempts += 1
+      if (attempts === 2) t.file.writeText('{}')
+    },
+  })
+  try {
+    const s = await start(t)
+    t.api.script({ httpError: { status: 503 } })
+    const result = await turn(s)
+    expect(result).toMatchObject({ terminal: 'failed' })
+    expect(t.api.requests).toHaveLength(1)
+    expect(JSON.stringify(s.watch.events)).toContain('This attempt was refused')
+    expect(JSON.stringify(s.watch.events)).not.toContain('Nothing was sent')
+  } finally {
+    await t.host.close()
+  }
 })

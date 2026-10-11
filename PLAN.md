@@ -28156,6 +28156,22 @@ OpenCode plugin hooks").
 
 ### M95 — Bring-your-own model providers (D74)
 
+**CMSUBKEYR4 redesign (2026-10-11, macmini).** Resolve one billing route
+for every attempt from its feature and admission flag, and require that route
+at transport. Separate branded ConversationOwner from PayerCredential;
+external budgets compare owner to owner and payer to payer. Bind remembered
+search consent to payer kind and model-token disclosure. Make subscription /
+provider host transitions symmetric, check usable provider credentials before
+subscription refusal in every editor, resolve and case-fold Windows paths,
+and describe only the refused attempt on retry. Fix all nine RVCMSUBKEY3
+findings with regressions and byte-exact red drills in m95-sub.md. No new
+dependency, merge, paid call or cap increase; full quality remains with lead. The
+free provider probe ships with the existing configuredProviders lazy entry,
+so its required route result does not enter the headless preflight. Quote
+authority ships once through the existing Node boundary bundle, with the
+caller's installed language, preserving the stricter Model API diet pin too;
+caps stay unchanged.
+
 **M95R5 integration (2026-10-05, Windows 11).** Merge lane T with
 `--no-ff`, then merge a single sanitized squash of X's net changes on its
 merge-base. Remove the scanner-flagged certification line unseen before

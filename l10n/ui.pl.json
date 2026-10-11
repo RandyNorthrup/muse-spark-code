@@ -5538,7 +5538,7 @@
     "cannotRead": "Subskrypcja Muse Code jest włączona, ale nie można odczytać pliku logowania Muse Code CLI. Zaloguj się ponownie do Muse Code CLI i spróbuj ponownie albo użyj klucza Model API.",
     "keychainBacked": "Subskrypcja Muse Code jest włączona, ale to logowanie znajduje się w pęku kluczy logowania, którego nie można tutaj odczytać. Użyj klucza Model API.",
     "paidNeedsKey": "Subskrypcja Muse Code obejmuje czat. Ten płatny dodatek wymaga zapisanego klucza Model API: zapisz go i spróbuj ponownie.",
-    "billingChanged": "Konto rozliczeniowe uległo zmianie. Nic nie wysłano; spróbuj ponownie.",
+    "billingChanged": "Konto rozliczeniowe uległo zmianie. Ta próba została odrzucona; spróbuj ponownie.",
     "paidSearch": "Tokeny modelu w tej odpowiedzi są również rozliczane na zapisany klucz Model API według stawek: {price}."
   },
   "acpSubscriptionNeedsModelApi": "{argument} wymaga --backend modelApi: subskrypcja Muse Code opłaca wywołania Model API.",

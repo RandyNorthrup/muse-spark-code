@@ -5232,7 +5232,7 @@
     "cannotRead": "Muse Code aboneliği açık, ancak Muse Code CLI giriş dosyası okunamıyor. Muse Code CLI ile yeniden giriş yapın ve tekrar deneyin — ya da Model API anahtarı kullanın.",
     "keychainBacked": "Muse Code aboneliği açık, ancak bu giriş, burada okunamayan giriş anahtar zincirinde. Model API anahtarı kullanın.",
     "paidNeedsKey": "Muse Code aboneliği sohbeti kapsar. Bu ücretli ekstra için kayıtlı bir Model API anahtarı gerekir: bir tane kaydedip tekrar deneyin.",
-    "billingChanged": "Faturalandırma hesabı değişti. Hiçbir şey gönderilmedi; yeniden deneyin.",
+    "billingChanged": "Faturalandırma hesabı değişti. Bu deneme reddedildi; yeniden deneyin.",
     "paidSearch": "Bu yanıttaki model tokenları da saklanan Model API anahtarınıza şu ücretlerle faturalandırılır: {price}."
   },
   "acpSubscriptionNeedsModelApi": "{argument} --backend modelApi gerektirir: Muse Code aboneliği Model API çağrılarını öder.",

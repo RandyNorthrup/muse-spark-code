@@ -5385,7 +5385,7 @@
     "cannotRead": "La suscripción de Muse Code está activada, pero el archivo de inicio de sesión de la CLI de Muse Code no se puede leer. Inicie sesión en la CLI de Muse Code de nuevo e inténtelo de nuevo, o use una clave de Model API.",
     "keychainBacked": "La suscripción de Muse Code está activada, pero este inicio de sesión está en el llavero de inicio de sesión, que aquí no se puede leer. Use una clave de Model API.",
     "paidNeedsKey": "La suscripción de Muse Code cubre el chat. Este extra de pago necesita una clave de Model API almacenada: almacene una e inténtelo de nuevo.",
-    "billingChanged": "La cuenta de facturación ha cambiado. No se ha enviado nada; inténtalo de nuevo.",
+    "billingChanged": "La cuenta de facturación ha cambiado. Este intento se ha rechazado; inténtalo de nuevo.",
     "paidSearch": "Los tokens del modelo de esta respuesta también se facturan a tu clave de Model API guardada a estas tarifas: {price}."
   },
   "acpSubscriptionNeedsModelApi": "{argument} requiere --backend modelApi: la suscripción de Muse Code paga las llamadas de Model API.",

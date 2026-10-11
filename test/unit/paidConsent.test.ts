@@ -205,6 +205,42 @@ describe('PaidUseConsent (M58)', () => {
     expect(log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
   })
 
+  it('asks again when payer kind or model-token billing disclosure changes, in both directions', async () => {
+    const t = quoteConsentWith({})
+    const first = quotedSearch('0.01')
+    await t.consent.allows(first)
+    await t.consent.allows({
+      ...quotedSearch('0.01', 'model-a', 'paid'),
+      paidModelId: 'muse-spark-1.3',
+      payerKind: 'payAsYouGo',
+    })
+    await t.consent.allows({
+      ...quotedSearch('0.01', 'model-a', 'plan'),
+      paidModelId: 'muse-spark-1.3',
+      payerKind: 'museCodePlan',
+    })
+    expect(t.ask).toHaveBeenCalledTimes(3)
+    const fresh = new PaidUseConsent({
+      isOn: () => true,
+      canRemember: () => true,
+      readGrants: () => new Set(),
+      writeGrants: () => Promise.resolve(),
+      ask: t.ask,
+      quoteGeneration: () => 'stored',
+      readQuoteGrant: (quote) =>
+        latestPaidGrant(
+          t.kept.filter((grant) => paidAuthorityKey(grant.quote) === paidAuthorityKey(quote)),
+        ),
+      log: t.log,
+    })
+    await fresh.allows({
+      ...quotedSearch('0.01', 'model-a', 'paid-again'),
+      paidModelId: 'muse-spark-1.3',
+      payerKind: 'payAsYouGo',
+    })
+    expect(t.ask).toHaveBeenCalledTimes(3)
+  })
+
   describe('a quoted search "always" its store cannot keep (0.16.0 review)', () => {
     it('keeps a working store’s "always", so the next use asks nothing', async () => {
       const t = quoteConsentWith({})

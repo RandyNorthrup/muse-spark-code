@@ -5538,7 +5538,7 @@
     "cannotRead": "Předplatné Muse Code je zapnuté, ale přihlašovací soubor Muse Code CLI nelze přečíst. Přihlaste Muse Code CLI znovu a zkuste to znovu – nebo místo toho použijte klíč Model API.",
     "keychainBacked": "Předplatné Muse Code je zapnuté, ale toto přihlášení je v přihlašovací klíčence, kterou zde nelze přečíst. Místo toho použijte klíč Model API.",
     "paidNeedsKey": "Předplatné Muse Code pokrývá chat. Tento placený doplněk potřebuje uložený klíč Model API: uložte jej a zkuste to znovu.",
-    "billingChanged": "Účet pro účtování se změnil. Nic nebylo odesláno; zkuste to znovu.",
+    "billingChanged": "Účet pro účtování se změnil. Tento pokus byl odmítnut; zkuste to znovu.",
     "paidSearch": "Tokeny modelu v této odpovědi se také účtují na váš uložený klíč Model API podle sazeb {price}."
   },
   "acpSubscriptionNeedsModelApi": "{argument} vyžaduje --backend modelApi: předplatné Muse Code hradí volání Model API.",

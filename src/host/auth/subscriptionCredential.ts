@@ -2,6 +2,7 @@ import {
   billingRoute,
   subscriptionAccountId,
   type BillingRoute,
+  type ConversationOwner,
 } from '../../core/backends/modelapi/billingRoute'
 // C-M95-SUB: the host's view of the subscription credential. One opt-in
 // (the VS Code setting, the ACP/headless flag) over the shared core
@@ -55,8 +56,8 @@ export class SubscriptionCredential {
   }
 
   /** Stable non-secret identity, also available after sign-out to drop its fences. */
-  public accountId(): string {
-    return subscriptionAccountId(this.source.path())
+  public accountId(): ConversationOwner {
+    return subscriptionAccountId(this.source.path(), this.deps.platform)
   }
 
   /** The CLI auth file read, for diagnostics that never carry the key. */

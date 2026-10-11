@@ -1,4 +1,4 @@
-import type { BillingRoute } from './billingRoute'
+import type { AttemptBillingRoute, BillingRoute } from './billingRoute'
 import { notify } from '../../events/notify'
 import type { PaidAuthority } from '../../paid/paidAuthority'
 import type { PaidQuote, SearchSettlement } from '../../../shared/paid'
@@ -595,6 +595,7 @@ export class RequestTransport {
   public async streamRequest(
     path: string,
     init: {
+      readonly billingRoute: AttemptBillingRoute
       readonly body: unknown
       readonly headers?: Readonly<Record<string, string>>
       readonly modelId?: string
@@ -729,6 +730,7 @@ export class RequestTransport {
   public async request(
     path: string,
     init: {
+      readonly billingRoute: AttemptBillingRoute
       readonly method: 'GET' | 'POST'
       readonly body?: unknown
       readonly modelId?: string
@@ -813,7 +815,7 @@ export class RequestTransport {
         credentials = await this.headers(
           url,
           this.deps.auth === undefined
-            ? (init.authKey ?? admitAttempt?.billingRoute?.credential)
+            ? (init.billingRoute.billing?.credential ?? init.authKey)
             : undefined,
         )
       } catch (error: unknown) {
@@ -828,6 +830,18 @@ export class RequestTransport {
       if (isAborted(signal)) {
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
       }
+      if (
+        attempt > 0 &&
+        init.billingRoute.billing !== undefined &&
+        init.authKey === undefined &&
+        init.billingRoute.requiresCredentialCheck &&
+        credentials.keyDigest !== (await this.currentKeyDigest())
+      )
+        throw new Error(
+          confirmed === undefined
+            ? UI_TEXT.subscriptionKey.billingChanged
+            : UI_TEXT.scheduleConfirmationExpired,
+        )
       await this.deps.verifyEndpoint?.(url)
       if (isAborted(signal)) {
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
@@ -881,7 +895,7 @@ export class RequestTransport {
         }
         if (
           kind !== 'foreground' &&
-          (this.deps.auth !== undefined || admitAttempt?.billingRoute === undefined) &&
+          (this.deps.auth !== undefined || init.billingRoute.requiresCredentialCheck) &&
           credentials.keyDigest !== (await this.currentKeyDigest())
         )
           throw new Error(UI_TEXT.notSignedInReason)

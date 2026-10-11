@@ -1,3 +1,4 @@
+import { payerCredentialSchema } from '../../core/backends/modelapi/billingRoute'
 import type { UsageRecording } from '../../core/usage/recording'
 import type { ProviderUsageRow, AccountFacts, SubscriptionUsage } from '../../shared/usage'
 import type { ChatShareSource } from '../../core/sharing/chatShare'
@@ -4395,7 +4396,10 @@ export class ConversationController {
     this.bestOfNManager ??= createBestOfNManager(
       {
         coordinator: this.deps.bestOfNCoordinator,
-        getAccountId: this.deps.modelApiAccountId,
+        getAccountId: async () => {
+          const payer = await this.deps.modelApiAccountId()
+          return payer === undefined ? undefined : payerCredentialSchema.parse(payer)
+        },
         getBudgetScope: async () => await this.deps.bestOfNBudgetScope?.(this.session?.sessionId),
         openWorktree: this.deps.openBestOfNWorktree,
         noteAttemptRequest: this.deps.noteBestOfNRequest,
@@ -9646,7 +9650,9 @@ export class ConversationController {
               this.sessionKind === 'modelApi' &&
               choice.engine === 'museVoice' &&
               choice.setup.isAvailable &&
-              scope.isStillAllowed(keyDigest)
+              scope.isStillAllowed(
+                keyDigest === undefined ? undefined : payerCredentialSchema.parse(keyDigest),
+              )
             )
           },
         })
@@ -9766,14 +9772,18 @@ export class ConversationController {
           throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
         }
       }
-      if (!isCurrent() || scope?.isStillAllowed(accountId) === false) {
+      if (!isCurrent() || scope?.isStillAllowed(payerCredentialSchema.parse(accountId)) === false) {
         this.postDictationState()
         return
       }
       consentFence(accountId, true)
       // Each Muse Voice recording is paid: the popup first (M58, PLAN.md D48).
       const isAllowed = (await this.deps.allowsPaidUse({ feature: 'voice' })) === true
-      if (!isAllowed || !isCurrent() || scope?.isStillAllowed(accountId) === false) {
+      if (
+        !isAllowed ||
+        !isCurrent() ||
+        scope?.isStillAllowed(payerCredentialSchema.parse(accountId)) === false
+      ) {
         this.postDictationState()
         return
       }

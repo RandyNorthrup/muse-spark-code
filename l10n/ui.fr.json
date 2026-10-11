@@ -5385,7 +5385,7 @@
     "cannotRead": "L’abonnement Muse Code est activé, mais le fichier de connexion de la CLI Muse Code est illisible. Reconnectez la CLI Muse Code, puis réessayez — ou utilisez plutôt une clé de Model API.",
     "keychainBacked": "L’abonnement Muse Code est activé, mais cette connexion se trouve dans le trousseau de session, illisible ici. Utilisez plutôt une clé de Model API.",
     "paidNeedsKey": "L’abonnement Muse Code couvre le clavardage. Cette option payante exige une clé de Model API enregistrée : enregistrez-en une, puis réessayez.",
-    "billingChanged": "Le compte de facturation a changé. Rien n’a été envoyé ; réessayez.",
+    "billingChanged": "Le compte de facturation a changé. Cette tentative a été refusée ; réessayez.",
     "paidSearch": "Les jetons du modèle de cette réponse sont aussi facturés à votre clé Model API enregistrée à ces tarifs : {price}."
   },
   "acpSubscriptionNeedsModelApi": "{argument} nécessite --backend modelApi : l’abonnement Muse Code paie les appels Model API.",

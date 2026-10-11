@@ -1,3 +1,4 @@
+import type { ConversationOwner, PayerCredential } from './billingRoute'
 import { USD_DECIMAL_ONE } from '../../../shared/usdConstants'
 // The Model API session budget (M82, PLAN.md M82): a dollar cap per
 // conversation, kept by reservation, since a request's cost is incurred
@@ -142,12 +143,13 @@ export interface SessionBudgetJournal {
 /** Parent-owned spend for extension calls with independent temporary transcripts. */
 export interface OwnedSessionBudgetScope {
   readonly sessionId: string
-  readonly accountId: string
+  readonly accountId: ConversationOwner
+  readonly payerCredential: PayerCredential
   readonly journal: SessionBudgetJournal
   /** Machine setting stays live through async work and final admission. */
   readonly capUsd: () => UsdAmount
   /** Caller supplies the digest of the actual key about to send, never the key itself. */
-  readonly isStillAllowed: (keyDigest: string | undefined) => boolean
+  readonly isStillAllowed: (keyDigest: PayerCredential | undefined) => boolean
 }
 
 /** A request the budget refused: it is not sent, and the turn stops with this reason. */

@@ -5232,7 +5232,7 @@
     "cannotRead": "A Muse Code-előfizetés be van kapcsolva, de a Muse Code CLI bejelentkezési fájlja nem olvasható. Jelentkezzen be újra a Muse Code CLI-be, majd próbálja újra – vagy használjon Model API-kulcsot.",
     "keychainBacked": "A Muse Code-előfizetés be van kapcsolva, de ez a bejelentkezés a bejelentkezési kulcskarikában van, amely itt nem olvasható. Használjon Model API-kulcsot.",
     "paidNeedsKey": "A Muse Code-előfizetés a chatet fedezi. Ehhez a fizetős extrához tárolt Model API-kulcs kell: tároljon egyet, majd próbálja újra.",
-    "billingChanged": "A számlázási fiók megváltozott. Semmit sem küldtünk el; próbálja újra.",
+    "billingChanged": "A számlázási fiók megváltozott. Ezt a próbálkozást elutasítottuk; próbálja újra.",
     "paidSearch": "A válasz modelltokenjeit is a tárolt Model API-kulcsra számlázzuk, a következő díjak szerint: {price}."
   },
   "acpSubscriptionNeedsModelApi": "{argument} használatához --backend modelApi szükséges: a Muse Code-előfizetés fizeti a Model API-hívásokat.",
