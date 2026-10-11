@@ -1,3 +1,5 @@
+import { reserveRequestAmount } from '../../src/core/providers/priceCard'
+import { requestImageCount } from '../../src/core/backends/modelapi/modelPolicy'
 import { mkdtemp } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
@@ -88,7 +90,13 @@ function fakeClaim(reservedUsd = Usd.from(0.012).toAmount()) {
     }),
   }
 }
-function setup(reserve?: AutoCompactionLedger['reserveCompaction'], isOn = () => true) {
+function setup(
+  reserve?: AutoCompactionLedger['reserveCompaction'],
+  isOn = () => true,
+  loadPricing: NonNullable<
+    Parameters<typeof createAutoCompactionAdmission>[0]['loadPricing']
+  > = () => Promise.resolve({ reserveRequestAmount, requestImageCount }),
+) {
   const claims: ReturnType<typeof fakeClaim>[] = []
   const reserveCompaction = vi.fn(
     reserve ??
@@ -101,6 +109,7 @@ function setup(reserve?: AutoCompactionLedger['reserveCompaction'], isOn = () =>
   const allowsPaidUse = vi.fn(() => Promise.resolve(true))
   const notePaidUse = vi.fn()
   const admit = createAutoCompactionAdmission({
+    loadPricing,
     accounting: { reserveCompaction },
     allowsPaidUse,
     isOn,
@@ -116,6 +125,44 @@ function setup(reserve?: AutoCompactionLedger['reserveCompaction'], isOn = () =>
 }
 
 describe('automatic compaction production admission', () => {
+  it('refuses a missing pricing dependency before consent or reservation', async () => {
+    const deps = {
+      accounting: 'transport' as const,
+      allowsPaidUse: vi.fn(() => Promise.resolve(true)),
+      isOn: () => true,
+      isTrusted: () => true,
+      isEvaluated: () => true,
+      paidUseFence: () => isConsentCurrent,
+      dailyBudgetUsd: () => Usd.from(5).toAmount(),
+      notePaidUse: vi.fn(),
+      log: new FakeLogOutputChannel(),
+      storeUnavailable: 'ledger unavailable',
+    }
+    expect(await createAutoCompactionAdmission(deps)(requestFor())).toBe(undefined)
+    expect(deps.allowsPaidUse).not.toHaveBeenCalled()
+    expect(deps.notePaidUse).not.toHaveBeenCalled()
+  })
+
+  it.each(['absent', 'failed'] as const)(
+    'refuses %s lazy pricing before reserving or dispatching',
+    async (outcome) => {
+      const t = setup(
+        undefined,
+        () => true,
+        () =>
+          outcome === 'absent'
+            ? Promise.resolve(undefined)
+            : Promise.reject(new Error('pricing chunk unavailable')),
+      )
+      const a = await t.admit(requestFor())
+      await expect(a?.guard.prepareRequest?.(BODY, 1000)).rejects.toThrow()
+      expect(t.reserveCompaction).not.toHaveBeenCalled()
+      expect(t.notePaidUse).not.toHaveBeenCalled()
+      expect(() => a?.guard('digest')).toThrow('ledger unavailable')
+      await a?.close?.()
+    },
+  )
+
   it('a short previous summary cannot overspend the real hard daily journal', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'm101-hard-bound-'))
     try {
@@ -170,6 +217,7 @@ describe('automatic compaction production admission', () => {
       const reserveCompaction = vi.fn((amount: UsdAmount) => Promise.resolve(fakeClaim(amount)))
       const allowsPaidUse = vi.fn(() => Promise.resolve(true))
       const admit = createAutoCompactionAdmission({
+        loadPricing: () => Promise.resolve({ reserveRequestAmount, requestImageCount }),
         accounting: { reserveCompaction },
         allowsPaidUse,
         isOn: () => live.switch,
