@@ -12,11 +12,16 @@
 // a guessed wire shape (AGENTS.md rule 14).
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
+import * as z from 'zod/mini'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { githubReportSource } from '../../src/core/reporting/sources/github'
 import { CAPTURED_CHECKS_FAILED, CAPTURED_PULL_LIST } from './helpers/githubCapture'
-import { encodeNpmPackageName, npmStoreAdapter } from '../../src/core/reporting/sources/npmStore'
+import {
+  encodeNpmPackageName,
+  isNpmPackageName,
+  npmStoreAdapter,
+} from '../../src/core/reporting/sources/npmStore'
 import { storesReportSource } from '../../src/core/reporting/sources/stores'
 import { networkContext, networkRig } from './helpers/reportNetwork'
 import { REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
@@ -31,6 +36,14 @@ const published = {
   publisher: 'fixture',
   engines: { vscode: '^1.99.0' },
   private: false,
+}
+
+function siblingAdapter(channel: 'Marketplace' | 'Open VSX', url: string) {
+  return {
+    channel,
+    request: { url },
+    schema: z.strictObject({ version: z.string(), url: z.url() }),
+  }
 }
 
 function capturedNpm() {
@@ -54,8 +67,97 @@ describe('npm store adapter', () => {
     expect(encodeNpmPackageName('@types/node')).toBe('@types%2Fnode')
   })
 
-  it.each(['', ' '.repeat(3), 'has space'])('rejects %p instead of requesting it', (name) => {
-    expect(() => npmStoreAdapter(name)).toThrow('npm-package-required')
+  it('encodes every @scope/name form with a bare @ and one encoded slash', () => {
+    // Property over @scope/name forms (RVCM1136 P3): the scope and name keep
+    // their own encoding; no character may shift the slash or borrow a scope.
+    const scopes = ['types', 'a', 'my-scope', 's.cope', 's~cope', 's_cope', 'x%20y']
+    const names = ['node', 'n', 'my-pkg', 'p.kg', 'p~kg', 'p_kg', 'a%b', 'x%2Fy']
+    for (const scope of scopes)
+      for (const name of names) {
+        const encoded = encodeNpmPackageName(`@${scope}/${name}`)
+        expect(encoded).toBe(`@${encodeURIComponent(scope)}%2F${encodeURIComponent(name)}`)
+        expect(encoded.indexOf('%2F')).toBe(encoded.lastIndexOf('%2F'))
+      }
+  })
+
+  it('never borrows a scope for a name without a leading @', () => {
+    // RVCM1136 P3: `foo/bar` is not a scoped name; the encoder must not read
+    // it as scope `foo` minus its first character.
+    expect(encodeNpmPackageName('foo/bar')).toBe('foo%2Fbar')
+    expect(encodeNpmPackageName('foo/bar')).not.toContain('@')
+    expect(encodeNpmPackageName('@/bar')).toBe('@%2Fbar')
+    expect(encodeNpmPackageName('plain')).toBe('plain')
+  })
+
+  it.each(['is-even', 'fixture-pkg', '@types/node', '@scope/name.test_~-', 'a'.repeat(214)])(
+    'accepts %p as a requestable name',
+    (name) => {
+      expect(isNpmPackageName(name)).toBe(true)
+      expect(npmStoreAdapter(name)).not.toHaveProperty('refused')
+    },
+  )
+
+  it.each([
+    '',
+    ' '.repeat(3),
+    'has space',
+    'My Package',
+    'MyPackage',
+    'foo/bar',
+    '.leading',
+    '_leading',
+    '@bad scope/name',
+    '@/name',
+    'trailing/',
+    'a'.repeat(215),
+  ])('refuses %p without requesting it', (name) => {
+    expect(isNpmPackageName(name)).toBe(false)
+    expect(npmStoreAdapter(name)).toMatchObject({ channel: 'npm', refused: 'npm-package-required' })
+  })
+
+  it('reports a refused name as an unavailable npm row, never a failed source', async () => {
+    // Sibling channels succeed, so the refused npm row stays visible in the data.
+    const transport = vi.fn((request: { url: string }) =>
+      Promise.resolve(Response.json({ version: '1.0.0', url: request.url })),
+    )
+    const rig = networkRig({ transport })
+    const result = await storesReportSource({
+      reader: rig.reader,
+      project: published,
+      releaseVersion: '1.0.0',
+      adapters: [
+        siblingAdapter('Marketplace', 'https://marketplace.visualstudio.com/fixture'),
+        siblingAdapter('Open VSX', 'https://open-vsx.org/fixture'),
+        npmStoreAdapter('My Package'),
+      ],
+    }).read(networkContext())
+    expect(result.record.status).toBe('partial')
+    expect(result.data?.find((row) => row.channel === 'npm')).toEqual({
+      channel: 'npm',
+      version: null,
+      url: 'https://www.npmjs.com/package/fixture',
+      status: 'unavailable',
+      reason: 'npm-package-required',
+    })
+    expect(transport).toHaveBeenCalledTimes(2)
+    expect(transport.mock.calls.map((call) => call[0].url)).toEqual([
+      'https://marketplace.visualstudio.com/fixture',
+      'https://open-vsx.org/fixture',
+    ])
+  })
+
+  it('names the refusal in the source reason when every channel is refused', async () => {
+    const rig = networkRig()
+    const result = await storesReportSource({
+      reader: rig.reader,
+      project: npmOnly,
+      releaseVersion: '1.0.0',
+      adapters: [npmStoreAdapter('My Package')],
+    }).read(networkContext())
+    expect(result.record.status).toBe('unavailable')
+    expect(result.data).toBeNull()
+    expect(result.record.reason).toContain('npm: npm-package-required')
+    expect(rig.transport).not.toHaveBeenCalled()
   })
 
   it('parses the captured version document and reports a matching release current', async () => {

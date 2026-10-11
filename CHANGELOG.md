@@ -17,6 +17,16 @@ happened, not what was planned; superseded entries are kept.
   render dollars as dollars and percentages as percents; session files reached
   through linked folders read normally while linked files still refuse; and
   another session's questions report as unbound rather than missing history.
+- **The npm release channel reaches the registry on every production transport** (CM1136R2).
+  The report network routes `registry.npmjs.org` through the credential-free
+  public fetch under the existing network consent, while `api.github.com`
+  stays on the surface's own lane (the editor's signed fetch, the CLI/ACP `gh`
+  process); anything else stays refused. An invalid package name is a refused
+  npm row with its reason instead of a failed report; workspace identity is
+  re-read on every networked report, so a version bump or a newly declared
+  manifest shows up on the next refresh; scoped names keep the captured
+  `@scope%2Fname` form for every `@scope/name` shape; and a non-semver local
+  version names the manifest instead of the registry document.
 - **Session and usage reports preserve source honesty and identity** (CM1132R2).
   Concurrent sources share a flushed journal snapshot. Damage, newer versions,
   missing session attribution and unavailable budget snapshots produce partial

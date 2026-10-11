@@ -129,6 +129,33 @@ pass-through).
   restored byte-exact (`sha256sum -c` OK: storeProject
   `7d692a53…`, network `16986429…`, engine `5055c7d5…`, test `355227a1…`).
 
+## Round 2: RVCM1136 findings, all fixed and shipped (lane CM1136R2, same branch)
+
+Worktree `/home/randy/lanes/CM1136`, kubuntu rig, all tests at the
+repository's own timeout (no `--testTimeout`). No new dependency, no widened
+guard, no new UI string (`node scripts/check-l10n.mjs`: 0 problems).
+
+| Finding                                                     | Fix (file)                                                                                                                                                                                                                                                                                           | Regression test (fails without it)                                                                                                                                                                                       | Red drill                                                                                                 |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| P1: npm bound but unreachable on every production transport | `src/runtime/reporting/network.ts`: `routeReportTransport` routes `api.github.com` to the surface lane (editor signed fetch / CLI `gh`) and `registry.npmjs.org` to credential-free `publicReportTransport`; anything else refused as before. GitHub sweep: its binding is unchanged, only addressed | `test/unit/storeProject.test.ts`: CLI shape (no transport) + editor `whenSignedIn` shape drive `createReportingNetwork` up to stubbed `fetch`; router test pins GitHub delegation and the `gh-endpoint-refused` fallback | Router forced npm onto the GitHub lane: 4 P1 tests fail. Restored byte-exact                              |
+| P2: whitespace name fails the whole report                  | `src/core/reporting/sources/npmStore.ts`: invalid names (M97 `NPM_NAME_PATTERN` + 214 chars, beside the adapter) return a refused adapter; `src/core/reporting/sources/stores.ts`: `ReportStoreAdapter.refused` reports the row unavailable with its reason, no dispatch                             | `test/unit/npmStoreAdapter.test.ts` (refused table + row + source-reason tests), `test/unit/storeReportSource.test.ts` (refused row, no dispatch)                                                                        | Validity forced true: refused cases fail. Refused block removed: row test fails. Both restored byte-exact |
+| P2: identity latched on first networked report              | `src/runtime/reporting/engine.ts`: manifest re-read and network rebound on every networked report (cache still shared by storage root)                                                                                                                                                               | `test/unit/reportEngineStores.test.ts`: version bump `1.0.0`→`1.1.0` and unbound→bound across two `generate()` calls (loader seam mocked, manifest read real)                                                            | Latch restored: both tests fail. Restored byte-exact                                                      |
+| P3: encoder drops first char for any `/` name               | `encodeNpmPackageName`: scoped form only for a leading `@`; anything else is `encodeURIComponent` (`foo/bar` → `foo%2Fbar`)                                                                                                                                                                          | Property test over 7 scopes × 8 names + non-`@` cases                                                                                                                                                                    | Old encoder restored: `never borrows a scope` fails. Restored byte-exact                                  |
+| P3: non-semver version blamed on the registry               | `stores.ts`: `isVersion` guards — bad local version → row/source reason `release-version-invalid`; bad served version → `store-response-invalid`                                                                                                                                                     | `it.each(['1.2','01.0.0','v1','latest'])` asserts `npm: release-version-invalid` and no `store-response-invalid`; served-invalid row test                                                                                | Guards removed: 4 version tests fail. Restored byte-exact                                                 |
+
+Drill record: pre-drill `sha256sum` of all 8 touched files; each break ran
+the named test file; every file verified `sha256sum -c OK` after restore
+(final full check: 8/8 OK). Note: `prettier --write` after the drills
+reformatted 4 files; the suite was re-run green afterwards.
+
+Final runs (repository timeout, `--maxWorkers=3`): `npmStoreAdapter` +
+`storeReportSource` + `storeProject` 72/72; `reportEngineStores` 2/2;
+neighbors `githubReportSource` + `reportNetworkCache` + `reportEngine` 94/94;
+`collect.project` + `reportNetworkBinding` + `reportsCommand` 26/26.
+`tsc` host + unit clean; `eslint --max-warnings=0` clean; `prettier --check`
+clean; `npm run build` clean — `dist/reportingNetwork.js` 58.8 KiB (budget
+75 KiB), `dist/reporting.js` 148.1 KiB (budget 175 KiB).
+
 ## 0.17.1 truth-pass restore list
 
 Nothing to restore: this feature was never surfaced (stores source unbound,
