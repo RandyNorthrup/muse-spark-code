@@ -1,4 +1,4 @@
-# Key bindings
+# Key Bindings
 
 Scope: Fixture workspace
 
@@ -8,7 +8,7 @@ Version: 0.14.2
 
 SHA-256: d9c590a1e9d139610a922b2b1a3772714853a4ec45dcde7539d707f17796fcaa
 
-## Needs you
+## Needs You
 
 | Questions | Sources |
 | --- | --- |
@@ -16,7 +16,7 @@ SHA-256: d9c590a1e9d139610a922b2b1a3772714853a4ec45dcde7539d707f17796fcaa
 | Open VSX is behind the tag. | git |
 | Default branch quality failed. | github |
 
-## Key bindings
+## Key Bindings
 
 | Name | Status | Sources |
 | --- | --- | --- |
@@ -34,11 +34,11 @@ SHA-256: d9c590a1e9d139610a922b2b1a3772714853a4ec45dcde7539d707f17796fcaa
 
 ## Sources
 
-| Name | Status | Reason | Observed at | Freshness |
+| Name | Status | Reason | Observed At | Freshness |
 | --- | --- | --- | --- | --- |
 | git | Partial | Commit bound reached. | 2026-10-06T11:00:00.000+00:00 | Stale &#40;3,600s&#41; |
 | github | Unavailable | Network is off. | Unknown | Unknown |
 | plan | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
-| usage | Not applicable | Journal integration is not present. | Unknown | Unknown |
+| usage | Not Applicable | Journal integration is not present. | Unknown | Unknown |
 
 Renderer 1; ICU 77.1; locale en

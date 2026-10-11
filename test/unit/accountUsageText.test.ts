@@ -48,13 +48,13 @@ describe('M108 J account text', () => {
     const text = accountUsageText(report)
     expect(text).toContain('Meta · Work label canary: 1 request; $0.1000 spent.')
     expect(text).toContain('Reserved $0.2000; uncertain $0.000000001.')
-    expect(text).toContain('Input tokens: 10')
-    expect(text).toContain('Output tokens: 2')
+    expect(text).toContain('Input Tokens: 10')
+    expect(text).toContain('Output Tokens: 2')
     expect(text).toContain('$0.3001 / $0.3000')
-    expect(text).toContain('Threshold reached')
+    expect(text).toContain('Threshold Reached')
     expect(text).not.toContain('00000000004')
     expect(text).not.toMatch(/\{\w+\}/)
-    expect(text).not.toContain('Account events')
+    expect(text).not.toContain('Account Events')
   })
 
   it('explains every swap, spread and stop, including cold-cache cost and known or unknown reset', () => {
@@ -67,8 +67,8 @@ describe('M108 J account text', () => {
     )
     expect(lines[0]).toContain('Estimated context re-read cost: $0.000000001.')
     expect(lines[1]).toContain('worker worker-1 assigned.')
-    expect(lines[2]).toContain('stopped at Vendor limit (rateLimited). Reset time is unknown.')
-    expect(accountUsageText(report)).toContain('Account events')
+    expect(lines[2]).toContain('stopped at Vendor Limit (rateLimited). Reset time is unknown.')
+    expect(accountUsageText(report)).toContain('Account Events')
     for (const line of lines) expect(accountUsageText(report)).toContain(line)
     const swap = report.events[0]!
     if (swap.type !== 'swap') throw new Error('Fixture needs a swap')
@@ -123,7 +123,7 @@ describe('M108 J account text', () => {
       f.catalog[0]!.accounts[0] = usageAccount('default', {
         spendUsd: { day: usdInputSchema.parse(capText) },
       })
-      expect(accountUsageText(f.report())).not.toContain('Threshold reached')
+      expect(accountUsageText(f.report())).not.toContain('Threshold Reached')
     }
   })
 
@@ -143,7 +143,7 @@ describe('M108 J account text', () => {
     expect(text).toContain('Meta · Work label canary: 0 requests; $0.0000 spent.')
     expect(text).toContain('Reserved $1.00; uncertain $2.00.')
     expect(text).toContain('$3.00 / $0.3000')
-    expect(text).toContain('Threshold reached')
+    expect(text).toContain('Threshold Reached')
   })
 
   it('reads installed strings, plurals, USD, percentages and dates at render time', () => {
@@ -180,7 +180,7 @@ describe('M108 J account text', () => {
         isReached: false,
         resetAt: null,
       }),
-    ).toMatchObject({ label: 'Rate-limit headroom (Tokenanzahl)', value: '28,5 % / 28,75 %' })
+    ).toMatchObject({ label: 'Rate-Limit Headroom (Tokenanzahl)', value: '28,5 % / 28,75 %' })
     expect(
       accountUsageRowText({
         ...report.accounts[0]!,
@@ -201,11 +201,11 @@ describe('M108 J account text', () => {
     const absent = f.report()
     const text = accountUsageText(absent)
     for (const label of [
-      'Input tokens (Day)',
-      'Output tokens (Week)',
+      'Input Tokens (Day)',
+      'Output Tokens (Week)',
       'Requests (Month)',
-      'Plan-window usage (five-hour)',
-      'Rate-limit headroom (Requests)',
+      'Plan-Window Usage (five-hour)',
+      'Rate-Limit Headroom (Requests)',
     ])
       expect(text).toContain(label)
     expect(text).toContain('No current usage snapshot.')

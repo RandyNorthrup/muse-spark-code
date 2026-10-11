@@ -1880,3 +1880,16 @@ function paidClaimFixture() {
     settle: vi.fn((_actualUsd: UsdAmount) => Promise.resolve(total)),
   }
 }
+
+it('refuses a sub-minimum Meta cap at the final send boundary', async () => {
+  const rawFetch = vi.fn(() => Promise.resolve(new Response()))
+  const { client } = setup(undefined, rawFetch)
+  for (const cap of [0, 1, 15]) {
+    await expect(
+      Array.fromAsync(
+        client.streamResponse({ ...body, max_output_tokens: cap }, new AbortController().signal),
+      ),
+    ).rejects.toThrow('Output cap must be at least 16 tokens.')
+  }
+  expect(rawFetch).not.toHaveBeenCalled()
+})

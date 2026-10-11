@@ -1,5 +1,76 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**MINOUT round 2 (2026-10-10, macmini).** Close static output caps below
+a selected provider's captured minimum, including provider-file capability
+overrides and custom limits, team settings, the shared request builder and
+the final Meta/configured-provider/headless send boundaries. Refuse with one
+localized message naming the minimum, without dispatch or silent increases.
+Audit editor settings, CLI flags, ACP configuration and exec options: retain
+their existing interfaces; do not invent an output-cap option where none
+exists. Add regression and byte-exact red drills per applicable path, translate
+new strings in all fourteen languages, and replay configuredProviders in full
+including its loopback test. Run scoped gates under the rig/common brief;
+aggregate quality and hosted cross-platform checks remain lead-owned. No
+merge, push, subagents, credentials or live/paid calls. Certification:
+`docs/certification/min-output-cap.md`.
+
+**CIR4WIN hosted Windows round 4 (2026-10-09, win11).** Root-cause the
+M117 estimator browser harness's first navigation exceeding its unchanged
+two-second bound in run 38018090551, job 114112783549. Reproduce under bounded
+CPU/memory pressure before repairing the fixture; retain every theme, width,
+keyboard, accessibility, lazy-chunk and application assertion. Prove the fix
+with a deliberately failing drill and SHA-256 byte-exact restoration; certify
+complete owning suites at repository deadlines and scoped static/build gates
+in `docs/certification/cifix017.md`, Round 4, Windows. Aggregate quality and
+hosted replay remain lead-owned under the rig/common brief; no merge, push,
+rebase, subagents or paid/live calls.
+Loaded reproduction delivers every static asset within 400 ms but cold raw
+English/Intl module work delays the load event past two seconds. Apply the
+existing standalone `compactBrowserEnglish` transform and Chrome 128 target;
+preserve the whole canonical fallback and the separate two-second readiness
+check. The shared chunk falls from 332,804 to 148,995 bytes. Certify the same
+loaded first-navigation failure before repair and after a deliberate transform
+removal; restore the repaired suite byte-exact and rerun its complete matrix.
+
+**ACPM118 hosted macOS release repair (2026-10-09, macmini).** Diagnose the
+M118 real-stdio prompt/sharing timeout in runs 37992331755 and 37992331263.
+Reproduce under load before changing the responsible product or fixture;
+retain every request, assertion, repository deadline and gate. Add a failing
+regression and byte-exact restoration drill, then certify complete owning
+suites and scoped static/build gates in `docs/certification/cifix017.md`,
+Round 3, ACP M118. The rig/common brief leaves aggregate quality and hosted
+replay to the lead; no merge, push, rebase, subagents or paid/live calls.
+Node 22.23.3/libuv 1.51 reproduces the thirty-second failure under bounded
+memory/CPU load, waiting on the second workspace: two foreground launches
+each incur D87's twenty-second pause. Its Darwin available-memory API counts
+only free pages (619 MB here); libuv 1.52 includes reclaimable pages (13.2 GB
+on Node 24 here). Reject the older reading as unknown at the shared sampler
+boundary, preserving D87's limits, admission and containment. Certify the
+libuv boundary and unchanged real-stdio path on both runtime versions.
+
+**CIFIX017L2 Linux/macOS hosted-CI round 2 (2026-10-09).** Repair run
+37980345168 and agent-package run 37980344591 at their causes: shared native
+created-path fixtures, slow visual setup and resource-history disposal,
+forced-colour state measurement, lazy-chunk rejection delivery, and M118 ACP
+stdio lifecycle. Review the inherited uncommitted fixture change before use.
+Preserve all deadlines, gates, caps, tolerances and baselines. No subagents,
+merge, rebase, push or paid/live call. The rig/common brief delegates aggregate
+quality to the lead; run scoped gates and complete owning suites directly,
+at most three files per invocation. Record exact restoration drills and Linux
+and available macOS receipts in `docs/certification/cifix017.md`, round 2.
+
+**CIFIX017W Windows hosted-CI repair (2026-10-09, win11).** Reproduce the
+0.17.0 Windows failures from run 37950960680 in the release worktree. Repair
+recorder native path identity under 8.3 temporary ancestors, expensive native
+and package setup, resource-history disposal ordering, companion-upload
+cleanup ordering, and the trusted-path test clone at their causes. Keep all
+repository test/hook deadlines and gate caps. Run each of the eight owned
+files twice at repository defaults (at most three files per invocation),
+five typechecks, changed-file ESLint/Prettier, duplication and the shared
+static/build gates. Commit each validated root cause with installed hooks;
+no merge, push, live/paid call or aggregate quality (lead-owned under the
+rig brief). Receipts: `docs/certification/cifix017w.md`.
+
 **LEFT017B visual and deferred-entry completion (2026-10-08, linuxlt).**
 The continuation brief removes LEFT017's mapping scope limit: certify every
 current renderer through an actual harness scene, preserve six themes, two
@@ -2744,6 +2815,21 @@ Windows to every version, with no version ceiling: a limit is lifted only
 by a release after a Muse Code version is verified to fix it. Showing an
 action that fails is worse than hiding one that would work.
 `docs/certification/release-0.9.1.md`.
+
+**Amendment 2026-10-05 (MUSE143): #29 has a verified update floor; the
+other Windows limits remain.** On `1.4.3-R5018.1`, one contributor-model
+shell approval returned accepted/terminal with no ledger fault. The
+upstream #29 closure supplied by the owner names 1.4.3 as the fix. An actual
+ledger fault on an older attached host now suggests updating with the
+existing installer command and restarting; newer or unknown hosts keep
+the defensive notice. No warning is shown without an actual fault.
+Rename (#30) still returns `internal` / session naming unavailable; fork
+(#31) still returns `forkBoundaryInvalid` / WriteFailed. Their Windows
+gates therefore retain no version ceiling. The sandbox (#26) printed the
+workspace cwd here but denied a shell file write; this prepared-host
+capture does not certify the fresh-setup non-completion fixed. D12's
+profile workaround remains. One turn, six model attempts; exact scrubbed
+frames and scope in `docs/certification/muse143.md`.
 
 **Amendment 2026-09-27: the CLI's sign-in is read, not assumed**
 (`fix/cli-sign-in-detection`; evidence in `docs/certification/sign-in-detection.md`).
@@ -5625,6 +5711,32 @@ choices:
       not run CSS animations, so a capture could catch them mid-burst.
     - Record: `docs/certification/m87-f.md`, "A fan of crisp pills, one
       size".
+
+  - **Menus close to the opener (MENUFAN, owner 2026-10-10).** The
+    selected row's text menu opens at its “…” button's viewport centre,
+    using the pointer only when that row has no opener. The same fan in
+    both bursts keeps a 16 px reach, a 16 px bow and 6 px gaps: centred on
+    the button when it fits, shifted whole beside a panel edge. Pills stay
+    crisp, equal in width to the longest label, and apart. English action
+    labels and menu titles use Title Case; translations keep their own
+    casing, and action ids carry behaviour. Regression coverage measures
+    2/3/5-item fans at 320/690 px and the selection menu in the browser;
+    the capture closes an existing menu before reselecting inert row prose;
+    reverting the origin and gap separately must fail their tests and be
+    restored byte-exact. Capture before/after row and selection menus at
+    both widths, update reviewed visual goldens with
+    `owner-2026-10-10-menu-fan`, and regenerate affected README shots and
+    reference/roadmap. Record: `docs/certification/menufan.md`.
+    Round 3 (RVMENUFAN2): every element-anchored burst follows ancestor
+    scrolling, panel resizing and content reflow; dismiss if its opener is
+    clipped out or removed. One shared lifecycle owns listeners and frame
+    sampling while open. Hover/active/selected decoration stays inside each
+    pill; only keyboard focus extends outside. Derive resting spacing from
+    the installed CSS focus width/offset plus 2 px clear space. Certify every
+    menu at 320/480/900 px in light/dark/high contrast, including adjacent
+    focus/hover combinations, scroll-follow and byte-exact guard drills.
+    Re-run and inspect all menu visual frames; refresh only changed menu
+    scenes under `owner-2026-10-10-menu-fan-r3`.
 
 - **The chat column (the owner's requests of 2026-10-04).** His four
   requests, word for word, then what was built.
@@ -12368,9 +12480,11 @@ one governor for everything the harness starts.
        present;
      - memory from `os.freemem()` and `process.availableMemory()`, and inside
        a container from cgroup v2's `memory.max` and `memory.current`;
-     - on macOS, what lane 0 measures on the Mac mini: if `os.freemem()`
-       counts free pages only, `kern.memorystatus_level` instead, at a slower
-       cadence.
+     - on macOS, `process.availableMemory()` only with libuv 1.52 or newer,
+       which counts free, inactive and purgeable pages. Older versions count
+       free pages alone and report unknown headroom here; an absent API does
+       too. `kern.memorystatus_level` is not a byte reading. ACPM118's Node
+       22/24 capture and regressions certify this boundary (2026-10-09).
    - **The harness's own trees,** every `RESOURCE_TREE_SAMPLE_MS` (15
      seconds), only while governed work runs: CPU time and resident memory
      per tree.
@@ -19352,6 +19466,25 @@ in-tree junctions below it, drive-letter spelling) and
   service boundary; production advertises no review provider and refuses
   those commands explicitly until the real controller is composed.
 
+**Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
+explicitly approves the 116 Title Case scenes, `models-errors` with the
+provider-picker repair, and the three What's New scenes as class (b'):
+the page renders 0.17.1's changed release notes. Inspect every changed frame
+before approving the refresh; verify release highlights, sentence case,
+unclipped controls and intact question spacing. Complete all six themes,
+the repository's reviewed baseline update, every curated README recapture,
+freshness records, the full zero-changed-scene replay and the SHA-256
+old-baseline drill. Evidence remains in `docs/certification/cifix017.md`,
+"0.17.1 visual refresh". Stop only for an incorrect frame.
+
+**Q-VISREGEN2 resolved by lead (2026-10-09).** Preserve every 0.17.0
+change and Highlight while tightening only that release's wording below
+72,000 decoded bytes. Keep 0.16.0 and older notes byte-exact and all content
+bounds unchanged. The editorial rewrite measures 68,401 decoded bytes
+(25,347 encoded bytes), down from 79,510. The resulting-head visual,
+README and source-record refresh is complete; receipts in
+`docs/certification/visregen017.md`.
+
 - **Q-CIFIXM-HOSTED-ERRORS (2026-10-09, macbook):** log downloads for
   hosted run 37897298018 return HTTP 403. The two owned M114 browser suites
   pass three times here (159 cases per run, repository deadlines); no visual or
@@ -20410,6 +20543,239 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
+
+**Status 2026-10-09: built.** On the provider branch for 0.17.1.
+
+Repair both RVPROVWIZ9C P2 findings on `00df4f872`. Edit snapshots and save
+preflight compare the same host-only credential record, including an old key
+refused at the saved origin. Reopening after an address/key-write partial save
+must accept a newly tested replacement while a concurrent credential change
+still conflicts. Confirmed quick-pick limit retries carry completed provider,
+key and default receipts into every later partial outcome, using existing
+translations in all 14 languages. Keep validation before writes, ordered saves,
+no rollback and origin-bound transport security.
+
+Add production/shared-form recovery and conflict regressions and a production
+store/facade/settings retry regression. Revert each fix, observe its complete
+test file fail, restore SHA-256 bytes exactly, then rerun all owning files,
+request goldens, one unit tsc, formatting, ESLint and localization. Inspect the
+inherited surface-English overage; shorten duplicated or verbose existing
+strings if possible without new keys or a cap change. Update certification and
+planning status. Aggregate quality/release gates remain lead-owned under the
+rig brief; no merge, rebase, push, subagents or paid/live calls.
+
+Completed: both P2 repairs and the existing-string surface-English cap fix.
+Macbook passes 46 complete owning files / 833 tests, 152 request goldens and
+141 Help/browser-English tests at repository deadlines, both SHA-256-exact
+reversion drills, one unit tsc, changed-file lint/format, localization/reference/
+host API, plain Knip and the production build. Surface English is 25595 / 25600
+bytes after shortening `referenceQuestionsDeferral` in English and all 14
+translations, with no new keys or cap change. English/German production visuals
+pass at 690/320 px. Plain jscpd retains the inherited 21 clones / 287 lines /
+1970 tokens; no new clone remains. Next slice: lead review and cross-rig release
+gates, including the inherited duplication hold, then PROVSTORE-LOCKLIB after
+M123 for accepted cross-window last-writer-wins. See certification for receipts.
+
+### PROVWIZ9 — Ordered save, honest partial outcomes, no rollback (2026-10-09)
+
+**Status 2026-10-09: built.** On the provider branch for 0.17.1.
+
+Replace PROVWIZ8 recovery after RVPROVWIZ8C's three P2 findings. Validate
+address policy, private consent, provider schema/token limits, credential/default
+snapshots and an edited spending limit before any write. Save changed provider
+fields in one atomic provider-file mutation, then an explicitly entered key
+bound to its origin, an explicitly chosen default, the edited spending limit,
+and finally the current conversation model when requested. Stop on a failed
+step; keep completed writes and name completed, failed and skipped steps in
+all 14 UI languages. Delete rollback and inverse machinery. Every Save outcome
+attempts panel refresh; refresh failure appends information without erasing the
+original outcome. Other partial or stale persisted drafts reopen to finish;
+budget-only partial drafts keep a freshly read comparison baseline for retry.
+
+Prove every failure boundary, same-window snapshot conflicts, the invalid
+inverse and absent-routing review scenarios, and address-change/key-failure
+origin rejection through the production store/shared form. Run complete
+provider/models/capability suites and request goldens at repository deadlines,
+byte-exact red/restored drills, changed-file format/lint, one unit-project tsc,
+localization/reference/host API, static gates, build budgets and visual checks.
+Record receipts in `docs/certification/provcat.md`. Aggregate quality, coverage,
+packages, hosted multi-OS/editor and live qualification remain lead-owned under
+the rig/common brief; inherited duplication hold remains. Schema/default
+preflight stays in the existing lazy provider-store port, keeping provider
+schemas out of the Models host bundle. The unchanged base and this lane both
+produce a 25651-byte surface-English chunk on macbook, over its 25600-byte cap;
+record this inherited build hold without changing the cap. No dependency, gate,
+hook, paid/live call, merge, rebase, push or subagent changes. Shared editor
+bridges receive the same form; ACP's persisted provider schema stays unchanged.
+
+The accepted cross-window residual remains: Two editor windows saving the same
+provider at the same moment: last writer wins for fields both changed; no secret
+is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation
+onto the shared lease after M123 lands on main.
+
+### PROVWIZ8 — Save recovery and refresh honesty (2026-10-09)
+
+**Status 2026-10-09: built.** On the provider branch for 0.17.1.
+
+Repair RVPROVWIZ7C P2-4 and P2-3 on `5f09bc0e2`: a successful provider
+save followed by a snapshot-refresh failure says “Provider saved; the panel
+could not refresh — reopen it” in all 14 languages. Retire the saved draft so
+it cannot retry against an obsolete baseline; still apply a submitted spending
+limit and report its own partial outcome. Rollback applies only the inverse of
+this save's changed fields inside the existing store mutation, preserving
+unrelated providers and later field changes. Prove credential-write and composer
+refusal interleavings through the production store/shared form, with byte-exact
+red drills and complete provider/models suites at repository deadlines.
+
+The lead accepts RVPROVWIZ7C P2-1/P2-2 as a 0.17.1 residual; keep the current
+in-window comparison and add no second lock implementation. Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main.
+
+Run changed-file Prettier/ESLint, one tsc and localization; record receipts in
+`docs/certification/provcat.md`. Shared editor bridges receive the same form;
+ACP's provider schema is unchanged. No subagents, merge, rebase, push, live/paid
+calls, dependency, hook or gate changes. Full quality remains lead-owned under
+the explicit rig/common brief.
+
+### PROVWIZ7 — Save compares changed fields with the edit snapshot (2026-10-09)
+
+**Status 2026-10-09: built.** On the provider branch for 0.17.1.
+
+Repair RVPROVWIZ6C's two P2 findings on `d32349de1`. A saved-provider draft
+records its opening provider/default/credential on the host. Only an explicitly
+entered credential may be written; untouched credentials retain later rotations
+or removals. Apply changed provider fields to the current entry inside the
+production store's protected mutation, after private-network consent. Compare
+each edited field (including individual token limits, routing, default and key)
+with its opening value; a competing change stops Save without overwriting it and offers
+Reload, retaining typed values until the user chooses it.
+
+Prove newer/cleared stored credentials survive limit-only Save, untouched fields
+changed during the consent wait survive, and both-changed fields conflict with
+no overwrite. Keep existing edit/key-change, validation, rollback and partial
+budget-save behavior. Run complete provider/models suites in batches of at most
+three at repository deadlines, changed-file prettier/ESLint, one host typecheck,
+localization/reference and individual static/build checks. Record byte-exact
+guard drills in `docs/certification/provcat.md`. Shared React and editor bridges
+use the same contract; ACP's persisted provider schema is unchanged. No subagents,
+merge, rebase, push, credential access, live/paid calls or gate changes. Aggregate
+quality and inherited duplication cleanup remain lead-owned under the rig brief.
+
+### PROVWIZ6 — Provider wizard/wiring integration and RVPROVWIZ5G (2026-10-09)
+
+**Status 2026-10-09: built.** On the provider branch for 0.17.1.
+
+Use one host-owned full snapshot factory for Edit, Change key and Change key →
+Edit, including routing, models/limits, format, pinned/compat/prices, the saved
+file default and private-network consent. Save overlays only changed draft
+fields on the current entry; an untouched default, secret or optional field is
+never synthesized or rewritten. Keep credential/connection validation and the
+production store transaction. Admit one queued Save per draft and disable both
+shared Save controls until it settles; failures retain the draft for retry.
+Declined private-network consent uses the existing confirmation sentence.
+
+Qualify the merged provider lanes with real host/store and captured transport
+regressions, including the reviewer's unchanged ZDR Edit → Save, second/other/
+absent defaults, duplicate Save and private consent refusal. Supply the wizard
+lane's required spending-limit port in the older capture-backed wiring fixture;
+retain every existing assertion. Run complete named models/provider suites in
+batches of at most three at repository deadlines, changed-file lint/format,
+five typechecks, localization/reference and individual static/build gates.
+Append byte-exact red/restored receipts to `docs/certification/provcat.md`.
+No subagents, merge, push, live/paid call, dependency or gate change. Aggregate
+quality and hosted/editor qualification remain with the lead per the rig brief.
+Shared webview/editor bridges and ACP's stored provider contract remain intact.
+
+### PROVWIZ2R5 — PROVWIZ2 round 5: RVPROVWIZ4G repairs (2026-10-09, macmini)
+
+**Status 2026-10-09: built.** On the provider branch for 0.17.1.
+
+Save a saved provider's limits without requiring a fresh credential test when
+its connection is unchanged. Address, format and key changes
+still require Test. Keep the real Edit form open until the host removes its
+draft after success; failed saves retain typed values and display the specific
+failure with credential redaction. Report successful saves in the panel.
+Prove Edit → host Save → production provider file → re-open Edit, plus failure
+and retry, through the rendered shared form. Correct the round-3 certification
+text to provider-first persistence and explicit partial success on limit failure.
+Run Models suites at repository deadlines, byte-exact red/restored drills,
+five typechecks, changed-file lint/format and the prescribed individual gates.
+Full quality belongs to the lead per the rig brief; no merge, push, live/paid
+call, dependency or gate change. Existing editor bridges and ACP's provider-file
+reader retain the same limits contract. Record receipts in
+`docs/certification/provcat.md`.
+
+### PROVWIZ2R4 — PROVWIZ2 round 4: RVPROVWIZ2 repairs (2026-10-09, macmini)
+
+**Status 2026-10-09: built.** On the provider branch for 0.17.1.
+
+Owner decisions: an untouched spending-limit field writes nothing; an edited
+value writes only while the setting still equals its prefill. A concurrent
+change is shown with a request to confirm the typed value. Save the provider
+first; a subsequent limit failure must say the provider was saved and the
+limit was not changed, with its reason. Keep saved custom model limits in
+edit/key-change drafts, expose their fields, and persist edits. Back from an
+incomplete Models step keeps entered limits and allows returning to Models.
+The native setting stores a number; refuse exact-decimal input that cannot
+round-trip through its non-negative numeric schema without loss.
+
+Use the production provider store and settings writer in regressions, with
+fake VS Code interactions and no service calls. Run complete Models suites
+in batches of at most three at repository deadlines, five typechecks,
+changed-file lint/format, localization/reference and prescribed individual
+static/build gates. Record deliberate failures and byte-exact restores in
+`docs/certification/provcat.md`; commit finished pieces with installed hooks.
+These shared webview/host repairs retain the existing editor bridge; ACP's
+provider file reads the same stored custom limits. No runtime command changes.
+No merge, push, live/paid call or dependency change is authorized in this lane.
+
+### PROVWIRE — Provider setup through the real transport and panel (2026-10-09)
+
+**Status 2026-10-09: built.** On the provider branch for 0.17.1.
+
+Close RVWIRING F2–F7 for 0.17.1 with the production panel catalogue,
+configured-provider service and checked-in M95 captures; fake only pinned
+dispatch, DNS and host storage/UI. Resolve format as `entry.format ??
+preset.format` without changing the persisted schema: ordinary presets retain
+their canonical format and custom servers retain their explicit override.
+Preserve captured prices/free flags and stable price fingerprints, share the
+preset key-test contract between CLI and panel, default OpenRouter to ZDR,
+retain replacement keys in edit drafts, and settle failed scans with a safe
+localized reason and retry. Keep panel changes small for PROVWIZ2; leave F10's
+logging to its owning lane. No live/paid calls, dependencies, merges or pushes.
+Run failing-first tests and byte-exact red/restored drills, scoped lint/format,
+five typechecks, provider/models suites, localization and reference checks.
+The lane rules reserve aggregate quality for the lead. Receipts:
+`docs/certification/provcat.md`, PROVWIRE section.
+
+Completed: F2–F7 are capture-backed through the real facade, with 14
+byte-exact red/restored drills. Final macmini verification passes 44 complete
+provider/models files (739 tests at repository deadlines), five typechecks,
+changed-file ESLint/formatting, localization (0), reference, host API, plain
+knip, zero-clone duplication and the production build within all existing caps.
+The optional persisted format remains unchanged. Full quality, hosted CI and
+installed-editor/live certification remain with the lead under the lane brief.
+
+Round 2 (RVPROVWIREG finding 1, P2): seed every saved-provider edit draft,
+including Change key and Change key followed by Edit, with the saved routing's
+privacy, provider order and fallback choice. Save uses that seeded draft;
+new OpenRouter providers still default to ZDR. Regressions replay the saved
+`any`/ordered/fallback-enabled row through replacement key, Edit, Test and
+Save, and cover plain Edit and direct Change key, including `no-training`
+and disabled fallbacks. Record failing-first and byte-exact routing drills
+in the PROVWIRE certification, then run provider/models suites at repository
+deadlines, changed-file lint/format and all five typechecks before a normal-hook
+local commit. No new feature, wire shape, dependency or live/paid call.
+
+Round 2 completed: saved routing and the replacement key survive every edit
+flow; new providers remain ZDR. Macmini passes 44 complete provider/models
+files (746 tests, default deadlines), all five typechecks, changed-file
+ESLint/formatting, localization/reference/host-API checks, plain Knip,
+zero-clone duplication and the production build within unchanged caps.
+Four deliberate routing breaks fail and restore SHA-256-exact bytes; see
+the round-2 PROVWIRE certification. Aggregate quality and hosted/editor/live
+qualification remain lead-owned under the lane rules.
+
 ### M122 — Public roadmap (2026-10-08)
 
 **Status 2026-10-08: built.** Certification: `docs/certification/roadmap.md`.
@@ -21191,6 +21557,40 @@ train, and those waiting on outside events, keep their own status lines.
 - [ ] Visual milestones: screenshot or manual-check record in
       `docs/certification/<milestone>.md`.
 - [ ] Commit with a message describing what changed and why.
+
+### MUSE143 — Verify Windows upstream fixes on Muse Code 1.4.3 (2026-10-05)
+
+**Status 2026-10-10: built.** Ported onto the 0.17.1 release branch from
+`fix/muse-1.4.3` (`1285eb6f4`, never merged): 0.17.0 still showed the plain
+ledger notice on every version (port note in `docs/certification/muse143.md`).
+
+Scoped maintenance on `fix/muse-1.4.3`: use the owner's signed-in
+1.4.3-R5018.1 CLI, an empty temporary workspace and at most six short
+contributor-model turns to capture #29 approval settlement, #30 rename,
+#31 fork and #26 sandbox working-directory evidence. Never touch credentials.
+Lift a workaround only for a version proven fixed; retain fault detection
+and older-version behavior. A successful sandbox command on this already
+prepared host does not prove the fresh-setup failure fixed (D12).
+
+- [x] Capture scrubbed MSP evidence, count turns/model attempts, stop the
+      owned server and remove the temporary workspace.
+- [x] Apply only evidence-backed compatibility changes in the existing
+      shared core and localized notices; test both version sides and fire
+      the affected guards with byte-exact restoration.
+- [x] Update README, changelog, certification and the upstream research
+      note. Update the feature catalog only if present on this base.
+- [x] Merge the current release candidate, run scoped gates on the rigs,
+      and commit explicit paths with existing hooks enabled.
+
+Evidence and remaining upstream limitations belong in
+`docs/certification/muse143.md` and `docs/research/muse-1.4.3-upstream.md`.
+Mac mini: 676 scoped tests passed, all five typechecks, scoped lint/format,
+deadcode, zero duplication, l10n, host API and production caps passed.
+Both before-fix failures and the version-boundary mutation fired; the
+mutated file was restored byte-exact. Existing commit hooks stay on.
+Shared MSP compatibility serves every extension host; the ACP runtime uses
+the same core. No editor-specific control or new UI is planned. Full
+aggregate quality remains the lead's gate, per the lane's common rules.
 
 ### M26 follow-up — Refresh README badges after publication (BADGES)
 
@@ -23721,6 +24121,21 @@ re-rendered. Evidence: `docs/certification/m87.md`, "Integration on
 `m87/int`".
 
 **Status 2026-10-04: built.**
+
+- **MENUFAN follow-up (2026-10-10).** Tighten both menu bursts around the
+  row opener and anchor highlighted-text actions there; English menu labels
+  use Title Case (D66). Round 2 caps uniform pill widths by the space on
+  the fan’s side of the opener so narrow checkpoint submenus never cover
+  it; clipped labels retain their full tooltip. Highlighted-text menus keep
+  the opener element and follow it across panel resizes. Sweep 280–700 px,
+  one to six items and left/right/centre openers; certify the exact 320 px
+  checkpoint Rewind scene, resize regression and byte-exact red drills.
+  Round 3 repairs RVMENUFAN2’s two P2 classes: the shared anchor lifecycle
+  tracks scroll/reflow/removal, and inside pointer borders leave 2 px clear
+  beside keyboard focus rings with CSS-token-derived spacing. Certify all
+  eight menu scenes at 320/480/900 px in light/dark/high contrast and review
+  only menu baseline changes.
+  Evidence: `docs/certification/menufan.md`.
 
 - **Goal.** The panel can be read at a glance: how full the context is,
   what the agent did (one line per run of steps), what changed, and that it
@@ -26658,6 +27073,8 @@ Status detail retained: planned; starts after M96 merges.
 
 ### M96c — Scheduler and traffic (D75)
 
+**Status 2026-10-09: built.** Scheduler, scheduler-tool, merge-queue, Traffic-view, runner, collision and orchestration lanes integrated with their review repairs and lazy package adapters; complete integration certified on macmini. Not in a release yet.
+
 **M96CINT round 2 integration (2026-10-05).** Finish the existing partial
 integration by merging reviewed C (`52d04b69`) and then O (`19bb0703`) with
 `--no-ff`, preserving every lane's intent. Resolve only integration seams
@@ -28296,6 +28713,9 @@ OpenCode plugin hooks").
 
 ### M95 — Bring-your-own model providers (D74)
 
+**Provider panel, 0.17.1 residual (PROVWIZ9, lead decision 2026-10-09).**
+Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main.
+
 **M95R5 integration (2026-10-05, Windows 11).** Merge lane T with
 `--no-ff`, then merge a single sanitized squash of X's net changes on its
 merge-base. Remove the scanner-flagged certification line unseen before
@@ -28340,6 +28760,39 @@ adaptive/effort), Sonnet/Opus adaptive, Gemini model-specific level/budget;
 record-driven image/PDF admission; exact Meta defaults and request goldens.
 Owning tests and four required mutations precede targeted static/build gates.
 Evidence and readiness review: `docs/certification/m95-n.md`.
+
+**Lane DSTHINK (2026-10-09, kubuntu).** DeepSeek Thinking off sends the
+documented `thinking: {type: "disabled"}` switch and omits
+`reasoning_effort` (lead capture L98P2; catalogue `toggle` + effort
+`[low, high, max]`); the preset declares the switch, the codec gates any
+other effort against the record's declared levels with a typed refusal,
+and every other preset's bytes stay identical. Z.ai GLM is unchanged for
+lack of a repo capture for its switch. Evidence:
+`docs/certification/m95-h.md`.
+
+**Lane FIXDSTHINK2 (2026-10-09, linuxlt).** Fixes the three RVDSTHINK P2
+findings: `effortForPolicy` no longer maps an unlisted Thinking-on
+effort to `none` (it rides through for the codec's typed refusal; only
+the `none`/`minimal` off spellings stay off, keeping the Auto
+reviewer's bytes identical); the codec checks the declared
+thinking-off switch before the `reasoningParam: "none"` early return so
+toggle-only overrides (canDisable yes, effortLevels no) still send it;
+the configured client rethrows the typed `ChatCodecError` instead of
+the generic unavailable error. Production-path regression tests,
+red drills and gate receipts: `docs/certification/m95-h.md`.
+
+**Lane DSTHINK3 (2026-10-09, kubuntu).** Round 3 after RVDSTHINK (3 P2)
+and RVDSTHINK2 (2 P2): one pure resolver, `resolveReasoning` in
+`src/shared/effort.ts`, maps a requested setting per selected model and
+its capability record (levels, `canDisable`) plus the preset's declared
+off switch to a listed effort, the model's off switch, nothing, or the
+typed refusal `unsupported_reasoning_effort`. `effortForPolicy`, the
+configured client and the Chat codec all use it. Without a declared
+switch (every preset but DeepSeek, and Meta) the base mapping is kept
+exactly, proven by a table over every preset model × every setting
+against a golden generated on 01ee6233b. Open for the owner: on a model
+without a switch an unlisted on-level still goes as `none`, kept for
+byte identity. Evidence: `docs/certification/m95-h.md`.
 
 | Finding                                                                                                                                                                                                                                                                                                                                                                   | Owner                                                             |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
@@ -28753,7 +29206,12 @@ release acceptance are still pending.
         this computer, Subscription sign-in, Aggregator), each row naming
         where the code goes and who bills it; **Scan this computer** for
         local servers; or **Custom server** (Chat Completions, Responses
-        or Anthropic Messages).
+        or Anthropic Messages). PROVCAT (2026-10-09): the card's category
+        enum is the contract and the host's `PresetKind` is derived from
+        it (minus `custom`); ChatGPT, Copilot and plan keys sit under
+        Subscription sign-in; a card the contract refuses is left out
+        alone with a value-free log line, never the whole list; a test
+        opens every shipped preset (`docs/certification/provcat.md`).
      2. **Prefilled form.** The preset's address, format, auth mode, key
         hint, docs, data-use and privacy notes, and **Get a key**; editable
         only where the preset allows (Azure's resource and deployment, a
@@ -29558,6 +30016,8 @@ milestone is planned against it:
 Until then nothing is built for it.
 
 ### M100 — Paired devices as lane pools (D80, planned)
+
+**Status 2026-10-09: built.** Phase 2 accepted, not yet merged.
 
 **Status 2026-10-05: documentation only on `feature/m100-multi-device`.**
 Independent RVM100 review passed with no P1; its one P2 connectivity promise
@@ -33385,6 +33845,8 @@ No dependency, endpoint guard, paid default or budget changes. See
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**Status 2026-10-09: released.** Shipped in 0.17.0 (merged via INT0180).
+
 **FIXM109W integrated review repair (2026-10-07, Mac mini).** Verify every
 P1/P2 in `_ctx/codex/M109-findings.md` against integration `a1d2b73e7`,
 including already repaired U findings and the L certificate observation.
@@ -33940,6 +34402,8 @@ or helper-only-access certification.
 ---
 
 ### M110 — Muse Node: headless worker and orchestrator host (D90)
+
+**Status 2026-10-09: building.** Lanes N, OS1, OS2 and A1 built, in review; hardware qualification open.
 
 **Status 2026-10-05: planned.**
 
@@ -34500,6 +34964,8 @@ security` threshold; the OS images' QEMU boot test and their reproducibility
         live or paid call without CLAUDE.md's count first
 
 ### M111 — Muse Desktop: the host edition's own shell (D91)
+
+**Status 2026-10-09: planned.** Threat model accepted as baseline; build lanes not started.
 
 **Status 2026-10-05: planned.**
 
@@ -35789,6 +36255,42 @@ M110, and fake providers for every adapter.
 ---
 
 ### M114 — Design language and polish (D94)
+
+- **VISREGEN2 release refresh scope (2026-10-09):** investigate the identical-source
+  narrow One Dark Pro quote-menu displacement on release head `8f0a75ea1`.
+  Test scrollbar, font, wrapping and capture-readiness hypotheses with DOM
+  traces and at least ten repetitions. Repair the measured root cause with
+  a failing-base regression, preserve the before-paint pill measurement and
+  all pixel policies, then prove ten consecutive captures in six states and
+  both widths. Review the complete 9,792-frame matrix, use the reviewed-update
+  flow, refresh intended README media and current source records, and replay
+  visual owners plus six-theme accessibility. Hooks-on local commits;
+  no merge, push or live/paid calls. Full quality remains lead-owned.
+  Root proved: a question restored from the preceding scene has a 25 px
+  `aria-busy` placeholder and a 39 px settled row. The late 14 px growth
+  leaves the replayed menu origin stale. The capture now awaits that busy
+  marker alongside ordinary deferred surfaces; product pointer semantics
+  and before-paint pill sizing remain unchanged. Owning browser regressions
+  fail with the old selector and pass with the new one.
+  The controlled before render reproduces the previous six narrow failures
+  exactly (9,603 / 9,603 / 9,603 / 9,533 / 9,600 / 9,600 pixels).
+  Ten delayed-load repetitions in both widths are byte-identical in all six
+  states. A further 720-frame six-theme repetition has zero counted pixel
+  differences under the existing policy. Evidence and final gate receipts are in
+  `docs/certification/visregen017.md` and its stability JSON; G92 records
+  the missed-loading-marker pitfall. The lead authorizes an editorial-only 0.17.0 notes repair below 72,000
+  decoded bytes. That repair measures 68,401. The complete current-head
+  review covers 9,792 frames and 25 changed scenes; reviewed goldens and
+  eight intended README images are refreshed after inspection. Five audit
+  source hashes and the README input digest are refreshed only after that
+  capture. All owning suites and the complete normal visual replay pass:
+  9,792 frames, eighteen counted pixels within unchanged per-image tolerance.
+  Six-theme a11y records 1,632 pages, zero violated pages and 315 retained
+  incomplete findings. An additional ordinary-loading-selector drill fails
+  its intended test; byte-exact restoration passes all three readiness cases.
+  Prior fix and proof commits remain intact. The artifact refresh and
+  certification are complete; aggregate quality and hosted CI remain with
+  the lead, including the inherited Windows duplication repair.
 
 - **Integration review repairs (FIXM114I, 2026-10-07):** address RVM114W's six
   P2 findings and the font-usage P3. Route CI pixel replay exclusively through
@@ -37728,6 +38230,8 @@ recovery; interrupted Resume remains the captured control.
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
+**Status 2026-10-09: built.** Document-epoch redesign in review.
+
 **Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
 authorization: "any recommendation you come up with you are authorized").**
 (a) Plain HTTP on the LAN only for a machine the user registered by command,
@@ -39598,6 +40102,328 @@ byte-identical webview assets. Controlled paired renders match all 154 after
 two pair retries, but do not waive that original requirement. The lead must
 qualify the stable original capture alongside real extension-host integration;
 no renderer, threshold, test or cap was weakened.
+
+**REL0171B final 0.17.1 branch (2026-10-10, linuxlt + Kubuntu).** Merge
+MENUFAN and VIS0171 onto `release/0.17.1` by meaning, regenerate every
+generated file with its script, and repair what the merged gates found:
+the pressed menu pill's inset ring (M114 P2), the menu browser cases' setup
+cost, the open-menu capture race and the 21 inherited jscpd clones. One
+reviewed full visual update explains every changed scene (the two menu
+scenes and What's New's 0.17.1 notes); the full unsharded `check:visual`
+on the final head is the receipt that closes VIS0171's stopped replay. No
+deadline, threshold, assertion or cap changes. Evidence:
+`docs/certification/rel0171b.md`.
+
+**VIS0171 0.17.1 visual refresh (2026-10-10, linuxlt).** Compare the full
+9,792-frame matrix on `4acb7015f`; classify every changed scene as Title Case,
+question-field spacing, provider-picker repair, or an unrelated hold. Inspect
+every changed frame before the repository's reviewed update; stop on unrelated
+changes. Regenerate all curated README shots, refresh their existing input
+fingerprint and current audit hashes, and certify a full zero-changed-scene
+replay, complete owning suites at repository deadlines, and an old-baseline
+failure with SHA-256 byte-exact restoration in `docs/certification/cifix017.md`.
+Aggregate quality remains lead-owned under the shared rig brief. No merge,
+push, subagents, paid calls, timeout changes or gate weakening.
+The initial reconstruction fails at `paid-always/light/320`: the current
+driver waits for Title Case `Auth Method` in the historical sentence-case
+source. Make the exact account-label and vault-action selectors accept both
+capitalizations, with browser regressions; preserve their readiness checks.
+The compatibility repair is committed as `7c8338ac5`; the new regressions
+first fail on both historical labels and then all seven readiness tests pass
+at repository deadlines. Five typechecks, changed-file lint/format, plain
+knip, localization, host API, reference, tokens, plan and roadmap pass.
+The unchanged duplication gate reports 21 inherited provider-wizard/test
+clones, none in lane-edited files; leave their repair with the lead rather
+than weakening the zero-clone threshold or expanding this visual lane.
+The complete historical capture succeeds, but two candidate attempts reject
+the fake Models state at `models-configure`: its required `sessionBudget`
+is absent. PROVWIZ9 already documents this stale harness contract. Add the
+canonical `modelsPanelFixtures.makeState().sessionBudget` to the fake host
+and a strict production-schema regression; never relax the message schema.
+
+- [x] Repair and drill historical-label readiness and the strict provider-budget fixture.
+- [x] Reconstruct all 9,792 historical frames; compare all 1,632 light-theme candidate frames.
+- [x] Classify 120 observed changed scenes; stop on three class-(d) release-note scenes.
+- [x] Complete all themes/shards and per-frame approval review under the resolved round-2 authorization.
+- [x] Regenerate all 19 README shots, update their input fingerprint and refresh 20 current audit source hashes.
+- [x] Refresh approved baselines and perform the old-baseline drill.
+- [ ] Complete the full unsharded zero-changed-scene replay.
+- [x] Run owning suites and scoped gates; record the blocked outcome, source restoration drill and hooks-on repairs.
+
+**Round 1 historical stopped outcome.** The complete light matrix has 1,440 over-allowance frames
+in 120 scenes: 116 label-only scenes, `models-errors` with labels and the
+provider repair's error/blocker list, and three What's New content scenes.
+Question spacing is already in the recorded source. No observed control-state
+coverage changes occur. The full zero-changed-scene gate remains unqualified;
+no baseline, README image, input fingerprint or audit hash is approved or
+updated. The original manifest remains SHA-256
+`e314783f2e7bcd2d95ecd83327e9e9142fe3fe66ae71a0418524fb118c4fed50`.
+Owning suites pass 136 of 138 cases; the two retained failures correctly name
+stale audit source hashes and the README input fingerprint. Q-VIS0171-RELEASE-NOTES
+and the inherited 21 duplication clones remain release holds.
+
+**Round 2 reviewed baseline and drill complete; full replay unqualified.** The lead accepts both harness repairs and approves
+the 120 observed scenes, including 0.17.1's release-note content. The earlier
+stop is historical; Q-VIS0171-RELEASE-NOTES is resolved. Finish the complete
+six-theme comparison and per-frame inspection before the named reviewed
+update, then regenerate every README shot and freshness record. Require the
+full official replay and owning suites at repository timeouts, plus an
+old-baseline failure and byte-exact restoration. Aggregate quality and the
+inherited duplication repair remain lead-owned; no merge or push.
+All 19 curated README captures are regenerated and inspected; 18 change and
+`languages.png` is byte-identical. The 20 stale current audit rows are refreshed
+without changing historical grades or evidence. All nine complete owning suites
+pass 138 cases at repository deadlines; five-project typecheck also passes.
+All six themes are captured and reviewed: 8,640 over-allowance frames in the
+120 approved scenes, plus 90 byte-different frames within the unchanged pixel
+allowance. No observed control-state coverage changes occur; question spacing
+and 0.17.1 release highlights are intact. The official baseline update
+and restoration drill pass. The repository update records all 9,792 PNGs /
+450,604,546 bytes / 512 MiB at source `f8db72798`, with every historical
+components/target/applied-state row preserved. The additional 1,255 within-policy
+frames are inspected through 830 native regions on 26 sheets; no defect is
+observed. Manifest owners pass 24/24 after update. Baseline commit: `f7243df25`.
+The old-baseline drill exits 1 at 2,075 changed pixels against allowance 12,
+then restores manifest and PNG byte-exact by SHA-256. The full unsharded replay
+is intentionally stopped to respect the 90-minute rig time box, after 1,152
+reported captures without an observed visual regression. Its terminal-close
+error is interruption evidence, not a new visual failure. No full result is
+written; zero-changed-scene qualification remains pending. Next: run the full
+`npm run check:visual` in terminal mode with enough time for all 9,792 frames,
+then append its actual receipt. Aggregate quality and inherited duplication
+repair remain lead-owned; retained ignored browser profiles need lead cleanup.
+
+**PROVWIZ10 scoped qualification (2026-10-09, complete).** Both RVPROVWIZ9C
+P2 repairs pass production/shared-form regressions, including genuine concurrent
+credential changes and retry notices in all 14 translations. All 46 owning
+files pass 833 tests; request goldens pass 152; Help/browser-English files pass 141. Both deliberate reversions fail and restore source SHA-256 bytes exactly;
+the final restored focused run passes 108. One unit tsc, changed-file ESLint/
+Prettier, localization/reference/host API, plain Knip and production build pass.
+The inherited surface-English hold is closed at 25595 / 25600 bytes by shortening
+existing `referenceQuestionsDeferral` in all tables; no cap or gate changes.
+Production English/German visual checks pass at 690/320 px. A new repeated test
+expectation was shared without losing assertions; plain jscpd remains only the
+inherited 21 clones / 287 lines / 1970 tokens at its unchanged zero threshold.
+Aggregate quality/coverage/release/editor/hosted/live gates remain lead-owned
+under the explicit rig brief; no full quality claim. Next slice is lead review
+and cross-rig release gates, including the inherited duplication hold, then
+PROVSTORE-LOCKLIB after M123. Receipts: `docs/certification/provcat.md`, PROVWIZ10.
+
+**PROVWIZ9 scoped qualification (2026-10-09).** Ordered provider saves remove
+rollback after RVPROVWIZ8C's three P2 findings. All 46 complete owning files
+pass 816 tests at repository deadlines, including the final lazy-store preflight
+move. Request goldens pass 152; deliberate byte-exact source drills prove guards
+fire. Every partial outcome keeps completed writes and refresh warnings append.
+New-origin rows require an origin-bound usable key. Budget-only drafts retain
+fresh retry baselines; quick-pick conflict retries preserve intervening edits.
+English/German production rendering passes at 690/320 px without document
+overflow. Full quality, coverage, packages, hosted/editor and live qualification
+remain lead-owned under the explicit rig/common brief. Plain jscpd retains the
+same inherited 21 clones / 287 lines / 1970 tokens, with no new clone. Full
+production build is held by surface English at 25651 / 25600 bytes: the unchanged
+base built on this same macbook has exactly the same size/failure, and this lane
+adds no surface bytes. Do not raise the cap or claim full quality green. The
+initial schema split failure is fixed by preflight through the existing lazy
+provider-store port; individual final split/global/notices receipts are recorded
+in `docs/certification/provcat.md`. Next slice: lead review and cross-rig release
+gates, including inherited size/duplication holds; then PROVSTORE-LOCKLIB after
+M123 lands on main for the accepted cross-window residual.
+
+**PROVWIZ8 scoped qualification and retained duplication hold (2026-10-09).**
+Repair RVPROVWIZ7C P2-3/P2-4 with a per-field inverse in the existing provider
+mutation and an honest saved-provider notice on refresh failure in all 14
+languages. Complete provider/models/capability suites pass 802 tests; Meta
+request goldens pass 152. All qualifying guard drills fail and restore bytes
+exactly; the final focused run passes 63 tests. The rig/common brief delegates
+aggregate quality, coverage, packages, hosted/editor and live qualification to
+the lead. Plain jscpd remains exit 1 at the unchanged threshold with the same
+21 clones / 287 lines / 1970 tokens as the reviewed base. A new repeated Test/wait
+interaction is shared without dropping assertions; no new clone remains. The
+lead's broader duplication cleanup remains open, and quality is not claimed
+green. P2-1/P2-2 are the explicit 0.17.1 cross-window residual at M95 and §8,
+awaiting PROVSTORE-LOCKLIB after M123. Receipts: `docs/certification/provcat.md`,
+PROVWIZ8 section.
+
+**PROVWIZ7 scoped qualification and retained duplication hold (2026-10-09).**
+Repair both RVPROVWIZ6C P2 findings with host-only edit/credential snapshots,
+changed-field comparisons inside the provider mutation, expected-default
+comparison and a validated Reload action. All 45 complete provider/models files
+pass 788 tests at repository deadlines; 15 deliberate guard failures restore
+source SHA-256 exactly. Changed-file lint/format, compiler, localization/reference,
+host API, plain Knip and production size/split/global/notices checks pass. Keep
+the inherited zero-clone gate's 21 clones / 287 lines / 1970 tokens; this round's
+one repeated assertion sequence is shared, leaving no new clone. The initial
+English surface overflow is repaired by keeping the host sentence off the
+browser's text comparison path, restoring its exact 25597-byte baseline under
+the unchanged 25600-byte cap. Aggregate quality, coverage and hosted/editor/live
+qualification remain lead-owned under the rig brief; do not claim full quality
+green. Receipts: `docs/certification/provcat.md`, PROVWIZ7 section.
+
+**PROVWIZ6 scoped qualification and inherited duplication hold (2026-10-09).**
+The rig/shared brief reserves aggregate quality, coverage and hosted/editor
+qualification for the lead. All 45 complete provider/models files pass 774
+cases at repository deadlines; 18 deliberate failures restore source SHA-256
+exactly. Five typechecks, changed-file lint/format, localization/reference,
+host API, plain Knip and production build pass with unchanged caps. The
+one newly introduced repeated test block is shared without removing assertions.
+A temporary source archive of the exact merge base `40fdfe2fe` and the repaired
+worktree both fail the unchanged zero-clone gate with **21 clones / 287 lines /
+1970 tokens**. None is introduced by this lane. Retain the prior wizard lane's
+lead-owned broader duplication cleanup below; do not claim aggregate quality
+green. The owned temporary baseline is removed. Evidence and per-batch/drill
+receipts: `docs/certification/provcat.md`, PROVWIZ6 section.
+
+**PROVWIZ2 round 5 scoped qualification (2026-10-09).** The rig brief
+reserves aggregate quality for the lead. All 28 owned files pass 511 tests at
+repository deadlines; five typechecks and individual lint, format, deadcode,
+localization, reference, host API and production build checks pass. Ten
+purposeful breaks fail and restore source bytes exactly. Duplication remains
+the inherited 24 clones / 312 lines / 2206 tokens below; no new clone or gate
+change is introduced. Final compiler/lint/format checks include the added
+failed-retest regression. Receipts: `docs/certification/provcat.md`.
+
+**PROVWIZ2 round 4 scoped qualification (2026-10-09).** The explicit lane
+brief and shared rules prohibit aggregate `npm run quality` and reserve it
+for the lead. Run complete owned suites at the repository's default timeout
+and all prescribed individual gates here; do not weaken any gate. Full
+quality, coverage and installed-editor qualification remain with the lead.
+Evidence and deliberate byte-exact drills: `docs/certification/provcat.md`.
+Duplication is an inherited lane hold: a read-only source snapshot of
+`bfbdf3c35` fails the unchanged zero-clone gate with 25 clones (321 lines,
+2,275 tokens). Round 4 removes all newly introduced clones; its scoped
+cleanup reduces the inherited set to 24 (312 lines, 2,206 tokens). The
+remaining prior-round test setup/interaction and wizard-footer duplication
+is deferred to the lead's broader quality cleanup, outside these five fixes.
+No ignore, threshold, assertion or check is changed; do not claim quality
+green. G94 (G66 on the branch, renumbered at the 0.17.1 merge) records
+freezing worktree edits during hook execution.
+
+PROVWIRE (2026-10-09): the lane brief/common rules reserve aggregate
+`npm run quality` for the lead and prohibit running it in the lane. Scoped
+provider/models tests and all requested static checks, plain knip, duplication,
+host API and production build pass; no threshold, ignore or deadline changes.
+This is a qualification handoff, not a full-quality or installed-editor claim.
+
+**MENUFAN scoped verification (2026-10-10, Kubuntu).** Run the brief's
+focused UI and visual suites at repository timeouts, scoped static gates,
+production budgets and the reviewed full visual matrix. The shared rig brief
+prohibits aggregate `quality`; the lead retains full qualification. An extra
+`node test/e2e/webviewDiet.mjs` smoke remains open: its global loading-count
+assertion raced two deferred renderers after GoalPanel appeared. Reusing the
+harness readiness wait passed that point, then its unchanged legacy schedules
+scene timed out waiting for `.local-schedules` at 5 s. The exploratory wait
+was reverted; only the smoke's English opener labels change in this lane.
+No timeout, assertion, scenario, hook or gate is weakened. Evidence:
+`docs/certification/menufan.md` and `temp/menufan/webview-diet.log`.
+
+**MINOUT round 2 scoped qualification (2026-10-10, macmini).** The explicit
+rig/common brief prohibits aggregate quality and full-suite runs; the lead
+owns those gates. Complete owning suites use repository deadlines and at most
+three files per invocation. Run all five type projects, changed-file lint and
+formatting, plain knip, duplication, localization, host API, reference, plan,
+roadmap and production build without weakening any limit. Record per-path
+SHA-256 restoration drills and the full configured-provider loopback receipt
+in `docs/certification/min-output-cap.md`. Hooks stay installed and enabled;
+local commits only, no merge, push or paid/live request.
+
+**CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
+round 4's macOS target-size deadline and palette failure-render ordering
+under bounded CPU/memory pressure before repairing their causes. Keep all
+themes, targets, assertions, repository deadlines and gate limits. Profile
+scene setup and lazy rejection delivery; run the complete owning files,
+five type projects, changed-file lint/format, plain knip, duplication,
+localization, host API and production build. Record byte-exact red/restored
+drills and load receipts in `docs/certification/cifix017.md`, Round 4,
+macOS. The explicit rig/common brief prohibits aggregate quality and
+delegates full hosted qualification to the lead. Requested hosted log
+downloads return HTTP 403; no merge, push, rebase or paid/live model call.
+
+**CIFIX017 round 5 (2026-10-09, lead + CIR5WIN + CIR5MAC).** Run 38022741513
+left four single-test failures, each on one OS. Lead: the M108 two-account case
+read usage on `turnCompleted`, but the fake CLI sends `usage/changed` after it
+and the frames can arrive in separate reads, so it now also waits for
+`onUsageChanged`; the estimator harness pays the browser's first-navigation
+work once in `beforeAll` (only the first matrix case ever missed, at
+navigation in round 3 and readiness in round 4), keeping every case's
+two-second bound. The lead then took the other two over from CIR5WIN and
+CIR5MAC (owner, 2026-10-09). Windows sshRunner exit-75 reached its unchanged
+10 s job budget: Git Bash maps the helper's `nice -n 10` to the BelowNormal
+class, which Windows' strict priority starves behind normal work, so the
+Git Bash fake remote runs the job unniced, as it already stubs `getconf` and
+`uptime`. macOS lifecycle read no members right after the root exits, while
+launchd reaps the root's unreaped `detached` child; the case now waits out
+that reap and reports the raw `ps`/helper reads if it recurs. Neither hosted
+failure reproduced on the rigs (macOS 15 x86_64 rigs against hosted macOS 26
+arm64), so hosted loops on a probe branch supply the evidence. A sweep of recent CI history added Windows cleanup holds (three suites now use `removeFolder`), the m114Panel first case (the same first-page warm-up) and Windows pageConverter (its fourth page gets the normal converter limits). Hosted macOS, failing only on deadlines in browser/process suites, now runs files one at a time over six shards, as Windows does. The hosted probe (150 rounds on macos-26-arm64) then caught the lifecycle cause itself: macOS 26 prints `?<` as the state of a process mid-transition, and the Mac table parser refused the whole table, so membership read empty; the parser accepts `?` (helper identity still proves membership). Its two outputSchema "promptly" probes measure the child's CPU time against the same 50 ms instead of wall time.
+
+**ACPM118 scoped rig qualification (2026-10-09, macmini).** The explicit
+rig/common brief prohibits aggregate quality and delegates hosted replay to
+the lead. All five type projects, changed-file lint/format, plain knip,
+duplication, localization, host API, reference, tokens, plan, roadmap, cycles
+and production build pass with unchanged limits. Complete sampler/runtime,
+reference and ACP stdio owners certify the shared Darwin libuv boundary;
+the matching Node 22 memory/CPU-loaded timeout and restored guard drill are
+recorded in `docs/certification/cifix017.md`, Round 3. Hosted log downloads
+return HTTP 403; local receipts do not claim a green hosted release.
+
+**CIFIX017L2 scoped rig qualification (2026-10-09, Kubuntu).** The lane's
+explicit rig/common brief prohibits aggregate `npm run quality` and full-suite
+runs; the lead owns those gates. Run the complete owning files, at most three
+per invocation, at repository deadlines, plus five type projects, changed-file
+lint/format, plain knip, duplication, localization, host API and the production
+build. Preserve every assertion and cap. The approved `macmini` SSH route
+refuses host-key verification; no trust setting is changed. Linux receipts
+alone cannot close the macOS-only outline/image failure or M118 ACP timeout.
+Record the missing platform receipts and failure-stage diagnostics in
+`docs/certification/cifix017.md`; this is a qualification deferral, not a
+release-green claim.
+
+**CIFIX017W inherited production-build blocker (2026-10-09, win11).** The
+release head's two full What's New releases serialize to 79,510 bytes,
+above the unchanged 76,800-byte decoded-content bound. LF normalization
+does not change that size. `encodeWhatsNewContent` refuses before bundling;
+the package test's captured data-URL stack previously masked it as ENOBUFS.
+Preserve the real build refusal and its full disk-backed diagnostics. Shared
+package-build qualification uses a clearly named private source fixture
+with abbreviated previous-release notes; it cannot certify the actual
+release build or replace final runs against the committed tree. The lead
+must resolve release-note representation within the existing cap before
+actual-source packaging can be green. No cap, threshold or test timeout is
+changed; aggregate quality remains lead-owned under the rig/common rules.
+
+The controlled full webview consumer also exits 1 on its resource-policy
+emitted-input negative drill: spawning the complete split check exceeds
+the unchanged Windows 15-second test deadline. Shared fixture copies keep
+the drill and all assertions intact. Split-check latency and actual-release
+content qualification remain with the lead; no green release claim follows
+from the private package fixture.
+
+**VISREGEN2 release-content repair and verified refresh (2026-10-09).**
+The original two-release tree measured 79,510 decoded bytes against the
+unchanged 76,800-byte bound. The lead authorized tightening only 0.17.0
+wording, preserving every change, Highlight and section heading, with a
+72,000-byte target. The result is 68,401 decoded / 25,347 encoded bytes;
+0.16.0 and older notes remain byte-exact. The standard writer passes. Full
+visual review and reviewed-update capture finish all 9,792 frames. The
+review explains the original 23 status/menu scenes and two notes scenes;
+eight intended README shots and their stale source records are refreshed.
+All six required visual owners pass 195 tests at repository defaults.
+Fix/rendering owners add 152 passing tests; the notes owners add eighteen.
+Five type projects, changed-file lint/format, plain knip, localization,
+reference, host API, tokens, plan, roadmap and production build pass. The
+normal visual replay passes all 9,792 frames with eighteen counted pixels
+within unchanged per-image tolerance; the manifest remains unchanged.
+Six-theme accessibility passes 1,632 pages with zero violated pages and
+315 retained incomplete findings. The ordinary deferred-loading-selector
+drill fails its target, then byte-exact restoration passes all three
+readiness tests at repository defaults. Goldens, intended README images,
+current source records and certification are refreshed on committed source
+`53fb033b49635ec95e0d5fa26dbed5248db445e8`.
+Bounded deferral: fresh `npx jscpd` still finds the inherited 51-token clone
+at `test/unit/windowsTrustedPath.test.ts:206,279`, with none in changed
+files; the lead repairs that unrelated Windows fixture before aggregate
+quality. No gate, timeout or cap changes; common.md assigns aggregate
+quality and hosted CI to the lead.
 
 **CIFIXM macOS CI repair scope (2026-10-09).** Reproduce the reporting
 journals/cache/engine, schedule-runtime and M114 panel/conversation failures
@@ -42219,13 +43045,12 @@ owns a further size-recovery decision and the later continuation/full gate.
   chat `setupComplete`. K tests use M's exact temporary source dependency,
   which is not committed. M must adopt strict `providers/edit` and scoped
   prefill variants. Follow-up: certify the final composed protocol/editor flow.
-- **K-recovery:** rollback compensates ordinary persistence failures; crash
-  atomicity and a different window/process writing during deletion require
-  a shared transaction/generation protocol with lane P. Same-host writes,
-  undo and deadlines are serialized, and replacement ids are rechecked.
-  Remaining risk is credential/setup availability, not credential exfiltration;
-  the origin dispatch guard remains mandatory. Follow-up: cross-window drills
-  with the final store seam and explicit repair when an OS-store rollback fails.
+- **K-recovery (superseded by PROVWIZ9, 2026-10-09):** provider Save validates
+  before writing and retains completed provider/key/default/limit/model steps
+  after a later failure, reporting every partial outcome. No rollback remains.
+  The origin guard prevents an old key serving a newly saved origin. Same-host
+  snapshot comparisons remain; cross-window provider/key serialization awaits
+  PROVSTORE-LOCKLIB after M123. Shared-store crash atomicity remains follow-up.
 - **K-release-base merge:** local `origin/main` at `a95f24cf` conflicts in
   release/build files, every manifest translation, extension and constants.
   Merge was aborted; lead must reconcile the release base on integration.
@@ -43593,10 +44418,13 @@ estimated 10–15 minutes; Windows quality alone took 38m23s in run 37211362498.
 
 - the static gates on all three OSes;
 - coverage shards merged per OS before the unchanged 90/85/90/90
-  thresholds apply: four on Ubuntu and macOS, five on Windows (lead
+  thresholds apply: four on Ubuntu and macOS, six on Windows (lead
   decision, 2026-10-09, on CITIME017's estimate: four Windows shards
   ≈ 18.3/14.2/20.0/18.0 min against the 20-minute job limit, five
-  ≤ 15.5 min; `docs/certification/citime017.md`);
+  ≤ 15.5 min; `docs/certification/citime017.md`. CIFIX017W2: in the first
+  hosted run of five, 37980345168, shard 1 hit the limit after 19.1 min of
+  tests with 26 files left; six project to ≤ 16.2 min,
+  `docs/certification/cifix017w.md`);
 - the a11y harness once, on Ubuntu;
 - integration on Linux and Windows;
 - the macOS helper and the universal packages.
@@ -44073,7 +44901,7 @@ independent review, current-main integration and full rig gates remain open.
 | CSS lint              | `stylelint "src/**/*.css" --max-warnings=0`                                                                                                                                                                                                            | M0 ✓                                                                                                                                                                                                                                                                                                                                                              |
 | Types                 | `tsc --noEmit` over five projects: host, webview, unit, e2e, integration (`npm run typecheck`)                                                                                                                                                         | M0 ✓                                                                                                                                                                                                                                                                                                                                                              |
 | Dead code             | `knip` (not `--strict`; see knip.jsonc)                                                                                                                                                                                                                | M0 ✓                                                                                                                                                                                                                                                                                                                                                              |
-| Cycles                | `dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/host/backend/modelApiEntry.ts src/webview/main.tsx src/runtime/main.ts`                                                                                                    | M0 ✓; M57: the Model API bundle's entry added, without which its files left the check (227 files analysed instead of 203); PR #32: the ACP agent's entry                                                                                                                                                                                                          |
+| Cycles                | `node scripts/cycles.mjs`: dpdm `--no-warning --no-tree --exit-code circular:1 -T` over the roots in `scripts/cycles.json`                                                                                                                             | M0 ✓; M57: the Model API bundle's entry added, without which its files left the check (227 files analysed instead of 203); PR #32: the ACP agent's entry; CIFIX017W2: the roots left the command line, which outgrew cmd.exe's 8,191 characters on Windows                                                                                                        |
 | Duplication           | `jscpd` (config `.jscpd.json`: threshold 0 over `src` and `test`)                                                                                                                                                                                      | M0 ✓                                                                                                                                                                                                                                                                                                                                                              |
 | Unit tests + coverage | `vitest run --coverage`; thresholds 90 % statements, 85 % branches, 90 % functions and lines (D5); Windows runs test files serially (M50)                                                                                                              | M0 ✓                                                                                                                                                                                                                                                                                                                                                              |
 | Integration tests     | `vscode-test` (two configurations: `stable` and `minimum`, the `engines.vscode` floor)                                                                                                                                                                 | M0 ✓ (9 passing locally since M18; CI: ubuntu xvfb + windows); M26 ✓ on 1.139.0 and 1.125.0, downloads cached in CI                                                                                                                                                                                                                                               |
@@ -44305,6 +45133,10 @@ threshold, ignore or rule is changed.
 | `src/runtime/main.ts`, panel command | `eslint-disable-next-line unicorn/no-process-exit` | The standalone carrier exits after owned backend cleanup and bounded stdout/stderr flushing; expired/dead SDK request timers must not keep a closed carrier alive.                                             |
 | `src/runtime/panel/panelLoader.ts`   | Factory signature predicates                       | Same-build packaged exports are trusted only after structural callable guards; factories install the caller's language table. Missing/wrong factories throw, including the ACP conversation factory (M104INT). |
 | `src/runtime/panel/connection.ts`    | Method kind predicates                             | Validated own keys from the frozen method table and their checked request/notification kind determine the mapped union; no foreign method or prototype key is admitted.                                        |
+
+| Location                                            | Residual / follow-up                                | Lead decision (2026-10-09)                                                                                                                                                                                                                            |
+| --------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M95 provider panel: `panelSeam.ts`, `wizardSave.ts` | RVPROVWIZ7C P2-1/P2-2; PROVSTORE-LOCKLIB after M123 | Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main. |
 
 | PORTS017 escape                                                                           | Reason                                                                                                                                                                                                                          |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -44623,11 +45455,12 @@ before a repaired one loads (2026-09-30).
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/host/git/gitExtension.ts`              | `value is GitRepository` and two more type predicates (`isGitExtension`, `isGitApi`, `isGitRepository`) | VS Code's Git extension exports are `unknown` to this extension; the guards check that each member it calls is there (functions, the change lists as arrays), not the members' parameter and result types, which no run-time check can see. It is VS Code's own API (`git.d.ts` version 1, the same from 1.99 to 1.139), and `test/integration` commits and pushes through the real one on the floor version and the latest (M71).                                                                                                                                                     | 2026-09-28 |
 
-| File                               | Construct                                                                      | Reason                                                                                                                                                                                                                                                                                                      | Added      |
-| ---------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `test/unit/modelApiHost.test.ts`   | `as ModelApiSession` in `resumeWithChild` and the custom-agent fork regression | The fake host constructs Model API sessions, but the shared resume/fork interface returns `AgentSession`; these two test-only casts expose `history()` for child-result assertions. Inline comments name that invariant. Production mode narrowing now selects a member of `APPROVAL_MODES` without a cast. | 2026-09-30 |
-| `test/unit/flightRecorder.test.ts` | `as never` on a hostile event kind and backend                                 | The refusal branches are reachable only with values outside `REPORT_EVENT_KINDS`/`BACKEND_KINDS`, which a typed test cannot spell; the two test-only casts feed them in. Inline comments name that invariant. Lane R product code holds no cast.                                                            | 2026-10-05 |
-| `test/unit/acpAgent.test.ts`       | `as acp.ClientCapabilities` in `wireCapabilities`                              | Non-boolean `terminal-auth` / `terminal` wire values cannot be spelled in the SDK type; the single test-only cast feeds them in after a JSON round-trip so the strict `=== true` check is exercised. Inline comment names that invariant. Lane ACPREG product code holds no cast.                           | 2026-10-06 |
+| File                                 | Construct                                                                      | Reason                                                                                                                                                                                                                                                                                                      | Added      |
+| ------------------------------------ | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/modelApiHost.test.ts`     | `as ModelApiSession` in `resumeWithChild` and the custom-agent fork regression | The fake host constructs Model API sessions, but the shared resume/fork interface returns `AgentSession`; these two test-only casts expose `history()` for child-result assertions. Inline comments name that invariant. Production mode narrowing now selects a member of `APPROVAL_MODES` without a cast. | 2026-09-30 |
+| `test/unit/flightRecorder.test.ts`   | `as never` on a hostile event kind and backend                                 | The refusal branches are reachable only with values outside `REPORT_EVENT_KINDS`/`BACKEND_KINDS`, which a typed test cannot spell; the two test-only casts feed them in. Inline comments name that invariant. Lane R product code holds no cast.                                                            | 2026-10-05 |
+| `test/unit/acpAgent.test.ts`         | `as acp.ClientCapabilities` in `wireCapabilities`                              | Non-boolean `terminal-auth` / `terminal` wire values cannot be spelled in the SDK type; the single test-only cast feeds them in after a JSON round-trip so the strict `=== true` check is exercised. Inline comment names that invariant. Lane ACPREG product code holds no cast.                           | 2026-10-06 |
+| `test/unit/modelsPanelEntry.test.ts` | `as unknown as vscode.WorkspaceConfiguration` on the stubbed configuration     | The `vscode` mock has no `WorkspaceConfiguration` class; the PROVWIZ2 round-3 quick-pick test stubs only the members the wizard's spending-limit configuration reads and writes (`get`, `inspect`, `update`), so a structural cast is the honest shape. Test-only.                                          | 2026-10-09 |
 
 | `test/unit/playbookSurface.test.ts` (M116 W) | `as never` on a hostile rule name | The unknown-rule refusal branch is reachable only with a rule outside `PLAYBOOK_CONFIGURABLE_RULES`, which a typed test cannot spell; the test-only cast feeds one in and asserts nothing is persisted. An inline comment names that invariant. Lane W product code holds no cast. | 2026-10-07 |
 
@@ -48143,6 +48976,28 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
   Platform/live release receipts remain separate requirements.
 
 ## 10. Definition of done and release records
+
+**0.17.1 preparation (2026-10-10, release branch).** `release/0.17.1` carries
+the extension version 0.17.1 and the dated `CHANGELOG.md` `[0.17.1]` section:
+the provider picker fix and provider save redesign (PROVCAT, PROVWIZ2–10,
+PROVWIRE; `docs/certification/provcat.md`), the owner's Title Case sweep
+(UITEXT017), the DeepSeek reasoning resolver (DSTHINK3;
+`docs/certification/m95-h.md`), the Muse Code 1.4.3 update hint (MUSE143,
+ported from `fix/muse-1.4.3`), the question answer-field spacing fix and the
+chat menus anchored to their row opener (MENUFAN, rounds 1–3, merged on
+`rel0171/final`; `docs/certification/menufan.md`) and the provider
+output-cap minimum (MINOUT, rounds 1–3; `docs/certification/min-output-cap.md`)
+and the companion server's early lifecycle events (RVCOMPSUB3;
+`docs/certification/companion-early-events.md`) and the chat share preview
+fix for ACP and the terminal (SHAREFIX, rounds 1–2, RVSHAREFIX2;
+`docs/certification/share-preview-fix.md`). This is preparation, not publication; the
+public roadmap (M122) lists 0.17.1 as the next release until a
+`0.17.1 released (…)` record follows here.
+
+**0.17.0 released (2026-10-10, tag `v0.17.0` on main's release merge `82d50d5e4`, PR #145, release run 38035245475).**
+The Release run succeeded and the GitHub release was published at
+2026-10-10 07:42 UTC. Recorded by the 0.17.1 preparation, which also files
+the notes v0.17.0 shipped under `[Unreleased]` in its `[0.17.0]` section.
 
 **0.17.0 preparation (2026-10-08, release branch).** `release/0.17.0` carries
 the extension version 0.17.0 and the dated `CHANGELOG.md` `[0.17.0]` section

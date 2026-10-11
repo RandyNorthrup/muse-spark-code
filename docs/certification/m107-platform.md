@@ -32,6 +32,13 @@ for headroom and qualify D87's conditional sysctl fallback; if no reliable
 reading exists, report unknown. No 0.5%-core sampler-cost claim is made by
 these three observations.
 
+**Runtime qualification, ACPM118 (2026-10-09).** Node 22.23.3/libuv 1.51
+returns free pages alone for `availableMemory()` on this same machine, while
+Node 24.21.0/libuv 1.52.1 includes reclaimable pages. Darwin headroom is now
+unknown before libuv 1.52 or without the API. The adjacent runtime captures,
+false-pause reproduction, version-boundary regression and restored drill are
+recorded in [CIFIX017, Round 3](cifix017.md#round-3-acp-m118).
+
 ## macOS taskpolicy reversibility
 
 The absolute executable is `/usr/sbin/taskpolicy` (not `/usr/bin/taskpolicy`).

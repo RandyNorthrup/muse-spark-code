@@ -40,7 +40,7 @@ export type Block =
       readonly items: readonly (readonly Block[])[]
     }
 
-/** A Highlight's "Try it": a contributed command to run, or a setting to open (D79). */
+/** A Highlight's "Try It": a contributed command to run, or a setting to open (D79). */
 export const TRY_KINDS = ['command', 'setting'] as const
 export type TryKind = (typeof TRY_KINDS)[number]
 export interface TryIt {

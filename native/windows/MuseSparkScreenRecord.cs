@@ -297,7 +297,13 @@ internal sealed class MuseSparkScreenRecord : Form
     // chmod-equivalent after the first frames have already reached the disk.
     private static void CreatePrivate(string directory)
     {
-        if (!Path.IsPathRooted(directory) || !String.Equals(Path.GetFullPath(directory), directory.Replace('/', '\\'), StringComparison.OrdinalIgnoreCase) ||
+        // GetFullPathName checks lexical normalization without expanding 8.3
+        // ancestors, unlike .NET Framework's Path.GetFullPath. TEMP on hosted
+        // Windows can name those same directories by their short aliases.
+        StringBuilder fullPath = new StringBuilder(32768);
+        uint length = GetFullPathName(directory, (uint)fullPath.Capacity, fullPath, IntPtr.Zero);
+        if (!Path.IsPathRooted(directory) || length == 0 || length >= fullPath.Capacity ||
+            !String.Equals(fullPath.ToString(), directory.Replace('/', '\\'), StringComparison.OrdinalIgnoreCase) ||
             !Path.GetFileName(directory).StartsWith("muse-spark-screen-", StringComparison.Ordinal)) throw new ArgumentException();
         DirectorySecurity security = new DirectorySecurity();
         SecurityIdentifier user = WindowsIdentity.GetCurrent().User;
@@ -661,5 +667,6 @@ internal sealed class MuseSparkScreenRecord : Form
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern SafeFileHandle CreateFile(string name, uint access, uint share, IntPtr security, uint disposition, uint flags, IntPtr template);
     [DllImport("kernel32.dll", SetLastError = true)] private static extern bool GetFileInformationByHandle(SafeFileHandle handle, out ByHandleFileInformation info);
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern uint GetFinalPathNameByHandle(SafeFileHandle handle, StringBuilder path, uint capacity, uint flags);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern uint GetFullPathName(string path, uint capacity, StringBuilder fullPath, IntPtr filePart);
     [DllImport("shell32.dll")] private static extern int SHGetKnownFolderPath(ref Guid folder, uint flags, IntPtr token, out IntPtr value);
 }

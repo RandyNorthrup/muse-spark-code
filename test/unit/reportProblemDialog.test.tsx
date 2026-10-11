@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Report a problem, lane W (M93, PLAN.md D72): the preview dialog in
+// Report a Problem, lane W (M93, PLAN.md D72): the preview dialog in
 // src/webview/components/ReportDialog.tsx. The dialog lists every item the
 // report contains with a Remove each, shows lane P's final draft exactly,
 // posts choices (never content) and states every export answer plainly.
@@ -24,7 +24,7 @@ import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
 beforeAll(warmDeferredSurfaces)
 
 const ITEMS: readonly ReportDraftItem[] = [
-  { kind: 'facts', label: 'Support facts' },
+  { kind: 'facts', label: 'Support Facts' },
   { kind: 'event', eventIndex: 0, label: 'toolCallFailed · 45 sec. ago' },
   { kind: 'event', eventIndex: 1, label: 'backendExit · 2 min. ago' },
 ]
@@ -32,7 +32,7 @@ const ITEMS: readonly ReportDraftItem[] = [
 const DRAFT_TEXT = [
   'Muse Spark problem report',
   '',
-  'Support facts:',
+  'Support Facts:',
   'extension: 0.12.1',
   '',
   'Recent events (2):',
@@ -69,8 +69,8 @@ describe('ReportDialog', () => {
   it('lists every item with a Remove each and shows the draft exactly', () => {
     const props = propsWith()
     render(<ReportDialog {...props} />)
-    expect(screen.getByRole('dialog', { name: 'Report a problem' })).toBeInTheDocument()
-    const list = screen.getByRole('list', { name: 'What this report contains' })
+    expect(screen.getByRole('dialog', { name: 'Report a Problem' })).toBeInTheDocument()
+    const list = screen.getByRole('list', { name: 'What This Report Contains' })
     expect(list.querySelectorAll(':scope > li')).toHaveLength(3)
     for (const item of ITEMS) {
       expect(screen.getByRole('button', { name: `Remove ${item.label}` })).toBeInTheDocument()
@@ -87,7 +87,7 @@ describe('ReportDialog', () => {
   it('removes the facts section and single events', () => {
     const props = propsWith()
     render(<ReportDialog {...props} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Remove Support facts' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Support Facts' }))
     expect(props.onRemoveItem).toHaveBeenCalledWith(ITEMS[0])
     fireEvent.click(screen.getByRole('button', { name: 'Remove backendExit · 2 min. ago' }))
     expect(props.onRemoveItem).toHaveBeenCalledWith(ITEMS[2])
@@ -103,9 +103,9 @@ describe('ReportDialog', () => {
       },
     )
     expect(props.onDescriptionChange).toHaveBeenCalledWith('The panel went blank.')
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Include support facts' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Include Support Facts' }))
     expect(props.onToggleFacts).toHaveBeenCalledWith(false)
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Include recent events' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Include Recent Events' }))
     expect(props.onToggleEvents).toHaveBeenCalledWith(false)
   })
 
@@ -113,10 +113,10 @@ describe('ReportDialog', () => {
     const props = propsWith()
     render(<ReportDialog {...props} />)
     for (const [name, via] of [
-      ['Copy report', 'copy'],
-      ['Open issue page', 'issue'],
-      ['Save to a file', 'save'],
-      ['Use the VS Code issue reporter', 'vscodeReporter'],
+      ['Copy Report', 'copy'],
+      ['Open Issue Page', 'issue'],
+      ['Save to a File', 'save'],
+      ['Use the VS Code Issue Reporter', 'vscodeReporter'],
     ] as const) {
       fireEvent.click(screen.getByRole('button', { name }))
       expect(props.onExport).toHaveBeenCalledWith(via)
@@ -126,7 +126,7 @@ describe('ReportDialog', () => {
   it('hides the VS Code reporter action while its command is missing', () => {
     render(<ReportDialog {...propsWith({ canUseVscodeReporter: false })} />)
     expect(
-      screen.queryByRole('button', { name: 'Use the VS Code issue reporter' }),
+      screen.queryByRole('button', { name: 'Use the VS Code Issue Reporter' }),
     ).not.toBeInTheDocument()
     expect(screen.queryByText(UI_TEXT.reportVscodeReporterNote)).not.toBeInTheDocument()
   })
@@ -135,7 +135,7 @@ describe('ReportDialog', () => {
     render(
       <ReportDialog {...propsWith({ isUpdating: true, statusText: UI_TEXT.reportUpdating })} />,
     )
-    for (const name of ['Copy report', 'Open issue page', 'Save to a file']) {
+    for (const name of ['Copy Report', 'Open Issue Page', 'Save to a File']) {
       expect(screen.getByRole('button', { name })).toBeDisabled()
     }
     expect(screen.getByRole('status')).toHaveTextContent('Updating the preview…')
@@ -285,13 +285,13 @@ describe('ReportDialogHost', () => {
     // The reply to "A" arrives: the field keeps "AB" and Copy stays locked.
     deliver({ revision: 1, description: 'A', text: 'draft A', hash: '1'.repeat(64) })
     expect(description()).toHaveValue('AB')
-    expect(screen.getByRole('button', { name: 'Copy report' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Copy Report' })).toBeDisabled()
     expect(screen.getByRole('status')).toHaveTextContent('Updating the preview…')
     // The reply to "AB" settles it; nothing was posted again.
     deliver({ revision: 2, description: 'AB', text: 'draft AB', hash: '2'.repeat(64) })
-    expect(screen.getByRole('button', { name: 'Copy report' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Copy Report' })).toBeEnabled()
     expect(updatesOf(postMessage.mock.calls)).toHaveLength(2)
-    fireEvent.click(screen.getByRole('button', { name: 'Copy report' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy Report' }))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'exportReport',
       via: 'copy',
@@ -302,10 +302,10 @@ describe('ReportDialogHost', () => {
   it('settles a reply that changed neither the draft nor the description (RVM93W 3)', () => {
     const { deliver } = mountHost()
     fireEvent.click(screen.getByRole('button', { name: 'Remove backendExit · 2 min. ago' }))
-    expect(screen.getByRole('button', { name: 'Copy report' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Copy Report' })).toBeDisabled()
     // Same hash, same description: only the revision says it answered.
     deliver({ revision: 1, items: ITEMS.slice(0, 2) })
-    expect(screen.getByRole('button', { name: 'Copy report' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Copy Report' })).toBeEnabled()
     expect(screen.queryByText('Updating the preview…')).not.toBeInTheDocument()
   })
 })

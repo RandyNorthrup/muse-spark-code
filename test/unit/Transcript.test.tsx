@@ -208,14 +208,14 @@ describe('Transcript', () => {
     expect(screen.getByText('Get-ChildItem')).toBeInTheDocument()
     expect(screen.getByText('OUT')).toBeInTheDocument()
     expect(screen.queryByText(/line 20/)).toBeNull()
-    fireEvent.click(screen.getByText('Show more'))
+    fireEvent.click(screen.getByText('Show More'))
     expect(screen.getByText(/line 20/)).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Show less'))
+    fireEvent.click(screen.getByText('Show Less'))
     expect(screen.queryByText(/line 20/)).toBeNull()
   })
 
   // M39: one line of minified output can be megabytes.
-  it('clips a long single line by characters, with Show more for the rest', () => {
+  it('clips a long single line by characters, with Show More for the rest', () => {
     const line = `${'a'.repeat(OUTPUT_PREVIEW_CHARS)}TAIL`
     renderTranscript([
       tool({
@@ -227,7 +227,7 @@ describe('Transcript', () => {
     ])
     expect(screen.queryByText(/TAIL/)).toBeNull()
     expect(screen.getByText(`${'a'.repeat(OUTPUT_PREVIEW_CHARS)}…`)).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Show more'))
+    fireEvent.click(screen.getByText('Show More'))
     expect(screen.getByText(/TAIL/)).toBeInTheDocument()
   })
 
@@ -292,7 +292,7 @@ describe('Transcript', () => {
     expect(screen.getByText('Loading…')).toBeInTheDocument()
   })
 
-  it('names the Auto reviewer and its reason under a call it allowed (M90)', () => {
+  it('names the Auto Reviewer and its reason under a call it allowed (M90)', () => {
     renderTranscript([
       tool({
         id: 'r',
@@ -301,12 +301,12 @@ describe('Transcript', () => {
         status: 'completed',
         approvalOutcome: {
           decision: 'approved',
-          resolvedBy: 'Auto reviewer',
+          resolvedBy: 'Auto Reviewer',
           reason: 'Allowed: reads workspace file to fulfill line-count request',
         },
       }),
     ])
-    expect(screen.getByText(/Decided: approved \(Auto reviewer\)/)).toBeInTheDocument()
+    expect(screen.getByText(/Decided: approved \(Auto Reviewer\)/)).toBeInTheDocument()
     expect(
       screen.getByText('Allowed: reads workspace file to fulfill line-count request'),
     ).toBeInTheDocument()
@@ -341,7 +341,7 @@ describe('Transcript', () => {
     expect(screen.getByText(/Rejected/)).toBeInTheDocument()
     expect(screen.getByText(/Decided: approved \(user\)/)).toBeInTheDocument()
     expect(screen.getByText(/Answered: Red/)).toBeInTheDocument()
-    // Only an approval the Auto reviewer allowed carries its reason (M90).
+    // Only an approval the Auto Reviewer allowed carries its reason (M90).
     expect(screen.queryByText(/^Allowed:/)).toBeNull()
     fireEvent.click(screen.getByText('grep_files'))
     // Indented as data (M43).
@@ -349,7 +349,7 @@ describe('Transcript', () => {
     expect(screen.getByText('match')).toBeInTheDocument()
   })
 
-  it('folds steps under one summary in Focus view but never a step waiting on the user', async () => {
+  it('folds steps under one summary in Focus View but never a step waiting on the user', async () => {
     const entries: TranscriptEntry[] = [
       { kind: 'assistant', id: 'a', text: 'plan', isStreaming: false },
       tool({ id: 't1' }),
@@ -367,10 +367,10 @@ describe('Transcript', () => {
     await act(async () => {
       await import('../../src/webview/components/QuestionUi')
     })
-    // Focus view folds a single step too, as before, now under its summary (M87).
+    // Focus View folds a single step too, as before, now under its summary (M87).
     const summaries = screen.getAllByRole('button', { name: 'Read a file' })
     expect(summaries).toHaveLength(2)
-    const marker = screen.getByRole('button', { name: 'Answer Open question Colour' })
+    const marker = screen.getByRole('button', { name: 'Answer Open Question Colour' })
     expect(marker.closest('.steps')).toBeNull()
     expect(screen.queryByRole('radio')).toBeNull()
     fireEvent.click(summaries[0]!)
@@ -543,12 +543,12 @@ describe('Transcript rows (M15, M16)', () => {
       { kind: 'assistant', id: 'a2', text: 'partial', isStreaming: true },
     ])
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.rowMoreActions }))
-    const copy = screen.getByRole('menuitem', { name: 'Copy response' })
-    expect(copy).toHaveAttribute('title', 'Copy response')
+    const copy = screen.getByRole('menuitem', { name: 'Copy Response' })
+    expect(copy).toHaveAttribute('title', 'Copy Response')
     fireEvent.click(copy)
     expect(props.onCopy).toHaveBeenCalledWith('first **bold**')
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.rowMoreActions }))
-    expect(screen.getByRole('menuitem', { name: 'Copy response' })).toHaveAttribute(
+    expect(screen.getByRole('menuitem', { name: 'Copy Response' })).toHaveAttribute(
       'title',
       'Copied',
     )
@@ -597,13 +597,13 @@ describe('Transcript rows (M15, M16)', () => {
     ])
     // A short diff with a stored patch still offers the editor; a short one without does not.
     expect(document.querySelectorAll('.diff tr')).toHaveLength(2 + 12 + 2)
-    const [stored, inline] = screen.getAllByText('Click to expand')
-    expect(screen.getAllByText('Click to expand')).toHaveLength(2)
+    const [stored, inline] = screen.getAllByText('Click to Expand')
+    expect(screen.getAllByText('Click to Expand')).toHaveLength(2)
     fireEvent.click(stored!)
     expect(props.onOpenEditDiff).toHaveBeenCalledWith('e1', 'p1')
     fireEvent.click(inline!)
     expect(document.querySelectorAll('.diff tr')).toHaveLength(2 + 15 + 2)
-    expect(screen.getAllByText('Click to expand')).toHaveLength(1)
+    expect(screen.getAllByText('Click to Expand')).toHaveLength(1)
   })
 
   it('offers the editor for a rename stopped partway, and for no other failed edit (M67)', () => {
@@ -626,7 +626,7 @@ describe('Transcript rows (M15, M16)', () => {
         patchRef: { id: 'p2', byteLen: 10 },
       }),
     ])
-    const offered = screen.getAllByText('Click to expand')
+    const offered = screen.getAllByText('Click to Expand')
     expect(offered).toHaveLength(1)
     fireEvent.click(offered[0]!)
     expect(props.onOpenEditDiff).toHaveBeenCalledWith('r1', 'p1')
@@ -634,13 +634,13 @@ describe('Transcript rows (M15, M16)', () => {
 })
 
 describe('Transcript chat references (M17)', () => {
-  it("offers Reply to this output in a reply's actions menu", () => {
+  it("offers Reply to This Output in a reply's actions menu", () => {
     const onReply = vi.fn()
     renderTranscript([{ kind: 'assistant', id: 'a1', text: 'done', isStreaming: false }], {
       onReply,
     })
     fireEvent.click(screen.getAllByRole('button', { name: UI_TEXT.rowMoreActions }).at(-1)!)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Reply to this output' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Reply to This Output' }))
     expect(onReply).toHaveBeenCalledWith('a1')
     expect(screen.queryByRole('menuitem')).toBeNull()
   })
@@ -657,7 +657,7 @@ describe('Transcript chat references (M17)', () => {
       ],
       { quoteMenuEntryId: 'u1', onQuote, onCopyQuote, onCloseQuoteMenu },
     )
-    const menu = screen.getByRole('menu', { name: 'Highlighted text' })
+    const menu = screen.getByRole('menu', { name: 'Highlighted Text' })
     // Our menu replaces the browser's, so Copy comes first and has the focus (M25).
     const copy = screen.getByRole('menuitem', { name: 'Copy' })
     expect(document.activeElement).toBe(copy)
@@ -666,9 +666,9 @@ describe('Transcript chat references (M17)', () => {
     expect(menu.closest('[data-entry-id]')).toHaveAttribute('data-entry-id', 'u1')
     expect(menu.closest('[data-entry-id]')).toHaveAttribute('data-role', 'user')
     expect(document.querySelector('[data-entry-id="t1"]')).toHaveAttribute('data-role', 'tool')
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Ask about this' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Ask About This' }))
     expect(onQuote).toHaveBeenCalledWith('question')
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Comment on this' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Comment on This' }))
     expect(onQuote).toHaveBeenCalledWith('comment')
     fireEvent.keyDown(menu, { key: 'a' })
     expect(onCloseQuoteMenu).not.toHaveBeenCalled()
@@ -685,10 +685,10 @@ describe('Transcript chat references (M17)', () => {
         text: 'why',
         status: 'sent',
         attachments: [],
-        referenceLabel: 'Replying to: Use pnpm.',
+        referenceLabel: 'Replying To: Use pnpm.',
       },
     ])
-    expect(screen.getByText('Replying to: Use pnpm.')).toBeInTheDocument()
+    expect(screen.getByText('Replying To: Use pnpm.')).toBeInTheDocument()
   })
 })
 
@@ -902,16 +902,16 @@ describe('Transcript rows (M25)', () => {
       ],
       { onNoticeAction },
     )
-    const restart = screen.getByRole('button', { name: 'Restart now' })
+    const restart = screen.getByRole('button', { name: 'Restart Now' })
     act(() => {
       // All arrive before React commits the disabled state.
       fireEvent.click(restart)
       fireEvent.click(restart)
-      fireEvent.click(screen.getByRole('button', { name: 'New conversation' }))
+      fireEvent.click(screen.getByRole('button', { name: 'New Conversation' }))
     })
     expect(onNoticeAction.mock.calls).toEqual([['n1', 'restartMuseCode']])
     expect(restart).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'New conversation' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'New Conversation' })).toBeDisabled()
     expect(screen.getByText('Muse Code refuses every message')).toBeInTheDocument()
   })
 
@@ -949,7 +949,7 @@ describe('Transcript rows (M25)', () => {
     expect(repeated.querySelector('.sr-only')).toHaveTextContent('Shown 7 times')
     const fault = screen.getByText('Muse Code refuses every message')
     expect(fault.querySelector('.notice-repeat')).toHaveTextContent('2×')
-    expect(screen.getByRole('button', { name: 'New conversation' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'New Conversation' })).toBeEnabled()
   })
 
   it('stops fetching a document that never ends at the host page budget', () => {
@@ -983,9 +983,9 @@ describe('Transcript rows (M25)', () => {
     await act(async () => {
       await import('../../src/webview/components/QuestionUi')
     })
-    expect(screen.getByRole('button', { name: 'Answer Open question Colour' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Answer Open Question Colour' })).toBeEnabled()
     view.rerender(mount(true))
-    expect(screen.getByRole('button', { name: 'Answer Open question Colour' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Answer Open Question Colour' })).toBeDisabled()
     expect(screen.queryByRole('radio')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Submit' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull()
@@ -1049,7 +1049,7 @@ describe('Transcript replies (M25)', () => {
     fireEvent.pointerDown(document.body)
     expect(screen.queryByRole('menu')).toBeNull()
     fireEvent.click(screen.getAllByRole('button', { name: UI_TEXT.rowMoreActions }).at(-1)!)
-    const item = screen.getByRole('menuitem', { name: 'Reply to this output' })
+    const item = screen.getByRole('menuitem', { name: 'Reply to This Output' })
     fireEvent.pointerDown(item)
     expect(screen.getByRole('menu')).toBeInTheDocument()
     fireEvent.blur(item, {
@@ -1121,9 +1121,9 @@ describe('Transcript replies (M25)', () => {
     fireEvent.click(screen.getAllByRole('button', { name: UI_TEXT.rowMoreActions })[0]!)
     fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.rowRewindGroup }))
     expect(screen.getAllByRole('menuitem').map((item) => item.getAttribute('aria-label'))).toEqual([
-      'Rewind code to here',
+      'Rewind Code to Here',
     ])
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Rewind code to here' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rewind Code to Here' }))
     expect(onRewind).toHaveBeenCalledWith('u')
   })
 })
@@ -1140,9 +1140,9 @@ describe('Transcript: paid rows and cited sources (M33)', () => {
       }),
       tool({ id: 'free' }),
     ])
-    expect(screen.getByText('Web search')).toBeInTheDocument()
+    expect(screen.getByText('Web Search')).toBeInTheDocument()
     expect(screen.getByText('vite 7 release')).toBeInTheDocument()
-    const badges = screen.getAllByText('paid')
+    const badges = screen.getAllByText('Paid')
     expect(badges).toHaveLength(1)
     // The badge paints at once; its exact price tooltip arrives with the
     // lazy money chunk (STARTUP017), never guessed. The chunk loads once
@@ -1268,7 +1268,7 @@ describe('Transcript: the step summary in the default view (M87, PLAN.md D66)', 
     ])
     renderTranscript(entries)
     expect(screen.getByRole('button', { name: 'Read 2 files' })).toBeInTheDocument()
-    const marker = screen.getByRole('button', { name: 'Answer Open question Colour' })
+    const marker = screen.getByRole('button', { name: 'Answer Open Question Colour' })
     expect(marker.closest('.steps')).toBeNull()
     expect(screen.queryByRole('radio')).toBeNull()
     expect(document.querySelector('.tool-dot-running')).not.toBeNull()

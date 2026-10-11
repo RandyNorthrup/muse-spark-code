@@ -1,13 +1,14 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { contrastRatio } from '../../scripts/check-tokens.mjs'
-import { findChrome } from '../../scripts/lib/chrome.mjs'
+import { PRODUCTION_BUILD_KEY } from './helpers/productionPackage'
+import { REVIEW_BROWSER_KEY } from './helpers/reviewBrowser.mjs'
+import { waitForDeferredPaint } from '../harness/goldens/capture.mjs'
 import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
-import { compactBrowserEnglish } from '../../scripts/lib/uiTextRegions.mjs'
 import { webviewStartupOutputs } from '../../scripts/lib/webviewBundles.mjs'
 
 const themes = ['light', 'dark', 'hc-dark', 'hc-light', 'one-dark-pro', 'dracula']
@@ -34,30 +35,18 @@ createRoot(document.getElementById('root')).render(<>
     onAnswer={noop} onCancelQuestion={noop} onMoveToBackground={noop} onStopTask={noop}
     canStopUserShell={false} onOpenEditDiff={noop} onOpenFile={noop}/>
 </>);`
-const buildOptions = {
-  entryPoints: ['src/webview/main.tsx'],
-  outdir: 'dist/webview',
-  bundle: true,
-  minify: true,
-  metafile: true,
-  write: false,
-  charset: 'utf8',
-  platform: 'browser',
-  format: 'esm',
-  splitting: true,
-  chunkNames: 'chunks/[hash]',
-  target: 'chrome128',
-  jsx: 'automatic',
-  define: { 'process.env.NODE_ENV': '"production"' },
-}
-
 beforeAll(async () => {
-  const bundle = await build({ ...buildOptions, plugins: [compactBrowserEnglish] })
+  const shared = inject(PRODUCTION_BUILD_KEY)
+  const browserFiles = await readdir(path.join(shared, 'dist/webview'), { recursive: true })
   runtime.outputs = new Map(
-    bundle.outputFiles.map((file) => [
-      `/${path.relative(process.cwd(), file.path).replaceAll('\\', '/')}`,
-      file.text,
-    ]),
+    await Promise.all(
+      browserFiles
+        .filter((file) => /\.(?:js|css)$/.test(file))
+        .map(async (file) => [
+          `/dist/webview/${file.replaceAll('\\', '/')}`,
+          await readFile(path.join(shared, 'dist/webview', file), 'utf8'),
+        ]),
+    ),
   )
   runtime.css = runtime.outputs.get('/dist/webview/main.css')
   const fixture = await build({
@@ -66,6 +55,9 @@ beforeAll(async () => {
     platform: 'browser',
     write: false,
     jsx: 'automatic',
+    // Every fixture page parses this script: unminified (2.4 MB) it took
+    // ~650 ms a page here, most of each fixture case.
+    minify: true,
     define: { 'process.env.NODE_ENV': '"production"' },
   })
   runtime.fixture = fixture.outputFiles[0].text
@@ -79,11 +71,7 @@ beforeAll(async () => {
       ]),
     ),
   )
-  const chrome = findChrome()
-  if (chrome === undefined) throw new Error('Chrome is required for the review regressions')
-  runtime.browser = await chromium.launch({
-    ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),
-  })
+  runtime.browser = await chromium.connect(inject(REVIEW_BROWSER_KEY))
   Object.assign(runtime, await serveRepo(process.cwd()))
 })
 
@@ -124,7 +112,13 @@ async function pageFor(theme, scene, forcedColors = 'none') {
         })
       return url.hostname === '127.0.0.1' ? route.continue() : route.abort()
     })
-    if (scene !== 'jump') await page.clock.install({ time: new Date('2026-10-06T12:00:00Z') })
+    if (scene !== 'jump') {
+      const time = new Date('2026-10-06T12:00:00Z')
+      await page.clock.install({ time })
+      // Async chunk I/O continues, but scenario timers cannot replace a
+      // measured control between CDP pseudo-state changes and screenshots.
+      if (scene !== undefined) await page.clock.pauseAt(new Date(time.getTime() + 60_000))
+    }
     if (scene === undefined)
       await page.setContent(
         `<!doctype html><html lang="en"><title>Review fixture</title><style>${runtime.css}</style><main id="root"></main></html>`,
@@ -177,7 +171,14 @@ async function pageFor(theme, scene, forcedColors = 'none') {
           .locator('textarea, .gate, .todo-surface, .schedule-v2-surface, [role="alert"]')
           .first()
           .waitFor({ state: 'attached' })
-      await page.clock.runFor(6500)
+      if (scene === undefined) {
+        // The direct component fixture has no fake-host scenario timers.
+        await page.locator('.hook-edited button').waitFor({ state: 'attached' })
+        await page.clock.runFor(100)
+      } else {
+        await page.clock.runFor(6500)
+        await waitForDeferredPaint(page, scene)
+      }
     }
     return page
   } catch (error) {
@@ -246,6 +247,9 @@ async function forcedColorStates(page, selector) {
       width: Math.min(320, box.x + box.width + 6) - Math.max(0, box.x - 6),
       height: Math.min(760, box.y + box.height + 6) - Math.max(0, box.y - 6),
     }
+    // Flush the frozen clock's paint callbacks before asking the compositor
+    // for pixels. Computed style alone does not prove a frame has painted.
+    await page.clock.runFor(100)
     const hoverImage = await page.screenshot({ clip, animations: 'disabled' })
     await forced.session.send('CSS.forcePseudoState', {
       nodeId: forced.nodeId,
@@ -257,6 +261,7 @@ async function forcedColorStates(page, selector) {
     expect(pressed.outlineStyle, selector).toBe('solid')
     expect(pressed.outlineColor, selector).toBe(highlight)
     expect(pressed.outlineOffset, selector).toBe('0px')
+    await page.clock.runFor(100)
     const pressedImage = await page.screenshot({ clip, animations: 'disabled' })
     expect(pressedImage.equals(hoverImage), selector).toBe(false)
     for (const states of [
@@ -396,24 +401,30 @@ describe('RVM114P1 review regressions', () => {
     }
   })
 
-  it.each(themes)(
-    '%s: forced colors keep fixture hover and pressed visibly distinct',
-    async (theme) => {
+  // One control per case, like the scene cases below: seven controls' states
+  // and screenshots in one case took 2.8-4.7 s of its 5 s on hosted runners
+  // (CIFIX017R3). Every theme, control and assertion remains.
+  it.each(
+    themes.flatMap((theme) =>
+      [
+        '.send-button:not(.send-button-stop)',
+        '.send-button-stop',
+        '.jump-latest',
+        '.icon-button',
+        '.todo-title',
+        '.context-meter',
+        '.hook-edited button',
+      ].map((selector) => ({ theme, selector })),
+    ),
+  )(
+    '$theme $selector: forced colors keep fixture hover and pressed visibly distinct',
+    async ({ theme, selector }) => {
       const page = await pageFor(theme, undefined, 'active')
       try {
         expect(
           await page.evaluate(() => globalThis.matchMedia('(forced-colors: active)').matches),
         ).toBe(true)
-        for (const selector of [
-          '.send-button:not(.send-button-stop)',
-          '.send-button-stop',
-          '.jump-latest',
-          '.icon-button',
-          '.todo-title',
-          '.context-meter',
-          '.hook-edited button',
-        ])
-          await forcedColorStates(page, selector)
+        await forcedColorStates(page, selector)
       } finally {
         await page.close()
       }
@@ -450,32 +461,36 @@ describe('RVM114P1 review regressions', () => {
     },
   )
 
-  it.each(themes)(
-    '%s: actual attachment, tool and steps targets are at least 24 by 24 at 320 px',
-    async (theme) => {
-      for (const [scene, selectors] of [
+  // Each scene owns its deadline: three cold pages and React mounts exceeded
+  // five seconds under CPU pressure (CIR4MAC). Keep every target and assertion.
+  it.each(
+    themes.flatMap((theme) =>
+      [
         ['chips', ['.chip-remove']],
         ['tools-open', ['.tool-toggle', '.tool-path', '.tool-chevron']],
         ['approval-several', ['.steps-toggle']],
-      ]) {
-        const page = await pageFor(theme, scene)
-        try {
-          for (const selector of selectors) {
-            const targets = page.locator(`${selector}:visible`)
-            // Folded tool rows render from a lazy chunk once the steps open
-            // (2ae80ffb9); wait for the first, never count a half-loaded scene.
-            await targets.first().waitFor({ state: 'visible' })
-            expect(await targets.count(), selector).toBeGreaterThan(0)
-            const visibleTargets = await targets.all()
-            for (const target of visibleTargets) {
-              const box = await target.boundingBox()
-              expect(box.width, `${scene} ${selector}`).toBeGreaterThanOrEqual(24)
-              expect(box.height, `${scene} ${selector}`).toBeGreaterThanOrEqual(24)
-            }
+      ].map(([scene, selectors]) => ({ theme, scene, selectors })),
+    ),
+  )(
+    '$theme $scene: actual targets are at least 24 by 24 at 320 px',
+    async ({ theme, scene, selectors }) => {
+      const page = await pageFor(theme, scene)
+      try {
+        for (const selector of selectors) {
+          const targets = page.locator(`${selector}:visible`)
+          // Folded tool rows render from a lazy chunk once the steps open
+          // (2ae80ffb9); wait for the first, never count a half-loaded scene.
+          await targets.first().waitFor({ state: 'visible' })
+          expect(await targets.count(), selector).toBeGreaterThan(0)
+          const visibleTargets = await targets.all()
+          for (const target of visibleTargets) {
+            const box = await target.boundingBox()
+            expect(box.width, `${scene} ${selector}`).toBeGreaterThanOrEqual(24)
+            expect(box.height, `${scene} ${selector}`).toBeGreaterThanOrEqual(24)
           }
-        } finally {
-          await page.close()
         }
+      } finally {
+        await page.close()
       }
     },
   )

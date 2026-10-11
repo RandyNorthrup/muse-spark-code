@@ -26,8 +26,10 @@ import * as z from 'zod/mini'
 import {
   CODEC_EMPTY_TOOL_OUTPUT,
   CODEC_IMAGE_WITHOUT_VISION,
+  THINKING_OFF_EFFORT,
   UI_TEXT,
 } from '../../../../shared/constants'
+import { resolveReasoning } from '../../../../shared/effort'
 import { cleanWireText, isBlankWireText, nativeCallId, type CallIdFormat } from './shared'
 export { parseNativeModelsList as parseChatModelsList } from '../../../providers/modelMetadata'
 import type {
@@ -76,6 +78,17 @@ export interface ChatPresetQuirks {
    * own level names. Absent means the effort goes as it came.
    */
   readonly effortMap?: Readonly<Record<string, string>> | undefined
+  /**
+   * The preset's documented Thinking-off switch: `thinking: {type:
+   * "disabled"}` with no effort parameter. When set, the shared resolver
+   * (`resolveReasoning`) maps every effort with the two record facts below.
+   * Absent keeps the preset's existing bytes.
+   */
+  readonly thinkingOff?: 'thinking-switch' | undefined
+  /** The selected model's declared effort levels (capability record). */
+  readonly effortLevels?: readonly string[] | undefined
+  /** The selected model's record affirms Thinking can be disabled. */
+  readonly canDisable?: boolean | undefined
   /** Send `prompt_cache_key` (Mistral, Fireworks in the captures). */
   readonly sendCacheKey: boolean
   /** Send `stream_options: {include_usage: true}` (every capture). */
@@ -189,7 +202,7 @@ export interface ChatFunctionTool {
 /**
  * The native request body, built in this fixed key order: model, messages,
  * tools, tool_choice, parallel_tool_calls, stream, stream_options, the
- * output cap, provider, reasoning, prompt_cache_key, tool_stream.
+ * output cap, provider, reasoning, thinking, prompt_cache_key, tool_stream.
  */
 export interface ChatCompletionRequest {
   readonly model: string
@@ -213,6 +226,11 @@ export interface ChatCompletionRequest {
     | undefined
   readonly reasoning?: { readonly effort: string } | undefined
   readonly reasoning_effort?: string | undefined
+  /**
+   * The thinking-mode switch; only `disabled` is ever sent, for effort
+   * `none` on a preset that declares it. Never beside an effort value.
+   */
+  readonly thinking?: { readonly type: 'disabled' } | undefined
 }
 
 /** What the transport sends: codec-owned headers plus the JSON body. */
@@ -607,14 +625,48 @@ function nativeRouting(routing: ChatRouting): NonNullable<ChatCompletionRequest[
   }
 }
 
+class ChatCodecError extends Error {
+  override readonly name = 'ChatCodecError'
+}
+
+/**
+ * The configured client rethrows these instead of its generic unavailable
+ * error, so the typed refusal and its localized reason reach the caller.
+ * Matched by name so a second copy of this module cannot mask it.
+ */
+export function isChatCodecError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'ChatCodecError'
+}
+
 function nativeReasoning(
   body: CreateResponseBody,
   quirks: ChatPresetQuirks,
-): Pick<ChatCompletionRequest, 'reasoning' | 'reasoning_effort'> {
+): Pick<ChatCompletionRequest, 'reasoning' | 'reasoning_effort' | 'thinking'> {
+  let requested = body.reasoning.effort
+  if (quirks.thinkingOff !== undefined) {
+    const decision = resolveReasoning(
+      {
+        effortLevels: quirks.effortLevels,
+        canDisable: quirks.canDisable === true,
+        thinkingOff: quirks.thinkingOff,
+      },
+      requested,
+    )
+    if (decision.kind === 'off') return { thinking: { type: 'disabled' } }
+    if (decision.kind === 'default') return {}
+    if (decision.kind === 'refuse') {
+      const reason =
+        requested === THINKING_OFF_EFFORT
+          ? UI_TEXT.chatCodecThinkingOffUnsupported
+          : UI_TEXT.chatCodecEffortUnsupported
+      throw new ChatCodecError(`${reason} (${decision.code})`)
+    }
+    requested = decision.effort
+  }
   if (quirks.reasoningParam === 'none') {
     return {}
   }
-  const effort = quirks.effortMap?.[body.reasoning.effort] ?? body.reasoning.effort
+  const effort = quirks.effortMap?.[requested] ?? requested
   return quirks.reasoningParam === 'effort-object'
     ? { reasoning: { effort } }
     : { reasoning_effort: effort }

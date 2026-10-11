@@ -397,8 +397,11 @@ describe.runIf(process.platform === 'win32')(
       if (kind === 'parent') target = path.dirname(target)
       // The DACL only: Set-Acl writes the audit section too, which needs
       // SeSecurityPrivilege (an elevated runner has it; an ordinary account not).
+      // CLR constructors, no cmdlet: Get-Item and New-Object load their modules
+      // first, which took past the test deadline on hosted runners (CIFIX017W2).
+      // Module auto-loading is off, so a cmdlet here fails on any machine.
       const setRule = async (isRemove: boolean) => {
-        const script = `$target = '${target.replaceAll("'", "''")}'; $item = Get-Item -Force -LiteralPath $target; $acl = $item.GetAccessControl('Access'); $sid = New-Object Security.Principal.SecurityIdentifier('S-1-1-0'); $rule = New-Object Security.AccessControl.FileSystemAccessRule($sid, '${rights}', 'Allow'); $acl.${isRemove ? 'RemoveAccessRuleAll' : 'AddAccessRule'}($rule); $item.SetAccessControl($acl)`
+        const script = `$PSModuleAutoLoadingPreference = 'None'; $ErrorActionPreference = 'Stop'; $item = [IO.${kind === 'file' ? 'FileInfo' : 'DirectoryInfo'}]::new('${target.replaceAll("'", "''")}'); $acl = $item.GetAccessControl('Access'); $sid = [Security.Principal.SecurityIdentifier]::new('S-1-1-0'); $rule = [Security.AccessControl.FileSystemAccessRule]::new($sid, '${rights}', 'Allow'); $acl.${isRemove ? 'RemoveAccessRuleAll' : 'AddAccessRule'}($rule); $item.SetAccessControl($acl)`
         await new Promise<void>((resolve, reject) => {
           execFile(
             helper.powershell,

@@ -1,4 +1,4 @@
-// "Open a pull request in a conversation…" (M71, PLAN.md D49): the pull
+// "Open a Pull Request in a Conversation…" (M71, PLAN.md D49): the pull
 // request's head is fetched from GitHub through VS Code's git extension
 // (credentials apply) and checked out, detached, in a worktree of its own
 // that opens in a new window, where a conversation reviews or changes it
@@ -400,7 +400,7 @@ function trustDetail(hold: WorktreeHold): string {
   ].join('\n\n')
 }
 
-/** The held-worktree card's "Trust this worktree…": asks, then lets the hold go. */
+/** The held-worktree card's "Trust This Worktree…": asks, then lets the hold go. */
 export async function confirmWorktreeTrust(deps: TrustConfirmationDeps): Promise<void> {
   const hold = deps.hold.current
   if (hold === undefined) {

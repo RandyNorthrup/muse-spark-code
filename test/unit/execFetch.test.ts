@@ -115,6 +115,25 @@ async function checkOversize(h: ReturnType<typeof harness>): Promise<void> {
 }
 
 describe('M80 streaming transport boundary', () => {
+  it('names the minimum for a headless request cap below sixteen without dispatch or reservation', async () => {
+    for (const cap of [0, 1, 15]) {
+      const h = harness()
+      try {
+        await expect(
+          h.transport.fetch(`${MODEL_API_BASE_URL}/responses`, {
+            ...post,
+            body: JSON.stringify({ model, stream: true, max_output_tokens: cap, input: [] }),
+          }),
+        ).rejects.toThrow('Output cap must be at least 16 tokens.')
+        expect(h.forwarded).not.toHaveBeenCalled()
+        expect(h.ledger.totals().requests).toBe(0)
+        expect(h.life.cause).toEqual({ kind: 'request_shape' })
+      } finally {
+        h.close()
+      }
+    }
+  })
+
   it('L7 immutable byte body and returned headers reach client before EOF', async () => {
     const h = harness()
     const gate = Promise.withResolvers<undefined>()

@@ -291,8 +291,16 @@ describe('MuseCodeBackendManager: immutable account launch (M108)', () => {
       session.onEvent((event) => {
         if (event.type === 'turnCompleted') done.resolve(undefined)
       })
+      // The fake CLI announces usage after the turn ends, and the two frames can
+      // arrive in separate reads; the account observes usage before listeners run.
+      const usage = Promise.withResolvers<undefined>()
+      const stopUsage = hostA.onUsageChanged(() => {
+        usage.resolve(undefined)
+      })
       await session.sendTurn([{ type: 'text', text: 'fake-only usage' }])
       await done.promise
+      await usage.promise
+      stopUsage()
       expect(work.observeUsage).toHaveBeenCalled()
       expect(personal.observeUsage).not.toHaveBeenCalled()
       expect(await hostB.readUsage()).toBeUndefined()

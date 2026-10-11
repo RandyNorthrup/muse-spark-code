@@ -162,7 +162,7 @@ function ruleKey(toolName: string, command: string | undefined): string {
 
 /**
  * The choices an approval card offers for a tool call (MSP vocabulary):
- * "Allow for this session" only where a session rule could answer later.
+ * "Allow for This Session" only where a session rule could answer later.
  */
 export function choicesFor(
   toolName: string,
@@ -237,7 +237,7 @@ export interface PermissionJudgement {
   readonly rule?: CommandRule | undefined
   /** An ask nothing settled, in Auto: the Auto reviewer may answer it (M78). */
   readonly isReviewable: boolean
-  /** The card may offer "Allow for this session": never for an ask rule or under a profile. */
+  /** The card may offer "Allow for This Session": never for an ask rule or under a profile. */
   readonly hasSessionChoice: boolean
 }
 

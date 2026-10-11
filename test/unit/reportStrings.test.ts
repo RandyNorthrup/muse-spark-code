@@ -42,9 +42,9 @@ describe('M113 regional reporting text', () => {
   })
   it('labels input/output/cache totals and current/lagging stores through the closed vocabulary', () => {
     const labels = {
-      inputTokens: 'Input tokens',
-      outputTokens: 'Output tokens',
-      cachedTokens: 'Cached tokens',
+      inputTokens: 'Input Tokens',
+      outputTokens: 'Output Tokens',
+      cachedTokens: 'Cached Tokens',
       current: 'Current',
       lagging: 'Lagging',
     }

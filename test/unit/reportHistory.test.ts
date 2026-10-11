@@ -1,7 +1,7 @@
 import * as ResourceLauncher from '../../src/core/resources/launcher'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import * as fsPromises from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
 import { build } from 'esbuild'
@@ -597,6 +597,48 @@ describe('report history', () => {
       await t.held
     }
   })
+
+  // CIFIX017R3 (hosted macOS): a releasing writer listed a lease tombstone
+  // that another writer was unlinking; the kernel reported the name with no
+  // links left, the release refused it as unsafe and the live lease stayed
+  // until the waiting writer's deadline. Both reads see such a name here.
+  it.each(['lstat', 'open handle'])(
+    'releases its own lease while another writer is unlinking a tombstone it reads (%s)',
+    async (seen) => {
+      const t = await heldWriter()
+      const tomb = path.join(path.dirname(t.lock), 'lease-unlinking')
+      // Another writer's retired lease: a foreign token, never this writer's.
+      await writeFile(
+        tomb,
+        t.owner.replace(/"token":"[^"]+"/, () => `"token":"${randomUUID()}"`),
+      )
+      const { ino } = await fileIdentity.lstatIdentity(tomb)
+      const unlinking = <T extends { ino: bigint }>(info: T): T =>
+        info.ino === ino
+          ? new Proxy(info, {
+              get: (target, key, receiver) =>
+                key === 'nlink' ? 0n : Reflect.get(target, key, receiver),
+            })
+          : info
+      const originalLstat = fileIdentity.lstatIdentity
+      const originalHandle = fileIdentity.handleIdentity
+      const spy =
+        seen === 'lstat'
+          ? vi
+              .spyOn(fileIdentity, 'lstatIdentity')
+              .mockImplementation(async (file) => unlinking(await originalLstat(file)))
+          : vi
+              .spyOn(fileIdentity, 'handleIdentity')
+              .mockImplementation(async (handle) => unlinking(await originalHandle(handle)))
+      try {
+        t.release.resolve(undefined)
+        await t.held
+      } finally {
+        spy.mockRestore()
+      }
+      expect(await readdir(path.dirname(t.lock))).not.toContain('writer.lock')
+    },
+  )
 
   it('models two writers across every crash and recovery order with at most one admitted writer', () => {
     // Two writers and two independent recoverers interleave at each syscall

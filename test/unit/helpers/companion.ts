@@ -98,6 +98,29 @@ export async function startPanel(
   return { ...server, handler, listeners, stop, renderPage }
 }
 
+/**
+ * RVCOMPSUB finding 1 guard: `closed` must settle promptly from the asserted
+ * cause, never from the 5000 ms idle timer. A background timer that settles
+ * the same promise would otherwise let the test pass with the cause removed.
+ */
+export async function settlesBeforeIdle(closed: Promise<void>): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    let isSettled = false
+    const watch = (async (): Promise<void> => {
+      await closed
+      isSettled = true
+    })()
+    const waitIdle = new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, 1000)
+    })
+    await Promise.race([watch, waitIdle])
+    expect(isSettled).toBe(true)
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export function headers(panel: Pick<Panel, 'url'>, token?: string): string[] {
   const origin = new URL(panel.url).origin
   return [

@@ -435,7 +435,7 @@ async function readTextFile(fsPath: string): Promise<string | undefined> {
   }
 }
 
-/** The usage modal's "Auth method" for the backend in use (M14). */
+/** The usage modal's "Auth Method" for the backend in use (M14). */
 function signInMethodFor(
   kind: BackendKind,
   hasCliSession: boolean,
@@ -1147,7 +1147,7 @@ async function activateWindow(
     dailyBudgetUsd: (feature) =>
       paidBackend === 'modelApi' || feature === 'legalExplanation' ? dailyPaid.capUsd() : undefined,
     isKeyStored: () => isKeyStored,
-    // "Allow always in this workspace" (M58) needs a workspace to keep it,
+    // "Allow Always in This Workspace" (M58) needs a workspace to keep it,
     // and never in Restricted Mode.
     canRememberPaidUse: () =>
       vscode.workspace.isTrusted && (vscode.workspace.workspaceFolders?.length ?? 0) > 0,
@@ -4168,7 +4168,7 @@ async function activateWindow(
       mentions.invalidate()
       void restartBackend('the workspace was trusted').catch(logRejection(log, 'backend restart'))
       registry.broadcast({ type: 'notice', level: 'info', text: UI_TEXT.trustGrantedNotice })
-      // "Allow always in this workspace" counts only in a trusted one (M58).
+      // "Allow Always in This Workspace" counts only in a trusted one (M58).
       broadcastPaidState()
       // Checkpoints run from now on, and what was queued while untrusted is cleaned up (M72).
       void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
@@ -4538,7 +4538,7 @@ async function activateWindow(
       COMMAND_IDS.openShareFile,
       forActiveConversation((controller) => controller.handle({ type: 'openShareFile' })),
     ),
-    // M95 (PLAN.md D74) lane K: the wizard opened at "Pick a provider" (with
+    // M95 (PLAN.md D74) lane K: the wizard opened at "Pick a Provider" (with
     // the workspace's suggested preset chosen, when it names one), the panel,
     // and the quick-pick fast path. Loading a missing bundle refuses with an
     // explicit error, never an empty success.

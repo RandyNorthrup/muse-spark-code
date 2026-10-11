@@ -2,7 +2,7 @@
 # once the merge queue is on) runs the Ubuntu static gates, the production
 # build and every unit/process-e2e test; the full tier (merge groups, manual
 # runs, release.yml) runs every gate on three platforms, coverage shards (four
-# on Ubuntu and macOS, five on Windows) merged per OS before the unchanged
+# on Ubuntu and macOS, six on Windows) merged per OS before the unchanged
 # thresholds apply, the accessibility and integration runs, the macOS helper
 # and the universal packages. The required check names come from the
 # `required` aggregate below on both tiers.
@@ -25,15 +25,26 @@ permissions:
 
 jobs:
   checks:
-    name: static gates (${{ matrix.os }})
+    name: static gates (${{ matrix.os }}, ${{ matrix.part.name }})
     runs-on: ${{ matrix.os }}
-    # macOS reaches the unit typecheck about 13 minutes in (format, lint, host and
-    # webview typechecks); the single unit program adds about 3 (2026-10-07).
+    # One serial job outgrew its 25 minutes on macOS (CIFIX017R3, run
+    # 37992331755: 21.8 min in round 2, cancelled at 25 in round 3 during
+    # check:host-api, no hang): type-aware ESLint alone took 17.7 min there
+    # (lint:js:main 7.0, lint:js:unit 10.2) against 6.5 on Ubuntu, and 5.1 GB
+    # per ESLint process rules out ESLint's threads on a 7 GB runner. Three
+    # parts run every gate on every OS; macOS' slowest measured is ~11 min.
     timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
+        part:
+          - name: lint
+            gates: 'format:check lint:js:main lint:js:tests lint:css lint:ps'
+          - name: unit lint
+            gates: 'lint:js:unit'
+          - name: build
+            gates: 'typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan check:roadmap deadcode cycles duplication build security:audit'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -53,7 +64,7 @@ jobs:
       # Gallery's package endpoint, checked against the SHA-512 lint-ps.mjs
       # pins, and unpacked into the user's module path. Each failure is named.
       - name: PSScriptAnalyzer (windows, pinned)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.part.name == 'lint'
         shell: pwsh
         run: |
           $version = node scripts/lint-ps.mjs --print-version
@@ -92,25 +103,23 @@ jobs:
           Remove-Item -Force -Path (Join-Path $target '*.nuspec') -ErrorAction SilentlyContinue
           Import-Module PSScriptAnalyzer -RequiredVersion $version -ErrorAction Stop
           Write-Host "PSScriptAnalyzer $version installed from the checked package"
-      # Same static/build/audit gates as quality:gates; tests and pixel replay have required jobs.
-      - run: npx run-s format:check lint typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan check:roadmap deadcode cycles duplication build security:audit
+      # Same static/build/audit gates as quality:gates, across the parts; tests and
+      # pixel replay have required jobs.
+      - run: npx run-s ${{ matrix.part.gates }}
         env:
           # check:badges lists public main through the GitHub API; the job token
           # keeps hosted runners off the shared unauthenticated rate limit.
           GITHUB_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: matrix.os == 'ubuntu-latest' && !inputs.fast
+        if: matrix.os == 'ubuntu-latest' && matrix.part.name == 'build' && !inputs.fast
         with:
           name: production-webview
+          # The whole production dist, minus the VSIX stage and build metadata:
+          # a hand list drifted once (wire.js gained a lazy chunk the list lacked).
           path: |
-            dist/webview
-            dist/reportingPanel.js
-            dist/validation.js
-            dist/wire.js
-            dist/uiText.js
-            dist/uiTextRuntime.js
-            dist/uiTextHooks.js
-            dist/uiTextSurfaces.js
+            dist
+            !dist/vsix-package
+            !dist/meta
           if-no-files-found: error
 
   # M114: rebuild the reviewed Git source in this runner's browser/fonts;
@@ -199,10 +208,13 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
-        shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5]') }}
-        # Windows splits its slower serial run five ways (≤ 15.5 min per
-        # shard on CITIME017's estimate); Ubuntu and macOS keep four.
-        exclude: ${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"macos-latest","shard":5}]') }}
+        shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6,7,8]') }}
+        # Windows splits its slower serial run eight ways: with six, shard 1 ran
+        # 16-17 min (952 s of tests; modelApiHost alone 207 s) and crossed the
+        # 20-minute limit in run 38027675949, as hosted Windows varies ~60%
+        # between runs (PLAN.md §8). macOS also runs files one at a time
+        # (vitest.config.ts) over six; Ubuntu keeps four.
+        exclude: ${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8},{"os":"macos-latest","shard":7},{"os":"macos-latest","shard":8}]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -221,7 +233,7 @@ jobs:
         env:
           FAST: ${{ inputs.fast }}
           SHARD: ${{ matrix.shard }}
-          SHARDS: ${{ matrix.os == 'windows-latest' && 5 || 4 }}
+          SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || matrix.os == 'macos-latest' && 6 || 8 }}
         run: |
           if [ "$FAST" = true ]; then
             npx vitest run
@@ -262,7 +274,7 @@ jobs:
       - name: every shard and the original coverage thresholds are required
         shell: bash
         env:
-          SHARDS: ${{ matrix.os == 'windows-latest' && 5 || 4 }}
+          SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || matrix.os == 'macos-latest' && 6 || 8 }}
         run: |
           for shard in $(seq 1 "$SHARDS"); do
             test -s "blob-reports/shard-$shard.json"
@@ -570,6 +582,7 @@ jobs:
             package/native/darwin/muse-dictate \
             package/native/linux/x64/muse-created package/native/linux/arm64/muse-created \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
+            package/native/windows/MuseSparkMcpLauncher.cs \
             package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \
             package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json \
             package/schemas/exec-result-v2.schema.json package/schemas/exec-event-v2.schema.json \

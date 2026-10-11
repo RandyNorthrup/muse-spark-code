@@ -408,13 +408,13 @@ describe('M116 D100 amendments (W)', () => {
       {
         read: () =>
           Promise.resolve({ settings: policy.getSettings(), records: policy.getRecord() }),
-        change: () => Promise.reject(new Error('Read-only fixture')),
+        change: () => Promise.reject(new Error('Read-Only fixture')),
       },
     )
     expect(result.ok).toBe(true)
-    expect(result.text).toContain('Unbound residual acceptance: M116 · hook-drift-follow-up')
+    expect(result.text).toContain('Unbound Residual Acceptance: M116 · hook-drift-follow-up')
     expect(result.text).toContain('It covers no residual.')
-    expect(result.text).not.toContain('Residual accepted: M116 · hook-drift-follow-up')
+    expect(result.text).not.toContain('Residual Accepted: M116 · hook-drift-follow-up')
   })
 
   it('record view distinguishes identical orphan and bound acceptances by journal position', () => {
@@ -438,8 +438,8 @@ describe('M116 D100 amendments (W)', () => {
     expect(register.accepted).toHaveLength(1)
     expect(register.open).toEqual([])
     const text = playbookText('record', { settings: policy.getSettings(), records: [...records] })
-    expect(text.match(/Unbound residual acceptance: M116 · native-binding/gu)).toHaveLength(1)
-    expect(text.match(/Residual accepted: M116 · native-binding/gu)).toHaveLength(1)
+    expect(text.match(/Unbound Residual Acceptance: M116 · native-binding/gu)).toHaveLength(1)
+    expect(text.match(/Residual Accepted: M116 · native-binding/gu)).toHaveLength(1)
   })
 
   it('G24 integration release runs only with an empty or accepted register', () => {
@@ -528,7 +528,7 @@ describe('M116 D100 amendments (W)', () => {
           at: 100,
         },
       }),
-    ).toContain('Unbound residual acceptance')
+    ).toContain('Unbound Residual Acceptance')
   })
 
   it('runs fallback settings through the shared CLI runner text', async () => {

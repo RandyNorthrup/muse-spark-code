@@ -7,7 +7,7 @@ import path from 'node:path'
 import { build, type BuildOptions, type Plugin } from 'esbuild'
 import { JOB_SOURCE_FILES } from '../../src/host/backend/jobSource'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
-import { buildLinuxHelper } from '../../scripts/build-linux-helper.mjs'
+import { buildCreatedHelper } from './createdHelperFixture'
 
 export async function buildAcpFixture(
   root: string,
@@ -43,11 +43,11 @@ export async function buildAcpFixture(
   })
   writeFileSync(path.join(packageRoot, 'package.json'), JSON.stringify({ version }))
   cpSync(path.join(root, 'l10n'), path.join(packageRoot, 'l10n'), { recursive: true })
-  buildLinuxHelper(packageRoot)
   // On Windows the governed launch compiles its job helpers from the C# the
   // package ships under native/windows/ (jobSource.ts) before `muse serve`.
   for (const file of Object.values(JOB_SOURCE_FILES))
     cpSync(path.join(root, file), path.join(packageRoot, file))
+  buildCreatedHelper(root, packageRoot)
 }
 
 export async function removeAcpFixture(

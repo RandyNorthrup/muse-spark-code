@@ -71,9 +71,9 @@ describe('usage table family', () => {
     const table = { ...USAGE_EN, title: 'Nutzung und Kosten' }
     setUsageText(table)
     expect(USAGE_TEXT.title).toBe('Nutzung und Kosten')
-    expect(USAGE_EN.title).toBe('Usage & cost')
+    expect(USAGE_EN.title).toBe('Usage & Cost')
     setUsageText(USAGE_EN)
-    expect(USAGE_TEXT.title).toBe('Usage & cost')
+    expect(USAGE_TEXT.title).toBe('Usage & Cost')
   })
 
   it('formats range counts and threshold percentages in the installed display language', () => {

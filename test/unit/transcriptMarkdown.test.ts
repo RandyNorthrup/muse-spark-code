@@ -96,7 +96,7 @@ describe('renderTranscriptMarkdown', () => {
         '### Tool: bash (failed)\n\nArguments:\n\n```\nnot json\n```\n\n_Failed: exit 1_',
         // Counts in the display language's digits and grouping (PLAN.md D33).
         '### Tool: tool\n\n_The output (5,000 bytes) is stored by the backend and not included._',
-        '### Shell command\n\n```\n!npm test\n```\n\nOutput:\n\n```\npassed\n```\n\n_Exit code 0_',
+        '### Shell Command\n\n```\n!npm test\n```\n\nOutput:\n\n```\npassed\n```\n\n_Exit code 0_',
         '### Subagent: explorer\n\nFind the tests\n\n> Found 3 tests\n> in src',
         '### Subagent: agent (running)',
         '### Subagent: agent\n\n> Only a summary',

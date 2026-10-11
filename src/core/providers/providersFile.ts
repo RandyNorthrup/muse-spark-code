@@ -19,6 +19,8 @@ import { UI_TEXT } from '../../shared/l10n/text'
 import {
   customCompatSchema,
   modelLimitsSchema,
+  outputTokenMinimumMessage,
+  providerOutputMinimum,
   openRouterRoutingSchema,
 } from '../../shared/providerRouting'
 import { isProviderId, parseModelRef } from './modelRef'
@@ -111,6 +113,37 @@ export const providerEntrySchema = z
     ),
   )
   .check(
+    (payload) => {
+      const entry = payload.value
+      const models = new Set([
+        ...Object.keys(entry.modelLimits ?? {}),
+        ...Object.keys(entry.modelCapabilities ?? {}),
+      ])
+      for (const model of models) {
+        const limits = entry.modelLimits?.[model]
+        const output = entry.modelCapabilities?.[model]?.output
+        const minimum = providerOutputMinimum(
+          entry.address,
+          model,
+          output?.minTokens ?? 1,
+          entry.format,
+        )
+        if (limits !== undefined && limits.outputTokens < minimum)
+          payload.issues.push({
+            code: 'custom',
+            input: entry,
+            path: ['modelLimits', model, 'outputTokens'],
+            message: outputTokenMinimumMessage(minimum),
+          })
+        if (output?.maxTokens !== undefined && output.maxTokens < minimum)
+          payload.issues.push({
+            code: 'custom',
+            input: entry,
+            path: ['modelCapabilities', model, 'output', 'maxTokens'],
+            message: outputTokenMinimumMessage(minimum),
+          })
+      }
+    },
     z.refine((entry) => entry.compat === undefined || entry.preset === 'custom', {
       error: () => UI_TEXT.providerText.schema.compat,
     }),
@@ -128,17 +161,31 @@ export const providersFileSchema = z.object({
     ),
   ),
   providers: z.array(
-    z.union([
-      providerEntrySchema.check(z.refine((entry) => entry.auth !== 'subscription')),
-      z
-        .strictObject(providerEntrySchema.shape)
-        .check(
-          z.refine(
-            (entry) =>
-              entry.auth === 'subscription' && providerEntrySchema.safeParse(entry).success,
-          ),
-        ),
-    ]),
+    z.pipe(
+      z.unknown(),
+      z.transform((input, payload) => {
+        const parsed = providerEntrySchema.safeParse(input)
+        if (!parsed.success) {
+          for (const issue of parsed.error.issues.toReversed())
+            payload.issues.push({ code: 'custom', input, path: issue.path, message: issue.message })
+          return z.NEVER
+        }
+        if (parsed.data.auth === 'subscription') {
+          const strict = z.strictObject(providerEntrySchema.shape).safeParse(input)
+          if (!strict.success) {
+            for (const issue of strict.error.issues)
+              payload.issues.push({
+                code: 'custom',
+                input,
+                path: issue.path,
+                message: issue.message,
+              })
+            return z.NEVER
+          }
+        }
+        return parsed.data
+      }),
+    ),
   ),
 })
 export type ProvidersFile = z.infer<typeof providersFileSchema>
@@ -198,7 +245,11 @@ export async function readProvidersFile(
   const parsed = z.safeParse(providersFileSchema, value)
   return parsed.success
     ? { ok: true, file: parsed.data }
-    : { ok: false, reason: 'invalid', detail: parsed.error.message }
+    : {
+        ok: false,
+        reason: 'invalid',
+        detail: parsed.error.issues[0]?.message ?? UI_TEXT.actionFailed,
+      }
 }
 
 export type ProvidersFileWrite =
@@ -218,7 +269,11 @@ export async function writeProvidersFileAtomic(
 ): Promise<ProvidersFileWrite> {
   const parsed = z.safeParse(providersFileSchema, file)
   if (!parsed.success) {
-    return { ok: false, reason: 'invalid', detail: parsed.error.message }
+    return {
+      ok: false,
+      reason: 'invalid',
+      detail: parsed.error.issues[0]?.message ?? UI_TEXT.actionFailed,
+    }
   }
   const text = `${JSON.stringify(parsed.data, undefined, 2)}\n`
   const temporary = `${filePath}.${randomUUID()}.tmp`

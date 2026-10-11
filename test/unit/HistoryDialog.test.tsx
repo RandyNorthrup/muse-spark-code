@@ -138,9 +138,9 @@ describe('HistoryDialog', () => {
     expect(screen.getByText('Today')).toBeInTheDocument()
     expect(screen.getByText('Yesterday')).toBeInTheDocument()
     expect(screen.queryByText('Older')).toBeNull()
-    expect(optionTitles()).toEqual(['Fix the parsercurrent', 'Write docs'])
+    expect(optionTitles()).toEqual(['Fix the parserCurrent', 'Write docs'])
     expect(screen.getByText('1 hr. ago · 3 turns · main')).toBeInTheDocument()
-    expect(screen.getByText('yesterday · 1 turn · fork')).toBeInTheDocument()
+    expect(screen.getByText('yesterday · 1 turn · Fork')).toBeInTheDocument()
   })
 
   it('marks known sessions with localized singular/plural open counts and clears zero counts', () => {
@@ -149,14 +149,14 @@ describe('HistoryDialog', () => {
       '1 open question',
     )
     expect(screen.getByRole('option', { name: /Write docs/ })).toHaveTextContent('2 open questions')
-    fireEvent.click(screen.getByLabelText('Show archived'))
+    fireEvent.click(screen.getByLabelText('Show Archived'))
     expect(screen.getByRole('option', { name: /Old idea/ })).not.toHaveTextContent('open question')
   })
 
   it('shows archived and stale rows behind the switch, with Unarchive on the archived one', () => {
     const { props } = renderDialog()
-    fireEvent.click(screen.getByLabelText('Show archived'))
-    expect(optionTitles()).toEqual(['Fix the parsercurrent', 'Put away', 'Write docs', 'Old idea'])
+    fireEvent.click(screen.getByLabelText('Show Archived'))
+    expect(optionTitles()).toEqual(['Fix the parserCurrent', 'Put away', 'Write docs', 'Old idea'])
     fireEvent.click(archiveMark('Put away', 'Unarchive (Delete)'))
     expect(props.onSetArchived).toHaveBeenCalledWith('archived', false)
     // A row hidden by age is not in the archived set: it still offers Archive.
@@ -170,7 +170,7 @@ describe('HistoryDialog', () => {
     fireEvent.change(search, { target: { value: 'docs' } })
     expect(optionTitles()).toEqual(['Write docs'])
     fireEvent.change(search, { target: { value: 'MAIN' } })
-    expect(optionTitles()).toEqual(['Fix the parsercurrent'])
+    expect(optionTitles()).toEqual(['Fix the parserCurrent'])
     expect(search).toHaveAttribute('aria-controls', 'history-listbox')
     fireEvent.change(search, { target: { value: 'zzz' } })
     expect(screen.getByText('No sessions match.')).toBeInTheDocument()
@@ -208,9 +208,9 @@ describe('HistoryDialog', () => {
 
   // M25: the switch took the focus, and the arrows, Enter and Escape stopped
   // working until the next click in the search box.
-  it('keeps the keyboard in the search box through a Show archived toggle', () => {
+  it('keeps the keyboard in the search box through a Show Archived toggle', () => {
     const { props, search } = renderDialog()
-    const toggle = screen.getByLabelText('Show archived')
+    const toggle = screen.getByLabelText('Show Archived')
     expect(fireEvent.mouseDown(toggle)).toBe(false)
     fireEvent.click(toggle)
     expect(document.activeElement).toBe(search)
@@ -248,7 +248,7 @@ describe('HistoryDialog', () => {
     expect(props.onSetArchived).toHaveBeenCalledOnce()
     // An archived row restores.
     fireEvent.change(search, { target: { value: '' } })
-    fireEvent.click(screen.getByLabelText('Show archived'))
+    fireEvent.click(screen.getByLabelText('Show Archived'))
     fireEvent.keyDown(search, { key: 'ArrowDown' })
     expect(screen.getByRole('option', { name: /Put away/ })).toHaveAttribute(
       'aria-description',
@@ -272,7 +272,7 @@ describe('HistoryDialog', () => {
   })
 })
 
-it('offers Save prompt on history right-click without resuming or losing archive', async () => {
+it('offers Save Prompt on history right-click without resuming or losing archive', async () => {
   const save = vi.fn()
   const { props } = renderDialog({ onSavePrompt: save })
   fireEvent.contextMenu(screen.getByText('Fix the parser'))

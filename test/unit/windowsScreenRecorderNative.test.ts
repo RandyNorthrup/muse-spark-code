@@ -1,6 +1,15 @@
 import { createHash } from 'node:crypto'
 import { execFile } from 'node:child_process'
-import { mkdir, mkdtemp, readFile, readdir, symlink, utimes, writeFile } from 'node:fs/promises'
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  symlink,
+  utimes,
+  writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -108,6 +117,10 @@ describe.skipIf(process.platform !== 'win32')(
       if (executable === undefined)
         throw new Error('inbox recorder/check fixture failed to compile or self-test')
       paths.executable = executable
+      // Exercise hosted Windows' 8.3 TEMP spelling even on a long-path rig.
+      const root = paths.root
+      paths.root = await check('shortPath', root)
+      expect(await realpath(paths.root)).toBe(await realpath(root))
     })
     afterAll(() => removeFolder(paths.root))
 
@@ -263,6 +276,11 @@ describe.skipIf(process.platform !== 'win32')(
 
     it('accepts forward-slash Windows paths before canonical comparison', async () => {
       const target = destination().replaceAll('\\', '/')
+      expect(await check('private', target)).toBe('ok')
+    })
+
+    it('accepts the long spelling of the same native temporary ancestor', async () => {
+      const target = path.join(await realpath(paths.root), path.basename(destination()))
       expect(await check('private', target)).toBe('ok')
     })
 

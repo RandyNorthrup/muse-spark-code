@@ -98,8 +98,8 @@ try {
                 ? []
                 : [`body class "${scan.bodyClass}", expected "${String(bodyClasses.get(theme))}"`],
             errors: scan.errors,
-            currentMinute: scan.text.includes('This minute so far'),
-            earlierDays: scan.text.includes('Earlier days'),
+            currentMinute: scan.text.includes('This Minute So Far'),
+            earlierDays: scan.text.includes('Earlier Days'),
             unavailable: scan.text.includes('Resource history could not be read.'),
             empty: scan.text.includes('No resource history recorded yet.'),
           })

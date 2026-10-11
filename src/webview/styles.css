@@ -1908,6 +1908,25 @@ body {
   align-items: center;
 }
 
+/* The card's body (countdown, tabs, the question, its actions) and each
+   question stack with room between rows. The focused answer field draws a
+   2 px outline 2 px outside its box, so it keeps 8 px from the option above
+   and the buttons below instead of touching or covering them. */
+.question-body,
+.question-body > .question-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-8);
+}
+
+.question-body > .question-block {
+  gap: var(--ms-space-4);
+}
+
+.question-body .question-input {
+  margin-block-start: var(--ms-space-4);
+}
+
 .question-header {
   font-weight: var(--ms-weight-bold);
 }
@@ -2973,11 +2992,22 @@ li:focus-within > .row-actions .row-actions-button,
   cursor: default;
 }
 
+/* Pointer and selected decoration stays inside the pill, leaving only the
+   keyboard focus ring outside. Resting spacing is derived from its tokens. */
 .gooey-menu-pill:not([aria-disabled='true']):hover,
+.gooey-menu-pill:not([aria-disabled='true']):active,
+.gooey-menu-pill[aria-selected='true'],
+.gooey-menu-pill[aria-pressed='true'] {
+  background: var(--ms-pressed);
+  border-color: var(--ms-on-accent);
+}
+
+/* --ms-gooey-focus-offset (set on each pill) pulls the ring inward where the
+   fan is tight; it applies only to focus, never to the pressed ring. */
 .gooey-menu-pill:not([aria-disabled='true']):focus-visible {
   background: var(--ms-pressed);
   outline: var(--ms-focus-width) solid var(--ms-text);
-  outline-offset: var(--ms-focus-offset);
+  outline-offset: var(--ms-gooey-focus-offset, var(--ms-focus-offset));
 }
 
 .gooey-menu-pill-icon {
@@ -4398,7 +4428,7 @@ li:focus-within > .row-actions .row-actions-button,
 
 :is(.row-actions-button, .gooey-menu-pill, .agents-pill):focus-visible {
   outline: var(--ms-focus-width) solid var(--ms-text);
-  outline-offset: var(--ms-focus-offset);
+  outline-offset: var(--ms-gooey-focus-offset, var(--ms-focus-offset));
 }
 
 :is(.row-actions-button, .agents-pill):active:enabled {
@@ -4452,6 +4482,8 @@ li:focus-within > .row-actions .row-actions-button,
   background: var(--ms-pressed);
 }
 
+/* Pressed draws its ring inside the pill (offset = -width), so it reaches no
+   neighbour and still differs from hover (M114 P2). */
 .approval .approval-choices > button:active:enabled,
 .gooey-menu-pill:not([aria-disabled='true']):active {
   outline: var(--ms-focus-width) solid var(--ms-on-accent);

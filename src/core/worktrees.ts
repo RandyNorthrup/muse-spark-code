@@ -1,4 +1,4 @@
-// Git worktrees for "New worktree…" and "Remove worktree…" (M32, PLAN.md
+// Git worktrees for "New Worktree…" and "Remove worktree…" (M32, PLAN.md
 // D30): work on a branch in a folder of its own, the checkout in front of
 // the user untouched, as Muse Code's `--worktree` does for the CLI (which
 // MSP does not carry). New worktrees go beside the repository, in

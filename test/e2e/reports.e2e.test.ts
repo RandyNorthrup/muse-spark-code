@@ -103,7 +103,7 @@ describe('reports CLI subprocess', () => {
     })
     const held = await cli(['project', '--strict'])
     expect(held.code).toBe(4)
-    expect(held.stdout).toEqual(expect.stringContaining('Needs you'))
+    expect(held.stdout).toEqual(expect.stringContaining('Needs You'))
     expect(held.stderr).toBe('')
   })
 

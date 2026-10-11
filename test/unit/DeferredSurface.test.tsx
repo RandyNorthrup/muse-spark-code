@@ -294,21 +294,21 @@ it.each(['pointer', 'focus', 'Escape', 'navigation'])(
     const mounted = vi.fn()
     function LoadedMenu() {
       mounted()
-      return <button autoFocus>Copy response</button>
+      return <button autoFocus>Copy Response</button>
     }
     const Surface = deferred(() => held.promise)
     const onClose = vi.fn()
     const view = render(
       <>
-        <button>More actions</button>
+        <button>More Actions</button>
         <textarea aria-label="Composer" />
       </>,
     )
-    const trigger = screen.getByRole('button', { name: 'More actions' })
+    const trigger = screen.getByRole('button', { name: 'More Actions' })
     trigger.focus()
     view.rerender(
       <>
-        <button>More actions</button>
+        <button>More Actions</button>
         <textarea aria-label="Composer" />
         <Surface keepFocus onClose={onClose} />
       </>,
@@ -332,7 +332,7 @@ it.each(['pointer', 'focus', 'Escape', 'navigation'])(
       await held.promise
     })
     expect(mounted).not.toHaveBeenCalled()
-    expect(screen.queryByText('Copy response')).toBeNull()
+    expect(screen.queryByText('Copy Response')).toBeNull()
     expect(screen.queryByRole('status')).toBeNull()
     if (dismissal === 'pointer' || dismissal === 'focus')
       expect(document.activeElement).toBe(composer)
@@ -344,12 +344,12 @@ it('a failed nonmodal menu accepts Escape from Retry and returns focus to its tr
   const Surface = deferred(() => held.promise)
   const onClose = vi.fn()
   const errors = vi.spyOn(console, 'error').mockImplementation(vi.fn())
-  const view = render(<button>More actions</button>)
-  const trigger = screen.getByRole('button', { name: 'More actions' })
+  const view = render(<button>More Actions</button>)
+  const trigger = screen.getByRole('button', { name: 'More Actions' })
   trigger.focus()
   view.rerender(
     <>
-      <button>More actions</button>
+      <button>More Actions</button>
       <Surface keepFocus onClose={onClose} />
     </>,
   )

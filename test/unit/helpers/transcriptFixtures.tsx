@@ -183,7 +183,7 @@ export async function warmRowMenus(): Promise<void> {
     {},
   )
   const view = render(<Transcript {...props} />)
-  fireEvent.click(view.getByRole('button', { name: 'More actions' }))
+  fireEvent.click(view.getByRole('button', { name: 'More Actions' }))
   await view.findByRole('menu')
   await act(async () => {
     view.rerender(<Transcript {...transcriptProps([tool({})], {})} />)
