@@ -6,16 +6,14 @@ import { AcpPaidUse } from '../../src/acp/paid'
 import { createAcpSharing, type AcpSharingPort } from '../../src/acp/sharing'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
-import { FakeAgentHost } from './helpers/fakeAgent'
+import { testAgentState } from './helpers/acpAgentBase'
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { until } from './helpers/acpWaits'
 import { savedPromptFixture } from './helpers/sharingFixtures'
 import { SHARING_CWD, sharingHarness } from './helpers/sharingCommands'
 
 function acpHarness(sharing?: AcpSharingPort) {
-  const host = new FakeAgentHost()
-  const updates: acp.SessionUpdate[] = []
-  const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+  const { host, updates, log } = testAgentState()
   const deps: AcpAgentDeps = {
     createConversation: fakeAcpComposition,
     questions: 'decline',

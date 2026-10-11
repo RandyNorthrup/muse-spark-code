@@ -772,7 +772,7 @@
     {
       "id": "M104",
       "title": "Every feature in every editor",
-      "summary": "Shared contract, distribution, JetBrains diagnostic and Eclipse launch-security tests pass; experimental panels and LSP still need the security rescan, bundle gates, ACP fixes, native qualification, installed-editor receipts and resource parity.",
+      "summary": "Shared contract, distribution, JetBrains diagnostic, Eclipse launch, ACP fixture and duplication checks pass; experimental panels and LSP still need the size gate, the security rescan, native qualification, installed-editor receipts and resource parity.",
       "area": "editors",
       "labels": ["experimental", "untested"]
     },

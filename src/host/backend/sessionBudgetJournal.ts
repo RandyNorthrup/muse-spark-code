@@ -17,14 +17,39 @@ import type {
 import type { StoredSession } from '../../core/backends/modelapi/sessionStore'
 import { formatUsd } from '../../core/usage/insights'
 import {
+  PAID_DAILY_BUDGET,
   DAILY_BUDGET_LOCK_ATTEMPTS,
   DAILY_BUDGET_LOCK_WAIT_MS,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { Usd, maxUsd, usdAmountSchema, type UsdAmount } from '../../shared/usd'
+import { Usd, maxUsd, usdAmountSchema, legacyUsdSchema, type UsdAmount } from '../../shared/usd'
 import { writeFileAtomically } from '../fsAtomic'
 import { storeErrorCode } from './storeErrors'
+
+/** Shared daily record fields; callers keep their existing unknown-field policy. */
+export const paidDailyLimitSchema = /* @__PURE__ */ (() =>
+  z.object({
+    limitUsd: legacyUsdSchema.check(
+      z.refine(
+        (amount) =>
+          Usd.from(amount).compare(Usd.from(PAID_DAILY_BUDGET.minimumUsd)) >= 0 &&
+          Usd.from(amount).compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) <= 0,
+      ),
+    ),
+    stopped: z.boolean(),
+  }))()
+
+/** Daily scopes have no pre-journal session history, on every host. */
+export function createPaidDailyJournal(
+  deps: Pick<SessionBudgetJournalDeps, 'directory' | 'sleep'>,
+) {
+  return createSessionBudgetJournal({
+    ...deps,
+    initialBudget: () =>
+      Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+  })
+}
 
 const JOURNAL_DIRECTORY = 'budget-journal'
 const INTENT_DIRECTORY = 'budget-intents'

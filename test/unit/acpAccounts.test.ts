@@ -12,15 +12,13 @@ import {
   forgedState,
   sessionAccountsRig,
 } from './helpers/runtimeAccounts'
-import { FakeAgentHost } from './helpers/fakeAgent'
+import { testAgentState } from './helpers/acpAgentBase'
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { until } from './helpers/acpWaits'
 
 function connectedAccounts(isBound = true) {
   const h = sessionAccountsRig()
-  const host = new FakeAgentHost()
-  const updates: acp.SessionUpdate[] = []
-  const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+  const { host, updates, log } = testAgentState()
   const deps: AcpAgentDeps = {
     createConversation: fakeAcpComposition,
     ...(isBound && { accounts: h.port }),

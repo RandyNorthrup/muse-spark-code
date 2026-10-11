@@ -420,13 +420,13 @@ export function webviewDeferredBudgetGroups(meta, questionBudgetKiB, isPortable 
   const preview = webviewPreviewOutputs(meta).map((file) => normalPath(file))
   for (const file of preview) assigned.add(file)
   groups.push({ name: 'argument preview JS', budgetKiB: 25, outputs: preview })
-  const pacing = webviewPacingOutputs(meta).map((file) => normalPath(file))
+  const pacing = webviewPacingOutputs(meta, main).map((file) => normalPath(file))
   for (const file of pacing) assigned.add(file)
   groups.push({ name: 'pacing/status JS', budgetKiB: 25, outputs: pacing })
   const teamOutputs = Object.values(meta.outputs).some(
     (output) => output.entryPoint === 'src/webview/components/TeamUi.tsx',
   )
-    ? webviewTeamOutputs(meta)
+    ? webviewTeamOutputs(meta, main)
     : []
   for (const file of teamOutputs) assigned.add(file)
   groups.push({ name: 'team UI', budgetKiB: 25, outputs: teamOutputs })
@@ -470,7 +470,8 @@ function normalize(file) {
   return file.replaceAll('\\', '/')
 }
 
-export function webviewPacingOutputs(meta) {
+export function webviewPacingOutputs(meta, main = 'dist/webview/main.js') {
+  meta = { ...meta, outputs: normalOutputs(meta) }
   const source = 'src/webview/components/ServiceStatusRow.tsx'
   const entries = Object.entries(meta.outputs)
   const pacing = entries.find(([, output]) => normalize(output.entryPoint ?? '') === source)
@@ -490,7 +491,7 @@ export function webviewPacingOutputs(meta) {
     return files
   }
   const exclusive = closure(pacing[0])
-  for (const file of webviewStartupOutputs(meta)) exclusive.delete(file)
+  for (const file of webviewStartupOutputs(meta, main)) exclusive.delete(file)
   for (const [file, output] of entries) {
     if (!output.entryPoint || normalize(output.entryPoint) === source) continue
     for (const shared of closure(file)) exclusive.delete(shared)
@@ -500,10 +501,10 @@ export function webviewPacingOutputs(meta) {
 
 // Team-only static dependencies have their own cap. Dependencies shared with
 // startup or another deferred surface stay charged to those existing budgets.
-export function webviewTeamOutputs(meta) {
+export function webviewTeamOutputs(meta, main = 'dist/webview/main.js') {
   meta = { ...meta, outputs: normalOutputs(meta) }
   const team = new Set()
-  const other = new Set(webviewStartupOutputs(meta))
+  const other = new Set(webviewStartupOutputs(meta, main))
   const visit = (file, outputs) => {
     if (outputs.has(file)) return
     const output = meta.outputs[file]
@@ -516,7 +517,7 @@ export function webviewTeamOutputs(meta) {
   for (const [file, output] of Object.entries(meta.outputs)) {
     if (!file.endsWith('.js') || output.entryPoint === undefined) continue
     if (output.entryPoint === 'src/webview/components/TeamUi.tsx') visit(file, team)
-    else if (file !== 'dist/webview/main.js') visit(file, other)
+    else if (file !== normalPath(main)) visit(file, other)
   }
   if (team.size === 0) throw new Error('Missing deferred team UI chunk')
   return [...team.difference(other)]

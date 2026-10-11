@@ -13,7 +13,7 @@ import {
   paidAuthorityKey,
   type PaidGrant,
 } from '../../src/core/paid/paidAuthority'
-import { UI_TEXT, type PaidFeature } from '../../src/shared/constants'
+import { PAID_FEATURES, UI_TEXT, type PaidFeature } from '../../src/shared/constants'
 
 import { FakeLogOutputChannel } from './helpers/fakes'
 
@@ -23,25 +23,29 @@ function consentWith(
     grants?: readonly PaidFeature[]
     canRemember?: boolean
     answer?: (request: PaidUseRequest, canRemember: boolean) => Promise<PaidUseAnswer>
+    writeGrants?: (next: ReadonlySet<PaidFeature>) => Promise<void>
   } = {},
 ) {
   const on = new Set(options.on ?? ['webSearch'])
   let grants = new Set(options.grants)
   const writes: (readonly PaidFeature[])[] = []
+  const log = new FakeLogOutputChannel()
   const ask = vi.fn(options.answer ?? (() => Promise.resolve<PaidUseAnswer>('once')))
   const consent = new PaidUseConsent({
     isOn: (feature) => on.has(feature),
     canRemember: () => options.canRemember ?? true,
     readGrants: () => grants,
-    writeGrants: (next) => {
-      grants = new Set(next)
-      writes.push([...next])
-      return Promise.resolve()
-    },
+    writeGrants:
+      options.writeGrants ??
+      ((next) => {
+        grants = new Set(next)
+        writes.push([...next])
+        return Promise.resolve()
+      }),
     ask,
-    log: new FakeLogOutputChannel(),
+    log,
   })
-  return { consent, ask, on, writes, grants: () => grants }
+  return { consent, ask, on, writes, log, grants: () => grants }
 }
 
 /** A search consent over an in-memory quote store whose order or save step can be broken. */
@@ -75,6 +79,14 @@ function quoteConsentWith(store: {
   const listener = vi.fn()
   consent.onDidChange(listener)
   return { consent, ask, log, kept, listener }
+}
+
+function legacyGrantFailure(error: Error) {
+  return consentWith({
+    on: PAID_FEATURES,
+    answer: () => Promise.resolve('always'),
+    writeGrants: () => Promise.reject(error),
+  })
 }
 
 const SEARCH: PaidUseRequest = { feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() }
@@ -175,15 +187,7 @@ describe('PaidUseConsent (M58)', () => {
   )
 
   it('lets an "always" it cannot keep go ahead once, and says so', async () => {
-    const log = new FakeLogOutputChannel()
-    const consent = new PaidUseConsent({
-      isOn: () => true,
-      canRemember: () => true,
-      readGrants: () => new Set(),
-      writeGrants: () => Promise.reject(new Error('storage is full')),
-      ask: () => Promise.resolve('always'),
-      log,
-    })
+    const { consent, log } = legacyGrantFailure(new Error('storage is full'))
     await expect(consent.allows(SEARCH)).resolves.toMatchObject({
       feature: 'webSearch',
       tariffUsd: Usd.from('0.0025').toAmount(),
@@ -269,16 +273,7 @@ describe('PaidUseConsent (M58)', () => {
   })
 
   it('refuses an "always" revoked while the popup was open, and asks again next time', async () => {
-    const log = new FakeLogOutputChannel()
-    const ask = vi.fn(() => Promise.resolve<PaidUseAnswer>('always'))
-    const consent = new PaidUseConsent({
-      isOn: () => true,
-      canRemember: () => true,
-      readGrants: () => new Set(),
-      writeGrants: () => Promise.reject(new PaidOwnerReplacedError()),
-      ask,
-      log,
-    })
+    const { consent, ask, log } = legacyGrantFailure(new PaidOwnerReplacedError())
     await expect(consent.allows(SEARCH)).resolves.toBeUndefined()
     expect(log.warn).toHaveBeenCalledWith(
       'Paid use of webSearch: "always" was revoked before it could be kept, so it is refused',
@@ -291,15 +286,7 @@ describe('PaidUseConsent (M58)', () => {
   })
 
   it('refuses a feature "always" revoked while the popup was open', async () => {
-    const log = new FakeLogOutputChannel()
-    const consent = new PaidUseConsent({
-      isOn: () => true,
-      canRemember: () => true,
-      readGrants: () => new Set(),
-      writeGrants: () => Promise.reject(new PaidOwnerReplacedError()),
-      ask: () => Promise.resolve('always'),
-      log,
-    })
+    const { consent, log } = legacyGrantFailure(new PaidOwnerReplacedError())
     await expect(consent.allows(VOICE)).resolves.toBe(false)
     expect(log.info).toHaveBeenLastCalledWith(
       'Paid use of voice: "always" was not kept, so it is refused',
@@ -307,15 +294,7 @@ describe('PaidUseConsent (M58)', () => {
   })
 
   it('treats a same-text plain error as a storage failure, never a revocation', async () => {
-    const log = new FakeLogOutputChannel()
-    const consent = new PaidUseConsent({
-      isOn: () => true,
-      canRemember: () => true,
-      readGrants: () => new Set(),
-      writeGrants: () => Promise.reject(new Error('MHP_PAID_OWNER_REPLACED')),
-      ask: () => Promise.resolve('always'),
-      log,
-    })
+    const { consent, log } = legacyGrantFailure(new Error('MHP_PAID_OWNER_REPLACED'))
     await expect(consent.allows(SEARCH)).resolves.toMatchObject({ feature: 'webSearch' })
     expect(log.warn).toHaveBeenCalledWith(
       'Paid use of webSearch: "always" could not be kept, so it is allowed once: MHP_PAID_OWNER_REPLACED',

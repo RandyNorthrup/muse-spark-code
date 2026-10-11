@@ -22,9 +22,15 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { createRuntimeBackend } from '../../src/runtime/backends'
+import { agentDataFolder } from '../../src/runtime/dataFolder'
 import { formatAcpUsage } from '../../src/runtime/cliOptions'
 import { webReadable } from '../../src/runtime/webStreams'
-import { ACP_AGENT_NAME, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import {
+  ACP_AGENT_NAME,
+  RESOURCE_PRIVATE_DIR_MODE,
+  SECRET_KEYS,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { readUiTableFile } from '../../src/host/l10n'
 import { unpackUiTable } from '../../src/shared/l10n/packed'
@@ -99,6 +105,16 @@ const FAKE_ONLY_KEYRING: Plugin = {
 }
 
 beforeAll(async () => {
+  // Own the machine namespace before schedules/settings can create it with
+  // default permissions. Never repair an existing or real user's directory.
+  mkdirSync(
+    agentDataFolder({
+      platform: process.platform,
+      env: agentEnvironment(signedIn),
+      homeDir: dataHome,
+    }),
+    { recursive: true, mode: RESOURCE_PRIVATE_DIR_MODE },
+  )
   if (INSTALLED !== undefined) {
     return
   }

@@ -1,3 +1,4 @@
+import { ancestryVectorsSchema } from './helpers/trustedPathVectors'
 import { execFile } from 'node:child_process'
 import { readFile, mkdtemp, mkdir, rm, writeFile, symlink } from 'node:fs/promises'
 import { promisify } from 'node:util'
@@ -24,6 +25,7 @@ vi.mock('../../src/core/resources/launcher', async (original) => {
 const vectors = z
   .strictObject({
     version: z.literal(1),
+    ancestry: ancestryVectorsSchema,
     windows: z.array(
       z.strictObject({
         name: z.string(),
@@ -40,6 +42,11 @@ const vectors = z
   .parse(
     JSON.parse(await readFile(path.resolve('test/fixtures/trusted-path-vectors.json'), 'utf8')),
   )
+async function removeOwnedRoot(directory: string): Promise<void> {
+  expect(path.dirname(path.resolve(directory))).toBe(path.resolve(os.tmpdir()))
+  await rm(directory, { recursive: true, force: true })
+}
+
 const run = backgroundProcessRunner({ SystemRoot: process.env['SystemRoot'] })
 
 /** A protected DACL: only the current user, SYSTEM and Administrators. */
@@ -205,8 +212,7 @@ describe('shared Windows trusted-path vectors', () => {
         await windowsTrustedPathVerifier(run, io).verify(leaf, { leafKind: 'file' }),
       ).toMatchObject({ refused: true, component: leaf })
     } finally {
-      expect(path.dirname(path.resolve(directory))).toBe(path.resolve(os.tmpdir()))
-      await rm(directory, { recursive: true, force: true })
+      await removeOwnedRoot(directory)
     }
   })
 
@@ -278,8 +284,7 @@ describe('shared Windows trusted-path vectors', () => {
         ok: true,
       })
     } finally {
-      expect(path.dirname(path.resolve(directory))).toBe(path.resolve(os.tmpdir()))
-      await rm(directory, { recursive: true, force: true })
+      await removeOwnedRoot(directory)
     }
   })
 })

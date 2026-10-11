@@ -1,3 +1,4 @@
+import type { Server } from 'node:http'
 // An in-process Meta Model API for unit tests: a `fetch` that answers
 // `GET /models`, `POST /responses/input_tokens` and the streamed
 // `POST /responses` from a script of replies, recording every request.
@@ -636,4 +637,18 @@ export function fakeModelApi(): FakeModelApi {
     },
   }
   return api
+}
+
+/** Bind a fixture-owned HTTP server to an OS-chosen loopback port. */
+export async function listenFakeHttp(server: Server): Promise<string> {
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1', () => {
+      server.removeListener('error', reject)
+      resolve()
+    })
+  })
+  const address = server.address()
+  if (address === null || typeof address === 'string') throw new Error('Missing test address')
+  return `http://127.0.0.1:${String(address.port)}`
 }

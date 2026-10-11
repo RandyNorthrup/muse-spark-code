@@ -233,6 +233,8 @@ happened, not what was planned; superseded entries are kept.
   Node/script JSON pair. Native `.exe` installs remain supported. JetBrains
   delegates bridge insertion to its native host and refuses unreviewed schema
   regular expressions. Native-contract qualification remains open.
+- Correct the M104 duplication-drill restoration receipt to the committed
+  host-ledger hash and verify every recorded restoration hash against Git blobs.
 - Portable controllers preserve host readiness, restored selection and session
   ownership. Paid engine policy and accounting follow the owning runtime; effective
   settings remain specific to each conversation and worktree.

@@ -38242,7 +38242,7 @@ keeping its detailed native qualification catalogue generated too.
 Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
 in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
 
-**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. F1 adopts the frozen MHP 1.5 closed-input contract and repairs native schema vocabulary, theme roles and the authored readiness fixture; JBDIAG repairs the two JetBrains settled-diagnostic tests in their harness, production unchanged. M104 F2 repairs the sixteen reported SAST sites with regressions and an offline 16-to-zero reproduction; its review follow-ups restore shell-free Windows npm-agent discovery and absolute Node/script overrides in Eclipse, and confine discovered packages beneath the canonical npm prefix. The unchanged registry SAST rescan remains lead-owned under the lane's network restriction. Verification still retains the portable graph cap, duplication, four ACP fixture failures, installed qualification and the next resource-chip parity lane as blockers. Their matrix and drill receipts and the retained requirements follow.
+**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. F1 adopts the frozen MHP 1.5 closed-input contract and repairs native schema vocabulary, theme roles and the authored readiness fixture; JBDIAG repairs the two JetBrains settled-diagnostic tests in their harness, production unchanged. M104 F2 repairs the sixteen reported SAST sites with regressions and an offline 16-to-zero reproduction; its review follow-ups restore shell-free Windows npm-agent discovery and absolute Node/script overrides in Eclipse, and confine discovered packages beneath the canonical npm prefix. The unchanged registry SAST rescan remains lead-owned under the lane's network restriction. M104 F3 repairs the four ACP resource fixtures and the twelve recorded duplication findings; their complete touched suites and the zero-clone gate pass. Verification still retains the portable graph cap (F3: 1292.3/1100 KiB), installed qualification and the next resource-chip parity lane as blockers. Their matrix and drill receipts and the retained requirements follow.
 
 **M104 F2 follow-up round 2 / RVM104F2D (2026-10-09, before code).**
 Confine Windows npm-shim discovery to the expected package root beneath the
@@ -38942,6 +38942,47 @@ so each test fits the unchanged deadline. Preserve every locale-specific
 plural form when ordering source tables. No assertions, contrasts, caps or
 platform guards are relaxed; failing receipts remain blockers until corrected.
 
+**M104 F3 repair scope (2026-10-09, kubuntu).** The dedicated follow-up
+brief authorizes root-cause repair of the twelve recorded clones, the complete
+portable JavaScript graph overage and the four ACP startup fixtures. Keep
+all zero-clone/size/security guards and assertions unchanged. Give process
+fixtures their own private resource namespace; consolidate equivalent paid
+record/setup and test fixtures under their existing owners. Measure browser
+contributors before removing repeated code/data from the graph. Run complete
+touched suites at repository deadlines, byte-exact red drills, changed-file
+lint/format and all compiler projects. Aggregate quality, native contract/SAST
+repair and installed qualification remain lead/other-lane work.
+
+**M104 F3 portable counter compatibility (2026-10-09).** The complete
+portable inventory exposes two optional-closure counters still rooted at VS
+Code's entry. Pass the already-selected startup entry through pacing and team
+accounting, including Windows paths; keep shared dependencies charged to their
+original group and every cap unchanged. Preserve the original static-file
+stat refusal while the new complete portable inventory retains its explicit
+missing-chunk refusal. Owned gate fixtures must supply the portable metafile
+and Xcode table reader so every existing assertion reaches its guard.
+
+**M104 F3 portable graph bounded repair (2026-10-09).** The complete
+177-output JavaScript graph measures 1,353,195 bytes before the repair and
+1,323,336 after it, against the unchanged 1,126,400-byte cap. The portable
+build inherited VS Code's resource-only Zod namespace, which isolates startup
+but duplicates a parser already counted in this complete graph. Share it only
+in the portable build; preserve VS Code's deferred copy and all resource
+validation/UI. Savings: 29,859 bytes. Both optional-closure counters now use
+the selected entry; all portable closure caps pass independently. Existing
+static and portable missing-file refusal tests retain every assertion.
+All three full bundle suites pass (134 tests). Restoring the copied parser
+fails its real-production assertion; independently restoring each wrong
+counter entry fails both slash-style cases, with byte-exact restoration.
+The aggregate still exceeds its cap by 196,936 bytes. A measured read-only
+GFM candidate saves only 15,647 more bytes and does not fit; it is not adopted.
+The remaining 192.3 KiB would require a broader renderer/dependency or shared
+application diet, beyond a bounded fixture/build-owner repair. Apply the
+brief's stop-and-report rule; keep the cap and every feature, with build exit
+1 and main integration blocked. The lead must authorize/own that broader diet
+before qualification. No release, complete-build or visual qualification is
+claimed by these scoped repairs.
+
 **M104INT ACP fixture stop (2026-10-09).** Four real-stdio session
 startup cases still fail after the private Linux-helper and joined-factory
 fixture repairs. The creation-registry guard rejects a real directory with
@@ -38950,6 +38991,18 @@ or rewrite the fixture repeatedly to obtain green. The shared two-fix stop
 rule applies. Temporary permission diagnostics are restored byte-exact.
 The four failures remain a main-integration blocker until the lead fixes the
 fixture's resource ownership/isolation and reruns the whole file.
+
+**M104 F3 ACP resource fixture qualification (2026-10-09).** The dedicated
+repair brief supersedes the prior integration lane's bounded fixture stop.
+The fixture owned its data-home wrapper but let initial state publication
+create the machine-data parent with default permissions (0775 on this rig).
+Creation-registry publication correctly refuses that parent. Create the
+platform-specific machine-data directory with the existing private mode,
+inside the fixture's fresh mkdtemp root, before starting an agent. No chmod,
+ambient profile read or registry/security change. All thirteen real-stdio
+cases pass; removing only the private namespace setup reproduces the four
+startup failures, then the fixed file is restored byte-exact. This removes
+the ACP fixture blocker, while other integration blockers remain.
 
 **M104INT presentation browser fixture repair (2026-10-09).** Compile
 What's New CSS through esbuild like production, including its generated host
@@ -38988,7 +39041,8 @@ fixtures; the frozen 1.4 snapshot is not silently rewritten at the same version.
 The existing API-key refusal assertion and added token/unrelated-member probes
 pass. Native validators accept the readOnly annotation and enforce exclusive
 numeric endpoints; unknown vocabulary still refuses. Certification and exact
-restoration hashes are in `docs/certification/m104.md`, M104 F1.
+restoration hashes are in `docs/certification/m104.md`, M104 F1. F3 clears
+the ACP fixtures separately.
 
 **M104INT native matrix qualification blockers — M104 F1 residual
 (2026-10-09).** The native theme now supplies every joined CSS role. The JCEF
@@ -39030,6 +39084,21 @@ guards and assertions; do not make cosmetic token changes or add excludes to
 hide equivalent implementations during this blocked integration join. Record
 the exact clone locations and retain duplication as a main-integration blocker.
 
+**M104 F3 duplication qualification (2026-10-09).** The recorded twelve
+clones are removed by sharing daily limit fields and empty-journal setup in
+the existing journal owner, and equivalent fake/consent/process fixtures in
+their test owners. Host limits retain stripping objects; runtime limits retain
+strict objects, exact decimal bounds and all independent admission/settlement
+guards. Parameterized paid-use cases retain both answers and every assertion.
+The joined Windows vector reader explicitly validates the existing ancestry
+field with the same strict schema as the portable reader; no native assertion
+or OS guard changes. The source/test gate reports zero clones without config
+changes. Replaying the original twelve owners produces fourteen clones (the
+original twelve plus the now-shared fixtures); removing decimal bounds fails
+the two new boundary cases. Both drills restore every file byte-exact. Full
+touched suites pass at repository deadlines, including process/companion
+fixtures. Duplication is no longer a main-integration blocker.
+
 **M104INT SAST review deferral (2026-10-09; F2 repair below).** The original
 unchanged auto-rule scan reports sixteen blocking findings in six joined owners:
 Eclipse's launcher, JetBrains script placeholders and dynamic schema RegExp,
@@ -39042,8 +39111,9 @@ This supplemental scan does not certify the registry's complete auto rule set.
 The shared lane rules prohibit registry network reads, so the unchanged full
 SAST rescan remains a main-integration requirement, including resolution or
 qualification of the original ModelApiHost express-SSRF rule timeout. No rule,
-exclude, deadline, dependency or suppression is changed. The portable cap,
-duplication, ACP and native qualification failures remain with their owners.
+exclude, deadline, dependency or suppression is changed. The portable cap
+remains with its owner; F1 and JBDIAG repair the native contract and diagnostic
+failures, and F3 clears duplication and the ACP fixtures separately.
 
 **M104 F2 SAST boundary repair (2026-10-09, before implementation).** Repair
 the sixteen findings in those six owners with explicit executable argument

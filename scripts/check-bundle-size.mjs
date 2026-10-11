@@ -344,7 +344,9 @@ for (const { path, budgetKiB } of BUDGETS) {
       (file) => file.endsWith('.js'),
     )
   const missing = files.filter((file) => !existsSync(file))
-  if (missing.length > 0) {
+  // Preserve stat's original refusal for missing static dependencies. The
+  // complete portable inventory also names absent lazy/bridge outputs here.
+  if (path === 'dist/webview/portable/main.js' && missing.length > 0) {
     hasFailure = true
     console.log(`MISS ${path}: missing chunks ${missing.join(', ')}`)
     continue

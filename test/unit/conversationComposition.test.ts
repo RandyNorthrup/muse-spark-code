@@ -1,3 +1,4 @@
+import { fakeSurface } from './helpers/fakeSurface'
 import { describe, expect, it, vi } from 'vitest'
 import {
   composeConversationDeps,
@@ -54,14 +55,8 @@ function rig() {
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const features: ConversationFeaturePorts = {
     surface: {
-      id: 'runtime-panel',
-      documentId: 'runtime-panel-document',
+      ...fakeSurface('runtime-panel'),
       post: vi.fn(),
-      reveal: vi.fn(),
-      markUnread: vi.fn(),
-      setTitle: vi.fn(),
-      reload: vi.fn(),
-      takeRestoredSessionId: () => undefined,
       dispose: vi.fn(),
     },
     auth: {

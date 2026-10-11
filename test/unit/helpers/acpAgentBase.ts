@@ -1,5 +1,7 @@
 import type { AcpAgentDeps, AcpAgentOptions } from '../../../src/acp/agent'
-import type { FakeAgentHost } from './fakeAgent'
+import { FakeAgentHost } from './fakeAgent'
+import type * as acp from '@agentclientprotocol/sdk'
+import { vi } from 'vitest'
 
 type TestAgentBase = Pick<AcpAgentDeps, 'backend' | 'version' | 'options'>
 
@@ -13,5 +15,14 @@ export function testAgentBase(host: FakeAgentHost, options?: AcpAgentOptions): T
     },
     version: 'test',
     options: options ?? { canBypass: false, allowsContributorModels: false, initialMode: 'manual' },
+  }
+}
+
+export function testAgentState() {
+  const updates: acp.SessionUpdate[] = []
+  return {
+    host: new FakeAgentHost(),
+    updates,
+    log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   }
 }

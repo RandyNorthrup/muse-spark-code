@@ -187,6 +187,21 @@ describe('portable hard shared daily ledger', () => {
     await expect(budget.reserve(usd(0.1))).rejects.toThrow()
   })
 
+  it.each(['0.49999999999999999', '500.00000000000000001'])(
+    'refuses an exact stored limit outside the daily bounds: %s',
+    async (limitUsd) => {
+      const { budget, directory } = await setup()
+      const { day } = await budget.latestDay()
+      await mkdir(path.join(directory, day), { recursive: true })
+      await writeFile(
+        path.join(directory, day, PAID_DAILY_BUDGET.overrideFile),
+        JSON.stringify({ limitUsd, stopped: false }),
+      )
+      expect(() => budget.capUsd()).toThrow()
+      await expect(budget.reserve(usd(0.1))).rejects.toThrow()
+    },
+  )
+
   it('refunds an undispatched late acquisition and drains it before release', async () => {
     const { budget, create } = await setup()
     const held = Promise.withResolvers<undefined>()

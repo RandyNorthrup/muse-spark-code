@@ -40,6 +40,40 @@ function metafile() {
 }
 
 describe('webview import budgets', () => {
+  it.each(['/', '\\'])('charges portable pacing and team closures with %s paths', (separator) => {
+    const main = 'dist/webview/portable/main.js'
+    const pacing = 'dist/webview/portable/pacing.js'
+    const team = 'dist/webview/portable/team.js'
+    const meta = {
+      outputs: {
+        [main]: output([edge(CORE), edge(pacing, 'dynamic-import'), edge(team, 'dynamic-import')]),
+        [CORE]: output(),
+        [pacing]: output([edge(CORE), edge(SHARED)], 'src/webview/components/ServiceStatusRow.tsx'),
+        [team]: output([edge(CORE), edge(SHARED)], 'src/webview/components/TeamUi.tsx'),
+        [SHARED]: output(),
+      },
+    }
+    const converted = {
+      outputs: Object.fromEntries(
+        Object.entries(meta.outputs).map(([file, details]) => [
+          file.replaceAll('/', () => separator),
+          {
+            ...details,
+            entryPoint: details.entryPoint?.replaceAll('/', () => separator),
+            imports: details.imports.map((imported) => ({
+              ...imported,
+              path: imported.path.replaceAll('/', () => separator),
+            })),
+          },
+        ]),
+      ),
+    }
+    const groups = webviewDeferredBudgetGroups(converted, 25, true)
+    expect(groups.find(({ name }) => name === 'pacing/status JS')?.outputs).toEqual([pacing])
+    expect(groups.find(({ name }) => name === 'team UI')?.outputs).toEqual([team])
+    expect(groups.find(({ name }) => name === 'deferred JS')?.outputs).toContain(SHARED)
+  })
+
   it('charges nested panel dependencies once and excludes its shared bootstrap', () => {
     const meta = metafile()
     const panel = 'dist/webview/chunks/panel.js'

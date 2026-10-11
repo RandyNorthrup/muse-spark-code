@@ -1,3 +1,4 @@
+import { ancestryVectorsSchema } from './helpers/trustedPathVectors'
 import { spawn } from 'node:child_process'
 import { readFile, mkdtemp, mkdir, chmod, realpath, symlink } from 'node:fs/promises'
 import * as fs from 'node:fs/promises'
@@ -17,46 +18,11 @@ vi.mock('node:os', async (original) => ({ ...(await original<typeof os>()) }))
 vi.mock('../../src/host/processTree', async (original) => ({
   ...(await original<typeof processTree>()),
 }))
-const componentSchema = z.strictObject({
-  owner: z.enum(['root', 'user', 'foreign']),
-  mode: z.int(),
-  group: z.optional(
-    z.enum([
-      'private',
-      'shared',
-      'unknown',
-      'wrongGid',
-      'listed',
-      'nameMismatch',
-      'groupUnusable',
-      'passwdUnusable',
-      'passwdEmpty',
-      'passwdMalformed',
-      'userMissing',
-      'userMismatch',
-      'identityUnusable',
-    ]),
-  ),
-  sticky: z.boolean(),
-  directory: z.boolean(),
-  symlink: z.boolean(),
-  acl: z.boolean(),
-  writableForeign: z.boolean(),
-})
 const rawVectors: unknown = JSON.parse(
   await readFile('test/fixtures/trusted-path-vectors.json', 'utf8'),
 )
 const { ancestry } = z.object({ ancestry: z.unknown() }).parse(rawVectors)
-const vectors = z
-  .array(
-    z.strictObject({
-      name: z.string(),
-      components: z.array(componentSchema),
-      posix: z.boolean(),
-      windows: z.boolean(),
-    }),
-  )
-  .parse(ancestry)
+const vectors = ancestryVectorsSchema.parse(ancestry)
 const privateVector = vectors.find((vector) => vector.name === 'UPG group-writable')
 if (privateVector === undefined) throw new Error('missing private-group vector')
 /** Each new proof check refuses with its own precise reason. */
