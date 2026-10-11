@@ -104,7 +104,7 @@ const evalReportFields = {
   /**
    * `incomplete`: every floor that ran held, but a split did not run.
    * `fail`: a floor fell, or a mechanism's own acceptance failed (M73's
-   * packing engagement, below).
+   * packing engagement or lane E's compaction engagement, below).
    */
   verdict: z.enum(EVAL_VERDICTS),
 }
@@ -123,6 +123,23 @@ const evalPackingEngagementSchema = z.object({
   held: z.boolean(),
 })
 
+/**
+ * Lane E's acceptance beside the floors: the auto-compaction arm sent more
+ * attempts than the baseline on every long-context task it ran — the extra
+ * sends are the summary round trips, counted from the trace. A run that
+ * holds the floors without compacting proves nothing about compaction, so
+ * it fails the run. Attempt counts, not bodies: the trace never keeps
+ * bodies.
+ */
+const evalCompactionEngagementSchema = z.object({
+  arm: z.string(),
+  /** The long-context tasks the run selected. */
+  longContextTasks: z.array(z.string()),
+  /** Those on which the arm sent no more attempts than the baseline. */
+  unengaged: z.array(z.string()),
+  held: z.boolean(),
+})
+
 export const evalReportSchema = z.discriminatedUnion('version', [
   z.object({
     ...evalReportFields,
@@ -135,6 +152,8 @@ export const evalReportSchema = z.discriminatedUnion('version', [
     arms: z.array(evalArmReportSchema),
     /** Recorded by a run with a packing arm (M73); absent otherwise. */
     packingEngagement: z.optional(evalPackingEngagementSchema),
+    /** Recorded by a run with an auto-compaction arm (M101 lane E); absent otherwise. */
+    compactionEngagement: z.optional(evalCompactionEngagementSchema),
     /** Present only when every arm executed its frozen bundle snapshot. */
     harnessDigest: z.optional(z.string()),
   }),
@@ -291,6 +310,18 @@ export function formatEvalReportMarkdown(report: EvalReport): string {
       `| Arm | Long-output tasks | Never packed | Held |`,
       `| --- | --- | --- | --- |`,
       `| ${engagement.arm} | ${listed(engagement.longOutputTasks)} | ${listed(engagement.unengaged)} | ${engagement.held ? 'yes' : 'no'} |`,
+      ``,
+    )
+  }
+  if (report.version === EVAL_REPORT_VERSION && report.compactionEngagement !== undefined) {
+    const engagement = report.compactionEngagement
+    const listed = (ids: readonly string[]) => (ids.length === 0 ? 'none' : ids.join(', '))
+    lines.push(
+      `## Compaction engaged (M74)`,
+      ``,
+      `| Arm | Long-context tasks | Never compacted | Held |`,
+      `| --- | --- | --- | --- |`,
+      `| ${engagement.arm} | ${listed(engagement.longContextTasks)} | ${listed(engagement.unengaged)} | ${engagement.held ? 'yes' : 'no'} |`,
       ``,
     )
   }

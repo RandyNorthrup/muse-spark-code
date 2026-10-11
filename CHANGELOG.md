@@ -78,6 +78,14 @@ happened, not what was planned; superseded entries are kept.
   literal `.jsx` and absolute `.js` resolution work, and temporary paths are
   canonical on macOS, Windows and Linux. No user-facing feature change;
   production automatic compaction stays off.
+- **M75 evaluation with production compaction admission** (M101 C-M101-3,
+  part A, no user-facing change). The frozen auto-compaction arm now
+  admits through the real shared D78 gate and settles every extra attempt
+  against the run's own hard budget instead of a test double, and the
+  counted-run launcher prints its call plan (206 planned, 300 hard
+  ceiling) before anything sends. All four frozen arms run behind the
+  live switch with both mechanism engagements recorded. The counted live
+  run is still ahead; production automatic compaction stays off.
 - **Production admission for automatic compaction** (M101 C-M101-1, dormant).
   The panel backend manager and the runtime backend manager (ACP, exec) now
   bind the one shared D78 gate and ledger for automatic compaction

@@ -14,6 +14,7 @@ import type { ToolIo } from '../backends/modelapi/tools'
 import type { ContextIo } from '../context/contextFiles'
 import type { CoreLogger } from '../logging'
 import {
+  EVAL_BUDGET_USD,
   EVAL_FLOOR_ACCEPT_PASS_RATE,
   EVAL_FLOOR_HELDOUT_PASS_RATE,
   EVAL_MODEL_ID,
@@ -24,7 +25,14 @@ import {
   EVAL_ROOT_MASK,
   type EvalSplit,
 } from '../../shared/constants'
-import { runEvalTurn, type EvalHostChange, type EvalTurnOutcome } from './driver'
+import {
+  createEvalCompactionLedger,
+  evalPaidUseFence,
+  runEvalTurn,
+  type EvalCompactionAdmission,
+  type EvalHostChange,
+  type EvalTurnOutcome,
+} from './driver'
 import type {
   EvalArmReport,
   EvalFloorResult,
@@ -68,6 +76,8 @@ export interface EvalRunDeps {
   readonly now: () => number
   readonly newId: () => string
   readonly generatedAt: string
+  /** Hard ceiling for model calls the run sends; the counted run sets it from its plan. */
+  readonly maxAttempts?: number | undefined
   readonly turnTimeoutMs?: number | undefined
   /** Looks at a run's folder before it is removed (the live run's key scan). */
   readonly inspect?: ((root: string) => Promise<void>) | undefined
@@ -113,7 +123,10 @@ async function runInFolders(
   wire: EvalWire,
   folders: EvalFolders,
   failures: string[],
+  admission: EvalCompactionAdmission,
+  ledger: ReturnType<typeof createEvalCompactionLedger>,
 ): Promise<EvalTurnOutcome | undefined> {
+  const settledBefore = ledger.tally.settled
   const outcome = await step('the turn could not run', failures, () =>
     runEvalTurn({
       deps: {
@@ -126,6 +139,7 @@ async function runInFolders(
         now: deps.now,
         newId: deps.newId,
         turnTimeoutMs: deps.turnTimeoutMs,
+        admission,
       },
       workspace: folders.workspace,
       prompt: task.prompt,
@@ -137,6 +151,12 @@ async function runInFolders(
     }),
   )
   await wire.settle()
+  const admitted = ledger.tally.settled - settledBefore
+  if (admitted > 0) {
+    deps.log.info(
+      `Evaluation ${arm.name} ${task.id}: ${String(admitted)} admitted compaction ${admitted === 1 ? 'attempt' : 'attempts'} settled against the run budget`,
+    )
+  }
   if (outcome !== undefined) {
     failures.unshift(...turnFailures(outcome))
     const verdict = await step('the verifier could not run', failures, () =>
@@ -160,6 +180,8 @@ async function runTask(
   deps: EvalRunDeps,
   budget: EvalBudget,
   order: number,
+  admission: EvalCompactionAdmission,
+  ledger: ReturnType<typeof createEvalCompactionLedger>,
 ): Promise<EvalTaskResult> {
   const wire = createEvalWire({ fetch: deps.fetch, baseUrl: deps.client.baseUrl, budget })
   const steps: string[] = []
@@ -172,7 +194,7 @@ async function runTask(
   const outcome =
     folders === undefined
       ? undefined
-      : await runInFolders(task, arm, bundle, deps, wire, folders, steps)
+      : await runInFolders(task, arm, bundle, deps, wire, folders, steps, admission, ledger)
   // The report is committed: the temporary path (under the owner's
   // profile) is masked wherever a reason carries it.
   const root = folders?.root
@@ -261,7 +283,25 @@ export async function runPairedEval(
   arms: readonly [EvalArm, ...EvalArm[]],
   deps: EvalRunDeps,
 ): Promise<EvalReport> {
-  const budget: EvalBudget = { spentUsd: Usd.from(0).toAmount() }
+  const budget: EvalBudget = {
+    spentUsd: Usd.from(0).toAmount(),
+    ...(deps.maxAttempts !== undefined && { maxAttempts: deps.maxAttempts }),
+  }
+  // Lane E's spend authority for the run: the real shared D78 admission
+  // over a ledger against this budget. Launching the counted run is the
+  // opt-in, so its consent admits; every admitted attempt is trace-counted
+  // and settled here, and the fence revokes once the budget is spent or a
+  // sent call's bill is unknown.
+  const ledger = createEvalCompactionLedger(budget)
+  const admission: EvalCompactionAdmission = {
+    ledger,
+    allowsPaidUse: () => Promise.resolve(true),
+    notePaidUse: () => {
+      ledger.tally.started += 1
+    },
+    paidUseFence: () => evalPaidUseFence(budget),
+    dailyBudgetUsd: () => Usd.from(EVAL_BUDGET_USD).toAmount(),
+  }
   const frozen = freezeEvalHarness(arms, tasks)
   const runs = arms.map((arm) => ({
     arm,
@@ -270,7 +310,9 @@ export async function runPairedEval(
   }))
   for (const [index, task] of tasks.entries()) {
     for (const [position, run] of runOrder(runs, index).entries()) {
-      run.results.push(await runTask(task, run.arm, run.bundle, deps, budget, position + 1))
+      run.results.push(
+        await runTask(task, run.arm, run.bundle, deps, budget, position + 1, admission, ledger),
+      )
     }
   }
   const reports: EvalArmReport[] = runs.map(({ arm, results }) => ({

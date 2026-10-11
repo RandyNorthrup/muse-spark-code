@@ -5,8 +5,9 @@ before any counted model call. All service responses below come from the
 existing canonical fake Model API; there were zero live or paid model
 attempts. No wire shape, credential source, dependency, gate threshold or
 ignore changes. Production stays inactive: `IS_AUTO_COMPACTION_EVALUATED`
-remains `false` and the arm's evaluation admission is a test double, which
-cannot certify the D78 integration (lane E binds the real guard and ledger).
+remains `false`. The arm's evaluation admission is the real shared D78
+gate over the run's own ledger (lane E re-freeze below); the counted live
+run is still the lead's.
 
 ## Frozen set
 
@@ -19,7 +20,7 @@ compaction task (`isLongContext`) and one two-defect multi-edit task.
 Current frozen digest (`evalHarnessDigest`, SHA-256 over each arm's
 self-contained emitted bundle and explicitly declared fixture bytes):
 
-`cede4699ae8cc988b220373c0f1fc0f2f61ddae875c1bbd4991de2b4946f1489`
+`90b1ceb1c6375306207a2f5681a5491c4689552b1ff68f83a68f12cd71e75348`
 
 R7's fixture set is `armSources.ts`, `mechanisms.ts`, `runner.ts`,
 `heldDeps.ts`, `tasks.ts`, and canonical `conditions.json` (the exact selected task data,
@@ -54,7 +55,17 @@ and destructured loaders, `require` through element access and through
 `Worker`, `require.resolve` reads, two-argument `new URL`, and
 `import.meta.resolve`). The rule below refuses every runtime load unless
 the metafile placed its target in the closure. Details in the R6
-section.)
+section.
+2026-10-11 lane E re-freeze (C-M101-3, part A, on fakes). The previous
+digest `cede4699…f1489` froze the auto-compaction arm against a test
+double that admitted and settled without charge, so no run could certify
+the D78 integration. The merge of the accepted D78 admission (c/m101-1)
+lands the production gate and ledger; the frozen change now delegates its
+`evaluationAdmission` flag to the admission the parent binds, failing
+closed without one, and the runner binds the real shared admission over a
+ledger against the run budget, plus the trace wire's hard call ceiling.
+The arm list, task list, fixture set and held dependencies are unchanged;
+no digest comparison was weakened. Details in `docs/certification/m101.md`.)
 
 ## Why the closure runs the real resolver (R4 redesign, not a patch)
 
