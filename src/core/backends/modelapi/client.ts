@@ -10,13 +10,13 @@ import { PaidAuthority } from '../../paid/paidAuthority'
 
 import {
   RequestTransport,
+  assertConfirmedAllowed,
   ignoreClosingError,
   ModelApiError,
   parseJsonResponse,
   readBoundedText,
   redactModelApiError,
   redactStreamDiagnostics,
-  staleConfirmedError,
   type ConfirmedModelRequest,
   type ResponseAttemptGuard,
   type RetryBudget,
@@ -449,12 +449,11 @@ export class ModelApiClient implements TransportProviderClient {
     admitAttempt?: ResponseAttemptGuard,
     confirmed?: ConfirmedModelRequest,
   ): AsyncGenerator<StreamEvent> {
-    if (
-      confirmed !== undefined &&
-      (body.model !== confirmed.modelId || !confirmed.isStillAllowed())
-    ) {
+    try {
+      assertConfirmedAllowed(body.model, confirmed)
+    } catch (error: unknown) {
       await admitAttempt?.mediaAccounting?.finish()
-      throw staleConfirmedError(confirmed)
+      throw error
     }
     let feature = admitAttempt?.paidFeature
     if (feature === undefined && confirmed !== undefined) {

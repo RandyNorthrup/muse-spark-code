@@ -7,6 +7,7 @@ import { presets } from '../../../host/backend/providersEntry'
 import type { CreateResponseBody, StreamEvent } from './schemas'
 import {
   RequestTransport,
+  assertConfirmedAllowed,
   ignoreClosingError,
   redactModelApiError,
   staleConfirmedError,
@@ -196,13 +197,11 @@ export class CodecClient implements ProviderClient {
     const [body, signal, onRetry, budget, admitAttempt, confirmed] = args
     if (
       confirmed !== undefined &&
-      (confirmed.modelId !== body.model ||
-        confirmed.providerId !== this.provider.id ||
-        confirmed.origin !== this.provider.origin ||
-        !confirmed.isStillAllowed())
+      (confirmed.providerId !== this.provider.id || confirmed.origin !== this.provider.origin)
     ) {
       throw staleConfirmedError(confirmed)
     }
+    assertConfirmedAllowed(body.model, confirmed)
     const model = this.deps.modelFor(body.model)
     const request = this.deps.codec.encode(body, model)
     const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
