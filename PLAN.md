@@ -35279,15 +35279,18 @@ implemented).** Bind the keybindings kind for phase-a editors
 `src/core/reporting/collect/keybindings.ts`, the kind table's keybindings
 line in `src/runtime/reporting/engine.ts`): the installed manifest's editor
 bindings per platform with command and scope, the panel's gestures from
-`referenceKeyboardActions()`, and ACP's static local commands pinned to
-`/help`'s list; same-chord same-when editor bindings flag conflicts, while
-different `when` clauses stay shadowing by design. Each host passes its own
+`referenceKeyboardActions()`, and ACP's static local commands from
+`ACP_COMMAND_FACTS` (the names `refreshCommands` announces, each with its
+gating port); editor bindings sharing a platform chord and `when` clause
+flag conflicts, the row naming the shared clause, while different `when`
+clauses stay shadowing by design. Each host passes its own
 install's manifest through `keybindingsManifestReader` in
 `dist/reportInputs.js`, so VS Code, ACP and the CLI report the same
 numbers; a missing or broken manifest is an unavailable source with its
-reason. Checklist: `test/unit/keybindingsReportSource.test.ts` (real
-manifest, invalid shapes, conflicts, order-independence, ACP parity,
-collector caps, reader codes, engine bound/unbound); byte-exact red drill
+reason, and a blank chord is partial with its skipped rows counted on the
+bindings section. Checklist: `test/unit/keybindingsReportSource.test.ts` (real
+manifest, invalid shapes, conflicts, order-independence, ACP name and gate
+parity, collector caps, reader codes, engine bound/unbound); byte-exact red drill
 in `docs/certification/m113-keybindings-c-m113-5.md`; CHANGELOG entry under
 `[Unreleased]`; README row; new `shortcut`/`command` column labels in all
 14 tables; no new command, setting, dependency or bundle-cap change.
