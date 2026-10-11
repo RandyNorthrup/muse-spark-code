@@ -51,7 +51,9 @@ happened, not what was planned; superseded entries are kept.
   are unchanged (`docs/certification/m106-capability-binding.md`).
 - Fixed headless edit reporting after argument previews: complete-argument
   promotion carries file locations through ACP, so successful edits appear in
-  `filesChanged` even when their previews began without a path.
+  `filesChanged` even when their previews began without a path. ACP regression
+  coverage now checks workspace-relative locations on any Windows drive and
+  excludes pathless tools and paths outside the session workspace.
 - Fixed the Model API selected-record binding review findings: the
   production entry resolves qualified models through the session client's
   own resolver instead of a standalone registry, so headless `exec` keeps
