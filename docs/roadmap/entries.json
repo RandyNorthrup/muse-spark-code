@@ -786,7 +786,7 @@
     {
       "id": "M106",
       "title": "Stronger agent-loop guarantees",
-      "summary": "The Model API agent loop uses strict tool contracts, validated side answers and concurrent read-only calls; previews preserve hidden host fields, each request uses one resolved model record, and each model-specific guarantee requires a capture for that model.",
+      "summary": "Strict tools, validated answers and concurrent reads use one model record; previews preserve hidden fields, model guarantees require captures, and headless output stays at most 32,768 tokens to preserve worst-case reservations.",
       "area": "agents",
       "release": "0.16.0"
     },

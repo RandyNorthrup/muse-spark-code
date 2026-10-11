@@ -35,6 +35,8 @@ describe('feature catalogue details merge', () => {
     // catalogue and its generated reference must name both surfaces.
     const preview = featureCatalog().find((entry) => entry.id === 'argument-preview')
     if (preview === undefined) throw new Error('missing feature: argument-preview')
+    expect(preview.summary).toEqual({ ui: 'toolArgumentPreviewDescription' })
+    expect(EN.toolArgumentPreviewDescription).toContain('before the tool runs')
     expect(preview.editors).toEqual(['vscode', 'acp'])
     expect(preview.surfaces).toEqual(['vscode:modelApi', 'acp:modelApi'])
   })

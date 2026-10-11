@@ -34,7 +34,6 @@ import {
   EXEC_PROMPT_MAX_BYTES,
   EXEC_MODEL_TEXT,
   EXEC_PROTOCOL_VERSION,
-  EXEC_MAX_BUDGET_USD,
   EXEC_STOP_GRACE_MS,
   EXEC_STREAM_IDLE_MS,
   EXEC_USD_DECIMALS,
@@ -42,7 +41,6 @@ import {
   HTTP_UNAUTHORIZED,
   JSON_RPC_ERRORS,
   MILLISECONDS_PER_SECOND,
-  MODEL_API_MAX_OUTPUT_TOKENS,
   NO_COMPACTABLE_HISTORY,
   MODEL_API_PRICES_PER_MILLION,
   PAID_PRICES_USD,
@@ -82,7 +80,8 @@ import {
   readPromptStdin,
 } from './keyInput'
 import type { AssembledProviderRun } from './providerExec'
-import { createRunLedger } from './runLedger'
+import { createRunLedger, resolveExecOutputCap, previewResponseReservation } from './runLedger'
+import { modelPolicyFor, type ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
 import type { ExecVaultPort, ExecVaultSession } from '../vault/execVault'
@@ -329,6 +328,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     maxRequests: options.maxRequests ?? null,
     timeoutSeconds: options.timeoutMs / MILLISECONDS_PER_SECOND,
   }
+  let resolvedOutputCap: number | undefined
+  const outputCap = (policy?: ModelPolicy): number =>
+    (resolvedOutputCap ??= resolveExecOutputCap(policy ?? modelPolicyFor(model ?? '')))
   const ledger =
     options.backend === 'modelApi' &&
     options.budgetUsd !== undefined &&
@@ -336,6 +338,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       ? createRunLedger({
           capUsd: options.budgetUsd,
           maxRequests: options.maxRequests,
+          outputCap,
         })
       : undefined
   let providerRun: AssembledProviderRun | undefined
@@ -712,6 +715,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         usageRecording,
         exec: {
           isEphemeral: options.ephemeral,
+          outputCap,
           ...(providerRun !== undefined && { providerRun }),
           ...(providerRun !== undefined &&
             ledger !== undefined && {
@@ -978,15 +982,11 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               }
               // Ask the ledger's exact arithmetic for the start reservation, in a
               // separate un-dispatched ledger. No request belongs to this run yet.
-              const preview = createRunLedger({
-                capUsd: Usd.from(EXEC_MAX_BUDGET_USD).toAmount(),
-                maxRequests: 1,
-              }).admitResponse({
-                model: model ?? '',
-                maxOutputTokens: MODEL_API_MAX_OUTPUT_TOKENS,
-                price: MODEL_API_PRICES_PER_MILLION[tier],
-              })
-              if ('refused' in preview) throw new Error(UI_TEXT.execModelUnpriced)
+              const preview = previewResponseReservation(
+                ledger,
+                model ?? '',
+                MODEL_API_PRICES_PER_MILLION[tier],
+              )
               const minimum =
                 microUsd(preview.reserveUsd) +
                 (options.paidFeatures.includes('imageGeneration')

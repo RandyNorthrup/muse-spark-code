@@ -1117,6 +1117,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
       },
     })
     expect(h.api.responseBodies()).toHaveLength(1)
+    expect(h.api.responseBodies()[0]?.['max_output_tokens']).toBe(32_768)
     expect(JSON.stringify(r.events)).not.toContain(h.cwd)
     expect(r.events.filter((e) => e.type === 'result')).toHaveLength(1)
   })

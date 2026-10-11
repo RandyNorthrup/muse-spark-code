@@ -54,12 +54,18 @@ happened, not what was planned; superseded entries are kept.
 - The Model API backend now binds the selected model's capability record in
   production: streamed tool-argument previews render on the U9-captured
   `muse-spark-1.3-contributor` model in VS Code and ACP, and Meta turns in
-  VS Code, ACP and headless `exec` request the documented 131,072-token
-  output cap. Headless `exec` drops every `tool_call`/`tool_call_update`
+  VS Code and interactive ACP request the documented 131,072-token output
+  cap. Headless `exec` requests at most 32,768 output tokens (or the record’s
+  smaller maximum), because its run ledger reserves each request’s worst
+  case before dispatch. Its body, schema, ledger and start reservation
+  share one resolved cap. Headless `exec` drops every `tool_call`/`tool_call_update`
   before its sink, so it records completed tools only and never shows live
   argument previews. Unobserved models keep today's stream and the legacy
   32,768-token request cap. No setting changes; feature-off request bytes
   are unchanged (`docs/certification/m106-capability-binding.md`).
+- Fixed headless edit reporting after argument previews: complete-argument
+  promotion carries file locations through ACP, so successful edits appear in
+  `filesChanged` even when their previews began without a path.
 - Fixed the Model API selected-record binding review findings: the
   production entry resolves qualified models through the session client's
   own resolver instead of a standalone registry, so headless `exec` keeps
@@ -149,6 +155,28 @@ happened, not what was planned; superseded entries are kept.
   The Modes footer and palette effort dots render the served catalogue's
   tiers and names, and new ACP sessions start on the catalogue's default;
   a malformed catalogue row no longer fails the whole model list.
+- A confirmed run on a ChatGPT or Copilot plan model (hook model, review,
+  scheduled prompt) no longer fails with "the model changed" before it is
+  sent. The subscription client proceeds while the confirmation is still
+  allowed and refuses with the run's own guidance only once it has lapsed,
+  like the other clients (M106, RVCM1062F).
+- Fixed the RVCM1062G findings on that plan-model success path. A confirmed
+  scheduled run now records its start receipt and scheduled-prompt tally,
+  and a paid-gate lapse during ChatGPT sign-in or Copilot token counting
+  still refuses before anything is sent — through the same
+  confirmed-dispatch helper the other branches use. A lapsed confirmation
+  names the hook, schedule or review instead of the generic plan retry
+  sentence, and a catalogue request id is accepted against a session
+  confirmation id (M106, RVCM1062G;
+  `docs/certification/m106-capability-binding.md`).
+- Fixed the RVCM1062H findings: the last two confirmed-dispatch paths that
+  decided by themselves now route through the shared helper. A still-allowed
+  scheduled or hook confirmation on a configured provider (which carries no
+  origin) dispatches instead of refusing with "Models & Agents is not
+  available in this build", and a lapsed confirmation there keeps the run's
+  own guidance instead of that sentence. An inventory test fails if any site
+  but the helper ever refuses a confirmed dispatch again (M106, RVCM1062H;
+  `docs/certification/m106-capability-binding.md`).
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
