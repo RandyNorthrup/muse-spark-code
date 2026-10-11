@@ -611,13 +611,24 @@ const UNUSED_ENGINE: EngineTeamPortsDeps = {
   },
 }
 
-function binding(stored: unknown, factory = vi.fn()) {
+function binding(
+  stored: unknown,
+  factory = vi.fn(),
+  options: { isTeamOn?: () => boolean; canRunKind?: (kind: string) => boolean } = {},
+) {
   const h = harness(stored)
   const trees: unknown[] = []
   const diffs: string[] = []
   const bound = new TeamHostBinding({
-    ports: { ...h.deps, engine: UNUSED_ENGINE },
-    canRunKind: (kind) => kind === 'engine',
+    ports: {
+      ...h.deps,
+      engine: UNUSED_ENGINE,
+      settings: {
+        ...h.deps.settings,
+        ...(options.isTeamOn !== undefined && { isTeamOn: options.isTeamOn }),
+      },
+    },
+    canRunKind: options.canRunKind ?? ((kind) => kind === 'engine'),
     loadFactory: () => {
       factory()
       // The fakes stand in for the engine ports dist/team.js would build.
@@ -638,6 +649,32 @@ function binding(stored: unknown, factory = vi.fn()) {
 }
 
 describe('the window binding', () => {
+  it('allows first-time configuration without a stored team, loading or probing', async () => {
+    const { bound, factory, h } = binding(undefined)
+    expect(bound.canConfigure()).toBe(true)
+    expect(bound.seams.teamDecisionSource()).toBeUndefined()
+    expect(factory).not.toHaveBeenCalled()
+    expect(h.probes).toEqual([])
+    h.controls.isTrusted = false
+    expect(bound.canConfigure()).toBe(false)
+    h.controls.isTrusted = true
+    await bound.dispose()
+    expect(bound.canConfigure()).toBe(false)
+  })
+
+  it('refuses configuration when the team switch or engine support is absent', () => {
+    let isTeamOn = false
+    let canRunEngine = true
+    const { bound } = binding(undefined, vi.fn(), {
+      isTeamOn: () => isTeamOn,
+      canRunKind: () => canRunEngine,
+    })
+    expect(bound.canConfigure()).toBe(false)
+    isTeamOn = true
+    canRunEngine = false
+    expect(bound.canConfigure()).toBe(false)
+  })
+
   it('never loads the team bundle or probes for a workspace without a team', async () => {
     const { bound, factory, h } = binding(undefined)
     await bound.open()

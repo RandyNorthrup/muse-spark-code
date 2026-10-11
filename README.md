@@ -3478,6 +3478,9 @@ Runners views remain internal while the Models & Agents panel and the
 window-owned team runtime are integrated. They are not available as
 commands in this release. ACP and other editors need those same runtime
 bindings; packaging these adapters does not enable team dispatch.
+The internal Roles setup readiness checks editor support, trust and the team
+switch independently of saved entries. Its required configuration sources
+still keep the sections hidden while those sources are missing.
 
 - Muse Code hides its subagent tools unless `run.subagent_delegation_mode` is
   `"auto"` in its settings file (`~/.config/muse/settings.json`, or under

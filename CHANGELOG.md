@@ -42,6 +42,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Hidden team setup now checks editor support, trust and the team switch independently of saved worker entries. Required configuration sources still gate the Roles and Agents sections.
+
 - Hidden M96 team-host correctness: each response settles its own reserved
   claim with the sent model's known price, including bare Meta and zero-cost
   plan models; transport retries reuse one live claim. Refused worker writes
