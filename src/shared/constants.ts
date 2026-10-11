@@ -4188,6 +4188,8 @@ export const ATOMIC_TEMPORARY_SUFFIX = '.tmp'
 export const ATOMIC_RENAME_ATTEMPTS = 5
 export const ATOMIC_RENAME_DELAY_MS = 25
 export const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
+// M105 lane F: `museSpark.mediaUploadExpiryDays` as Files `expires_after` seconds.
+export const SECONDS_PER_DAY = 24 * 60 * 60
 // M96 lane A (PLAN.md D75): a task past its minutes per task is stopped.
 export const MILLISECONDS_PER_MINUTE = 60 * 1000
 export const MILLISECONDS_PER_HOUR = 60 * 60 * 1000

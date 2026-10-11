@@ -187,6 +187,9 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
             currentAccountId: hostDeps.getAccountId,
             directory: mediaDirectory,
             log: hostDeps.log,
+            ...(hostDeps.uploadExpiryDays !== undefined && {
+              expiryDays: hostDeps.uploadExpiryDays,
+            }),
             ...session,
             source: productionMedia.attachedOrWorkspaceSource(
               attached,

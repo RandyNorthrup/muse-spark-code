@@ -107,6 +107,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly scheduleStore?: ScheduleStore | undefined
   /** Account upload ledger and calibration observations (MONEY017D, D85.2/D85.6). */
   readonly uploadLedgerDir?: string | undefined
+  /** `museSpark.mediaUploadExpiryDays`, read per upload (M105 lane F). */
+  readonly uploadExpiryDays?: ModelApiHostDeps['uploadExpiryDays']
   /** The window's attached-media registry (M105 lane V): the attach port writes it. */
   readonly attachedMedia?: ModelApiHostDeps['attachedMedia']
   /** D78's exact daily reservation for a paid extra outside a request (lane V seam 4). */
@@ -371,6 +373,9 @@ export class ModelApiBackendManager {
         scheduleStore: variant.scheduleStore,
         ...(this.deps.uploadLedgerDir !== undefined && {
           uploadLedgerDir: this.deps.uploadLedgerDir,
+        }),
+        ...(this.deps.uploadExpiryDays !== undefined && {
+          uploadExpiryDays: this.deps.uploadExpiryDays,
         }),
         ...(this.deps.attachedMedia !== undefined && { attachedMedia: this.deps.attachedMedia }),
         ...(this.deps.reservePaidExtra !== undefined && {

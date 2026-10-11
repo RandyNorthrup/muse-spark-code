@@ -279,6 +279,50 @@ describe('upload ownership ledger', () => {
     ).toBe(false)
   })
 
+  it('spares a young unreferenced upload from automatic cleanup until the provider expiry passes', async () => {
+    const t = setup(() => 4000)
+    const signal = new AbortController().signal
+    await t.ledger.ensure('s1', sha256, t.source, signal)
+    await t.ledger.releaseSession('s1')
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toEqual([])
+    expect(t.raw()).toMatchObject({ entries: [{ sessions: [] }] })
+    await t.ledger.accountReport()
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toEqual([])
+    expect(t.raw()).toMatchObject({ entries: [{ sessions: [] }] })
+  })
+
+  it('never deletes an upload another session still references, even past provider expiry', async () => {
+    const t = setup(() => 8_200_000)
+    const signal = new AbortController().signal
+    await t.ledger.ensure('a', sha256, t.source, signal)
+    await t.ledger.syncSession('b', [ref])
+    await t.ledger.releaseSession('a')
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toEqual([])
+    expect(t.raw()).toMatchObject({ entries: [{ sessions: ['b'] }] })
+  })
+
+  it('removes an explicitly deleted young upload early while automatic cleanup spares it', async () => {
+    const t = setup(() => 4000)
+    await t.ledger.ensure('s1', sha256, t.source, new AbortController().signal)
+    await t.ledger.releaseSession('s1')
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toEqual([])
+    await t.ledger.deleteAllOurs()
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toHaveLength(1)
+    expect(t.raw()).toMatchObject({ entries: [] })
+  })
+
+  it('records a provider-removed upload as gone instead of failing the cleanup', async () => {
+    const t = setup(() => 8_200_000)
+    await t.ledger.ensure('s1', sha256, t.source, new AbortController().signal)
+    const real = t.requestFile.getMockImplementation()!
+    t.requestFile.mockImplementation(async (...args) => {
+      if (args[1] === 'DELETE') throw new ModelApiError('Not found', 404, undefined, undefined)
+      return await real(...args)
+    })
+    await t.ledger.releaseSession('s1')
+    expect(t.raw()).toMatchObject({ entries: [] })
+  })
+
   it('refuses provider mismatches and unknown ledger fields rather than adopting ownership', async () => {
     const t = setup()
     t.setRaw({

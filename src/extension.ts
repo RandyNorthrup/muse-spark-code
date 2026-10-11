@@ -2650,6 +2650,7 @@ async function activateWindow(
                   uploadLedgerDir: path.join(storageRoot, MODEL_API_UPLOADS_DIR),
                   currentAccountId: () => modelApi.accountId(),
                   filesClient: () => keyClient(),
+                  expiryDays: () => currentSettings().mediaUploadExpiryDays,
                 })(accountId)
               },
             },
@@ -2664,6 +2665,7 @@ async function activateWindow(
           }),
     // Production media ledger and calibration (MONEY017D, D85.2/D85.6).
     uploadLedgerDir: path.join(storageRoot, MODEL_API_UPLOADS_DIR),
+    uploadExpiryDays: () => currentSettings().mediaUploadExpiryDays,
     describeEnvironment: () => {
       const check = backend.workspaceActionGuard(nativeStarts.signal, workspaceRoot)
       return describeEnvironment({

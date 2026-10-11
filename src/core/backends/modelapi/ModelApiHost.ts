@@ -783,6 +783,11 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
    */
   readonly uploadLedgerDir?: string | undefined
   /**
+   * `museSpark.mediaUploadExpiryDays` (the runtime's default), read per
+   * upload; absent keeps the 7-day default.
+   */
+  readonly uploadExpiryDays?: (() => number) | undefined
+  /**
    * The host's attached-media registry (M105 lane V): the attach port writes
    * video and audio `media` parts, the production replay resolves them to
    * their records and approved sources. Absent: a `media` part refuses.
