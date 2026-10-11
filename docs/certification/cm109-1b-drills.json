@@ -434,6 +434,47 @@
       "evidence": [
         "test/unit/vault/readmeVaultProtection.test.ts > vault key-protection docs > names only the protection the composed broker wires (old 'also uses the Secure Enclave' sentence restored temporarily: fails on the corrected-sentence assertion; README restored byte-exact afterwards)"
       ]
+    },
+    {
+      "name": "composition-home",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/vaultBrokerEntry.ts",
+          "sha256": "58e4394d250d2c1bfd08cd328de4487a4906c678f536f18cf31cdc45fae8cfe4"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerAdoption.test.ts > broker composition adopts the round-3 contracts > imports only a file discovered under the composed home, hidden until kept (composition pointed at a sibling directory: fails; restored byte-exact afterwards)",
+        "test/unit/vault/brokerAdoption.test.ts > broker composition adopts the round-3 contracts > deleteImport removes the staged items and the source file (same drill: fails; the three non-import cases still passed)"
+      ]
+    },
+    {
+      "name": "composition-onLocked",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/vaultBrokerEntry.ts",
+          "sha256": "58e4394d250d2c1bfd08cd328de4487a4906c678f536f18cf31cdc45fae8cfe4"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/brokerAdoption.test.ts > broker composition adopts the round-3 contracts > a broker lock during the composed reset audit fails it locked and writes nothing (onLocked wiring replaced with a no-op: fails; the other four cases still passed; restored byte-exact afterwards)"
+      ]
+    },
+    {
+      "name": "anchor-compare-delete",
+      "exitCode": 1,
+      "restored": [
+        {
+          "path": "src/runtime/vault/keyringAnchor.ts",
+          "sha256": "237fcf374ebf64ddc874a27221c0e37f8ae991a85e5ccc0f2bcab57053bc9cdc"
+        }
+      ],
+      "evidence": [
+        "test/unit/vault/vaultManagement.test.ts > C-M109-1 keyring rollback anchor > resets exactly this vault by compare-and-delete and refuses another vault (reset reading instead of deleting: fails; restored byte-exact, git diff empty)",
+        "test/unit/vault/brokerAdoption.test.ts > broker composition adopts the round-3 contracts > resetBegin is refused while healthy; a lost vault resets on the exact word (same drill: fails)"
+      ]
     }
   ]
 }

@@ -56,7 +56,8 @@ export interface VaultBrokerBindings {
   readonly perform: VaultChannelDeps['perform']
   readonly taint: VaultChannelDeps['taint']
   readonly scrub: VaultChannelDeps['scrub']
-  readonly importFile: (repository: VaultStoreRepository, file: string) => Promise<void>
+  /** The user's home: the management side imports only files discovered there. */
+  readonly home: string
   readonly slots?: VaultSlotProvider
   readonly keyring?: KeyringEntryFactory
   readonly peers?: VaultPeerVerifier
@@ -141,9 +142,7 @@ export async function createVaultBrokerProcess(
         slots,
         broker,
         clock,
-        importFile: async (file) => {
-          await bindings.importFile(repository, file)
-        },
+        home: bindings.home,
       })
       managementRef.current = manage
       const management = manage

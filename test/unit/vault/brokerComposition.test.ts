@@ -54,6 +54,13 @@ function withoutScreenLock(): void {
   /* Fake platform has no screen-lock source. */
 }
 
+/** A generated home for the composed management side's importer. */
+async function homeDir(): Promise<string> {
+  const home = path.join(native.root, 'home')
+  await mkdir(home, { recursive: true })
+  return home
+}
+
 async function bindings() {
   const f = await brokerFixture()
   await f.broker.dispose()
@@ -130,7 +137,8 @@ async function bindings() {
     perform: () => Promise.reject(new Error('fake execution unavailable')),
     taint: () => Promise.resolve({ tainted: false, reasons: [] }),
     scrub: (text) => Promise.resolve(text),
-    importFile: () => Promise.reject(new Error('fake importer unavailable')),
+    // Round-3 contracts: the importer runs inside management over this home.
+    home: await homeDir(),
     lockOnScreenLock: false,
     idleMs: 1000,
   }
