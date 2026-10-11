@@ -1,5 +1,6 @@
 import { realpath, mkdtemp, mkdir, rm, writeFile, stat, readFile, symlink } from 'node:fs/promises'
 import path from 'node:path'
+import { Readable } from 'node:stream'
 import os from 'node:os'
 import type * as Os from 'node:os'
 import * as z from 'zod/mini'
@@ -43,6 +44,40 @@ const roots: string[] = []
 afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
 })
+function sharingFolders(root: string): RuntimeSharingPorts['folders'] {
+  return {
+    platform: process.platform,
+    homeDir: root,
+    env: { XDG_DATA_HOME: root, LOCALAPPDATA: root },
+  }
+}
+
+async function refusalRig(read: RuntimeSharingPorts['read']) {
+  const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm118-refusal-')))
+  roots.push(root)
+  const ports: RuntimeSharingPorts = { folders: sharingFolders(root), read }
+  const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+  const errors: string[] = []
+  const errorOutput = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+    errors.push(String(chunk))
+    return true
+  })
+  return { root, ports, log, errors, errorOutput }
+}
+
+function defaultShare(rig: Awaited<ReturnType<typeof refusalRig>>): Promise<number> {
+  return runRuntimeSharing(
+    parseSharingArgs(
+      ['share', 'chat', '--cwd', rig.root, '--exported-at', '2026-10-06T12:00:00Z'],
+      's1',
+    ),
+    rig.ports,
+    EN,
+    'en',
+    rig.log,
+  )
+}
+
 describe('M118 production runtime bindings', () => {
   it.each([
     { body: 'Hello {{ audience }}', answers: ['readers'], expected: 'Hello readers' },
@@ -55,11 +90,7 @@ describe('M118 production runtime bindings', () => {
     const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm118-terminal-')))
     roots.push(root)
     const ports: RuntimeSharingPorts = {
-      folders: {
-        platform: process.platform,
-        homeDir: root,
-        env: { XDG_DATA_HOME: root, LOCALAPPDATA: root },
-      },
+      folders: sharingFolders(root),
       read: () => Promise.reject(new Error('Prompt use must not read a backend')),
     }
     const saved = await runtimeAcpSharing(ports, EN, 'en').execute(
@@ -108,11 +139,7 @@ describe('M118 production runtime bindings', () => {
     const read = vi.fn(() => Promise.reject(new Error('backend must not start')))
     const port = runtimeAcpSharing(
       {
-        folders: {
-          platform: process.platform,
-          homeDir: root,
-          env: { XDG_DATA_HOME: root, LOCALAPPDATA: root },
-        },
+        folders: sharingFolders(root),
         read,
       },
       EN,
@@ -151,11 +178,7 @@ describe('M118 production runtime bindings', () => {
       )
       const read = vi.fn(() => Promise.reject(new Error('backend must not start')))
       const ports: RuntimeSharingPorts = {
-        folders: {
-          platform: process.platform,
-          homeDir: root,
-          env: { XDG_DATA_HOME: root, LOCALAPPDATA: root },
-        },
+        folders: sharingFolders(root),
         registeredSecrets: known,
         read,
       }
@@ -299,41 +322,17 @@ describe('M118 production runtime bindings', () => {
     expect(runtimeSharingConfidential(root)).toBeUndefined()
   })
   it('keeps a defined empty-chat refusal instead of a prompt-file error', async () => {
-    const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm118-empty-')))
-    roots.push(root)
-    const ports: RuntimeSharingPorts = {
-      folders: {
-        platform: process.platform,
-        homeDir: root,
-        env: { XDG_DATA_HOME: root, LOCALAPPDATA: root },
-      },
-      read: () =>
-        Promise.resolve({
-          sessionId: 's1',
-          title: 'Empty',
-          exportedAt: '2026-10-06T12:00:00Z',
-          items: [],
-        }),
-    }
-    const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
-    const errors: string[] = []
-    const errorOutput = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-      errors.push(String(chunk))
-      return true
-    })
+    const rig = await refusalRig(() =>
+      Promise.resolve({
+        sessionId: 's1',
+        title: 'Empty',
+        exportedAt: '2026-10-06T12:00:00Z',
+        items: [],
+      }),
+    )
+    const { log, errors, errorOutput } = rig
     try {
-      expect(
-        await runRuntimeSharing(
-          parseSharingArgs(
-            ['share', 'chat', '--cwd', root, '--exported-at', '2026-10-06T12:00:00Z'],
-            's1',
-          ),
-          ports,
-          EN,
-          'en',
-          log,
-        ),
-      ).toBe(7)
+      expect(await defaultShare(rig)).toBe(7)
       expect(errors.join('')).toContain(EN.exportNothing)
       expect(errors.join('')).not.toContain(EN.promptFileInvalid)
       expect(errors.join('')).not.toContain(EN.actionFailed)
@@ -342,39 +341,66 @@ describe('M118 production runtime bindings', () => {
       errorOutput.mockRestore()
     }
   })
-  it('reports an unexpected headless fault as internal with the fault named in the log', async () => {
-    const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm118-fault-')))
-    roots.push(root)
-    const ports: RuntimeSharingPorts = {
-      folders: {
-        platform: process.platform,
-        homeDir: root,
-        env: { XDG_DATA_HOME: root, LOCALAPPDATA: root },
-      },
-      read: () =>
-        Promise.reject(
-          new TypeError('backend read failed under /home/someone/private for sentinel-share-read'),
-        ),
-    }
-    const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
-    const errors: string[] = []
-    const errorOutput = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-      errors.push(String(chunk))
-      return true
-    })
+  it('keeps malformed UTF-8 stdin as a defined invalid-file refusal', async () => {
+    const read = vi.fn(() => Promise.reject(new Error('backend must not start')))
+    const { root, ports, log, errors, errorOutput } = await refusalRig(read)
+    const input = vi
+      .spyOn(process.stdin, Symbol.asyncIterator)
+      .mockImplementation(() => Readable.from([Buffer.from([0x80])])[Symbol.asyncIterator]())
     try {
       expect(
         await runRuntimeSharing(
-          parseSharingArgs(
-            ['share', 'chat', '--cwd', root, '--exported-at', '2026-10-06T12:00:00Z'],
-            's1',
-          ),
+          parseSharingArgs(['prompts', 'save', '--title', 'Public', '--cwd', root]),
           ports,
           EN,
           'en',
           log,
         ),
       ).toBe(7)
+      expect(errors.join('')).toBe(`${EN.promptFileInvalid}\n`)
+      expect(log.warn).not.toHaveBeenCalled()
+      expect(read).not.toHaveBeenCalled()
+    } finally {
+      input.mockRestore()
+      errorOutput.mockRestore()
+    }
+  })
+  it.each([
+    ['--exported-at', 'not-a-date'],
+    ['--attachment-content', ''],
+  ])(
+    'keeps the localized typed argument refusal for %s in headless sharing',
+    async (flag, value) => {
+      const read = vi.fn(() => Promise.reject(new Error('backend must not start')))
+      const { root, ports, log, errors, errorOutput } = await refusalRig(read)
+      const table = { ...EN, acpUnknownArgument: 'Argument invalide : {argument}' }
+      try {
+        expect(
+          await runRuntimeSharing(
+            parseSharingArgs(['share', 'chat', 's1', '--cwd', root, flag, value]),
+            ports,
+            table,
+            'fr',
+            log,
+          ),
+        ).toBe(7)
+        expect(errors.join('')).toBe(`Argument invalide : ${flag}\n`)
+        expect(read).not.toHaveBeenCalled()
+        expect(log.warn).not.toHaveBeenCalled()
+      } finally {
+        errorOutput.mockRestore()
+      }
+    },
+  )
+  it('reports an unexpected headless fault as internal with the fault named in the log', async () => {
+    const rig = await refusalRig(() =>
+      Promise.reject(
+        new TypeError('backend read failed under /home/someone/private for sentinel-share-read'),
+      ),
+    )
+    const { log, errors, errorOutput } = rig
+    try {
+      expect(await defaultShare(rig)).toBe(7)
       const stderr = errors.join('')
       expect(stderr).toContain(EN.actionFailed)
       expect(stderr).not.toContain(EN.promptFileInvalid)

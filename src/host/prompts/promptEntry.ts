@@ -327,6 +327,21 @@ async function commandsFor(deps: PromptHostDeps): Promise<PromptCommands> {
   })
 }
 
+/** A rejected initialization must be retried on every command and panel surface. */
+async function hostCommands(deps: PromptHostDeps): Promise<PromptCommands> {
+  let pending = hosts.get(deps)
+  if (pending === undefined) {
+    pending = commandsFor(deps)
+    hosts.set(deps, pending)
+  }
+  try {
+    return await pending
+  } catch (error: unknown) {
+    if (hosts.get(deps) === pending) hosts.delete(deps)
+    throw error
+  }
+}
+
 function safePromptFailure(error: unknown, log?: Logger): Error {
   // The defined refusals every sharing surface reports (the same list the
   // ACP adapter and the headless commands keep), read at use time so the
@@ -369,15 +384,8 @@ export async function runPromptCommand(
   locale: string,
 ): Promise<void> {
   setUiText(table, locale)
-  let pending = hosts.get(deps)
-  if (pending === undefined) {
-    pending = commandsFor(deps)
-    hosts.set(deps, pending)
-  }
-  let hasStarted = false
   try {
-    const commands = await pending
-    hasStarted = true
+    const commands = await hostCommands(deps)
     switch (command) {
       case 'synchronise': {
         await commands.synchronise()
@@ -410,7 +418,6 @@ export async function runPromptCommand(
       }
     }
   } catch (error: unknown) {
-    if (!hasStarted) hosts.delete(deps)
     throw safePromptFailure(error, deps.log)
   }
 }
@@ -497,24 +504,24 @@ export async function runHostPromptCommand(
   locale: string,
 ): Promise<void> {
   setUiText(table, locale)
-  registerPromptSync(ports.context.globalState)
-  if (command === 'library') {
-    const deps = nativeDeps(ports)
-    let pending = hosts.get(deps)
-    if (pending === undefined) {
-      pending = commandsFor(deps)
-      hosts.set(deps, pending)
+  let deps: PromptHostDeps
+  try {
+    registerPromptSync(ports.context.globalState)
+    deps = nativeDeps(ports)
+    if (command === 'library') {
+      await hostCommands(deps)
+      if (ports.registry.active === undefined) await ports.openConversation()
+      const surface = ports.registry.active
+      if (surface !== undefined) {
+        if (ports.ready.has(surface)) surface.post({ type: 'openSharing', surface: 'prompts' })
+        else pendingLibraries.add(surface)
+      }
+      return
     }
-    await pending
-    if (ports.registry.active === undefined) await ports.openConversation()
-    const surface = ports.registry.active
-    if (surface !== undefined) {
-      if (ports.ready.has(surface)) surface.post({ type: 'openSharing', surface: 'prompts' })
-      else pendingLibraries.add(surface)
-    }
-    return
+  } catch (error: unknown) {
+    throw safePromptFailure(error, ports.log)
   }
-  await runPromptCommand(command, input, nativeDeps(ports), table, locale)
+  await runPromptCommand(command, input, deps, table, locale)
 }
 
 const chatServices = new WeakMap<ChatSurface, ReturnType<typeof createChatSharing>>()
@@ -529,8 +536,8 @@ export async function handleSharingAction(
   locale: string,
 ): Promise<unknown> {
   setUiText(table, locale)
-  const deps = nativeDeps(ports)
   try {
+    const deps = nativeDeps(ports)
     if (action === 'remember' || action === 'invalidate' || action.startsWith('chat')) {
       let sharing = chatServices.get(surface)
       if (sharing === undefined) {
@@ -562,20 +569,19 @@ export async function handleSharingAction(
       const result = await sharing.handle(action, input)
       if (action !== 'invalidate') return result
     }
-    let pending = hosts.get(deps)
-    if (pending === undefined) {
-      pending = commandsFor(deps)
-      hosts.set(deps, pending)
-    }
-    const commands = await pending
+    const commands = await hostCommands(deps)
     switch (action) {
       case 'saveText': {
-        const { text } = z.strictObject({ text: z.string() }).parse(input)
+        const parsed = z.strictObject({ text: z.string() }).safeParse(input)
+        if (!parsed.success) throw new Error(UI_TEXT.promptFileInvalid)
+        const { text } = parsed.data
         await commands.save({ 'museSpark.promptSource': 'composer', 'museSpark.promptText': text })
         return undefined
       }
       case 'saveHistory': {
-        const { sessionId } = z.strictObject({ sessionId: z.string() }).parse(input)
+        const parsed = z.strictObject({ sessionId: z.string() }).safeParse(input)
+        if (!parsed.success) throw new Error(UI_TEXT.promptFileInvalid)
+        const { sessionId } = parsed.data
         const source = await readSurface(ports, surface, sessionId, new Date().toISOString())
         const messages = source.items.filter(
           (item) => item.kind === 'userMessage' && item.text !== undefined,
@@ -595,7 +601,9 @@ export async function handleSharingAction(
         return undefined
       }
       case 'shareText': {
-        const { text } = z.strictObject({ text: z.string() }).parse(input)
+        const parsed = z.strictObject({ text: z.string() }).safeParse(input)
+        if (!parsed.success) throw new Error(UI_TEXT.promptFileInvalid)
+        const { text } = parsed.data
         await commands.share({ 'museSpark.promptSource': 'composer', 'museSpark.promptText': text })
         return undefined
       }
@@ -612,7 +620,7 @@ export async function handleSharingAction(
       }
     }
   } catch (error: unknown) {
-    throw safePromptFailure(error)
+    throw safePromptFailure(error, ports.log)
   }
 }
 
@@ -713,7 +721,7 @@ export function createPromptHost(ports: PromptActivationPorts, table: UiText, lo
               type: 'sharingResult',
               id: message.id,
               value: undefined,
-              error: safePromptFailure(error, ports.log).message,
+              error: error instanceof Error ? error.message : UI_TEXT.actionFailed,
             })
         }
       }),

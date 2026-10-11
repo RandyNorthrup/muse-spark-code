@@ -2,11 +2,14 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { window } from 'vscode'
+import { window, Uri } from 'vscode'
 import type * as VSCode from 'vscode'
 import { runPromptCommand, type PromptHostDeps } from '../../src/host/prompts/promptEntry'
 import { promptBundleLoader } from '../../src/host/prompts/promptBundle'
 import { EN } from '../../src/shared/l10n/en'
+import { PROMPT_LIMITS } from '../../src/shared/constants'
+import { serialisePromptFile } from '../../src/shared/prompts'
+import { savedPromptFixture } from './helpers/sharingFixtures'
 import { setUiText } from '../../src/shared/l10n/text'
 import { pickOne } from './helpers/vscodeViews'
 
@@ -100,6 +103,50 @@ describe('prompt lazy entry', () => {
       expect.any(Array),
       expect.objectContaining({ title: 'Bibliothèque' }),
     )
+  })
+  it.each([
+    ['invalid UTF-8', Buffer.from([0x80])],
+    ['malformed JSON', '---\n{broken\n---\nbody'],
+    [
+      'unsupported schema',
+      serialisePromptFile(savedPromptFixture).replace('"schemaVersion": 1', '"schemaVersion": 2'),
+    ],
+    [
+      'invalid variables',
+      serialisePromptFile(savedPromptFixture).replace(savedPromptFixture.body, 'no variables'),
+    ],
+  ])(
+    'keeps the localized invalid-file refusal for %s through the native importer',
+    async (_name, file) => {
+      const { home, deps, log } = await rig()
+      const location = path.join(home, 'import.muse-prompt.md')
+      await writeFile(location, file)
+      vi.mocked(window.showOpenDialog).mockResolvedValue([Uri.file(location)])
+      vi.mocked(pickOne)
+        .mockImplementationOnce((items) =>
+          Promise.resolve(items.find((item) => item.label === EN.promptImport)),
+        )
+        .mockImplementationOnce((items) =>
+          Promise.resolve(items.find((item) => item.label === EN.promptFromFile)),
+        )
+      const table = { ...EN, promptFileInvalid: 'Fichier de prompt invalide.' }
+      await expect(runPromptCommand('library', undefined, deps, table, 'fr')).rejects.toThrow(
+        table.promptFileInvalid,
+      )
+      expect(log.warn).not.toHaveBeenCalled()
+    },
+  )
+  it('keeps the localized limit refusal for an oversized composer prompt', async () => {
+    const { deps, log } = await rig()
+    const input = {
+      'museSpark.promptSource': 'composer',
+      'museSpark.promptText': 'x'.repeat(PROMPT_LIMITS.body + 1),
+    }
+    const table = { ...EN, promptLimits: 'Limites du prompt dépassées.' }
+    await expect(runPromptCommand('sharePrompt', input, deps, table, 'fr')).rejects.toThrow(
+      table.promptLimits,
+    )
+    expect(log.warn).not.toHaveBeenCalled()
   })
   it('keeps a defined prompt refusal with its own sentence and no log entry', async () => {
     const { deps, log } = await rig()

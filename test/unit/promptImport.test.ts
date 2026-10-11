@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { PromptImporter, PromptSharer } from '../../src/core/prompts/promptImport'
+import { promptPrivacy } from '../../src/core/prompts/promptPrivacy'
+import { EN } from '../../src/shared/l10n/en'
 import { parsePromptFile, serialisePromptFile } from '../../src/shared/prompts'
 import { savedPromptFixture as fixture } from './helpers/sharingFixtures'
 
@@ -83,7 +85,7 @@ describe('prompt import', () => {
         { kind: 'bad', location: 'x' },
         'user',
       ),
-    ).rejects.toThrow()
+    ).rejects.toThrow(EN.promptFileInvalid)
   })
 })
 
@@ -145,12 +147,56 @@ describe('prompt sharing', () => {
     expect(sharer.preview(input, 'text', 'copy').text).toBe('[redacted] [home]')
     expect(sharer.preview(input, 'md', 'copy').text).toContain('# Review a selection\n')
   })
+  it.each(['user', 'admin', 'test', 'randy.northrup'])(
+    'exports ordinary personal prompt files for the OS username %s',
+    async (user) => {
+      const release = vi.fn(() => Promise.resolve())
+      const sharer = new PromptSharer({
+        ...promptPrivacy({
+          workspaceRoots: [],
+          home: `/home/${user}`,
+          user,
+          registeredSecrets: () => [],
+        }),
+        release,
+        isConfidentialWorkspace: () => false,
+      })
+      const input = {
+        ...fixture,
+        title: 'Public user admin test prompt',
+        body: `Ask the user to admin the test. ${user} is an ordinary word here.`,
+        variables: [],
+      }
+      const preview = sharer.preview(input, 'file', 'file')
+      expect(parsePromptFile(preview.text)).toEqual(input)
+      await expect(sharer.confirm(preview.id)).resolves.toBeUndefined()
+      expect(release).toHaveBeenCalledOnce()
+    },
+  )
   it('keeps ordinary export bytes deterministic and round trips without losing metadata', () => {
     const { sharer } = shareRig()
     const first = sharer.preview(fixture, 'file', 'file')
     const second = sharer.preview(fixture, 'file', 'file')
     expect(first.text).toBe(second.text)
     expect(parsePromptFile(first.text)).toEqual(fixture)
+  })
+  it('still refuses a serialized preview when a structural value becomes a registered secret', async () => {
+    let registered: readonly string[] = []
+    const release = vi.fn(() => Promise.resolve())
+    const sharer = new PromptSharer({
+      ...promptPrivacy({
+        workspaceRoots: [],
+        home: '',
+        user: 'user',
+        registeredSecrets: () => registered,
+      }),
+      release,
+      isConfidentialWorkspace: () => false,
+    })
+    const preview = sharer.preview(fixture, 'file', 'file')
+    registered = ['user']
+    await expect(sharer.confirm(preview.id)).rejects.toThrow(EN.promptFileInvalid)
+    expect(release).not.toHaveBeenCalled()
   })
   it('refuses stale previews, cancellation, changed secrets and changed/unknown policy', async () => {
     const rig = shareRig()

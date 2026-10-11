@@ -216,7 +216,17 @@ export async function readPromptFile(file: string): Promise<string> {
     const bytes = Buffer.alloc(PROMPT_LIMITS.fileBytes + 1)
     const { bytesRead } = await handle.read(bytes, 0, bytes.length, 0)
     if (bytesRead > PROMPT_LIMITS.fileBytes) throw new Error(UI_TEXT.promptLimits)
-    return new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, bytesRead))
+    try {
+      return new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, bytesRead))
+    } catch (error: unknown) {
+      if (
+        error instanceof TypeError &&
+        'code' in error &&
+        error.code === 'ERR_ENCODING_INVALID_ENCODED_DATA'
+      )
+        throw new Error(UI_TEXT.promptFileInvalid, { cause: error })
+      throw error
+    }
   } finally {
     await handle.close()
   }
