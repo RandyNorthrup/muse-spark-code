@@ -56,32 +56,39 @@ export function derivedSourceId(sourceId: string, facet: string): string {
  * The one row-identity guarantee every collected row passes through. The
  * first row with a key keeps the bare key, so saved reports, links and ids
  * for unique rows never change; each later row sharing a key in source order
- * takes the first free `key/2`, `key/3`, … suffix. No collector — present or
- * later — can fail document validation through a duplicate row key, whatever
+ * takes a `key/2`, `key/3`, … suffix reserved against all original keys.
+ * No collector — present or later — can fail validation through a duplicate key, whatever
  * plan, journal, git, GitHub or store data repeats (RVCM1132E findings 1–2).
  */
-export function uniqueRowKey(wanted: string, used: Set<string>): string {
-  if (!used.has(wanted)) {
-    used.add(wanted)
-    return wanted
-  }
-  let ordinal = 2
-  for (;;) {
-    const suffix = `/${String(ordinal)}`
-    const room = REPORT_MAX_ID_CHARS - suffix.length
-    const candidate = `${wanted.slice(0, Math.max(0, room))}${suffix}`
-    if (!used.has(candidate)) {
+function uniqueRowKeys(original: Set<string>): (wanted: string) => string {
+  const used = new Set<string>()
+  const ordinals = new Map<string, number>()
+  // The schema reserves no usable character for generated keys. A fixed stem
+  // leaves room for any safe ordinal; counters belong to stems so long keys
+  // that truncate alike cannot rescan each other's candidates either.
+  const room = REPORT_MAX_ID_CHARS - 1 - String(Number.MAX_SAFE_INTEGER).length
+  return (wanted) => {
+    if (!used.has(wanted)) {
+      used.add(wanted)
+      return wanted
+    }
+    const stem = wanted.slice(0, room)
+    let ordinal = ordinals.get(stem) ?? 2
+    for (;;) {
+      const candidate = `${stem}/${String(ordinal)}`
+      ordinal += 1
+      if (original.has(candidate) || used.has(candidate)) continue
+      ordinals.set(stem, ordinal)
       used.add(candidate)
       return candidate
     }
-    ordinal += 1
   }
 }
 
 export function dedupeRowKeys(rows: readonly ReportRow[]): ReportRow[] {
-  const used = new Set<string>()
+  const unique = uniqueRowKeys(new Set(rows.map((entry) => entry.key)))
   return rows.map((entry) => {
-    const kept = uniqueRowKey(entry.key, used)
+    const kept = unique(entry.key)
     return kept === entry.key ? entry : { ...entry, key: kept }
   })
 }
@@ -98,22 +105,24 @@ function dedupeUnknownSection(section: unknown): unknown {
   if (
     typeof section !== 'object' ||
     section === null ||
-    !Array.isArray((section as { readonly rows?: unknown }).rows)
+    !('rows' in section) ||
+    !Array.isArray(section.rows)
   )
     return section
-  const used = new Set<string>()
-  const rows = (section as { readonly rows: readonly unknown[] }).rows.map((row) => {
-    if (
-      typeof row !== 'object' ||
-      row === null ||
-      typeof (row as { readonly key?: unknown }).key !== 'string'
-    )
-      return row
-    const wanted = (row as { readonly key: string }).key
-    const kept = uniqueRowKey(wanted, used)
-    return kept === wanted ? row : { ...row, key: kept }
+  const entries: readonly unknown[] = section.rows
+  const unique = uniqueRowKeys(new Set(entries.filter(hasRowKey).map((row) => row.key)))
+  const rows = entries.map((row) => {
+    if (!hasRowKey(row)) return row
+    const kept = unique(row.key)
+    return kept === row.key ? row : { ...row, key: kept }
   })
   return { ...section, rows }
+}
+
+function hasRowKey(value: unknown): value is object & { key: string } {
+  return (
+    typeof value === 'object' && value !== null && 'key' in value && typeof value.key === 'string'
+  )
 }
 
 export function row(

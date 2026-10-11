@@ -248,11 +248,10 @@ function releases(body: readonly PlanLine[], drift: Drift[]): PlanFacts['release
       heading?.[1] ?? bold?.[1] ?? (initial ? /\bv(\d+\.\d+\.\d+)\b/.exec(recordText)?.[1] : null)
     if (!version) continue
     // A preparation record followed by its released record is the lifecycle,
-    // not a repetition: only the same version in the same record form is
-    // drift. Both records stay, like duplicated milestone headings, and the
-    // repetition fails check:plan (RVCM1132E finding 2).
-    const form =
-      heading === null ? (bold?.[2] ?? (initial === null ? 'record' : 'status')) : 'heading'
+    // not a repetition: all other forms are definitive release records,
+    // regardless of their spelling. Both records stay, like duplicated
+    // milestone headings; the repetition fails check:plan (RVCM1132F finding 3).
+    const form = bold?.[2] === 'preparation' ? 'preparation' : 'released'
     const fingerprint = `${form} ${version}`
     if (seenForms.has(fingerprint))
       drift.push({ code: 'release-duplicate', line: line?.line ?? 1, detail: version })

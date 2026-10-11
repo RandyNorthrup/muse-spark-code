@@ -391,8 +391,10 @@ Branch `c/m113-2`, base `edf34a0c6` (same worktree). Both RVCM1132E P2s are
 fixed by redesign, not by two more per-collector calls: the row-identity
 guarantee moved to the one place every row passes through. No new dependency,
 paid/live call, credential, merge, push, guard relaxation, l10n change,
-reference change or hook change. No `eslint-disable`, `@ts-expect-error`, `as`
-cast or `any` added. No change to what a unique row looks like: unique rows
+reference change or hook change. Four pre-parse type assertions were added
+without §8 accounting in this round (RVCM1132F finding 5); round 7 removes
+them with compiler-visible property narrowing. No `eslint-disable`,
+`@ts-expect-error` or `any` was added. No change to what a unique row looks like: unique rows
 keep byte-identical keys (the round-5 bare-id stability test is green
 unchanged), and generation is deterministic (every property case regenerates
 byte-identically).
@@ -474,8 +476,10 @@ tests. Each case asserts: no throw, `reportDocumentSchema` parses, every
 section and needs-you carries unique row keys, both records are present (byte-identical
 copies included — nothing is hidden), the drift row is present where a drift
 code exists, and a repeat generate is byte-identical. Kind coverage is read
-from `REPORT_KINDS`, not a hand list, and each kind's cases must touch every
-section the kind emits, so a new kind or section fails the test. The
+from `REPORT_KINDS`, not a hand list. The old section check counted incidental
+sections and did not fail for a new section or a missing duplicate source
+(RVCM1132F finding 4); round 7 replaces it with measured duplicate cases and
+an AST inventory of actual row constructors and the forwarded registry. The
 reviewer's scenarios are cases by name: `PLAN_FORMAT_FIXTURE with ###
 M110a0 rewritten to ### M12` (drift `milestone-duplicate`, two M12 milestone
 rows) and `PLAN_FORMAT_FIXTURE with a second ### 0.14.2 — 2026-10-06 block`
@@ -543,3 +547,116 @@ Files changed this round: `src/core/reporting/collect/common.ts`,
 `test/unit/helpers/planDrift.ts`, `test/unit/planReader.test.ts`, this
 record. No `PLAN.md`, l10n table, catalog, dependency, hook, cap or
 bundle-split change.
+
+## Round 7 — RVCM1132F repair (Codex, 2026-10-11, macmini)
+
+Branch `c/m113-2`, base `6188566f1`. All three P2 and both P3 findings
+are repaired in the existing collector and plan reader. No dependency,
+credential, live/model call, merge, push, hook change, gate relaxation, new
+command or new UI text. The reporting pipeline remains shared by VS Code,
+ACP and CLI. M113's plan note, changelog and roadmap move with the repair;
+the milestone's aggregate certification remains lead-owned under the rig brief.
+
+| Finding                                                  | Fix and regression                                                                                                                                                                                                                                                                                                                                                                           | Red drill                                                                                                                                                                                                                                                                   |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2-1 generated keys displace later original owners       | `collect/common.ts` reserves every original key first. `collect.rowIdentity` checks `fleet/item`, its duplicate, then `fleet/item/2` in full/capped reports, the pre-parse pass and saved-report comparison; the legitimate row stays unchanged. A second regression covers two maximum-length keys sharing a suffix stem and a later original `/2`.                                         | D1 removes original reservations: both saved-identity cases and the maximum-length case fail (3/163).                                                                                                                                                                       |
+| P2-2 quadratic suffix rescans block the host             | Continuing counters belong to suffix stems, including stems shared after length capping. Counted tests instrument `Set.has` on 20,000 repeated, nested-suffix and shared-stem rows; each has a hard four-probes-per-row bound and aborts a regression immediately.                                                                                                                           | D2 restarts at 2: repeated and shared-stem cases exceed 80,000 probes (2/163).                                                                                                                                                                                              |
+| P2-3 syntax-dependent release drift                      | All non-preparation records share the definitive-release fingerprint. Three reader regressions pair the fixture's heading with a bold released record, an unqualified published record and a Status record. The existing preparation/release regression stays quiet.                                                                                                                         | D3 restores form fingerprints: all three mixed-form tests fail (3/99).                                                                                                                                                                                                      |
+| P3-4 incidental sections masquerade as source coverage   | `collect.rowSources` reads all collector modules with TypeScript's AST, inventories actual row calls (including imported aliases), direct row objects and the forwarded registry. Its explicit cases duplicate each named constructor's output at the actual section boundary and measure row growth there. The natural package-script case also duplicates both gates and missing-run rows. | D4 adds an uncased empty section: quality's section coverage fails (1/119). D4 adds a valid uncased row source: the source inventory fails (1/119). D4 bypasses dedupe only for `gates`: the natural script case, named constructor case and section coverage fail (3/163). |
+| P3-5 unaccounted type assertions and false certification | `in`, `Array.isArray` and a checked string-key predicate replace all four assertions. Malformed shapes remain unchanged for schema rejection. The round-six cast/coverage claims above are corrected. No new unsafe assertion needs a §8 entry.                                                                                                                                              | D5 inserts a pre-parse property assertion: the AST narrowing guard fails (1/163).                                                                                                                                                                                           |
+
+### Allocation proof and source sweep
+
+The row schema reserves no character usable only by generated keys; `/` is
+also legal in original keys. The first pass therefore reserves **all** original
+strings. The second pass retains each first occurrence and allocates later
+occurrences outside that set and the assigned set. Unique row objects and keys
+are unchanged, and rerunning the same input gives the same document bytes.
+
+Suffix stems reserve room for `/` and the largest safe integer, so two long
+keys with the same truncated stem use the same advancing counter. Each stem /
+ordinal candidate is probed once: an original collision consumes one original,
+a successful allocation consumes one duplicate, and every row needs one
+first-occurrence lookup. Different stems cannot generate the same candidate
+because the final slash and numeric component identify the stem. Probe work
+is linear; the existing section sort remains separate. The nested-suffix test
+also exercises the raw pre-parse allocator on overlong keys, which the schema
+subsequently rejects; no row/id limit changes.
+
+The explicit constructor matrix has 102 duplicate cases for 50 source sites,
+plus all 37 forwarded facets, 15 measured kind/section coverage checks, the
+registry/source inventory and the cast guard (119 tests). Singletons and
+aggregates are repeated at their collection boundary because raw facts cannot
+naturally produce a second singleton. Those cases pass through the actual
+collector and section guard; none counts an incidental section as coverage.
+The existing natural-input table remains, with the missing package-script case
+added, and verifies full/capped output, source retention and deterministic bytes.
+
+### Byte-exact restoration
+
+All eight drills ran full owning files, at most two files per invocation, at
+repository defaults with `--maxWorkers=3`; no test filter, raised timeout or
+skip was used. Every mutation exited 1 on the named regression above, then
+restored the source bytes and compared SHA-256:
+
+- `collect/common.ts`: `3515583d787859ac7dcb63084efcc2191a3d69b1845193deb189dfe7aa2c9c6b`
+- `plan/reader.ts`: `9c09dfdd0d17ca756f0a1af3ac6d183fa0111748b329f9eb2682cfb9ffde8060`
+- `collect/quality.ts` (temporary coverage experiments only, no final diff):
+  `8776e06065623edc2f4a49394cd9130fad2baa7276aead8b0e433591e08a1e7d`
+
+D0 additionally bypasses the allocator entirely after fixture consolidation:
+158/163 tests fail, including every new malformed-shape, saved-identity,
+maximum-length and counted-allocation case (all three 20,000-row shapes,
+including the nested-suffix case). This proves those individual regressions
+fire independently of the targeted D1/D2 mutations. The same `common.ts`
+SHA-256 is restored, then all 218 owning tests pass again.
+
+### Verification
+
+Receipts below are the final, restored-source runs at repository deadlines.
+
+- `npm run typecheck`: all five projects pass. The unit project was rerun
+  after the final source scanner and fixture consolidation: pass.
+- Changed-file ESLint with zero warnings and Prettier: pass. Plain knip:
+  pass (only its existing configuration hints). Duplication initially found
+  the new copied facet dictionary and five inherited natural-fixture clones;
+  shared question/lane/milestone/release fixtures and a delimited facet matrix
+  preserve those inputs while removing all six clones. Final `npx jscpd`:
+  2,916 files, zero clones, unchanged zero threshold.
+- Final owning files: rowIdentity **44**, rowSources **119**, planReader
+  **55** — **218 passed** after fixture consolidation, at repository defaults.
+- Vitest's related-source resolver identifies **24 suites** for both changed
+  production files. All eight `vitest related --run … --shard=N/8
+--maxWorkers=3` batches ran, at three files each: counts **44, 31, 51,
+  151, 34, 40, 38, 74**; **462 passed, one inherited failure**. This includes
+  `reportEngine.test.ts` (all four tests), both real-PLAN `reportInputs` cases,
+  collector contracts/determinism/facets/kinds, engine plan parsing, network
+  binding, selections, editor/runtime host entry/commands, roadmap and ledger
+  parsing. No dependent was omitted or blocked by this unsandboxed rig.
+- Additional complete host suites: `acpReports`, `reportingPanel` and
+  `reportInvariants`: **34 passed**. Fake-only `reports.e2e` and `checkPlan`:
+  **47 passed** (22 CLI e2e + 25 plan gate tests). Combined dependent/host
+  replay: **543 passed, one inherited failure** across **29 suites**.
+- The inherited failure is `paidMoneyStructure`'s exact-money field inventory:
+  `journalStore.ts:{apiEquivalentUsd,usd}` and
+  `reportingAmount.ts:{capUsd,spentUsd,uncertainUsd}`. Both modules and the
+  guard match base `6188566f1` byte-exact (SHA-256 `a79036d7…`, `16d95f2e…`,
+  `9eb6de6f…`). No inventory entry or guard was widened. It remains a
+  lead-owned release gate blocker, recorded in PLAN §7.
+- Localization: 14 UI tables, 14 usage tables, 252 manifest strings, 1,516
+  sources, **zero problems**. Host API: **zero problems**. Reference:
+  **77 features, 71 commands, 100 settings, 29 slash and 257 CLI rows current**.
+  Real plan: **207 milestones, zero drift**. Roadmap: **207 entries current**.
+- Production build completes compilation and fails only the inherited
+  `usagePanel.js` cap: **76,938 / 76,800 bytes**, **138 bytes over**. Its
+  actual metafile contains neither changed production file. Reporting:
+  **152,769 / 179,200 bytes**; inputs: **70,918 / 102,400 bytes**; activation
+  **550.7 / 600 KiB** and Model API **515.8 / 525 KiB** pass. The downstream
+  bundle-split, host-globals and third-party-notices gates were run separately
+  after the cap rejection and **all pass**. No cap changed; PLAN §7 records
+  the inherited size blocker for the lead.
+
+No outstanding RVCM1132F finding. Aggregate quality and resolution of the two
+inherited release blockers remain with the lead as specified in the brief.
+No renderer, CSS, token, visual baseline, dependency, hook, wire schema,
+feature command or setting changed. No server or daemon was started.
