@@ -39,6 +39,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **Credential vault review repairs (RVCM1091A4 / RVCM1091B4).** Impossible
+  public authentication/framing fields, protected anchor mismatches and pending history now qualify a lost
+  vault for Reset, using the same checks as the recovery reader. The panel
+  reloads committed imports even when their report or Keep/Delete step fails,
+  while still reporting the refusal and preserving a changed source file.
+  Headless `vault reset` now says that Reset requires an interactive terminal
+  in all fourteen languages. Installed broker and panel qualification remains
+  the separate integration step.
+
 - **Credential vault: protocol v2, setup and recovery underneath** (M109,
   C-M109-1). The vault still refuses every use with "The broker cannot
   start…" until its broker process and per-OS connections are installed;
@@ -100,6 +109,13 @@ happened, not what was planned; superseded entries are kept.
       is committed after the Lock.
     - A headless run cancelled while opening the vault gets no session, and
       its connection closes.
+  - Review repairs (RVCM1091A3): queued work loses authority at Lock; imports
+    verify every parent and held file within the home, retain private profile
+    and field identity in encrypted material, and cancel sent requests when
+    the panel retires. Ordinary change notifications preserve Keep/Delete.
+    Reset detects lost documents and damaged pending transactions, refuses
+    unlocked stores, checks every destructive boundary and retires the exact
+    anchor while holding the writer lock.
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did

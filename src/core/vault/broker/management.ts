@@ -206,11 +206,14 @@ export class VaultManagement implements VaultManagementPort {
     }
   }
   /** One setup step at a time; a second window's setup waits for the first. */
-  private async serialize<T>(step: () => Promise<T>): Promise<T> {
+  private async serialize<T>(step: (generation: number) => Promise<T>): Promise<T> {
+    // Admission belongs to the request, including time spent behind another turn.
+    const generation = this.lockGeneration
     const previous = this.setupTail
     const run = (async () => {
       await previous
-      return await step()
+      this.assertSameLock(generation)
+      return await step(generation)
     })()
     this.setupTail = (async () => {
       try {
@@ -222,8 +225,7 @@ export class VaultManagement implements VaultManagementPort {
     return await run
   }
 
-  private async recoverNow(code: Uint8Array): Promise<void> {
-    const generation = this.lockGeneration
+  private async recoverNow(code: Uint8Array, generation: number): Promise<void> {
     // Already unlocked: nothing to recover, so no key is unwrapped at all
     // outside the broker's Lock cleanup (RVCM1091B 2).
     const status = await this.deps.broker.status()
@@ -242,6 +244,7 @@ export class VaultManagement implements VaultManagementPort {
     this.deps.unlock.offerRecovery(slot.id, key)
     try {
       await this.deps.broker.unlock(slot.id)
+      this.assertSameLock(generation)
     } finally {
       // A failed unlock never leaves the recovered key waiting in memory.
       this.deps.unlock.discardRecovery()
@@ -276,7 +279,7 @@ export class VaultManagement implements VaultManagementPort {
             }),
         ),
     }
-    const importer = new VaultFileImporter(importPort(store), owner)
+    const importer = new VaultFileImporter(importPort(store), owner, this.deps.home)
     this.importer = { store, importer }
     return importer
   }
@@ -307,9 +310,12 @@ export class VaultManagement implements VaultManagementPort {
   async snapshot(): Promise<VaultBrokerSnapshot> {
     const pending = this.current() ?? this.confirming
     const broker = await this.deps.broker.status()
-    if (pending === null) {
+    if (pending === null && broker.state !== 'unlocked') {
       const anchored = await this.anchoredId()
-      if (anchored !== null && (await VaultStore.isLost(this.deps.files, anchored)))
+      if (
+        anchored !== null &&
+        (await VaultStore.isLost(this.deps.files, anchored, this.deps.anchor))
+      )
         return {
           status: { ...broker, state: 'unavailable', reason: 'vaultLost' },
           setupId: null,
@@ -441,12 +447,17 @@ export class VaultManagement implements VaultManagementPort {
   }
   /** Reset Vault step 1 (lead decision): refused unless the anchored vault is lost. */
   async resetBegin(): Promise<{ resetId: string; word: string }> {
-    return await this.serialize(async () => {
+    return await this.serialize(async (generation) => {
       if (this.current() !== null || this.confirming !== null)
         throw new VaultManagementError('invalid')
-      const generation = this.lockGeneration
+      const status = await this.deps.broker.status()
+      this.assertSameLock(generation)
+      if (status.state === 'unlocked') throw new VaultManagementError('invalid')
       const anchored = await this.anchoredId()
-      if (anchored === null || !(await VaultStore.isLost(this.deps.files, anchored)))
+      if (
+        anchored === null ||
+        !(await VaultStore.isLost(this.deps.files, anchored, this.deps.anchor))
+      )
         throw new VaultManagementError('invalid')
       this.assertSameLock(generation)
       const resetId = newId()
@@ -464,7 +475,7 @@ export class VaultManagement implements VaultManagementPort {
    * Rollback protection restarts with the next setup's new anchor.
    */
   async resetConfirm(resetId: string, word: string): Promise<void> {
-    await this.serialize(async () => {
+    await this.serialize(async (generation) => {
       const pending = this.pendingReset
       this.pendingReset = null
       if (
@@ -473,10 +484,15 @@ export class VaultManagement implements VaultManagementPort {
         this.deps.clock.now() >= pending.expiresAt
       )
         throw new VaultManagementError('invalid')
-      const generation = this.lockGeneration
+      const status = await this.deps.broker.status()
+      this.assertSameLock(generation)
+      if (status.state === 'unlocked') throw new VaultManagementError('invalid')
       const anchored = await this.anchoredId()
       this.assertSameLock(generation)
       if (anchored !== pending.vaultId) throw new VaultManagementError('invalid')
+      const expected = await this.deps.anchor.minimum(anchored)
+      this.assertSameLock(generation)
+      if (expected === null) throw new VaultManagementError('invalid')
       const audit = JSON.stringify({
         v: 1,
         kind: 'vaultReset',
@@ -484,20 +500,28 @@ export class VaultManagement implements VaultManagementPort {
         previousVaultId: anchored,
       })
       try {
-        await VaultStore.resetLost(this.deps.files, anchored, audit, () => {
-          this.assertSameLock(generation)
-        })
+        await VaultStore.resetLost(
+          this.deps.files,
+          anchored,
+          audit,
+          () => {
+            this.assertSameLock(generation)
+          },
+          async () => {
+            await this.deps.anchor.reset(anchored, expected, () => {
+              this.assertSameLock(generation)
+            })
+          },
+          this.deps.anchor,
+          expected,
+        )
       } catch (error: unknown) {
         if (error instanceof VaultManagementError) throw error
+        if (error instanceof VaultStoreUnavailableError) throw storeRefusal(error)
         // Not lost any more (a vault reappeared) or the files refused: nothing reset.
         throw new VaultManagementError('invalid')
       }
       this.assertSameLock(generation)
-      try {
-        await this.deps.anchor.reset(anchored)
-      } catch (error: unknown) {
-        throw storeRefusal(error)
-      }
     })
     this.changed()
   }
@@ -510,9 +534,8 @@ export class VaultManagement implements VaultManagementPort {
   }
 
   async setup(): Promise<{ setupId: string; code: Buffer }> {
-    return await this.serialize(async () => {
+    return await this.serialize(async (generation) => {
       if (this.current() !== null) throw new VaultManagementError('exists')
-      const generation = this.lockGeneration
       let anchored: string | null
       try {
         anchored = await this.deps.anchor.vaultId()
@@ -547,9 +570,8 @@ export class VaultManagement implements VaultManagementPort {
   }
   /** "I Saved It": only now is the vault written, wrapped in the OS store, then unlocked. */
   async confirmSetup(setupId: string): Promise<void> {
-    let generation = this.lockGeneration
+    const generation = this.lockGeneration
     await this.serialize(async () => {
-      generation = this.lockGeneration
       const pending = this.current()
       if (pending?.setupId !== setupId) throw new VaultManagementError('invalid')
       // Take ownership before the first await: expiry or a snapshot can no
@@ -582,7 +604,7 @@ export class VaultManagement implements VaultManagementPort {
         store.lock()
         isCreated = true
       } finally {
-        this.confirming = null
+        if (!isCreated) this.confirming = null
         // A failed confirmation stays pending inside its window (retry or
         // cancel); after the window, after a Lock, or once created, the key
         // is erased.
@@ -595,13 +617,18 @@ export class VaultManagement implements VaultManagementPort {
     })
     // A Lock during the confirmation never ends unlocked: the vault exists,
     // locked, and the person unlocks it again (RVCM1091A2 P2).
-    this.assertSameLock(generation)
     try {
-      await this.deps.broker.unlock(null)
-    } catch {
-      // The vault exists; the snapshot shows it locked with the slot's reason.
-      throw new VaultManagementError('locked')
+      this.assertSameLock(generation)
+      try {
+        await this.deps.broker.unlock(null)
+      } catch {
+        // The vault exists; the snapshot shows it locked with the slot's reason.
+        throw new VaultManagementError('locked')
+      }
     } finally {
+      // Until first unlock settles, snapshots must not compete with its writer.
+      this.confirming = null
+      this.isConfirmationCancelled = false
       this.changed()
     }
   }
@@ -615,8 +642,8 @@ export class VaultManagement implements VaultManagementPort {
   }
   async recover(code: Uint8Array): Promise<void> {
     // Serialized with setup: one offered recovery key at a time.
-    await this.serialize(async () => {
-      await this.recoverNow(code)
+    await this.serialize(async (generation) => {
+      await this.recoverNow(code, generation)
     })
   }
   subscribe(listener: (event: VaultBrokerEvent) => void): () => void {

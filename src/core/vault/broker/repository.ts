@@ -11,7 +11,12 @@ import {
 } from '../../../shared/vault'
 import { type vaultPrivateReadSchema } from '../../../shared/vaultProtocol'
 import { VaultError } from '../crypto'
-import { VaultStore, type VaultFilePort, type VaultGenerationPort } from '../store'
+import {
+  VaultStore,
+  type VaultFilePort,
+  type VaultGenerationPort,
+  type VaultGenerationState,
+} from '../store'
 import {
   VaultStoreUnavailableError,
   type VaultBrokerRepository,
@@ -22,7 +27,11 @@ import {
 export interface VaultAnchorPort extends VaultGenerationPort {
   vaultId(): Promise<string | null>
   /** Reset Vault only: removes this vault's record (compare-and-delete). */
-  reset(vaultId: string): Promise<void>
+  reset(
+    vaultId: string,
+    expected: VaultGenerationState | null,
+    authorize: () => void,
+  ): Promise<void>
 }
 
 type RepositoryChange = Parameters<Parameters<VaultBrokerRepository['subscribe']>[0]>[0]

@@ -18,7 +18,7 @@ export function buildVaultPeer() {
       '-Wall',
       '-Wextra',
       '-Werror',
-      'src/core/vault/broker/peer.c',
+      'native/posix/vaultPeer.c',
       '-o',
       path.join(directory, 'muse-vault-peer'),
     ],

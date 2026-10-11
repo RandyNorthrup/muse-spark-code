@@ -5318,6 +5318,7 @@
     "importedSummary": "Importado para o cofre: {names}",
     "importKeepOrDelete": "Manter o arquivo original ou excluí-lo agora que as credenciais estão no cofre?",
     "resetVault": "Redefinir o Cofre",
+    "resetHeadless": "Para redefinir o cofre, é necessário um terminal interativo; execuções sem interação não podem redefini-lo.",
     "resetContinue": "Continuar",
     "resetWarning": "A redefinição apaga este cofre para sempre: todos os segredos guardados se perdem, e a proteção contra reversão recomeça com uma nova âncora quando você configurar o cofre de novo.",
     "resetTypeWord": "Digite {word} para redefinir o cofre.",

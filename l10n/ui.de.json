@@ -5168,6 +5168,7 @@
     "importedSummary": "In den Tresor importiert: {names}",
     "importKeepOrDelete": "Originaldatei behalten oder löschen, da ihre Zugangsdaten jetzt im Tresor sind?",
     "resetVault": "Tresor zurücksetzen",
+    "resetHeadless": "Zum Zurücksetzen des Tresors ist ein interaktives Terminal erforderlich; unbeaufsichtigte Ausführungen können ihn nicht zurücksetzen.",
     "resetContinue": "Weiter",
     "resetWarning": "Das Zurücksetzen löscht diesen Tresor endgültig: Alle gespeicherten Geheimnisse sind weg, und der Rollback-Schutz beginnt mit einem neuen Anker neu, wenn Sie den Tresor wieder einrichten.",
     "resetTypeWord": "Geben Sie {word} ein, um den Tresor zurückzusetzen.",

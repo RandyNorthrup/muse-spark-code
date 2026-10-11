@@ -140,7 +140,7 @@ lipo -info "$VAULT_OUTPUT"
 PEER_OUTPUT=muse-vault-peer
 for arch in "${ARCHES[@]}"; do
   cc -Os -Wall -Wextra -Werror -arch "$arch" -mmacosx-version-min="$MIN_MACOS" \
-    ../../src/core/vault/broker/peer.c -o "${PEER_OUTPUT}-${arch}"
+    ../../native/posix/vaultPeer.c -o "${PEER_OUTPUT}-${arch}"
   strip -x "${PEER_OUTPUT}-${arch}"
 done
 lipo -create -output "$PEER_OUTPUT" "${PEER_OUTPUT}-arm64" "${PEER_OUTPUT}-x86_64"

@@ -33248,6 +33248,21 @@ The split:
   Linux slot.
 - **(c)**, Codex on the Win11 VM: the Windows natives.
 
+**CM109JOINB join preparation (2026-10-11, Kubuntu).** Merge core round 5
+`52a37ad49` without a fast-forward and keep its core vault files byte-identical.
+Move POSIX identity/startup-lock commands beside the native helper, reusing
+core's peer check, and synchronize the cold epoch through the existing port.
+Adopt anchored loss checks, headless Reset wording, failed-Delete receipt reload
+and typed refusals. Bind the installed POSIX client and broker factory for every
+VS Code/CLI/ACP caller behind an off availability switch. Certify real socket,
+native peer and generated-only isolated Secret Service paths; drive setup,
+unlock, encrypted storage, granted use, Lock, Keep/Delete and Reset end to end.
+Add executable SIGKILL transaction cases for Reset/Restore and live-owner refusal;
+leave only those cases skipped pending CM109JOINA's shared writer lease.
+Do not implement that lease here. Preserve gates/caps/default timeouts, run
+scoped gates (aggregate quality stays lead-owned), commit with installed hooks,
+and stop all owned processes. Receipts: `docs/certification/cm109-join-posix.md`.
+
 **C-M109-1b execution (2026-10-10, Kubuntu).** Part (b) composes part
 (a)'s repository, management and OS-store anchor in the portable broker
 process, ships the POSIX peer/identity/singleton helper and supplies Secret
@@ -33327,11 +33342,46 @@ broker or panel checklist.
 
 **C-M109-1 (a) additions (2026-10-10, lead decisions).**
 
+**CM1091A5 review repair (2026-10-11, win11).** Close both RVCM1091A4
+P2 findings and RVCM1091B4's part-A P3 by class. Before opening secret
+material, validate pending-intent authentication framing and history,
+document/block generations and encodings, and slot identities, high-water
+marks and wrapping/KDF framing, including the public protected anchor state;
+published candidates must match it and intents must match their prior or next
+state. Keep the existing setup-pending projection through first unlock so a
+watched refresh cannot compete with that reader's writer lock. Impossible states must offer Reset under
+the same writer recheck. Reconcile every non-retired import completion,
+including report, Keep and Delete failures, while retaining its refusal.
+Give headless Reset its own accurate terminal sentence in all fourteen
+languages and assert the printed text. Generated-only regressions and
+byte-exact red drills belong in `docs/certification/m109.md`. Keep the
+quarantine implementation untouched for CM1091CR2. Scoped rig gates replace
+aggregate quality under the explicit brief; no merge, push, dependency,
+subagent or paid/live call.
+
+**CM1091A4 review repair (2026-10-10, win11).** Close all nine
+RVCM1091A3 findings by class: capture Lock authority at request admission;
+bind imported paths and every parent to held, verified identities within the
+home; classify missing/damaged documents and pending intents consistently;
+refuse Reset while unlocked; authorize every destructive reset boundary and
+retire the exact anchor state inside the writer transaction; cancel sent panel
+imports on retirement while preserving receipt authority across ordinary
+change notifications; retain private imported target identity in encrypted
+material. Generated-only regressions and byte-exact removal drills are recorded
+in `docs/certification/m109.md`. Scoped rig gates replace aggregate quality
+under the explicit common/rig brief. No merge, push, dependency or live call.
+The independent host build first exceeds its unchanged 50 KiB cap at 52,042
+bytes. Reuse the panel's retirement, locked-state publication and fixed-error
+paths, and return service promises directly; retain every cancellation and
+authorization check. The repaired build is 51,174 bytes and both budget owners
+pass alongside the complete panel-host and notification regressions.
+
 - **Reset Vault.** It is offered only when this user's anchor names a vault
   that no slot or code can open, because its files are missing or damaged.
   - Two steps: the plain statement of loss, then the typed word `RESET`.
-  - The store re-checks under the writer lock that no slot records exist
-    before anything changes.
+  - The store re-checks under the writer lock that no complete openable vault
+    or recoverable intent exists before anything changes; Reset refuses an
+    unlocked broker.
   - It appends a value-free audit line to `reset.v1` and keeps the
     displaced document aside.
   - It clears the anchor by compare-and-delete. Rollback protection restarts
