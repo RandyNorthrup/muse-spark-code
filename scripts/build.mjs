@@ -127,6 +127,10 @@ const RESOURCE_PROCESS_OUTFILE = 'dist/resourceProcess.js'
 // POSTSPAWN: the vault MCP launch (scrubber, leases), on the first vault-backed server.
 const MCP_VAULT_ENTRY = 'src/host/backend/mcpVaultEntry.ts'
 const MCP_VAULT_OUTFILE = 'dist/mcpVault.js'
+// POSTSPAWN (C-M106-3R2): the 1.4.4 effort catalogue reader, on the first
+// model catalogue read (the manager preloads it; lane K budget).
+const MODEL_EFFORTS_ENTRY = 'src/core/backends/musecode/modelEffortsEntry.ts'
+const MODEL_EFFORTS_OUTFILE = 'dist/modelEfforts.js'
 const RESOURCE_ADMISSION_ENTRY = 'src/core/resources/admissionEntry.ts'
 const RESOURCE_ADMISSION_OUTFILE = 'dist/resourceAdmission.js'
 const PROVIDERS_ENTRY = 'src/host/backend/providersEntry.ts'
@@ -609,6 +613,13 @@ const mcpVaultOptions = {
   ...planMarkdownOptions,
   entryPoints: [MCP_VAULT_ENTRY],
   outfile: MCP_VAULT_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const modelEffortsOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [MODEL_EFFORTS_ENTRY],
+  outfile: MODEL_EFFORTS_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1238,6 +1249,7 @@ if (isWatch) {
     esbuild.context(voiceOptions),
     esbuild.context(webFetchOptions),
     esbuild.context(mcpVaultOptions),
+    esbuild.context(modelEffortsOptions),
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(modelsPanelOptions),
     esbuild.context(usageServiceOptions),
@@ -1352,6 +1364,7 @@ if (isWatch) {
     voice: esbuild.build(voiceOptions),
     webFetch: esbuild.build(webFetchOptions),
     mcpVault: esbuild.build(mcpVaultOptions),
+    modelEfforts: esbuild.build(modelEffortsOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     modelsPanel: esbuild.build(modelsPanelOptions),
     usageService: esbuild.build(usageServiceOptions),

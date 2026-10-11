@@ -129,7 +129,6 @@ import {
   type FeedbackOutcomeReader,
   type FeedbackRequest,
 } from './feedback'
-import { NATIVE_MODEL_EFFORTS } from './modelEfforts'
 import {
   historyOutcome,
   sessionClosedSchema,
@@ -175,14 +174,17 @@ export interface MuseCodeFeaturePorts {
   }
 }
 
-// The captured-frame readers every backend construction binds (C-M106-3R2):
-// the 1.4.4 `model/list` effort extras and the note-only `feedback/submit`
-// receipt (test/fixtures/m106/msp-1.4.4-host-feedback.json). No lifecycle
-// reader: 1.4.4 sends no delete frames, so deletion stays refused with
-// sessionDeleteUnsupported and History stays archive-only.
+// The captured-frame reader every backend construction binds (C-M106-3R2):
+// the note-only `feedback/submit` receipt
+// (test/fixtures/m106/msp-1.4.4-host-feedback.json). The 1.4.4 `model/list`
+// effort reader binds the same way, but the manager preloads its module on
+// first spawn (see `MuseCodeBackendManager`), so it stays out of the
+// activation bundle (lane K budget) while every spawn reads the same
+// catalogue. No lifecycle reader: 1.4.4 sends no delete frames, so deletion
+// stays refused with sessionDeleteUnsupported and History stays
+// archive-only.
 export const NATIVE_MUSE_CODE_FEATURE_PORTS: MuseCodeFeaturePorts = {
   feedback: NATIVE_FEEDBACK_READER,
-  modelEfforts: NATIVE_MODEL_EFFORTS,
 }
 
 const SESSION_LIST_CHANGED = 'session/listChanged'
