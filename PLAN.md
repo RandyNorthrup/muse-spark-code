@@ -32699,6 +32699,18 @@ Next slice: finish C-M108-2 certification, then enable its binding; C-M108-3
 still owns graphical surfaces, C-M108-6/7 placement/profiles and C-M108-8 the
 vault. Evidence and precise pending work: `docs/certification/cm1082.md`.
 
+**C-M108-2 completion scope (2026-10-11, owner order).** Certify retained
+request guards with red drills, repair exact-receipt crash projections, and
+bind the portable owner into VS Code's existing Models panel and native Meta
+backend as well as CLI/ACP. Explicit selections made during a request queue
+for its next boundary; the admitted payer never changes. A held owner denies
+both admission and final dispatch. Keep one default-false availability switch
+for all request bindings and the account UI, with an exact restore register.
+Production-composition tests fake only model responses and platform secret
+storage; one recovery case must launch a second real process. No wire parser,
+paid call, browser, new dependency or cap increase. GUI, external reviews and
+hosted platform receipts remain explicitly unproved on this headless rig.
+
 **M108P2 review repair (2026-10-09).** RVM108P's two P2 findings are in
 scope before non-default billing is enabled. Each question captures the
 binding's durable epoch, shared feature/quote revocation generation and

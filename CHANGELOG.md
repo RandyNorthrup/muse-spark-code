@@ -88,6 +88,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Account usage keeps a durable receipt once after a crash before reservation
+  closure; uncertain cleanup cannot discard that known settlement.
+
 - Retain the C-M108-2 request owner, durable account claims, payer fences and
   consent revision code behind a disabled certification gate. Runtime account
   switching and pooling keep their prior refusals until the remaining owning
