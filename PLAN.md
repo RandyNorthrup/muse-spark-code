@@ -38947,7 +38947,9 @@ brief explicitly adds every dependent suite for the whole branch's source
 diff against 82d50d5e4, including all shared host/runtime and English-table
 consumers. Discover the full graph with Vitest's related selector, then run
 `npx vitest related --run` in complete three-file batches preserving the
-repository's configuration and deadlines. Aggregate quality, independent
+repository's configuration and deadlines. Keep Vitest's public runner open
+between batches if repeated cold setup threatens the time box; use the same
+related selector, three-file bound, ordinary project setup and deadlines. Aggregate quality, independent
 review and the multi-OS release matrix remain lead-owned. No gate or cap is
 weakened; record every outcome and compare any red with the clean base.
 Evidence: `docs/certification/m106-capability-binding.md`.
