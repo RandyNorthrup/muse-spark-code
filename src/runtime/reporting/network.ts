@@ -16,6 +16,9 @@ import {
   type ReportNetworkTransport,
 } from '../../core/reporting/sources/cache'
 import { githubReportSource, ghReportTransport } from '../../core/reporting/sources/github'
+import { storesReportSource } from '../../core/reporting/sources/stores'
+import { npmStoreAdapter } from '../../core/reporting/sources/npmStore'
+import type { ReportStoreProject } from '../../core/reporting/sources/storeProject'
 import { reportScrubber } from '../../core/reporting/render/redaction'
 import { reportGitIo } from './sources'
 import type { GitFacts, ReportSourcePorts } from '../../core/reporting/sources/types'
@@ -82,10 +85,17 @@ export function reportingResponseCache(storageRoot: string): ReportResponseCache
   return cache
 }
 
-/** CLI uses gh's own identity; editors inject their credential-owning HTTPS transport. */
+/**
+ * CLI uses gh's own identity; editors inject their credential-owning HTTPS
+ * transport. Without a workspace project the stores source stays unbound, as
+ * before; with one, the npm channel reads through its captured adapter while
+ * Marketplace, Open VSX, workflow runs and releases stay honestly
+ * unavailable until their captures land.
+ */
 export function createReportingNetwork(
   context: ReportingNetworkContext,
   git: GitFacts | null | (() => GitFacts | null),
+  project?: ReportStoreProject,
 ): Pick<ReportSourcePorts, 'github' | 'stores'> {
   setUiText(context.l10n.table, context.l10n.locale)
   const scrub = reportScrubber({ workspaceRoot: context.workspaceRoot, localRoots: [homedir()] })
@@ -137,7 +147,19 @@ export function createReportingNetwork(
         }
       },
     },
-    // Store/workflow/release adapters require N's approved captures, never inferred schemas.
-    stores: localSource('stores', () => Promise.reject(new LocalSourceError('unbound'))),
+    stores:
+      project === undefined
+        ? localSource('stores', () => Promise.reject(new LocalSourceError('unbound')))
+        : storesReportSource({
+            reader,
+            project: {
+              name: project.name,
+              ...(project.publisher !== undefined && { publisher: project.publisher }),
+              ...(project.engines !== undefined && { engines: project.engines }),
+              ...(project.private !== undefined && { private: project.private }),
+            },
+            releaseVersion: project.releaseVersion,
+            adapters: [npmStoreAdapter(project.name)],
+          }),
   }
 }

@@ -83,11 +83,51 @@ network calls — for: Marketplace `extensionquery`, Open VSX `api/*`, GitHub
 Actions workflow runs (`/actions/runs`), GitHub releases (`/releases`). No
 default adapter for those four is shipped; their rows stay honestly
 unavailable (`store-capture-required`, `workflow-release-capture-required`,
-`workflow-releases-unavailable`). Binding the npm adapter into
-`createReportingNetwork`/the engine needs workspace project identity (name,
-publisher, engines, private, release-version reference) plumbed from the
-report engine: no base file was changed for this lane, so that wiring — and
-the four captures (lead-owned N-captures handoff) — remain for the lead.
+`workflow-releases-unavailable`). Only the four captures (lead-owned
+N-captures handoff) remain for the lead; the npm binding is done (turn 2
+above). Base files changed this lane, minimally:
+`src/runtime/reporting/network.ts` (optional project parameter + npm
+binding) and `src/runtime/reporting/engine.ts` (manifest read +
+pass-through).
+
+## Turn 2: engine binding (same lane, same branch)
+
+- `src/core/reporting/sources/storeProject.ts` (new, owned): `reportStoreProject`
+  parses workspace identity from the workspace package.json — name, publisher,
+  `engines.vscode`, `private`, and the local `version` as the lag reference.
+  Anything undeclared → `undefined` (stores stays unbound, as before). No
+  registry or store shape is read here. `readStoreProject` wraps the failure
+  policy (missing/unparsable manifest → unbound, never a failed report) so it
+  is unit-testable without a built lazy bundle.
+- `src/runtime/reporting/network.ts` (base, smallest change):
+  `createReportingNetwork(context, git, project?)` binds `storesReportSource`
+  with `[npmStoreAdapter(project.name)]` when a project is passed, else the
+  previous unbound source. No caller changes: the parameter is optional.
+- `src/runtime/reporting/engine.ts` (base, smallest change): the engine reads
+  the workspace package.json through the report's confined `reportFileIo` and
+  passes the parsed project into the network factory. One binding covers the
+  editor, ACP and terminal paths (shared runtime engine).
+- `test/unit/storeProject.test.ts` (new, owned): 17 tests — parser cases,
+  `readStoreProject` failure policy, binding with/without a project (live npm
+  lagging row beside `store-capture-required` rows, single npm request;
+  unbound without a project with no dispatch).
+- Session-only verification (not committed: the lazy `reportingNetwork.js`
+  bundle loads from `dist/`, which unit-test ordering cannot assume): with a
+  built tree, the exact engine glue sequence (confined package.json read →
+  `readStoreProject` → `createReportingNetwork` with the real response cache)
+  yields `partial` with an npm `lagging` row and honest Marketplace/Open VSX
+  rows. A full `engine.reports.run` in unit tests cannot reach the network
+  bundle by construction (`__dirname` is `src/`, not `dist/`), so the
+  committed suite stops at the factory boundary.
+- Bundle impact: `dist/reportingNetwork.js` 57.5 KiB against its 75 KiB
+  budget (base: 54.1 KiB). `npm run build`'s size gate fails only on
+  `dist/usagePanel.js` (75.1 KiB vs 75 KiB) — reproduced byte-identical on a
+  scratch build of untouched base `a0b69a03b`, so pre-existing and out of
+  this lane's scope; none of this lane's strings appear in that bundle.
+- Red drills 3–4: parser forced to `undefined` fails the 3 named parser
+  tests; binding forced unbound fails the named live-npm test. Both files
+  restored byte-exact (`sha256sum -c` OK: storeProject
+  `7d692a53…`, network `16986429…`, engine `5055c7d5…`, test `355227a1…`).
 
 ## 0.17.1 truth-pass restore list
 
