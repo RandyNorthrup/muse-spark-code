@@ -17,9 +17,9 @@ the twelve previous tasks unchanged, plus per split one long-context
 compaction task (`isLongContext`) and one two-defect multi-edit task.
 
 Current frozen digest (`evalHarnessDigest`, SHA-256 over each arm's
-self-contained emitted bundle and explicitly declared fixture bytes):
+guard prefix, self-contained emitted bundle and explicitly declared fixture bytes):
 
-`cede4699ae8cc988b220373c0f1fc0f2f61ddae875c1bbd4991de2b4946f1489`
+`dc7726f6f99def7d4de9845059a90e2944adda2533a82edf96311324cffb01a3`
 
 R7's fixture set is `armSources.ts`, `mechanisms.ts`, `runner.ts`,
 `heldDeps.ts`, `tasks.ts`, and canonical `conditions.json` (the exact selected task data,
@@ -349,6 +349,89 @@ comment, so the scanner-removal regression fails without introducing an
 actual TypeScript escape hatch. R7-D4 recreates the review's non-canonical
 fixture identity under an explicit temporary-directory symlink on Linux.
 The restored suite also tests canonical executable-directory identity.
+
+### R8 repairs (2026-10-11, linuxlt; review RVCM1012H findings 1–2)
+
+**Decision kept: HASH WHAT RUNS.** One bundle per arm; the digest covers the
+guard prefix plus bundle bytes plus declared fixtures. Each finding is fixed
+for its whole class, with no residual.
+
+Finding 1 (P2, `node:sqlite` outside permission grants) gets an allowlist
+of Node built-in modules (`EVAL_ARM_ALLOWED_BUILTINS` in
+`src/shared/constants.ts`: `fs`, `path`, `url`, `util`), enforced twice:
+
+- At build time, `buildArmBundle` scans the emitted CJS bundle text for
+  literal external loads (`require("…")`, `import("…")`, `from "…"`) and
+  fails the freeze when one names a built-in outside the allowlist —
+  `node:`-prefixed always, bare when on the explicit denied-bare list
+  (`EVAL_ARM_DENIED_BARE_BUILTINS`: sqlite, child processes, workers,
+  network, inspector, loader escapes). Two probed facts shaped this: the
+  CJS metafile records no external load (inputs carry only files,
+  `outputs[].imports` is empty), and `buildSync` cannot take plugins, so
+  the freeze reads the same build's own emitted bytes instead of the
+  metafile — same build, same resolution, never a second resolver.
+  A static `node:sqlite` (the review's database scenario) now fails before
+  any child runs. Computed names stay for the guard, which sees the value.
+- At run time, every `arm.cjs` starts with the guard prefix (itself frozen
+  and hashed): it reads its own file, slices the bundle below the marker,
+  and runs it in a `vm` context whose `require` loads only allowlisted
+  built-ins (every other bare load, however computed, and every
+  relative/absolute load is refused, as are `require.resolve` and
+  `process.getBuiltinModule`), whose dynamic `import()` has no loader
+  callback and fails closed (`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`,
+  probed), and whose `process` is a sanitized copy (empty env, piped
+  stdio, no credentials). The entry stub is a library publish now
+  (`globalThis.__frozenArmRun = run`); the guard calls it with the arm
+  name from `argv` and writes exactly one JSON value to `stdout`. A
+  refusal exits nonzero with the refusal on `stderr`, so the runner maps
+  it to a failed task before any model request — never a pass
+  (`frozenBundleChange` throws; pinned by test).
+
+Finding 2 (P3, `--permission` missing before Node 22.13.0): `executeArmBundle`
+opens with `requireEvalArmRuntime()`, which refuses on anything below
+`EVAL_ARM_MIN_NODE_VERSION` (`22.13.0`) with a plain message naming the
+minimum. The product `engines` range is unchanged (`>=22`). The CI `unit`
+job (the job that runs the evaluation suites) pins `node-version: 22.13.0`
+with a comment; every other job keeps tracking 22. The README live-eval
+row now names Node 22.13.0 or newer. `runner.ts` and `driver.ts` are
+untouched (zero hunks): the guard starts inside the bundle, so lane CM1013A
+needs no merge accommodation; it re-freezes the digest once after both
+land.
+
+| Finding                                     | Fix                                                                               | Regression                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H1 P2 undeclared-database input             | Build-time allowlist refusal + run-time guard refusal, both covered by the digest | `refuses a non-allowlisted built-in at freeze time` (incl. the review's `node:sqlite` database arm); `refuses a non-allowlisted built-in reached through a computed name at run time` (computed `require`, bare computed name, `process.getBuiltinModule`, plus the never-a-pass `frozenBundleChange` pin); `fails a computed dynamic import at run time`; `covers the guard prefix with the frozen digest` |
+| H1 class: workers, child processes, loaders | Same two enforcements                                                             | `refuses workers and child processes at freeze time and through computed names at run time`; rewritten `blocks the whole indirect-loader class` (global-`require` spellings through the guard) and `blocks dynamic require and computed import at runtime` (file-URL import now fails closed in the guard)                                                                                                  |
+| H2 P3 old-Node execution                    | Version gate, CI floor pin, named minimum                                         | `refuses to run on a Node without the permission flags and names the minimum`                                                                                                                                                                                                                                                                                                                               |
+
+R8 re-freeze: review RVCM1012H findings 1–2. The previous digest
+`cede4699…f1489` hashed guard-less bundles; every bundle now carries the
+guard prefix, so all four arm snapshots and the harness receipt move to
+`dc7726f6…fb01a3` (recorded here, in `test/unit/eval/evalFrozen.test.ts`
+and in PLAN.md's M101 status line). No arm, task, fixture set or
+production byte changed for behavior: the re-run below shows the other
+five frozen-harness tests green unchanged.
+
+Every drill runs the complete owning file at repository timeouts, sees the
+named regression fail, then restores the edited file byte-exact. SHA-256
+is compared against the pre-drill bytes after each restoration
+(`src/core/eval/armSources.ts` `16db0d43…f23251`,
+`src/shared/constants.ts` `dcc7bab5…479543b`,
+`test/unit/eval/evalArmSources.test.ts` `0b68b71d…27d788f` — all `OK`).
+
+| Drill | Deliberate break                                           | Named assertion                                                                  | Result                   | Restored SHA-256             |
+| ----- | ---------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------ | ---------------------------- |
+| R8-D1 | Allowlist widened: `sqlite` added                          | `refuses a non-allowlisted built-in at freeze time`; computed-name run-time test | 2 failed, 20 passed (22) | constants `dcc7bab5…479543b` |
+| R8-D2 | Guard neutered: allowlist check replaced with `if (false)` | computed-name run-time test; workers/child computed test                         | 2 failed, 20 passed (22) | armSources `16db0d43…f23251` |
+| R8-D3 | Build scan neutered: early return                          | both freeze-time tests                                                           | 2 failed, 20 passed (22) | armSources `16db0d43…f23251` |
+| R8-D4 | Version gate neutered: early return                        | version-floor test                                                               | 1 failed, 21 passed (22) | armSources `16db0d43…f23251` |
+
+R8-D2 also confirms the layering: with the guard neutered, computed
+built-in loads (`node:sqlite`, workers) succeed and the tests fail, while
+undeclared _file_ loads stay denied by the permission grants — the
+indirect-loader and file-read suites stay green. That is exactly the
+review's threat model: grants never confined `node:sqlite`, so the
+allowlist has to.
 
 Final verification on linuxlt: **443 tests in 18 complete files pass**,
 `npx vitest run <files> --maxWorkers=3`, at most three files per invocation,

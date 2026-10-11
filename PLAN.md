@@ -29936,7 +29936,7 @@ receipts remain the lead's checks under the rig brief.
   red drills with byte-exact restoration; owning suites and lane gates; local
   hooked commits. Status: implemented; all five findings fixed, 443 tests
   in 18 complete files pass, and twelve red-drill runs restore byte-exact.
-  Frozen digest `cede4699ae8cc988b220373c0f1fc0f2f61ddae875c1bbd4991de2b4946f1489`.
+  Frozen digest `dc7726f6f99def7d4de9845059a90e2944adda2533a82edf96311324cffb01a3`.
   The receipt binds the exact selected task data as well as the arm snapshots;
   Windows computed imports use file URLs. A hard child deadline and cleanup
   are proved against an arm that handles SIGTERM. Static/build, roadmap and
