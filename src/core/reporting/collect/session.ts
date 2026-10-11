@@ -155,9 +155,8 @@ export function collectSession(snapshot: SourceSnapshot, options: ReportOptions)
       'questions',
       'questions',
       ['name', 'questions'],
-      // The registry schema requires unique ids, but the rows stay
-      // duplicate-safe like every other plan-item listing (RVCM1132D
-      // finding 1).
+      // The registry schema requires unique ids; a repeated id still gets a
+      // unique row key from the central section guarantee.
       planQuestionRows(questions.data ?? [], [questions.record.id]),
       ['questions'],
     ),
