@@ -232,6 +232,8 @@ happened, not what was planned; superseded entries are kept.
   past add's pre-check reports a collision; unopenable vaults name no
   protection; and setup confirmation broadcasts once, so its unlock no
   longer loses the writer to a mid-flight snapshot.
+- The vault README distinguishes qualified Windows damaged-document
+  retention and writer recovery from pending installed/platform qualification.
 - Vault writers use the shared owner-bound, renewing file lease. A broker
   terminated inside Reset or Restore no longer leaves an ownerless writer
   lock blocking every later operation. A new writer recovers incomplete

@@ -5148,6 +5148,24 @@ logic and fake adapter tests do not establish installed-editor parity.
 
 ## The vault
 
+Windows native development builds use `node scripts/build-windows-vault-pipe.mjs`.
+CI packages the resulting pipe helper; installed users do not compile it.
+Its owner-only pipe refuses remote clients and relays kernel-attested client
+identities. The guarded native probe checks the server's user SID and DACL,
+sends no private bytes, and returns its PID/start time for the lock check.
+Late close or reply frames for
+retired clients preserve other connections. Credential Manager results are
+validated, copied into owned byte buffers and erased. File checks refuse
+widened DACLs and linked paths. The new native
+paths remain unbound pending the broker/editor bindings and the Windows
+installed-build checks in [the M109 record](docs/certification/m109.md).
+Windows also adopts protocol v2's import receipts and two-step reset, with
+typed Credential Manager repair reasons and a compare-and-delete anchor.
+Windows damaged-document retention is repaired and qualified; production
+Reset/Restore process-death recovery also passes on Win11. The installed
+broker/panel bindings and remaining OS qualification stay pending; these
+checks do not enable an installed vault.
+
 One encrypted vault per user holds API keys, OAuth tokens, SSH keys, sudo and
 other passwords, website logins with their TOTP seeds, session cookies and any
 named secret. Agents get handles and approved, scoped, logged uses, never
