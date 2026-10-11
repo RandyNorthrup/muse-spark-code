@@ -878,6 +878,13 @@ the headless ceiling and reservation reason; the 131,072 claim is scoped to
 VS Code/interactive ACP (or the explicitly separate developer capture).
 The M106 roadmap entry and generated ROADMAP carry the corrected limit.
 
+The complete dependent replay also caught 29 packaged stdio failures: the
+new translation key followed the truncation key in the JSON tables, while
+English put it before that key. The archive restores English key order and
+its boundary compares the complete serialized tables. Aligning all 14 source
+tables to English's order restored all 29 stdio cases, without changing their
+assertions or translated values. This was a branch defect, not a base red.
+
 ### Deliberate red drills
 
 Repository defaults throughout; only the drills select focused tests. Every
@@ -922,9 +929,16 @@ and default handling preserved the guards and saved 85 bytes. The final
 whole owning suites above passed again after that repair.
 
 The complete related selector spans 1,135 suites for the branch's whole source
-diff against `82d50d5e4`, including the shared English-table consumers. Each
-foreground CLI invocation retains the repository configuration and deadlines,
-with only its complete three-file batch included. Final dependent receipts
-are recorded after that replay. Aggregate quality remains lead-owned under
+diff against `82d50d5e4`, including the shared English-table consumers. The first
+17 foreground CLI batches ran at most three complete files each. Repeated cold
+setup took about 20 seconds per batch, so the continuation keeps Vitest's public
+runner open between three-file batches. It parses the same `vitest related
+--run <all changed src files> --maxWorkers=3` options, obtains the complete
+related specifications and runs each complete batch through the public
+`runTestSpecifications` API. Repository setup, worker isolation, assertions,
+timeouts and three-worker limits are unchanged. Its first batch initializes
+the ordinary production, visual and browser fixtures required by the full
+selection. Final dependent receipts are recorded after that replay.
+Aggregate quality remains lead-owned under
 the explicit rig/common brief; no gate, cap, baseline or repository timeout
 was weakened. No paid/live call, credential read, merge, push or rebase.
