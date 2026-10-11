@@ -165,6 +165,31 @@ function partialOccurrences(partial: string | undefined, sentence: string): numb
   return partial === undefined ? 0 : partial.split(sentence).length - 1
 }
 
+function readDailyBudget() {
+  return Promise.resolve([
+    {
+      budget: {
+        id: 'daily',
+        kind: 'paidDaily' as const,
+        spentUsd: 0.5,
+        capUsd: 1,
+        stopped: false,
+      },
+    },
+  ])
+}
+
+function dailyBudgetReads() {
+  return readDailyBudget
+}
+
+function expectDailyBudgetRow(partial: string | undefined, limits: readonly unknown[]): void {
+  expect(partial ?? '').not.toContain(EN.reportDetailReasons.budgetsUnavailable)
+  expect(limits).toEqual([
+    { key: 'paidDaily/daily', used: 0.5, limit: 1, resetsAt: null, unit: 'usd' },
+  ])
+}
+
 async function journalWith(dataFolder: string, entries: readonly unknown[]): Promise<void> {
   const store = new UsageJournalStore(new NodeUsageFs(dataFolder), {
     writerId: 'test-writer',
@@ -634,18 +659,7 @@ describe('RVCM1132 input regressions', () => {
       dataFolder: data,
       now: () => evening,
       timezoneOffsetMins: 420,
-      readBudgets: () =>
-        Promise.resolve([
-          {
-            budget: {
-              id: 'daily',
-              kind: 'paidDaily' as const,
-              spentUsd: 0.5,
-              capUsd: 1,
-              stopped: false,
-            },
-          },
-        ]),
+      readBudgets: dailyBudgetReads(),
     })
     const usageOptions = { ...context().options, kind: 'usage' as const, scope: '' }
     const usageCtx = { ...context(), run: {}, options: usageOptions }
@@ -657,10 +671,7 @@ describe('RVCM1132 input regressions', () => {
       now: () => evening,
       timezoneOffsetMins: 420,
     })(usageCtx)
-    expect(usage.partial ?? '').not.toContain(EN.reportDetailReasons.budgetsUnavailable)
-    expect(usage.usage.limits).toEqual([
-      { key: 'paidDaily/daily', used: 0.5, limit: 1, resetsAt: null, unit: 'usd' },
-    ])
+    expectDailyBudgetRow(usage.partial, usage.usage.limits)
   })
 
   it('RVCM1132C reports an unknown model with its reason when no catalogue row is active', async () => {
@@ -710,18 +721,7 @@ describe('RVCM1132 input regressions', () => {
         dataFolder: data,
         now: () => evening,
         timezoneOffsetMins: reportTimezoneOffset,
-        readBudgets: () =>
-          Promise.resolve([
-            {
-              budget: {
-                id: 'daily',
-                kind: 'paidDaily' as const,
-                spentUsd: 0.5,
-                capUsd: 1,
-                stopped: false,
-              },
-            },
-          ]),
+        readBudgets: dailyBudgetReads(),
       })
       const usageOptions = { ...context().options, kind: 'usage' as const, scope: '' }
       const run = {}
@@ -734,10 +734,7 @@ describe('RVCM1132 input regressions', () => {
       const journal = await readJournal({ ...context(), run, options: usageOptions })
       // Both days keep the run's first sample, so the budget still applies.
       expect(journal.budgetDay).toBe('2026-10-06')
-      expect(usage.partial ?? '').not.toContain(EN.reportDetailReasons.budgetsUnavailable)
-      expect(usage.usage.limits).toEqual([
-        { key: 'paidDaily/daily', used: 0.5, limit: 1, resetsAt: null, unit: 'usd' },
-      ])
+      expectDailyBudgetRow(usage.partial, usage.usage.limits)
     } finally {
       zone.mockRestore()
     }
@@ -778,7 +775,7 @@ describe('RVCM1132 input regressions', () => {
         }),
       readJournal,
     }).read({ ...context(), run, options: { ...usageOptions, sessionId: 's1' } })
-    expect(partialOccurrences(session.partial, unavailable)).toBe(1)
+    expect(partialOccurrences(session!.partial, unavailable)).toBe(1)
   })
 
   it('RVCM1132B surfaces a failed session resolution as a failure, not missing history', async () => {

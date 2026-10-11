@@ -250,3 +250,68 @@ works). Reproduced identically on a clean base worktree at `d4a9ec028`
 cause not isolated; left for the lead. The one-shot CLI share path
 (`sharingPorts(log)` without a runtime, `main.ts`) was deliberately not
 touched for the SHAREFIX merge.
+
+## Round 4 — RVCM1132C repair (Muse, 2026-10-11, linuxlt)
+
+Branch `c/m113-2`, base `a0b69a03b`. All 5 RVCM1132C findings (P2: 1–2;
+P3: 3–5) are fixed below with no residuals. Each finding was fixed by class,
+not only at the cited line; the sweep result is recorded per row. No new
+dependency, paid/live call, credential, merge, push, guard relaxation or hook
+change. The share-preview parser line is still untouched (SHAREFIX owns it).
+The round-3 "open" PLAN.md failure above is closed by this round: both kinds
+now generate against the repository's real PLAN.md (regression test below).
+
+| Finding                            | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Regression (fails without)                                                                                                                                                                                                                                                                                                                 | Red drill                                                                                                                           |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| P2-1 guessed session model         | `reportInputs.ts` `readHostReportSession` returns `modelId: 'unknown'` with `partial: sessionModelUnavailable` (new `en.ts` key + all 14 `l10n/ui.*.json`) when no catalogue row is active; the transcript stays; only an empty catalogue still throws `failed`. `SessionHistoryInput.partial` travels through `createSessionReportReader` into the session source (partial, reason kept). Sweep of `reportInputs.ts` + `reportUsage.ts`: `models[0]` was the only first-element guess (remaining `??` are cache keys, injection overrides, display labels and the `'model'` default).                                                                                                    | reportInputs unknown-model test (multi-row all-inactive catalogue; session source partial with the reason; export model `unknown`)                                                                                                                                                                                                         | D1: `?? models[0]` restored → `expected 'first-model' to be 'unknown'` red                                                          |
+| P2-2 duplicated open-question ids  | `reader.ts` `questions()` keeps every entry and pushes `question-duplicate` drift, so `check:plan` fails it. `needsYou.ts` reads questions in full (`[id, text]` identity), collapses byte-identical copies to one row, and names each duplicated open id once as a plan problem from the reader's drift entries (locale-free: collectors cannot read `UI_TEXT` — first attempt tripped `no-restricted-syntax` and was reworked). Session questions get the same key treatment. PLAN.md fixed: second `Q-M95-I` block removed (byte-identical), second `Q-M95INT2` renamed `Q-M95INT2B`, stray pasted `Q-M94a–d` block removed (answered; kept first copy, D75 bridge sentence retained). | planReader duplicate-drift test (+ real PLAN now drifts 0); collect.session disambiguation test (unique keys accepted by `reportSectionSchema`, differing bodies kept, identical collapsed, answered dups unnamed); engine usage+session against the repository's real PLAN.md; hermetic engine usage+session with a duplicated-id PLAN.md | D2: drift push suppressed → empty-drift red. D3: bare-id identity restored → duplicate-key schema red                               |
+| P3-3 frozen/split timezone offset  | `reportInputs.ts` `reportTimezoneOffset(context)` samples once per report run (WeakMap keyed by `run ?? options`) and both factories accept `number \| ((context) => number)`. `main.ts` and `reportPanelEntry.ts` pass the shared sampler instead of separate `new Date().getTimezoneOffset()` calls, so the budget day and the period day cannot split across DST/midnight; the panel no longer freezes one offset for the window's life.                                                                                                                                                                                                                                               | reportInputs shared-offset test (first sample 480 vs 420 splits 2026-10-07T07:30Z across days; both days keep 480, budget applies)                                                                                                                                                                                                         | D4: memo removed → `budgetsUnavailable` present red                                                                                 |
+| P3-4 unbranded questions rejection | `conversationController.ts:11043` rejects with the owned `unbound` brand (same `Object.assign` shape as the disposed/other-session branch above; no new import, bundle unchanged). Sweep of report read paths: every `reportInputs.ts`/`reportUsage.ts`/`sources/session.ts` throw is already a `LocalSourceError`; `main.ts` `reportReadFailed` is already an owned brand; `network.ts:135` preserves original brands (`failed` only for genuinely unreadable sources); collector/`canonical.ts` throws are generation invariants, not source rejections.                                                                                                                                | conversationController R22 (registry-less controller → `unavailable` + unbound reason); R14 still green                                                                                                                                                                                                                                    | D5: plain `Error` restored → `expected 'The source could not be read complete…' to be 'This source integration is not availa…'` red |
+| P3-5 repeated partial sentence     | Set semantics at every session/usage join: `reportInputs.ts` journal catch dedupes, `createSessionReportReader` and `reportUsage.ts` `usageReportFacts` guard every push with `includes` (a thrown budget read used to leave `budgetsUnavailable` while budgets stayed unset, then append it again).                                                                                                                                                                                                                                                                                                                                                                                      | reportInputs no-repeat test (thrown budgets → the sentence exactly once on journal, usage and session partials)                                                                                                                                                                                                                            | D6: unguarded push restored → `expected 2 to be 1` red                                                                              |
+
+Drill receipts: every mutation ran the owning file at repository defaults
+(no `--testTimeout`), required the named reds above, and restored byte-exact
+(`sha256sum -c` all OK): `reportInputs.ts` `a7f626a0…`, `reader.ts`
+`2b38b639…`, `needsYou.ts` `8dc246cf…`, `conversationController.ts`
+`c99bb92b…`, `reportUsage.ts` `090fcf12…`. `npx jscpd` found 2 clones in the
+new tests (repeated budget stub + limits assertion); extracted
+`readDailyBudget`/`dailyBudgetReads`/`expectDailyBudgetRow` test helpers
+(RVCM1132B test refactored to share them, assertions unchanged) and reports
+0 clones. One `question-duplicate` naming attempt via `UI_TEXT` in the
+collector was rejected by `no-restricted-syntax` (collectors are locale-free
+by M113 D93) and reworked to drift-driven rows before committing.
+
+Final verification on linuxlt at repository defaults:
+
+- `npm run typecheck` (all projects): pass.
+- ESLint `--max-warnings=0` on every changed file: pass.
+- Prettier `--check` on every changed file: pass.
+- `node scripts/check-l10n.mjs`: 14 UI tables, 14 usage tables, 252 manifest
+  strings, 1516 source files, 0 problems.
+- `node scripts/check-plan.mjs`: plan-format-v1, 207 milestones, 0 drift.
+- `npm run deadcode`: exit 0. `npx jscpd`: 0 clones.
+- `npm run check:reference`: current. `npm run check:host-api`: 0 problems.
+- `npm run build`: exit 0 (extension 550.7/600, conversation 244.6/250,
+  reportInputs 69.2/100 KiB, reporting 148.1/175, runtimeAccounting 31.9 KiB).
+- Unit: reportInputs 27, reportUsage 17, collect.session 7, planReader 50,
+  collect.usage 4, collect.contract 25, conversationController 683 — all pass.
+- E2e `reports.e2e.test.ts`: 22/22.
+
+Files changed this round: `src/runtime/reporting/reportInputs.ts`,
+`src/runtime/reporting/reportInputsEntry.ts`, `src/runtime/main.ts`,
+`src/host/reporting/reportPanelEntry.ts`,
+`src/host/conversation/conversationController.ts`,
+`src/core/reporting/plan/reader.ts`,
+`src/core/reporting/collect/needsYou.ts`, `src/core/usage/reportUsage.ts`,
+`src/shared/l10n/en.ts`, 14 `l10n/ui.*.json`, `PLAN.md` (§3 duplicate
+question ids only), `test/unit/reportInputs.test.ts`,
+`test/unit/planReader.test.ts`, `test/unit/collect.session.test.ts`,
+`test/unit/conversationController.test.ts`, this record. No sibling-lane
+file (stores, playbook, schedules, keybindings) touched.
+
+Observed, not changed (different class from every finding above, recorded
+for the lead): `- **Q-M96a–c (D75)` uses an en dash in the id, which the
+question grammar's `[\s:—]` lookahead does not accept, so the reader skips
+that entry. It is answered (Resolved 2026-10-04), so no report path reads
+it; widening the grammar is a parser-coverage decision, not a duplicate,
+and is left for the lead.
