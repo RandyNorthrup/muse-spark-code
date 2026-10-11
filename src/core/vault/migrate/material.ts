@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
-import { UI_TEXT } from '../../../shared/constants'
+import { UI_TEXT, VAULT_LIMITS } from '../../../shared/constants'
 import { vaultItemSchema, type VaultItem } from '../../../shared/vault'
+import type { AccountCredential } from '../../providers/accountCredentialRecord'
 import { VaultMigrationFault, type MigrationCredential } from './ports'
 
 export function eraseItem(item: VaultItem | undefined): void {
@@ -74,6 +75,38 @@ export function migrationItem(
     metadata: { ...metadata, label: UI_TEXT.vault.secret, kind: 'secret' as const },
     material: { kind: 'secret' as const, value: Buffer.from(material.json, 'utf8') },
   }
+}
+
+/**
+ * Canonical bytes of an installed full account record, in the installed
+ * writer's key order (`secretStorageAccountVault.write`). Shared so the
+ * provider codec's overlay branch cannot drift from the account codec.
+ */
+export function accountRecordCanonicalJson(record: AccountCredential): string {
+  return JSON.stringify({
+    provider: record.provider,
+    account: record.account,
+    origin: record.origin,
+    v: 1,
+    auth: record.auth,
+    secret: record.secret,
+  })
+}
+
+/**
+ * Deterministic vault item name that always fits the vault handle
+ * (`secret://` plus at most 48 lowercase alphanumerics and dashes). Short
+ * names stay readable; a longer installed name hashes to its full length so
+ * a valid account can never be refused for its length.
+ */
+export function migrationItemName(prefix: string, ...parts: string[]): string {
+  const candidate = [prefix, ...parts].join('-')
+  if (candidate.length <= VAULT_LIMITS.name && /^[a-z][a-z0-9-]*$/u.test(candidate))
+    return candidate
+  return `${prefix}-${createHash('sha256')
+    .update(candidate)
+    .digest('hex')
+    .slice(0, VAULT_LIMITS.name - prefix.length - 1)}`
 }
 
 /**
