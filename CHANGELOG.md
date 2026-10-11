@@ -7,6 +7,25 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Changed
+
+- What's New fits its content budget by itself: the newest release always
+  ships in full. The writer checks every complete plan against both decoded
+  and encoded bounds, preferring older full notes, then Highlights with a
+  full-notes link, then omission, newest first. Keeping earlier Highlights
+  never reserves bytes for a shortening flag the final plan does not need.
+  A shortened page says "Earlier notes: see the full changelog",
+  and the packaged changelog shows the same releases. A newest release that
+  alone exceeds the budget still fails the build naming the release, so its
+  notes are trimmed instead. Packaging uses the parser's heading and body
+  spans; release headings require ATX `## [version] - YYYY-MM-DD` with LF or
+  CRLF endings. CR-only files and Setext release headings fail by name.
+  Only size overflow permits reducing notes: other encoding or schema
+  failures stop the build with the releases and cause. HTTP/HTTPS schemes
+  are normalized to lowercase, including repository-derived full-notes links
+  in the page and packaged notes, so uppercase links cannot drop fitting
+  notes. An unsupported repository URL fails by name before plan selection.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

@@ -3524,6 +3524,7 @@
   "whatsNewOpenSetting": "Otevřít nastavení",
   "whatsNewNotesInEnglish": "Poznámky k vydání jsou v angličtině.",
   "whatsNewNoNotes": "Verze {version} nemá žádné poznámky k vydání.",
+  "whatsNewEarlierNotes": "Dřívější poznámky: viz úplný seznam změn",
   "whatsNewFullChangelog": "Úplný seznam změn na GitHubu",
   "whatsNewReadme": "README na GitHubu",
   "whatsNewStarGithub": "Používáte Muse Spark Code rádi? Hvězdička na GitHubu ho pomůže objevit i ostatním.",

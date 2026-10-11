@@ -3378,6 +3378,7 @@
   "whatsNewOpenSetting": "Ayarı aç",
   "whatsNewNotesInEnglish": "Sürüm notları İngilizcedir.",
   "whatsNewNoNotes": "{version} sürümü sürüm notları içermiyor.",
+  "whatsNewEarlierNotes": "Önceki notlar: tam değişiklik günlüğüne bakın",
   "whatsNewFullChangelog": "GitHub’da tam değişiklik günlüğü",
   "whatsNewReadme": "GitHub’da README",
   "whatsNewStarGithub": "Muse Spark Code hoşunuza gidiyor mu? GitHub’da bir yıldız vermeniz, başkalarının da onu keşfetmesine yardımcı olur.",

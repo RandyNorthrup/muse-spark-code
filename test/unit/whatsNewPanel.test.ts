@@ -214,6 +214,15 @@ describe('createWhatsNewPagesFor', () => {
     expect(logLines(log).some((line) => line.includes('openLink failed: no browser'))).toBe(true)
   })
 
+  it('points at the full changelog when the content was shortened', () => {
+    const { pages, panels } = setUp(JSON.stringify({ ...CONTENT, shortened: true }))
+    pages.open(undefined, false)
+    expect(panels[0]?.webview.html).toContain(UI_TEXT.whatsNewEarlierNotes)
+    const plain = setUp()
+    plain.pages.open(undefined, false)
+    expect(plain.panels[0]?.webview.html).not.toContain(UI_TEXT.whatsNewEarlierNotes)
+  })
+
   it('throws before opening a tab when the content cannot be read', () => {
     const { pages } = setUp('{"schema":2}')
     expect(() => {

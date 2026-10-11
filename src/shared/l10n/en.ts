@@ -4024,6 +4024,7 @@ export const EN = {
   whatsNewOpenSetting: 'Open the Setting',
   whatsNewNotesInEnglish: 'The release notes are in English.',
   whatsNewNoNotes: 'No release notes ship with version {version}.',
+  whatsNewEarlierNotes: 'Earlier notes: see the full changelog',
   whatsNewFullChangelog: 'Full Changelog on GitHub',
   whatsNewReadme: 'README on GitHub',
   whatsNewStarGithub: 'Enjoying Muse Spark Code? A star on GitHub helps other people find it.',

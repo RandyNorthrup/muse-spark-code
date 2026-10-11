@@ -3378,6 +3378,7 @@
   "whatsNewOpenSetting": "Beállítás megnyitása",
   "whatsNewNotesInEnglish": "A kiadási megjegyzések angol nyelvűek.",
   "whatsNewNoNotes": "A(z) {version} verzióhoz nem tartoznak kiadási megjegyzések.",
+  "whatsNewEarlierNotes": "Korábbi megjegyzések: lásd a teljes változásnaplót",
   "whatsNewFullChangelog": "Teljes változásnapló a GitHubon",
   "whatsNewReadme": "README a GitHubon",
   "whatsNewStarGithub": "Tetszik a Muse Spark Code? Egy GitHub-csillag segít másoknak is felfedezni.",

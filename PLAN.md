@@ -10163,6 +10163,57 @@ we make". His standing ruling: enhancements are on by default.
   with its notes omitted. Older upgrades still have those Highlights and
   the full-changelog link; older details live at that link. The size gate
   rejects both missing content and content one byte over the budget.
+  WNBUDGET round 4 (RVWNBUDGET, RVWNBUDGET2, RVWNBUDGET3,
+  2026-10-09; no cap raise): replace provisional admission with exhaustive
+  final-plan selection. Consider the newest and its full-notes window
+  (`FULL_NOTES_RELEASES` is two releases total), plus the standing newest
+  earlier Highlights fallback when the retained window has no Highlights
+  (at most three releases). The newest is always full; each predecessor
+  has full, Highlights + full-notes link, and omitted forms. The standing
+  fallback has only Highlights + link and omitted forms: its full notes
+  remain outside the window. Enumerate all complete plans (at most 27),
+  build each exact JSON envelope with `shortened` present only if a window
+  release is reduced/omitted or the needed fallback is omitted, and admit
+  it only within the decoded bound and through the real artifact encoder.
+  Choose lexicographically, newest release first: full, then Highlights +
+  link, then omitted; repeat that order for the next release. Retaining the
+  standing fallback alone does not set `shortened`. If no plan fits, refuse naming the newest,
+  required bytes and bound (or its artifact-encoding failure); never hide
+  the newest or return an envelope the encoder will reject. The page says
+  "Earlier notes: see the full changelog" when shortened; the packaged
+  changelog ships the same plan, including link-only patch releases.
+  One heading contract: release headings are ATX
+  `## [version] - YYYY-MM-DD`, LF or CRLF terminated. Markdown's one to
+  three leading spaces are accepted; four-space indented and fenced lines
+  remain code, never release headings. Refuse lone CR line endings and
+  Setext release headings with named errors; refuse other release-heading
+  spellings and unterminated release headings. The parser returns whole
+  section, heading and body spans, plus Highlights and Unreleased spans,
+  as non-enumerable metadata that never enters JSON. Packaging slices those
+  spans only; it has no heading regex or newline search. Exhaustive small
+  random-size oracle, all three reviews' regressions and byte-exact red
+  drills are recorded in `docs/certification/wnbudget.md`.
+  WNBUDGET round 5 (RVWNBUDGET4G, 2026-10-09): the encoder reports
+  decoded or encoded size overflow as a typed result; only that result
+  permits trying a smaller plan. Any other encoder or schema error stops
+  selection, naming the candidate releases and preserving the cause,
+  without asking to trim notes. Normalize HTTP/HTTPS schemes to lowercase
+  while preserving the rest of each URL, matching the artifact schema.
+  Regress uppercase HTTPS in newest and predecessor Highlights, invalid
+  candidate content, and real encoded overflow; prove guards with byte-exact
+  restoration drills and rerun the owned suites and scoped gates.
+  The duplication gate found a pre-existing repeated fallback-link fixture
+  in the owning content tests; share that expected value, keeping both
+  complete assertions and the gate unchanged.
+  WNBUDGET round 6 (RVWNBUDGET5G, 2026-10-09): route generated
+  predecessor/fallback full-notes URLs through the same `resolveHref`
+  rule as Markdown links. Resolve and validate the repository-derived URL
+  before trying any selection plan; a refused repository fails with a
+  named repository error, even when the full plan could encode. Packaging
+  uses that same resolved full-notes URL. Regress uppercase HTTP/HTTPS
+  repository schemes and unsupported repositories, including validation
+  before encoding; certify byte-exact drills and the owned scoped gates
+  in `docs/certification/wnbudget.md`.
 - **Security.** Strict CSP (`default-src 'none'`, the stylesheet from the
   webview origin, one script by nonce, no inline style); every piece of text
   escaped on the host; links carry their address for keyboards and screen

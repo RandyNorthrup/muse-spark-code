@@ -117,6 +117,7 @@ export function createWhatsNewPagesFor(deps: WhatsNewPagesDeps): WhatsNewPages {
       releases: releases(from),
       from,
       current: deps.current,
+      isShortened: contentNow().shortened === true,
       isShownOnUpdate: deps.isShownOnUpdate(),
       cspSource: webview.cspSource,
       nonce: createNonce(),
