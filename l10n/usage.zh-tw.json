@@ -85,7 +85,7 @@
   "apiEquivalentNote": "等效 API 價格，而非額外的訂閱費用。",
   "totalTime": "請求總用時",
   "latencyP50": "中位延遲 (p50)",
-  "latencyP95": "p95 延遲",
+  "latencyP95": "P95 延遲",
   "firstToken": "首個 Token 用時",
   "tokensPerSecond": "每秒 Token 數",
   "cacheHit": "快取命中率",

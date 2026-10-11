@@ -8,7 +8,7 @@ import { showScheduleSurface } from './helpers/scheduleSurface'
 import { fakeSchedule } from './helpers/schedules/fixtures'
 
 function openAudit(card: HTMLElement) {
-  const details = within(card).getByText('Grant audit').parentElement
+  const details = within(card).getByText('Grant Audit').parentElement
   if (!(details instanceof HTMLDetailsElement)) throw new Error('Missing audit details')
   details.open = true
   fireEvent(details, new Event('toggle'))
@@ -30,8 +30,8 @@ describe('RVM115V authority regressions', () => {
         expect.objectContaining({ method: 'schedules/grantAudit' }),
       )
     })
-    const pause = within(card).getByRole('button', { name: 'Pause schedule' })
-    const revoke = within(card).getByRole('button', { name: 'Revoke grant' })
+    const pause = within(card).getByRole('button', { name: 'Pause Schedule' })
+    const revoke = within(card).getByRole('button', { name: 'Revoke Grant' })
     expect(pause).toBeEnabled()
     expect(revoke).toBeEnabled()
     fireEvent.click(pause)
@@ -77,15 +77,15 @@ describe('RVM115V authority regressions', () => {
         return undefined
       })
       const card = await screen.findByRole('article')
-      fireEvent.click(within(card).getByRole('button', { name: 'Pause schedule' }))
+      fireEvent.click(within(card).getByRole('button', { name: 'Pause Schedule' }))
       await within(card).findByText('State unknown — Retry')
-      expect(within(card).queryByRole('button', { name: 'Resume schedule' })).toBeNull()
-      expect(within(card).getByRole('button', { name: 'Run now' })).toBeDisabled()
+      expect(within(card).queryByRole('button', { name: 'Resume Schedule' })).toBeNull()
+      expect(within(card).getByRole('button', { name: 'Run Now' })).toBeDisabled()
       expect(card.textContent).not.toContain('src/**')
-      expect(within(card).getByRole('button', { name: 'Revoke grant' })).toBeEnabled()
+      expect(within(card).getByRole('button', { name: 'Revoke Grant' })).toBeEnabled()
       shouldFail = false
       fireEvent.click(within(card).getByRole('button', { name: 'Retry' }))
-      await within(card).findByRole('button', { name: 'Resume schedule' })
+      await within(card).findByRole('button', { name: 'Resume Schedule' })
       expect(within(card).queryByText('State unknown — Retry')).toBeNull()
       expect(
         request.mock.calls.filter(([input]) => input.method === 'schedules/pause'),
@@ -102,7 +102,7 @@ describe('RVM115V authority regressions', () => {
     const card = await screen.findByRole('article')
     await screen.findByRole('alert')
     expect(screen.queryByText('No schedules in this workspace.')).toBeNull()
-    expect(within(card).getByRole('button', { name: 'Revoke grant' })).toBeEnabled()
+    expect(within(card).getByRole('button', { name: 'Revoke Grant' })).toBeEnabled()
   })
 
   it('rereads validated workspace changes while mounted and unsubscribes on close', async () => {
@@ -153,7 +153,7 @@ describe('RVM115V authority regressions', () => {
         revision: 1,
       })
     })
-    await within(card).findByRole('button', { name: 'Resume schedule' })
+    await within(card).findByRole('button', { name: 'Resume Schedule' })
     expect(card.textContent).toContain('Ran 3 times')
     unmount()
     expect(unsubscribe).toHaveBeenCalledOnce()
@@ -173,7 +173,7 @@ describe('RVM115V authority regressions', () => {
     const card = await screen.findByRole('article', { name: schedule.name })
     const details = openAudit(card)
     await within(details).findByText(/Used ·/)
-    fireEvent.click(within(card).getByRole('button', { name: 'Pause schedule' }))
+    fireEvent.click(within(card).getByRole('button', { name: 'Pause Schedule' }))
     await within(details).findByText(/Changed ·/)
     expect(details.open).toBe(true)
     expect(audits).toBe(2)
@@ -192,13 +192,13 @@ describe('RVM115V authority regressions', () => {
     })
     const card = await screen.findByRole('article')
     expect(card.textContent).toContain('Build conversation')
-    expect(card.textContent).not.toContain('This conversation')
-    fireEvent.click(within(card).getByRole('button', { name: 'Edit schedule' }))
+    expect(card.textContent).not.toContain('This Conversation')
+    fireEvent.click(within(card).getByRole('button', { name: 'Edit Schedule' }))
     expect(screen.getByLabelText('Target')).toHaveValue('current')
-    fireEvent.click(screen.getByRole('button', { name: 'Schedule timeline' }))
-    const timeline = await screen.findByRole('region', { name: 'Schedule timeline' })
+    fireEvent.click(screen.getByRole('button', { name: 'Schedule Timeline' }))
+    const timeline = await screen.findByRole('region', { name: 'Schedule Timeline' })
     expect(timeline.textContent).toContain('Build conversation')
-    expect(timeline.textContent).not.toContain('This conversation')
+    expect(timeline.textContent).not.toContain('This Conversation')
   })
   it('keeps authority on another schedule independent of a pending mutation', async () => {
     const pending = Promise.withResolvers<unknown>()
@@ -211,10 +211,10 @@ describe('RVM115V authority regressions', () => {
     const cards = await screen.findAllByRole('article')
     const first = cards[0]
     if (first === undefined) throw new Error('Missing first schedule')
-    fireEvent.click(within(first).getByRole('button', { name: 'Pause schedule' }))
+    fireEvent.click(within(first).getByRole('button', { name: 'Pause Schedule' }))
     fireEvent.click(
       within(screen.getByRole('article', { name: second.name })).getByRole('button', {
-        name: 'Revoke grant',
+        name: 'Revoke Grant',
       }),
     )
     await waitFor(() => {
@@ -263,12 +263,12 @@ describe('RVM115V authority regressions', () => {
         })
       newer.resolve({ kind: 'list', schedules: [{ ...stored, paused: true, fireCount: 3 }] })
     })
-    await within(card).findByRole('button', { name: 'Resume schedule' })
+    await within(card).findByRole('button', { name: 'Resume Schedule' })
     await act(async () => {
       older.resolve({ kind: 'list', schedules: [stored] })
       await older.promise
     })
-    expect(within(card).getByRole('button', { name: 'Resume schedule' })).toBeEnabled()
+    expect(within(card).getByRole('button', { name: 'Resume Schedule' })).toBeEnabled()
     expect(card.textContent).toContain('Ran 3 times')
   })
 
@@ -286,7 +286,7 @@ describe('RVM115V authority regressions', () => {
     })
     const card = await screen.findByRole('article')
     const details = openAudit(card)
-    fireEvent.click(within(card).getByRole('button', { name: 'Pause schedule' }))
+    fireEvent.click(within(card).getByRole('button', { name: 'Pause Schedule' }))
     await within(details).findByText(/Changed ·/)
     await act(async () => {
       older.resolve({ kind: 'grantAudit', scheduleId: 'schedule-1', entries: [] })
@@ -303,11 +303,11 @@ describe('RVM115V authority regressions', () => {
         input.method === 'schedules/list' && reads++ > 0 ? refresh.promise : undefined,
       )
       const card = await screen.findByRole('article')
-      const labels = { pause: 'Pause schedule', revokeGrant: 'Revoke grant' }
+      const labels = { pause: 'Pause Schedule', revokeGrant: 'Revoke Grant' }
       fireEvent.click(within(card).getByRole('button', { name: labels[method] }))
       await waitFor(() => {
         if (method === 'pause')
-          expect(within(card).getByRole('button', { name: 'Resume schedule' })).toBeEnabled()
+          expect(within(card).getByRole('button', { name: 'Resume Schedule' })).toBeEnabled()
         else expect(card.textContent).not.toContain('read-src')
       })
       expect(within(card).queryByText('State unknown — Retry')).toBeNull()
@@ -328,15 +328,15 @@ describe('RVM115V authority regressions', () => {
       return input.method === 'schedules/list' && reads++ > 0 ? refresh.promise : undefined
     })
     const card = await screen.findByRole('article')
-    fireEvent.click(within(card).getByRole('button', { name: 'Revoke grant' }))
+    fireEvent.click(within(card).getByRole('button', { name: 'Revoke Grant' }))
     await within(card).findByText('State unknown — Retry')
-    fireEvent.click(within(card).getByRole('button', { name: 'Pause schedule' }))
+    fireEvent.click(within(card).getByRole('button', { name: 'Pause Schedule' }))
     await waitFor(() => {
       expect(reads).toBe(2)
     })
     expect(within(card).getByText('State unknown — Retry')).toBeTruthy()
     expect(card.textContent).not.toContain('read-src')
-    expect(within(card).getByRole('button', { name: 'Run now' })).toBeDisabled()
+    expect(within(card).getByRole('button', { name: 'Run Now' })).toBeDisabled()
     act(() => {
       refresh.resolve({
         kind: 'list',

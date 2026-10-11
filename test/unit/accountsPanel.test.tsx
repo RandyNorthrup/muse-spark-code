@@ -499,7 +499,7 @@ describe('M108 picker, transcript and policy question', () => {
       await held.promise
     })
   })
-  it('asks again when the quoted row changes and supports Only at my own caps', async () => {
+  it('asks again when the quoted row changes and supports Only at My Own Caps', async () => {
     const onChoose = vi.fn(() => Promise.resolve())
     const value = panelQuestion()
     const props = { provider: 'openai', providerLabel: 'OpenAI', onChoose, onOpenLink: vi.fn() }
@@ -542,7 +542,7 @@ describe('M108 picker, transcript and policy question', () => {
     )
     expect(screen.queryByRole('combobox')).toBeNull()
     rerender(<AccountChip value={value} isPending={false} onUse={onUse} />)
-    expect(screen.getByLabelText('Current account: OpenAI · Work')).toHaveValue('work')
+    expect(screen.getByLabelText('Current Account: OpenAI · Work')).toHaveValue('work')
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'personal' } })
     expect(onUse).toHaveBeenCalledWith({
       type: 'accounts/use',
@@ -552,7 +552,7 @@ describe('M108 picker, transcript and policy question', () => {
     rerender(
       <AccountChip value={{ ...value, currentAccount: null }} isPending={false} onUse={onUse} />,
     )
-    expect(screen.getByLabelText(`Current account: OpenAI · ${UI_TEXT.accounts.none}`)).toHaveValue(
+    expect(screen.getByLabelText(`Current Account: OpenAI · ${UI_TEXT.accounts.none}`)).toHaveValue(
       '',
     )
     expect(screen.getByRole('option', { name: UI_TEXT.accounts.none })).toBeDisabled()
@@ -600,7 +600,7 @@ describe('M108 picker, transcript and policy question', () => {
       />,
     )
     expect(screen.getByRole('log')).toHaveTextContent(
-      'Now on OpenAI · Personal: Work reached User cap: Spend in USD (Day) $0.3000.',
+      'Now on OpenAI · Personal: Work reached User Cap: Spend in USD (Day) $0.3000.',
     )
     expect(screen.getByText('Estimated context re-read cost: $0.000000001.')).toBeVisible()
     expect(screen.getByRole('log')).toHaveTextContent('Resets')

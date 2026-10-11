@@ -23,7 +23,7 @@ function chunkOf(entry) {
 const moneyChunk = chunkOf('src/shared/paid.ts')
 const promptChunk = chunkOf('src/webview/schedules/prompt.ts')
 const PRICES_FAILED = 'Prices could not load.'
-const RETRY = 'Try again'
+const RETRY = 'Try Again'
 
 const { server, port } = await serveRepo(process.cwd())
 const origin = `http://127.0.0.1:${port}`
@@ -249,7 +249,7 @@ const cases = {
       await prompt.press('Enter')
       // The surface's own Cancel, while the mapping is still held.
       await page.getByRole('button', { name: 'Cancel', exact: true }).first().click()
-      await page.getByLabel('New conversation', { exact: true }).click()
+      await page.getByLabel('New Conversation', { exact: true }).click()
       route.released.resolve()
       await settle(page)
       const sent = await outbox(page)

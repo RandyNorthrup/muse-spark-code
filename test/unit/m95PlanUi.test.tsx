@@ -476,7 +476,7 @@ describe('M95b shared subscription UI', () => {
         planLimitsUrl: url,
       }),
     )
-    expect(await screen.findByText('Using Mistral plan')).toBeTruthy()
+    expect(await screen.findByText('Using Mistral Plan')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.planUi.manage }))
     expect(postMessage).toHaveBeenCalledWith({ type: 'openExternal', url })
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -618,7 +618,7 @@ describe('M95b shared subscription UI', () => {
     expect(screen.queryByText(UI_TEXT.usageModelApiNote)).toBeNull()
     expect(screen.queryByText(UI_TEXT.backendModelApi)).toBeNull()
     expect(screen.queryByText(UI_TEXT.usageAuthKey)).toBeNull()
-    expect(screen.getByText('Using ChatGPT plan')).toBeTruthy()
+    expect(screen.getByText('Using ChatGPT Plan')).toBeTruthy()
   })
 
   it('leaves tokens unknown when a dispatched request has no usage instead of showing zero', () => {

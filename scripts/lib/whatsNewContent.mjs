@@ -142,12 +142,14 @@ function block(node, repository) {
       return [{ t: 'quote', c: blocks(node.children, repository) }]
     }
     case 'list': {
+      const items = node.children.filter((item) => !isHistorical(item))
+      if (items.length === 0) return []
       return [
         {
           t: 'list',
           ordered: node.ordered === true,
           start: node.start ?? 1,
-          items: node.children.map((item) => blocks(item.children, repository)),
+          items: items.map((item) => blocks(item.children, repository)),
         },
       ]
     }
@@ -178,6 +180,12 @@ function block(node, repository) {
 /** Every HTML node under a node, in order. */
 function htmlNodes(node) {
   return node.type === 'html' ? [node] : (node.children ?? []).flatMap((child) => htmlNodes(child))
+}
+
+// Dated corrections retain the original release record, but omit its dormant
+// claims from the current What's New page. Only explicit list-item markers count.
+function isHistorical(item) {
+  return htmlNodes(item).some(({ value }) => value.trim() === '<!-- whats-new: historical -->')
 }
 
 function triesOf(item, version, allowed) {
@@ -216,20 +224,29 @@ function highlightsOf(nodes, version, repository, allowed) {
       `CHANGELOG.md ${version}: "### ${HIGHLIGHTS_HEADING}" must hold one bullet list`,
     )
   }
-  return content[0].children.map((item) => ({
-    c: blocks(item.children, repository),
-    tries: triesOf(item, version, allowed),
-  }))
+  // Validate every original Try it, including archived items, before publication.
+  return content[0].children
+    .map((item) => ({
+      item,
+      c: blocks(item.children, repository),
+      tries: triesOf(item, version, allowed),
+    }))
+    .filter(({ item }) => !isHistorical(item))
+    .map(({ item: _item, ...highlight }) => highlight)
 }
 
 function finishRelease(release, repository, allowed) {
   const sections = []
   let highlights = []
+  // CX1R4 F6: the duplicate-heading check records the heading itself, not the
+  // post-filter item count, so an archived first list still blocks a second.
+  let hasHighlightsHeading = false
   for (const { heading, nodes } of release.parts) {
     if (heading === HIGHLIGHTS_HEADING) {
-      if (highlights.length > 0) {
+      if (hasHighlightsHeading) {
         throw new Error(`CHANGELOG.md ${release.version}: two "### ${HIGHLIGHTS_HEADING}" sections`)
       }
+      hasHighlightsHeading = true
       highlights = highlightsOf(nodes, release.version, repository, allowed)
       continue
     }

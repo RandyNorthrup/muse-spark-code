@@ -27,7 +27,13 @@ const embedded = (table) => ({
 it('keeps account, developer and help values out of startup and loads them exactly on demand', async () => {
   expect(built.bundle.UI_TEXT.sendTitle).toBe(EN.sendTitle)
   expect(() => built.bundle.UI_TEXT.referenceIntro).toThrow('English surface is not loaded')
-  expect(() => built.bundle.UI_TEXT.accounts).toThrow('English surface is not loaded')
+  // C-X-1: Help no longer lists accounts or the vault and no installed surface
+  // reads either group, so the installed table carries neither. Developer
+  // English still waits for its surface; browserUiText mounts the accounts and
+  // vault surfaces and pins their on-demand loading.
+  expect(Object.hasOwn(built.bundle.EN, 'accounts')).toBe(false)
+  expect(Object.hasOwn(built.bundle.EN, 'vault')).toBe(false)
+  expect(() => built.bundle.UI_TEXT.developer).toThrow('English surface is not loaded')
   // STARTUP017: a restored settlement row's words paint with startup; the
   // rest of the schedule English loads only with the schedule surfaces.
   expect(built.bundle.UI_TEXT.scheduleSettlement).toEqual(EN.scheduleSettlement)
@@ -59,9 +65,10 @@ it('keeps account, developer and help values out of startup and loads them exact
   expect(built.bundle.installEmbeddedTable(embedded(german))).toBeUndefined()
   await Promise.all([built.bundle.loadDeferredEnglish(), built.bundle.loadDeferredEnglish()])
   expect(built.bundle.UI_TEXT).toEqual(german)
-  // The vault group's English loads with the vault surface alone (CAPS017).
-  expect(() => built.bundle.EN.vault).toThrow('English surface is not loaded: vault')
+  // The vault group's English loads with the vault surface alone (CAPS017);
+  // with no vault surface installed, its installer adds no key to this table.
   built.bundle.installVaultEnglish()
+  expect(Object.hasOwn(built.bundle.EN, 'vault')).toBe(false)
   // M107 U-C1: English read only by the resource chip and pages loads with
   // those surfaces (their modules import it), never with the other deferred groups.
   const resourceOnly = Object.keys(built.bundle.EN).filter((key) => {

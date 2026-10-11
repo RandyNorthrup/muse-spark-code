@@ -173,7 +173,9 @@
       "teamTemplateSolo",
       "teamTreeLabel",
       "teamOrchestrator",
-      "teamUsageTitle"
+      "teamUsageTitle",
+      "gitPullRequestFormLabel",
+      "agentsCount.one"
     ],
     "es": [
       "hooksItem",
@@ -296,7 +298,8 @@
       "kindSubagent",
       "kindWorker",
       "nameColumn",
-      "originSubagent"
+      "originSubagent",
+      "limits"
     ],
     "es": ["certaintyLocal", "certaintyPlan", "editor", "kindHook", "kindWorker", "tokens"],
     "fr": [

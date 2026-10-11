@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import * as z from 'zod/mini'
 import * as vault from '../../../src/shared/vault'
 import * as protocol from '../../../src/shared/vaultProtocol'
-import { vaultPanelStateSchema } from '../../../src/shared/modelsPanel'
+import { vaultPanelStateSchema } from '../../../src/shared/vaultPanel'
 import {
   vaultClientMessageSchema,
   vaultHostMessageSchema,

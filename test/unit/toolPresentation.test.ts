@@ -81,9 +81,9 @@ describe('toolLabel', () => {
     setUiText(EN, 'en')
   })
 
-  it('names an Auto review’s row, and shows the action it judged (M78)', () => {
+  it('names an Auto Review’s row, and shows the action it judged (M78)', () => {
     expect(describeTool('auto_review', '{"tool":"bash","action":"npm test"}')).toMatchObject({
-      label: 'Auto review',
+      label: 'Auto Review',
       summary: 'npm test',
       body: 'generic',
     })
@@ -145,11 +145,11 @@ describe('writtenContent', () => {
 describe('subagent tool labels (M18)', () => {
   it("labels Muse Code's native subagent tools", () => {
     expect(describeTool('subagent_spawn', '{"objective":"Map the tree"}')).toMatchObject({
-      label: 'Spawn agent',
+      label: 'Spawn Agent',
       body: 'generic',
     })
-    expect(describeTool('subagent_wait', '{}').label).toBe('Wait for agents')
-    expect(describeTool('subagent_read_result', '{}').label).toBe('Agent result')
+    expect(describeTool('subagent_wait', '{}').label).toBe('Wait for Agents')
+    expect(describeTool('subagent_read_result', '{}').label).toBe('Agent Result')
   })
 })
 
@@ -213,7 +213,7 @@ describe("Muse Code's own tools (M43)", () => {
   it('picks each family’s body and summary from the captured arguments', () => {
     expect(
       describeTool('add_memory', '{"content":"x","path":"palette.md","scope":"personal_project"}'),
-    ).toMatchObject({ label: 'Save memory', summary: 'palette.md', body: 'memory' })
+    ).toMatchObject({ label: 'Save Memory', summary: 'palette.md', body: 'memory' })
     expect(describeTool('create_goal', '{"objective":"Ship it"}')).toMatchObject({
       summary: 'Ship it',
       body: 'goal',
@@ -262,7 +262,7 @@ describe("Muse Code's own tools (M43)", () => {
 describe('image edits and the ide server’s images (M44)', () => {
   it('labels them, and names the picture each one makes', () => {
     expect(describeTool('edit_image', '{"path":"art/fox-hat.png"}')).toMatchObject({
-      label: 'Edit image',
+      label: 'Edit Image',
       imagePath: 'art/fox-hat.png',
     })
     expect(describeTool('mcp__ide__generateImage', '{"path":"media/l.png"}')).toMatchObject({
@@ -270,7 +270,7 @@ describe('image edits and the ide server’s images (M44)', () => {
       imagePath: 'media/l.png',
     })
     expect(describeTool('mcp__ide__editImage', '{"path":"b.png"}')).toMatchObject({
-      label: 'Edit image',
+      label: 'Edit Image',
       imagePath: 'b.png',
     })
   })
@@ -284,7 +284,7 @@ describe('web fetch rows (M69)', () => {
   it('shows the URL on both backends, and the size a fetched page reports', () => {
     for (const tool of ['web_fetch', 'mcp__ide__webFetch']) {
       expect(describeTool(tool, '{"url":"https://docs.example.com/a"}')).toMatchObject({
-        label: 'Fetch page',
+        label: 'Fetch Page',
         summary: 'https://docs.example.com/a',
         body: 'fetch',
       })

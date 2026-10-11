@@ -2,7 +2,7 @@
 // elevated terminal: checks `muse sandbox windows check` when a chat surface
 // opens (and again when a shell tool reports the sandbox missing), offers the
 // one-time setup in a notification, relaunches the CLI through UAC on
-// "Set up now", and re-checks. Every VS Code and process call is injected so
+// "Set Up Now", and re-checks. Every VS Code and process call is injected so
 // the flow is unit-tested on every platform.
 
 import type { LaunchResolution } from '../../core/backends/musecode/launch'
@@ -46,7 +46,7 @@ export interface SandboxSetupDeps {
     ...choices: readonly string[]
   ) => Promise<string | undefined>
   readonly showInformation: (message: string) => void
-  /** The "Don't ask again" flag in the extension's own global state. */
+  /** The "Don't Ask Again" flag in the extension's own global state. */
   readonly isPromptSuppressed: () => boolean
   readonly suppressPrompt: () => Promise<void>
   readonly log: Logger
@@ -167,8 +167,8 @@ export class SandboxSetup {
 
   /**
    * Offers the setup when it is needed. `startup` asks at most once per
-   * extension host and honours "Don't ask again"; `failure` (a shell tool just
-   * reported the sandbox missing) asks again even after "Not now".
+   * extension host and honours "Don't Ask Again"; `failure` (a shell tool just
+   * reported the sandbox missing) asks again even after "Not Now".
    */
   public offerIfNeeded(trigger: SandboxOfferTrigger): Promise<void> {
     if (!this.isWindows) {

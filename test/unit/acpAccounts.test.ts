@@ -122,7 +122,7 @@ describe('M108 ACP accounts', () => {
       expect(h.updates).toContainEqual(
         expect.objectContaining({
           sessionUpdate: 'agent_message_chunk',
-          content: { type: 'text', text: 'Current account: meta · Work' },
+          content: { type: 'text', text: 'Current Account: meta · Work' },
         }),
       )
     })

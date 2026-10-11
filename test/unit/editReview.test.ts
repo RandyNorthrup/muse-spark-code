@@ -630,7 +630,7 @@ describe('EditReview.openDiff', () => {
     const [beforeUri, fsPath, title] = t.diffs[0]!
     expect(beforeUri).toBe('muse-edit:/item-1/notes.md')
     expect(fsPath).toMatch(NOTES_PATH)
-    expect(title).toBe('notes.md (Muse edit)')
+    expect(title).toBe('notes.md (Muse Edit)')
     expect(t.review.provide(originalUriPath('item-1', 'notes.md'))).toBe('# Notes\n\nfirst line\n')
     expect(t.review.provide('/other')).toBeUndefined()
   })
@@ -740,7 +740,7 @@ describe('EditReview on Windows paths', () => {
     expect(t.diffs[0]).toEqual([
       'muse-edit:/i/notes.md',
       String.raw`C:\ws\notes.md`,
-      'notes.md (Muse edit)',
+      'notes.md (Muse Edit)',
     ])
     expect(await t.review.revert('i', WIN_PATCH)).toEqual([
       { level: 'info', text: 'Reverted notes.md.' },

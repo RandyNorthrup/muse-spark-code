@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { PaidFeatureGate, PaidUsage } from '../../src/core/paid/paidFeatures'
 import { teamWorkerPrice } from '../../src/core/team/teamPaid'
 import { PaidUseConsent, paidUseQuestion } from '../../src/core/paid/paidConsent'
-import { DEFAULT_MODEL_ID } from '../../src/shared/constants'
+import { DEFAULT_MODEL_ID, type PaidFeature } from '../../src/shared/constants'
 import {
   listedPaidFeatures,
   paidCostUsd,
@@ -31,8 +31,8 @@ describe('teamWorkers paid use (M96)', () => {
     const gate = new PaidFeatureGate({
       isSettingOn: (feature) => feature === 'teamWorkers' && isEnabled,
       isTeamAvailable: () => isReady,
-      setSetting: (_feature, on) => {
-        isEnabled = on
+      setSetting: (_feature, isOn) => {
+        isEnabled = isOn
         return Promise.resolve()
       },
       readAccepted: () => new Set(),
@@ -92,6 +92,41 @@ describe('teamWorkers paid use (M96)', () => {
     await gate.review()
   })
 
+  it('a team toggle accepts no price and clears stale receipts before a later runtime bind', async () => {
+    let isReady = false
+    let isEnabled = false
+    let accepted = new Set<PaidFeature>(['teamWorkers'])
+    const confirm = vi.fn().mockResolvedValue(true)
+    const setSetting = vi.fn((_feature, isOn: boolean) => {
+      isEnabled = isOn
+      return Promise.resolve()
+    })
+    const log = new FakeLogOutputChannel()
+    const gate = new PaidFeatureGate({
+      isSettingOn: () => isEnabled,
+      isTeamAvailable: () => isReady,
+      setSetting,
+      readAccepted: () => accepted,
+      writeAccepted: (values) => {
+        accepted = new Set(values)
+        return Promise.resolve()
+      },
+      confirm,
+      isWindowFocused: () => true,
+      log,
+    })
+    await gate.review()
+    expect(accepted.has('teamWorkers')).toBe(false)
+    expect(await gate.turnOn('teamWorkers')).toBe(false)
+    expect(confirm).not.toHaveBeenCalled()
+    expect(setSetting).not.toHaveBeenCalled()
+    isReady = true
+    expect(await gate.turnOn('teamWorkers')).toBe(true)
+    expect(confirm).not.toHaveBeenCalled()
+    expect(accepted.has('teamWorkers')).toBe(false)
+    expect(JSON.stringify(log.info.mock.calls)).not.toContain('accepted its price')
+  })
+
   it('counts started tasks as unknown until reported usage settles them', () => {
     const usage = new PaidUsage(new FakeLogOutputChannel())
     usage.add('teamWorkers', 2)
@@ -131,7 +166,7 @@ describe('teamWorkers paid use (M96)', () => {
   })
 
   it('names the feature and lists it once used', () => {
-    expect(paidFeatureName('teamWorkers')).toBe('Team workers')
+    expect(paidFeatureName('teamWorkers')).toBe('Team Workers')
     const empty: PaidTally = { webSearches: 0, images: 0, voiceSeconds: 0, scheduledRuns: 0 }
     expect(listedPaidFeatures(['teamWorkers'], empty)).toEqual(['teamWorkers'])
     expect(listedPaidFeatures([], empty)).toEqual([])

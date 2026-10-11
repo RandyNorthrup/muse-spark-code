@@ -108,7 +108,9 @@ export function ModelsSection({ panelState, post, highlightedItem }: SectionProp
         : { key: sortKey, direction: 'asc' }
     post({ type: 'models/filter', filter: panelState.filter, sort })
   }
-  const scanning = Object.values(panelState.scans).filter((scan) => scan.status === 'scanning')
+  const scans = Object.values(panelState.scans).filter(
+    (scan) => scan.status === 'scanning' || scan.status === 'failed',
+  )
   return (
     <section aria-label={UI_TEXT.modelsSectionTitle}>
       <h2>{UI_TEXT.modelsSectionTitle}</h2>
@@ -232,7 +234,7 @@ export function ModelsSection({ panelState, post, highlightedItem }: SectionProp
         </div>
       )}
       <p className="models-hint">{UI_TEXT.pricePerMillion}</p>
-      {scanning.map((scan) => (
+      {scans.map((scan) => (
         <ScanStatus
           key={scan.providerId}
           scan={scan}

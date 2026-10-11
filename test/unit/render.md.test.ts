@@ -27,11 +27,11 @@ describe('report Markdown', () => {
     expect(output).toContain('<br>next')
     expect(output.endsWith('\n\n')).toBe(false)
   })
-  it('puts Needs you before releases and shows omitted counts and every source status', () => {
+  it('puts Needs You before releases and shows omitted counts and every source status', () => {
     const output = RENDERERS.md(renderFixture(), 'en', REPORT_THEME)
-    expect(output.indexOf('## Needs you')).toBeLessThan(output.indexOf('## Releases'))
+    expect(output.indexOf('## Needs You')).toBeLessThan(output.indexOf('## Releases'))
     expect(output).toContain('12 more')
-    for (const status of ['Available', 'Partial', 'Unavailable', 'Not applicable', 'Unknown'])
+    for (const status of ['Available', 'Partial', 'Unavailable', 'Not Applicable', 'Unknown'])
       expect(output).toContain(status)
     expect(output).toContain('Network is off.')
     expect(output).toContain('Renderer 1; ICU 77.1; locale en')

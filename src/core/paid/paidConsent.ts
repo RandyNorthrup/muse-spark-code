@@ -397,7 +397,7 @@ export interface PaidUseConsentDeps {
   /** Whether the feature may be used at all: its setting on and its price accepted. */
   readonly isOn: (feature: PaidFeature) => boolean
   /**
-   * Features whose "Allow once" covers this window until it closes (Tab and
+   * Features whose "Allow Once" covers this window until it closes (Tab and
    * hosted search, D48): kept in memory only, never stored, so nothing persists
    * past the window. "Allow always" stays workspace-scoped for every
    * feature, window-once ones included.
@@ -463,13 +463,13 @@ export class PaidUseConsent {
     return JSON.stringify([this.revocation, this.deps.quoteGeneration?.() ?? 'initial'])
   }
 
-  /** Whether the feature's "Allow once" covers the window (D48). */
+  /** Whether the feature's "Allow Once" covers the window (D48). */
   private isWindowOnceFeature(feature: PaidFeature): boolean {
     return this.deps.windowOnceFeatures?.has(feature) ?? false
   }
 
   /**
-   * Whether an "Allow once" for the feature covers this window: given here,
+   * Whether an "Allow Once" for the feature covers this window: given here,
    * under the price acceptance that is still current in every window.
    */
   private isWindowOnce(feature: PaidFeature): boolean {

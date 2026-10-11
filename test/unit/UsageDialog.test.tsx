@@ -109,7 +109,7 @@ async function renderDialog(overrides: Partial<UsageDialogProps> = {}) {
 
 async function renderPaidDialog(overrides: Partial<UsageDialogProps>) {
   const props = renderDialog(overrides)
-  await screen.findByText(/^Estimated (?:paid|extra-feature) total$/)
+  await screen.findByText(/^Estimated (?:Paid|Extra-Feature) Total$/)
   return await props
 }
 
@@ -245,16 +245,16 @@ describe('UsageDialog', () => {
       onDeleteUploadedFile,
       onDeleteAllUploadedFiles,
     })
-    const section = screen.getByRole('region', { name: 'Uploaded files' })
+    const section = screen.getByRole('region', { name: 'Uploaded Files' })
     expect(section).toHaveTextContent('30 byte of 1 kB stored')
     expect(section).toHaveTextContent('Sessions: session-one')
-    expect(section).toHaveTextContent('From another app')
+    expect(section).toHaveTextContent('From Another App')
     expect(section).toHaveTextContent('No expiry set')
     expect(section).toHaveTextContent('Expires')
     expect(screen.getByRole('button', { name: 'Delete: clip.mp4' })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Delete: other.pdf' }))
     expect(onDeleteUploadedFile).toHaveBeenCalledWith('file-foreign')
-    fireEvent.click(screen.getByRole('button', { name: 'Delete all ours' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete All Ours' }))
     expect(onDeleteAllUploadedFiles).toHaveBeenCalledOnce()
   })
 
@@ -262,11 +262,11 @@ describe('UsageDialog', () => {
     await renderDialog({
       uploadedFiles: { ...uploadedFiles, isReadOnly: true },
     })
-    expect(screen.getByRole('region', { name: 'Uploaded files' })).toHaveTextContent(
+    expect(screen.getByRole('region', { name: 'Uploaded Files' })).toHaveTextContent(
       'read-only until their expiry',
     )
     expect(screen.getByRole('button', { name: 'Delete: ours.pdf' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Delete all ours' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Delete All Ours' })).toBeDisabled()
   })
 
   it.each([
@@ -288,7 +288,7 @@ describe('UsageDialog', () => {
       onDeleteAllUploadedFiles: vi.fn(),
     })
     expect(screen.getByRole('button', { name: 'Delete: ours.pdf' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Delete all ours' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Delete All Ours' })).toBeDisabled()
   })
   it('shows hook additions separately without subtracting them from packing savings', async () => {
     await renderDialog({
@@ -300,8 +300,8 @@ describe('UsageDialog', () => {
       },
     })
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent('Packing saved (estimate)9K')
-    expect(dialog).toHaveTextContent('Added by hooks (estimate)500')
+    expect(dialog).toHaveTextContent('Packing Saved (Estimate)9K')
+    expect(dialog).toHaveTextContent('Added by Hooks (Estimate)500')
   })
   it('names an installer terminal failure while the Model API stays available', async () => {
     await renderDialog({
@@ -334,9 +334,9 @@ describe('UsageDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Install Muse Code' }))
     expect(screen.getByText('irm https://dev.meta.ai/install.ps1 | iex')).toBeInTheDocument()
     expect(props.onInstallMuseCode).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Run installer' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Run Installer' }))
     expect(props.onInstallMuseCode).toHaveBeenCalledOnce()
-    fireEvent.click(screen.getByRole('button', { name: 'Replace Model API key' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Replace Model API Key' }))
     expect(props.onSetupSignIn).toHaveBeenCalledWith('apiKey')
   })
   it('advances both reset countdowns while open and stops its clock when closed', async () => {
@@ -385,11 +385,11 @@ describe('UsageDialog', () => {
       },
     })
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent('Current window')
+    expect(dialog).toHaveTextContent('Current Window')
     expect(dialog).toHaveTextContent('Waiting for a fresh Muse Code usage report.')
-    expect(screen.queryByRole('progressbar', { name: /Current window/ })).toBeNull()
+    expect(screen.queryByRole('progressbar', { name: /Current Window/ })).toBeNull()
     expect(dialog).not.toHaveTextContent('resets in now')
-    expect(screen.getByRole('progressbar', { name: 'This week: 130% used' })).toBeVisible()
+    expect(screen.getByRole('progressbar', { name: 'This Week: 130% used' })).toBeVisible()
   })
 
   it('expires the weekly row independently of the current five-hour window', async () => {
@@ -406,9 +406,9 @@ describe('UsageDialog', () => {
       },
     })
     const dialog = screen.getByRole('dialog')
-    expect(screen.getByRole('progressbar', { name: 'Current window: 42% used' })).toBeVisible()
-    expect(screen.queryByRole('progressbar', { name: /This week/ })).toBeNull()
-    expect(dialog).toHaveTextContent('This weekWaiting for a fresh Muse Code usage report.')
+    expect(screen.getByRole('progressbar', { name: 'Current Window: 42% used' })).toBeVisible()
+    expect(screen.queryByRole('progressbar', { name: /This Week/ })).toBeNull()
+    expect(dialog).toHaveTextContent('This WeekWaiting for a fresh Muse Code usage report.')
   })
 
   it('shows opaque tiers generically and provider percentages and reset times verbatim', async () => {
@@ -428,23 +428,23 @@ describe('UsageDialog', () => {
       modelId: 'muse-spark-1.2',
     })
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent('PlanMuse Code subscription')
+    expect(dialog).toHaveTextContent('PlanMuse Code Subscription')
     expect(dialog).toHaveTextContent('90-minute window · resets in 1h')
-    expect(screen.getByRole('progressbar', { name: 'Current window: 63% used' })).toHaveValue(63)
-    expect(dialog).toHaveTextContent('This week11% used')
+    expect(screen.getByRole('progressbar', { name: 'Current Window: 63% used' })).toHaveValue(63)
+    expect(dialog).toHaveTextContent('This Week11% used')
     expect(dialog).toHaveTextContent('resets in 1d')
   })
 
   it('shows the plan, both windows as bars with reset times, and the observation age', async () => {
     await renderDialog()
-    const dialog = screen.getByRole('dialog', { name: 'Account & usage' })
-    expect(dialog).toHaveTextContent('Muse Code (your Muse subscription)')
+    const dialog = screen.getByRole('dialog', { name: 'Account & Usage' })
+    expect(dialog).toHaveTextContent('Muse Code (Your Muse Subscription)')
     expect(dialog).toHaveTextContent('muse-pro')
-    const window = screen.getByRole('progressbar', { name: 'Current window: 42% used' })
+    const window = screen.getByRole('progressbar', { name: 'Current Window: 42% used' })
     expect(window).toHaveAttribute('value', '42')
     expect(dialog).toHaveTextContent('5-hour window · resets in 2h 5m')
     // Over quota keeps the real number in the label and fills the bar fully.
-    const weekly = screen.getByRole('progressbar', { name: 'This week: 130% used' })
+    const weekly = screen.getByRole('progressbar', { name: 'This Week: 130% used' })
     expect(weekly).toHaveAttribute('value', '100')
     expect(dialog).toHaveTextContent('resets in 3d')
     expect(dialog).toHaveTextContent('as of 5 min. ago')
@@ -466,14 +466,14 @@ describe('UsageDialog', () => {
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveTextContent('Input30K')
     expect(dialog).not.toHaveTextContent('Cached')
-    expect(dialog).not.toHaveTextContent('Cache hits')
+    expect(dialog).not.toHaveTextContent('Cache Hits')
   })
 
   it('shows the packing ledger while packing runs, and hides it otherwise (M73)', async () => {
     const packed = await renderDialog({
       usage: { inputTokens: 30_000, outputTokens: 1200, packedTokensAvoided: 9000 },
     })
-    expect(screen.getByRole('dialog')).toHaveTextContent('Packing saved (estimate)9K')
+    expect(screen.getByRole('dialog')).toHaveTextContent('Packing Saved (Estimate)9K')
     packed.unmount()
     await renderDialog({ usage: { inputTokens: 30_000, outputTokens: 1200 } })
     expect(screen.getByRole('dialog')).not.toHaveTextContent('Packing saved')
@@ -492,8 +492,8 @@ describe('UsageDialog', () => {
       context: undefined,
     })
     expect(screen.getByRole('dialog')).toHaveTextContent('billed to the key at pay-as-you-go rates')
-    expect(screen.getByRole('dialog')).toHaveTextContent('Auth methodModel API key')
-    expect(screen.getByRole('dialog')).toHaveTextContent('PlanPay as you go')
+    expect(screen.getByRole('dialog')).toHaveTextContent('Auth MethodModel API Key')
+    expect(screen.getByRole('dialog')).toHaveTextContent('PlanPay as You Go')
     expect(screen.getByRole('dialog')).toHaveTextContent('no local trace logs')
     expect(screen.getByRole('dialog')).toHaveTextContent('No tokens counted yet')
     expect(screen.queryByRole('progressbar')).toBeNull()
@@ -524,11 +524,11 @@ describe('UsageDialog', () => {
   it('shows the account facts, the cache-hit rate and the insights with a Day/Week toggle (M14)', async () => {
     await renderDialog()
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent('Auth methodMeta account (Muse Code CLI)')
+    expect(dialog).toHaveTextContent('Auth MethodMeta Account (Muse Code CLI)')
     expect(dialog).toHaveTextContent('Muse Code1.3.0')
     expect(dialog).toHaveTextContent('Modelmuse-spark-1.3')
-    expect(dialog).toHaveTextContent('Cache hits81%')
-    expect(screen.queryByText('Estimated cost')).toBeNull()
+    expect(dialog).toHaveTextContent('Cache Hits81%')
+    expect(screen.queryByText('Estimated Cost')).toBeNull()
     expect(dialog).toHaveTextContent('75% of model attempts came from Muse Code’s reminder agents')
     expect(dialog).toHaveTextContent('10% of model attempts came from subagents')
     expect(dialog).toHaveTextContent('40 model attempts across 2 sessions')
@@ -539,7 +539,7 @@ describe('UsageDialog', () => {
   it('estimates the dollar cost on the Model API from the published prices (M14)', async () => {
     await renderDialog(modelApiCostCase())
     // 800K fresh input at $1.25, 200K cached at $0.15, 100K output at $4.25.
-    expect(screen.getByRole('dialog')).toHaveTextContent('Estimated cost$1.46')
+    expect(screen.getByRole('dialog')).toHaveTextContent('Estimated Cost$1.46')
     expect(screen.getByRole('dialog')).toHaveTextContent('Prices read on 2026-09-26')
   })
 
@@ -547,11 +547,11 @@ describe('UsageDialog', () => {
     await renderDialog(modelApiCostCase())
     // Uncached: 1M at $1.25 plus 100K output at $4.25 ($1.675); priced $1.455;
     // saved $0.22 (four decimals, like every sub-dollar amount), 13% of why.
-    expect(screen.getByRole('dialog')).toHaveTextContent('Cache savings$0.2200 (13%)')
+    expect(screen.getByRole('dialog')).toHaveTextContent('Cache Savings$0.2200 (13%)')
     await renderDialog()
     const dialogs = screen.getAllByRole('dialog')
     expect(dialogs).toHaveLength(2)
-    expect(dialogs[1]).not.toHaveTextContent('Cache savings')
+    expect(dialogs[1]).not.toHaveTextContent('Cache Savings')
   })
 
   it('focuses the close button, closes on it and on Escape', async () => {
@@ -686,11 +686,11 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
       },
     })
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent('Paid features in this window')
-    expect(dialog).toHaveTextContent('Web search (on)4 searches · $0.0100')
+    expect(dialog).toHaveTextContent('Paid Features in This Window')
+    expect(dialog).toHaveTextContent('Web Search (on)4 searches · $0.0100')
     expect(dialog).toHaveTextContent('Images (off)2 images · $0.0200')
     expect(dialog).toHaveTextContent('Muse Voice (off)1m 30s of audio · $0.0045')
-    expect(dialog).toHaveTextContent('Estimated extra-feature total$0.0345')
+    expect(dialog).toHaveTextContent('Estimated Extra-Feature Total$0.0345')
     expect(dialog).toHaveTextContent('published prices, read on 2026-09-24')
   })
 
@@ -707,12 +707,12 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
       },
     })
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent('Web search (on, allowed always in this workspace)')
+    expect(dialog).toHaveTextContent('Web Search (on, allowed always in this workspace)')
     expect(dialog).toHaveTextContent('Images (on)')
     expect(dialog).toHaveTextContent(
-      'Allowed always in this workspace, without asking: Web search.',
+      'Allowed always in this workspace, without asking: Web Search.',
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Ask again every time' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ask Again Every Time' }))
     expect(onForgetPaidUse).toHaveBeenCalledTimes(1)
   })
 
@@ -726,7 +726,7 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
         alwaysAllowed: [],
       },
     })
-    expect(screen.queryByRole('button', { name: 'Ask again every time' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ask Again Every Time' })).not.toBeInTheDocument()
   })
 
   it('counts scheduled runs without adding their tokens twice to the paid extra total (M52)', async () => {
@@ -741,12 +741,12 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     })
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveTextContent(
-      'Scheduled prompts (on)2 scheduled runs · token cost included above',
+      'Scheduled Prompts (on)2 scheduled runs · token cost included above',
     )
-    expect(dialog).toHaveTextContent('Estimated extra-feature total$0.0000')
+    expect(dialog).toHaveTextContent('Estimated Extra-Feature Total$0.0000')
   })
 
-  it('counts the Auto reviewer’s reviews and adds their cost to the extra total (M78)', async () => {
+  it('counts the Auto Reviewer’s reviews and adds their cost to the extra total (M78)', async () => {
     await renderPaidDialog({
       report: modelApiReport,
       paid: {
@@ -766,9 +766,9 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     })
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveTextContent(
-      'Auto reviewer (on, allowed always in this workspace)3 reviews · Reported token estimate: $0.0042 · 3,000 tokens',
+      'Auto Reviewer (on, allowed always in this workspace)3 reviews · Reported token estimate: $0.0042 · 3,000 tokens',
     )
-    expect(dialog).toHaveTextContent('Estimated extra-feature total$0.0042')
+    expect(dialog).toHaveTextContent('Estimated Extra-Feature Total$0.0042')
   })
 
   it('has no paid section on the Muse Code backend without a stored key', async () => {
@@ -789,7 +789,7 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(dialog).toHaveTextContent('Images (on)3 images · $0.0300')
     expect(dialog).toHaveTextContent('Muse Voice (off)')
     // Muse Code searches on the subscription: no paid search row there.
-    expect(dialog).not.toHaveTextContent('Web search (')
+    expect(dialog).not.toHaveTextContent('Web Search (')
   })
 
   it('keeps a feature this window used on another backend in the list and the total (the review of PR #30)', async () => {
@@ -802,8 +802,8 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
       },
     })
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent('Web search (off)4 searches · $0.0100')
-    expect(dialog).toHaveTextContent('Estimated paid total$0.0400')
+    expect(dialog).toHaveTextContent('Web Search (off)4 searches · $0.0100')
+    expect(dialog).toHaveTextContent('Estimated Paid Total$0.0400')
   })
 
   it('lists this window’s tallies per provider with settled costs (M95)', async () => {
@@ -812,15 +812,15 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(await screen.findByRole('heading', { name: 'Providers' })).toBeInTheDocument()
     expect(dialog).toHaveTextContent('OpenRouter1.2K / 300 · $0.0010')
     expect(dialog).toHaveTextContent('Ollama800 / 100 · $0.00')
-    expect(dialog).toHaveTextContent('Mystery50 / 5 · unpriced')
+    expect(dialog).toHaveTextContent('Mystery50 / 5 · Unpriced')
   })
 
   it('shows an account-connected key’s usage, limit and remainder (M95)', async () => {
     await renderDialog(providersReport())
     const dialog = screen.getByRole('dialog')
-    expect(await screen.findByText('API key usage')).toBeInTheDocument()
+    expect(await screen.findByText('API Key Usage')).toBeInTheDocument()
     expect(dialog).toHaveTextContent('Today$0.40')
-    expect(dialog).toHaveTextContent('This month$2.10')
+    expect(dialog).toHaveTextContent('This Month$2.10')
     expect(dialog).toHaveTextContent('Limit$10.00')
     expect(dialog).toHaveTextContent('Remaining$7.90')
   })
@@ -844,13 +844,13 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
           'This model has no price card, so only its tokens are counted.',
         )
       }
-      expect(screen.queryByText('Estimated cost')).toBeNull()
+      expect(screen.queryByText('Estimated Cost')).toBeNull()
     },
   )
 
   it('offers the own-model choice in its setup rows (M95)', async () => {
     const props = await renderDialog()
-    fireEvent.click(screen.getByRole('button', { name: 'Start with your own model' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Start With Your Own Model' }))
     expect(props.onSetupSignIn).toHaveBeenCalledWith('byo')
   })
 })
@@ -908,20 +908,20 @@ describe('UsageDialog Team section (M96 lane U2)', () => {
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveTextContent('Team')
     expect(dialog).toHaveTextContent('Today')
-    expect(dialog).toHaveTextContent('This window')
+    expect(dialog).toHaveTextContent('This Window')
     expect(dialog).toHaveTextContent('engineering')
     expect(dialog).toHaveTextContent('engineering · entry 1 (key)')
     expect(dialog).toHaveTextContent('engineering · entry 2 (local)')
-    expect(dialog).toHaveTextContent('estimated')
+    expect(dialog).toHaveTextContent('Estimated')
   })
 
   it('stays today’s dialog without a team', async () => {
     await renderDialog({})
-    expect(screen.getByRole('dialog')).not.toHaveTextContent('This window')
+    expect(screen.getByRole('dialog')).not.toHaveTextContent('This Window')
   })
 })
 
-describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
+describe('UsageDialog: Tab Completions row (M94 lane U, PLAN.md D73)', () => {
   const tabReport = {
     backend: 'modelApi' as const,
     subscription: undefined,
@@ -953,7 +953,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
       },
     })
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent('Tab completions (on)')
+    expect(dialog).toHaveTextContent('Tab Completions (on)')
     expect(dialog).toHaveTextContent('12 Tab requests')
     expect(dialog).toHaveTextContent('45,000 tokens (3,000 cached)')
     expect(dialog).toHaveTextContent('Reported token estimate: $0.1200')
@@ -961,7 +961,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
     expect(dialog).toHaveTextContent('Today: $0.6200')
     expect(dialog).toHaveTextContent('This window: $0.1200')
     expect(dialog).toHaveTextContent('Daily budget: $1.00')
-    expect(dialog).toHaveTextContent('Estimated extra-feature total$0.1200')
+    expect(dialog).toHaveTextContent('Estimated Extra-Feature Total$0.1200')
   })
 
   it('shows the configured budget, no made-up today, and wraps its facts (RVM94HU 23–25)', async () => {
@@ -990,7 +990,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
     expect(dialog).toHaveTextContent('Daily budget: $5.00')
     expect(dialog).not.toHaveTextContent('Today:')
     expect(dialog).toHaveTextContent('This window: $0.0100')
-    const label = screen.getByText('Tab completions (on)')
+    const label = screen.getByText('Tab Completions (on)')
     expect(label.nextElementSibling).toHaveClass('usage-paid-child')
   })
 
@@ -1051,7 +1051,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
         alwaysAllowed: [],
       },
     })
-    const label = screen.getByText('Tab completions (off)')
+    const label = screen.getByText('Tab Completions (off)')
     expect(label.nextElementSibling).toHaveTextContent('Daily budget: $1.00')
     expect(label.nextElementSibling).not.toHaveTextContent('Tab request')
     expect(label.nextElementSibling).not.toHaveTextContent('$0.00')
@@ -1077,7 +1077,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
       },
     })
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent('Tab completions (off)')
+    expect(dialog).toHaveTextContent('Tab Completions (off)')
     expect(dialog).toHaveTextContent('3 Tab requests')
     expect(dialog).toHaveTextContent('This window: $0.0200')
     expect(dialog).toHaveTextContent('Daily budget: $1.00')
@@ -1103,7 +1103,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
       },
     })
     expect(screen.getByRole('dialog')).toHaveTextContent(
-      'Tab completions (on, allowed always in this workspace)',
+      'Tab Completions (on, allowed always in this workspace)',
     )
   })
 })

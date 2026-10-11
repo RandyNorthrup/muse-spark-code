@@ -11,7 +11,7 @@ export interface ErrorBoundaryProps {
   /** The render error, for the host's log (M39). */
   readonly onError: (error: unknown) => void
   /**
-   * "Report a problem" on the crash screen (M93 lane W): hands the render
+   * "Report a Problem" on the crash screen (M93 lane W): hands the render
    * failure to the report workflow with no row text. Absent, the screen
    * offers only the reload.
    */

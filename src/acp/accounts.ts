@@ -10,6 +10,7 @@ import {
 } from '../shared/hostApi/accounts'
 import { ACP_CONFIG_IDS, UI_TEXT } from '../shared/constants'
 import { fill, formatNumber } from '../shared/l10n/text'
+import { slashCommandText } from '../shared/mentions'
 import { formatUsd, parseUsd } from '../shared/accountUsd'
 import { accountStopText, accountUsageUrl, type AccountUsagePort } from './accountText'
 
@@ -248,10 +249,11 @@ export class AcpAccounts {
     })
   }
 
-  public async command(text: string, canCommit: () => boolean): Promise<string | undefined> {
+  public async command(sent: string, canCommit: () => boolean): Promise<string | undefined> {
+    const text = slashCommandText(sent)
     if (!/^\/accounts(?:\s|$)/.test(text)) return
     if (this.isDisposed || this.state === undefined) throw new Error(UI_TEXT.accounts.unavailable)
-    const [, action = 'list', account, ...rest] = text.trim().split(/\s+/)
+    const [, action = 'list', account, ...rest] = text.split(/\s+/)
     if (rest.length > 0) throw new Error(UI_TEXT.accounts.invalidAccount)
     if (action === 'use' && account !== undefined) {
       await this.use(account, canCommit)

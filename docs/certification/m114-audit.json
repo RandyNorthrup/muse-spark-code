@@ -24,7 +24,7 @@
     "scale": {
       "dimensions": ["radius", "typographySpacing"],
       "grade": "partial",
-      "fix": "Replace literal radii/spacing/type/alpha with source scales; radius xs/sm/md/lg/xl/pill/circle and spacing-1\u20268; use typography and state alpha roles. Preserve geometry constants until owning layout lane approves changes.",
+      "fix": "Replace literal radii/spacing/type/alpha with source scales; radius xs/sm/md/lg/xl/pill/circle and spacing-1…8; use typography and state alpha roles. Preserve geometry constants until owning layout lane approves changes.",
       "evidence": "styles.css literal 999px/50%/3px/20px radii, em sizes, font-weight 600, and pixel gaps; generated layout aliases are already present."
     },
     "states": {
@@ -73,7 +73,7 @@
       "dimensions": ["typographySpacing", "focus"],
       "grade": "fail",
       "fix": "Keep the page root on editor-surface; replace h1/h2/h3/code em sizes and 1.5/1.25 line heights with token roles, use code/link/quote roles and 2 px focus around links/buttons/input/pre.",
-      "evidence": "whatsNew.css body, h1\u2013h4, pre/code, button and a:focus-visible; no pressed/disabled styles."
+      "evidence": "whatsNew.css body, h1–h4, pre/code, button and a:focus-visible; no pressed/disabled styles."
     },
     "inherited": {
       "dimensions": [],
@@ -5330,7 +5330,7 @@
       },
       "roles": ["colour.surface", "colour.text", "typography.font-size", "typography.font-ui"],
       "findings": ["roles", "scale", "motion"],
-      "fix": "Token-bind decorative gradient/size/radius/alpha; classify the 4.01 s breathing loop explicitly as an activity exception requiring owner resolution, since D94 specifies 120\u2013240 ms motion.",
+      "fix": "Token-bind decorative gradient/size/radius/alpha; classify the 4.01 s breathing loop explicitly as an activity exception requiring owner resolution, since D94 specifies 120–240 ms motion.",
       "evidence": [
         {
           "file": "src/webview/styles.css",
@@ -10523,7 +10523,7 @@
   "sources": [
     {
       "file": "src/webview/App.tsx",
-      "sha256": "ddad3af00bae9d84f4620fb83e61b69a9c8e8311381e47c26a51d550296c6926"
+      "sha256": "7d0eb2e32c933fcf48e3e0a9f19d880b78c506ce3f5983389726135675121c5b"
     },
     {
       "file": "src/webview/TasksApp.tsx",
@@ -10579,11 +10579,11 @@
     },
     {
       "file": "src/webview/components/AttachmentChips.tsx",
-      "sha256": "d52672790c44f8148443bde77c5723a0e47d60cface0166652ea900ed9d6732f"
+      "sha256": "bcd727c8a092c0971b19e47c559c1c1e56f54cc320768b165e2e667fe7e4b04d"
     },
     {
       "file": "src/webview/components/AttachmentMediaCost.tsx",
-      "sha256": "dd744a60e43a4625dfd368625e1d684896bf446c8fb24135b4df9d8d2b8c89b6"
+      "sha256": "0ea43f56e74fb1f2a0bfab2d4feaf95330063391fc6bdab1b58397291886efb9"
     },
     {
       "file": "src/webview/components/AttachmentSound.tsx",
@@ -10643,7 +10643,7 @@
     },
     {
       "file": "src/webview/components/ErrorBoundary.tsx",
-      "sha256": "0c7be779d8f3166c06c575db14332d8d9be8518947e06e470ffdc0a72d166fc4"
+      "sha256": "d836eed1452c9bf354665f46c4acec0578184c004444f1bec548a2fd1e8aa983"
     },
     {
       "file": "src/webview/components/ExternalLink.tsx",
@@ -10655,7 +10655,7 @@
     },
     {
       "file": "src/webview/components/GitPanel.tsx",
-      "sha256": "bba6479e14b936e1d3708ea26dfbce0f6d1652ac0829734d81bb9288771748be"
+      "sha256": "6a85a87ba247f2020d00c22226c1ac5990f058b8428c5016ff1f512b692c10f2"
     },
     {
       "file": "src/webview/components/GoalPanel.tsx",
@@ -10671,7 +10671,7 @@
     },
     {
       "file": "src/webview/components/GooeyMenuContent.tsx",
-      "sha256": "6740220818d71f6c14cfe63aa0c0a20f0da9c07f849793ef0449b55eff505281"
+      "sha256": "006b845370405baf38f5b81b2c0679df6d40b9a456c776b22b1eafdc00df050f"
     },
     {
       "file": "src/webview/components/HandoffDialog.tsx",
@@ -10691,7 +10691,7 @@
     },
     {
       "file": "src/webview/components/HistoryDialog.tsx",
-      "sha256": "b2b32c69da6d2fc96504f44aaa511a9161478fd587468e7ba92c4240f822365a"
+      "sha256": "a7f72222a110026b9f6cf6e3883f409f30a596d4fe5d9a2604bd866b5f8ed7d0"
     },
     {
       "file": "src/webview/components/HistoryPromptRow.tsx",
@@ -10727,7 +10727,7 @@
     },
     {
       "file": "src/webview/components/Onboarding.tsx",
-      "sha256": "fd09e8fa4a4e455b65d04267f825e967719df87f275c98563c36366b9e80ce4e"
+      "sha256": "2b338cf7ae4d413eccaa51c02649abec905b709bd2884cae2fdb31a9b9c82e00"
     },
     {
       "file": "src/webview/components/OpenQuestionsChip.tsx",
@@ -10739,7 +10739,7 @@
     },
     {
       "file": "src/webview/components/PaidUsageSection.tsx",
-      "sha256": "18fc34d364ca6767a39973547de1c0b4f1163e62aac1b82e962f39cd47335779"
+      "sha256": "0e1c7158eec13c58e6639eb43303f69fc6891d3563b6f44ad66ac2255f4a5d7e"
     },
     {
       "file": "src/webview/components/Palette.tsx",
@@ -10759,7 +10759,7 @@
     },
     {
       "file": "src/webview/components/QuestionCard.tsx",
-      "sha256": "6d9cb62d151632a56abc584dfeb139a19d46af8540733f83bc1978ed2f0f3118"
+      "sha256": "46e1c75c8435a016d6f065c7572b1e10d0bce48a19a22d39f557b912257d055f"
     },
     {
       "file": "src/webview/components/QuestionSurface.tsx",
@@ -10771,7 +10771,7 @@
     },
     {
       "file": "src/webview/components/QuoteMenu.tsx",
-      "sha256": "c2d2e8cd6920e5a5488a0a1b8aee27653d7a8f0154ba3a6340af05a4750ad003"
+      "sha256": "96a8084360c10406ab1292e8411ea88770e70cf993316f9685d08163e921d806"
     },
     {
       "file": "src/webview/components/ReasoningRow.tsx",
@@ -10871,7 +10871,7 @@
     },
     {
       "file": "src/webview/components/Transcript.tsx",
-      "sha256": "56e228c5679f24b5005c12e30e6c9e874f839ea51cd3978cf3f5ab836614bb93"
+      "sha256": "00b0ea4d2f8ae39cb1a55938629b693ca23c0aba217ecf60803278ffa4e15c37"
     },
     {
       "file": "src/webview/components/UsageDialog.tsx",
@@ -11007,7 +11007,7 @@
     },
     {
       "file": "src/webview/gooeyLayout.ts",
-      "sha256": "e6312868bec8448864dde78c41b4fb1f5c4b83466201cd7a8c60912a0e49b92c"
+      "sha256": "1bcedc47ba99e8cc278c26a7834390dea0457fbfc3251a803847d3ffad0ca602"
     },
     {
       "file": "src/webview/heartbeatBeam.ts",
@@ -11059,11 +11059,11 @@
     },
     {
       "file": "src/webview/main.tsx",
-      "sha256": "5e7bf44a76e3ae7706d0fc378e0af5056d8f62267cccf8ad246a9f0157f5d59b"
+      "sha256": "80d575b1ad8f6c97a482e6ddccea7a8bd5fd14e90152926b02fd24d5c779527e"
     },
     {
       "file": "src/webview/media/CompanionMedia.tsx",
-      "sha256": "0b16627a50f9e2e80704e2235e258f09975237facd92efa6abcee26765c84620"
+      "sha256": "b61c76e926673db101b526a3cba1061d484873b7753f8a82321e235e4feefeee"
     },
     {
       "file": "src/webview/media/ToolVideo.tsx",
@@ -11107,15 +11107,15 @@
     },
     {
       "file": "src/webview/models/ModelsSection.tsx",
-      "sha256": "f917f223935c2783f7838193abc3eb218c9d5a02b31f0d378706e05f0337dca1"
+      "sha256": "db0b921cd0fdfc1de0f6c88d962e9d4aab16c1d55687baedca28534927091200"
     },
     {
       "file": "src/webview/models/ProvidersSection.tsx",
-      "sha256": "b98b7e462edc857352e0d5e94be7665d137d52014a519662c8901fadfc6f9793"
+      "sha256": "ce9ea7870166c121c58ec7984eb09b59e03b0283fc11caedd2405ef60abeeeaa"
     },
     {
       "file": "src/webview/models/Wizard.tsx",
-      "sha256": "3d76d415b23b0696099f4f20adc91d15a31dd5685d7e8e193215c57061b6b0af"
+      "sha256": "142e184f2d6844545123b35e74a671c925f11b82fe8a7e1be456d2ec8ed2db16"
     },
     {
       "file": "src/webview/models/components/Badge.tsx",
@@ -11135,7 +11135,7 @@
     },
     {
       "file": "src/webview/models/components/InlineError.tsx",
-      "sha256": "f1c3fa0be00ff0987a3d4f6bed5e51a8d4944b79d3349edeed7ff78eb02b35e4"
+      "sha256": "500f91c56fc1e956421fa12b47c1dacbb901e2121d8b0e35290c24bfd8b42060"
     },
     {
       "file": "src/webview/models/components/KeyState.tsx",
@@ -11147,7 +11147,7 @@
     },
     {
       "file": "src/webview/models/components/SearchableSelect.tsx",
-      "sha256": "2115a7e563b6d2900da12fc6db09b7cf159f986bce98743eabf19ad20b438273"
+      "sha256": "5aa8b7dda8b120affd55066438b87e53ee8c785b9eb2f04a932dffa2e99885a6"
     },
     {
       "file": "src/webview/models/components/SuggestionCard.tsx",
@@ -11159,7 +11159,7 @@
     },
     {
       "file": "src/webview/models/models.css",
-      "sha256": "388dde2783a7d4501a18585bda70d167f24bc86c0b2ce6e687f6e651bce1720a"
+      "sha256": "70b008b5616306c21dbd8f4856ebca8dc92621d48e70d75825581aa56e0eceb6"
     },
     {
       "file": "src/webview/models/models.tsx",
@@ -11171,7 +11171,7 @@
     },
     {
       "file": "src/webview/models/reducer.ts",
-      "sha256": "a03d5378131fad9d85f2a3670bf3aa3ca520c128d02090bafe880961ce143a01"
+      "sha256": "3d269f84cb429ab806cc8963eee79dc0e1586262eb680c5a83de080820adec7d"
     },
     {
       "file": "src/webview/models/sections.ts",
@@ -11395,7 +11395,7 @@
     },
     {
       "file": "src/webview/schedules/prompt.ts",
-      "sha256": "68f34595f7dcfa2f32d2aad846e45c66e5fe75fd57dd287c089120e24f2c8daa"
+      "sha256": "8136968528d9a2c74587eb04e9dd4d9a654225dcf5e21c30de2d31d5bff4dbad"
     },
     {
       "file": "src/webview/schedules/reportAction.css",
@@ -11439,11 +11439,11 @@
     },
     {
       "file": "src/webview/state/transcriptEntries.ts",
-      "sha256": "e21b474c0d28debfb2cc51e909c79b2cde28d5bfda70f2055a1f28d000868f2e"
+      "sha256": "ee03967a2ad5a0c7215106cebc3ea7993094adee9f60e7bfc90aaf247cf09a34"
     },
     {
       "file": "src/webview/state/uiState.ts",
-      "sha256": "0dc17c546c3d74b7f5ba107f04f01f444c09d1d3b2b473ba49bd2f3ebd5e3823"
+      "sha256": "ad3f87715f1059e7ae207fdc41530fdcaef7855d970a314083cd487acf2026ae"
     },
     {
       "file": "src/webview/stepSummary.ts",
@@ -11455,7 +11455,7 @@
     },
     {
       "file": "src/webview/styles.css",
-      "sha256": "e546b30b35aae47762bc1260746ac2883463f0f5d2e988f257096f248807275e"
+      "sha256": "7f0d86220b046ebf80c6177ee6b6478e6017f7aeaf28b56771b6c05899dbb53a"
     },
     {
       "file": "src/webview/surfaceRetry.ts",

@@ -92,7 +92,7 @@ try {
         await route.fulfill({ contentType: 'text/html', body: html })
       })
       await page.goto(`http://127.0.0.1:${String(port)}/temp/m107-j/harness/resource-history.html`)
-      await page.getByRole('table', { name: 'Harness work' }).waitFor()
+      await page.getByRole('table', { name: 'Harness Work' }).waitFor()
       const result = await page.evaluate(async () => {
         const audit = await globalThis.axe.run()
         return {

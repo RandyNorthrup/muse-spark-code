@@ -488,7 +488,7 @@ describe('RVM96B browser regressions', { timeout: REAL_HARNESS_CASE_TIMEOUT_MS }
           }),
         )
       })
-      await page.getByText('Delegation plan', { exact: true }).waitFor()
+      await page.getByText('Delegation Plan', { exact: true }).waitFor()
       // No task pill for an empty roster; open the map through its command.
       await page.getByRole('button', { name: 'Commands' }).click()
       await page.locator('.palette-filter').fill('/agents')

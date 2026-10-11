@@ -85,7 +85,7 @@
   "apiEquivalentNote": "追加のサブスクリプション料金ではなく、等価なAPI価格です。",
   "totalTime": "合計リクエスト時間",
   "latencyP50": "中央値レイテンシ (p50)",
-  "latencyP95": "p95レイテンシ",
+  "latencyP95": "P95レイテンシ",
   "firstToken": "初回トークンまでの時間",
   "tokensPerSecond": "1秒あたりのトークン数",
   "cacheHit": "キャッシュヒット率",

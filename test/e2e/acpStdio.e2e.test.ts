@@ -32,6 +32,7 @@ import { unpackUiTable } from '../../src/shared/l10n/packed'
 import { DEVICE_LOGIN_FILE, LOGOUT_SHELL } from '../unit/helpers/credentialShapes'
 import { memorySecrets } from '../unit/helpers/fakes'
 import { fakeModelApi } from '../unit/helpers/fakeModelApi'
+import { FIXTURE_HOOK_TIMEOUT_MS } from '../unit/helpers/fixtureBudget'
 import { buildModelApiBundle } from '../unit/helpers/modelApiBundle'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
 import { buildAcpFixture, removeAcpFixture } from './acpFixture'
@@ -125,7 +126,7 @@ beforeAll(async () => {
       logLevel: 'silent',
     })
   }
-})
+}, FIXTURE_HOOK_TIMEOUT_MS)
 
 afterAll(async () => {
   const made = [fake.installDir, signedIn, signedOut, loggedOut, workspace, dataHome]
@@ -493,7 +494,7 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     expect(museCode.stderr.join('')).not.toContain('HTTPS_PROXY is set')
   })
 
-  it('refuses environment credentials as Muse Code sign-in (FIXM95X)', async () => {
+  it('refuses environment credentials as Muse Code Sign-In (FIXM95X)', async () => {
     const agent = startAgent(signedOut, [], { META_API_KEY: 'LLM|1|placeholder' })
     await expect(agent.run((client) => newSession(client))).rejects.toMatchObject({ code: -32_000 })
     const said = agent.stderr.join('')

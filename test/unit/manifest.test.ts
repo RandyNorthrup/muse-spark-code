@@ -362,6 +362,14 @@ describe('package.json manifest', () => {
       [COMMAND_IDS.attachLatestScreenRecording]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
       // Deletes the conversation in front of the user's uploaded media (M105).
       [COMMAND_IDS.deleteUploadedFiles]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
+      // C-X-1: no runtime owner is bound for these yet, so the palette never
+      // lists them; each command's shim refuses when it is run another way.
+      [COMMAND_IDS.schedulePrompt]: 'false',
+      [COMMAND_IDS.showSchedules]: 'false',
+      [COMMAND_IDS.showScheduleTimeline]: 'false',
+      [COMMAND_IDS.vault]: 'false',
+      [COMMAND_IDS.lockVault]: 'false',
+      [COMMAND_IDS.estimate]: 'false',
     })
     const registered: readonly string[] = Object.values(COMMAND_IDS)
     for (const command of palette.keys()) {
