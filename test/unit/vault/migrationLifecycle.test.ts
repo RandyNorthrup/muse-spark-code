@@ -127,7 +127,10 @@ describe('migration lifecycle across release/store owners', () => {
       const codec: MigrationCredential = {
         key: `installed-${kind}`,
         itemId: f.credential.itemId,
-        name: `installed-${kind}-item`,
+        // The declared name must equal the name `decode` builds (it reuses
+        // the model codec's item below): a mismatch is refused with
+        // `conflict` before any write.
+        name: f.credential.name,
         request: null,
         decode(value) {
           const item = f.credential.decode(generatedKey())

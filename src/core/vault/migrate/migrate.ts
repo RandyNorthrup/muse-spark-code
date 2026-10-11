@@ -23,7 +23,26 @@ export class VaultMigration {
         const request = entry.request === null ? null : vaultPrivateReadSchema.parse(entry.request)
         if (request !== null && request.itemId !== entry.itemId)
           throw new VaultMigrationFault('invalid')
-        return [entry.key, { ...entry, request }]
+        // A credential's declared name must equal the name its decode
+        // builds: otherwise two credentials with different declared names
+        // could still meet on one decoded name and reproduce at migrate the
+        // R2 conflict the shared-name refusal rules out before any write.
+        // The wrapper is bound here, in the constructor, and refuses with
+        // `conflict` before any journal row, comparison or write. A decoded
+        // item that fails the check is wiped before the throw.
+        const checked: MigrationCredential = {
+          ...entry,
+          request,
+          decode(value) {
+            const item = entry.decode(value)
+            if (item.metadata.name !== entry.name) {
+              eraseItem(item)
+              throw new VaultMigrationFault('conflict')
+            }
+            return item
+          },
+        }
+        return [entry.key, checked]
       }),
     )
     if (
