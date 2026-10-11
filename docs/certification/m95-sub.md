@@ -444,8 +444,9 @@ providerProbe.ts as an input.
 
 | Final bundle                |   Bytes | Unchanged cap |
 | --------------------------- | ------: | ------------: |
-| dist/extension.js           | 569,390 |       614,400 |
-| dist/modelApi.js            | 536,346 |       537,600 |
+| dist/extension.js           | 561,121 |       614,400 |
+| dist/modelApi.js            | 528,678 |       537,600 |
+| dist/modelApiBoundaries.js  |  42,038 |        51,200 |
 | dist/headless.js            |  99,762 |       102,400 |
 | dist/configuredProviders.js |  32,048 |        51,200 |
 
@@ -489,3 +490,23 @@ The installed pre-commit hook rejected constructor member order; fields now
 precede the quote-authority constructor. The localization gate also rejected
 ACP's field-time table read; its constructor now installs the table explicitly.
 Hooks and localization checks remain unchanged.
+
+Post-hook verification of implementation commit `9eec89ab0`: the staged diff
+is empty and the committed source diff was reread. The hook made no unexpected
+logic changes. paidAuthority, acpPaid and paidDailyBudget then passed 81/81,
+with the repository timeout and three workers. Host API coverage passed again
+(375 APIs, 48 VS Code source files, zero problems). The post-hook host
+typecheck also exited 0. Process inspection found no lane-owned test server
+or worker left running.
+
+The shared quote-authority copy guard was also deliberately fired: injecting
+paidAuthority.ts into the modelApi output's generated metadata made the split
+gate exit 1 with “dist/modelApi.js loads dist/modelApiBoundaries.js and still
+carries its own copy of src/core/paid/paidAuthority.ts”. The metadata restored
+byte-for-byte to SHA-256
+`f82f69704873279a68f8bb55a8c6b7a14d57d3350b621bd579c3bd5356f133cf`;
+the split gate passed before and after. No generated mutation remains.
+
+The lane exceeded its 90-minute time box while fixing the stricter existing
+bundle diet, retaining the installed hooks, and completing restored verification.
+All nine findings are fixed; no implementation finding is deferred.
