@@ -472,3 +472,8 @@ export function sanitizeSessionImport(
   setUiText(context.table, context.locale)
   return sanitizeImportedSession(doc, options, context.modelText)
 }
+
+// Paid-use questions share this existing on-demand runtime in editor and ACP callers.
+export { paidUseQuestion } from '../../paid/paidUseQuestion'
+export { setUiText } from '../../../shared/l10n/text'
+export { createAutoCompactionAdmission } from './autoCompactionAdmission'
