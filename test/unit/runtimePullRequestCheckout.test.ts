@@ -4,7 +4,7 @@
 // with a recording git port — then end to end on the fixture repositories
 // with the real git runner, every git it starts through the dispatch gate.
 
-import { execFile, execFileSync, spawn } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { once } from 'node:events'
 import {
   existsSync,
@@ -20,10 +20,8 @@ import { hostname as hostnameOf, tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { resolveExecutable } from '../../src/core/executables'
-import * as launcher from '../../src/core/resources/launcher'
-import { ResourcePausedError } from '../../src/core/resources/launch'
 import { fileIdentityKey } from '../../src/core/fs/fileIdentity'
 import { isSamePath } from '../../src/core/paths'
 import { BlobAnswers } from '../../src/core/git/heldCheckoutCore'
@@ -79,7 +77,7 @@ import {
 } from './helpers/leaseFs'
 import { recordingLogger } from './helpers/recordingLogger'
 import { CAPTURED_PULL_FORK, CAPTURED_PULL_OWN } from './helpers/githubCapture'
-import { fakeRuntimeGitDeps, fakeTokenSource, hostGitPath } from './helpers/github/fakes'
+import { fakeRuntimeGitDeps, fakeTokenSource } from './helpers/github/fakes'
 import { createFixtureRepositories, type FixtureRepositories } from './helpers/github/repositories'
 
 const CANARY = 'm123p-checkout-canary'
@@ -2120,31 +2118,27 @@ function commandOf(args: readonly string[]): string {
 }
 
 describe('the git dispatch gate (M123 lane P)', () => {
-  it('starts git through the governed launcher in exactly three places, each after its gate', () => {
-    // A new dispatch site cannot skip the gate or the governor: every
-    // process this module starts goes through the one port call in `runGit`
-    // or `startGitBatch`, each runs its gate first, and no raw launch
-    // remains in the module.
+  it('starts git in exactly two places, each right after its gate', () => {
+    // A new dispatch site cannot skip the gate: every process this module
+    // starts goes through the one port call in `runGit` or `startGitBatch`,
+    // and each runs its gate first, in the same synchronous turn.
     const source = readFileSync(
       fileURLToPath(new URL('../../src/runtime/panel/pullRequests/checkout.ts', import.meta.url)),
       'utf8',
     )
     const count = (pattern: RegExp) => source.match(pattern)?.length ?? 0
-    expect(count(/\bexecFile\(/gu)).toBe(0)
-    expect(count(/\bspawn\(/gu)).toBe(0)
-    expect(count(/\bexecResourceFile\('/gu)).toBe(2)
-    expect(count(/\bspawnResourceProcess\('/gu)).toBe(1)
+    expect(count(/\bexecFile\(/gu)).toBe(1)
+    expect(count(/\bspawn\(/gu)).toBe(1)
     expect(count(/\bprocesses\.run\(/gu)).toBe(1)
     expect(count(/\bprocesses\.start\(/gu)).toBe(1)
-    // The governed three: writes take contained, reads and the batch probe.
-    expect(source).toMatch(/execResourceFile\('contained'/u)
-    expect(source).toMatch(/execResourceFile\('probe'/u)
-    expect(source).toMatch(/spawnResourceProcess\('probe'/u)
+    // The only two: in node's process port.
+    expect(source).toMatch(
+      /run: \(file, args, options\) =>\s+new Promise<string>\(\(resolve, reject\) => \{\s+execFile\(/u,
+    )
+    expect(source).toMatch(/start: \(file, args, options\) => spawn\(/u)
     // Each port call directly after its gate, nothing between.
     expect(source).toMatch(/ {2}gate\(\)\n {2}return git\.processes\.run\(/u)
-    expect(source).toMatch(
-      / {2}gate\(\)\n {2}return Promise\.resolve\(\n {4}git\.processes\.start\(/u,
-    )
+    expect(source).toMatch(/ {2}gate\(\)\n {2}return git\.processes\.start\(/u)
     // Every call site names a gate.
     const calls = Array.from(
       source.matchAll(/\b(?:runGit|startGitBatch)\(\s*([\w.]+),\s*([\w.]+),/gu),
@@ -2158,141 +2152,6 @@ describe('the git dispatch gate (M123 lane P)', () => {
     expect(count(/\b(?:runGit|startGitBatch)\(/gu)).toBe(calls.length + 2)
   })
 })
-
-function checkoutGit() {
-  const userEnv = pullRequestFetchEnvironment({ ...process.env })
-  return {
-    git: createNodePullRequestCheckoutGit({
-      gitPath: hostGitPath(),
-      userEnv,
-      quietEnv: quietPullRequestEnvironment({ ...process.env }),
-      platform: process.platform,
-      signal: new AbortController().signal,
-      log: recordingLogger(),
-    }),
-    userEnv,
-  }
-}
-
-describe('the governed git port (train spawn inventory)', () => {
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
-  it('runs the fetch through the contained launch, with the user environment', async () => {
-    const { git, userEnv } = checkoutGit()
-    const spy = vi.spyOn(launcher, 'execResourceFile').mockResolvedValue({ stdout: '', stderr: '' })
-    const cwd = tmpdir()
-    try {
-      await git.fetch(cwd, 'origin', 'main', () => undefined)
-      expect(spy).toHaveBeenCalledTimes(1)
-      const [profile, file, args, options] = spy.mock.calls[0] ?? []
-      expect(profile).toBe('contained')
-      expect(file).toBe(hostGitPath())
-      expect(args).toEqual(['fetch', 'origin', 'main'])
-      expect(options?.cwd).toBe(cwd)
-      expect(options?.env).toBe(userEnv)
-    } finally {
-      spy.mockRestore()
-    }
-  })
-
-  it('runs reads through the probe launch', async () => {
-    const { git } = checkoutGit()
-    const spy = vi
-      .spyOn(launcher, 'execResourceFile')
-      .mockResolvedValue({ stdout: 'abc0001\n', stderr: '' })
-    try {
-      await expect(git.readFetchHead(tmpdir(), () => undefined)).resolves.toBe('abc0001\n')
-      expect(spy).toHaveBeenCalledTimes(1)
-      const [profile, file, args] = spy.mock.calls[0] ?? []
-      expect(profile).toBe('probe')
-      expect(file).toBe(hostGitPath())
-      expect(args).toEqual(['rev-parse', '--verify', 'FETCH_HEAD^{commit}'])
-    } finally {
-      spy.mockRestore()
-    }
-  })
-
-  it('starts the batch through the probe launch, with piped streams', async () => {
-    const spy = vi
-      .spyOn(launcher, 'spawnResourceProcess')
-      .mockImplementation((_profile, file, args, options) => {
-        const child = spawn(file, [...args], {
-          cwd: options.cwd,
-          env: options.env,
-          stdio: ['pipe', 'pipe', 'pipe'],
-          windowsHide: true,
-          signal: options.signal,
-        })
-        return Promise.resolve({
-          child,
-          stop: () => {
-            child.kill()
-            return Promise.resolve()
-          },
-          pid: () => Promise.resolve(child.pid ?? undefined),
-          outcome: () => Promise.resolve(undefined),
-        })
-      })
-    try {
-      const child = await nodeGitProcesses.start(hostGitPath(), ['--version'], {
-        cwd: tmpdir(),
-        env: { ...process.env },
-        signal: new AbortController().signal,
-        timeout: 10_000,
-        detached: false,
-      })
-      const [profile, file, args] = spy.mock.calls[0] ?? []
-      expect(profile).toBe('probe')
-      expect(file).toBe(hostGitPath())
-      expect(args).toEqual(['--version'])
-      expect(child.stdout).not.toBeNull()
-      child.stdout.resume()
-      await once(child, 'close')
-    } finally {
-      spy.mockRestore()
-    }
-  })
-
-  it('reports a refused fetch as its own reason', async () => {
-    const { git } = checkoutGit()
-    vi.spyOn(launcher, 'execResourceFile').mockRejectedValue(new ResourcePausedError())
-    try {
-      await expect(git.fetch(tmpdir(), 'origin', 'main', () => undefined)).rejects.toThrow(
-        UI_TEXT.gitMachineBusy,
-      )
-    } finally {
-      vi.restoreAllMocks()
-    }
-  })
-})
-
-/**
- * Real git without the governor, for the fixture checkouts: the injected
- * double behind the recording ports. Production launches governed (pinned
- * by the dispatch gate and the port tests above); the governor's own
- * admission is its suites' subject, and a real governor under a shared
- * rig's load refuses and stalls these protocol tests. Error shapes match
- * node's, as the production port had before the move.
- */
-const directGitProcesses: GitProcessPort = {
-  run: (file, args, options) =>
-    new Promise<string>((resolve, reject) => {
-      execFile(file, [...args], { ...options, windowsHide: true }, (error, stdout) => {
-        if (error === null) {
-          resolve(stdout)
-          return
-        }
-        reject(
-          error instanceof Error
-            ? error
-            : new Error(`git failed: ${typeof error === 'string' ? error : 'unknown failure'}`),
-        )
-      })
-    }),
-  start: (file, args, options) => spawn(file, [...args], { ...options, windowsHide: true }),
-}
 
 describe('runtime pull request checkout on the fixture repositories (M123 lane P)', () => {
   let fixtures: FixtureRepositories
@@ -2393,7 +2252,7 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
         log,
         ...(options.batchDeadlineMs !== undefined && { batchDeadlineMs: options.batchDeadlineMs }),
         ...(options.createFile !== undefined && { createFile: options.createFile }),
-        processes: options.processes ?? directGitProcesses,
+        ...(options.processes !== undefined && { processes: options.processes }),
       }),
       pathExists: (fsPath) => existsSync(fsPath),
     } satisfies RuntimeCheckoutDeps)
@@ -2514,7 +2373,7 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
       platform: process.platform,
       signal: new AbortController().signal,
       log: recordingLogger(),
-      processes: processes ?? directGitProcesses,
+      ...(processes !== undefined && { processes }),
     })
   }
 
@@ -2711,11 +2570,11 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
       const recording: GitProcessPort = {
         run: (file, args, options) => {
           started.push({ command: commandOf(args), ...marks })
-          return directGitProcesses.run(file, args, options)
+          return nodeGitProcesses.run(file, args, options)
         },
         start: (file, args, options) => {
           started.push({ command: commandOf(args), ...marks })
-          return directGitProcesses.start(file, args, options)
+          return nodeGitProcesses.start(file, args, options)
         },
       }
       if (kind === 'own') {
@@ -2784,11 +2643,11 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
       const recording: GitProcessPort = {
         run: (file, args, options) => {
           startedAfter += isRefused ? 1 : 0
-          return directGitProcesses.run(file, args, options)
+          return nodeGitProcesses.run(file, args, options)
         },
         start: (file, args, options) => {
           startedAfter += isRefused ? 1 : 0
-          return directGitProcesses.start(file, args, options)
+          return nodeGitProcesses.start(file, args, options)
         },
       }
       const runner = heldRunner(recording)

@@ -9,6 +9,7 @@ import {
   ResourceCapRefusedError,
   ResourceMemoryLimitError,
   type ResourceHandoffUntil,
+  type ResourceProcessOptions,
 } from './launch'
 
 function resolveCommand(command: string, env: NodeJS.ProcessEnv): string {
@@ -72,7 +73,7 @@ export async function execResourceFile(
   profile: 'contained' | 'probe',
   command: string,
   args: readonly string[],
-  options: ExecFileOptionsWithStringEncoding,
+  options: ExecFileOptionsWithStringEncoding & Pick<ResourceProcessOptions, 'beforeSpawn'>,
 ): Promise<{ stdout: string; stderr: string }> {
   const env = options.env ?? process.env
   const file = resolveCommand(command, env)
@@ -83,6 +84,7 @@ export async function execResourceFile(
     env,
     ...(options.cwd !== undefined && { cwd: options.cwd }),
     signal,
+    beforeSpawn: options.beforeSpawn,
   })
   const { child, stop } = launched
   child.stdin.end()

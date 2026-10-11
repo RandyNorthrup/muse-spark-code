@@ -22,6 +22,8 @@ export type ResourceProcessOptions = Omit<
   SpawnOptionsWithoutStdio,
   'detached' | 'stdio' | 'shell'
 > & {
+  /** Synchronous last check after admission/preparation, immediately before spawn and Windows GO. */
+  readonly beforeSpawn?: (() => void) | undefined
   /**
    * The whole tree's committed memory cap in bytes. Enforced only by the Windows
    * attested job (contained and probe), whose outcome then names `jobMemory`
@@ -127,21 +129,28 @@ export function isResourceMemoryLimit(error: unknown): error is ResourceMemoryLi
   )
 }
 
-/**
- * A launch the governor would not run: paused or throttled by policy, out
- * of admitted children or memory, or with no admission to run under. The
- * two plain-word failures are the launcher's own (its bundle holds no
- * typed error for them); the typed refusals match structurally, as
- * documented above, since the launcher lives in another bundle.
- */
+/** Admission or containment was unavailable; codes cross the lazy bundle boundary. */
+export class ResourceUnavailableError extends Error {
+  constructor(readonly code: 'admissionUnavailable' | 'launchUnavailable') {
+    super(
+      code === 'admissionUnavailable'
+        ? 'Resource admission unavailable'
+        : 'Native governed process launch unavailable',
+    )
+    this.name = 'ResourceUnavailableError'
+  }
+}
+
+/** A refusal identified by its contract, never by arbitrary process failure text. */
 export function isGovernedRefusal(error: unknown): boolean {
   return (
     isResourcePaused(error) ||
     isResourceCapRefused(error) ||
     isResourceMemoryLimit(error) ||
     (error instanceof Error &&
-      (error.message.includes('Resource admission unavailable') ||
-        error.message.includes('Native governed process launch unavailable')))
+      error.name === 'ResourceUnavailableError' &&
+      'code' in error &&
+      (error.code === 'admissionUnavailable' || error.code === 'launchUnavailable'))
   )
 }
 export interface ResourcePipedProcess extends ResourceInteractiveProcess {

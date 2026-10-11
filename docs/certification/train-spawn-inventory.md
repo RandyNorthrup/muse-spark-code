@@ -161,3 +161,23 @@ Typecheck all five projects, eslint and prettier on changed files, knip
 (clean), cycles (none), duplication (zero), `check:host-api`
 (regenerated: `node:child_process` importers 30 → 29), `check:l10n`
 (14 tables, 0 problems).
+
+## Round 2 — restore the M123 protocol (2026-10-11, Kubuntu)
+
+Round 1 checked trust, root identity, lock and seal before awaiting resource
+admission and Windows preparation. That wait invalidated the final check;
+the Windows GO recheck was lost, and the pinned synchronous-dispatch test
+was replaced. This is a correctness defect, not an accepted trade-off.
+
+The first repair restores service.ts to d4b06c62b byte for byte except the
+non-launch wrapper rename (`spawn` → `runGit`). Checkout and both owning
+suites are restored byte for byte, including “starts git in exactly two
+places, each right after its gate”. The shared runner again admits and
+prepares the Windows job before `beforeRun`, and checks again at GO.
+The checkout admission repair follows in a separate commit.
+
+Restoration verification at repository deadlines: nativeGitService 28/28,
+runtimePullRequestCheckout 69/69; nativeGitAdapter and nativeGitSpawn 44
+passed, 1 platform skip. The initial adapter run loaded the removed round-1
+spy before restoration and failed that obsolete assertion; the restored
+file's complete replay passes. Hook path is `.husky/_`, installed unchanged.
