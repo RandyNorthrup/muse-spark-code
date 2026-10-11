@@ -3524,6 +3524,7 @@
   "whatsNewOpenSetting": "Открыть параметр",
   "whatsNewNotesInEnglish": "Примечания к выпуску на английском языке.",
   "whatsNewNoNotes": "Версия {version} поставляется без примечаний к выпуску.",
+  "whatsNewEarlierNotes": "Предыдущие заметки: см. полный список изменений",
   "whatsNewFullChangelog": "Полный список изменений на GitHub",
   "whatsNewReadme": "README на GitHub",
   "whatsNewStarGithub": "Нравится Muse Spark Code? Звезда на GitHub поможет другим людям его найти.",
