@@ -145,7 +145,16 @@ function main() {
           ['test/unit/modelApiOverflow.test.ts'],
         ]
       : [['test/e2e/eval.live.e2e.test.ts']]
-  const env = { ...process.env }
+  const allowedEnvironment = new Set(frozenPlan.execution.environment)
+  // Filter names before reading values: undeclared credential variables are never copied.
+  const inheritedNames = Object.keys(process.env).filter((name) =>
+    allowedEnvironment.has(name.toUpperCase()),
+  )
+  const env = Object.fromEntries(inheritedNames.map((name) => [name, process.env[name]]))
+  if ((mode === '--live-m75' || isSmoke) && Object.hasOwn(process.env, 'MUSE_LIVE_MODEL_API_KEY'))
+    throw new Error(
+      'MUSE_LIVE_MODEL_API_KEY is not supported; use the operating system credential store.',
+    )
   if (mode === '--live-m75' || isSmoke) {
     const computed = digestOffline(true)
     const pinned = JSON.parse(
@@ -192,7 +201,7 @@ function main() {
   for (const files of batches) {
     const result = spawnSync(
       process.execPath,
-      ['node_modules/vitest/vitest.mjs', 'run', ...files, '--maxWorkers=3'],
+      ['node_modules/vitest/vitest.mjs', ...frozenPlan.execution.arguments, ...files],
       { stdio: 'inherit', env },
     )
     if (result.error !== undefined) throw result.error

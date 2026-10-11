@@ -29568,6 +29568,21 @@ using the repository step, run all five type projects, every eval suite and
 related suites, and commit the verifier repair first with hooks. No production
 latch flip, live/paid call, dependency, merge, push or gate weakening.
 
+**CM1013R4 execution and evidence repair (2026-10-11).** The freeze now
+resolves the real Vitest setup/global-setup/alias roots, their import closure,
+and the nearest compiler configurations and extends chains. Global setup's
+language builds also read UI entries and regional-reader source as data;
+conservatively pin the complete `src/` family rather than miss those reads.
+Package/lock bytes, the plan's actual launch flags and environment allow-list,
+and the launcher are bound too. A fresh self-contained search worker is
+hashed into the receipt, prepared before credentials and executed from the
+same preflight snapshot; stale `dist/searchWorker.js` is never used. Refuse
+a snapshot for different task identities or fixture data before dispatch.
+Returned function names survive only if offered on that exact request;
+unknown names become `other` with a count. All other round-three fields are
+fixed identities/reasons, booleans, counts, exact dollar tallies or hashes.
+Regression and byte-exact drill receipts remain in the M101 certification.
+
 **CM1013B harness repair plan (2026-10-11, kubuntu).** Repair the first
 198-call live run's evidence starvation on fakes only: run both compaction
 and both packing tasks first; assign an independent measured call allowance

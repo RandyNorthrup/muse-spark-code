@@ -104,6 +104,35 @@ async function expectUnpricedUsage(wire: EvalWire, budget: EvalBudget, api: Fake
 }
 
 describe('eval wire', () => {
+  it('records only names offered on this request and counts every unknown name', async () => {
+    const api = fakeModelApi()
+    const privateText = 'C:/Users/Example/private/fixture-contents'
+    api.script({
+      calls: [
+        { name: 'read_file', arguments: '{}' },
+        { name: 'write_file', arguments: '{}' },
+        { name: privateText, arguments: '{}' },
+      ],
+    })
+    const wire = wireOn(api.fetch)
+    const response = await wire.fetch(RESPONSES_URL, {
+      ...modelCall(),
+      body: JSON.stringify({
+        model: EVAL_MODEL_ID,
+        stream: true,
+        input: [],
+        tools: [{ type: 'function', name: 'read_file' }],
+      }),
+    })
+    await response.text()
+    await wire.settle()
+    expect(wire.calls[0]?.requestEvidence).toMatchObject({
+      responseTools: ['read_file', 'other', 'other'],
+      otherTools: 2,
+    })
+    expect(JSON.stringify(wire.calls)).not.toContain(privateText)
+  })
+
   it('counts a model call and the usage Meta returned, and charges the budget', async () => {
     const api = fakeModelApi()
     api.script({ text: 'ok', usage: { input: 1000, output: 100, cached: 400 } })

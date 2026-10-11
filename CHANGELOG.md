@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Execution-bound M75 freeze and private tool evidence** (CM1013R4,
+  RVCM1013C findings 2–3). The freeze binds the actual runner configuration,
+  setup/alias closure, compiler/package inputs and launch policy, including
+  source read as data by global setup. The live runner executes a freshly
+  frozen search worker instead of trusting a pre-existing build and refuses
+  mismatched task snapshots before sending. Unknown returned tool names are
+  counted as `other`; private text cannot enter tool-name evidence even when
+  the task recovers and passes. Production automatic compaction stays off.
+
 - **Completed M75 verifier assertions** (CM1013R4, RVCM1013C finding 1).
   Every frozen task declares its assertion count. A verifier passes only
   after its last assertion reports a fresh private-input token and that count

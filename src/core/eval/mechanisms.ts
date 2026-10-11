@@ -13,7 +13,11 @@ import {
 } from '../../shared/constants'
 import { buildSync } from 'esbuild'
 import pin from './frozen.json'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { pathToFileURL } from 'node:url'
+import ts from 'typescript'
+import plan from './plan.json'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import {
@@ -150,6 +154,77 @@ export interface FrozenEvalHarness {
   readonly bundles: ReadonlyMap<string, ArmBundle>
   readonly sha256: string
   readonly sources: readonly string[]
+  readonly selection: string
+  /** Fresh self-contained executable, whose exact bytes the live worker runs. */
+  readonly searchWorker: { readonly code: string; readonly sha256: string }
+}
+
+/** Read the runner's real exported configuration, not a parallel list of setup/alias roots. */
+function runnerConfigFiles(repo: string): string[] {
+  const file = path.join(repo, plan.execution.config)
+  const config = buildSync({
+    absWorkingDir: repo,
+    entryPoints: [file],
+    bundle: true,
+    write: false,
+    packages: 'external',
+    platform: 'node',
+    format: 'cjs',
+    logLevel: 'silent',
+    define: { 'import.meta.url': JSON.stringify(pathToFileURL(file).href) },
+  }).outputFiles[0]
+  if (config === undefined) throw new Error('the evaluation runner configuration emitted no code')
+  const code = `const require = module.require('node:module').createRequire(${JSON.stringify(path.join(repo, 'package.json'))});
+${config.text}
+const configValue = module.exports.default;
+process.stdout.write(JSON.stringify([
+  configValue.test?.setupFiles ?? [], configValue.test?.globalSetup ?? [],
+  Object.values(configValue.resolve?.alias ?? {}).map(value => typeof value === 'string' ? value : value.replacement),
+].flat(2)));`
+  const value: unknown = JSON.parse(
+    execFileSync(process.execPath, ['-e', code], {
+      cwd: repo,
+      env: {},
+      encoding: 'utf8',
+      windowsHide: true,
+    }),
+  )
+  return z
+    .array(z.string())
+    .parse(value)
+    .map((file) => path.resolve(repo, file))
+}
+
+/** Include each resolver input's nearest compiler configuration and its extends chain. */
+function compilerFiles(repo: string, inputs: readonly string[]): string[] {
+  const files = new Set<string>()
+  const include = (file: string): void => {
+    if (files.has(file)) return
+    files.add(file)
+    const parsed = ts.readConfigFile(file, (name) => readFileSync(name, 'utf8'))
+    if (parsed.error !== undefined)
+      throw new Error('the evaluation compiler configuration cannot be read')
+    const data = z
+      .object({ extends: z.optional(z.union([z.string(), z.array(z.string())])) })
+      .parse(parsed.config)
+    for (const parent of [data.extends ?? []].flat()) {
+      if (!parent.startsWith('.'))
+        throw new Error('the evaluation compiler configuration needs a local extends path')
+      include(path.resolve(path.dirname(file), parent))
+    }
+  }
+  const findConfig = (dir: string): void => {
+    const relative = path.relative(repo, dir).replaceAll('\\', '/')
+    if (relative === '..' || relative.startsWith('../') || path.isAbsolute(relative)) return
+    const file = path.join(dir, 'tsconfig.json')
+    if (existsSync(file)) include(file)
+    else {
+      const parent = path.dirname(dir)
+      if (parent !== dir) findConfig(parent)
+    }
+  }
+  for (const input of inputs) findConfig(path.dirname(path.resolve(repo, input)))
+  return [...files].map((file) => path.relative(repo, file).replaceAll('\\', '/'))
 }
 
 /** The actual resolver graph, including the live verdict wrappers and launcher. */
@@ -163,6 +238,8 @@ export function evalHarnessSources(): string[] {
       ARM_PROGRAM,
       'src/host/backend/searchWorker.ts',
       'scripts/build.mjs',
+      plan.execution.config,
+      ...runnerConfigFiles(repo),
     ],
     outdir: 'eval-graph',
     bundle: true,
@@ -173,13 +250,24 @@ export function evalHarnessSources(): string[] {
     format: 'esm',
     logLevel: 'silent',
   }).metafile
+  // Global setup's language builders also read UI entries and regional readers as data.
+  // Bind the complete repository source family so those non-import reads cannot escape.
+  const dataInputs = readdirSync(path.join(repo, 'src'), { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) =>
+      path.relative(repo, path.join(entry.parentPath, entry.name)).replaceAll('\\', '/'),
+    )
+  const inputs = Object.keys(graph.inputs).map((file) =>
+    file.replaceAll('\\', '/').replace(/ with \{.*\}$/u, ''),
+  )
   // The expected digest is an output of the freeze, never its own input.
   // Lockfile and build recipe bind external packages and the search worker.
   return [
     ...new Set([
-      ...Object.keys(graph.inputs).map((file) =>
-        file.replaceAll('\\', '/').replace(/ with \{.*\}$/u, ''),
-      ),
+      ...inputs,
+      ...dataInputs,
+      ...compilerFiles(repo, [...inputs, ...dataInputs]),
+      'package.json',
       'package-lock.json',
       'native/windows/MuseSparkJob.cs',
       'native/windows/MuseSparkMcpJob.cs',
@@ -191,8 +279,11 @@ export function evalHarnessSources(): string[] {
 }
 
 /** Live launch and direct live-test execution refuse a mismatch before opening credentials. */
-export function assertEvalHarnessDigest(expected: string = pin.sha256): string {
-  const computed = evalHarnessDigest()
+export function assertEvalHarnessDigest(
+  expected: string = pin.sha256,
+  frozen: FrozenEvalHarness = freezeEvalHarness(),
+): string {
+  const computed = evalHarnessDigest(frozen)
   if (computed !== expected)
     throw new Error(
       `Frozen harness mismatch: pinned ${expected}, computed ${computed}; no live call may run.`,
@@ -206,6 +297,20 @@ export function freezeEvalHarness(
   tasks: readonly EvalTask[] = EVAL_TASKS,
 ): FrozenEvalHarness {
   const repo = armRepoRoot()
+  const worker = buildSync({
+    absWorkingDir: repo,
+    entryPoints: ['src/host/backend/searchWorker.ts'],
+    bundle: true,
+    write: false,
+    platform: 'node',
+    format: 'cjs',
+    logLevel: 'silent',
+  }).outputFiles[0]
+  if (worker === undefined) throw new Error('the frozen search worker emitted no code')
+  const searchWorker = {
+    code: worker.text,
+    sha256: createHash('sha256').update(worker.contents).digest('hex'),
+  }
   const sources = evalHarnessSources()
   const sourceDigests = sources.map((file) => ({
     path: file,
@@ -255,13 +360,18 @@ export function freezeEvalHarness(
   return {
     bundles,
     sources,
+    searchWorker,
+    selection: JSON.stringify({ arms: arms.map((arm) => arm.name), tasks }),
     sha256: createHash('sha256')
-      .update(JSON.stringify({ receipt, sources: sourceDigests }), 'utf8')
+      .update(
+        JSON.stringify({ receipt, sources: sourceDigests, searchWorker: searchWorker.sha256 }),
+        'utf8',
+      )
       .digest('hex'),
   }
 }
 
 /** SHA-256 of exactly the bundle and declared fixture bytes the counted run executes. */
-export function evalHarnessDigest(): string {
-  return freezeEvalHarness().sha256
+export function evalHarnessDigest(frozen: FrozenEvalHarness = freezeEvalHarness()): string {
+  return frozen.sha256
 }

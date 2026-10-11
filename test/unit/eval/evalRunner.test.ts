@@ -469,6 +469,20 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     expect(evalReportSchema.parse(report)).toHaveProperty('harnessDigest')
   })
 
+  it('refuses a preflight snapshot for a different selection before any dispatch', async () => {
+    const { api, deps } = rig()
+    const task = EVAL_TASKS[0]!
+    const frozenHarness = freezeEvalHarness([BASELINE_ARM], [task])
+    await expect(
+      runPairedEval([EVAL_TASKS[1]!], [BASELINE_ARM], { ...deps, frozenHarness }),
+    ).rejects.toThrow('selection does not match')
+    expect(api.requests).toHaveLength(0)
+    api.script(...canonical(task))
+    const report = await runPairedEval([task], [BASELINE_ARM], { ...deps, frozenHarness })
+    expect(report).toHaveProperty('harnessDigest', frozenHarness.sha256)
+    expect(report.arms[0]?.results[0]?.passed).toBe(true)
+  })
+
   it('binds the receipt to the exact selected task fixture data', async () => {
     const { api, deps } = rig()
     const original = EVAL_TASKS[0]!
@@ -745,6 +759,23 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
       ).toEqual([task.id])
     },
   )
+
+  it('keeps unknown tool text out of evidence after the task recovers and passes', async () => {
+    const { api, deps } = rig()
+    const task = EVAL_TASKS.find((candidate) => candidate.id === 'accept-off-by-one')!
+    const privateText = 'C:/Users/Example/private/fixture-contents'
+    api.script({ calls: [{ name: privateText, arguments: '{}' }] }, ...canonical(task))
+    const report = await runPairedEval([task], [BASELINE], deps)
+    expect(report.arms[0]?.results[0]).toMatchObject({ passed: true, failures: [] })
+    expect(report.arms[0]?.results[0]?.requestEvidence?.[0]).toMatchObject({
+      responseTools: ['other'],
+      otherTools: 1,
+    })
+    expect(JSON.stringify(report)).not.toContain(privateText)
+    expect(
+      evalReportSchema.parse(structuredClone(report)).arms[0]?.results[0]?.requestEvidence?.[0],
+    ).toMatchObject({ responseTools: ['other'], otherTools: 1 })
+  })
 
   it('records module-fact visibility and a digest for each writing request without prompt contents', async () => {
     const { api, deps } = rig()

@@ -489,7 +489,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ------------------------ | ----- |
 | `node:async_hooks`       | 2     |
 | `node:buffer`            | 62    |
-| `node:child_process`     | 28    |
+| `node:child_process`     | 29    |
 | `node:crypto`            | 173   |
 | `node:dgram`             | 1     |
 | `node:dns`               | 1     |
@@ -512,7 +512,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:string_decoder`    | 3     |
 | `node:timers/promises`   | 24    |
 | `node:tls`               | 1     |
-| `node:url`               | 8     |
+| `node:url`               | 9     |
 | `node:util`              | 10    |
 | `node:vm`                | 1     |
 | `node:worker_threads`    | 6     |

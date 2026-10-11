@@ -48,6 +48,7 @@ export interface EvalWireCall {
     readonly sha256: string
     readonly packageTypeModuleVisible: boolean
     readonly responseTools: string[]
+    otherTools: number
   }
 }
 
@@ -96,6 +97,7 @@ const modelBodySchema = z.object({
   model: z.optional(z.string()),
   instructions: z.optional(z.string()),
   input: z.optional(z.array(z.json())),
+  tools: z.optional(z.array(z.object({ type: z.string(), name: z.optional(z.string()) }))),
 })
 
 const terminalFrameSchema = z.object({
@@ -267,18 +269,27 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
   }
 
   /** The usage of a streamed reply, read from its copy. */
-  const readUsage = async (stream: ReadableStream<Uint8Array>, call: EvalWireCall) => {
+  const readUsage = async (
+    stream: ReadableStream<Uint8Array>,
+    call: EvalWireCall,
+    offered: ReadonlySet<string>,
+  ) => {
     let hasUsage = false
     try {
       for await (const frame of parseSse(stream)) {
         const response = terminalFrameSchema.safeParse(parseJson(frame.data)).data?.response
         const usage = response?.usage
         if (call.requestEvidence !== undefined) {
-          call.requestEvidence.responseTools.push(
-            ...(response?.output ?? []).flatMap((item) =>
-              item.type === 'function_call' && item.name !== undefined ? [item.name] : [],
-            ),
-          )
+          const output = response?.output ?? []
+          for (const item of output) {
+            if (item.type !== 'function_call') continue
+            if (item.name !== undefined && offered.has(item.name))
+              call.requestEvidence.responseTools.push(item.name)
+            else {
+              call.requestEvidence.responseTools.push('other')
+              call.requestEvidence.otherTools += 1
+            }
+          }
         }
         if (usage == null) {
           continue
@@ -377,6 +388,7 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
             modelBodySchema.safeParse(parseJson(body)).data,
           ),
           responseTools: [],
+          otherTools: 0,
         },
       }),
     }
@@ -409,7 +421,12 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
       return response
     }
     const [passed, copied] = metered(response.body)
-    reads.push(readUsage(copied, call))
+    const offered = new Set(
+      (modelBodySchema.safeParse(parseJson(body)).data?.tools ?? []).flatMap((tool) =>
+        tool.type === 'function' && tool.name !== undefined ? [tool.name] : [],
+      ),
+    )
+    reads.push(readUsage(copied, call, offered))
     return new Response(passed, {
       status: response.status,
       statusText: response.statusText,

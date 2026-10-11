@@ -7,6 +7,10 @@
 
 import pin from '../../../src/core/eval/frozen.json'
 import { buildSync } from 'esbuild'
+import config from '../../../vitest.config'
+import { readFileSync, readdirSync } from 'node:fs'
+import path from 'node:path'
+import * as z from 'zod/mini'
 import { JOB_SOURCE_FILES } from '../../../src/host/backend/jobSource'
 import { createHash } from 'node:crypto'
 import { beforeAll, describe, expect, it } from 'vitest'
@@ -17,8 +21,8 @@ import {
   EVAL_ARMS,
   OBSERVATION_PACKING_ARM,
   STRICT_TOOLS_ARM,
-  evalHarnessDigest,
   evalHarnessSources,
+  evalHarnessDigest,
   assertEvalHarnessDigest,
   freezeEvalHarness,
   frozenBundleChange,
@@ -80,18 +84,33 @@ describe('the frozen evaluation harness', () => {
   })
 
   it('keeps the frozen digest', () => {
-    expect(assertEvalHarnessDigest()).toBe(pin.sha256)
+    expect(assertEvalHarnessDigest(undefined, frozenSnapshot())).toBe(pin.sha256)
   })
 
   it('refuses an uncertified live harness before any call', () => {
-    expect(() => assertEvalHarnessDigest('deliberately wrong')).toThrow('no live call may run')
+    expect(() => assertEvalHarnessDigest('deliberately wrong', frozenSnapshot())).toThrow(
+      'no live call may run',
+    )
   })
 
   it('freezes every local source in the live-test and launcher resolver graph', () => {
     const frozen = frozenSnapshot()
     expect(frozen.sources).toEqual(evalHarnessSources())
+    const runner = z
+      .object({
+        resolve: z.object({ alias: z.record(z.string(), z.string()) }),
+        test: z.object({ setupFiles: z.array(z.string()), globalSetup: z.array(z.string()) }),
+      })
+      .parse(config)
     const graph = buildSync({
-      entryPoints: ['test/e2e/eval.live.e2e.test.ts', 'scripts/m101-e.mjs'],
+      entryPoints: [
+        'test/e2e/eval.live.e2e.test.ts',
+        'scripts/m101-e.mjs',
+        'vitest.config.ts',
+        ...runner.test.setupFiles,
+        ...runner.test.globalSetup,
+        ...Object.values(runner.resolve.alias),
+      ],
       outdir: 'graph-test',
       bundle: true,
       write: false,
@@ -114,11 +133,73 @@ describe('the frozen evaluation harness', () => {
       'scripts/m101-e.mjs',
       'src/core/eval/tasks.ts',
       'src/core/eval/plan.json',
+      'package.json',
+      'tsconfig.json',
+      'tsconfig.base.json',
+      'test/e2e/tsconfig.json',
+      'test/unit/tsconfig.json',
+      'src/webview/tsconfig.json',
     ])
       expect(frozen.sources).toContain(file)
     for (const file of Object.values(JOB_SOURCE_FILES))
       expect(frozen.sources).toContain(file.replaceAll('\\', '/'))
     expect(frozen.sources.some((file) => file.includes('\\'))).toBe(false)
+    // The actual global setup also compiles UI entries and scans regional readers as data.
+    const dataInputs = readdirSync('src', { recursive: true, withFileTypes: true })
+    for (const entry of dataInputs) {
+      if (!entry.isFile()) continue
+      const file = path
+        .relative(process.cwd(), path.join(entry.parentPath, entry.name))
+        .replaceAll('\\', '/')
+      if (file !== 'src/core/eval/frozen.json') expect(frozen.sources).toContain(file)
+    }
+  })
+
+  it('binds actual input bytes and the freshly emitted worker to the receipt', () => {
+    const frozen = frozenSnapshot()
+    const receipt = EVAL_ARMS.map((arm) => ({
+      name: arm.name,
+      mechanism: arm.mechanism ?? null,
+      sha256: frozen.bundles.get(arm.name)?.sha256 ?? null,
+    }))
+    const sources = frozen.sources.map((file) => ({
+      path: file,
+      sha256: createHash('sha256')
+        .update(readFileSync(file, 'utf8').replaceAll('\r\n', '\n'))
+        .digest('hex'),
+    }))
+    const hash = (inputs: typeof sources, worker = frozen.searchWorker.sha256) =>
+      createHash('sha256')
+        .update(JSON.stringify({ receipt, sources: inputs, searchWorker: worker }))
+        .digest('hex')
+    expect(hash(sources)).toBe(frozen.sha256)
+    for (const file of [
+      'vitest.config.ts',
+      'test/unit/setup.ts',
+      'test/unit/globalSetup.mjs',
+      'test/unit/mocks/vscode.ts',
+      'tsconfig.json',
+      'tsconfig.base.json',
+      'package.json',
+      'src/core/eval/plan.json',
+      'scripts/m101-e.mjs',
+    ]) {
+      expect(sources.some((source) => source.path === file)).toBe(true)
+      expect(
+        hash(
+          sources.map((source) =>
+            source.path === file ? { ...source, sha256: 'changed bytes' } : source,
+          ),
+        ),
+      ).not.toBe(frozen.sha256)
+    }
+    expect(createHash('sha256').update(frozen.searchWorker.code).digest('hex')).toBe(
+      frozen.searchWorker.sha256,
+    )
+    expect(hash(sources, createHash('sha256').update('process.exit(0)').digest('hex'))).not.toBe(
+      frozen.sha256,
+    )
+    expect(frozen.sources).not.toContain('dist/searchWorker.js')
   })
 
   it('changes each arm in one mechanism only, never a held harness dependency', () => {
@@ -192,7 +273,7 @@ describe('the frozen evaluation harness', () => {
         'utf8',
       )
       .digest('hex')
-    expect(evalHarnessDigest()).not.toBe(descriptionOnly)
+    expect(evalHarnessDigest(frozenSnapshot())).not.toBe(descriptionOnly)
     for (const arm of EVAL_ARMS) {
       if (arm.change === undefined) {
         continue

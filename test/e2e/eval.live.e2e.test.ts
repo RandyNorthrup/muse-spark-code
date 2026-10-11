@@ -21,8 +21,8 @@
 // report holds it. A shell command the model runs is allowed once, in the
 // task's folder, as the owner's user, as in the sweep, with the environment
 // less every credential variable; the verifier runs the code the model wrote
-// the same way, with an empty environment. Neither is a sandbox. Run
-// `npm run build:dev` first: the search tool's worker is the built one.
+// the same way, with an empty environment. Neither is a sandbox. The
+// worker is freshly bundled from certified inputs before credentials.
 // Run `node scripts/m101-e.mjs --plan` first: it prints the planned model
 // calls and the hard call ceiling this run stops at.
 //
@@ -37,7 +37,7 @@
 // All three are read inside the enabled test only (`liveEvalSelection`).
 
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -50,6 +50,7 @@ import {
 } from '../../src/core/eval/report'
 import {
   assertEvalHarnessDigest,
+  freezeEvalHarness,
   AUTO_COMPACTION_ARM,
   BASELINE_ARM,
   EVAL_ARMS,
@@ -83,7 +84,6 @@ import {
 const IS_ENABLED = process.env['MUSE_LIVE_MODEL_API'] === '1'
 assertNoLiveKeyEnvironment(process.env, IS_ENABLED)
 
-const SEARCH_WORKER = path.join(process.cwd(), 'dist', SEARCH_WORKER_FILE)
 // Room beyond each run's own limits for the harness to start and stop.
 const RUN_MARGIN_MS = 60_000
 
@@ -107,8 +107,10 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
     'runs the task set on the contributor model and records the report',
     async () => {
       const { tasks, reportPath, maxAttempts } = liveEvalSelection(process.env, IS_ENABLED)
-      expect(existsSync(SEARCH_WORKER) ? 'built' : 'run npm run build:dev first').toBe('built')
-      const certifiedDigest = assertEvalHarnessDigest()
+      const certified = freezeEvalHarness()
+      const certifiedDigest = assertEvalHarnessDigest(undefined, certified)
+      const frozenHarness =
+        tasks.length === EVAL_TASKS.length ? certified : freezeEvalHarness(arms, tasks)
       const credentials = await loadEvalLiveCredentials(IS_ENABLED)
       const channel = new FakeLogOutputChannel()
       const log = createLogger(channel)
@@ -116,6 +118,7 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
       // Each Windows command in a job object of its own (M27), as in activate;
       // the helper is compiled once for the run, outside every task's folder.
       const storage = mkdtempSync(path.join(tmpdir(), 'muse-eval-storage-'))
+      const searchWorker = path.join(storage, SEARCH_WORKER_FILE)
       const jobAssembly =
         process.platform === 'win32'
           ? shellJobAssembly({
@@ -129,7 +132,9 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
           : undefined
       let result: EvalReport
       try {
+        writeFileSync(searchWorker, frozenHarness.searchWorker.code)
         result = await runPairedEval(tasks, arms, {
+          frozenHarness,
           fetch: liveFetch,
           client: {
             baseUrl: MODEL_API_BASE_URL,
@@ -143,7 +148,7 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
             liveToolIo({
               workspace,
               env: () => process.env,
-              searchWorkerPath: SEARCH_WORKER,
+              searchWorkerPath: searchWorker,
               log: (message) => {
                 log.warn(message)
               },

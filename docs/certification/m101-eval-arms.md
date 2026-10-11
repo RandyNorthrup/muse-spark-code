@@ -875,3 +875,108 @@ with at most three files/workers, passes **288 tests in sixteen offline
 files**; the two unchanged opt-in live files skip 25 tests with live mode
 explicitly disabled. The sweep includes every eval suite and uses repository
 timeouts. Host API is regenerated and passes; no gate is weakened.
+
+Finding 2 binds the actual execution inputs. The freeze resolves exported
+Vitest setup/global-setup and aliases, follows their local import graph,
+and includes the nearest compiler configurations and their extends chains,
+package and lockfile, the plan table, the exact launcher arguments and the
+case-insensitive environment allow-list actually used at dispatch. Filtering
+names before reading values avoids copying credential variables. Global
+setup's language builders also read UI entries and regional-reader modules
+as data: the complete repository `src/` family is conservatively pinned.
+The generated pin is excluded from its own inputs.
+
+The fresh self-contained search-worker bundle's exact SHA-256 contributes
+to the receipt. Live preflight builds it before credentials, then passes
+the same arm/task/worker snapshot to the runner and executes those worker
+bytes from owned storage. A stale or substituted `dist/searchWorker.js`
+cannot run. A mismatched snapshot selection fails before any model dispatch.
+The completeness regression independently loads real configuration roots
+and checks their graph plus the source-data family. An independent receipt
+reconstruction proves every listed input's bytes and the emitted worker
+contribute to the digest. The dispatch regression intercepts only its
+isolated test child's spawn to observe the real launcher; it does not run
+the fake batches a second time, invoke credentials or alter repository hooks.
+
+Finding 3 compares each returned function name with the tools offered on
+that exact request. Every unoffered or missing name becomes the literal
+`other`, with `otherTools` recording the count. Neither its name nor arguments
+are copied. Direct wire coverage also rejects a valid built-in name when
+that request did not offer it. The recovery regression sends the reviewer's
+synthetic private-path name, then completes the canonical fix; a passed task
+with no failures must still serialize no private marker.
+
+Round-three evidence sweep:
+
+| Field family                                 | Origin and retained representation                  |
+| -------------------------------------------- | --------------------------------------------------- |
+| `requestEvidence.sha256`                     | Hash of request body bytes only; no body or headers |
+| `packageTypeModuleVisible`                   | Boolean projection; no observed text                |
+| `responseTools`, `otherTools`                | Exact offered identities or counted `other`         |
+| Compaction ledger and applied/settled counts | Validated numeric/exact-dollar accounting           |
+| Call allowances and overruns                 | Frozen plan numbers and booleans                    |
+| Stop/incomplete reasons                      | Fixed harness templates around validated numbers    |
+| Engagement task lists                        | Frozen task identities                              |
+| Certified/computed/harness digests           | Hashes of execution inputs                          |
+
+Initial restored second-phase verification: **48 tests / three complete
+files pass** (`evalFrozen`, `evalPlan`, `evalWire`), repository deadlines.
+R4-D2/R4-D3a remove setup from the freeze, omit the worker's digest, copy the
+whole environment, and accept any returned name. All three complete files
+fail: **6 failed / 42 passed**. Named new guards fire: source-closure
+completeness, independent input/worker-byte receipt binding, actual dispatch
+flags/environment, and offered-name/unknown-count evidence. Existing pin
+checks fire too. Mechanisms and launcher restore byte-exact:
+`535491d651f4ddf46627346bdaf6363dd33554f0e574f1b5cd0f45a92497f4db`,
+`ae2312e3d06c2d086547a50525d005e0604f25dfd49f671e1aebdaa99135ea30`.
+
+R4-D2b/R4-D3b remove snapshot-selection refusal and retain the raw-name
+mutation through the complete runner file. **2 failed / 31 passed**:
+`refuses a preflight snapshot for a different selection before any dispatch`
+and `keeps unknown tool text out of evidence after the task recovers and
+passes`. The latter is the reviewer's successful-task disclosure, not just
+a failed-turn case. Both restore byte-exact: runner
+`1096246d9cde24d259cb1a18c7e8af34f189c8aab5056c241565a1b61c37346a`,
+wire `555c9905bed3115331e4b7da4baba44d8c891f0bced122820fa456c8fabbb22e`.
+All three P2 classes have positive regressions and named red-drill failures.
+
+Final offline launcher: **571 tests across 21 complete files pass**, including
+request goldens, every eval suite and the automatic-compaction/overflow
+suites. All five final typecheck projects pass. The related sweep caught an
+existing repeated-freeze cost in `keeps the frozen digest` (5,150 ms against
+5,000 ms). Use the `beforeAll` snapshot for positive/negative digest guards
+and the behavior comparison, matching live preflight's snapshot path. Both
+assertions remain; the independent input-byte reconstruction remains. No
+repository or test timeout is raised.
+
+Final source pin (repository `--freeze`, then `--check-freeze`):
+`42e389ace71ff8a5487384963f1a47d41e3f697258a9d0e789cc76494c170023`
+→ `4f6651f99a1347a642af87361e6c13c094e08e63e80d1744cfe9f88e821d6a91`.
+The original reviewed pin was
+`3726c312a20e8abc63cd651bfc10418812dcf811321179d658c6aeac1e55903c`.
+The digest API now accepts the same preflight snapshot as the assertion guard;
+its direct guard call and cached-snapshot API coverage preserve its real offline
+launcher use and keep plain knip green without an unused export or ignore.
+
+Final related sweep over all six changed core sources, live support and the
+launcher: **252 passed in thirteen complete files**, plus 25 unchanged opt-in
+live tests skipped in two files. Six serial shards, at most three files/workers,
+repository deadlines. Plain knip passes (only its two pre-existing configuration
+hints); duplication finds zero clones; localization reports zero problems across
+14 UI tables, 14 usage tables and 252 manifest strings. Reference, roadmap,
+plan-format and regenerated host API checks pass. No new dependency or escape hatch.
+
+Production build again passes every size cap: extension **555.9/600 KiB**,
+Model API **517.1/525 KiB**, checkpoint store **87.3/225 KiB**. It exits 1 on
+exactly the five already recorded split reports: unchanged `modelPolicy.ts`
+in activation and `priceCard.ts` in activation/runtime (duplicate reports).
+PLAN §7's existing scoped deferral leaves their admission-helper injection
+and aggregate quality with the lead; no shipped import or guard is widened.
+The harness changes remain outside shipped entries. All three RVCM1013C
+findings are fixed; the inherited integration gate is not claimed green.
+
+Wire evidence projects the existing captured function-call names and offered
+function declarations used by production schemas/request goldens (M67 capture
+provenance). `otherTools` is internal evidence, not an invented provider field.
+No live/paid call or credential read was performed. Production compaction stays
+unevaluated and the lead's prior signal run is not a certification of this pin.

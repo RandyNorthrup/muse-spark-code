@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import * as z from 'zod/mini'
 import { describe, expect, it } from 'vitest'
+import path from 'node:path'
 import { EVAL_ARMS } from '../../../src/core/eval/mechanisms'
 import { EVAL_TASKS } from '../../../src/core/eval/tasks'
 import measurement from '../../../src/core/eval/plan.json'
@@ -53,6 +54,45 @@ describe('the lane E call plan', () => {
     }
     expect(plan.tasks).toEqual(measurement.tasks)
   })
+  it('uses only frozen process flags and allowed environment names at real dispatch', () => {
+    const probe = String.raw`
+const child = require('node:child_process');
+const expected = ${JSON.stringify(measurement.execution.arguments)};
+const allowed = new Set(${JSON.stringify(measurement.execution.environment)});
+let isValid = true; let runs = 0;
+process.env.MUSE_EVAL_UNDECLARED = 'private workspace text';
+process.env.META_API_KEY = 'synthetic-test-only';
+process.env.NODE_OPTIONS = '--no-warnings';
+child.spawnSync = (_file, args, options) => {
+  runs += 1;
+  isValid &&= JSON.stringify(args.slice(1, 1 + expected.length)) === JSON.stringify(expected)
+    && Object.keys(options.env).every(name => allowed.has(name.toUpperCase()));
+  return { status: 0 };
+};
+require('node:module').syncBuiltinESMExports();
+process.argv = [process.execPath, ${JSON.stringify(planScript)}, '--fake'];
+import(${JSON.stringify(new URL('../../../scripts/m101-e.mjs', import.meta.url).href)})
+  .then(() => process.stdout.write(JSON.stringify([isValid, runs]) + '\n'));
+`
+    const allowed = new Set(measurement.execution.environment)
+    const inheritedNames = Object.keys(process.env).filter((name) =>
+      allowed.has(name.toUpperCase()),
+    )
+    const env = {
+      ...Object.fromEntries(inheritedNames.map((name) => [name, process.env[name]])),
+      MUSE_EVAL_TASKS: '',
+    }
+    const stdout = execFileSync(process.execPath, ['-e', probe], {
+      encoding: 'utf8',
+      env,
+      cwd: path.dirname(path.dirname(planScript)),
+    })
+    const value: unknown = JSON.parse(stdout.trim().split('\n').at(-1) ?? '')
+    const observed = z.tuple([z.boolean(), z.number()]).parse(value)
+    expect(observed[0]).toBe(true)
+    expect(observed[1]).toBeGreaterThan(0)
+  })
+
   it('prints the narrowed six-task plan instead of the full ceiling', () => {
     const ids = [
       'accept-off-by-one',
