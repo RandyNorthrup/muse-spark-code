@@ -52,7 +52,12 @@ export function parseReportRequest(argumentsText: string, asOf: string): ReportR
     const value = words.shift()
     if (field === undefined || value === undefined || value.startsWith('--'))
       throw new Error(UI_TEXT.reportUi.invalidArguments)
-    values[field] = value
+    // The estimator's date-only deadline means midnight UTC (`estimateDeadline`
+    // in `src/runtime/estimator/command.ts` is canonical): the editor accepts
+    // the same `--by <date>` the terminal does instead of rejecting the form
+    // the schema cannot parse. Full instants pass through untouched.
+    values[field] =
+      field === 'deadline' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00.000Z` : value
   }
   if (kind === 'changes' && scope[0] === 'since') {
     if (scope.length !== 2) throw new Error(UI_TEXT.reportUi.invalidArguments)

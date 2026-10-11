@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import {
   ACP_WORKSPACE_HASH_CHARS,
+  REPORT_MAX_TEXT_CHARS,
   REPORT_SOURCE_TIMEOUT_MS,
   UI_TEXT,
 } from '../../../shared/constants'
@@ -44,10 +45,34 @@ export class LocalSourceError extends Error {
    * failure thrown across the bundle boundary (C-M113-2).
    */
   readonly isLocalSourceError = true
-  constructor(readonly code: LocalFailure) {
-    super(code)
+  constructor(
+    readonly code: LocalFailure,
+    /**
+     * A pre-scrubbed free-text reason for the record. The source that
+     * throws it owns the wording (and its scrubbing), so the record can
+     * name the failure instead of repeating the fixed table sentence.
+     * Absent or unusable detail falls back to the table sentence.
+     */
+    readonly detail?: string,
+  ) {
+    super(detail ?? code)
   }
 }
+/** A branded free-text reason from any bundle copy, or undefined when the
+ * failure carries none. Length-checked so the record stays schema-valid. */
+export function localDetailOf(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null) return undefined
+  const branded = error as { isLocalSourceError?: unknown; code?: unknown; detail?: unknown }
+  return branded.isLocalSourceError !== true ||
+    typeof branded.code !== 'string' ||
+    !Object.hasOwn(LOCAL_FAILURES, branded.code) ||
+    typeof branded.detail !== 'string' ||
+    branded.detail.length === 0 ||
+    branded.detail.length > REPORT_MAX_TEXT_CHARS
+    ? undefined
+    : branded.detail
+}
+
 /** A failure code from any bundle copy, or undefined when it is not one. */
 export function localFailureOf(error: unknown): LocalFailure | undefined {
   if (error instanceof LocalSourceError && Object.hasOwn(LOCAL_FAILURES, error.code))
@@ -146,16 +171,20 @@ export function localSource<K extends ReportSourceKind>(
         }
       } catch (error) {
         let code: LocalFailure = 'failed'
+        let detail: string | undefined
         if (signal.aborted) code = 'cancelled'
         else {
           const failure = localFailureOf(error)
-          if (failure !== undefined) code = failure
+          if (failure !== undefined) {
+            code = failure
+            detail = localDetailOf(error)
+          }
         }
         return {
           record: {
             id: kind,
             status: code === 'disabled' ? 'notApplicable' : 'unavailable',
-            reason: sourceReason(code),
+            reason: detail ?? sourceReason(code),
             observedAt: null,
             freshness: { state: 'unknown', ageMs: null },
           },
