@@ -16,6 +16,10 @@ lives in `docs/plan-archive/`, byte for byte: §2 keeps each decision's rule in
 force and links its full design record (`decisions.md`); closed milestone
 sections are in `milestones.md` and older gate records in `gates.md`. Read the
 archive when a summary is not enough, and never edit inside its blocks.
+`PLAN.md` carries the rule in force; the record lives in the archive from the
+day it lands: a change that adds a design record moves it there in the same
+change, with `npm run plan:archive` (CONTRIBUTING.md, "Archiving closed
+history from PLAN.md").
 
 ## Working rules
 
@@ -414,7 +418,9 @@ docs/plan-archive/    closed history moved out of PLAN.md, byte for byte
                       stands between hashed markers that
                       test/unit/planArchive.test.ts checks. `check:plan`
                       fails when PLAN.md passes 85% of the plan reader's
-                      bound; CONTRIBUTING.md has the archive procedure
+                      bound; CONTRIBUTING.md has the archive procedure and
+                      `npm run plan:archive` (scripts/plan-archive.mjs)
+                      moves a passage with its proofs
 docs/ide-compatibility.md, docs/ide-compatibility/
                       the plan for editors beyond VS Code (D60), the
                       generated record of what the extension asks of its host,

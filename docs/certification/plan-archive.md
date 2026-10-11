@@ -222,3 +222,48 @@ scratchpad): a protection map from every open head's diff, a block mover that
 writes the stubs and the archive files, the reassembly check, the reader
 comparison and the merge simulation. CONTRIBUTING.md, "Archiving closed
 history from PLAN.md", states the procedure they implement.
+
+## The command (2026-10-11, same day)
+
+The block mover, the reassembly check and the reader comparison are in the
+repository now, so a lane can archive the passages of its own branch:
+`npm run plan:archive` (`scripts/plan-archive.mjs`, text rules in
+`scripts/lib/planArchive.mjs`; CONTRIBUTING.md, "The command"). The
+protection map and the merge simulation stay with whoever moves text that
+open work may touch; the command does not look at other branches.
+
+What it adds to the first move's convention:
+
+- A block's marker may carry `at="<commit>"`, the commit its `lines` refer
+  to. The 198 blocks of the first move carry none (their file's introduction
+  names `5161b6476`); `test/unit/planArchive.test.ts` reads both forms.
+- A passage moved from a `PLAN.md` that differs from that commit's (a second
+  move before a commit, or text a merge brought in, with `--at`) is looked up
+  in the commit's file and must stand there exactly once, so `lines` is
+  always true of `at`.
+- A move that would change what the plan reader parses stops unless
+  `--allow-fact-change` is given, and one that leaves format drift stops
+  always.
+
+`npm run plan:archive -- status` on the train at `f7b13f45e`: `PLAN.md`
+3,558,627 bytes, 84.8% of the bound, 6,531 bytes under the gate's line;
+`decisions.md` 51 blocks, `gates.md` 140, `milestones.md` 7, all intact.
+
+Tests: `test/unit/planArchiveTool.test.mjs`, 28 cases: the text rules in
+memory, and the command against a small plan committed in a throwaway
+repository through the real plan reader (status, dry run, a decision with a
+summary, a pointer at the end of the file, `--linked`, `--batch`, `--at`, the
+fact and drift stops, the refusals). With `planArchive` and `checkPlan`: 3
+files, 63 passed on win11; the 28 tool cases also passed on linuxlt in the
+train's suite run before the command's last lint pass.
+
+Drill (win11, both breaks at once, restored and compared by SHA-256:
+`scripts/lib/planArchive.mjs` `2160a3b2…2d04508`, `scripts/plan-archive.mjs`
+`e620546f…dbfda1`):
+
+| Break                                                         | Red result                                                                                                                                                       |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `putBack` no longer restores the blank line a last block took | `takes whole blocks out and puts them back, byte for byte` fails                                                                                                 |
+| The fact comparison compares the old plan with itself         | `stops when the plan reader would parse something else, unless told the milestone is closed` and `takes a list of moves in the line numbers of one PLAN.md` fail |
+
+Together: 3 failed, 25 passed, exit 1.
