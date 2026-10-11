@@ -6158,7 +6158,12 @@ export const EN = {
     password: 'Password',
     seed: 'One-time code seed',
     roles: 'Roles',
+    // RVCM1091D P3: grant-form hints are code vocabularies (field names and
+    // keywords the form parses back), so they stay English in every table via
+    // l10n/untranslated.json; the label words beside them stay translated.
+    rolesHint: 'any / orchestrator / subagent / headless / role:name / hook:name / mcp:name',
     workspaces: 'Workspaces',
+    workspacesHint: 'any',
     target: 'Target',
     command: 'Command',
     cwd: 'Working folder',
@@ -6167,7 +6172,10 @@ export const EN = {
     expires: 'Expires',
     timeWindow: 'Time window',
     days: 'Days',
+    daysHint: '0–6',
     hours: 'Hours',
+    startHourHint: 'startHour',
+    endHourHint: 'endHour',
     remoteUser: 'Remote user',
     hostKey: 'Host key',
     origin: 'Origin',
@@ -6329,6 +6337,7 @@ export const EN = {
     sessionScope: 'Session',
     taskScope: 'Task',
     ceiling: 'Access ceiling',
+    ceilingHint: 'none / ask / secret://',
     enabledDescription: 'Enable the per-user credential vault shared by editors.',
     protectionDescription:
       'Choose vault key protection. Automatic uses available hardware plus the operating system store.',
