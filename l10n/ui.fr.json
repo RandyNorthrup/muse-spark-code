@@ -1865,7 +1865,21 @@
     "added": "Ajouté",
     "removed": "Supprimé",
     "changed": "Modifié",
-    "unchanged": "Inchangé"
+    "unchanged": "Inchangé",
+    "paused": "En pause",
+    "active": "Actif",
+    "all": "Tous",
+    "total": "Total",
+    "once": "Une fois",
+    "user": "Utilisateur",
+    "hookVerification": "Vérification des hooks"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "toutes les {everyMs} ms",
+    "triggerDaily": "tous les {everyDays} j, {times}x par jour",
+    "triggerWeekdays": "{times}x en semaine",
+    "triggerWeekly": "{days} j par semaine",
+    "scheduleGrant": "{rules} règles, {destinations} destinations, plafond {cap}"
   },
   "reportKinds": {
     "project": "Projet",

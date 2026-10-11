@@ -1893,7 +1893,21 @@
     "added": "Добавлено",
     "removed": "Удалено",
     "changed": "Изменено",
-    "unchanged": "Без изменений"
+    "unchanged": "Без изменений",
+    "paused": "Приостановлено",
+    "active": "Активно",
+    "all": "Все",
+    "total": "Итого",
+    "once": "Один раз",
+    "user": "Пользователь",
+    "hookVerification": "Проверка хуков"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "каждые {everyMs} мс",
+    "triggerDaily": "каждые {everyDays} дн., {times} раз в день",
+    "triggerWeekdays": "{times} раз по будням",
+    "triggerWeekly": "{days} дн. в неделю",
+    "scheduleGrant": "{rules} правил, {destinations} назначений, лимит {cap}"
   },
   "reportKinds": {
     "project": "Проект",

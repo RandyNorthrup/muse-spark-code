@@ -1837,7 +1837,21 @@
     "added": "Hozzáadott",
     "removed": "Eltávolított",
     "changed": "Módosított",
-    "unchanged": "Változatlan"
+    "unchanged": "Változatlan",
+    "paused": "Szüneteltetve",
+    "active": "Aktív",
+    "all": "Mind",
+    "total": "Összesen",
+    "once": "Egyszer",
+    "user": "Felhasználó",
+    "hookVerification": "Hook-ellenőrzés"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "{everyMs} ms-enként",
+    "triggerDaily": "{everyDays} naponként naponta {times}x",
+    "triggerWeekdays": "{times}x hétköznapokon",
+    "triggerWeekly": "hetente {days} nap",
+    "scheduleGrant": "{rules} szabály, {destinations} cél, korlát {cap}"
   },
   "reportKinds": {
     "project": "Projekt",

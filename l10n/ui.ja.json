@@ -1809,7 +1809,21 @@
     "added": "追加",
     "removed": "削除",
     "changed": "変更",
-    "unchanged": "変更なし"
+    "unchanged": "変更なし",
+    "paused": "一時停止中",
+    "active": "アクティブ",
+    "all": "すべて",
+    "total": "合計",
+    "once": "1回",
+    "user": "ユーザー",
+    "hookVerification": "フック検証"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "{everyMs} ms ごと",
+    "triggerDaily": "{everyDays} 日ごとに1日 {times} 回",
+    "triggerWeekdays": "平日 {times} 回",
+    "triggerWeekly": "週 {days} 日",
+    "scheduleGrant": "ルール {rules} 件、宛先 {destinations} 件、上限 {cap}"
   },
   "reportKinds": {
     "project": "プロジェクト",
