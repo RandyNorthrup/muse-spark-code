@@ -146,32 +146,28 @@ function teamEditorPanel(
 }
 
 describe('createModelsPanelFeatures', () => {
-  it('keeps sections hidden when the engine is enabled but configuration ports are absent', async () => {
-    const factory = vi.spyOn(teamPanelFactory, 'createTeamPanel')
-    try {
-      const { panel, latest, rig } = teamEditorPanel(false)
-      await vi.waitFor(() => {
-        expect(latest()?.presets.length).toBeGreaterThan(0)
-      })
-      expect(latest()?.roles).toBeUndefined()
-      expect(latest()?.agents).toBeUndefined()
-      expect(rig.update).not.toHaveBeenCalled()
-      expect(factory).not.toHaveBeenCalled()
-      panel.dispose()
-    } finally {
-      factory.mockRestore()
-    }
-  })
-  it('keeps sections hidden without required durable snapshot getters', async () => {
-    const { panel, latest, rig } = teamEditorPanel(true, false)
-    await vi.waitFor(() => {
-      expect(latest()?.presets.length).toBeGreaterThan(0)
-    })
-    expect(latest()?.roles).toBeUndefined()
-    expect(latest()?.agents).toBeUndefined()
-    expect(rig.update).not.toHaveBeenCalled()
-    panel.dispose()
-  })
+  it.each([
+    ['configuration ports', false, true],
+    ['durable snapshot getters', true, false],
+  ] as const)(
+    'keeps sections hidden without required %s',
+    async (_source, hasConfiguration, hasSnapshots) => {
+      const factory = vi.spyOn(teamPanelFactory, 'createTeamPanel')
+      try {
+        const { panel, latest, rig } = teamEditorPanel(hasConfiguration, hasSnapshots)
+        await vi.waitFor(() => {
+          expect(latest()?.presets.length).toBeGreaterThan(0)
+        })
+        expect(latest()?.roles).toBeUndefined()
+        expect(latest()?.agents).toBeUndefined()
+        expect(rig.update).not.toHaveBeenCalled()
+        expect(factory).not.toHaveBeenCalled()
+        panel.dispose()
+      } finally {
+        factory.mockRestore()
+      }
+    },
+  )
 
   it('hides stale Roles and Agents after a durable source fails and recovers on retry', async () => {
     let isUnavailable = false

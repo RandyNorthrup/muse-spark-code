@@ -42,6 +42,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Joined team verification now shares the fresh production build before browser workers start, preserving the existing deadlines and bundle caps. Engine label assertions match the reviewed Roles editor labels.
+
 - Hidden team bindings now read the active composer model and attached backend, including Auto selection, instead of a fixed default model and the backend setting. The complete captured discovery registry remains a prerequisite for exposing Roles.
 
 - Hidden Roles configuration reads its remaining shared daily budget and durable task history afresh. Missing or damaged sources refuse; learned caps use the latest twelve settled terminal tasks per role, excluding interrupted or uncertain usage.
