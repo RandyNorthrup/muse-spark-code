@@ -1,13 +1,16 @@
 import reportThemes from '../../../design/tokens/generated/report-themes.json'
+import path from 'node:path'
 import type { ReportingContext } from '../../runtime/reporting/engine'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
+import { workspaceKey as scheduleWorkspaceKey } from '../../runtime/dataFolder'
 import {
   GITHUB_AUTH_PROVIDER,
   GITHUB_AUTH_SCOPES,
   GITHUB_API_BASE_URL,
   GITHUB_MEDIA_TYPE,
   GITHUB_API_VERSION,
+  SCHEDULE_STORE_SUBFOLDER,
   UI_TEXT,
 } from '../../shared/constants'
 import { reportWorkspaceKey } from '../../core/reporting/sources/local'
@@ -130,6 +133,36 @@ export function createReportingWindow(
               table,
               locale,
             )(context),
+          // M113 C-M113-4: the playbook journal and the schedules store
+          // live under the same agent data folder as the usage journal.
+          playbook: {
+            read: (context) =>
+              loadInputs()
+                .createPlaybookReportReader(
+                  {
+                    agentDataFolder: deps.reportUsageDataFolder,
+                    workspaceRoot: deps.workspaceRoot ?? process.cwd(),
+                  },
+                  table,
+                  locale,
+                )
+                .read(context),
+          },
+          schedules: {
+            read: (context) =>
+              loadInputs()
+                .createSchedulesReportReader(
+                  {
+                    storeRoot: path.join(deps.reportUsageDataFolder, SCHEDULE_STORE_SUBFOLDER),
+                    workspaceKey: scheduleWorkspaceKey(
+                      path.resolve(deps.workspaceRoot ?? process.cwd()),
+                    ),
+                  },
+                  table,
+                  locale,
+                )
+                .read(context),
+          },
           workspaceKey,
           l10n: deps.context.l10n,
           log: deps.context.log,

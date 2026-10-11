@@ -46,6 +46,7 @@ import {
   USAGE_HISTORY_DAYS_DEFAULT,
   UI_TEXT,
   REFERENCE_BUNDLE_FILE,
+  SCHEDULE_STORE_SUBFOLDER,
   SESSION_EXPORT_MAX_BYTES,
   REPORT_SOURCE_TIMEOUT_MS,
 } from '../shared/constants'
@@ -80,7 +81,7 @@ import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/po
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
-import { agentDataFolder, workspaceSessionsFolder } from './dataFolder'
+import { agentDataFolder, workspaceKey, workspaceSessionsFolder } from './dataFolder'
 import { fontsBundle } from './fonts/bundle'
 import { playbookLoader } from './playbook/playbookBundle'
 import { runReportCommand } from './reportCommand'
@@ -587,6 +588,33 @@ function runtimeReports(
                 l10n.table,
                 l10n.locale,
               )(context),
+            // M113 C-M113-4: the playbook journal and the schedules store
+            // live under the same agent data folder as the usage journal.
+            // The schedules key matches the delivery engine's own workspace
+            // key (schedulesBridge keyFor), not the report storage key.
+            playbook: {
+              read: (context) =>
+                inputs()
+                  .createPlaybookReportReader(
+                    { agentDataFolder: dataFolder, workspaceRoot: cwd },
+                    l10n.table,
+                    l10n.locale,
+                  )
+                  .read(context),
+            },
+            schedules: {
+              read: (context) =>
+                inputs()
+                  .createSchedulesReportReader(
+                    {
+                      storeRoot: path.join(dataFolder, SCHEDULE_STORE_SUBFOLDER),
+                      workspaceKey: workspaceKey(path.resolve(cwd)),
+                    },
+                    l10n.table,
+                    l10n.locale,
+                  )
+                  .read(context),
+            },
             network: {
               policy: {
                 surface: 'terminal',
