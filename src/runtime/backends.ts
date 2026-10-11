@@ -52,11 +52,8 @@ import { mcpJobExecutable } from '../host/backend/mcpJobExecutable'
 import { createToolIo } from '../host/backend/toolIo'
 import type { ToolIo } from '../core/backends/modelapi/tools'
 import type { AcpMediaFactory } from '../acp/media'
-import {
-  lazyAttachedMedia,
-  type AttachedMedia,
-  type AttachedMediaPort,
-} from '../core/media/attachedMedia'
+import type { AttachedMedia, AttachedMediaPort } from '../core/media/attachedMedia'
+import { lazyAttachedMedia } from '../core/media/attachedMediaPort'
 import type * as RuntimeMediaEntry from './runtimeMediaEntry'
 import { AccountHosts, connectAccountSession } from '../host/auth/accountHost'
 import { CliAccount, isCliSignedIn } from '../host/auth/cliAccount'

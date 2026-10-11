@@ -107,6 +107,9 @@ happened, not what was planned; superseded entries are kept.
   private media registry to the 0.17.1 base. Preserve lazy session-upload
   cleanup, current provider/store behavior, exact budget boundaries and
   existing native/editor qualification holds; no recording surface is enabled.
+  Windows encoder handling loads from the existing process chunk; pure session
+  and usage schemas are shared, and deferred playbook English has its own
+  bounded chunk. Original startup and feature caps remain unchanged.
 
 - Production media is one service per Model API session (M105 W redesign),
   built by one factory in its own lazy bundle, `dist/productionMedia.js`

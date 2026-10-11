@@ -224,6 +224,7 @@ describe('bundled What’s New content budget', () => {
     ['LegalReport', 25, 'src/webview/components/LegalReport.tsx'],
     ['ReviewCommentForm', 25, 'src/webview/components/ReviewCommentForm.tsx'],
     ['surface English', 25, 'browser-surface-english:browser-surface-english'],
+    ['playbook English', 25, 'browser-playbook-english:browser-playbook-english'],
     ['account English', 25, 'browser-account-english:browser-account-english'],
     ['schedule English', 25, 'browser-schedule-english:browser-schedule-english'],
     ['help reference', 50, 'browser-reference-english:browser-reference-english'],

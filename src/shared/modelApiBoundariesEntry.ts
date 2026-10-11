@@ -7,3 +7,6 @@ export * from './legal'
 export * from '../core/backends/modelapi/legalScanTool'
 
 export * from './usd'
+
+// M105 port: share pure usage validation across Node readers.
+export * from './usageJournal'

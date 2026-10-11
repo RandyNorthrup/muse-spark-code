@@ -13,7 +13,6 @@ import {
   type PrivateRoot,
 } from '../../runtime/privateDirectory'
 import type { LeasedRoot } from '../../runtime/privateRootLease'
-import { jobMemoryLimitedRun } from './mediaJobRun'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
@@ -63,14 +62,18 @@ export async function conversionBindings(
     process.platform === 'darwin'
       ? await import('../../core/resources/resourceGovernorEntry')
       : undefined
+  const windows =
+    process.platform === 'win32'
+      ? await import('../../core/resources/resourceProcessEntry')
+      : undefined
   return {
     // No root, no folder: conversion refuses rather than use a temporary one.
     createPrivateDirectory: async () => {
       if (privateRoot === undefined) throw new Error('No private media root')
       return await createPrivateDirectory(await privateRoot())
     },
-    ...(process.platform === 'win32' && {
-      memoryLimitedRun: jobMemoryLimitedRun({
+    ...(windows !== undefined && {
+      memoryLimitedRun: windows.jobMemoryLimitedRun({
         jobExecutable: jobExecutable ?? (() => Promise.resolve(undefined)),
       }),
     }),

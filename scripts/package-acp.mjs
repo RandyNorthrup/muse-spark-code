@@ -55,6 +55,7 @@ const BUNDLES = [
   'fontsInstall.js',
   'scheduleBackground.js',
   'modelApi.js',
+  'modelApiSessions.js',
   'resourceAdmission.js',
   'resourceGovernor.js',
   'resourceProcess.js',

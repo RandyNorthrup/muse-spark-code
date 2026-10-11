@@ -139,6 +139,12 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     budgetKiB: 25,
   },
   {
+    name: 'playbook English',
+    entries: ['browser-playbook-english:browser-playbook-english'],
+    // M105 port: measured playbook fallback +15%, rounded up to 25 KiB.
+    budgetKiB: 25,
+  },
+  {
     name: 'account English',
     entries: ['browser-account-english:browser-account-english'],
     budgetKiB: 25,
