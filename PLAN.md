@@ -33464,6 +33464,20 @@ logged.
 
 **Status 2026-10-07: waiting.** Certification metadata remains incomplete; retained requirements and receipts follow.
 
+**Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real
+POSIX verifier that refuses a group-writable unit search directory would
+refuse registration on stock Ubuntu with umask 0002. The native schedule
+test's stand-in verifier has that rule (`mode & 0o022` on every component),
+and on the linuxlt rig it stopped at `$XDG_RUNTIME_DIR/systemd/user`, which
+exists there as 0775 with the user's own private group; both Ubuntu rigs run
+umask 0002, where a plain `mkdir -p ~/.config/systemd/user` gives the same
+mode. Production binds no POSIX verifier yet (`nodeBackgroundFiles()` in
+`src/runtime/schedules/engine.ts`, and `trustedBackgroundPath` refuses
+without one), so nothing shipped is affected. Whoever binds the verifier
+decides first what a directory writable only by the owner's own group means.
+The test itself now plants into a search root it owns
+(`SYSTEMD_UNIT_PATH`) and no longer reads the account's directories.
+
 Lane C review remediation (FIXM104C, 2026-10-05): replace host-wide cookies
 with one-use fragment launch codes exchanged for independent per-window
 bearers held only in page memory. Every privileged request, including the
