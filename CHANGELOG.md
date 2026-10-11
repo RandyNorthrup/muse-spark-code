@@ -56,6 +56,21 @@ happened, not what was planned; superseded entries are kept.
     most) with a 1-based range. Neither payload is sent anywhere by the
     extension; hook processes never get the Model API key.
 
+- **Production admission for automatic compaction** (M101 C-M101-1, dormant).
+  The panel backend manager and the runtime backend manager (ACP, exec) now
+  bind the one shared D78 gate and ledger for automatic compaction
+  (`admitAutoCompaction`) and the Meta catalogue model reader
+  (`autoCompactModel`), so every host that offers automatic compaction
+  admits the same way. Every automatic attempt reserves its projected cost
+  from the daily ledger before dispatch, rechecks the claim synchronously
+  at send, and settles once per attempt at its exact cost (known nonsends
+  refunded, uncertain attempts retain their liability); a refused or
+  missing ledger sends nothing. Near-window and overflow protection are
+  never blocked by economics. Nothing changes for users yet: the feature
+  stays off behind the unevaluated latch (`IS_AUTO_COMPACTION_EVALUATED`)
+  and reports "awaiting evaluation", and requests sent while it is off are
+  byte-identical.
+
 ### Changed
 
 - What's New fits its content budget by itself: the newest release always
@@ -190,6 +205,32 @@ happened, not what was planned; superseded entries are kept.
   line was not blank; each sanctioned entry's clause must now be in PLAN.md
   exactly once, under M121's heading, so PLAN edits elsewhere no longer turn
   the suite red and a deleted, reworded, duplicated or moved clause does.
+
+- **Automatic compaction review repairs** (M101, RVCM1011C): hidden options
+  preserve the complete ACP and CLI manuals, including invalid-argument help.
+  Help filters structured option identities rather than flag substrings.
+  Revoked consent, paid switch, trust or evaluation refuses only that
+  compaction and lets the ordinary turn continue; actual ledger failures
+  still fail closed. The native setting and README describe its currently
+  inactive preference honestly.
+
+- **Automatic compaction admission, third review** (M101, RVCM1011B): one
+  authority reserves each actual request's input estimate and full output
+  allowance, settles reported usage and refunds the difference. Consent,
+  paid switch, trust and evaluation are checked at preparation and final
+  dispatch, including retries; revocation stops the send. Unevaluated
+  automatic compaction is absent from paid surfaces and help; the native
+  setting remains an inactive preference.
+  Turn-on confirms its rates, manual summary forks keep their own identity,
+  and ACP Once is documented per workspace within the agent process.
+
+- **Automatic compaction admission** (M101, RVCM1011): shared first-charge
+  consent precedes spending; daily Stop and unreadable storage refuse even
+  near-window protection. Each HTTP attempt gets a fresh claim, known
+  nonsends refund, and settlement failure ends the owning turn before any
+  continuation. ACP/exec use their transport's sole daily debit. ACP adds
+  `--auto-compaction` as an explicit paid opt-in; exec paid defaults remain
+  off. The evaluated latch remains false.
 
 ### Documentation
 

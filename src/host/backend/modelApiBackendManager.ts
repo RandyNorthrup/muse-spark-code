@@ -49,11 +49,19 @@ import {
   MODEL_API_BASE_URL,
   MODEL_TEXT,
   type PromptCacheRetention,
+  type PaidFeature,
+  IS_AUTO_COMPACTION_EVALUATED,
   UI_TEXT,
+  SETTING_DEFAULTS,
 } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { forgetFile, requireFile } from '../lazyBundle'
 import type { Logger } from '../logger'
+import {
+  createAutoCompactionAdmission,
+  resolveAutoCompactModel,
+  type AutoCompactionLedgerClaim,
+} from '../../core/backends/modelapi/autoCompactionAdmission'
 import {
   isModelApiBundle,
   type McpPoolFactory,
@@ -162,6 +170,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly isRepoMapInPrompt?: (() => boolean) | undefined
   /** `museSpark.modelApiAutoCompaction`, read at each in-turn decision (M101 C2). */
   readonly isAutoCompactionOn?: (() => boolean) | undefined
+  readonly autoCompactionEvaluated?: (() => boolean) | undefined
+  readonly paidUseFence?: (feature: PaidFeature, sessionId: string) => () => boolean
   /** `museSpark.modelApiObservationPacking`, read when a conversation starts or resumes (M73). */
   readonly isObservationPackingOn?: (() => boolean) | undefined
   /** `museSpark.modelApiShellKeepsDirectory`, read per shell call (M91 lane S). */
@@ -176,6 +186,14 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly createAttemptVerify?: ((workspaceRoot: string) => VerifyHooks) | undefined
   /** The runtime can share notices across aliases without changing its saved-session identity. */
   readonly workspaceEdits?: WorkspaceEdits | undefined
+  /** Runtime transport owns the daily debit; other hosts supply the reserve below. */
+  readonly autoCompactionAccounting?: 'transport'
+  /** The current shared daily cap, quoted before the first charge. */
+  readonly paidDailyBudgetUsd?: () => UsdAmount | Promise<UsdAmount>
+  /** D78 claim per attempt; without either owner there is no automatic admission. */
+  readonly reserveAutoCompaction?:
+    | ((amount: UsdAmount, signal: AbortSignal) => Promise<AutoCompactionLedgerClaim | undefined>)
+    | undefined
   readonly sessionWorkspaceRoot?: string | undefined
   /** Runtime owners refuse a retargeted or replaced workspace before use. */
   readonly assertWorkspaceCurrent?: (() => void) | undefined
@@ -413,6 +431,38 @@ export class ModelApiBackendManager {
         isRepoMapInPrompt: variant.isRepoMapInPrompt,
         observationPacking: this.deps.isObservationPackingOn,
         autoCompaction: this.deps.isAutoCompactionOn,
+        autoCompactionEvaluated: this.deps.autoCompactionEvaluated,
+        autoCompactModel: resolveAutoCompactModel,
+        ...((this.deps.reserveAutoCompaction !== undefined ||
+          this.deps.autoCompactionAccounting === 'transport') && {
+          admitAutoCompaction: createAutoCompactionAdmission({
+            accounting:
+              this.deps.autoCompactionAccounting === 'transport'
+                ? 'transport'
+                : {
+                    reserveCompaction: async (amount, signal) => {
+                      if (this.deps.reserveAutoCompaction === undefined)
+                        throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+                      return await this.deps.reserveAutoCompaction(amount, signal)
+                    },
+                  },
+            allowsPaidUse: variant.allowsPaidUse,
+            isOn: () =>
+              variant.isPaidFeatureOn('autoCompaction') &&
+              this.deps.isAutoCompactionOn?.() !== false,
+            isTrusted: this.deps.isWorkspaceTrusted,
+            isEvaluated: () =>
+              this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED,
+            paidUseFence: (sessionId) =>
+              this.deps.paidUseFence?.('autoCompaction', sessionId) ?? (() => false),
+            dailyBudgetUsd:
+              this.deps.paidDailyBudgetUsd ??
+              (() => Usd.from(SETTING_DEFAULTS.paidDailyBudgetUsd).toAmount()),
+            notePaidUse: this.deps.notePaidUse,
+            log: this.deps.log,
+            storeUnavailable: UI_TEXT.sessionBudgetStoreUnavailable,
+          }),
+        }),
         shellKeepsDirectory: this.deps.isShellKeepsDirectoryOn,
         allowsPaidUse: variant.allowsPaidUse,
         isPaidUseRemembered: variant.isPaidUseRemembered,

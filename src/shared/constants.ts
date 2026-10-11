@@ -1070,6 +1070,7 @@ export const HOOK_EXPANSION_MAX_CHARS = 2048
 // once, Allow always in this workspace, or Deny), shown per use and tallied
 // (the owner's rule: "opt in and loud").
 export const PAID_FEATURES = [
+  'autoCompaction',
   'webSearch',
   'imageGeneration',
   'voice',
@@ -1096,6 +1097,7 @@ export const MUSE_CODE_PAID_FEATURES = [
 export type PaidFeature = (typeof PAID_FEATURES)[number]
 /** Each feature's setting, relative to the `museSpark` section. */
 export const PAID_FEATURE_SETTINGS = {
+  autoCompaction: 'modelApiAutoCompaction',
   webSearch: 'modelApiWebSearch',
   imageGeneration: 'modelApiImageGeneration',
   voice: 'modelApiVoice',
@@ -2209,6 +2211,10 @@ export const COMPACTION_SUMMARY_MAX_TOKENS = 8192
 export const COMPACTION_SUMMARY_WINDOW_FRACTION = 0.05
 // Lane E flips this only with a current passing M75 pair and D78 wiring.
 export const IS_AUTO_COMPACTION_EVALUATED = false
+/** The single runtime reader for the latch, so every gate flips together. */
+export function isAutoCompactionEvaluated(): boolean {
+  return IS_AUTO_COMPACTION_EVALUATED
+}
 export const AUTO_COMPACTION_COOLDOWN_REQUESTS = 2
 export const AUTO_COMPACTION_MIN_OCCUPANCY = 1 / 2
 export const AUTO_COMPACTION_NEAR_WINDOW = 9 / 10
@@ -4137,11 +4143,13 @@ export const ACP_CONFIG_IDS = { model: 'model', effort: 'effort', account: 'acco
 // only with its flag, and each use asked in the editor (M58, D48). Muse
 // Voice needs the panel's microphone, so the agent has none.
 export const ACP_PAID_FEATURES = [
+  'autoCompaction',
   'webSearch',
   'imageGeneration',
 ] as const satisfies readonly PaidFeature[]
 export type AcpPaidFeature = (typeof ACP_PAID_FEATURES)[number]
 export const ACP_PAID_FLAGS = {
+  autoCompaction: 'auto-compaction',
   webSearch: 'web-search',
   imageGeneration: 'image-generation',
 } as const satisfies Readonly<Record<AcpPaidFeature, string>>
