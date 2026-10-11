@@ -1,3 +1,4 @@
+import { EstimateDiagnosticError } from '../core/estimator/diagnostic'
 import { UI_TEXT } from '../shared/l10n/text'
 import {
   collectEstimate,
@@ -29,7 +30,8 @@ export function createAcpEstimate(deps: {
       if (parsed === undefined || parsed.kind === 'invalid') return UI_TEXT.estimateUsage
       if (parsed.kind === 'help') return `${UI_TEXT.estimateUsage}\n${UI_TEXT.estimateCliHelp}`
       if (parsed.kind === 'check-plan') {
-        if (deps.checkPlan === undefined) return estimateFailureText(new Error('no plan check'))
+        if (deps.checkPlan === undefined)
+          return estimateFailureText(new EstimateDiagnosticError('estimate-unavailable'))
         try {
           const problems = await deps.checkPlan(cwd, signal)
           return problems.join('\n')

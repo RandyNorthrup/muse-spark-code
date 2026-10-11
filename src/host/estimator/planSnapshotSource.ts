@@ -1,3 +1,4 @@
+import { EstimateDiagnosticError } from '../../core/estimator/diagnostic'
 // The estimator snapshot binding's host side (M117 C-M117-1, PLAN.md D97.2):
 // the workspace plan plus git merged-lane state plus `gh` PR/issue evidence,
 // projected through the shared core adapter. Used by every host (the VS Code
@@ -15,11 +16,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import * as z from 'zod/mini'
 import { withoutCredentials } from '../../core/credentialEnvironment'
-import {
-  buildPlanSnapshot,
-  checkPlan,
-  EstimateDiagnosticError,
-} from '../../core/estimator/planSnapshot'
+import { buildPlanSnapshot, checkPlan } from '../../core/estimator/planSnapshot'
 import { resolveExecutable } from '../../core/executables'
 import type { EstimateGoal } from '../../shared/estimate'
 import type { UiText } from '../../shared/l10n/en'
@@ -30,7 +27,7 @@ import {
   GITHUB_API_BASE_URL,
   UI_TEXT,
 } from '../../shared/constants'
-import { fill, setUiText } from '../../shared/l10n/text'
+import { setUiText } from '../../shared/l10n/text'
 
 import {
   isReportNetworkAllowed,
@@ -112,12 +109,14 @@ function defaultIo(root: string): PlanSnapshotSourceIo {
       readFile(file, signal === undefined ? 'utf8' : { encoding: 'utf8', signal }),
     runGit: async (args, signal) => {
       const git = program('git')
-      if (git === undefined) throw new Error(UI_TEXT.estimateUnavailable)
+      if (git === undefined)
+        throw new EstimateDiagnosticError('estimate-unavailable', UI_TEXT.estimateUnavailable)
       return await runProgram(git, args, root, signal)
     },
     runGh: async (args, signal) => {
       const gh = program('gh')
-      if (gh === undefined) throw new Error(UI_TEXT.estimateUnavailable)
+      if (gh === undefined)
+        throw new EstimateDiagnosticError('estimate-unavailable', UI_TEXT.estimateUnavailable)
       return await runProgram(gh, args, root, signal)
     },
   }
@@ -132,7 +131,7 @@ function lines(output: string): string[] {
 }
 
 function refuseSource(detail: string): never {
-  throw new EstimateDiagnosticError(detail, fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError(detail)
 }
 
 async function required(

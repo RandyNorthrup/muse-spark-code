@@ -339,7 +339,7 @@
     "estimate-by": "--by <date>: Échéance",
     "fleet": "--fleet current|minimum|optimum: Parc actuel / Configuration minimale / Configuration optimale",
     "estimate-format": "--format md|html|json|text: Format de sortie",
-    "estimate-check-plan": "--check-plan: List every plan problem instead of estimating",
+    "estimate-check-plan": "--check-plan: Lister tous les problèmes du plan au lieu de faire une estimation",
     "seed": "--seed <seed>: Graine de simulation"
   },
   "referenceScanSecrets": "Analyse un fichier de patch UTF-8 pour détecter des secrets et échoue en cas de détection. --key-stdin recherche aussi la clé Model API exacte conservée en mémoire ; aucune clé n’est stockée.",
@@ -439,6 +439,7 @@
   "referenceTasks": "Ouvrir les tâches de cette conversation dans un onglet distinct.",
   "referenceDiagnostics": "Afficher le diagnostic local du backend et de l’extension.",
   "referenceReport": "Prévisualiser un rapport nettoyé avant de l’enregistrer ou de l’envoyer.",
+  "estimateDiagnosticHelp": "Les refus du plan et du moteur affichent le même diagnostic nommé dans le panneau, la CLI et ACP ; les erreurs externes masquent les détails privés. Un refus de l’estimation, de l’actualisation ou du démarrage remplace la prévision précédente par ce diagnostic.",
   "referenceEstimate": "Estime quand un objectif sera livré avec la flotte actuelle, ou la configuration qu’une date exige.",
   "referenceTerminal": "Ouvrir la CLI Muse Code dans le terminal de l’éditeur.",
   "referenceRules": "Créer ou ouvrir AGENTS.md à la racine de l’espace de travail.",

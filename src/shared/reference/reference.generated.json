@@ -1875,7 +1875,7 @@
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
-      "details": [{ "ui": "estimateCliHelp" }],
+      "details": [{ "ui": "estimateDiagnosticHelp" }, { "ui": "estimateCliHelp" }],
       "facts": {},
       "editors": ["vscode", "acp"]
     },

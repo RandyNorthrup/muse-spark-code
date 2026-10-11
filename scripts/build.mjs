@@ -1027,7 +1027,8 @@ const vaultBoundariesOptions = {
 
 const estimateContractsOptions = {
   ...modelApiOptions,
-  plugins: [sharedUiText, sharedValidation],
+  // Typed refusals reuse the shipped scrubber instead of copying it into contracts.
+  plugins: [sharedUiText, sharedValidation, sharedRedaction],
   entryPoints: ['src/shared/estimateContractsEntry.ts'],
   outfile: 'dist/estimateContracts.js',
 }

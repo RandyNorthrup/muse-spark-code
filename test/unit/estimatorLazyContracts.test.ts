@@ -9,12 +9,30 @@ describe('first-use estimator contracts', () => {
     const frame = { type: 'estimatorSection', section }
     expect(parseHostToWebviewMessage(frame).ok).toBe(false)
     const lazy = await import('../../src/shared/estimatorProtocol')
-    expect(lazy.parseHostToEstimatorMessage(frame)).toEqual({ ok: true, message: frame })
+    expect(await lazy.parseHostToEstimatorMessage(frame)).toEqual({ ok: true, message: frame })
     const request = { type: 'estimateRun', request: section.inputs.request }
     expect(lazy.parseEstimatorToHostMessage(request)).toEqual({ ok: true, message: request })
+    const command = {
+      type: 'estimateCommand',
+      command: '/estimate M117',
+      context: {
+        asOf: section.asOf,
+        optimize: 'cost',
+      },
+    }
+    expect(lazy.parseEstimatorToHostMessage(command)).toEqual({ ok: true, message: command })
     expect(
-      lazy.parseHostToEstimatorMessage({ ...frame, section: { ...section, disclosures: [] } }).ok,
+      lazy.parseEstimatorToHostMessage({
+        ...command,
+        context: { asOf: 'invalid', optimize: 'cost' },
+      }).ok,
     ).toBe(false)
+    expect(lazy.parseEstimatorToHostMessage({ ...command, unexpected: true }).ok).toBe(false)
+    const invalidSection = await lazy.parseHostToEstimatorMessage({
+      ...frame,
+      section: { ...section, disclosures: [] },
+    })
+    expect(invalidSection.ok).toBe(false)
     expect(
       lazy.parseEstimatorToHostMessage({
         ...request,

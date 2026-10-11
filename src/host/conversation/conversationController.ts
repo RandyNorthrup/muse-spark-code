@@ -1,3 +1,8 @@
+import {
+  EstimateDiagnosticError,
+  estimateDiagnostic,
+  estimateFailureText,
+} from '../../shared/estimateDiagnostic'
 import type { UsageRecording } from '../../core/usage/recording'
 import type { ProviderUsageRow, AccountFacts, SubscriptionUsage } from '../../shared/usage'
 import type { ChatShareSource } from '../../core/sharing/chatShare'
@@ -9339,18 +9344,26 @@ export class ConversationController {
   }
 
   private async handleEstimateMessage(
-    message: Extract<WebviewToHostMessage, { type: 'estimateRun' | 'estimateSpinUp' }>,
+    message: Extract<
+      WebviewToHostMessage,
+      { type: 'estimateRun' | 'estimateSpinUp' | 'estimateCommand' }
+    >,
   ): Promise<void> {
     const estimator = this.deps.estimator
     const generation = this.sendInvalidationEpoch
     const correlation = message.requestId === undefined ? {} : { requestId: message.requestId }
-    if (message.type === 'estimateRun') {
+    if (message.type !== 'estimateSpinUp') {
       this.invalidateEstimate()
       const pending = new AbortController()
       this.estimatePending = pending
       try {
-        if (estimator === undefined) throw new Error(UI_TEXT.estimateUnavailable)
-        const section = await estimator.estimate(message.request, pending.signal)
+        if (estimator === undefined) throw new EstimateDiagnosticError('estimate-unavailable')
+        const request =
+          message.type === 'estimateRun'
+            ? message.request
+            : estimator.parseCommand?.(message.command, message.context)
+        if (request === undefined) throw new EstimateDiagnosticError('estimate-unavailable')
+        const section = await estimator.estimate(request, pending.signal)
         if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
           return
         this.lastEstimateInputs = section.inputs
@@ -9359,9 +9372,10 @@ export class ConversationController {
       } catch (error: unknown) {
         if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
           return
-        const reason = describe(error)
+        const diagnostic = estimateDiagnostic(error)
+        const reason = estimateFailureText(diagnostic)
         this.deps.log.error(`The estimate failed: ${reason}`)
-        this.post({ type: 'estimatorFailure', ...correlation, reason })
+        this.post({ type: 'estimatorFailure', ...correlation, diagnostic })
         this.notice('warning', reason)
       } finally {
         if (this.estimatePending === pending) this.estimatePending = undefined
@@ -9369,7 +9383,7 @@ export class ConversationController {
       return
     }
     try {
-      if (estimator === undefined) throw new Error(UI_TEXT.estimateUnavailable)
+      if (estimator === undefined) throw new EstimateDiagnosticError('estimate-unavailable')
       const section = this.lastEstimateSection
       const kind = message.setup ?? 'current'
       const setup = section?.setups.find((setup) => setup.kind === kind)
@@ -9377,17 +9391,19 @@ export class ConversationController {
       let inputs = this.lastEstimateInputs
       if (fleet) inputs = { ...section.inputs, fleet }
       else if (kind !== 'current') inputs = undefined
-      if (inputs === undefined || setup === undefined) throw new Error(UI_TEXT.estimateUsage)
-      if (setup.provisioning !== 'existing') throw new Error(UI_TEXT.estimateAdvice)
+      if (inputs === undefined || setup === undefined) throw new EstimateDiagnosticError('usage')
+      if (setup.provisioning !== 'existing') throw new EstimateDiagnosticError('advice-only')
       const started = await estimator.startWave(inputs)
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) return
       this.post({ type: 'estimatorStarted', ...correlation })
       this.notice('info', fill(UI_TEXT.estimateWaveStarted, { lanes: started.join(', ') }))
     } catch (error: unknown) {
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) return
-      this.deps.log.error(`The first wave failed: ${describe(error)}`)
-      this.post({ type: 'estimatorStarted', ...correlation, error: describe(error) })
-      this.notice('warning', describe(error))
+      const diagnostic = estimateDiagnostic(error)
+      const reason = estimateFailureText(diagnostic)
+      this.deps.log.error(`The first wave failed: ${reason}`)
+      this.post({ type: 'estimatorStarted', ...correlation, diagnostic })
+      this.notice('warning', reason)
     }
   }
 
@@ -10429,6 +10445,7 @@ export class ConversationController {
         await this.handleReportMessage(message)
         break
       }
+      case 'estimateCommand':
       case 'estimateRun':
       case 'estimateSpinUp': {
         await this.handleEstimateMessage(message)

@@ -862,7 +862,7 @@
     {
       "id": "M117",
       "title": "Capacity estimator",
-      "summary": "Run /estimate on a goal without a model call, with strict snapshots that name unresolved references and incomplete evidence, retain completed lane identities and honor the current Reports network policy.",
+      "summary": "Forecast goal completion with explicit prerequisite grammar and closure-scoped validation; check every plan row with --check-plan, preserve typed refusal diagnostics and replace stale forecasts across all surfaces, and honor the current Reports network policy.",
       "area": "agents",
       "release": "0.17.0"
     },

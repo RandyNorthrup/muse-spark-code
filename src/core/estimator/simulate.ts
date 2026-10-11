@@ -1,3 +1,4 @@
+import { parseEstimate, EstimateDiagnosticError } from './diagnostic'
 import { fingerprint } from '../verify/fingerprint'
 import {
   estimateInputsSchema,
@@ -15,7 +16,6 @@ import {
   MINUTES_PER_HOUR,
   SECONDS_PER_MINUTE,
 } from '../../shared/constants'
-import { UI_TEXT, fill } from '../../shared/l10n/text'
 import { compareEstimateIds } from './goal'
 import { planDurationEvidence, type EstimateDurationEvidence } from './dag'
 import { canEstimateMachineRun, prepareEstimateSchedule } from './schedule'
@@ -74,7 +74,7 @@ const P50 = 0.5
 const P90 = 0.9
 
 function refuse(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError(detail)
 }
 
 /** All input arrays are sets of application records/identities; object and
@@ -208,7 +208,7 @@ export function simulateEstimate(
   input: EstimateInputs,
   port: EstimateDurationPort,
 ): EstimateSimulation {
-  const inputs = estimateInputsSchema.parse(input)
+  const inputs = parseEstimate(estimateInputsSchema, input)
   const scheduler = prepareEstimateSchedule(inputs.lanes, inputs.fleet)
   const lanes = inputs.lanes.toSorted((a, b) => compareEstimateIds(a.id, b.id))
   const layout = lanes
