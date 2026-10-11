@@ -304,3 +304,48 @@ The dependent selector includes both restored adapter/service modules and
 all three changed launcher modules; it selects 324 suites. Remaining suites
 are run in groups of at most three, with maxWorkers=3 and repository timeouts.
 No elevated timeout or sandbox workaround was used.
+
+### Final coverage and remaining integration work
+
+The dependency selector's actual CLI replay and subsequent three-file
+batches ran 150 suites: every file passed, with no failed tests or hooks.
+The pre-verified native owners and final resource replays bring selected
+coverage to 160/324. The exact 164 files not run before
+the lane's sixty-minute time box are in
+[train-spawn-inventory-not-run.json](train-spawn-inventory-not-run.json).
+This is incomplete dependent certification; it must not be represented as
+ALL DEPENDENT SUITES RUN. No sandbox operation was blocked or worked around.
+
+The final resource replays passed 59 tests, with 5 existing platform
+skips: spawnProfiles, spawnGovernance, spawnBoundaries,
+spawnRuntimeAdmission, shellJob, spawnBootstrap. The same-turn assertion
+now runs on Windows too (using the attested helper fixture); no new
+platform skip remains. All named M123 suites passed at repository defaults.
+
+Post-hook review found Prettier undoing ESLint's required nested-ternary
+parentheses; a separate failureCode local removes the conflict without
+changing results. Root-only profiles retain their original conservative
+spawn tracking after the final hook, so an error after actual spawn never
+releases an unused lease. Piped Git's final hook/GO order stays unchanged.
+A fresh unit typecheck passed after the writable fixture repair. Final
+resource checks and a production rebuild were run after these refinements.
+The same five inherited split findings remain; all byte caps pass.
+
+Final exact bytes:
+
+| Bundle                      |  Bytes |
+| --------------------------- | -----: |
+| `dist/extension.js`         | 571429 |
+| `dist/modelApi.js`          | 529180 |
+| `dist/checkpointStore.js`   |  86644 |
+| `dist/acp.js`               | 241039 |
+| `dist/conversationGit.js`   | 129177 |
+| `dist/resourceProcess.js`   |  23446 |
+| `dist/resourceAdmission.js` |   3260 |
+
+HUB: integration run — the retained Round-1 gitMachineBusy key in
+src/shared/l10n/en.ts and all fourteen translated tables remains reachable
+in checkout; localization passes. The full integrated run remains lead-owned.
+Service source is byte-identical to d4b06c62b after undoing only the wrapper
+rename; processOwner source is byte-identical. The restored pinned test's
+byte proof and all six SHA-256 restoration drills are above.
