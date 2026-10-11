@@ -36585,6 +36585,19 @@ single-rig milestone forecasts P50/P90 deterministically. Receipts in
 `docs/certification/m117-snapshot.md`. Still waiting: board, catalog,
 history, multi-machine fleets, and issue lane linkage (M113 N).
 
+**C-M117-3 estimator fleet binding (2026-10-11, Kubuntu).** The `fleet` and
+`candidatePool` ports bind this machine's measured row with M107's caps, M108's
+account rows and GitHub CI concurrency when their readers are passed
+(`src/host/estimator/fleetBinding.ts`, optional third argument of
+`estimatorSourcePorts`); without readers the fleet is byte-identical to the
+certified local row. No volatile governor level is sampled (a forecast predicts
+configured capacity; sampling would break acceptance 2 determinism). Device and
+node rows stay absent until M100/M110 merge: lanes naming them stay
+unschedulable with their reason. Live readers wire later at
+`src/extension.ts:2367` and `src/runtime/estimator/ports.ts:39`. Receipts in
+`docs/certification/m117-fleet.md`. No dependencies, strings, commands,
+settings or cap changes.
+
 **C-M117-1R3 strict redesign (2026-10-10, macmini; review RVCM1171B).**
 Repair all thirteen P2 and two P3 findings within the snapshot lane. Validate
 all declared lane prerequisites, milestone references, release members and
