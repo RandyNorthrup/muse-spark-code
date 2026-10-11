@@ -76,12 +76,23 @@ async function waitForPaint(page, selector) {
 /** Question placeholders have their own busy marker, without data-deferred-loading. */
 export async function waitForDeferredPaint(page, scene) {
   const loading = page.locator('[data-deferred-loading],[data-question-slot][aria-busy="true"]')
-  for (let attempt = 0; attempt < 100 && (await loading.count()) > 0; attempt += 1) {
+  // A render can have no loading marker yet still own a lazy request.
+  // Always drain requests before deciding that its pixels are settled.
+  await requestsSettled(page)
+  const sceneWorkPending = async () =>
+    await page.evaluate(() => globalThis.harnessSceneWorkPending?.() ?? false)
+  for (
+    let attempt = 0;
+    attempt < 100 && ((await loading.count()) > 0 || (await sceneWorkPending()));
+    attempt += 1
+  ) {
     await requestsSettled(page)
     await page.clock.runFor(100)
     await delay(10)
   }
-  if ((await loading.count()) > 0) throw new Error(`Deferred renderer did not settle: ${scene}`)
+  await requestsSettled(page)
+  if ((await loading.count()) > 0 || (await sceneWorkPending()))
+    throw new Error(`Deferred renderer did not settle: ${scene}`)
 }
 
 async function openScene(page, root, port, scene, theme, width, height, fixtures) {

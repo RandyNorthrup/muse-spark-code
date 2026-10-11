@@ -6,12 +6,18 @@
 import { useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
-import { useFormatUsd } from '../money'
+import { useMoneyLoad } from '../money'
 
 /** A usage amount with the lazy money chunk's exact display. */
 function UsageAmount({ usd }: { readonly usd: number }) {
-  const formatted = useFormatUsd(usd, 2)
-  return formatted === undefined ? null : <>{formatted}</>
+  const money = useMoneyLoad()
+  return (
+    <span
+      data-deferred-loading={money.status === 'idle' || money.status === 'loading' || undefined}
+    >
+      {money.status === 'ready' ? money.display.formatMoney(usd, 2) : null}
+    </span>
+  )
 }
 import type {
   ModelsPanelState,

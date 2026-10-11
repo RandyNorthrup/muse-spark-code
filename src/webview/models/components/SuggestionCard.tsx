@@ -10,6 +10,7 @@ export interface SuggestionCardProps {
   readonly value: string
   /** The value is on show: Accept is never offered for a value not yet stated. */
   readonly isValueShown?: boolean
+  readonly isValueLoading?: boolean
   readonly accepted: boolean
   readonly onAccept: () => void
   readonly onChange: () => void
@@ -20,6 +21,7 @@ export function SuggestionCard({
   reason,
   value,
   isValueShown = true,
+  isValueLoading = false,
   accepted,
   onAccept,
   onChange,
@@ -27,7 +29,9 @@ export function SuggestionCard({
   return (
     <div className="models-suggestion">
       <h4 className="models-suggestion-title">{title}</h4>
-      <p className="models-suggestion-value">{value}</p>
+      <p className="models-suggestion-value" data-deferred-loading={isValueLoading || undefined}>
+        {value}
+      </p>
       <p className="models-suggestion-reason">{reason}</p>
       <div className="models-row-actions">
         <button
