@@ -1893,7 +1893,21 @@
     "added": "Přidáno",
     "removed": "Odstraněno",
     "changed": "Změněno",
-    "unchanged": "Beze změny"
+    "unchanged": "Beze změny",
+    "paused": "Pozastaveno",
+    "active": "Aktivní",
+    "all": "Vše",
+    "total": "Celkem",
+    "once": "Jednou",
+    "user": "Uživatel",
+    "hookVerification": "Ověření hooků"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "každých {everyMs} ms",
+    "triggerDaily": "každých {everyDays}d {times}x denně",
+    "triggerWeekdays": "{times}x ve všední dny",
+    "triggerWeekly": "{days}d týdně",
+    "scheduleGrant": "{rules} pravidel, {destinations} cílů, limit {cap}"
   },
   "reportKinds": {
     "project": "Projekt",

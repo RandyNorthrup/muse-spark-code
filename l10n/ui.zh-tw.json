@@ -1809,7 +1809,21 @@
     "added": "已新增",
     "removed": "已移除",
     "changed": "已變更",
-    "unchanged": "未變更"
+    "unchanged": "未變更",
+    "paused": "已暫停",
+    "active": "使用中",
+    "all": "全部",
+    "total": "總計",
+    "once": "一次",
+    "user": "使用者",
+    "hookVerification": "掛鉤驗證"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "每 {everyMs} 毫秒",
+    "triggerDaily": "每 {everyDays} 天每天 {times} 次",
+    "triggerWeekdays": "工作日 {times} 次",
+    "triggerWeekly": "每週 {days} 天",
+    "scheduleGrant": "{rules} 條規則、{destinations} 個目標、上限 {cap}"
   },
   "reportKinds": {
     "project": "專案",

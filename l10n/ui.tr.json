@@ -1837,7 +1837,21 @@
     "added": "Eklendi",
     "removed": "Kaldırıldı",
     "changed": "Değişti",
-    "unchanged": "Değişmedi"
+    "unchanged": "Değişmedi",
+    "paused": "Duraklatıldı",
+    "active": "Etkin",
+    "all": "Tümü",
+    "total": "Toplam",
+    "once": "Bir kez",
+    "user": "Kullanıcı",
+    "hookVerification": "Kanca doğrulama"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "her {everyMs} ms",
+    "triggerDaily": "her {everyDays} günde günde {times} kez",
+    "triggerWeekdays": "hafta içi {times} kez",
+    "triggerWeekly": "haftada {days} gün",
+    "scheduleGrant": "{rules} kural, {destinations} hedef, üst sınır {cap}"
   },
   "reportKinds": {
     "project": "Proje",

@@ -1893,7 +1893,21 @@
     "added": "Dodane",
     "removed": "Usunięte",
     "changed": "Zmienione",
-    "unchanged": "Bez zmian"
+    "unchanged": "Bez zmian",
+    "paused": "Wstrzymano",
+    "active": "Aktywny",
+    "all": "Wszystkie",
+    "total": "Razem",
+    "once": "Raz",
+    "user": "Użytkownik",
+    "hookVerification": "Weryfikacja hooków"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "co {everyMs} ms",
+    "triggerDaily": "co {everyDays}d {times}x dziennie",
+    "triggerWeekdays": "{times}x w dni powszednie",
+    "triggerWeekly": "{days}d tygodniowo",
+    "scheduleGrant": "{rules} reguł, {destinations} celów, limit {cap}"
   },
   "reportKinds": {
     "project": "Projekt",

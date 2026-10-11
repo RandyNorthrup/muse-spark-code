@@ -1809,7 +1809,21 @@
     "added": "추가됨",
     "removed": "제거됨",
     "changed": "변경됨",
-    "unchanged": "변경 없음"
+    "unchanged": "변경 없음",
+    "paused": "일시 중지됨",
+    "active": "활성",
+    "all": "전체",
+    "total": "합계",
+    "once": "한 번",
+    "user": "사용자",
+    "hookVerification": "후크 검증"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "{everyMs}ms마다",
+    "triggerDaily": "{everyDays}일마다 하루 {times}회",
+    "triggerWeekdays": "평일 {times}회",
+    "triggerWeekly": "주 {days}일",
+    "scheduleGrant": "규칙 {rules}개, 대상 {destinations}개, 한도 {cap}"
   },
   "reportKinds": {
     "project": "프로젝트",
