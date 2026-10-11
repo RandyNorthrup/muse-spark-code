@@ -311,8 +311,10 @@ moves is kept there byte for byte:
 
 - **`milestones.md`**: sections of closed, released milestones. PLAN.md §6
   keeps the heading, every status row, the Goal / Depends on / Gates fields,
-  the checklist, the lane tables and the line
-  `- **Archived.** The full section is in …`.
+  the lane tables and the line `- **Archived.** The full section is in …`.
+  The checklist of a closed section may follow its text into the archive
+  when room is needed (the stub then lists no items in `/report`); a lane
+  table a test reads never does.
 - **`gates.md`**: §7 gate records of lanes that are verified and no longer
   worked on. One paragraph in §7 says where they went.
 - **`decisions.md`**: the design record of §2 decisions. PLAN.md §2 keeps the
