@@ -5533,7 +5533,7 @@
       "many": "{count} uprawnień"
     }
   },
-  "estimateNoAccountReader": "Nieznane: brak czytnika kont na {source}.",
+  "estimateNoAccountReader": "Nieznane limity konta na {source}.",
   "estimateLimitsUnread": "Nieznane: nie odczytano limitów dla {source}.",
   "estimateRefillUnknown": "Przyszły okres i tempo uzupełniania nieznane: {source}.",
   "estimatePlanWindowUnknown": "{source}: wykorzystano {percent}; {reset}; okres okna i zapotrzebowanie zadań nieznane.",

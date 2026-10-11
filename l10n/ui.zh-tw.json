@@ -5074,7 +5074,7 @@
       "other": "{count} 個授權"
     }
   },
-  "estimateNoAccountReader": "未知：{source} 上沒有帳戶讀取來源。",
+  "estimateNoAccountReader": "{source} 上的帳戶限制未知。",
   "estimateLimitsUnread": "未知：尚未讀取 {source} 的限額。",
   "estimateRefillUnknown": "未來的補充週期和速率未知：{source}。",
   "estimatePlanWindowUnknown": "{source}：已使用 {percent}；{reset}；視窗週期和工作需求未知。",

@@ -273,7 +273,7 @@ export const EN = {
   referenceEstimateFacts:
     'Forecasts retain observed account blocks, name unread capacity and distinguish default from configured thresholds. Future refill rates remain unknown unless reported.',
   estimateFailed: 'Estimate failed: {detail}',
-  estimateNoAccountReader: 'Unknown: no account reader on {source}.',
+  estimateNoAccountReader: 'Unknown account limits on {source}.',
   estimateLimitsUnread: 'Unknown: limits unread for {source}.',
   estimateRefillUnknown: 'Future refill period and rate unknown: {source}.',
   estimatePlanWindowUnknown:

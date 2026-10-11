@@ -5380,7 +5380,7 @@
       "many": "{count} autorizaciones"
     }
   },
-  "estimateNoAccountReader": "Desconocido: no hay lector de cuentas en {source}.",
+  "estimateNoAccountReader": "Límites de cuenta desconocidos en {source}.",
   "estimateLimitsUnread": "Desconocido: límites sin leer para {source}.",
   "estimateRefillUnknown": "Período y tasa de reposición futuros desconocidos: {source}.",
   "estimatePlanWindowUnknown": "{source}: {percent} usado; {reset}; período de ventana y demanda de tareas desconocidos.",

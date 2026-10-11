@@ -5380,7 +5380,7 @@
       "many": "{count} autorisations"
     }
   },
-  "estimateNoAccountReader": "Inconnu : aucun lecteur de compte sur {source}.",
+  "estimateNoAccountReader": "Limites du compte inconnues sur {source}.",
   "estimateLimitsUnread": "Inconnu : limites non lues pour {source}.",
   "estimateRefillUnknown": "Période et débit de renouvellement futurs inconnus : {source}.",
   "estimatePlanWindowUnknown": "{source} : {percent} utilisés ; {reset} ; période de la fenêtre et demande des tâches inconnues.",

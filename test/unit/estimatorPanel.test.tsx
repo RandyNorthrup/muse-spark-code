@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import EstimatorPanel, { type EstimatorPanelPort } from '../../src/webview/estimator/EstimatorPanel'
 import { type EstimateRequest, type EstimateSection } from '../../src/shared/estimate'
 import { UI_TEXT } from '../../src/shared/l10n/text'
+import { EstimatorHostFailure } from '../../src/webview/estimator/failure'
 import { fakeEstimate } from './helpers/estimator/fixtures'
 
 afterEach(cleanup)
@@ -66,6 +67,22 @@ async function refuseForecast() {
 }
 
 describe('M117 Estimator panel', () => {
+  it('retains the validated host refusal source and reset while hiding raw errors', async () => {
+    const h = harness()
+    h.estimate.mockRejectedValueOnce(
+      new EstimatorHostFailure('fleet-account-blocked meta/work reset unknown'),
+    )
+    render(<EstimatorPanel port={h.port} initial={fakeEstimate().inputs.request} />)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRun }))
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toBe('fleet-account-blocked meta/work reset unknown')
+    h.estimate.mockRejectedValueOnce(new Error('private filesystem path'))
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRun }))
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('estimate-unavailable')
+    })
+    expect(screen.getByRole('alert').textContent).not.toContain('private filesystem path')
+  })
   it('preserves an explicit UTC deadline and accepts strict calendar dates without rollover', async () => {
     const h = harness()
     const initial = { ...fakeEstimate().inputs.request, deadline: '2026-10-08T04:00:00.000Z' }

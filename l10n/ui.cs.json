@@ -5533,7 +5533,7 @@
       "many": "{count} oprávnění"
     }
   },
-  "estimateNoAccountReader": "Neznámé: na {source} není čtečka účtů.",
+  "estimateNoAccountReader": "Neznámé limity účtu na {source}.",
   "estimateLimitsUnread": "Neznámé: limity pro {source} nebyly načteny.",
   "estimateRefillUnknown": "Budoucí období a rychlost doplňování neznámé: {source}.",
   "estimatePlanWindowUnknown": "{source}: využito {percent}; {reset}; období okna a poptávka úloh neznámé.",

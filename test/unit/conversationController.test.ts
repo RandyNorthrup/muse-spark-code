@@ -1,4 +1,5 @@
 import type { EstimateRequest } from '../../src/shared/estimate'
+import { fleetFailure, estimateFailureText } from '../../src/runtime/estimator/command'
 import { fakeEstimate } from './helpers/estimator/fixtures'
 import { questionAnswerText } from './helpers/questions/registry'
 import { FakeQuestionClock } from './helpers/questions/clock'
@@ -17766,10 +17767,28 @@ function fakeEstimatorBinding() {
   }
 }
 describe('M117 estimates belong to their conversation', () => {
+  it('retains the fleet refusal source and reset at the host boundary', async () => {
+    const t = setup()
+    const run = fakeEstimatorBinding()
+    const error = fleetFailure('fleet-account-blocked meta/work reset unknown')
+    run.estimate.mockRejectedValue(error)
+    const controller = new ConversationController({ ...t.deps, estimator: run })
+    await controller.handle({
+      type: 'estimateRun',
+      requestId: 'blocked',
+      request: fakeEstimate().inputs.request,
+    })
+    expect(t.surface.posted).toContainEqual({
+      type: 'estimatorFailure',
+      requestId: 'blocked',
+      reason: estimateFailureText(error),
+    })
+    controller.dispose()
+  })
   it('returns a correlated failure when the source rejects', async () => {
     const t = setup()
     const run = fakeEstimatorBinding()
-    run.estimate.mockRejectedValue(new Error('source-unavailable'))
+    run.estimate.mockRejectedValue(new Error('private filesystem path'))
     const controller = new ConversationController({ ...t.deps, estimator: run })
     await controller.handle({
       type: 'estimateRun',
@@ -17779,7 +17798,7 @@ describe('M117 estimates belong to their conversation', () => {
     expect(t.surface.posted).toContainEqual({
       type: 'estimatorFailure',
       requestId: 'estimate-1',
-      reason: 'source-unavailable',
+      reason: estimateFailureText(new Error('private filesystem path')),
     })
     controller.dispose()
   })

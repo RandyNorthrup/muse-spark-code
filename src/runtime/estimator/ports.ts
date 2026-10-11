@@ -17,12 +17,17 @@ import {
 } from '../../host/estimator/fleetBinding'
 import { estimatorSourcePorts } from '../../host/estimator/localFleet'
 import { planCheckLoader, planSnapshotLoader } from '../../host/estimator/planSnapshotBundle'
-import { runEstimateCommand } from './command'
+import { runEstimateCommand, fleetFailure } from './command'
+import { lazyBundleLoader } from '../../host/lazyBundle'
 import type { Logger } from '../../host/logger'
 import { PLAN_SNAPSHOT_BUNDLE_FILE } from '../../shared/constants'
-import { resourceMachineStore } from '../resources/settings'
+import type { resourceMachineStore } from '../resources/settings'
 
-export interface RuntimeEstimatorDeps {
+interface ResourceSettingsBundleDeps {
+  readonly loadResourceBundle?: ((file: string) => unknown) | undefined
+}
+
+export interface RuntimeEstimatorDeps extends ResourceSettingsBundleDeps {
   /** dist/estimator.js beside the running bundle. */
   readonly bundlePath: string
   readonly log: Logger
@@ -30,7 +35,7 @@ export interface RuntimeEstimatorDeps {
   readonly loadBundle?: ((file: string) => unknown) | undefined
 }
 
-export interface RuntimeEstimatorPortsDeps {
+export interface RuntimeEstimatorPortsDeps extends ResourceSettingsBundleDeps {
   /** dist/planSnapshot.js beside the running bundle. */
   readonly snapshotBundlePath: string
   readonly log: Logger
@@ -57,11 +62,27 @@ export function runtimeEstimatorPorts(
   // resourceMachineStore over the same resources.json: a missing file carries
   // the schema defaults the governor itself runs, and a present file is the
   // configured value. Only the file is shared; the governor never starts.
-  const machine = resourceMachineStore({
-    settingsFile: path.join(deps.machineDir, 'resources.json'),
-    resumeFile: path.join(deps.machineDir, 'resource-resume.json'),
-    sleep: (ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
+  const settingsBundle = lazyBundleLoader({
+    bundlePath: path.join(path.dirname(deps.snapshotBundlePath), 'resourceGovernor.js'),
+    log: deps.log,
+    label: 'resource settings',
+    ...(deps.loadResourceBundle !== undefined && { loadBundle: deps.loadResourceBundle }),
+    isBundle: (value: unknown): value is { resourceMachineStore: typeof resourceMachineStore } =>
+      typeof value === 'object' &&
+      value !== null &&
+      'resourceMachineStore' in value &&
+      typeof value.resourceMachineStore === 'function',
+    unavailable: () => fleetFailure('fleet-caps-invalid settings').message,
   })
+  let machine: ReturnType<typeof resourceMachineStore> | undefined
+  const readSettings = () => {
+    machine ??= settingsBundle().resourceMachineStore({
+      settingsFile: path.join(deps.machineDir, 'resources.json'),
+      resumeFile: path.join(deps.machineDir, 'resource-resume.json'),
+      sleep: (ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
+    })
+    return machine.readSettingsWithOrigin()
+  }
   return estimatorSourcePorts(
     () => ({
       enabled: false,
@@ -83,8 +104,11 @@ export function runtimeEstimatorPorts(
     // declaring it refuse with the schedule's true reason.
     fleetIoFromSources(
       headlessFleetSources({
-        readSettings: () => machine.readSettings(),
-        readSettingsWithOrigin: () => machine.readSettingsWithOrigin(),
+        readSettings: async () => {
+          const result = await readSettings()
+          return result.settings
+        },
+        readSettingsWithOrigin: readSettings,
         listAccounts: () => deps.accounts.list('meta'),
         readLiveLimits: deps.readLiveLimits,
         readUsage: deps.readUsage,
@@ -103,6 +127,7 @@ function portsWith(
       snapshotBundlePath: path.join(path.dirname(deps.bundlePath), PLAN_SNAPSHOT_BUNDLE_FILE),
       log: deps.log,
       root,
+      ...(deps.loadResourceBundle !== undefined && { loadResourceBundle: deps.loadResourceBundle }),
       machineDir: deps.machineDir,
       accounts: deps.accounts,
       readLiveLimits: deps.readLiveLimits,

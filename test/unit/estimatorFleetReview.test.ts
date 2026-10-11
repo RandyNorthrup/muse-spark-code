@@ -129,12 +129,8 @@ describe('RVCM1173C owner constraints', () => {
       }
       const fleet = await bind(snapshot, lane)
       const trial = prepareEstimateSchedule([lane], fleet).run()
-      const start =
-        vendor === '2026-10-06T14:00:00.000Z'
-          ? vendor
-          : usedPercent === 100
-            ? '2026-10-06T13:00:00.000Z'
-            : (vendor ?? AS_OF)
+      let start = usedPercent === 100 ? '2026-10-06T13:00:00.000Z' : (vendor ?? AS_OF)
+      if (vendor === '2026-10-06T14:00:00.000Z') start = vendor
       expect(trial.schedule[0]?.start).toBe(start)
       expect(trial.schedule[0]?.end).toBe(new Date(Date.parse(start) + 3_600_000).toISOString())
       expect(findEstimateBottleneck([lane], fleet).kind).toBe(
@@ -268,14 +264,10 @@ describe('RVCM1173C owner constraints', () => {
       fleetFromHost(HOST, [lane], AS_OF),
       fleetIoFromSources(
         extensionFleetSources({
-          inspect: (key) => ({
-            globalValue:
-              key === 'resourceCpuMaxPercent'
-                ? 85
-                : key === 'resourceMemoryMaxPercent'
-                  ? 90
-                  : undefined,
-          }),
+          inspect: (key) => {
+            if (key === 'resourceMemoryMaxPercent') return { globalValue: 90 }
+            return key === 'resourceCpuMaxPercent' ? { globalValue: 85 } : undefined
+          },
         }),
       ),
     )
