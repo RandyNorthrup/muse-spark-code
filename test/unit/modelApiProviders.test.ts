@@ -430,7 +430,7 @@ describe('registry dispatch through the real host', () => {
     },
   )
 
-  it('retains the reviewer reservation as uncertain when its counted one-hour writes cannot settle', async () => {
+  it('settles counted reviewer one-hour writes at their own rate', async () => {
     const recording = recordingPort()
     const h = await setup(
       {
@@ -464,18 +464,18 @@ describe('registry dispatch through the real host', () => {
             input_tokens_details: { cache_write_tokens: 100, cache_write_tokens_1h: 50 },
           },
         },
-        { text: 'must not dispatch through uncertain liability' },
+        { text: 'Settled reviewer allows the turn to continue' },
       )
       await h.send()
       const stored = await h.store.load(h.session.sessionId)
       const total = await h.store.budget?.read(h.session.sessionId, stored?.accountId ?? '')
-      expect(total?.hasUnknownHistoricalFees).toBe(true)
+      expect(total?.hasUnknownHistoricalFees).toBe(false)
       expect(Number(total?.spentUsd)).toBeGreaterThan(0)
       expect(vi.mocked(recording.note).mock.calls[1]?.[0]?.input_tokens_details).toEqual({
         cache_write_tokens: 100,
         cache_write_tokens_1h: 50,
       })
-      expect(h.provider.responseBodies()).toHaveLength(2)
+      expect(h.provider.responseBodies()).toHaveLength(3)
     } finally {
       await h.host.close()
     }

@@ -3,6 +3,7 @@
 // Optional counters remain absent when unknown. Strict objects reject content,
 // paths, credentials and account identifiers rather than silently storing them.
 import * as z from 'zod/mini'
+import { nonnegativeUsdSchema } from './usdSchema'
 import {
   USAGE_HEADER_MAX_CHARS,
   USAGE_ID_MAX_CHARS,
@@ -114,6 +115,8 @@ export const usageUnitsSchema = z.strictObject({
   audioSeconds: z.optional(usageAmountSchema),
 })
 export const usageCostSchema = z.strictObject({
+  usdAmount: z.optional(nonnegativeUsdSchema),
+  upperBound: z.optional(z.boolean()),
   usd: z.optional(usageAmountSchema),
   certainty: usageCertaintySchema,
   source: z.optional(z.enum(['list', 'catalogue', 'user', 'meta-published'])),

@@ -126,6 +126,7 @@ describe('journal records', () => {
     expect(createUsageRecord(usage, priced).cost).toEqual({
       certainty: 'computed',
       usd: 178.5,
+      usdAmount: Usd.from(178.5).toAmount(),
       source: 'list',
       date: '2026-10-04',
     })
@@ -135,16 +136,18 @@ describe('journal records', () => {
         providerCostUsd: Usd.from(0).toAmount(),
         costInUsdTicks: 10_000_000_000,
       }).cost,
-    ).toEqual({ certainty: 'reported', usd: 0 })
+    ).toEqual({ certainty: 'reported', usd: 0, usdAmount: Usd.from(0).toAmount() })
     expect(
       createUsageRecord(undefined, { ...context, costInUsdTicks: 2_500_000_000 }).cost,
     ).toEqual({
       certainty: 'reported',
       usd: 0.25,
+      usdAmount: Usd.from(0.25).toAmount(),
     })
     expect(createUsageRecord(usage, { ...context, pricing: { kind: 'local' } }).cost).toEqual({
       certainty: 'local',
       usd: 0,
+      usdAmount: Usd.from(0).toAmount(),
     })
     expect(
       createUsageRecord(usage, { ...context, providerCostUsd: Usd.from(-1).toAmount() }).cost,
@@ -157,7 +160,7 @@ describe('journal records', () => {
         uncertain: true,
         retainedLiabilityUsd: Usd.from(10).toAmount(),
       }).cost,
-    ).toEqual({ certainty: 'uncertain', usd: 10 })
+    ).toEqual({ certainty: 'uncertain', usd: 10, usdAmount: Usd.from(10).toAmount() })
     const record = createUsageRecord(usage, priced)
     cardCostChange(record.cost.usd)
     function cardCostChange(original: number | undefined) {
@@ -187,6 +190,7 @@ describe('journal records', () => {
       expect(record.cost).toEqual({
         certainty: 'uncertain',
         usd: expected,
+        usdAmount: Usd.from(expected).toAmount(),
         source: 'list',
         date: '2026-10-04',
       })
@@ -197,6 +201,7 @@ describe('journal records', () => {
     expect(createUsageRecord({ input_tokens: 100 }, { ...priced, uncertain: true }).cost).toEqual({
       certainty: 'uncertain',
       usd: 100.5,
+      usdAmount: Usd.from(100.5).toAmount(),
       source: 'list',
       date: '2026-10-04',
     })
@@ -209,7 +214,7 @@ describe('journal records', () => {
           providerCostUsd: Usd.from(2).toAmount(),
         },
       ).cost,
-    ).toEqual({ certainty: 'uncertain', usd: 2 })
+    ).toEqual({ certainty: 'uncertain', usd: 2, usdAmount: Usd.from(2).toAmount() })
     expect(createUsageRecord({ input_tokens: 100 }, context).cost).toEqual({
       certainty: 'unpriced',
     })
@@ -217,6 +222,7 @@ describe('journal records', () => {
     expect(createUsageRecord({ input_tokens: 100 }, meta).cost).toEqual({
       certainty: 'uncertain',
       usd: 0.000125,
+      usdAmount: Usd.from(0.000125).toAmount(),
       source: 'meta-published',
       date: '2026-09-26',
     })
@@ -226,13 +232,14 @@ describe('journal records', () => {
         { input_tokens: 100 },
         { ...priced, providerCostUsd: Usd.from(2).toAmount() },
       ).cost,
-    ).toEqual({ certainty: 'reported', usd: 2 })
+    ).toEqual({ certainty: 'reported', usd: 2, usdAmount: Usd.from(2).toAmount() })
   })
   it('prices only exact published Meta ids and keeps plan equivalents separate', () => {
     const meta = { ...context, provider: 'meta', model: 'muse-spark-1.3' }
     expect(createUsageRecord({ input_tokens: 100, output_tokens: 20 }, meta).cost).toEqual({
       certainty: 'computed',
       usd: 0.00021,
+      usdAmount: Usd.from(0.00021).toAmount(),
       source: 'meta-published',
       date: '2026-09-26',
     })
@@ -275,7 +282,7 @@ describe('journal records', () => {
     expect(
       createUsageRecord(undefined, { ...context, kind: 'voice', units: { audioSeconds: 3600 } })
         .cost,
-    ).toEqual({ certainty: 'uncertain', usd: 0.18 })
+    ).toEqual({ certainty: 'uncertain', usd: 0.18, usdAmount: Usd.from(0.18).toAmount() })
   })
   it('uses the original local day and offset and validates privacy fields', () => {
     const at = new Date(2026, 9, 5, 23, 59).getTime()
@@ -386,7 +393,11 @@ describe('journal records', () => {
         providerCostUsd: decoded.providerCostUsd,
       }),
     })
-    expect(record.cost).toEqual({ certainty: 'reported', usd: Number(decoded.providerCostUsd) })
+    expect(record.cost).toEqual({
+      certainty: 'reported',
+      usd: Number(decoded.providerCostUsd),
+      usdAmount: decoded.providerCostUsd,
+    })
     expect(record.tokens.input).toBe(decoded.response.usage?.input_tokens)
   })
   it('replays captured Gemini thoughts and Ollama local usage', async () => {
@@ -416,7 +427,7 @@ describe('journal records', () => {
     )
     expect(createUsageRecord(local, { ...context, pricing: { kind: 'local' } })).toMatchObject({
       tokens: { input: local.input_tokens, output: local.output_tokens },
-      cost: { certainty: 'local', usd: 0 },
+      cost: { certainty: 'local', usd: 0, usdAmount: Usd.from(0).toAmount() },
     })
   })
 })

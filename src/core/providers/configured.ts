@@ -448,6 +448,10 @@ export function createConfiguredProviderServices(
                     cost.data.cache_read === undefined
                       ? undefined
                       : cost.data.cache_read / TOKENS_PER_MILLION,
+                  cacheWrite:
+                    cost.data.cache_write === undefined
+                      ? undefined
+                      : cost.data.cache_write / TOKENS_PER_MILLION,
                   source: 'catalogue' as const,
                 },
               ]

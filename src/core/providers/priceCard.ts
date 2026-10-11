@@ -92,7 +92,7 @@ export function isValidUsage(usage: PricedUsage): boolean {
     usage.cacheWriteTokens1h ?? 0,
   ]
   return (
-    counts.every((count) => Number.isFinite(count) && !(count < 0)) &&
+    counts.every((count) => Number.isSafeInteger(count) && !(count < 0)) &&
     (usage.cachedTokens ?? 0) + (usage.cacheWriteTokens ?? 0) <= usage.inputTokens &&
     (usage.cacheWriteTokens1h ?? 0) <= (usage.cacheWriteTokens ?? 0)
   )
@@ -274,7 +274,14 @@ const XAI_TICKS_PER_USD = 1e10
 
 /** xAI's integer prices (1e-10 USD per token) as USD per token. */
 export function ticksToUsdPerToken(ticks: number): number | undefined {
-  return Number.isFinite(ticks) && ticks >= 0 ? ticks / XAI_TICKS_PER_USD : undefined
+  const amount = ticksToUsdAmount(ticks)
+  return amount === undefined ? undefined : Number(amount)
+}
+
+export function ticksToUsdAmount(ticks: number): UsdAmount | undefined {
+  return Number.isFinite(ticks) && ticks >= 0
+    ? Usd.from(ticks).divide(XAI_TICKS_PER_USD).toAmount()
+    : undefined
 }
 
 /**
@@ -353,43 +360,50 @@ export function reserveWorstCaseUsd(
  * rates over the usage. Invalid usage leaves the cost unknown (the session
  * budget then closes) rather than guessing zero.
  */
-export function settleUsageAmount(
+export function settleUsageCost(
   card: PriceCard,
   usage: PricedUsage,
   reported?: { readonly cost?: number | undefined; readonly costInUsdTicks?: number | undefined },
-): UsdAmount | undefined {
+): { readonly usd: UsdAmount; readonly upperBound: boolean } | undefined {
   if (reported?.cost !== undefined && Number.isFinite(reported.cost) && reported.cost >= 0) {
-    return Usd.from(reported.cost).toAmount()
+    return { usd: Usd.from(reported.cost).toAmount(), upperBound: false }
   }
   if (reported?.costInUsdTicks !== undefined) {
     const converted = ticksToUsdPerToken(reported.costInUsdTicks)
     if (converted !== undefined) {
-      return Usd.from(reported.costInUsdTicks).divide(XAI_TICKS_PER_USD).toAmount()
+      return {
+        usd: Usd.from(reported.costInUsdTicks).divide(XAI_TICKS_PER_USD).toAmount(),
+        upperBound: false,
+      }
     }
   }
   if (!isValidPriceCard(card) || !isValidUsage(usage)) {
     return undefined
   }
   const { tier, isLongContext, inputRate, outputRate } = longContextRates(card, usage)
-  // Long-context tiers reprice cached reads and writes too; a tier cache
-  // rate the list does not give falls back to the card's own, then to the
-  // tier's input rate.
-  const readRate =
-    (isLongContext && tier !== undefined ? tier.cachedInput : undefined) ??
-    card.cachedInput ??
-    inputRate
-  const writeRate =
-    (isLongContext && tier !== undefined ? tier.cacheWrite : undefined) ??
-    card.cacheWrite ??
-    inputRate
-  const write1hRate =
-    (isLongContext && tier !== undefined ? tier.cacheWrite1h : undefined) ??
-    card.cacheWrite1h ??
-    writeRate
+  const rates = {
+    read: (isLongContext ? tier?.cachedInput : undefined) ?? card.cachedInput,
+    write: (isLongContext ? tier?.cacheWrite : undefined) ?? card.cacheWrite,
+    write1h: (isLongContext ? tier?.cacheWrite1h : undefined) ?? card.cacheWrite1h,
+  }
+  // An unpriced reported class is bounded by the dearest applicable input-side rate.
+  const highest = Math.max(
+    inputRate,
+    card.input,
+    card.cachedInput ?? 0,
+    card.cacheWrite ?? 0,
+    card.cacheWrite1h ?? 0,
+    ...(isLongContext
+      ? [tier?.input ?? 0, tier?.cachedInput ?? 0, tier?.cacheWrite ?? 0, tier?.cacheWrite1h ?? 0]
+      : []),
+  )
+  const readRate = rates.read ?? highest
+  const writeRate = rates.write ?? highest
+  const write1hRate = rates.write1h ?? highest
   const read = usage.cachedTokens ?? 0
   const { standard: written5m, oneHour: written1h } = splitCacheWrites(usage)
   const fresh = usage.inputTokens - read - written5m - written1h
-  return Usd.from(inputRate)
+  const usd = Usd.from(inputRate)
     .times(fresh)
     .add(Usd.from(readRate).times(read))
     .add(Usd.from(writeRate).times(written5m))
@@ -397,6 +411,21 @@ export function settleUsageAmount(
     .add(Usd.from(outputRate).times(usage.outputTokens))
     .add(Usd.from(card.request ?? 0))
     .toAmount()
+  return {
+    usd,
+    upperBound:
+      (read > 0 && rates.read === undefined) ||
+      (written5m > 0 && rates.write === undefined) ||
+      (written1h > 0 && rates.write1h === undefined),
+  }
+}
+
+export function settleUsageAmount(
+  card: PriceCard,
+  usage: PricedUsage,
+  reported?: { readonly cost?: number | undefined; readonly costInUsdTicks?: number | undefined },
+): UsdAmount | undefined {
+  return settleUsageCost(card, usage, reported)?.usd
 }
 
 /** Numeric projections for the existing usage reports. Admission uses exact amounts. */

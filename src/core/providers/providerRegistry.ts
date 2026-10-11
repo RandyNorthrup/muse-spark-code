@@ -116,17 +116,6 @@ function settleWithImages(
   reported: Parameters<typeof settleUsageAmount>[2],
 ): UsdAmount | undefined {
   const cost = settleUsageAmount(pricing.card, usage, reported)
-  if (
-    cost !== undefined &&
-    reported?.cost === undefined &&
-    reported?.costInUsdTicks === undefined &&
-    (usage.cacheWriteTokens1h ?? 0) > 0 &&
-    pricing.card.cacheWrite1h !== undefined
-  ) {
-    // P2 owns the arithmetic. Until its public module honours the 1h subset,
-    // keep the reservation as uncertain liability instead of under-settling it.
-    return undefined
-  }
   return cost === undefined ||
     reported?.cost !== undefined ||
     reported?.costInUsdTicks !== undefined
