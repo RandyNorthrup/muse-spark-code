@@ -12,6 +12,15 @@ const estimatorToHostSchema = z.discriminatedUnion('type', [
     requestId: z.optional(z.string().check(z.minLength(1))),
     request: estimateRequestSchema,
   }),
+  z.strictObject({
+    type: z.literal('estimateCommand'),
+    requestId: z.optional(z.string().check(z.minLength(1))),
+    command: z.string().check(z.minLength(1)),
+    context: z.strictObject({
+      asOf: estimateRequestSchema.shape.asOf,
+      optimize: estimateRequestSchema.shape.optimize,
+    }),
+  }),
   // Start the audited first contract wave from the last estimate's inputs;
   // the host answers with a notice naming what started or the refusal.
   z.strictObject({

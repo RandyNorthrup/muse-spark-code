@@ -7088,9 +7088,6 @@ export const ESTIMATE_SOURCE_TIMEOUT_MS = 5000
 // M117 C-M117-1: how many unestimated lanes a refused snapshot names before
 // counting the rest, so the detail stays a short technical label.
 export const ESTIMATE_MISSING_DETAIL_LIMIT = 10
-// M117 C-M117-1R2: how much of a plan-reader drift record a refused snapshot
-// quotes, so the diagnostic names the drift without pasting plan rows.
-export const ESTIMATE_DRIFT_DETAIL_MAX_CHARS = 160
 export const ESTIMATE_ID_MAX_CHARS = 128
 export const ESTIMATE_LABEL_MAX_CHARS = 256
 // M117 W (PLAN.md D100, gotcha G4): a lane whose base is this many days old

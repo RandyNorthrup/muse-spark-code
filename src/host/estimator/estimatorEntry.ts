@@ -1,3 +1,4 @@
+import { parseEstimateComposer, type EstimateContext } from '../../runtime/estimator/command'
 // The capacity estimator's lazy bundle (M117, PLAN.md D6, D97): esbuild
 // builds this file into dist/estimator.js, which the extension, the CLI and
 // the ACP agent require the first time an estimate runs, so the engine stays
@@ -68,6 +69,7 @@ export interface EstimatorSourcePorts extends EstimateGoalSourcesPort {
 }
 
 export interface EstimatorRun {
+  parseCommand?(text: string, context: EstimateContext): EstimateRequest
   estimate(request: EstimateRequest, signal: AbortSignal): Promise<EstimateSection>
   startWave(input: EstimateInputs): Promise<readonly string[]>
   price(price: CatalogPrice): string
@@ -123,6 +125,7 @@ export function createEstimatorRun(
   const board = ports.board()
   const starter = new EstimateWaveStarter(board)
   return {
+    parseCommand: parseEstimateComposer,
     provisionWaiting: 'M117-P-M109-provider',
     price: (price) => formatUsd(displayUsdNanos(usdNanos(price.hourlyUsd)), 2),
     startWave: (input) => starter.start(input),

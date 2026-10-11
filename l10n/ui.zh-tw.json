@@ -339,7 +339,7 @@
     "estimate-by": "--by <date>: 截止日期",
     "fleet": "--fleet current|minimum|optimum: 目前設備群 / 最小組態 / 最佳組態",
     "estimate-format": "--format md|html|json|text: 輸出格式",
-    "estimate-check-plan": "--check-plan: List every plan problem instead of estimating",
+    "estimate-check-plan": "--check-plan: 列出計畫中的所有問題，而非進行估算",
     "seed": "--seed <seed>: 模擬種子"
   },
   "referenceScanSecrets": "掃描 UTF-8 修補檔案中的秘密資訊，偵測到時以失敗結束。--key-stdin 也會檢查記憶體中的 Model API 金鑰原值；不儲存金鑰。",

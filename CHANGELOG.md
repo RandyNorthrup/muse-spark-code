@@ -7,6 +7,18 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Estimator plan grammar and boundaries** (M117 CM1171R5). Explicit local
+  M-number lanes retain their prerequisites; ordering cannot hide in notes.
+  Every row is parsed before closure validation, so unrelated reader drift and
+  invalid identities do not block clean goals. Self prerequisites reach the DAG
+  guard, and unknown milestone references are reported together. Whole-plan
+  checks reject missing structure. Restored plan ordering is pinned by a reviewed
+  prerequisite fixture. Command parsing runs in the lazy host bundle within the
+  unchanged browser cap. Check-mode help is translated in all fourteen languages,
+  and the CLI/ACP guide documents its exclusive syntax and verdicts.
+
 ### Added
 
 - **Estimator plan snapshots** (M117 C-M117-1). `/estimate` goals now resolve
@@ -26,7 +38,7 @@ happened, not what was planned; superseded entries are kept.
   clean. The exit code carries the verdict: 0 clean, 1 problems, 2 usage.
 - **Strict `Starts` grammar** (M117 CM1171R4). A `Starts` cell is `day 0`,
   `first`, `last`, or `after` lane, qualified-lane and whole-milestone refs;
-  parenthetical text is a note and is ignored; anything else refuses with
+  parenthetical text is a note without ordering words; anything else refuses with
   `malformed-starts` instead of inventing or dropping dependencies. Strictness
   applies to the goal's dependency closure, so rows outside it never block a
   forecast. A planned lane with `Hours 0` is refused as a missing estimate,

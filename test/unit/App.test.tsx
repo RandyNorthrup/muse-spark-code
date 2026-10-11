@@ -1,3 +1,4 @@
+import { parseEstimateComposer } from '../../src/runtime/estimator/command'
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -4029,17 +4030,18 @@ function sectionFor(request: Extract<WebviewToHostMessage, { type: 'estimateRun'
   return section
 }
 async function requestAppEstimate(post: ReturnType<typeof renderReady>, goal = 'M117') {
-  const before = post.mock.calls.filter(([message]) => message.type === 'estimateRun').length
+  const before = post.mock.calls.filter(([message]) => message.type === 'estimateCommand').length
   fireEvent.change(textarea(), { target: { value: `/estimate ${goal}` } })
   fireEvent.keyDown(textarea(), { key: 'Enter' })
   await vi.waitFor(() => {
-    expect(post.mock.calls.filter(([message]) => message.type === 'estimateRun')).toHaveLength(
+    expect(post.mock.calls.filter(([message]) => message.type === 'estimateCommand')).toHaveLength(
       before + 1,
     )
   })
-  return post.mock.calls
+  const message = post.mock.calls
     .map(([message]) => message)
-    .findLast((message) => message.type === 'estimateRun')!
+    .findLast((message) => message.type === 'estimateCommand')!
+  return { ...message, request: parseEstimateComposer(message.command, message.context) }
 }
 async function estimateInApp(shouldReplay = false) {
   const post = renderReady()

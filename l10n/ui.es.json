@@ -339,7 +339,7 @@
     "estimate-by": "--by <date>: Fecha límite",
     "fleet": "--fleet current|minimum|optimum: Flota actual / Configuración mínima / Configuración óptima",
     "estimate-format": "--format md|html|json|text: Formato de salida",
-    "estimate-check-plan": "--check-plan: List every plan problem instead of estimating",
+    "estimate-check-plan": "--check-plan: Enumerar todos los problemas del plan en lugar de estimar",
     "seed": "--seed <seed>: Semilla de simulación"
   },
   "referenceScanSecrets": "Busca secretos en un archivo de parche UTF-8 y falla si los detecta. --key-stdin también busca la clave exacta de Model API mantenida en memoria; no se almacena ninguna clave.",

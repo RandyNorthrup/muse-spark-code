@@ -29,7 +29,7 @@ const PLAN = `## 3. Questions
 | ---- | ----- | ------------- | ------ | --- | ----- |
 | 0 | all | \`src/shared/l10n/en.ts\` | First | Kubuntu | 8 |
 | Q | 1 | \`native/windows/job.cs\` | after 0 | Win11 VM | 5 |
-| U | 2 | \`src/core/u.ts\` | after Q and 0 (finished after 0) | Mac mini | 3 |
+| U | 2 | \`src/core/u.ts\` | after Q and 0 (contract) | Mac mini | 3 |
 
 ### M113 — Follow-ups (2026-10-10)
 
@@ -182,8 +182,8 @@ describe('M117 plan snapshot adapter', () => {
 
   it('refuses a goal whose closure needs an hour-less lane, naming it', () => {
     const plan = PLAN.replace(
-      '| U | 2 | `src/core/u.ts` | after Q and 0 (finished after 0) | Mac mini | 3 |',
-      '| U | 2 | `src/core/u.ts` | after Q and 0 (finished after 0) | Mac mini | — |',
+      '| U | 2 | `src/core/u.ts` | after Q and 0 (contract) | Mac mini | 3 |',
+      '| U | 2 | `src/core/u.ts` | after Q and 0 (contract) | Mac mini | — |',
     )
     const goal = parseEstimateGoal('M112')
     if (goal === undefined) throw new Error('unparseable goal')

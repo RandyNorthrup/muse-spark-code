@@ -59,6 +59,20 @@ afterEach(() => {
 })
 
 describe('M117 estimator bundle assembly', () => {
+  it('F1 exposes command parsing only through the installed lazy host run', () => {
+    const run = createEstimatorRun(ports(), EN, BASE_LOCALE)
+    expect(
+      run.parseCommand?.('/estimate M117 --fleet minimum', {
+        asOf: ESTIMATOR_AS_OF,
+        optimize: 'cost',
+      }),
+    ).toEqual({
+      goal: { kind: 'milestone', milestoneId: 'M117' },
+      asOf: ESTIMATOR_AS_OF,
+      optimize: 'cost',
+      fleet: 'minimum',
+    })
+  })
   it('produces a fully evidenced section: chain, engines, disclosures, no risks', async () => {
     const run = createEstimatorRun(ports(), EN, BASE_LOCALE)
     const section = await run.estimate(request(), new AbortController().signal)

@@ -157,6 +157,26 @@ export function estimateSlashArguments(text: string): readonly string[] | undefi
   return tokens
 }
 
+/** The host parses composer input; the browser carries only the command text. */
+export function parseEstimateComposer(text: string, context: EstimateContext): EstimateRequest {
+  const args = estimateSlashArguments(text)
+  const parsed = args === undefined ? undefined : parseEstimateOptions(args)
+  if (parsed?.kind !== 'estimate') {
+    throw new Error(
+      parsed?.kind === 'help'
+        ? `${UI_TEXT.estimateUsage}\n${UI_TEXT.estimateCliHelp}`
+        : UI_TEXT.estimateUsage,
+    )
+  }
+  return estimateRequestSchema.parse({
+    ...context,
+    goal: parsed.options.goal,
+    fleet: parsed.options.fleet,
+    ...(parsed.options.deadline && { deadline: parsed.options.deadline }),
+    ...(parsed.options.seed && { seed: parsed.options.seed }),
+  })
+}
+
 /** M113's collector consumes this section; its report-v1 envelope stays with M113. */
 export async function collectEstimate(
   options: EstimateCommandOptions,
