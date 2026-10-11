@@ -99,13 +99,15 @@ const fail = (): never => {
  * Provider refusals in the product's own words (never provider text, so no
  * key, path or account can leak): each reaches the person as its own
  * sentence instead of the generic build notice. Anything else still fails
- * generic through `rethrowTypedRefusal` below.
+ * generic through `rethrowTypedRefusal` below. Read when the failure is
+ * handled, never at module load, so the installed language is the one
+ * shown.
  */
-const TYPED_PROVIDER_REFUSALS: ReadonlySet<string> = new Set([UI_TEXT.azureDeploymentInvalid])
+const typedProviderRefusals = (): readonly string[] => [UI_TEXT.azureDeploymentInvalid]
 
 /** A typed refusal keeps its sentence; every other failure stays generic. */
 const rethrowTypedRefusal = (error: unknown): never => {
-  if (isModelApiError(error) && TYPED_PROVIDER_REFUSALS.has(error.message)) throw error
+  if (isModelApiError(error) && typedProviderRefusals().includes(error.message)) throw error
   return fail()
 }
 

@@ -116,5 +116,83 @@ its cheapest tool-capable model, the models list, a streamed tool call and
 follow-up, usage, an invalid-model error, and the cache pair where the
 provider caches — recorded under `docs/certification/m95-captures/<id>/`
 with counted attempts, then flip that preset's `wireCapture` to true.
+Flipping the panel row alone is not enough: the same change must also
+give CLI/ACP the request path (`requestPathFor` in
+`src/runtime/exec/providerExec.ts` has no arm for `moonshot`,
+`ollama-cloud` or `azure`, so `providers add` and `exec --provider`
+refuse them with `no-request-path`; plan-key ids are not in `PRESETS` at
+all, so the CLI calls them unknown) and land the per-preset CHANGELOG,
+README and PLAN updates the review's "Docs once a preset is listed"
+section names. Until all of that lands together, the presets stay refused
+everywhere, not just hidden in the panel.
 Azure's turn also re-verifies the `/openai/v1/responses` composition and
 the 404 refusal against a real `DeploymentNotFound`.
+
+## RVCMPRESETS repairs (lane CMPRESETSR2, macmini rig, 2026-10-11)
+
+Every finding (three P2, two P3) fixed as a class; presets stay unlisted
+(`wireCapture` untouched) until the lead's live captures. No live or paid
+model call; no new dependency; no guard widened.
+
+- P2 failure paths (`configured.ts`): the Azure 404 sentence was built in
+  `parseError` and then discarded by `fail()` in both `streamResponse` and
+  `scan` — and `scan` never even built it (its transport had no
+  `parseError`). One `parseErrorOf(entry)` helper now serves both paths,
+  and both catches rethrow refusals written in the product's own words
+  (`typedProviderRefusals`, today only `azureDeploymentInvalid`, read at
+  call time per the l10n gate) while provider-chosen text stays behind
+  the generic build notice. Swept the
+  other `fail()` sites: the decode error-event path stays generic on
+  purpose (provider text can name keys/paths; locked by the existing
+  scrub test), as do the pin/credential guards, which build no message.
+- P2 validation (`presets.ts`): Alibaba's fixed origin is now host-only
+  (`https://coding-intl.dashscope.aliyuncs.com`); `/v1` lives in the
+  models-list/chat paths, composing the documented
+  `…/v1/models` and `…/v1/chat/completions`. Swept every fixed origin in
+  `PRESETS` + `PLAN_KEY_PRESETS`: all are host-only now.
+- P2 failure paths (`modelsPanel.ts`): the card builder maps Azure's empty
+  seam origin to `azure-resource` (loopback/custom mapping unchanged), so
+  the wizard asks for resource and deployment; `draftEntry` saves the
+  deployment as the model id the turn sends. CLI/`exec --provider` still
+  refuse these presets (`no-request-path` / unknown preset) until the
+  flip change described above.
+- P3 docs (`presets.ts`): MiniMax M Plan gains
+  `keyPage: https://platform.minimax.io/console/plan` (the plan FAQ's key
+  link). Azure keeps no key page: no portal URL was captured, and one is
+  never guessed (rule 13).
+- P3 docs (this file): the flip step above now names the CLI/ACP request
+  paths and the CHANGELOG/README/PLAN updates that must land with it.
+
+Tests (repository timeout, no `--testTimeout`, macmini):
+
+- `configuredProviders.test.ts`: new "typed Azure deployment refusal"
+  (404 through `scan` and `streamResponse` rejects with
+  `azureDeploymentInvalid`) and "provider-chosen error text" (Anthropic
+  401 envelope still rejects with exactly `modelsPanelUnavailable`).
+- `providersPresets.test.ts`: new fixed-origin host-only sweep plus the
+  composed Alibaba list/chat URLs; `planKeyPresets.test.ts`: Alibaba
+  origin updated, new plan-key key-page sweep.
+- `modelsPanel.test.ts`: new Azure card (`azure-resource`, not `custom`)
+  and full wizard flow (select → prefill → key → test → save) asserting
+  the saved entry carries `models: ['my-deploy']` under the composed
+  `/openai/v1` address.
+
+Red drills (broke the guard, saw the named test fail, restored
+byte-exact — post-drill `shasum -a 256` matches the pre-drill hashes
+`6c19073b…` configured, `1af3009f…` presets, `8bd7b4f3…` modelsPanel):
+
+- Stream catch back to `fail()` → typed Azure test failed (generic
+  notice), restored.
+- Alibaba origin back to `…/v1` → host-only sweep failed (`'/v1'`
+  vs `'/'`), restored.
+- Card mapping without the Azure arm → card test failed (`'custom'`
+  vs `'azure-resource'`), restored; `draftEntry` back to `draft.models`
+  → save flow never completed, restored.
+- MiniMax `keyPage` removed → key-page sweep failed, restored.
+- The cert-doc flip step has no automatable guard; verified by re-reading
+  it against `requestPathFor` and the CLI add/exec paths.
+
+Sandbox notes: this rig's sandbox denies loopback `listen`, so
+`configuredProviders.test.ts` "pins a loopback HTTP request …" fails
+here with EPERM; it passed on the review rig and the lead re-runs it
+outside the sandbox. No server or daemon was started; nothing to stop.
