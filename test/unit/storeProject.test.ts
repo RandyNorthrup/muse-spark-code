@@ -46,14 +46,26 @@ const project: ReportStoreProject = {
 }
 
 function stubRegistry(version: string) {
+  // RVCM1136B P1: the production transport now sends the bound gallery
+  // channels down the public fetch too, so the fake answers them honestly
+  // (404: this fixture was never published there) beside the npm document.
   const seen: string[] = []
   const fetch = vi.fn((url: string) => {
     seen.push(url)
-    return Promise.resolve(Response.json({ version, url }))
+    return Promise.resolve(
+      url.startsWith('https://registry.npmjs.org/')
+        ? Response.json({ version, url })
+        : new Response('not published', { status: 404 }),
+    )
   })
   vi.stubGlobal('fetch', fetch)
   return { seen, fetch }
 }
+
+const GALLERY_URLS = [
+  'https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery?api-version=3.0-preview.1',
+  'https://open-vsx.org/api/fixture/fixture-pkg',
+]
 
 describe('reportStoreProject', () => {
   it('reads a full extension manifest', () => {
@@ -127,7 +139,11 @@ describe('reporting network store binding', () => {
       ['Open VSX', 'unavailable', null],
       ['npm', 'lagging', '0.14.1'],
     ])
-    expect(seen).toEqual(['https://registry.npmjs.org/fixture-pkg/latest'])
+    // RVCM1136B P1: every bound channel reaches the public fetch now; the
+    // galleries stay unavailable because the fake 404s them, not because the
+    // transport refuses them.
+    expect(result.data?.slice(0, 2).map((row) => row.reason)).toEqual(['http-404', 'http-404'])
+    expect(seen).toEqual([...GALLERY_URLS, 'https://registry.npmjs.org/fixture-pkg/latest'])
   })
 
   it('fetches npm on the real CLI composition: no surface transport at all', async () => {
@@ -157,8 +173,8 @@ describe('reporting network store binding', () => {
       ['Open VSX', 'unavailable', null],
       ['npm', 'lagging', '0.14.1'],
     ])
-    expect(seen).toEqual(['https://registry.npmjs.org/fixture-pkg/latest'])
-    expect(fetch).toHaveBeenCalledOnce()
+    expect(seen).toEqual([...GALLERY_URLS, 'https://registry.npmjs.org/fixture-pkg/latest'])
+    expect(fetch).toHaveBeenCalledTimes(3)
   })
 
   it('fetches npm under whenSignedIn without a GitHub login', async () => {
@@ -187,12 +203,13 @@ describe('reporting network store binding', () => {
       status: 'current',
       version: '0.14.2',
     })
-    expect(seen).toEqual(['https://registry.npmjs.org/fixture-pkg/latest'])
+    expect(seen).toEqual([...GALLERY_URLS, 'https://registry.npmjs.org/fixture-pkg/latest'])
   })
 
   it('keeps GitHub on the surface lane and refuses any other host', async () => {
-    // The GitHub sweep: its binding is unchanged, only addressed. npm never
-    // reaches the credential-owning lane; unknown hosts stay refused.
+    // The GitHub sweep: its binding is unchanged, only addressed. Public
+    // store hosts never reach the credential-owning lane; unknown hosts stay
+    // refused.
     const github = vi.fn((_request: { url: string }, _etag: string | null) =>
       Promise.resolve(Response.json({ value: 'github' })),
     )
@@ -214,6 +231,21 @@ describe('reporting network store binding', () => {
     await routed({ url: 'https://registry.npmjs.org/fixture-pkg/latest' }, null, signal)
     expect(fetch).toHaveBeenCalledOnce()
     expect(github).toHaveBeenCalledOnce()
+    // RVCM1136B P1: the galleries ride the same credential-free public
+    // fetch, keeping the POST query form the capture evidences.
+    await routed(
+      {
+        url: 'https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery?api-version=3.0-preview.1',
+        method: 'POST',
+        body: '{"filters":[]}',
+      },
+      null,
+      signal,
+    )
+    await routed({ url: 'https://open-vsx.org/api/fixture/fixture-pkg' }, null, signal)
+    expect(fetch).toHaveBeenCalledTimes(3)
+    expect(github).toHaveBeenCalledOnce()
+    expect(fetch.mock.calls[1]?.[1]).toMatchObject({ method: 'POST', body: '{"filters":[]}' })
     await expect(
       routed({ url: 'https://example.com/package/latest' }, null, signal),
     ).rejects.toBeInstanceOf(ReportNetworkFailure)

@@ -12,7 +12,7 @@
 import * as z from 'zod/mini'
 import type { ReportStoreAdapter } from './stores'
 
-const OPEN_VSX_HOST = 'open-vsx.org'
+export const OPEN_VSX_HOST = 'open-vsx.org'
 
 /**
  * The default Open VSX channel adapter: extension record, `version` only.
