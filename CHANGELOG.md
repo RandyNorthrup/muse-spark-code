@@ -16,7 +16,10 @@ happened, not what was planned; superseded entries are kept.
   rejected attempts do not. Narrowed selections and global stops remain
   incomplete through both verdict wrappers. The live launcher checks the
   expanded source-graph freeze before credentials are opened; smoke mode
-  expects incomplete. Production automatic compaction stays unevaluated.
+  expects incomplete. Receipts retain exact ledger reservations, settlements
+  and unknown liability, plus request hashes and explicit module-fact visibility
+  for investigating the first run's CommonJS failures. Production automatic
+  compaction stays unevaluated.
 
 - **Frozen M75 evaluation arms and long-context tasks** (M101 C-M101-2).
   The paired harness now freezes four arms (baseline, observation packing,

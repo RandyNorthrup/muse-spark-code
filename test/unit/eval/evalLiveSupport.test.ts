@@ -394,7 +394,16 @@ function armResults(
         questions: 0,
         paidRefusals: 0,
         order: 1,
-        ...(settled !== undefined && { compactionsSettled: settled, compactionsApplied: settled }),
+        ...(settled !== undefined && {
+          compactionsSettled: settled,
+          compactionsApplied: settled,
+          compactionLedger: {
+            reservedUsd: Usd.from('0.01').times(settled).toAmount(),
+            settledUsd: Usd.from('0.001').times(settled).toAmount(),
+            outstandingUsd: Usd.from(0).toAmount(),
+            retainedUsd: Usd.from(0).toAmount(),
+          },
+        }),
       }
     }),
     summaries: [],
@@ -522,6 +531,21 @@ describe('an auto-compaction run engaged', () => {
       longIds,
     )
   })
+  it.each(['outstandingUsd', 'retainedUsd'] as const)(
+    'leaves accepted history unengaged while money has %s liability',
+    (field) => {
+      const report = compactionReport(Object.fromEntries(longIds.map((id) => [id, 1])))
+      const results = report.arms[1]?.results ?? []
+      for (const result of results) {
+        if (result.compactionLedger !== undefined)
+          result.compactionLedger[field] = Usd.from('0.01').toAmount()
+      }
+      expect(unengagedCompactionTasks(report, 'auto-compaction', 'baseline', EVAL_TASKS)).toEqual(
+        longIds,
+      )
+    },
+  )
+
   it('counts a missing arm as never engaged', () => {
     const everyLong = Object.fromEntries(longIds.map((id) => [id, 6]))
     expect(

@@ -123,6 +123,10 @@ export interface EvalCompactionAdmission {
 export interface EvalCompactionTally {
   started: number
   settled: number
+  reservedUsd: UsdAmount
+  settledUsd: UsdAmount
+  outstandingUsd: UsdAmount
+  retainedUsd: UsdAmount
 }
 
 /**
@@ -137,10 +141,18 @@ export interface EvalCompactionTally {
 export function createEvalCompactionLedger(
   budget: EvalBudget,
 ): AutoCompactionLedger & { readonly tally: EvalCompactionTally } {
-  const tally: EvalCompactionTally = { started: 0, settled: 0 }
-  let outstanding = Usd.from(0).toAmount()
+  const tally: EvalCompactionTally = {
+    started: 0,
+    settled: 0,
+    reservedUsd: Usd.from(0).toAmount(),
+    settledUsd: Usd.from(0).toAmount(),
+    outstandingUsd: Usd.from(0).toAmount(),
+    retainedUsd: Usd.from(0).toAmount(),
+  }
   const headroom = (): Usd =>
-    Usd.from(EVAL_BUDGET_USD).subtract(Usd.from(budget.spentUsd)).subtract(Usd.from(outstanding))
+    Usd.from(EVAL_BUDGET_USD)
+      .subtract(Usd.from(budget.spentUsd))
+      .subtract(Usd.from(tally.outstandingUsd))
   return {
     tally,
     reserveCompaction: (amount, signal) => {
@@ -149,7 +161,8 @@ export function createEvalCompactionLedger(
         return Promise.reject(evalLedgerRefusal('a sent model call has unknown usage'))
       if (headroom().compare(Usd.from(amount)) < 0)
         return Promise.reject(evalLedgerRefusal('the run budget cannot cover it'))
-      outstanding = sumUsd(outstanding, amount)
+      tally.outstandingUsd = sumUsd(tally.outstandingUsd, amount)
+      tally.reservedUsd = sumUsd(tally.reservedUsd, amount)
       let isOpen = true
       return Promise.resolve({
         reservedUsd: amount,
@@ -160,10 +173,14 @@ export function createEvalCompactionLedger(
           if (headroom().compare(Usd.from(0)) < 0)
             throw evalLedgerRefusal('the run budget is spent')
         },
-        settle: (_actual, hasUnknown) => {
+        settle: (actual, hasUnknown) => {
           if (isOpen) {
             isOpen = false
-            outstanding = Usd.from(outstanding).subtract(Usd.from(amount)).toAmount()
+            tally.outstandingUsd = Usd.from(tally.outstandingUsd)
+              .subtract(Usd.from(amount))
+              .toAmount()
+            if (hasUnknown) tally.retainedUsd = sumUsd(tally.retainedUsd, actual)
+            else tally.settledUsd = sumUsd(tally.settledUsd, actual)
             tally.settled += 1
           }
           if (hasUnknown) budget.hasUnknownUsage = true
@@ -226,11 +243,12 @@ export interface EvalTurnOutcome {
   readonly problems: readonly string[]
   /** The packing ledger's last total (M73); absent when no session packed. */
   readonly packedTokensAvoided?: number
+  /** The host accepted a summary and replaced history, independent of failed attempts. */
+  readonly compactionsApplied: number
   /**
    * What each `recall_output` call that succeeded returned (M73), for the
    * packing arm's own check; never copied into a report.
    */
-  readonly compactionsApplied: number
   readonly recalledOutputs: readonly string[]
 }
 

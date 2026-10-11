@@ -5642,7 +5642,10 @@ certified freeze before opening credentials. The `--smoke-m75` mode is also
 paid and live; it defaults to one task and succeeds only with an incomplete
 narrowed-selection receipt whose selected task passed. Offline fake tests
 validate that contract. Re-freeze reviewed harness changes with the offline
-`--freeze` mode; it generates `src/core/eval/frozen.json`.
+`--freeze` mode; it generates `src/core/eval/frozen.json`. Offline
+`--check-freeze` verifies that pin using the same before-call guard. Receipts
+include ledger reservations/settlements and sanitized request hashes with
+package module-fact visibility; they contain no prompt or file contents.
 
 PNG/JPEG images are resized before entering Model API replay when the selected
 model record supplies vision support and documented pixel limits. The portable

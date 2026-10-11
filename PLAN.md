@@ -19180,6 +19180,14 @@ in-tree junctions below it, drive-letter spelling) and
 
 ## 3. Open questions (need the owner)
 
+- **Q-CM1013B-MODULE-VISIBILITY (2026-10-11):** the first live receipt
+  records CommonJS writes in the ESM packing fixture but no request evidence.
+  The repository already has `package.json` type module; its prompts and
+  existing files supply no other module clue. The next lead-owned live run
+  records request hashes, explicit package-fact visibility and returned tool
+  names to determine whether any arm withheld the fact at a writing turn.
+  Keep the fixture and mechanisms unchanged until that evidence exists.
+
 **Q-VISREGEN2 resolved by lead (2026-10-09).** Preserve every 0.17.0
 change and Highlight while tightening only that release's wording below
 72,000 decoded bytes. Keep 0.16.0 and older notes byte-exact and all content
@@ -29566,6 +29574,18 @@ production admission helpers. No production admission API changes, latch flip,
 live call, merge, push, dependencies or gate changes. Aggregate quality is
 lead-owned under the lane's explicit shared-rule prohibition.
 
+**CM1013B fake certification (2026-10-11).** The measured plan now owns
+137 calls per arm, 548 total, with a $0.073 projection at the observed token
+mix and the existing $0.50 measured-spend stop. All 557 offline launcher tests
+pass, including accepted/rejected summary cases, independent allowances and
+narrowed-selection verdicts. Receipts retain task/arm/run compaction dollars
+and sanitized writing-request evidence. The ESM fixture already states its
+module type; the original receipt cannot establish whether the failing arms
+saw it. Keep Q-CM1013B-MODULE-VISIBILITY open for the lead's counted run.
+Certification and current generated freeze: `docs/certification/m101-eval-arms.md`.
+The production latch remains false; this fake certification does not certify
+live compaction effectiveness or the aggregate quality gates.
+
 **Status 2026-10-05: planned.**
 
 Status detail retained: planned; lanes start from `m101/base` (the M95
@@ -38258,6 +38278,16 @@ shared rules explicitly prohibit aggregate quality and full-suite runs. The
 lead owns those gates before integration. This lane runs every eval suite,
 three owning type projects, changed-file lint/format, localization, reference,
 roadmap and production build without weakening any gate or deadline.
+The production build passes every size cap (extension 555.9/600 KiB,
+Model API 517.1/525 KiB, checkpoint store 87.3/225 KiB), then fails five
+split checks: `modelPolicy.ts` in activation and `priceCard.ts` in activation
+and runtime (the latter pair is each reported twice). These are inherited
+from the named merged base: all 95 production/ACP metafiles contain no eval
+input and no source/build input changed by this lane. The brief explicitly
+leaves the admission-helper injection to the release lead; do not change
+those imports or weaken the split gate here. This justified scoped deferral
+requires the lead to repair the production split before integration and
+aggregate quality. Detailed receipts: `docs/certification/m101-eval-arms.md`.
 
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering

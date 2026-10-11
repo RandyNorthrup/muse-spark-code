@@ -43,7 +43,7 @@ describe('the lane E call plan', () => {
     expect(plan.plannedCalls).toBe(548)
     expect(plan.callCeiling).toBe(plan.plannedCalls)
     expect(plan.budgetUsd).toBe(EVAL_BUDGET_USD)
-    expect(plan.measuredCostEstimateUsd).toBeCloseTo((548 * 0.026384) / 198)
+    expect(plan.measuredCostEstimateUsd).toBeCloseTo((548 * 0.026384174) / 198, 10)
     for (const task of plan.tasks) {
       const prior = task.id.includes('compaction') ? 6 : 3
       const observed = Math.max(...task.measuredAttempts)

@@ -7,8 +7,9 @@
 
 import pin from '../../../src/core/eval/frozen.json'
 import { buildSync } from 'esbuild'
+import { JOB_SOURCE_FILES } from '../../../src/host/backend/jobSource'
 import { createHash } from 'node:crypto'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { EVAL_HELD_DEPS } from '../../../src/core/eval/heldDeps'
 import {
   AUTO_COMPACTION_ARM,
@@ -29,6 +30,17 @@ import { FakeLogOutputChannel } from '../helpers/fakes'
 import { fakeModelApi, fakeModelApiClient } from '../helpers/fakeModelApi'
 import { memoryToolIo } from '../helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from '../helpers/modelApiHostDeps'
+
+// Share the expensive snapshot; each guard keeps its independent assertion.
+const snapshot: { frozen?: ReturnType<typeof freezeEvalHarness> } = {}
+beforeAll(() => {
+  snapshot.frozen = freezeEvalHarness()
+})
+
+function frozenSnapshot(): ReturnType<typeof freezeEvalHarness> {
+  if (snapshot.frozen === undefined) throw new Error('the snapshot setup did not run')
+  return snapshot.frozen
+}
 
 describe('the frozen evaluation harness', () => {
   it('freezes the four arms in run order', () => {
@@ -68,13 +80,15 @@ describe('the frozen evaluation harness', () => {
   })
 
   it('keeps the frozen digest', () => {
-    expect(evalHarnessDigest()).toBe(pin.sha256)
     expect(assertEvalHarnessDigest()).toBe(pin.sha256)
+  })
+
+  it('refuses an uncertified live harness before any call', () => {
     expect(() => assertEvalHarnessDigest('deliberately wrong')).toThrow('no live call may run')
   })
 
   it('freezes every local source in the live-test and launcher resolver graph', () => {
-    const frozen = freezeEvalHarness()
+    const frozen = frozenSnapshot()
     expect(frozen.sources).toEqual(evalHarnessSources())
     const graph = buildSync({
       entryPoints: ['test/e2e/eval.live.e2e.test.ts', 'scripts/m101-e.mjs'],
@@ -84,6 +98,7 @@ describe('the frozen evaluation harness', () => {
       metafile: true,
       packages: 'external',
       platform: 'node',
+      format: 'esm',
     }).metafile
     for (const input of Object.keys(graph.inputs)) {
       const file = input.replaceAll('\\', '/').replace(/ with \{.*\}$/u, '')
@@ -101,6 +116,8 @@ describe('the frozen evaluation harness', () => {
       'src/core/eval/plan.json',
     ])
       expect(frozen.sources).toContain(file)
+    for (const file of Object.values(JOB_SOURCE_FILES))
+      expect(frozen.sources).toContain(file.replaceAll('\\', '/'))
     expect(frozen.sources.some((file) => file.includes('\\'))).toBe(false)
   })
 
@@ -144,10 +161,10 @@ describe('the frozen evaluation harness', () => {
   })
 
   it('freezes four executable snapshots with only declared fixture paths', () => {
-    const frozen = freezeEvalHarness()
+    const frozen = frozenSnapshot()
     expect(frozen.bundles.size).toBe(EVAL_ARMS.length)
     expect(new Set(frozen.bundles.keys())).toEqual(new Set(EVAL_ARMS.map((arm) => arm.name)))
-    expect(frozen.sha256).toBe(evalHarnessDigest())
+    expect(frozen.sha256).toBe(pin.sha256)
     for (const arm of EVAL_ARMS) {
       const bundle = frozen.bundles.get(arm.name)!
       expect(bundle.fixtures.map((fixture) => fixture.path)).toEqual([
