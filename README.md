@@ -5189,7 +5189,7 @@ its installed-runtime contract and the native receipts are documented in
 [the POSIX certification](docs/certification/cm109-1b.md).
 The generated-only Linux native receipt runs with a private bus and keyring:
 `sh test/hosts/run-vault-posix.sh` (requires `dbus-run-session`,
-`gnome-keyring-daemon`, and a production build). It checks the native OS-store
+`gnome-keyring-daemon`, `setsid`, and a production build). It checks the native OS-store
 slot and installed broker without reading the desktop vault or calling a model.
 On macOS the composed broker wraps the key with the login Keychain only;
 it does not use the Secure Enclave.

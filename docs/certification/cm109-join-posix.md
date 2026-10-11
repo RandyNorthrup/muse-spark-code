@@ -152,3 +152,43 @@ store 33.0/50 KiB and POSIX 16.9/25 KiB. Existing caps are unchanged.
 `sh test/hosts/run-vault-posix.sh` exits 0: both native OS-slot and installed
 broker receipts pass, and the private bus/keyring and helper processes close.
 No live/paid call. The complete vault replay follows this committed piece.
+
+## Final replay and local commits
+
+Core adoption merge: `bb4a9b2d5`. Installed binding commit: `72e0cd62e`.
+The latter's staged and committed patches compare identically after the installed
+hooks run. Final core comparison against `52a37ad49` remains empty.
+
+All **86 files** (the complete `test/unit/vault/*.test.*` list plus OS-store slots
+and process inventory) ran in **29 sequential batches**, at most three files and
+`--maxWorkers=3`, with repository deadlines and no name filters or timeout
+override. **1,290 passed, zero failed, 18 skipped**. The skips are the 17 named
+CM109JOINA lease cases above and the existing Windows-only audit-files refusal
+case. The complete per-batch command inputs, results and durations are recorded
+in `cm109-join-posix-tests.json`. All real socket cases ran. The original core
+`peer.c` foreign-UID test passed, including OS rejection after deliberately
+relaxing only its generated test socket permissions.
+
+The Linux native runner passed again after moving its generated keyring daemon
+into a separate process group and terminating/waiting that whole group. Both
+OS-store and copied installed-broker receipts exited successfully. A final
+process listing scoped to the worktree/private scratch showed only the lane's
+Codex launcher and inspection shell, no test server, broker, native helper,
+keyring daemon or private bus. Scratch fixtures were removed. No live/paid call.
+
+## Ordered final-join handoff
+
+1. Join CM109JOINA's shared writer lease and Windows platform with this POSIX
+   dispatch/factory, preserving core's reviewed contracts and packaging the
+   pinned native keyring dependency for each installed product.
+2. Unskip and pass all 17 real SIGKILL/new-process recovery cases. Replay native
+   launch, peer identity, OS-store and writer recovery on Linux, macOS and Windows.
+3. Bind T/X/S/O's trusted provenance, taint and execution ownership before
+   allowing agent transports; settle the documented store/protected-audit
+   checkpoint interruption handoff. Same-user registration files are not
+   attestation against hostile same-user code.
+4. Finish the Models & Agents/settings mount and the remaining migration/panel
+   bindings. Certify installed editor, CLI and ACP use, join reviews and aggregate
+   quality on the lead's rigs.
+5. Only then flip the availability switch. Screen-lock/Linux hardware work stays
+   with C-M109-2; macOS biometric protection is not offered by this composition.
