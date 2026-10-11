@@ -7395,6 +7395,52 @@ function acceptApprovalDecisions(t: ReturnType<typeof setup>): void {
   }))
 }
 
+function acceptDecide(t: ReturnType<typeof setup>) {
+  t.server.handle('approval/decide', (params) => ({
+    status: 'accepted',
+    commandId: params['commandId'],
+    approvalId: params['approvalId'],
+    terminal: true,
+  }))
+}
+
+async function resolveSideRefusal(t: ReturnType<typeof setup>, approvalId: string) {
+  t.server.notify('approval/resolved', {
+    sessionId: 's1',
+    approvalId,
+    itemId: `item-${approvalId}`,
+    decision: 'abort',
+    resolvedBy: 'user',
+  })
+  await vi.waitFor(() => {
+    expect(agentEvents(t).at(-1)?.type).toBe('approvalResolved')
+  })
+}
+
+async function decideSideCard(t: ReturnType<typeof setup>, approvalId: string, choiceId: string) {
+  await t.controller.handle({
+    type: 'decideApproval',
+    approvalId,
+    choiceId,
+    requirementId: { approvalId, sourceIndex: 0 },
+  })
+}
+
+async function expectDecidedChoice(
+  t: ReturnType<typeof setup>,
+  approvalId: string,
+  choiceId: string,
+) {
+  await vi.waitFor(() => {
+    expect(t.server.requestsFor('approval/decide')).toHaveLength(1)
+  })
+  expect(t.server.requestsFor('approval/decide')[0]?.params).toMatchObject({
+    approvalId,
+    choiceId,
+    requirementId: { approvalId, sourceIndex: 0 },
+  })
+}
+
 describe('ConversationController: permission hardening (D24)', () => {
   const choices = [
     { choiceId: 'allow_once', label: 'Allow Once', decision: 'approved', scope: 'once' },
@@ -7421,6 +7467,14 @@ describe('ConversationController: permission hardening (D24)', () => {
     overrides: Record<string, unknown> = {},
   ) {
     t.server.notify('approval/requested', approvalParams(approvalId, overrides))
+  }
+  async function sendSideApproval(
+    t: ReturnType<typeof setup>,
+    approvalId: string,
+    overrides: Record<string, unknown> = {},
+  ) {
+    await t.send('l1', 'hi')
+    requestApproval(t, approvalId, overrides)
   }
 
   it('never takes a message typed while a card waits for a decision (Roo #11211)', async () => {
@@ -7508,6 +7562,51 @@ describe('ConversationController: permission hardening (D24)', () => {
       decision: 'approved',
       resolvedBy: 'Edit Automatically',
     })
+  })
+
+  it('refuses a Muse Code write approval itself in a side chat, labelled so (M53)', async () => {
+    const t = setup({ isSideChat: true, hasApprovalUi: true })
+    acceptDecide(t)
+    await sendSideApproval(t, 'a1')
+    await expectDecidedChoice(t, 'a1', 'abort')
+    // No card was shown for it.
+    expect(agentEvents(t).some((event) => event.type === 'approvalRequested')).toBe(false)
+    await resolveSideRefusal(t, 'a1')
+    expect(agentEvents(t).at(-1)).toEqual({
+      type: 'approvalResolved',
+      approvalId: 'a1',
+      itemId: 'item-a1',
+      decision: 'abort',
+      resolvedBy: UI_TEXT.sideChatResolver,
+      reason: UI_TEXT.sideChatWriteRefused,
+    })
+  })
+
+  it('refuses an approving click on a side-chat card the host left to the user (M53)', async () => {
+    const t = setup({ isSideChat: true, hasApprovalUi: true })
+    acceptDecide(t)
+    // No reject choice offered: the card is shown, so the user can still refuse it.
+    await sendSideApproval(t, 'a1', {
+      availableChoices: [
+        { choiceId: 'allow_once', label: 'Allow Once', decision: 'approved', scope: 'once' },
+      ],
+    })
+    await vi.waitFor(() => {
+      expect(agentEvents(t).some((event) => event.type === 'approvalRequested')).toBe(true)
+    })
+    expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+    t.surface.posted.length = 0
+    await decideSideCard(t, 'a1', 'allow_once')
+    expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'info',
+      text: UI_TEXT.sideChatWriteRefused,
+    })
+    expect(t.surface.posted).toContainEqual({ type: 'approvalReopened', approvalId: 'a1' })
+    // A click the policy does not recognise passes through to the host.
+    await decideSideCard(t, 'a1', 'abort')
+    await expectDecidedChoice(t, 'a1', 'abort')
   })
 
   it('does not auto-approve a Manual Model API edit when an Edit surface joins later', async () => {
