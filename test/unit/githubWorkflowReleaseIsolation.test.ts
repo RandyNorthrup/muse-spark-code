@@ -1,30 +1,31 @@
-// RVCM1136D: every request inside the workflow/release read is isolated.
-// For each request in the read's own sequence (each tag page, each release
-// page, each run page), failing it in each way — HTTP error, invalid JSON,
-// oversize body, timeout, refused host — keeps every other request's rows
-// and names exactly the failed request in the partial reason. The request
-// list below is the gate: a new request added to the read without a case
-// fails `covers exactly the read's own request list`.
+// RVCM1136E: fault injection over every source-read boundary, at the
+// production request cap. A failed page ends its endpoint; admitted rows
+// and reasons survive all other failures. Observed requests must match
+// executable cases exactly; the AST inventory also counts repeated calls.
 //
 // Wire provenance (AGENTS.md rule 14): the page-2 bodies are the captured
 // fixtures; the full page-1 bodies are synthetic fillers (marked as such,
 // never claimed as captures) shaped like the captures so pagination
 // advances past page 1 at the production page sizes.
+import * as z from 'zod/mini'
+import ts from 'typescript'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   GITHUB_RELEASES_PAGE_SIZE,
   GITHUB_TAGS_PAGE_SIZE,
   GITHUB_WORKFLOW_RUNS_PAGE_SIZE,
   REPORT_NETWORK_MAX_BYTES,
   REPORT_NETWORK_MAX_PAGES,
+  REPORT_MAX_ROWS,
 } from '../../src/shared/constants'
 import {
   githubReportSource,
   type ReportGitHubAdditionalPort,
 } from '../../src/core/reporting/sources/github'
 import { githubWorkflowReleasesPort } from '../../src/core/reporting/sources/githubWorkflowReleases'
+import { CAPTURED_PULL_LIST } from './helpers/githubCapture'
 import { networkContext, networkRig } from './helpers/reportNetwork'
 
 const TAGS: unknown = JSON.parse(
@@ -55,7 +56,6 @@ const options = {
   remote: 'https://github.com/RandyNorthrup/muse-spark-code.git',
   headSha: HEAD_SHA,
   defaultBranch: 'main',
-  releaseTag: 'v0.17.0',
 }
 
 // Synthetic full first pages (NOT captures): one filler element per
@@ -101,7 +101,7 @@ const URLS = {
   pulls: `${BASE}/pulls?state=all&per_page=100&page=1`,
   checksHead: `${BASE}/commits/${HEAD_SHA}/check-runs?per_page=100&page=1`,
   checksBranch: `${BASE}/commits/main/check-runs?per_page=100&page=1`,
-  checksTag: `${BASE}/commits/v0.17.0/check-runs?per_page=100&page=1`,
+  checksHead2: `${BASE}/commits/${HEAD_SHA}/check-runs?per_page=100&page=2`,
   tags1: `${BASE}/tags?per_page=100&page=1`,
   tags2: `${BASE}/tags?per_page=100&page=2`,
   releases1: `${BASE}/releases?per_page=30&page=1`,
@@ -109,8 +109,22 @@ const URLS = {
   runs1: `${BASE}/actions/workflows/release.yml/runs?per_page=100&page=1`,
   runs2: `${BASE}/actions/workflows/release.yml/runs?per_page=100&page=2`,
 } as const
-const EXPECTED_URLS = Object.values(URLS).toSorted(compareStrings)
+const HEAD_CHECKS = SYNTH_TAG_NAMES.map((name, index) => ({
+  name,
+  head_sha: HEAD_SHA,
+  conclusion: 'success',
+  html_url: `https://github.com/RandyNorthrup/muse-spark-code/actions/runs/${String(index + 1)}`,
+}))
+const HEAD_TAIL = {
+  ...HEAD_CHECKS[0],
+  name: 'tail-check',
+  html_url: 'https://github.com/RandyNorthrup/muse-spark-code/actions/runs/200',
+}
 const HEALTHY: Record<string, unknown> = {
+  [URLS.pulls]: CAPTURED_PULL_LIST,
+  [URLS.checksHead]: { total_count: 101, check_runs: HEAD_CHECKS },
+  [URLS.checksHead2]: { total_count: 101, check_runs: [HEAD_TAIL] },
+  [URLS.checksBranch]: { total_count: 1, check_runs: [HEAD_CHECKS[0]] },
   [URLS.tags1]: TAGS_PAGE_1,
   [URLS.tags2]: TAGS,
   [URLS.releases1]: RELEASES_PAGE_1_SYNTH,
@@ -138,12 +152,27 @@ interface IsolationCase {
 }
 
 const CASES: IsolationCase[] = [
+  ...[
+    { target: URLS.pulls, label: 'pulls-page-1', invalidCode: 'pull-response-invalid' },
+    { target: URLS.checksHead, label: 'head-page-1', invalidCode: 'check-response-invalid' },
+    { target: URLS.checksHead2, label: 'head-page-2', invalidCode: 'check-response-invalid' },
+    {
+      target: URLS.checksBranch,
+      label: 'default-branch-page-1',
+      invalidCode: 'check-response-invalid',
+    },
+  ].map((item) => ({
+    ...item,
+    reason: item.label,
+    versions: ALL_VERSIONS,
+    runNames: ALL_RUN_NAMES,
+  })),
   {
     target: URLS.tags1,
     label: 'tags-page-1',
     reason: 'tags-page-1',
-    versions: CAPTURED_VERSIONS,
-    runNames: CAPTURED_VERSIONS,
+    versions: [],
+    runNames: [],
     invalidCode: 'tag-response-invalid',
   },
   {
@@ -158,7 +187,7 @@ const CASES: IsolationCase[] = [
     target: URLS.releases1,
     label: 'releases-page-1',
     reason: 'releases-page-1',
-    versions: CAPTURED_VERSIONS,
+    versions: [],
     runNames: ALL_RUN_NAMES,
     invalidCode: 'release-response-invalid',
   },
@@ -175,7 +204,7 @@ const CASES: IsolationCase[] = [
     label: 'runs-page-1',
     reason: 'runs-page-1',
     versions: ALL_VERSIONS,
-    runNames: CAPTURED_VERSIONS,
+    runNames: [],
     invalidCode: 'run-response-invalid',
   },
   {
@@ -196,9 +225,7 @@ function healthyTransport(fail?: { url: string; respond: () => Promise<Response>
     if (request.url.includes('/pulls?')) return Promise.resolve(Response.json([]))
     if (request.url.includes('/check-runs?'))
       return Promise.resolve(Response.json({ total_count: 0, check_runs: [] }))
-    // Past-end probes after a failed page read empty, exactly as the API
-    // answers past the last page; the baseline gate below pins that a
-    // healthy read never sends them.
+    // Bound tests may reach past-end pages; failed pages must never probe them.
     if (request.url.includes('/actions/workflows/'))
       return Promise.resolve(Response.json({ total_count: 0, workflow_runs: [] }))
     if (request.url.includes('/tags?') || request.url.includes('/releases?'))
@@ -208,12 +235,10 @@ function healthyTransport(fail?: { url: string; respond: () => Promise<Response>
 }
 
 async function readWith(transport: ReturnType<typeof healthyTransport>, refuse?: string) {
-  // Headroom for one past-end probe after a failed page; the baseline
-  // gate pins that a healthy read stays within the production budget.
   const rig = networkRig({
     transport,
     maxBytes: REPORT_NETWORK_MAX_BYTES,
-    maxPages: REPORT_NETWORK_MAX_PAGES + 2,
+    maxPages: REPORT_NETWORK_MAX_PAGES,
   })
   if (refuse !== undefined)
     vi.mocked(rig.deps.policy.allowEgress).mockImplementation((href: string) =>
@@ -238,16 +263,14 @@ describe('workflow and release request isolation', () => {
     expect(result.record.status).toBe('ok')
     expect(
       [...new Set(transport.mock.calls.map((call) => call[0].url))].toSorted(compareStrings),
-    ).toEqual(EXPECTED_URLS)
+    ).toEqual(CASES.map((item) => item.target).toSorted(compareStrings))
+    expect(new Set(CASES.map((item) => item.target)).size).toBe(CASES.length)
+    expect(transport.mock.calls).toHaveLength(CASES.length)
   })
 
-  // One property over the whole class: for each request in the sequence,
-  // fail it in each of the five ways and assert every surviving
-  // request's rows stay while the partial reason names exactly the failed
-  // request (which page, which failure). Pagination continues past a
-  // failed page, so only rows whose own page — or whose tag page — failed
-  // are lost; both are recorded in CASES, never silently dropped: the
-  // reason still names the failed page.
+  // Fault every dispatched request, including body read/decode and shape
+  // failures. The failed endpoint stops, so unknown later pages are never
+  // admitted; every other endpoint keeps its production request allowance.
   it.each(
     CASES.flatMap((found) =>
       (
@@ -275,6 +298,35 @@ describe('workflow and release request isolation', () => {
             code: 'source-failed',
             respond: () => Promise.reject(new Error('synthetic socket timeout')),
           },
+          {
+            way: 'null-body',
+            code: 'body-missing',
+            respond: () => Promise.resolve(new Response(null)),
+          },
+          {
+            way: 'wrong-envelope',
+            code: found.invalidCode,
+            respond: () => Promise.resolve(Response.json(null)),
+          },
+          {
+            way: 'invalid-utf8',
+            code: found.invalidCode,
+            respond: () => Promise.resolve(new Response(new Uint8Array([0xc3, 0x28]))),
+          },
+          {
+            way: 'stream-error',
+            code: found.invalidCode,
+            respond: () =>
+              Promise.resolve(
+                new Response(
+                  new ReadableStream({
+                    start(controller) {
+                      controller.error(new TypeError('synthetic stream failure'))
+                    },
+                  }),
+                ),
+              ),
+          },
           { way: 'refused-host', code: 'egress-refused', respond: null },
         ] satisfies {
           way: string
@@ -300,8 +352,22 @@ describe('workflow and release request isolation', () => {
     expect(
       (result.data?.releases.map((release) => release.version) ?? []).toSorted(compareStrings),
     ).toEqual(found.versions)
-    expect((result.data?.runs.map((run) => run.ref.name) ?? []).toSorted(compareStrings)).toEqual(
-      found.runNames,
+    expect(
+      (
+        result.data?.runs
+          .filter((run) => run.ref.kind === 'release-tag')
+          .map((run) => run.ref.name) ?? []
+      ).toSorted(compareStrings),
+    ).toEqual(found.runNames)
+    expect(result.data?.pullRequests).toHaveLength(
+      found.target === URLS.pulls ? 0 : CAPTURED_PULL_LIST.length,
+    )
+    const headRows = found.target === URLS.checksHead2 ? HEAD_CHECKS.length : HEAD_CHECKS.length + 1
+    expect(result.data?.runs.filter((run) => run.ref.kind === 'head')).toHaveLength(
+      found.target === URLS.checksHead ? 0 : headRows,
+    )
+    expect(result.data?.runs.filter((run) => run.ref.kind === 'default-branch')).toHaveLength(
+      found.target === URLS.checksBranch ? 0 : 1,
     )
     if (failure.way === 'refused-host')
       expect(transport.mock.calls.map((call) => call[0].url)).not.toContain(found.target)
@@ -326,7 +392,9 @@ describe('unparseable tag elements', () => {
     // The review's scenario verbatim: the first tag element has no commit
     // object, so v0.17.0 cannot join. Synthetic modification of the
     // captured tags body, never claimed as a capture.
-    const tags = TAGS as { name: string; commit: { sha: string } }[]
+    const tags = z
+      .array(z.object({ name: z.string(), commit: z.object({ sha: z.string() }) }))
+      .parse(TAGS)
     const corrupt = { name: tags[0]?.name ?? 'v0.17.0' }
     const transport = tagTransport([corrupt, tags[1], tags[2]])
     const rig = networkRig({ transport, maxBytes: REPORT_NETWORK_MAX_BYTES })
@@ -344,7 +412,7 @@ describe('unparseable tag elements', () => {
   })
 
   it('a corrupt extra tag beside joined tags is partial, never ok', async () => {
-    const transport = tagTransport([...(TAGS as object[]), { bogus: true }])
+    const transport = tagTransport([...z.array(z.unknown()).parse(TAGS), { bogus: true }])
     const rig = networkRig({ transport, maxBytes: REPORT_NETWORK_MAX_BYTES })
     const result = await githubReportSource({
       ...options,
@@ -412,5 +480,522 @@ describe('strict-assembly rows', () => {
     expect(result.record.reason).not.toContain('workflow-releases-unavailable')
     expect(result.data?.releases.map((release) => release.version)).toEqual(['v0.17.0'])
     expect(result.data?.runs.map((run) => run.ref.name)).toEqual(['v0.17.0'])
+  })
+})
+
+// Enumerate validation/admission boundaries from the owned source, rather than
+// the review. The executable cases below cover these names; adding another
+// reader, parser or admission boundary requires a new case in this inventory.
+const BOUNDARY_CASES = [
+  'Array.isArray',
+  'Array.isArray',
+  'Array.isArray',
+  'z.maxLength',
+  'z.maxLength',
+  'z.maxLength',
+  'query',
+  'query',
+  'query',
+  'options.reader.allowed',
+  'options.reader.allowed',
+  'options.reader.read',
+  'options.additional.read',
+  'schema.safeParse',
+  'pullSchema.safeParse',
+  'checkSchema.safeParse',
+  'checkCountSchema.safeParse',
+  'checksSchema.safeParse',
+  'pageRowsSchema.safeParse',
+  'additionalPortEnvelopeSchema.safeParse',
+  'additionalReasonsSchema.safeParse',
+  'element.safeParse',
+  'z.looseObject({ name: z.string() }).safeParse',
+  'z.array(z.unknown()).safeParse',
+  'z.looseObject({ workflow_runs: z.array(z.unknown()) }).safeParse',
+]
+
+function validationInventory(file: string): string[] {
+  const source = ts.createSourceFile(
+    file,
+    readFileSync(new URL(file, import.meta.url), 'utf8'),
+    ts.ScriptTarget.Latest,
+    true,
+  )
+  const names: string[] = []
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node)) {
+      const name = node.expression.getText(source)
+      if (
+        name === 'query' ||
+        name === 'Array.isArray' ||
+        name === 'z.maxLength' ||
+        name.startsWith('options.reader.') ||
+        name.endsWith('.read') ||
+        name.endsWith('.allowed') ||
+        /\.(?:safeParse|parse)$/.test(name)
+      )
+        names.push(name)
+    }
+    ts.forEachChild(node, visit)
+  }
+  // Posting and gh transport are outside this source read's boundary.
+  for (const statement of source.statements) {
+    if (file.endsWith('/github.ts') && statement.getText(source).startsWith('const exec =')) break
+    visit(statement)
+  }
+  return [...names]
+}
+
+const GOOD_RELEASE = {
+  version: 'v0.17.0',
+  commit: HEAD_SHA,
+  at: '2026-10-10T07:42:19Z',
+  assets: [],
+}
+const GOOD_RUN = {
+  ref: { kind: 'release-tag', name: 'v0.17.0' },
+  sha: HEAD_SHA,
+  workflow: 'Release',
+  conclusion: 'success',
+  url: 'https://github.com/RandyNorthrup/muse-spark-code/actions/runs/1',
+}
+async function readAdditional(value: unknown, isThrowing = false) {
+  const transport = healthyTransport()
+  const rig = networkRig({
+    transport,
+    maxBytes: REPORT_NETWORK_MAX_BYTES,
+    maxPages: REPORT_NETWORK_MAX_PAGES,
+  })
+  const additional: ReportGitHubAdditionalPort = {
+    read: () =>
+      isThrowing
+        ? Promise.reject(value instanceof Error ? value : new Error('adapter read failed'))
+        : Promise.resolve(value),
+  }
+  const source = githubReportSource({ ...options, reader: rig.reader, additional })
+  const result = await source.read(networkContext())
+  expect(result.data?.pullRequests).toHaveLength(CAPTURED_PULL_LIST.length)
+  expect(result.data?.runs.filter((run) => run.ref.kind === 'head')).toHaveLength(
+    HEAD_CHECKS.length + 1,
+  )
+  return result
+}
+
+function pageBody(found: IsolationCase) {
+  const body = HEALTHY[found.target]
+  const object = z
+    .looseObject({
+      check_runs: z.optional(z.array(z.unknown())),
+      workflow_runs: z.optional(z.array(z.unknown())),
+    })
+    .safeParse(body)
+  const envelopeRows = object.success
+    ? (object.data.check_runs ?? object.data.workflow_runs ?? [])
+    : []
+  const rows = Array.isArray(body) ? z.array(z.unknown()).parse(body) : envelopeRows
+  const wrap = (items: unknown[]) =>
+    Array.isArray(body)
+      ? items
+      : {
+          ...(object.success && object.data),
+          [found.target.includes('/check-runs?') ? 'check_runs' : 'workflow_runs']: items,
+        }
+  return { rows, wrap }
+}
+describe('all source read boundaries preserve admitted facts', () => {
+  it('inventories every reader and validation call from the code', () => {
+    const observed = [
+      ...validationInventory('../../src/core/reporting/sources/github.ts'),
+      ...validationInventory('../../src/core/reporting/sources/githubWorkflowReleases.ts'),
+    ]
+    const callableCases = BOUNDARY_CASES.filter((name) => name.includes('.') || name === 'query')
+    expect([...observed].toSorted(compareStrings)).toEqual(callableCases.toSorted(compareStrings))
+  })
+
+  it.each([undefined, null, new TypeError('adapter read failed')])(
+    'names an absent or failed adapter (%s)',
+    async (value) => {
+      const result = await readAdditional(value, value instanceof Error)
+      expect(result.record.status).toBe('partial')
+      expect(result.record.reason).toContain('workflow-releases-unavailable')
+    },
+  )
+
+  it.each([
+    { field: 'runs', reason: 'workflow-runs-unavailable' },
+    { field: 'releases', reason: 'releases-unavailable' },
+    { field: 'reasons', reason: 'workflow-release-reason-invalid' },
+  ])('isolates the $field adapter facet including null/undefined', async ({ field, reason }) => {
+    for (const absent of [undefined, null, 'invalid']) {
+      const result = await readAdditional({
+        runs: [GOOD_RUN],
+        releases: [GOOD_RELEASE],
+        reasons: ['already-recorded'],
+        [field]: absent,
+      })
+      expect(result.record.status).toBe('partial')
+      expect(result.record.reason).toContain(reason)
+      if (field !== 'reasons') expect(result.record.reason).toContain('already-recorded')
+      if (field !== 'runs') expect(result.data?.runs).toContainEqual(GOOD_RUN)
+      if (field !== 'releases') expect(result.data?.releases).toEqual([GOOD_RELEASE])
+    }
+  })
+
+  it('retains a valid empty adapter facet beside failed readers', async () => {
+    const rig = networkRig({
+      transport: vi.fn(() => Promise.resolve(Response.json({ invented: true }))),
+    })
+    const result = await githubReportSource({
+      ...options,
+      reader: rig.reader,
+      additional: {
+        read: () => Promise.resolve({ runs: [], releases: [], reasons: ['already-recorded'] }),
+      },
+    }).read(networkContext())
+    expect(result.record.status).toBe('partial')
+    expect(result.record.reason).toContain('already-recorded')
+    expect(result.record.reason).toContain('pulls-page-1: pull-response-invalid')
+    expect(result.record.reason).toContain('head-page-1: check-response-invalid')
+    expect(result.data).toEqual({ pullRequests: [], runs: [], releases: [] })
+  })
+
+  it('retains valid reason records beside an invalid one', async () => {
+    const result = await readAdditional({
+      runs: [GOOD_RUN],
+      releases: [GOOD_RELEASE],
+      reasons: ['already-recorded', null],
+    })
+    expect(result.record.reason).toContain('already-recorded')
+    expect(result.record.reason).toContain('workflow-release-reason-invalid')
+    expect(result.data?.releases).toEqual([GOOD_RELEASE])
+  })
+
+  it.each(['runs', 'releases'])(
+    'enforces the $field row bound on admission before final validation',
+    async (field) => {
+      const rows =
+        field === 'runs'
+          ? Array.from({ length: REPORT_MAX_ROWS + 1 }, (_, index) => ({
+              ...GOOD_RUN,
+              url: `${GOOD_RUN.url}${String(index)}`,
+            }))
+          : Array.from({ length: REPORT_MAX_ROWS + 1 }, (_, index) => ({
+              ...GOOD_RELEASE,
+              version: `v${String(index)}`,
+            }))
+      const result = await readAdditional({
+        runs: [GOOD_RUN],
+        releases: [GOOD_RELEASE],
+        reasons: ['already-recorded'],
+        [field]: rows,
+      })
+      expect(result.record.status).toBe('partial')
+      expect(result.record.reason).toContain(`${field}-row-bound`)
+      expect(result.record.reason).toContain('already-recorded')
+      expect(field === 'runs' ? result.data?.runs : result.data?.releases).toHaveLength(
+        REPORT_MAX_ROWS,
+      )
+      if (field === 'runs') expect(result.data?.runs).not.toContainEqual(rows.at(-1))
+      else expect(result.data?.releases).not.toContainEqual(rows.at(-1))
+      if (field === 'runs') expect(result.data?.releases).toEqual([GOOD_RELEASE])
+    },
+  )
+
+  it('keeps distinct facts whose identity text contains separators', async () => {
+    const first = {
+      ...GOOD_RUN,
+      ref: { kind: 'release-tag', name: 'tag' },
+      workflow: 'release/Build',
+    }
+    const second = {
+      ...GOOD_RUN,
+      ref: { kind: 'release-tag', name: 'tag/release' },
+      workflow: 'Build',
+    }
+    const result = await readAdditional({
+      runs: [first, second],
+      releases: [GOOD_RELEASE],
+      reasons: [],
+    })
+    expect(result.record.status).toBe('ok')
+    expect(result.data?.runs).toContainEqual(first)
+    expect(result.data?.runs).toContainEqual(second)
+    expect(result.data?.releases).toEqual([GOOD_RELEASE])
+  })
+
+  it('names conflicting facts without discarding the accepted rows or reasons', async () => {
+    const result = await readAdditional({
+      runs: [GOOD_RUN],
+      releases: [GOOD_RELEASE, { ...GOOD_RELEASE, commit: 'different' }],
+      reasons: ['already-recorded'],
+    })
+    expect(result.record.reason).toContain('github-conflicting-fact')
+    expect(result.record.reason).toContain('already-recorded')
+    expect(result.data?.releases).toEqual([GOOD_RELEASE])
+    expect(result.data?.runs).toContainEqual(GOOD_RUN)
+  })
+
+  let baseline: Awaited<ReturnType<typeof readWith>>
+  beforeAll(async () => {
+    baseline = await readWith(healthyTransport())
+  })
+  it.each(
+    CASES.flatMap((found) =>
+      pageBody(found).rows.map((_, index) => ({ found, index, label: found.label })),
+    ),
+  )('isolates record $index at $label', async ({ found, index }) => {
+    const { rows, wrap } = pageBody(found)
+    const damaged = rows.map((row, offset) => (offset === index ? null : row))
+    const { result } = await readWith(
+      healthyTransport({
+        url: found.target,
+        respond: () => Promise.resolve(Response.json(wrap(damaged))),
+      }),
+    )
+    expect(result.record.status).toBe('partial')
+    expect(result.record.reason).toContain(found.invalidCode)
+    if (found.target.includes('/tags?'))
+      expect(result.record.reason?.split('; ')).toEqual(['tag-response-invalid'])
+    const failed = z
+      .looseObject({
+        name: z.optional(z.string()),
+        tag_name: z.optional(z.string()),
+        head_branch: z.optional(z.string()),
+        html_url: z.optional(z.string()),
+        number: z.optional(z.number()),
+      })
+      .parse(rows[index])
+    const isLostTag = found.target.includes('/tags?')
+    expect(result.data?.releases).toEqual(
+      baseline.result.data?.releases.filter(
+        (row) =>
+          !(isLostTag
+            ? row.version === failed.name
+            : found.target.includes('/releases?') && row.version === failed.tag_name),
+      ),
+    )
+    expect(result.data?.pullRequests).toEqual(
+      baseline.result.data?.pullRequests.filter(
+        (row) => !(found.target.includes('/pulls?') && row.number === failed.number),
+      ),
+    )
+    expect(result.data?.runs).toEqual(
+      baseline.result.data?.runs.filter(
+        (row) =>
+          !(isLostTag && row.ref.kind === 'release-tag' && row.ref.name === failed.name) &&
+          !(
+            found.target.includes('/check-runs?') &&
+            row.ref.kind === (found.label.startsWith('head') ? 'head' : 'default-branch') &&
+            row.url === failed.html_url
+          ) &&
+          !(
+            found.target.includes('/actions/workflows/') &&
+            row.ref.kind === 'release-tag' &&
+            row.url === failed.html_url
+          ),
+      ),
+    )
+  })
+  it.each(
+    CASES.filter((found) => found.target.includes('/releases?')).flatMap((found) =>
+      pageBody(found).rows.flatMap((value, index) => {
+        const release = z
+          .looseObject({ tag_name: z.string(), assets: z.array(z.unknown()) })
+          .parse(value)
+        return release.assets.map((_, assetIndex) => ({
+          found,
+          release,
+          index,
+          assetIndex,
+          label: found.label,
+        }))
+      }),
+    ),
+  )(
+    'isolates asset $assetIndex in record $index at $label',
+    async ({ found, release, index, assetIndex }) => {
+      const { rows, wrap } = pageBody(found)
+      const assets = release.assets.map((asset, offset) =>
+        offset === assetIndex ? { invalid: true } : asset,
+      )
+      const damaged = rows.map((row, offset) => (offset === index ? { ...release, assets } : row))
+      const { result } = await readWith(
+        healthyTransport({
+          url: found.target,
+          respond: () => Promise.resolve(Response.json(wrap(damaged))),
+        }),
+      )
+      expect(result.record.reason).toBe('release-response-invalid')
+      expect(result.data?.releases).toEqual(
+        baseline.result.data?.releases.filter((row) => row.version !== release.tag_name),
+      )
+      expect(result.data?.runs).toEqual(baseline.result.data?.runs)
+      expect(result.data?.pullRequests).toEqual(baseline.result.data?.pullRequests)
+    },
+  )
+
+  it.each(CASES)('enforces the page row bound at $label', async (found) => {
+    const { rows, wrap } = pageBody(found)
+    const pageSize = found.target.includes('/releases?')
+      ? GITHUB_RELEASES_PAGE_SIZE
+      : GITHUB_WORKFLOW_RUNS_PAGE_SIZE
+    const over = Array.from({ length: pageSize + 1 }, (_, index) => rows[index % rows.length])
+    const { result } = await readWith(
+      healthyTransport({
+        url: found.target,
+        respond: () => Promise.resolve(Response.json(wrap(over))),
+      }),
+    )
+    expect(result.record.reason?.split('; ')).toEqual([`${found.label}: page-row-bound`])
+    expect(result.data?.releases.map((row) => row.version).toSorted(compareStrings)).toEqual(
+      found.target === URLS.tags1 || found.target === URLS.releases1
+        ? SYNTH_VERSIONS
+        : ALL_VERSIONS,
+    )
+    expect(
+      result.data?.runs
+        .filter((row) => row.ref.kind === 'release-tag')
+        .map((row) => row.ref.name)
+        .toSorted(compareStrings),
+    ).toEqual(
+      found.target === URLS.tags1 || found.target === URLS.runs1 ? SYNTH_RUN_NAMES : ALL_RUN_NAMES,
+    )
+    expect(result.data?.pullRequests).toHaveLength(CAPTURED_PULL_LIST.length)
+    expect(result.data?.runs.filter((row) => row.ref.kind === 'head')).toHaveLength(
+      found.target === URLS.checksHead ? 100 : 101,
+    )
+  })
+
+  it.each(CASES)('isolates a query exception at $label', async (found) => {
+    const transport = healthyTransport()
+    const rig = networkRig({
+      transport,
+      maxBytes: REPORT_NETWORK_MAX_BYTES,
+      maxPages: REPORT_NETWORK_MAX_PAGES,
+    })
+    const read = rig.reader.read.bind(rig.reader)
+    vi.spyOn(rig.reader, 'read').mockImplementation((context, id, schema, collect) =>
+      read(context, id, schema, (query) =>
+        collect((request, input, output) => {
+          return request.url === found.target
+            ? Promise.reject(new Error('injected request failure'))
+            : query(request, input, output)
+        }),
+      ),
+    )
+    const result = await githubReportSource({
+      ...options,
+      reader: rig.reader,
+      additional: githubWorkflowReleasesPort(),
+    }).read(networkContext())
+    expect(result.record.reason).toContain(found.invalidCode)
+    expect(result.data?.releases.map((row) => row.version).toSorted(compareStrings)).toEqual(
+      found.versions,
+    )
+  })
+})
+
+describe('storage, metadata and request allowance boundaries', () => {
+  it.each(
+    CASES.flatMap((found) =>
+      ['read', 'write'].map((stage) => ({ found, stage, label: found.label })),
+    ),
+  )('isolates cache $stage at $label', async ({ found, stage }) => {
+    const transport = healthyTransport()
+    const rig = networkRig({
+      transport,
+      maxBytes: REPORT_NETWORK_MAX_BYTES,
+      maxPages: REPORT_NETWORK_MAX_PAGES,
+    })
+    vi.mocked(rig.deps.policy.allowEgress).mockImplementation((url) => {
+      if (url === found.target) {
+        if (stage === 'read')
+          rig.storage.read.mockRejectedValueOnce(new TypeError('cache read failed'))
+        else rig.storage.write.mockRejectedValueOnce(new TypeError('cache write failed'))
+      }
+      return Promise.resolve(true)
+    })
+    const result = await githubReportSource({
+      ...options,
+      reader: rig.reader,
+      additional: githubWorkflowReleasesPort(),
+    }).read(networkContext())
+    expect(result.record.reason).toContain(`${found.label}: ${found.invalidCode}`)
+    expect(result.data?.releases.map((row) => row.version).toSorted(compareStrings)).toEqual(
+      found.versions,
+    )
+    expect(
+      result.data?.runs
+        .filter((row) => row.ref.kind === 'release-tag')
+        .map((row) => row.ref.name)
+        .toSorted(compareStrings),
+    ).toEqual(found.runNames)
+  })
+  it('preserves every earlier reason when a later body stream fails', async () => {
+    const transport = healthyTransport({
+      url: URLS.runs2,
+      respond: () =>
+        Promise.resolve(
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.error(new TypeError('body failed'))
+              },
+            }),
+          ),
+        ),
+    })
+    const healthy = transport.getMockImplementation()
+    transport.mockImplementation((request) =>
+      request.url === URLS.releases2
+        ? Promise.resolve(new Response(null, { status: 500 }))
+        : (healthy?.(request) ?? Promise.reject(new Error('missing transport'))),
+    )
+    const { result } = await readWith(transport)
+    expect(result.record.reason?.split('; ')).toEqual([
+      'releases-page-2: http-500',
+      'runs-page-2: run-response-invalid',
+    ])
+    expect(result.data?.releases.map((row) => row.version).toSorted(compareStrings)).toEqual(
+      SYNTH_VERSIONS,
+    )
+    expect(
+      result.data?.runs
+        .filter((row) => row.ref.kind === 'release-tag')
+        .map((row) => row.ref.name)
+        .toSorted(compareStrings),
+    ).toEqual(SYNTH_RUN_NAMES)
+  })
+  it.each(CASES.map((found, index) => ({ found, cap: index + 1, label: found.label })))(
+    'enforces the request bound after $label at admission',
+    async ({ cap }) => {
+      const transport = healthyTransport()
+      const rig = networkRig({ transport, maxBytes: REPORT_NETWORK_MAX_BYTES, maxPages: cap })
+      const result = await githubReportSource({
+        ...options,
+        reader: rig.reader,
+        additional: githubWorkflowReleasesPort(),
+      }).read(networkContext())
+      expect(transport.mock.calls).toHaveLength(cap)
+      if (cap < REPORT_NETWORK_MAX_PAGES) expect(result.record.reason).toContain('page-bound')
+      expect(result.data?.pullRequests).toHaveLength(CAPTURED_PULL_LIST.length)
+      if (cap >= 8) expect(result.data?.releases).toHaveLength(32)
+      if (cap >= 9)
+        expect(result.data?.runs.filter((row) => row.ref.kind === 'release-tag')).toHaveLength(
+          cap === 10 ? 102 : 100,
+        )
+    },
+  )
+  it('preserves check records when their pagination count is invalid', async () => {
+    const { result } = await readWith(
+      healthyTransport({
+        url: URLS.checksHead2,
+        respond: () =>
+          Promise.resolve(Response.json({ total_count: null, check_runs: [HEAD_TAIL] })),
+      }),
+    )
+    expect(result.record.reason).toContain('head-page-2: check-response-invalid')
+    expect(result.data?.runs.filter((row) => row.ref.kind === 'head')).toHaveLength(101)
+    expect(result.data?.releases).toHaveLength(32)
   })
 })

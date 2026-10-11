@@ -34,34 +34,26 @@ import {
 
 // M71's 2026-09-28 gh-api capture (githubCapture.ts), not new wire guesses.
 const namedRepository = z.object({ full_name: z.string() })
-const pullsSchema = z
-  .array(
-    z.object({
-      number: z.number(),
-      html_url: z.url(),
-      state: z.string(),
-      title: z.string(),
-      draft: z.boolean(),
-      merged_at: z.nullable(z.string()),
-      user: z.object({ login: z.string(), id: z.number() }),
-      head: z.object({ ref: z.string(), sha: z.string(), repo: z.nullable(namedRepository) }),
-      base: z.object({ ref: z.string(), repo: namedRepository }),
-    }),
-  )
-  .check(z.maxLength(GITHUB_CHECKS_PAGE_SIZE))
-const checksSchema = z.object({
-  total_count: z.number().check(z.int(), z.nonnegative()),
-  check_runs: z
-    .array(
-      z.object({
-        name: z.string(),
-        head_sha: z.string(),
-        conclusion: z.nullable(z.string()),
-        html_url: z.url(),
-      }),
-    )
-    .check(z.maxLength(GITHUB_CHECKS_PAGE_SIZE)),
+const pullSchema = z.object({
+  number: z.number(),
+  html_url: z.url(),
+  state: z.string(),
+  title: z.string(),
+  draft: z.boolean(),
+  merged_at: z.nullable(z.string()),
+  user: z.object({ login: z.string(), id: z.number() }),
+  head: z.object({ ref: z.string(), sha: z.string(), repo: z.nullable(namedRepository) }),
+  base: z.object({ ref: z.string(), repo: namedRepository }),
 })
+const checkSchema = z.object({
+  name: z.string(),
+  head_sha: z.string(),
+  conclusion: z.nullable(z.string()),
+  html_url: z.url(),
+})
+const pageRowsSchema = z.array(z.unknown())
+const checksSchema = z.looseObject({ total_count: z.unknown(), check_runs: pageRowsSchema })
+const checkCountSchema = z.number().check(z.int(), z.nonnegative())
 type GitHubFacts = ReportSourcePayloads['github']
 const githubReleaseSchema = z.strictObject({
   version: z.string(),
@@ -73,26 +65,25 @@ const additionalSchema = z.strictObject({
   runs: z.array(reportCiRunSchema).check(z.maxLength(REPORT_MAX_ROWS)),
   releases: z.array(githubReleaseSchema).check(z.maxLength(REPORT_MAX_ROWS)),
 })
+const githubPullSchema = z.pipe(
+  z.strictObject({
+    number: z.number(),
+    url: z.url(),
+    state: z.string(),
+    title: z.string(),
+    isDraft: z.boolean(),
+    isMerged: z.boolean(),
+    author: z.strictObject({ login: z.string(), id: z.number() }),
+    headRef: z.string(),
+    headSha: z.string(),
+    headRepository: z.union([z.string(), z.undefined()]),
+    baseRef: z.string(),
+    baseRepository: z.string(),
+  }),
+  z.transform((pull) => ({ ...pull, headRepository: pull.headRepository })),
+)
 const githubFactsSchema = z.strictObject({
-  pullRequests: z.array(
-    z.pipe(
-      z.strictObject({
-        number: z.number(),
-        url: z.url(),
-        state: z.string(),
-        title: z.string(),
-        isDraft: z.boolean(),
-        isMerged: z.boolean(),
-        author: z.strictObject({ login: z.string(), id: z.number() }),
-        headRef: z.string(),
-        headSha: z.string(),
-        headRepository: z.union([z.string(), z.undefined()]),
-        baseRef: z.string(),
-        baseRepository: z.string(),
-      }),
-      z.transform((pull) => ({ ...pull, headRepository: pull.headRepository })),
-    ),
-  ),
+  pullRequests: z.array(githubPullSchema).check(z.maxLength(REPORT_MAX_ROWS)),
   ...additionalSchema.shape,
 })
 
@@ -111,10 +102,11 @@ export interface ReportGitHubAdditionalPort {
   ): Promise<unknown>
 }
 const additionalPortEnvelopeSchema = z.looseObject({
-  runs: z.unknown(),
-  releases: z.unknown(),
-  reasons: z.optional(z.array(z.string())),
+  runs: z.optional(z.unknown()),
+  releases: z.optional(z.unknown()),
+  reasons: z.optional(z.unknown()),
 })
+const additionalReasonsSchema = z.string()
 export interface ReportGitHubOptions {
   readonly reader: ReportNetworkReader
   readonly remote: string
@@ -130,15 +122,29 @@ function endpoint(repository: GitHubRepository): string {
 function compare(a: string, b: string): number {
   return Number(a > b) - Number(a < b)
 }
-function orderedFacts<T>(rows: readonly T[], key: (row: T) => string): T[] {
+function orderedFacts<T>(rows: readonly T[], key: (row: T) => string, reasons: string[]): T[] {
   const sorted = rows.toSorted((a, b) => compare(key(a), key(b)))
   return sorted.filter((row, index) => {
     const previous = sorted[index - 1]
     if (previous === undefined || key(previous) !== key(row)) return true
-    if (JSON.stringify(previous) !== JSON.stringify(row))
-      throw new ReportNetworkFailure('github-conflicting-fact')
+    if (JSON.stringify(previous) !== JSON.stringify(row)) reasons.push('github-conflicting-fact')
     return false
   })
+}
+
+/** Admission owns strict validation and bounds, before final source validation. */
+function admitFact<T>(
+  rows: T[],
+  value: unknown,
+  schema: z.ZodMiniType<T>,
+  invalid: string,
+  bound: string,
+  reasons: string[],
+): void {
+  const parsed = schema.safeParse(value)
+  if (!parsed.success) reasons.push(invalid)
+  else if (rows.length >= REPORT_MAX_ROWS) reasons.push(bound)
+  else rows.push(parsed.data)
 }
 
 async function readScopedChecks(
@@ -146,33 +152,70 @@ async function readScopedChecks(
   base: string,
   ref: z.infer<typeof reportCiRunSchema>['ref'],
   runs: GitHubFacts['runs'][number][],
-): Promise<void> {
+  reasons: string[],
+): Promise<{ readonly hasValidatedPage: boolean }> {
+  let hasValidatedPage = false
   for (let page = 1; ; page += 1) {
-    const raw = await query(
-      {
-        url: `${base}/commits/${encodeURIComponent(ref.name)}/check-runs?per_page=${String(GITHUB_CHECKS_PAGE_SIZE)}&page=${String(page)}`,
-      },
-      checksSchema,
-    )
-    if (ref.kind === 'head' && raw.check_runs.some((run) => run.head_sha !== ref.name))
-      throw new ReportNetworkFailure('ci-ref-mismatch')
-    runs.push(
-      ...raw.check_runs.map((run) =>
-        reportCiRunSchema.parse({
+    const pageName = `${ref.kind}-page-${String(page)}`
+    let body: unknown
+    try {
+      body = await query(
+        {
+          url: `${base}/commits/${encodeURIComponent(ref.name)}/check-runs?per_page=${String(GITHUB_CHECKS_PAGE_SIZE)}&page=${String(page)}`,
+        },
+        z.unknown(),
+      )
+    } catch (error: unknown) {
+      reasons.push(
+        `${pageName}: ${error instanceof ReportNetworkFailure ? error.message : 'check-response-invalid'}`,
+      )
+      break
+    }
+    const raw = checksSchema.safeParse(body)
+    if (!raw.success) {
+      reasons.push(`${pageName}: check-response-invalid`)
+      break
+    }
+    hasValidatedPage = true
+    if (raw.data.check_runs.length > GITHUB_CHECKS_PAGE_SIZE)
+      reasons.push(`${pageName}: page-row-bound`)
+    for (const item of raw.data.check_runs.slice(0, GITHUB_CHECKS_PAGE_SIZE)) {
+      const run = checkSchema.safeParse(item)
+      if (!run.success) {
+        reasons.push('check-response-invalid')
+        continue
+      }
+      if (ref.kind === 'head' && run.data.head_sha !== ref.name) {
+        reasons.push('ci-ref-mismatch')
+        continue
+      }
+      admitFact(
+        runs,
+        {
           ref,
-          sha: run.head_sha,
-          workflow: run.name,
-          conclusion: run.conclusion,
-          url: run.html_url,
-        }),
-      ),
-    )
+          sha: run.data.head_sha,
+          workflow: run.data.name,
+          conclusion: run.data.conclusion,
+          url: run.data.html_url,
+        },
+        reportCiRunSchema,
+        'check-response-invalid',
+        'runs-row-bound',
+        reasons,
+      )
+    }
+    const count = checkCountSchema.safeParse(raw.data.total_count)
+    if (!count.success) {
+      reasons.push(`${pageName}: check-response-invalid`)
+      break
+    }
     if (
-      page * GITHUB_CHECKS_PAGE_SIZE >= raw.total_count ||
-      raw.check_runs.length < GITHUB_CHECKS_PAGE_SIZE
+      page * GITHUB_CHECKS_PAGE_SIZE >= count.data ||
+      raw.data.check_runs.length !== GITHUB_CHECKS_PAGE_SIZE
     )
       break
   }
+  return { hasValidatedPage }
 }
 
 export function githubReportSource(options: ReportGitHubOptions): ReportSourcePort<'github'> {
@@ -203,40 +246,64 @@ export function githubReportSource(options: ReportGitHubOptions): ReportSourcePo
         async (query) => {
           const pullRequests: GitHubFacts['pullRequests'][number][] = []
           const runs: GitHubFacts['runs'][number][] = []
-          let releases: GitHubFacts['releases'] = []
+          const releases: GitHubFacts['releases'][number][] = []
           const reasons: string[] = []
+          let hasValidatedPage = false
           const base = endpoint(repository)
           // Fixed requests only: never follow an untrusted Link header.
-          try {
-            for (let page = 1; ; page += 1) {
-              const raw = await query(
+          for (let page = 1; ; page += 1) {
+            const pageName = `pulls-page-${String(page)}`
+            let body: unknown
+            try {
+              body = await query(
                 {
                   url: `${base}/pulls?state=all&per_page=${String(GITHUB_CHECKS_PAGE_SIZE)}&page=${String(page)}`,
                 },
-                pullsSchema,
+                z.unknown(),
               )
-              pullRequests.push(
-                ...raw.map((pull) => ({
-                  number: pull.number,
-                  url: pull.html_url,
-                  state: pull.state,
-                  title: pull.title,
-                  isDraft: pull.draft,
-                  isMerged: pull.merged_at !== null,
-                  author: pull.user,
-                  headRef: pull.head.ref,
-                  headSha: pull.head.sha,
-                  headRepository: pull.head.repo?.full_name,
-                  baseRef: pull.base.ref,
-                  baseRepository: pull.base.repo.full_name,
-                })),
+            } catch (error: unknown) {
+              reasons.push(
+                `${pageName}: ${error instanceof ReportNetworkFailure ? error.message : 'pull-response-invalid'}`,
               )
-              if (raw.length < GITHUB_CHECKS_PAGE_SIZE) break
+              break
             }
-          } catch (error: unknown) {
-            reasons.push(
-              error instanceof ReportNetworkFailure ? error.message : 'pulls-unavailable',
-            )
+            const raw = pageRowsSchema.safeParse(body)
+            if (!raw.success) {
+              reasons.push(`${pageName}: pull-response-invalid`)
+              break
+            }
+            hasValidatedPage = true
+            if (raw.data.length > GITHUB_CHECKS_PAGE_SIZE)
+              reasons.push(`${pageName}: page-row-bound`)
+            for (const item of raw.data.slice(0, GITHUB_CHECKS_PAGE_SIZE)) {
+              const pull = pullSchema.safeParse(item)
+              if (!pull.success) {
+                reasons.push('pull-response-invalid')
+                continue
+              }
+              admitFact(
+                pullRequests,
+                {
+                  number: pull.data.number,
+                  url: pull.data.html_url,
+                  state: pull.data.state,
+                  title: pull.data.title,
+                  isDraft: pull.data.draft,
+                  isMerged: pull.data.merged_at !== null,
+                  author: pull.data.user,
+                  headRef: pull.data.head.ref,
+                  headSha: pull.data.head.sha,
+                  headRepository: pull.data.head.repo?.full_name,
+                  baseRef: pull.data.base.ref,
+                  baseRepository: pull.data.base.repo.full_name,
+                },
+                githubPullSchema,
+                'pull-response-invalid',
+                'pulls-row-bound',
+                reasons,
+              )
+            }
+            if (raw.data.length !== GITHUB_CHECKS_PAGE_SIZE) break
           }
           const refs: z.infer<typeof reportCiRunSchema>['ref'][] = [
             { kind: 'head', name: options.headSha },
@@ -250,46 +317,49 @@ export function githubReportSource(options: ReportGitHubOptions): ReportSourcePo
                 ]),
           ]
           for (const ref of refs) {
-            try {
-              await readScopedChecks(query, base, ref, runs)
-            } catch (error: unknown) {
-              reasons.push(
-                `${ref.kind}: ${error instanceof ReportNetworkFailure ? error.message : 'checks-unavailable'}`,
-              )
-            }
+            const observation = await readScopedChecks(query, base, ref, runs, reasons)
+            hasValidatedPage ||= observation.hasValidatedPage
           }
           if (options.additional === undefined) reasons.push('workflow-release-capture-required')
           else {
             try {
-              const envelope = additionalPortEnvelopeSchema.parse(
+              const envelope = additionalPortEnvelopeSchema.safeParse(
                 await options.additional.read(context, query, repository),
               )
-              // RVCM1136D: a row that passes the port's loose shape but not
-              // the strict fact shape is skipped with its own reason while
-              // the other rows stay; only a misshapen envelope stays
-              // generic. The assembly never throws one row's failure over
-              // the rows the requests did return.
-              if (!Array.isArray(envelope.runs) || !Array.isArray(envelope.releases))
-                throw new ReportNetworkFailure('workflow-releases-unavailable')
-              const additionalRuns: z.infer<typeof reportCiRunSchema>[] = []
-              for (const run of envelope.runs) {
-                const parsed = reportCiRunSchema.safeParse(run)
-                if (parsed.success) additionalRuns.push(parsed.data)
-                else reasons.push('run-response-invalid')
-              }
-              const additionalReleases: z.infer<typeof githubReleaseSchema>[] = []
-              for (const release of envelope.releases) {
-                const parsed = githubReleaseSchema.safeParse(release)
-                if (parsed.success) additionalReleases.push(parsed.data)
-                else reasons.push('release-response-invalid')
-              }
-              const additional = additionalSchema.parse({
-                runs: additionalRuns,
-                releases: additionalReleases,
-              })
-              runs.push(...additional.runs)
-              releases = additional.releases
-              reasons.push(...(envelope.reasons ?? []))
+              if (!envelope.success) throw new ReportNetworkFailure('workflow-releases-unavailable')
+              // Facets and reasons are independent: a missing/malformed facet
+              // cannot discard accepted facts or the adapter's other reasons.
+              if (Array.isArray(envelope.data.reasons)) {
+                for (const reason of envelope.data.reasons) {
+                  const parsed = additionalReasonsSchema.safeParse(reason)
+                  reasons.push(parsed.success ? parsed.data : 'workflow-release-reason-invalid')
+                }
+              } else if (Object.hasOwn(envelope.data, 'reasons'))
+                reasons.push('workflow-release-reason-invalid')
+              if (Array.isArray(envelope.data.runs)) {
+                hasValidatedPage = true
+                for (const run of envelope.data.runs)
+                  admitFact(
+                    runs,
+                    run,
+                    reportCiRunSchema,
+                    'run-response-invalid',
+                    'runs-row-bound',
+                    reasons,
+                  )
+              } else reasons.push('workflow-runs-unavailable')
+              if (Array.isArray(envelope.data.releases)) {
+                hasValidatedPage = true
+                for (const release of envelope.data.releases)
+                  admitFact(
+                    releases,
+                    release,
+                    githubReleaseSchema,
+                    'release-response-invalid',
+                    'releases-row-bound',
+                    reasons,
+                  )
+              } else reasons.push('releases-unavailable')
             } catch (error: unknown) {
               // A refused wire shape keeps its own reason (C-M113-6: a null
               // run conclusion, a draft or prerelease release, a release tag
@@ -301,12 +371,20 @@ export function githubReportSource(options: ReportGitHubOptions): ReportSourcePo
               )
             }
           }
+          if (
+            !hasValidatedPage &&
+            pullRequests.length === 0 &&
+            runs.length === 0 &&
+            releases.length === 0
+          )
+            throw new ReportNetworkFailure([...new Set(reasons)].join('; '))
           return {
             data: {
-              pullRequests: orderedFacts(pullRequests, (pull) => String(pull.number)),
+              pullRequests: orderedFacts(pullRequests, (pull) => String(pull.number), reasons),
               runs: orderedFacts(
                 runs,
-                (run) => `${run.ref.kind}/${run.ref.name}/${run.workflow}/${run.url}`,
+                (run) => JSON.stringify([run.ref.kind, run.ref.name, run.workflow, run.url]),
+                reasons,
               ),
               releases: orderedFacts(
                 releases.map((release) => ({
@@ -314,9 +392,10 @@ export function githubReportSource(options: ReportGitHubOptions): ReportSourcePo
                   assets: release.assets.toSorted(compare),
                 })),
                 (release) => release.version,
+                reasons,
               ),
             },
-            reason: reasons.length === 0 ? null : reasons.join('; '),
+            reason: reasons.length === 0 ? null : [...new Set(reasons)].join('; '),
           }
         },
       )

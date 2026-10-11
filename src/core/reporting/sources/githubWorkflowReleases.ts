@@ -94,19 +94,9 @@ function tagNameOf(item: unknown): string | null {
 }
 
 /**
- * Paged endpoints, read leniently (RVCM1136B P2, redesigned RVCM1136D):
- * elements are validated one by one so a single unparseable record is
- * skipped with its reason while the other rows stay, and every page fetch
- * returns its own result instead of throwing: a failed page records which
- * page and which failure (`tags-page-2: http-500`) and ends only its own
- * endpoint's other pages: a failed page records its paged refusal and
- * pagination continues past it, so rows from the pages that did arrive
- * stay. Only the shared page bound ends the walk (further requests are
- * refused anyway). A page body that carries no usable records at all
- * (invalid JSON, a non-array body, a runs envelope without
- * `workflow_runs`) is refused the same way with the element code.
- * Anything else — an abort, a deadline, a genuine bug — escapes as a
- * throw, never as rows.
+ * Validate each page and record independently. A failed page ends this
+ * endpoint, preserving its accepted rows and every other endpoint's request
+ * allowance. Body, decode and adapter failures all name the failed page.
  */
 async function readElements<T>(
   query: ReportNetworkQuery,
@@ -125,32 +115,26 @@ async function readElements<T>(
   for (let page = 1; ; page += 1) {
     let batch: unknown[] | null
     try {
-      // `unknown` on the wire: the page shape is validated below with
-      // `safeParse`, so a misshapen body is the request's own refusal and
-      // never an exception that drops the other requests' rows. Only
-      // `JSON.parse` inside the reader can still throw, as `SyntaxError`.
+      // The reader bounds, decodes and scrubs the unknown wire body;
+      // this endpoint owns all failures and validates every record below.
       batch = select(await query({ url: urlFor(page) }, z.unknown()))
     } catch (error: unknown) {
-      if (error instanceof ReportNetworkFailure) {
-        reasons.push(`${pageName}-${String(page)}: ${error.message}`)
-        // The shared page bound refuses every further request, so the
-        // walk ends here; any other failure records its page and the next
-        // page is still read.
-        if (error.message === 'page-bound') break
-      } else if (error instanceof SyntaxError) {
-        reasons.push(`${pageName}-${String(page)}: ${unparseable}`)
-      } else {
-        throw error
-      }
+      reasons.push(
+        `${pageName}-${String(page)}: ${error instanceof ReportNetworkFailure ? error.message : unparseable}`,
+      )
       didFetchFail = true
-      continue
+      break
     }
     if (batch === null) {
       reasons.push(`${pageName}-${String(page)}: ${unparseable}`)
       didFetchFail = true
-      continue
+      break
     }
-    for (const item of batch) {
+    if (batch.length > pageSize) {
+      reasons.push(`${pageName}-${String(page)}: page-row-bound`)
+      didFetchFail = true
+    }
+    for (const item of batch.slice(0, pageSize)) {
       const parsed = element.safeParse(item)
       if (parsed.success) {
         rows.push(parsed.data)
@@ -158,9 +142,12 @@ async function readElements<T>(
         reasons.push(unparseable)
         const name = nameOf?.(item) ?? null
         if (name !== null) invalidNames.push(name)
+        // A nameless refused tag makes missing joins uncertain, just like
+        // a failed tag page; never blame a release/run for that absence.
+        else if (nameOf !== undefined) didFetchFail = true
       }
     }
-    if (batch.length < pageSize) break
+    if (batch.length !== pageSize) break
   }
   return { rows, invalidNames, reasons, didFetchFail }
 }

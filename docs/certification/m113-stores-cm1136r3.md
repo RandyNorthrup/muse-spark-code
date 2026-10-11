@@ -216,3 +216,72 @@ pre-existing `dist/usagePanel.js` 75.1 KiB overage R3 recorded
 No `eslint-disable`, `@ts-expect-error`, `any` or non-narrowing `as`
 added (test casts narrow `JSON.parse` output exactly like the existing
 suites). No l10n, reference, roadmap or host-API change. Time box held.
+
+## R6 (RVCM1136E fixes, 2026-10-11, Kubuntu)
+
+The R5 preservation and request-coverage claims were too broad. Its property
+suite raised the request cap to twelve and compared requests with a separate
+URL table, so it missed both cross-endpoint budget theft and a missing fault
+case. This round first wrote the invariant over the source's actual reader,
+record, adapter, validation and bound boundaries, and observed the original
+code fail (118 failed, 7 passed). Source changes followed that red run.
+
+A failed page now ends its endpoint immediately. Previously accepted facts
+and reasons remain; unknown later pages are not probed, and healthy endpoints
+keep the ten-request production allowance. Ordinary stream and decode errors
+are the failed page's shape refusal, including TypeError and invalid UTF-8.
+The same admission rule covers sibling pulls/checks and the additional port:
+records validate independently, a null/undefined facet is named unavailable,
+valid adapter reasons survive malformed neighboring reasons, conflicting facts
+keep the first accepted fact with a conflict reason, and rows beyond bounds
+are refused at admission. The final source schema retains its original strict
+validation and row caps; it no longer discovers an oversized accepted array.
+No shared transport, timeout, cap, dependency, hook or gate is widened.
+
+| Finding                                                             | Fix                                                                                                                                                          | Regression                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2 body/decoder failure discarded successful workflow/release pages | `readElements` catches every page read/decode failure and returns its page reason with accepted rows                                                         | Every observed request × HTTP, JSON, byte bound, transport exception, null body, invalid envelope, invalid UTF-8, stream TypeError and egress refusal in `githubWorkflowReleaseIsolation.test.ts`                                                                                                    |
+| P2 a failed page spent another endpoint's allowance                 | Failed endpoint stops immediately; the property uses production's ten requests, HEAD on two pages and default-branch checks                                  | `a failed releases-page-2 (...) keeps the other rows and names exactly it`: 100 earlier workflow rows plus both healthy captured second-page runs remain                                                                                                                                             |
+| P3 request-list coverage missed removed cases                       | Compare actual transport URLs with CASES targets and assert both case and request uniqueness; count reader/parser call sites from a TypeScript AST inventory | `covers exactly the read’s own request list`; `inventories every reader and validation call from the code`                                                                                                                                                                                           |
+| Same-class sibling boundaries                                       | Strict row admission, independent adapter facets/reasons, first-fact conflict retention, page row admission and bounded final assembly in `github.ts`        | Every record position in every result; every cache read/write; absent/failed adapter; missing facets; malformed reason record; combined runs/release row limits; conflicting facts; invalid check pagination metadata; every shared request cutoff; two simultaneous failures retaining both reasons |
+
+The synthetic pages extend captured field shapes solely to drive pagination;
+no new upstream field or shape is claimed. The fixtures and receipts remain
+unchanged. The source inventory counts repeated calls, so another call to an
+existing reader/parser still requires a case. The request gate uses the cases
+that actually generate faults, so removing a case fails it. Per-record tests
+are separate default-timeout cases sharing one healthy baseline: an exploratory
+loop-based version exceeded 5 seconds and was split without raising a timeout.
+
+No new assertion escape hatch, lint suppression or dependency. The two changed
+portable modules apply unchanged to VS Code, CLI/ACP and native bridge report
+composition; no host-specific code or UI surface was added.
+
+The final-validation sweep also found a valid empty additional facet being
+marked unavailable when all baseline readers failed. The new `retains a valid
+empty adapter facet beside failed readers` test failed before the correction
+(1 failed, 497 passed), then the source marks a validated empty facet as an
+observation while retaining all earlier reasons. The inventory includes the
+three array-facet validations and all final array bounds, alongside reader and
+parser calls; adding another such boundary requires a matching case.
+
+The tag sweep strengthens every record-position case to require only its own
+`tag-response-invalid` reason when the refused tag has no readable name.
+Before the correction, 102 cases blamed healthy dependent releases/runs as
+`release-commit-required` / `run-release-tag-required` (102 failed, 484 passed).
+A nameless refusal now marks the join incomplete, preserving the accepted
+rows and its own reason. Every asset position inside both synthetic and
+captured release pages is also faulted; an unparseable release record is
+refused on its own while every neighboring fact remains.
+
+The page-bound assertions also require the surviving rows and exact reasons,
+not merely a bound label. Before correction, 8/10 oversized-page cases spent
+another endpoint's allowance or probed an unknown page (8 failed, 578 passed).
+Each endpoint now admits only its bounded prefix, records its page row bound,
+and stops. An oversized tag page marks the join incomplete, preventing false
+blame on missing tag joins. All production request/byte/row caps remain fixed.
+
+The conflict sweep also proves distinct tuple identities whose text contains
+`/`: two valid run facts previously collapsed into one conflicting key
+(1 failed, 586 passed). Keys now serialize the complete identity tuple, so
+separators in a tag/workflow cannot discard an independent accepted fact.
