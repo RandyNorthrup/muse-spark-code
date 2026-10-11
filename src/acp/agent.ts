@@ -54,8 +54,10 @@ import {
   type TurnPart,
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
-import { failureForLog } from '../core/backends/musecode/logText'
-import { unlessAborted } from '../core/timeouts'
+import { isMspFailure, failureForLog } from '../core/backends/musecode/logText'
+import { DeadlineError, unlessAborted } from '../core/timeouts'
+import { isModelApiError } from '../core/backends/modelapi/transport'
+import { redactSecrets } from '../core/redact'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
 import type { AgentEvent } from '../shared/agentEvents'
@@ -295,14 +297,14 @@ function accountRequestError(error: unknown): RequestError {
   const text = accountErrorText(error)
   return text === UI_TEXT.accounts.invalidAccount
     ? RequestError.invalidParams(undefined, text)
-    : RequestError.internalError(undefined, text)
+    : new RequestError(ACP_ERROR_CODES.unavailable, text)
 }
 
 /** The model a new session starts on: the backend's default, else the first listed. */
 function startingModel(models: readonly ModelSummary[]): string {
   const model = models.find((candidate) => candidate.isDefault) ?? models[0]
   if (model === undefined) {
-    throw RequestError.internalError(undefined, UI_TEXT.acpNoModels)
+    throw new RequestError(ACP_ERROR_CODES.unavailable, UI_TEXT.acpNoModels)
   }
   return model.modelId
 }
@@ -843,7 +845,9 @@ class AcpSession {
         if (!this.isDisposed) this.getQuestions().sentQueued()
       } catch {
         // The model is still running: retain pending so another prompt is busy.
-        pending.reject(RequestError.internalError(undefined, UI_TEXT.questionQueueCommitFailed))
+        pending.reject(
+          new RequestError(ACP_ERROR_CODES.unavailable, UI_TEXT.questionQueueCommitFailed),
+        )
       }
     })()
   }
@@ -913,10 +917,9 @@ class AcpSession {
               kind: CREDENTIAL_STORE_ERROR_KIND,
               requestSent: false,
             })
-          : RequestError.internalError(
-              undefined,
-              event.reason ?? event.errorKind ?? event.terminal,
-            ),
+          : new RequestError(ACP_ERROR_CODES.turnFailed, event.reason ?? UI_TEXT.actionFailed, {
+              kind: event.errorKind ?? 'turn_failed',
+            }),
       )
       return
     }
@@ -1157,7 +1160,7 @@ class AcpSession {
       return 'end_turn'
     } catch {
       if (stop.signal.aborted) return 'cancelled'
-      throw RequestError.internalError(undefined, UI_TEXT.legalScanUnavailable)
+      throw new RequestError(ACP_ERROR_CODES.unavailable, UI_TEXT.legalScanUnavailable)
     } finally {
       if (this.legalStop === stop) this.legalStop = undefined
       if (this.preparing === preparing) this.preparing = undefined
@@ -1530,7 +1533,7 @@ class AcpSession {
     }
     if (configId === ACP_CONFIG_IDS.account) {
       if (this.accounts === undefined)
-        throw RequestError.internalError(undefined, UI_TEXT.accounts.unavailable)
+        throw new RequestError(ACP_ERROR_CODES.unavailable, UI_TEXT.accounts.unavailable)
       if (this.pending !== undefined || this.preparing !== undefined)
         throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
       try {
@@ -1640,7 +1643,7 @@ class AcpSession {
       if (slash === 'invalid' || blocks.length !== 1)
         throw RequestError.invalidParams(undefined, UI_TEXT.vault.noAccess)
       if (this.deps.vault === undefined)
-        throw RequestError.internalError(undefined, UI_TEXT.vault.brokerBlocked)
+        throw new RequestError(ACP_ERROR_CODES.unavailable, UI_TEXT.vault.brokerBlocked)
       const preparing: PreparingPrompt | undefined =
         slash === 'lock' ? undefined : { isCancelled: false, abort: new AbortController() }
       if (preparing === undefined) this.cancelVaultRequests()
@@ -1652,7 +1655,7 @@ class AcpSession {
         await this.outbox
         return 'end_turn'
       } catch {
-        throw RequestError.internalError(undefined, UI_TEXT.vault.brokerBlocked)
+        throw new RequestError(ACP_ERROR_CODES.unavailable, UI_TEXT.vault.brokerBlocked)
       } finally {
         if (preparing !== undefined && this.preparing === preparing) this.preparing = undefined
       }
@@ -1816,7 +1819,7 @@ class AcpSession {
       }
       if (/^\/accounts(?:\s|$)/.test(typed)) {
         if (this.accounts === undefined)
-          throw RequestError.internalError(undefined, UI_TEXT.accounts.unavailable)
+          throw new RequestError(ACP_ERROR_CODES.unavailable, UI_TEXT.accounts.unavailable)
         if (parsed.parts.length !== 1)
           throw RequestError.invalidParams(undefined, UI_TEXT.accounts.invalidAccount)
         let text: string | undefined
@@ -1973,7 +1976,8 @@ class AcpSession {
           this.commitAnswers(pending)
         }
         this.noteTurnId(submission.turnId, submission.disposition)
-        if (!isAccepted) throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
+        if (!isAccepted)
+          throw new RequestError(ACP_ERROR_CODES.unavailable, UI_TEXT.answerNotAccepted)
       }
     } catch (error: unknown) {
       await this.releaseAnswers(pending)
@@ -2027,7 +2031,7 @@ class AcpSession {
 
   /** The backend went away: the running prompt ends with its reason. */
   public hostExited(description: string): void {
-    const error = RequestError.internalError(undefined, description)
+    const error = new RequestError(ACP_ERROR_CODES.unavailable, description)
     if (this.preparing !== undefined) {
       this.preparing.error = error
       this.preparing.abandonElicitation?.()
@@ -2173,7 +2177,7 @@ class AgentState {
       throw RequestError.authRequired(undefined, readiness.message)
     }
     if (readiness.state === 'unavailable') {
-      throw RequestError.internalError(undefined, readiness.message)
+      throw new RequestError(ACP_ERROR_CODES.unavailable, readiness.message)
     }
   }
 
@@ -2533,52 +2537,128 @@ class AgentState {
   }
 }
 
+/** Unknown failures retain only redacted diagnostics, never request content or headers. */
+function requestFailureText(error: unknown, privateText: readonly string[]): string {
+  if (isMspFailure(error)) return failureForLog(error)
+  if (!(error instanceof Error)) return 'an unknown failure'
+  const detail = redactSecrets(error.message, privateText).replaceAll(
+    /\b(?:authorization|[\w-]*api[-_]key|headers?)\s*[:=][^\r\n;]*/giu,
+    '[redacted]',
+  )
+  return `${failureForLog(error)}: ${detail}`
+}
+
 /** The agent: register it on a stream with `connect`. */
 export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
   const state = new AgentState(deps)
+  const respond = async <T>(
+    method: string,
+    work: () => T | Promise<T>,
+    privateText: readonly string[] = [],
+  ): Promise<T> => {
+    try {
+      return await work()
+    } catch (error: unknown) {
+      if (error instanceof RequestError && error.code !== ACP_ERROR_CODES.internal) throw error
+      if (error instanceof Error && error.name === 'StoreUnavailableError')
+        throw new RequestError(
+          ACP_ERROR_CODES.credentialStore,
+          UI_TEXT.acpCredentialStoreNoAnswer,
+          { kind: CREDENTIAL_STORE_ERROR_KIND, requestSent: false },
+        )
+      if (error instanceof DeadlineError)
+        throw new RequestError(ACP_ERROR_CODES.unavailable, error.message, { kind: 'deadline' })
+      if (isMspFailure(error))
+        throw new RequestError(ACP_ERROR_CODES.turnFailed, UI_TEXT.actionFailed, {
+          kind: error.kind,
+          backendCode: error.code,
+        })
+      if (isModelApiError(error))
+        throw new RequestError(
+          ACP_ERROR_CODES.turnFailed,
+          redactSecrets(error.message, privateText),
+          { kind: error.code ?? error.kind ?? 'model_api_error', httpStatus: error.status },
+        )
+      if (error instanceof RangeError)
+        throw RequestError.invalidParams(undefined, redactSecrets(error.message, privateText))
+      if (error instanceof Error && error.name === 'AbortError')
+        throw RequestError.requestCancelled()
+      deps.log.error(`ACP ${method} failed: ${requestFailureText(error, privateText)}`)
+      observeError(deps, 'requestFailed')
+      throw new RequestError(ACP_ERROR_CODES.internal, UI_TEXT.actionFailed)
+    }
+  }
   deps.vault?.attach((sessionId, request) => state.askVaultUse(sessionId, request))
   deps.paid.attach((sessionId, request, canRemember) =>
     state.askPaidUse(sessionId, request, canRemember),
   )
   return acpAgent({ name: ACP_AGENT_NAME })
-    .onRequest('initialize', (context) => {
-      deps.onClientName?.(context.params.clientInfo?.name ?? 'ACP')
-      return state.initialize(context.params.clientCapabilities)
-    })
-    .onRequest('authenticate', (context) => state.authenticate(context.params.methodId))
+    .onRequest('initialize', (context) =>
+      respond('initialize', () => {
+        deps.onClientName?.(context.params.clientInfo?.name ?? 'ACP')
+        return state.initialize(context.params.clientCapabilities)
+      }),
+    )
+    .onRequest('authenticate', (context) =>
+      respond('authenticate', () => state.authenticate(context.params.methodId)),
+    )
     .onRequest('session/new', (context) =>
-      state.newSession(context.params.cwd, context.params.mcpServers, context.client),
+      respond('session/new', () =>
+        state.newSession(context.params.cwd, context.params.mcpServers, context.client),
+      ),
     )
-    .onRequest('session/load', (context) => {
-      const { sessionId, cwd, mcpServers } = context.params
-      return state.loadSession(sessionId, cwd, mcpServers, context.client, true)
-    })
-    .onRequest('session/resume', (context) => {
-      const { sessionId, cwd, mcpServers } = context.params
-      return state.loadSession(sessionId, cwd, mcpServers ?? undefined, context.client, false)
-    })
+    .onRequest('session/load', (context) =>
+      respond('session/load', () => {
+        const { sessionId, cwd, mcpServers } = context.params
+        return state.loadSession(sessionId, cwd, mcpServers, context.client, true)
+      }),
+    )
+    .onRequest('session/resume', (context) =>
+      respond('session/resume', () => {
+        const { sessionId, cwd, mcpServers } = context.params
+        return state.loadSession(sessionId, cwd, mcpServers ?? undefined, context.client, false)
+      }),
+    )
     .onRequest('session/list', (context) =>
-      state.listSessions(context.params.cwd ?? undefined, context.params.cursor ?? undefined),
+      respond('session/list', () =>
+        state.listSessions(context.params.cwd ?? undefined, context.params.cursor ?? undefined),
+      ),
     )
-    .onRequest('session/close', async (context) => {
-      await state.closeSession(context.params.sessionId)
-      return {}
-    })
-    .onRequest('session/set_mode', async (context) => {
-      await state.session(context.params.sessionId).setMode(context.params.modeId)
-      return {}
-    })
-    .onRequest('session/set_config_option', async (context) => {
-      const session = state.session(context.params.sessionId)
-      await session.setConfigOption(context.params.configId, context.params.value)
-      return { configOptions: session.configOptions() }
-    })
-    .onRequest('session/prompt', async (context) => ({
-      stopReason: await state.session(context.params.sessionId).prompt(context.params.prompt),
-    }))
-    .onNotification('session/cancel', async (context) => {
-      // A notification has no answer: a cancel for a session already
-      // closed, still being set up, or never held stops nothing.
-      await state.held(context.params.sessionId)?.cancel()
-    })
+    .onRequest('session/close', (context) =>
+      respond('session/close', async () => {
+        await state.closeSession(context.params.sessionId)
+        return {}
+      }),
+    )
+    .onRequest('session/set_mode', (context) =>
+      respond('session/set_mode', async () => {
+        await state.session(context.params.sessionId).setMode(context.params.modeId)
+        return {}
+      }),
+    )
+    .onRequest('session/set_config_option', (context) =>
+      respond('session/set_config_option', async () => {
+        const session = state.session(context.params.sessionId)
+        await session.setConfigOption(context.params.configId, context.params.value)
+        return { configOptions: session.configOptions() }
+      }),
+    )
+    .onRequest('session/prompt', (context) =>
+      respond(
+        'session/prompt',
+        async () => ({
+          stopReason: await state.session(context.params.sessionId).prompt(context.params.prompt),
+        }),
+        context.params.prompt.flatMap((block) => {
+          if (block.type === 'text') return [block.text]
+          if (block.type === 'image' || block.type === 'audio') return [block.data]
+          return block.type === 'resource' && 'text' in block.resource ? [block.resource.text] : []
+        }),
+      ),
+    )
+    .onNotification('session/cancel', (context) =>
+      respond('session/cancel', async () => {
+        await state.held(context.params.sessionId)?.cancel()
+      }),
+    )
 }
