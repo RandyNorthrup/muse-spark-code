@@ -84,6 +84,15 @@ export async function waitForDeferredPaint(page, scene) {
   if ((await loading.count()) > 0) throw new Error(`Deferred renderer did not settle: ${scene}`)
 }
 
+/** Let real chunk I/O settle before spending the next frozen-clock paint step. */
+export async function playScenarioClock(page) {
+  for (let played = 0; played < 6500; played += 100) {
+    await requestsSettled(page)
+    await page.clock.runFor(100)
+    await delay(10)
+  }
+}
+
 async function openScene(page, root, port, scene, theme, width, height, fixtures) {
   let resource = `test/harness/index.html?scenario=${width === 320 ? scene : scene.replace(/-narrow$/, '')}&theme=${theme}&bundle=${bundleFor(scene)}`
   if (fixtureScenes.has(scene)) resource = `${fixtures}/index.html?scene=${scene}`
@@ -125,7 +134,7 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     },
     { fixture, width },
   )
-  await page.clock.runFor(6500)
+  await playScenarioClock(page)
   if (scene === 'playbook-status') await waitForPaint(page, '.playbook-record')
   if (scene.startsWith('traffic-')) {
     await waitForPaint(page, '.traffic-tabs')

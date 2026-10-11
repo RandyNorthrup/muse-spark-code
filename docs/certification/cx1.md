@@ -823,3 +823,65 @@ the other 62 matrix tests passed. All five files were restored byte-exact:
 - `src/runtime/reference.node.generated.ts`: `5b5da39ac310637c8a4fa55a3c27c8e1015736affa2fe4ad14c88c2b4ed5fe3f`.
 - `src/shared/reference/reference.generated.json`: `4968370d4d30fefb205814a995ffe31da8a9ac87b6c6055fadf04fa72d2f457b`.
 - `src/shared/reference/reference.generated.ts`: `9e913cab717ccda0129702c2825b16cb3ae158d403fc9b9f4cf3d9bd8a9ebcd8`.
+
+The full visual driver exposed a lazy agent-details clock race: advancing
+6,500 frozen milliseconds in one call could spend the existing three-second
+readiness budget before its real chunk I/O settled. It now advances the same
+budget in 100 ms paint steps with request settling between them. No deadline,
+coverage or pixel policy changed. The named `settles a lazy agent chunk before
+spending the scenario readiness clock` regression failed with the old single
+advance; the other three readiness tests passed. The driver was restored
+byte-exact at SHA-256
+`3a0ccdf5584fed8b965a0171172c8e4c7e2d75f67e71a57500b7b68bbb0cdf81`,
+and all four tests then passed under the repository's five-second deadline.
+The permanent-busy refusal uses a fake marker and still proves the 100-step
+limit, removing unnecessary browser round trips from that unit assertion.
+
+## Final CX1R6 qualification
+
+All ten fake-only release e2e files passed: 124 tests, with no skipped cases.
+The initial concurrent headless batch exceeded its unchanged cold-package
+60-second hook deadline under visual-browser load; after every capture browser
+closed, the entire `execStdio.e2e.test.ts` passed (44 tests, 124.96 seconds)
+with the same repository deadlines. The other three batches passed 19, 24
+and 17 tests, and the two other headless-batch files passed 20 tests.
+No deadline, filter or skip was added.
+
+`xvfb-run -a npm run test:integration` passed in VS Code 1.141.0 and 1.99.0:
+40 tests in each. `npm run test:a11y` passed all 1,072 pages (268 scenarios
+in four themes), with zero violations, undecided rules, exemptions or missing
+results; its production reporting check passed another 32 pages. Accessibility
+ran in the isolated copy of the same committed production source so editor
+builds could not replace its assets. Generated accessibility receipts stayed
+in that disposable copy; no previous certification PNG was replaced.
+
+The unmodified `check:visual` shard/merge path passed all 9,792 captures across
+eight isolated copies. It reported 17 changed pixels in total, with maximum
+one pixel per image, under the original pixel policy. Baseline/candidate
+archives are 446,376,835 / 446,379,640 bytes, both below 512 MiB. Exactly 144
+reviewed What's New frame records changed; all other 9,648 records are equal
+to the original manifest. The qualified manifest SHA-256 was
+`72b73d17b8f142120b25549b701a477b50146558a090ac649d4350f24e6fe45f`.
+Prettier then normalized its formatting; every parsed value and frame record
+remained equal, with resulting SHA-256
+`91f1c3e60848434cc424e95116e784fffa69ae6cb188f66510e248a280d1a468`.
+The baseline source is `711a05da61018a3268cb2074895a13512821003e`.
+
+All five typecheck projects, localization (14 UI/14 usage tables, 252 manifest
+strings, zero problems), reference, roadmap, host API, dead-code and duplication
+checks passed. The production build passed every size, split, host-global and
+notice check. Main sizes: extension 550.1/600 KiB, Model API 515.8/525 KiB,
+conversation 244.0/250 KiB and headless 98.4/100 KiB. No dependency was added;
+no paid/live call, push, merge, rebase or user-run stash occurred. Aggregate
+quality remains lead-owned as required by the lane brief.
+
+Final qualification exceeded the 90-minute box to complete the full visual
+matrix and repeat the cold-pack file after its competing browsers closed.
+No finding remains deferred.
+
+Final ESLint covered all 30 changed source/test files with zero warnings; the
+final readiness file passed all four tests. The remaining Unreleased changelog
+wording was aligned to the legacy loop and draft delivery and records the
+capture-driver correction. Regenerating What's New after this documentation
+edit reproduced its qualified production content byte-exact; no displayed
+release note or frame changed.

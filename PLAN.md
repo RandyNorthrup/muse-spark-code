@@ -17,6 +17,9 @@ workspace-skill collisions. Unavailable team toggles record no price acceptance.
 Update the release schedule-help e2e. Review every intentionally changed
 What's New frame, update only those baselines, and run the full pixel gate,
 fake-only release e2e, xvfb integration and accessibility once at the end.
+The full capture's agent-details scene also exposed a frozen-clock/I/O race:
+advance the existing scenario budget in paint steps, settling chunk requests
+between steps, without changing its timing or failure bounds.
 Each finding gets a named failing regression and SHA-256 restored red drill
 in docs/certification/cx1.md. No dependency, guard relaxation, merge, push,
 subagent or paid/live calls; aggregate quality remains lead-owned.
