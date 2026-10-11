@@ -206,13 +206,44 @@ describe('runAddProviderQuickPick', () => {
     })
     const ui = scriptedUi({
       pickOne: ['ollama'],
-      inputText: ['http://127.0.0.1:11434'],
+      inputText: ['http://127.0.0.1:11434', '4096'],
       pickMany: [['qwen3:8b']],
       confirmSave: [true],
     })
     const outcome = await runAddProviderQuickPick({ providers, isRemote: false, ui })
     expect(outcome).toEqual({ providerId: 'ollama', modelRef: 'ollama/qwen3:8b' })
     expect(await providers.providers()).toEqual([ollamaEntryWithWindow(['qwen3:8b'])])
+  })
+
+  it('saves manual windows for local models with no scanned window and cancels safely', async () => {
+    for (const input of ['8192', '0', '1.5', undefined]) {
+      const store = memoryProvidersStore()
+      const { providers } = testProvidersHost({
+        deps: {
+          store,
+          fetcher: {
+            fetchModels: () =>
+              Promise.resolve({ rows: [{ ...localWindowedRow('m'), context: undefined }] }),
+          },
+        },
+      })
+      const ui = scriptedUi({
+        pickOne: ['ollama'],
+        inputText: ['http://127.0.0.1:11434', input],
+        pickMany: [['m']],
+        confirmSave: [true],
+      })
+      const outcome = await runAddProviderQuickPick({ providers, isRemote: false, ui })
+      if (input === '8192') {
+        expect(outcome?.modelRef).toBe('ollama/m')
+        expect(store.current[0]?.modelLimits).toEqual({
+          m: { contextTokens: 8192, outputTokens: 8192 },
+        })
+      } else {
+        expect(outcome).toBeUndefined()
+        expect(await providers.providers()).toEqual([])
+      }
+    }
   })
 
   it('refuses a bad custom address and records a private one', async () => {

@@ -28064,6 +28064,31 @@ OpenCode plugin hooks").
 
 ### M95 — Bring-your-own model providers (D74)
 
+**CM954 R4 (2026-10-10, linuxlt; RVCM954B).** Finish every P2/P3
+finding and its siblings. Preserve R3's scanned-window persistence and
+localized refusals; prove the production entry actually sizes manual and
+automatic compaction from the selected local model. The committed LM Studio
+captures contain only `/v1/models`, without a window; no native model endpoint
+shape is captured, so do not invent or probe one. Add validated per-model
+manual context windows to the quick pick, shared panel wizard and saved-model
+editor, and `providers add --context-window` in the CLI. ACP reads the same
+validated `providers.json` modelLimits; all ACP editors use that command or
+configuration, with no VS Code-only logic. Manual limits win over scan values
+and survive edits, rescans and reloads. Missing/invalid windows remain refused.
+Update all 14 translations, reference, README, roadmap and certification.
+Keep browser window validation in the shared panel contract, so importing
+provider-file options and their English fallback cannot overflow Models budgets.
+Load the Models table on first navigation through the existing accessible
+deferred boundary, with failure/retry and its own measured cap; retain every
+existing startup, Models-body and deferred-aggregate cap.
+Run scoped gates and default-timeout tests directly on this rig; drill each
+guard and restore byte-exact. No model server, live/paid call, dependency,
+merge, push or gate change. Full quality belongs to the lead per lane brief.
+Plan: implementation, 22 byte-exact red/restored drills and 290 tests across
+17 complete files pass. Scoped static/build gates pass within unchanged caps.
+Finish visual review/certification and hook-enabled commits; full quality and
+installed-editor qualification remain the lead's integration gates.
+
 **M95R5 integration (2026-10-05, Windows 11).** Merge lane T with
 `--no-ff`, then merge a single sanitized squash of X's net changes on its
 merge-base. Remove the scanner-flagged certification line unseen before

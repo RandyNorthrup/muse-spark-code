@@ -347,6 +347,8 @@ export const EN = {
   referenceProviders:
     'List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.',
   referenceCliOptions: {
+    'context-window':
+      '--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.',
     'resource-governor':
       '--resource-governor on|off: Keep this machine responsive by throttling or deferring harness work. On by default.',
     'cpu-max': '--cpu-max <percent>: Throttle when CPU stays above this percentage for 30 seconds.',
@@ -4978,12 +4980,16 @@ export const EN = {
   // {detail}: what the provider answered, in its words.
   providerTestFailed: 'Test failed: {detail}',
   scanFailed: 'Scan failed: {detail}',
+  localContextWindow: 'Context window (tokens)',
+  localContextWindowHint:
+    'Enter the context window loaded on the local server. Manual values override scanned limits.',
+  localContextWindowInvalid: 'Enter a positive whole number of tokens.',
   // {build}: the server build the llama.cpp quirks were captured against.
   llamacppScanMissingWindow:
     'The llama.cpp model list reports no live context window (captured build {build}).',
   // {model}: a local model saved without its server's reported window.
   localModelWindowUnknown:
-    'Model {model} has no known context window. Rescan its provider and save it again.',
+    'Model {model} has no known context window. Enter its loaded window in the provider wizard, Models panel or providers add --context-window.',
   // {id}: the provider saved without its key.
   providerNeedsKey: 'Provider {id} needs a key.',
   // The wizard's first step; the quick pick runs the same flow.

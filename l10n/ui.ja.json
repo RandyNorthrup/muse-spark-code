@@ -339,7 +339,8 @@
     "estimate-by": "--by <date>: 期限",
     "fleet": "--fleet current|minimum|optimum: 現在のマシン群 / 最小構成 / 最適構成",
     "estimate-format": "--format md|html|json|text: 出力形式",
-    "seed": "--seed <seed>: シミュレーションのシード"
+    "seed": "--seed <seed>: シミュレーションのシード",
+    "context-window": "--context-window <tokens>: ローカルサーバーに読み込まれたコンテキストウィンドウを入力してください。手動値はスキャンされた制限より優先されます。"
   },
   "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。",
   "referenceVault": "ターミナルからユーザーごとの資格情報 Vault を操作します: 状態、ロック解除、ロック、一覧、追加、付与、監査、インポート、監視。値は決して表示されません。ブローカーが保持します。",
@@ -3989,7 +3990,7 @@
   "providerTestFailed": "確認に失敗しました: {detail}",
   "scanFailed": "スキャンに失敗しました: {detail}",
   "llamacppScanMissingWindow": "llama.cpp のモデル一覧にライブコンテキストウィンドウが報告されていません（キャプチャ対象ビルド {build}）。",
-  "localModelWindowUnknown": "モデル {model} のコンテキストウィンドウが不明です。プロバイダーを再スキャンして保存し直してください。",
+  "localModelWindowUnknown": "モデル {model} のコンテキストウィンドウが不明です。プロバイダーのウィザード、モデルパネル、または providers add --context-window で読み込まれたウィンドウを入力してください。",
   "providerNeedsKey": "プロバイダー {id} にはキーが必要です。",
   "wizardPickProvider": "プロバイダーを選択",
   "providerFields": {
@@ -5075,5 +5076,8 @@
     "grantsCount": {
       "other": "{count} 件の許可"
     }
-  }
+  },
+  "localContextWindow": "コンテキストウィンドウ（トークン）",
+  "localContextWindowHint": "ローカルサーバーに読み込まれたコンテキストウィンドウを入力してください。手動値はスキャンされた制限より優先されます。",
+  "localContextWindowInvalid": "正の整数でトークン数を入力してください。"
 }

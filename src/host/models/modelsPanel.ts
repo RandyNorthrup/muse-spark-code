@@ -185,6 +185,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       address: draft.address ?? preset.origin,
       auth: draft.auth,
       models: draft.models,
+      ...(draft.modelLimits !== undefined && { modelLimits: draft.modelLimits }),
       ...(draft.customFormat !== undefined && { format: draft.customFormat }),
       ...(preset.id === 'openrouter' && {
         routing: {
@@ -251,6 +252,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         },
         test: { status: 'untested' },
         models: [...entry.models],
+        modelLimits: entry.modelLimits,
         pinned: [...(entry.pinned ?? [])],
       }
     })
@@ -272,7 +274,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           toolCalling: model.toolCapable,
           vision: model.vision,
           reasoning: model.reasoning,
-          contextTokens: model.context,
+          contextTokens:
+            draft?.modelLimits?.[model.id]?.contextTokens ??
+            saved?.modelLimits?.[model.id]?.contextTokens ??
+            model.context,
           inputPerMillion: model.inputPerMillion,
           outputPerMillion: model.outputPerMillion,
           cachedPerMillion: model.cachedPerMillion,
@@ -453,6 +458,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           ...newDraft(providers.preset(entry.preset)),
           address: entry.address,
           models: [...entry.models],
+          modelLimits: entry.modelLimits,
         }
         let secret: string | undefined
         try {
@@ -606,16 +612,16 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         if (verdict.kind === 'refused') {
           throw new Error(UI_TEXT.actionFailed)
         }
-        // C-M95-4 R3: a saved local model carries its scanned window
-        // over its previously saved one, so the request path never meets
-        // a missing one.
+        // Carry scanned windows; explicit saved or draft limits retain priority.
         const scanned = rows.get(entry.id)
         const carried =
           scanned === undefined
             ? undefined
             : scannedLocalModelLimits(entry.auth, entry.models, scanned)
         const modelLimits =
-          carried === undefined ? entry.modelLimits : { ...entry.modelLimits, ...carried }
+          carried === undefined && entry.modelLimits === undefined
+            ? undefined
+            : { ...carried, ...entry.modelLimits }
         const outcome = await providers.saveDraft({
           provider: {
             ...entry,
@@ -743,13 +749,41 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
               ([key]) => message.ticked || key !== model,
             ),
           )
-          const modelLimits = { ...kept, ...carried }
+          const modelLimits = { ...carried, ...kept }
           await providers.updateProvider({
             ...entry,
             models,
-            ...(Object.keys(modelLimits).length > 0 && { modelLimits }),
+            ...((entry.modelLimits !== undefined || Object.keys(modelLimits).length > 0) && {
+              modelLimits,
+            }),
           })
         }
+        break
+      }
+      case 'models/contextWindow': {
+        const id = message.scope.providerId ?? draftOf().presetId ?? ''
+        const draft =
+          message.scope.scope === 'wizard' ? draftOf(message.scope.providerId) : undefined
+        const entry = draft === undefined ? await entryOf(id) : draftEntry(draft, id)
+        const prefix = `${id}/`
+        if (entry.auth !== 'none' || !message.ref.startsWith(prefix))
+          throw new Error(UI_TEXT.actionFailed)
+        const model = message.ref.slice(prefix.length)
+        if (!entry.models.includes(model) && rows.get(id)?.some((row) => row.id === model) !== true)
+          throw new Error(UI_TEXT.actionFailed)
+        const previous = entry.modelLimits?.[model]
+        const modelLimits = {
+          ...entry.modelLimits,
+          [model]: {
+            contextTokens: message.contextTokens,
+            outputTokens: Math.min(
+              previous?.outputTokens ?? message.contextTokens,
+              message.contextTokens,
+            ),
+          },
+        }
+        if (draft === undefined) await providers.updateProvider({ ...entry, modelLimits })
+        else draft.modelLimits = modelLimits
         break
       }
       case 'models/pin':

@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Local models accept a validated manual context window in the provider
+  wizard, quick pick and Models table, with the same limits in ACP's
+  provider configuration and `providers add --context-window`. Manual limits
+  survive rescans and edits, and size both manual and automatic compaction.
+  LM Studio models no longer require a scan field their captured list lacks
+  (M95 C-M95-4 R4, RVCM954B). The Models table loads on first navigation
+  with announced loading and a chunk-failure retry; existing bundle caps
+  remain fixed, with a measured cap for the table.
+
 - **llama.cpp server and LM Studio presets in the Models panel** (M95
   C-M95-4). Both are listed once their own live wire captures landed
   (`docs/certification/m95-captures/<llamacpp|lmstudio>/`, 31 frames, free

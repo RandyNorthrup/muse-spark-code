@@ -7,6 +7,7 @@ import { type UsdAmount } from '../../shared/usd'
 
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { modelLimitsSchema } from '../../shared/providerRouting'
 import type { ProviderCredentialStore as CredentialStore } from './credentialRecords'
 import type {
   AddressPolicy,
@@ -81,6 +82,13 @@ export async function saveWizardDraft(
   deps: WizardSaveDeps,
   draft: WizardDraft,
 ): Promise<WizardSaveOutcome> {
+  if (
+    draft.provider.auth === 'none' &&
+    draft.provider.models.some(
+      (id) => !modelLimitsSchema.safeParse(draft.provider.modelLimits?.[id]).success,
+    )
+  )
+    throw new Error(fill(UI_TEXT.localModelWindowUnknown, { model: draft.defaultModel }))
   if (
     draft.provider.id.trim() === '' ||
     draft.provider.preset.trim() === '' ||

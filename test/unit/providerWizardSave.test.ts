@@ -153,6 +153,25 @@ describe('saveWizardDraft', () => {
     expect(parts.store.current).toEqual([])
   })
 
+  it('refuses a local save without validated limits before writing anything', async () => {
+    for (const contextTokens of [undefined, 0, 1.5, Infinity]) {
+      const parts = saving()
+      const provider = {
+        ...DRAFT.provider,
+        auth: 'none' as const,
+        modelLimits:
+          contextTokens === undefined
+            ? undefined
+            : { [DRAFT.provider.models[0] ?? '']: { contextTokens, outputTokens: contextTokens } },
+      }
+      await expect(
+        saveWizardDraft({ ...parts, policy: POLICY }, { ...DRAFT, provider }),
+      ).rejects.toThrow(fill(UI_TEXT.localModelWindowUnknown, { model: DRAFT.defaultModel }))
+      expect(parts.store.current).toEqual([])
+      expect(parts.secrets.values.size).toBe(0)
+    }
+  })
+
   it('writes nothing for an incomplete draft, a missing key or a refused address', async () => {
     const savingParts = saving()
     const setComposerModel = vi.fn(() => Promise.resolve())
@@ -213,6 +232,7 @@ describe('saveWizardDraft', () => {
           address: 'http://127.0.0.1:11434',
           auth: 'none',
           models: ['qwen3:8b'],
+          modelLimits: { 'qwen3:8b': { contextTokens: 4096, outputTokens: 4096 } },
         },
         credential: undefined,
         defaultModel: 'ollama/qwen3:8b',
