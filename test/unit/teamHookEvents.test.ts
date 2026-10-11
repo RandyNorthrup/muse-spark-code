@@ -132,6 +132,18 @@ describe('teamHookEvents: SubagentStart and SubagentStop carry D75 fields', () =
   it('SubagentStop carries the same D75 fields', () => {
     expect(teamSubagentStopFields(subagent)).toEqual(expected)
   })
+  it('sends working_copy_path with slashes when the lane passes a Windows path', () => {
+    const windows: TeamSubagentHookFields = {
+      ...subagent,
+      workingCopyPath: String.raw`agents\engineering\task-2`,
+    }
+    expect(teamSubagentStartFields(windows)).toMatchObject({
+      working_copy_path: 'agents/engineering/task-2',
+    })
+    expect(teamSubagentStopFields(windows)).toMatchObject({
+      working_copy_path: 'agents/engineering/task-2',
+    })
+  })
   it('omits only the fields the task has none of', () => {
     const minimal: TeamSubagentHookFields = {
       ...subagent,

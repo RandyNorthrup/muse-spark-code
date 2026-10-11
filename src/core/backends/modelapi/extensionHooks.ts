@@ -1,4 +1,4 @@
-// The extension's own hook events (M91 lane E, PLAN.md D70): the 21 names in
+// The extension's own hook events (M91 lane E, PLAN.md D70): the 22 names in
 // `EXTENSION_HOOK_EVENTS` that Muse Code never reads, configured in
 // `spark-hooks.json` (project `.muse/spark-hooks.json`, user
 // `<config>/muse/spark-hooks.json` via `SPARK_HOOKS_SEGMENTS`).
@@ -21,6 +21,7 @@ import * as z from 'zod/mini'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import {
+  AGENT_ID_PATTERN,
   EXTENSION_HOOK_EVENTS,
   HOOK_CONFIG_MAX_BYTES,
   HOOK_CONTROL_CODE_LIMIT,
@@ -126,6 +127,13 @@ const NAME_MATCHED_EVENTS: ReadonlySet<ExtensionHookEvent> = new Set([
   'Setup',
   'Elicitation',
   'TeammateIdle',
+])
+/**
+ * Events whose matcher selects role ids (M96 lane R2): each `|`-separated
+ * name must pass the same role-id pattern custom roles are parsed against,
+ * so every valid role id (built-in `code-review` included) can be named.
+ */
+const ROLE_MATCHED_EVENTS: ReadonlySet<ExtensionHookEvent> = new Set([
   // A TeamAgentSwitch matcher selects role ids (M96 lane H, PLAN.md D75).
   'TeamAgentSwitch',
 ])
@@ -180,6 +188,12 @@ function matcherFor(
     return MATCH_EXACT.test(value)
       ? { kind: 'exact', names: new Set(value.split('|')) }
       : 'matcher must be a name or names'
+  }
+  if (ROLE_MATCHED_EVENTS.has(event)) {
+    const names = value.split('|')
+    return names.every((name) => AGENT_ID_PATTERN.test(name))
+      ? { kind: 'exact', names: new Set(names) }
+      : 'matcher must be a role id or role ids'
   }
   return `matcher is not valid for ${event}`
 }
@@ -257,6 +271,11 @@ function sparkHandler(
   }
   if (depth > 0 && value.async === true) {
     return 'onFailure cannot be asynchronous'
+  }
+  // A TeamAgentSwitch hook decides the switch: its refusal exhausts the
+  // role, and an async run drops its output before the fold (M96 lane R2).
+  if (event === 'TeamAgentSwitch' && value.async === true) {
+    return 'TeamAgentSwitch hooks decide the switch, so they cannot be asynchronous'
   }
   // Lane H's typed handlers run on the five Muse Code events Claude Code
   // allows them on; an extension event takes a command (M91 lane W).

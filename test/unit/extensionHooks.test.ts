@@ -1,4 +1,4 @@
-// M91 lane E: spark-hooks.json and the 21 extension events (PLAN.md M91
+// M91 lane E: spark-hooks.json and the 22 extension events (PLAN.md M91
 // acceptance 3, 4, 13; SoL-Pi rules 2 and 7). Payloads follow Claude Code's
 // documented hook fields (https://code.claude.com/docs/en/hooks): the
 // envelope (`hook_event_name`, `session_id`, `cwd`, `transcript_path`,
@@ -33,6 +33,7 @@ import {
   type ExtensionHookDefinition,
 } from '../../src/core/backends/modelapi/extensionHooks'
 import type { HookLoadDeps } from '../../src/core/backends/modelapi/hooks'
+import { TEAM_BUILTIN_ROLE_IDS } from '../../src/shared/constants'
 import { memoryContextIo } from './helpers/fakeContextIo'
 
 function spark(hooks: unknown): string {
@@ -166,6 +167,97 @@ describe('parseSparkHooksConfig', () => {
       kind: 'exact',
       names: new Set(['engineering', 'research']),
     })
+  })
+
+  it('names every built-in TeamAgentSwitch role id, hyphens included', () => {
+    const parsed = parseSparkHooksConfig(
+      spark({
+        TeamAgentSwitch: [
+          {
+            matcher: [...TEAM_BUILTIN_ROLE_IDS].join('|'),
+            hooks: [{ type: 'command', command: 's' }],
+          },
+        ],
+      }),
+      'project',
+      'linux',
+    )
+    expect(parsed.warnings).toEqual([])
+    expect(parsed.hooks).toHaveLength(1)
+    expect(parsed.hooks[0]?.matcher).toEqual({
+      kind: 'exact',
+      names: new Set(TEAM_BUILTIN_ROLE_IDS),
+    })
+  })
+
+  it('matches hyphenated custom TeamAgentSwitch role ids', () => {
+    const parsed = parseSparkHooksConfig(
+      spark({
+        TeamAgentSwitch: [
+          {
+            matcher: 'code-review|my-team-2',
+            hooks: [{ type: 'command', command: 's' }],
+          },
+        ],
+      }),
+      'project',
+      'linux',
+    )
+    expect(parsed.warnings).toEqual([])
+    expect(parsed.hooks).toHaveLength(1)
+    expect(parsed.hooks[0]?.matcher).toEqual({
+      kind: 'exact',
+      names: new Set(['code-review', 'my-team-2']),
+    })
+  })
+
+  it('refuses a TeamAgentSwitch matcher no role id allows', () => {
+    for (const matcher of ['Engineering', 'code review', 'engineering|']) {
+      const parsed = parseSparkHooksConfig(
+        spark({
+          TeamAgentSwitch: [{ matcher, hooks: [{ type: 'command', command: 's' }] }],
+        }),
+        'project',
+        'linux',
+      )
+      expect(parsed.hooks).toEqual([])
+      expect(parsed.warnings).toEqual([
+        'project spark-hooks.json: TeamAgentSwitch: matcher must be a role id or role ids',
+      ])
+    }
+  })
+
+  it('keeps tool-name matchers as strict as before: no hyphens', () => {
+    const parsed = parseSparkHooksConfig(
+      spark({
+        PermissionDenied: [{ matcher: 'read-file', hooks: [{ type: 'command', command: 's' }] }],
+      }),
+      'project',
+      'linux',
+    )
+    expect(parsed.hooks).toEqual([])
+    expect(parsed.warnings).toEqual([
+      'project spark-hooks.json: PermissionDenied: matcher must be a name or names',
+    ])
+  })
+
+  it('refuses an asynchronous TeamAgentSwitch handler: a refusal must reach the fold', () => {
+    const parsed = parseSparkHooksConfig(
+      spark({
+        TeamAgentSwitch: [
+          {
+            matcher: 'engineering',
+            hooks: [{ type: 'command', command: 's', async: true }],
+          },
+        ],
+      }),
+      'project',
+      'linux',
+    )
+    expect(parsed.hooks).toEqual([])
+    expect(parsed.warnings).toEqual([
+      'project spark-hooks.json: TeamAgentSwitch: TeamAgentSwitch hooks decide the switch, so they cannot be asynchronous',
+    ])
   })
 
   it('runs only command handlers until lane H adds the rest', () => {
