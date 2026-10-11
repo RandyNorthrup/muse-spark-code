@@ -26458,6 +26458,20 @@ serve`."
 
 ### M96b — The team in the ACP agent and headless runs (D75)
 
+**C-M96b-2 runner plan (2026-10-11, lead confirmed):** implement headless
+ports in `src/runtime/exec/`, using a private run folder for state and copies.
+Read the workspace's team from the runtime data folder; Default follows exec's
+provider/model. Reuse the engine worker and merge ports; refuse Muse Code and
+external workers. Every engine request reserves against the same hard run
+ledger, including concurrent workers and retries; local models need no key.
+Headless approvals and exhausted-pool questions deny. Ordinary merges land in
+the run working tree after local checks; protected paths deny. Keep the runner
+in its own lazy bundle and retain headless's 100 KiB cap. Certify with fake
+Model API tests and byte-exact restored drills in `docs/certification/m96b-2.md`.
+Hosted Windows/Linux receipts and editor surfaces remain the lead's CI and
+C-M96b-1/4 respectively. Scoped local gates run here; the brief reserves the
+full quality suite for the lead.
+
 **Status 2026-10-10 (C-M96b-0 contracts; acceptance review pending): building.**
 
 Status detail retained: planned; starts after M96 merges. C-M96b-0 froze the

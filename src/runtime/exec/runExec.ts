@@ -88,6 +88,7 @@ import { readUntrustedInputs } from './untrustedInput'
 import type { ExecVaultPort, ExecVaultSession } from '../vault/execVault'
 import { metaSideCallFormats } from '../../core/backends/modelapi/modelCapabilities'
 import { compileOutputSchema, type OutputSchema } from './outputSchema'
+import type { ExecTeam } from './execTeamEntry'
 
 /** Bind to M95's selected output.formats and the backend's session-fixed encoder at integration. */
 export interface ExecOutputSchemaPort {
@@ -336,11 +337,13 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       ? createRunLedger({
           capUsd: options.budgetUsd,
           maxRequests: options.maxRequests,
+          concurrent: options.team,
         })
       : undefined
   let providerRun: AssembledProviderRun | undefined
   let memory: MemorySecretStore | undefined
   let runtime: RuntimeBackend | undefined
+  let team: ExecTeam | undefined
   let tap: SessionTap | undefined
   let transport: ExecTransport | undefined
   let vaultSession: ExecVaultSession | undefined
@@ -644,6 +647,37 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         store: secrets.store.bind(secrets),
         delete: secrets.delete.bind(secrets),
       }
+      if (options.team && ledger !== undefined && options.budgetUsd !== undefined) {
+        const { createExecTeam } = await import('./execTeamEntry')
+        team = await lifecycle.race(
+          createExecTeam(
+            {
+              dataFolder: agentDataFolder(deps),
+              cwd,
+              platform: deps.platform,
+              provider: options.provider,
+              budgetUsd: options.budgetUsd,
+              signal: lifecycle.signal,
+              now: deps.now,
+              log,
+              readFile: deps.readFile,
+              listModels: async () => {
+                const host = await runtime?.backend.hostFor(cwd)
+                if (host === undefined) throw new Error(UI_TEXT.teamBudgetUnavailable)
+                return (await host.listModels()).map((entry) => entry.modelId)
+              },
+              startWorker: async (input) => {
+                if (runtime === undefined) throw new Error(UI_TEXT.teamBudgetUnavailable)
+                return await runtime.startTeamWorker(cwd, input)
+              },
+              onWritten: (files) => { for (const file of files) filesChanged.add(file) },
+              secretLiterals: () => literals,
+            },
+            UI_TEXT,
+            uiLocale(),
+          ),
+        )
+      }
       if (ledger !== undefined && providerRun === undefined)
         transport = execFetch({
           fetch: async (url, init) => {
@@ -657,6 +691,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             return model ?? ''
           },
           imageGeneration: options.paidFeatures.includes('imageGeneration'),
+          responsesThroughEngine: options.team,
           lifecycle,
           onLatch: latch,
           emit: (event) => {
@@ -698,6 +733,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       restoreUsageRecording = engine.installUsageRecording(usageRecording)
       const { createRuntimeBackend } = engine
       const runtimeDeps: RuntimeBackendDeps = {
+        ...(team !== undefined && { team }),
         options: serveOptionsFor(options),
         version: deps.version,
         distDir: deps.distDir,
@@ -713,7 +749,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         exec: {
           isEphemeral: options.ephemeral,
           ...(providerRun !== undefined && { providerRun }),
-          ...(providerRun !== undefined &&
+          ...((providerRun !== undefined || options.team) &&
             ledger !== undefined && {
               responseAccounting: {
                 ledger,
@@ -1000,6 +1036,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 return
               }
             }
+            if (model !== null) await lifecycle.race(team?.prepare(model) ?? Promise.resolve())
             tap?.beginResponse(1)
             unsubscribe = tap?.subscribe(created.sessionId, observe)
             sink.emit({
@@ -1222,6 +1259,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         await grace(
           Promise.all([
             closeSession?.(),
+            team?.close(),
             runtime?.close(),
             closingVault === undefined
               ? undefined

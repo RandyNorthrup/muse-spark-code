@@ -56,6 +56,8 @@ export function execFetch(input: {
   ledger: RunLedger
   selectedModel: string
   imageGeneration: boolean
+  /** Team engine clients own concurrent response admission; this transport still pins egress. */
+  readonly responsesThroughEngine?: boolean
   lifecycle: Lifecycle
   onLatch: (cause: StopCause) => void
   emit: (event: ExecEventBody) => void
@@ -130,15 +132,32 @@ export function execFetch(input: {
     if (
       isResponse &&
       (!responseShape.success ||
-        responseShape.data.model !== input.selectedModel ||
+        (input.responsesThroughEngine !== true && responseShape.data.model !== input.selectedModel) ||
         'background' in responseShape.data ||
         'previous_response_id' in responseShape.data)
     )
       return refuse('request_shape')
     if (isImage && (!input.imageGeneration || !imageRequestSchema.safeParse(data).success))
       return refuse('request_shape', true)
-    const tier = modelApiPaidTier(input.selectedModel)
+    const tier = modelApiPaidTier(
+      input.responsesThroughEngine === true && responseShape.success
+        ? responseShape.data.model
+        : input.selectedModel,
+    )
     if (isResponse && tier === undefined) return refuse('unpriced')
+    if (isResponse && input.responsesThroughEngine === true) {
+      if (isClosed || input.lifecycle.signal.aborted) return refuse('closed')
+      return await input.lifecycle.race(
+        input.fetch(url, {
+          ...init,
+          redirect: 'error',
+          signal: AbortSignal.any([
+            input.lifecycle.signal,
+            ...(init.signal == null ? [] : [init.signal]),
+          ]),
+        }),
+      )
+    }
     // Each caller captures the current tail synchronously. Rechecking after
     // this wait and reserving have no intervening await.
     const previous = barrier

@@ -75,6 +75,8 @@ export interface RunLedger {
     pricing?: { readonly costUsd: UsdAmount | undefined },
   ): SettlementResult
   settleImage(ticket: ImageTicket, outcome: ImageSettlement): SettlementResult
+  /** A trusted engine attempt never reached dispatch: release its exact claim once. */
+  releaseUnsent(ticket: ResponseTicket): void
   close(): void
   readonly lastResponse: LastResponse | null
   totals(): LedgerTotals
@@ -114,7 +116,11 @@ function charge(price: TierPrice, input: number, output: number, cached = 0): bi
   )
 }
 
-export function createRunLedger(input: { capUsd: UsdAmount; maxRequests: number }): RunLedger {
+export function createRunLedger(input: {
+  capUsd: UsdAmount
+  maxRequests: number
+  readonly concurrent?: boolean
+}): RunLedger {
   const cap = units(input.capUsd)
   if (
     cap <= ZERO ||
@@ -127,7 +133,7 @@ export function createRunLedger(input: { capUsd: UsdAmount; maxRequests: number 
   let requests = 0
   let settled = ZERO
   let uncertain = ZERO
-  let active: ResponseTicket | ImageTicket | undefined
+  const active = new Map<ResponseTicket | ImageTicket, bigint>()
   let reserve = ZERO
   let isClosed = false
   let isBreach = false
@@ -151,18 +157,18 @@ export function createRunLedger(input: { capUsd: UsdAmount; maxRequests: number 
   }
   const admit = (amount: bigint): { refused: Refusal } | undefined => {
     if (isClosed) return refuse('closed')
-    if (active !== undefined) throw new Error(UI_TEXT.execRequestShape)
+    if (active.size > 0 && input.concurrent !== true) throw new Error(UI_TEXT.execRequestShape)
     if (requests >= input.maxRequests) return refuse('requests')
-    if (settled + uncertain + amount > cap) return refuse('budget')
-    reserve = amount
+    if (settled + uncertain + reserve + amount > cap) return refuse('budget')
+    reserve += amount
     requests += 1
     return undefined
   }
   const take = (ticket: ResponseTicket | ImageTicket): bigint => {
-    if (active !== ticket) throw new Error(UI_TEXT.execRequestShape)
-    const amount = reserve
-    active = undefined
-    reserve = ZERO
+    const amount = active.get(ticket)
+    if (amount === undefined) throw new Error(UI_TEXT.execRequestShape)
+    active.delete(ticket)
+    reserve -= amount
     return amount
   }
   const finish = (
@@ -203,29 +209,31 @@ export function createRunLedger(input: { capUsd: UsdAmount; maxRequests: number 
       }
       const rejected = admit(amount)
       if (rejected !== undefined) return rejected
-      active = Object.freeze({
+      const ticket = Object.freeze({
         ...request,
         price: Object.freeze({ ...price }),
-        kind: 'responses',
+        kind: 'responses' as const,
         n: requests,
         reserveUsd: usd(amount),
       })
+      active.set(ticket, amount)
       lastResponse = null
-      return active
+      return ticket
     },
     admitImage(endpoint) {
       const amount = units(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
       const rejected = admit(amount)
       if (rejected !== undefined) return rejected
       imageAttempts += 1
-      active = Object.freeze({
-        kind: 'image',
+      const ticket = Object.freeze({
+        kind: 'image' as const,
         endpoint,
         n: requests,
-        units: 1,
+        units: 1 as const,
         reserveUsd: usd(amount),
       })
-      return active
+      active.set(ticket, amount)
+      return ticket
     },
     settleResponse(ticket, outcome, pricing) {
       const amount = take(ticket)
@@ -311,6 +319,9 @@ export function createRunLedger(input: { capUsd: UsdAmount; maxRequests: number 
     },
     close() {
       isClosed = true
+    },
+    releaseUnsent(ticket) {
+      take(ticket)
     },
     get lastResponse() {
       return lastResponse === null ? null : { ...lastResponse }
