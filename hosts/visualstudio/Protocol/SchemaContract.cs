@@ -11,7 +11,7 @@ namespace MuseSpark.VisualStudio.Protocol
   // Validate the committed export itself: no hand-maintained copy of wire types.
   public sealed class SchemaContract
   {
-    // MHP 1.4's panel envelopes carry attachments; the frozen byte cap is authoritative.
+    // MHP 1.5's panel envelopes carry attachments; the frozen byte cap is authoritative.
     public const int MaximumFrameChars = 16777216;
     public const int MaximumJsonDepth = 64;
     private static readonly TimeSpan PatternTimeout = TimeSpan.FromSeconds(1);
@@ -111,6 +111,8 @@ namespace MuseSpark.VisualStudio.Protocol
         if (double.IsInfinity(number) || double.IsNaN(number)) throw Invalid();
         if (rules["minimum"] != null && number < rules.Value<double>("minimum")) throw Invalid();
         if (rules["maximum"] != null && number > rules.Value<double>("maximum")) throw Invalid();
+        if (rules["exclusiveMinimum"] != null && number <= rules.Value<double>("exclusiveMinimum")) throw Invalid();
+        if (rules["exclusiveMaximum"] != null && number >= rules.Value<double>("exclusiveMaximum")) throw Invalid();
       }
     }
 

@@ -364,7 +364,7 @@ export async function run(): Promise<void> {
   assert.equal(result.protocolVersion, MHP.version)
   await host.request('shutdown', {})
   await assert.rejects(host.request('window/state', {}), /MHP_HOST_CLOSED/u)
-  receipts.push('MHP 1.4 in-process schema boundary and shutdown refusal')
+  receipts.push('MHP 1.5 in-process schema boundary and shutdown refusal')
 
   const receiptPath = process.env['M104_PD_RESULT']
   assert.ok(receiptPath)

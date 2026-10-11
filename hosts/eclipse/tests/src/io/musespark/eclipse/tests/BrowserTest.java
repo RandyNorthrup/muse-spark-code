@@ -38,7 +38,7 @@ public class BrowserTest {
     }
     private static Assets.HtmlPort htmlPort(boolean supported, java.util.function.Function<JsonObject, java.util.concurrent.CompletableFuture<JsonObject>> render) {
         return new Assets.HtmlPort() {
-            @Override public boolean supports(String protocol, String capability) { return supported && protocol.equals("mhp/1.4.0") && capability.equals("surfaceHtml"); }
+            @Override public boolean supports(String protocol, String capability) { return supported && protocol.equals("mhp/1.5.0") && capability.equals("surfaceHtml"); }
             @Override public java.util.concurrent.CompletableFuture<JsonObject> render(JsonObject params) { return render.apply(params); }
         };
     }

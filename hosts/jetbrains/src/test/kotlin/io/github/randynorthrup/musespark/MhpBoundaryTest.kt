@@ -74,7 +74,7 @@ class MhpBoundaryTest {
     }
     val envelope =
       json(
-        "mhp" to "1.4",
+        "mhp" to "1.5",
         "kind" to "panel",
         "surface" to "x",
         "direction" to "toHost",

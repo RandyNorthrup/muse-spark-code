@@ -36,7 +36,9 @@ const matches = (schema, value, root = schema) => {
     type === 'number' &&
     (!Number.isFinite(value) ||
       ('minimum' in schema && value < schema.minimum) ||
-      ('maximum' in schema && value > schema.maximum))
+      ('maximum' in schema && value > schema.maximum) ||
+      ('exclusiveMinimum' in schema && value <= schema.exclusiveMinimum) ||
+      ('exclusiveMaximum' in schema && value >= schema.exclusiveMaximum))
   )
     return false
   switch (type) {

@@ -63,7 +63,7 @@ namespace MuseSpark.VisualStudio.Test
 
     private static JObject Envelope(string surface, long seq, JToken payload, string direction = "toPanel") => new JObject
     {
-      ["mhp"] = "1.4",
+      ["mhp"] = "1.5",
       ["kind"] = "panel",
       ["surface"] = surface,
       ["direction"] = direction,
@@ -174,7 +174,7 @@ namespace MuseSpark.VisualStudio.Test
         {
           var delivered = 0; channel.MessageReceived += (sender, payload) => delivered++;
           var before = Frames(output).Count;
-          var malformed = "{\"mhp\":\"1.4\",\"kind\":\"panel\",\"surface\":\"chat\",\"direction\":\"toPanel\",\"seq\":" + sequence + ",\"payload\":" + Notice().ToString(Formatting.None) + "}";
+          var malformed = "{\"mhp\":\"1.5\",\"kind\":\"panel\",\"surface\":\"chat\",\"direction\":\"toPanel\",\"seq\":" + sequence + ",\"payload\":" + Notice().ToString(Formatting.None) + "}";
           // RunAsync rethrows any faulted receive task when its input ends: completing is the health check.
           await peer.RunAsync(new StringReader(malformed + "\n" + Envelope("chat", 1, Notice()).ToString(Formatting.None) + "\n"));
           Assert.AreEqual("MHP_PANEL_INVALID_ENVELOPE", channel.FaultCode);
@@ -293,8 +293,8 @@ namespace MuseSpark.VisualStudio.Test
             case "gap": await SendAsync(peer, Envelope("surface", 2, Notice())); break;
             case "direction": await SendAsync(peer, Envelope("surface", 1, new JObject { ["type"] = "ready" }, "toHost")); break;
             case "envelope": var stale = Envelope("surface", 1, Notice()); stale["mhp"] = "1.2"; await SendAsync(peer, stale); break;
-            case "lifecycle": await SendAsync(peer, new JObject { ["mhp"] = "1.4", ["kind"] = "surface", ["surface"] = "surface", ["sessionId"] = "session", ["surfaceKind"] = kind, ["event"] = "opened" }); break;
-            case "runtime-refusal": await SendAsync(peer, new JObject { ["mhp"] = "1.4", ["kind"] = "panelError", ["surface"] = "surface", ["seq"] = 3, ["code"] = code }); break;
+            case "lifecycle": await SendAsync(peer, new JObject { ["mhp"] = "1.5", ["kind"] = "surface", ["surface"] = "surface", ["sessionId"] = "session", ["surfaceKind"] = kind, ["event"] = "opened" }); break;
+            case "runtime-refusal": await SendAsync(peer, new JObject { ["mhp"] = "1.5", ["kind"] = "panelError", ["surface"] = "surface", ["seq"] = 3, ["code"] = code }); break;
             default: await SendAsync(peer, Envelope("surface", 1, Notice())); break;
           }
           var sent = Frames(output).Skip(before).ToList();

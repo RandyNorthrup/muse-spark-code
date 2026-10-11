@@ -1239,6 +1239,16 @@ export function sharingHelp(table: UiText = UI_TEXT): string {
 // metadata is not runtime UI; the LSP reads localized UI_TEXT at request time.
 export const FEATURE_CATALOG = [
   {
+    command: 'panel --stdio',
+    behavior:
+      'Native editor transport uses only MHP 1.5. The frozen input export refuses unknown named-object members before dispatch, preserves declared record/catchall entries and arbitrary JSON state, and validates exact-money inputs before normalization. Superseded peers are refused. Native distribution and installed-editor qualification remain experimental.',
+  },
+  {
+    command: 'panel --companion',
+    behavior:
+      'The authenticated companion shares the frozen MHP 1.5 panel contract and bounded sequenced deliveries. The runtime owns conversation, paid consent and accounting; the editor owns its native services. Installed-editor and resource-chip parity remain open.',
+  },
+  {
     command: 'lsp',
     behavior:
       'Stdio LSP frontend. One broker per canonical workspace, with private directories created with final owner-only permissions and verified through a no-follow fd or Windows handle; private records created exclusively with held-file permissions/ACL, resolved record identity and directory identity verified before contents are written; one StrictModes verifier checks the full real ancestry to the filesystem root, including root-owned sticky parents only with user-owned children and group write only for a primary group named for the user with proven exclusive membership; unknown membership refuses; platform root selection records refusals and its chosen path, refusing startup if none qualifies; UTF-16 full document sync; cancellable requests and standard initialization/method error codes; ordinary invoked completion items plus inline completion when negotiated.',

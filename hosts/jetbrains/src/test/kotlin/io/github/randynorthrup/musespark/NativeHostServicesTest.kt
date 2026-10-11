@@ -235,7 +235,7 @@ class NativeHostServicesTest : BasePlatformTestCase() {
     Disposer.register(testRootDisposable) { peer.close() }
     peer.initialize(
       fixtureMetadata().apply {
-        add("protocolRange", json("minimum" to "mhp/1.4.0", "maximumExclusive" to "mhp/1.5.0"))
+        add("protocolRange", json("minimum" to "mhp/1.5.0", "maximumExclusive" to "mhp/1.6.0"))
         add("capabilities", jsonValue(services.capabilities))
       },
     )
@@ -244,7 +244,7 @@ class NativeHostServicesTest : BasePlatformTestCase() {
         "jsonrpc" to "2.0",
         "id" to sent.last()["id"],
         "result" to
-          json("protocolVersion" to "mhp/1.4.0", "capabilities" to services.capabilities),
+          json("protocolVersion" to "mhp/1.5.0", "capabilities" to services.capabilities),
       ),
     )
     installEditorEvents(project, services, peer, testRootDisposable)

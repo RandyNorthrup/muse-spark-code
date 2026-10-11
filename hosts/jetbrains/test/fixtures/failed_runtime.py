@@ -32,7 +32,7 @@ def call(method, params, identity):
 initial = json.loads(sys.stdin.readline())
 assert initial["method"] == "initialize"
 send({"jsonrpc": "2.0", "id": initial["id"], "result": {
-    "protocolVersion": "mhp/1.4.0", "capabilities": initial["params"]["capabilities"]}})
+    "protocolVersion": "mhp/1.5.0", "capabilities": initial["params"]["capabilities"]}})
 call("commands/register", {"id": "failure-fixture", "title": "Failure fixture"}, "command")
 call("tab/register", {"languages": ["plaintext"], "trigger": "invoke"}, "tab")
 while not release.exists():

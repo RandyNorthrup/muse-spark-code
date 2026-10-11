@@ -13,7 +13,7 @@ def send(value):
 initial = json.loads(sys.stdin.readline())
 assert initial["method"] == "initialize"
 send({"jsonrpc": "2.0", "id": initial["id"], "result": {
-    "protocolVersion": "mhp/1.4.0", "capabilities": ["lifecycle", "tab"]}})
+    "protocolVersion": "mhp/1.5.0", "capabilities": ["lifecycle", "tab"]}})
 send({"jsonrpc": "2.0", "id": "register", "method": "tab/register",
       "params": {"languages": ["TEXT"], "trigger": "invoke"}})
 assert json.loads(sys.stdin.readline())["result"] is None

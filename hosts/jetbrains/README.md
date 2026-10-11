@@ -1,7 +1,7 @@
 # Muse Spark Code (Unofficial) for JetBrains
 
 This plugin embeds the repository's shared React panel in JCEF and implements
-the frozen MHP 1.4 host contract. It declares IntelliJ Platform 2025.3–2026.2,
+the frozen MHP 1.5 host contract. It declares IntelliJ Platform 2025.3–2026.2,
 JDK 21 for development, and the `muse-spark-code-acp` executable on PATH. The
 shared runtime owns conversation, providers and paid admission. No credential is accepted by
 the plugin; credentials remain in the runtime's operating-system store.
@@ -102,7 +102,7 @@ JCEF absence, construction failure or the readiness deadline selects
 status. Assembled native/companion qualification remains an integration item.
 
 The editor initiates `initialize` with identity/version, installed locale,
-theme, folders and trust. Only MHP 1.4 is accepted; the rejected `hostMetadata`
+theme, folders and trust. Only MHP 1.5 is accepted; the rejected `hostMetadata`
 proposal and legacy 1.1/1.2 replies are refused. The first folder is the exact runtime
 working directory. Metadata collection runs outside the actor with a two-second
 deadline; the runtime reply has a separate bounded initialization deadline.

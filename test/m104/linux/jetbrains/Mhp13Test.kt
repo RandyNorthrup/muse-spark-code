@@ -43,6 +43,21 @@ class Mhp13Test {
   }
 
   @Test
+  fun inputAnnotationsAndExclusiveBoundsRetainClosedPayloadsAndOpenState() {
+    val boundary = JsonBoundary()
+    val rules = json("type" to "number", "readOnly" to true, "exclusiveMinimum" to 0, "exclusiveMaximum" to 2)
+    boundary.validate(rules, jsonValue(1))
+    for (number in listOf(-1, 0, 2, 3)) {
+      assertThrows(Exception::class.java) { boundary.validate(rules, jsonValue(number)) }
+    }
+    for (field in listOf("apiKey", "token", "unrelated")) {
+      assertThrows(Exception::class.java) { boundary.payload("chat", "toHost", json("type" to "ready", field to "fixture-only")) }
+    }
+    boundary.state(json("unrelated" to json("nested" to true)))
+    assertThrows(Exception::class.java) { boundary.validate(json("futureKeyword" to true), jsonValue(1)) }
+  }
+
+  @Test
   fun editorInitiatesWithMetadataAndWaitsForValidatedRuntimeSelection() {
     val sent = CopyOnWriteArrayList<JsonObject>()
     val ready = CountDownLatch(1)
@@ -72,7 +87,7 @@ class Mhp13Test {
       assertEquals(services.metadata["host"], params["host"])
       assertEquals("de", params["locale"].asString)
       assertEquals(false, params["trusted"].asBoolean)
-      assertEquals(json("minimum" to "mhp/1.4.0", "maximumExclusive" to "mhp/1.5.0"), params["protocolRange"])
+      assertEquals(json("minimum" to "mhp/1.5.0", "maximumExclusive" to "mhp/1.6.0"), params["protocolRange"])
       assertEquals(1L, initialized.count)
       val legacy =
         json(
@@ -96,7 +111,7 @@ class Mhp13Test {
         legacy.deepCopy().apply {
           add(
             "result",
-            json("protocolVersion" to "mhp/1.4.0", "capabilities" to listOf("lifecycle", "hostMetadata")),
+            json("protocolVersion" to "mhp/1.5.0", "capabilities" to listOf("lifecycle", "hostMetadata")),
           )
         }
       assertThrows(Exception::class.java) { peer.receive(unoffered) }
@@ -104,7 +119,7 @@ class Mhp13Test {
         legacy.deepCopy().apply {
           add(
             "result",
-            json("protocolVersion" to "mhp/1.4.0", "capabilities" to listOf("lifecycle", "settings", "storage")),
+            json("protocolVersion" to "mhp/1.5.0", "capabilities" to listOf("lifecycle", "settings", "storage")),
           )
         },
       )

@@ -74,7 +74,7 @@ describe('runtime companion panel process', () => {
         }
       })()
       const binding = {
-        mhp: '1.4',
+        mhp: '1.5',
         kind: 'surface',
         surface,
         sessionId,
@@ -91,7 +91,7 @@ describe('runtime companion panel process', () => {
       const ready = await post('/panel/surface', { ...binding, event: 'ready' })
       expect(ready.status).toBe(204)
       const message = {
-        mhp: '1.4',
+        mhp: '1.5',
         kind: 'panel',
         surface,
         direction: 'toHost',

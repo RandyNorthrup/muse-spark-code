@@ -29,7 +29,7 @@ class PanelSurfaceTest {
 
   private fun message(seq: Long = 1) =
     json(
-      "mhp" to "1.4",
+      "mhp" to "1.5",
       "kind" to "panel",
       "surface" to "surface",
       "direction" to "toPanel",

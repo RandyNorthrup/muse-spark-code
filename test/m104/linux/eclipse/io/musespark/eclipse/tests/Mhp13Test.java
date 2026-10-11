@@ -13,7 +13,7 @@ public class Mhp13Test {
             @Override public void panel(JsonObject frame) { fail("No panel before initialization"); }
             @Override public void shutdown() { }
         }, code -> fail(code))) {
-            JsonObject metadata = Json.object("host", Json.object("id", "eclipse", "version", "4.38"), "protocolRange", Json.object("minimum", "mhp/1.4.0", "maximumExclusive", "mhp/1.5.0"), "capabilities", new String[] {"lifecycle", "workspace"}, "locale", "de", "theme", Json.object("kind", "dark", "tokens", new JsonObject()), "folders", new JsonArray(), "trusted", false);
+            JsonObject metadata = Json.object("host", Json.object("id", "eclipse", "version", "4.38"), "protocolRange", Json.object("minimum", "mhp/1.5.0", "maximumExclusive", "mhp/1.6.0"), "capabilities", new String[] {"lifecycle", "workspace"}, "locale", "de", "theme", Json.object("kind", "dark", "tokens", new JsonObject()), "folders", new JsonArray(), "trusted", false);
             var future = peer.initialize(metadata);
             assertFalse(future.isDone());
             assertThrows(IllegalStateException.class, () -> peer.initialize(metadata));
@@ -21,7 +21,7 @@ public class Mhp13Test {
             assertFalse(future.isDone());
             assertThrows(IllegalArgumentException.class, () -> peer.accept(Json.object("jsonrpc", "2.0", "id", "eclipse-init", "result", Json.object("protocolVersion", "mhp/1.2.0", "capabilities", new String[] {"lifecycle", "settings", "storage"})).toString()));
             assertFalse(future.isDone());
-            peer.accept(Json.object("jsonrpc", "2.0", "id", "eclipse-init", "result", Json.object("protocolVersion", "mhp/1.4.0", "capabilities", new String[] {"lifecycle", "settings", "storage"})).toString());
+            peer.accept(Json.object("jsonrpc", "2.0", "id", "eclipse-init", "result", Json.object("protocolVersion", "mhp/1.5.0", "capabilities", new String[] {"lifecycle", "settings", "storage"})).toString());
             assertTrue(future.isDone());
             peer.notify("workspace/didGrantTrust", Json.object("trusted", true));
             assertThrows(IllegalStateException.class, () -> peer.notify("documents/didClose", Json.object("uri", "file:///x")));

@@ -4,7 +4,7 @@ This is the M104c in-process VSSDK host for Visual Studio 2022 and 2026.
 It targets .NET Framework 4.8 and embeds the shared React bundle in WPF
 WebView2. The status is **Prototype, qualification pending**.
 
-The reviewed MHP 1.4 contract is
+The reviewed MHP 1.5 contract is
 [`mhp-v1.1.schema.json`](../../src/shared/hostApi/mhp-v1.1.schema.json), consumed
 directly by the C# validator (the filename is retained from the replaced contract).
 The editor initiates initialization with its installed version, display language,
@@ -68,7 +68,7 @@ include input, selection, clipboard, external links, status and progress;
 runtime command registration owns removable native key bindings and a menu.
 These are component receipts, not installed-editor or paid-ledger qualification.
 
-MHP 1.4 also adds fresh version-attested diagnostics, command execution,
+MHP 1.5 also adds fresh version-attested diagnostics, command execution,
 file-open/save and settings UI. Their complete native groups remain undeclared
 alongside auxiliary surfaces until these new methods are implemented. Existing
 Error List, menu and WPF prompt components remain present; the runtime must use

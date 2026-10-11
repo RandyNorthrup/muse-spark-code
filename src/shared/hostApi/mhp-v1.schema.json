@@ -1,6 +1,6 @@
 {
-  "protocol": "mhp/1.4.0",
-  "range": { "minimum": "mhp/1.4.0", "maximumExclusive": "mhp/1.5.0" },
+  "protocol": "mhp/1.5.0",
+  "range": { "minimum": "mhp/1.5.0", "maximumExclusive": "mhp/1.6.0" },
   "capabilities": [
     "lifecycle",
     "workspace",
@@ -57,7 +57,7 @@
   "conventions": {
     "transport": "JSON-RPC 2.0, one UTF-8 JSON object per line over stdio; no batches",
     "positions": "zero-based UTF-16 line and character",
-    "initialize": "hostToRuntime; editor sends host metadata, locale, theme, folders, trust and capabilities; runtime returns mhp/1.4.0 and its capabilities",
+    "initialize": "hostToRuntime; editor sends host metadata, locale, theme, folders, trust and capabilities; runtime returns mhp/1.5.0 and its capabilities",
     "requiredCapability": "lifecycle",
     "versioning": "breaking schema or semantic changes require a new protocol version and snapshot",
     "edits": "reject stale versions, dirty buffers and invalid/overlapping ranges before any side effect; apply atomically with one undo transaction",
@@ -278,7 +278,7 @@
           "result": {
             "type": "object",
             "properties": {
-              "protocolVersion": { "type": "string", "const": "mhp/1.4.0" },
+              "protocolVersion": { "type": "string", "const": "mhp/1.5.0" },
               "capabilities": {
                 "type": "array",
                 "items": {

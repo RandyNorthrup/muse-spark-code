@@ -1,4 +1,4 @@
-// Reviewed MHP 1.4 boundaries reuse the current shared UI payload schemas.
+// Reviewed MHP 1.5 boundaries reuse the current shared UI payload schemas.
 import * as z from 'zod/mini'
 import { MHP, MHP_PANEL } from '../constants'
 import { hostToWebviewMessageSchema, webviewToHostMessageSchema } from '../protocol'

@@ -6,7 +6,7 @@ using Newtonsoft.Json.Linq;
 
 namespace MuseSpark.VisualStudio.Panel
 {
-  // The WebView2 adapter talks to the schema-validated MHP 1.4 relay.
+  // The WebView2 adapter talks to the schema-validated MHP 1.5 relay.
   public interface IPanelChannel : IDisposable
   {
     string DocumentBootstrap { get; }

@@ -22,7 +22,7 @@ function prepare(host = 'jetbrains') {
   writeFileSync(
     path.join(folder, 'distribution.json'),
     JSON.stringify({
-      mhp: 'mhp/1.4.0',
+      mhp: 'mhp/1.5.0',
       build: [{ command: 'build', args: [] }],
       conformance: { command: 'harness', args: [] },
       artifacts: ['artifact.zip'],
@@ -34,7 +34,7 @@ function prepare(host = 'jetbrains') {
   const receipt = {
     host,
     outcome: 'packaged',
-    mhp: 'mhp/1.4.0',
+    mhp: 'mhp/1.5.0',
     version: '1.2.3',
     tree,
     sha256: { 'artifact.zip': digest('archive') },

@@ -162,6 +162,9 @@ private val SCHEMA_KEYWORDS =
     "minLength",
     "minimum",
     "maximum",
+    "exclusiveMinimum",
+    "exclusiveMaximum",
+    "readOnly",
     "minItems",
     "maxItems",
     "maxLength",
@@ -273,7 +276,9 @@ private fun schemaNumber(
   val number = value.asBigDecimal
   val minimum = rule["minimum"]?.let { number >= it.asBigDecimal } ?: true
   val maximum = rule["maximum"]?.let { number <= it.asBigDecimal } ?: true
-  return minimum && maximum
+  val exclusiveMinimum = rule["exclusiveMinimum"]?.let { number > it.asBigDecimal } ?: true
+  val exclusiveMaximum = rule["exclusiveMaximum"]?.let { number < it.asBigDecimal } ?: true
+  return minimum && maximum && exclusiveMinimum && exclusiveMaximum
 }
 
 private fun hasType(

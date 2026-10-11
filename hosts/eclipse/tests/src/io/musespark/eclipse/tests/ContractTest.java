@@ -32,6 +32,17 @@ public class ContractTest {
         assertThrows(IllegalArgumentException.class, () -> contract.validate(Json.parse("{\"type\":\"string\",\"format\":\"uri\"}"), new JsonPrimitive("relative")));
         assertThrows(IllegalArgumentException.class, () -> contract.validate(Json.parse("{\"type\":\"string\",\"maxLength\":1}"), new JsonPrimitive("xx")));
     }
+    @Test public void inputAnnotationsAndExclusiveNumericBoundsKeepTheirSemantics() throws Exception {
+        Contract contract = new Contract();
+        JsonElement rules = Json.parse("{\"type\":\"number\",\"readOnly\":true,\"exclusiveMinimum\":0,\"exclusiveMaximum\":2}");
+        Contract.verifyVocabulary(rules);
+        contract.validate(rules, new JsonPrimitive(1));
+        for (Number number : new Number[] {-1, 0, 2, 3}) assertThrows(IllegalArgumentException.class, () -> contract.validate(rules, new JsonPrimitive(number)));
+        for (String field : new String[] {"apiKey", "token", "unrelated"}) {
+            assertThrows(IllegalArgumentException.class, () -> contract.payload("chat", "toHost", Json.object("type", "ready", field, "fixture-only")));
+        }
+        contract.state(Json.object("unrelated", Json.object("nested", true)));
+    }
     private static JsonObject edit() {
         JsonArray edits = new JsonArray(); edits.add(Json.object("range", Json.object("start", Json.object("line", 0, "character", 0), "end", Json.object("line", 0, "character", 0)), "newText", "x"));
         return Json.object("jsonrpc", "2.0", "id", "x", "method", "documents/applyEdits", "params", Json.object("uri", "file:///workspace/file.txt", "expectedVersion", 1, "undoLabel", "test", "edits", edits));

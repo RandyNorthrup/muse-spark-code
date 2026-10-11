@@ -37,6 +37,7 @@ object NativeTheme {
       "foreground",
       "textPreformat-foreground",
       "editorWidget-foreground",
+      "editor-foreground",
       "button-secondaryForeground",
     )
     colors(
@@ -51,6 +52,7 @@ object NativeTheme {
       values,
       palette.border,
       "contrastBorder",
+      "contrastActiveBorder",
       "textBlockQuote-border",
       "panel-border",
       "widget-border",
@@ -102,6 +104,7 @@ object NativeTheme {
       "editorWarning-foreground",
       "list-warningForeground",
       "inputValidation-warningForeground",
+      "charts-orange",
     )
     colors(values, palette.success, "testing-iconPassed", "gitDecoration-addedResourceForeground")
     colors(
@@ -120,6 +123,14 @@ object NativeTheme {
   ) {
     colors(values, UIManager.getColor("TextField.background") ?: palette.background, "input-background")
     colors(values, UIManager.getColor("TextField.foreground") ?: palette.foreground, "input-foreground")
+    colors(values, UIManager.getColor("ComboBox.background") ?: palette.background, "dropdown-background")
+    colors(values, UIManager.getColor("ComboBox.foreground") ?: palette.foreground, "dropdown-foreground")
+    colors(values, UIManager.getColor("Component.linkColor") ?: palette.selected, "charts-purple")
+    colors(
+      values,
+      palette.scheme.getAttributes(EditorColors.TEXT_SEARCH_RESULT_ATTRIBUTES)?.backgroundColor ?: palette.selected,
+      "editor-findMatchHighlightBackground",
+    )
     colors(
       values,
       palette.scheme.getColor(EditorColors.CARET_COLOR) ?: palette.foreground,

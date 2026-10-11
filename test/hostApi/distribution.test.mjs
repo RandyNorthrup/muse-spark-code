@@ -26,7 +26,7 @@ import { hostMatrix } from '../../scripts/package-hosts/ci.mjs'
 
 const fixture = { root: '' }
 const manifest = {
-  mhp: 'mhp/1.4.0',
+  mhp: 'mhp/1.5.0',
   build: [{ command: 'native-build', args: ['--test'] }],
   conformance: { command: 'native-harness', args: [] },
   artifacts: ['artifact.zip'],
@@ -190,7 +190,7 @@ describe('native distribution guards', () => {
       outcome: 'packaged',
       version: '1.2.3',
       tree: 'a'.repeat(40),
-      mhp: 'mhp/1.4.0',
+      mhp: 'mhp/1.5.0',
     })
     expect(Object.values(receipt.sha256)[0]).toMatch(/^[a-f0-9]{64}$/u)
     expect(
@@ -199,7 +199,7 @@ describe('native distribution guards', () => {
         'utf8',
       ),
     ).toBe('fixture runtime')
-    expect(run.mock.calls[0][2].env.MUSE_MHP_VERSION).toBe('mhp/1.4.0')
+    expect(run.mock.calls[0][2].env.MUSE_MHP_VERSION).toBe('mhp/1.5.0')
     const stale = path.join(fixture.root, 'dist', 'hosts', 'jetbrains', 'muse-spark-code-old.zip')
     writeFileSync(stale, 'obsolete build')
     packageHost(fixture.root, 'jetbrains', run)

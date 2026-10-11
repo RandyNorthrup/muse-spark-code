@@ -165,8 +165,8 @@ describe('native request correlation', () => {
 
 it.each([
   ['mhp/1.0.0', 'mhp/1.1.0'],
-  ['mhp/1.1.0', 'mhp/1.4.0'],
-  ['mhp/1.5.0', 'mhp/3.0.0'],
+  ['mhp/1.1.0', 'mhp/1.5.0'],
+  ['mhp/1.6.0', 'mhp/3.0.0'],
   ['mhp/2.0.0', 'mhp/3.0.0'],
 ])(
   'refuses unsupported version %s with the named negotiation error',

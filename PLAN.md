@@ -37907,6 +37907,27 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**M104 F1 native contract and qualification repair (2026-10-09).** Repair the
+joined native blockers in this lane only. Preserve closed native payloads
+while exporting pre-normalization input: explicitly adopt MHP 1.5 through the
+guarded generator, update actual peers and fixtures, and retain rejection of
+superseded versions. Eclipse accepts the readOnly annotation and enforces
+exclusive numeric bounds; unknown vocabulary still refuses. Repair JetBrains
+native theme roles, shared-panel readiness and settled-version diagnostics at
+their causes. Run the complete real JCEF/dialog and both Eclipse target
+matrices, scoped TypeScript suites, repository deadlines and byte-exact red
+drills. Record receipts in `docs/certification/m104.md`. The rig brief reserves
+aggregate quality/coverage for the lead; no merge, push, live/paid call, policy
+weakening or qualification promotion is authorized. Other blocker groups and
+installed-editor/resource-chip parity remain with their assigned lanes.
+
+**RVM104F1C distribution regression follow-up (2026-10-09).** Derive the
+macOS distribution test's accepted version and superseded/future refusal
+vectors from the shared MHP constant. Prove an old hard-coded accepted version
+fails, restore byte-exact and run every shared-contract job suite exactly as
+`hosts-native.yml` invokes it. Record this scoped repair in M104 F1's
+certification; native matrix and installed-editor blockers remain unchanged.
+
 **FIXM104L9 closing-owner qualification (2026-10-08, complete on macOS).**
 RVM104L8 finding 1 came from the fixture's invalid 128-byte control pathname.
 It now binds and closes a real 84-byte socket at the recorded address.
@@ -38219,7 +38240,7 @@ keeping its detailed native qualification catalogue generated too.
 Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
 in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
 
-**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. Verification retains the portable graph cap, duplication and SAST findings, four ACP fixture failures, native bridge contract checks, installed qualification and the next resource-chip parity lane as blockers. Retained requirements and receipts follow.
+**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. Verification retains the portable graph cap, duplication and SAST findings, four ACP fixture failures, two JetBrains settled-diagnostic/version failures, installed qualification and the next resource-chip parity lane as blockers. F1 adopts the frozen MHP 1.5 closed-input contract and repairs native schema vocabulary, theme roles and the authored readiness fixture; its matrix and drill receipts follow. Retained requirements and receipts follow.
 
 **FIXM104PB / RVM104PB (2026-10-06).** Repair all four P2 findings and the
 P3 evidence error inside B's paid engines and their shared guards. One
@@ -38912,26 +38933,36 @@ only when the actual installed file is explicitly named by Node's `--require`
 argument. Keep exact registration-before-GO, EOF refusal and guardian execution
 unchanged; verify real launches and archive native import/require parity.
 
-**M104INT native input-schema refusal blocker (2026-10-09).** The
-existing embedded bridge assertion rejects `{ type: "ready", apiKey: ... }`.
-It fails after exporting accepted input before Zod transforms: input schemas
-allow unknown members for stripping objects, while the old native export
-rejected them. Preserve the test and its strict native policy. Reconciling
-native normalization/closed shape with the frozen adoption requires a reviewed
-contract change and its complete native matrix; do not silently rewrite the
-1.4 snapshot, change the assertion or invent a one-field blacklist. This
-remains a main-integration blocker alongside the portable cap and ACP failures.
+**M104INT native input-schema refusal blocker — repaired by M104 F1
+(2026-10-09).** Export accepted inputs before exact-money normalization while
+explicitly closing named objects that Zod would strip. Declared records,
+catchalls and arbitrary JSON state retain their existing policy. Adopt MHP 1.5
+through the guarded generator and update actual peers, native build inputs and
+fixtures; the frozen 1.4 snapshot is not silently rewritten at the same version.
+The existing API-key refusal assertion and added token/unrelated-member probes
+pass. Native validators accept the readOnly annotation and enforce exclusive
+numeric endpoints; unknown vocabulary still refuses. Certification and exact
+restoration hashes are in `docs/certification/m104.md`, M104 F1.
 
-**M104INT native matrix qualification blockers (2026-10-09).** Real
-JetBrains JCEF/native-dialog verification reports 80 of 84 tests passing:
-the dropdown foreground theme role, shared-panel readiness and two settled
-diagnostic/version results still fail. Both real Eclipse target matrices
-reach JUnit with Maven 3.9.11, but their contract reader refuses the joined
-`readOnly` and `exclusiveMinimum` schema vocabulary; each reports 87 tests
-and 71 error records, including secondary teardown errors. Keep their
-assertions and complete native contract policy unchanged. These failures
-require a reviewed native contract/service repair before main integration;
-passing fixture, lint or SDK compilation results do not qualify installed hosts.
+**M104INT native matrix qualification blockers — M104 F1 residual
+(2026-10-09).** The native theme now supplies every joined CSS role. The JCEF
+fixture includes the current schedules and estimator settings, so the actual
+browser's Send, Allow once, Deny and Stop controls pass. Two settled-diagnostic
+version tests still receive a pending/null result: draining the daemon's status
+queue and selecting the editor's analysis context both failed to repair them.
+The rig's two-fix stop rule applies; ineffective changes were restored and the
+settlement, committed-document, version and scope checks remain intact. Eclipse's
+contract vocabulary repair removes its setup/teardown errors; both target
+matrices and native red drills are recorded in M104 F1's certification.
+These two diagnostic tests remain a main-integration blocker. Installed VS Code
+on Win11, real Visual Studio/Xcode qualification and resource-chip parity stay
+open. The C# endpoint change has a portable .NET 10 probe only; the Swift
+endpoint change awaits a native macOS run because this Linux rig has no Swift
+compiler. Portable fixtures, SDK compilation and the Linux native matrices do
+not promote those hosts to supported. The full visual gate also stops while
+reconstructing reviewed source `484964c46`: agents-details/dark/690/en never
+renders `.agent-node-clickable` after 2,448 captures. Candidate comparison does
+not run; visual qualification remains with the lead, with no baseline update.
 
 **M104INT final static-gate cleanup (2026-10-09).** Plain Knip identifies
 the Windows receipt/config and esbuild fixture as real path-invoked entries,

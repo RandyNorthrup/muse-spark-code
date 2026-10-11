@@ -7,9 +7,21 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- The native distribution regression follows the shared supported MHP version,
+  accepting the current contract and refusing superseded and future versions.
+- Native panels adopt MHP 1.5 to retain closed payload shapes while validating
+  wire inputs before exact-money normalization. Superseded peers are refused;
+  arbitrary JSON state and declared record entries keep their existing contracts.
+- Eclipse accepts the input-schema annotations and validates exclusive numeric
+  bounds. JetBrains supplies the joined panel's dropdown, editor, search and chart
+  theme roles from its native palette.
+
+
 ### Added
 
-- Native and companion panels adopt MHP 1.4, including the 0.17 payloads,
+- Native and companion panels adopt MHP 1.5, including the 0.17 payloads,
   bounded auxiliary messages, awaited native services, correlated browser actions
   and authenticated packaged module loading. Older peers are refused.
 - Portable engine and presentation factories provide checkpoints, version-attested
@@ -20,8 +32,8 @@ happened, not what was planned; superseded entries are kept.
 - JetBrains and Eclipse provide native file dialogs, commands, HTML surfaces and
   settled diagnostics for the edited document version. Unavailable settings actions
   report explicit errors. Their panels retain native bridges after page replacement.
-  Qualification remains blocked by native schema validation, panel readiness,
-  theme-role and settled-diagnostic checks found in the joined Linux matrix.
+  Qualification retains the two JetBrains settled-diagnostic/version failures
+  found in the joined Linux matrix; installed-editor parity remains open.
 - Xcode's native prototype provides permission and file dialogs, approved buffer
   edits, report export, window focus and retained file-navigation processes.
   Its companion relay validates the shared snapshot and reports native failures.
@@ -72,13 +84,13 @@ happened, not what was planned; superseded entries are kept.
   _In the next release_ section, never as shipped.
 
 - Experimental standalone `panel --stdio` and `panel --companion` carriers
-  negotiate frozen MHP 1.4, correlate editor services, bind registered
+  negotiate frozen MHP 1.5, correlate editor services, bind registered
   surfaces, bound delivery and replay current conversation history on reload.
   Both use the portable conversation factory and persistent runtime stores.
   The authenticated companion now renders the shared React panel; ACP submits
   rich parts through the composed shared controller while retaining its own
   translation and permissions. Complete editor parity remains open.
-- The standalone companion now admits MHP 1.4 panel/lifecycle messages at
+- The standalone companion now admits MHP 1.5 panel/lifecycle messages at
   `/panel/message` and `/panel/surface`, returns empty 204 admissions and
   typed errors, and streams ordered `event: mhp` frames with sequence IDs
   at `/panel/events`. Existing per-window authentication guards remain.
@@ -103,7 +115,7 @@ happened, not what was planned; superseded entries are kept.
   Native bootstrap and all-editor conformance remain open.
 - JetBrains development plugin: render the shared panel through JCEF's public
   HTML loader with packaged inline assets; add native inline Tab completion
-  over MHP, preserve numeric completion IDs, and adopt the editor-initiated MHP 1.4
+  over MHP, preserve numeric completion IDs, and adopt the editor-initiated MHP 1.5
   initialization contract in its owning parity lane. Replace experimental/default-method API calls and
   bound compatibility to IDEA 2025.3–2026.2. Fake-runtime qualification and
   remaining runtime integration are recorded in `docs/certification/m104-e3.md`.
@@ -204,7 +216,7 @@ happened, not what was planned; superseded entries are kept.
 - Browser session retirement revokes old launch codes and bearers, stops their event streams and closes cancelled HTTP calls.
 - Portable attachment picking uses the shared host picker and confined reads; restored handoff dialogs and text-file parts survive reload. Typed engine/presentation factories own their actions, auxiliary views and awaited cleanup.
 - Portable panels retire old surface bindings on new, fork and switch, and retain active turns, imported restrictions and rich history on reload. Browser launches keep an immutable session context.
-- MHP 1.4 replaces the unshipped 1.1 contract. Editors initiate initialization with host metadata, locale, theme and capabilities; incompatible versions are refused by name.
+- MHP 1.5 replaces the unshipped 1.1 contract. Editors initiate initialization with host metadata, locale, theme and capabilities; incompatible versions are refused by name.
 - Standalone settings and session activity records coordinate independent writers with versioned atomic publication; older activity cannot replace the newest restore target.
 - Native panel requests retain bounded, method-validated late-reply correlation after cancellation or timeout so unrelated requests keep working.
 - Runtime panel and ACP teardown waits for suspended controller preparation and admitted work before draining storage; concurrent releases share the same completion.
