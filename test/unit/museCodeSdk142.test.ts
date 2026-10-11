@@ -570,7 +570,7 @@ describe('Muse Code 1.4.2 feature ports', () => {
   it('refuses deletion before dispatch without a captured lifecycle reader', async () => {
     const { host, server } = setup()
     await expect(host.deleteSession('s')).rejects.toMatchObject({
-      message: UI_TEXT.memoryDeleteAction,
+      message: UI_TEXT.sessionDeleteUnsupported,
     })
     expect(server.requestsFor('session/delete')).toHaveLength(0)
   })

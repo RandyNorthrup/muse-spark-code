@@ -140,6 +140,16 @@ export const EN = {
   modelApiStatusOpen: 'Open service status',
   modelApiServiceFailure: 'The service returned an error. Check its status or try again.',
   feedbackFailed: 'Could not submit feedback.',
+  feedbackUploaded: 'Feedback uploaded.',
+  // C-M106-3: the 1.4.4 capture certifies the note-only receipt only; a
+  // record-attached receipt refuses with this upstream request instead of
+  // reporting an uncertified outcome.
+  feedbackRecordUnsupported:
+    'This Muse Code version cannot verify a session-record feedback upload (upstream SDK request pending). The outcome is unknown.',
+  // C-M106-3: 1.4.4 answers session/delete with methodNotFound and sends no
+  // deleteCompleted frame, so deletion refuses with this upstream request.
+  sessionDeleteUnsupported:
+    'This Muse Code version cannot delete sessions (upstream SDK request pending). The session remains in History.',
   // M102: the shared usage page; its full table is a separate lazy family.
   usagePageTitle: 'Usage & cost',
   paletteUsagePage: 'Track cost, tokens and limits across editors.',
