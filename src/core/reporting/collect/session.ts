@@ -3,6 +3,7 @@ import { FILE_EDIT_TOOLS } from '../../../shared/constants'
 import type { ReportOptions, ReportRow, ReportSection } from '../../../shared/reportSchema'
 import type { SourceSnapshot } from '../sources/types'
 import { CHECK_COLUMNS, checkRows, count, label, row, sourcedSection, text } from './common'
+import { planQuestionRows } from './plan'
 import { usageSections } from './usage'
 
 export function collectSession(snapshot: SourceSnapshot, options: ReportOptions): ReportSection[] {
@@ -154,18 +155,10 @@ export function collectSession(snapshot: SourceSnapshot, options: ReportOptions)
       'questions',
       'questions',
       ['name', 'questions'],
-      questions.data?.map((question) =>
-        row(
-          'question',
-          [question.id],
-          {
-            name: text(question.id),
-            questions: text(question.text),
-            status: label(question.state),
-          },
-          [questions.record.id],
-        ),
-      ) ?? [],
+      // The registry schema requires unique ids, but the rows stay
+      // duplicate-safe like every other plan-item listing (RVCM1132D
+      // finding 1).
+      planQuestionRows(questions.data ?? [], [questions.record.id]),
       ['questions'],
     ),
     sourcedSection(
