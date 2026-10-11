@@ -3576,6 +3576,7 @@
   "acpKeyPresent": "Ключ Meta Model API сохранен: {store}.",
   "acpKeyAbsent": "Ключ Meta Model API не сохранен.",
   "acpKeyCleared": "Ключ Meta Model API удален из хранилища учетных данных этого компьютера.",
+  "acpCredentialStoreNoAnswer": "Хранилище учётных данных не ответило. Этот запрос не был отправлен; повторите попытку.",
   "acpStoreUnavailable": "Хранилище учетных данных этого компьютера недоступно ({reason}). В Linux агенту нужна запущенная и разблокированная служба Secret Service, например GNOME Keyring или KWallet.",
   "acpStoreNames": {
     "windows": "Диспетчер учетных данных Windows",

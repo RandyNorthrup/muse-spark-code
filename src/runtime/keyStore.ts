@@ -10,7 +10,14 @@
 
 import { modelRef, credentialRecord } from '../host/backend/providerPolicyEntry'
 import type { SecretStore } from '../host/auth/credentialStore'
-import { KEYRING_SERVICE, UI_TEXT } from '../shared/constants'
+import {
+  KEYRING_SERVICE,
+  UI_TEXT,
+  CREDENTIAL_STORE_READ_ATTEMPTS,
+  CREDENTIAL_STORE_READ_TIMEOUT_MS,
+  CREDENTIAL_STORE_READ_BACKOFF_MS,
+} from '../shared/constants'
+import { withDeadline } from '../core/timeouts'
 import type { CredentialRecord } from '../core/providers/credentialRecord'
 const { parseCredentialRecord } = credentialRecord
 const { isProviderId } = modelRef
@@ -46,10 +53,25 @@ export async function storeOperation<T>(work: () => Promise<T>): Promise<T> {
 /** The credential store as the key's `SecretStore`, each call on a freshly opened entry. */
 export function keyringSecretStore(openEntry: KeyringEntryFactory): SecretStore {
   return {
-    get: async (key) =>
-      await storeOperation(
-        async () => (await openEntry(KEYRING_SERVICE, key).getPassword()) ?? undefined,
-      ),
+    get: async (key) => {
+      for (let attempt = 0; attempt < CREDENTIAL_STORE_READ_ATTEMPTS; attempt++) {
+        try {
+          return (
+            (await withDeadline(
+              openEntry(KEYRING_SERVICE, key).getPassword(),
+              CREDENTIAL_STORE_READ_TIMEOUT_MS,
+              'store-unavailable',
+            )) ?? undefined
+          )
+        } catch {
+          if (attempt + 1 === CREDENTIAL_STORE_READ_ATTEMPTS) throw new StoreUnavailableError()
+          await new Promise<void>((resolve) =>
+            setTimeout(resolve, CREDENTIAL_STORE_READ_BACKOFF_MS),
+          )
+        }
+      }
+      throw new StoreUnavailableError()
+    },
     store: async (key, value) => {
       await storeOperation(() => openEntry(KEYRING_SERVICE, key).setPassword(value))
     },

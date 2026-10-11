@@ -61,6 +61,8 @@ import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
 import type { AgentEvent } from '../shared/agentEvents'
 import {
   ACP_AGENT_NAME,
+  ACP_ERROR_CODES,
+  CREDENTIAL_STORE_ERROR_KIND,
   ACP_AGENT_TITLE,
   ACP_COMPACT_COMMAND,
   ACP_CONFIG_IDS,
@@ -906,7 +908,15 @@ class AcpSession {
     }
     if (event.terminal === FAILED_TERMINAL) {
       pending.reject(
-        RequestError.internalError(undefined, event.reason ?? event.errorKind ?? event.terminal),
+        event.errorKind === CREDENTIAL_STORE_ERROR_KIND
+          ? new RequestError(ACP_ERROR_CODES.credentialStore, UI_TEXT.acpCredentialStoreNoAnswer, {
+              kind: CREDENTIAL_STORE_ERROR_KIND,
+              requestSent: false,
+            })
+          : RequestError.internalError(
+              undefined,
+              event.reason ?? event.errorKind ?? event.terminal,
+            ),
       )
       return
     }

@@ -4092,6 +4092,8 @@ export const EN = {
   acpKeyAbsent: 'No Meta Model API key is stored.',
   acpKeyCleared: 'The Meta Model API key was removed from this computer’s credential store.',
   // {reason}: the operating system's own error.
+  acpCredentialStoreNoAnswer:
+    'The credential store did not answer. This request was not sent; try again.',
   acpStoreUnavailable:
     'This computer’s credential store cannot be used ({reason}). On Linux the agent needs a running, unlocked Secret Service, such as GNOME Keyring or KWallet.',
   acpStoreNames: {

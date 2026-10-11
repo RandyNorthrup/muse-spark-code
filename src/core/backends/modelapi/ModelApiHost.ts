@@ -79,6 +79,7 @@ import {
   TOKENS_PER_MILLION,
   SETTING_DEFAULTS,
   AUTH_REQUIRED_ERROR_KIND,
+  CREDENTIAL_STORE_ERROR_KIND,
   CHATGPT_PLAN_LIMIT_ERROR_KIND,
   AUTO_REVIEW_ROW_TOOL,
   AUTO_REVIEWER_RECENT_CALLS,
@@ -13947,6 +13948,12 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (this.isSubagent && this.outcomeStopReason === 'budget') terminal = COMPLETED
         if (error instanceof ChildTaskRefusedError) {
           errorKind = `subagent_${error.kind}`
+        } else if (
+          (error instanceof Error && error.name === 'StoreUnavailableError') ||
+          (isModelApiError(error) && error.code === CREDENTIAL_STORE_ERROR_KIND)
+        ) {
+          reason = UI_TEXT.acpCredentialStoreNoAnswer
+          errorKind = CREDENTIAL_STORE_ERROR_KIND
         } else if (error instanceof ContextOverflowError) {
           reason = UI_TEXT.contextWindowFull
           errorKind = 'context_overflow'

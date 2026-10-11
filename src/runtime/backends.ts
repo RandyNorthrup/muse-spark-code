@@ -49,7 +49,7 @@ import { shellJobAssembly } from '../host/backend/shellJob'
 import { createToolIo } from '../host/backend/toolIo'
 import { AccountHosts, connectAccountSession } from '../host/auth/accountHost'
 import { CliAccount, isCliSignedIn } from '../host/auth/cliAccount'
-import { CredentialStore, type SecretStore } from '../host/auth/credentialStore'
+import type { SecretStore } from '../host/auth/credentialStore'
 import type { Logger } from '../host/logger'
 import { createWorkspaceFileLister } from '../host/mention/workspaceFiles'
 import { pageConverter } from '../host/web/pageConverter'
@@ -211,7 +211,6 @@ interface MuseHomes {
 
 function modelApiManager(
   deps: RuntimeBackendDeps,
-  credentials: CredentialStore,
   storedWorkspaceRoot: string,
   workspaceRoot: string,
   homes: MuseHomes,
@@ -338,7 +337,10 @@ function modelApiManager(
     log,
     usageRecording: deps.usageRecording,
     hasExternalPaidRecording: deps.exec !== undefined,
-    getApiKey: () => credentials.getApiKey(),
+    getApiKey: async () => {
+      const key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
+      return key === '' ? undefined : key
+    },
     workspaceRoot,
     sessionWorkspaceRoot: storedWorkspaceRoot,
     assertWorkspaceCurrent,
@@ -533,13 +535,6 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     { readonly manager: ModelApiBackendManager; readonly identity: string }
   >()
   const workspaceEdits = new Map<string, WorkspaceEdits>()
-  const credentials = new CredentialStore(
-    deps.secrets,
-    (message) => {
-      deps.log.warn(message)
-    },
-    "the operating system's credential store",
-  )
   const paid = new AcpPaidUse({
     flagged: deps.options.paidFeatures,
     canRemember: () => deps.options.trustWorkspace,
@@ -672,7 +667,6 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     workspaceEdits.set(key, edits)
     const manager = modelApiManager(
       deps,
-      credentials,
       cwd,
       canonical,
       homes,

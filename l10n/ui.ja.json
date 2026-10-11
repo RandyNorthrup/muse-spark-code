@@ -3357,6 +3357,7 @@
   "acpKeyPresent": "Meta Model API キーが保存されています: {store}。",
   "acpKeyAbsent": "Meta Model API キーは保存されていません。",
   "acpKeyCleared": "Meta Model API キーをこのコンピューターの資格情報ストアから削除しました。",
+  "acpCredentialStoreNoAnswer": "認証情報ストアが応答しませんでした。このリクエストは送信されていません。もう一度お試しください。",
   "acpStoreUnavailable": "このコンピューターの資格情報ストアを使用できません ({reason})。Linux では、GNOME Keyring や KWallet など、実行中でロック解除された Secret Service がエージェントに必要です。",
   "acpStoreNames": {
     "windows": "Windows 資格情報マネージャー",

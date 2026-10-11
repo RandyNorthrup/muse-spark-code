@@ -2262,6 +2262,18 @@ export const ERROR_CAUSE_MAX_DEPTH = 5
 // The turn error kind both backends report when the credential is refused;
 // the controller turns it into the signed-out gate.
 export const AUTH_REQUIRED_ERROR_KIND = 'authRequired'
+// OS-store reads are request-local (D89); a busy native store gets bounded retries.
+export const CREDENTIAL_STORE_READ_ATTEMPTS = 3
+export const CREDENTIAL_STORE_READ_TIMEOUT_MS = 1000
+export const CREDENTIAL_STORE_READ_BACKOFF_MS = 100
+export const CREDENTIAL_STORE_ERROR_KIND = 'credential_store_unavailable'
+export const ACP_ERROR_CODES = {
+  credentialStore: -32_010,
+  turnFailed: -32_011,
+  unavailable: -32_012,
+  refused: -32_013,
+} as const
+
 // The reasoning effort sent while the Thinking toggle is off (`none` is a 400).
 export const MODEL_API_EFFORT_OFF = 'minimal'
 // Context pressure thresholds (fraction of the window) for the indicator.

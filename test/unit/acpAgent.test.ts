@@ -44,6 +44,8 @@ import {
   type PermissionMode,
   MAX_ATTACHMENTS_PER_MESSAGE,
   UI_TEXT,
+  ACP_ERROR_CODES,
+  CREDENTIAL_STORE_ERROR_KIND,
 } from '../../src/shared/constants'
 import type { PaidUseRequest } from '../../src/shared/paid'
 import { approvalModeFor } from '../../src/shared/permissionModes'
@@ -205,6 +207,35 @@ function harness(options: HarnessOptions = {}): Harness {
     run: (op) => client.connectWith(agent, op),
   }
 }
+
+describe('ACPDOG credential refusal', () => {
+  it('returns a typed unsent cause and accepts the next prompt', async () => {
+    const h = harness({ kind: 'modelApi' })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const response = prompt(client, sessionId)
+      const failure = expect(response).rejects.toMatchObject({
+        code: ACP_ERROR_CODES.credentialStore,
+        message: UI_TEXT.acpCredentialStoreNoAnswer,
+        data: { kind: CREDENTIAL_STORE_ERROR_KIND, requestSent: false },
+      })
+      const session = h.host.sessions[0]!
+      await until(() => session.sendTurn.mock.calls.length === 1)
+      session.emit({
+        type: 'turnCompleted',
+        turnId: 'turn-1',
+        terminal: 'failed',
+        errorKind: CREDENTIAL_STORE_ERROR_KIND,
+        reason: UI_TEXT.acpCredentialStoreNoAnswer,
+      })
+      await failure
+      const next = prompt(client, sessionId)
+      await until(() => session.sendTurn.mock.calls.length === 2)
+      session.emit({ type: 'turnCompleted', turnId: 'turn-2', terminal: 'completed' })
+      expect(await next).toEqual({ stopReason: 'end_turn' })
+    })
+  })
+})
 
 describe('ACPDOG advisory isolation', () => {
   it.each([false, true])(
