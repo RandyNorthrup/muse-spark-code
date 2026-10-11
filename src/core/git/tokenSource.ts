@@ -146,7 +146,6 @@ export const githubLeaseResultSchema = z.strictObject({
   leaseId: z.nullable(z.string().check(z.uuid())),
   expiresAt: z.optional(z.int().check(z.positive())),
 })
-export type GitHubLeaseResult = z.infer<typeof githubLeaseResultSchema>
 
 /**
  * When a lease granted at `grantedAt` stops being used: the editor's

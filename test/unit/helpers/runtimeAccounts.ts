@@ -1,3 +1,5 @@
+import { MODEL_API_BASE_URL } from '../../../src/shared/constants'
+import type { RuntimeBackendDeps } from '../../../src/runtime/backends'
 import { vi } from 'vitest'
 import { usdInputSchema } from '../../../src/shared/usdSchema'
 import type { Account, AccountEvent } from '../../../src/shared/accounts'
@@ -126,4 +128,43 @@ export function accountSwap(): AccountEvent {
 // A forged runtime service must never reach output through the public schema.
 export function forgedState() {
   return { ...sessionAccountsRig().state(), secret: 'account-secret-canary' }
+}
+
+/** The existing duplicate-id fixture, fresh for each refused-file case. */
+export function duplicateMetaAccounts() {
+  return {
+    id: 'meta',
+    policyProvider: 'meta',
+    product: 'model-api',
+    auth: 'apiKey',
+    origin: new URL(MODEL_API_BASE_URL).origin,
+    accounts: [
+      { id: 'default', label: 'Default', order: 0, thresholds: {} },
+      { id: 'default', label: 'Copy', order: 1, thresholds: {} },
+    ],
+  }
+}
+
+/** Both exec-refusal tests forbid every credential, network and git operation. */
+export function refusedRuntimeDeps(
+  options: RuntimeBackendDeps['options'],
+  folder: string,
+): RuntimeBackendDeps {
+  return {
+    options,
+    version: 'test',
+    distDir: folder,
+    platform: process.platform,
+    env: {},
+    homeDir: folder,
+    secrets: {
+      get: () => Promise.resolve(undefined),
+      store: () => Promise.resolve(),
+      delete: () => Promise.resolve(),
+    },
+    runGit: () => Promise.reject(new Error('unexpected git')),
+    fetch: () => Promise.reject(new Error('unexpected fetch')),
+    sleep: () => Promise.resolve(),
+    log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  }
 }

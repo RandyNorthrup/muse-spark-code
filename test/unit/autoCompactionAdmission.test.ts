@@ -95,7 +95,7 @@ function setup(
   isOn = () => true,
   loadPricing: NonNullable<
     Parameters<typeof createAutoCompactionAdmission>[0]['loadPricing']
-  > = () => Promise.resolve({ reserveRequestAmount, requestImageCount }),
+  > | null = () => Promise.resolve({ reserveRequestAmount, requestImageCount }),
 ) {
   const claims: ReturnType<typeof fakeClaim>[] = []
   const reserveCompaction = vi.fn(
@@ -109,7 +109,7 @@ function setup(
   const allowsPaidUse = vi.fn(() => Promise.resolve(true))
   const notePaidUse = vi.fn()
   const admit = createAutoCompactionAdmission({
-    loadPricing,
+    ...(loadPricing !== null && { loadPricing }),
     accounting: { reserveCompaction },
     allowsPaidUse,
     isOn,
@@ -126,21 +126,11 @@ function setup(
 
 describe('automatic compaction production admission', () => {
   it('refuses a missing pricing dependency before consent or reservation', async () => {
-    const deps = {
-      accounting: 'transport' as const,
-      allowsPaidUse: vi.fn(() => Promise.resolve(true)),
-      isOn: () => true,
-      isTrusted: () => true,
-      isEvaluated: () => true,
-      paidUseFence: () => isConsentCurrent,
-      dailyBudgetUsd: () => Usd.from(5).toAmount(),
-      notePaidUse: vi.fn(),
-      log: new FakeLogOutputChannel(),
-      storeUnavailable: 'ledger unavailable',
-    }
-    expect(await createAutoCompactionAdmission(deps)(requestFor())).toBe(undefined)
-    expect(deps.allowsPaidUse).not.toHaveBeenCalled()
-    expect(deps.notePaidUse).not.toHaveBeenCalled()
+    const t = setup(undefined, () => true, null)
+    expect(await t.admit(requestFor())).toBe(undefined)
+    expect(t.allowsPaidUse).not.toHaveBeenCalled()
+    expect(t.reserveCompaction).not.toHaveBeenCalled()
+    expect(t.notePaidUse).not.toHaveBeenCalled()
   })
 
   it.each(['absent', 'failed'] as const)(
@@ -159,6 +149,32 @@ describe('automatic compaction production admission', () => {
       expect(t.reserveCompaction).not.toHaveBeenCalled()
       expect(t.notePaidUse).not.toHaveBeenCalled()
       expect(() => a?.guard('digest')).toThrow('ledger unavailable')
+      await a?.close?.()
+    },
+  )
+
+  it.each(['switch', 'stop'] as const)(
+    'rechecks %s after the lazy pricing wait before reservation',
+    async (withdrawn) => {
+      let isOn = true
+      const controller = new AbortController()
+      const loaded = Promise.withResolvers<{
+        readonly reserveRequestAmount: typeof reserveRequestAmount
+        readonly requestImageCount: typeof requestImageCount
+      }>()
+      const loadPricing = vi.fn(() => loaded.promise)
+      const t = setup(undefined, () => isOn, loadPricing)
+      const a = await t.admit(requestFor(COST, controller.signal))
+      const preparing = a?.guard.prepareRequest?.(BODY, 1000)
+      await vi.waitFor(() => {
+        expect(loadPricing).toHaveBeenCalledExactlyOnceWith()
+      })
+      if (withdrawn === 'switch') isOn = false
+      else controller.abort()
+      loaded.resolve({ reserveRequestAmount, requestImageCount })
+      await expect(preparing).rejects.toThrow()
+      expect(t.reserveCompaction).not.toHaveBeenCalled()
+      expect(t.notePaidUse).not.toHaveBeenCalled()
       await a?.close?.()
     },
   )

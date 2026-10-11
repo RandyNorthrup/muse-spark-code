@@ -10,8 +10,10 @@ happened, not what was planned; superseded entries are kept.
 ### Engineering
 
 - Keep automatic-compaction admission in the lazy Model API backend and its
-  price-card calculations in the existing providers bundle. Activation
+  price-card calculations in the existing providers bundle. Format paid-use
+  questions on first use through the existing imported-hook runtime. Activation
   behavior, paid admission, displayed text and all bundle limits stay unchanged.
+  Remove the unused internal GitHub lease-result type found by the train gate.
 
 ### Added
 
