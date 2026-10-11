@@ -602,6 +602,17 @@ function pageBody(found: IsolationCase) {
         }
   return { rows, wrap }
 }
+
+function readDamagedPage(found: IsolationCase, rows: unknown[]) {
+  const { wrap } = pageBody(found)
+  return readWith(
+    healthyTransport({
+      url: found.target,
+      respond: () => Promise.resolve(Response.json(wrap(rows))),
+    }),
+  )
+}
+
 describe('all source read boundaries preserve admitted facts', () => {
   it('inventories every reader and validation call from the code', () => {
     const observed = [
@@ -744,14 +755,9 @@ describe('all source read boundaries preserve admitted facts', () => {
       pageBody(found).rows.map((_, index) => ({ found, index, label: found.label })),
     ),
   )('isolates record $index at $label', async ({ found, index }) => {
-    const { rows, wrap } = pageBody(found)
+    const { rows } = pageBody(found)
     const damaged = rows.map((row, offset) => (offset === index ? null : row))
-    const { result } = await readWith(
-      healthyTransport({
-        url: found.target,
-        respond: () => Promise.resolve(Response.json(wrap(damaged))),
-      }),
-    )
+    const { result } = await readDamagedPage(found, damaged)
     expect(result.record.status).toBe('partial')
     expect(result.record.reason).toContain(found.invalidCode)
     if (found.target.includes('/tags?'))
@@ -814,17 +820,12 @@ describe('all source read boundaries preserve admitted facts', () => {
   )(
     'isolates asset $assetIndex in record $index at $label',
     async ({ found, release, index, assetIndex }) => {
-      const { rows, wrap } = pageBody(found)
+      const { rows } = pageBody(found)
       const assets = release.assets.map((asset, offset) =>
         offset === assetIndex ? { invalid: true } : asset,
       )
       const damaged = rows.map((row, offset) => (offset === index ? { ...release, assets } : row))
-      const { result } = await readWith(
-        healthyTransport({
-          url: found.target,
-          respond: () => Promise.resolve(Response.json(wrap(damaged))),
-        }),
-      )
+      const { result } = await readDamagedPage(found, damaged)
       expect(result.record.reason).toBe('release-response-invalid')
       expect(result.data?.releases).toEqual(
         baseline.result.data?.releases.filter((row) => row.version !== release.tag_name),

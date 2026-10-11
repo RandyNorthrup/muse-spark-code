@@ -285,3 +285,130 @@ The conflict sweep also proves distinct tuple identities whose text contains
 `/`: two valid run facts previously collapsed into one conflicting key
 (1 failed, 586 passed). Keys now serialize the complete identity tuple, so
 separators in a tag/workflow cannot discard an independent accepted fact.
+
+## R6 final drills and certification
+
+Implementation commit: `087ae77a7561d7cde6f991869b75b157cd765992`.
+
+Each mutation below ran the complete isolation file at the repository timeout
+and failed a named assertion. D22 also ran `githubReportSource.test.ts`.
+After every run, both source modules and the isolation test were restored
+byte-exact and checked with SHA-256 (3/3 matches for each of the 17 drills).
+The subsequent dependent-suite run rechecked the restored implementation.
+
+| Drill            | Deliberate break                                                    | Named failing assertion (representative)                                      | Red result                          |
+| ---------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------- |
+| D12-body         | Rethrow ordinary stream/decode failures                             | a failed tags-page-1 (invalid-utf8) keeps the other rows and names exactly it | Tests 31 failed / 556 passed (587)  |
+| D13-budget       | Continue a failed endpoint, retaining its page-bound stop           | a failed tags-page-1 (http-error) keeps the other rows and names exactly it   | Tests 59 failed / 528 passed (587)  |
+| D14-cases        | Remove the tags-page-1 fault case while retaining its transport URL | covers exactly the read’s own request list                                    | Tests 1 failed / 472 passed (473)   |
+| D15-row-bound    | Allow one extra assembled row before refusal                        | enforces the $field row bound on admission before final validation            | Tests 2 failed / 585 passed (587)   |
+| D16-facets       | Reject the complete adapter envelope for one missing facet          | isolates the runs adapter facet including null/undefined                      | Tests 4 failed / 583 passed (587)   |
+| D17-records      | Throw on one invalid strict fact instead of refusing that row       | a row failing the strict fact shape is skipped while the other rows stay      | Tests 1 failed / 586 passed (587)   |
+| D18-page-bound   | Remove the workflow/release page row-bound guard                    | enforces the page row bound at tags-page-1                                    | Tests 6 failed / 581 passed (587)   |
+| D19-conflicts    | Throw on a conflicting fact instead of keeping the first fact       | names conflicting facts without discarding the accepted rows or reasons       | Tests 1 failed / 586 passed (587)   |
+| D20-count        | Drop the malformed check-count reason                               | preserves check records when their pagination count is invalid                | Tests 1 failed / 586 passed (587)   |
+| D21-inventory    | Add an allowed-reader call without an inventory case                | inventories every reader and validation call from the code                    | Tests 1 failed / 586 passed (587)   |
+| D22-snapshot     | Remove the refusal when every source lacks a valid observation      | has no successful snapshot when every HTTP source fails validation            | Tests 1 failed / 622 passed (623)   |
+| D23-reasons      | Throw on one invalid adapter reason record                          | retains valid reason records beside an invalid one                            | Tests 1 failed / 586 passed (587)   |
+| D24-empty        | Remove valid-empty adapter facet observation marks                  | retains a valid empty adapter facet beside failed readers                     | Tests 1 failed / 586 passed (587)   |
+| D25-wire-records | Throw on one invalid wire element                                   | a corrupt tag keeps its own reason and is never blamed on another record      | Tests 327 failed / 260 passed (587) |
+| D26-unnamed-tag  | Mark a nameless refused tag as a complete join                      | isolates record 0 at tags-page-1                                              | Tests 102 failed / 485 passed (587) |
+| D27-bound-stop   | Continue an oversized page in all paginated endpoints               | enforces the page row bound at pulls-page-1                                   | Tests 8 failed / 579 passed (587)   |
+| D28-identity     | Restore slash-spliced run identity keys                             | keeps distinct facts whose identity text contains separators                  | Tests 1 failed / 586 passed (587)   |
+
+The first exploratory D13 mutation also continued after the terminal page
+bound, creating a nonterminating loop. Its own Vitest processes were stopped
+and all three files restored and hash-checked. That aborted attempt is not
+credited as a red drill; D13 above is the corrected, terminating mutation.
+
+Restored SHA-256 values:
+
+- `src/core/reporting/sources/github.ts`: `b4e790d1430b30a46a08ceb451f2bca861dffd84688cdcc962e6055181e49774`.
+- `src/core/reporting/sources/githubWorkflowReleases.ts`: `d12eacd312103d15ac4dd1a79f45b69d53851a8fb2c0697febb1cf36b684067b`.
+- `test/unit/githubWorkflowReleaseIsolation.test.ts`: `58c26bb71e6b5fabfaa72b36f36c8c963de21f77b60b3a5a473136882416d323`.
+
+All verification below ran directly on Kubuntu, with one Vitest/tsc/eslint/build
+process at a time, at most three Vitest files/workers per run and no timeout
+override. No paid/live calls
+or real editor application launches were made.
+
+- Owning suites: 634/634 passed (`githubWorkflowReleaseIsolation` 587,
+  `githubReportSource` 36, `githubWorkflowReleases` 11).
+- `npm run typecheck`: all five projects passed before the implementation
+  commit (host, webview, unit, e2e and integration).
+
+| Final suite batch | Result                                                              | Exit |
+| ----------------- | ------------------------------------------------------------------- | ---- |
+| related-1         | Test Files 3 passed (3); Tests 69 passed (69)                       | 0    |
+| related-2         | Test Files 3 passed (3); Tests 634 passed (634)                     | 0    |
+| related-3         | Test Files 1 failed / 2 passed (3); Tests 1 failed / 29 passed (30) | 1    |
+| network-hosts     | Test Files 3 passed (3); Tests 72 passed (72)                       | 0    |
+| host-surfaces     | Test Files 3 passed (3); Tests 32 passed (32)                       | 0    |
+| panel-engine      | Test Files 3 passed (3); Tests 48 passed (48)                       | 0    |
+| reports-e2e       | Test Files 1 passed (1); Tests 22 passed (22)                       | 0    |
+
+The three related shards are the complete selection for
+`npx vitest related --run src/core/reporting/sources/github.ts
+src/core/reporting/sources/githubWorkflowReleases.ts --shard=N/3 --maxWorkers=3`.
+All nine dependent unit files ran: `githubReportSource`,
+`githubWorkflowReleaseIsolation`, `githubWorkflowReleases`, `npmStoreAdapter`,
+`paidMoneyStructure`, `reportNetworkBinding`, `reportPosting`,
+`reportProductionTransport` and `storeProject`.
+Additional unit batches ran `reportNetworkCache`, `reportAdapterHosts`,
+`storeCaptures`; `reportsHost`, `acpReports`, `reportsCommand`;
+`reportingPanel`, `reportEngineStores`, `storeReportSource`.
+The end-to-end file was `test/e2e/reports.e2e.test.ts`.
+These cover the shared network,
+captured stores, editor panel, VS Code host, ACP and CLI/runtime host bindings,
+report composition and the fake-only end-to-end reports path.
+
+| Scoped gate       | Exit |
+| ----------------- | ---- |
+| eslint            | 0    |
+| prettier          | 0    |
+| deadcode          | 0    |
+| duplication       | 1    |
+| l10n              | 0    |
+| host-api          | 0    |
+| reference         | 0    |
+| roadmap           | 0    |
+| build             | 1    |
+| dedup-typecheck   | 0    |
+| dedup-isolation   | 0    |
+| dedup-eslint      | 0    |
+| dedup-duplication | 1    |
+| bundle-split      | 0    |
+| host-globals      | 0    |
+| notices           | 0    |
+
+The final duplication gate exposed one new repeated damaged-page setup.
+It was extracted into the existing isolation file without changing any
+assertion, guard or case. The full 587-case file and all five typechecks
+were rerun after that cleanup. A byte-exact base-file comparison proves
+the project already had 23 test clones; the final full gate retains 19
+inherited clones and no new clone from this round. PLAN §7 records this
+bounded integration deferral without changing the zero-clone threshold.
+The SHA-256 values above identify the exact pre-cleanup drill restores;
+the later test cleanup is separately verified by the final test run.
+
+The only nonzero related result is the inherited exact-money guard in
+`paidMoneyStructure.test.ts`, on existing core/usage numeric money fields
+(`journalStore.ts` apiEquivalentUsd/usd and `reportingAmount.ts` capUsd/
+spentUsd/uncertainUsd). Those modules were not changed. The build retains the
+inherited `usagePanel.js` overage: 76,938 bytes versus its 76,800-byte cap
+(138 bytes). Both are explicitly outside this review-fix lane per the brief.
+No caps, thresholds, hooks, dependencies or test timeouts were changed.
+`npm run quality` was not run, as required by the shared lane rules; overall
+release gates are not claimed green.
+
+Measured production bundles (unchanged caps):
+
+- `dist/reportingNetwork.js`: 64.6 KiB / 75 KiB.
+- `dist/reporting.js`: 148.1 KiB / 175 KiB.
+- `dist/extension.js`: 550.7 KiB / 600 KiB.
+- `dist/modelApi.js`: 515.8 KiB / 525 KiB.
+- `dist/usagePanel.js`: 76,938 bytes / 76,800 bytes (inherited overage).
+
+Source/test and certification commits used the installed `.husky/_` hooks
+and explicit paths. Staged and committed diffs were re-read after each commit.
+The implementation hook produced no diff changes. No push, merge or rebase.
