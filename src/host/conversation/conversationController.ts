@@ -10770,6 +10770,13 @@ export class ConversationController {
     return this.foregroundShells.size > 0
   }
 
+  /** The team's live composer selection, without opening a host or session. */
+  public teamComposerModel():
+    { readonly modelId: string; readonly backend: BackendKind | undefined } | undefined {
+    if (this.isDisposed) return
+    return { modelId: this.modelId, backend: this.sessionKind ?? this.deps.auth.backend }
+  }
+
   /** The Judge reads the attached action's current model and loaded context window. */
   public judgeContext(
     sessionId: string,

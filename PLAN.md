@@ -24112,6 +24112,16 @@ measurements plus 15%, rounded up to 25 KiB, set these new caps; existing
 startup and deferred caps remain unchanged. The unchanged Models body budget
 is an integration blocker (see §7). Certification: `docs/certification/m96-u1.md`.
 
+**CM963J port 2 — actual composer subpart.** Bind the window's engine
+orchestrator port to the active controller's accepted picker model and
+attached backend, with the current admitted backend before attachment. Reads
+start no host, session or probe, preserve a refused switch and refuse after
+disposal. The ordinary initial picker remains the fallback when no surface
+is open. This supplies the actual-model part only: complete captured controls,
+provider ceilings and engine/Muse Code/external discovery remain required and
+absent, so Roles/Agents stay hidden. Default's supported engine lane reads the
+actual backend even when the backend setting is Auto.
+
 **CM963J port 3 — durable configuration snapshots.** Bind remaining USD to
 D78's exact shared-day journal (settled spend and retained request liability),
 and role samples to the engine's validated durable task state, including cold
