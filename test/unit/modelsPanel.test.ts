@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { window } from 'vscode'
 import { window as fakeWindow, FakeUri } from './mocks/vscode'
 import { createModelsPanel, type ModelsPanelDeps } from '../../src/host/models/modelsPanel'
+import type { PresetCatalog, PresetInfo } from '../../src/host/providers/providerPorts'
 import { parseHostToPanelMessage, type ModelsPanelState } from '../../src/shared/modelsPanel'
 import { EN } from '../../src/shared/l10n/en'
 import { TEST_ENTRY, testProvidersHost, testRow } from './helpers/m95kFixtures'
@@ -80,6 +81,33 @@ beforeEach(() => {
   )
   vi.mocked(window.showInputBox).mockReset()
 })
+// Azure's seam entry carries no address (the user gives the resource), so
+// the card must still ask for a resource and deployment, and the wizard's
+// deployment must become the saved model id the turn sends.
+const AZURE_SEAM_PRESET: PresetInfo = {
+  id: 'azure',
+  name: 'Azure OpenAI',
+  description: 'Azure OpenAI v1 API on your own resource and deployment',
+  kind: 'cloud',
+  origin: '',
+  format: 'responses',
+  auth: 'apiKey',
+  keyHint: 'Azure key',
+  keyPage: '',
+  isKeyShape: () => true,
+  freeTest: 'none',
+  localProbes: [],
+}
+const AZURE_CATALOG: PresetCatalog = {
+  get: (id) => (id === 'azure' ? AZURE_SEAM_PRESET : undefined),
+  has: (id) => id === 'azure',
+  ids: () => ['azure'],
+}
+function azureHost(): ModelsPanelDeps['providers'] {
+  return testProvidersHost({
+    deps: { catalog: AZURE_CATALOG, store: memoryProvidersStore([]) },
+  }).providers
+}
 describe('Models host contract', () => {
   it('sets editor-chat exposure idempotently and refuses references outside visible rows', async () => {
     const { providers } = selectedProviders()
@@ -230,6 +258,42 @@ describe('Models host contract', () => {
     expect(JSON.stringify(panel.webview.postMessage.mock.calls)).not.toContain(
       'bare-synthetic-secret',
     )
+  })
+  it('lists Azure as an azure-resource card instead of a custom address box', async () => {
+    const { panel } = setup({ providers: azureHost() })
+    await send(panel, { type: 'modelsPanel/ready' }, () => {
+      expect(latestState(panel).presets.map((preset) => preset.id)).toEqual(['azure'])
+    })
+    expect(latestState(panel).presets[0]?.originKind).toBe('azure-resource')
+  })
+  it('saves the Azure deployment as the request model', async () => {
+    const providers = azureHost()
+    const { panel, saved } = setup({ providers })
+    vi.mocked(window.showInputBox).mockResolvedValue('bare-synthetic-secret')
+    await send(panel, { type: 'providers/select', presetId: 'azure' }, () => {
+      expect(latestState(panel).drafts.wizard?.presetId).toBe('azure')
+    })
+    await send(
+      panel,
+      { type: 'providers/prefill', fields: { azureResource: 'myres', deployment: 'my-deploy' } },
+      () => {
+        expect(latestState(panel).drafts.wizard?.address).toBe(
+          'https://myres.openai.azure.com/openai/v1',
+        )
+      },
+    )
+    await send(panel, { type: 'providers/enterKey', mode: 'new' }, () => {
+      expect(latestState(panel).drafts.wizard?.keyPresent).toBe(true)
+    })
+    await send(panel, { type: 'providers/test', acceptCost: false }, () => {
+      expect(latestState(panel).drafts.wizard?.test?.status).toBe('ok')
+    })
+    await send(panel, { type: 'providers/save', useNow: true }, () => {
+      expect(saved).toHaveBeenCalledOnce()
+    })
+    const entries = await providers.providers()
+    expect(entries.map((entry) => entry.models)).toEqual([['my-deploy']])
+    expect(entries[0]?.address).toBe('https://myres.openai.azure.com/openai/v1')
   })
   it('cancel drops a connected draft without persisting any provider', async () => {
     const { panel, providers } = setup()
