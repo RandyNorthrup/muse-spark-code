@@ -76,6 +76,14 @@ happened, not what was planned; superseded entries are kept.
   offered tools, admission and accounting; configuration changes cannot
   replace the client underneath an already-built body. A stale record
   refuses before dispatch, and a switched selection rebuilds the request.
+- Fixed the RVCM1062E finding: every stale-record refusal now names the
+  operation the user actually ran. A lapsed record during manual
+  compaction says to compact again, during a turn to send the message
+  again, and during a model-hook call to try the action again; headless
+  runs name the run, and resolution-time refusals that know no operation
+  retry neutrally. Scheduled prompts keep their schedule guidance. The
+  new guidance is translated in all fourteen UI tables
+  (`docs/certification/m106-capability-binding.md`).
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did

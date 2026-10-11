@@ -427,3 +427,124 @@ selection switching and stale key/admission paths remain green.
   credential read, dependency install, push, rebase or merge was performed.
 
 No RVCM1062D finding remains open; no external blocker was encountered.
+
+## R6 — RVCM1062E repair: stale-record refusals name the run (kubuntu, 2026-10-11)
+
+The review's one P3 finding (manual compaction refused with scheduled-prompt
+confirmation guidance) and every sibling of that class are fixed: no
+stale-record refusal borrows the schedule message for an operation the user
+never ran. Five new UI strings name the run the user actually started;
+scheduled prompts keep the schedule guidance. No new dependency, setting,
+chunk, protocol shape, guard widening, paid consent, default change,
+escape hatch, or weakened gate.
+
+New strings (`src/shared/l10n/en.ts`, translated in all 14 UI tables):
+`requestStaleTurn` (send the message again), `requestStaleCompaction`
+(compact again), `requestStaleRetry` (neutral try again where resolution
+knows no operation), `requestStaleHookModel` (try the action again) and
+`requestStaleRun` (run the command again, headless `exec` only).
+
+| Stale-record refusal site                                                                                                          | Fix: operation named now                                                                                                                                                                                                                                                                                          |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ModelApiHost` `collectText` (the cited line)                                                                                      | `staleRecordError(turnId === COMPACTION_TURN_ID)`: compaction while `compacting` is set, the turn while one is active, the schedule for a confirmed scheduled turn, neutral otherwise                                                                                                                             |
+| `ModelApiHost` `responseAttemptGuard`                                                                                              | `staleRecordError(isCompaction)`: the guard already carries the operation                                                                                                                                                                                                                                         |
+| `ModelApiHost` `resolveModel` key-digest recheck                                                                                   | `staleRecordError()` from host state (compacting / active turn / confirmed schedule / neutral)                                                                                                                                                                                                                    |
+| `providerRegistry` `resolve` recency                                                                                               | Neutral `requestStaleRetry`: the registry knows no operation                                                                                                                                                                                                                                                      |
+| `runtimeAccountingEntry` dispatch guard (`exec`-only file)                                                                         | `requestStaleRun`                                                                                                                                                                                                                                                                                                 |
+| `client`, `providerClient` (`CodecClient`), `transport` (×2) confirmed checks, `subscriptions/registry` plan-model confirmed check | `ConfirmedModelRequest.runKind` (`'scheduled'` set by both schedule builders, `'review'` by the reviewer, `'hookModel'` by the hook runner): `staleConfirmedError` (shared helper, except a matching local ternary in `subscriptions/registry`) keeps the schedule guidance and names the hook call for hook runs |
+
+Kept the schedule message on purpose (genuine schedule contexts, covered
+by their unchanged suites): `schedulesEntry` ×3, `runSchedule`,
+`scheduleRunChanged`, and every confirmed-gated throw on a scheduled fire.
+The reviewer path needs no user-visible change: its stale confirmations are
+swallowed to the existing reviewer-failed note before any text surfaces.
+
+Class sweep: every `scheduleConfirmationExpired` throw in `src` was read
+and classified (12 production sites plus 4 test uses, all genuine
+schedule contexts and unchanged); the single English source string has no
+other copy. Sibling discovery during the sweep: the configured-providers
+dispatch wrapper converts every `CodecClient` error (including a stale
+hook confirmation) into its sanitized unavailable error, so the hook
+wording there is asserted at the `CodecClient` level instead, and the
+subscription client yields a lapsed Copilot confirmation as an error event
+rather than rejecting.
+
+| Regression (fails without the fix)                                                                                                   | File                                         |
+| ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| Hook-invalidated manual compaction rejects with the compaction guidance, names no schedule, still sends nothing and preserves replay | `modelCapabilitiesBinding` (strengthened)    |
+| A turn on a record that lapsed after resolution fails with the turn guidance and still sends nothing                                 | `modelCapabilitiesBinding` (new)             |
+| A lapsed hook-model confirmation at the client boundary names the hook call                                                          | `modelApiClient` (new)                       |
+| A lapsed hook-model confirmation on a codec record names the hook call before any fetch                                              | `providerTransport` (new)                    |
+| A lapsed hook-model confirmation on a subscription record surfaces the hook guidance in its error event                              | `modelApiProviders` (new)                    |
+| A lapsed registry resolution refuses with neutral retry guidance before dispatch                                                     | `modelApiProviders` (new)                    |
+| A stale model in a headless run refuses with the run guidance before dispatch                                                        | `runtimeAccounting` (new)                    |
+| The compaction-failure notice shows the compaction guidance and no schedule text                                                     | `conversationController` (new, display path) |
+
+Shared harnesses extracted to keep the duplication gate at zero clones:
+`seedAndFork` (binding), `lapsingGateClient` + `collectConfirmed` (client).
+
+### R6 red drills
+
+Each drill restored its file byte-exact (SHA-256 verified against a saved
+copy; the subscription file by exact reverse edit with its diff
+re-checked). Repository timeouts throughout, `--maxWorkers=3`; every drill
+exit was a test failure, never a timeout.
+
+1. **Compaction branch:** `staleRecordError` returns the schedule message
+   for compaction. The hook-invalidation compaction case fails (1 failed /
+   1 passed in its `-t` slice). `ModelApiHost.ts` restored to
+   `77a1e20e2602982c541c76d4404f85bf5a29cb42925c8c6e17ce4c9de4504b66`.
+2. **Turn branch:** the active-turn tail returns the schedule message. The
+   lapsed-record turn case fails (1 failed / 19 skipped). Same restore hash.
+3. **Confirmed helper:** `staleConfirmedError` returns the schedule message
+   for hook runs. The client hook case fails (1 failed / 75 skipped) and
+   the codec hook case fails (1 failed / 33 skipped). `transport.ts`
+   restored to
+   `d00988999b9a42c2028265cd93ca7343f05355aa179b22273060314c20123f3c`.
+4. **Subscription ternary:** same break in `subscriptions/registry.ts`.
+   The plan-confirmation case fails (1 failed / 17 skipped). Reverse-edit
+   restore verified by diff (intended hunk only).
+5. **Run guard:** `runtimeAccountingEntry` returns the schedule message.
+   The stale-model run case fails (1 failed / 8 skipped).
+   Restored to
+   `d365505b08d828f9195f6dee0f4a0f5532151cef967b21eabb76e10bf89a6633`.
+6. **Registry recency:** `providerRegistry` returns the schedule message.
+   The neutral-retry case fails (1 failed / 17 skipped). Restored to
+   `0fe0868f9a763fedcbff759708ed72f711b80ee78e0298c49b6caf3233aeeee5`.
+
+### R6 verification (kubuntu, repository timeouts, `--maxWorkers=3`)
+
+Final whole-file runs, at most three files per run:
+
+| Files                                                                | Result              |
+| -------------------------------------------------------------------- | ------------------- |
+| `modelCapabilitiesBinding`, `modelApiProviders`, `runtimeAccounting` | 47 passed           |
+| `modelApiClient`, `providerTransport`                                | 110 passed          |
+| `modelApiHost`                                                       | 669 passed          |
+| `conversationController`                                             | 681 passed          |
+| `configuredProviders`                                                | 23 passed, 1 failed |
+
+Total: **1,530 passed**, zero regressions. The single
+`configuredProviders` failure is the pre-existing loopback test (`pins a
+loopback HTTP request ... parses a real local stream`): this sandbox
+listens on 127.0.0.1 but refuses the fetch to it (probed directly with
+`node:http` + `fetch`: listen ok, `fetch failed`), so the test exceeds the
+repository 5 s timeout here. It touches no changed code path and passed on
+macmini at R5; the lead re-runs it outside the sandbox. No test was
+skipped, filtered, or given a raised timeout.
+
+- `npm run typecheck`: all projects passed.
+- ESLint `--max-warnings=0` on all changed TypeScript files and Prettier
+  `--check` on all changed files (including the 13 translation tables)
+  passed. Knip passed (only the two pre-existing vendor/axe-core hints).
+  jscpd: 0 clones. dpdm: no cycles.
+- Localization: 14 UI tables, 14 usage tables, 0 problems. Reference: 77
+  features, current. Host API: 375 APIs, 0 problems.
+- Final `npm run build` passed all gates: extension **550.1 / 600 KiB**;
+  Model API **517.4 / 525 KiB** (+0.2 KiB for the new strings and helper);
+  no budget raised.
+- No browser, live/paid call, credential read, install, push, rebase or
+  merge was performed. Scratch backups stayed under this lane's
+  disk-backed `$TMPDIR`.
+
+No RVCM1062E finding remains open; no external blocker was encountered.
