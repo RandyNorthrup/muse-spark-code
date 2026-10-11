@@ -91,7 +91,11 @@ const claims: Readonly<Record<string, RegExp>> = {
   // CM108ACC serves account lists, thresholds and per-account keys in the
   // terminal and ACP; a second account on one device is still unbound.
   accounts: /several accounts on this device.*terms confirmation/i,
-  previews: /streamed\s+argument previews|while arguments arrive|previews load on first use/i,
+  // C-M106-2 renders previews in the panel and ACP on the captured model, so
+  // the README section is back. The two retired wordings stay out: rows were
+  // never promised "while arguments arrive", and 0.16.0's archived bullet
+  // stays archived.
+  previews: /while arguments arrive|previews load on first use/i,
   estimator:
     /Capacity estimates \(preview\)|Real forecasts need the plan reader|the plan reader that\s+comes later/i,
   teams:
@@ -435,10 +439,13 @@ describe('CX1R5: exhaustive current-publication truth matrix', () => {
     }
     const readme = read('README.md')
     expect(readme).toContain('muse-spark-code-acp developer')
-    for (const heading of ['Streamed argument previews', 'Estimates', 'The vault'])
-      expect(readme).not.toContain(`## ${heading}`)
+    for (const heading of ['Estimates', 'The vault']) expect(readme).not.toContain(`## ${heading}`)
     // CM108ACC: the accounts section is back for the terminal and ACP.
     expect(readme).toContain('## Several accounts per provider')
+    // C-M106-2: so is the previews section, for the panel and ACP, with its
+    // progress-list anchor gone.
+    expect(readme).toContain('## Streamed argument previews')
+    expect(readme).not.toContain('<a id="streamed-argument-previews"></a>')
     expect(readme).toContain('## In progress')
     expect(
       JSON.stringify(releases.find((release) => release.version === '0.17.0')?.sections),
