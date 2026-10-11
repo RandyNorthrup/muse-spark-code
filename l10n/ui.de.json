@@ -776,7 +776,8 @@
       "saveRoot": "Nur innerhalb des genehmigten Stammordners dieses Zeitplans speichern.",
       "openWhenBack": "Öffnen, wenn ich zurück bin",
       "plannedDestination": "Dieses Ziel ist geplant und nicht verfügbar.",
-      "expiredOwner": "Dieser Zeitplan endete mit der Sitzung oder dem Team seines Erstellers."
+      "expiredOwner": "Dieser Zeitplan endete mit der Sitzung oder dem Team seines Erstellers.",
+      "allowAlways": "Für diesen Zeitplan immer erlauben"
     },
     "endAfterRuns": {
       "one": "Nach {count} Ausführung beenden",

@@ -1,6 +1,13 @@
 import type { EstimateRequest } from '../../src/shared/estimate'
 import { fakeEstimate } from './helpers/estimator/fixtures'
 import { questionAnswerText } from './helpers/questions/registry'
+import { fakeRunContext, fakeSchedule, quietScheduleDelivery } from './helpers/schedules/fixtures'
+import { FakeScheduleBackground } from './helpers/schedules/background'
+import { unattendedRun } from './helpers/schedules/unattended'
+import { createScheduleDeliveryBinding } from '../../src/host/schedules/deliveryBinding'
+import { createScheduleEngine } from '../../src/runtime/schedules/engine'
+import { workspaceKey } from '../../src/runtime/dataFolder'
+import { MemoryScheduleFs, memoryScheduleQueue } from './helpers/schedules/storage'
 import { FakeQuestionClock } from './helpers/questions/clock'
 import { FakeQuestionStore } from './helpers/questions/store'
 import { questionFixture } from './helpers/questions/fixtures'
@@ -493,6 +500,8 @@ function setup(
     /** The Plan-mode hold a live Muse Code conversation takes for a scan (M97). */
     createLegalHold?: ConversationDeps['createLegalHold']
     uploadedFiles?: ConversationDeps['uploadedFiles']
+    schedulesBridge?: ConversationDeps['schedulesBridge']
+    ideMcpCaller?: ConversationDeps['ideMcpCaller']
   } = {},
 ) {
   const planFiles = fakePlanFiles()
@@ -696,6 +705,8 @@ function setup(
     refuseStorageWrite: () => undefined,
   }
   const deps: ConversationDeps = {
+    ...(options.schedulesBridge !== undefined && { schedulesBridge: options.schedulesBridge }),
+    ...(options.ideMcpCaller !== undefined && { ideMcpCaller: options.ideMcpCaller }),
     playbook: options.playbook,
     surface,
     ...(options.questions !== undefined && { questions: options.questions }),
@@ -981,6 +992,351 @@ function setup(
     whileConfirming,
   }
 }
+
+function ownedScheduleBridge(
+  holdWorkspace: NonNullable<ConversationDeps['schedulesBridge']>['holdWorkspace'],
+): NonNullable<ConversationDeps['schedulesBridge']> {
+  return {
+    keyFor: () => 'workspace',
+    targets: () => [],
+    defaultDraft: () => fakeSchedule(),
+    isDeliveryEnabled: () => true,
+    holdWorkspace,
+    message: vi.fn(),
+    close: vi.fn(),
+  }
+}
+
+describe('VS Code schedule delivery ownership', () => {
+  it('fires through the scheduler into the live VS Code controller and records its real backend settlement', async () => {
+    const t = setup()
+    const lifetime = new AbortController()
+    const fs = new MemoryScheduleFs()
+    const key = workspaceKey(path.resolve('/ws'))
+    const engine = createScheduleEngine({
+      fs,
+      queue: memoryScheduleQueue(fs),
+      now: () => fakeSchedule().nextFireAtMs ?? 0,
+      delivery: (authority) =>
+        createScheduleDeliveryBinding(
+          {
+            workspaceRoot: '/ws',
+            platform: process.platform,
+            dialect: process.platform === 'win32' ? 'powershell' : 'bash',
+            io: memoryToolIo({}, '/ws'),
+            signal: lifetime.signal,
+            isActive: () => true,
+            host: () => Promise.resolve(t.host),
+            ...quietScheduleDelivery('/ws'),
+            publish: () => {
+              throw new Error('live target must not open a background session')
+            },
+            findLive: (schedule) => t.controller.scheduleTarget(schedule),
+            submitted: (agent, context, text, submission) => {
+              t.controller.scheduledSubmission(agent, context, text, submission)
+            },
+            row: (agent, text) => {
+              t.controller.scheduleNotice(agent, text)
+            },
+          },
+          authority,
+        ),
+      backgroundEntry: new FakeScheduleBackground(),
+    })
+    const release = await engine.runtime.holdWorkspace(path.resolve('/ws'))
+    try {
+      await t.send('user', 'Work')
+      t.finishTurn()
+      await settle()
+      t.server.handle('turn/start', (params) => ({
+        commandId: params['commandId'],
+        turnId: 'scheduled',
+        status: 'accepted',
+        disposition: 'started',
+        startedNewTurn: true,
+      }))
+      const schedule = fakeSchedule({
+        workspaceKey: key,
+        target: { kind: 'conversation', backend: 'museCode', sessionId: 's1' },
+      })
+      await engine.store.create(schedule)
+      const polling = engine.scheduler.poll(key)
+      await vi.waitFor(() => {
+        expect(t.surface.posted).toContainEqual(
+          expect.objectContaining({
+            type: 'turnAccepted',
+            localId: fakeRunContext(schedule).runId,
+            turnId: 'scheduled',
+          }),
+        )
+      })
+      t.server.notify('turn/completed', {
+        sessionId: 's1',
+        turnId: 'scheduled',
+        terminal: 'completed',
+      })
+      await polling
+      expect(await engine.store.fires(key)).toEqual([
+        expect.objectContaining({ outcome: 'ran', scheduleId: schedule.id }),
+      ])
+      expect(
+        t.surface.posted.filter(
+          (message) => message.type === 'agentEvent' && message.event.type === 'approvalRequested',
+        ),
+      ).toEqual([])
+    } finally {
+      lifetime.abort()
+      await release()
+      await engine.runtime.close()
+      t.controller.dispose()
+      await t.host.close()
+    }
+  })
+
+  it('keeps one M87 composer card when a scheduled message is promoted', async () => {
+    const t = setup()
+    try {
+      await t.send('user', 'Work')
+      const live = t.controller.scheduleTarget(
+        fakeSchedule({ target: { kind: 'conversation', backend: 'museCode', sessionId: 's1' } }),
+      )
+      if (live === undefined) throw new Error('missing target')
+      const context = fakeRunContext()
+      t.controller.scheduledSubmission(live.agent, context, 'Follow up', {
+        turnId: 'queue',
+        userMessageId: 'message',
+        disposition: 'queued',
+      })
+      t.controller.scheduledSubmission(live.agent, context, 'Follow up', {
+        turnId: 'promoted',
+        userMessageId: 'message',
+        disposition: 'queued',
+      })
+      expect(
+        t.surface.posted.filter(
+          (message) => message.type === 'briefSubmitted' && message.localId === context.runId,
+        ),
+      ).toHaveLength(1)
+      expect(t.surface.posted).toContainEqual(
+        expect.objectContaining({
+          type: 'turnAccepted',
+          localId: context.runId,
+          turnId: 'promoted',
+        }),
+      )
+    } finally {
+      t.controller.dispose()
+      await t.host.close()
+    }
+  })
+  it('releases scheduled workspace ownership at sign-out and reacquires it on sign-in', async () => {
+    const release = vi.fn(() => Promise.resolve())
+    const holdWorkspace = vi.fn(() => Promise.resolve(release))
+    const t = setup({
+      status: 'signedOut',
+      schedulesBridge: ownedScheduleBridge(holdWorkspace),
+    })
+    try {
+      expect(holdWorkspace).not.toHaveBeenCalled()
+      t.auth.snapshot = { status: 'signedIn', detail: undefined }
+      t.controller.scheduleWorkspaceChanged()
+      await settle()
+      expect(holdWorkspace).toHaveBeenCalledOnce()
+      t.auth.snapshot = { status: 'signedOut', detail: undefined }
+      t.controller.scheduleWorkspaceChanged()
+      await settle()
+      expect(release).toHaveBeenCalledOnce()
+    } finally {
+      t.controller.dispose()
+      await t.host.close()
+    }
+  })
+
+  it('holds schedules only while the workspace is trusted and releases the hold when trust is lost', async () => {
+    const trust = { current: false }
+    const release = vi.fn(() => Promise.resolve())
+    const holdWorkspace = vi.fn(() => Promise.resolve(release))
+    const t = setup({
+      workspaceTrust: trust,
+      schedulesBridge: ownedScheduleBridge(holdWorkspace),
+    })
+    try {
+      expect(holdWorkspace).not.toHaveBeenCalled()
+      trust.current = true
+      t.controller.scheduleWorkspaceChanged()
+      await settle()
+      expect(holdWorkspace).toHaveBeenCalledExactlyOnceWith('/ws')
+      trust.current = false
+      t.controller.scheduleWorkspaceChanged()
+      await settle()
+      expect(release).toHaveBeenCalledOnce()
+    } finally {
+      t.controller.dispose()
+      await t.host.close()
+    }
+  })
+
+  it('holds the workspace once and releases a pending acquisition after disposal', async () => {
+    const acquired = Promise.withResolvers<() => Promise<void>>()
+    const release = vi.fn(() => Promise.resolve())
+    const holdWorkspace = vi.fn(() => acquired.promise)
+    const t = setup({
+      schedulesBridge: ownedScheduleBridge(holdWorkspace),
+    })
+    t.controller.scheduleWorkspaceChanged()
+    expect(holdWorkspace).toHaveBeenCalledExactlyOnceWith('/ws')
+    t.controller.dispose()
+    acquired.resolve(release)
+    await settle()
+    expect(release).toHaveBeenCalledOnce()
+    await t.host.close()
+  })
+
+  it('publishes a scheduled queued message to M87 and withdraws only that input', async () => {
+    const t = setup({ isWorkspaceTrusted: true, hasApprovalUi: true })
+    try {
+      await t.send('user', 'User work')
+      const job = fakeSchedule({
+        target: { kind: 'conversation', backend: 'museCode', sessionId: 's1' },
+      })
+      const live = t.controller.scheduleTarget(job)
+      if (live?.agent.sendScheduledTurn === undefined) throw new Error('missing native target')
+      const context = fakeRunContext(job)
+      const queued = await live.agent.sendScheduledTurn(
+        [{ type: 'text', text: 'Follow up' }],
+        unattendedRun({ workspaceRoot: '/ws', context }).run,
+      )
+      t.controller.scheduledSubmission(live.agent, context, 'Follow up', queued)
+      expect(t.surface.posted).toContainEqual({
+        type: 'briefSubmitted',
+        localId: context.runId,
+        text: 'Follow up',
+        attachments: [],
+      })
+      expect(t.surface.posted).toContainEqual({
+        type: 'turnAccepted',
+        localId: context.runId,
+        turnId: queued.turnId,
+        userMessageId: queued.userMessageId,
+        disposition: 'queued',
+      })
+      await t.controller.handle({
+        type: 'withdrawQueued',
+        localId: context.runId,
+        turnId: queued.turnId,
+        ...(queued.userMessageId !== undefined && { userMessageId: queued.userMessageId }),
+      })
+      expect(t.surface.posted.some((m) => m.type === 'queuedWithdrawn')).toBe(true)
+      expect(t.server.requests.filter((r) => r.method === 'turn/cancel')).toHaveLength(0)
+      expect(t.server.requests.filter((r) => r.method === 'turn/start')).toHaveLength(1)
+      t.finishTurn()
+      await settle()
+    } finally {
+      t.controller.dispose()
+      await t.host.close()
+    }
+  })
+
+  it('retires the borrowed target when the owning panel closes', async () => {
+    const t = setup({ isWorkspaceTrusted: true })
+    try {
+      await t.send('user', 'User work')
+      const live = t.controller.scheduleTarget(
+        fakeSchedule({ target: { kind: 'conversation', backend: 'museCode', sessionId: 's1' } }),
+      )
+      expect(live?.signal?.aborted).toBe(false)
+      t.controller.dispose()
+      expect(live?.signal?.aborted).toBe(true)
+      expect(t.controller.scheduleTarget(fakeSchedule())).toBeUndefined()
+    } finally {
+      t.controller.dispose()
+      await t.host.close()
+    }
+  })
+
+  it('binds a native IDE caller to its session and retires it on panel disposal', async () => {
+    let resolve: (() => { readonly isReady: boolean }) | undefined
+    const dispose = vi.fn()
+    const t = setup({
+      grantedCapabilities: ['sessionMcp'],
+      ideMcpCaller: (owner) => {
+        resolve = owner
+        return Promise.resolve({
+          endpoint: { url: 'http://127.0.0.1:1/mcp', headers: {} },
+          dispose,
+        })
+      },
+    })
+    try {
+      await t.send('user', 'User work')
+      expect(resolve?.().isReady).toBe(true)
+      t.controller.dispose()
+      expect(dispose).toHaveBeenCalledOnce()
+    } finally {
+      t.controller.dispose()
+      await t.host.close()
+    }
+  })
+
+  it('retires an IDE caller acquired after its panel was disposed', async () => {
+    const acquired = Promise.withResolvers<{
+      readonly endpoint: SessionMcpHttpServer
+      dispose(): void
+    }>()
+    const dispose = vi.fn()
+    const caller = vi.fn(() => acquired.promise)
+    const t = setup({ grantedCapabilities: ['sessionMcp'], ideMcpCaller: caller })
+    try {
+      const sending = t.send('user', 'Work')
+      await vi.waitFor(() => {
+        expect(caller).toHaveBeenCalledOnce()
+      })
+      t.controller.dispose()
+      acquired.resolve({
+        endpoint: { url: 'http://127.0.0.1:1/mcp', headers: {} },
+        dispose,
+      })
+      await sending
+      expect(dispose).toHaveBeenCalledOnce()
+      expect(t.server.requests.filter((request) => request.method === 'session/start')).toEqual([])
+    } finally {
+      t.controller.dispose()
+      await t.host.close()
+    }
+  })
+
+  it('keeps session IDE identities alive while another panel still holds that native session', async () => {
+    const disposers: ReturnType<typeof vi.fn>[] = []
+    const t = setup({
+      grantedCapabilities: ['sessionMcp'],
+      ideMcpCaller: () => {
+        const dispose = vi.fn()
+        disposers.push(dispose)
+        return Promise.resolve({
+          endpoint: { url: 'http://127.0.0.1:1/mcp', headers: {} },
+          dispose,
+        })
+      },
+    })
+    const second = new ConversationController({ ...t.deps, surface: fakeSurface('second') })
+    try {
+      await t.send('user', 'Work')
+      t.server.handle('session/resume', () =>
+        envelope({ ...storedSession, sessionId: 's1', modelId: 'muse-spark-1.3' }),
+      )
+      await second.handle({ type: 'resumeSession', sessionId: 's1' })
+      expect(disposers).toHaveLength(2)
+      second.dispose()
+      expect(disposers.every((dispose) => dispose.mock.calls.length === 0)).toBe(true)
+      t.controller.dispose()
+      expect(disposers.every((dispose) => dispose.mock.calls.length === 1)).toBe(true)
+    } finally {
+      second.dispose()
+      t.controller.dispose()
+      await t.host.close()
+    }
+  })
+})
 
 function fakeUsageRecording(records: readonly UsageRecord[]): UsageRecording {
   return {

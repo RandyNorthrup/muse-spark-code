@@ -38,7 +38,7 @@ export function createAuthorityStore(
     },
     async commit(next: ScheduleV2, audit: ScheduleGrantAudit): Promise<boolean> {
       const schedule = scheduleV2Schema.parse(next)
-      if (schedule.revision === 0) {
+      if (audit.kind === 'created') {
         try {
           await store.create(schedule)
         } catch (error: unknown) {

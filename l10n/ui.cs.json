@@ -778,7 +778,8 @@
       "saveRoot": "Ukládat pouze do schváleného kořenového adresáře tohoto plánu.",
       "openWhenBack": "Otevřít, až se vrátím",
       "plannedDestination": "Tento cíl je plánovaný a nedostupný.",
-      "expiredOwner": "Plán skončil se sezením nebo týmem svého tvůrce."
+      "expiredOwner": "Plán skončil se sezením nebo týmem svého tvůrce.",
+      "allowAlways": "Vždy povolit pro tento plán"
     },
     "endAfterRuns": {
       "one": "Ukončit po {count} spuštění",

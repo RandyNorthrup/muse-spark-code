@@ -776,7 +776,8 @@
       "saveRoot": "Csak az ütemezés jóváhagyott gyökérkönyvtárába menthet.",
       "openWhenBack": "Megnyitás, amikor visszatérek",
       "plannedDestination": "Ez a cél tervezett, és nem érhető el.",
-      "expiredOwner": "Az ütemezés a létrehozó munkamenetével vagy csapatával együtt véget ért."
+      "expiredOwner": "Az ütemezés a létrehozó munkamenetével vagy csapatával együtt véget ért.",
+      "allowAlways": "Mindig engedélyezze ehhez az ütemezéshez"
     },
     "endAfterRuns": {
       "one": "Befejezés {count} futás után",

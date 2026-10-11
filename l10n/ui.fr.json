@@ -777,7 +777,8 @@
       "saveRoot": "Enregistrer uniquement dans la racine approuvée de cette planification.",
       "openWhenBack": "Ouvrir à mon retour",
       "plannedDestination": "Cette destination est prévue et indisponible.",
-      "expiredOwner": "Cette planification a pris fin avec la session ou l’équipe de son créateur."
+      "expiredOwner": "Cette planification a pris fin avec la session ou l’équipe de son créateur.",
+      "allowAlways": "Toujours autoriser pour cette planification"
     },
     "endAfterRuns": {
       "one": "Terminer après {count} exécution",

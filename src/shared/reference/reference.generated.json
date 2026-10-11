@@ -1521,7 +1521,7 @@
       "details": [
         {
           "conditions": [
-            { "when": "scheduleDeliveryBinding=absent", "text": { "ui": "referenceSchedules" } }
+            { "when": "scheduleDeliveryCertified=false", "text": { "ui": "referenceSchedules" } }
           ]
         },
         { "ui": "scheduledMediaSupport" }

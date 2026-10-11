@@ -777,7 +777,8 @@
       "saveRoot": "Salvar apenas dentro da raiz aprovada deste agendamento.",
       "openWhenBack": "Abrir quando eu voltar",
       "plannedDestination": "Este destino está planejado e indisponível.",
-      "expiredOwner": "Este agendamento terminou com a sessão ou equipe de seu criador."
+      "expiredOwner": "Este agendamento terminou com a sessão ou equipe de seu criador.",
+      "allowAlways": "Permitir sempre para este agendamento"
     },
     "endAfterRuns": {
       "one": "Encerrar após {count} execução",

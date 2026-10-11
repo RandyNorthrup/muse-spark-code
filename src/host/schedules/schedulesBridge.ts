@@ -1,15 +1,16 @@
 import { Usd } from '../../shared/usd'
 // The VS Code side of scheduled prompts v2 (M115, PLAN.md D95): loads the
 // lazy schedules bundle in the extension host and answers the panel's
-// versioned channel over the same workspace control the CLI uses. Paid
-// drafts stay refused here until the paid consent flow supplies its flags;
-// the engine enforces that, never the panel.
+// versioned channel over the same workspace control the CLI uses. The host
+// supplies paid authority only after its complete delivery binding is certified;
+// the engine enforces that authority, never the panel.
 import path from 'node:path'
 import { workspaceKey } from '../../runtime/dataFolder'
 import { runtimeSchedulesBinding } from '../../runtime/schedules/binding'
 import type { Logger } from '../logger'
 import {
   COMMAND_IDS,
+  SCHEDULE_PAID_CAP_DEFAULT_USD,
   MILLISECONDS_PER_HOUR,
   type SCHEDULE_DELIVERIES,
   UI_TEXT,
@@ -17,6 +18,7 @@ import {
 import type { ScheduleDraft, ScheduleTarget } from '../../shared/scheduleV2'
 import type { ScheduleTargetChoice } from '../../webview/schedules/ports'
 import type { ScheduleEditorDeliveryPorts } from './deliveryBinding'
+import type { RuntimeSchedulesBinding } from '../../runtime/schedules/binding'
 
 export interface SchedulesPanelSession {
   readonly sessionId: string
@@ -31,6 +33,7 @@ export interface SchedulesBridgeDeps {
   readonly log: Logger
   readonly isEnabled: () => boolean
   readonly defaultDelivery: () => (typeof SCHEDULE_DELIVERIES)[number]
+  readonly isDeliveryReady?: () => boolean
 }
 
 export type SchedulesBridge = ReturnType<typeof createSchedulesBridge>
@@ -46,14 +49,28 @@ const targets = (session: SchedulesPanelSession | undefined): readonly ScheduleT
     { id: 'this-conversation', label: session.label, target, capability: { available: true } },
   ]
 }
-/** One bridge per conversation panel; the bundle loads on first schedule use. */
+/** One bridge per window; the bundle loads on first schedule use. */
 export function createSchedulesBridge(deps: SchedulesBridgeDeps) {
-  const load = runtimeSchedulesBinding(
+  const loadRuntime = runtimeSchedulesBinding(
     path.join(deps.distDir, 'schedules.js'),
     deps.log,
     undefined,
-    deps.delivery,
+    deps.isDeliveryReady?.() === false ? undefined : deps.delivery,
   )
+  let loaded: RuntimeSchedulesBinding | undefined
+  let isClosed = false
+  const hasClosed = () => isClosed
+  const load = async () => {
+    if (hasClosed()) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+    loaded = await loadRuntime()
+    if (hasClosed()) {
+      await loaded.close()
+      throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+    }
+    return loaded
+  }
+  const isDeliveryEnabled = () =>
+    deps.isEnabled() && deps.delivery !== undefined && deps.isDeliveryReady?.() !== false
   const keyFor = (cwd: string): string => workspaceKey(path.resolve(cwd))
   const defaultDraft = (
     nowMs: number,
@@ -61,6 +78,11 @@ export function createSchedulesBridge(deps: SchedulesBridgeDeps) {
     backend: 'museCode' | 'modelApi',
   ): ScheduleDraft => {
     const choices = targets(session)
+    const cap = Usd.from(
+      (session?.backend ?? backend) === 'modelApi' && isDeliveryEnabled()
+        ? SCHEDULE_PAID_CAP_DEFAULT_USD
+        : 0,
+    ).toAmount()
     // A valid template, not a blank: the wire schema and the prompt mapper
     // both refuse empty names and prompts, and the editor validates before
     // saving, so the user replaces this text.
@@ -69,24 +91,28 @@ export function createSchedulesBridge(deps: SchedulesBridgeDeps) {
       action: { kind: 'prompt', prompt: UI_TEXT.scheduleV2.editor.defaultPrompt },
       trigger: { kind: 'once', atMs: nowMs + MILLISECONDS_PER_HOUR },
       target: choices[0]?.target ?? { kind: 'newConversation', backend },
-      delivery: deps.defaultDelivery(),
+      delivery: choices.length === 0 ? 'newConversation' : deps.defaultDelivery(),
       whenClosed: 'open',
       catchUp: 'runOnce',
       mode: 'manual',
-      grant: { rules: [], destinationIds: [], paidCapUsd: Usd.from(0).toAmount() },
-      paidCapUsd: Usd.from(0).toAmount(),
+      grant: { rules: [], destinationIds: [], paidCapUsd: cap },
+      paidCapUsd: cap,
       parallel: false,
       zone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
       pinned: false,
     }
   }
   return {
+    isDeliveryEnabled,
+    close: () => {
+      isClosed = true
+      return loaded?.close() ?? Promise.resolve()
+    },
     keyFor,
     targets,
     defaultDraft,
     async holdWorkspace(cwd: string): Promise<() => Promise<void>> {
-      if (!deps.isEnabled() || deps.delivery === undefined)
-        throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+      if (!isDeliveryEnabled()) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
       const binding = await load()
       return await binding.holdWorkspace(path.resolve(cwd))
     },

@@ -1065,7 +1065,6 @@ export class MuseSession implements ScheduledAgentSession {
     send: (token: SessionToken) => Promise<TurnSubmission>,
     expectedTurnId?: string,
   ): Promise<TurnSubmission> {
-    await this.restoringScheduleMode
     const token = this.owner.claim(waiter, run, expectedTurnId)
     if (token === undefined) throw new SteerRefusedError(UI_TEXT.scheduleBusy)
     this.heldScheduleEvents = []
@@ -1609,7 +1608,9 @@ export class MuseSession implements ScheduledAgentSession {
   ): Promise<TurnSubmission> {
     const waiter = this.owner.token()
     await run.checkParts(parts)
+    await this.restoringScheduleMode
     if (!this.owner.isIdle) {
+      if (!this.owner.canQueue) throw new Error(UI_TEXT.scheduleBusy)
       if (this.isDisposed) throw new Error(UI_TEXT.surfaceClosed)
       const id = randomUUID()
       this.scheduledQueue.set(id, { parts, run, displayText })
@@ -1628,6 +1629,7 @@ export class MuseSession implements ScheduledAgentSession {
   ): Promise<TurnSubmission> {
     const waiter = this.owner.token()
     await run.checkParts(parts)
+    await this.restoringScheduleMode
     return await this.admitScheduled(
       waiter,
       run,

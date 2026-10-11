@@ -67,6 +67,10 @@ export class SessionOwner {
     )
   }
 
+  public get canQueue(): boolean {
+    return !this.isQuarantined && this.mode !== undefined && this.currentTurnId !== undefined
+  }
+
   public token(): SessionToken {
     return { generation: this.generation, turnId: this.fire?.turnId ?? this.currentTurnId }
   }

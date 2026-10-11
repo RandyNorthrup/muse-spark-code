@@ -2303,7 +2303,8 @@ The Command Palette's **Schedule this prompt…**, **Show schedules** and
 **Show schedule timeline** open the v2 editor, list and timeline in the
 active chat, opening a chat when needed. The schedule surface loads on
 first use and manages durable records. Automatic v2 prompt delivery is
-disabled: no workspace delivery binding is registered. The `/loop` flow
+disabled: the workspace delivery binding awaits qualification across operating
+systems and independent review, and remains unregistered. The `/loop` flow
 below runs when you choose **Run now**.
 
 On the Model API backend, `/loop 10m Review the build` saves a prompt in the

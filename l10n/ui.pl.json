@@ -778,7 +778,8 @@
       "saveRoot": "Zapisuj tylko w zatwierdzonym katalogu głównym tego harmonogramu.",
       "openWhenBack": "Otwórz, gdy wrócę",
       "plannedDestination": "Ten cel jest planowany i niedostępny.",
-      "expiredOwner": "Harmonogram zakończył się wraz z sesją lub zespołem twórcy."
+      "expiredOwner": "Harmonogram zakończył się wraz z sesją lub zespołem twórcy.",
+      "allowAlways": "Zawsze zezwalaj dla tego harmonogramu"
     },
     "endAfterRuns": {
       "one": "Zakończ po {count} uruchomieniu",

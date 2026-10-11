@@ -38,8 +38,11 @@ import { createScheduleControl } from './control'
 import { createWorkspaceRegistry } from './registry'
 import { scheduleTimePlan } from './timePlan'
 import type { ScheduleControlPort } from './command'
+import type { ScheduleCallerContext } from './args'
 
 export interface ScheduleEngineOptions {
+  readonly caller?: () => ScheduleCallerContext
+  readonly consent?: (schedule: ScheduleV2) => Promise<ScheduleV2['paidConsent']>
   /** A host installs complete unattended delivery; absent hosts stay refused. */
   readonly delivery?: (
     authority: ScheduleAuthorityStore,
@@ -250,6 +253,7 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     const existing = controls.get(key)
     if (existing !== undefined) return Promise.resolve(existing)
     const control = createScheduleControl({
+      ...(options.consent !== undefined && { consent: options.consent }),
       store,
       authority,
       scheduler,
@@ -265,6 +269,7 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     return Promise.resolve(control)
   }
   const surface = new ScheduleSurface({
+    ...(options.caller !== undefined && { caller: options.caller }),
     request: (request, caller) => {
       if (!('workspaceKey' in request))
         return Promise.resolve({

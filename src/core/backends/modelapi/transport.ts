@@ -827,7 +827,10 @@ export class RequestTransport {
       // A scheduled fire's authority is live: checked before pacing and again
       // after it, since revocation or a key change can land during the wait.
       const assertScheduleAuthority = () => {
-        if (init.method !== 'POST' || (path !== '/responses' && !path.startsWith('/images/')))
+        if (
+          init.method !== 'POST' ||
+          (path !== '/responses' && init.paid === undefined && !path.startsWith('/images/'))
+        )
           return
         const run = this.deps.scheduledRun?.()
         if (

@@ -63,6 +63,19 @@ async function assertReplacementReused(
 }
 
 describe.each(['museCode', 'modelApi'] as const)('%s background schedule target', (backend) => {
+  it('retires both session and requester options when binding its IDE owner fails', async () => {
+    const rig = setup(backend)
+    const bindSession = vi.fn(() => {
+      throw new Error('IDE owner binding failed')
+    })
+    const releaseOptions = vi.fn()
+    const targets = new ScheduleBackgroundTargets({ ...rig.deps, bindSession, releaseOptions })
+    await expect(targets.open(rig.schedule)).rejects.toThrow('IDE owner binding failed')
+    expect(rig.host.sessions[0]?.dispose).toHaveBeenCalledOnce()
+    expect(releaseOptions).toHaveBeenCalledOnce()
+    expect(rig.publish).not.toHaveBeenCalled()
+  })
+
   it('resumes the named target, publishes its history and preserves panel selection', async () => {
     const rig = setup(backend)
     const panel = { sessionId: 'user-conversation' }

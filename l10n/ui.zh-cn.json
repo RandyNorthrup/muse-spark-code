@@ -775,7 +775,8 @@
       "saveRoot": "仅保存到此日程批准的根目录内。",
       "openWhenBack": "我回来时打开",
       "plannedDestination": "此目标处于计划阶段，目前不可用。",
-      "expiredOwner": "此日程随创建者的会话或团队结束而终止。"
+      "expiredOwner": "此日程随创建者的会话或团队结束而终止。",
+      "allowAlways": "始终允许此计划"
     },
     "endAfterRuns": {
       "other": "执行{count}次后结束"

@@ -776,7 +776,8 @@
       "saveRoot": "Yalnızca bu zamanlamanın onaylı köküne kaydedin.",
       "openWhenBack": "Döndüğümde aç",
       "plannedDestination": "Bu hedef planlandı ve kullanılamıyor.",
-      "expiredOwner": "Bu zamanlama oluşturanın oturumu veya ekibiyle birlikte sona erdi."
+      "expiredOwner": "Bu zamanlama oluşturanın oturumu veya ekibiyle birlikte sona erdi.",
+      "allowAlways": "Bu zamanlama için her zaman izin ver"
     },
     "endAfterRuns": {
       "one": "{count} çalıştırmadan sonra bitir",

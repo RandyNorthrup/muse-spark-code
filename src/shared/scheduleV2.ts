@@ -227,15 +227,20 @@ export const scheduleActionSchema = z.discriminatedUnion('kind', [
   }),
 ])
 export type ScheduleReportAction = Extract<z.infer<typeof scheduleActionSchema>, { kind: 'report' }>
-export const schedulePaidConsentSchema = z.strictObject({
-  modelId: text,
-  accountId: text,
-  priceTier: text,
-  grantedAtMs: timestamp,
-  dailyCapUsd: money.check(z.refine((amount) => amount !== '0')),
-  sharedDailyBudgetUsd: money.check(z.refine((amount) => amount !== '0')),
-  extras: z.array(z.enum(PAID_FEATURES)),
-})
+export const schedulePaidConsentSchema = z
+  .strictObject({
+    modelId: text,
+    accountId: text,
+    priceTier: text,
+    grantedAtMs: timestamp,
+    dailyCapUsd: money.check(z.refine((amount) => amount !== '0')),
+    sharedDailyBudgetUsd: money.check(z.refine((amount) => amount !== '0')),
+    extras: z.array(z.enum(PAID_FEATURES)),
+    /** Absent on prior standing grants; Once is bound atomically before dispatch. */
+    scope: z.optional(z.enum(['once', 'schedule'])),
+    runId: z.optional(runId),
+  })
+  .check(z.refine((consent) => consent.runId === undefined || consent.scope === 'once'))
 export const scheduleCreatorSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('user') }),
   z.strictObject({

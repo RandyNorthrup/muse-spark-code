@@ -27,6 +27,10 @@ import { redactSecrets } from '../../src/core/redact'
 import { CREDENTIAL_RECORD_VERSION, PROVIDER_HTTP_BODY_MAX_BYTES } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { metaGoldenBodies } from './helpers/m95MetaBodies'
+import { unattendedRun } from './helpers/schedules/unattended'
+import { fakeRunContext, fakeSchedule } from './helpers/schedules/fixtures'
+import { Usd } from '../../src/shared/usd'
+import type { ModelPricePolicy } from '../../src/core/backends/modelapi/modelPolicy'
 
 const body = metaGoldenBodies()[0]?.body
 if (body === undefined) {
@@ -117,6 +121,73 @@ function codecDeps(overrides: Partial<CodecClientDeps> = {}): CodecClientDeps {
 }
 
 describe('shared provider transport', () => {
+  it.each(['returned', 'lost', 'revoked'] as const)(
+    'binds codec scheduled accounting and refuses stale authority: %s',
+    async (outcome) => {
+      let isActive = true
+      const fetch = vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            `data: ${JSON.stringify({
+              type: 'response.completed',
+              response: {
+                id: 'scheduled',
+                model: body.model,
+                status: 'completed',
+                output: [],
+                usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+              },
+            })}\n\n`,
+          ),
+        ),
+      )
+      const settle = vi.fn(() =>
+        Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+      )
+      const reserve = vi.fn(() => {
+        if (outcome === 'revoked') isActive = false
+        return Promise.resolve({
+          claimId: 'codec-schedule',
+          reservedUsd: Usd.from(1).toAmount(),
+          check: () => ({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+          settle,
+        })
+      })
+      const { run } = unattendedRun({
+        isActive: () => isActive,
+        context: fakeRunContext(
+          fakeSchedule({
+            grant: { rules: [], destinationIds: [], paidCapUsd: Usd.from(1).toAmount() },
+          }),
+        ),
+        paid: {
+          modelId: body.model,
+          accountId: createHash('sha256').update(KEY).digest('hex'),
+          allows: () => true,
+          reserve,
+        },
+      })
+      const price: ModelPricePolicy = {
+        reserve: () => Usd.from(1).toAmount(),
+        settle: () => (outcome === 'lost' ? undefined : Usd.from(0.01).toAmount()),
+      }
+      const client = new CodecClient(
+        codecDeps({ transport: deps({ fetch }) }),
+      ).withScheduleAuthority(() => run, price)
+      const result = Array.fromAsync(client.streamResponse(body, new AbortController().signal))
+      if (outcome === 'revoked') {
+        await expect(result).rejects.toThrow()
+        expect(fetch).not.toHaveBeenCalled()
+        expect(settle).toHaveBeenCalledExactlyOnceWith(Usd.from(0).toAmount())
+      } else {
+        await result
+        expect(fetch).toHaveBeenCalledOnce()
+        if (outcome === 'lost') expect(settle).not.toHaveBeenCalled()
+        else expect(settle).toHaveBeenCalledExactlyOnceWith(Usd.from(0.01).toAmount())
+      }
+      expect(reserve).toHaveBeenCalledOnce()
+    },
+  )
   it.each(['meta', 'codec'])(
     'records headers, retries and first token once on %s',
     async (kind) => {

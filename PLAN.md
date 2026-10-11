@@ -35895,6 +35895,15 @@ delivery only after every VS Code admission and safety acceptance passes.
 The inherited What's New decoded-content refusal is fixed by the accepted
 `fix/whatsnew-budget` branch at integration; this lane preserves its bound.
 
+**Round 2 continuation (2026-10-11).** Complete trust/auth workspace retirement
+and late IDE identity cleanup. The selected provider's scheduled transport must
+retain its own credential digest, origin and verified tariff, use the same
+hard reservation/settlement authority through both native codecs and Responses,
+and refuse an adapter that cannot bind it before sending. Native dispatch waits
+for mode restoration, then claims authority without another await so a public
+mode waiter cannot overtake it. Certify these paths
+with captured fake producers; no live calls or budget-cap changes.
+
 Native busy queue admission and withdrawal now preserve the user's turn and
 mode until promotion. IDE endpoints now authenticate separate session owners
 and scope cancellation to that owner; unattended read-only calls use the
@@ -35908,15 +35917,30 @@ registration remains held for the complete controller/money/OS receipts.
       once, collision order, interrupt, fenced events, closed-target Skip,
       fresh background conversations, Model API parallel delivery and queue
       withdrawal; three separate shared-engine processes admit one fire.
-- [ ] VS Code registration: candidate delivery must pass every binding/safety
-      path before registration; no incomplete delivery is surfaced. Muse Code
-      rejects scheduled queue admission while a user turn runs (`SessionOwner`);
-      the IDE MCP server has no session identity for unattended checks. The
-      controller's workspace lifecycle, History/Agent-map publication, M87
-      composer withdrawal and owner-safe host shutdown remain unbound. Paid
-      ledger/consent binding belongs to C-M115-3; native parallel overlap and
-      steer certification and the full manual/plan/acceptEdits/auto delivery
-      matrix remain open. No new provider wire shape was guessed.
+- [x] Candidate VS Code controller/workspace, M87 admission/promotion and
+      withdrawal, background History/Agent-map publication and lifetime
+      bindings; session IDE identities survive shared panels and retire with
+      their last holder. Native busy queues preserve the user's permissions
+      and refuse failed/unknown authority. The Windows fake-backend matrix
+      covers steer, interrupt, queue, when idle, background open/Skip and
+      parallel overlap in manual/plan/acceptEdits/auto.
+- [x] Candidate editor Model API consent binds Allow once to one run or an
+      explicit standing schedule grant, with actual verified selected-model
+      pricing, first-revision CAS, shared/own durable reservations and settled
+      tally. Changed account, tariff, grant or budget refuses before dispatch.
+      This composes the existing C-M115-3 money machinery without a new wire
+      shape, credential lane or interactive popup during an unattended fire.
+      The editor billing path accepts verified priced models; local, plan and
+      unpriced tariffs refuse. Interactive-only paid extras have no bound
+      unattended executor and refuse before purchase; their qualification
+      remains with C-M115-3 before claiming the complete paid/editor matrix.
+- [ ] VS Code registration remains off and unregistered through the explicit
+      certification gate: Linux/macOS, fresh independent Grok/Codex reviews
+      and the lead's aggregate/artifact qualification remain outstanding.
+      The three-process receipt covers two window holders and one ACP holder
+      running the shared engine and native backend over in-memory captured MSP,
+      not installed VS Code windows or the ACP editor adapter. C-M115-2 and
+      C-M115-9 retain the other editor/runtime bindings above.
 
 **Status 2026-10-06: planned.** It comes right after M112 in the delivery
 order: it shares M112's deferral and the unattended machinery, and builds on

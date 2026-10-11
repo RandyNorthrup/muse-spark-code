@@ -2105,7 +2105,7 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
       hasObservedStart: true,
     },
     {
-      name: 'RVM115U5 P1-1: idle before an ordinary ack cannot admit a fire or change mode',
+      name: 'RVM115U5 P1-1: idle before an ordinary ack can queue but cannot dispatch a fire or change mode',
       hasObservedStart: false,
     },
   ])('$name', async ({ hasObservedStart }) => {
@@ -2133,9 +2133,17 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
     const fire = fixture.session.sendScheduledTurn([{ type: 'text', text: 'Fire' }], run)
     if (hasObservedStart) await expect(fire).resolves.toMatchObject({ disposition: 'started' })
     else {
-      await expect(fire).rejects.toThrow()
+      const queued = await fire
+      expect(queued.disposition).toBe('queued')
+      expect(fixture.session.getScheduledRun()).toBeUndefined()
       expect(fixture.server.requestsFor('turn/start')).toHaveLength(1)
       expect(fixture.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
+      expect(
+        await fixture.session.withdrawQueued({
+          ...queued,
+          userMessageId: queued.userMessageId,
+        }),
+      ).toMatchObject({ status: 'withdrawn' })
     }
     await fixture.host.close()
   })
@@ -2255,14 +2263,20 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
       startedNewTurn: true,
     }))
     await ordinary
-    await expect(
-      fixture.session.sendScheduledTurn(
-        [{ type: 'text', text: 'Fire' }],
-        unattendedRun({ context: { ...fakeRunContext(), mode: 'acceptEdits' } }).run,
-      ),
-    ).rejects.toThrow()
+    const queued = await fixture.session.sendScheduledTurn(
+      [{ type: 'text', text: 'Fire' }],
+      unattendedRun({ context: { ...fakeRunContext(), mode: 'acceptEdits' } }).run,
+    )
+    expect(queued.disposition).toBe('queued')
+    expect(fixture.session.getScheduledRun()).toBeUndefined()
     expect(fixture.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
     expect(fixture.server.requestsFor('turn/start')).toHaveLength(1)
+    expect(
+      await fixture.session.withdrawQueued({
+        ...queued,
+        userMessageId: queued.userMessageId,
+      }),
+    ).toMatchObject({ status: 'withdrawn' })
     await fixture.host.close()
   })
   it('answers approvals through approval/decide without showing a pending card, and does not use a paid gate', async () => {
@@ -2384,7 +2398,7 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
     expect(b.audit).not.toHaveBeenCalled()
     await fixture.host.close()
   })
-  it('rechecks the native idle boundary after held attachment validation before changing mode', async () => {
+  it('queues after held attachment validation observes an ordinary start without changing its mode', async () => {
     const fixture = await museBackend()
     const { entered, release, io } = heldAttachmentPath()
     const { run } = unattendedRun({
@@ -2394,11 +2408,12 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
       [{ ...PROTECTED_ATTACHMENT, name: 'src/held.txt' }],
       run,
     )
-    const refused = expect(pending).rejects.toThrow()
+    const queued = expect(pending).resolves.toMatchObject({ disposition: 'queued' })
     await entered.promise
     await fixture.session.sendTurn([{ type: 'text', text: 'Ordinary' }])
     release.resolve(undefined)
-    await refused
+    await queued
+    expect(fixture.session.getScheduledRun()).toBeUndefined()
     expect(fixture.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
     expect(fixture.server.requestsFor('turn/start')).toHaveLength(1)
     await fixture.host.close()

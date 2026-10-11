@@ -30,6 +30,11 @@ export type BackendSession = Pick<
   | 'withdrawQueued'
   | 'dispose'
   | 'rename'
+  | 'deferQuestions'
+  | 'cancelQuestions'
+  | 'answerQuestions'
+  | 'clarifyQuestions'
+  | 'getScheduledRun'
 > &
   Partial<Pick<ScheduledAgentSession, 'sendScheduledTurn' | 'steerScheduledTurn'>>
 
@@ -46,6 +51,7 @@ export interface ScheduleContextSubmitter {
 /** Stop is the backend's public cancel, including Muse Code's approval cleanup.
  * No provider wire shape or alternate cancellation command is introduced. */
 export class ScheduleAgentSession implements ScheduleDeliverySession {
+  private readonly lifetime = new AbortController()
   private activeTurnId: string | undefined
   private eventRevision = 0
   private nonIdleStatus = false
@@ -54,6 +60,7 @@ export class ScheduleAgentSession implements ScheduleDeliverySession {
   private readonly idleListeners = new Set<() => void>()
   private readonly queued = new Map<string, QueuedMessageRef>()
   private readonly stopListening: () => void
+  readonly signal: AbortSignal
   readonly sessionId: string
 
   constructor(
@@ -63,7 +70,10 @@ export class ScheduleAgentSession implements ScheduleDeliverySession {
     activeTurnId?: string,
     historyItems: readonly ItemSnapshot[] = [],
     status = 'idle',
+    signal?: AbortSignal,
   ) {
+    this.signal =
+      signal === undefined ? this.lifetime.signal : AbortSignal.any([signal, this.lifetime.signal])
     this.sessionId = session.sessionId
     this.activeTurnId = activeTurnId
     this.nonIdleStatus = status !== 'idle'
@@ -71,6 +81,14 @@ export class ScheduleAgentSession implements ScheduleDeliverySession {
     this.stopListening = session.onEvent((event) => {
       this.observe(event)
     })
+    this.signal.addEventListener(
+      'abort',
+      () => {
+        this.dispose()
+      },
+      { once: true },
+    )
+    if (this.signal.aborted) this.dispose()
   }
 
   private noteChild(item: ItemSnapshot): void {
@@ -163,13 +181,19 @@ export class ScheduleAgentSession implements ScheduleDeliverySession {
     if (!this.isOpen()) throw new Error(UI_TEXT.scheduleV2.messages.targetClosed)
     const turnId = this.activeTurnId
     if (turnId === undefined) throw new SteerRefusedError(UI_TEXT.scheduleBusy)
-    await this.contexts.submit(this.session, context, (run) => {
+    const submitted = await this.contexts.submit(this.session, context, (run) => {
       const parts = [{ type: 'text' as const, text: prompt }]
       if (run === undefined) return this.session.steer(turnId, parts)
       if (this.session.steerScheduledTurn === undefined)
         throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
       return this.session.steerScheduledTurn(turnId, parts, run)
     })
+    if (submitted.disposition === 'queued' || submitted.disposition === 'steered')
+      this.queued.set(context.runId, {
+        turnId: submitted.turnId,
+        userMessageId: submitted.userMessageId,
+        disposition: submitted.disposition,
+      })
   }
 
   async send(prompt: string, context: ScheduleRunContext): Promise<void> {
@@ -223,7 +247,9 @@ export class ScheduleAgentSession implements ScheduleDeliverySession {
 
   /** Detach adapter listeners. Ownership of the backend session stays with its lease. */
   dispose(): void {
+    if (this.isClosed) return
     this.isClosed = true
+    this.lifetime.abort()
     this.stopListening()
     this.queued.clear()
     for (const listener of this.idleListeners) listener()
@@ -247,6 +273,9 @@ export interface ScheduleBackgroundTargetDeps {
   ): Promise<Pick<AgentHost, 'info' | 'startSession' | 'resumeSession' | 'onExit'>>
   /** Resolve workspace/model/MCP configuration through the existing host. */
   options(schedule: ScheduleV2): Promise<StartSessionOptions>
+  /** Bind and retire a host-minted IDE requester, including failed opens. */
+  bindSession?(session: BackendSession, options: StartSessionOptions): void
+  releaseOptions?(options: StartSessionOptions): void
   readonly contexts: ScheduleContextSubmitter
   /** Bind history/transcript and Agent map without a panel switch. The title is
    * always provided, including on Muse Code where rename is unavailable. */
@@ -259,7 +288,7 @@ export interface ScheduleBackgroundTargetDeps {
       readonly notice: string
       readonly history: SessionHistoryOutcome | undefined
     },
-  ): () => void
+  ): (() => void) | Promise<() => void>
 }
 
 /** No vscode import: runtime/ACP/native editors bind the same host and ports. */
@@ -305,54 +334,61 @@ export class ScheduleBackgroundTargets implements ScheduleConversationTargets {
     const host = await this.deps.host(backend, schedule.workspaceKey)
     if (host.info.kind !== backend) throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
     const options = await this.deps.options(schedule)
-    const loaded =
-      occurrenceMs === undefined && schedule.target.kind === 'conversation'
-        ? await host.resumeSession(schedule.target.sessionId, options.modelId, options.mcpServers)
-        : undefined
-    const agent =
-      loaded?.session ??
-      (await host.startSession({ ...options, approvalMode: mspApprovalMode(schedule.mode) }))
-    const session = new ScheduleAgentSession(
-      agent,
-      backend,
-      this.deps.contexts,
-      loaded?.activeTurnId,
-      loaded?.history.items,
-      loaded?.record.status,
-    )
-    const title =
-      occurrenceMs === undefined
-        ? (loaded?.history.name ?? schedule.name)
-        : fill(UI_TEXT.scheduleV2.messages.conversationTitle, {
-            name: schedule.name,
-            date: formatDateTime(occurrenceMs),
-          })
-    const stopExit = host.onExit(() => {
-      session.dispose()
-    })
     try {
-      // Older Muse Code cannot rename. Its history adapter still keeps the title.
-      if (occurrenceMs !== undefined && host.info.canEditSessions) await agent.rename(title)
-      const unpublish = this.deps.publish(agent, {
-        workspaceKey: schedule.workspaceKey,
-        backend,
-        title,
-        notice: fill(UI_TEXT.scheduleV2.messages.backgroundNotice, { name: schedule.name }),
-        history: loaded?.history,
-      })
-      return {
+      const loaded =
+        occurrenceMs === undefined && schedule.target.kind === 'conversation'
+          ? await host.resumeSession(schedule.target.sessionId, options.modelId, options.mcpServers)
+          : undefined
+      const agent =
+        loaded?.session ??
+        (await host.startSession({ ...options, approvalMode: mspApprovalMode(schedule.mode) }))
+      const session = new ScheduleAgentSession(
         agent,
-        session,
-        leases: 0,
-        detach: () => {
-          stopExit()
-          unpublish()
-        },
+        backend,
+        this.deps.contexts,
+        loaded?.activeTurnId,
+        loaded?.history.items,
+        loaded?.record.status,
+      )
+      const title =
+        occurrenceMs === undefined
+          ? (loaded?.history.name ?? schedule.name)
+          : fill(UI_TEXT.scheduleV2.messages.conversationTitle, {
+              name: schedule.name,
+              date: formatDateTime(occurrenceMs),
+            })
+      const stopExit = host.onExit(() => {
+        session.dispose()
+      })
+      try {
+        this.deps.bindSession?.(agent, options)
+        // Older Muse Code cannot rename. Its history adapter still keeps the title.
+        if (occurrenceMs !== undefined && host.info.canEditSessions) await agent.rename(title)
+        const unpublish = await this.deps.publish(agent, {
+          workspaceKey: schedule.workspaceKey,
+          backend,
+          title,
+          notice: fill(UI_TEXT.scheduleV2.messages.backgroundNotice, { name: schedule.name }),
+          history: loaded?.history,
+        })
+        return {
+          agent,
+          session,
+          leases: 0,
+          detach: () => {
+            stopExit()
+            unpublish()
+            this.deps.releaseOptions?.(options)
+          },
+        }
+      } catch (error: unknown) {
+        stopExit()
+        session.dispose()
+        agent.dispose()
+        throw error
       }
     } catch (error: unknown) {
-      stopExit()
-      session.dispose()
-      agent.dispose()
+      this.deps.releaseOptions?.(options)
       throw error
     }
   }

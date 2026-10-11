@@ -775,7 +775,8 @@
       "saveRoot": "이 일정에서 승인된 루트 안에만 저장합니다.",
       "openWhenBack": "돌아왔을 때 열기",
       "plannedDestination": "이 대상은 예정되어 있으며 아직 사용할 수 없습니다.",
-      "expiredOwner": "작성자의 세션 또는 팀이 끝나 이 일정도 종료되었습니다."
+      "expiredOwner": "작성자의 세션 또는 팀이 끝나 이 일정도 종료되었습니다.",
+      "allowAlways": "이 일정에 대해 항상 허용"
     },
     "endAfterRuns": {
       "other": "{count}회 실행 후 종료"

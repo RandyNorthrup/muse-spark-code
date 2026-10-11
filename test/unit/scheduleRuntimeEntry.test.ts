@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 import path from 'node:path'
 import { parseScheduleCommand } from '../../src/runtime/schedules/args'
-import { createScheduleEngine } from '../../src/runtime/schedules/engine'
+import {
+  createScheduleEngine,
+  type ScheduleEngineOptions,
+} from '../../src/runtime/schedules/engine'
+import { SCHEDULE_PROTOCOL_VERSION } from '../../src/shared/constants'
+import { workspaceKey } from '../../src/runtime/dataFolder'
+import { Usd } from '../../src/shared/usd'
+import { scheduleResponseMessageSchema } from '../../src/shared/scheduleProtocol'
 import { memoryScheduleQueue, MemoryScheduleFs } from './helpers/schedules/storage'
 import { fakeSchedule } from './helpers/schedules/fixtures'
 
@@ -54,13 +61,22 @@ function paidDraft(nowMs: number, paidCapUsd: number) {
   })
 }
 
-function fixture(input: { fs?: MemoryScheduleFs; clock?: { nowMs: number } } = {}) {
+function fixture(
+  input: {
+    fs?: MemoryScheduleFs
+    clock?: { nowMs: number }
+    consent?: ScheduleEngineOptions['consent']
+    caller?: ScheduleEngineOptions['caller']
+  } = {},
+) {
   const fs = input.fs ?? new MemoryScheduleFs()
   const clock = input.clock ?? { nowMs: START_MS }
   const engine = createScheduleEngine({
     fs,
     queue: memoryScheduleQueue(fs),
     now: () => clock.nowMs,
+    ...(input.consent !== undefined && { consent: input.consent }),
+    ...(input.caller !== undefined && { caller: input.caller }),
     verifyWake: () => Promise.resolve({ scheduledPrompts: false }),
     platform: 'linux',
     homeDir: '/home/rig',
@@ -84,6 +100,59 @@ function fixture(input: { fs?: MemoryScheduleFs; clock?: { nowMs: number } } = {
 }
 
 describe('schedule runtime entry over the real store', () => {
+  it.each([true, false])(
+    'asks before paid panel creation and commits only approval (%s)',
+    async (allow) => {
+      const consent = vi.fn<NonNullable<ScheduleEngineOptions['consent']>>(async (schedule) => {
+        expect(await engine.store.list(schedule.workspaceKey)).toEqual([])
+        return allow
+          ? {
+              modelId: 'muse-spark-1.3',
+              accountId: 'test-account',
+              priceTier: 'verified',
+              dailyCapUsd: Usd.from(1).toAmount(),
+              sharedDailyBudgetUsd: Usd.from(5).toAmount(),
+              grantedAtMs: START_MS,
+              extras: [],
+              scope: 'schedule',
+            }
+          : undefined
+      })
+      const { engine } = fixture({
+        consent,
+        caller: () => ({
+          source: 'interactive',
+          isInteractive: true,
+          scheduledPrompts: true,
+          maxBudgetUsd: Usd.from(5).toAmount(),
+        }),
+      })
+      try {
+        const response = await engine.runtime.message(
+          {
+            type: 'schedulesRequest',
+            version: SCHEDULE_PROTOCOL_VERSION,
+            requestId: 'paid-create',
+            request: {
+              method: 'schedules/create',
+              workspaceKey: workspaceKey(path.resolve(cwd)),
+              draft: paidDraft(START_MS, 1),
+            },
+          },
+          path.resolve(cwd),
+        )
+        expect(consent).toHaveBeenCalledOnce()
+        expect(scheduleResponseMessageSchema.parse(response).response.kind).toBe(
+          allow ? 'accepted' : 'refused',
+        )
+        const records = await engine.store.list(workspaceKey(path.resolve(cwd)))
+        expect(records).toHaveLength(allow ? 1 : 0)
+        if (allow) expect(records[0]?.paidConsent?.scope).toBe('schedule')
+      } finally {
+        await engine.runtime.close()
+      }
+    },
+  )
   it('keeps polling after one of two panels releases the same workspace', async () => {
     vi.useFakeTimers()
     const { engine } = fixture()

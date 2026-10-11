@@ -1,5 +1,5 @@
-// A real scheduler process, with delivery faked only beyond the durable claim.
-import { appendFile } from 'node:fs/promises'
+// Three real scheduler/backend processes share one durable claim store.
+import { appendFileSync } from 'node:fs'
 import process from 'node:process'
 import * as z from 'zod/mini'
 import { createScheduleEngine } from '../../src/runtime/schedules/engine'
@@ -8,43 +8,87 @@ import {
   createNodeScheduleQueue,
 } from '../../src/runtime/schedules/nodeScheduleFs'
 import { workspaceKey } from '../../src/runtime/dataFolder'
-import { noScheduleCost } from '../../src/shared/scheduleV2'
-import { IdleScheduleSession } from '../unit/helpers/schedules/session'
-import { fakeSchedule } from '../unit/helpers/schedules/fixtures'
+import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
+import { createScheduleDeliveryBinding } from '../../src/host/schedules/deliveryBinding'
+import { FakeLogOutputChannel } from '../unit/helpers/fakes'
+import { fakeMspHost } from '../unit/helpers/fakeMsp'
+import { memoryToolIo } from '../unit/helpers/fakeToolIo'
+import { fakeSchedule, quietScheduleDelivery } from '../unit/helpers/schedules/fixtures'
+import { FakeScheduleBackground } from '../unit/helpers/schedules/background'
 
 const [dataDir, cwd, receipt, holder] = z
   .tuple([z.string(), z.string(), z.string(), z.enum(['window-1', 'window-2', 'acp'])])
   .parse(process.argv.slice(2))
-const session = new IdleScheduleSession('museCode')
-const lease = { session, release: () => Promise.resolve() }
+const protocol = fakeMspHost()
+const host = new MuseCodeHost(protocol.host, new FakeLogOutputChannel())
+protocol.server.handle('session/start', () => ({
+  session: { sessionId: 'session-1', modelId: 'muse-spark-1.3', status: 'idle' },
+  viewCursor: '',
+}))
+protocol.server.handle('session/setApprovalMode', (params) => ({
+  commandId: params['commandId'],
+  status: 'accepted',
+}))
+const opening = host.startSession({
+  workspaceRoot: cwd,
+  modelId: 'muse-spark-1.3',
+  approvalMode: 'promptUnmatched',
+})
+const boundSession: { value?: Awaited<typeof opening> } = {}
+const unpublish = () => undefined
+protocol.server.handle('turn/start', (params) => {
+  const run = boundSession.value?.getScheduledRun()
+  if (run === undefined) throw new Error('missing process-bound unattended authority')
+  appendFileSync(receipt, `${JSON.stringify({ holder, runId: run.context.runId })}\n`)
+  return {
+    commandId: params['commandId'],
+    turnId: 'scheduled-1',
+    status: 'accepted',
+    disposition: 'started',
+    startedNewTurn: true,
+  }
+})
+protocol.server.followWith('turn/start', () => [
+  {
+    jsonrpc: '2.0',
+    method: 'turn/completed',
+    params: {
+      sessionId: 'session-1',
+      turnId: 'scheduled-1',
+      terminal: 'completed',
+      viewCursor: 'v',
+    },
+  },
+])
+const lifetime = new AbortController()
 const engine = createScheduleEngine({
   fs: createNodeScheduleFs(dataDir),
   queue: createNodeScheduleQueue(dataDir),
   now: () => fakeSchedule().nextFireAtMs ?? 0,
-  delivery: () => ({
-    targets: {
-      find: () => Promise.resolve(lease),
-      open: () => Promise.resolve(lease),
-      fresh: () => Promise.resolve(lease),
-    },
-    prompt: () => 'fake process-boundary delivery',
-    runs: {
-      run: async (_session, _schedule, context, dispatch) => {
-        await appendFile(receipt, `${JSON.stringify({ holder, runId: context.runId })}\n`)
-        await dispatch()
-        session.idleNow()
-        return { outcome: 'ran', refusedActions: [], cost: noScheduleCost() }
+  delivery: (authority) =>
+    createScheduleDeliveryBinding(
+      {
+        workspaceRoot: cwd,
+        platform: process.platform,
+        dialect: process.platform === 'win32' ? 'powershell' : 'bash',
+        io: memoryToolIo({}, cwd),
+        signal: lifetime.signal,
+        isActive: () => !lifetime.signal.aborted,
+        host: () => Promise.resolve(host),
+        ...quietScheduleDelivery(cwd),
+        publish: () => unpublish,
+        findLive: () =>
+          boundSession.value === undefined
+            ? undefined
+            : { agent: boundSession.value, status: 'idle' },
       },
-    },
-  }),
-  backgroundEntry: {
-    status: () => Promise.resolve({ registered: false }),
-    register: () => Promise.resolve(),
-    remove: () => Promise.resolve(),
-  },
+      authority,
+    ),
+  backgroundEntry: new FakeScheduleBackground(),
 })
 
 async function start() {
+  boundSession.value = await opening
   const release = await engine.runtime.holdWorkspace(cwd)
   process.send?.({ phase: 'ready', holder })
   process.on('message', (input: unknown) => {
@@ -53,6 +97,8 @@ async function start() {
       if (message === 'close') {
         await release()
         await engine.runtime.close()
+        lifetime.abort()
+        await host.close()
         process.disconnect()
         return
       }
@@ -66,6 +112,8 @@ async function fail(error: unknown): Promise<void> {
   process.exitCode = 1
   try {
     await engine.runtime.close()
+    lifetime.abort()
+    await host.close()
   } finally {
     if (process.connected) process.disconnect()
   }

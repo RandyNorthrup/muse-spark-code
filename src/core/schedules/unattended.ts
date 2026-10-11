@@ -53,6 +53,8 @@ export interface ScheduleRunDeps {
   readonly paid?: {
     readonly modelId: string
     readonly accountId: string
+    readonly providerId?: string | undefined
+    readonly origin?: string | undefined
     allows(feature: PaidFeature): boolean
     reserve(
       body: CreateResponseBody | CreateImageBody,

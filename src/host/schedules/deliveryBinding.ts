@@ -1,4 +1,4 @@
-import type { AgentSession, TurnSubmission } from '../../core/agent/agentBackend'
+import type { TurnSubmission } from '../../core/agent/agentBackend'
 import path from 'node:path'
 import { workspaceKey } from '../../runtime/dataFolder'
 import type { ShellDialect } from '../../core/backends/modelapi/shellSyntax'
@@ -17,10 +17,14 @@ import {
   type BackendSession,
   type ScheduleContextSubmitter,
 } from './backgroundTarget'
+import type { ScheduleBillingPorts, createScheduleBilling } from './paidBinding'
+import type { ScheduleCallerContext } from '../../runtime/schedules/args'
 
 type Terminal = Extract<AgentEvent, { type: 'turnCompleted' | 'turnWithdrawn' }>
 
 export interface ScheduleEditorDeliveryPorts {
+  readonly billing?: ScheduleBillingPorts
+  readonly caller?: () => ScheduleCallerContext
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   readonly dialect: ShellDialect
@@ -30,15 +34,24 @@ export interface ScheduleEditorDeliveryPorts {
   isActive(): boolean
   readonly host: ScheduleBackgroundTargetDeps['host']
   readonly options: ScheduleBackgroundTargetDeps['options']
+  readonly bindSession?: ScheduleBackgroundTargetDeps['bindSession']
+  readonly releaseOptions?: ScheduleBackgroundTargetDeps['releaseOptions']
   readonly publish: ScheduleBackgroundTargetDeps['publish']
   findLive(schedule: ScheduleV2):
     | {
-        readonly agent: AgentSession
+        readonly agent: BackendSession
         readonly activeTurnId?: string
         readonly status: string
+        readonly signal?: AbortSignal
       }
     | undefined
   row(session: BackendSession, text: string): void
+  submitted?(
+    session: BackendSession,
+    context: ScheduleRunContext,
+    text: string,
+    submission: TurnSubmission,
+  ): void
   deferQuestions(
     session: BackendSession,
     event: Extract<AgentEvent, { type: 'questionRequested' }>,
@@ -50,13 +63,17 @@ export interface ScheduleEditorDeliveryPorts {
   paid?(
     schedule: ScheduleV2,
     session: BackendSession,
+    context: ScheduleRunContext,
+    authority: ScheduleAuthorityStore,
   ): Promise<{
     readonly policy: NonNullable<ScheduleRunDeps['paid']>
     cost(): Promise<ScheduleRunSettlement['cost']>
+    readonly consent?: ScheduleV2['paidConsent']
   }>
 }
 
 interface PendingRun {
+  readonly signal: AbortSignal
   readonly schedule: ScheduleV2
   readonly context: ScheduleRunContext
   readonly terminal: Promise<Terminal>
@@ -65,6 +82,7 @@ interface PendingRun {
   run?: UnattendedRun
   cost?: () => Promise<ScheduleRunSettlement['cost']>
   stopListening?: () => void
+  consent?: ScheduleV2['paidConsent']
 }
 
 /** Lazy host composition. The scheduler owns claims and ordering; the backend
@@ -72,6 +90,7 @@ interface PendingRun {
 export function createScheduleDeliveryBinding(
   ports: ScheduleEditorDeliveryPorts,
   authority: ScheduleAuthorityStore,
+  billing?: ReturnType<typeof createScheduleBilling>,
 ): Pick<ScheduleDeliveryDeps, 'targets' | 'runs' | 'prompt'> {
   const pending = new Map<string, PendingRun>()
   const contexts: ScheduleContextSubmitter = {
@@ -82,13 +101,20 @@ export function createScheduleDeliveryBinding(
       if (
         !ports.isActive() ||
         ports.signal.aborted ||
+        entry.signal.aborted ||
         entry.schedule.workspaceKey !== workspaceKey(path.resolve(ports.workspaceRoot))
       )
         throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
       if (agent.sendScheduledTurn === undefined || agent.steerScheduledTurn === undefined)
         throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
       if (entry.run === undefined) {
-        const paid = await ports.paid?.(entry.schedule, agent)
+        const paid =
+          billing !== undefined &&
+          'backend' in entry.schedule.target &&
+          entry.schedule.target.backend === 'modelApi'
+            ? await billing.paid(entry.schedule, agent, context, authority)
+            : await ports.paid?.(entry.schedule, agent, context, authority)
+        entry.consent = paid?.consent ?? entry.schedule.paidConsent
         if (
           paid === undefined &&
           'backend' in entry.schedule.target &&
@@ -104,13 +130,13 @@ export function createScheduleDeliveryBinding(
           io: ports.io,
           matcher: new ScheduleGrants(ports.dialect),
           now: Date.now,
-          isActive: () => ports.isActive() && !ports.signal.aborted && pending.has(context.runId),
+          isActive: () => ports.isActive() && !entry.signal.aborted && pending.has(context.runId),
           readGrant: async () => {
             const current = await authority.read(entry.schedule.workspaceKey, entry.schedule.id)
             return current === undefined ||
               current.paused ||
               current.mode !== entry.schedule.mode ||
-              JSON.stringify(current.paidConsent) !== JSON.stringify(entry.schedule.paidConsent)
+              JSON.stringify(current.paidConsent) !== JSON.stringify(entry.consent)
               ? undefined
               : current.grant
           },
@@ -127,11 +153,17 @@ export function createScheduleDeliveryBinding(
       const terminals = new Map<string, Terminal>()
       const promoted = new Map<string, string>()
       let submitted: TurnSubmission | undefined
+      const publish = () => {
+        if (submitted !== undefined && entry.schedule.action.kind === 'prompt')
+          ports.submitted?.(agent, context, entry.schedule.action.prompt, submitted)
+      }
       const stop = agent.onEvent((event) => {
         if (event.type === 'userMessageTurnChanged') {
           promoted.set(event.userMessageId, event.turnId)
-          if (submitted?.userMessageId === event.userMessageId)
+          if (submitted?.userMessageId === event.userMessageId) {
             submitted = { ...submitted, turnId: event.turnId }
+            publish()
+          }
         } else if (event.type === 'turnCompleted' || event.type === 'turnWithdrawn') {
           terminals.set(event.turnId, event)
         }
@@ -148,6 +180,7 @@ export function createScheduleDeliveryBinding(
         if (promotedTurn !== undefined) submitted = { ...submitted, turnId: promotedTurn }
         const terminal = terminals.get(submitted.turnId)
         if (terminal !== undefined) entry.resolve?.(terminal)
+        publish()
         return submitted
       } catch (error: unknown) {
         stop()
@@ -159,6 +192,12 @@ export function createScheduleDeliveryBinding(
     contexts,
     host: (backend, key) => ports.host(backend, key),
     options: (schedule) => ports.options(schedule),
+    ...(ports.bindSession !== undefined && {
+      bindSession: (session: BackendSession, options) => ports.bindSession?.(session, options),
+    }),
+    ...(ports.releaseOptions !== undefined && {
+      releaseOptions: (options) => ports.releaseOptions?.(options),
+    }),
     publish: (session, details) => ports.publish(session, details),
     findLive: (schedule) => {
       const live = ports.findLive(schedule)
@@ -171,6 +210,7 @@ export function createScheduleDeliveryBinding(
         live.activeTurnId,
         [],
         live.status,
+        live.signal,
       )
       return Promise.resolve({
         session,
@@ -193,22 +233,26 @@ export function createScheduleDeliveryBinding(
         : `${schedule.action.prompt}\n\n${SCHEDULE_MODEL_TEXT.eventUntrusted}\n\`\`\`json\n${JSON.stringify({ trust: 'untrusted', event })}\n\`\`\``
     },
     runs: {
-      async run(_session, schedule, context, dispatch): Promise<ScheduleRunSettlement> {
+      async run(session, schedule, context, dispatch): Promise<ScheduleRunSettlement> {
         if (pending.has(context.runId)) throw new Error(UI_TEXT.scheduleAlreadyRun)
+        const signal =
+          session instanceof ScheduleAgentSession
+            ? AbortSignal.any([ports.signal, session.signal])
+            : ports.signal
         const handlers: Pick<PendingRun, 'resolve' | 'reject'> = {}
         const terminal = new Promise<Terminal>((resolve, reject) => {
           handlers.resolve = resolve
           handlers.reject = reject
         })
-        const entry: PendingRun = { schedule, context, terminal, ...handlers }
+        const entry: PendingRun = { schedule, context, terminal, signal, ...handlers }
         pending.set(context.runId, entry)
         const abort = () => entry.reject?.(new Error(UI_TEXT.scheduleV2.messages.targetClosed))
-        ports.signal.addEventListener('abort', abort, { once: true })
+        signal.addEventListener('abort', abort, { once: true })
         // A lifecycle abort can arrive during admission, before we await terminal.
         void entry.terminal.catch(String)
         let result: Omit<ScheduleRunSettlement, 'cost'>
         try {
-          if (ports.signal.aborted) throw new Error(UI_TEXT.scheduleV2.messages.targetClosed)
+          if (signal.aborted) throw new Error(UI_TEXT.scheduleV2.messages.targetClosed)
           await dispatch()
           if (entry.run === undefined) result = { outcome: 'missed', refusedActions: [] }
           else {
@@ -226,7 +270,7 @@ export function createScheduleDeliveryBinding(
         } catch (error: unknown) {
           // Losing the host is not a settled turn. Retain the durable admission
           // fence for recovery rather than recording a bill before settlement.
-          if (ports.signal.aborted) {
+          if (signal.aborted) {
             entry.stopListening?.()
             pending.delete(context.runId)
             throw error
@@ -237,7 +281,7 @@ export function createScheduleDeliveryBinding(
             refusedActions: entry.run?.refusedActions ?? [],
           }
         } finally {
-          ports.signal.removeEventListener('abort', abort)
+          signal.removeEventListener('abort', abort)
         }
         try {
           // A ledger failure keeps S's admitted recovery fence; never retry a

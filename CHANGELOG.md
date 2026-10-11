@@ -37,6 +37,17 @@ happened, not what was planned; superseded entries are kept.
   ids cannot cancel another caller's tool. Interactive-only tools refuse
   unattended calls before showing a popup or making a purchase.
 
+- **VS Code schedule delivery qualification** (C-M115-1, round 2). The
+  unregistered candidate now binds workspace/controller lifetimes, queued
+  composer cards, background history titles, session IDE identities and the
+  existing paid consent and durable reservation ledger. Windows fake-backend
+  checks cover all four asking modes and delivery choices, shared-panel
+  identity lifetime and native parallel overlap. Workspace ownership follows
+  trust and sign-in changes, queue promotion retains one composer card, and
+  configured priced providers reserve and settle using their own credential
+  identity and verified tariff. Delivery stays disabled
+  pending cross-platform, independent-review and full artifact qualification.
+
 - **Schedule delivery qualification** (C-M115-1). The lazy engine can accept
   host-owned unattended targets, safety and authoritative cost settlement.
   Host publication, safety and cost callbacks retain their owning receivers.

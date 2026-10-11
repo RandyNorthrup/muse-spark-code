@@ -1130,7 +1130,7 @@ Commands: —. Settings: `museSpark.modelApiImageGeneration`. [Documentation](ht
 
 Schedule a prompt in this Model API conversation.
 
-scheduleDeliveryBinding=absent: The v2 schedule editor, list and timeline manage durable records. Automatic prompt delivery is disabled. Model API /loop jobs run when you choose Run now.
+scheduleDeliveryCertified=false: The v2 schedule editor, list and timeline manage durable records. Automatic prompt delivery is disabled. Model API /loop jobs run when you choose Run now.
 
 Scheduled turns support text and image inputs; video and audio inputs are unsupported in this version.
 

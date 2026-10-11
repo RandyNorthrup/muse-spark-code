@@ -777,7 +777,8 @@
       "saveRoot": "Guardar solo dentro de la raíz aprobada de esta programación.",
       "openWhenBack": "Abrir cuando vuelva",
       "plannedDestination": "Este destino está previsto y no está disponible.",
-      "expiredOwner": "Esta programación terminó con la sesión o el equipo de su creador."
+      "expiredOwner": "Esta programación terminó con la sesión o el equipo de su creador.",
+      "allowAlways": "Permitir siempre para esta programación"
     },
     "endAfterRuns": {
       "one": "Finalizar tras {count} ejecución",

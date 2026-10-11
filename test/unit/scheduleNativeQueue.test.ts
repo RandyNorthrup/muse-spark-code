@@ -41,6 +41,21 @@ async function setup() {
 }
 
 describe('native scheduled queue authority', () => {
+  it('refuses a queued fire after the session mode has failed instead of leaving it pending forever', async () => {
+    const f = await setup()
+    try {
+      f.server.handle('session/setApprovalMode', () => {
+        throw new Error('mode update failed')
+      })
+      await expect(f.session.setApprovalMode('allowAll')).rejects.toThrow()
+      await expect(
+        f.session.sendScheduledTurn([{ type: 'text', text: 'Follow up' }], unattendedRun().run),
+      ).rejects.toThrow()
+      expect(f.server.requests.filter((r) => r.method === 'turn/start')).toHaveLength(1)
+    } finally {
+      await f.host.close()
+    }
+  })
   it('queues while busy without changing user authority and promotes after the user terminal', async () => {
     const f = await setup()
     try {

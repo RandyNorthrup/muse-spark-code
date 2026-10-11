@@ -1,7 +1,13 @@
 import { Usd } from '../../src/shared/usd'
 import type { UsageRecording } from '../../src/core/usage/recording'
 import { describe, expect, it, vi } from 'vitest'
-import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
+import {
+  ModelApiHost,
+  ModelApiSession,
+  type ModelApiHostDeps,
+} from '../../src/core/backends/modelapi/ModelApiHost'
+import { unattendedRun } from './helpers/schedules/unattended'
+import { fakeRunContext, fakeSchedule } from './helpers/schedules/fixtures'
 import {
   createProviderRegistry,
   type RegistryModel,
@@ -84,6 +90,53 @@ async function setup(
 }
 
 describe('registry dispatch through the real host', () => {
+  it('reserves and settles scheduled Responses with the selected provider tariff and identity', async () => {
+    const h = await setup({ isPaidFeatureOn: () => true }, pricedModel)
+    try {
+      if (!(h.session instanceof ModelApiSession)) throw new Error('missing scheduled session')
+      const quote = await h.host.schedulePricing(ref)
+      const settle = vi.fn(() =>
+        Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+      )
+      const reserve = vi.fn(() =>
+        Promise.resolve({
+          claimId: 'provider-schedule',
+          reservedUsd: Usd.from(1).toAmount(),
+          check: () => ({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+          settle,
+        }),
+      )
+      h.provider.script({ text: 'scheduled', usage: { input: 100, output: 100 } })
+      const { run } = unattendedRun({
+        workspaceRoot: '/ws',
+        context: fakeRunContext(
+          fakeSchedule({
+            grant: { rules: [], destinationIds: [], paidCapUsd: Usd.from(1).toAmount() },
+          }),
+        ),
+        paid: {
+          modelId: ref,
+          accountId: quote.accountId,
+          providerId: quote.providerId,
+          origin: quote.origin,
+          allows: () => true,
+          reserve,
+        },
+      })
+      const done = h.turnDone()
+      await h.session.sendScheduledTurn([{ type: 'text', text: 'Follow up' }], run)
+      await done
+      expect(reserve).toHaveBeenCalledOnce()
+      expect(settle).toHaveBeenCalledExactlyOnceWith(Usd.from(0.0003).toAmount())
+      expect(h.meta.responseBodies()).toEqual([])
+      expect(h.provider.responseBodies()).toHaveLength(1)
+      expect(h.events.filter((event) => event.type === 'turnCompleted')).toContainEqual(
+        expect.objectContaining({ terminal: 'completed' }),
+      )
+    } finally {
+      await h.host.close()
+    }
+  })
   it('keeps the latest model selection when an earlier provider resolution finishes last', async () => {
     const entered = Promise.withResolvers<undefined>()
     const held = Promise.withResolvers<undefined>()

@@ -14,6 +14,7 @@ import {
   type ScheduleEditorDeliveryPorts,
 } from '../../host/schedules/deliveryBinding'
 import { agentFileBeside, createVerifyWake } from './wake'
+import { createScheduleBilling } from '../../host/schedules/paidBinding'
 
 export function createRuntimeSchedules(
   table: UiText,
@@ -26,6 +27,8 @@ export function createRuntimeSchedules(
   const dataDir = agentDataFolder({ platform, env: process.env, homeDir })
   const root = path.join(dataDir, SCHEDULE_STORE_SUBFOLDER)
   const agentFile = agentFileBeside(__filename)
+  const billing =
+    delivery?.billing === undefined ? undefined : createScheduleBilling(delivery.billing)
   const { runtime } = createScheduleEngine({
     fs: createNodeScheduleFs(root),
     queue: createNodeScheduleQueue(root),
@@ -35,8 +38,10 @@ export function createRuntimeSchedules(
     executable: process.execPath,
     agentFile,
     verifyWake: createVerifyWake(process.execPath, agentFile),
+    ...(delivery?.caller !== undefined && { caller: delivery.caller }),
+    ...(billing !== undefined && { consent: (schedule) => billing.consent(schedule) }),
     ...(delivery !== undefined && {
-      delivery: (authority) => createScheduleDeliveryBinding(delivery, authority),
+      delivery: (authority) => createScheduleDeliveryBinding(delivery, authority, billing),
     }),
   })
   return Promise.resolve(runtime)

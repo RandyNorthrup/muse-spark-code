@@ -1198,6 +1198,7 @@ export const WORKSPACE_STATE_KEYS = {
   /** Sessions whose Muse Code event log failed: they take no new message (CLI recovery). */
   damagedSessions: 'museSpark.damagedSessions',
   lastSession: 'museSpark.lastSession',
+  scheduledTitles: 'museSpark.scheduledTitles',
   /** The paid features allowed always in this workspace, with their grant generation (M58). */
   paidQuoteGrants: 'museSpark.paidQuoteGrants',
   paidWorkspaceGrants: 'museSpark.paidWorkspaceGrants',
@@ -4121,6 +4122,11 @@ export const SCHEDULE_NATIVE_MAX_OUTPUT_BYTES = 64 * 1024
 export const SCHEDULE_COLLISION_WINDOW_MS = SCHEDULE_MIN_INTERVAL_MS
 export const SCHEDULE_PAUSE_AFTER_FAILURES = 3
 export const SCHEDULE_PAID_CAP_DEFAULT_USD = 1
+/** Lead flips after the complete VS Code/OS/review receipts, never per-path enablement. */
+export const SCHEDULE_EDITOR_DELIVERY_CERTIFICATION: Readonly<{ isReady: boolean }> = {
+  isReady: false,
+}
+export const SCHEDULE_BACKGROUND_TITLES_KEPT = SCHEDULE_MAX_PER_WORKSPACE
 export const SCHEDULE_EVENT_DEBOUNCE_MS = 30_000
 export const SCHEDULE_EVENT_FIELD_MAX_CHARS = 500
 export const SCHEDULE_EVENT_MAX_FIELDS = 20

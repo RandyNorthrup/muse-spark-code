@@ -1,4 +1,9 @@
 import { createSchedulesBridge, registerScheduleCommands } from './host/schedules/schedulesBridge'
+import type { ScheduleEditorDeliveryPorts } from './host/schedules/deliveryBinding'
+import type { BackendSession } from './host/schedules/backgroundTarget'
+import type { StartSessionOptions } from './core/agent/agentBackend'
+import type { ScheduleV2 } from './shared/scheduleV2'
+import { isChildTurn } from './shared/agentEvents'
 import { notify } from './core/events/notify'
 import {
   PAID_APPROVAL_ORDER_DIRECTORY,
@@ -20,6 +25,8 @@ import {
   CHAT_PANEL_VIEW_TYPE,
   CHAT_VIEW_ID,
   COMMAND_IDS,
+  SCHEDULE_EDITOR_DELIVERY_CERTIFICATION,
+  SCHEDULE_BACKGROUND_TITLES_KEPT,
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
   EXTENSION_NAME,
@@ -103,7 +110,7 @@ import {
   type UsageRecording,
 } from './core/usage/recording'
 import { MuseCodeHost } from './core/backends/musecode/MuseCodeHost'
-import { agentDataFolder } from './runtime/dataFolder'
+import { agentDataFolder, workspaceKey } from './runtime/dataFolder'
 import { requireFile } from './host/lazyBundle'
 import { isJudgeEngineOn } from './core/judge/engine'
 import { promptBundleLoader } from './host/prompts/promptBundle'
@@ -1865,6 +1872,7 @@ async function activateWindow(
       // The backend decides which engine the microphone uses (M35).
       for (const controller of controllers.values()) {
         controller.refreshDictation()
+        controller.scheduleWorkspaceChanged()
       }
       // The walkthrough's sign-in step completes on this context key.
       void vscode.commands.executeCommand(
@@ -2930,6 +2938,12 @@ async function activateWindow(
   // Session history memory (M6): archived ids and the last session, per
   // workspace, in the extension's own `workspaceState`.
   const sessions: SessionMemory = {
+    scheduledTitle: (kind, id) => {
+      const parsed = z
+        .record(z.string(), z.string())
+        .safeParse(context.workspaceState.get<unknown>(WORKSPACE_STATE_KEYS.scheduledTitles) ?? {})
+      return parsed.success ? parsed.data[`${kind}:${id}`] : undefined
+    },
     // A value an earlier version (or a hand edit) stored that does not
     // validate reads as "none archived" instead of throwing (PLAN.md D25).
     archivedIds: () => {
@@ -3309,6 +3323,238 @@ async function activateWindow(
     const result = await latestLinuxRecording(linuxLatestPort)
     return result.ok ? result.preview : undefined
   }
+  const schedulesLifetime = new AbortController()
+  const backgroundSchedules = new Map<
+    string,
+    {
+      readonly agent: BackendSession
+      readonly backend: BackendKind
+      readonly title: string
+      status: 'idle' | 'running'
+      turnId?: string
+    }
+  >()
+  const scheduleIdeOptions = new WeakMap<
+    StartSessionOptions,
+    { agent?: BackendSession | undefined; readonly dispose: () => void }
+  >()
+  const liveSchedule = (schedule: ScheduleV2) => {
+    for (const controller of controllers.values()) {
+      const live = controller.scheduleTarget(schedule)
+      if (live !== undefined) return live
+    }
+    if (schedule.target.kind !== 'conversation') return
+    const background = backgroundSchedules.get(schedule.target.sessionId)
+    return background?.backend === schedule.target.backend
+      ? {
+          agent: background.agent,
+          status: background.status,
+          ...(background.turnId !== undefined && { activeTurnId: background.turnId }),
+        }
+      : undefined
+  }
+  const scheduleModel = (schedule: ScheduleV2) =>
+    schedule.paidConsent?.modelId ??
+    liveSchedule(schedule)?.agent.modelId ??
+    controllers.values().next().value?.scheduleModelId() ??
+    DEFAULT_MODEL_ID
+  const isScheduleActive = () =>
+    SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady &&
+    currentSettings().schedules &&
+    isProjectTrusted() &&
+    !schedulesLifetime.signal.aborted &&
+    auth.current.status === 'signedIn'
+  const scheduleHost: ScheduleEditorDeliveryPorts['host'] = async (kind, key) => {
+    if (
+      workspaceRoot === undefined ||
+      key !== workspaceKey(path.resolve(workspaceRoot)) ||
+      !isScheduleActive()
+    )
+      throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
+    const host = kind === 'modelApi' ? await modelApi.ensureHost() : await backend.ensureHost()
+    if (!isScheduleActive()) throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
+    return host
+  }
+  const scheduleDelivery: ScheduleEditorDeliveryPorts | undefined =
+    workspaceRoot === undefined
+      ? undefined
+      : {
+          workspaceRoot,
+          platform: process.platform,
+          dialect: process.platform === 'win32' ? 'powershell' : 'bash',
+          io: toolIo,
+          signal: schedulesLifetime.signal,
+          isActive: isScheduleActive,
+          host: scheduleHost,
+          findLive: liveSchedule,
+          options: async (schedule) => {
+            const options: StartSessionOptions = {
+              workspaceRoot,
+              modelId: scheduleModel(schedule),
+              approvalMode: 'promptUnmatched',
+            }
+            if ('backend' in schedule.target && schedule.target.backend === 'museCode') {
+              const owner: { agent?: BackendSession | undefined } = {}
+              const caller = await ideServer.bindCaller(() => {
+                const run = owner.agent?.getScheduledRun?.()
+                return { isReady: run !== undefined, ...(run !== undefined && { run }) }
+              })
+              const configured = { ...options, mcpServers: { ide: caller.endpoint } }
+              scheduleIdeOptions.set(configured, {
+                get agent() {
+                  return owner.agent
+                },
+                set agent(agent: BackendSession | undefined) {
+                  owner.agent = agent
+                },
+                dispose: () => {
+                  caller.dispose()
+                },
+              })
+              return configured
+            }
+            return options
+          },
+          bindSession: (session, options) => {
+            const caller = scheduleIdeOptions.get(options)
+            if (caller !== undefined) caller.agent = session
+          },
+          releaseOptions: (options) => {
+            scheduleIdeOptions.get(options)?.dispose()
+            scheduleIdeOptions.delete(options)
+          },
+          publish: async (agent, details) => {
+            const parsed = z
+              .record(z.string(), z.string())
+              .parse(
+                context.workspaceState.get<unknown>(WORKSPACE_STATE_KEYS.scheduledTitles) ?? {},
+              )
+            await context.workspaceState.update(
+              WORKSPACE_STATE_KEYS.scheduledTitles,
+              Object.fromEntries(
+                Object.entries({
+                  ...parsed,
+                  [`${details.backend}:${agent.sessionId}`]: details.title,
+                }).slice(-SCHEDULE_BACKGROUND_TITLES_KEPT),
+              ),
+            )
+            const entry: {
+              readonly agent: BackendSession
+              readonly backend: BackendKind
+              readonly title: string
+              status: 'idle' | 'running'
+              turnId?: string
+            } = { agent, backend: details.backend, title: details.title, status: 'idle' }
+            backgroundSchedules.set(agent.sessionId, entry)
+            for (const controller of controllers.values())
+              controller.scheduleNotice(undefined, details.notice)
+            const children = new Set<string>()
+            const items = details.history?.items ?? []
+            for (const item of items)
+              if (item.kind === 'subagent' && item.childSessionId !== undefined)
+                children.add(item.childSessionId)
+            const stop = agent.onEvent((event) => {
+              if (
+                'item' in event &&
+                event.item.kind === 'subagent' &&
+                event.item.childSessionId !== undefined
+              )
+                children.add(event.item.childSessionId)
+              if (
+                'turnId' in event &&
+                typeof event.turnId === 'string' &&
+                isChildTurn(event.turnId, children)
+              )
+                return
+              if (event.type === 'turnStarted') {
+                entry.turnId = event.turnId
+                entry.status = 'running'
+              } else if (event.type === 'turnCompleted' && event.turnId === entry.turnId) {
+                delete entry.turnId
+                entry.status = 'idle'
+              }
+            })
+            return () => {
+              stop()
+              if (backgroundSchedules.get(agent.sessionId) === entry)
+                backgroundSchedules.delete(agent.sessionId)
+            }
+          },
+          submitted: (agent, run, text, submission) => {
+            for (const controller of controllers.values())
+              controller.scheduledSubmission(agent, run, text, submission)
+          },
+          row: (agent, text) => {
+            for (const controller of controllers.values()) controller.scheduleNotice(agent, text)
+          },
+          deferQuestions: async (agent, event, run) => {
+            const controller = controllers.values().next().value
+            if (controller === undefined) throw new Error(UI_TEXT.questionAnswerFailed)
+            let kind = backgroundSchedules.get(agent.sessionId)?.backend
+            if (kind === undefined)
+              for (const candidate of controllers.values()) {
+                const session = candidate.boardSession()
+                if (session?.sessionId === agent.sessionId) {
+                  kind = session.backend
+                  break
+                }
+              }
+            if (kind === undefined) throw new Error(UI_TEXT.questionAnswerFailed)
+            await controller.scheduledQuestion(agent, kind, event, run)
+          },
+          safety: (action, requester) => {
+            return !isScheduleActive() ||
+              !requester.startsWith('schedule:') ||
+              (action.class === 'webFetch' &&
+                currentSettings().sandboxNetwork === SANDBOX_NETWORK_DENIED)
+              ? UI_TEXT.scheduleV2.messages.targetUnavailable
+              : undefined
+          },
+          caller: () => ({
+            source: 'interactive',
+            isInteractive: true,
+            scheduledPrompts: isScheduleActive() && paid.gate.isOn('scheduledPrompts'),
+            maxBudgetUsd: dailyPaid.capUsd(),
+          }),
+          billing: {
+            modelId: scheduleModel,
+            host: () => modelApi.ensureHost(),
+            generation: () => auth.admissionGeneration,
+            capUsd: () => dailyPaid.capUsd(),
+            isActive: isScheduleActive,
+            isOn: (feature) => paid.gate.isOn(feature),
+            ask: async ({ title, detail }) => {
+              const answer = await vscode.window.showWarningMessage(
+                title,
+                { modal: true, detail },
+                UI_TEXT.allowOnce,
+                UI_TEXT.scheduleV2.messages.allowAlways,
+                UI_TEXT.paidDeny,
+              )
+              switch (answer) {
+                case UI_TEXT.allowOnce: {
+                  return 'once'
+                }
+                case UI_TEXT.scheduleV2.messages.allowAlways: {
+                  return 'always'
+                }
+                default: {
+                  return 'deny'
+                }
+              }
+            },
+            reserve: (schedule, amount, signal) =>
+              dailyPaid.reserveSchedule(schedule, amount, signal),
+          },
+        }
+  const schedulesBridge = createSchedulesBridge({
+    distDir: vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath,
+    log,
+    isEnabled: () => currentSettings().schedules,
+    isDeliveryReady: () => SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady,
+    defaultDelivery: () => currentSettings().scheduleDefaultDelivery,
+    ...(scheduleDelivery !== undefined && { delivery: scheduleDelivery }),
+  })
   const controllerFor = (surface: ChatSurface): ConversationController => {
     let controller = controllers.get(surface.id)
     if (controller === undefined) {
@@ -3489,6 +3735,7 @@ async function activateWindow(
             }
             return ideServer.current
           },
+          ideMcpCaller: (resolve) => ideServer.bindCaller(resolve),
           newAttachmentId: () => crypto.randomUUID(),
           sessions,
           // The usage modal's Account section and insights (M14).
@@ -3557,12 +3804,7 @@ async function activateWindow(
           isWorktreeHeld: () => windowHold.isHeld,
           createGit: conversationGitFactory(conversationGit, gitFeatures),
           onForegroundTasksChanged: refreshTaskContext,
-          schedulesBridge: createSchedulesBridge({
-            distDir: vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath,
-            log,
-            isEnabled: () => currentSettings().schedules,
-            defaultDelivery: () => currentSettings().scheduleDefaultDelivery,
-          }),
+          schedulesBridge,
           isScheduledPaidOn: () => paid.gate.isOn('scheduledPrompts'),
           confirmScheduledRun: async (job, modelId) =>
             await paid.consent.allows({ feature: 'scheduledPrompts', prompt: job.prompt, modelId }),
@@ -3598,6 +3840,15 @@ async function activateWindow(
               const session = active.boardSession()
               if (session !== undefined) sessions.push(session)
             }
+            for (const [sessionId, background] of backgroundSchedules)
+              if (sessions.every((session) => session.sessionId !== sessionId))
+                sessions.push({
+                  sessionId,
+                  backend: background.backend,
+                  status: background.status,
+                  name: background.title,
+                  workspaceRoot,
+                })
             return sessions
           },
           focusBoardSession: (sessionId, backendKind) => {
@@ -4193,6 +4444,8 @@ async function activateWindow(
     editorContext,
     {
       dispose: () => {
+        schedulesLifetime.abort()
+        void schedulesBridge.close().catch(logRejection(log, 'Schedules close'))
         ideServer.close()
       },
     },
@@ -4244,6 +4497,7 @@ async function activateWindow(
         registry.broadcast({ type: 'settingsChanged', settings: hostContext.getSettings() })
         for (const controller of controllers.values()) {
           controller.refreshDictation()
+          controller.scheduleWorkspaceChanged()
           if (event.affectsConfiguration(`${SETTINGS_SECTION}.confidentialWorkspace`)) {
             controller.confidentialWorkspaceChanged()
           }
@@ -4323,6 +4577,7 @@ async function activateWindow(
       void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
       for (const controller of controllers.values()) {
         controller.checkpointsChanged()
+        controller.scheduleWorkspaceChanged()
       }
       // A trusted workspace activates (M91 lane E): its root reads as a
       // DirectoryAdded, on both backends.

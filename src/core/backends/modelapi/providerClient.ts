@@ -21,6 +21,9 @@ import type { AuthSource } from './authSource'
 import { MODEL_API_REQUEST_TIMEOUT_MS, UI_TEXT } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { streamEventSchema, usageSchema } from '../../../host/backend/modelApiEntry'
+import { modelPricedUsage, requestImageCount, type ModelPricePolicy } from './modelPolicy'
+import type { UnattendedRun } from '../../schedules/unattended'
+import { Usd } from '../../../shared/usd'
 
 // Only usage metadata is extensible here; item guards consume the stripped,
 // parsed canonical representation, never a codec's unvalidated original.
@@ -120,7 +123,11 @@ export class CodecClient implements ProviderClient {
   public readonly currentKeyDigest: () => Promise<string>
   public readonly retryDelayMs: (attempt: number) => number
   public readonly waitBeforeRetry: (ms: number, signal: AbortSignal) => Promise<void>
-  public constructor(private readonly deps: CodecClientDeps) {
+  public constructor(
+    private readonly deps: CodecClientDeps,
+    private readonly scheduledRun?: () => UnattendedRun | undefined,
+    private readonly scheduledPrice?: ModelPricePolicy,
+  ) {
     this.provider = deps.provider
     if (
       new URL(deps.baseUrl).origin !== deps.provider.origin ||
@@ -143,10 +150,17 @@ export class CodecClient implements ProviderClient {
       verifyEndpoint: deps.verifyEndpoint,
       parseError: (status, body, headers) => deps.codec.parseError(status, body, headers),
       isTerminalError: (failure) => isZai && (failure.code === '1113' || failure.code === '1308'),
+      ...(scheduledRun !== undefined && { scheduledRun }),
     })
     this.currentKeyDigest = this.transport.currentKeyDigest.bind(this.transport)
     this.retryDelayMs = this.transport.backoffMs.bind(this.transport)
     this.waitBeforeRetry = this.transport.pause.bind(this.transport)
+  }
+  public withScheduleAuthority(
+    run: () => UnattendedRun | undefined,
+    price?: ModelPricePolicy,
+  ): CodecClient {
+    return new CodecClient(this.deps, run, price)
   }
   public async listModels(): Promise<readonly string[]> {
     const result = await this.transport.request(
@@ -204,42 +218,73 @@ export class CodecClient implements ProviderClient {
     }
     const model = this.deps.modelFor(body.model)
     const request = this.deps.codec.encode(body, model)
-    const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
-      request.path,
-      {
-        body: request.body,
-        ...(request.headers !== undefined && { headers: request.headers }),
-        accept: this.provider.format === 'ollama' ? 'application/x-ndjson' : 'text/event-stream',
-      },
+    const run = this.scheduledRun?.()
+    if (this.scheduledRun !== undefined && (run === undefined || this.scheduledPrice === undefined))
+      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+    const claim = await run?.reservePaidRequest(
+      body,
+      'scheduledPrompts',
+      admitAttempt?.paidEstimatedInputTokens,
       signal,
-      onRetry,
-      budget,
-      admitAttempt,
-      confirmed,
-      this.deps.streamIdleMs,
     )
+    const paid = claim === undefined ? undefined : { claim, run, isSent: false }
     try {
-      for await (const event of this.deps.codec.decode(response, model)) {
-        const parsed = parseCanonicalEvent(event)
-        // Arguments are executable payloads, not diagnostic text. Retain
-        // their bytes while keeping the codec's ordinary output redaction.
-        const safe: unknown = JSON.parse(JSON.stringify(parsed), (key, value: unknown) => {
-          if (typeof value !== 'string') return value
-          const isExecutable =
-            key === 'arguments' ||
-            (key === 'delta' && parsed.type === 'response.function_call_arguments.delta')
-          return isExecutable ? redactContent(value) : redact(value)
-        })
-        const validated = parseCanonicalEvent(safe)
-        eventParsed(validated)
-        yield validated
+      const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
+        request.path,
+        {
+          body: request.body,
+          ...(request.headers !== undefined && { headers: request.headers }),
+          accept: this.provider.format === 'ollama' ? 'application/x-ndjson' : 'text/event-stream',
+          modelId: body.model,
+          ...(paid !== undefined && { paid }),
+        },
+        signal,
+        onRetry,
+        budget,
+        admitAttempt,
+        confirmed,
+        this.deps.streamIdleMs,
+      )
+      try {
+        for await (const event of this.deps.codec.decode(response, model)) {
+          const parsed = parseCanonicalEvent(event)
+          // Arguments are executable payloads, not diagnostic text. Retain
+          // their bytes while keeping the codec's ordinary output redaction.
+          const safe: unknown = JSON.parse(JSON.stringify(parsed), (key, value: unknown) => {
+            if (typeof value !== 'string') return value
+            const isExecutable =
+              key === 'arguments' ||
+              (key === 'delta' && parsed.type === 'response.function_call_arguments.delta')
+            return isExecutable ? redactContent(value) : redact(value)
+          })
+          const validated = parseCanonicalEvent(safe)
+          eventParsed(validated)
+          if (
+            claim !== undefined &&
+            'response' in validated &&
+            ['response.completed', 'response.failed', 'response.incomplete'].includes(
+              validated.type,
+            ) &&
+            validated.response.usage != null
+          ) {
+            const usage = validated.response.usage
+            const cost = this.scheduledPrice?.settle(
+              { ...modelPricedUsage(usage), images: requestImageCount(body) },
+              { cost: usage.provider_cost_usd },
+            )
+            if (cost !== undefined) await claim.settle(cost)
+          }
+          yield validated
+        }
+      } catch (error: unknown) {
+        throw redactModelApiError(error, redact, response.status)
+      } finally {
+        if (response.body !== null && !response.body.locked) {
+          void response.body.cancel().catch(ignoreClosingError)
+        }
       }
-    } catch (error: unknown) {
-      throw redactModelApiError(error, redact, response.status)
     } finally {
-      if (response.body !== null && !response.body.locked) {
-        void response.body.cancel().catch(ignoreClosingError)
-      }
+      if (paid?.isSent === false) await paid.claim.settle(Usd.from(0).toAmount())
     }
   }
 }

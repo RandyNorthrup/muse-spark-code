@@ -775,7 +775,8 @@
       "saveRoot": "僅儲存到此排程核准的根目錄內。",
       "openWhenBack": "我回來時開啟",
       "plannedDestination": "此目標處於規劃階段，目前無法使用。",
-      "expiredOwner": "此排程隨建立者的工作階段或團隊結束而終止。"
+      "expiredOwner": "此排程隨建立者的工作階段或團隊結束而終止。",
+      "allowAlways": "一律允許此排程"
     },
     "endAfterRuns": {
       "other": "執行{count}次後結束"

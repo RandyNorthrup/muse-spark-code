@@ -1,0 +1,225 @@
+import type { ScheduleAuthorityStore } from '../../core/schedules/grantAudit'
+import type { CreateResponseBody, CreateImageBody } from '../../core/backends/modelapi/schemas'
+import { requestImageCount } from '../../core/backends/modelapi/modelPolicy'
+import { estimateInput, type SessionBudgetClaim } from '../../core/backends/modelapi/sessionBudget'
+import {
+  isValidPriceCard,
+  reserveRequestAmount,
+  type ModelPricing,
+} from '../../core/providers/priceCard'
+import {
+  askSchedulePaidConsent,
+  createSchedulePaidScope,
+  type PaidUseAnswer,
+  type SchedulePaidIdentity,
+} from '../../core/paid/paidConsent'
+import { UI_TEXT, MILLISECONDS_PER_MINUTE, type PaidFeature } from '../../shared/constants'
+import { formatList, formatNumber, formatTime, formatUnit } from '../../shared/l10n/text'
+import { scheduleDateTime, scheduleWeekdayText } from '../../webview/schedules/presentation'
+import { autoReviewPrice } from '../../shared/reviewPriceText'
+import { Usd, type UsdAmount } from '../../shared/usd'
+import { scheduleV2Schema, type ScheduleRunContext, type ScheduleV2 } from '../../shared/scheduleV2'
+import type { BackendSession } from './backgroundTarget'
+
+export interface ScheduleBillingPorts {
+  modelId(schedule: ScheduleV2): string
+  host(): Promise<{
+    schedulePricing(modelId: string): Promise<{
+      readonly pricing: ModelPricing
+      readonly accountId: string
+      readonly providerId: string
+      readonly origin: string
+    }>
+  }>
+  generation(): number
+  capUsd(): UsdAmount
+  isActive(): boolean
+  isOn(feature: PaidFeature): boolean
+  ask(question: { readonly title: string; readonly detail: string }): Promise<PaidUseAnswer>
+  reserve(schedule: ScheduleV2, amount: UsdAmount, signal: AbortSignal): Promise<SessionBudgetClaim>
+}
+
+const times = (clocks: readonly { hour: number; minute: number }[]) =>
+  formatList(
+    clocks.map(({ hour, minute }) => {
+      const date = new Date(0)
+      date.setHours(hour, minute)
+      return formatTime(date.getTime())
+    }),
+  )
+
+function cadenceText(trigger: ScheduleV2['trigger'], zone: string): string {
+  let detail: string
+  switch (trigger.kind) {
+    case 'once': {
+      detail = scheduleDateTime(trigger.atMs, zone)
+      break
+    }
+    case 'interval': {
+      detail = formatUnit(trigger.everyMs / MILLISECONDS_PER_MINUTE, 'minute')
+      break
+    }
+    case 'daily': {
+      detail = `${formatUnit(trigger.everyDays, 'day')}: ${times(trigger.times)}`
+      break
+    }
+    case 'weekdays': {
+      detail = times(trigger.times)
+      break
+    }
+    case 'weekly': {
+      detail = formatList(
+        trigger.days.map((day) => `${scheduleWeekdayText(day.weekday)}: ${times(day.times)}`),
+      )
+      break
+    }
+    case 'cron': {
+      detail = trigger.expression
+      break
+    }
+    case 'event': {
+      const conditions = trigger.conditions.map(
+        (condition) =>
+          `${condition.field}=${typeof condition.equals === 'number' ? formatNumber(condition.equals) : String(condition.equals)}`,
+      )
+      detail = `${UI_TEXT.scheduleV2.events[trigger.event]} (${trigger.source}): ${formatList(conditions)}`
+      break
+    }
+    case 'afterEvent': {
+      detail = formatList([cadenceText(trigger.event, zone), cadenceText(trigger.time, zone)])
+      break
+    }
+  }
+  return `${UI_TEXT.scheduleV2.triggers[trigger.kind]}: ${detail}`
+}
+
+/** Uses the selected model's verified tariff, including non-Meta providers. */
+export function createScheduleBilling(ports: ScheduleBillingPorts) {
+  const quote = async (modelId: string) => {
+    const generation = ports.generation()
+    const host = await ports.host()
+    const { pricing, accountId, providerId, origin } = await host.schedulePricing(modelId)
+    if (
+      generation !== ports.generation() ||
+      pricing.kind !== 'priced' ||
+      !isValidPriceCard(pricing.card)
+    )
+      throw new Error(UI_TEXT.bestOfNTariffUnknown)
+    const card = pricing.card
+    const price = autoReviewPrice(modelId, pricing)
+    if (price === undefined) throw new Error(UI_TEXT.bestOfNTariffUnknown)
+    const { fetchedAt: _fetchedAt, source: _source, upstream: _upstream, ...tariff } = card
+    const identity: SchedulePaidIdentity = {
+      modelId,
+      accountId,
+      providerId,
+      origin,
+      priceTier: JSON.stringify({ providerId, origin, tariff }),
+      price,
+      sharedDailyBudgetUsd: ports.capUsd(),
+    }
+    const estimate = (body: CreateResponseBody | CreateImageBody, tokens: number | undefined) => {
+      if (!('input' in body)) throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+      const inputTokens = tokens ?? estimateInput([JSON.stringify(body)], undefined).inputTokens
+      return Usd.from(
+        reserveRequestAmount(card, {
+          inputTokens,
+          outputTokens: body.max_output_tokens,
+          cachedTokens: 0,
+          cacheWriteTokens: inputTokens,
+        }),
+      )
+        .add(Usd.from(card.image ?? 0).times(requestImageCount(body)))
+        .toAmount()
+    }
+    return { identity, estimate, generation }
+  }
+  return {
+    async consent(schedule: ScheduleV2): Promise<ScheduleV2['paidConsent']> {
+      const modelId = ports.modelId(schedule)
+      const { identity, generation } = await quote(modelId)
+      return await askSchedulePaidConsent({
+        schedule,
+        identity,
+        cadence: `${cadenceText(schedule.trigger, schedule.zone)} (${schedule.zone})`,
+        extras: [],
+        now: Date.now,
+        isOn: () => ports.isOn('scheduledPrompts'),
+        isCurrent: () =>
+          ports.isActive() &&
+          ports.modelId(schedule) === modelId &&
+          ports.generation() === generation &&
+          ports.capUsd() === identity.sharedDailyBudgetUsd,
+        ask: (question) => ports.ask(question),
+        // Control publishes the approved record using the same creation/update CAS.
+        remember: () => Promise.resolve(true),
+      })
+    },
+    async paid(
+      schedule: ScheduleV2,
+      session: BackendSession,
+      context: ScheduleRunContext,
+      authority: ScheduleAuthorityStore,
+    ) {
+      let current = await authority.read(schedule.workspaceKey, schedule.id)
+      if (
+        current === undefined ||
+        current.paused ||
+        JSON.stringify(current.paidConsent) !== JSON.stringify(schedule.paidConsent)
+      )
+        throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+      if (current.paidConsent?.scope === 'once' && current.paidConsent.runId === undefined) {
+        const next = scheduleV2Schema.parse({
+          ...current,
+          paidConsent: { ...current.paidConsent, runId: context.runId },
+          updatedAtMs: Date.now(),
+        })
+        if (
+          !(await authority.commit(next, {
+            scheduleId: schedule.id,
+            atMs: Date.now(),
+            kind: 'changed',
+          }))
+        )
+          throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+        current = next
+      }
+      const admitted = current
+      const { identity, estimate, generation } = await quote(session.modelId)
+      const policy = createSchedulePaidScope({
+        backend: 'modelApi',
+        schedule: admitted,
+        identity,
+        runId: context.runId,
+        currentIdentity: () => ({
+          ...identity,
+          accountId: identity.accountId,
+          sharedDailyBudgetUsd: ports.capUsd(),
+        }),
+        isCurrent: () =>
+          ports.isActive() &&
+          ports.generation() === generation &&
+          session.modelId === identity.modelId,
+        isOn: (feature) => ports.isOn(feature),
+        estimate,
+        reserve: async (record, amount, signal) => {
+          const live = await authority.read(record.workspaceKey, record.id)
+          const fresh = await quote(session.modelId)
+          if (
+            live === undefined ||
+            live.paused ||
+            live.mode !== record.mode ||
+            JSON.stringify(live.grant) !== JSON.stringify(record.grant) ||
+            JSON.stringify(live.paidConsent) !== JSON.stringify(record.paidConsent) ||
+            JSON.stringify(fresh.identity) !== JSON.stringify(identity)
+          )
+            throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+          return await ports.reserve(record, amount, signal)
+        },
+      })
+      if (!policy.allows('scheduledPrompts'))
+        throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+      return { policy, consent: admitted.paidConsent, cost: () => Promise.resolve(policy.cost()) }
+    },
+  }
+}

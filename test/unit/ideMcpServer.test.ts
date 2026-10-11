@@ -16,9 +16,11 @@ const tool: McpTool = {
 
 const servers: IdeMcpServer[] = []
 
-async function start(): Promise<{ server: IdeMcpServer; log: FakeLogOutputChannel }> {
+async function start(
+  getTools: () => readonly McpTool[] = () => [tool],
+): Promise<{ server: IdeMcpServer; log: FakeLogOutputChannel }> {
   const log = new FakeLogOutputChannel()
-  const server = new IdeMcpServer(() => [tool], log)
+  const server = new IdeMcpServer(getTools, log)
   servers.push(server)
   await server.start()
   return { server, log }
@@ -53,11 +55,7 @@ describe('scheduled IDE caller identity', () => {
 
   it('reads the correct caller grant while another caller remains interactive', async () => {
     const call = vi.fn<McpTool['call']>().mockResolvedValue('read')
-    const server = new IdeMcpServer(
-      () => [{ ...tool, annotations: { readOnlyHint: true }, call }],
-      new FakeLogOutputChannel(),
-    )
-    servers.push(server)
+    const { server } = await start(() => [{ ...tool, annotations: { readOnlyHint: true }, call }])
     const denied = unattendedRun()
     const allowed = unattendedRun({
       context: fakeRunContext(
@@ -95,11 +93,7 @@ describe('scheduled IDE caller identity', () => {
 
   it('refuses unresolved identity and a revoked run before executing the tool', async () => {
     const call = vi.fn<McpTool['call']>().mockResolvedValue('read')
-    const server = new IdeMcpServer(
-      () => [{ ...tool, annotations: { readOnlyHint: true }, call }],
-      new FakeLogOutputChannel(),
-    )
-    servers.push(server)
+    const { server } = await start(() => [{ ...tool, annotations: { readOnlyHint: true }, call }])
     const { run } = unattendedRun({ isActive: () => false })
     let isReady = false
     const caller = await server.bindCaller(() => ({ isReady, run }))

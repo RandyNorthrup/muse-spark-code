@@ -6,6 +6,19 @@ import {
   type ScheduleV2,
 } from '../../../../src/shared/scheduleV2'
 import type { ScheduledPrompt } from '../../../../src/shared/schedule'
+import type { ScheduleEditorDeliveryPorts } from '../../../../src/host/schedules/deliveryBinding'
+
+export function quietScheduleDelivery(
+  workspaceRoot: string,
+  modelId = 'muse-spark-1.3',
+): Pick<ScheduleEditorDeliveryPorts, 'options' | 'row' | 'deferQuestions' | 'safety'> {
+  return {
+    options: () => Promise.resolve({ workspaceRoot, modelId, approvalMode: 'promptUnmatched' }),
+    row: () => undefined,
+    deferQuestions: () => Promise.resolve(),
+    safety: () => undefined,
+  }
+}
 
 export function fakeSchedule(overrides: Partial<ScheduleV2> = {}): ScheduleV2 {
   const now = Date.parse('2026-10-05T12:00:00Z')

@@ -922,6 +922,7 @@ export const EN = {
       unattendedRefusal:
         'Refused on schedule: {action} needs approval and is not in this schedule’s grant.',
       deferredQuestions: 'Questions defer immediately and remain open for your answer.',
+      allowAlways: 'Allow always for this schedule',
       paidConsent:
         'Schedule {prompt} on {model}: {price}. Cadence: {cadence}. Schedule cap: {cap} per local day; shared daily budget: {budget}. Consent covers only the selected paid extras.',
       changedConsent:

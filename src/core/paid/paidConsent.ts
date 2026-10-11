@@ -68,6 +68,8 @@ export type PaidUseAnswer = 'once' | 'always' | 'deny'
 export interface SchedulePaidIdentity {
   readonly modelId: string
   readonly accountId: string
+  readonly providerId?: string | undefined
+  readonly origin?: string | undefined
   readonly priceTier: string
   readonly price: string
   readonly sharedDailyBudgetUsd: UsdAmount
@@ -151,11 +153,14 @@ export async function askSchedulePaidConsent(deps: {
   })
   if (answer === 'deny' || !deps.isOn() || !deps.isCurrent()) return undefined
   if (answer === 'always' && !(await deps.remember(consent))) return undefined
-  return deps.isOn() && deps.isCurrent() ? consent : undefined
+  return deps.isOn() && deps.isCurrent()
+    ? { ...consent, scope: answer === 'once' ? 'once' : 'schedule' }
+    : undefined
 }
 
 /** The run's paid port: live identity/gates plus a hard, noninteractive reservation. */
 export function createSchedulePaidScope(deps: {
+  readonly runId?: string
   readonly backend: 'modelApi' | 'museCode'
   readonly schedule: ScheduleV2
   readonly identity: SchedulePaidIdentity
@@ -173,7 +178,10 @@ export function createSchedulePaidScope(deps: {
   ) => Promise<SessionBudgetClaim>
 }) {
   const isValid = () =>
-    deps.isCurrent() && isScheduleConsentCurrent(deps.schedule, deps.currentIdentity())
+    deps.isCurrent() &&
+    isScheduleConsentCurrent(deps.schedule, deps.currentIdentity()) &&
+    (deps.schedule.paidConsent?.scope !== 'once' ||
+      (deps.runId !== undefined && deps.schedule.paidConsent.runId === deps.runId))
   const canUse = (feature: PaidFeature) =>
     isValid() &&
     (deps.backend === 'museCode' || deps.isOn('scheduledPrompts')) &&
@@ -187,6 +195,8 @@ export function createSchedulePaidScope(deps: {
   return {
     modelId: deps.identity.modelId,
     accountId: deps.identity.accountId,
+    providerId: deps.identity.providerId,
+    origin: deps.identity.origin,
     allows: canUse,
     cost: (): ScheduleFireRecord['cost'] => {
       let retainedLiabilityUsd = Usd.from(0)

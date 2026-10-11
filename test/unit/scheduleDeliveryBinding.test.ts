@@ -95,6 +95,35 @@ async function expectRefused(rig: Awaited<ReturnType<typeof fixture>>) {
 }
 
 describe('unregistered schedule delivery factory', () => {
+  it('publishes admission once and only republishes when the message moves to another turn', async () => {
+    const rig = await fixture()
+    const submitted = vi.fn<NonNullable<ScheduleEditorDeliveryPorts['submitted']>>()
+    rig.ports.submitted = submitted
+    const running = rig.run()
+    try {
+      await vi.waitFor(() => {
+        expect(submitted).toHaveBeenCalledOnce()
+      })
+      expect(submitted.mock.calls[0]?.[3]).toMatchObject({
+        turnId: 'admitted',
+        disposition: 'queued',
+      })
+      rig.agent.emit({ type: 'textDelta', itemId: 'reply', field: 'text', delta: 'text' })
+      expect(submitted).toHaveBeenCalledOnce()
+      rig.agent.emit({
+        type: 'userMessageTurnChanged',
+        userMessageId: 'message',
+        turnId: 'promoted',
+      })
+      expect(submitted).toHaveBeenCalledTimes(2)
+      expect(submitted.mock.calls[1]?.[3].turnId).toBe('promoted')
+      rig.agent.emit({ type: 'turnCompleted', turnId: 'promoted', terminal: 'completed' })
+      expect(await running).toMatchObject({ outcome: 'ran' })
+      expect(submitted).toHaveBeenCalledTimes(2)
+    } finally {
+      await rig.lease.release()
+    }
+  })
   it('preserves prototype methods and the owning receiver of background ports', async () => {
     const rig = await fixture()
     class OwnedPorts implements ScheduleEditorDeliveryPorts {
@@ -237,6 +266,31 @@ describe('unregistered schedule delivery factory', () => {
       // The user may own another queued turn. The binding cannot cancel it.
       expect(rig.agent.dispose).not.toHaveBeenCalled()
     } finally {
+      await rig.lease.release()
+    }
+  })
+
+  it('retires a borrowed session independently of the window without cancelling user work', async () => {
+    const rig = await fixture()
+    const panel = new AbortController()
+    rig.ports.findLive = () => ({ agent: rig.agent, status: 'idle', signal: panel.signal })
+    const lease = await rig.binding.targets.find(rig.schedule)
+    if (lease === undefined) throw new Error('missing target')
+    const running = rig.binding.runs.run(lease.session, rig.schedule, rig.context, async () => {
+      await lease.session.queue('follow up', rig.context)
+    })
+    const rejected = expect(running).rejects.toThrow()
+    try {
+      await vi.waitFor(() => {
+        expect(rig.agent.sendScheduledTurn).toHaveBeenCalledOnce()
+      })
+      panel.abort()
+      await rejected
+      expect(rig.abort.signal.aborted).toBe(false)
+      expect(rig.agent.cancel).not.toHaveBeenCalled()
+      expect(rig.agent.dispose).not.toHaveBeenCalled()
+    } finally {
+      await lease.release()
       await rig.lease.release()
     }
   })
