@@ -891,6 +891,11 @@
     "recordingStart": "Spustit nahrávání",
     "recordingStop": "Zastavit nahrávání",
     "uploadDeleteFailed": "Soubor {name} nelze smazat: {reason}",
+    "deleteUploadedFilesPick": "Označené soubory se smažou u poskytovatele",
+    "uploadsDescription": "Vypsat nahrané soubory a smazat je předčasně",
+    "uploadsUsage": "Použití: /uploads [delete <file> | delete-all]",
+    "uploadNotFound": "Nahraný soubor {id} není v seznamu.",
+    "uploadForeignKept": "Soubor {name} byl ponechán: jiná aplikace jej možná stále používá.",
     "conversionFailed": "Převod selhal: {reason}",
     "replayMetadata": "Média: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Média: {name} ({size})"

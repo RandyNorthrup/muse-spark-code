@@ -891,6 +891,11 @@
     "recordingStart": "Rozpocznij nagrywanie",
     "recordingStop": "Zatrzymaj nagrywanie",
     "uploadDeleteFailed": "Nie można usunąć {name}: {reason}",
+    "deleteUploadedFilesPick": "Zaznaczone pliki zostaną usunięte u dostawcy",
+    "uploadsDescription": "Wyświetl przesłane pliki i usuń je wcześniej",
+    "uploadsUsage": "Użycie: /uploads [delete <file> | delete-all]",
+    "uploadNotFound": "Przesłany plik {id} nie znajduje się na liście.",
+    "uploadForeignKept": "Zachowano {name}: inna aplikacja może go nadal używać.",
     "conversionFailed": "Konwersja nie powiodła się: {reason}",
     "replayMetadata": "Multimedia: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Multimedia: {name} ({size})"

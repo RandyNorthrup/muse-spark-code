@@ -394,6 +394,9 @@ export interface UiState {
   readonly context: ContextSummary | undefined
   /** undefined until the host answered `readUsage` for this window. */
   readonly usageReport: UsageReport | undefined
+  /** The uploaded-files port's last report (M105 lane F); listed by the usage dialog. */
+  readonly uploadedFiles:
+    Extract<HostToWebviewMessage, { type: 'uploadedFilesReport' }>['report'] | undefined
   /**
    * The Agent map's team tree (M96 lane U2); undefined where the team
    * cannot run (off, Solo, single-model mode, no runnable role): the map,
@@ -722,6 +725,7 @@ export const initialUiState: UiState = {
   usage: undefined,
   context: undefined,
   usageReport: undefined,
+  uploadedFiles: undefined,
   teamTree: undefined,
   reference: undefined,
   childTranscripts: {},
@@ -2548,6 +2552,7 @@ function clearedAccountView(state: UiState): UiState {
     models: [],
     skills: undefined,
     usageReport: undefined,
+    uploadedFiles: undefined,
     editorContext: undefined,
     dismissedEditorPath: undefined,
     mentionResults: undefined,
@@ -2899,6 +2904,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         // No account identity accompanies authState: discard prior-account
         // usage even if the backend name stays the same.
         usageReport: undefined,
+        uploadedFiles: undefined,
         // The tree names the account's models: it goes with the usage.
         teamTree: undefined,
         auth: {
@@ -3048,6 +3054,12 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           providers: message.providers === undefined ? undefined : [...message.providers],
           plans: message.plans,
         },
+      }
+    }
+    case 'uploadedFilesReport': {
+      return {
+        ...state,
+        uploadedFiles: message.report,
       }
     }
     case 'setupComplete': {

@@ -754,6 +754,13 @@ export function UsageSurface({
       report={state.usageReport}
       usage={state.usage}
       context={state.context}
+      {...(state.uploadedFiles === undefined ? {} : { uploadedFiles: state.uploadedFiles })}
+      onDeleteUploadedFile={(fileId) => {
+        postMessage({ type: 'deleteUploadedFile', fileId })
+      }}
+      onDeleteAllUploadedFiles={() => {
+        postMessage({ type: 'deleteAllUploadedFiles' })
+      }}
       team={state.usageReport?.team}
       modelId={state.model?.modelId}
       modelPricing={state.models.find((model) => model.modelId === state.model?.modelId)?.pricing}

@@ -879,6 +879,11 @@
     "recordingStart": "録画を開始",
     "recordingStop": "録画を停止",
     "uploadDeleteFailed": "{name} を削除できませんでした: {reason}",
+    "deleteUploadedFilesPick": "チェックしたファイルはプロバイダーから削除されます",
+    "uploadsDescription": "アップロード済みファイルを一覧表示して早めに削除する",
+    "uploadsUsage": "使い方: /uploads [delete <file> | delete-all]",
+    "uploadNotFound": "アップロード済みファイル {id} は一覧にありません。",
+    "uploadForeignKept": "{name} を保持しました: 他のアプリが使用中の可能性があります。",
     "conversionFailed": "変換失敗: {reason}",
     "replayMetadata": "メディア: {name}（{duration}、{size}）",
     "replayMetadataNoDuration": "メディア: {name}（{size}）"

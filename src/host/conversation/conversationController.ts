@@ -794,6 +794,8 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'forkSession',
   'renameSession',
   'readUsage',
+  'deleteUploadedFile',
+  'deleteAllUploadedFiles',
   'setPaidFeature',
   'importSession',
   'savePlan',
@@ -10421,6 +10423,14 @@ export class ConversationController {
       }
       case 'readUsage': {
         await this.readUsage()
+        break
+      }
+      case 'deleteUploadedFile': {
+        await this.deleteUploadedFiles(message.fileId)
+        break
+      }
+      case 'deleteAllUploadedFiles': {
+        await this.deleteUploadedFiles()
         break
       }
       case 'setPaidFeature': {

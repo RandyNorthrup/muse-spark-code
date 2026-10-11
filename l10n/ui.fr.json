@@ -887,6 +887,11 @@
     "recordingStart": "Démarrer l’enregistrement",
     "recordingStop": "Arrêter l’enregistrement",
     "uploadDeleteFailed": "Impossible de supprimer {name} : {reason}",
+    "deleteUploadedFilesPick": "Les fichiers cochés sont supprimés chez le fournisseur",
+    "uploadsDescription": "Lister les fichiers téléversés et les supprimer plus tôt",
+    "uploadsUsage": "Utilisation : /uploads [delete <file> | delete-all]",
+    "uploadNotFound": "Le fichier téléversé {id} ne figure pas dans la liste.",
+    "uploadForeignKept": "{name} a été conservé : une autre application l’utilise peut-être encore.",
     "conversionFailed": "Échec de la conversion : {reason}",
     "replayMetadata": "Média : {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Média : {name} ({size})"

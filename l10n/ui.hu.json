@@ -883,6 +883,11 @@
     "recordingStart": "Felvétel indítása",
     "recordingStop": "Felvétel leállítása",
     "uploadDeleteFailed": "A(z) {name} nem törölhető: {reason}",
+    "deleteUploadedFilesPick": "A kijelölt fájlok törlődnek a szolgáltatónál",
+    "uploadsDescription": "Feltöltött fájlok listázása és korai törlése",
+    "uploadsUsage": "Használat: /uploads [delete <file> | delete-all]",
+    "uploadNotFound": "A feltöltött {id} fájl nem szerepel a listában.",
+    "uploadForeignKept": "{name} megmaradt: lehet, hogy egy másik alkalmazás még használja.",
     "conversionFailed": "A konvertálás sikertelen: {reason}",
     "replayMetadata": "Média: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Média: {name} ({size})"

@@ -887,6 +887,11 @@
     "recordingStart": "Avvia registrazione",
     "recordingStop": "Ferma registrazione",
     "uploadDeleteFailed": "Impossibile eliminare {name}: {reason}",
+    "deleteUploadedFilesPick": "I file selezionati vengono eliminati dal provider",
+    "uploadsDescription": "Elenca i file caricati ed eliminali in anticipo",
+    "uploadsUsage": "Uso: /uploads [delete <file> | delete-all]",
+    "uploadNotFound": "Il file caricato {id} non è in elenco.",
+    "uploadForeignKept": "{name} è stato mantenuto: un’altra app potrebbe usarlo ancora.",
     "conversionFailed": "Conversione non riuscita: {reason}",
     "replayMetadata": "Contenuto multimediale: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Contenuto multimediale: {name} ({size})"

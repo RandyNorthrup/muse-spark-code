@@ -883,6 +883,11 @@
     "recordingStart": "Kaydı başlat",
     "recordingStop": "Kaydı durdur",
     "uploadDeleteFailed": "{name} silinemedi: {reason}",
+    "deleteUploadedFilesPick": "İşaretli dosyalar sağlayıcıdan silinir",
+    "uploadsDescription": "Yüklenen dosyaları listele ve erken sil",
+    "uploadsUsage": "Kullanım: /uploads [delete <file> | delete-all]",
+    "uploadNotFound": "Yüklenen {id} dosyası listede yok.",
+    "uploadForeignKept": "{name} tutuldu: başka bir uygulama hâlâ kullanıyor olabilir.",
     "conversionFailed": "Dönüştürme başarısız: {reason}",
     "replayMetadata": "Medya: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Medya: {name} ({size})"

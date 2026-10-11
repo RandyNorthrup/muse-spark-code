@@ -68,6 +68,7 @@ import {
   mediaAttachmentRequestSchema,
   mediaChipSchema,
   mediaContributorChoiceSchema,
+  uploadedFilesReportSchema,
 } from './media'
 import { paidStateSchema } from './paidBoundary'
 import { patchHunkSchema } from './patchDocument'
@@ -853,6 +854,10 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('renameSession'), name: stringSchema }),
   // Account & usage (M8): ask for the subscription window; answered by usageReport.
   z.object({ type: z.literal('readUsage') }),
+  // The usage dialog's uploaded-files section (M105 lane F): delete one
+  // file or all of ours; answered by a fresh uploadedFilesReport.
+  z.object({ type: z.literal('deleteUploadedFile'), fileId: z.string() }),
+  z.object({ type: z.literal('deleteAllUploadedFiles') }),
   // Voice dictation (M9): the microphone button / Ctrl+D. Recognised text
   // comes back as `insertText`; the button state as `dictationState`.
   z.object({ type: z.literal('dictation'), action: z.enum(DICTATION_ACTIONS) }),
@@ -1396,6 +1401,9 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // The extension's `museSpark.estimate` command: focus the composer with
   // `/estimate ` ready for the goal.
   z.object({ type: z.literal('openEstimator') }),
+  // The uploaded-files port's report (M105 lane F): the Account & usage
+  // dialog lists it; its delete buttons arrive with the dialog's actions.
+  z.object({ type: z.literal('uploadedFilesReport'), report: uploadedFilesReportSchema }),
 ])
 
 export type HostToWebviewMessage =
