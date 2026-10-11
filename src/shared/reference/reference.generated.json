@@ -149,9 +149,9 @@
       "commands": ["museSpark.modelsAndAgents"],
       "settings": [],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#team-configuration",
-      "backends": ["modelApi"],
+      "backends": ["modelApi", "museCode"],
       "paid": false,
-      "surfaces": ["vscode:modelApi"],
+      "surfaces": ["vscode:modelApi", "vscode:museCode"],
       "details": [{ "ui": "referenceTeamPoolKeys" }],
       "facts": {},
       "editors": ["vscode"]

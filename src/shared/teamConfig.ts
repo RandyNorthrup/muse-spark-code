@@ -1,6 +1,12 @@
 // M96 configuration schemas are independent of scheduler/runner wire shapes.
 import * as z from 'zod/mini'
-import { TEAM_TOOL_GROUPS, TEAM_EXHAUSTED_POLICIES } from './constants'
+import {
+  TEAM_TOOL_GROUPS,
+  TEAM_EXHAUSTED_POLICIES,
+  TEAM_ROLE_WHEN_TO_USE_MAX_CHARS,
+  AGENT_FILE_MAX_BYTES,
+  AGENT_ID_PATTERN,
+} from './constants'
 
 // An agent is a model the user can run, by who runs the tools (D75): the
 // extension (`engine`, on the Model API or an M95 provider), a hidden
@@ -94,7 +100,10 @@ export type TeamReportShape = z.infer<typeof teamReportShapeSchema>
 
 /** One role of the workspace's team: its pool, policy and role keys. */
 export const teamRoleConfigSchema = z.object({
-  role: z.string().check(z.minLength(1)),
+  role: z.string().check(z.minLength(1), z.regex(AGENT_ID_PATTERN)),
+  purpose: z.optional(z.string().check(z.maxLength(TEAM_ROLE_WHEN_TO_USE_MAX_CHARS))),
+  done: z.optional(z.string().check(z.maxLength(TEAM_ROLE_WHEN_TO_USE_MAX_CHARS))),
+  guidance: z.optional(z.string().check(z.maxLength(AGENT_FILE_MAX_BYTES))),
   workspace: z.optional(teamWorkspaceModeSchema),
   tools: z.optional(z.array(z.enum(TEAM_TOOL_GROUPS))),
   writePaths: z.optional(z.array(z.string())),

@@ -700,7 +700,7 @@
     {
       "id": "M96",
       "title": "Agent roles and teams",
-      "summary": "Hidden Roles/Agents have first-time setup, live composer and budget/history reads, per-attempt accounting and a lazy role editor; captured discovery, saved charters, overrides and paid Try still need integration.",
+      "summary": "Hidden Roles/Agents have first-time setup, composer and budget/history reads, saved charters and new-conversation overrides; captured discovery and paid Try still need integration.",
       "area": "agents"
     },
     {

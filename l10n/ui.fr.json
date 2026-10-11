@@ -5454,5 +5454,14 @@
     "docs": "Documentation"
   },
   "referenceTeamConfiguration": "Rôles et Agents restent masqués jusqu’à l’installation des connexions des agents de l’équipe et de la configuration.",
-  "referenceTeamPoolKeys": "Alt+Haut / Alt+Bas déplace cette entrée dans son groupe."
+  "referenceTeamPoolKeys": "Alt+Haut / Alt+Bas déplace cette entrée dans son groupe.",
+  "teamControlLabels": {
+    "thinkingBudget": "Budget de réflexion",
+    "outputCap": "Limite de sortie",
+    "parallelToolCalls": "Appels d’outils parallèles",
+    "temperature": "Température",
+    "topP": "Top-p"
+  },
+  "teamTryTally": "Aperçu payant : {attempts} tentatives ; facturé {charged} ; montant réservé {retained}.",
+  "teamTryDenied": "Aperçu du plan payant refusé. Aucun montant facturé."
 }

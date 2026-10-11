@@ -5,16 +5,17 @@ import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import { createTeamHostService } from '../../core/team/teamHost'
 import type { TeamHostService } from '../../core/team/teamHostService'
-import { createEngineTeamPorts, type TeamHostBundleDeps } from './teamEnginePorts'
+import type { TeamHostBundleDeps } from './teamEnginePorts'
 
 /** The window's team host service over the editor's ports and the engine's. */
-export function createTeamHost(
+export async function createTeamHost(
   table: UiText,
   locale: string,
   deps: TeamHostBundleDeps,
-): TeamHostService {
+): Promise<TeamHostService> {
   setUiText(table, locale)
-  return createTeamHostService({ ...deps, ...createEngineTeamPorts(deps.engine) })
+  const { engineTeamPorts } = await import('./teamEngineEntry')
+  return createTeamHostService({ ...deps, ...engineTeamPorts(table, locale, deps.engine) })
 }
 
 // The lazy file adapter shares this grant authority, including its WeakMap.

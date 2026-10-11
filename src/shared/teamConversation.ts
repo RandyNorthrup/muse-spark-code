@@ -75,8 +75,6 @@ export function decideTeamConversationMode(source: TeamDecisionSource): TeamConv
 export const TEAM_WORKSPACE_KEYS = {
   /** The workspace team (lanes R/A own the shape): template, roles and pools. */
   team: 'museSpark.team.config',
-  /** The orchestrator slot's workspace override (lane T owns the shape). */
-  orchestratorOverride: 'museSpark.team.orchestrator',
   conversationModes: 'museSpark.team.conversations',
 } as const
 

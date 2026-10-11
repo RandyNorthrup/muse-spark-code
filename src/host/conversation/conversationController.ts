@@ -544,7 +544,11 @@ export interface ConversationDeps {
    */
   readonly orchestratorSlot?:
     | {
-        readonly modelForNewConversation: (pickerModelId: string) => string
+        readonly modelForNewConversation?: (pickerModelId: string) => string
+        readonly resolveForNewConversation?: (
+          pickerModelId: string,
+          host: AgentHost,
+        ) => Promise<{ readonly host: AgentHost; readonly modelId: string } | undefined>
       }
     | undefined
   readonly newAttachmentId: () => string
@@ -1171,6 +1175,7 @@ export class ConversationController {
   private gitDraftSubmission:
     { readonly session: AgentSession; readonly port: GitDraftOutputPort } | undefined
   private session: AgentSession | undefined
+  private sessionHost: AgentHost | undefined
   private readonly questionApprovals = new Set<string>()
   private unsubscribe: (() => void) | undefined
   private models: readonly ModelOption[] | undefined
@@ -1971,6 +1976,7 @@ export class ConversationController {
     this.questionApprovals.clear()
     session?.dispose()
     this.session = undefined
+    this.sessionHost = undefined
     this.activeTurnId = undefined
     this.hasSaidOutputFailure = false
     this.fileMessageIds.clear()
@@ -2134,7 +2140,7 @@ export class ConversationController {
     }
     this.reviews.hold(event, {
       session,
-      host: () => this.deps.ensureHost(),
+      host: () => this.ensureHost(),
       modelId: this.modelId,
       request: {
         userRequest: this.reviewUserText,
@@ -2281,7 +2287,7 @@ export class ConversationController {
       }
       const goalEventsAtStart = this.goalEventCount
       try {
-        const host = await this.deps.ensureHost()
+        const host = await this.ensureHost()
         if (generation !== this.sendInvalidationEpoch || this.session !== session) {
           break
         }
@@ -3263,7 +3269,7 @@ export class ConversationController {
       if (!this.isCurrentSessionAction(session, generation)) {
         return
       }
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (!this.isCurrentSessionAction(session, generation)) {
         return
       }
@@ -3898,6 +3904,7 @@ export class ConversationController {
       `Session ${session.sessionId} ${origin} on the ${host.info.kind} backend, model ${session.modelId}`,
     )
     this.session = session
+    this.sessionHost = host
     this.sessionKind = host.info.kind
     const surfaces = sessionSurfaces.get(session) ?? new Set<ConversationController>()
     surfaces.add(this)
@@ -3995,8 +4002,13 @@ export class ConversationController {
     }
   }
 
+  private async ensureHost(): Promise<AgentHost> {
+    const selected = await this.deps.ensureHost()
+    return this.sessionHost ?? selected
+  }
+
   private async openSession(workspaceRoot: string, generation: number): Promise<AgentSession> {
-    const host = await this.deps.ensureHost()
+    let host = await this.ensureHost()
     this.requireCurrentOpening(generation)
     await this.ensureModels(host)
     this.requireCurrentOpening(generation)
@@ -4005,15 +4017,29 @@ export class ConversationController {
     if (resumed !== undefined) {
       return resumed
     }
-    const mcpServers = await this.mcpServersFor(host)
+    const initialHost = host
+    const resolved = await this.deps.orchestratorSlot?.resolveForNewConversation?.(
+      this.modelId,
+      host,
+    )
     this.requireCurrentOpening(generation)
+    if (resolved !== undefined) host = resolved.host
     // M96 lane T: the orchestrator slot. A new conversation starts on the
     // workspace override, or the picker's model; the pill then shows the
     // resolved model through postSessionInfo.
-    let modelId = this.deps.orchestratorSlot?.modelForNewConversation(this.modelId) ?? this.modelId
-    if (modelId !== this.modelId && !(await this.allowsModel(modelId))) {
+    let modelId =
+      resolved?.modelId ??
+      this.deps.orchestratorSlot?.modelForNewConversation?.(this.modelId) ??
+      this.modelId
+    if (modelId !== this.modelId && !(await this.allowsModel(modelId, host))) {
       modelId = this.modelId
+      host = initialHost
     }
+    if (host !== initialHost) {
+      this.forgetModels()
+      await this.ensureModels(host)
+    }
+    const mcpServers = await this.mcpServersFor(host)
     this.requireCurrentOpening(generation)
     this.requireNonConfidentialModel(modelId)
     const session = await host.startSession({
@@ -4327,7 +4353,7 @@ export class ConversationController {
     }
     const generation = this.sendInvalidationEpoch
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
@@ -4529,7 +4555,7 @@ export class ConversationController {
       if (!isCurrent()) return
       const rows = await readSessionBoard(
         {
-          ensureHost: () => this.deps.ensureHost(),
+          ensureHost: () => this.ensureHost(),
           backendOf: (host) => host.info.kind,
           workspaceRoot: this.deps.workspaceRoot,
           isWorkspaceTrusted: () => this.isProjectTrusted(),
@@ -4563,7 +4589,7 @@ export class ConversationController {
   ): Promise<void> {
     const generation = this.sendInvalidationEpoch
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
@@ -4802,7 +4828,7 @@ export class ConversationController {
     }
     const generation = this.sendInvalidationEpoch
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (generation !== this.sendInvalidationEpoch) {
         return
       }
@@ -4843,7 +4869,7 @@ export class ConversationController {
     session: AgentSession,
     generation: number,
   ): Promise<AgentHost | undefined> {
-    const host = await this.deps.ensureHost()
+    const host = await this.ensureHost()
     if (generation !== this.sendInvalidationEpoch || this.session !== session) {
       return undefined
     }
@@ -4888,7 +4914,7 @@ export class ConversationController {
     if (!this.isCurrentSessionAction(source, generation) || source.sessionId !== sourceSessionId) {
       return undefined
     }
-    const host = await this.deps.ensureHost()
+    const host = await this.ensureHost()
     if (!this.isCurrentSessionAction(source, generation)) {
       return undefined
     }
@@ -5168,7 +5194,7 @@ export class ConversationController {
     if (session === undefined) {
       return undefined
     }
-    const host = await this.deps.ensureHost()
+    const host = await this.ensureHost()
     if (!this.isCurrentSessionAction(session, generation)) {
       return undefined
     }
@@ -5426,7 +5452,7 @@ export class ConversationController {
     if (this.refuseAction() !== undefined) {
       return { status: 'refused' }
     }
-    const host = await this.deps.ensureHost()
+    const host = await this.ensureHost()
     if (generation !== this.sendInvalidationEpoch || this.isDisposed || !canStart()) {
       return { status: 'changed' }
     }
@@ -5746,7 +5772,7 @@ export class ConversationController {
     // This operation owns the slot before host/session/history preparation can yield.
     this.pendingHandoff = pending
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (!this.canDistilHandoff(pending)) {
         return false
       }
@@ -5841,7 +5867,7 @@ export class ConversationController {
       if (!this.isStillCurrent(pending)) {
         return
       }
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       const hasConversationToResume = this.session !== undefined || this.resumeTarget !== undefined
       let session = pending.session
       if (hasConversationToResume && session === undefined) {
@@ -6154,7 +6180,7 @@ export class ConversationController {
     let turnIds: readonly string[] | undefined
     try {
       turnIds = await this.transcriptTurnIds(
-        await this.deps.ensureHost(),
+        await this.ensureHost(),
         session.sessionId,
         message.turnId,
       )
@@ -6218,7 +6244,7 @@ export class ConversationController {
     await this.checkpoints.redo(restoreId, sourceSessionId, async (fromTurnId) => {
       try {
         const ids = await this.transcriptTurnIds(
-          await this.deps.ensureHost(),
+          await this.ensureHost(),
           sourceSessionId,
           fromTurnId,
         )
@@ -6542,7 +6568,7 @@ export class ConversationController {
       requireCurrent(session)
       // The CLI backend also gets the choice-steering note (M14); the Model
       // API backend carries it in its system prompt.
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       requireCurrent(session)
       if (this.sessionKind !== host.info.kind) {
         throw new Error(UI_TEXT.turnStoppedByRestart)
@@ -6985,7 +7011,7 @@ export class ConversationController {
       if (isMaterialCurrent?.() === false) {
         throw new Error(UI_TEXT.turnStoppedByRestart)
       }
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (
         !this.isCurrentSessionAction(session, generation) ||
         this.sessionKind !== host.info.kind ||
@@ -7791,7 +7817,7 @@ export class ConversationController {
         return
       }
       targetSessionId = session.sessionId
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (this.accountStopEpoch > generation || this.accountStopsInFlight > 0) {
         // The conversation ended with the account: nothing to say in it.
         result(false)
@@ -7886,7 +7912,7 @@ export class ConversationController {
   private async refreshGoal(session: AgentSession, generation: number): Promise<void> {
     const goalEventsAtStart = this.goalEventCount
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (!this.isCurrentSessionAction(session, generation)) {
         return
       }
@@ -8131,7 +8157,7 @@ export class ConversationController {
    * Confidential BYO selection resolves current host privacy facts, even
    * before the wizard's first save or after a saved route changes.
    */
-  private async allowsModel(modelId: string): Promise<boolean> {
+  private async allowsModel(modelId: string, selectedHost?: AgentHost): Promise<boolean> {
     if (this.deps.isConfidentialWorkspace() && isContributorModel(modelId)) {
       this.notice('warning', UI_TEXT.contributorBlocked)
       return false
@@ -8140,7 +8166,7 @@ export class ConversationController {
       const generation = this.modelGeneration
       const actionGeneration = this.sendInvalidationEpoch
       try {
-        const host = await this.deps.ensureHost()
+        const host = selectedHost ?? (await this.ensureHost())
         const listed = await host.listModels()
         if (
           this.isDisposed ||
@@ -8510,7 +8536,7 @@ export class ConversationController {
     }
     let host: AgentHost
     try {
-      host = await this.deps.ensureHost()
+      host = await this.ensureHost()
     } catch (error: unknown) {
       if (
         this.isDisposed ||
@@ -8819,7 +8845,7 @@ export class ConversationController {
     }
     if (!isCurrent()) return undefined
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (!isCurrent()) return undefined
       if (host.info.kind !== 'modelApi') {
         rejected(UI_TEXT.media.museCodeRefusal)
@@ -9077,7 +9103,7 @@ export class ConversationController {
    */
   private async readUsage(): Promise<void> {
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (this.usageHost !== host) {
         this.usageHost = host
         this.latestUsage = undefined
@@ -9198,7 +9224,7 @@ export class ConversationController {
     }
     try {
       if (action === 'continue' || action === 'retry') {
-        const host = await this.deps.ensureHost()
+        const host = await this.ensureHost()
         const history = await host.readSession(session.sessionId)
         if (!this.isCurrentSessionAction(session, generation)) return
         const agent = history.items.findLast((item) => item.subagentId === subagentId)
@@ -9276,7 +9302,7 @@ export class ConversationController {
       return
     }
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       const outcome = await exportConversation(
         host,
         session,
@@ -9471,7 +9497,7 @@ export class ConversationController {
     // after an await covers a closed panel too.
     const generation = this.sendInvalidationEpoch
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (generation !== this.sendInvalidationEpoch) {
         return
       }
@@ -9551,7 +9577,7 @@ export class ConversationController {
   private async readChildSession(sessionId: string): Promise<void> {
     const generation = this.sendInvalidationEpoch
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (generation !== this.sendInvalidationEpoch) {
         return
       }
@@ -9815,7 +9841,7 @@ export class ConversationController {
     }
     try {
       if (this.models === undefined) {
-        const host = await this.deps.ensureHost()
+        const host = await this.ensureHost()
         await this.ensureModels(host)
       }
       // The pill reads the session's model; before any session it reads the
@@ -10349,7 +10375,7 @@ export class ConversationController {
           )
             break
           if (this.deps.focusBoardSession?.(message.sessionId, message.backend) === true) break
-          const host = await this.deps.ensureHost()
+          const host = await this.ensureHost()
           if (generation !== this.sendInvalidationEpoch || this.isDisposed) break
           if (host.info.kind !== message.backend) {
             this.notice('warning', `${UI_TEXT.resumeFailed}: ${message.backend}`)
@@ -10482,7 +10508,7 @@ export class ConversationController {
     const id = sessionId ?? current?.sessionId
     if (id === undefined) throw new Error(UI_TEXT.exportNothing)
     if (this.activeTurnId !== undefined) throw new Error(UI_TEXT.exportWaitForTurn)
-    const host = await this.deps.ensureHost()
+    const host = await this.ensureHost()
     const history = await host.readSession(id)
     if (this.isDisposed || current !== this.session) throw new Error(UI_TEXT.sharePreviewExpired)
     if (history.mode === 'none') throw new Error(UI_TEXT.exportHistoryUnavailable)

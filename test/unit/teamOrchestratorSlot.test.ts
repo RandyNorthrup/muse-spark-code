@@ -2,6 +2,9 @@
 // override (not just the pill's label); Default follows the picker live.
 
 import { describe, expect, it } from 'vitest'
+import { AGENT_FILE_MAX_BYTES, TEAM_ROLE_WHEN_TO_USE_MAX_CHARS } from '../../src/shared/constants'
+import { teamSnapshotSchema } from '../../src/shared/teamConfig'
+import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
 import {
   readOrchestratorOverride,
   requiresBackendSwitch,
@@ -16,12 +19,12 @@ function memoryState(stored?: unknown): {
   written: { key: string; value: unknown }[]
 } {
   const written: { key: string; value: unknown }[] = []
-  let current = stored
+  const values = new Map<string, unknown>([[TEAM_WORKSPACE_KEYS.team, stored]])
   return {
-    get: () => current,
+    get: (key) => values.get(key),
     update: (key: string, value: unknown) => {
       written.push({ key, value })
-      current = value
+      values.set(key, value)
       return Promise.resolve()
     },
     written,
@@ -34,7 +37,11 @@ describe('readOrchestratorOverride', () => {
   })
 
   it('reads a stored override', () => {
-    const state = memoryState({ modelId: 'opus-5.5', backend: 'modelApi' })
+    const state = memoryState({
+      roles: [],
+      intensity: 'minimal',
+      orchestrator: { agent: { kind: 'engine', agentId: 'key', model: 'opus-5.5', pays: 'key' } },
+    })
     expect(readOrchestratorOverride(state)).toEqual({ modelId: 'opus-5.5', backend: 'modelApi' })
   })
 
@@ -46,10 +53,67 @@ describe('readOrchestratorOverride', () => {
 
 describe('resetOrchestratorSlot', () => {
   it('clears the stored override, so the picker decides again', async () => {
-    const state = memoryState({ modelId: 'opus-5.5', backend: 'modelApi' })
+    const state = memoryState({
+      roles: [],
+      intensity: 'minimal',
+      orchestrator: { agent: { kind: 'engine', agentId: 'key', model: 'opus-5.5', pays: 'key' } },
+    })
     await resetOrchestratorSlot(state)
     expect(readOrchestratorOverride(state)).toBeUndefined()
     expect(state.written).toHaveLength(1)
+  })
+})
+
+describe('saved role admission', () => {
+  it.each([
+    { field: 'purpose', maximum: TEAM_ROLE_WHEN_TO_USE_MAX_CHARS },
+    { field: 'done', maximum: TEAM_ROLE_WHEN_TO_USE_MAX_CHARS },
+    { field: 'guidance', maximum: AGENT_FILE_MAX_BYTES },
+  ])('bounds canonical saved $field text', ({ field, maximum }) => {
+    const snapshot = (length: number) => ({
+      intensity: 'minimal',
+      roles: [{ role: 'custom', pool: [], [field]: 'x'.repeat(length) }],
+    })
+    expect(teamSnapshotSchema.safeParse(snapshot(maximum)).success).toBe(true)
+    expect(teamSnapshotSchema.safeParse(snapshot(maximum + 1)).success).toBe(false)
+  })
+
+  it.each(['../escape', 'Uppercase', 'bad role', 'nested/role'])(
+    'rejects a noncanonical saved role id %s',
+    (role) => {
+      expect(
+        teamSnapshotSchema.safeParse({ intensity: 'minimal', roles: [{ role, pool: [] }] }).success,
+      ).toBe(false)
+    },
+  )
+})
+
+describe('canonical Roles storage', () => {
+  it('reset preserves the saved roles and never resurrects the obsolete override key', async () => {
+    const roles = [
+      { role: 'my-role', purpose: 'Saved purpose', guidance: 'Saved guidance', pool: [] },
+    ]
+    const state = memoryState({
+      roles,
+      intensity: 'balanced',
+      orchestratorModel: 'model',
+      orchestrator: {
+        agent: { kind: 'museCode', agentId: 'subscription', model: 'model', pays: 'subscription' },
+      },
+    })
+    await state.update('museSpark.team.orchestrator', { modelId: 'obsolete', backend: 'modelApi' })
+    expect(readOrchestratorOverride(state)).toEqual({ modelId: 'model', backend: 'musecode' })
+    await resetOrchestratorSlot(state)
+    expect(state.get(TEAM_WORKSPACE_KEYS.team)).toEqual({ roles, intensity: 'balanced' })
+    expect(readOrchestratorOverride(state)).toBeUndefined()
+  })
+  it('refuses an external orchestrator instead of silently changing backend', () => {
+    const state = memoryState({
+      roles: [],
+      intensity: 'minimal',
+      orchestrator: { agent: { kind: 'external', agentId: 'cli', model: 'model', pays: 'key' } },
+    })
+    expect(readOrchestratorOverride(state)).toBeUndefined()
   })
 })
 

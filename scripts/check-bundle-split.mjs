@@ -1043,7 +1043,13 @@ const TEXT_BLOCKS = [
   {
     block: 'TEAM_MODEL_TEXT',
     sentinels: ['toolTheRoleToRunEG'],
-    readers: ['dist/team.js', 'dist/teamScheduler.js', 'dist/teamHost.js', 'dist/teamPanel.js'],
+    readers: [
+      'dist/team.js',
+      'dist/teamScheduler.js',
+      'dist/teamHost.js',
+      'dist/teamPanel.js',
+      'dist/teamEngine.js',
+    ],
   },
   {
     block: 'TEAM_BOOTSTRAP_MODEL_TEXT',
@@ -1060,7 +1066,7 @@ const TEXT_BLOCKS = [
   {
     block: 'WORKER_MODEL_TEXT',
     sentinels: ['boundedExcerpt'],
-    readers: ['dist/teamHost.js', 'dist/teamFileIo.js'],
+    readers: ['dist/teamEngine.js', 'dist/teamFileIo.js'],
   },
   {
     block: 'QUESTION_MODEL_TEXT',

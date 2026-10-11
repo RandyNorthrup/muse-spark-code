@@ -7,7 +7,8 @@
 // started on. Pure: workspace state arrives structurally (core never imports
 // `vscode`), and the backend switch itself stays with M95's lane U.
 
-import * as z from 'zod/mini'
+import { teamSnapshotSchema } from '../../shared/teamConfig'
+import { TEAM_WORKSPACE_KEYS } from '../../shared/teamConversation'
 
 /** A workspace's orchestrator override: a model on either backend. */
 export interface OrchestratorOverride {
@@ -15,32 +16,28 @@ export interface OrchestratorOverride {
   readonly backend: 'modelApi' | 'musecode'
 }
 
-const overrideSchema = z.object({
-  modelId: z.string().check(z.minLength(1)),
-  backend: z.enum(['modelApi', 'musecode']),
-})
-
 /** The narrowest workspace-state shape this module touches. */
 export interface OrchestratorSlotState {
   get(key: string): unknown
   update(key: string, value: unknown): unknown
 }
 
-const OVERRIDE_KEY = 'museSpark.team.orchestrator'
-
 /** The workspace's override, if the user set one; anything else stored reads as none. */
 export function readOrchestratorOverride(
   state: Pick<OrchestratorSlotState, 'get'>,
 ): OrchestratorOverride | undefined {
-  const result = overrideSchema.safeParse(state.get(OVERRIDE_KEY))
-  return result.success ? { modelId: result.data.modelId, backend: result.data.backend } : undefined
+  const result = teamSnapshotSchema.safeParse(state.get(TEAM_WORKSPACE_KEYS.team))
+  const agent = result.success ? result.data.orchestrator?.agent : undefined
+  if (agent === undefined || agent.kind === 'external') return
+  return { modelId: agent.model, backend: agent.kind === 'engine' ? 'modelApi' : 'musecode' }
 }
 
 /** Reset to Default: forget the stored override, so the picker decides again. */
-export async function resetOrchestratorSlot(
-  state: Pick<OrchestratorSlotState, 'update'>,
-): Promise<void> {
-  await state.update(OVERRIDE_KEY, undefined)
+export async function resetOrchestratorSlot(state: OrchestratorSlotState): Promise<void> {
+  const result = teamSnapshotSchema.safeParse(state.get(TEAM_WORKSPACE_KEYS.team))
+  if (!result.success) return
+  const { orchestrator: _orchestrator, orchestratorModel: _model, ...team } = result.data
+  await state.update(TEAM_WORKSPACE_KEYS.team, team)
 }
 
 /** What a new conversation in the workspace starts on: the override, or the picker's model. */

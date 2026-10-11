@@ -198,12 +198,22 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
     if (!deps.isTrusted()) throw new Error(TEAM_MODEL_TEXT.hostUntrusted)
     const repositoryRoot = repository()
     const builtin = builtinRoles().find((role) => role.id === spec.role.role)
-    if (builtin === undefined) {
+    if (
+      builtin === undefined &&
+      (spec.role.purpose?.trim() === undefined ||
+        spec.role.purpose.trim() === '' ||
+        spec.role.workspace === undefined ||
+        spec.role.tools === undefined ||
+        spec.role.report === undefined)
+    ) {
       throw new Error(fill(TEAM_MODEL_TEXT.hostRoleNotOffered, { role: spec.role.role }))
     }
     // A review reads the reviewed branch at its head, in a scratch copy.
     const reviewed = spec.reviewOf
-    const mode = reviewed === undefined ? (spec.role.workspace ?? builtin.workspace) : 'read-only'
+    const mode =
+      reviewed === undefined
+        ? (spec.role.workspace ?? builtin?.workspace ?? 'read-only')
+        : 'read-only'
     if (mode === 'in-place') throw new Error(TEAM_MODEL_TEXT.hostInPlaceNotOffered)
     const previous = spec.continueFrom
     const baseCommit =
@@ -241,8 +251,9 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         agentsRef: workspace.agentsRef,
       })
       signal.throwIfAborted()
-      const groups = spec.role.tools ?? TEAM_ROLE_TOOLSETS[builtin.id]
-      const writePaths = spec.role.writePaths ?? builtin.writePaths
+      const groups =
+        spec.role.tools ?? (builtin === undefined ? [] : TEAM_ROLE_TOOLSETS[builtin.id])
+      const writePaths = spec.role.writePaths ?? builtin?.writePaths
       const fenceInput = {
         folder: workspace.folder,
         platform: deps.platform,
@@ -324,11 +335,11 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
           fenceWorkerToolIo(io, {
             input: { ...fenceInput, grant },
             role: {
-              roleId: builtin.id,
+              roleId: spec.role.role,
               workspaceMode: mode,
               toolGroups: groups,
               ...(writePaths !== undefined && { writePaths }),
-              reportShape: spec.role.report ?? builtin.report,
+              reportShape: spec.role.report ?? builtin?.report ?? 'summary',
             },
             admit: () => {
               signal.throwIfAborted()
@@ -356,14 +367,14 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         )
         const charter = buildTeamCharter(
           {
-            id: builtin.id,
-            description: builtin.description,
+            id: spec.role.role,
+            description: spec.role.purpose ?? builtin?.description ?? spec.role.role,
             workspace: mode,
             writePaths,
-            done: builtin.done,
-            report: spec.role.report ?? builtin.report,
+            done: spec.role.done ?? builtin?.done,
+            report: spec.role.report ?? builtin?.report ?? 'summary',
             delegates: [],
-            body: builtin.body,
+            body: spec.role.guidance ?? builtin?.body ?? '',
           },
           tools,
         )
@@ -375,7 +386,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         result = await runEngineWorker({
           task: {
             taskId: spec.taskId,
-            roleId: builtin.id,
+            roleId: spec.role.role,
             brief: `${spec.brief}${handoff}`,
             branch: workspace.branch ?? '',
             folder: workspace.folder,
@@ -383,11 +394,14 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
           },
           workspaceRoot: repositoryRoot,
           role: {
-            roleId: builtin.id,
+            roleId: spec.role.role,
             workspaceMode: mode,
             toolGroups: tools.groups,
             ...(writePaths !== undefined && { writePaths }),
-            reportShape: reviewed === undefined ? (spec.role.report ?? builtin.report) : 'review',
+            reportShape:
+              reviewed === undefined
+                ? (spec.role.report ?? builtin?.report ?? 'summary')
+                : 'review',
           },
           prompt: { charter: charter.generated, body: charter.body, rulesAndSkills: '' },
           isTrusted: deps.isTrusted(),
@@ -395,7 +409,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
           platform: deps.platform,
           session: adapter,
           requestCeiling: (TEAM_TASK_MAX_REQUESTS_WRITER_ROLES as readonly string[]).includes(
-            builtin.id,
+            spec.role.role,
           )
             ? TEAM_TASK_MAX_REQUESTS_WRITER
             : TEAM_TASK_MAX_REQUESTS_DEFAULT,
@@ -438,7 +452,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       const before = previous?.head ?? baseCommit
       const committed = await commitTaskBranch(runGit, workspace.folder, {
         branch,
-        role: builtin.id,
+        role: spec.role.role,
         taskId: spec.taskId,
         entryId: spec.entry.id,
       })

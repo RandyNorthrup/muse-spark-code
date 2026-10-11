@@ -42,6 +42,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Hidden team execution now preserves saved custom charter text and enforces its workspace and tool policy. New conversations read the Roles workspace orchestrator override, retain its confirmed backend, and Reset to Default restores the composer’s selection.
+
 - Joined team verification now shares the fresh production build before browser workers start, preserving the existing deadlines and bundle caps. Engine label assertions match the reviewed Roles editor labels.
 
 - Hidden team bindings now read the active composer model and attached backend, including Auto selection, instead of a fixed default model and the backend setting. The complete captured discovery registry remains a prerequisite for exposing Roles.

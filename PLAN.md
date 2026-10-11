@@ -24072,6 +24072,10 @@ VS Code host bindings at a fake model boundary, including review, merge and
 cost. Record missing live captures and remaining scheduler/new-file/editor
 bindings explicitly; no live/paid calls or public activation are authorized.
 
+Port 4 binds canonical saved charters and the workspace orchestrator into new conversations; admission is rechecked even while an override backend is retained. The original backend and contributor confirmations still apply. The portable role schema validates custom role ids before worktree allocation, and source-only lazy hook transforms are prepared in controller test setup so assertions keep repository deadlines.
+
+The concrete engine worker/merge implementation now loads as `dist/teamEngine.js` from the team host’s async factory: port 4 exceeded the unchanged 130 KiB team-host cap by 0.2 KiB. It measures 93.0 KiB under its independent 100 KiB budget; the existing worker-file grant authority remains shared through `dist/teamHost.js`. Existing caps are unchanged.
+
 **CM963J configuration join (2026-10-11, kubuntu).** Join the reviewed
 Roles/Agents editor (`787ee0311`) to engine round 5 (`8bd374471`), committing
 the merged base alone. Bind setup readiness independently of a saved team,

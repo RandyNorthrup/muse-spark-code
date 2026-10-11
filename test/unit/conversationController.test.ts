@@ -1,3 +1,4 @@
+import { FakeAgentHost } from './helpers/fakeAgent'
 import type { EstimateRequest } from '../../src/shared/estimate'
 import { fakeEstimate } from './helpers/estimator/fixtures'
 import { questionAnswerText } from './helpers/questions/registry'
@@ -979,6 +980,15 @@ function setup(
     whileConfirming,
   }
 }
+
+// Production loads built chunks; prepare source transforms outside response deadlines.
+beforeAll(async () => {
+  await Promise.all([
+    import('../../src/core/backends/modelapi/hookRuntimeEntry'),
+    import('../../src/core/backends/modelapi/modelApiHooksEntry'),
+    import('../../src/core/team/teamEntry'),
+  ])
+})
 
 describe('ConversationController: deferred best-of-N', () => {
   const built = { folder: '' }
@@ -4007,6 +4017,59 @@ describe('ConversationController: team server and orchestrator slot (M96 lane T)
     })
   })
 
+  it('resolves the workspace orchestrator asynchronously only for new conversations', async () => {
+    const resolve = vi.fn<
+      NonNullable<NonNullable<ConversationDeps['orchestratorSlot']>['resolveForNewConversation']>
+    >((_picker, host) => Promise.resolve({ host, modelId: 'saved-override' }))
+    const t = setup({ orchestratorSlot: { resolveForNewConversation: resolve } })
+    await t.send('slot-first', 'hello')
+    expect(t.server.requestsFor('session/start')[0]?.params?.['modelId']).toBe('saved-override')
+    t.finishTurn()
+    await t.send('slot-next', 'continue')
+    expect(resolve).toHaveBeenCalledOnce()
+  })
+  it('pins the confirmed override backend for the attached conversation', async () => {
+    const target = new FakeAgentHost([
+      {
+        modelId: 'saved-model',
+        displayLabel: 'Saved',
+        contextLimit: undefined,
+        isDefault: true,
+        isActive: false,
+      },
+    ])
+    target.info = { ...target.info, kind: 'modelApi' }
+    const t = setup({
+      orchestratorSlot: {
+        resolveForNewConversation: () => Promise.resolve({ host: target, modelId: 'saved-model' }),
+      },
+    })
+    await t.send('backend-first', 'hello')
+    expect(target.startSession).toHaveBeenCalledOnce()
+    expect(t.server.requestsFor('session/start')).toEqual([])
+    target.sessions[0]?.emit(
+      { type: 'turnStarted', turnId: 'turn-1' },
+      { type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' },
+    )
+    await t.controller.handle({ type: 'listSessions' })
+    expect(target.listSessions).toHaveBeenCalledOnce()
+    expect(t.surface.posted.findLast((message) => message.type === 'sessionInfo')).toMatchObject({
+      modelId: 'saved-model',
+    })
+  })
+  it('does not open a conversation after an override resolution outlives its surface', async () => {
+    const gate = Promise.withResolvers<{ host: AgentHost; modelId: string } | undefined>()
+    const resolve = vi.fn(() => gate.promise)
+    const t = setup({ orchestratorSlot: { resolveForNewConversation: resolve } })
+    const send = t.send('slot-closed', 'hello')
+    await vi.waitFor(() => {
+      expect(resolve).toHaveBeenCalledOnce()
+    })
+    t.controller.dispose()
+    gate.resolve({ host: t.host, modelId: 'stale-override' })
+    await send
+    expect(t.server.requestsFor('session/start')).toEqual([])
+  })
   it('starts a new conversation on the orchestrator override, and the pill shows it', async () => {
     const t = setup({
       ideMcpEndpoint: IDE,

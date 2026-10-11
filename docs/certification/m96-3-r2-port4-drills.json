@@ -1,0 +1,35 @@
+{
+  "exitCode": 1,
+  "restoration": [
+    {
+      "file": "src/shared/teamConfig.ts",
+      "before": "f52f1c4ba590535e0cb8ec936b5e5adaaefa9d5c82c7cecdf61b7fc05cb7c77e",
+      "after": "f52f1c4ba590535e0cb8ec936b5e5adaaefa9d5c82c7cecdf61b7fc05cb7c77e",
+      "exact": true
+    },
+    {
+      "file": "src/core/team/orchestratorSlot.ts",
+      "before": "ae452ea744fa79c201b007446d2180a7ff356af0feac8d8c150c4a2f5589f798",
+      "after": "ae452ea744fa79c201b007446d2180a7ff356af0feac8d8c150c4a2f5589f798",
+      "exact": true
+    },
+    {
+      "file": "src/host/team/teamEnginePorts.ts",
+      "before": "52e5999fa2733ded195aa814ac36b85d4d405dbf348b38d7086960b293b56e00",
+      "after": "52e5999fa2733ded195aa814ac36b85d4d405dbf348b38d7086960b293b56e00",
+      "exact": true
+    },
+    {
+      "file": "src/core/team/teamHost.ts",
+      "before": "36e3b15cf5d8777b20335104aa443a1a8034cfd93c9b249c9ee1fa71c14607d1",
+      "after": "36e3b15cf5d8777b20335104aa443a1a8034cfd93c9b249c9ee1fa71c14607d1",
+      "exact": true
+    },
+    {
+      "file": "src/host/teamHostBinding.ts",
+      "before": "17e528996b7955a96f5a3c21e34ddb2427c6ff58a471650f7c4a8429b9cdd618",
+      "after": "17e528996b7955a96f5a3c21e34ddb2427c6ff58a471650f7c4a8429b9cdd618",
+      "exact": true
+    }
+  ]
+}
