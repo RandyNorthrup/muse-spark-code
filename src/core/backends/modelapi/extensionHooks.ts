@@ -59,6 +59,7 @@ import { decodeContextText } from '../../context/contextFiles'
 import { confineWorkspacePath } from '../../workspacePath'
 import type { ShellResult } from '../../shellResult'
 import { NO_EXTENSION_HOOK_DISPATCH } from '../../agent/agentBackend'
+import type { TeamAgentSwitchPayload } from '../../team/teamPool'
 
 export type ExtensionHookEvent = (typeof EXTENSION_HOOK_EVENTS)[number]
 const EXTENSION_EVENT_NAMES: ReadonlySet<string> = new Set(EXTENSION_HOOK_EVENTS)
@@ -68,14 +69,19 @@ function isExtensionEvent(name: string): name is ExtensionHookEvent {
   return EXTENSION_EVENT_NAMES.has(name)
 }
 
-/** The events whose hook may refuse the operation, with the reason shown. */
+/**
+ * The events whose hook may refuse the operation, with the reason shown.
+ * A `TeamAgentSwitch` refusal marks the role exhausted (M96 lane H, PLAN.md
+ * D75); it never picks another entry.
+ */
 const REFUSABLE_EVENTS: ReadonlySet<ExtensionHookEvent> = new Set([
   'UserPromptExpansion',
   'PreModelSwitch',
   'TaskCreated',
   'TaskCompleted',
+  'TeamAgentSwitch',
 ])
-/** Elicitation and TeammateIdle decide too, with their own meaning. */
+/** Elicitation, TeammateIdle and TeamAgentSwitch decide too, with their own meaning. */
 const DECISION_EVENTS: ReadonlySet<ExtensionHookEvent> = new Set([
   ...REFUSABLE_EVENTS,
   'Elicitation',
@@ -120,6 +126,8 @@ const NAME_MATCHED_EVENTS: ReadonlySet<ExtensionHookEvent> = new Set([
   'Setup',
   'Elicitation',
   'TeammateIdle',
+  // A TeamAgentSwitch matcher selects role ids (M96 lane H, PLAN.md D75).
+  'TeamAgentSwitch',
 ])
 
 export interface ExtensionHookDefinition {
@@ -598,8 +606,64 @@ export function elicitationResultFields(options: {
 export function teammateIdleFields(options: {
   readonly name: string
   readonly siblingsRunning: number
+  /**
+   * D75's team fields for a team task (M96 lane H): Claude's
+   * `teammate_name` is the task id. Best-of-N attempts omit this and keep
+   * today's shape. A block keeps the task working inside its own ceiling,
+   * never past it; the firing site re-admits before continuing.
+   */
+  readonly team?:
+    | {
+        readonly teammateName: string
+        readonly roleId: string
+        readonly entryId: string
+        readonly agentProfileId: string
+        readonly taskId: string
+        readonly parentSessionId: string
+      }
+    | undefined
 }): Readonly<Record<string, unknown>> {
-  return { name: options.name, siblings_running: options.siblingsRunning }
+  return {
+    name: options.name,
+    siblings_running: options.siblingsRunning,
+    ...(options.team !== undefined && {
+      teammate_name: options.team.teammateName,
+      role_id: options.team.roleId,
+      entry_id: options.team.entryId,
+      agent_profile_id: options.team.agentProfileId,
+      task_id: options.team.taskId,
+      parent_session_id: options.team.parentSessionId,
+    }),
+  }
+}
+
+/**
+ * D75's `TeamAgentSwitch` payload (M96 lane H): one switch, with both agent
+ * profiles and models, the cap it moved on, and the links. A hook's answer
+ * can only refuse (the role is then exhausted); no answer field names an
+ * entry, so a hook can never choose one.
+ */
+export function teamAgentSwitchFields(
+  payload: TeamAgentSwitchPayload,
+): Readonly<Record<string, unknown>> {
+  return {
+    role_id: payload.role_id,
+    from_entry_id: payload.from_entry_id,
+    to_entry_id: payload.to_entry_id,
+    from_agent_profile: payload.from_agent_profile,
+    to_agent_profile: payload.to_agent_profile,
+    from_model: payload.from_model,
+    to_model: payload.to_model,
+    reason: payload.reason,
+    ...(payload.measure !== undefined && { measure: payload.measure }),
+    ...(payload.window !== undefined && { window: payload.window }),
+    ...(payload.amount !== undefined && { amount: payload.amount }),
+    ...(payload.used !== undefined && { used: payload.used }),
+    task_id: payload.task_id,
+    ...(payload.parent_session_id !== undefined && {
+      parent_session_id: payload.parent_session_id,
+    }),
+  }
 }
 
 export function messageDisplayFields(message: string): Readonly<Record<string, unknown>> {

@@ -44,6 +44,14 @@ happened, not what was planned; superseded entries are kept.
   a finishing probe cannot start queued work after disposal. Teams remain
   unavailable pending the milestone's remaining bindings and certification.
 
+- Hidden M96 team hook events (lane H): `TeamAgentSwitch` joins the
+  extension hook events with D75's payload (both agent profiles and models,
+  the cap, the task and the parent session; a refusal exhausts the role and
+  no answer can choose an entry), and `SubagentStart`, `SubagentStop` and
+  `TeammateIdle` carry D75's team fields. Nothing fires them yet; teams
+  remain unavailable pending the milestone's remaining bindings (lane X) and
+  certification.
+
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did
