@@ -38441,6 +38441,17 @@ lane A's first step.
 
 ## 7. Gates
 
+**PORTM105 inherited duplication deferral (2026-10-11, MacBook).** All
+assigned type/lint/format/media/localization/reference/roadmap/plan/knip/build
+gates pass. The extra full-tree jscpd exits 1 at its unchanged zero threshold:
+29 clones. Fresh read-only source archives reproduce 27 on accepted
+`eda2fdfe6` and two on release `35d7b6f54`; 29 equals their combined count.
+Cleaning up the accepted multi-suite media fixtures and the unrelated base
+host/loop fixtures exceeds this bounded release-base port's semantic scope.
+The lead owns that integration cleanup before aggregate quality; no threshold,
+ignore or test is weakened. Exact comparison and failing output tail:
+`docs/certification/m105-port.md`. Temporary source archives were removed.
+
 **PORTM105 gate boundary (2026-10-11, MacBook).** The authorized rig brief
 and common rules prohibit aggregate quality/full tests and all browser, GUI,
 microphone and capture launches. Run all five typecheck projects, scoped

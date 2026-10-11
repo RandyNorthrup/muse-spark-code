@@ -1,0 +1,153 @@
+{
+  "merge": "f8db55035",
+  "followup": "62be00c9f",
+  "releaseBase": "35d7b6f54280e6b6235ae4b90e079b865c3e4ff4",
+  "machine": "MacBook",
+  "testSummary": {
+    "files": 104,
+    "passed": 2872,
+    "failed": 0,
+    "pending": 86,
+    "todo": 0,
+    "failedFiles": [],
+    "platformOnlyFiles": [
+      "test/unit/jobCreateAtomic.test.ts",
+      "test/unit/resourceWindowsLaunch.test.ts",
+      "test/unit/windowsScreenRecorderNative.test.ts"
+    ]
+  },
+  "gates": [
+    {
+      "gate": "eslint",
+      "exit": 0
+    },
+    {
+      "gate": "prettier",
+      "exit": 0
+    },
+    {
+      "gate": "l10n",
+      "exit": 0
+    },
+    {
+      "gate": "reference",
+      "exit": 0
+    },
+    {
+      "gate": "roadmap",
+      "exit": 0
+    },
+    {
+      "gate": "plan",
+      "exit": 0
+    },
+    {
+      "gate": "host-api",
+      "exit": 0
+    },
+    {
+      "gate": "knip",
+      "exit": 0
+    },
+    {
+      "gate": "duplication",
+      "exit": 1
+    },
+    {
+      "gate": "cycles",
+      "exit": 0
+    },
+    {
+      "gate": "build",
+      "exit": 0
+    }
+  ],
+  "bundleBytes": {
+    "extension": 563681,
+    "modelApi": 523629,
+    "productionMedia": 68050,
+    "productionAudio": 68436,
+    "runtimeMedia": 46952,
+    "resourceGovernor": 111223,
+    "resourceProcess": 27686,
+    "modelApiSessions": 39077,
+    "modelApiBoundaries": 37491,
+    "usagePanel": 74682
+  },
+  "caps": {
+    "extension": 614400,
+    "modelApi": 537600,
+    "productionMedia": 102400,
+    "productionAudio": 76800,
+    "runtimeMedia": 76800,
+    "resourceGovernor": 128000,
+    "resourceProcess": 51200,
+    "modelApiSessions": 51200,
+    "modelApiBoundaries": 51200,
+    "usagePanel": 76800
+  },
+  "duplicationComparison": [
+    {
+      "source": "accepted",
+      "ref": "eda2fdfe6",
+      "exit": 1,
+      "clones": 27
+    },
+    {
+      "source": "release",
+      "ref": "35d7b6f54280e6b6235ae4b90e079b865c3e4ff4",
+      "exit": 1,
+      "clones": 2
+    }
+  ],
+  "drills": [
+    {
+      "drill": "drill-payload-pid",
+      "source": "src/core/media/convert.ts",
+      "exit": 1,
+      "sha256": "7be9c5672ee5f4ca0a55cc2bd890bf7e6dc700396844d5a809d2440a1b7f6121",
+      "restoredByteExact": true
+    },
+    {
+      "drill": "drill-whole-tree",
+      "source": "src/core/media/convert.ts",
+      "exit": 1,
+      "sha256": "7be9c5672ee5f4ca0a55cc2bd890bf7e6dc700396844d5a809d2440a1b7f6121",
+      "restoredByteExact": true
+    },
+    {
+      "drill": "drill-windows-root",
+      "source": "src/runtime/tokenFile.ts",
+      "exit": 1,
+      "sha256": "2e96635a8c68135a12e308100822962533796cbbecd06975e497201534564882",
+      "restoredByteExact": true
+    },
+    {
+      "drill": "drill-registry-lazy",
+      "source": "src/runtime/backends.ts",
+      "exit": 1,
+      "sha256": "c5442e191f996f16a35961fcb5488bf906cc9f79866d384efdb5b0f8d83f2c3d",
+      "restoredByteExact": true
+    }
+  ],
+  "coldDrill": {
+    "exit": 1,
+    "files": [
+      {
+        "file": "scripts/lib/deferredBundles.mjs",
+        "sha256": "049445f6d35f6af6741fc67fb1236063f342102ea4a3224071b746245280fcb2",
+        "restoredByteExact": true
+      },
+      {
+        "file": "src/shared/modelApiBoundariesEntry.ts",
+        "sha256": "a8603bb50a65639bb320966d35e56bacf807f3aecad33b6035becde0e2ba59f4",
+        "restoredByteExact": true
+      },
+      {
+        "file": "test/unit/deferredBundles.test.ts",
+        "sha256": "26d6af881753711554f1705aba1b6eda9223f9efed9a4cf366585613728cd3e2",
+        "restoredByteExact": true
+      }
+    ]
+  }
+}

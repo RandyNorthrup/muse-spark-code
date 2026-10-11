@@ -197,13 +197,21 @@ describe('jobMemoryLimitedRun', () => {
     'settles %s whose output stat never answers (a stalled share)',
     async (_label, ending) => {
       const where = await workspace()
+      const spawnJob = directLauncher()
+      const statOutput = vi.fn(stalled)
       const running = jobMemoryLimitedRun({
         jobExecutable: () => Promise.resolve(EXECUTABLE),
-        spawnJob: directLauncher(),
-        statOutput: stalled,
+        spawnJob,
+        statOutput,
       })(process.execPath, encoder(where, KIB, ending), options(where))
       await expect(running).rejects.toMatchObject(FAILED)
-      await expectEnded(await markedPid(where.marker))
+      expect(statOutput).toHaveBeenCalled()
+      // The bounded sample may end the child before its Node script writes
+      // the marker. The actual spawn handle still identifies the owned PID.
+      const result = spawnJob.mock.results[0]
+      if (result?.type !== 'return' || result.value.pid === undefined)
+        throw new Error('Expected the owned encoder PID')
+      await expectEnded(result.value.pid)
     },
   )
 
