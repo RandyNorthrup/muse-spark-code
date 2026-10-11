@@ -1,7 +1,13 @@
 import { PAID_USE_REGISTRY } from './paid'
 // HELPREF: reviewed feature relationships. The generator validates every id
 // against the manifest and reuses its translated text and the palette's tips.
-import { COMMAND_IDS, type SETTING_DEFAULTS, PROMPT_COMMAND_IDS, UI_TEXT } from './constants'
+import {
+  ACCOUNT_REQUEST_CERTIFICATION,
+  COMMAND_IDS,
+  type SETTING_DEFAULTS,
+  PROMPT_COMMAND_IDS,
+  UI_TEXT,
+} from './constants'
 import type { UiText } from './l10n/en'
 
 type PlainReferenceText =
@@ -705,7 +711,9 @@ export function featureCatalog(): readonly Feature[] {
         false,
         ['vscode', 'acp'],
       ),
-      details: [{ ui: 'referenceDeveloper' }] as const,
+      details: ACCOUNT_REQUEST_CERTIFICATION.isComplete
+        ? [{ ui: 'referenceDeveloper' }, { ui: 'referenceAccountRequests' }]
+        : [{ ui: 'referenceDeveloper' }],
     },
     feature(
       'permissions',

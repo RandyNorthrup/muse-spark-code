@@ -94,6 +94,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- One default-off account certification switch also refuses direct request
+  admission and fences a held lease after closure. It controls the native
+  account UI, backend bindings and request-ownership Help detail together.
+
 - Account usage keeps a durable receipt once after a crash before reservation
   closure; uncertain cleanup cannot discard that known settlement.
 
