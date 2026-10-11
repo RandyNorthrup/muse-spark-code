@@ -1,0 +1,32 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamProcessLifetime.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/FIXM96K
+
+ ❯ test/unit/teamProcessLifetime.test.ts (16 tests | 1 failed) 389ms
+   ❯ M96 K launcher contract (11)
+     × retries a failed end-record write after storage recovers 52ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > retries a failed end-record write after storage recovers
+Error: transient-end-write
+ ❯ test/unit/teamProcessLifetime.test.ts:348:56
+    346|     })
+    347|     const child = await lifetime.launch(request)
+    348|     vi.spyOn(f.journal, 'write').mockRejectedValueOnce(new Error('tran…
+       |                                                        ^
+    349|     await expect(child.ended).rejects.toThrow('transient-end-write')
+    350|     expect(await child.retire()).toEqual({ childExited: true, descenda…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 15 passed (16)
+   Start at  10:23:21
+   Duration  1.41s (transform 41%, tests 31%, import 16%, setup 11%)
+

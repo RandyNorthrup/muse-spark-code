@@ -1,0 +1,106 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamProcessLifetime.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/REDM96K
+
+ ❯ test/unit/teamProcessLifetime.test.ts (21 tests | 4 failed) 652ms
+   ❯ M96 K launcher contract (16)
+     × warns about a damaged proved-end record and recovers other launches: processGroup 59ms
+     × warns about a damaged proved-end record and recovers other launches: childRunning 47ms
+     × warns about a damaged proved-end record and recovers other launches: noConfirmation 59ms
+     × warns about a damaged proved-end record and recovers other launches: unowned 62ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > warns about a damaged proved-end record and recovers other launches: processGroup
+AssertionError: expected [] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+- [
+-   "/tmp/m96-k-1IuVF8/team/journal/d248a214-27c3-4c9a-8aaa-1efd9ba76556/launch-damaged.json",
+- ]
++ []
+
+ ❯ test/unit/teamProcessLifetime.test.ts:367:26
+    365|         { id: child.launchId },
+    366|       ])
+    367|       expect(unreadable).toEqual([damaged])
+       |                          ^
+    368|       expect(await readFile(damaged, 'utf8')).toBe(damagedBytes)
+    369|       expect(await readFile(file, 'utf8')).toBe(original)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > warns about a damaged proved-end record and recovers other launches: childRunning
+AssertionError: expected [] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+- [
+-   "/tmp/m96-k-HL7scP/team/journal/385fdce5-3801-4a95-9fc3-7fdab91d5a9b/launch-damaged.json",
+- ]
++ []
+
+ ❯ test/unit/teamProcessLifetime.test.ts:367:26
+    365|         { id: child.launchId },
+    366|       ])
+    367|       expect(unreadable).toEqual([damaged])
+       |                          ^
+    368|       expect(await readFile(damaged, 'utf8')).toBe(damagedBytes)
+    369|       expect(await readFile(file, 'utf8')).toBe(original)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > warns about a damaged proved-end record and recovers other launches: noConfirmation
+AssertionError: expected [] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+- [
+-   "/tmp/m96-k-JuiEpl/team/journal/fbec1115-5e2b-4127-a129-df141872a10e/launch-damaged.json",
+- ]
++ []
+
+ ❯ test/unit/teamProcessLifetime.test.ts:367:26
+    365|         { id: child.launchId },
+    366|       ])
+    367|       expect(unreadable).toEqual([damaged])
+       |                          ^
+    368|       expect(await readFile(damaged, 'utf8')).toBe(damagedBytes)
+    369|       expect(await readFile(file, 'utf8')).toBe(original)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > warns about a damaged proved-end record and recovers other launches: unowned
+AssertionError: expected [] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+- [
+-   "/tmp/m96-k-jG6Ukq/team/journal/c3c95630-a41b-41e3-a803-fa2461ba620d/launch-damaged.json",
+- ]
++ []
+
+ ❯ test/unit/teamProcessLifetime.test.ts:367:26
+    365|         { id: child.launchId },
+    366|       ])
+    367|       expect(unreadable).toEqual([damaged])
+       |                          ^
+    368|       expect(await readFile(damaged, 'utf8')).toBe(damagedBytes)
+    369|       expect(await readFile(file, 'utf8')).toBe(original)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 17 passed (21)
+   Start at  12:50:42
+   Duration  1.57s (tests 45%, transform 32%, import 13%, setup 9%)

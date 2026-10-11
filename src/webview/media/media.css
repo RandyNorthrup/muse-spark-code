@@ -1,0 +1,56 @@
+.companion-media {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  color: var(--vscode-foreground, CanvasText);
+  background: var(--vscode-editor-background, Canvas);
+  padding: 0.5rem;
+}
+
+.companion-media-picker,
+.companion-media-controls,
+.companion-media-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-block: 0.5rem;
+}
+
+.companion-media input[type='file'],
+.companion-media video {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.companion-media video {
+  width: 100%;
+}
+
+.companion-media button,
+.companion-media label {
+  min-height: 44px;
+}
+
+.companion-media button {
+  color: var(--vscode-button-foreground, ButtonText);
+  background: var(--vscode-button-background, ButtonFace);
+  border: 1px solid var(--vscode-contrastBorder, currentColor);
+  padding: 0.5rem;
+  overflow-wrap: anywhere;
+}
+
+.companion-media :focus-visible {
+  outline: 2px solid var(--vscode-focusBorder, Highlight);
+  outline-offset: 2px;
+}
+
+.companion-media p {
+  overflow-wrap: anywhere;
+}
+
+.companion-tool-video {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}

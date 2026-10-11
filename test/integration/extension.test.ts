@@ -149,7 +149,9 @@ suite('activation', () => {
       const text = new TextDecoder().decode(await vscode.workspace.fs.readFile(target))
       assert.ok(text.startsWith('# AGENTS.md'), text.slice(0, 40))
       assert.ok(text.includes(RULES_HEADER), 'header line missing')
+      // Observe the actual editor snapshot, including hosts without tab-group text entries.
       await waitForDocument(target)
+      assert.equal(vscode.window.activeTextEditor?.document.uri.fsPath, target.fsPath)
     } finally {
       const tabs = vscode.window.tabGroups.all
         .flatMap((group) => group.tabs)

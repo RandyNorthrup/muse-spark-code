@@ -208,6 +208,10 @@ const FIXED_REFUSALS: Readonly<Record<FixedFailure, readonly [string, UiStringKe
   scopeChanged: [MODEL_TEXT.browserCheckScopeChanged, 'browserCheckScopeChanged'],
   notOffered: [MODEL_TEXT.browserCheckNotOffered, 'browserCheckNotOffered'],
   launch: [MODEL_TEXT.browserCheckLaunch, 'browserCheckLaunch'],
+  systemDirectoryUnavailable: [
+    MODEL_TEXT.browserCheckSystemDirectoryUnavailable,
+    'browserCheckSystemDirectoryUnavailable',
+  ],
   unrecognized: [MODEL_TEXT.browserCheckUnrecognized, 'browserCheckUnrecognized'],
   profile: [MODEL_TEXT.browserCheckProfile, 'browserCheckProfile'],
   routeUnconfirmed: [MODEL_TEXT.browserCheckRouteUnconfirmed, 'browserCheckRouteUnconfirmed'],

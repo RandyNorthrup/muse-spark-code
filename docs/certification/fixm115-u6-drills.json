@@ -1,0 +1,224 @@
+[
+  {
+    "name": "git-consumption",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256": "c822f1e0ecedeeb47a166a04a3d39e4b89d8a9f3839feb3e3e7ab2e5c6b4d950",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "FAIL  test/unit/unattendedBackends.test.ts > scheduled Model API dispatch > RVM115U5 P1-2: undelivered cached Git subjects refuse (recorded=false)",
+      "FAIL  test/unit/unattendedBackends.test.ts > scheduled Model API dispatch > RVM115U5 P1-2: undelivered cached Git subjects refuse (recorded=true)"
+    ],
+    "restored": true,
+    "seconds": 7.66
+  },
+  {
+    "name": "opaque-verification",
+    "file": "src/core/backends/modelapi/schedulesEntry.ts",
+    "sha256": "c836591c2045736ac50a253bc694032e4eb89ffae8bba996c5406a0f61e9e692",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "FAIL  test/unit/unattendedBackends.test.ts > scheduled Model API dispatch > RVM115U5 P1-3: protected dependency diagnostics never enter a verification note",
+      "FAIL  test/unit/unattendedBackends.test.ts > scheduled Model API dispatch > RVM115U5 P1-3: a fire returns explicit verification refusal before reading opaque dependencies"
+    ],
+    "restored": true,
+    "seconds": 7.56
+  },
+  {
+    "name": "closed-inventory",
+    "file": "src/core/context/recordingReader.ts",
+    "sha256": "5cabfc38d436f97515cee59e9c0d26fce09fa33e827b2246c4a6d51ef4e6f794",
+    "command": "npx vitest run test/unit/scheduleProvenance.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "FAIL  test/unit/scheduleProvenance.test.ts > scheduled byte provenance ledger > RVM115U5 structural: only closed recording scopes certify all consumed inputs"
+    ],
+    "restored": true,
+    "seconds": 1.74
+  },
+  {
+    "name": "complete-inventory",
+    "file": "src/core/context/recordingReader.ts",
+    "sha256": "5cabfc38d436f97515cee59e9c0d26fce09fa33e827b2246c4a6d51ef4e6f794",
+    "command": "npx vitest run test/unit/scheduleProvenance.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "FAIL  test/unit/scheduleProvenance.test.ts > scheduled byte provenance ledger > RVM115U5 structural: only closed recording scopes certify all consumed inputs"
+    ],
+    "restored": true,
+    "seconds": 1.62
+  },
+  {
+    "name": "pinned-bytes",
+    "file": "src/core/context/recordingReader.ts",
+    "sha256": "5cabfc38d436f97515cee59e9c0d26fce09fa33e827b2246c4a6d51ef4e6f794",
+    "command": "npx vitest run test/unit/recordingReader.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 reader: a closed scope pins read bytes and rejects later additions"
+    ],
+    "restored": true,
+    "seconds": 10.15
+  },
+  {
+    "name": "builder-imports",
+    "file": "eslint.config.mjs",
+    "sha256": "0fee6bac1ee33df8a882c7023a8745ce9e78d253f456fd4a594a007d96a98648",
+    "command": "npx vitest run test/unit/recordingReader.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/context/workspaceContext.ts cannot import node:fs/promises directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/context/workspaceContext.ts cannot import node:child_process directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/context/workspaceContext.ts cannot import ../../host/git directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/context/rules.ts cannot import node:fs/promises directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/context/rules.ts cannot import node:child_process directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/context/rules.ts cannot import ../../host/git directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/context/skills.ts cannot import node:fs/promises directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/context/skills.ts cannot import node:child_process directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/context/skills.ts cannot import ../../host/git directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/context/customAgents.ts cannot import node:fs/promises directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/context/customAgents.ts cannot import node:child_process directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/context/customAgents.ts cannot import ../../host/git directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/codeIntel/repoMap.ts cannot import node:fs/promises directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/codeIntel/repoMap.ts cannot import node:child_process directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/codeIntel/repoMap.ts cannot import ../../host/git directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/memory/memoryStore.ts cannot import node:fs/promises directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/memory/memoryStore.ts cannot import node:child_process directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/memory/memoryStore.ts cannot import ../../host/git directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/memory/memoryIndex.ts cannot import node:fs/promises directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/memory/memoryIndex.ts cannot import node:child_process directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/memory/memoryIndex.ts cannot import ../../host/git directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/backends/modelapi/ModelApiHost\u2026 cannot import node:fs/promises directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/backends/modelapi/ModelApiHost\u2026 cannot import node:child_process directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/backends/modelapi/ModelApiHost\u2026 cannot import ../../host/git directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/backends/modelapi/instructions\u2026 cannot import node:fs/promises directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/backends/modelapi/instructions\u2026 cannot import node:child_process directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/backends/modelapi/instructions\u2026 cannot import ../../host/git directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/backends/modelapi/mediaBudget.\u2026 cannot import node:fs/promises directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/backends/modelapi/mediaBudget.\u2026 cannot import node:child_process directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/backends/modelapi/mediaBudget.\u2026 cannot import ../../host/git directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/backends/modelapi/verifyLoop.ts cannot import node:fs/promises directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/backends/modelapi/verifyLoop.ts cannot import node:child_process directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/backends/modelapi/verifyLoop.ts cannot import ../../host/git directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/backends/modelapi/schedulesEnt\u2026 cannot import node:fs/promises directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/backends/modelapi/schedulesEnt\u2026 cannot import node:child_process directly",
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 type boundary: src/core/backends/modelapi/schedulesEnt\u2026 cannot import ../../host/git directly"
+    ],
+    "restored": true,
+    "seconds": 10.16
+  },
+  {
+    "name": "directory-members",
+    "file": "src/core/schedules/unattended.ts",
+    "sha256": "ef8f1bad7e240b51dc695e924b5c37e06910dd0af1943759d71ec7db398452f6",
+    "command": "npx vitest run test/unit/unattended.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "FAIL  test/unit/unattended.test.ts > unattended modelApi > RVM115U5 reader: recorded directory members enforce protected and outside paths",
+      "FAIL  test/unit/unattended.test.ts > unattended museCode > RVM115U5 reader: recorded directory members enforce protected and outside paths"
+    ],
+    "restored": true,
+    "seconds": 2.17
+  },
+  {
+    "name": "lazy-diet",
+    "file": "scripts/lib/deferredBundles.mjs",
+    "sha256": "9209abf10fd8364a2fc683575ef095768460a37cd2c37628142b93d69e6cd822",
+    "command": "npx vitest run test/unit/deferredBundles.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "FAIL  test/unit/deferredBundles.test.ts > deferred cohort bundles > every production bundle passes the deferred-boundary gate",
+      "FAIL  test/unit/deferredBundles.test.ts > deferred cohort bundles > RVM115U5 diet: Model API frees ten KiB and records context loaders in the lazy schedules chunk",
+      "FAIL  test/unit/deferredBundles.test.ts > deferred cohort bundles > rejects duplicated wire schemas in an activation input map",
+      "FAIL  test/unit/deferredBundles.test.ts > deferred cohort bundles > rejects a missing deferred input and restores its metafile byte-exact",
+      "FAIL  test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the extension split guard for src/host/bestOfN/bestOfNManager.ts and restores its metafile byte-exact",
+      "FAIL  test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the extension split guard for src/host/conversation/conversationController.ts and restores its metafile byte-exact",
+      "FAIL  test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the acp split guard for src/host/support/recorderEntry.ts and restores its metafile byte-exact",
+      "FAIL  test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the acp split guard for src/host/support/reportJournal.ts and restores its metafile byte-exact",
+      "FAIL  test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the foreignHooks split guard for src/core/backends/modelapi/pluginHost.ts and restores its metafile byte-exact",
+      "FAIL  test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/backends/modelapi/pluginChild.ts and restores its metafile byte-exact",
+      "FAIL  test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/backends/modelapi/reviewerEntry.ts and restores its metafile byte-exact",
+      "FAIL  test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/backends/modelapi/hookFormats/engine.ts and restores its metafile byte-exact",
+      "FAIL  test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/backends/modelapi/hookRuntimeEntry.ts and restores its metafile byte-exact",
+      "FAIL  test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the extension split guard for src/core/codeIntel/codeIntelQuery.ts and restores its metafile byte-exact",
+      "FAIL  test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the extension split guard for src/core/voice/museVoice.ts and restores its metafile byte-exact",
+      "FAIL  test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the extension split guard for src/host/review/museCodeReviewer.ts and restores its metafile byte-exact"
+    ],
+    "restored": true,
+    "seconds": 3.91
+  },
+  {
+    "name": "pending-starts",
+    "file": "src/core/schedules/sessionOwner.ts",
+    "sha256": "9c4c111cc18f2a3efd6f7e37cb9b8090380c37dfa83e25d4f45d4533dfdd594f",
+    "command": "npx vitest run test/unit/scheduleSessionOwner.test.ts test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "FAIL  test/unit/scheduleSessionOwner.test.ts > native session serialized authority > RVM115U5 P1-1: idle cannot erase an in-flight ordinary start",
+      "FAIL  test/unit/scheduleSessionOwner.test.ts > native session serialized authority > RVM115U5 P1-1: a successful fire ack supersedes earlier idle evidence",
+      "FAIL  test/unit/unattendedBackends.test.ts > scheduled Muse Code dispatch over captured MSP frames > RVM115U5 P1-1: idle before an ordinary ack cannot admit a fire or change mode"
+    ],
+    "restored": true,
+    "seconds": 7.48
+  },
+  {
+    "name": "unidentified-read",
+    "file": "src/core/context/recordingReader.ts",
+    "sha256": "5cabfc38d436f97515cee59e9c0d26fce09fa33e827b2246c4a6d51ef4e6f794",
+    "command": "npx vitest run test/unit/recordingReader.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "FAIL  test/unit/recordingReader.test.ts > structural recording inputs > RVM115U5 reader: unavailable read identities leave an uncertified scope"
+    ],
+    "restored": true,
+    "seconds": 9.22
+  },
+  {
+    "name": "path-separators",
+    "file": "src/core/schedules/unattended.ts",
+    "sha256": "ef8f1bad7e240b51dc695e924b5c37e06910dd0af1943759d71ec7db398452f6",
+    "command": "npx vitest run test/unit/unattended.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "FAIL  test/unit/unattended.test.ts > unattended modelApi > RVM115U5 reader: recorded directory members enforce protected and outside paths",
+      "FAIL  test/unit/unattended.test.ts > unattended museCode > RVM115U5 reader: recorded directory members enforce protected and outside paths"
+    ],
+    "restored": true,
+    "seconds": 1.87
+  },
+  {
+    "name": "git-runner",
+    "file": "src/host/backend/environment.ts",
+    "sha256": "886deeec5a6e435fb09c22df2f9c20e68c5ea30c0b3ba373392b5f233a051345",
+    "command": "npx vitest run test/unit/environment.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "FAIL  test/unit/environment.test.ts > describeEnvironment > RVM115U5 reader: reports Git facts and records every metadata/config result"
+    ],
+    "restored": true,
+    "seconds": 2.07
+  },
+  {
+    "name": "synchronous-admission",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256": "c822f1e0ecedeeb47a166a04a3d39e4b89d8a9f3839feb3e3e7ab2e5c6b4d950",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "FAIL  test/unit/unattendedBackends.test.ts > scheduled Model API dispatch > refuses a queued child message during a fire before it contaminates a later interactive task",
+      "FAIL  test/unit/unattendedBackends.test.ts > scheduled Model API dispatch > RVM115U5 lazy admission: an accepted fire is active before immediate Stop"
+    ],
+    "restored": true,
+    "seconds": 7.78
+  },
+  {
+    "name": "schedules-size-budget",
+    "file": "dist/schedules.js",
+    "sha256": "7105a3c9f922e11023e2690e77dc23292341fdc16612fe89c5d44176aef35cad",
+    "command": "node scripts/check-bundle-size.mjs",
+    "exit": 1,
+    "failures": ["OVER dist/schedules.js: 50.0 KiB (budget 50 KiB)"],
+    "restored": true
+  }
+]

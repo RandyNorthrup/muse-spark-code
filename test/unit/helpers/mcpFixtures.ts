@@ -16,6 +16,7 @@ import { mcpJobExecutable } from '../../../src/host/backend/mcpJobExecutable'
 import type { FakeLogOutputChannel } from './fakes'
 import { removeFolder } from './temporaryFolders'
 import { readJobSource } from './jobSource'
+import { runProgram } from '../../../src/host/processTree'
 
 export const FAKE_MCP_SERVER = fileURLToPath(new URL('fakeMcpServer.mjs', import.meta.url))
 
@@ -36,7 +37,7 @@ export function realSpawner(
   log: FakeLogOutputChannel,
   jobExecutablePath?: string,
 ): (launch: McpStdioLaunch, cwd: string) => McpChildProcess {
-  return mcpServerSpawner({
+  const spawn = mcpServerSpawner({
     platform: process.platform,
     systemRoot: process.env['SystemRoot'],
     jobExecutablePath,
@@ -47,6 +48,8 @@ export function realSpawner(
       log.warn(message)
     },
   })
+  // The pool's third argument is its cancellation predicate, not a resource lease.
+  return (launch, cwd) => spawn(launch, cwd)
 }
 
 /** The actual M50 executable for real Windows fixture processes, isolated per test file. */
@@ -60,6 +63,8 @@ async function fixtureMcpJobExecutable(): Promise<{
   const storageDir = await mkdtemp(path.join(tmpdir(), 'muse-mcp-job-test-'))
   try {
     const executable = await mcpJobExecutable({
+      // This fixture tests compiled-job containment; bootstrap admission has its own suite.
+      run: runProgram,
       readJobSource,
       storageDir,
       systemRoot: process.env['SystemRoot'] ?? '',

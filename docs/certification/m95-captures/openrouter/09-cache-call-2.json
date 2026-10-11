@@ -1,0 +1,151 @@
+{
+  "provider": "openrouter",
+  "step": "cache-call-2",
+  "capturedAt": "2026-10-04",
+  "billed": true,
+  "request": {
+    "method": "POST",
+    "url": "https://openrouter.ai/api/v1/chat/completions",
+    "headers": {
+      "authorization": "<redacted>",
+      "HTTP-Referer": "https://github.com/RandyNorthrup/muse-spark-code",
+      "X-OpenRouter-Title": "Muse Spark Code (Unofficial)",
+      "X-OpenRouter-Categories": "ide-extension",
+      "content-type": "application/json"
+    },
+    "body": {
+      "model": "anthropic/claude-sonnet-5.5",
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "Cache probe for openrouter.\nProbe rule 1: when a request mentions item 1, answer briefly, name the source of each fact, and never invent a value for field 1 or option 7.\nProbe rule 2: when a request mentions item 2, answer briefly, name the source of each fact, and never invent a value for field 2 or option 14.\nProbe rule 3: when a request mentions item 3, answer briefly, name the source of each fact, and never invent a value for field 3 or option 21.\nProbe rule 4: when a request mentions item 4, answer briefly, name the source of each fact, and never invent a value for field 4 or option 5.\nProbe rule 5: when a request mentions item 5, answer briefly, name the source of each fact, and never invent a value for field 5 or option 12.\nProbe rule 6: when a request mentions item 6, answer briefly, name the source of each fact, and never invent a value for field 6 or option 19.\nProbe rule 7: when a request mentions item 7, answer briefly, name the source of each fact, and never invent a value for field 7 or option 3.\nProbe rule 8: when a request mentions item 8, answer briefly, name the source of each fact, and never invent a value for field 8 or option 10.\nProbe rule 9: when a request mentions item 9, answer briefly, name the source of each fact, and never invent a value for field 9 or option 17.\nProbe rule 10: when a request mentions item 10, answer briefly, name the source of each fact, and never invent a value for field 10 or option 1.\nProbe rule 11: when a request mentions item 11, answer briefly, name the source of each fact, and never invent a value for field 11 or option 8.\nProbe rule 12: when a request mentions item 12, answer briefly, name the source of each fact, and never invent a value for field 12 or option 15.\nProbe rule 13: when a request mentions item 13, answer briefly, name the source of each fact, and never invent a value for field 13 or option 22.\nProbe rule 14: when a request mentions item 14, answer briefly, name the source of each fact, and never invent a value for field 14 or option 6.\nProbe rule 15: when a request mentions item 15, answer briefly, name the source of each fact, and never invent a value for field 15 or option 13.\nProbe rule 16: when a request mentions item 16, answer briefly, name the source of each fact, and never invent a value for field 16 or option 20.\nProbe rule 17: when a request mentions item 17, answer briefly, name the source of each fact, and never invent a value for field 0 or option 4.\nProbe rule 18: when a request mentions item 18, answer briefly, name the source of each fact, and never invent a value for field 1 or option 11.\nProbe rule 19: when a request mentions item 19, answer briefly, name the source of each fact, and never invent a value for field 2 or option 18.\nProbe rule 20: when a request mentions item 20, answer briefly, name the source of each fact, and never invent a value for field 3 or option 2.\nProbe rule 21: when a request mentions item 21, answer briefly, name the source of each fact, and never invent a value for field 4 or option 9.\nProbe rule 22: when a request mentions item 22, answer briefly, name the source of each fact, and never invent a value for field 5 or option 16.\nProbe rule 23: when a request mentions item 23, answer briefly, name the source of each fact, and never invent a value for field 6 or option 0.\nProbe rule 24: when a request mentions item 24, answer briefly, name the source of each fact, and never invent a value for field 7 or option 7.\nProbe rule 25: when a request mentions item 25, answer briefly, name the source of each fact, and never invent a value for field 8 or option 14.\nProbe rule 26: when a request mentions item 26, answer briefly, name the source of each fact, and never invent a value for field 9 or option 21.\nProbe rule 27: when a request mentions item 27, answer briefly, name the source of each fact, and never invent a value for field 10 or option 5.\nProbe rule 28: when a request mentions item 28, answer briefly, name the source of each fact, and never invent a value for field 11 or option 12.\nProbe rule 29: when a request mentions item 29, answer briefly, name the source of each fact, and never invent a value for field 12 or option 19.\nProbe rule 30: when a request mentions item 30, answer briefly, name the source of each fact, and never invent a value for field 13 or option 3.\nProbe rule 31: when a request mentions item 31, answer briefly, name the source of each fact, and never invent a value for field 14 or option 10.\nProbe rule 32: when a request mentions item 32, answer briefly, name the source of each fact, and never invent a value for field 15 or option 17.\nProbe rule 33: when a request mentions item 33, answer briefly, name the source of each fact, and never invent a value for field 16 or option 1.\nProbe rule 34: when a request mentions item 34, answer briefly, name the source of each fact, and never invent a value for field 0 or option 8.\nProbe rule 35: when a request mentions item 35, answer briefly, name the source of each fact, and never invent a value for field 1 or option 15.\nProbe rule 36: when a request mentions item 36, answer briefly, name the source of each fact, and never invent a value for field 2 or option 22.\nProbe rule 37: when a request mentions item 37, answer briefly, name the source of each fact, and never invent a value for field 3 or option 6.\nProbe rule 38: when a request mentions item 38, answer briefly, name the source of each fact, and never invent a value for field 4 or option 13.\nProbe rule 39: when a request mentions item 39, answer briefly, name the source of each fact, and never invent a value for field 5 or option 20.",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": "Reply with the single word OK."
+        }
+      ],
+      "max_tokens": 16,
+      "stream": true,
+      "provider": {
+        "zdr": true
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "access-control-expose-headers": "X-Generation-Id,X-Provider-Name,request-id,cf-ray",
+      "cache-control": "no-cache",
+      "cf-ray": "a457b5b64aa4f7b7-LAX",
+      "connection": "keep-alive",
+      "content-type": "text/event-stream",
+      "date": "Sun, 04 Oct 2026 22:44:12 GMT",
+      "permissions-policy": "payment=(self \"https://checkout.stripe.com\" \"https://connect-js.stripe.com\" \"https://js.stripe.com\" \"https://*.js.stripe.com\" \"https://hooks.stripe.com\")",
+      "referrer-policy": "no-referrer, strict-origin-when-cross-origin",
+      "server": "cloudflare",
+      "set-cookie": "<redacted>",
+      "transfer-encoding": "chunked",
+      "x-content-type-options": "nosniff",
+      "x-generation-id": "gen-1791153851-WBk8djnx5xB72MttgMIc"
+    },
+    "events": [
+      {
+        "data": {
+          "id": "gen-1791153851-WBk8djnx5xB72MttgMIc",
+          "object": "chat.completion.chunk",
+          "created": 1791153851,
+          "model": "anthropic/claude-sonnet-5.5",
+          "provider": "Google",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": "OK",
+                "role": "assistant"
+              },
+              "finish_reason": null,
+              "native_finish_reason": null
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "gen-1791153851-WBk8djnx5xB72MttgMIc",
+          "object": "chat.completion.chunk",
+          "created": 1791153851,
+          "model": "anthropic/claude-sonnet-5.5",
+          "provider": "Google",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": "",
+                "role": "assistant"
+              },
+              "finish_reason": "stop",
+              "native_finish_reason": "end_turn"
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "gen-1791153851-WBk8djnx5xB72MttgMIc",
+          "object": "chat.completion.chunk",
+          "created": 1791153851,
+          "model": "anthropic/claude-sonnet-5.5",
+          "provider": "Google",
+          "service_tier": null,
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "content": "",
+                "role": "assistant"
+              },
+              "finish_reason": "stop",
+              "native_finish_reason": "end_turn"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 1941,
+            "completion_tokens": 4,
+            "total_tokens": 1945,
+            "cost": 0.000457,
+            "is_byok": false,
+            "prompt_tokens_details": {
+              "cached_tokens": 1925,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "cost_details": {
+              "upstream_inference_cost": 0.000457,
+              "upstream_inference_prompt_cost": 0.000417,
+              "upstream_inference_completions_cost": 0.00004
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            }
+          }
+        }
+      },
+      {
+        "data": "[DONE]"
+      }
+    ]
+  }
+}

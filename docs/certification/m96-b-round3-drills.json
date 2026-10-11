@@ -1,0 +1,351 @@
+{
+  "date": "2026-10-05",
+  "rig": "macmini",
+  "node": "24.21.0",
+  "npm": "11.19.0",
+  "snapshot": "c7f26dd9b7ce29229c8f6abc32f3d9a53db33a14",
+  "command": [
+    "npx",
+    "--no-install",
+    "vitest",
+    "run",
+    "test/unit/teamResources.test.ts",
+    "test/unit/teamMcpBridge.test.ts",
+    "test/unit/ideMcpServer.test.ts",
+    "--maxWorkers=3",
+    "--testTimeout=120000"
+  ],
+  "source_checksums": {
+    "src/core/team/resources.ts": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2",
+    "src/host/team/mcpBridge.ts": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62",
+    "src/host/ide/ideMcpServer.ts": "820464dfa30564292a330620a080097f7d2f6a558965cd6bbf8ad994f0e1a052",
+    "test/unit/teamResources.test.ts": "cf11b4dd482545bb367a4d344db09da46366dfa9aed2aabe1e532b92e9ef3a82",
+    "test/unit/teamMcpBridge.test.ts": "86d6553a76651483fbfda2f3e100650e9caf4ab76e09eea92f003590faf3855b",
+    "test/unit/ideMcpServer.test.ts": "69e9f74e3c76ca95f93b786b7f21c1a4cb1cecc39181c06704d6a02c78ea196c"
+  },
+  "receipts": [
+    {
+      "drill": "lease-generation",
+      "file": "src/core/team/resources.ts",
+      "baseline_exit": 0,
+      "mutated_exit": 1,
+      "restored_exit": 0,
+      "tests": 82,
+      "expected": "requires its exact lease id, generation, window and server",
+      "observed": [
+        {
+          "test": "exclusive leases requires its exact lease id, generation, window and server for release",
+          "diagnostic": "AssertionError: expected [] to deeply equal [ { role: 'research', \u2026(2) } ]"
+        }
+      ],
+      "before_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2",
+      "mutated_checksum": "afc48908726fdb15347b411f2d8cfe8cadad279df6fb71448bddddbb4a468b71",
+      "restored_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2"
+    },
+    {
+      "drill": "open-release",
+      "file": "src/core/team/resources.ts",
+      "baseline_exit": 0,
+      "mutated_exit": 1,
+      "restored_exit": 0,
+      "tests": 82,
+      "expected": "RVM96A-9:",
+      "observed": [
+        {
+          "test": "retirement and take back RVM96A-9: retire retains every dispatched call and refuses new calls",
+          "diagnostic": "AssertionError: expected [] to deeply equal [ { role: 'research', \u2026(2) } ]"
+        },
+        {
+          "test": "retirement and take back RVM96A-9: take-back retains every dispatched call and refuses new calls",
+          "diagnostic": "AssertionError: expected [ { role: 'orchestrator', \u2026(2) } ] to deeply equal [ { role: 'research', \u2026(2) } ]"
+        }
+      ],
+      "before_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2",
+      "mutated_checksum": "7c98c06a4ad0b579a6eb040d21964d52336095b0381c431cb5758c8cab602d4c",
+      "restored_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2"
+    },
+    {
+      "drill": "cancel-reentry",
+      "file": "src/core/team/resources.ts",
+      "baseline_exit": 0,
+      "mutated_exit": 1,
+      "restored_exit": 0,
+      "tests": 82,
+      "expected": "RVM96RB2-3:",
+      "observed": [
+        {
+          "test": "Round-3 redesign interleavings RVM96RB2-3: cancellation during re-entry leaves existing ownership and idle period intact",
+          "diagnostic": "AssertionError: expected [ { \u2026(2) }, { \u2026(2) } ] to have a length of 1 but got 2"
+        }
+      ],
+      "before_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2",
+      "mutated_checksum": "cc5d69a3963c9744bca9e555a308641015fcbb6b0034b71fed0badb366d31e35",
+      "restored_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2"
+    },
+    {
+      "drill": "old-completion",
+      "file": "src/core/team/resources.ts",
+      "baseline_exit": 0,
+      "mutated_exit": 1,
+      "restored_exit": 0,
+      "tests": 82,
+      "expected": "RVM96RB2-4: old completion",
+      "observed": [
+        {
+          "test": "Round-3 redesign interleavings RVM96RB2-4: old completion after Release anyway cannot settle a replacement call",
+          "diagnostic": "AssertionError: expected [] to deeply equal [ { role: 'research', \u2026(2) } ]"
+        }
+      ],
+      "before_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2",
+      "mutated_checksum": "d86f41faa8e23b95c900a52a7472ba4852785aa1709954d825ad58c018b01820",
+      "restored_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2"
+    },
+    {
+      "drill": "uncertain-timeout",
+      "file": "src/host/team/mcpBridge.ts",
+      "baseline_exit": 0,
+      "mutated_exit": 1,
+      "restored_exit": 0,
+      "tests": 82,
+      "expected": "RVM96A-10:",
+      "observed": [
+        {
+          "test": "lease admission per call RVM96A-10: retains the lease after M50 times out without a terminal server answer",
+          "diagnostic": "AssertionError: expected [] to deeply equal [ { role: 'research', \u2026(2) } ]"
+        }
+      ],
+      "before_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62",
+      "mutated_checksum": "a9ff9919783fd9175c676e5cfe74a57614c13125faa8ded4927a63ad71b3aeb9",
+      "restored_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62"
+    },
+    {
+      "drill": "local-validation",
+      "file": "src/host/team/mcpBridge.ts",
+      "baseline_exit": 0,
+      "mutated_exit": 1,
+      "restored_exit": 0,
+      "tests": 82,
+      "expected": "RVM96RB2-6:",
+      "observed": [
+        {
+          "test": "Round-3 redesign interleavings RVM96RB2-6: locally invalid engine and HTTP arguments never create call liability on the real pool",
+          "diagnostic": "AssertionError: expected [ { role: 'research', \u2026(2) } ] to deeply equal []"
+        }
+      ],
+      "before_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62",
+      "mutated_checksum": "c4c19869ce43403442d6b637bda07cc68380d6c54180a024d090eccc3622b1a4",
+      "restored_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62"
+    },
+    {
+      "drill": "shared-call-cap",
+      "file": "src/core/team/resources.ts",
+      "baseline_exit": 0,
+      "mutated_exit": 1,
+      "restored_exit": 0,
+      "tests": 82,
+      "expected": "RVM96RB2-7:",
+      "observed": [
+        {
+          "test": "Round-3 redesign interleavings RVM96RB2-7: four same-holder shared calls dispatch only two at once",
+          "diagnostic": "AssertionError: expected [ Array(4) ] to have a length of 2 but got 4"
+        },
+        {
+          "test": "roles and kinds RVM96RB2-7: shared capacity counts concurrent calls, including same-holder re-entry",
+          "diagnostic": "AssertionError: expected [] to deeply equal [ { role: 'research', \u2026(2) }, \u2026(1) ]"
+        }
+      ],
+      "before_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2",
+      "mutated_checksum": "f4202a617ba679592430538f2ee377db026b042703ec46614c4ba4fad4504df5",
+      "restored_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2"
+    },
+    {
+      "drill": "server-client-namespace",
+      "file": "src/host/team/mcpBridge.ts",
+      "baseline_exit": 0,
+      "mutated_exit": 1,
+      "restored_exit": 0,
+      "tests": 82,
+      "expected": "RVM96RB2-5: two configured",
+      "observed": [
+        {
+          "test": "Round-3 redesign interleavings RVM96RB2-5: two configured-server clients with the same request id cancel independently",
+          "diagnostic": "AssertionError: expected [ { \u2026(2) } ] to have a length of 2 but got 1"
+        }
+      ],
+      "before_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62",
+      "mutated_checksum": "17702ac9a53974d44bef0f62b638eaaad7f4c50fc907ce20448ba75b61736236",
+      "restored_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62"
+    },
+    {
+      "drill": "duplicate-call-id",
+      "file": "src/core/team/resources.ts",
+      "baseline_exit": 0,
+      "mutated_exit": 1,
+      "restored_exit": 0,
+      "tests": 82,
+      "expected": "refuses duplicate live ids",
+      "observed": [
+        {
+          "test": "Round-3 redesign interleavings refuses duplicate live ids without overwriting the original cancellation record",
+          "diagnostic": "AssertionError: expected false to be true // Object.is equality"
+        }
+      ],
+      "before_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2",
+      "mutated_checksum": "27d68bae08ab008acf150bf1e17f4352f268e9e19b9a99abc22aaf0136810546",
+      "restored_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2"
+    },
+    {
+      "drill": "ide-close-start",
+      "file": "src/host/ide/ideMcpServer.ts",
+      "baseline_exit": 0,
+      "mutated_exit": 1,
+      "restored_exit": 0,
+      "tests": 82,
+      "expected": "RVM96RB2-8:",
+      "observed": [
+        {
+          "test": "IdeMcpServer RVM96RB2-8: close during start leaves no endpoint or listener and permits a later start",
+          "diagnostic": "Error: promise resolved \"{ \u2026(2) }\" instead of rejecting"
+        }
+      ],
+      "before_checksum": "820464dfa30564292a330620a080097f7d2f6a558965cd6bbf8ad994f0e1a052",
+      "mutated_checksum": "0ab877d6158ef906a3440de929c0478bf8bb6f602cb90c6a95466bb7fb2d1145",
+      "restored_checksum": "820464dfa30564292a330620a080097f7d2f6a558965cd6bbf8ad994f0e1a052"
+    },
+    {
+      "drill": "team-close-start",
+      "file": "src/host/team/mcpBridge.ts",
+      "baseline_exit": 0,
+      "mutated_exit": 1,
+      "restored_exit": 0,
+      "tests": 82,
+      "expected": "RVM96A-25:",
+      "observed": [
+        {
+          "test": "cancellation and disposal RVM96A-25: cannot reopen or register after close overtakes startup",
+          "diagnostic": "Error: promise resolved \"undefined\" instead of rejecting"
+        }
+      ],
+      "before_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62",
+      "mutated_checksum": "036c90241ceadffa885620005748a50bbc5cce760156519b4ab1029e925d6436",
+      "restored_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62"
+    },
+    {
+      "drill": "explicit-assignment",
+      "file": "src/core/team/resources.ts",
+      "baseline_exit": 0,
+      "mutated_exit": 1,
+      "restored_exit": 0,
+      "tests": 82,
+      "expected": "RVM96A-11:",
+      "observed": [
+        {
+          "test": "roles and kinds RVM96A-11: offers unassigned servers to no role and assigned servers only to their roles",
+          "diagnostic": "AssertionError: expected [ 'chrome', 'notes' ] to deeply equal []"
+        }
+      ],
+      "before_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2",
+      "mutated_checksum": "6e991d2a53c8ff9a9d7d4375d7189ad8415611e85a068727991d272dc1cf7b95",
+      "restored_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2"
+    },
+    {
+      "drill": "pending-settlement",
+      "file": "src/core/team/resources.ts",
+      "baseline_exit": 0,
+      "mutated_exit": 1,
+      "restored_exit": 0,
+      "tests": 82,
+      "expected": "settles only dispatched records",
+      "observed": [
+        {
+          "test": "idle release and call identity settles only dispatched records and dispatches each call once without cancelling its first dispatch",
+          "diagnostic": "AssertionError: expected [] to deeply equal [ { role: 'research', \u2026(2) } ]"
+        }
+      ],
+      "before_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2",
+      "mutated_checksum": "7bac03c68fb235fd4ad250d5c140a89ce78771e7c61e03de8230ba5a5788ca8a",
+      "restored_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2"
+    },
+    {
+      "drill": "duplicate-dispatch",
+      "file": "src/core/team/resources.ts",
+      "baseline_exit": 0,
+      "mutated_exit": 1,
+      "restored_exit": 0,
+      "tests": 82,
+      "expected": "settles only dispatched records",
+      "observed": [
+        {
+          "test": "idle release and call identity settles only dispatched records and dispatches each call once without cancelling its first dispatch",
+          "diagnostic": "AssertionError: expected AbortSignal { aborted: false } to be undefined"
+        }
+      ],
+      "before_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2",
+      "mutated_checksum": "1aaaf02447286b5460e6baf07d1c7d7c186cf831ca67633e3c8c0351b1e87f4c",
+      "restored_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2"
+    },
+    {
+      "drill": "cancel-reentry-snapshot",
+      "file": "src/core/team/resources.ts",
+      "baseline_exit": 0,
+      "mutated_exit": 1,
+      "restored_exit": 0,
+      "tests": 82,
+      "expected": "client cancellation snapshots call identities",
+      "observed": [
+        {
+          "test": "idle release and call identity client cancellation snapshots call identities before an abort listener re-enters",
+          "diagnostic": "AssertionError: expected undefined to be false // Object.is equality"
+        }
+      ],
+      "before_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2",
+      "mutated_checksum": "7b09513662f83e59046bca05d33f1b12e09005466378c611ebff77326152dab0",
+      "restored_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2"
+    },
+    {
+      "drill": "cancellation-reason",
+      "file": "src/core/team/resources.ts",
+      "baseline_exit": 0,
+      "mutated_exit": 1,
+      "restored_exit": 0,
+      "tests": 82,
+      "expected": "RVM96A-24:",
+      "observed": [
+        {
+          "test": "cancellation and disposal RVM96A-24: cancels queued admission without dispatch or lease liability",
+          "diagnostic": "AssertionError: expected 'This operation was aborted' to be 'admission cancelled' // Object.is equality"
+        },
+        {
+          "test": "cancellation and disposal RVM96A-24: cancels granted admission without dispatch or lease liability",
+          "diagnostic": "AssertionError: expected 'This operation was aborted' to be 'admission cancelled' // Object.is equality"
+        }
+      ],
+      "before_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2",
+      "mutated_checksum": "538ec41450ea80989ebe470c47dc67e3337b99b4ec2a3de0e4a5be80a1065bef",
+      "restored_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2"
+    },
+    {
+      "drill": "explicit-null",
+      "file": "src/host/team/mcpBridge.ts",
+      "baseline_exit": 0,
+      "mutated_exit": 1,
+      "restored_exit": 0,
+      "tests": 82,
+      "expected": "RVM96RB2-6:",
+      "observed": [
+        {
+          "test": "Round-3 redesign interleavings RVM96RB2-6: locally invalid engine and HTTP arguments never create call liability on the real pool",
+          "diagnostic": "AssertionError: expected { jsonrpc: '2.0', id: 1, \u2026(1) } to match object { result: { isError: true } }"
+        }
+      ],
+      "before_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62",
+      "mutated_checksum": "9edd06ef8046a72c3f31e9864bf45340c02f38423934ae69bacbcf0d25e7f573",
+      "restored_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62"
+    }
+  ],
+  "integration_source_checksums": {
+    "src/core/backends/modelapi/mcp/pool.ts": "a0a0e641522e1cf1553344613a4ad2cdbc077cab76122321f9450af9adfe0a72",
+    "src/host/mcpLoopback.ts": "c7391a11d7886835e560823c1f485f1a4d2fc3a380b090f218fb93cad7061f6b"
+  },
+  "merged_main": "8c894b60aeb4c8c8ea67b8d08e25992f4b732f3f"
+}

@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { TodoItem } from '../../src/shared/agentEvents'
+import { act, fireEvent, render, screen, within, waitFor } from '@testing-library/react'
+import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type * as transcriptModule from '../../src/webview/components/Transcript'
+import type { TranscriptProps } from '../../src/webview/components/Transcript'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
 import { App } from '../../src/webview/App'
@@ -11,23 +12,32 @@ import { restoredUiState, type WebviewState } from '../../src/webview/state/snap
 import { createUiStore, listenToHost, persistStore } from '../../src/webview/state/store'
 import { initialUiState } from '../../src/webview/state/uiState'
 import { installSurfaceRetry, retrySurface } from '../../src/webview/surfaceRetry'
+import { fakeEstimate } from './helpers/estimator/fixtures'
 import { testSettings } from './helpers/fakes'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+
+beforeAll(warmDeferredSurfaces)
 
 // M25 (PLAN.md D28): the UI state lives outside React, keeps reducing under
 // the crash screen, and comes back after its Reload.
 
-/** Set to make the next render of the task panel throw: any render bug. */
+/** Make an eager transcript render throw so the outer crash boundary owns it. */
 const bomb = { isArmed: false }
 
-vi.mock('../../src/webview/components/TodoPanel', () => ({
-  // A task called "boom" is a bug in the state itself: it throws on every render.
-  TodoPanel: ({ items }: { readonly items: readonly TodoItem[] }) => {
-    if (bomb.isArmed || items.some((item) => item.text === 'boom')) {
-      throw new Error('render exploded')
-    }
-    return null
-  },
-}))
+vi.mock('../../src/webview/components/Transcript', async (importOriginal) => {
+  const actual = await importOriginal<typeof transcriptModule>()
+  return {
+    ...actual,
+    Transcript: (props: TranscriptProps) => {
+      if (
+        bomb.isArmed ||
+        props.entries.some((entry) => entry.kind === 'assistant' && entry.text === 'boom')
+      )
+        throw new Error('render exploded')
+      return <actual.Transcript {...props} />
+    },
+  }
+})
 
 function deliver(data: unknown) {
   act(() => {
@@ -107,6 +117,67 @@ describe('the UI store (M25)', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.useRealTimers()
+  })
+
+  it('routes maker traffic away from chat while retaining lazy estimator and ordinary chat updates', async () => {
+    const store = createUiStore(initialUiState)
+    const report = vi.fn<ErrorReporter>()
+    const stop = listenToHost(store, window, () => 0, report)
+    try {
+      deliver({
+        type: 'makerState',
+        v: 1,
+        isTrusted: true,
+        hardwareEnabled: false,
+        isInteractive: false,
+        machines: [],
+        ports: [],
+      })
+      expect(report).not.toHaveBeenCalled()
+      deliver(init)
+      deliver({ type: 'estimatorSection', requestId: 'maker-port', section: fakeEstimate() })
+      await vi.waitFor(() => {
+        expect(store.getState().estimatorRequestId).toBe('maker-port')
+      })
+      expect(store.getState().composerPlaceholder).toBe('placeholder')
+      expect(report).not.toHaveBeenCalled()
+    } finally {
+      stop()
+    }
+  })
+
+  it('validates lazy estimator replies before storage and keeps their correlation', async () => {
+    const store = createUiStore(initialUiState)
+    const report = vi.fn<ErrorReporter>()
+    const stop = listenToHost(store, window, () => 0, report)
+    deliver({ type: 'estimatorSection', requestId: 'request-1', section: fakeEstimate() })
+    await vi.waitFor(() => {
+      expect(store.getState().estimatorRequestId).toBe('request-1')
+    })
+    deliver({ type: 'estimatorSection', section: { p50: 'bad' } })
+    await vi.waitFor(() => {
+      expect(report).toHaveBeenCalled()
+    })
+    expect(store.getState().estimatorRequestId).toBe('request-1')
+    stop()
+  })
+
+  it('drops estimator replies whose parser finishes after a conversation clear or unsubscribe', async () => {
+    for (const close of ['clear', 'unsubscribe']) {
+      const store = createUiStore(initialUiState)
+      const dispatch = vi.spyOn(store, 'dispatch')
+      const stop = listenToHost(store, window, () => 0, vi.fn())
+      deliver({ type: 'estimatorSection', section: fakeEstimate() })
+      if (close === 'clear') deliver({ type: 'conversationCleared', attachmentEpoch: 1 })
+      else stop()
+      await import('../../src/shared/estimatorProtocol')
+      expect(
+        dispatch.mock.calls.filter(
+          ([action]) => action.type === 'hostMessage' && action.message.type === 'estimatorSection',
+        ),
+      ).toHaveLength(0)
+      stop()
+    }
   })
 
   // M39: outside React's error boundary, a throwing reducer lost the message
@@ -227,7 +298,7 @@ describe('the crash screen and its Reload (M25)', () => {
     })
     bomb.isArmed = true
     event({ type: 'todoChanged', items: [{ text: 'Write tests', status: 'pending' }] })
-    expect(screen.getByText(UI_TEXT.crashTitle)).toBeInTheDocument()
+    expect(await screen.findByText(UI_TEXT.crashTitle)).toBeInTheDocument()
     bomb.isArmed = false
     // The turn goes on while the crash screen shows.
     event({ type: 'textDelta', itemId: 'm1', field: 'text', delta: ' and after' })
@@ -245,7 +316,7 @@ describe('the crash screen and its Reload (M25)', () => {
         },
       ],
     })
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.crashReload }))
+    fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.crashReload }))
     first.close()
 
     const second = openDocument(throughJson(first.states.at(-1)))
@@ -256,13 +327,20 @@ describe('the crash screen and its Reload (M25)', () => {
     deliver({ type: 'authState', status: 'signedIn' })
     expect(screen.getByText('Before and after')).toBeInTheDocument()
     expect(
-      await within(screen.getByRole('main')).findByRole('radio', { name: 'Red' }),
+      await within(screen.getByRole('region', { name: 'Open Question' })).findByRole('radio', {
+        name: 'Red',
+      }),
     ).toBeInTheDocument()
+    expect(screen.getAllByRole('radio', { name: 'Red' })).toHaveLength(1)
+    expect(
+      within(screen.getByRole('main')).getByRole('button', { name: 'Answer Open Question Colour' }),
+    ).toBeInTheDocument()
+    expect(within(screen.getByRole('main')).queryByRole('radio')).toBeNull()
     expect(screen.getByLabelText('Stop')).toBeInTheDocument()
     second.close()
   })
 
-  it('drops a restored conversation whose session the host no longer holds', () => {
+  it('drops a restored conversation whose session the host no longer holds', async () => {
     const first = openDocument(undefined)
     hostReady('s1')
     event({
@@ -272,7 +350,7 @@ describe('the crash screen and its Reload (M25)', () => {
     bomb.isArmed = true
     event({ type: 'todoChanged', items: [] })
     bomb.isArmed = false
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.crashReload }))
+    fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.crashReload }))
     first.close()
     const second = openDocument(throughJson(first.states.at(-1)))
     hostReady(undefined)
@@ -281,17 +359,20 @@ describe('the crash screen and its Reload (M25)', () => {
     second.close()
   })
 
-  it('breaks the loop when the restored state itself crashes: the second Reload keeps only the session', () => {
+  it('breaks the loop when the restored state itself crashes: the second Reload keeps only the session', async () => {
     const first = openDocument(undefined)
     hostReady('s1')
-    event({ type: 'todoChanged', items: [{ text: 'boom', status: 'pending' }] })
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.crashReload }))
+    event({
+      type: 'itemCompleted',
+      item: { itemId: 'boom', kind: 'agentMessage', status: 'completed', text: 'boom' },
+    })
+    fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.crashReload }))
     first.close()
     const second = openDocument(throughJson(first.states.at(-1)))
     hostReady('s1')
     // The saved state crashes its first render too.
-    expect(screen.getByText(UI_TEXT.crashTitle)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.crashReload }))
+    expect(await screen.findByText(UI_TEXT.crashTitle)).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.crashReload }))
     expect(second.states.at(-1)).toEqual({ sessionId: 's1' })
     expect(second.posted).toHaveBeenCalledWith({ type: 'hostAction', action: 'reload' })
     second.close()
@@ -300,4 +381,42 @@ describe('the crash screen and its Reload (M25)', () => {
     expect(screen.queryByText(UI_TEXT.crashTitle)).toBeNull()
     third.close()
   })
+})
+
+it('validates a first-use estimator frame before updating the store', async () => {
+  const store = createUiStore(initialUiState)
+  const report = vi.fn()
+  const stop = listenToHost(store, window, () => 0, report)
+  try {
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'estimatorSection', section: { ...fakeEstimate(), disclosures: [] } },
+      }),
+    )
+    await waitFor(() => {
+      expect(report).toHaveBeenCalled()
+    })
+    expect(store.getState().estimator).toBeUndefined()
+    const section = fakeEstimate()
+    window.dispatchEvent(
+      new MessageEvent('message', { data: { type: 'estimatorSection', section } }),
+    )
+    await waitFor(() => {
+      expect(store.getState().estimator).toEqual(section)
+    })
+  } finally {
+    stop()
+  }
+})
+
+it('discards an estimator frame whose listener closes during first-use loading', async () => {
+  const store = createUiStore(initialUiState)
+  const stop = listenToHost(store, window, () => 0, vi.fn())
+  window.dispatchEvent(
+    new MessageEvent('message', { data: { type: 'estimatorSection', section: fakeEstimate() } }),
+  )
+  stop()
+  await import('../../src/shared/estimatorProtocol')
+  await Promise.resolve()
+  expect(store.getState().estimator).toBeUndefined()
 })

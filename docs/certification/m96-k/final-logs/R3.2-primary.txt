@@ -1,0 +1,68 @@
+
+ RUN  v5.0.2 /Users/randy/lanes/FIXM96K4
+
+ ❯ test/unit/teamNativeLifetime.test.ts (16 tests | 2 failed) 27720ms
+   ❯ M96 K real native lifetime (16)
+     × retirement and dispose never await an unowned primary after survivor signals: true 1690ms
+     × retirement and dispose never await an unowned primary after survivor signals: false 1722ms
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 14 passed (16)
+   Start at  14:06:01
+   Duration  28.55s (tests 98%, transform 1%, import 1%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > retirement and dispose never await an unowned primary after survivor signals: true
+AssertionError: expected 'pending' to deeply equal { childExited: false, …(2) }
+
+- Expected:
+{
+  "childExited": false,
+  "descendants": "uncertain",
+  "notOwned": [
+    48996,
+  ],
+}
+
++ Received:
+"pending"
+
+ ❯ test/unit/teamNativeLifetime.test.ts:441:74
+    439|         const { pid } = await child.confirmation
+    440|         const retirement = child.retire()
+    441|         expect(await Promise.race([retirement, delay(1000, 'pending')]…
+       |                                                                          ^
+    442|           childExited: false,
+    443|           descendants: 'uncertain',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > retirement and dispose never await an unowned primary after survivor signals: false
+AssertionError: expected 'pending' to deeply equal { childExited: false, …(2) }
+
+- Expected:
+{
+  "childExited": false,
+  "descendants": "uncertain",
+  "notOwned": [
+    49017,
+  ],
+}
+
++ Received:
+"pending"
+
+ ❯ test/unit/teamNativeLifetime.test.ts:441:74
+    439|         const { pid } = await child.confirmation
+    440|         const retirement = child.retire()
+    441|         expect(await Promise.race([retirement, delay(1000, 'pending')]…
+       |                                                                          ^
+    442|           childExited: false,
+    443|           descendants: 'uncertain',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯

@@ -1,3 +1,4 @@
+import { Usd } from '../../shared/usd'
 // Muse Voice (M35, PLAN.md D30): the paid, opt-in dictation engine. The
 // microphone's audio comes from a capture helper (the same resident-helper
 // driver as the free engine, with "audio" lines instead of "text"), and is
@@ -255,9 +256,9 @@ export class MuseVoiceStream {
     this.fail(closeReason(code, reason))
   }
 
-  /** Locally sent audio duration, not a server billing receipt. */
-  public get audioSeconds(): number {
-    return this.bytesSent / MUSE_VOICE_BYTES_PER_SECOND
+  /** Locally sent audio bytes, used for the exact local cost estimate. */
+  public get audioBytes(): number {
+    return this.bytesSent
   }
 
   /** Whole locally sent seconds, retained for the window's existing estimate. */
@@ -404,7 +405,7 @@ export class MuseVoiceDictation implements DictationHandle {
     const budget = this.budgets.get(stream)
     this.budgets.delete(stream)
     if (budget !== undefined) {
-      void this.settleBudget(budget, stream.audioSeconds)
+      void this.settleBudget(budget, stream.audioBytes)
     }
   }
 
@@ -412,15 +413,18 @@ export class MuseVoiceDictation implements DictationHandle {
     return this.open.has(stream) && !this.isDisposed
   }
 
-  private async settleBudget(state: VoiceBudgetState, seconds: number): Promise<void> {
+  private async settleBudget(state: VoiceBudgetState, bytes: number): Promise<void> {
     if (state.claim === undefined || state.isSettled) {
       return
     }
     state.isSettled = true
-    const estimateUsd = state.hasAuthorizationStarted
-      ? (seconds * PAID_PRICES_USD.voicePerHour) / SECONDS_PER_HOUR
-      : 0
     try {
+      const estimateUsd = state.hasAuthorizationStarted
+        ? Usd.from(PAID_PRICES_USD.voicePerHour)
+            .times(bytes)
+            .divideIntegerCeiling(SECONDS_PER_HOUR * MUSE_VOICE_BYTES_PER_SECOND)
+            .toAmount()
+        : Usd.from(0).toAmount()
       await state.claim.settle(estimateUsd, state.hasAuthorizationStarted)
     } catch {
       this.deps.log.warn('Muse Voice spend was not saved')
@@ -441,13 +445,13 @@ export class MuseVoiceDictation implements DictationHandle {
         return
       }
       if (state.scope !== undefined) {
-        if (state.scope.capUsd() > 0) {
+        if (Usd.from(state.scope.capUsd()).compare(Usd.from(0)) > 0) {
           throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
         }
         state.claim = await state.scope.journal.reserve(
           state.scope.sessionId,
           state.scope.accountId,
-          0,
+          Usd.from(0).toAmount(),
           { isUnbounded: true },
         )
       }
@@ -473,7 +477,7 @@ export class MuseVoiceDictation implements DictationHandle {
     } catch (error: unknown) {
       stream.fail(error instanceof Error ? error.message : String(error))
       if (!this.open.has(stream)) {
-        await this.settleBudget(state, stream.audioSeconds)
+        await this.settleBudget(state, stream.audioBytes)
       }
     }
   }
@@ -482,7 +486,7 @@ export class MuseVoiceDictation implements DictationHandle {
     if (state.scope === undefined) {
       return
     }
-    if (state.scope.capUsd() > 0) {
+    if (Usd.from(state.scope.capUsd()).compare(Usd.from(0)) > 0) {
       throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
     }
     if (state.keyDigest !== state.scope.accountId) {

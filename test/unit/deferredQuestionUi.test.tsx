@@ -6,10 +6,15 @@ import { AttentionDock } from '../../src/webview/components/AttentionDock'
 import { QuestionSurface, useAttentionSurface } from '../../src/webview/components/QuestionSurface'
 import { questionFixture } from './helpers/questions/fixtures'
 
-const loading = vi.hoisted(() => Promise.withResolvers<undefined>())
+const loading = vi.hoisted(() => ({
+  ...Promise.withResolvers<undefined>(),
+  loaded: Promise.withResolvers<undefined>(),
+}))
 vi.mock('../../src/webview/components/QuestionUi', async (original) => {
   await loading.promise
-  return await original()
+  const module = await original()
+  loading.loaded.resolve(undefined)
+  return module
 })
 
 function DraftControl() {
@@ -69,16 +74,16 @@ describe('the first lazy question', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Seed draft' }))
     await act(async () => {
       loading.resolve(undefined)
-      await loading.promise
+      await loading.loaded.promise
     })
-    const explanations = await screen.findAllByLabelText('Your explanation')
-    expect(explanations).toHaveLength(2)
+    const explanations = await screen.findAllByLabelText('Your Explanation')
+    expect(explanations).toHaveLength(1)
     for (const explanation of explanations) expect(explanation).toHaveValue('Kept while loading')
     rerender(scene(false))
     rerender(scene())
-    for (const explanation of screen.getAllByLabelText('Your explanation'))
+    for (const explanation of screen.getAllByLabelText('Your Explanation'))
       expect(explanation).toHaveValue('Kept while loading')
-    fireEvent.click(screen.getAllByRole('button', { name: 'Send explanation' })[0]!)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Send Explanation' })[0]!)
     expect(actions.onClarify).toHaveBeenCalledWith('q-1', 'Kept while loading')
   })
 })

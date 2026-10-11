@@ -1,0 +1,119 @@
+.vault-section,
+.vault-card {
+  color: var(--vscode-foreground);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.vault-section {
+  padding: 12px;
+}
+
+.vault-card {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 12px;
+  margin: 8px 0;
+}
+
+.vault-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.vault-section button,
+.vault-card button {
+  min-height: 28px;
+  padding: 4px 8px;
+  color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+  border: 1px solid var(--vscode-contrastBorder, transparent);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.vault-section button:disabled,
+.vault-card button:disabled {
+  opacity: 65%;
+  cursor: default;
+}
+
+.vault-section input,
+.vault-section textarea,
+.vault-section select {
+  box-sizing: border-box;
+  max-width: 100%;
+  width: 100%;
+  min-height: 28px;
+  padding: 4px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+}
+
+.vault-section input[type='checkbox'] {
+  width: auto;
+  min-height: auto;
+}
+
+.vault-section label {
+  display: block;
+  margin: 8px 0;
+}
+
+.vault-section fieldset {
+  min-width: 0;
+  margin: 8px 0;
+  border: 1px solid var(--vscode-panel-border);
+}
+
+.vault-section :focus-visible,
+.vault-card :focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.vault-details {
+  margin: 8px 0;
+}
+
+.vault-details > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 8px;
+  margin: 4px 0;
+}
+
+.vault-details dd {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: var(--vscode-editor-font-family, monospace);
+  overflow-wrap: anywhere;
+}
+
+.vault-tier {
+  border: 1px solid var(--vscode-panel-border);
+  padding: 8px;
+}
+
+.vault-section details {
+  margin: 8px 0;
+}
+
+.vault-section summary {
+  cursor: pointer;
+  min-height: 28px;
+}
+
+.vault-section h2,
+.vault-card h3 {
+  font-size: inherit;
+}
+
+@media (width <= 360px) {
+  .vault-details > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

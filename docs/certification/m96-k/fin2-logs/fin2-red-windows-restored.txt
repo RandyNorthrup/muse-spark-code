@@ -1,0 +1,32 @@
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+rig=win11 slot=finm96k2-red snapshot=57188e81
+rig: Windows WIN-11-VM; slot finm96k2-red; snapshot 57188e81f2247118c0dfd31aba56f27409ddec5e
+base=C:\Users\randy\gates\base-c78aedc3ea0dab3c lock=c78aedc3ea0dab3cf7e685e18926e181d01a96535223c740d26598931bce86ce
+base reused
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 C:/Users/Randy/gates/rt-finm96k2-red
+
+ ✓ test/unit/teamHintsAndLoad.test.ts (9 tests) 943ms
+   ✓ M96 K advisory hints (5)
+     ✓ uses state home and secures a real native owner-only hints folder 777ms
+ ✓ test/unit/teamNativeLifetime.test.ts (5 tests) 5183ms
+   ✓ M96 K real native lifetime (5)
+     ✓ starts a separate journalled team Muse Code host over real fake-CLI pipes 678ms
+     ✓ preserves the real command exit code through its native container 1260ms
+     ✓ reconciles foreign journals before startup returns and preserves all foreign bytes 776ms
+     ✓ runs marked child at below-normal priority with intent and OS confirmation on disk 633ms
+     ✓ prepared Windows owner (1)
+       ✓ hard host death closes jobs and ends detached grandchildren 1084ms
+ ✓ test/unit/teamProcessLifetime.test.ts (15 tests) 768ms
+
+ Test Files  3 passed (3)
+      Tests  29 passed (29)
+   Start at  09:05:02
+   Duration  9.75s (tests 75%, import 12%, setup 7%, transform 7%)
+
+exit=0

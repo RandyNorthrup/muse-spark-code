@@ -88,15 +88,8 @@ export type CodeIntelAnswer =
   | { readonly ok: false; readonly reason: string; readonly visibleReason: string }
 
 /** Why a call cannot be answered: what the model reads, and what the row shows. */
-export class CodeIntelRefusal extends Error {
-  public constructor(
-    reason: string,
-    public readonly visibleReason: string = reason,
-  ) {
-    super(reason)
-    this.name = 'CodeIntelRefusal'
-  }
-}
+import { CodeIntelRefusal } from './codeIntelRefusal'
+export { CodeIntelRefusal } from './codeIntelRefusal'
 
 const TIMEOUT_SECONDS = CODE_INTEL_TIMEOUT_MS / MILLISECONDS_PER_SECOND
 const LINE_BREAK = /[\r\n]/

@@ -1,0 +1,18 @@
+{
+  "browser": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/150.0.0.0 Safari/537.36",
+  "mp4": true,
+  "playback": {
+    "duration": 1.0472,
+    "width": 320,
+    "height": 240,
+    "state": 4
+  },
+  "receipts": [
+    {
+      "type": "video/mp4",
+      "bytes": 22012
+    }
+  ],
+  "synthetic": true,
+  "actualDesktop": false
+}

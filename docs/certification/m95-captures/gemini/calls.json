@@ -1,0 +1,68 @@
+{
+  "provider": "gemini",
+  "capturedAt": "2026-10-04",
+  "totalRequests": 6,
+  "billedRequests": 4,
+  "freeRequests": 2,
+  "expected": {
+    "billed": 4,
+    "free": 2
+  },
+  "models": ["models/gemini-3.5-flash-lite"],
+  "calls": [
+    {
+      "seq": 1,
+      "name": "models-list",
+      "method": "GET",
+      "url": "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000",
+      "status": 200,
+      "billed": false,
+      "ms": 833
+    },
+    {
+      "seq": 2,
+      "name": "tool-call-stream",
+      "method": "POST",
+      "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse",
+      "status": 200,
+      "billed": true,
+      "ms": 560
+    },
+    {
+      "seq": 3,
+      "name": "tool-result-stream",
+      "method": "POST",
+      "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse",
+      "status": 200,
+      "billed": true,
+      "ms": 581
+    },
+    {
+      "seq": 4,
+      "name": "cache-call-1",
+      "method": "POST",
+      "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse",
+      "status": 200,
+      "billed": true,
+      "ms": 1168
+    },
+    {
+      "seq": 5,
+      "name": "cache-call-2",
+      "method": "POST",
+      "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse",
+      "status": 200,
+      "billed": true,
+      "ms": 1320
+    },
+    {
+      "seq": 6,
+      "name": "error-invalid-model",
+      "method": "POST",
+      "url": "https://generativelanguage.googleapis.com/v1beta/models/no-such-model-m95:streamGenerateContent?alt=sse",
+      "status": 404,
+      "billed": false,
+      "ms": 119
+    }
+  ]
+}

@@ -1,0 +1,651 @@
+[
+  {
+    "id": "save-name",
+    "source": "src/core/reporting/destinations/save.ts",
+    "test": "test/unit/reportDestinationSave.test.ts",
+    "expectedName": "refuses unsafe template",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationSave.test.ts > report save confinement and ownership > refuses unsafe template ../outside.md",
+      "FAIL  test/unit/reportDestinationSave.test.ts > report save confinement and ownership > refuses unsafe template ..\\outside.md",
+      "FAIL  test/unit/reportDestinationSave.test.ts > report save confinement and ownership > refuses unsafe template /outside.md",
+      "FAIL  test/unit/reportDestinationSave.test.ts > report save confinement and ownership > refuses unsafe template CON.md",
+      "FAIL  test/unit/reportDestinationSave.test.ts > report save confinement and ownership > refuses unsafe template aux",
+      "FAIL  test/unit/reportDestinationSave.test.ts > report save confinement and ownership > refuses unsafe template report.md",
+      "FAIL  test/unit/reportDestinationSave.test.ts > report save confinement and ownership > refuses unsafe template C:report.md",
+      "FAIL  test/unit/reportDestinationSave.test.ts > report save confinement and ownership > refuses unsafe template {kind}/{date}.md",
+      "FAIL  test/unit/reportDestinationSave.test.ts > report save confinement and ownership > refuses unsafe template {kind}\\{date}.md"
+    ],
+    "originalSha256": "9128cf0041fcde8ae8508ecfa50eefc554066ac58a0e31febcc3bb8f44ec09f8",
+    "restoredSha256": "9128cf0041fcde8ae8508ecfa50eefc554066ac58a0e31febcc3bb8f44ec09f8",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "save-grant",
+    "source": "src/core/reporting/destinations/save.ts",
+    "test": "test/unit/reportDestinationSave.test.ts",
+    "expectedName": "refuses an ungranted root",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationSave.test.ts > report save confinement and ownership > refuses an ungranted root and invalid schedule identity",
+      "FAIL  test/unit/reportDestinationSave.test.ts > report save confinement and ownership > refuses a planted directory junction and file link"
+    ],
+    "originalSha256": "9128cf0041fcde8ae8508ecfa50eefc554066ac58a0e31febcc3bb8f44ec09f8",
+    "restoredSha256": "9128cf0041fcde8ae8508ecfa50eefc554066ac58a0e31febcc3bb8f44ec09f8",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "save-ownership",
+    "source": "src/core/reporting/destinations/save.ts",
+    "test": "test/unit/reportDestinationSave.test.ts",
+    "expectedName": "never overwrites a foreign file",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationSave.test.ts > report save confinement and ownership > never overwrites a foreign file or another schedule output"
+    ],
+    "originalSha256": "9128cf0041fcde8ae8508ecfa50eefc554066ac58a0e31febcc3bb8f44ec09f8",
+    "restoredSha256": "9128cf0041fcde8ae8508ecfa50eefc554066ac58a0e31febcc3bb8f44ec09f8",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "save-retention",
+    "source": "src/core/reporting/destinations/save.ts",
+    "test": "test/unit/reportDestinationSave.test.ts",
+    "expectedName": "retains newest N",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationSave.test.ts > report save confinement and ownership > retains newest N, only removes owned unchanged files, and preserves a manual replacement"
+    ],
+    "originalSha256": "9128cf0041fcde8ae8508ecfa50eefc554066ac58a0e31febcc3bb8f44ec09f8",
+    "restoredSha256": "9128cf0041fcde8ae8508ecfa50eefc554066ac58a0e31febcc3bb8f44ec09f8",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "email-expiry",
+    "source": "src/core/reporting/destinations/email.ts",
+    "test": "test/unit/reportDestinationEmail.test.ts",
+    "expectedName": "expires codes",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationEmail.test.ts > report email verification, consent and vault transport > expires codes at fifteen minutes and refuses the sixth attempt"
+    ],
+    "originalSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "restoredSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "email-tries",
+    "source": "src/core/reporting/destinations/email.ts",
+    "test": "test/unit/reportDestinationEmail.test.ts",
+    "expectedName": "sixth attempt",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationEmail.test.ts > report email verification, consent and vault transport > expires codes at fifteen minutes and refuses the sixth attempt"
+    ],
+    "originalSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "restoredSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "email-replay",
+    "source": "src/core/reporting/destinations/email.ts",
+    "test": "test/unit/reportDestinationEmail.test.ts",
+    "expectedName": "keeps only its digest",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationEmail.test.ts > report email verification, consent and vault transport > sends a six-digit code through the opaque vault connection and keeps only its digest"
+    ],
+    "originalSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "restoredSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "email-code-digest",
+    "source": "src/core/reporting/destinations/email.ts",
+    "test": "test/unit/reportDestinationEmail.test.ts",
+    "expectedName": "wrong six-digit code",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationEmail.test.ts > report email verification, consent and vault transport > rejects a wrong six-digit code and malformed transport metadata"
+    ],
+    "originalSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "restoredSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "email-first-confirm",
+    "source": "src/core/reporting/destinations/email.ts",
+    "test": "test/unit/reportDestinationEmail.test.ts",
+    "expectedName": "requires exact first-send preview",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationEmail.test.ts > report email verification, consent and vault transport > requires exact first-send preview confirmation and never prompts during a fire"
+    ],
+    "originalSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "restoredSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "email-tls",
+    "source": "src/core/reporting/destinations/email.ts",
+    "test": "test/unit/reportDestinationEmail.test.ts",
+    "expectedName": "refuses insecure or unconnected",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationEmail.test.ts > report email verification, consent and vault transport > refuses insecure or unconnected transport {\"connectedByUser\":true,\"tls\":false,\"certificateChecked\":true}",
+      "FAIL  test/unit/reportDestinationEmail.test.ts > report email verification, consent and vault transport > refuses insecure or unconnected transport {\"connectedByUser\":true,\"tls\":true,\"certificateChecked\":false}",
+      "FAIL  test/unit/reportDestinationEmail.test.ts > report email verification, consent and vault transport > refuses insecure or unconnected transport {\"connectedByUser\":false,\"tls\":true,\"certificateChecked\":true}"
+    ],
+    "originalSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "restoredSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "email-hour",
+    "source": "src/core/reporting/destinations/email.ts",
+    "test": "test/unit/reportDestinationEmail.test.ts",
+    "expectedName": "enforces six per rolling hour",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationEmail.test.ts > report email verification, consent and vault transport > enforces six per rolling hour across instances, counting verification and failures"
+    ],
+    "originalSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "restoredSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "email-day",
+    "source": "src/core/reporting/destinations/email.ts",
+    "test": "test/unit/reportDestinationEmail.test.ts",
+    "expectedName": "enforces twenty per rolling day",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationEmail.test.ts > report email verification, consent and vault transport > enforces twenty per rolling day and retains reservations for uncertain replies"
+    ],
+    "originalSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "restoredSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "email-scrub",
+    "source": "src/core/reporting/destinations/email.ts",
+    "test": "test/unit/reportDestinationEmail.test.ts",
+    "expectedName": "scrubs planted canaries",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationEmail.test.ts > report email verification, consent and vault transport > scrubs planted canaries from body, text and attachment immediately before sending"
+    ],
+    "originalSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "restoredSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "email-attachment-json",
+    "source": "src/core/reporting/destinations/email.ts",
+    "test": "test/unit/reportDestinationEmail.test.ts",
+    "expectedName": "keeps JSON attachment valid",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationEmail.test.ts > report email verification, consent and vault transport > keeps JSON attachment valid with its verified structural hash"
+    ],
+    "originalSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "restoredSha256": "7124c8da571beee5d1d540a00d70f44e3c05c94d1673230c46050e6d920e03f5",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "browser-session",
+    "source": "src/core/reporting/destinations/browser.ts",
+    "test": "test/unit/reportDestinationBrowserPost.test.ts",
+    "expectedName": "waits without publishing",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationBrowserPost.test.ts > browser report destinations > waits without publishing or opening until the user returns",
+      "FAIL  test/unit/reportDestinationBrowserPost.test.ts > browser report destinations > rechecks activity after publishing and authentication"
+    ],
+    "originalSha256": "34557038c5d44a3cd9e98555aee0141d28f4d7243e44c8feaf10a4c7b85fcfd0",
+    "restoredSha256": "34557038c5d44a3cd9e98555aee0141d28f4d7243e44c8feaf10a4c7b85fcfd0",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "browser-recheck",
+    "source": "src/core/reporting/destinations/browser.ts",
+    "test": "test/unit/reportDestinationBrowserPost.test.ts",
+    "expectedName": "rechecks activity",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationBrowserPost.test.ts > browser report destinations > rechecks activity after publishing and authentication"
+    ],
+    "originalSha256": "34557038c5d44a3cd9e98555aee0141d28f4d7243e44c8feaf10a4c7b85fcfd0",
+    "restoredSha256": "34557038c5d44a3cd9e98555aee0141d28f4d7243e44c8feaf10a4c7b85fcfd0",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "browser-private-url",
+    "source": "src/core/reporting/destinations/browser.ts",
+    "test": "test/unit/reportDestinationBrowserPost.test.ts",
+    "expectedName": "refuses public or unsafe URL https://public",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationBrowserPost.test.ts > browser report destinations > refuses public or unsafe URL https://public.example.test/report"
+    ],
+    "originalSha256": "34557038c5d44a3cd9e98555aee0141d28f4d7243e44c8feaf10a4c7b85fcfd0",
+    "restoredSha256": "34557038c5d44a3cd9e98555aee0141d28f4d7243e44c8feaf10a4c7b85fcfd0",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "browser-https",
+    "source": "src/core/reporting/destinations/browser.ts",
+    "test": "test/unit/reportDestinationBrowserPost.test.ts",
+    "expectedName": "refuses public or unsafe URL http:",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationBrowserPost.test.ts > browser report destinations > refuses public or unsafe URL http://node.example.test/private/reports/one"
+    ],
+    "originalSha256": "34557038c5d44a3cd9e98555aee0141d28f4d7243e44c8feaf10a4c7b85fcfd0",
+    "restoredSha256": "34557038c5d44a3cd9e98555aee0141d28f4d7243e44c8feaf10a4c7b85fcfd0",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "post-consent",
+    "source": "src/core/reporting/destinations/post.ts",
+    "test": "test/unit/reportDestinationBrowserPost.test.ts",
+    "expectedName": "requires separate opt-in",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationBrowserPost.test.ts > opt-in report posting > requires separate opt-in and full first-post confirmation for the kind and target"
+    ],
+    "originalSha256": "5781943fe6d2afc918a0980107ee90bcc0bc26bfca9543fff99ccae531133dc2",
+    "restoredSha256": "5781943fe6d2afc918a0980107ee90bcc0bc26bfca9543fff99ccae531133dc2",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "post-optin",
+    "source": "src/core/reporting/destinations/post.ts",
+    "test": "test/unit/reportDestinationBrowserPost.test.ts",
+    "expectedName": "requires separate opt-in",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationBrowserPost.test.ts > opt-in report posting > requires separate opt-in and full first-post confirmation for the kind and target"
+    ],
+    "originalSha256": "5781943fe6d2afc918a0980107ee90bcc0bc26bfca9543fff99ccae531133dc2",
+    "restoredSha256": "5781943fe6d2afc918a0980107ee90bcc0bc26bfca9543fff99ccae531133dc2",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "post-scrub",
+    "source": "src/core/reporting/destinations/post.ts",
+    "test": "test/unit/reportDestinationBrowserPost.test.ts",
+    "expectedName": "scrubs with automated note",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationBrowserPost.test.ts > opt-in report posting > requires separate opt-in and full first-post confirmation for the kind and target",
+      "FAIL  test/unit/reportDestinationBrowserPost.test.ts > opt-in report posting > passes the exact statusIssue operation to existing authenticated publisher and scrubs with automated note",
+      "FAIL  test/unit/reportDestinationBrowserPost.test.ts > opt-in report posting > passes the exact pullRequestComment operation to existing authenticated publisher and scrubs with automated note",
+      "FAIL  test/unit/reportDestinationBrowserPost.test.ts > opt-in report posting > passes the exact issueComment operation to existing authenticated publisher and scrubs with automated note"
+    ],
+    "originalSha256": "5781943fe6d2afc918a0980107ee90bcc0bc26bfca9543fff99ccae531133dc2",
+    "restoredSha256": "5781943fe6d2afc918a0980107ee90bcc0bc26bfca9543fff99ccae531133dc2",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "post-note",
+    "source": "src/core/reporting/destinations/post.ts",
+    "test": "test/unit/reportDestinationBrowserPost.test.ts",
+    "expectedName": "automated note",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationBrowserPost.test.ts > opt-in report posting > requires separate opt-in and full first-post confirmation for the kind and target",
+      "FAIL  test/unit/reportDestinationBrowserPost.test.ts > opt-in report posting > passes the exact statusIssue operation to existing authenticated publisher and scrubs with automated note",
+      "FAIL  test/unit/reportDestinationBrowserPost.test.ts > opt-in report posting > passes the exact pullRequestComment operation to existing authenticated publisher and scrubs with automated note",
+      "FAIL  test/unit/reportDestinationBrowserPost.test.ts > opt-in report posting > passes the exact issueComment operation to existing authenticated publisher and scrubs with automated note"
+    ],
+    "originalSha256": "5781943fe6d2afc918a0980107ee90bcc0bc26bfca9543fff99ccae531133dc2",
+    "restoredSha256": "5781943fe6d2afc918a0980107ee90bcc0bc26bfca9543fff99ccae531133dc2",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "occurrence-time",
+    "source": "src/core/reporting/destinations/runner.ts",
+    "test": "test/unit/scheduledReports.test.ts",
+    "expectedName": "uses occurrence asOf",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/scheduledReports.test.ts > scheduled report occurrence runner > uses occurrence asOf and exact manual bytes, with no paid/model dependency",
+      "FAIL  test/unit/scheduledReports.test.ts > scheduled report occurrence runner > refuses unverified agent email and ungranted save roots"
+    ],
+    "originalSha256": "258d990c8a52527cc18a522975fe37b126af0dce14a9d6dcc982e6d135727e00",
+    "restoredSha256": "258d990c8a52527cc18a522975fe37b126af0dce14a9d6dcc982e6d135727e00",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "occurrence-freeze",
+    "source": "src/core/reporting/destinations/runner.ts",
+    "test": "test/unit/scheduledReports.test.ts",
+    "expectedName": "never recollects",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/scheduledReports.test.ts > scheduled report occurrence runner > freezes the document before delivery and never recollects or duplicates a completed fire",
+      "FAIL  test/unit/scheduledReports.test.ts > scheduled report occurrence runner > resumes a deferred browser using frozen bytes when the user returns"
+    ],
+    "originalSha256": "258d990c8a52527cc18a522975fe37b126af0dce14a9d6dcc982e6d135727e00",
+    "restoredSha256": "258d990c8a52527cc18a522975fe37b126af0dce14a9d6dcc982e6d135727e00",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "occurrence-success",
+    "source": "src/core/reporting/destinations/runner.ts",
+    "test": "test/unit/scheduledReports.test.ts",
+    "expectedName": "never recollects",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/scheduledReports.test.ts > scheduled report occurrence runner > freezes the document before delivery and never recollects or duplicates a completed fire",
+      "FAIL  test/unit/scheduledReports.test.ts > scheduled report occurrence runner > does not retry an uncertain reply, an exception, or a malformed receipt"
+    ],
+    "originalSha256": "258d990c8a52527cc18a522975fe37b126af0dce14a9d6dcc982e6d135727e00",
+    "restoredSha256": "258d990c8a52527cc18a522975fe37b126af0dce14a9d6dcc982e6d135727e00",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "occurrence-crash",
+    "source": "src/core/reporting/destinations/runner.ts",
+    "test": "test/unit/scheduledReports.test.ts",
+    "expectedName": "persists uncertainty before dispatch",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/scheduledReports.test.ts > scheduled report occurrence runner > persists uncertainty before dispatch so a crash cannot duplicate a send"
+    ],
+    "originalSha256": "258d990c8a52527cc18a522975fe37b126af0dce14a9d6dcc982e6d135727e00",
+    "restoredSha256": "258d990c8a52527cc18a522975fe37b126af0dce14a9d6dcc982e6d135727e00",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "occurrence-authority",
+    "source": "src/core/reporting/destinations/runner.ts",
+    "test": "test/unit/scheduledReports.test.ts",
+    "expectedName": "denies an agent grant before generation",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/scheduledReports.test.ts > scheduled report occurrence runner > denies an agent grant before generation and checks destination authority again after a wait"
+    ],
+    "originalSha256": "258d990c8a52527cc18a522975fe37b126af0dce14a9d6dcc982e6d135727e00",
+    "restoredSha256": "258d990c8a52527cc18a522975fe37b126af0dce14a9d6dcc982e6d135727e00",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "schedule-switch",
+    "source": "src/core/reporting/destinations/scheduleRequest.ts",
+    "test": "test/unit/scheduledReports.test.ts",
+    "expectedName": "opens the common editor",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/scheduledReports.test.ts > scheduled report occurrence runner > validates schedule actions and opens the common editor for --schedule"
+    ],
+    "originalSha256": "0abb8bde72bbb2f2917443c7a5fda3da9e6bf51bd5013174a2c8e48f8d850fb6",
+    "restoredSha256": "0abb8bde72bbb2f2917443c7a5fda3da9e6bf51bd5013174a2c8e48f8d850fb6",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "destination-identity",
+    "source": "src/core/reporting/destinations/types.ts",
+    "test": "test/unit/scheduledReports.test.ts",
+    "expectedName": "validates schedule actions",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/scheduledReports.test.ts > scheduled report occurrence runner > validates schedule actions and opens the common editor for --schedule"
+    ],
+    "originalSha256": "5c20845ceead5deae19fa9a0bbbec2eaa7e23c258d857b9e2521bd4a1e40fba6",
+    "restoredSha256": "5c20845ceead5deae19fa9a0bbbec2eaa7e23c258d857b9e2521bd4a1e40fba6",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "email-smtp-case",
+    "source": "src/core/reporting/destinations/email.ts",
+    "test": "test/unit/reportDestinationEmail.test.ts",
+    "expectedName": "case-sensitive SMTP local part",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationEmail.test.ts > report email verification, consent and vault transport > preserves a case-sensitive SMTP local part and folds only the domain"
+    ],
+    "originalSha256": "79b90e40543a7054c2e701f030f5ac2ee7995146631d8c70cec638f89d8a6dd8",
+    "restoredSha256": "79b90e40543a7054c2e701f030f5ac2ee7995146631d8c70cec638f89d8a6dd8",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "occurrence-state-schema",
+    "source": "src/core/reporting/destinations/runner.ts",
+    "test": "test/unit/scheduledReports.test.ts",
+    "expectedName": "rejects a malformed frozen occurrence",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/scheduledReports.test.ts > scheduled report occurrence runner > rejects a malformed frozen occurrence before it can suppress or dispatch delivery"
+    ],
+    "originalSha256": "73945824f7c62386193bc69a9c4980dfea73af7882bf4c6809bfcf9523639f24",
+    "restoredSha256": "73945824f7c62386193bc69a9c4980dfea73af7882bf4c6809bfcf9523639f24",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "save-offset-order",
+    "source": "src/core/reporting/destinations/save.ts",
+    "test": "test/unit/reportDestinationSave.test.ts",
+    "expectedName": "newest instant across offset changes",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationSave.test.ts > report save confinement and ownership > retains the newest instant across offset changes, not the largest clock string"
+    ],
+    "originalSha256": "fd3ea25a72d165bf794a79e7f60414fc36b145378b0fbda112c5af3144ce2af5",
+    "restoredSha256": "fd3ea25a72d165bf794a79e7f60414fc36b145378b0fbda112c5af3144ce2af5",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "email-policy-schema",
+    "source": "src/core/reporting/destinations/email.ts",
+    "test": "test/unit/reportDestinationEmail.test.ts",
+    "expectedName": "malformed transport metadata",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationEmail.test.ts > report email verification, consent and vault transport > rejects a wrong six-digit code and malformed transport metadata"
+    ],
+    "originalSha256": "79b90e40543a7054c2e701f030f5ac2ee7995146631d8c70cec638f89d8a6dd8",
+    "restoredSha256": "79b90e40543a7054c2e701f030f5ac2ee7995146631d8c70cec638f89d8a6dd8",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "browser-path-schema",
+    "source": "src/core/reporting/destinations/browser.ts",
+    "test": "test/unit/reportDestinationBrowserPost.test.ts",
+    "expectedName": "refuses relative local paths",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationBrowserPost.test.ts > browser report destinations > refuses relative local paths and malformed publisher replies"
+    ],
+    "originalSha256": "34557038c5d44a3cd9e98555aee0141d28f4d7243e44c8feaf10a4c7b85fcfd0",
+    "restoredSha256": "34557038c5d44a3cd9e98555aee0141d28f4d7243e44c8feaf10a4c7b85fcfd0",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "action-error-scrub",
+    "source": "src/core/reporting/destinations/runner.ts",
+    "test": "test/unit/scheduledReports.test.ts",
+    "expectedName": "never quotes unknown action keys",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/scheduledReports.test.ts > scheduled report occurrence runner > never quotes unknown action keys in a generation failure"
+    ],
+    "originalSha256": "0128d895218cc8645e069d4dcb63aa583237191af345126397feaf4addb0e392",
+    "restoredSha256": "0128d895218cc8645e069d4dcb63aa583237191af345126397feaf4addb0e392",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "verification-error-scrub",
+    "source": "src/core/reporting/destinations/email.ts",
+    "test": "test/unit/reportDestinationEmail.test.ts",
+    "expectedName": "returns uncertainty without raw SMTP errors",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationEmail.test.ts > report email verification, consent and vault transport > returns uncertainty without raw SMTP errors when sending a verification code"
+    ],
+    "originalSha256": "1a3a0ef47d6151d3f00e0615767e817e24790dd34dc7af9b6b688d918ead926d",
+    "restoredSha256": "1a3a0ef47d6151d3f00e0615767e817e24790dd34dc7af9b6b688d918ead926d",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "policy-error-scrub",
+    "source": "src/core/reporting/destinations/email.ts",
+    "test": "test/unit/reportDestinationEmail.test.ts",
+    "expectedName": "malformed transport metadata",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationEmail.test.ts > report email verification, consent and vault transport > rejects a wrong six-digit code and malformed transport metadata"
+    ],
+    "originalSha256": "1a3a0ef47d6151d3f00e0615767e817e24790dd34dc7af9b6b688d918ead926d",
+    "restoredSha256": "1a3a0ef47d6151d3f00e0615767e817e24790dd34dc7af9b6b688d918ead926d",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "picker-labels",
+    "source": "src/webview/reporting/destinations/DestinationPicker.tsx",
+    "test": "test/unit/reportDestinationPicker.test.tsx",
+    "expectedName": "has named fields and groups and passes axe",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationPicker.test.tsx > shared lazy report destination picker > edits formats, names, retention and recipients without touching credentials",
+      "FAIL  test/unit/reportDestinationPicker.test.tsx > shared lazy report destination picker > has named fields and groups and passes axe structural checks"
+    ],
+    "originalSha256": "4c91746a5bcacf335231e7425ae800c60312add8c08a8ca8e02dec7897c8fbd7",
+    "restoredSha256": "4c91746a5bcacf335231e7425ae800c60312add8c08a8ca8e02dec7897c8fbd7",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "picker-contrast",
+    "source": "src/webview/reporting/destinations/destinations.css",
+    "test": "real Chrome + axe, all four themes at 690/320 px",
+    "expectedName": "color-contrast",
+    "exitCode": 1,
+    "failedChecks": [
+      {
+        "theme": "dark",
+        "width": 690,
+        "violations": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "nodes": [
+              ["#_R_0_-format"],
+              ["button:nth-child(2)"],
+              ["#_R_0_-save-template"],
+              ["#_R_0_-save-retention"],
+              ["fieldset:nth-child(8) > button:nth-child(8)"],
+              ["fieldset:nth-child(9) > button"],
+              ["#_R_0_-email-address"],
+              ["#_R_0_-email-connection"],
+              ["button:nth-child(7)"],
+              ["fieldset:nth-child(10) > button:nth-child(8)"],
+              ["fieldset:nth-child(11) > button"],
+              ["button:nth-child(12)"],
+              ["button:nth-child(13)"]
+            ]
+          }
+        ],
+        "requests": 0,
+        "overflow": false
+      },
+      {
+        "theme": "dark",
+        "width": 320,
+        "violations": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "nodes": [
+              ["#_R_0_-format"],
+              ["button:nth-child(2)"],
+              ["#_R_0_-save-template"],
+              ["#_R_0_-save-retention"],
+              ["fieldset:nth-child(8) > button:nth-child(8)"],
+              ["fieldset:nth-child(9) > button"],
+              ["#_R_0_-email-address"],
+              ["#_R_0_-email-connection"],
+              ["button:nth-child(7)"],
+              ["fieldset:nth-child(10) > button:nth-child(8)"],
+              ["fieldset:nth-child(11) > button"],
+              ["button:nth-child(12)"],
+              ["button:nth-child(13)"]
+            ]
+          }
+        ],
+        "requests": 0,
+        "overflow": false
+      }
+    ],
+    "originalSha256": "23ff69f723baf5d2c2aa8bc96aae4d147d38728ff63ad38b43fc4c4f4d359c16",
+    "restoredSha256": "23ff69f723baf5d2c2aa8bc96aae4d147d38728ff63ad38b43fc4c4f4d359c16",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "save-foreign-read",
+    "source": "src/core/reporting/destinations/save.ts",
+    "test": "test/unit/reportDestinationSave.test.ts",
+    "expectedName": "never overwrites a foreign file",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationSave.test.ts > report save confinement and ownership > never overwrites a foreign file or another schedule output"
+    ],
+    "originalSha256": "48d25bf2440f1aa0d5d2a5d17f1946813da290a00e067c8684669bbf7800cc8d",
+    "restoredSha256": "48d25bf2440f1aa0d5d2a5d17f1946813da290a00e067c8684669bbf7800cc8d",
+    "byteExact": true,
+    "observed": true
+  },
+  {
+    "id": "save-hardlink-read",
+    "source": "src/core/reporting/destinations/save.ts",
+    "test": "test/unit/reportDestinationSave.test.ts",
+    "expectedName": "refuses hard-linked manifest data",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportDestinationSave.test.ts > report save confinement and ownership > refuses hard-linked manifest data before reading it"
+    ],
+    "originalSha256": "48d25bf2440f1aa0d5d2a5d17f1946813da290a00e067c8684669bbf7800cc8d",
+    "restoredSha256": "48d25bf2440f1aa0d5d2a5d17f1946813da290a00e067c8684669bbf7800cc8d",
+    "byteExact": true,
+    "observed": true
+  }
+]

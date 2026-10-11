@@ -3,13 +3,15 @@
 // row and run_checks with their summary line, an edit's then_run as the
 // call's second result, the reducer keeping both, and the Markdown export.
 import { fireEvent, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import type { ItemSnapshot } from '../../src/shared/agentEvents'
 import { renderTranscriptMarkdown } from '../../src/core/export/transcriptMarkdown'
 import { describeTool } from '../../src/webview/toolPresentation'
 import { thenRunOutcomeText, verifySummaryText } from '../../src/shared/verifyText'
 import { initialUiState, type UiState, uiReducer } from '../../src/webview/state/uiState'
-import { renderTranscript, tool } from './helpers/transcriptFixtures'
+import { renderTranscript, tool, warmRowMenus } from './helpers/transcriptFixtures'
+
+beforeAll(warmRowMenus)
 
 function withEvent(
   state: UiState,
@@ -42,7 +44,7 @@ function row(label: string): HTMLElement {
 }
 
 describe('the verify rows', () => {
-  it('sum the files and checks up under the row, and open on what the model read', () => {
+  it('sum the files and checks up under the row, and open on what the model read', async () => {
     renderTranscript([
       tool({
         id: 'v1',
@@ -61,7 +63,8 @@ describe('the verify rows', () => {
         },
       }),
     ])
-    const found = row('Check edits')
+    await screen.findByText('Check Edits')
+    const found = row('Check Edits')
     expect(within(found).getByText('src/a.ts, src/b.ts')).toBeTruthy()
     expect(
       within(found).getByText('1 error, 2 warnings · lint failed · test passed · types not run'),
@@ -71,7 +74,9 @@ describe('the verify rows', () => {
       throw new Error('no toggle')
     }
     fireEvent.click(toggle)
-    expect(found.querySelector('.tool-output')?.textContent).toContain('lint: failed')
+    expect(
+      await within(found).findByText(/lint: failed/, { selector: '.tool-output .tool-pre' }),
+    ).toBeTruthy()
   })
 
   it('reads a run with no diagnostics or checks to report as nothing, a clean one as clean', () => {
@@ -103,19 +108,19 @@ describe('the verify rows', () => {
 
   it('label the model’s run_checks and the automatic row, with their files', () => {
     expect(describeTool('run_checks', '{"names":["lint"],"paths":["src/a.ts"]}')).toMatchObject({
-      label: 'Run checks',
+      label: 'Run Checks',
       summary: 'src/a.ts',
       body: 'verify',
     })
     expect(describeTool('verify_edits', '{"paths":[1,"x"]}')).toMatchObject({
-      label: 'Check edits',
+      label: 'Check Edits',
       summary: '',
     })
   })
 })
 
 describe('an edit’s then_run', () => {
-  it('shows the command and its output under the diff: one call, two results', () => {
+  it('shows the command and its output under the diff: one call, two results', async () => {
     renderTranscript([
       tool({
         id: 'e1',
@@ -126,11 +131,13 @@ describe('an edit’s then_run', () => {
         thenRun: { command: 'npm test', outcome: 'failed', output: '1 failing', exitCode: 1 },
       }),
     ])
+    await screen.findByText('Edit')
     const found = row('Edit')
+    await within(found).findByText('Then Ran')
     expect(found.querySelector('.diff-add')?.textContent).toContain('const a = 2')
     const block = found.querySelector('.then-run')
     expect(block).not.toBeNull()
-    expect(within(block as HTMLElement).getByText('Then ran')).toBeTruthy()
+    expect(within(block as HTMLElement).getByText('Then Ran')).toBeTruthy()
     expect(within(block as HTMLElement).getByText('npm test')).toBeTruthy()
     expect(within(block as HTMLElement).getByText('1 failing')).toBeTruthy()
     expect(within(block as HTMLElement).getByText('Exit code 1').className).toContain(

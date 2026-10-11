@@ -4,7 +4,15 @@ import { webviewKey } from '../../shared/keybindings'
 // The burst began as a fresh take on Lucas Bebber's Gooey Menu (MIT,
 // https://codepen.io/lbebber/pen/LELBEo); its goo filter is gone (the owner,
 // 2026-10-04: "not with the faded smudge look").
-import { type KeyboardEvent, type ReactNode, useLayoutEffect, useRef, useState } from 'react'
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { GOOEY_MENU } from '../../shared/constants'
 import { gooeyLayout, gooeySecondBurst, type MenuPoint } from '../gooeyLayout'
 import { useDismiss } from '../useDismiss'
@@ -37,8 +45,75 @@ function pillKey(level: string | undefined, id: string): string {
   return JSON.stringify([level ?? null, id])
 }
 
+/** A level's labels, in order: a new label set measures its width again. */
+function widthKey(level: string | undefined, items: readonly GooeyItem[]): string {
+  return JSON.stringify([level ?? null, ...items.map((item) => item.label)])
+}
+
 function viewportNow() {
   return { width: window.innerWidth, height: window.innerHeight }
+}
+
+function focusTokenPx(style: CSSStyleDeclaration | undefined, key: string): number {
+  const value = style?.getPropertyValue(key).trim()
+  return value === undefined || value === '' ? NaN : Number(value.replace('px', ''))
+}
+
+/** A fixed fan follows even reflow/transform changes that resize observers miss. */
+function watchMenuGeometry(place: () => void): () => void {
+  let frame: number
+  const sample = () => {
+    place()
+    frame = window.requestAnimationFrame(sample)
+  }
+  place()
+  frame = window.requestAnimationFrame(sample)
+  document.addEventListener('scroll', place, { capture: true })
+  window.addEventListener('resize', place)
+  const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(place)
+  observer?.observe(document.documentElement)
+  return () => {
+    window.cancelAnimationFrame(frame)
+    document.removeEventListener('scroll', place, true)
+    window.removeEventListener('resize', place)
+    observer?.disconnect()
+  }
+}
+
+/** Intersect every clipping ancestor, so scrolling inside a panel can dismiss too. */
+function anchorIsVisible(
+  anchor: HTMLElement,
+  rect: DOMRect,
+  viewport: ReturnType<typeof viewportNow>,
+) {
+  if (!anchor.isConnected) return false
+  let left = 0
+  let top = 0
+  let right = viewport.width
+  let bottom = viewport.height
+  for (let node: HTMLElement | null = anchor; node !== null; node = node.parentElement) {
+    const style = window.getComputedStyle(node)
+    if (style.display === 'none' || style.visibility === 'hidden') return false
+    if (node === anchor) continue
+    const clip = node.getBoundingClientRect()
+    if (/(auto|scroll|hidden|clip)/.test(style.overflowX)) {
+      left = Math.max(left, clip.left)
+      right = Math.min(right, clip.right)
+    }
+    if (!/(auto|scroll|hidden|clip)/.test(style.overflowY)) continue
+    top = Math.max(top, clip.top)
+    bottom = Math.min(bottom, clip.bottom)
+  }
+  // The default quote anchor is a point; a button needs positive visible area.
+  const isAcross =
+    rect.width === 0
+      ? rect.left >= left && rect.left <= right
+      : rect.right > left && rect.left < right
+  const isDown =
+    rect.height === 0
+      ? rect.top >= top && rect.top <= bottom
+      : rect.bottom > top && rect.top < bottom
+  return isAcross && isDown
 }
 
 export function GooeyMenuContent({ items, label, origin, onClose }: GooeyMenuProps) {
@@ -49,16 +124,28 @@ export function GooeyMenuContent({ items, label, origin, onClose }: GooeyMenuPro
   const [opener] = useState(() => document.activeElement)
   const [groupId, setGroup] = useState<string>()
   const [active, setActive] = useState<string>()
-  // Where the menu opened, and the panel's size: placed again on a resize.
-  const [frame, setFrame] = useState(() => ({ point: { x: 0, y: 0 }, viewport: viewportNow() }))
+  // Where the menu opened and its current viewport geometry.
+  const [frame, setFrame] = useState<{
+    point: MenuPoint
+    viewport: ReturnType<typeof viewportNow>
+    spacing: number
+  }>(() => ({
+    point: { x: 0, y: 0 },
+    viewport: viewportNow(),
+    spacing: GOOEY_MENU.gap,
+  }))
   // The pills whose label ends in an ellipsis, measured before the first
   // paint: their tooltip gives the whole label.
   const [clipped, setClipped] = useState<ReadonlyMap<string, boolean>>(() => new Map())
+  // Each level's shared pill width (the owner, 2026-10-09: "uniform only as
+  // long as the text in the longest text button"): its labels' key to the
+  // widest pill's max-content width, measured before the first paint.
+  const [natural, setNatural] = useState<ReadonlyMap<string, number>>(() => new Map())
   const group = items.find((item): item is GooeyGroup => item.id === groupId && 'children' in item)
   const visibleItems = group?.children ?? items
   const returnFocus = () => {
     if (opener instanceof HTMLElement && opener.isConnected) {
-      opener.focus()
+      opener.focus({ preventScroll: true })
     }
   }
   const close = () => {
@@ -72,10 +159,28 @@ export function GooeyMenuContent({ items, label, origin, onClose }: GooeyMenuPro
   }
   const onBlur = useDismiss(menu, true, close)
 
+  const dismissAnchor = useEffectEvent(close)
   useLayoutEffect(() => {
     const place = () => {
+      if (closed.current) return
       const anchor = origin instanceof HTMLElement ? origin : menu.current?.parentElement
       const rect = anchor?.getBoundingClientRect()
+      const viewport = viewportNow()
+      if (
+        anchor !== undefined &&
+        anchor !== null &&
+        rect !== undefined &&
+        !anchorIsVisible(anchor, rect, viewport)
+      ) {
+        dismissAnchor()
+        return
+      }
+      const style = menu.current === null ? undefined : window.getComputedStyle(menu.current)
+      const focusWidth = focusTokenPx(style, '--ms-focus-width')
+      const focusOffset = focusTokenPx(style, '--ms-focus-offset')
+      const spacing = Number.isFinite(focusWidth + focusOffset)
+        ? focusWidth + focusOffset + GOOEY_MENU.outlineClearance
+        : GOOEY_MENU.gap
       // An element's centre: the pills burst from the "…" itself.
       const point =
         origin !== undefined && !(origin instanceof HTMLElement)
@@ -84,32 +189,56 @@ export function GooeyMenuContent({ items, label, origin, onClose }: GooeyMenuPro
               x: rect === undefined ? 0 : rect.left + rect.width / 2,
               y: rect === undefined ? 0 : rect.top + rect.height / 2,
             }
-      const viewport = viewportNow()
       setFrame((current) =>
         current.point.x === point.x &&
         current.point.y === point.y &&
         current.viewport.width === viewport.width &&
-        current.viewport.height === viewport.height
+        current.viewport.height === viewport.height &&
+        current.spacing === spacing
           ? current
-          : { point, viewport },
+          : { point, viewport, spacing },
       )
     }
-    place()
-    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(place)
-    observer?.observe(document.documentElement)
-    return () => {
-      observer?.disconnect()
-    }
+    return watchMenuGeometry(place)
   }, [origin])
 
   const level = group?.id
-  const layout = gooeyLayout(frame.point, items.length, frame.viewport)
+  const topKey = widthKey(undefined, items)
+  const levelKey = widthKey(level, visibleItems)
+  const isMeasuring = !natural.has(levelKey)
+  const layout = gooeyLayout(
+    frame.point,
+    items.length,
+    frame.viewport,
+    natural.get(topKey) ?? 0,
+    frame.spacing,
+  )
   const burst =
     (group === undefined
       ? undefined
-      : gooeySecondBurst(layout, items.indexOf(group), group.children.length, frame.viewport)) ??
-    layout
+      : gooeySecondBurst(
+          layout,
+          items.indexOf(group),
+          group.children.length,
+          frame.viewport,
+          natural.get(levelKey) ?? 0,
+          frame.spacing,
+        )) ?? layout
   const pillWidth = burst.pills[0]?.width
+  const drawnGap =
+    burst.pills.length > 1
+      ? (burst.pills[1]?.top ?? 0) - (burst.pills[0]?.top ?? 0) - GOOEY_MENU.pillHeight
+      : frame.spacing
+  useLayoutEffect(() => {
+    // Drawn at max-content once, the widest pill gives the level its width.
+    if (!isMeasuring) {
+      return
+    }
+    const widths = visibleItems.map((item) =>
+      Math.ceil(buttons.current.get(item.id)?.getBoundingClientRect().width ?? 0),
+    )
+    setNatural((current) => new Map([...current, [levelKey, Math.max(0, ...widths)]]))
+  }, [isMeasuring, levelKey, visibleItems])
   useLayoutEffect(() => {
     // A label, a level or the panel's width may clip a label; the state
     // changes only when the clipped set did.
@@ -152,7 +281,7 @@ export function GooeyMenuContent({ items, label, origin, onClose }: GooeyMenuPro
         opener instanceof HTMLElement &&
         opener.isConnected
       ) {
-        opener.focus()
+        opener.focus({ preventScroll: true })
       }
     },
     [opener],
@@ -230,8 +359,32 @@ export function GooeyMenuContent({ items, label, origin, onClose }: GooeyMenuPro
           const pill = burst.pills[index]
           const left = pill?.left ?? 0
           const top = pill?.top ?? 0
+          const near = burst.side === 1 ? left : left + (pill?.width ?? 0)
+          const openerRoom =
+            origin instanceof HTMLElement
+              ? Math.abs(near - frame.point.x) - origin.getBoundingClientRect().width / 2
+              : drawnGap
+          const outlineSpace = Math.min(drawnGap, openerRoom)
           // A label cut short by the ellipsis is whole in the tooltip too.
           const isClipped = clipped.get(pillKey(level, item.id)) === true
+          const style: CSSProperties & Record<'--ms-gooey-focus-offset', string> = {
+            left,
+            top,
+            // One size for every pill: the longest label's (the owner).
+            width: isMeasuring ? 'max-content' : pill?.width,
+            // The burst starts at scale(0), and a scaled rectangle measures
+            // 0 px wide: the measuring pass is never painted, so it holds
+            // the animation off and the burst starts on the drawn pass.
+            animationName: isMeasuring ? 'none' : undefined,
+            height: GOOEY_MENU.pillHeight,
+            // Pull focus inward when a short panel compresses spacing or
+            // a narrow fan approaches its opener; keep both neighbours clear.
+            // A custom property, not an inline outline-offset, so the
+            // stylesheet's pressed state keeps its ring inside the pill.
+            '--ms-gooey-focus-offset': `min(var(--ms-focus-offset), calc(${String(outlineSpace)}px - var(--ms-focus-width) - ${String(GOOEY_MENU.outlineClearance)}px))`,
+            transformOrigin: `${String(burst.origin.x - left)}px ${String(burst.origin.y - top)}px`,
+            animationDelay: `${String(index * GOOEY_MENU.staggerMs)}ms`,
+          }
           return (
             <button
               key={item.id}
@@ -250,15 +403,7 @@ export function GooeyMenuContent({ items, label, origin, onClose }: GooeyMenuPro
               aria-haspopup={'children' in item ? 'menu' : undefined}
               tabIndex={item.id === active ? 0 : -1}
               className="gooey-menu-pill"
-              style={{
-                left,
-                top,
-                // One size for every pill, whatever its label (the owner).
-                width: pill?.width,
-                height: GOOEY_MENU.pillHeight,
-                transformOrigin: `${String(burst.origin.x - left)}px ${String(burst.origin.y - top)}px`,
-                animationDelay: `${String(index * GOOEY_MENU.staggerMs)}ms`,
-              }}
+              style={style}
               onFocus={() => {
                 setActive(item.id)
               }}

@@ -1,0 +1,103 @@
+base=/Users/randy/gates/base-c78aedc3ea0dab3c lock=c78aedc3ea0dab3cf7e685e18926e181d01a96535223c740d26598931bce86ce
+base reused
+rig=macmini slot=finm96k2-red snapshot=36e7b636 base=/Users/randy/gates/base-c78aedc3ea0dab3c
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /Users/randy/gates.noindex/rt-finm96k2-red
+
+ ❯ test/unit/teamSettlement.test.ts (6 tests | 4 failed) 20ms
+   ❯ M96 K injected D78 settlement (6)
+     × finds a lost reported acknowledgement after restart without another charge or credit 10ms
+     × finds a lost nonsent acknowledgement after restart without another charge or credit 1ms
+     × retains an unacknowledged intent and the whole unknown allowance; conflicts never refund it 3ms
+     ✓ settles before-midnight claims to their own day and keeps latest day on clock rollback 1ms
+     ✓ two windows share team and other-paid spend; lowered limits refuse dispatch without losing existing claims 1ms
+     × refuses missing or mismatched ids and every conflicting outcome component 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamSettlement.test.ts > M96 K injected D78 settlement > finds a lost reported acknowledgement after restart without another charge or credit
+AssertionError: expected [ 'lookup', 'settle' ] to deeply equal [ 'lookup' ]
+
+- Expected
++ Received
+
+  [
+    "lookup",
++   "settle",
+  ]
+
+ ❯ test/unit/teamSettlement.test.ts:188:31
+    186|       const restarted = new MemoryClaims(journal.state)
+    187|       await settleTeamJournalClaim(restarted, first.reservation.id, ou…
+    188|       expect(restarted.calls).toEqual(['lookup'])
+       |                               ^
+    189|       expect(journal.state.records.size).toBe(1)
+    190|       const recorded = await restarted.lookupByClaimId(first.reservati…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  test/unit/teamSettlement.test.ts > M96 K injected D78 settlement > finds a lost nonsent acknowledgement after restart without another charge or credit
+AssertionError: expected [ 'lookup', 'refund' ] to deeply equal [ 'lookup' ]
+
+- Expected
++ Received
+
+  [
+    "lookup",
++   "refund",
+  ]
+
+ ❯ test/unit/teamSettlement.test.ts:188:31
+    186|       const restarted = new MemoryClaims(journal.state)
+    187|       await settleTeamJournalClaim(restarted, first.reservation.id, ou…
+    188|       expect(restarted.calls).toEqual(['lookup'])
+       |                               ^
+    189|       expect(journal.state.records.size).toBe(1)
+    190|       const recorded = await restarted.lookupByClaimId(first.reservati…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  test/unit/teamSettlement.test.ts > M96 K injected D78 settlement > retains an unacknowledged intent and the whole unknown allowance; conflicts never refund it
+AssertionError: expected [ 'settle', 'settle' ] to have a length of 1 but got 2
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ test/unit/teamSettlement.test.ts:212:65
+    210|     await settleTeamJournalClaim(restarted, first.reservation.id, { ki…
+    211|     await settleTeamJournalClaim(restarted, first.reservation.id, { ki…
+    212|     expect(restarted.calls.filter((call) => call === 'settle')).toHave…
+       |                                                                 ^
+    213|     const recorded = await restarted.lookupByClaimId(first.reservation…
+    214|     expect(recorded?.outcome).toMatchObject({
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 2 passed (6)
+   Start at  09:05:59
+   Duration  595ms (transform 44%, setup 26%, import 24%, tests 5%, worker 1%)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  test/unit/teamSettlement.test.ts > M96 K injected D78 settlement > refuses missing or mismatched ids and every conflicting outcome component
+AssertionError: expected [Function] to throw error including 'TEAM_CLAIM_CONFLICT' but got 'Conflicting outcome'
+
+Expected: "TEAM_CLAIM_CONFLICT"
+Received: "Conflicting outcome"
+
+ ❯ test/unit/teamSettlement.test.ts:272:8
+    270|       await expect(
+    271|         settleTeamJournalClaim(journal, first.reservation.id, { ...REP…
+    272|       ).rejects.toThrow('TEAM_CLAIM_CONFLICT')
+       |        ^
+    273|     const sameUsage = await claim(journal, {
+    274|       ...REQUEST, tokens: REPORTED.tokens, inputTokens: REPORTED.input…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+

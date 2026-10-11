@@ -1,0 +1,68 @@
+{
+  "machine": "macmini",
+  "base": "8a151dd40",
+  "entry": "models",
+  "measurement": "reachable Vault deferred graph plus emitted CSS, excluding shared static main JS",
+  "uiBytes": 32054,
+  "uiCapKiB": 75,
+  "hostBytes": 32670,
+  "hostCapKiB": 50,
+  "assets": [
+    {
+      "file": "models.js",
+      "bytes": 1028
+    },
+    {
+      "file": "chunks/VaultApprovalCard-P3KIOJG5.js",
+      "bytes": 2265
+    },
+    {
+      "file": "chunks/chunk-DFKDUM2L.js",
+      "bytes": 8524
+    },
+    {
+      "file": "chunks/chunk-3NOLF443.js",
+      "bytes": 2665
+    },
+    {
+      "file": "chunks/VaultSection-VBZ25KHJ.js",
+      "bytes": 8384
+    },
+    {
+      "file": "chunks/chunk-3GSUSUUY.js",
+      "bytes": 3794
+    },
+    {
+      "file": "models.css",
+      "bytes": 1798
+    },
+    {
+      "file": "chunks/VaultApprovalCard-FHKE5MM5.css",
+      "bytes": 1798
+    },
+    {
+      "file": "chunks/VaultSection-M6KKLF43.css",
+      "bytes": 1798
+    }
+  ],
+  "sourceSha256": {
+    "src/shared/browserCheckConstants.ts": "97b18c367b220498bf416bd8b58d4a26c808c07ed02fe24bab05673f971ddc7d",
+    "src/shared/l10n/text.ts": "7209328800afe22946c68ce9a0dc6c2bdb27fe49cf2e9b2ddec56b75794a08ad",
+    "src/shared/constants.ts": "e57921c43d015a569e04555e586eca536d8e65951ce2eacf18032b8ca77b5469",
+    "src/shared/vault.ts": "9ba15feb506eb75551c32da5cf7ce80ffae142c842f2895c1c8dbb08325eede4",
+    "src/shared/vaultProtocol.ts": "5738cbb0dcf767236c2d8f7b9b86aa68e0ccd3ef29ec4e8d0d1866972d2508f6",
+    "src/shared/modelsPanel.ts": "be968736ce12b8fa84ffedbf5a87c9e7051687018e507a93a0e49b520ecabb33",
+    "src/shared/hostApi/vaultMessages.ts": "56e583d1577ca9c17af10530cc2bfff9f750ae9e9bf2dfb689085e4bc41233f1",
+    "src/host/vault/vaultPanelHost.ts": "e469e1abbaa34163af3ead33a1559a1a9dcf1fcbf0784189ba77c791fe96cac3",
+    "src/host/vault/vaultNativeEditor.ts": "b48855a0cd33ac81b863df686e816b9f625d0cd00915177513f85a15f39892d8",
+    "src/host/vault/vaultPanelBundle.ts": "dc3186ad77f15e24d88b2139a3501b76969831c786a5a63352a38df9f52bb33d",
+    "src/host/vault/vaultPanelEntry.ts": "534ba3c26c058a31ea187a478b3840bb38ac34a4a485bac09d3790d625e084b5",
+    "src/webview/models/sections/vault/VaultSurface.tsx": "26f9910bcc98ad6add0bedd52e15fd1b22243bfff9e2e22116b280cf2da52c7e",
+    "src/webview/components/VaultApprovalCard.tsx": "92b6341dc4dc1efcda1f35e8175b9801d4a57ee86dbf352544cf6f67571def15",
+    "src/shared/l10n/en.ts": "08c29952eef61e321a62cf2189a1de63bfcf0694e36482c4617c7ad0439f09e1",
+    "src/webview/models/sections/vault/vaultPresentation.tsx": "c08aaa3c7b6142eb0ed471f2a2baf1ad65ba802aaed8a89f6ad6ef96eec68081",
+    "src/webview/models/sections/vault/vault.css": "55a10c0c05e3f3261ab7a5fcefce16aa2d31598dcf2768e6bf98387c41ba09f9",
+    "src/webview/models/sections/vault/VaultSection.tsx": "49f21e48b6dc0ffc65809df35cd201db292f20f2172b6789a811dcb4a33f76eb",
+    "src/webview/models/sections/vault/VaultGrantEditor.tsx": "e19441ea55232f74734c842084eacbb834556be83677026a41d8920f00df74cc"
+  }
+}

@@ -1,3 +1,9 @@
+import { paidQuoteSchema } from '../shared/paid'
+import {
+  paidAuthorityKey,
+  latestPaidGrant,
+  nextPaidApprovalOrder,
+} from '../core/paid/paidAuthority'
 // "Allow always" for the ACP agent (M58, D48, D62). Each feature has a
 // revocation generation, and each workspace a grant for that generation.
 // Independent grants never rewrite a shared map; a writer begun before a
@@ -6,7 +12,7 @@
 // The earlier whole-file map is ignored: its grants ask again.
 
 import { randomUUID } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { link, rm } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -14,7 +20,12 @@ import type { PaidGrantStore } from '../acp/paid'
 import type { CoreLogger } from '../core/logging'
 import { describeStoreError, storeErrorCode } from '../host/backend/storeErrors'
 import { writeFileAtomically } from '../host/fsAtomic'
-import { ATOMIC_TEMPORARY_SUFFIX, PAID_FEATURES, type PaidFeature } from '../shared/constants'
+import {
+  ATOMIC_TEMPORARY_SUFFIX,
+  PAID_APPROVAL_ORDER_DIRECTORY,
+  PAID_FEATURES,
+  type PaidFeature,
+} from '../shared/constants'
 import { workspaceKey } from './dataFolder'
 
 export interface PaidGrantFileDeps {
@@ -114,7 +125,68 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
     await write(grantFile(workspaceRoot, feature, generation.id), generation.id)
   }
 
+  const quoteSchema = z.object({
+    generation: z.string(),
+    quote: paidQuoteSchema,
+    order: z.optional(z.number().check(z.int(), z.gte(0))),
+  })
+  const quotePrefix = (workspaceRoot: string, generation: string, key: string) =>
+    `${grantFile(workspaceRoot, 'webSearch', generation)}.${workspaceKey(key)}.${PAID_APPROVAL_ORDER_DIRECTORY}.`
+  const readQuotes = (workspaceRoot: string, generation: string) => {
+    let names: string[]
+    try {
+      names = readdirSync(featureFolder('webSearch'))
+    } catch {
+      return []
+    }
+    const prefix = `${path.basename(grantFile(workspaceRoot, 'webSearch', generation))}.`
+    return names
+      .filter(
+        (name) =>
+          name.startsWith(prefix) &&
+          name.includes(`.${PAID_APPROVAL_ORDER_DIRECTORY}.`) &&
+          name.endsWith('.quote'),
+      )
+      .flatMap((name) => {
+        const record = read(path.join(featureFolder('webSearch'), name), quoteSchema)
+        return record?.generation === generation &&
+          name.startsWith(
+            path.basename(quotePrefix(workspaceRoot, generation, paidAuthorityKey(record.quote))),
+          )
+          ? [record]
+          : []
+      })
+  }
   return {
+    nextQuoteOrder: () =>
+      nextPaidApprovalOrder(path.join(`${deps.file}.d`, PAID_APPROVAL_ORDER_DIRECTORY)),
+    prepareQuoteGeneration: async () => {
+      const generation = await generationFor('webSearch')
+      return generation.id
+    },
+    quoteGeneration: () => read(generationFile('webSearch'), generationSchema)?.id ?? 'missing',
+    readQuote: (workspaceRoot, quote) => {
+      const generation = read(generationFile('webSearch'), generationSchema)
+      if (generation === undefined) return
+      const grant = latestPaidGrant(
+        readQuotes(workspaceRoot, generation.id).filter(
+          (record) => paidAuthorityKey(record.quote) === paidAuthorityKey(quote),
+        ),
+      )
+      return read(generationFile('webSearch'), generationSchema)?.id === generation.id
+        ? grant
+        : undefined
+    },
+    writeQuote: async (workspaceRoot, grant) => {
+      // The generation was captured before asking, never sampled here. Each
+      // key has its own record; revoked writers cannot touch a fresh record.
+      if (read(generationFile('webSearch'), generationSchema)?.id !== grant.generation) return
+      await writeFileAtomically(
+        `${quotePrefix(workspaceRoot, grant.generation, paidAuthorityKey(grant.quote))}${workspaceKey(JSON.stringify([grant.order ?? 0, grant.quote.id]))}.quote`,
+        JSON.stringify(grant),
+        { sleep: deps.sleep },
+      )
+    },
     read: (workspaceRoot) =>
       new Set(
         PAID_FEATURES.filter((feature) => {
@@ -122,7 +194,8 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
           const before = read(file, generationSchema)
           if (
             before === undefined ||
-            read(grantFile(workspaceRoot, feature, before.id), grantSchema) !== before.id
+            (!(feature === 'webSearch' && readQuotes(workspaceRoot, before.id).length > 0) &&
+              read(grantFile(workspaceRoot, feature, before.id), grantSchema) !== before.id)
           ) {
             return false
           }

@@ -1,0 +1,695 @@
+{
+  "version": "0.14.4",
+  "rig": "Kubuntu",
+  "baseMerge": "3ca16b34ad5b8c9e0ed7bfee9f1177a7f81a2e0e",
+  "liveModelCalls": 0,
+  "paidCalls": 0,
+  "individualGates": [
+    {
+      "check": "reference",
+      "command": ["npm", "run", "check:reference"],
+      "exit": 0,
+      "seconds": 7.14
+    },
+    {
+      "check": "localization",
+      "command": ["npm", "run", "check:l10n"],
+      "exit": 0,
+      "seconds": 4.03
+    },
+    {
+      "check": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exit": 0,
+      "seconds": 18.95
+    },
+    {
+      "check": "typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exit": 0,
+      "seconds": 97.18
+    },
+    {
+      "check": "lint",
+      "command": ["npm", "run", "lint"],
+      "exit": 0,
+      "seconds": 439.59
+    },
+    {
+      "check": "deadcode",
+      "command": ["npm", "run", "deadcode"],
+      "exit": 0,
+      "seconds": 13.05
+    },
+    {
+      "check": "cycles",
+      "command": ["npm", "run", "cycles"],
+      "exit": 0,
+      "seconds": 8.3
+    },
+    {
+      "check": "duplication",
+      "command": ["npm", "run", "duplication"],
+      "exit": 0,
+      "seconds": 1.04
+    },
+    {
+      "check": "format",
+      "command": ["npm", "run", "format:check"],
+      "exit": 0,
+      "seconds": 117.56
+    },
+    {
+      "check": "badges-live",
+      "command": ["node", "scripts/check-badges.mjs"],
+      "exit": 0,
+      "seconds": 4.1
+    },
+    {
+      "check": "changed-lint",
+      "command": [
+        "npx",
+        "eslint",
+        "test/unit/AppLazy.test.tsx",
+        "test/unit/WorkflowRun.test.tsx",
+        "--max-warnings=0"
+      ],
+      "exit": 0,
+      "seconds": 10.6
+    },
+    {
+      "check": "package-help-lint",
+      "command": ["npx", "eslint", "scripts/package-acp.mjs", "--max-warnings=0"],
+      "exit": 0
+    }
+  ],
+  "initialGateFailures": [
+    {
+      "check": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exit": 1,
+      "seconds": 25.47
+    },
+    {
+      "check": "typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exit": 1,
+      "seconds": 29.45
+    },
+    {
+      "check": "duplication",
+      "command": ["npm", "run", "duplication"],
+      "exit": 1,
+      "seconds": 1.68
+    }
+  ],
+  "suite": {
+    "files": 557,
+    "total": 11884,
+    "passed": 11812,
+    "failed": 0,
+    "skipped": 72
+  },
+  "accessibility": {
+    "summary": "a11y: 732 pages (183 scenarios × 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+    "pages": 732,
+    "scenarios": 183,
+    "themes": 4,
+    "pagesWithoutResult": 0
+  },
+  "sizes": {
+    "startup": {
+      "bytes": 750733,
+      "KiB": 733.138,
+      "outputs": [
+        {
+          "file": "dist/webview/main.js",
+          "bytes": 331136
+        },
+        {
+          "file": "dist/webview/chunks/RTLMKWDC.js",
+          "bytes": 42645
+        },
+        {
+          "file": "dist/webview/chunks/TSB33FGF.js",
+          "bytes": 2475
+        },
+        {
+          "file": "dist/webview/chunks/XK3D2WDH.js",
+          "bytes": 1508
+        },
+        {
+          "file": "dist/webview/chunks/R4SLIWUW.js",
+          "bytes": 7044
+        },
+        {
+          "file": "dist/webview/chunks/ZXQBZBPZ.js",
+          "bytes": 1386
+        },
+        {
+          "file": "dist/webview/chunks/ON7LZJRB.js",
+          "bytes": 4439
+        },
+        {
+          "file": "dist/webview/chunks/CFDSZ3QP.js",
+          "bytes": 78910
+        },
+        {
+          "file": "dist/webview/chunks/6H6HIFU7.js",
+          "bytes": 8242
+        },
+        {
+          "file": "dist/webview/chunks/2TEO5AI5.js",
+          "bytes": 549
+        },
+        {
+          "file": "dist/webview/chunks/C5635PZ5.js",
+          "bytes": 525
+        },
+        {
+          "file": "dist/webview/chunks/UY4WGG3S.js",
+          "bytes": 34236
+        },
+        {
+          "file": "dist/webview/chunks/7H2GA36U.js",
+          "bytes": 61644
+        },
+        {
+          "file": "dist/webview/chunks/PJIC627K.js",
+          "bytes": 56498
+        },
+        {
+          "file": "dist/webview/chunks/K6RSXMFA.js",
+          "bytes": 806
+        },
+        {
+          "file": "dist/webview/chunks/UBBRFRUH.js",
+          "bytes": 1522
+        },
+        {
+          "file": "dist/webview/chunks/DYQUKVGE.js",
+          "bytes": 285
+        },
+        {
+          "file": "dist/webview/chunks/XFMBZPVI.js",
+          "bytes": 4079
+        },
+        {
+          "file": "dist/webview/chunks/G2CE7OXG.js",
+          "bytes": 366
+        },
+        {
+          "file": "dist/webview/chunks/IUPHBMRU.js",
+          "bytes": 945
+        },
+        {
+          "file": "dist/webview/chunks/XINE6W75.js",
+          "bytes": 17693
+        },
+        {
+          "file": "dist/webview/chunks/JLGJRNM3.js",
+          "bytes": 5367
+        },
+        {
+          "file": "dist/webview/chunks/EH5FZFRS.js",
+          "bytes": 1542
+        },
+        {
+          "file": "dist/webview/chunks/LPYAZVED.js",
+          "bytes": 1131
+        },
+        {
+          "file": "dist/webview/chunks/AUIMH5GC.js",
+          "bytes": 1077
+        },
+        {
+          "file": "dist/webview/chunks/VF5FVRJ2.js",
+          "bytes": 299
+        },
+        {
+          "file": "dist/webview/chunks/IO3WTY4A.js",
+          "bytes": 1703
+        },
+        {
+          "file": "dist/webview/chunks/QMJBXMLZ.js",
+          "bytes": 270
+        },
+        {
+          "file": "dist/webview/chunks/BTC23HT5.js",
+          "bytes": 1564
+        },
+        {
+          "file": "dist/webview/chunks/R22YEIQ3.js",
+          "bytes": 4256
+        },
+        {
+          "file": "dist/webview/chunks/CRJQKXK6.js",
+          "bytes": 165
+        },
+        {
+          "file": "dist/webview/chunks/AQZD66WY.js",
+          "bytes": 9196
+        },
+        {
+          "file": "dist/webview/chunks/27WSVBDT.js",
+          "bytes": 346
+        },
+        {
+          "file": "dist/webview/chunks/DG5WCIWA.js",
+          "bytes": 1376
+        },
+        {
+          "file": "dist/webview/chunks/EO655H6Z.js",
+          "bytes": 1363
+        },
+        {
+          "file": "dist/webview/chunks/BP5I2RMI.js",
+          "bytes": 53721
+        },
+        {
+          "file": "dist/webview/chunks/RXNKKSE3.js",
+          "bytes": 4299
+        },
+        {
+          "file": "dist/webview/chunks/WKUZAGCA.js",
+          "bytes": 2293
+        },
+        {
+          "file": "dist/webview/chunks/7DAQOVW7.js",
+          "bytes": 3169
+        },
+        {
+          "file": "dist/webview/chunks/CABOXLTU.js",
+          "bytes": 663
+        },
+        {
+          "file": "dist/webview/chunks/MQEIEY3K.js",
+          "bytes": 0
+        }
+      ]
+    },
+    "groups": [
+      {
+        "name": "deferred JS",
+        "budgetKiB": 50,
+        "bytes": 32865,
+        "KiB": 32.095,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/VBIFTMTZ.js",
+            "bytes": 8973
+          },
+          {
+            "file": "dist/webview/chunks/YT677TPE.js",
+            "bytes": 3362
+          },
+          {
+            "file": "dist/webview/chunks/AC5ZSFRU.js",
+            "bytes": 270
+          },
+          {
+            "file": "dist/webview/chunks/MYOX5I4J.js",
+            "bytes": 276
+          },
+          {
+            "file": "dist/webview/chunks/OSLBKOWL.js",
+            "bytes": 7112
+          },
+          {
+            "file": "dist/webview/chunks/CL35R56L.js",
+            "bytes": 5809
+          },
+          {
+            "file": "dist/webview/chunks/AVJEYLEV.js",
+            "bytes": 2053
+          },
+          {
+            "file": "dist/webview/chunks/2HVEACRS.js",
+            "bytes": 203
+          },
+          {
+            "file": "dist/webview/chunks/XYMFQIJT.js",
+            "bytes": 4807
+          }
+        ]
+      },
+      {
+        "name": "EffortSlider",
+        "budgetKiB": 25,
+        "bytes": 924,
+        "KiB": 0.902,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/AUZ4V4PH.js",
+            "bytes": 122
+          },
+          {
+            "file": "dist/webview/chunks/3KZVRVQE.js",
+            "bytes": 802
+          }
+        ]
+      },
+      {
+        "name": "ToolBodies",
+        "budgetKiB": 25,
+        "bytes": 5627,
+        "KiB": 5.495,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/VEB7YSH7.js",
+            "bytes": 4996
+          },
+          {
+            "file": "dist/webview/chunks/7VNGXICT.js",
+            "bytes": 631
+          }
+        ]
+      },
+      {
+        "name": "ReviewFindings",
+        "budgetKiB": 25,
+        "bytes": 1842,
+        "KiB": 1.799,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/G6FALLHL.js",
+            "bytes": 1842
+          }
+        ]
+      },
+      {
+        "name": "HistoryPromptRow",
+        "budgetKiB": 25,
+        "bytes": 3592,
+        "KiB": 3.508,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/XSXLADDU.js",
+            "bytes": 1539
+          },
+          {
+            "file": "dist/webview/chunks/AVJEYLEV.js",
+            "bytes": 2053
+          }
+        ]
+      },
+      {
+        "name": "SignIn",
+        "budgetKiB": 25,
+        "bytes": 3961,
+        "KiB": 3.868,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/X6OR655M.js",
+            "bytes": 3961
+          }
+        ]
+      },
+      {
+        "name": "GoalPanel",
+        "budgetKiB": 25,
+        "bytes": 3889,
+        "KiB": 3.798,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/OMCDZH57.js",
+            "bytes": 3258
+          },
+          {
+            "file": "dist/webview/chunks/7VNGXICT.js",
+            "bytes": 631
+          }
+        ]
+      },
+      {
+        "name": "SchedulePanel",
+        "budgetKiB": 25,
+        "bytes": 1653,
+        "KiB": 1.614,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/24HUIT2E.js",
+            "bytes": 1653
+          }
+        ]
+      },
+      {
+        "name": "Palette",
+        "budgetKiB": 25,
+        "bytes": 8646,
+        "KiB": 8.443,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/LFTCHD26.js",
+            "bytes": 5588
+          },
+          {
+            "file": "dist/webview/chunks/AVJEYLEV.js",
+            "bytes": 2053
+          },
+          {
+            "file": "dist/webview/chunks/2HVEACRS.js",
+            "bytes": 203
+          },
+          {
+            "file": "dist/webview/chunks/3KZVRVQE.js",
+            "bytes": 802
+          }
+        ]
+      },
+      {
+        "name": "PopoverMenu",
+        "budgetKiB": 25,
+        "bytes": 1998,
+        "KiB": 1.951,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/LOJXGBVR.js",
+            "bytes": 1998
+          }
+        ]
+      },
+      {
+        "name": "GooeyMenuContent",
+        "budgetKiB": 25,
+        "bytes": 5066,
+        "KiB": 4.947,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/WA6B74UT.js",
+            "bytes": 5066
+          }
+        ]
+      },
+      {
+        "name": "UsageDialogContent",
+        "budgetKiB": 25,
+        "bytes": 12976,
+        "KiB": 12.672,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/RADFQ6WV.js",
+            "bytes": 12976
+          }
+        ]
+      },
+      {
+        "name": "AgentMapContent",
+        "budgetKiB": 25,
+        "bytes": 10705,
+        "KiB": 10.454,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/3LVH6C3K.js",
+            "bytes": 8356
+          },
+          {
+            "file": "dist/webview/chunks/TCYOM4WR.js",
+            "bytes": 2349
+          }
+        ]
+      },
+      {
+        "name": "question UI",
+        "budgetKiB": 25,
+        "bytes": 20266,
+        "KiB": 19.791,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/QUC6TB2K.js",
+            "bytes": 213
+          },
+          {
+            "file": "dist/webview/chunks/DCNUL7OW.js",
+            "bytes": 6762
+          },
+          {
+            "file": "dist/webview/chunks/2KKNKVP2.js",
+            "bytes": 13291
+          }
+        ]
+      },
+      {
+        "name": "workflow details",
+        "budgetKiB": 25,
+        "bytes": 2672,
+        "KiB": 2.609,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/RMLMCLO7.js",
+            "bytes": 323
+          },
+          {
+            "file": "dist/webview/chunks/TCYOM4WR.js",
+            "bytes": 2349
+          }
+        ]
+      },
+      {
+        "name": "code highlighting",
+        "budgetKiB": 125,
+        "bytes": 95366,
+        "KiB": 93.131,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/BFLAA6JG.js",
+            "bytes": 95366
+          }
+        ]
+      },
+      {
+        "name": "action dialogs",
+        "budgetKiB": 25,
+        "bytes": 11958,
+        "KiB": 11.678,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/MSAWD6GC.js",
+            "bytes": 1396
+          },
+          {
+            "file": "dist/webview/chunks/PHUY632H.js",
+            "bytes": 794
+          },
+          {
+            "file": "dist/webview/chunks/2P2DDRJ5.js",
+            "bytes": 2329
+          },
+          {
+            "file": "dist/webview/chunks/AVJEYLEV.js",
+            "bytes": 2053
+          },
+          {
+            "file": "dist/webview/chunks/2HVEACRS.js",
+            "bytes": 203
+          },
+          {
+            "file": "dist/webview/chunks/K7KDOED7.js",
+            "bytes": 2071
+          },
+          {
+            "file": "dist/webview/chunks/Z6ICGJQQ.js",
+            "bytes": 3112
+          }
+        ]
+      },
+      {
+        "name": "prompt library",
+        "budgetKiB": 25,
+        "bytes": 10120,
+        "KiB": 9.883,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/5IR3EJAV.js",
+            "bytes": 2000
+          },
+          {
+            "file": "dist/webview/chunks/5KCIIX3K.js",
+            "bytes": 2260
+          },
+          {
+            "file": "dist/webview/chunks/MSSQDI6W.js",
+            "bytes": 5671
+          },
+          {
+            "file": "dist/webview/chunks/57OTT54Q.js",
+            "bytes": 189
+          }
+        ]
+      },
+      {
+        "name": "chat sharing",
+        "budgetKiB": 25,
+        "bytes": 13795,
+        "KiB": 13.472,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/UC7SCJQM.js",
+            "bytes": 8423
+          },
+          {
+            "file": "dist/webview/chunks/5KCIIX3K.js",
+            "bytes": 2260
+          },
+          {
+            "file": "dist/webview/chunks/Z6ICGJQQ.js",
+            "bytes": 3112
+          }
+        ]
+      },
+      {
+        "name": "tasks tab",
+        "budgetKiB": 25,
+        "bytes": 1375,
+        "KiB": 1.343,
+        "outputs": [
+          {
+            "file": "dist/webview/chunks/D5XRZZYJ.js",
+            "bytes": 1375
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "bytes": 45899
+    }
+  },
+  "packages": [
+    {
+      "file": "muse-spark-code-0.14.4.vsix",
+      "bytes": 2375405,
+      "sha256": "ad500cdb54aca633df08affc84599fb75f732a7d657d7f45bcbb910547d76043"
+    },
+    {
+      "file": "dist/muse-spark-code-acp-0.14.4.tgz",
+      "bytes": 1683263,
+      "sha256": "3bf8fa0166ac7900f2ac9aa5be76e36aece9b8d1e93b36f5f85038234eadd6e9"
+    }
+  ],
+  "drills": 9,
+  "packageChecks": {
+    "commands": ["npm run package", "npm run package:acp"],
+    "version": "0.14.4",
+    "stagedFullHelpLanguages": 15,
+    "extractedFullHelpLocales": [
+      "cs",
+      "de",
+      "es",
+      "fr",
+      "hu",
+      "it",
+      "ja",
+      "en",
+      "ko",
+      "pl",
+      "pt-br",
+      "ru",
+      "tr",
+      "zh-cn",
+      "zh-tw"
+    ],
+    "execSchemas": "match"
+  },
+  "aggregateQuality": "not run: brief/shared rules reserve aggregate coverage and hosted/platform checks to lead",
+  "sourceFixCommit": "e542cb8bcfea46675c8a6bed873d4e03992df1af"
+}

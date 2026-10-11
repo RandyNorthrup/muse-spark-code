@@ -1,0 +1,402 @@
+{
+  "date": "2026-10-07",
+  "rig": "win11",
+  "branch": "fix/0150-ci-b",
+  "base": "a150d927",
+  "cleanBeforeEveryRun": "git clean -xdf -e node_modules",
+  "environment": {
+    "CI": "true"
+  },
+  "command": "npx.cmd vitest run <up to three complete files> --maxWorkers=3 --reporter=json --outputFile=<receipt>",
+  "timeoutOverrides": [],
+  "retries": 0,
+  "rounds": [
+    {
+      "receipt": "round1-chunks.json",
+      "exitCode": 0,
+      "success": true,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/usageCompanionChunks.test.ts",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 1431.872
+        }
+      ]
+    },
+    {
+      "receipt": "round1-reference.json",
+      "exitCode": 0,
+      "success": true,
+      "passed": 229,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/aggregate.test.ts",
+          "passed": 36,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 200.152
+        },
+        {
+          "file": "test/unit/providerCatalog.test.ts",
+          "passed": 80,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 488.295
+        },
+        {
+          "file": "test/unit/referenceGenerator.test.mjs",
+          "passed": 113,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 298.014
+        }
+      ]
+    },
+    {
+      "receipt": "round1-security.json",
+      "exitCode": 0,
+      "success": true,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/companionBrowser.test.ts",
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 564.667
+        },
+        {
+          "file": "test/unit/subscriptionIntegration.test.ts",
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 705.829
+        },
+        {
+          "file": "test/unit/teamHintsAndLoad.test.ts",
+          "passed": 15,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 2222.201
+        }
+      ]
+    },
+    {
+      "receipt": "round1-usage.json",
+      "exitCode": 0,
+      "success": true,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/usageL10nGate.test.mjs",
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 1616.575
+        },
+        {
+          "file": "test/unit/usagePerformance.test.ts",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 379.012
+        },
+        {
+          "file": "test/unit/usageRollup.test.ts",
+          "passed": 13,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 198.906
+        }
+      ]
+    },
+    {
+      "receipt": "round2-chunks.json",
+      "exitCode": 0,
+      "success": true,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/usageCompanionChunks.test.ts",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 1405.622
+        }
+      ]
+    },
+    {
+      "receipt": "round2-reference.json",
+      "exitCode": 0,
+      "success": true,
+      "passed": 229,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/aggregate.test.ts",
+          "passed": 36,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 205.353
+        },
+        {
+          "file": "test/unit/providerCatalog.test.ts",
+          "passed": 80,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 525.987
+        },
+        {
+          "file": "test/unit/referenceGenerator.test.mjs",
+          "passed": 113,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 308.213
+        }
+      ]
+    },
+    {
+      "receipt": "round2-security.json",
+      "exitCode": 0,
+      "success": true,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/companionBrowser.test.ts",
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 512.388
+        },
+        {
+          "file": "test/unit/subscriptionIntegration.test.ts",
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 681.995
+        },
+        {
+          "file": "test/unit/teamHintsAndLoad.test.ts",
+          "passed": 15,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 2193.508
+        }
+      ]
+    },
+    {
+      "receipt": "round2-usage.json",
+      "exitCode": 0,
+      "success": true,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/usageL10nGate.test.mjs",
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 1820.557
+        },
+        {
+          "file": "test/unit/usagePerformance.test.ts",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 380.832
+        },
+        {
+          "file": "test/unit/usageRollup.test.ts",
+          "passed": 13,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 223.759
+        }
+      ]
+    },
+    {
+      "receipt": "round3-chunks.json",
+      "exitCode": 0,
+      "success": true,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/usageCompanionChunks.test.ts",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 1304.62
+        }
+      ]
+    },
+    {
+      "receipt": "round3-reference.json",
+      "exitCode": 0,
+      "success": true,
+      "passed": 229,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/aggregate.test.ts",
+          "passed": 36,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 196.396
+        },
+        {
+          "file": "test/unit/providerCatalog.test.ts",
+          "passed": 80,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 507.756
+        },
+        {
+          "file": "test/unit/referenceGenerator.test.mjs",
+          "passed": 113,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 308.49
+        }
+      ]
+    },
+    {
+      "receipt": "round3-security.json",
+      "exitCode": 0,
+      "success": true,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/companionBrowser.test.ts",
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 490.664
+        },
+        {
+          "file": "test/unit/subscriptionIntegration.test.ts",
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 622.951
+        },
+        {
+          "file": "test/unit/teamHintsAndLoad.test.ts",
+          "passed": 15,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 2122.867
+        }
+      ]
+    },
+    {
+      "receipt": "round3-usage.json",
+      "exitCode": 0,
+      "success": true,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/usageL10nGate.test.mjs",
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 1705.442
+        },
+        {
+          "file": "test/unit/usagePerformance.test.ts",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 389.62
+        },
+        {
+          "file": "test/unit/usageRollup.test.ts",
+          "passed": 13,
+          "failed": 0,
+          "skipped": 0,
+          "maxCaseMs": 206.732
+        }
+      ]
+    }
+  ],
+  "restoredLocalization": {
+    "receipt": "restored-localization.json",
+    "exitCode": 0,
+    "passed": 36,
+    "failed": 0,
+    "skipped": 0,
+    "files": [
+      {
+        "file": "test/unit/l10n.test.ts",
+        "passed": 26,
+        "maxCaseMs": 46.819
+      },
+      {
+        "file": "test/unit/l10nPacked.test.ts",
+        "passed": 2,
+        "maxCaseMs": 262.365
+      },
+      {
+        "file": "test/unit/usageL10nGate.test.mjs",
+        "passed": 8,
+        "maxCaseMs": 1712.264
+      }
+    ]
+  },
+  "finalLocalizationRuns": ["round2-usage.json", "round3-usage.json", "restored-localization.json"],
+  "drill": {
+    "after": "700E762868F5010832484306245CF1BDFEF1D6C0CF52E09E1A376C3A89B8E361",
+    "before": "700E762868F5010832484306245CF1BDFEF1D6C0CF52E09E1A376C3A89B8E361",
+    "exit": 1,
+    "restored": true
+  },
+  "checks": {
+    "fiveTypechecks": 0,
+    "fullLint": 0,
+    "plainKnip": 0,
+    "duplication": 0,
+    "localization": 0,
+    "referenceFreshness": 0,
+    "changedFileFormatting": 0
+  },
+  "fullQuality": "Deferred to integrated lanes, PLAN section 7",
+  "sourceSha256": {
+    "scripts/check-l10n.mjs": "6c84b10922e6019117fb3e00cf662270b4cd3893f4e48a9085744e48dbea248a",
+    "scripts/lib/localizationGate.mjs": "700e762868f5010832484306245cf1bdfef1d6c0cf52e09e1a376c3a89b8e361",
+    "scripts/lib/uiTextRegions.d.mts": "105d769a0667919100961fd9958eb259c64eaae2554d5a58cbde41ac0f0f9db1",
+    "test/unit/aggregate.test.ts": "d2fbba56e4b2fdc22ed59b6de4f605e2889de80aaf34bc37b1e7e562b16a20a2",
+    "test/unit/companionBrowser.test.ts": "a6306377b1dd8f37958abf1e840444a27401a890bb1c189086a4262ed12cfa01",
+    "test/unit/helpers/fakeChatGptServer.ts": "af254c4eb1b1a67e3960f9c796d1c071f4862b188f2271e4953e1859dc12d95d",
+    "test/unit/providerCatalog.test.ts": "3755862b3f256980fa5d0918517199c378e589cc33c512f2883b8acf3f9656ff",
+    "test/unit/referenceGenerator.test.mjs": "1a37ce02ce94b768b9148bff433be8716bff618fcd8eec94aabfdf2b0890098a",
+    "test/unit/subscriptionIntegration.test.ts": "452708c49c064be31eeb9e7c5084347ead0a357942079790a469c8a6922fc6e7",
+    "test/unit/teamHintsAndLoad.test.ts": "9502b5ca1a0d3d69cdc8eb0fae00474bb0519498721c61a6365de84a5479a78b",
+    "test/unit/usageCompanionChunks.test.ts": "da1271560ae6eff8c1c0cc9926c8c7599f978a67afbc99646e3e70ddfa564c1c",
+    "test/unit/usageL10nGate.test.mjs": "9abf13e4a522c0622f088f93650f986f798fb91a0e1133988c38a421b4e3c070",
+    "test/unit/usagePerformance.test.ts": "b9b601f61d6079baceec335f14d8a4a5368912639b07a8cf9296db842c432e72",
+    "test/unit/usageRollup.test.ts": "85f618e548cd54756af52c67afccac5ddb26f7fb6890fbba999c568041720945"
+  }
+}

@@ -1,0 +1,263 @@
+TRAIN15H deliberate gate failures — Windows 11 rig
+
+drill-english-slots: exit 1; 2026-10-06T23:59:06.722Z to 2026-10-06T23:59:11.670Z
+C:\Users\Randy\gates\tools\node\node.exe node_modules/vitest/vitest.mjs run test/unit/browserUiText.test.mjs --maxWorkers=3
+File: scripts/lib/uiTextRegions.mjs
+Before/restored SHA-256: adbdd5f8c1995916e03c0a3b465d28c0d4b0895c9fcfccc81f28421024c7316e
+Mutated SHA-256: a452ce5cec181adb043ad49133fc973c990cd2848177756a9e4ac273d87d58e4
+ FAIL  test/unit/browserUiText.test.mjs > the production browser English and full-table contract > checks every installed language against the same complete canonical shape and slots
+AssertionError: expected [ …(788) ] to deeply equal [ 'execBudgetRequired: missing' ]
+
+- Expected
++ Received
+
+  [
++   "referenceServe: slots {} expected, found {command}",
++   "referenceCliOptions.private-ok: slots {} expected, found {origin}",
++   "referenceCliOptions.registry: slots {} expected, found {hosts}",
++   "referenceApplies: slots {} expected, found {backends}, {editors}",
++   "paidDailyBudgetLine: slots {} expected, found {budget}",
++   "paidDailyReachedDetail: slots {} expected, found {budget}, {needed}",
++   "planUi.providerMark: slots {} expected, found {provider}",
++   "planUi.tokenCounts: slots {} expected, found {input}, {output}, {requests}",
++   "signInEnded: slots {} expected, found {outcome}",
+
+drill-text-reader: exit 1; 2026-10-06T23:59:11.692Z to 2026-10-06T23:59:18.585Z
+C:\Users\Randy\gates\tools\node\node.exe node_modules/vitest/vitest.mjs run test/unit/browserUiText.test.mjs --maxWorkers=3
+File: scripts/lib/uiTextRegions.mjs
+Before/restored SHA-256: adbdd5f8c1995916e03c0a3b465d28c0d4b0895c9fcfccc81f28421024c7316e
+Mutated SHA-256: 1106c2422f6cc9ab824e79214f37196576f4ae886f81bf08a485046143fd3fbb
+ FAIL  test/unit/browserUiText.test.mjs > the production browser English and full-table contract > refuses an unregistered computed text reader before emitting a fallback
+AssertionError: expected [Function] to throw an error
+
+- Expected:
+null
+
++ Received:
+undefined
+
+ ❯ test/unit/browserUiText.test.mjs:118:67
+    116|     const source = path.join(fixture.folder, 'computed.ts')
+    117|     writeFileSync(source, 'const key="composerLabel"; const value=UI_T…
+    118|     expect(() => browserTextKeys([source], fixture.canonical.EN)).toTh…
+       |                                                                   ^
+    119|       'Unregistered dynamic browser text reader',
+    120|     )
+
+drill-keyboard: exit 1; 2026-10-06T23:59:18.608Z to 2026-10-06T23:59:20.895Z
+C:\Users\Randy\gates\tools\node\node.exe node_modules/vitest/vitest.mjs run test/unit/browserKeybindings.test.mjs --maxWorkers=3
+File: scripts/lib/browserKeybindings.mjs
+Before/restored SHA-256: cc0cf7beb30194c0c7ba791f23803105663419198e80d6b1f94186e1c5b28d24
+Mutated SHA-256: bf22d32dd1075068cb128b7bcd06c4c6e5e0eb49654b7f4dc7490d3e1291ed20
+ FAIL  test/unit/browserKeybindings.test.mjs > browser keyboard dispatch with optional contexts deferred > preserves every canonical gesture, modifier, phase and send setting
+AssertionError: composer.send: Enter: expected 'send' to be undefined // Object.is equality
+
+- Expected:
+undefined
+
++ Received:
+"send"
+
+ ❯ test/unit/browserKeybindings.test.mjs:85:96
+     83|               { useCtrlEnterToSend: true },
+     84|             ]) {
+     85|               expect(subset.webviewKey(context, event, phase, settings…
+       |                                                                                                ^
+     86|                 webviewKey(context, event, phase, settings),
+     87|               )
+
+drill-legal-budget: exit 1; 2026-10-06T23:59:37.239Z to 2026-10-06T23:59:38.530Z
+C:\Users\Randy\gates\tools\node\node.exe node_modules/vitest/vitest.mjs run test/unit/bundleSize.test.mjs --maxWorkers=3
+File: scripts/check-bundle-size.mjs
+Before/restored SHA-256: aadd52227ba2dc8e73e0dd21715d8102574dfcb50c1226a305a5d70cf2f66eb8
+Mutated SHA-256: b2c6658b89404e883bf4af415dc7624064b6f8ac22d45cdf0bf82cdbc1327fcf
+ FAIL  test/unit/bundleSize.test.mjs > bundled What’s New content budget > enforces the LegalReport cap without widening the original deferred allowance
+Error: exit 1
+ ❯ process.<anonymous> test/unit/bundleSize.test.mjs:53:11
+     51|   vi.spyOn(console, 'error').mockImplementation(vi.fn())
+     52|   vi.spyOn(process, 'exit').mockImplementation((code) => {
+     53|     throw new Error(`exit ${code}`)
+       |           ^
+     54|   })
+     55| })
+ ❯ scripts/check-bundle-size.mjs:286:11
+ ❯ test/unit/bundleSize.test.mjs:214:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+
+drill-eager-legal: exit 1; 2026-10-06T23:59:38.553Z to 2026-10-06T23:59:47.165Z
+C:\Users\Randy\gates\tools\node\node.exe node_modules/vitest/vitest.mjs run test/unit/webviewBundle.test.mjs --maxWorkers=3
+File: src/webview/App.tsx
+Before/restored SHA-256: 82fca2e9f3103cef6bf876397beeba99c9b19a973ec2ab65a13a8512a2af680e
+Mutated SHA-256: 72a0a34bfb8e22d7c5ba54144c35c4c7b55db9b787f09e3132c8d2fad22e8174
+ FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > keeps FIXDIET1 startup and original deferred bytes within their review baseline
+AssertionError: expected 761198 to be less than or equal to 751411.2
+ ❯ test/unit/webviewBundle.test.mjs:125:19
+    123|   it('keeps FIXDIET1 startup and original deferred bytes within their …
+    124|     const bytes = [...initialOutputs()].reduce((sum, output) => sum + …
+    125|     expect(bytes).toBeLessThanOrEqual(733.8 * 1024)
+       |                   ^
+    126|     const legacy = webviewDeferredBudgetGroups({ outputs: built.output…
+    127|       (group) => group.name === 'deferred JS',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > loads LegalReport only through its dynamic import
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
+
+drill-inline-fallback: exit 1; 2026-10-07T00:06:50.909Z to 2026-10-07T00:06:54.267Z
+C:\Users\Randy\gates\tools\node\node.exe node_modules/vitest/vitest.mjs run test/unit/DeferredSurface.test.tsx --maxWorkers=3
+File: src/webview/components/DeferredSurface.tsx
+Before/restored SHA-256: 9d7329188b76aa8a688a888c25ea1874d1994d5fc80dd3384e2baf14e84088c7
+Mutated SHA-256: 731b335329b8d69d970eb6ca7971e2f2bc5536fecd7cd81075b6cd74ef89815d
+ FAIL  test/unit/DeferredSurface.test.tsx > loads on use, shows an honest failure and retries by reloading the document
+Error: expect(element).toHaveClass("review-comment")
+
+Expected the element to have class:
+  review-comment
+Received:
+  palette history
+ ❯ test/unit/DeferredSurface.test.tsx:148:53
+    146|     })
+    147|     expect(screen.getByRole('alert')).toHaveTextContent(EN.surfaceLoad…
+    148|     expect(screen.getByRole('alert').parentElement).toHaveClass('revie…
+       |                                                     ^
+    149|     expect(screen.queryByText('chunk fetch failed')).toBeNull()
+    150|     fireEvent.click(screen.getByRole('button', { name: EN.surfaceLoadR…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+drill-eager-comment: exit 1; 2026-10-07T01:42:11.327Z to 2026-10-07T01:43:02.773Z
+C:\Users\Randy\gates\tools\node\node.exe node_modules/vitest/vitest.mjs run test/unit/webviewBundle.test.mjs --maxWorkers=3
+File: src/webview/components/ReviewPane.tsx
+Before/restored SHA-256: 17cc35f2c04a2d6b3e8496a07ad03bfc58a24b0dd1207b1ade31c4d453dfeed3
+Mutated SHA-256: 4c4dfc7b915878b1cce524477fbc1af74dc59eb09f33938bffeddc4516944101
+ FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > keeps FIXDIET1 startup and original deferred bytes within their review baseline
+AssertionError: expected 34292 to be less than or equal to 32870.4
+ ❯ test/unit/webviewBundle.test.mjs:132:7
+    130|     expect(
+    131|       legacy.outputs.reduce((sum, output) => sum + statSync(output).si…
+    132|     ).toBeLessThanOrEqual(32.1 * 1024)
+       |       ^
+    133|   })
+    134|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > loads ReviewCommentForm only through its dynamic import
+AssertionError: expected 'src/webview/components/ReviewPane.tsx' to be 'src/webview/components/ReviewCommentF…' // Object.is equality
+
+Expected: "src/webview/components/ReviewCommentForm.tsx"
+
+drill-english-budget: exit 1; 2026-10-07T01:43:02.794Z to 2026-10-07T01:43:04.170Z
+C:\Users\Randy\gates\tools\node\node.exe node_modules/vitest/vitest.mjs run test/unit/bundleSize.test.mjs --maxWorkers=3
+File: scripts/lib/webviewBundles.mjs
+Before/restored SHA-256: da5f34eb8843b5faf0e1054d1675635ecd0f2186a0dc60468691e72e00118967
+Mutated SHA-256: 697feb551f8556c628a87701775162f6553dc1bdd37fd160c2bf147bd20e9c93
+ FAIL  test/unit/bundleSize.test.mjs > bundled What’s New content budget > enforces the surface English cap without widening the original deferred allowance
+Error: exit 1
+ ❯ process.<anonymous> test/unit/bundleSize.test.mjs:53:11
+     51|   vi.spyOn(console, 'error').mockImplementation(vi.fn())
+     52|   vi.spyOn(process, 'exit').mockImplementation((code) => {
+     53|     throw new Error(`exit ${code}`)
+       |           ^
+     54|   })
+     55| })
+ ❯ scripts/check-bundle-size.mjs:286:11
+ ❯ test/unit/bundleSize.test.mjs:214:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+
+drill-comment-budget: exit 1; 2026-10-07T01:43:04.191Z to 2026-10-07T01:43:05.540Z
+C:\Users\Randy\gates\tools\node\node.exe node_modules/vitest/vitest.mjs run test/unit/bundleSize.test.mjs --maxWorkers=3
+File: scripts/check-bundle-size.mjs
+Before/restored SHA-256: aadd52227ba2dc8e73e0dd21715d8102574dfcb50c1226a305a5d70cf2f66eb8
+Mutated SHA-256: d063399f0443d349c3e43504bb3508ce6ba04fee7377271ba3e875d76b0b5f99
+ FAIL  test/unit/bundleSize.test.mjs > bundled What’s New content budget > enforces the ReviewCommentForm cap without widening the original deferred allowance
+Error: exit 1
+ ❯ process.<anonymous> test/unit/bundleSize.test.mjs:53:11
+     51|   vi.spyOn(console, 'error').mockImplementation(vi.fn())
+     52|   vi.spyOn(process, 'exit').mockImplementation((code) => {
+     53|     throw new Error(`exit ${code}`)
+       |           ^
+     54|   })
+     55| })
+ ❯ scripts/check-bundle-size.mjs:286:11
+ ❯ test/unit/bundleSize.test.mjs:214:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+
+drill-cold-legal-modal: exit 1; 2026-10-07T01:43:05.561Z to 2026-10-07T01:43:47.535Z
+C:\Users\Randy\gates\tools\node\node.exe node_modules/vitest/vitest.mjs run test/unit/AppLazy.test.tsx --maxWorkers=3
+File: src/webview/App.tsx
+Before/restored SHA-256: 82fca2e9f3103cef6bf876397beeba99c9b19a973ec2ab65a13a8512a2af680e
+Mutated SHA-256: 4de6b3d5ae652f03c8a2f8c3d1f7606f4f28fd819c6bef6549516dd248cf9873
+ FAIL  test/unit/AppLazy.test.tsx > App while its deferred panels load > waits for use, keeps new form state and language, and lets a loading modal close
+TestingLibraryElementError: Unable to find an accessible element with the role "dialog" and name "Loading…"
+
+Here are the accessible roles:
+
+  banner:
+
+  Name "":
+  <header
+    class="header"
+  />
+
+  --------------------------------------------------
+  heading:
+
+  Name "Untitled":
+
+drill-english-values: exit 1; 2026-10-07T01:43:47.567Z to 2026-10-07T01:43:55.087Z
+C:\Users\Randy\gates\tools\node\node.exe node_modules/vitest/vitest.mjs run test/unit/browserUiText.test.mjs --maxWorkers=3
+File: scripts/lib/uiTextRegions.mjs
+Before/restored SHA-256: e955dc6a6ba58b8720d1e33a03a973f5b2edbcdb19fb12a766803cf582b70c5c
+Mutated SHA-256: 4c82897541b848b2d2c14121e1a411d3d9034510914b661d964248072c6c7ede
+ FAIL  test/unit/browserUiText.test.mjs > the production browser English and full-table contract > loads surface English on demand, retaining every browser value and installed language
+Error: English surface is not loaded: tasksTabEmpty
+ ❯ Object.get [as tasksTabEmpty] temp/train15h-english-DPSqqn/dist/chunk-HKTPBH26.js:1:36149
+ ❯ test/unit/browserUiText.test.mjs:71:46
+     69|     setUiText(german, 'de')
+     70|     await loadHelp()
+     71|     for (const key of fixture.keys) expect(EN[key], key).toEqual(canon…
+       |                                              ^
+     72|     expect(UI_TEXT.referenceSearch).toBe(german.referenceSearch)
+     73|     expect(uiLocale()).toBe('de')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+
+drill-unknown-keyboard: exit 1; 2026-10-07T01:43:55.112Z to 2026-10-07T01:43:57.541Z
+C:\Users\Randy\gates\tools\node\node.exe node_modules/vitest/vitest.mjs run test/unit/browserKeybindings.test.mjs --maxWorkers=3
+File: scripts/lib/browserKeybindings.mjs
+Before/restored SHA-256: cc0cf7beb30194c0c7ba791f23803105663419198e80d6b1f94186e1c5b28d24
+Mutated SHA-256: 2513643e22b05b85c21726cce9e9c5448c8f361f45d465ff7b9c6a4823df8e23
+ FAIL  test/unit/browserKeybindings.test.mjs > browser keyboard dispatch with optional contexts deferred > fails before emitting an unknown keyboard context
+AssertionError: expected [Function] to throw an error
+
+- Expected:
+null
+
++ Received:
+undefined
+
+ ❯ test/unit/browserKeybindings.test.mjs:96:71
+     94|
+     95|   it('fails before emitting an unknown keyboard context', () => {
+     96|     expect(() => browserKeyboardSource(new Set(['unknown.context']))).…
+       |                                                                       ^
+     97|       'Unknown browser keyboard context',
+     98|     )
+
+The initial physical LegalReport cap increase was green because its independent closure cap still guarded overflow. Lowering the cap proved the exact boundary assertion fails.
+Complete restored owning files pass afterward at the repository default test deadlines.

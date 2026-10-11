@@ -200,3 +200,77 @@ Aggregate quality, coverage and native Windows/macOS execution remain with
 the lead under the rig/common rules. No merge, push, remote/config change or
 external write was performed. The existing worktree-local Husky pre-commit
 hook was present before commit and remains enabled.
+
+## FIX0144W — Windows D89.5 regression timing (2026-10-06)
+
+Windows 11 rig, `C:/lanes/FIX0144W`, branch `fix/rel0144-win`. The lane
+fast-forwarded to the supplied release head `555a95158`, then created an
+isolated, detached temporary worktree at the supplied main `8c6351d73`.
+Both complete files ran three times on each unchanged tree, with
+`--maxWorkers=3` and repository-default timeouts. No GitHub fetch was used.
+
+| Unchanged tree      | Run 1               | Run 2               | Run 3               |
+| ------------------- | ------------------- | ------------------- | ------------------- |
+| Release `555a95158` | 16 passed           | 15 passed, 1 failed | 16 passed           |
+| Main `8c6351d73`    | 13 passed, 3 failed | 14 passed, 2 failed | 14 passed, 2 failed |
+
+Every observed failure is at the origin test's `itemCompleted` polling
+assertion. `vi.waitFor` gives that assertion one second, while the real
+PowerShell command can legitimately finish later within the unchanged
+five-second test deadline. Cleanup then calls `session.settled()`, which
+does not include background shells, and Windows reports `EPERM` removing
+their busy working directories. The test files, `toolIo.ts`, the shared
+credential matcher and `ModelApiHost.ts` are byte-identical across these
+bases. Neither test imports the extension or prompt host changed by
+`d51590f9e`; main predates that change and reproduces the failures.
+
+The origin test now subscribes to the matching row's `itemCompleted` event
+before releasing the held directory preparation, awaits it before the
+unchanged assertions, and also awaits it in `finally` before removing its
+directory. The listener is removed after completion. There is no fixed
+sleep, wider timeout, weaker assertion or production change.
+
+The standalone RVENVFENCE test passed all six unchanged baseline runs, so
+its specific hosted failure was not reproduced here. The Windows probes now
+read `[Environment]::GetEnvironmentVariables().Values` directly, avoiding
+cmdlet/module discovery and table formatting. The harmless-value assertion
+additionally requires an entire long fake value, which a display table
+abbreviates. Both reviewed credential-absence assertions, interactive
+pass-through, harmless-name preservation and hook fencing remain covered.
+This addresses the probe's demonstrated display dependence; it does not
+claim the exact hosted RVENVFENCE failure was reproduced.
+
+Two complete-file intentional controls ran at repository defaults:
+
+- Removing the native interactive-only pass-through guard makes both
+  scheduled origin cases, the RVENVFENCE case and the unattended real-shell
+  case fail: **4 failed / 12 passed**, exit **1**. Production source is
+  restored byte-exact, SHA-256
+  `ad037cedb54c5292633ca262e025d3b64fe09d18a21d564d07f50b787a9cdfe8`.
+- Restoring the formatted `Get-ChildItem Env:` probes makes the long harmless
+  value's preservation assertion fail: **1 failed / 8 passed**, exit **1**.
+  The test file is restored byte-exact, SHA-256
+  `cf6e9b43582c371d888f1808ec0b761beeb17e146c046b12640ac44cbc00a478`.
+
+After both controls, the final two-file run passed **16/16 three consecutive
+times**, zero failures/skips, with no `--testTimeout`. All **25 M118
+prompt/sharing files** also passed once: **357/357**, zero failures/skips,
+in nine sequential batches of at most three files. Existing named long
+timeouts in unrelated native-process cases were retained; no deadline was
+added or widened. Earlier post-fix runs also passed 16/16 four times.
+
+Final scoped checks pass: all five typecheck projects, a final unit-project
+typecheck, changed-file ESLint/Prettier, plain knip, jscpd (zero clones),
+localization, host API, reference and production build. The initial lint run
+caught `withResolvers<void>`; using the repository's `undefined` convention
+resolved it without a suppression. Knip retains its two existing configuration
+hints. Build budgets remain unchanged: activation **443.2 / 600 KiB**, Model API
+**447.4 / 475 KiB**, prompts **163.8 / 200 KiB**, ACP **832.9 / 850 KiB**, browser
+startup **733.1 / 900 KiB**, and original deferred aggregate **32.1 / 50 KiB**.
+
+[Receipts](envfence/fix0144w.json) record baseline assertion results, final
+runs, prompt/sharing batches, controls and scoped checks. Aggregate
+`npm run quality`, hosted CI and publication remain with the lead under the
+rig/shared brief and PLAN §7. No dependency, suppression, gate, cap, command,
+setting or user-facing feature changed. No paid/live calls, credential-file
+reads, push, rebase or unlisted merge were performed. Hooks remain enabled.

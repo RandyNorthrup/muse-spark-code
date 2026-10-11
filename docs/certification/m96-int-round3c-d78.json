@@ -1,0 +1,600 @@
+{
+  "beforeFailed": 64,
+  "afterFailed": 0,
+  "cases": [
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: no team source records a plain one-turn reply",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: no team source records a turn with one tool call and its result",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: no team source records an edit_file with then_run",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: no team source records a long tool output whole twice, then as a placeholder",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: no team source records a manual compaction and the turn after it",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: no team source records a subagent child turn",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: no team source records a turn with skills and rules loaded",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: team off records a plain one-turn reply",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: team off records a turn with one tool call and its result",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: team off records an edit_file with then_run",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: team off records a long tool output whole twice, then as a placeholder",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: team off records a manual compaction and the turn after it",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: team off records a subagent child turn",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: team off records a turn with skills and rules loaded",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: Solo records a plain one-turn reply",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: Solo records a turn with one tool call and its result",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: Solo records an edit_file with then_run",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: Solo records a long tool output whole twice, then as a placeholder",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: Solo records a manual compaction and the turn after it",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: Solo records a subagent child turn",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: Solo records a turn with skills and rules loaded",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: only Default records a plain one-turn reply",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: only Default records a turn with one tool call and its result",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: only Default records an edit_file with then_run",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: only Default records a long tool output whole twice, then as a placeholder",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: only Default records a manual compaction and the turn after it",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: only Default records a subagent child turn",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: only Default records a turn with skills and rules loaded",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: key entries off records a plain one-turn reply",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: key entries off records a turn with one tool call and its result",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: key entries off records an edit_file with then_run",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: key entries off records a long tool output whole twice, then as a placeholder",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: key entries off records a manual compaction and the turn after it",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: key entries off records a subagent child turn",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: key entries off records a turn with skills and rules loaded",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: duplicate models records a plain one-turn reply",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: duplicate models records a turn with one tool call and its result",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: duplicate models records an edit_file with then_run",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: duplicate models records a long tool output whole twice, then as a placeholder",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: duplicate models records a manual compaction and the turn after it",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: duplicate models records a subagent child turn",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: duplicate models records a turn with skills and rules loaded",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: unavailable records a plain one-turn reply",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: unavailable records a turn with one tool call and its result",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: unavailable records an edit_file with then_run",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: unavailable records a long tool output whole twice, then as a placeholder",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: unavailable records a manual compaction and the turn after it",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: unavailable records a subagent child turn",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: unavailable records a turn with skills and rules loaded",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: failed probe records a plain one-turn reply",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: failed probe records a turn with one tool call and its result",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: failed probe records an edit_file with then_run",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: failed probe records a long tool output whole twice, then as a placeholder",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: failed probe records a manual compaction and the turn after it",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: failed probe records a subagent child turn",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: failed probe records a turn with skills and rules loaded",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: not loaded records a plain one-turn reply",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: not loaded records a turn with one tool call and its result",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: not loaded records an edit_file with then_run",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: not loaded records a long tool output whole twice, then as a placeholder",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: not loaded records a manual compaction and the turn after it",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: not loaded records a subagent child turn",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M91-G golden requests: not loaded records a turn with skills and rules loaded",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "test": "M96 conversation boundaries keeps golden continuation when an entry becomes ready mid-turn, and enables the next conversation",
+      "cause": "Pre-D78 recall declaration and derived cache key before a packed observation exists",
+      "fixedIn": "test fixtures",
+      "why": "PLAN.md D78 FIXDEF: offer packed recall only when the request contains a packed observation",
+      "after": "passed"
+    }
+  ],
+  "requestDiffs": [
+    {
+      "fixture": "01-plain-turn.json",
+      "request": 0,
+      "fields": ["prompt_cache_key", "tools"]
+    },
+    {
+      "fixture": "02-tool-call.json",
+      "request": 0,
+      "fields": ["prompt_cache_key", "tools"]
+    },
+    {
+      "fixture": "02-tool-call.json",
+      "request": 1,
+      "fields": ["prompt_cache_key", "tools"]
+    },
+    {
+      "fixture": "03-edit-then-run.json",
+      "request": 0,
+      "fields": ["prompt_cache_key", "tools"]
+    },
+    {
+      "fixture": "03-edit-then-run.json",
+      "request": 1,
+      "fields": ["prompt_cache_key", "tools"]
+    },
+    {
+      "fixture": "04-packed-output.json",
+      "request": 0,
+      "fields": ["prompt_cache_key", "tools"]
+    },
+    {
+      "fixture": "04-packed-output.json",
+      "request": 1,
+      "fields": ["prompt_cache_key", "tools"]
+    },
+    {
+      "fixture": "04-packed-output.json",
+      "request": 2,
+      "fields": ["prompt_cache_key", "tools"]
+    },
+    {
+      "fixture": "05-manual-compaction.json",
+      "request": 0,
+      "fields": ["prompt_cache_key", "tools"]
+    },
+    {
+      "fixture": "05-manual-compaction.json",
+      "request": 2,
+      "fields": ["prompt_cache_key", "tools"]
+    },
+    {
+      "fixture": "06-subagent-child.json",
+      "request": 0,
+      "fields": ["prompt_cache_key", "tools"]
+    },
+    {
+      "fixture": "06-subagent-child.json",
+      "request": 1,
+      "fields": ["prompt_cache_key", "tools"]
+    },
+    {
+      "fixture": "07-skills-and-rules.json",
+      "request": 0,
+      "fields": ["prompt_cache_key", "tools"]
+    },
+    {
+      "fixture": "08-team-on.json",
+      "request": 0,
+      "fields": ["prompt_cache_key", "tools"]
+    },
+    {
+      "fixture": "09-single-continuation.json",
+      "request": 0,
+      "fields": ["prompt_cache_key", "tools"]
+    },
+    {
+      "fixture": "09-single-continuation.json",
+      "request": 1,
+      "fields": ["prompt_cache_key", "tools"]
+    }
+  ]
+}

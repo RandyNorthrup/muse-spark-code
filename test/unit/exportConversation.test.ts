@@ -100,13 +100,13 @@ describe('exportConversation', () => {
     const [fileName, content] = prompted.markdown[0]!
     expect(fileName).toBe('muse-refactor-auth-2026-09-24.md')
     expect(content).toContain('# Refactor auth')
-    expect(content).toContain('- Backend: Meta Model API (your key, pay as you go)')
+    expect(content).toContain('- Backend: Meta Model API (Your Key, Pay as You Go)')
     const untitled = fakes('museCode', {
       items: [{ itemId: 'm', kind: 'agentMessage', status: 'completed', text: 'Hello' }],
     })
     await exportConversation(untitled.host, untitled.session, 'markdown', NOW, untitled.exports)
     expect(untitled.markdown[0]?.[0]).toBe('muse-muse-conversation-2026-09-24.md')
-    expect(untitled.markdown[0]?.[1]).toContain('- Backend: Muse Code (your Muse subscription)')
+    expect(untitled.markdown[0]?.[1]).toContain('- Backend: Muse Code (Your Muse Subscription)')
   })
 
   it('previews the redacted file before writing it, on either backend', async () => {
@@ -159,7 +159,7 @@ describe('exportConversation', () => {
     expect(dismissed.events).toEqual(['preview'])
   })
 
-  it('writes no JSON for withheld or empty history, or one past what an import reads', async () => {
+  it('writes no JSON for withheld or empty history, or too many items', async () => {
     const withheld = fakes('museCode', { mode: 'none' })
     expect(
       await exportConversation(withheld.host, withheld.session, 'json', NOW, withheld.exports),
@@ -174,10 +174,19 @@ describe('exportConversation', () => {
     expect(await exportConversation(many.host, many.session, 'json', NOW, many.exports)).toBe(
       'tooLarge',
     )
+    for (const t of [withheld, empty, many]) expect(t.json).toEqual([])
+    expect(many.events).toEqual([])
+  })
+
+  it('writes no JSON for a message past the import byte limit', async () => {
     const huge = fakes('modelApi', { items: [userItem('ab '.repeat(6 * 1024 * 1024))] })
     expect(await exportConversation(huge.host, huge.session, 'json', NOW, huge.exports)).toBe(
       'tooLarge',
     )
+    expect(huge.json).toEqual([])
+  })
+
+  it('refuses a full file past the import byte limit after previewing its redacted form', async () => {
     // Redacted it fits; in full it would not, so the full file is refused after the preview.
     const longPath = `/${'ab/'.repeat(330)}c`
     const paths = fakes(
@@ -188,11 +197,8 @@ describe('exportConversation', () => {
     expect(await exportConversation(paths.host, paths.session, 'json', NOW, paths.exports)).toBe(
       'tooLarge',
     )
-    for (const t of [withheld, empty, many, huge, paths]) {
-      expect(t.json).toEqual([])
-    }
+    expect(paths.json).toEqual([])
     expect(paths.events).toEqual(['preview'])
-    expect(many.events).toEqual([])
   })
 
   it('writes no header-only file: history Muse Code withheld, or nothing said yet', async () => {

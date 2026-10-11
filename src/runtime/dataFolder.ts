@@ -59,3 +59,8 @@ export function paidGrantsFile(input: DataFolderInput): string {
     ACP_PAID_GRANTS_FILE,
   )
 }
+
+/** D95.9's shared store root; each validated workspace key names its index. */
+export function schedulesFolder(input: DataFolderInput): string {
+  return pathModuleFor(input).join(agentDataFolder(input), 'schedules', 'v1')
+}

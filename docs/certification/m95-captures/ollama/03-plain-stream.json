@@ -1,0 +1,36 @@
+{
+  "provider": "ollama",
+  "step": "plain-stream",
+  "capturedAt": "2026-10-05T13:19:16.804Z",
+  "billed": false,
+  "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:11434/api/chat",
+    "body": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Say hello in three words."
+        }
+      ],
+      "options": {
+        "num_ctx": 4096,
+        "num_predict": 256,
+        "temperature": 0
+      },
+      "think": false,
+      "stream": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/x-ndjson",
+      "date": "Mon, 05 Oct 2026 13:19:16 GMT",
+      "transfer-encoding": "chunked"
+    },
+    "body": "{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:16.0289086Z\",\"message\":{\"role\":\"assistant\",\"content\":\"Hello\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:16.0461126Z\",\"message\":{\"role\":\"assistant\",\"content\":\" there\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:16.0621731Z\",\"message\":{\"role\":\"assistant\",\"content\":\" friend\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:16.0782194Z\",\"message\":{\"role\":\"assistant\",\"content\":\"!\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:16.0941205Z\",\"message\":{\"role\":\"assistant\",\"content\":\"\"},\"done\":true,\"done_reason\":\"stop\",\"total_duration\":23684670400,\"load_duration\":23351944900,\"prompt_eval_count\":14,\"prompt_eval_cached_count\":0,\"prompt_eval_duration\":251444000,\"eval_count\":5,\"eval_duration\":65468999}\n",
+    "chunkBytes": [148, 443, 345]
+  }
+}

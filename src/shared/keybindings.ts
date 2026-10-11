@@ -4,6 +4,7 @@ import type { ReferenceText } from './featureCatalog'
 
 interface KeyGesture {
   readonly key: string
+  readonly printable?: boolean
   readonly shift?: boolean
   readonly alt?: boolean
   readonly primary?: boolean
@@ -14,7 +15,44 @@ interface KeyBinding {
   readonly text: ReferenceText
   readonly when?: { readonly setting: 'useCtrlEnterToSend'; readonly value: boolean }
 }
+const DIRECTION_KEYS = {
+  next: { keys: [{ key: 'ArrowRight' }, { key: 'ArrowDown' }], text: { ui: 'referenceMenuKeys' } },
+  previous: { keys: [{ key: 'ArrowLeft' }, { key: 'ArrowUp' }], text: { ui: 'referenceMenuKeys' } },
+  first: { keys: [{ key: 'Home' }], text: { ui: 'referenceMenuKeys' } },
+  last: { keys: [{ key: 'End' }], text: { ui: 'referenceMenuKeys' } },
+} as const satisfies Readonly<Record<string, KeyBinding>>
+
 export const WEBVIEW_KEYBINDINGS = {
+  'team.tree': {
+    next: { keys: [{ key: 'ArrowDown' }], text: { ui: 'teamTreeKeyboardHint' } },
+    previous: { keys: [{ key: 'ArrowUp' }], text: { ui: 'teamTreeKeyboardHint' } },
+    first: { keys: [{ key: 'Home' }], text: { ui: 'teamTreeKeyboardHint' } },
+    last: { keys: [{ key: 'End' }], text: { ui: 'teamTreeKeyboardHint' } },
+    increase: { keys: [{ key: 'ArrowRight' }], text: { ui: 'teamTreeKeyboardHint' } },
+    decrease: { keys: [{ key: 'ArrowLeft' }], text: { ui: 'teamTreeKeyboardHint' } },
+    actions: { keys: [{ key: 'F2' }], text: { ui: 'teamTreeKeyboardHint' } },
+    close: { keys: [{ key: 'Escape' }], text: { ui: 'teamTreeKeyboardHint' } },
+    typeahead: {
+      keys: [{ key: 'Character', printable: true }],
+      text: { ui: 'teamTreeKeyboardHint' },
+    },
+  },
+  'models.table': {
+    next: { keys: [{ key: 'ArrowDown' }], text: { ui: 'referenceMenuKeys' } },
+    previous: { keys: [{ key: 'ArrowUp' }], text: { ui: 'referenceMenuKeys' } },
+    first: { keys: [{ key: 'Home' }], text: { ui: 'referenceMenuKeys' } },
+    last: { keys: [{ key: 'End' }], text: { ui: 'referenceMenuKeys' } },
+    accept: { keys: [{ key: 'Enter' }], text: { ui: 'referenceMenuKeys' } },
+    close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceMenuKeys' } },
+  },
+  'models.select': {
+    next: { keys: [{ key: 'ArrowDown' }], text: { ui: 'referenceMenuKeys' } },
+    previous: { keys: [{ key: 'ArrowUp' }], text: { ui: 'referenceMenuKeys' } },
+    accept: { keys: [{ key: 'Enter' }], text: { ui: 'referenceMenuKeys' } },
+    close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceMenuKeys' } },
+  },
+  'traffic.tabs': DIRECTION_KEYS,
+  'usage.chart': DIRECTION_KEYS,
   'composer.send': {
     send: {
       when: { setting: 'useCtrlEnterToSend', value: false },
@@ -154,7 +192,9 @@ export function webviewKey<C extends keyof typeof WEBVIEW_KEYBINDINGS>(
       (binding.when === undefined || settings?.[binding.when.setting] === binding.when.value) &&
       binding.keys.some(
         (key) =>
-          key.key.toLowerCase() === event.key.toLowerCase() &&
+          (key.printable === true
+            ? event.key.length === 1
+            : key.key.toLowerCase() === event.key.toLowerCase()) &&
           (key.phase ?? 'down') === phase &&
           (key.shift === undefined || key.shift === event.shiftKey) &&
           (key.alt === undefined || key.alt === event.altKey) &&
@@ -199,4 +239,9 @@ export function referenceKeyboardActions() {
       text: bindings[0]?.text,
     }
   })
+}
+
+/** The printable text for tree typeahead; dispatch is owned by team.tree. */
+export function webviewCharacter(event: KeyEvent): string | undefined {
+  return event.key.length === 1 ? event.key : undefined
 }

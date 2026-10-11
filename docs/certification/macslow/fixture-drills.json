@@ -1,0 +1,30 @@
+[
+  {
+    "drill": "readiness-and-localization",
+    "code": 1,
+    "seconds": 10.59,
+    "hashes": {
+      "test/unit/helpers/companion.ts": "e97eab20673859a9fd237104dccb543752b92346719849c9540e8834252f66b4",
+      "src/shared/l10n/check.ts": "6498f81bf11a0b47c605c2fb3fb12b0a854d6c7ea41c3202900594649dd5bf71"
+    },
+    "restoredExactly": true
+  },
+  {
+    "drill": "trigger-cleanup",
+    "code": 1,
+    "seconds": 8.77,
+    "hashes": {
+      "test/unit/companionBrowser.test.ts": "9cdfaaf28ced2e797e2f1e79f4435dfe7a89fe6fc16d601e743eea8d5918f766"
+    },
+    "restoredExactly": true
+  },
+  {
+    "drill": "package-schema-bytes",
+    "code": 1,
+    "seconds": 101.48,
+    "hashes": {
+      "scripts/package-acp.mjs": "3113c16336b7e1a68d1419cce25f912c1c0d499fc3df71ce9982445b820ac5e8"
+    },
+    "restoredExactly": true
+  }
+]

@@ -1,13 +1,27 @@
+import type { EstimateRequest } from '../../src/shared/estimate'
+import { fakeEstimate } from './helpers/estimator/fixtures'
 import { questionAnswerText } from './helpers/questions/registry'
 import { FakeQuestionClock } from './helpers/questions/clock'
 import { FakeQuestionStore } from './helpers/questions/store'
 import { questionFixture } from './helpers/questions/fixtures'
 import { QUESTION_CLARIFIED } from './helpers/m46Capture'
+import { metaSideCallFormats } from '../../src/core/backends/modelapi/modelCapabilities'
+import {
+  M106_CAPTURED_META_MODEL,
+  SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
+} from '../../src/shared/constants'
+import { conversationGitFactory } from '../../src/host/git/conversationGitBundle'
+import * as gitEntry from '../../src/host/git/conversationGitEntry'
+import { Usd } from '../../src/shared/usd'
 import { MspError } from '@muse-code/sdk'
+import { createMediaAttachments } from '../../src/host/media/mediaAttach'
+import { videoFixture, wavFixture, ebmlFixture } from './helpers/media/fixtures'
+import { mediaModel } from './helpers/media/replay'
 import { Buffer } from 'node:buffer'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import {
   copyFileSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   realpathSync,
@@ -18,11 +32,13 @@ import { mkdir, readFile, rename, symlink, unlink, writeFile } from 'node:fs/pro
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type {
   AgentHost,
+  ModelSummary,
   QueuedMessageRef,
   SessionEventListener,
   SessionMcpHttpServer,
@@ -74,7 +90,9 @@ import {
   MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   GIT_MODEL_TEXT,
   CONVERSATION_MODEL_TEXT,
+  LEGAL_RESULT_VERSION,
   MSP_READ_OUTPUT_CONCURRENCY,
+  MUSE_INSTALL_COMMANDS,
   REVIEW_MODEL_TEXT,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
   PLAN_FILE_MAX_BYTES,
@@ -90,6 +108,8 @@ import { textFileDisplay } from '../../src/shared/textFileDisplay'
 import { planFileName, planLogName, planSlug, planTitle } from '../../src/core/plans/planDocument'
 import { briefText, PLAN_MARKDOWN } from '../../src/core/plans/planMarkdown'
 import type { ConversationMessage } from '../../src/host/views/chatSurface'
+import { PlanModeHold } from '../../src/core/review/planModeHold'
+import type { LegalScanInput, LegalScanResult } from '../../src/shared/legal'
 import { logLines } from './helpers/logText'
 import type { CheckpointPort } from '../../src/host/checkpoints/checkpointHost'
 import type { RestoreOutcome } from '../../src/host/checkpoints/checkpointStore'
@@ -109,7 +129,12 @@ import {
   eventLogFault,
 } from './helpers/cliRecoveryCapture'
 import { judgeUseRig } from './helpers/judgeUseRig'
-import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
+import {
+  FakeLogOutputChannel,
+  type FakeSurface,
+  fakeSurface,
+  fakeHostContext,
+} from './helpers/fakes'
 import { change, type FakeGitWindowOptions, fakeGitWindow, fakeRepository } from './helpers/fakeGit'
 import { ConversationGit } from '../../src/host/git/conversationGit'
 import {
@@ -154,6 +179,8 @@ import { PendingPrompts } from '../../src/core/sessionBoard'
 import { BestOfNCoordinator } from '../../src/core/bestOfN/bestOfNCoordinator'
 import { removeFolder } from './helpers/temporaryFolders'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
+import { integrationFixture } from './helpers/playbookIntegration'
+import { latestRound, reviewBlock } from './playbookPolicyFixture'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import { EditReview, type ReviewNotice } from '../../src/host/editor/editReview'
@@ -178,6 +205,7 @@ import { pdfFixture } from './helpers/pdfFixture'
 import {
   fakeInitializeResult,
   fakeMspHost,
+  childPatchOutput,
   goalRefusal,
   refusalOf,
   rejectionFor,
@@ -378,17 +406,21 @@ function setup(
     ideMcpEndpoint?: SessionMcpHttpServer
     /** How long the IDE tool server takes to answer (a retried start, D25). */
     ideMcpStartMs?: number
+    /** M96 lane T: the `team` server and the orchestrator slot. */
+    teamMcp?: ConversationDeps['teamMcp']
+    orchestratorSlot?: ConversationDeps['orchestratorSlot']
     grantedCapabilities?: readonly string[]
     shellSandbox?: ShellSandboxPosture
     /** Contributor-tier guard (M7). */
     isConfidentialWorkspace?: boolean
     confirmsContributor?: boolean
-    /** Session history memory (M6). */
+    /** Session History memory (M6). */
     archivedIds?: readonly string[]
     lastSession?: LastSession
     isRestorable?: boolean
     /** The usage modal's insights (M14). */
     usageInsights?: { day: UsageInsights; week: UsageInsights }
+    usageRecording?: ConversationDeps['usageRecording']
     /** Voice dictation (M9). */
     dictation?: DictationSetup
     /** Muse Voice when it is the microphone's engine (M35). */
@@ -410,6 +442,7 @@ function setup(
     readToolImage?: ConversationDeps['readToolImage']
     /** VS Code's workspace trust (M46: Restricted Mode runs no `!` command). */
     isWorkspaceTrusted?: boolean
+    workspaceTrust?: { current: boolean }
     isSideChat?: boolean
     /** The side panel's original fork ID, including after window reload. */
     sideSessionId?: string
@@ -433,6 +466,7 @@ function setup(
     editReview?: ConversationDeps['editReview']
     /** `/review`'s git material and markers (M70). */
     review?: ConversationDeps['review']
+    playbook?: ConversationDeps['playbook']
     /** A revert that refuses (a stale patch): it answers with a warning. */
     refusesRevert?: boolean
     /** A picked session-transfer file's text (M84); undefined dismisses the dialog. */
@@ -449,10 +483,17 @@ function setup(
     timeouts?: CommandTimeouts
     /** The surface's tasks tab (M87); none unless a test passes one. */
     tasksTab?: TasksTabPort
-    /** The window's Auto reviewer on Muse Code (M90). */
+    /** The window's Auto Reviewer on Muse Code (M90). */
     museCodeReviewer?: ConversationDeps['museCodeReviewer']
     questions?: ConversationDeps['questions']
     judge?: ConversationDeps['judge']
+    /** The deterministic legal scanner (M97); undefined until lane R wires the bundle. */
+    legalFixApplier?: ConversationDeps['legalFixApplier']
+    legalMarkdown?: ConversationDeps['legalMarkdown']
+    legalScan?: ConversationDeps['legalScan']
+    /** The Plan-mode hold a live Muse Code conversation takes for a scan (M97). */
+    createLegalHold?: ConversationDeps['createLegalHold']
+    uploadedFiles?: ConversationDeps['uploadedFiles']
   } = {},
 ) {
   const planFiles = fakePlanFiles()
@@ -542,6 +583,9 @@ function setup(
     },
     log,
     options.timeouts,
+    undefined,
+    undefined,
+    undefined,
     () => ({ hardwareSessionLatched: false }),
   )
   const auth = fakeAuth(options.status)
@@ -657,6 +701,7 @@ function setup(
     refuseStorageWrite: () => undefined,
   }
   const deps: ConversationDeps = {
+    playbook: options.playbook,
     surface,
     ...(options.questions !== undefined && { questions: options.questions }),
     judge: options.judge,
@@ -668,12 +713,12 @@ function setup(
       return options.confirmsFileAction ?? true
     },
     setPaidFeature: vi.fn(() => Promise.resolve()),
-    isWorkspaceTrusted: () => options.isWorkspaceTrusted ?? true,
+    isWorkspaceTrusted: () => options.workspaceTrust?.current ?? options.isWorkspaceTrusted ?? true,
     isWorktreeHeld: () => worktreeHold.isHeld,
     createGit: (gitSurface) => new ConversationGit(gitFake.window, gitSurface),
     onForegroundTasksChanged: vi.fn<() => void>(),
     museVoice: options.museVoice ?? (() => undefined),
-    modelApiSessionBudgetUsd: () => options.modelApiSessionBudgetUsd ?? 0,
+    modelApiSessionBudgetUsd: () => Usd.from(options.modelApiSessionBudgetUsd ?? 0).toAmount(),
     voiceAccountId: options.voiceAccountId ?? (() => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID)),
     ownedVoiceBudgetScope: options.ownedVoiceBudgetScope ?? (() => Promise.resolve(undefined)),
     allowsPaidUse: options.allowsPaidUse ?? (() => Promise.resolve(true)),
@@ -699,6 +744,8 @@ function setup(
           : { signInMethod: 'apiKey' as const },
       ),
     usageInsights: () => Promise.resolve(options.usageInsights),
+    ...(options.usageRecording !== undefined && { usageRecording: options.usageRecording }),
+    ...(options.uploadedFiles !== undefined && { uploadedFiles: options.uploadedFiles }),
     ensureHost: async () => {
       await options.beforeEnsureHost?.()
       const gate = options.hostGate?.current
@@ -733,8 +780,13 @@ function setup(
           : Promise.resolve({ bytes: new TextEncoder().encode('example text'), isPdf: false }),
       canonicalRelativePath: (fsPath: string) =>
         Promise.resolve(
-          fsPath.startsWith('/ws/')
-            ? { canonical: fsPath.slice('/ws/'.length), checkedAbsolute: fsPath }
+          path.relative(path.resolve('/ws'), fsPath) !== '' &&
+            !path.relative(path.resolve('/ws'), fsPath).startsWith('..') &&
+            !path.isAbsolute(path.relative(path.resolve('/ws'), fsPath))
+            ? {
+                canonical: path.relative(path.resolve('/ws'), fsPath).split(path.sep).join('/'),
+                checkedAbsolute: fsPath,
+              }
             : undefined,
         ),
       pickMentionFile: () => Promise.resolve(mentionChoice),
@@ -811,6 +863,10 @@ function setup(
     review:
       options.review ??
       reviewParts(() => Promise.resolve({ kind: 'refused', refusal: 'notRepository' })),
+    ...(options.legalFixApplier !== undefined && { legalFixApplier: options.legalFixApplier }),
+    ...(options.legalMarkdown !== undefined && { legalMarkdown: options.legalMarkdown }),
+    ...(options.legalScan !== undefined && { legalScan: options.legalScan }),
+    ...(options.createLegalHold !== undefined && { createLegalHold: options.createLegalHold }),
     openDocument: (title: string, content: string) => {
       opened.push([title, content])
       return Promise.resolve()
@@ -828,6 +884,8 @@ function setup(
           resolve(options.ideMcpEndpoint)
         }, options.ideMcpStartMs ?? 0)
       }),
+    ...(options.teamMcp !== undefined && { teamMcp: options.teamMcp }),
+    ...(options.orchestratorSlot !== undefined && { orchestratorSlot: options.orchestratorSlot }),
     newAttachmentId: () => {
       attachmentCount += 1
       return `att-${String(attachmentCount)}`
@@ -2593,6 +2651,15 @@ describe('ConversationController: context', () => {
       { type: 'notice', level: 'error', text: 'openLog failed: no channel' },
     ])
   })
+
+  it('opens the shared usage page from both bridge routes without starting a conversation', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'openUsagePage' })
+    await t.controller.handle({ type: 'hostAction', action: 'openUsagePage' })
+    expect(t.hostActions).toEqual(['openUsagePage', 'openUsagePage'])
+    expect(t.server.requestsFor('session/new')).toEqual([])
+    expect(t.surface.posted).toEqual([])
+  })
 })
 
 describe('ConversationController: transcript actions (M4)', () => {
@@ -3066,9 +3133,13 @@ describe('ConversationController: the bundled skills offer (M89)', () => {
     expect(offer).not.toHaveBeenCalled()
   })
 
-  it('shows nothing when there is nothing to offer, or the offer fails, and logs the failure', async () => {
+  it('shows nothing when there is nothing to offer', async () => {
     const none = setup({ bundledSkillsOffer: () => Promise.resolve(undefined) })
     await none.send('l1', 'hi')
+    expect(none.surface.posted.filter((m) => m.type === 'notice')).toEqual([])
+  })
+
+  it('says a warning when the offer fails instead of continuing silently (GROK-m116k P2)', async () => {
     const failing = setup({
       bundledSkillsOffer: () => Promise.reject(new Error('VENDOR.json is missing')),
     })
@@ -3078,9 +3149,14 @@ describe('ConversationController: the bundled skills offer (M89)', () => {
         'The bundled skills could not be offered: VENDOR.json is missing',
       )
     })
-    for (const t of [none, failing]) {
-      expect(t.surface.posted.filter((m) => m.type === 'notice')).toEqual([])
-    }
+    const expected = fill(UI_TEXT.bundledSkillsOfferFailed, {
+      reason: 'VENDOR.json is missing',
+    })
+    await vi.waitFor(() => {
+      expect(failing.surface.posted.filter((m) => m.type === 'notice')).toEqual([
+        { type: 'notice', level: 'warning', text: expected },
+      ])
+    })
   })
 })
 
@@ -3353,7 +3429,7 @@ describe('ConversationController: editor integration (M5)', () => {
     expect(notices).toEqual(['opened c1'])
   })
 
-  // D66 item 17: an edit row's Revert is one step of "Rewind code to here".
+  // D66 item 17: an edit row's Revert is one step of "Rewind Code to Here".
   it('reverts one edit after its confirmation, and nothing once it is declined (M87)', async () => {
     const t = setup()
     await t.send('l1', 'edit it')
@@ -3681,6 +3757,296 @@ describe('ConversationController: editor integration (M5)', () => {
   })
 })
 
+/** A JSON-string envelope keeps the raw frame bytes through fixture formatting. */
+function frameOf(params: unknown): string {
+  // The SDK appends its generated command id; every other byte stays literal.
+  const frame = JSON.stringify(params).replaceAll('team-token-1', '<team-token>')
+  const normalized = frame.replace(/"commandId":"[^"]+"(?=}$)/, '"commandId":"<command-id>"')
+  return `${JSON.stringify(`${normalized}\n`)}\n`
+}
+
+describe('ConversationController: team server and orchestrator slot (M96 lane T)', () => {
+  // The Muse Code `session/start` golden frames: the single-model frame
+  // equals main's, byte for byte; the team frame adds the `team` server.
+  // Regenerate with MUSE_SPARK_UPDATE_GOLDEN_REQUESTS=1, which refuses under CI.
+  const FRAMES = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '..',
+    'fixtures',
+    'golden-frames',
+  )
+  const SHOULD_UPDATE_FRAMES = process.env['MUSE_SPARK_UPDATE_GOLDEN_REQUESTS'] === '1'
+  if (SHOULD_UPDATE_FRAMES && process.env['CI'] !== undefined)
+    throw new Error('Golden frames cannot be updated under CI')
+  const IDE = { url: 'http://127.0.0.1:1/mcp', headers: { Authorization: 'Bearer ide-token' } }
+  const TEAM = { url: 'http://127.0.0.1:2/mcp', headers: { Authorization: 'Bearer team-token-1' } }
+
+  function framePath(name: string): string {
+    return path.join(FRAMES, `${name}.json`)
+  }
+
+  function checkFrame(name: string, params: unknown): void {
+    if (SHOULD_UPDATE_FRAMES) {
+      mkdirSync(FRAMES, { recursive: true })
+      writeFileSync(framePath(name), frameOf(params))
+      return
+    }
+    expect(frameOf(params)).toBe(readFileSync(framePath(name), 'utf8'))
+  }
+
+  function teamMcp(mode: () => 'single-model' | 'team') {
+    return {
+      modeForNewConversation: mode,
+      endpointForConversation: () => Promise.resolve(TEAM),
+    }
+  }
+
+  it('starts a single-model session with the ide server only', async () => {
+    const t = setup({ ideMcpEndpoint: IDE, grantedCapabilities: ['sessionMcp'] })
+    await t.send('l1', 'hi')
+    const params = t.server.requestsFor('session/start')[0]?.params
+    expect(params?.['config']).toMatchObject({ mcpServers: { ide: { url: IDE.url } } })
+    expect(params?.['config']).not.toHaveProperty('mcpServers.team')
+    checkFrame('musecode-session-start-single', params)
+  })
+
+  it('starts a team session with the team server beside the ide server', async () => {
+    const mode: 'single-model' | 'team' = 'team'
+    const t = setup({
+      ideMcpEndpoint: IDE,
+      grantedCapabilities: ['sessionMcp'],
+      teamMcp: teamMcp(() => mode),
+    })
+    await t.send('l1', 'hi')
+    const params = t.server.requestsFor('session/start')[0]?.params
+    expect(params?.['config']).toEqual({
+      mcpServers: {
+        ide: { transport: 'streamableHttp', url: IDE.url, headers: IDE.headers, mode: 'optional' },
+        team: {
+          transport: 'streamableHttp',
+          url: TEAM.url,
+          headers: TEAM.headers,
+          mode: 'optional',
+        },
+      },
+    })
+    checkFrame('musecode-session-start-team', params)
+  })
+
+  it('refuses an unavailable declared team endpoint without starting another declaration', async () => {
+    const rememberMode = vi.fn(() => Promise.resolve())
+    const t = setup({
+      ideMcpEndpoint: IDE,
+      grantedCapabilities: ['sessionMcp'],
+      teamMcp: {
+        modeForNewConversation: () => 'team',
+        endpointForConversation: () => Promise.resolve(undefined),
+        rememberMode,
+      },
+    })
+    await t.send('l1', 'hi')
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    expect(rememberMode).not.toHaveBeenCalled()
+    expect(JSON.stringify(t.surface.posted)).toContain(
+      fill(UI_TEXT.teamRunnerUnavailable, { tool: 'team' }),
+    )
+  })
+
+  it('refuses a team declaration when the host lacks its session MCP capability', async () => {
+    const endpoint = vi.fn(() => Promise.resolve(TEAM))
+    const t = setup({
+      teamMcp: { modeForNewConversation: () => 'team', endpointForConversation: endpoint },
+    })
+    await t.send('l1', 'hi')
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    expect(endpoint).not.toHaveBeenCalled()
+    expect(JSON.stringify(t.surface.posted)).toContain(
+      fill(UI_TEXT.teamRunnerUnavailable, { tool: 'team' }),
+    )
+  })
+
+  it('keeps its resume target while the team endpoint is unavailable', async () => {
+    let isAvailable = true
+    let mode: 'team' | 'single-model' = 'team'
+    const t = setup({
+      grantedCapabilities: ['sessionMcp'],
+      teamMcp: {
+        modeForNewConversation: () => mode,
+        endpointForConversation: () => Promise.resolve(isAvailable ? TEAM : undefined),
+      },
+    })
+    await t.send('l1', 'hi')
+    t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
+    t.controller.hostExited({ description: 'stopped', isExpected: false, isPersistent: false })
+    isAvailable = false
+    await t.send('l2', 'continue while unavailable')
+    expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    expect(t.server.requestsFor('session/resume')).toHaveLength(0)
+    mode = 'single-model'
+    isAvailable = true
+    await t.send('l3', 'retry continuation')
+    expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    expect(t.server.requestsFor('session/resume')[0]?.params?.['sessionId']).toBe('s1')
+    expect(t.server.requestsFor('session/resume')[0]?.params?.['config']).toMatchObject({
+      mcpServers: { team: { url: TEAM.url } },
+    })
+  })
+
+  it.each(['rejection', 'disposal', 'restart'] as const)(
+    'disposes a new session when metadata saving ends after %s',
+    async (failure) => {
+      const save = Promise.withResolvers<undefined>()
+      const entered = Promise.withResolvers<undefined>()
+      const t = setup({
+        grantedCapabilities: ['sessionMcp'],
+        teamMcp: {
+          ...teamMcp(() => 'team'),
+          rememberMode: () => {
+            entered.resolve(undefined)
+            return save.promise
+          },
+        },
+      })
+      const sending = t.send('l1', 'hi')
+      await entered.promise
+      expect(t.host.sessionCount).toBe(1)
+      if (failure === 'disposal') t.controller.dispose()
+      else if (failure === 'restart') await t.controller.handle({ type: 'clearConversation' })
+      if (failure === 'rejection') save.reject(new Error('metadata disk full'))
+      else save.resolve(undefined)
+      await sending
+      expect(t.host.sessionCount).toBe(0)
+    },
+  )
+
+  it('keeps the attached set at resume when the mode flips mid-conversation', async () => {
+    let mode: 'single-model' | 'team' = 'team'
+    const t = setup({
+      ideMcpEndpoint: IDE,
+      grantedCapabilities: ['sessionMcp'],
+      teamMcp: teamMcp(() => mode),
+    })
+    await t.send('l1', 'hi')
+    expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    // The team goes away mid-conversation: the open session keeps its server.
+    mode = 'single-model'
+    t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
+    t.controller.hostExited({
+      description: 'Muse Code failed with an unhandled error (exit 1)',
+      isExpected: false,
+      isPersistent: false,
+    })
+    await t.send('l2', 'again')
+    const resumed = t.server.requestsFor('session/resume')[0]?.params
+    expect(resumed?.['config']).toMatchObject({ mcpServers: { team: { url: TEAM.url } } })
+    checkFrame('musecode-session-resume-team', resumed)
+  })
+
+  it('keeps a single-model resume byte-identical after the setup gains another model', async () => {
+    let mode: 'single-model' | 'team' = 'single-model'
+    const endpoint = vi.fn(() => Promise.resolve(TEAM))
+    const t = setup({
+      ideMcpEndpoint: IDE,
+      grantedCapabilities: ['sessionMcp'],
+      teamMcp: { modeForNewConversation: () => mode, endpointForConversation: endpoint },
+    })
+    await t.send('l1', 'hi')
+    mode = 'team'
+    t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
+    t.controller.hostExited({ description: 'stopped', isExpected: false, isPersistent: false })
+    await t.send('l2', 'again')
+    expect(endpoint).not.toHaveBeenCalled()
+    checkFrame('musecode-session-resume-single', t.server.requestsFor('session/resume')[0]?.params)
+  })
+
+  it('restores history from its saved decision and keeps a team token out of another session', async () => {
+    const modes = new Map<string, 'single-model' | 'team'>([['old', 'team']])
+    const endpoint = vi.fn(() => Promise.resolve(TEAM))
+    const t = withHistory({
+      ideMcpEndpoint: IDE,
+      grantedCapabilities: ['sessionMcp'],
+      teamMcp: {
+        modeForNewConversation: () => 'single-model',
+        modeForSession: (id) => modes.get(id) ?? 'single-model',
+        rememberMode: (id, mode) => {
+          modes.set(id, mode)
+          return Promise.resolve()
+        },
+        endpointForConversation: endpoint,
+      },
+    })
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    expect(endpoint).toHaveBeenCalledWith('old')
+    expect(t.server.requestsFor('session/resume')[0]?.params?.['config']).toMatchObject({
+      mcpServers: { team: { url: TEAM.url } },
+    })
+    await t.controller.handle({ type: 'clearConversation' })
+    await t.send('l1', 'new')
+    expect(modes.get('s1')).toBe('single-model')
+    expect(endpoint).toHaveBeenCalledTimes(1)
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'page2' })
+    expect(t.server.requestsFor('session/resume').at(-1)?.params?.['config']).not.toMatchObject({
+      mcpServers: { team: {} },
+    })
+    expect(endpoint).toHaveBeenCalledTimes(1)
+  })
+
+  it('decides again for a new conversation', async () => {
+    let mode: 'single-model' | 'team' = 'single-model'
+    const t = setup({
+      ideMcpEndpoint: IDE,
+      grantedCapabilities: ['sessionMcp'],
+      teamMcp: teamMcp(() => mode),
+    })
+    await t.send('l1', 'hi')
+    expect(t.server.requestsFor('session/start')[0]?.params?.['config']).toMatchObject({
+      mcpServers: { ide: { url: IDE.url } },
+    })
+    expect(t.server.requestsFor('session/start')[0]?.params?.['config']).not.toMatchObject({
+      mcpServers: { team: {} },
+    })
+    mode = 'team'
+    await t.controller.handle({ type: 'clearConversation' })
+    await t.send('l2', 'a new topic')
+    expect(t.server.requestsFor('session/start')).toHaveLength(2)
+    expect(t.server.requestsFor('session/start')[1]?.params?.['config']).toMatchObject({
+      mcpServers: { team: { url: TEAM.url } },
+    })
+  })
+
+  it('starts a new conversation on the orchestrator override, and the pill shows it', async () => {
+    const t = setup({
+      ideMcpEndpoint: IDE,
+      grantedCapabilities: ['sessionMcp'],
+      orchestratorSlot: { modelForNewConversation: () => 'opus-override' },
+    })
+    await t.send('l1', 'hi')
+    expect(t.server.requestsFor('session/start')[0]?.params?.['modelId']).toBe('opus-override')
+    const infos = t.surface.posted.filter((message) => message.type === 'sessionInfo')
+    expect(infos.at(-1)).toMatchObject({ modelId: 'opus-override' })
+  })
+
+  it.each([
+    { isConfidentialWorkspace: true, confirmsContributor: true, prompts: [] },
+    {
+      isConfidentialWorkspace: false,
+      confirmsContributor: false,
+      prompts: ['muse-spark-1.3-contributor'],
+    },
+  ])(
+    'keeps the picker when a contributor override is refused ($isConfidentialWorkspace)',
+    async (options) => {
+      const t = setup({
+        ...options,
+        orchestratorSlot: { modelForNewConversation: () => 'muse-spark-1.3-contributor' },
+      })
+      await t.send('l1', 'hi')
+      expect(t.server.requestsFor('session/start')[0]?.params?.['modelId']).toBe('muse-spark-1.3')
+      expect(t.contributorPrompts).toEqual(options.prompts)
+    },
+  )
+})
+
 describe('ConversationController: other messages', () => {
   it('cancels the running turn', async () => {
     const t = setup()
@@ -3709,7 +4075,7 @@ describe('ConversationController: other messages', () => {
       'installMuseCode',
       'cancelSignIn',
       'signOut',
-      // Check again is a click: the CLI is asked afresh (D26).
+      // Check Again is a click: the CLI is asked afresh (D26).
       'checkAgain',
     ])
     expect(t.openExternal).toHaveBeenCalledWith('https://example.invalid/')
@@ -3790,7 +4156,7 @@ describe('ConversationController: other messages', () => {
   })
 })
 
-// --- Session history (M6) ---
+// --- Session History (M6) ---
 
 const storedSession = {
   sessionId: 'old',
@@ -3824,6 +4190,25 @@ function envelope(session: Record<string, unknown>, mode = 'inline') {
     },
     pendingRequests: [],
     viewCursor: 'v:old:9',
+  }
+}
+
+function agentRecoveryHistory(status: string) {
+  const value = envelope({ ...storedSession, sessionId: 's1' })
+  return {
+    ...value,
+    history: {
+      ...value.history,
+      items: [
+        {
+          itemId: 'a',
+          kind: 'subagent',
+          status,
+          subagentId: 'sub-1',
+          objective: 'Original objective',
+        },
+      ],
+    },
   }
 }
 
@@ -4184,6 +4569,152 @@ describe('ConversationController: account & usage (M8)', () => {
     t.server.notify('usage/changed', usage)
     await settle()
     expect(t.surface.posted.filter((message) => message.type === 'usageReport')).toHaveLength(3)
+  })
+
+  it('aggregates today by provider while withholding an unknown dollar total', async () => {
+    const base = {
+      v: 1,
+      type: 'usage',
+      id: 'one',
+      at: 100,
+      day: '2026-10-05',
+      timezoneOffsetMins: 0,
+      client: 'Zed',
+      backend: 'modelApi',
+      provider: 'openai',
+      model: 'gpt-4.1-mini',
+      startedAt: 1,
+      kind: 'turn',
+      outcome: 'completed',
+    } as const
+    const usageRecording: NonNullable<ConversationDeps['usageRecording']> = {
+      note: vi.fn(),
+      limit: vi.fn(),
+      flush: () => Promise.resolve(),
+      today: () =>
+        Promise.resolve([
+          { ...base, tokens: { input: 10, output: 5 }, cost: { certainty: 'computed', usd: 0.1 } },
+          { ...base, id: 'two', tokens: { input: 20, output: 3 }, cost: { certainty: 'unpriced' } },
+          {
+            ...base,
+            id: 'local',
+            provider: 'ollama',
+            tokens: { input: 7, output: 2 },
+            cost: { certainty: 'local', usd: 0 },
+          },
+          {
+            ...base,
+            id: 'uncertain',
+            provider: 'openrouter',
+            tokens: {},
+            cost: { certainty: 'uncertain', usd: 0.2 },
+          },
+        ]),
+    }
+    const t = setup({ usageRecording })
+    expect(await firstUsageReport(t)).toMatchObject({
+      providers: [
+        {
+          providerId: 'openai',
+          providerLabel: 'openai',
+          pricing: 'unpriced',
+          inputTokens: 30,
+          outputTokens: 8,
+        },
+        {
+          providerId: 'ollama',
+          providerLabel: 'ollama',
+          pricing: 'local',
+          inputTokens: 7,
+          outputTokens: 2,
+          costUsd: 0,
+        },
+        {
+          providerId: 'openrouter',
+          providerLabel: 'openrouter',
+          pricing: 'priced',
+          inputTokens: 0,
+          outputTokens: 0,
+        },
+      ],
+    })
+    const report = t.surface.posted.findLast((message) => message.type === 'usageReport')
+    expect(report?.type === 'usageReport' && report.providers?.[0]?.costUsd).toBeUndefined()
+    expect(report?.type === 'usageReport' && report.providers?.[2]?.costUsd).toBeUndefined()
+  })
+
+  it('reads uploaded account files independently of sign-in and delegates explicit cleanup with confirmation', async () => {
+    const report = {
+      provider: 'meta',
+      isReadOnly: true,
+      poolBytes: 100,
+      usedBytes: 3,
+      files: [
+        {
+          fileId: 'file-one',
+          name: 'clip.mp4',
+          bytes: 3,
+          expiresAt: 1_800_000_000,
+          ours: true,
+          sessions: ['s1'],
+        },
+      ],
+    }
+    const port = {
+      read: vi.fn(() => Promise.resolve(report)),
+      post: vi.fn(),
+      deleteFile: vi.fn(async (_id: string, isConfirmed: (name: string) => Promise<boolean>) => {
+        await isConfirmed('other.pdf')
+      }),
+      deleteAllOurs: vi.fn(() => Promise.resolve()),
+      confirmForeign: vi.fn(() => Promise.resolve(false)),
+    }
+    const t = setup({ status: 'signedOut', uploadedFiles: port })
+    await t.controller.readUploadedFiles()
+    expect(port.post).toHaveBeenCalledWith(report)
+    await t.controller.deleteUploadedFiles('file-other')
+    expect(port.confirmForeign).toHaveBeenCalledWith(
+      'Another app may still use other.pdf. Delete it anyway?',
+    )
+    await t.controller.deleteUploadedFiles()
+    expect(port.deleteAllOurs).toHaveBeenCalledOnce()
+  })
+
+  it('refuses byte-bearing uploaded-file reports and does not post after disposal', async () => {
+    const port = {
+      read: vi.fn(() =>
+        Promise.resolve({
+          provider: 'meta',
+          isReadOnly: false,
+          poolBytes: 100,
+          usedBytes: 3,
+          files: [
+            {
+              fileId: 'file-one',
+              name: 'clip.mp4',
+              bytes: 3,
+              ours: true,
+              sessions: [],
+              file_data: 'data:CANARY',
+            },
+          ],
+        }),
+      ),
+      post: vi.fn(),
+      deleteFile: vi.fn(() => Promise.resolve()),
+      deleteAllOurs: vi.fn(() => Promise.resolve()),
+      confirmForeign: vi.fn(() => Promise.resolve(false)),
+    }
+    const t = setup({ uploadedFiles: port })
+    await t.controller.handle({ type: 'readUsage' })
+    expect(port.post).not.toHaveBeenCalled()
+    expect(
+      t.surface.posted.some((message) => message.type === 'notice' && message.level === 'error'),
+    ).toBe(true)
+    t.controller.dispose()
+    port.read.mockClear()
+    await t.controller.readUploadedFiles()
+    expect(port.read).not.toHaveBeenCalled()
   })
 
   it('reports a host failure as a notice', async () => {
@@ -5149,7 +5680,7 @@ describe('ConversationController: session history (M6)', () => {
     expect(noWorkspace.server.requestsFor('session/resume')).toHaveLength(0)
   })
 
-  it('reads a subagent’s child session for the Agent map and reports a failure (M14)', async () => {
+  it('reads a subagent’s child session for the Agent Map and reports a failure (M14)', async () => {
     const t = withHistory()
     t.server.handle('session/read', (params) =>
       envelope({ ...storedSession, sessionId: params['sessionId'], name: 'Explorer' }),
@@ -5172,6 +5703,39 @@ describe('ConversationController: session history (M6)', () => {
     })
   })
 
+  it.each([true, false])(
+    'reads child patches by their owner with parent attached=%s',
+    async (isAttached) => {
+      const t = withHistory()
+      if (isAttached) await t.controller.restoreSession('old')
+      t.server.handle('session/read', (params) => {
+        const value = envelope({ ...storedSession, sessionId: params['sessionId'] })
+        return {
+          ...value,
+          history: {
+            ...value.history,
+            items: [
+              {
+                itemId: 'edit',
+                kind: 'toolCall',
+                status: 'completed',
+                patchRef: { id: 'patch', byteLen: 100 },
+              },
+            ],
+          },
+        }
+      })
+      t.server.handle('item/readOutput', childPatchOutput)
+      await t.controller.handle({ type: 'readChildSession', sessionId: 'child-1' })
+      expect(t.server.requestsFor('item/readOutput')[0]?.params?.['sessionId']).toBe('child-1')
+      expect(t.surface.posted.at(-1)).toMatchObject({
+        type: 'childTranscript',
+        items: [{ changedFiles: [{ path: 'child.ts', added: 0, removed: 0 }] }],
+      })
+      expect(t.server.requestsFor('session/resume')).toHaveLength(isAttached ? 1 : 0)
+    },
+  )
+
   it('does not publish a held child transcript after account stop', async () => {
     const t = withHistory()
     t.server.silence('session/read')
@@ -5191,6 +5755,30 @@ describe('ConversationController: session history (M6)', () => {
     expect(t.surface.posted).not.toContainEqual(
       expect.objectContaining({ type: 'childTranscript', sessionId: 'child-a' }),
     )
+  })
+
+  it('reads sharing from fresh stored history and retires reads after session replacement (M118)', async () => {
+    const t = withHistory()
+    await expect(t.controller.readShareSource(undefined, '2026-10-06T12:00:00Z')).rejects.toThrow(
+      UI_TEXT.exportNothing,
+    )
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    expect(t.controller.shareSessionId()).toBe('old')
+    const source = await t.controller.readShareSource(undefined, '2026-10-06T12:00:00Z')
+    expect(source.sessionId).toBe('old')
+    expect(source.items.map((item) => item.text)).toEqual(['Old prompt', 'Reply'])
+    t.server.silence('session/read')
+    const count = t.server.requestsFor('session/read').length
+    const reading = t.controller.readShareSource(undefined, '2026-10-06T12:00:00Z')
+    await vi.waitFor(() => {
+      expect(t.server.requestsFor('session/read')).toHaveLength(count + 1)
+    })
+    const request = t.server.requestsFor('session/read').at(-1)
+    await t.controller.handle({ type: 'clearConversation' })
+    t.server.incoming.push(
+      `${JSON.stringify({ jsonrpc: '2.0', id: request?.id, result: envelope(storedSession) })}\n`,
+    )
+    await expect(reading).rejects.toThrow(UI_TEXT.sharePreviewExpired)
   })
 
   it('exports the conversation as Markdown or Muse Code’s session log (M30)', async () => {
@@ -5286,14 +5874,14 @@ describe('ConversationController: session history (M6)', () => {
       const { host, controller } = modelApiController(t, { newId: () => 'imported-1' })
       const importing = vi.spyOn(host, 'importSession')
       await controller.handle({ type: 'importSession' })
-      expect(t.exported.picks).toEqual(['Import session'])
+      expect(t.exported.picks).toEqual(['Import Session'])
       const info = t.surface.posted.findLast((message) => message.type === 'sessionInfo')
       const modelId = info?.type === 'sessionInfo' ? info.modelId : ''
       expect(modelId).not.toBe('someone-elses-model')
       expect(t.exported.importsConfirmed).toEqual([
         [
-          'Import session',
-          `From Muse Code (your Muse subscription): 2 messages in this conversation. It continues on ${modelId} and starts in ${label}; session rules, goals, schedules and patches are dropped, and the imported history is treated as untrusted.`,
+          'Import Session',
+          `From Muse Code (Your Muse Subscription): 2 messages in this conversation. It continues on ${modelId} and starts in ${label}; session rules, goals, schedules and patches are dropped, and the imported history is treated as untrusted.`,
         ],
       ])
       expect(importing.mock.calls[0]?.[1]).toEqual({ approvalMode, modelId })
@@ -5426,7 +6014,7 @@ describe('ConversationController: session history (M6)', () => {
     'implements a plan written over imported history as untrusted%s: a mode that asks, never "approved" (M84)',
     async (_case, isRestarted) => {
       const { t, api, controller, source } = await modelApiPlan(
-        '# Clean up\n\n1. Delete the build folder.',
+        '# Clean Up\n\n1. Delete the build folder.',
         'Plan',
         { initialPermissionMode: 'auto', hasApprovalUi: true, transferFileContent: transferFile() },
         async (imported) => {
@@ -5525,7 +6113,7 @@ describe('ConversationController: session history (M6)', () => {
   it('opens a share file read-only in the panel, and refuses one it cannot use (M84)', async () => {
     const t = setup({ transferFileContent: transferFile({ redacted: false }) })
     await t.controller.handle({ type: 'openShareFile' })
-    expect(t.exported.picks).toEqual(['Open share file'])
+    expect(t.exported.picks).toEqual(['Open Share File'])
     expect(t.surface.posted.at(-1)).toEqual({
       type: 'sharePreview',
       title: 'Moved over',
@@ -5544,7 +6132,7 @@ describe('ConversationController: session history (M6)', () => {
     await untitled.controller.handle({ type: 'openShareFile' })
     expect(untitled.surface.posted.at(-1)).toMatchObject({
       type: 'sharePreview',
-      title: 'Muse conversation',
+      title: 'Muse Conversation',
     })
     const broken = setup({ transferFileContent: 'not json' })
     await broken.controller.handle({ type: 'openShareFile' })
@@ -5705,7 +6293,7 @@ describe('ConversationController: backends and tiers (M7)', () => {
       {
         type: 'notice',
         level: 'warning',
-        text: 'Contributor-tier models are blocked in this workspace (museSpark.confidentialWorkspace).',
+        text: UI_TEXT.contributorBlocked,
       },
       expect.objectContaining({ type: 'sessionInfo', modelId: 'muse-spark-1.3' }),
     ])
@@ -6276,8 +6864,8 @@ describe('ConversationController (M15)', () => {
       text: 'inline copy',
     })
     expect(t.opened).toEqual([
-      ['PowerShell tool output (123456)', '{"files":[{"path":"notes.md","hunks":[]}]}#ref-1'],
-      ['Read tool output (123456)', 'inline copy'],
+      ['PowerShell Tool Output (123456)', '{"files":[{"path":"notes.md","hunks":[]}]}#ref-1'],
+      ['Read Tool Output (123456)', 'inline copy'],
     ])
   })
 
@@ -6335,7 +6923,7 @@ describe('ConversationController (M15)', () => {
   })
 
   it('says the captured ledger fault once, as Muse Code’s, and keeps the card waiting (D26)', async () => {
-    const t = setup()
+    const t = setup({ platform: 'win32' })
     await t.send('l1', 'hi')
     t.server.handle('approval/decide', ledgerFault)
     const before = t.surface.posted.length
@@ -6352,7 +6940,7 @@ describe('ConversationController (M15)', () => {
       {
         type: 'notice',
         level: 'warning',
-        text: UI_TEXT.approvalLedgerFault,
+        text: fill(UI_TEXT.approvalLedgerFaultUpdate, { command: MUSE_INSTALL_COMMANDS.win32 }),
         actions: ['newConversation'],
       },
     ])
@@ -6365,7 +6953,43 @@ describe('ConversationController (M15)', () => {
     )
   })
 
-  it('says the captured replay fault once with Restart and New conversation, and restarts on the click (D26)', async () => {
+  it.each([
+    ['1.4.2-R4684.1', true],
+    ['1.4.3', false],
+    ['1.4.3-R5018.1', false],
+    ['1.4.4', false],
+    ['2.0.0', false],
+    ['dev', false],
+  ])(
+    'keeps ledger fault detection on %s and offers an update only below 1.4.3',
+    async (version, needsUpdate) => {
+      const t = setup({
+        platform: 'win32',
+        handshake: { platformOs: 'windows', serverInfo: { name: 'muse', version } },
+      })
+      await t.send('l1', 'hi')
+      t.server.handle('approval/decide', ledgerFault)
+      await t.controller.handle({
+        type: 'decideApproval',
+        approvalId: 'ap-1',
+        choiceId: 'allow_once',
+        requirementId: { approvalId: 'ap-1', sourceIndex: 0 },
+      })
+      expect(t.surface.posted.at(-1)).toMatchObject({
+        type: 'notice',
+        level: 'warning',
+        text: needsUpdate
+          ? fill(UI_TEXT.approvalLedgerFaultUpdate, { command: MUSE_INSTALL_COMMANDS.win32 })
+          : UI_TEXT.approvalLedgerFault,
+        actions: ['newConversation'],
+      })
+      expect(t.surface.posted).not.toContainEqual(
+        expect.objectContaining({ type: 'approvalReopened' }),
+      )
+    },
+  )
+
+  it('says the captured replay fault once with Restart and New Conversation, and restarts on the click (D26)', async () => {
     const t = setup()
     await t.send('l1', 'hi')
     // Whether the next message starts a turn or steers the running one.
@@ -6498,6 +7122,42 @@ describe('ConversationController question cancel (M16)', () => {
     await t.controller.handle({ type: 'cancelQuestion', userInputId: 'q1' })
     expect(t.server.requestsFor('userInput/cancel')).toEqual([])
   })
+
+  it.each(['continue', 'retry'] as const)(
+    'always confirms %s, including Bypass, and respects a denial',
+    async (action) => {
+      const t = setup({ initialPermissionMode: 'bypassPermissions', confirmsFileAction: false })
+      await t.send('l1', 'hi')
+      t.server.handle('session/read', () => agentRecoveryHistory('failed'))
+      const confirm = vi.spyOn(t.deps, 'confirmFileAction')
+      await t.controller.handle({ type: 'subagentControl', subagentId: 'sub-1', action })
+      expect(confirm).toHaveBeenCalledWith(
+        action === 'continue' ? UI_TEXT.agentContinue : UI_TEXT.agentRetry,
+        expect.stringContaining('Original objective'),
+        expect.any(String),
+      )
+      expect(t.server.requestsFor('subagent/followupTask')).toEqual([])
+      expect(t.server.requestsFor('subagent/resume')).toEqual([])
+    },
+  )
+
+  it('refuses recovery when the agent changed during the owner confirmation', async () => {
+    const t = setup({ confirmsFileAction: true })
+    await t.send('l1', 'hi')
+    let status = 'failed'
+    t.server.handle('session/read', () => agentRecoveryHistory(status))
+    vi.spyOn(t.deps, 'confirmFileAction').mockImplementation(() => {
+      status = 'inProgress'
+      return Promise.resolve(true)
+    })
+    await t.controller.handle({ type: 'subagentControl', subagentId: 'sub-1', action: 'continue' })
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      type: 'notice',
+      level: 'error',
+      text: `${UI_TEXT.agentControlFailed}: ${UI_TEXT.agentContinueUnavailable}`,
+    })
+    expect(t.server.requestsFor('subagent/followupTask')).toEqual([])
+  })
 })
 
 describe('ConversationController chat references (M17)', () => {
@@ -6533,6 +7193,24 @@ describe('ConversationController chat references (M17)', () => {
 })
 
 describe('ConversationController subagent controls (M18, M48)', () => {
+  it('M116 refuses a laundered follow-up before the native delegate starts', async () => {
+    const f = integrationFixture()
+    const t = setup({ playbook: () => f.panel })
+    await t.send('l1', 'hi')
+    f.policy.recordRefusal(f.work.commands[0]!, f.work.requester, 'permission')
+    t.server.handle('subagent/followupTask', () => ({ status: 'accepted' }))
+    await t.controller.handle({
+      type: 'subagentMessage',
+      subagentId: 'sub-1',
+      body: 'continue',
+      isFollowup: true,
+    })
+    expect(t.server.requestsFor('subagent/followupTask')).toEqual([])
+    expect(f.events.note.mock.calls.some(([note]) => note.code === 'permissionLaundering')).toBe(
+      true,
+    )
+    t.controller.dispose()
+  })
   it('refuses a paid child follow-up in another panel as sign-out begins', async () => {
     const t = setup()
     await t.send('l1', 'hi')
@@ -6641,6 +7319,9 @@ const bareHostDeps = {
 function modelApiController(
   t: ReturnType<typeof setup>,
   options: {
+    readonly modelId?: string
+    readonly sideCallFormats?: ModelApiHostDeps['sideCallFormats']
+    readonly createGit?: ConversationDeps['createGit']
     readonly workspaceRoot?: string
     readonly platform?: NodeJS.Platform
     readonly io?: ModelApiHostDeps['io']
@@ -6655,6 +7336,7 @@ function modelApiController(
   const api = fakeModelApi()
   const host = new ModelApiHost({
     client: fakeModelApiClient(api, t.log),
+    ...(options.sideCallFormats !== undefined && { sideCallFormats: options.sideCallFormats }),
     workspaceRoot: options.workspaceRoot ?? '/ws',
     platform: options.platform ?? 'linux',
     io: options.io ?? noopToolIo,
@@ -6668,7 +7350,7 @@ function modelApiController(
     getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
     ...disabledPaidFeatures,
     promptCacheRetention: () => 'in_memory',
-    sessionBudgetUsd: () => 0,
+    sessionBudgetUsd: () => Usd.from(0).toAmount(),
     showReplyUsage: () => false,
     ...(options.extensionHooks !== undefined && {
       loadExtensionHooks: () => Promise.resolve(options.extensionHooks ?? []),
@@ -6679,6 +7361,8 @@ function modelApiController(
   })
   const controller = new ConversationController({
     ...t.deps,
+    ...(options.modelId !== undefined && { modelId: options.modelId }),
+    ...(options.createGit !== undefined && { createGit: options.createGit }),
     ensureHost: async () => {
       await options.beforeEnsureHost?.()
       return host
@@ -6739,7 +7423,7 @@ function acceptApprovalDecisions(t: ReturnType<typeof setup>): void {
 
 describe('ConversationController: permission hardening (D24)', () => {
   const choices = [
-    { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+    { choiceId: 'allow_once', label: 'Allow Once', decision: 'approved', scope: 'once' },
     { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
   ]
   function approvalParams(approvalId: string, overrides: Record<string, unknown> = {}) {
@@ -6792,10 +7476,10 @@ describe('ConversationController: permission hardening (D24)', () => {
       rawArgs: JSON.stringify({ command }),
       subject: { kind: 'shell', command },
       availableChoices: [
-        { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+        { choiceId: 'allow_once', label: 'Allow Once', decision: 'approved', scope: 'once' },
         {
           choiceId: 'allow_session',
-          label: `Always allow: ${command}`,
+          label: `Always Allow: ${command}`,
           decision: 'approvedPolicyAmendment',
           scope: 'session',
         },
@@ -6813,7 +7497,7 @@ describe('ConversationController: permission hardening (D24)', () => {
     expect(JSON.stringify(t.surface.posted)).not.toContain(secret)
   })
 
-  it('answers a plain file-write approval itself in Edit automatically, labelled so', async () => {
+  it('answers a plain file-write approval itself in Edit Automatically, labelled so', async () => {
     const t = setup({ hasApprovalUi: true, initialPermissionMode: 'acceptEdits' })
     t.server.handle('approval/decide', (params) => ({
       status: 'accepted',
@@ -6848,7 +7532,7 @@ describe('ConversationController: permission hardening (D24)', () => {
       approvalId: 'a1',
       itemId: 'item-a1',
       decision: 'approved',
-      resolvedBy: 'Edit automatically',
+      resolvedBy: 'Edit Automatically',
     })
   })
 
@@ -8602,7 +9286,7 @@ function noFolderVoice(
   t.auth.snapshot = { status: 'signedIn', backend: 'modelApi', detail: undefined }
   const controller = new ConversationController({
     ...t.deps,
-    modelApiSessionBudgetUsd: () => state.capUsd,
+    modelApiSessionBudgetUsd: () => Usd.from(state.capUsd).toAmount(),
   })
   const capture = () => {
     const current = captures[0]
@@ -9780,6 +10464,27 @@ describe('ConversationController: explanations (M46)', () => {
 const scheduleTestRoot = mkdtempSync(path.join(tmpdir(), 'muse-controller-schedules-'))
 afterAll(() => removeFolder(scheduleTestRoot))
 
+describe('ConversationController: unattended schedules (M115)', () => {
+  it('routes a v2 occurrence to the shared scheduler without the legacy per-run modal', async () => {
+    const fixture = setup()
+    const runScheduledOccurrence = vi
+      .fn<NonNullable<ConversationDeps['runScheduledOccurrence']>>()
+      .mockResolvedValue(undefined)
+    const confirmScheduledRun = vi
+      .fn<NonNullable<ConversationDeps['confirmScheduledRun']>>()
+      .mockResolvedValue(true)
+    const controller = new ConversationController({
+      ...fixture.deps,
+      runScheduledOccurrence,
+      confirmScheduledRun,
+    })
+    await controller.handle({ type: 'scheduleRun', id: 'schedule-v2', occurrenceMs: NOW })
+    expect(runScheduledOccurrence).toHaveBeenCalledExactlyOnceWith('schedule-v2', NOW)
+    expect(confirmScheduledRun).not.toHaveBeenCalled()
+    controller.dispose()
+  })
+})
+
 describe('ConversationController: scheduled prompts (M52)', () => {
   it('creates without spending; an off gate and a declined per-run price keep a due job pending', async () => {
     const clock = { now: NOW }
@@ -9805,7 +10510,7 @@ describe('ConversationController: scheduled prompts (M52)', () => {
       ...bareHostDeps,
       describeEnvironment: () => Promise.resolve({ git: undefined }),
       promptCacheRetention: () => 'in_memory',
-      sessionBudgetUsd: () => 0,
+      sessionBudgetUsd: () => Usd.from(0).toAmount(),
       showReplyUsage: () => false,
       isPaidFeatureOn: () => isPaidOn,
       notePaidUse: () => undefined,
@@ -9954,7 +10659,7 @@ describe('ConversationController: scheduled prompts (M52)', () => {
     expect(api.responseBodies()).toHaveLength(1)
     expect(staleNotices()).toHaveLength(3)
     expect(await scheduleStore.list(sessionId)).toEqual([])
-    // Replacing the Model API key restarts its host, then reports signedIn on
+    // Replacing the Model API Key restarts its host, then reports signedIn on
     // the same backend. Clear the old account's prompts at that first drop.
     await controller.handle({
       type: 'scheduleCreate',
@@ -10162,6 +10867,127 @@ describe('ConversationController: git and pull requests (M71)', () => {
     }
   })
 
+  it.each(['valid', 'repair', 'fallback'] as const)(
+    'binds the production Git draft to the capable session and its guarded %s path',
+    async (reply) => {
+      const t = setup({
+        git: { repository: fakeRepository({ indexChanges: [change('src/a.ts')] }) },
+      })
+      const { api, host, controller } = modelApiController(t, {
+        modelId: M106_CAPTURED_META_MODEL,
+        sideCallFormats: metaSideCallFormats,
+        createGit: conversationGitFactory(
+          () => gitEntry,
+          () => ({
+            window: t.gitFake.window,
+            openPullRequestInConversation: () => Promise.resolve(),
+          }),
+        ),
+      })
+      api.script(
+        { text: reply === 'valid' ? '{"message":"Fix parser"}' : 'invalid' },
+        ...(reply === 'valid'
+          ? []
+          : [{ text: reply === 'repair' ? '{"message":"Fix parser"}' : 'invalid' }]),
+        ...(reply === 'fallback' ? [{ text: 'Fix parser' }] : []),
+      )
+      try {
+        await controller.handle({
+          type: 'sendMessage',
+          localId: 'git-draft',
+          text: UI_TEXT.gitAskCommitMessage,
+          attachmentIds: [],
+          gitDraft: 'commitMessage',
+        })
+        await vi.waitFor(() => {
+          expect(t.surface.posted).toContainEqual({
+            type: 'gitDraft',
+            draft: { kind: 'commitMessage', message: 'Fix parser' },
+          })
+        })
+        const bodies = api.responseBodies()
+        expect(bodies).toHaveLength({ valid: 1, repair: 2, fallback: 3 }[reply])
+        expect(bodies[0]?.['text']).toMatchObject({
+          format: { name: 'commit_draft', strict: true },
+        })
+        if (reply === 'fallback') expect(bodies[2]).not.toHaveProperty('text')
+        const started = t.surface.posted.filter(
+          (message) => message.type === 'agentEvent' && message.event.type === 'turnStarted',
+        )
+        expect(started).toHaveLength(1)
+        api.script({ text: 'Ordinary answer' })
+        await controller.handle({
+          type: 'sendMessage',
+          localId: 'ordinary',
+          text: 'hello',
+          attachmentIds: [],
+        })
+        await vi.waitFor(() => {
+          expect(api.responseBodies()).toHaveLength(bodies.length + 1)
+        })
+        expect(api.responseBodies().at(-1)).not.toHaveProperty('text')
+      } finally {
+        controller.dispose()
+        t.controller.dispose()
+        await host.close()
+      }
+    },
+  )
+
+  it('keeps the prepared Git format on its own submission while another message overtakes autosave', async () => {
+    const t = setup({
+      isAutosaveEnabled: true,
+      git: { repository: fakeRepository({ indexChanges: [change('src/a.ts')] }) },
+    })
+    const held = Promise.withResolvers<undefined>()
+    t.saveAll.mockImplementationOnce(() => held.promise)
+    let nextId = 0
+    const { api, host, controller } = modelApiController(t, {
+      modelId: M106_CAPTURED_META_MODEL,
+      sideCallFormats: metaSideCallFormats,
+      newId: () => `git-race-${String(++nextId)}`,
+    })
+    api.script({ text: 'Ordinary reply' }, { text: '{"message":"Own draft"}' })
+    try {
+      const draft = controller.handle({
+        type: 'sendMessage',
+        localId: 'draft',
+        text: UI_TEXT.gitAskCommitMessage,
+        attachmentIds: [],
+        gitDraft: 'commitMessage',
+      })
+      await vi.waitFor(() => {
+        expect(t.saveAll).toHaveBeenCalledOnce()
+      })
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'ordinary-race',
+        text: 'ordinary',
+        attachmentIds: [],
+      })
+      await vi.waitFor(() => {
+        expect(api.responseBodies()).toHaveLength(1)
+      })
+      expect(api.responseBodies()[0]).not.toHaveProperty('text')
+      held.resolve(undefined)
+      await draft
+      await vi.waitFor(() => {
+        expect(t.surface.posted).toContainEqual({
+          type: 'gitDraft',
+          draft: { kind: 'commitMessage', message: 'Own draft' },
+        })
+      })
+      expect(api.responseBodies()[1]?.['text']).toMatchObject({
+        format: { name: 'commit_draft', strict: true },
+      })
+    } finally {
+      held.resolve(undefined)
+      controller.dispose()
+      t.controller.dispose()
+      await host.close()
+    }
+  })
+
   it('asks for a commit message as the user’s own turn and fills the form from the reply', async () => {
     const t = await askedForCommitMessage()
     const input = t.server.requestsFor('turn/start')[0]?.params?.['input']
@@ -10287,6 +11113,55 @@ const turnStartText = (t: ReturnType<typeof setup>, index = 0) => {
 // M70 (PLAN.md D49): `/review` on both backends, the review pane's reads and
 // reverts, and a comment on a line reaching the agent.
 describe('ConversationController: review (M70)', () => {
+  it('M116 consumes only a completed review and cancels its listener when the session leaves', async () => {
+    const f = integrationFixture()
+    const t = setup({ initialPermissionMode: 'plan', playbook: () => f.panel })
+    await t.controller.handle({
+      type: 'startReview',
+      localId: 'r1',
+      text: '/review inspect the declared module',
+      request: { scope: 'custom', focus: 'general', instructions: 'inspect the declared module' },
+    })
+    // The M79 captured completed-message frame, with extension-owned review text.
+    t.server.notify('item/completed', {
+      ...PLAN_REPLY_COMPLETED,
+      sessionId: 's1',
+      item: {
+        ...PLAN_REPLY_COMPLETED.item,
+        turnId: 't1',
+        text: `\`\`\`muse-review\n${JSON.stringify(reviewBlock())}\n\`\`\``,
+      },
+    })
+    t.finishTurn()
+    await vi.waitFor(() => {
+      expect(latestRound(f.policy).round).toBe(1)
+    })
+    expect(f.registry.review).toHaveBeenCalledWith('s1', [])
+    await t.controller.handle({ type: 'clearConversation' })
+    t.controller.dispose()
+  })
+
+  it('M116 refuses a configured playbook that cannot load before any review request', async () => {
+    const t = setup({
+      initialPermissionMode: 'plan',
+      playbook: () => {
+        throw new Error(UI_TEXT.playbookUnavailable)
+      },
+    })
+    await t.controller.handle({
+      type: 'startReview',
+      localId: 'r1',
+      text: '/review inspect the declared module',
+      request: { scope: 'custom', focus: 'general', instructions: 'inspect the declared module' },
+    })
+    expect(t.server.requestsFor('turn/start')).toEqual([])
+    expect(t.surface.posted).toContainEqual({
+      type: 'sendFailed',
+      localId: 'r1',
+      reason: UI_TEXT.playbookUnavailable,
+    })
+    t.controller.dispose()
+  })
   const GIT_MATERIAL: ReviewCollection = {
     kind: 'material',
     isCurrent: () => true,
@@ -11618,7 +12493,7 @@ async function modelApiPlan(
   }
 }
 
-/** Implement in a fresh conversation on a `modelApiPlan` reply, once its first request is sent. */
+/** Implement in a Fresh Conversation on a `modelApiPlan` reply, once its first request is sent. */
 async function implementModelApiPlan({
   t,
   api,
@@ -12366,7 +13241,7 @@ describe('ConversationController: plans as files (M79)', () => {
   })
 })
 
-/** "Rewind conversation and restore files" on the first turn of `s1` (M72). */
+/** "Rewind Conversation and Restore Files" on the first turn of `s1` (M72). */
 const BOTH_REWIND = {
   type: 'rewindConversation' as const,
   sourceSessionId: 's1',
@@ -12390,7 +13265,7 @@ async function afterFirstTurn(t: ReturnType<typeof setup>): Promise<void> {
   await settle()
 }
 
-/** "Rewind conversation and restore files" from the first card (M72, M86). */
+/** "Rewind Conversation and Restore Files" from the first card (M72, M86). */
 async function restoreAndRewind(
   t: ReturnType<typeof setup>,
   rewind: typeof BOTH_REWIND = BOTH_REWIND,
@@ -13933,7 +14808,9 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     })
 
     const large = await handoffConversation()
-    large.api.script({ text: 'x'.repeat(PLAN_FILE_MAX_BYTES + 1) })
+    // One delta: the bound is on the whole brief, and 52,000 five-character
+    // deltas made this case take seconds on a loaded runner (5 s deadline).
+    large.api.script({ text: 'x'.repeat(PLAN_FILE_MAX_BYTES + 1), isSingleTextDelta: true })
     large.t.surface.posted.length = 0
     await large.controller.handle(handoff('h1'))
     await vi.waitFor(() => {
@@ -14099,7 +14976,7 @@ describe('ConversationController: a slow, wedged or damaged Muse Code (CLI recov
       },
       damagedNotice,
     ])
-    // Its New conversation takes messages again, in a session of its own.
+    // Its New Conversation takes messages again, in a session of its own.
     t.server.handle('session/start', (params) => ({
       session: { sessionId: 's2', modelId: params['modelId'], status: 'idle' },
       viewCursor: '',
@@ -14860,7 +15737,7 @@ describe('ConversationController: the tasks tab (M87, PLAN.md D66)', () => {
   })
 })
 
-describe('ConversationController: the Auto reviewer on Muse Code (M90, PLAN.md D69)', () => {
+describe('ConversationController: the Auto Reviewer on Muse Code (M90, PLAN.md D69)', () => {
   const folder = mkdtempSync(path.join(tmpdir(), 'muse-controller-reviewer-'))
   const root = path.join(folder, 'museCodeReviewer')
   const sideSession = 'side-1'
@@ -15163,6 +16040,239 @@ describe('ConversationController: the Auto reviewer on Muse Code (M90, PLAN.md D
   })
 })
 
+describe('ConversationController: BYO models (M95, PLAN.md D74)', () => {
+  const BYO_MODELS: readonly ModelSummary[] = [
+    {
+      modelId: 'muse-spark-1.3',
+      displayLabel: 'Muse Spark 1.3',
+      contextLimit: 1_007_997,
+      isDefault: false,
+      isActive: false,
+    },
+    {
+      modelId: 'openrouter/deepseek/deepseek-v3',
+      displayLabel: 'DeepSeek V3',
+      contextLimit: 64_000,
+      isDefault: true,
+      isActive: false,
+      providerId: 'openrouter',
+      providerLabel: 'OpenRouter',
+      pricing: 'priced',
+      inputUsdPerMTokens: 0.27,
+      outputUsdPerMTokens: 1.1,
+      isPinned: true,
+    },
+    {
+      modelId: 'ollama/qwen3:8b',
+      displayLabel: 'qwen3:8b',
+      contextLimit: 32_768,
+      isDefault: false,
+      isActive: false,
+      providerId: 'ollama',
+      providerLabel: 'Ollama',
+      pricing: 'local',
+    },
+    {
+      modelId: 'openrouter/any/model',
+      displayLabel: 'Any',
+      contextLimit: undefined,
+      isDefault: false,
+      isActive: false,
+      providerId: 'openrouter',
+      providerLabel: 'OpenRouter',
+      pricing: 'unpriced',
+      trainsOnContent: true,
+    },
+  ]
+
+  /** A panel whose host lists the BYO catalogue instead of the CLI's. */
+  function byoPanel(isConfidential: boolean) {
+    const t = setup({ isConfidentialWorkspace: isConfidential })
+    vi.spyOn(t.host, 'listModels').mockResolvedValue(BYO_MODELS)
+    return t
+  }
+
+  async function listedModels(
+    controller: ConversationController,
+    surface: FakeSurface,
+  ): Promise<HostToWebviewMessage> {
+    controller.surfaceReady()
+    await vi.waitFor(() => {
+      expect(surface.posted.some((message) => message.type === 'modelList')).toBe(true)
+    })
+    const found = surface.posted.find((message) => message.type === 'modelList')
+    if (found === undefined) {
+      throw new Error('the host never listed its models')
+    }
+    return found
+  }
+
+  it('passes provider fields through to the picker', async () => {
+    const t = byoPanel(false)
+    expect(await listedModels(t.controller, t.surface)).toEqual({
+      type: 'modelList',
+      models: [
+        {
+          modelId: 'muse-spark-1.3',
+          displayLabel: 'Muse Spark 1.3',
+          contextLimit: 1_007_997,
+          isDefault: false,
+        },
+        {
+          modelId: 'openrouter/deepseek/deepseek-v3',
+          displayLabel: 'DeepSeek V3',
+          contextLimit: 64_000,
+          isDefault: true,
+          providerId: 'openrouter',
+          providerLabel: 'OpenRouter',
+          pricing: 'priced',
+          inputUsdPerMTokens: 0.27,
+          outputUsdPerMTokens: 1.1,
+          isPinned: true,
+        },
+        {
+          modelId: 'ollama/qwen3:8b',
+          displayLabel: 'qwen3:8b',
+          contextLimit: 32_768,
+          isDefault: false,
+          providerId: 'ollama',
+          providerLabel: 'Ollama',
+          pricing: 'local',
+        },
+        {
+          modelId: 'openrouter/any/model',
+          displayLabel: 'Any',
+          isDefault: false,
+          providerId: 'openrouter',
+          providerLabel: 'OpenRouter',
+          pricing: 'unpriced',
+          trainsOnContent: true,
+        },
+      ],
+    })
+  })
+
+  it('hides a training model where the workspace is confidential', async () => {
+    const t = byoPanel(true)
+    const listed = await listedModels(t.controller, t.surface)
+    expect(listed).toMatchObject({ type: 'modelList' })
+    const ids = listed.type === 'modelList' ? listed.models.map((model) => model.modelId) : []
+    expect(ids).toEqual(['muse-spark-1.3', 'openrouter/deepseek/deepseek-v3', 'ollama/qwen3:8b'])
+  })
+
+  it('refuses a training model where confidential, and still switches it elsewhere', async () => {
+    const t = byoPanel(true)
+    await listedModels(t.controller, t.surface)
+    await t.controller.handle({ type: 'setModel', modelId: 'openrouter/any/model' })
+    const notice = t.surface.posted.findLast((message) => message.type === 'notice')
+    expect(notice).toMatchObject({ level: 'warning', text: UI_TEXT.trainingBlocked })
+    const info = t.surface.posted.findLast((message) => message.type === 'sessionInfo')
+    expect(info).toMatchObject({ modelId: 'muse-spark-1.3' })
+
+    const open = byoPanel(false)
+    await listedModels(open.controller, open.surface)
+    await open.controller.handle({ type: 'setModel', modelId: 'openrouter/any/model' })
+    expect(open.surface.posted.findLast((message) => message.type === 'sessionInfo')).toMatchObject(
+      { modelId: 'openrouter/any/model' },
+    )
+  })
+
+  it.each([
+    {
+      name: 'refuses a training model before the first listing in a confidential workspace',
+      modelId: 'openrouter/any/model',
+      doesListingFail: false,
+    },
+    {
+      name: 'refuses an unknown model where confidential on the wizard’s first save',
+      modelId: 'openrouter/brand/new',
+      doesListingFail: false,
+    },
+    {
+      name: 'refuses confidential admission when privacy resolution fails',
+      modelId: 'ollama/qwen3:8b',
+      doesListingFail: true,
+    },
+  ])('$name', async ({ modelId, doesListingFail }) => {
+    const t = byoPanel(true)
+    if (doesListingFail) {
+      vi.mocked(t.host.listModels).mockRejectedValue(new Error('listing unavailable'))
+    }
+    await t.controller.handle({ type: 'setModel', modelId })
+    expect(t.host.listModels).toHaveBeenCalled()
+    expect(t.surface.posted.findLast((message) => message.type === 'notice')).toMatchObject({
+      level: 'warning',
+      text: UI_TEXT.trainingBlocked,
+    })
+    expect(t.surface.posted.findLast((message) => message.type === 'sessionInfo')).toMatchObject({
+      modelId: 'muse-spark-1.3',
+    })
+  })
+
+  it('resolves a safe model before confidential first-save admission', async () => {
+    const t = byoPanel(true)
+    await t.controller.handle({ type: 'setModel', modelId: 'ollama/qwen3:8b' })
+    expect(t.host.listModels).toHaveBeenCalled()
+    expect(t.surface.posted.findLast((message) => message.type === 'sessionInfo')).toMatchObject({
+      modelId: 'ollama/qwen3:8b',
+    })
+    expect(t.surface.posted.some((message) => message.type === 'notice')).toBe(false)
+  })
+
+  it.each([
+    {
+      name: 'rechecks privacy when a listed safe route changes to training',
+      doesTrain: true,
+      modelId: 'openrouter/deepseek/deepseek-v3',
+      selected: 'muse-spark-1.3',
+    },
+    {
+      name: 'admits a route that current metadata now marks safe',
+      doesTrain: false,
+      modelId: 'openrouter/any/model',
+      selected: 'openrouter/any/model',
+    },
+  ])('$name', async ({ doesTrain, modelId, selected }) => {
+    const t = byoPanel(true)
+    await listedModels(t.controller, t.surface)
+    vi.mocked(t.host.listModels).mockResolvedValue(
+      BYO_MODELS.map((model) => ({
+        ...model,
+        trainsOnContent: doesTrain && model.providerId === 'openrouter',
+      })),
+    )
+    await t.controller.handle({ type: 'setModel', modelId })
+    expect(t.surface.posted.findLast((message) => message.type === 'sessionInfo')).toMatchObject({
+      modelId: selected,
+    })
+  })
+
+  it('does not admit a model after disposal during privacy resolution', async () => {
+    const t = byoPanel(true)
+    const listing = Promise.withResolvers<readonly ModelSummary[]>()
+    vi.mocked(t.host.listModels).mockReturnValue(listing.promise)
+    const choosing = t.controller.handle({ type: 'setModel', modelId: 'ollama/qwen3:8b' })
+    await vi.waitFor(() => {
+      expect(t.host.listModels).toHaveBeenCalled()
+    })
+    t.controller.dispose()
+    listing.resolve(BYO_MODELS)
+    await choosing
+    expect(
+      t.surface.posted.some(
+        (message) => message.type === 'sessionInfo' && message.modelId === 'ollama/qwen3:8b',
+      ),
+    ).toBe(false)
+  })
+
+  it('runs startWithOwnModel for the byo sign-in, never the credential flows', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'signIn', method: 'byo' })
+    expect(t.hostActions).toEqual(['startWithOwnModel'])
+    expect(t.auth.calls).toEqual([])
+  })
+})
+
 /** The controller over `t`'s deps, with a recorder that keeps what it was told. */
 function withReports(
   t: ReturnType<typeof setup>,
@@ -15198,6 +16308,62 @@ function withReports(
 }
 
 describe('report a problem wiring (M93, PLAN.md D72)', () => {
+  it('intercepts report arguments before auth, hooks and backend admission', async () => {
+    const t = setup({ status: 'signedOut' })
+    const showDeterministicReport = vi
+      .fn<(argumentsText: string) => Promise<void>>()
+      .mockResolvedValue(undefined)
+    const ensureHost = vi.fn<ConversationDeps['ensureHost']>()
+    const rewriteMessage = vi.fn<NonNullable<ConversationDeps['rewriteMessage']>>()
+    const controller = new ConversationController({
+      ...t.deps,
+      ensureHost,
+      rewriteMessage,
+      showDeterministicReport,
+    })
+    for (const text of ['/report', '/report milestone M113', '/report\tunknown --oops']) {
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'report-command',
+        text,
+        attachmentIds: ['kept-image'],
+      })
+    }
+    expect(showDeterministicReport.mock.calls).toEqual([
+      [''],
+      ['milestone M113'],
+      ['unknown --oops'],
+    ])
+    expect(ensureHost).not.toHaveBeenCalled()
+    expect(rewriteMessage).not.toHaveBeenCalled()
+    expect(t.server.requestsFor('turn/start')).toHaveLength(0)
+    expect(t.surface.posted).toContainEqual({
+      type: 'sendFailed',
+      localId: 'report-command',
+      reason: UI_TEXT.reportSlashDescription,
+      attachmentsKept: true,
+    })
+    controller.attachReportMarkdown('# Project\nNeeds you')
+    expect(t.surface.posted).toContainEqual({ type: 'insertText', text: '# Project\nNeeds you\n' })
+    expect(t.surface.reveal).toHaveBeenCalled()
+    controller.dispose()
+  })
+
+  it('refuses a local report with no bound surface instead of sending it to a model', async () => {
+    const t = setup({ status: 'signedOut' })
+    await t.controller.handle({
+      type: 'sendMessage',
+      localId: 'local',
+      text: '/report project',
+      attachmentIds: [],
+    })
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'warning',
+      text: UI_TEXT.reportUi.generationFailed,
+    })
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+  })
   it('journals an error notice as a fact and gives its row the reference, never the text', async () => {
     const t = setup()
     const { controller, recorded } = withReports(t)
@@ -15413,7 +16579,7 @@ describe('ConversationController: Muse Judge card lifecycle (M98-U)', () => {
     expect(agentEvents(t).filter((e) => e.type === 'approvalCaution')).toHaveLength(0)
   })
 
-  it('never starts Judge for an immediate native allow in Edit automatically', async () => {
+  it('never starts Judge for an immediate native allow in Edit Automatically', async () => {
     const t = await judgeConversation('acceptEdits')
     t.server.notify('approval/requested', {
       ...raceRequested('s1'),
@@ -15429,6 +16595,466 @@ describe('ConversationController: Muse Judge card lifecycle (M98-U)', () => {
   })
 })
 
+function emptyLegalResult(): LegalScanResult {
+  return {
+    version: LEGAL_RESULT_VERSION,
+    ruleVersion: 'r1',
+    dataVersion: 'd1',
+    scope: '',
+    distribution: 'The workspace ships as a VS Code extension.',
+    exclusions: [],
+    incompleteChecks: [],
+    findings: [],
+  }
+}
+
+interface LegalSetupOptions extends Omit<
+  NonNullable<Parameters<typeof setup>[0]>,
+  'legalScan' | 'createLegalHold'
+> {
+  /** The scan waits here, so a test can act mid-scan. */
+  readonly scanGate?: Promise<void>
+  /** The scan throws this instead of answering. */
+  readonly scanError?: Error
+  readonly withoutScanner?: boolean
+  /** The hold without the scan: still unavailable, never half-held. */
+  readonly holdOnly?: boolean
+}
+
+function legalSetup(options: LegalSetupOptions = {}) {
+  const inputs: LegalScanInput[] = []
+  const signals: AbortSignal[] = []
+  const { scanGate, scanError, withoutScanner, holdOnly, ...rest } = options
+  const t = setup({
+    ...rest,
+    ...(withoutScanner !== true &&
+      holdOnly !== true && {
+        legalScan: async (input: LegalScanInput, signal: AbortSignal) => {
+          inputs.push(input)
+          signals.push(signal)
+          await scanGate
+          if (scanError !== undefined) {
+            throw scanError
+          }
+          return emptyLegalResult()
+        },
+      }),
+    ...((withoutScanner !== true || holdOnly === true) && {
+      createLegalHold: (holdDeps) => new PlanModeHold(holdDeps),
+    }),
+  })
+  return { ...t, inputs, signals }
+}
+
+function legalReports(t: ReturnType<typeof legalSetup>) {
+  return t.surface.posted.filter((message) => message.type === 'legalScanReport')
+}
+
+function legalNotices(t: ReturnType<typeof legalSetup>) {
+  return t.surface.posted.filter((message) => message.type === 'notice')
+}
+
+function legalApprovalModes(t: ReturnType<typeof legalSetup>) {
+  return t.server.requestsFor('session/setApprovalMode').map((request) => request.params?.['mode'])
+}
+
+/** A live conversation with no turn running: the message sent, its turn ended. */
+async function liveLegalConversation(t: ReturnType<typeof legalSetup>) {
+  await t.send('l1', 'hi')
+  t.finishTurn()
+  await settle()
+}
+
+// `/legal` (M97, PLAN.md D76): the deterministic scan on both backends, the
+// Plan-mode hold on a live Muse Code conversation, and the refusals. The
+// scanner is a fake behind lane 0's contract; applying fixes is never this
+// lane's (no write path exists to attempt).
+describe('ConversationController: legal scan (M97)', () => {
+  it.each(['museCode', 'modelApi'] as const)(
+    'scans signed out on %s without starting a backend',
+    async (backendKind) => {
+      const t = legalSetup({ status: 'signedOut', backendKind })
+      await t.controller.handle({ type: 'requestLegalScan' })
+      expect(t.inputs).toHaveLength(1)
+      expect(legalReports(t)).toHaveLength(1)
+      expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    },
+  )
+  it('never scans after trust is lost during hold admission', async () => {
+    const workspaceTrust = { current: true }
+    const t = legalSetup({ backendKind: 'museCode', hasApprovalUi: true, workspaceTrust })
+    await liveLegalConversation(t)
+    t.server.handle('session/setApprovalMode', (params) => {
+      if (params['mode'] === 'denyUnmatched') workspaceTrust.current = false
+      return { mode: params['mode'] }
+    })
+    await t.controller.handle({ type: 'requestLegalScan' })
+    expect(t.inputs).toHaveLength(0)
+    expect(legalReports(t)).toHaveLength(0)
+    expect(legalNotices(t).at(-1)).toMatchObject({ text: UI_TEXT.legalScanUntrusted })
+  })
+  it('reports the first held scanner failure without a second invocation', async () => {
+    const t = legalSetup({
+      backendKind: 'museCode',
+      hasApprovalUi: true,
+      scanError: new Error('first failure'),
+    })
+    await liveLegalConversation(t)
+    await t.controller.handle({ type: 'requestLegalScan' })
+    expect(t.inputs).toHaveLength(1)
+    expect(legalNotices(t).at(-1)).toMatchObject({
+      text: fill(UI_TEXT.legalScanFailed, { reason: 'first failure' }),
+    })
+  })
+  it('refuses a scan while a model send is preparing before its turn acknowledgement', async () => {
+    const t = legalSetup({ backendKind: 'museCode', hasApprovalUi: true, isAutosaveEnabled: true })
+    await liveLegalConversation(t)
+    const saving = Promise.withResolvers<undefined>()
+    t.saveAll.mockClear()
+    t.saveAll.mockImplementationOnce(() => saving.promise)
+    const sending = t.send('l2', 'next turn')
+    await vi.waitFor(() => {
+      expect(t.saveAll).toHaveBeenCalledOnce()
+    })
+    try {
+      await t.controller.handle({ type: 'requestLegalScan' })
+      expect(t.inputs).toHaveLength(0)
+      expect(legalApprovalModes(t)).toHaveLength(0)
+      expect(legalNotices(t).at(-1)).toMatchObject({ text: UI_TEXT.legalScanBusy })
+    } finally {
+      saving.resolve(undefined)
+      await sending
+    }
+  })
+
+  it('holds a new model turn until the scan and mode restoration settle', async () => {
+    const gate = Promise.withResolvers<undefined>()
+    const t = legalSetup({ backendKind: 'museCode', hasApprovalUi: true, scanGate: gate.promise })
+    await liveLegalConversation(t)
+    const scanning = t.controller.handle({ type: 'requestLegalScan' })
+    await vi.waitFor(() => {
+      expect(t.inputs).toHaveLength(1)
+    })
+    const sending = t.send('l2', 'next turn')
+    await settle()
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    gate.resolve(undefined)
+    await scanning
+    await sending
+    expect(t.server.requestsFor('turn/start')).toHaveLength(2)
+    expect(legalApprovalModes(t)).toEqual(['denyUnmatched', 'promptUnmatched'])
+  })
+  it.each([false, true])('Stop aborts the slash scan (live session: %s)', async (live) => {
+    const gate = Promise.withResolvers<undefined>()
+    const t = legalSetup({ backendKind: 'museCode', hasApprovalUi: true, scanGate: gate.promise })
+    if (live) await liveLegalConversation(t)
+    const scanning = t.controller.handle({ type: 'requestLegalScan' })
+    await vi.waitFor(() => {
+      expect(t.inputs).toHaveLength(1)
+    })
+    await t.controller.handle({ type: 'cancelTurn' })
+    expect(t.signals[0]?.aborted).toBe(true)
+    gate.resolve(undefined)
+    await scanning
+    expect(legalReports(t)).toHaveLength(0)
+  })
+
+  it('posts the report for a bare /legal without starting a backend', async () => {
+    const t = legalSetup()
+    await t.controller.handle({ type: 'requestLegalScan', input: {} })
+    expect(t.inputs).toEqual([{}])
+    // A scan never starts a backend (D76): no session, no mode change.
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    expect(legalApprovalModes(t)).toHaveLength(0)
+    expect(legalReports(t)).toEqual([
+      { type: 'legalScanReport', requestId: 'legal-1', result: emptyLegalResult() },
+    ])
+  })
+
+  it('scans an explicit file subset and defaults an omitted input', async () => {
+    const t = legalSetup()
+    await t.controller.handle({ type: 'requestLegalScan', input: { paths: ['a.ts'] } })
+    await t.controller.handle({ type: 'requestLegalScan' })
+    expect(t.inputs).toEqual([{ paths: ['a.ts'] }, {}])
+    expect(legalReports(t)).toHaveLength(2)
+    expect(legalReports(t).map((report) => report.requestId)).toEqual(['legal-1', 'legal-2'])
+  })
+
+  // A refused scan reads nothing and reports nothing: the panel says why.
+  it.each([
+    {
+      name: 'without a scanner, saying the bundle is unavailable',
+      options: { withoutScanner: true },
+      text: UI_TEXT.legalScanUnavailable,
+    },
+    {
+      name: 'half a scanner: the hold without the scan is unavailable',
+      options: { holdOnly: true },
+      text: UI_TEXT.legalScanUnavailable,
+    },
+    {
+      name: 'in an untrusted workspace before reading anything',
+      options: { isWorkspaceTrusted: false },
+      text: UI_TEXT.legalScanUntrusted,
+    },
+  ])('refuses $name', async ({ options, text }) => {
+    const t = legalSetup(options)
+    await t.controller.handle({ type: 'requestLegalScan', input: {} })
+    expect(t.inputs).toHaveLength(0)
+    expect(legalReports(t)).toHaveLength(0)
+    expect(legalNotices(t).at(-1)).toEqual({ type: 'notice', level: 'warning', text })
+  })
+
+  it('starts one scan at a time: a second scan waits its turn', async () => {
+    const gate = Promise.withResolvers<undefined>()
+    const t = legalSetup({ scanGate: gate.promise })
+    const first = t.controller.handle({ type: 'requestLegalScan', input: {} })
+    await vi.waitFor(() => {
+      expect(t.inputs).toHaveLength(1)
+    })
+    await t.controller.handle({ type: 'requestLegalScan', input: {} })
+    expect(t.inputs).toHaveLength(1)
+    expect(legalNotices(t).at(-1)).toMatchObject({ level: 'info', text: UI_TEXT.legalScanBusy })
+    gate.resolve(undefined)
+    await first
+    expect(legalReports(t)).toHaveLength(1)
+  })
+
+  it('waits for the running turn: a scan starts once it has ended', async () => {
+    const t = legalSetup()
+    await t.send('l1', 'hi')
+    await t.controller.handle({ type: 'requestLegalScan', input: {} })
+    expect(t.inputs).toHaveLength(0)
+    expect(legalReports(t)).toHaveLength(0)
+    t.finishTurn()
+    await settle()
+    await t.controller.handle({ type: 'requestLegalScan', input: {} })
+    expect(legalReports(t)).toHaveLength(1)
+  })
+
+  it('redacts scanner failures before showing a panel report', async () => {
+    const t = legalSetup({ scanError: new Error('access_token=synthetic-marker') })
+    await t.controller.handle({ type: 'requestLegalScan' })
+    expect(JSON.stringify(legalNotices(t))).not.toContain('synthetic-marker')
+  })
+
+  it('says why a scan failed, in the scanner’s words', async () => {
+    const t = legalSetup({ scanError: new Error('disk went away') })
+    await t.controller.handle({ type: 'requestLegalScan', input: {} })
+    expect(legalReports(t)).toHaveLength(0)
+    expect(legalNotices(t).at(-1)).toEqual({
+      type: 'notice',
+      level: 'warning',
+      text: fill(UI_TEXT.legalScanFailed, { reason: 'disk went away' }),
+    })
+  })
+
+  it('holds Plan mode around the scan on a live Muse Code conversation and puts it back', async () => {
+    const t = legalSetup({ backendKind: 'museCode', hasApprovalUi: true })
+    await liveLegalConversation(t)
+    expect(legalApprovalModes(t)).toHaveLength(0)
+    await t.controller.handle({ type: 'requestLegalScan', input: {} })
+    await vi.waitFor(() => {
+      expect(legalReports(t)).toHaveLength(1)
+    })
+    expect(legalApprovalModes(t)).toEqual(['denyUnmatched', 'promptUnmatched'])
+    expect(legalNotices(t)).toContainEqual({
+      type: 'notice',
+      level: 'info',
+      text: UI_TEXT.legalScanPlanModeNotice,
+    })
+  })
+
+  // No hold to take, nothing to put back: a live Model API conversation,
+  // and a Muse Code one already in Plan mode.
+  it.each([
+    { name: 'a live Model API conversation', options: { backendKind: 'modelApi' as const } },
+    {
+      name: 'an already-Plan conversation',
+      options: { backendKind: 'museCode' as const, initialPermissionMode: 'plan' as const },
+    },
+  ])('scans $name with no hold to take', async ({ options }) => {
+    const t = legalSetup(options)
+    await liveLegalConversation(t)
+    await t.controller.handle({ type: 'requestLegalScan', input: {} })
+    expect(legalReports(t)).toHaveLength(1)
+    expect(legalApprovalModes(t)).toHaveLength(0)
+  })
+
+  it('a user mode choice mid-scan releases the hold: the scan continues, nothing is put back', async () => {
+    const gate = Promise.withResolvers<undefined>()
+    const t = legalSetup({ backendKind: 'museCode', hasApprovalUi: true, scanGate: gate.promise })
+    await liveLegalConversation(t)
+    const scanning = t.controller.handle({ type: 'requestLegalScan', input: {} })
+    await vi.waitFor(() => {
+      expect(legalApprovalModes(t)).toEqual(['denyUnmatched'])
+    })
+    await t.controller.handle({ type: 'setPermissionMode', mode: 'acceptEdits' })
+    gate.resolve(undefined)
+    await scanning
+    await vi.waitFor(() => {
+      expect(legalReports(t)).toHaveLength(1)
+    })
+    await settle()
+    // The user's choice stands: no restore over it, the panel left there.
+    expect(legalApprovalModes(t)).toEqual(['denyUnmatched', 'promptUnmatched'])
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
+      permissionMode: 'acceptEdits',
+    })
+  })
+
+  it('a dropped scan says nothing: the conversation moved on', async () => {
+    const gate = Promise.withResolvers<undefined>()
+    const t = legalSetup({ scanGate: gate.promise })
+    const scanning = t.controller.handle({ type: 'requestLegalScan', input: {} })
+    await vi.waitFor(() => {
+      expect(t.inputs).toHaveLength(1)
+    })
+    t.controller.dispose()
+    gate.resolve(undefined)
+    await scanning
+    await settle()
+    expect(legalReports(t)).toHaveLength(0)
+    expect(legalNotices(t)).toHaveLength(0)
+  })
+})
+
+describe('the legal selected-fix handoff (M97 lane W)', () => {
+  const header: {
+    id: string
+    severity: 'advice'
+    category: 'codeQualityHeader'
+    file: string
+    line: number
+    evidenceSource: string
+    confidence: number
+    explanation: string
+    recommendation: string
+    fixable: boolean
+  } = {
+    id: 'header/1/1',
+    severity: 'advice',
+    category: 'codeQualityHeader',
+    file: 'src/a.ts',
+    line: 1,
+    evidenceSource: 'header reader',
+    confidence: 1,
+    explanation: 'The file has no copyright header.',
+    recommendation: 'Add the project copyright header.',
+    fixable: true,
+  }
+  const scan = { scanId: 'legal-1', ruleVersion: '1', dataVersion: '2026-10-04', scope: '' }
+
+  const ready = async (
+    over: Pick<Partial<ConversationDeps>, 'legalFixApplier' | 'legalMarkdown'> = {},
+  ) => {
+    const t = setup({
+      ...over,
+      createLegalHold: (holdDeps) => new PlanModeHold(holdDeps),
+      legalScan: () =>
+        Promise.resolve({
+          ...emptyLegalResult(),
+          ruleVersion: '1',
+          dataVersion: '2026-10-04',
+          findings: [header],
+          evidenceFiles: [
+            { path: 'src/a.ts', hash: createHash('sha256').update('example text').digest('hex') },
+          ],
+        }),
+    })
+    await t.controller.handle({ type: 'requestLegalScan' })
+    expect(t.surface.posted.filter((message) => message.type === 'legalScanReport')).toHaveLength(1)
+    return t
+  }
+
+  it('routes a fix preview and refuses the guarded confirm without an applier', async () => {
+    const t = await ready()
+    await t.controller.handle({
+      type: 'requestLegalFix',
+      scan,
+      findings: [header],
+      includeProjectLicense: false,
+    })
+    const preview = t.surface.posted.findLast((message) => message.type === 'legalFixPreview')
+    expect(preview).toMatchObject({
+      eligible: ['header/1/1'],
+      excluded: [],
+      paths: ['src/a.ts'],
+    })
+    if (preview?.type !== 'legalFixPreview' || preview.snapshot === undefined) {
+      throw new Error('expected a stored legal fix preview')
+    }
+    await t.controller.handle({ type: 'confirmLegalFix', previewId: preview.previewId })
+    expect(t.surface.posted.findLast((message) => message.type === 'legalFixResult')).toMatchObject(
+      { outcome: 'refused', refusal: 'fixUnavailable' },
+    )
+  })
+
+  it('F3 a fresh scan after dropping the session can establish new previews', async () => {
+    const t = await ready()
+    await t.controller.handle({ type: 'clearConversation' })
+    await t.controller.handle({ type: 'requestLegalScan' })
+    await t.controller.handle({
+      type: 'requestLegalFix',
+      scan: { ...scan, scanId: 'legal-2' },
+      findings: [header],
+      includeProjectLicense: false,
+    })
+    expect(
+      t.surface.posted.findLast((message) => message.type === 'legalFixPreview'),
+    ).toMatchObject({ eligible: [header.id], paths: ['src/a.ts'] })
+  })
+
+  it('refuses a confirm for an unknown preview', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'confirmLegalFix', previewId: 'nope' })
+    expect(t.surface.posted.findLast((message) => message.type === 'legalFixResult')).toMatchObject(
+      { outcome: 'refused', refusal: 'previewExpired' },
+    )
+  })
+
+  it('rescans after a partial apply and retains its per-path failure after the fresh report', async () => {
+    const apply = vi
+      .fn<NonNullable<ConversationDeps['legalFixApplier']>['apply']>()
+      .mockResolvedValue({
+        applied: [],
+        failed: [{ path: 'src/a.ts', reason: 'Changed bytes' }],
+      })
+    const t = await ready({
+      legalFixApplier: {
+        prepare: () => Promise.resolve([{ path: 'src/a.ts', diff: '+// verified header' }]),
+        apply,
+      },
+    })
+    await t.controller.handle({
+      type: 'requestLegalFix',
+      scan,
+      findings: [header],
+      includeProjectLicense: false,
+    })
+    const preview = t.surface.posted.findLast((message) => message.type === 'legalFixPreview')
+    if (preview?.type !== 'legalFixPreview') throw new Error('missing preview')
+    await t.controller.handle({ type: 'confirmLegalFix', previewId: preview.previewId })
+    expect(apply).toHaveBeenCalledOnce()
+    expect(t.surface.posted.filter((message) => message.type === 'legalScanReport')).toHaveLength(2)
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      type: 'legalFixResult',
+      outcome: 'partial',
+      failed: [{ path: 'src/a.ts', reason: 'Changed bytes' }],
+    })
+  })
+
+  it('exports only the host-owned report after an explicit request, without starting a backend', async () => {
+    const render = vi
+      .fn<(result: LegalScanResult) => string>()
+      .mockReturnValue('legal Markdown with disclaimer')
+    const t = await ready({ legalMarkdown: render })
+    expect(t.exported.markdown).toHaveLength(0)
+    await t.controller.handle({ type: 'exportLegalReport' })
+    expect(render).toHaveBeenCalledOnce()
+    expect(t.exported.markdown).toHaveLength(1)
+  })
+})
 // M112 Q: the real MSP backend, portable registry and controller's submit path.
 async function questionConversation(options: Parameters<typeof runningTurn>[0] = {}) {
   const clock = new FakeQuestionClock()
@@ -15816,5 +17442,494 @@ describe('Design 5 hardware approval presence', () => {
       t.controller.dispose()
       await t.host.close()
     }
+  })
+})
+
+it('shows a fixed Meta service-failure notice with a status action only on that backend', () => {
+  const modelApi = setup()
+  modelApi.auth.snapshot = { status: 'signedIn', backend: 'modelApi', detail: undefined }
+  modelApi.controller.modelApiServiceFailed()
+  expect(modelApi.surface.posted).toContainEqual({
+    type: 'notice',
+    level: 'warning',
+    text: UI_TEXT.modelApiServiceFailure,
+    actions: ['openModelApiStatus'],
+  })
+  const museCode = setup()
+  museCode.controller.modelApiServiceFailed()
+  expect(museCode.surface.posted).not.toContainEqual(
+    expect.objectContaining({ actions: ['openModelApiStatus'] }),
+  )
+})
+
+function syntheticMediaPart() {
+  return { type: 'text' as const, text: 'synthetic media part' }
+}
+function bindSyntheticMediaPart() {
+  return syntheticMediaPart
+}
+function mediaRig(bytes = videoFixture(), backendKind: 'museCode' | 'modelApi' = 'modelApi') {
+  const t = setup({ backendKind })
+  const read = vi.fn((offset: number, length: number) =>
+    Promise.resolve(bytes.subarray(offset, offset + length)),
+  )
+  const close = vi.fn(() => Promise.resolve())
+  const bind = vi.fn(bindSyntheticMediaPart)
+  let token = 0
+  const port = createMediaAttachments({
+    newToken: () => `host-token-${String(++token)}`,
+    open: () => Promise.resolve({ source: { sizeBytes: bytes.length, read }, close }),
+    capabilities: mediaModel,
+    limits: () => ({}),
+    bind,
+  })
+  const load = vi.fn(() => Promise.resolve(port))
+  const files = {
+    ...t.deps.files,
+    canonicalRelativePath: (file: string) =>
+      t.deps.files.canonicalRelativePath(file.replaceAll('\\', '/')),
+  }
+  const controller = new ConversationController({ ...t.deps, files, mediaAttachments: load })
+  return { ...t, controller, files, port, load, read, close, bind }
+}
+
+function recordingPort() {
+  return {
+    l10n: fakeHostContext().l10n,
+    log: new FakeLogOutputChannel(),
+    isRemote: false,
+    maxSeconds: SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
+    attach: vi.fn(() => Promise.resolve(false)),
+  }
+}
+
+describe('M105 E1 attachment handler', () => {
+  it('adds a picked movie using host metadata and asks the picker for every media kind', async () => {
+    const t = mediaRig(videoFixture({ brand: 'qt  ' }))
+    t.setPicked([{ name: 'clip.mov', fsPath: '/ws/clip.mov', relativePath: 'clip.mov' }])
+    const picker = vi.spyOn(t.files, 'showOpenDialog')
+    await t.controller.handle({ type: 'pickFile' })
+    expect(picker.mock.calls[0]?.[0]?.[UI_TEXT.attachTitle]).toEqual(
+      expect.arrayContaining(['mp4', 'mov', 'webm', 'mkv', 'mp3', 'wav', 'm4a']),
+    )
+    const added = t.surface.posted.find((message) => message.type === 'attachmentAdded')
+    expect(added).toMatchObject({
+      type: 'attachmentAdded',
+      attachment: {
+        name: 'clip.mov',
+        media: { info: { kind: 'video', mediaType: 'video/quicktime', hasSoundtrack: true } },
+      },
+    })
+    expect(t.read).toHaveBeenCalled()
+    expect(t.close).toHaveBeenCalledOnce()
+    expect(JSON.stringify(added)).not.toContain('/ws')
+    expect(JSON.stringify(added)).not.toContain('base64')
+    t.controller.dispose()
+  })
+
+  it('routes a confined dropped movie through admission and leaves ordinary text as a mention', async () => {
+    const t = mediaRig()
+    await t.controller.handle({
+      type: 'droppedUris',
+      uris: ['file:///ws/clip.mp4', 'file:///ws/a.ts'],
+    })
+    expect(t.surface.posted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'attachmentAdded',
+          attachment: expect.objectContaining({ name: 'clip.mp4' }),
+        }),
+        { type: 'insertText', text: '@a.ts ' },
+      ]),
+    )
+    expect(t.bind).toHaveBeenCalledWith(
+      expect.objectContaining({ fsPath: '/ws/clip.mp4' }),
+      expect.objectContaining({ kind: 'video' }),
+    )
+    t.controller.dispose()
+  })
+
+  it('names mov, WebM, audio and Muse Code refusals rather than silently inserting mentions', async () => {
+    for (const [name, bytes, backend] of [
+      ['clip.mov', new Uint8Array([1]), 'modelApi'],
+      ['clip.webm', ebmlFixture(), 'modelApi'],
+      ['sound.wav', wavFixture(), 'modelApi'],
+      ['clip.mp4', videoFixture(), 'museCode'],
+    ] as const) {
+      const t = mediaRig(bytes, backend)
+      t.setPicked([{ name, fsPath: `/ws/${name}`, relativePath: name }])
+      await t.controller.handle({ type: 'pickFile' })
+      expect(t.surface.posted).toEqual(
+        expect.arrayContaining([expect.objectContaining({ type: 'attachmentRejected', name })]),
+      )
+      expect(t.surface.posted.some((message) => message.type === 'insertText')).toBe(false)
+      expect(t.bind).not.toHaveBeenCalled()
+      if (backend === 'museCode') expect(t.load).not.toHaveBeenCalled()
+      t.controller.dispose()
+    }
+  })
+
+  it('rejects outside/protected media URIs before reading and invalidates tokens on conversation changes', async () => {
+    const t = mediaRig()
+    await t.controller.handle({
+      type: 'droppedUris',
+      uris: ['file:///elsewhere/clip.mov', 'file:///ws/.git/clip.mp4'],
+    })
+    expect(t.read).not.toHaveBeenCalled()
+    expect(
+      t.surface.posted.filter((message) => message.type === 'attachmentRejected'),
+    ).toHaveLength(2)
+    const token = t.port.issue({
+      name: 'clip.mov',
+      fsPath: '/ws/clip.mov',
+      relativePath: 'clip.mov',
+    })
+    await t.controller.handle({ type: 'attachMedia', requestId: 'accepted', pathToken: token })
+    expect(t.surface.posted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'attachmentAdded', requestId: 'accepted' }),
+      ]),
+    )
+    const stale = t.port.issue({
+      name: 'clip.mov',
+      fsPath: '/ws/clip.mov',
+      relativePath: 'clip.mov',
+    })
+    await t.controller.handle({ type: 'clearConversation' })
+    const reads = t.read.mock.calls.length
+    await t.controller.handle({ type: 'attachMedia', requestId: 'stale', pathToken: stale })
+    expect(t.read).toHaveBeenCalledTimes(reads)
+    expect(t.surface.posted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'attachmentRejected', requestId: 'stale' }),
+      ]),
+    )
+    t.controller.dispose()
+  })
+
+  it('does not add media after a pending preparation loses its conversation', async () => {
+    const t = mediaRig()
+    const { promise: gate, resolve: release } = Promise.withResolvers<undefined>()
+    t.read.mockImplementation(async () => {
+      await gate
+      return videoFixture()
+    })
+    t.setPicked([{ name: 'clip.mp4', fsPath: '/ws/clip.mp4', relativePath: 'clip.mp4' }])
+    const picking = t.controller.handle({ type: 'pickFile' })
+    await vi.waitFor(() => {
+      expect(t.read).toHaveBeenCalled()
+    })
+    await t.controller.handle({ type: 'clearConversation' })
+    release(undefined)
+    await picking
+    expect(t.surface.posted.some((message) => message.type === 'attachmentAdded')).toBe(false)
+    expect(t.bind).not.toHaveBeenCalled()
+    expect(t.close).toHaveBeenCalledOnce()
+    t.controller.dispose()
+  })
+
+  it('rejects a stale epoch before loading and refuses a late successful port after a clear', async () => {
+    const t = mediaRig()
+    t.controller.surfaceReady(5)
+    await t.controller.handle({
+      type: 'attachMedia',
+      requestId: 'old-epoch',
+      pathToken: 'unused',
+      attachmentEpoch: 4,
+    })
+    expect(t.load).not.toHaveBeenCalled()
+    const file = { name: 'clip.mp4', fsPath: '/ws/clip.mp4', relativePath: 'clip.mp4' }
+    const prepared = await t.port.prepare(t.port.issue(file), 'modelApi', t.deps.modelId)
+    const { promise, resolve } = Promise.withResolvers<typeof prepared>()
+    const prepare = vi.spyOn(t.port, 'prepare').mockReturnValue(promise)
+    const adding = t.controller.handle({
+      type: 'attachMedia',
+      requestId: 'late',
+      pathToken: 'held',
+      attachmentEpoch: 5,
+    })
+    await vi.waitFor(() => {
+      expect(prepare).toHaveBeenCalled()
+    })
+    await t.controller.handle({ type: 'clearConversation' })
+    resolve(prepared)
+    await adding
+    expect(t.surface.posted.some((message) => message.type === 'attachmentAdded')).toBe(false)
+    t.controller.dispose()
+  })
+
+  it('refuses an unbound media host without inventing model capability claims', async () => {
+    for (const name of ['clip.mp4', 'sound.wav']) {
+      const t = mediaRig()
+      const controller = new ConversationController(t.deps)
+      t.setPicked([{ name, fsPath: `/ws/${name}`, relativePath: name }])
+      await controller.handle({ type: 'pickFile' })
+      // Unbound is an unavailable pipeline, not an unreadable file (M105 E1 review).
+      expect(t.surface.posted).toContainEqual({
+        type: 'attachmentRejected',
+        name,
+        reason: UI_TEXT.media.uploadStorageUnknown,
+      })
+      expect(t.read).not.toHaveBeenCalled()
+      controller.dispose()
+      t.controller.dispose()
+    }
+  })
+
+  it('banners failed URI confinement reads and suppresses failures after a clear', async () => {
+    const t = mediaRig()
+    const checked = vi
+      .spyOn(t.files, 'canonicalRelativePath')
+      .mockRejectedValue(new Error('unreadable'))
+    await t.controller.handle({ type: 'droppedUris', uris: ['file:///ws/clip.mp4'] })
+    // A confinement check that throws refuses; nothing was read (M105 E1 review).
+    expect(t.surface.posted).toContainEqual({
+      type: 'attachmentRejected',
+      name: 'clip.mp4',
+      reason: UI_TEXT.textFilePrivate,
+    })
+    const { promise, reject } =
+      Promise.withResolvers<Awaited<ReturnType<typeof t.files.canonicalRelativePath>>>()
+    checked.mockReturnValue(promise)
+    const dropping = t.controller.handle({ type: 'droppedUris', uris: ['file:///ws/clip.mp4'] })
+    await vi.waitFor(() => {
+      expect(checked).toHaveBeenCalledTimes(2)
+    })
+    await t.controller.handle({ type: 'clearConversation' })
+    const before = t.surface.posted.length
+    reject(new Error('late failure'))
+    await dropping
+    expect(t.surface.posted).toHaveLength(before)
+    expect(t.read).not.toHaveBeenCalled()
+    t.controller.dispose()
+  })
+
+  it('keeps recording command dependencies within the current live conversation', async () => {
+    const t = mediaRig()
+    expect(await t.controller.recordingCommandDeps()).toBeUndefined()
+    const recording = recordingPort()
+    const { promise, resolve } = Promise.withResolvers<typeof recording>()
+    const load = vi.fn(() => promise)
+    const controller = new ConversationController({ ...t.deps, recordingCommandDeps: load })
+    const pending = controller.recordingCommandDeps()
+    expect(load).toHaveBeenCalledOnce()
+    await controller.handle({ type: 'clearConversation' })
+    resolve(recording)
+    expect(await pending).toBeUndefined()
+    // The seam binds the run to its conversation: liveness, cancel tracking
+    // and Attach admission close over it (M105 E1 review).
+    const bound = await controller.recordingCommandDeps()
+    expect(bound).toMatchObject({
+      isRemote: false,
+      maxSeconds: SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
+    })
+    expect(bound?.isLive?.()).toBe(true)
+    expect(typeof bound?.trackRun).toBe('function')
+    expect(bound?.attach).not.toBe(recording.attach)
+    // Clearing the conversation ends liveness; dispose ends the seam.
+    await controller.handle({ type: 'clearConversation' })
+    expect(bound?.isLive?.()).toBe(false)
+    expect(await controller.recordingCommandDeps()).not.toBe(recording)
+    controller.dispose()
+    expect(await controller.recordingCommandDeps()).toBeUndefined()
+    expect(load).toHaveBeenCalledTimes(3)
+    t.controller.dispose()
+  })
+
+  it('cancels a tracked recording when its conversation clears or closes', async () => {
+    for (const end of ['clear', 'dispose'] as const) {
+      const t = mediaRig()
+      const recording = recordingPort()
+      const controller = new ConversationController({
+        ...t.deps,
+        recordingCommandDeps: () => Promise.resolve(recording),
+      })
+      const bound = await controller.recordingCommandDeps()
+      const cancel = vi.fn(() => Promise.resolve())
+      const untrack = bound?.trackRun?.(cancel)
+      expect(typeof untrack).toBe('function')
+      if (end === 'clear') await controller.handle({ type: 'clearConversation' })
+      else controller.dispose()
+      expect(cancel).toHaveBeenCalledOnce()
+      expect(bound?.isLive?.()).toBe(false)
+      untrack?.()
+      controller.dispose()
+      t.controller.dispose()
+    }
+  })
+
+  it('admits a recording preview as a flagged chip and drops its temp file with the chip', async () => {
+    const t = mediaRig(videoFixture({ brand: 'qt  ' }))
+    const recording = recordingPort()
+    const controller = new ConversationController({
+      ...t.deps,
+      files: t.files,
+      mediaAttachments: t.load,
+      recordingCommandDeps: () => Promise.resolve(recording),
+    })
+    const bound = await controller.recordingCommandDeps()
+    if (bound?.attach === undefined) throw new Error('expected bound attach')
+    const dispose = vi.fn(() => Promise.resolve())
+    const isAdmitted = await bound.attach(
+      {
+        path: '/private/recording/clip.mp4',
+        info: {
+          kind: 'video',
+          mediaType: 'video/mp4',
+          sizeBytes: 512,
+          durationSeconds: 10,
+          hasSoundtrack: false,
+        },
+        dispose,
+      },
+      true,
+    )
+    expect(isAdmitted).toBe(true)
+    const added = t.surface.posted.find((message) => message.type === 'attachmentAdded')
+    expect(added).toMatchObject({
+      attachment: { media: { info: { kind: 'video' }, isScreenRecording: true } },
+    })
+    // The host attach (unwrapped) is never the admission path.
+    expect(recording.attach).not.toHaveBeenCalled()
+    const id = added?.type === 'attachmentAdded' ? added.attachment.id : 'missing'
+    await controller.handle({ type: 'removeAttachment', id })
+    expect(dispose).toHaveBeenCalledOnce()
+    controller.dispose()
+    t.controller.dispose()
+  })
+
+  it('shares one in-flight media loader across simultaneous tokens and caches it', async () => {
+    const t = mediaRig()
+    const { promise, resolve } = Promise.withResolvers<typeof t.port>()
+    const load = vi.fn(() => promise)
+    const controller = new ConversationController({ ...t.deps, mediaAttachments: load })
+    const file = { name: 'clip.mp4', fsPath: '/ws/clip.mp4', relativePath: 'clip.mp4' }
+    const first = controller.handle({
+      type: 'attachMedia',
+      requestId: 'first',
+      pathToken: t.port.issue(file),
+    })
+    const second = controller.handle({
+      type: 'attachMedia',
+      requestId: 'second',
+      pathToken: t.port.issue(file),
+    })
+    await vi.waitFor(() => {
+      expect(load).toHaveBeenCalledOnce()
+    })
+    resolve(t.port)
+    await Promise.all([first, second])
+    await controller.handle({
+      type: 'attachMedia',
+      requestId: 'third',
+      pathToken: t.port.issue(file),
+    })
+    expect(load).toHaveBeenCalledOnce()
+    expect(t.surface.posted.filter((message) => message.type === 'attachmentAdded')).toHaveLength(3)
+    controller.dispose()
+    t.controller.dispose()
+  })
+
+  it('confines picked media like drops: outside the workspace or protected is refused unread', async () => {
+    for (const picked of [
+      { name: 'clip.mov', fsPath: '/elsewhere/clip.mov', relativePath: undefined },
+      { name: 'clip.mp4', fsPath: '/ws/.git/clip.mp4', relativePath: '.git/clip.mp4' },
+    ]) {
+      const t = mediaRig()
+      const issue = vi.spyOn(t.port, 'issue')
+      t.setPicked([picked])
+      await t.controller.handle({ type: 'pickFile' })
+      expect(t.surface.posted).toContainEqual({
+        type: 'attachmentRejected',
+        name: picked.name,
+        reason: UI_TEXT.textFilePrivate,
+      })
+      expect(issue).not.toHaveBeenCalled()
+      expect(t.read).not.toHaveBeenCalled()
+      t.controller.dispose()
+    }
+  })
+
+  it('says the soundtrack warning the chip cannot, next to the admitted video', async () => {
+    const t = mediaRig(videoFixture({ brand: 'qt  ' }))
+    t.setPicked([{ name: 'clip.mov', fsPath: '/ws/clip.mov', relativePath: 'clip.mov' }])
+    await t.controller.handle({ type: 'pickFile' })
+    expect(t.surface.posted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'attachmentAdded' }),
+        expect.objectContaining({
+          type: 'notice',
+          level: 'warning',
+          text: expect.stringContaining('sound'),
+        }),
+      ]),
+    )
+    t.controller.dispose()
+  })
+})
+
+function fakeEstimatorBinding() {
+  return {
+    estimate: vi.fn((_request: EstimateRequest, _signal: AbortSignal) =>
+      Promise.resolve(fakeEstimate()),
+    ),
+    startWave: vi.fn(() => Promise.resolve(['A'])),
+    price: () => 'fake-price',
+    provisionWaiting: 'M117-P-M109-provider',
+  }
+}
+describe('M117 estimates belong to their conversation', () => {
+  it('returns a correlated failure when the source rejects', async () => {
+    const t = setup()
+    const run = fakeEstimatorBinding()
+    run.estimate.mockRejectedValue(new Error('source-unavailable'))
+    const controller = new ConversationController({ ...t.deps, estimator: run })
+    await controller.handle({
+      type: 'estimateRun',
+      requestId: 'estimate-1',
+      request: fakeEstimate().inputs.request,
+    })
+    expect(t.surface.posted).toContainEqual({
+      type: 'estimatorFailure',
+      requestId: 'estimate-1',
+      reason: 'source-unavailable',
+    })
+    controller.dispose()
+  })
+  it('cancels and drops a held estimate after New Conversation', async () => {
+    const t = setup()
+    const run = fakeEstimatorBinding()
+    const held = Promise.withResolvers<ReturnType<typeof fakeEstimate>>()
+    let signal: AbortSignal | undefined
+    run.estimate = vi.fn((_request, nextSignal) => {
+      signal = nextSignal
+      return held.promise
+    })
+    const controller = new ConversationController({ ...t.deps, estimator: run })
+    const pending = controller.handle({
+      type: 'estimateRun',
+      requestId: 'old',
+      request: fakeEstimate().inputs.request,
+    })
+    await controller.handle({ type: 'clearConversation' })
+    held.resolve(fakeEstimate())
+    await pending
+    expect(signal?.aborted).toBe(true)
+    expect(t.surface.posted.some((message) => message.type === 'estimatorSection')).toBe(false)
+    controller.dispose()
+  })
+  it('forgets first-wave inputs on New Conversation', async () => {
+    const t = setup()
+    const run = fakeEstimatorBinding()
+    const controller = new ConversationController({ ...t.deps, estimator: run })
+    await controller.handle({
+      type: 'estimateRun',
+      requestId: 'old',
+      request: fakeEstimate().inputs.request,
+    })
+    await controller.handle({ type: 'clearConversation' })
+    await controller.handle({ type: 'estimateSpinUp', requestId: 'start', setup: 'current' })
+    expect(run.startWave).not.toHaveBeenCalled()
+    controller.dispose()
   })
 })

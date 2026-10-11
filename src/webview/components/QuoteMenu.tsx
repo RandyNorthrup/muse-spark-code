@@ -11,7 +11,7 @@ export interface QuoteMenuProps {
   readonly onChoose: (intent: QuoteIntent) => void
   readonly onCopy: () => void
   readonly onClose: () => void
-  readonly origin?: MenuPoint | undefined
+  readonly origin?: MenuPoint | HTMLElement | undefined
 }
 
 const [, QUESTION, COMMENT] = CHAT_REFERENCE_INTENTS

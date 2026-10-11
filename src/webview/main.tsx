@@ -18,6 +18,7 @@ import { type ErrorReporter, reportWebviewErrorMessage, webviewErrorReport } fro
 import { vsCodeHostBridge } from './hostBridge'
 import { listenForMaker } from './makerEntry'
 import { installEmbeddedTable } from './installTable'
+import { windowResourceLoader } from './resources/windowPort'
 import { installSurfaceRetry, retrySurface } from './surfaceRetry'
 import { restoredUiState } from './state/snapshot'
 import { createUiStore, listenToHost, persistStore, type UiStore } from './state/store'
@@ -56,7 +57,7 @@ if (rootElement === null) {
  * The report dialog over the crash screen (M93): the store outlives the
  * crashed tree and keeps reducing the host's `reportDraft` answers, so the
  * boundary's crash screen renders the dialog itself while the app's copy is
- * gone with the tree, and a render failure keeps its "Report a problem" way on.
+ * gone with the tree, and a render failure keeps its "Report a Problem" way on.
  */
 function CrashReportDialog({
   store,
@@ -115,6 +116,8 @@ function mountTasks(element: Element): void {
 }
 
 function mountChat(element: Element): void {
+  // Exact prices load outside startup (STARTUP017): the mounted surfaces
+  // fetch the money chunk through its hooks, each retrying on its own.
   const host = vsCodeHostBridge<WebviewToHostMessage | MakerSurfaceMessage>(window)
   listenForMaker(host)
   // What throws here reaches the host's log (M39): a render the boundary
@@ -165,6 +168,8 @@ function mountChat(element: Element): void {
   const postMessage = (message: WebviewToHostMessage) => {
     host.post(message)
   }
+  // M107 U–C1: the window governor's chip, mounted once the host sends a status.
+  const resources = windowResourceLoader(store, postMessage)
 
   createRoot(element).render(
     <>
@@ -181,7 +186,7 @@ function mountChat(element: Element): void {
         }}
         onReload={retrySurface}
       >
-        <App store={store} postMessage={postMessage} />
+        <App store={store} postMessage={postMessage} resources={resources} />
       </ErrorBoundary>
     </>,
   )

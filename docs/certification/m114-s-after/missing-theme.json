@@ -1,0 +1,32 @@
+[
+  {
+    "kind": "one-dark-pro",
+    "hostVersion": "1.130.0",
+    "archive": "zhuangtongfa.material-theme-3.20.2.vsix",
+    "archiveSha256": "4b7eb37f3aeedd11058cba23582c8814d65399ec85aee171274fcb15b4308213",
+    "member": "extension/themes/OneDark-Pro.json",
+    "memberSha256": "186fbbd1ef99a9fb6548fac7a1d354b925a7f9b98da97ef7649e22e20d08c756",
+    "className": "monaco-reduce-motion monaco-workbench linux chromium nosidebar nopanel panel-position-bottom panel-alignment-center vs-dark m114-capture-m114-s-missing-theme-theme-json file-icons-enabled",
+    "variable": "--vscode-contrastActiveBorder",
+    "explicitArchiveEntry": false,
+    "observedValue": null,
+    "rawSha256": "c16e8be11eeb1a65a7f89368e3a1000157d4a2390629afcc2f00040ead7dbbdf",
+    "modelAttempts": 0,
+    "workspace": "/home/randy/lanes/M114S"
+  },
+  {
+    "kind": "dracula",
+    "hostVersion": "1.130.0",
+    "archive": "dracula-theme.theme-dracula-2.25.1.vsix",
+    "archiveSha256": "f4d8c28fc64874b1b959cc90dbd39c84d5d35c9cf203e32b7a758dc9abf5b1cb",
+    "member": "extension/theme/dracula.json",
+    "memberSha256": "ae473d11bdef6ad5d3fc3c6cf3a104e98c9fd8a195f13c5cc1699df33a2537eb",
+    "className": "monaco-reduce-motion monaco-workbench linux chromium nosidebar nopanel panel-position-bottom panel-alignment-center vs-dark m114-capture-m114-s-missing-theme-theme-json file-icons-enabled",
+    "variable": "--vscode-contrastActiveBorder",
+    "explicitArchiveEntry": false,
+    "observedValue": null,
+    "rawSha256": "7805fad8af084db3b0bdc10fcf3345e47dff07f0f7f2b07a85f909cfc5ff1574",
+    "modelAttempts": 0,
+    "workspace": "/home/randy/lanes/M114S"
+  }
+]

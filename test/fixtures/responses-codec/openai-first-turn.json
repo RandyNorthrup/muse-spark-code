@@ -1,0 +1,28 @@
+{
+  "model": "gpt-5.6-luna",
+  "input": [
+    {
+      "type": "message",
+      "role": "user",
+      "content": [{ "type": "input_text", "text": "Fix the typo in README." }]
+    }
+  ],
+  "instructions": "You are a coding agent.",
+  "tools": [
+    {
+      "type": "function",
+      "name": "read",
+      "description": "Read a file",
+      "parameters": { "type": "object", "properties": { "path": { "type": "string" } } },
+      "strict": false
+    }
+  ],
+  "tool_choice": "auto",
+  "reasoning": { "effort": "medium", "summary": "auto" },
+  "stream": true,
+  "store": false,
+  "include": ["reasoning.encrypted_content"],
+  "max_output_tokens": 8192,
+  "prompt_cache_key": "prefix-1",
+  "prompt_cache_retention": "in_memory"
+}

@@ -1,0 +1,47 @@
+
+ RUN  v5.0.2 /Users/randy/lanes/FIXM96K4
+
+ ❯ test/unit/teamNativeLifetime.test.ts (17 tests | 2 failed) 28031ms
+   ❯ M96 K real native lifetime (17)
+     × native macOS reads libproc identity and never mistakes argv for an environment marker 287ms
+     × rechecks the leader identity before KILL after TERM 1363ms
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 15 passed (17)
+   Start at  14:15:08
+   Duration  28.99s (tests 97%, transform 1%, import 1%, setup 1%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > native macOS reads libproc identity and never mistakes argv for an environment marker
+AssertionError: expected { pid: 10582, uid: 502, …(5) } to match object { pid: 10582, …(3) }
+(3 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "executable": "/Users/randy/nd/bin/node",
+-   "launchId": undefined,
++   "launchId": "50e51001-74b8-4a60-a02c-146078db2634",
+    "pid": 10582,
+    "uid": 502,
+  }
+
+ ❯ test/unit/teamNativeLifetime.test.ts:502:26
+    500|         const driver = createNativeOrphanDriver()
+    501|         const identity = await driver.observe(child.pid ?? 0)
+    502|         expect(identity).toMatchObject({
+       |                          ^
+    503|           pid: child.pid,
+    504|           executable: await realpath(process.execPath),
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > rechecks the leader identity before KILL after TERM
+Error: ENOTEMPTY: directory not empty, rmdir '/private/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-native-DEM5w1/team/journal/9db9f4c7-3704-4fdc-9ebf-b7b184404ceb'
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯

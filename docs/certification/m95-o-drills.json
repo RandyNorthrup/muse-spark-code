@@ -1,0 +1,221 @@
+[
+  {
+    "drill": "D1",
+    "machine": "macmini",
+    "mutation": "const key = index === undefined ? `id:${call.id ?? ''}` : `index:${String(index)}`",
+    "replacement": "const key = 'index:0'",
+    "exit": 1,
+    "failed": 6,
+    "tests": [
+      "encodeOllamaRequest keeps the growing-session tool-result prefix and unique fallback ids",
+      "decodeOllamaStream native captures replays counted receipt 04-two-tool-stream with usage at native chunk boundaries",
+      "decodeOllamaStream native captures replays counted receipt 09-two-tool-chunks with usage at native chunk boundaries",
+      "decodeOllamaStream native captures keeps two native indices distinct across lines and byte splits",
+      "decodeOllamaStream native captures matches by native id when index is absent",
+      "Ollama bounds bounds retained output item count"
+    ],
+    "snapshot": "rig=macmini slot=fixm95o-D1 snapshot=bce44829 base=/Users/randy/gates/base-793ff42c18767fd8",
+    "restoredSha256": "dd2ffe62d2159a8522324d1d3368fac9e58a1da3c79933b42ea0671e105e95c3"
+  },
+  {
+    "drill": "D2",
+    "machine": "macmini",
+    "mutation": "callId: call.id ?? `${options.responseId}:call:${String(index)}`",
+    "replacement": "callId: call.id ?? `ollama-call-${String(index)}`",
+    "exit": 1,
+    "failed": 1,
+    "tests": [
+      "encodeOllamaRequest keeps the growing-session tool-result prefix and unique fallback ids"
+    ],
+    "snapshot": "rig=macmini slot=fixm95o-D2 snapshot=d978be30 base=/Users/randy/gates/base-793ff42c18767fd8",
+    "restoredSha256": "dd2ffe62d2159a8522324d1d3368fac9e58a1da3c79933b42ea0671e105e95c3"
+  },
+  {
+    "drill": "D3",
+    "machine": "macmini",
+    "mutation": "if (size > maximum)",
+    "replacement": "if (size > maximum + Number.MAX_SAFE_INTEGER)",
+    "exit": 1,
+    "failed": 6,
+    "tests": [
+      "Ollama bounds bounds an unterminated frame before parsing including multibyte bytes",
+      "Ollama bounds bounds total stream bytes including blank lines",
+      "Ollama bounds bounds each tool argument object",
+      "Ollama bounds bounds accumulated content item bytes",
+      "Ollama bounds bounds accumulated thinking item bytes",
+      "Ollama bounds bounds retained output item count"
+    ],
+    "snapshot": "rig=macmini slot=fixm95o-D3 snapshot=833f92ed base=/Users/randy/gates/base-793ff42c18767fd8",
+    "restoredSha256": "dd2ffe62d2159a8522324d1d3368fac9e58a1da3c79933b42ea0671e105e95c3"
+  },
+  {
+    "drill": "D4",
+    "machine": "macmini",
+    "mutation": "parsed.success && parsed.data.model === model",
+    "replacement": "parsed.success",
+    "exit": 1,
+    "failed": 1,
+    "tests": [
+      "encodeOllamaRequest binds reasoning to its producing model and drops legacy or foreign envelopes"
+    ],
+    "snapshot": "rig=macmini slot=fixm95o-D4 snapshot=c137cec6 base=/Users/randy/gates/base-793ff42c18767fd8",
+    "restoredSha256": "dd2ffe62d2159a8522324d1d3368fac9e58a1da3c79933b42ea0671e105e95c3"
+  },
+  {
+    "drill": "D5",
+    "machine": "macmini",
+    "mutation": "usage = usageOf(frame)\n    break",
+    "replacement": "usage = usageOf(frame)\n    continue",
+    "exit": 1,
+    "failed": 1,
+    "tests": [
+      "decodeOllamaStream native captures finishes at done and closes the source without another read"
+    ],
+    "snapshot": "rig=macmini slot=fixm95o-D5 snapshot=b6f8b498 base=/Users/randy/gates/base-793ff42c18767fd8",
+    "restoredSha256": "dd2ffe62d2159a8522324d1d3368fac9e58a1da3c79933b42ea0671e105e95c3"
+  },
+  {
+    "drill": "D6",
+    "machine": "macmini",
+    "mutation": "throw new Error(UI_TEXT.ollamaModelRequired)",
+    "replacement": "throw new Error('Ollama needs a model id.')",
+    "exit": 1,
+    "failed": 1,
+    "tests": [
+      "encodeOllamaRequest uses the installed language for codec refusals at invocation time"
+    ],
+    "snapshot": "rig=macmini slot=fixm95o-D6 snapshot=2c5b813d base=/Users/randy/gates/base-793ff42c18767fd8",
+    "restoredSha256": "dd2ffe62d2159a8522324d1d3368fac9e58a1da3c79933b42ea0671e105e95c3"
+  },
+  {
+    "drill": "D7",
+    "machine": "macmini",
+    "mutation": "if (options.responseId === '')",
+    "replacement": "if (options.responseId === 'unreachable-drill-value')",
+    "exit": 1,
+    "failed": 1,
+    "tests": ["decodeOllamaStream native captures requires an explicit response identity"],
+    "snapshot": "rig=macmini slot=fixm95o-D7 snapshot=9f8fb6ef base=/Users/randy/gates/base-793ff42c18767fd8",
+    "restoredSha256": "dd2ffe62d2159a8522324d1d3368fac9e58a1da3c79933b42ea0671e105e95c3"
+  },
+  {
+    "drill": "D8",
+    "machine": "macmini",
+    "mutation": "if (callNames.has(item.call_id))",
+    "replacement": "if (callNames.has('unreachable-drill-value'))",
+    "exit": 1,
+    "failed": 1,
+    "tests": [
+      "encodeOllamaRequest refuses duplicate historical call ids rather than rewriting a result"
+    ],
+    "snapshot": "rig=macmini slot=fixm95o-D8 snapshot=f11c17e1 base=/Users/randy/gates/base-793ff42c18767fd8",
+    "restoredSha256": "dd2ffe62d2159a8522324d1d3368fac9e58a1da3c79933b42ea0671e105e95c3"
+  },
+  {
+    "drill": "D9",
+    "machine": "macmini",
+    "mutation": "if (frame.model !== undefined && frame.model !== options.model)",
+    "replacement": "if (frame.model === 'unreachable-drill-value')",
+    "exit": 1,
+    "failed": 1,
+    "tests": [
+      "decodeOllamaStream native captures fails truncated, malformed, provider-error and wrong-model streams"
+    ],
+    "snapshot": "rig=macmini slot=fixm95o-D9 snapshot=8fc84596 base=/Users/randy/gates/base-793ff42c18767fd8",
+    "restoredSha256": "dd2ffe62d2159a8522324d1d3368fac9e58a1da3c79933b42ea0671e105e95c3"
+  },
+  {
+    "drill": "D10",
+    "machine": "macmini",
+    "mutation": "calls.has(key) || (call.id !== undefined && nativeIds.has(call.id))",
+    "replacement": "calls.has('unreachable-drill-value')",
+    "exit": 1,
+    "failed": 1,
+    "tests": [
+      "decodeOllamaStream native captures fails missing identity, conflicting identity and non-object arguments"
+    ],
+    "snapshot": "rig=macmini slot=fixm95o-D10 snapshot=68327577 base=/Users/randy/gates/base-793ff42c18767fd8",
+    "restoredSha256": "dd2ffe62d2159a8522324d1d3368fac9e58a1da3c79933b42ea0671e105e95c3"
+  },
+  {
+    "drill": "D11",
+    "machine": "macmini",
+    "mutation": "(index === undefined && call.id === undefined)",
+    "replacement": "(index === undefined && call.id === 'unreachable-drill-value')",
+    "exit": 1,
+    "failed": 1,
+    "tests": [
+      "decodeOllamaStream native captures fails missing identity, conflicting identity and non-object arguments"
+    ],
+    "snapshot": "rig=macmini slot=fixm95o-D11 snapshot=d2dca82f base=/Users/randy/gates/base-793ff42c18767fd8",
+    "restoredSha256": "dd2ffe62d2159a8522324d1d3368fac9e58a1da3c79933b42ea0671e105e95c3"
+  },
+  {
+    "drill": "D12",
+    "machine": "macmini",
+    "mutation": "options: { num_ctx: options.numCtx, num_predict: body.max_output_tokens }",
+    "replacement": "options: { num_predict: body.max_output_tokens }",
+    "exit": 1,
+    "failed": 5,
+    "tests": [
+      "encodeOllamaRequest pins first-turn bytes",
+      "encodeOllamaRequest pins tool-loop reasoning and result bytes",
+      "encodeOllamaRequest pins image bytes and omits empty tools",
+      "encodeOllamaRequest pins packed-output bytes",
+      "encodeOllamaRequest pins compaction bytes with tools and history"
+    ],
+    "snapshot": "rig=macmini slot=fixm95o-D12 snapshot=bf898c0e base=/Users/randy/gates/base-793ff42c18767fd8",
+    "restoredSha256": "dd2ffe62d2159a8522324d1d3368fac9e58a1da3c79933b42ea0671e105e95c3"
+  },
+  {
+    "drill": "D13",
+    "machine": "macmini",
+    "mutation": "arguments: z.record(z.string(), z.unknown())",
+    "replacement": "arguments: z.unknown()",
+    "exit": 1,
+    "failed": 1,
+    "tests": [
+      "decodeOllamaStream native captures fails missing identity, conflicting identity and non-object arguments"
+    ],
+    "snapshot": "rig=macmini slot=fixm95o-D13 snapshot=86491fd5 base=/Users/randy/gates/base-793ff42c18767fd8",
+    "restoredSha256": "dd2ffe62d2159a8522324d1d3368fac9e58a1da3c79933b42ea0671e105e95c3"
+  },
+  {
+    "drill": "D14",
+    "machine": "macmini",
+    "mutation": "!Number.isSafeInteger(index) || index < 0",
+    "replacement": "index === -100",
+    "exit": 1,
+    "failed": 2,
+    "tests": [
+      "decodeOllamaStream native captures rejects invalid native tool index -1",
+      "decodeOllamaStream native captures rejects invalid native tool index 1.5"
+    ],
+    "snapshot": "rig=macmini slot=fixm95o-D14 snapshot=1e4c2b9d base=/Users/randy/gates/base-793ff42c18767fd8",
+    "restoredSha256": "dd2ffe62d2159a8522324d1d3368fac9e58a1da3c79933b42ea0671e105e95c3"
+  },
+  {
+    "drill": "D15",
+    "machine": "macmini",
+    "mutation": "call.id === '' ||",
+    "replacement": "call.id === 'unreachable-drill-value' ||",
+    "exit": 1,
+    "failed": 1,
+    "tests": ["decodeOllamaStream native captures rejects empty native tool id"],
+    "snapshot": "rig=macmini slot=fixm95o-D15 snapshot=6e892b0f base=/Users/randy/gates/base-793ff42c18767fd8",
+    "restoredSha256": "dd2ffe62d2159a8522324d1d3368fac9e58a1da3c79933b42ea0671e105e95c3"
+  },
+  {
+    "drill": "D16",
+    "machine": "macmini",
+    "mutation": "throw new Error(UI_TEXT.ollamaModelRequired)",
+    "replacement": "throw new Error('Ollama needs a model id.')",
+    "exit": 1,
+    "failed": 1,
+    "tests": [
+      "encodeOllamaRequest uses the installed language for codec refusals at invocation time"
+    ],
+    "snapshot": "rig=macmini slot=fixm95o-D16 snapshot=77364173 base=/Users/randy/gates/base-793ff42c18767fd8",
+    "restoredSha256": "e09c954e14e8ef176d5559a13553f8a9f416570906b2ae41a6f795f3564d60e8"
+  }
+]

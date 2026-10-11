@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { referenceModel } from '../../src/shared/reference/reference.generated'
@@ -15,6 +15,9 @@ import { initialUiState } from '../../src/webview/state/uiState'
 import { createUiStore } from '../../src/webview/state/store'
 import { testSettings } from './helpers/fakes'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+
+beforeAll(warmDeferredSurfaces)
 
 const deliver = (data: HostToWebviewMessage) => {
   act(() => {
@@ -50,6 +53,11 @@ function page(givenValues = values) {
   )
   return { postMessage, onClose }
 }
+// The case renders the whole reference and searches each section; a hosted
+// runner with coverage took 4.7 s, near the default deadline.
+// PLAN.md §8 (2026-10-07).
+const FULL_REFERENCE_SEARCH_TIMEOUT_MS = 20_000
+
 describe('shared Help & Reference page', () => {
   it('shows all five searchable sections and current/default values', () => {
     const { postMessage } = page()
@@ -67,7 +75,7 @@ describe('shared Help & Reference page', () => {
     expect(within(section).getByText('false')).toBeInTheDocument()
     expect(within(section).getByText('true')).toBeInTheDocument()
     fireEvent.click(
-      within(section).getByRole('button', { name: 'Open setting: museSpark.modelApiTab' }),
+      within(section).getByRole('button', { name: 'Open Setting: museSpark.modelApiTab' }),
     )
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'openReferenceSetting',
@@ -96,7 +104,7 @@ describe('shared Help & Reference page', () => {
       type: 'runReferenceCommand',
       command: 'museSpark.showLogs',
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Documentation: Code intelligence' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Documentation: Code Intelligence' }))
     expect(postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'openExternal' }))
   })
   it('uses installed control, command and setting translations', () => {
@@ -254,26 +262,34 @@ describe('RVHELPREF2 presentation truth', () => {
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: shown } })
     expect(screen.getByText(shown)).toBeInTheDocument()
   })
-  it('C03 searches JSON exactly as rendered for settings, feature facts and CLI contracts', () => {
-    page()
-    const cases = [
-      { section: EN.referenceSettings, heading: 'museSpark.checkCommands', query: '"maxItems": 8' },
-      {
-        section: EN.referenceFeatures,
-        heading: EN.attachmentsLabel,
-        query: '"textBytes": 1048576',
-      },
-      { section: 'ACP / CLI', heading: 'exec: --max-requests <value>', query: '"default": 30' },
-    ]
-    for (const { section, heading, query } of cases) {
-      fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } })
-      const region = screen.getByRole('region', { name: section })
-      const row = within(region).getByRole('heading', { name: heading }).closest('article')
-      expect(row?.querySelector('pre')?.textContent).toContain(query)
-      fireEvent.change(screen.getByRole('searchbox'), { target: { value: query } })
-      expect(within(region).getByRole('heading', { name: heading })).toBeInTheDocument()
-    }
-  })
+  it(
+    'C03 searches JSON exactly as rendered for settings, feature facts and CLI contracts',
+    () => {
+      page()
+      const cases = [
+        {
+          section: EN.referenceSettings,
+          heading: 'museSpark.checkCommands',
+          query: '"maxItems": 8',
+        },
+        {
+          section: EN.referenceFeatures,
+          heading: EN.attachmentsLabel,
+          query: '"textBytes": 1048576',
+        },
+        { section: 'ACP / CLI', heading: 'exec: --max-requests <value>', query: '"default": 30' },
+      ]
+      for (const { section, heading, query } of cases) {
+        fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } })
+        const region = screen.getByRole('region', { name: section })
+        const row = within(region).getByRole('heading', { name: heading }).closest('article')
+        expect(row?.querySelector('pre')?.textContent).toContain(query)
+        fireEvent.change(screen.getByRole('searchbox'), { target: { value: query } })
+        expect(within(region).getByRole('heading', { name: heading })).toBeInTheDocument()
+      }
+    },
+    FULL_REFERENCE_SEARCH_TIMEOUT_MS,
+  )
   it('B03 every webview shortcut uses its own description, with Tab prose only on inline suggestions', () => {
     page()
     const section = screen.getByRole('region', { name: EN.referenceShortcuts })
@@ -319,4 +335,11 @@ describe('RVHELPREF2 presentation truth', () => {
       expect(section.querySelectorAll('article').length, query).toBeGreaterThan(0)
     }
   })
+})
+
+it('gives every Help element a unique document ID', () => {
+  page()
+  const ids = Array.from(document.querySelectorAll('[id]'), (element) => element.id)
+  expect(ids.length).toBeGreaterThan(0)
+  expect(new Set(ids).size).toBe(ids.length)
 })

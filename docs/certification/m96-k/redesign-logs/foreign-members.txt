@@ -1,0 +1,101 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamProcessOwnership.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/REDM96K
+
+ ❯ test/unit/teamProcessOwnership.test.ts (10 tests | 3 failed) 24ms
+   ❯ M96 K signal-time ownership (10)
+     × macOS group signals require a final owned leader: false 13ms
+     × a marked member never authorizes its foreign leader or unmarked siblings 2ms
+     × an exact journal identity may authorize one unmarked process 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamProcessOwnership.test.ts > M96 K signal-time ownership > macOS group signals require a final owned leader: false
+AssertionError: expected { signalled: [ 43, 42 ], …(1) } to deeply equal { signalled: [ 43 ], notOwned: [ 42 ] }
+
+- Expected
++ Received
+
+@@ -2,7 +2,8 @@
+    "notOwned": [
+      42,
+    ],
+    "signalled": [
+      43,
++     42,
+    ],
+  }
+
+ ❯ test/unit/teamProcessOwnership.test.ts:48:26
+     46|           expect(f.signal).not.toHaveBeenCalled()
+     47|         } else {
+     48|           expect(result).toEqual({ signalled: [member.pid], notOwned: …
+       |                          ^
+     49|           expect(f.signal).toHaveBeenCalledWith(member, 'SIGTERM', fal…
+     50|         }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  test/unit/teamProcessOwnership.test.ts > M96 K signal-time ownership > a marked member never authorizes its foreign leader or unmarked siblings
+AssertionError: expected { signalled: [ 43, 42, 44 ], …(1) } to deeply equal { signalled: [ 43 ], …(1) }
+
+- Expected
++ Received
+
+  {
+    "notOwned": [
+      42,
+-     44,
+    ],
+    "signalled": [
+      43,
++     42,
++     44,
+    ],
+  }
+
+ ❯ test/unit/teamProcessOwnership.test.ts:94:57
+     92|     f.table.set(leader.pid, { ...leader, launchId: undefined })
+     93|     f.table.set(44, { ...member, pid: 44, startTime: 'foreign-sibling'…
+     94|     expect(await f.ownership.signal(member, 'SIGTERM')).toEqual({
+       |                                                         ^
+     95|       signalled: [member.pid],
+     96|       notOwned: [leader.pid, 44],
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  test/unit/teamProcessOwnership.test.ts > M96 K signal-time ownership > an exact journal identity may authorize one unmarked process
+AssertionError: expected { signalled: [ 43, 42 ], …(1) } to deeply equal { signalled: [ 43 ], notOwned: [ 42 ] }
+
+- Expected
++ Received
+
+@@ -2,7 +2,8 @@
+    "notOwned": [
+      42,
+    ],
+    "signalled": [
+      43,
++     42,
+    ],
+  }
+
+ ❯ test/unit/teamProcessOwnership.test.ts:107:59
+    105|     f.table.set(member.pid, unmarked)
+    106|     f.table.set(leader.pid, { ...leader, launchId: undefined })
+    107|     expect(await f.ownership.signal(unmarked, 'SIGTERM')).toEqual({
+       |                                                           ^
+    108|       signalled: [member.pid],
+    109|       notOwned: [leader.pid],
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 7 passed (10)
+   Start at  12:44:56
+   Duration  639ms (transform 46%, setup 26%, import 22%, tests 5%, worker 1%)

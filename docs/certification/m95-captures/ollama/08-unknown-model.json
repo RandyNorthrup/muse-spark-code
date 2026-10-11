@@ -1,0 +1,35 @@
+{
+  "provider": "ollama",
+  "step": "unknown-model",
+  "capturedAt": "2026-10-05T13:19:31.309Z",
+  "billed": false,
+  "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:11434/api/chat",
+    "body": {
+      "model": "no-such-model-m95",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Hi"
+        }
+      ],
+      "options": {
+        "num_ctx": 4096,
+        "num_predict": 256,
+        "temperature": 0
+      },
+      "stream": true
+    }
+  },
+  "response": {
+    "status": 404,
+    "headers": {
+      "content-length": "47",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Mon, 05 Oct 2026 13:19:30 GMT"
+    },
+    "body": "{\"error\":\"model 'no-such-model-m95' not found\"}",
+    "chunkBytes": [47]
+  }
+}

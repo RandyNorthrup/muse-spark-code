@@ -1,0 +1,810 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "v": {
+      "type": "number",
+      "const": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "incomplete",
+        "failed",
+        "cancelled",
+        "timeout",
+        "budget_exceeded",
+        "request_cap",
+        "denied",
+        "auth_required",
+        "backend_unavailable",
+        "internal",
+        "accounting_unverified"
+      ]
+    },
+    "exitCode": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "signal": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": ["SIGINT", "SIGTERM"]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "stopReason": {
+      "type": ["string", "null"]
+    },
+    "terminal": {
+      "type": ["string", "null"]
+    },
+    "incompleteReason": {
+      "type": ["string", "null"]
+    },
+    "backend": {
+      "type": "string",
+      "enum": ["museCode", "modelApi"]
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["plan", "acceptEdits"]
+    },
+    "model": {
+      "type": ["string", "null"]
+    },
+    "sessionId": {
+      "type": ["string", "null"]
+    },
+    "ephemeral": {
+      "type": "boolean"
+    },
+    "finalMessage": {
+      "type": "string"
+    },
+    "filesChanged": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "denials": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "toolCallId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": ["toolCallId", "title", "kind", "paths"],
+        "additionalProperties": false
+      }
+    },
+    "questionsDeclined": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "chunks": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "complete": {
+            "type": "boolean"
+          }
+        },
+        "required": ["name", "bytes", "chunks", "complete"],
+        "additionalProperties": false
+      }
+    },
+    "usage": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inputTokens": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "outputTokens": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cachedTokens": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reasoningTokens": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "costUsd": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "settled": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "uncertain": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "reserved": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "total": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "isUpperBound": {
+                  "type": "boolean"
+                }
+              },
+              "required": ["settled", "uncertain", "reserved", "total", "isUpperBound"],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "paid": {
+          "type": "object",
+          "properties": {
+            "imageAttempts": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "imagesReturned": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "imagesRefunded": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "imagesUncertain": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "settledUsd": {
+              "type": "number",
+              "minimum": 0
+            },
+            "uncertainUsd": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "imageAttempts",
+            "imagesReturned",
+            "imagesRefunded",
+            "imagesUncertain",
+            "settledUsd",
+            "uncertainUsd"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "requests",
+        "inputTokens",
+        "outputTokens",
+        "cachedTokens",
+        "reasoningTokens",
+        "costUsd",
+        "paid"
+      ],
+      "additionalProperties": false
+    },
+    "ledger": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "capUsd": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 20
+            },
+            "breach": {
+              "type": "boolean"
+            },
+            "refusal": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": ["budget", "requests", "closed", "unpriced", "request_shape"]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "lastResponse": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "n": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "terminal": {
+                      "type": ["string", "null"]
+                    },
+                    "incompleteReason": {
+                      "type": ["string", "null"]
+                    },
+                    "endedWithoutTerminal": {
+                      "type": "boolean"
+                    },
+                    "httpStatus": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 100,
+                          "maximum": 599
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "transportError": {
+                      "type": ["string", "null"]
+                    },
+                    "usage": {
+                      "type": "string",
+                      "enum": ["valid", "missing", "invalid"]
+                    },
+                    "settlement": {
+                      "type": "string",
+                      "enum": ["priced", "full-reservation"]
+                    }
+                  },
+                  "required": [
+                    "n",
+                    "terminal",
+                    "incompleteReason",
+                    "endedWithoutTerminal",
+                    "httpStatus",
+                    "transportError",
+                    "usage",
+                    "settlement"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "outputSchemaSha256": {
+              "type": "string",
+              "pattern": "^[a-f\\d]{64}$"
+            }
+          },
+          "required": ["capUsd", "breach", "refusal", "lastResponse"],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "budgetUsd": {
+          "anyOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 20
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "maxRequests": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 21600
+        }
+      },
+      "required": ["budgetUsd", "maxRequests", "timeoutSeconds"],
+      "additionalProperties": false
+    },
+    "durationMs": {
+      "type": "number",
+      "minimum": 0
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": ["kind", "message"],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "value": {},
+        "validation": {
+          "type": "string",
+          "enum": ["provider", "local"]
+        }
+      },
+      "required": ["value", "validation"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "v",
+    "status",
+    "exitCode",
+    "signal",
+    "stopReason",
+    "terminal",
+    "incompleteReason",
+    "backend",
+    "mode",
+    "model",
+    "sessionId",
+    "ephemeral",
+    "finalMessage",
+    "filesChanged",
+    "denials",
+    "questionsDeclined",
+    "inputs",
+    "usage",
+    "ledger",
+    "limits",
+    "durationMs",
+    "error"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "completed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "exitCode": {
+            "const": 0
+          },
+          "signal": {
+            "type": "null"
+          },
+          "error": {
+            "type": "null"
+          },
+          "terminal": {
+            "const": "completed"
+          },
+          "stopReason": {
+            "const": "end_turn"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "incomplete"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "exitCode": {
+            "const": 8
+          },
+          "signal": {
+            "type": "null"
+          },
+          "error": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "failed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "exitCode": {
+            "const": 4
+          },
+          "signal": {
+            "type": "null"
+          },
+          "error": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "timeout"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "exitCode": {
+            "const": 6
+          },
+          "signal": {
+            "type": "null"
+          },
+          "error": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "budget_exceeded"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "exitCode": {
+            "const": 5
+          },
+          "signal": {
+            "type": "null"
+          },
+          "error": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "request_cap"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "exitCode": {
+            "const": 5
+          },
+          "signal": {
+            "type": "null"
+          },
+          "error": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "denied"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "exitCode": {
+            "const": 7
+          },
+          "signal": {
+            "type": "null"
+          },
+          "error": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "auth_required"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "exitCode": {
+            "const": 3
+          },
+          "signal": {
+            "type": "null"
+          },
+          "error": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "backend_unavailable"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "exitCode": {
+            "const": 3
+          },
+          "signal": {
+            "type": "null"
+          },
+          "error": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "internal"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "exitCode": {
+            "const": 1
+          },
+          "signal": {
+            "type": "null"
+          },
+          "error": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "accounting_unverified"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "exitCode": {
+            "const": 9
+          },
+          "signal": {
+            "type": "null"
+          },
+          "error": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "cancelled"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "error": {
+            "type": "object"
+          }
+        },
+        "oneOf": [
+          {
+            "properties": {
+              "signal": {
+                "const": "SIGINT"
+              },
+              "exitCode": {
+                "const": 130
+              }
+            }
+          },
+          {
+            "properties": {
+              "signal": {
+                "const": "SIGTERM"
+              },
+              "exitCode": {
+                "const": 143
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "required": ["output"]
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "completed"
+          },
+          "ledger": {
+            "type": "object",
+            "required": ["outputSchemaSha256"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "completed"
+          },
+          "ledger": {
+            "type": "object",
+            "required": ["outputSchemaSha256"]
+          }
+        }
+      },
+      "then": {
+        "required": ["output"]
+      }
+    }
+  ],
+  "x-runtime-invariants": [
+    "Muse Code has null requests/cost/ledger/budget/request limit and zero paid totals; completed Model API results have accounting. Available cap matches limits and bounds total in micro-USD.",
+    "Completed Model API results require latest completed, valid, priced settlement with no transport failure.",
+    "USD fields are safe integer micro-USD conversions; total = settled + uncertain + reserved in micro-USD.",
+    "Cached tokens <= input tokens; reasoning tokens <= output tokens; counters are safe nonnegative integers.",
+    "Paid returned + refunded + uncertain units <= admitted image attempts.",
+    "Workspace-relative forward-slash paths are deduplicated; input names are basenames.",
+    "M106: output.value is JSON validated against the exact user schema after decoded secret redaction; output.validation is provider for a capability-backed format or local for prompt-text fallback. outputSchemaSha256 digests exact input bytes. A mismatch is failed/4 with error.kind output_schema_mismatch; work exhaustion is output_schema_validation_budget. Neither has output. Schema-free results have neither additive field."
+  ]
+}

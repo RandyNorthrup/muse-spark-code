@@ -1,0 +1,157 @@
+[
+  {
+    "id": "review-bridge-lifetime",
+    "file": "src/webview/playbook/bridge.ts",
+    "before": "response.bridgeId !== lifetime.bridgeId || response.workspaceId !== lifetime.workspaceId",
+    "after": "false",
+    "testFile": "test/unit/PlaybookPanel.test.tsx",
+    "test": "drops disposed bridge replies before a new workspace request can resolve",
+    "exitCode": 1,
+    "beforeSha256": "7a8083386f4eb924aa6b7c3eba400ed24efa0e47b2bfe7d6501cca45c0582e8f",
+    "afterSha256": "7a8083386f4eb924aa6b7c3eba400ed24efa0e47b2bfe7d6501cca45c0582e8f",
+    "observedFailures": [
+      "FAIL  test/unit/PlaybookPanel.test.tsx > shared playbook postMessage boundary > drops disposed bridge replies before a new workspace request can resolve"
+    ]
+  },
+  {
+    "id": "review-bridge-workspace",
+    "file": "src/webview/playbook/bridge.ts",
+    "before": "response.workspaceId !== lifetime.workspaceId",
+    "after": "false",
+    "testFile": "test/unit/PlaybookPanel.test.tsx",
+    "test": "drops disposed bridge replies before a new workspace request can resolve",
+    "exitCode": 1,
+    "beforeSha256": "7a8083386f4eb924aa6b7c3eba400ed24efa0e47b2bfe7d6501cca45c0582e8f",
+    "afterSha256": "7a8083386f4eb924aa6b7c3eba400ed24efa0e47b2bfe7d6501cca45c0582e8f",
+    "observedFailures": [
+      "FAIL  test/unit/PlaybookPanel.test.tsx > shared playbook postMessage boundary > drops disposed bridge replies before a new workspace request can resolve"
+    ]
+  },
+  {
+    "id": "review-combined-order",
+    "file": "src/webview/playbook/PlaybookRows.tsx",
+    "before": "const entries = orderedPlaybookRecords([",
+    "after": "const entries = ([",
+    "testFile": "test/unit/PlaybookPanel.test.tsx",
+    "test": "orders combined agent details ahead of statistics for pending redesigns",
+    "also": "places unresolved pending redesign badges before statistics",
+    "exitCode": 1,
+    "beforeSha256": "ac04e4f9d2322acf34c5131e62e25e0d213d5e7b97e355b06eb10599255607bb",
+    "afterSha256": "ac04e4f9d2322acf34c5131e62e25e0d213d5e7b97e355b06eb10599255607bb",
+    "observedFailures": [
+      "FAIL  test/unit/PlaybookPanel.test.tsx > M116 shared playbook surfaces > orders combined agent details ahead of statistics for pending redesigns",
+      "FAIL  test/unit/PlaybookPanel.test.tsx > M116 shared playbook surfaces > places unresolved pending redesign badges before statistics"
+    ]
+  },
+  {
+    "id": "review-owner-priority",
+    "file": "src/runtime/playbook/text.ts",
+    "before": "if (note.needsUser) return 0",
+    "after": "if (note.needsUser) return 2",
+    "testFile": "test/unit/PlaybookPanel.test.tsx",
+    "test": "orders combined agent details ahead of statistics for remains redesigns",
+    "exitCode": 1,
+    "beforeSha256": "4cc5575268716302cba053828974b554d3202e7dc20728221edb1d35f1d1aada",
+    "afterSha256": "4cc5575268716302cba053828974b554d3202e7dc20728221edb1d35f1d1aada",
+    "observedFailures": [
+      "FAIL  test/unit/PlaybookPanel.test.tsx > M116 shared playbook surfaces > orders combined agent details ahead of statistics for remains redesigns"
+    ]
+  },
+  {
+    "id": "review-unresolved-priority",
+    "file": "src/runtime/playbook/text.ts",
+    "before": "if (entry.kind === 'design' && entry.value.outcome !== 'impossible') return 0",
+    "after": "if (entry.kind === 'design' && entry.value.outcome !== 'impossible') return 2",
+    "testFile": "test/unit/PlaybookPanel.test.tsx",
+    "test": "places unresolved caught redesign badges before statistics",
+    "exitCode": 1,
+    "beforeSha256": "4cc5575268716302cba053828974b554d3202e7dc20728221edb1d35f1d1aada",
+    "afterSha256": "4cc5575268716302cba053828974b554d3202e7dc20728221edb1d35f1d1aada",
+    "observedFailures": [
+      "FAIL  test/unit/PlaybookPanel.test.tsx > M116 shared playbook surfaces > places unresolved caught redesign badges before statistics"
+    ]
+  },
+  {
+    "id": "review-save-focus",
+    "file": "src/webview/playbook/PlaybookPanel.tsx",
+    "before": "if (control != null) control.focus()",
+    "after": "if (control != null) return",
+    "testFile": "test/unit/PlaybookPanel.test.tsx",
+    "test": "restores the submitting control after a rule save and politely announces success",
+    "exitCode": 1,
+    "beforeSha256": "76a251d503b84bb20fcdb8c7462818ee15e54ab2a96cd9f9a814daf15c40f7dd",
+    "afterSha256": "76a251d503b84bb20fcdb8c7462818ee15e54ab2a96cd9f9a814daf15c40f7dd",
+    "observedFailures": [
+      "FAIL  test/unit/PlaybookPanel.test.tsx > M116 shared playbook surfaces > restores the submitting control after a rule save and politely announces success"
+    ]
+  },
+  {
+    "id": "review-save-fallback",
+    "file": "src/webview/playbook/PlaybookPanel.tsx",
+    "before": "else ruleHeading.focus()",
+    "after": "else return",
+    "testFile": "test/unit/PlaybookPanel.test.tsx",
+    "test": "focuses the saved rule heading if the submitting control disappears",
+    "exitCode": 1,
+    "beforeSha256": "76a251d503b84bb20fcdb8c7462818ee15e54ab2a96cd9f9a814daf15c40f7dd",
+    "afterSha256": "76a251d503b84bb20fcdb8c7462818ee15e54ab2a96cd9f9a814daf15c40f7dd",
+    "observedFailures": [
+      "FAIL  test/unit/PlaybookPanel.test.tsx > M116 shared playbook surfaces > focuses the saved rule heading if the submitting control disappears"
+    ]
+  },
+  {
+    "id": "review-save-patch",
+    "file": "src/webview/playbook/PlaybookPanel.tsx",
+    "before": "key={snapshot.settings.teamId}",
+    "after": "key={`${snapshot.settings.teamId}:${String(snapshot.settings.patchRoundsMax)}`}",
+    "testFile": "test/unit/PlaybookPanel.test.tsx",
+    "test": "saves the round limit as a field patch without discarding another rule draft or focus",
+    "exitCode": 1,
+    "beforeSha256": "76a251d503b84bb20fcdb8c7462818ee15e54ab2a96cd9f9a814daf15c40f7dd",
+    "afterSha256": "76a251d503b84bb20fcdb8c7462818ee15e54ab2a96cd9f9a814daf15c40f7dd",
+    "observedFailures": [
+      "FAIL  test/unit/PlaybookPanel.test.tsx > M116 shared playbook surfaces > saves the round limit as a field patch without discarding another rule draft or focus"
+    ]
+  },
+  {
+    "id": "review-save-live",
+    "file": "src/webview/playbook/PlaybookPanel.tsx",
+    "before": "saved?.port === port ? UI_TEXT.playbookSaved : ''",
+    "after": "''",
+    "testFile": "test/unit/PlaybookPanel.test.tsx",
+    "test": "restores the submitting control after a rule save and politely announces success",
+    "exitCode": 1,
+    "beforeSha256": "76a251d503b84bb20fcdb8c7462818ee15e54ab2a96cd9f9a814daf15c40f7dd",
+    "afterSha256": "76a251d503b84bb20fcdb8c7462818ee15e54ab2a96cd9f9a814daf15c40f7dd",
+    "observedFailures": [
+      "FAIL  test/unit/PlaybookPanel.test.tsx > M116 shared playbook surfaces > restores the submitting control after a rule save and politely announces success"
+    ]
+  },
+  {
+    "id": "review-save-no-repeat",
+    "file": "src/webview/playbook/PlaybookPanel.tsx",
+    "before": "if (busy || isUnchanged) return",
+    "after": "if (busy) return",
+    "testFile": "test/unit/PlaybookPanel.test.tsx",
+    "test": "restores the submitting control after a rule save and politely announces success",
+    "exitCode": 1,
+    "beforeSha256": "76a251d503b84bb20fcdb8c7462818ee15e54ab2a96cd9f9a814daf15c40f7dd",
+    "afterSha256": "76a251d503b84bb20fcdb8c7462818ee15e54ab2a96cd9f9a814daf15c40f7dd",
+    "observedFailures": [
+      "FAIL  test/unit/PlaybookPanel.test.tsx > M116 shared playbook surfaces > restores the submitting control after a rule save and politely announces success"
+    ]
+  },
+  {
+    "id": "review-browser-combined-order",
+    "file": "src/webview/playbook/PlaybookRows.tsx",
+    "before": "const entries = orderedPlaybookRecords([",
+    "after": "const entries = ([",
+    "command": ["test/harness/playbook-axe.mjs"],
+    "testFile": "test/harness/playbook-axe.mjs",
+    "test": "Combined agent details put owner failures after statistics",
+    "exitCode": 1,
+    "beforeSha256": "ac04e4f9d2322acf34c5131e62e25e0d213d5e7b97e355b06eb10599255607bb",
+    "afterSha256": "ac04e4f9d2322acf34c5131e62e25e0d213d5e7b97e355b06eb10599255607bb",
+    "observedFailures": ["Error: Combined agent details put owner failures after statistics"]
+  }
+]

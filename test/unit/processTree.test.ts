@@ -32,6 +32,13 @@ import {
 } from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
 import { readJobSource } from './helpers/jobSource'
+import { fakeResourceLease } from './helpers/resources/fakes'
+
+// The real job helper compiles under the bootstrap runner; only its admission is a fixture.
+vi.mock('../../src/core/resources/admission', async (original) => {
+  const { withFixtureBootstrap } = await import('./helpers/resources/fixtureLaunch')
+  return withFixtureBootstrap(await original())
+})
 
 const IS_WINDOWS = process.platform === 'win32'
 
@@ -40,6 +47,26 @@ const deps = {
   systemRoot: process.env['SystemRoot'],
   log: () => undefined,
 }
+
+it('uses registered stop authority even after root exit and never falls back on refusal', async () => {
+  const root = { pid: undefined, exitCode: 0, signalCode: null, kill: vi.fn(), once: vi.fn() }
+  const run = vi.fn<RunProgram>()
+  const resource = fakeResourceLease()
+  await expect(killTree(root, { ...deps, run }, Date.now(), undefined, resource)).rejects.toThrow(
+    'Registered resource tree could not be stopped',
+  )
+  expect(resource.kill).toHaveBeenCalledTimes(1)
+  expect(root.kill).not.toHaveBeenCalled()
+  expect(run).not.toHaveBeenCalled()
+  resource.kill.mockResolvedValue(true)
+  await killTree(root, { ...deps, run }, Date.now(), undefined, resource)
+  resource.kill.mockResolvedValue(false)
+  resource.isTreeGone.mockResolvedValue(true)
+  await sweepExitedTree(undefined, Date.now(), Date.now(), { ...deps, run }, resource)
+  expect(resource.kill).toHaveBeenCalledTimes(3)
+  expect(root.kill).not.toHaveBeenCalled()
+  expect(run).not.toHaveBeenCalled()
+})
 
 function shellWithChild(): ReturnType<typeof spawn> {
   // A parent whose own child keeps the output pipe open for 30 s.

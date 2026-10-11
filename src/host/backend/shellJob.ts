@@ -30,8 +30,9 @@ import {
   type ShellJob,
   windowsPowerShell,
 } from '../processTree'
-import { compileJob, type JobBuild, jobFileName, removeStaleJobs } from './jobBuild'
+import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
 import type { JobHelper } from './jobSource'
+import { isResourcePaused } from '../../core/resources/launch'
 
 // The C# (C# 5, which Windows PowerShell 5.1's `Add-Type` compiles) is the
 // shipped native/windows/MuseSparkJob.cs with the shared Win32 half
@@ -77,11 +78,12 @@ async function prepare(deps: ShellJobDeps): Promise<string | undefined> {
   const run = deps.run ?? runProgram
   try {
     const csharp = await deps.readJobSource('shellJob')
-    const assembly = path.join(deps.storageDir, SHELL_JOB_FOLDER, shellJobAssemblyName(csharp))
+    let assembly = path.join(deps.storageDir, SHELL_JOB_FOLDER, shellJobAssemblyName(csharp))
     if (!(await isPresent(assembly))) {
       await compileJob(ASSEMBLY, assembly, csharp, deps.systemRoot, deps.run)
       await removeStaleJobs(ASSEMBLY, assembly, deps.log)
     }
+    assembly = await nativeJobPath(assembly)
     // Loading the type and joining a job, as a command does, proves both
     // work and the system lets a process start a job of its own here. A
     // failing .NET call ends only its own statement in PowerShell, so the
@@ -100,6 +102,7 @@ async function prepare(deps: ShellJobDeps): Promise<string | undefined> {
     }
     return assembly
   } catch (error: unknown) {
+    if (isResourcePaused(error)) throw error
     deps.log(
       `Windows job objects are unavailable (${String(error)}); a stopped command is ended with taskkill and a sweep for its orphans`,
     )
@@ -113,15 +116,16 @@ export function shellJobAssembly(deps: ShellJobDeps): () => Promise<string | und
   const attempt = async (): Promise<string | undefined> => {
     // Share an in-flight attempt and keep success, but not a transient
     // failure, whether it resolved empty or threw (a throwing logger, say):
-    // a caller always gets an assembly or undefined, never a rejection.
+    // A policy pause propagates; only an unavailable helper permits fallback.
     try {
       const assembly = await prepare(deps)
       if (assembly === undefined) {
         ready = undefined
       }
       return assembly
-    } catch {
+    } catch (error: unknown) {
       ready = undefined
+      if (isResourcePaused(error)) throw error
       return undefined
     }
   }
@@ -138,12 +142,14 @@ export function newShellJob(assemblyPath: string): ShellJob {
  * assembly gone, a policy) is swallowed: the command runs as it would
  * without one, and its kill finds no job and falls back.
  *
+ * Governed launches stop before running a payload if membership cannot be proved.
+ *
  * It names no cmdlet (`loadJobAssembly`): a hook runs in a narrow
  * environment without `PSModuleAnalysisCachePath`, and on GitHub's Windows
  * runner the module analysis an `Add-Type` here set off took 20 s or more
  * and, on a fresh runner, ran past the hook test's 60 s budget before the
  * hook began.
  */
-export function joinStatement(job: ShellJob): string {
-  return `try { ${loadJobAssembly(job.assemblyPath)}; [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(job.name)}) } catch { }; `
+export function joinStatement(job: ShellJob, isGoverned = false): string {
+  return `try { ${loadJobAssembly(job.assemblyPath)}; [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(job.name)}) } catch {${isGoverned ? ' exit 1' : ''} }; `
 }

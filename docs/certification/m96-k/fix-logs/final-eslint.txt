@@ -1,0 +1,2 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'eslint' --max-warnings=0 src/host/team/processLifetime.ts src/host/team/windowHints.ts src/host/team/loadGuard.ts test/unit/teamProcessLifetime.test.ts test/unit/teamHintsAndLoad.test.ts test/unit/teamNativeLifetime.test.ts

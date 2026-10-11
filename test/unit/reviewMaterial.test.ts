@@ -57,7 +57,8 @@ async function repository(name: string): Promise<string> {
 async function commitFile(folder: string, file: string, text: string, message: string) {
   await mkdir(path.dirname(path.join(folder, file)), { recursive: true })
   await writeFile(path.join(folder, file), text)
-  git(folder, ['add', file])
+  // Secret-path fixtures must exist even when the rig's global ignore hides them.
+  git(folder, ['add', '--force', file])
   git(folder, ['commit', '-q', '-m', message])
 }
 
@@ -228,6 +229,8 @@ describe('the uncommitted changes', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
       const folder = await repository('quoted')
       await commitFile(folder, 'a.ts', 'a\n', 'first')
       await writeFile(path.join(folder, 'a.ts'), 'b\n')
+      // Override lower-priority global ignores only in this test-owned repo.
+      await writeFile(path.join(folder, '.git/info/exclude'), '!.env\n')
       await mkdir(path.join(folder, 'we"ird'))
       await writeFile(path.join(folder, 'we"ird', '.env'), 'TOKEN=sk-quoted-secret\n')
       const found = material(

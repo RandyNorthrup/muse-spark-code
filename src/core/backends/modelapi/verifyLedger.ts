@@ -233,6 +233,11 @@ export class VerifyLedger {
     return Array.from(this.files, ([, file]) => file)
   }
 
+  /** No lazy verification runtime is needed before an edit or an unjudged run. */
+  public needsRoundVerification(): boolean {
+    return this.roundFiles.size > 0 || this.runs.length > this.judgedUpTo
+  }
+
   /** The files written in the round that just ended, taken for its checks. */
   public takeRoundEdits(): readonly EditedFile[] {
     const edited = Array.from(this.roundFiles, ([, file]) => file)

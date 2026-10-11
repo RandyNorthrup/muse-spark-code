@@ -19,7 +19,7 @@ function Openable({
     <div
       role="button"
       tabIndex={0}
-      className="tool-open"
+      className="tool-open chat-control"
       title={UI_TEXT.openOutputTitle}
       onClick={onOpen}
       onKeyDown={(event) => {
@@ -63,7 +63,7 @@ export function Clipped({
       {isLong ? (
         <button
           type="button"
-          className="tool-more"
+          className="tool-more chat-control"
           aria-expanded={isExpanded}
           onClick={() => {
             setIsExpanded(!isExpanded)
@@ -107,7 +107,7 @@ export function DiffTable({
       {onExpand !== undefined || (isLong && !isExpanded) ? (
         <button
           type="button"
-          className="tool-expand"
+          className="tool-expand chat-control"
           onClick={
             onExpand ??
             (() => {

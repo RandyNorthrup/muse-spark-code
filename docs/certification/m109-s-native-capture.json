@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-06",
+  "workspace": "M109S / owned worktree temp directory",
+  "rig": "macmini",
+  "os": "Darwin 24.6.0",
+  "node": "v24.21.0",
+  "modelAttempts": 0,
+  "paidCalls": 0,
+  "policy": "test-only injected access; real B authorization is covered separately by sshBroker.test.ts",
+  "client": "system /usr/bin/ssh-keygen -Y sign -U; independent -Y verify",
+  "socketMode": "600",
+  "peer": "getpeereid + LOCAL_PEERPID on inherited fd; pid restricted to our spawned ssh-keygen and process start/image read from ps",
+  "frames": [
+    {
+      "kind": "identities",
+      "bytes": 1,
+      "payloadHex": "0b",
+      "sha256": "e7cf46a078fed4fafd0b5e3aff144802b853f8ae459a4f0c14add3314b7cc3a6"
+    },
+    {
+      "kind": "sign",
+      "bytes": 159,
+      "payloadHex": "0d000000330000000b7373682d65643235353139000000202e0d7b0b8a7b46b55692e3a97508961f8242bef0dfae28e9ce03594a101379f30000005f5353485349470000000367697400000000000000067368613531320000004097cd3b5d901355d2114017d135566164311110a6de10eb335565103ef1adcac79d68d8618553cffd20c7ebf88c0257e6022fc30db6a659720b407ac658edee7400000000",
+      "sha256": "602e2beaf0cfd03e113bfa58dbea4e545e91cfaccd889961ab9fcdba3c15f7f4"
+    },
+    {
+      "kind": "identities",
+      "bytes": 1,
+      "payloadHex": "0b",
+      "sha256": "e7cf46a078fed4fafd0b5e3aff144802b853f8ae459a4f0c14add3314b7cc3a6"
+    },
+    {
+      "kind": "sign",
+      "bytes": 127,
+      "payloadHex": "0d000000330000000b7373682d65643235353139000000202e0d7b0b8a7b46b55692e3a97508961f8242bef0dfae28e9ce03594a101379f30000003f5353485349470000000367697400000000000000067368613235360000002085d1f6b3dcc683de4b9680f210340137835664c8911ac09b6417c5bc791ad60500000000",
+      "sha256": "012a19aae3bd7bc619d6cea1e080ea712c587f0ba095ca8b21e7cd1ad3ba76d6"
+    }
+  ],
+  "uses": ["sshSign", "sshSign"],
+  "externalAgentRpc": "identities and verified SSHSIG via fresh authenticated Unix connections",
+  "signatureSha256": "a8794cf8cc2c247a82f52eeb7aa089390ff50cc7caf8fc1ee17f740b40601218",
+  "pureEd25519SignSamples": 1000,
+  "pureEd25519SignP95Ms": 0.28816599999993286,
+  "captureSourceSha256": "ad0bef5296534a028446cf9ce378849121a7b66f4d84595ee2e6a8a06b521517"
+}

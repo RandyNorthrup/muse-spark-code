@@ -1,12 +1,12 @@
 // The harness in any table (PLAN.md D33): `--lang=<id>` for the scripts that
 // open test/harness/index.html, passed on as `?lang=<id>`. The page then
-// reads l10n/ui.<id>.json, or for `pseudo` the pseudo-locale table this
-// module writes from the English one: every letter accented, each string
-// in ⟦ ⟧ and about 30 % longer, so English the table did not supply stands
-// out and long languages are simulated. {slots}, code spans and ** are kept
-// as they are, plural entries keep English's forms, and the keys
-// l10n/untranslated.json lets every language keep stay as they are, as in a
-// real translation.
+// reads l10n/ui.<id>.json, or for `pseudo` the pseudo-locale tables this
+// module writes from the English ones (the UI table and, for the usage page,
+// the usage table): every letter accented, each string in ⟦ ⟧ and about
+// 30 % longer, so English the table did not supply stands out and long
+// languages are simulated. {slots}, code spans and ** are kept as they are,
+// plural entries keep English's forms, and the keys l10n/untranslated.json
+// lets every language keep stay as they are, as in a real translation.
 
 import { existsSync, readFileSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
@@ -17,6 +17,7 @@ export const PSEUDO_LANG = 'pseudo'
 // The pseudo table is English underneath: its plural rules and formats.
 const PSEUDO_LOCALE = 'en'
 const PSEUDO_FILE = 'test/harness/l10n/ui.pseudo.json'
+const USAGE_PSEUDO_FILE = 'test/harness/l10n/usage.pseudo.json'
 const UNTRANSLATED_FILE = 'l10n/untranslated.json'
 const EVERY_LOCALE = '*'
 const LANG_OPTION = '--lang='
@@ -85,20 +86,30 @@ function pseudoTable(table, isPluralForms, kept, prefix = '') {
   )
 }
 
-/** Writes the pseudo-locale table from the English one; returns its path. */
+/**
+ * Writes the pseudo-locale tables from the English ones (the UI table and,
+ * for the usage page, the usage table); returns their paths.
+ */
 export async function writePseudoTable(repoRoot) {
-  const { EN, isPluralForms, tableProblems } = await loadL10n(repoRoot)
+  const { EN, USAGE_EN, isPluralForms, tableProblems } = await loadL10n(repoRoot)
   const untranslated = JSON.parse(readFileSync(path.join(repoRoot, UNTRANSLATED_FILE), 'utf8'))
-  const kept = new Set(untranslated.ui?.[EVERY_LOCALE])
-  const table = pseudoTable(EN, isPluralForms, kept)
-  const problems = tableProblems(EN, table, { locale: PSEUDO_LOCALE, isStrict: false })
-  if (problems.length > 0) {
-    throw new Error(`the pseudo table does not match the English one:\n${problems.join('\n')}`)
+  const files = []
+  for (const [english, section, pseudoFile] of [
+    [EN, 'ui', PSEUDO_FILE],
+    [USAGE_EN, 'usage', USAGE_PSEUDO_FILE],
+  ]) {
+    const kept = new Set(untranslated[section]?.[EVERY_LOCALE])
+    const table = pseudoTable(english, isPluralForms, kept)
+    const problems = tableProblems(english, table, { locale: PSEUDO_LOCALE, isStrict: false })
+    if (problems.length > 0) {
+      throw new Error(`the pseudo table does not match the English one:\n${problems.join('\n')}`)
+    }
+    const file = path.join(repoRoot, pseudoFile)
+    await mkdir(path.dirname(file), { recursive: true })
+    await writeFile(file, `${JSON.stringify(table, null, 2)}\n`)
+    files.push(file)
   }
-  const file = path.join(repoRoot, PSEUDO_FILE)
-  await mkdir(path.dirname(file), { recursive: true })
-  await writeFile(file, `${JSON.stringify(table, null, 2)}\n`)
-  return file
+  return files
 }
 
 /** A harness script's arguments: the scenarios, and the table from `--lang=<id>`. */

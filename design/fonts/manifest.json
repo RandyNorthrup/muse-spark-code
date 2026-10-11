@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "id": "muse-fonts-1",
+  "fonts": [
+    {
+      "family": "JetBrains Mono",
+      "cssFamily": "Muse Code JB",
+      "licence": "OFL-1.1",
+      "source": "https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip",
+      "sourceVersion": "v2.304",
+      "weight": "100 800",
+      "unicodeRange": "U+0000-052F,U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2100-214F,U+2190-22FF,U+2300-23FF,U+2500-259F",
+      "font": {
+        "file": "jetbrains-mono.woff2",
+        "bytes": 91968,
+        "sha256": "572125c5c74010505722369c082491a0baa1b82a9a0ef9fb7cebc93fa382fc33",
+        "url": "https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/52af8cef94b221a3dc5ec1319d32b4c3e5f8ff30/design/fonts/pack/jetbrains-mono.woff2"
+      },
+      "notice": {
+        "file": "jetbrains-mono-ofl.txt",
+        "bytes": 4399,
+        "sha256": "30f0c136e3c88e422d0791acd97238870f9054a9729bc34cf2ff0d4ed8cac4ad",
+        "url": "https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/52af8cef94b221a3dc5ec1319d32b4c3e5f8ff30/design/fonts/pack/jetbrains-mono-ofl.txt"
+      }
+    },
+    {
+      "family": "Fira Code",
+      "cssFamily": "Muse Code FC",
+      "licence": "OFL-1.1",
+      "source": "https://github.com/tonsky/FiraCode/releases/download/6.2/Fira_Code_v6.2.zip",
+      "sourceVersion": "6.2",
+      "weight": "300 700",
+      "unicodeRange": "U+0000-052F,U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2100-214F,U+2190-22FF,U+2300-23FF,U+2500-259F",
+      "font": {
+        "file": "fira-code.woff2",
+        "bytes": 87344,
+        "sha256": "ba5a486c9a54657c78b7e68d7364ae8b7d14ee9b13d10a928ce6f9a0898b5a4e",
+        "url": "https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/52af8cef94b221a3dc5ec1319d32b4c3e5f8ff30/design/fonts/pack/fira-code.woff2"
+      },
+      "notice": {
+        "file": "fira-code-ofl.txt",
+        "bytes": 4389,
+        "sha256": "1d41e10031ab125302780a05ec4c91d218e47db0c7e37cf315cce5e608cdc25c",
+        "url": "https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/52af8cef94b221a3dc5ec1319d32b4c3e5f8ff30/design/fonts/pack/fira-code-ofl.txt"
+      }
+    },
+    {
+      "family": "Cascadia Code",
+      "cssFamily": "Muse Code CC",
+      "licence": "OFL-1.1",
+      "source": "https://github.com/microsoft/cascadia-code/releases/download/v2407.24/CascadiaCode-2407.24.zip",
+      "sourceVersion": "v2407.24",
+      "weight": "200 700",
+      "unicodeRange": "U+0000-052F,U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2100-214F,U+2190-22FF,U+2300-23FF,U+2500-259F",
+      "font": {
+        "file": "cascadia-code.woff2",
+        "bytes": 98916,
+        "sha256": "53e34c6fa96b01406dc6bedf96c064fb282ffa5fe27ad4b5a0347be1cf2a2fb6",
+        "url": "https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/52af8cef94b221a3dc5ec1319d32b4c3e5f8ff30/design/fonts/pack/cascadia-code.woff2"
+      },
+      "notice": {
+        "file": "cascadia-code-ofl.txt",
+        "bytes": 4489,
+        "sha256": "51882cd3cdba4e16f220f44ddb08a635c38c44ea6e0975db2574f4be6f958238",
+        "url": "https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/52af8cef94b221a3dc5ec1319d32b4c3e5f8ff30/design/fonts/pack/cascadia-code-ofl.txt"
+      }
+    },
+    {
+      "family": "Inter",
+      "cssFamily": "Muse UI",
+      "licence": "OFL-1.1",
+      "source": "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip",
+      "sourceVersion": "v4.1",
+      "weight": "100 900",
+      "unicodeRange": "U+0000-052F,U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2100-214F,U+2190-22FF,U+2300-23FF,U+2500-259F",
+      "font": {
+        "file": "inter.woff2",
+        "bytes": 291232,
+        "sha256": "3d5e422cc2d389412e7f282d9636f3f6106f1b420ba4933993d77180cf9de138",
+        "url": "https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/52af8cef94b221a3dc5ec1319d32b4c3e5f8ff30/design/fonts/pack/inter.woff2"
+      },
+      "notice": {
+        "file": "inter-ofl.txt",
+        "bytes": 4380,
+        "sha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a",
+        "url": "https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/52af8cef94b221a3dc5ec1319d32b4c3e5f8ff30/design/fonts/pack/inter-ofl.txt"
+      }
+    }
+  ]
+}

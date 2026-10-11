@@ -1,0 +1,407 @@
+{
+  "machine": "macmini",
+  "date": "2026-10-06",
+  "timeouts": "Repository default, no timeout override or name filter",
+  "receipts": [
+    {
+      "guard": "reviewed-source-baseline",
+      "command": "npx vitest run test/unit/vault/reviewRound2.test.ts test/unit/vault/contracts.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 strict contracts RVM109L0 P2 broker: the committed authorization JSON Schema matches the port and wire boundary",
+        "M109 strict contracts P2-4 the source schema generator checks every committed vault schema for drift",
+        "RVM109B2 authority ownership P1 cancellation and stricter re-registration refuse the suspended standing request",
+        "RVM109B2 authority ownership P1 cancellation and stricter re-registration refuse the suspended UI request",
+        "RVM109B2 authority ownership P2-3 a grant suspended before lock cannot persist later authority",
+        "RVM109B2 authority ownership P2-3 a grant suspended before lock-unlock cannot persist later authority",
+        "RVM109B2 authority ownership P2-2 Lock owns removed requester cleanup until its terminal audit settles",
+        "RVM109B2 authority ownership P2-2 Lock owns the authorization file append and records its locked denial",
+        "RVM109B2 authority ownership P2-2 a failed terminal append is surfaced by Lock",
+        "RVM109B2 authority ownership P2-2 bounded Lock records retained liability for cleanup that never responds",
+        "RVM109B2 authority ownership P2-2 a timed-out authorization append cannot authenticate a late pending row",
+        "RVM109B2 authority ownership P2-3 requester registration suspended before cancel cannot install stale authority",
+        "RVM109B2 authority ownership P2-3 requester registration suspended before lock-unlock cannot install stale authority",
+        "RVM109B2 authority ownership P2-3 simultaneous grants share the serialized management owner",
+        "RVM109B2 authority ownership P2-3 the repository commit guard refuses a grant whose writer waited across Lock",
+        "RVM109B2 authority ownership P1 an in-flight list retains its requester incarnation after a stricter registration",
+        "RVM109B2 authority ownership P2-2 Lock terminally audits a request minted before its grant snapshot returns"
+      ],
+      "failedCount": 17,
+      "passedCount": 24,
+      "skippedCount": 0,
+      "changed": [
+        {
+          "file": "src/core/vault/broker/channel.ts",
+          "beforeSha256": "a31fdd9407e019feae07565ef245d06b0f5427a2796d77b846839b9be9ad028e",
+          "mutatedSha256": "efd31fb7bf95fd1ff88498ce606aafc945ebd01b6a3dd418e525b289598a06dd",
+          "restoredSha256": "a31fdd9407e019feae07565ef245d06b0f5427a2796d77b846839b9be9ad028e"
+        },
+        {
+          "file": "src/core/vault/broker/broker.ts",
+          "beforeSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee",
+          "mutatedSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974",
+          "restoredSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee"
+        },
+        {
+          "file": "src/core/vault/broker/audit.ts",
+          "beforeSha256": "f795fc353a5bb7478c4915651f332fed3db2cda88bbc20be5eb283580a20876b",
+          "mutatedSha256": "6827d2165e559d4c05351a606809824527645d109fb968c66c565d85b05486b1",
+          "restoredSha256": "f795fc353a5bb7478c4915651f332fed3db2cda88bbc20be5eb283580a20876b"
+        },
+        {
+          "file": "src/core/vault/broker/queue.ts",
+          "beforeSha256": "d0249b4c25e7afb7cd43ffa3bc7322c64b5d60beb9506210340d9510749303ba",
+          "mutatedSha256": "d342e6f852397e42a040067d5d1dab823f826fdbf183455daaf0b56ba02cf957",
+          "restoredSha256": "d0249b4c25e7afb7cd43ffa3bc7322c64b5d60beb9506210340d9510749303ba"
+        },
+        {
+          "file": "test/unit/vault/brokerFixture.ts",
+          "beforeSha256": "a6de9bb2c3e49c2691baaacdf2eee2e27bf0ed4967eb311e4948da73a572e4b6",
+          "mutatedSha256": "9cb0b0d4d74623fcf39dce16baef58cf0fcd5aaba6b556d6fdaff8bc8723bbea",
+          "restoredSha256": "a6de9bb2c3e49c2691baaacdf2eee2e27bf0ed4967eb311e4948da73a572e4b6"
+        },
+        {
+          "file": "docs/schemas/vault-authorization-result-v1.schema.json",
+          "beforeSha256": "edc57d188a6df6aff25a7a287d136433d41e8f793bb14cc674d5d9cca86b30b8",
+          "mutatedSha256": "78bb3b35e921a500276e15c321efc29569609b1145f462e40995063da5365d3b",
+          "restoredSha256": "edc57d188a6df6aff25a7a287d136433d41e8f793bb14cc674d5d9cca86b30b8"
+        }
+      ]
+    },
+    {
+      "guard": "P1-incarnation",
+      "command": "npx vitest run test/unit/vault/reviewRound2.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "RVM109B2 authority ownership P1 an in-flight list retains its requester incarnation after a stricter registration"
+      ],
+      "failedCount": 1,
+      "passedCount": 16,
+      "skippedCount": 0,
+      "changed": [
+        {
+          "file": "src/core/vault/broker/broker.ts",
+          "beforeSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee",
+          "mutatedSha256": "252133cae4113fde0ea414cde977c280b0ba54dd806ccef0a8fe98b52e9c9ca6",
+          "restoredSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee"
+        }
+      ]
+    },
+    {
+      "guard": "P1-registration-incarnation",
+      "command": "npx vitest run test/unit/vault/reviewRound2.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "RVM109B2 authority ownership P2-3 requester registration suspended before cancel cannot install stale authority"
+      ],
+      "failedCount": 1,
+      "passedCount": 16,
+      "skippedCount": 0,
+      "changed": [
+        {
+          "file": "src/core/vault/broker/broker.ts",
+          "beforeSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee",
+          "mutatedSha256": "7d51a89660e2b4ffbe5c03b9e019015799f1cde3b4c993b14286f148f69f344e",
+          "restoredSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee"
+        }
+      ]
+    },
+    {
+      "guard": "P2-2-owned-tasks",
+      "command": "npx vitest run test/unit/vault/reviewRound2.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "RVM109B2 authority ownership P2-2 Lock owns removed requester cleanup until its terminal audit settles",
+        "RVM109B2 authority ownership P2-2 bounded Lock records retained liability for cleanup that never responds"
+      ],
+      "failedCount": 2,
+      "passedCount": 15,
+      "skippedCount": 0,
+      "changed": [
+        {
+          "file": "src/core/vault/broker/broker.ts",
+          "beforeSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee",
+          "mutatedSha256": "dd22ce4d08071b8e282066bb557d07e03cc611c194e6cee954585084944a405e",
+          "restoredSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee"
+        }
+      ]
+    },
+    {
+      "guard": "P2-2-minted-audit",
+      "command": "npx vitest run test/unit/vault/reviewRound2.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "RVM109B2 authority ownership P2-2 Lock terminally audits a request minted before its grant snapshot returns"
+      ],
+      "failedCount": 1,
+      "passedCount": 16,
+      "skippedCount": 0,
+      "changed": [
+        {
+          "file": "src/core/vault/broker/broker.ts",
+          "beforeSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee",
+          "mutatedSha256": "ae31de93282a2a766c9d88885f81aab96a66e65901528c55aaecf5b440d0cf14",
+          "restoredSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee"
+        }
+      ]
+    },
+    {
+      "guard": "P2-2-terminal-fallback",
+      "command": "npx vitest run test/unit/vault/reviewRound2.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "RVM109B2 authority ownership P2-2 bounded Lock records retained liability for cleanup that never responds",
+        "RVM109B2 authority ownership P2-2 Lock terminally audits a request minted before its grant snapshot returns"
+      ],
+      "failedCount": 2,
+      "passedCount": 15,
+      "skippedCount": 0,
+      "changed": [
+        {
+          "file": "src/core/vault/broker/broker.ts",
+          "beforeSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee",
+          "mutatedSha256": "058e659a2f9e8437b532268c2d45461a6dafb5598db3b45e238b70ab4ea60360",
+          "restoredSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee"
+        }
+      ]
+    },
+    {
+      "guard": "P2-2-denied-terminal",
+      "command": "npx vitest run test/unit/vault/reviewRound2.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "RVM109B2 authority ownership P2-2 cancellation during an authorization append still records a terminal denial"
+      ],
+      "failedCount": 1,
+      "passedCount": 16,
+      "skippedCount": 0,
+      "changed": [
+        {
+          "file": "src/core/vault/broker/broker.ts",
+          "beforeSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee",
+          "mutatedSha256": "349d788015f208d26d6994ecfcbe8a4c4cbbe17d1839ab2479ff772f859aabf7",
+          "restoredSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee"
+        }
+      ]
+    },
+    {
+      "guard": "P2-2-terminal-failure",
+      "command": "npx vitest run test/unit/vault/reviewRound2.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "RVM109B2 authority ownership P2-2 a failed terminal append is surfaced by Lock",
+        "RVM109B2 authority ownership P2-2 bounded Lock records retained liability for cleanup that never responds",
+        "RVM109B2 authority ownership P2-2 a timed-out authorization append cannot authenticate a late pending row"
+      ],
+      "failedCount": 3,
+      "passedCount": 14,
+      "skippedCount": 0,
+      "changed": [
+        {
+          "file": "src/core/vault/broker/broker.ts",
+          "beforeSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee",
+          "mutatedSha256": "70192483e5150ccb3ee0f33188ade501ec8c365d714a2b30194c7d9ac2bfd09d",
+          "restoredSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee"
+        }
+      ]
+    },
+    {
+      "guard": "P2-2-failure-signal",
+      "command": "npx vitest run test/unit/vault/reviewRound2.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "RVM109B2 authority ownership P2-2 a failed terminal append is surfaced by Lock"
+      ],
+      "failedCount": 1,
+      "passedCount": 16,
+      "skippedCount": 0,
+      "changed": [
+        {
+          "file": "src/core/vault/broker/broker.ts",
+          "beforeSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee",
+          "mutatedSha256": "e49f9bc1574cf816e63245cb2119c0fbd53b327f0911b19c0ce1b370e610006d",
+          "restoredSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee"
+        }
+      ]
+    },
+    {
+      "guard": "P2-2-audit-commit",
+      "command": "npx vitest run test/unit/vault/reviewRound2.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "RVM109B2 authority ownership P2-2 a timed-out authorization append cannot authenticate a late pending row"
+      ],
+      "failedCount": 1,
+      "passedCount": 16,
+      "skippedCount": 0,
+      "changed": [
+        {
+          "file": "src/core/vault/broker/audit.ts",
+          "beforeSha256": "f795fc353a5bb7478c4915651f332fed3db2cda88bbc20be5eb283580a20876b",
+          "mutatedSha256": "d223727e3bdc08487cb6e7daead4f8de230ad96b6066a9754317d241a1fd1205",
+          "restoredSha256": "f795fc353a5bb7478c4915651f332fed3db2cda88bbc20be5eb283580a20876b"
+        }
+      ]
+    },
+    {
+      "guard": "P2-3-management-generation",
+      "command": "npx vitest run test/unit/vault/reviewRound2.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "RVM109B2 authority ownership P2-3 a grant suspended before lock cannot persist later authority",
+        "RVM109B2 authority ownership P2-3 a grant suspended before lock-unlock cannot persist later authority"
+      ],
+      "failedCount": 2,
+      "passedCount": 15,
+      "skippedCount": 0,
+      "changed": [
+        {
+          "file": "src/core/vault/broker/broker.ts",
+          "beforeSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee",
+          "mutatedSha256": "8a7727500cb8233e10d012e955f04ff8ba93d10e16bf906b620f19a47bb2db95",
+          "restoredSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee"
+        }
+      ]
+    },
+    {
+      "guard": "P2-3-management-owner",
+      "command": "npx vitest run test/unit/vault/reviewRound2.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "RVM109B2 authority ownership P2-3 simultaneous grants share the serialized management owner"
+      ],
+      "failedCount": 1,
+      "passedCount": 16,
+      "skippedCount": 0,
+      "changed": [
+        {
+          "file": "src/core/vault/broker/broker.ts",
+          "beforeSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee",
+          "mutatedSha256": "1d6e1be222a5f15d2ae57d18331d3a9817ff0f3af94aea1dc96934057e8cf0c5",
+          "restoredSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee"
+        }
+      ]
+    },
+    {
+      "guard": "P2-3-repository-commit",
+      "command": "npx vitest run test/unit/vault/reviewRound2.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "RVM109B2 authority ownership P2-3 the repository commit guard refuses a grant whose writer waited across Lock"
+      ],
+      "failedCount": 1,
+      "passedCount": 16,
+      "skippedCount": 0,
+      "changed": [
+        {
+          "file": "src/core/vault/broker/broker.ts",
+          "beforeSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee",
+          "mutatedSha256": "382cff5303c2b629cfa2e9255718af6f13a9d067ab6b03452c198f309aedeee0",
+          "restoredSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee"
+        }
+      ]
+    },
+    {
+      "guard": "P2-3-new-generation-owner",
+      "command": "npx vitest run test/unit/vault/reviewRound2.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "RVM109B2 authority ownership P2-3 a grant suspended before lock-unlock cannot persist later authority",
+        "RVM109B2 authority ownership P2-3 requester registration suspended before lock-unlock cannot install stale authority",
+        "RVM109B2 authority ownership P2-3 the repository commit guard refuses a grant whose writer waited across Lock"
+      ],
+      "failedCount": 3,
+      "passedCount": 14,
+      "skippedCount": 0,
+      "changed": [
+        {
+          "file": "src/core/vault/broker/queue.ts",
+          "beforeSha256": "d0249b4c25e7afb7cd43ffa3bc7322c64b5d60beb9506210340d9510749303ba",
+          "mutatedSha256": "516ece4489606d3ef056aac89fa8a0196c630c463b4d8babcef19c0610436c68",
+          "restoredSha256": "d0249b4c25e7afb7cd43ffa3bc7322c64b5d60beb9506210340d9510749303ba"
+        }
+      ]
+    },
+    {
+      "guard": "P2-4-schema-drift",
+      "command": "npx vitest run test/unit/vault/contracts.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 strict contracts RVM109L0 P2 broker: the committed authorization JSON Schema matches the port and wire boundary",
+        "M109 strict contracts P2-4 the source schema generator checks every committed vault schema for drift"
+      ],
+      "failedCount": 2,
+      "passedCount": 22,
+      "skippedCount": 0,
+      "changed": [
+        {
+          "file": "docs/schemas/vault-authorization-result-v1.schema.json",
+          "beforeSha256": "edc57d188a6df6aff25a7a287d136433d41e8f793bb14cc674d5d9cca86b30b8",
+          "mutatedSha256": "34fe554b06d10fefaa842fe2780d54212c683e6028737ff5d7f67a6ad1f3d6c2",
+          "restoredSha256": "edc57d188a6df6aff25a7a287d136433d41e8f793bb14cc674d5d9cca86b30b8"
+        }
+      ]
+    },
+    {
+      "guard": "P1-request-incarnation",
+      "command": "npx vitest run test/unit/vault/reviewRound2.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "RVM109B2 authority ownership P1 cancellation and stricter re-registration refuse the suspended standing request",
+        "RVM109B2 authority ownership P1 cancellation and stricter re-registration refuse the suspended UI request",
+        "RVM109B2 authority ownership P1 an in-flight list retains its requester incarnation after a stricter registration",
+        "RVM109B2 authority ownership P2-2 cancellation during an authorization append still records a terminal denial"
+      ],
+      "failedCount": 4,
+      "passedCount": 13,
+      "skippedCount": 0,
+      "changed": [
+        {
+          "file": "src/core/vault/broker/broker.ts",
+          "beforeSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee",
+          "mutatedSha256": "90b6ab902411badadbe4d23aba6d95e47d4f16f0fb660120ef54e9c70af897f1",
+          "restoredSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee"
+        }
+      ]
+    },
+    {
+      "guard": "P1-channel-incarnation",
+      "command": "npx vitest run test/unit/vault/channel.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "native authenticated broker channel P1 a requester connection closed during taint lookup cannot create a late UI card for its replacement"
+      ],
+      "failedCount": 1,
+      "passedCount": 39,
+      "skippedCount": 0,
+      "changed": [
+        {
+          "file": "src/core/vault/broker/channel.ts",
+          "beforeSha256": "a31fdd9407e019feae07565ef245d06b0f5427a2796d77b846839b9be9ad028e",
+          "mutatedSha256": "492ec8c2ce60b3908e9a1f512bbdf98757b3f140113e0bdd35d3e08fadcf2268",
+          "restoredSha256": "a31fdd9407e019feae07565ef245d06b0f5427a2796d77b846839b9be9ad028e"
+        }
+      ]
+    },
+    {
+      "guard": "P2-3-revocation-barrier",
+      "command": "npx vitest run test/unit/vault/redemption.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "broker-owned approved material revoke during a pending grant read cannot resurrect a ticket or release material",
+        "broker-owned approved material reuse during a pending grant read cannot resurrect a ticket or release material"
+      ],
+      "failedCount": 2,
+      "passedCount": 8,
+      "skippedCount": 0,
+      "changed": [
+        {
+          "file": "src/core/vault/broker/broker.ts",
+          "beforeSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee",
+          "mutatedSha256": "52b6759a477c2e81c37296e54dd32ef449dcc6a1a780eab8e64b949c0c098f3f",
+          "restoredSha256": "22c7ee341209339e04eeaf9c5834bcc564e3a6e9f2e4415657e54c78801067ee"
+        }
+      ]
+    }
+  ]
+}

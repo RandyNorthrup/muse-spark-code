@@ -1,0 +1,242 @@
+{
+  "provider": "gemini",
+  "step": "tool-result-stream",
+  "capturedAt": "2026-10-04",
+  "billed": true,
+  "request": {
+    "method": "POST",
+    "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse",
+    "headers": {
+      "x-goog-api-key": "<redacted>",
+      "content-type": "application/json"
+    },
+    "body": {
+      "systemInstruction": {
+        "parts": [
+          {
+            "text": "You are a capture assistant for an API wire-format test. When the user asks for the time, call the get_time tool, then answer in one short sentence.\n\nHouse rule 1: when a request mentions item 1, answer briefly, name the source of each fact, and never invent a value for field 1 or option 7.\nHouse rule 2: when a request mentions item 2, answer briefly, name the source of each fact, and never invent a value for field 2 or option 14.\nHouse rule 3: when a request mentions item 3, answer briefly, name the source of each fact, and never invent a value for field 3 or option 21.\nHouse rule 4: when a request mentions item 4, answer briefly, name the source of each fact, and never invent a value for field 4 or option 5.\nHouse rule 5: when a request mentions item 5, answer briefly, name the source of each fact, and never invent a value for field 5 or option 12.\nHouse rule 6: when a request mentions item 6, answer briefly, name the source of each fact, and never invent a value for field 6 or option 19.\nHouse rule 7: when a request mentions item 7, answer briefly, name the source of each fact, and never invent a value for field 7 or option 3.\nHouse rule 8: when a request mentions item 8, answer briefly, name the source of each fact, and never invent a value for field 8 or option 10.\nHouse rule 9: when a request mentions item 9, answer briefly, name the source of each fact, and never invent a value for field 9 or option 17.\nHouse rule 10: when a request mentions item 10, answer briefly, name the source of each fact, and never invent a value for field 10 or option 1.\nHouse rule 11: when a request mentions item 11, answer briefly, name the source of each fact, and never invent a value for field 11 or option 8.\nHouse rule 12: when a request mentions item 12, answer briefly, name the source of each fact, and never invent a value for field 12 or option 15.\nHouse rule 13: when a request mentions item 13, answer briefly, name the source of each fact, and never invent a value for field 13 or option 22.\nHouse rule 14: when a request mentions item 14, answer briefly, name the source of each fact, and never invent a value for field 14 or option 6.\nHouse rule 15: when a request mentions item 15, answer briefly, name the source of each fact, and never invent a value for field 15 or option 13.\nHouse rule 16: when a request mentions item 16, answer briefly, name the source of each fact, and never invent a value for field 16 or option 20.\nHouse rule 17: when a request mentions item 17, answer briefly, name the source of each fact, and never invent a value for field 0 or option 4.\nHouse rule 18: when a request mentions item 18, answer briefly, name the source of each fact, and never invent a value for field 1 or option 11.\nHouse rule 19: when a request mentions item 19, answer briefly, name the source of each fact, and never invent a value for field 2 or option 18.\nHouse rule 20: when a request mentions item 20, answer briefly, name the source of each fact, and never invent a value for field 3 or option 2.\nHouse rule 21: when a request mentions item 21, answer briefly, name the source of each fact, and never invent a value for field 4 or option 9.\nHouse rule 22: when a request mentions item 22, answer briefly, name the source of each fact, and never invent a value for field 5 or option 16.\nHouse rule 23: when a request mentions item 23, answer briefly, name the source of each fact, and never invent a value for field 6 or option 0.\nHouse rule 24: when a request mentions item 24, answer briefly, name the source of each fact, and never invent a value for field 7 or option 7.\nHouse rule 25: when a request mentions item 25, answer briefly, name the source of each fact, and never invent a value for field 8 or option 14.\nHouse rule 26: when a request mentions item 26, answer briefly, name the source of each fact, and never invent a value for field 9 or option 21.\nHouse rule 27: when a request mentions item 27, answer briefly, name the source of each fact, and never invent a value for field 10 or option 5.\nHouse rule 28: when a request mentions item 28, answer briefly, name the source of each fact, and never invent a value for field 11 or option 12.\nHouse rule 29: when a request mentions item 29, answer briefly, name the source of each fact, and never invent a value for field 12 or option 19.\nHouse rule 30: when a request mentions item 30, answer briefly, name the source of each fact, and never invent a value for field 13 or option 3.\nHouse rule 31: when a request mentions item 31, answer briefly, name the source of each fact, and never invent a value for field 14 or option 10.\nHouse rule 32: when a request mentions item 32, answer briefly, name the source of each fact, and never invent a value for field 15 or option 17.\nHouse rule 33: when a request mentions item 33, answer briefly, name the source of each fact, and never invent a value for field 16 or option 1.\nHouse rule 34: when a request mentions item 34, answer briefly, name the source of each fact, and never invent a value for field 0 or option 8.\nHouse rule 35: when a request mentions item 35, answer briefly, name the source of each fact, and never invent a value for field 1 or option 15.\nHouse rule 36: when a request mentions item 36, answer briefly, name the source of each fact, and never invent a value for field 2 or option 22."
+          }
+        ]
+      },
+      "contents": [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "text": "What time is it in UTC right now? Call get_time, then answer in one short sentence."
+            }
+          ]
+        },
+        {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "get_time",
+                "args": {
+                  "timezone": "UTC"
+                },
+                "id": "call_3117260"
+              },
+              "thoughtSignature": "EmAKXgFpFH0TGuyXxb3uCXeV/RHRG5MZVICRgzE69qJoT9QD93IDAu+m63eVEHTy12Q/rbKugb1KcfJ97Yr33LGe/R5qGF3Bvjb2/glpz3APrV/eJzMtcU/x3tWUTrRfXGA="
+            },
+            {
+              "text": ""
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "call_3117260",
+                "name": "get_time",
+                "response": {
+                  "timezone": "UTC",
+                  "time": "2026-10-04T12:00:00Z"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "functionDeclarations": [
+            {
+              "name": "get_time",
+              "description": "Returns the current time in the given IANA time zone.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "timezone": {
+                    "type": "string",
+                    "description": "An IANA time zone such as UTC."
+                  }
+                },
+                "required": ["timezone"]
+              }
+            }
+          ]
+        }
+      ],
+      "toolConfig": {
+        "functionCallingConfig": {
+          "mode": "AUTO"
+        }
+      },
+      "generationConfig": {
+        "maxOutputTokens": 1024,
+        "thinkingConfig": {
+          "thinkingLevel": "low",
+          "includeThoughts": true
+        }
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "content-disposition": "attachment",
+      "content-type": "text/event-stream",
+      "date": "Sun, 04 Oct 2026 22:43:32 GMT",
+      "server": "scaffolding on HTTPServer2",
+      "server-timing": "gfet4t7; dur=366",
+      "transfer-encoding": "chunked",
+      "vary": "Origin, X-Origin, Referer",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "SAMEORIGIN",
+      "x-xss-protection": "0"
+    },
+    "events": [
+      {
+        "data": {
+          "candidates": [
+            {
+              "content": {
+                "parts": [
+                  {
+                    "text": "The current"
+                  }
+                ],
+                "role": "model"
+              },
+              "index": 0
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 1632,
+            "candidatesTokenCount": 2,
+            "totalTokenCount": 1634,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 1632
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "modelVersion": "gemini-3.5-flash-lite",
+          "responseId": "k9bCarrwNoudz7IP4riYGA"
+        }
+      },
+      {
+        "data": {
+          "candidates": [
+            {
+              "content": {
+                "parts": [
+                  {
+                    "text": " time in UTC is 2026-10-04T12"
+                  }
+                ],
+                "role": "model"
+              },
+              "index": 0
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 1632,
+            "candidatesTokenCount": 20,
+            "totalTokenCount": 1652,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 1632
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "modelVersion": "gemini-3.5-flash-lite",
+          "responseId": "k9bCarrwNoudz7IP4riYGA"
+        }
+      },
+      {
+        "data": {
+          "candidates": [
+            {
+              "content": {
+                "parts": [
+                  {
+                    "text": ":00:00Z, as provided by the get_time tool."
+                  }
+                ],
+                "role": "model"
+              },
+              "index": 0
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 1632,
+            "candidatesTokenCount": 37,
+            "totalTokenCount": 1669,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 1632
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "modelVersion": "gemini-3.5-flash-lite",
+          "responseId": "k9bCarrwNoudz7IP4riYGA"
+        }
+      },
+      {
+        "data": {
+          "candidates": [
+            {
+              "content": {
+                "parts": [
+                  {
+                    "text": "",
+                    "thoughtSignature": "EmAKXgFpFH0TjXKBkvWsF+yT7dzPeRi3mDUibOc9+LDdEMckPBsiwmNtFI6LJ1I46l9fGeuE2emYKshQx0aUSVs2d7eSJZURulMFR2P2aaaPXGrN34miwqR9eneZjPvHnD0="
+                  }
+                ],
+                "role": "model"
+              },
+              "finishReason": "STOP",
+              "index": 0
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 1632,
+            "candidatesTokenCount": 37,
+            "totalTokenCount": 1669,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 1632
+              }
+            ],
+            "serviceTier": "standard"
+          },
+          "modelVersion": "gemini-3.5-flash-lite",
+          "responseId": "k9bCarrwNoudz7IP4riYGA"
+        }
+      }
+    ]
+  }
+}

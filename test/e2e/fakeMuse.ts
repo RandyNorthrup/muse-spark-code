@@ -12,12 +12,14 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { EXPECTED_SCHEMA_FINGERPRINT } from '@muse-code/sdk'
 import { MUSE_CREDENTIAL_FILE_SEGMENTS } from '../../src/shared/constants'
 import { DEVICE_LOGIN_FILE } from '../unit/helpers/credentialShapes'
 
@@ -70,9 +72,20 @@ function compileWindowsStub(installDir: string): string {
     throw new Error(`the .NET Framework C# compiler is missing at ${csc}`)
   }
   const exe = path.join(installDir, STUB_EXE)
+  // Test-only launch data lives in the stub, so the runtime need not forward
+  // arbitrary environment variables to make its strict allowlist testable.
+  const source = path.join(installDir, 'stub.cs')
+  writeFileSync(
+    source,
+    readFileSync(STUB_SOURCE, 'utf8').replace(
+      'Environment.GetEnvironmentVariable("MUSE_FAKE_NODE")',
+      () =>
+        `(Environment.GetEnvironmentVariable("MUSE_FAKE_NODE") ?? ${JSON.stringify(process.execPath)})`,
+    ),
+  )
   execFileSync(
     csc,
-    ['/nologo', '/warnaserror+', '/optimize+', '/target:exe', `/out:${exe}`, STUB_SOURCE],
+    ['/nologo', '/warnaserror+', '/optimize+', '/target:exe', `/out:${exe}`, source],
     { stdio: 'pipe' },
   )
   return exe
@@ -80,7 +93,14 @@ function compileWindowsStub(installDir: string): string {
 
 export function installFakeMuse(): FakeMuseInstall {
   const installDir = mkdtempSync(path.join(tmpdir(), 'fake-muse-'))
-  copyFileSync(SERVE_SOURCE, path.join(installDir, 'serve.mjs'))
+  writeFileSync(
+    path.join(installDir, 'serve.mjs'),
+    readFileSync(SERVE_SOURCE, 'utf8').replace(
+      "const fingerprint = env['MUSE_FAKE_FINGERPRINT'] ?? 'sha256:fake'",
+      () =>
+        `const fingerprint = env['MUSE_FAKE_FINGERPRINT'] ?? ${JSON.stringify(EXPECTED_SCHEMA_FINGERPRINT)}`,
+    ),
+  )
   if (process.platform === 'win32') {
     const stub = compiledStubs.get('win32') ?? compileWindowsStub(installDir)
     compiledStubs.set('win32', stub)

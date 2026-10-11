@@ -263,7 +263,7 @@ export function renderWhatsNewPage(options: WhatsNewPageOptions): WhatsNewPage {
 <p class="lead">${escapeHtml(lead)}</p>
 ${languageNote}${releases}${footer}
 </main>
-<script nonce="${options.nonce}" src="${escapeHtml(options.scriptUri)}"></script>
+<script type="module" nonce="${options.nonce}" src="${escapeHtml(options.scriptUri)}"></script>
 </body>
 </html>
 `

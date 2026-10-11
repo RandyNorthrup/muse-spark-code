@@ -1,0 +1,108 @@
+[
+  {
+    "args": ["--help"],
+    "exit": 0,
+    "stderr": "",
+    "stdoutBytes": 3164
+  },
+  {
+    "args": ["prompts", "save", "--title", "Review", "--scope", "user"],
+    "exit": 0,
+    "stderr": "",
+    "stdoutBytes": 305
+  },
+  {
+    "args": ["prompts", "list"],
+    "exit": 0,
+    "stderr": "",
+    "stdoutBytes": 309
+  },
+  {
+    "args": [
+      "prompts",
+      "use",
+      "3e6de55c-d42f-405a-8b27-0a4dc3bbc097",
+      "--scope",
+      "user",
+      "--cwd",
+      "<worktree>/temp/m118-cli-empty-u0jqbv2u"
+    ],
+    "exit": 0,
+    "stderr": "",
+    "stdoutBytes": 357
+  },
+  {
+    "args": [
+      "prompts",
+      "share",
+      "3e6de55c-d42f-405a-8b27-0a4dc3bbc097",
+      "--format",
+      "md",
+      "--destination",
+      "save",
+      "--out",
+      "review.md",
+      "--exported-at",
+      "2026-10-06T12:00:00Z"
+    ],
+    "exit": 7,
+    "stderr": "",
+    "stdoutBytes": 1028
+  },
+  {
+    "args": [
+      "prompts",
+      "share",
+      "3e6de55c-d42f-405a-8b27-0a4dc3bbc097",
+      "--format",
+      "md",
+      "--destination",
+      "save",
+      "--out",
+      "review.md",
+      "--exported-at",
+      "2026-10-06T12:00:00Z",
+      "--confirm",
+      "a34c952b0370b3e8a0d788a1dd6f9beee23435c2bcd8c68dcc2cba08b436bbd9"
+    ],
+    "exit": 0,
+    "stderr": "",
+    "stdoutBytes": 1025
+  },
+  {
+    "args": [
+      "prompts",
+      "share",
+      "3e6de55c-d42f-405a-8b27-0a4dc3bbc097",
+      "--format",
+      "md",
+      "--destination",
+      "save",
+      "--out",
+      "review.md",
+      "--exported-at",
+      "2026-10-06T12:00:00Z"
+    ],
+    "exit": 7,
+    "stderr": "Sharing is blocked while this workspace is confidential.\n",
+    "stdoutBytes": 0
+  },
+  {
+    "args": ["prompts", "save", "--title", "Too large"],
+    "exit": 7,
+    "stderr": "The prompt exceeds the size limit, or this scope has too many prompts.\n",
+    "stdoutBytes": 0
+  },
+  {
+    "args": ["prompts", "save", "--title", "Registered"],
+    "exit": 0,
+    "stderr": "",
+    "stdoutBytes": 294
+  },
+  {
+    "args": ["prompts", "share", "bbd03ecf-9756-45e4-a3c7-09ba957552aa", "--format", "json"],
+    "exit": 7,
+    "stderr": "",
+    "stdoutBytes": 2224
+  }
+]

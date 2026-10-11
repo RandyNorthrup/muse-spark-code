@@ -1,0 +1,52 @@
+{
+  "provider": "zai",
+  "step": "anthropic-endpoint-error-invalid-model",
+  "capturedAt": "2026-10-04",
+  "billed": false,
+  "request": {
+    "method": "POST",
+    "url": "https://api.z.ai/api/anthropic/v1/messages",
+    "headers": {
+      "x-api-key": "<redacted>",
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json"
+    },
+    "body": {
+      "model": "no-such-model-m95",
+      "max_tokens": 16,
+      "messages": [
+        {
+          "role": "user",
+          "content": "hi"
+        }
+      ],
+      "stream": true
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=3600",
+      "connection": "keep-alive",
+      "content-length": "213",
+      "content-type": "application/json",
+      "date": "Sun, 04 Oct 2026 22:40:20 GMT",
+      "ga-traceid": "bd113f45bc5504a05fca7e19af25e309",
+      "request-id": "20261005064020d41a98871d38451a",
+      "set-cookie": "<redacted>",
+      "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers, Origin, Access-Control-Request-Method, Access-Control-Request-Headers, Origin",
+      "x-log-id": "20261005064020d41a98871d38451a",
+      "x-process-time": "0.021383",
+      "x-request-id": "3fc0e530-823a-4d37-b54d-14e4b7bd7218"
+    },
+    "body": {
+      "type": "error",
+      "error": {
+        "type": "invalid_request_error",
+        "code": "1211",
+        "message": "[1211][Unknown Model, please check the model code.][20261005064020d41a98871d38451a]"
+      },
+      "request_id": "20261005064020d41a98871d38451a"
+    }
+  }
+}

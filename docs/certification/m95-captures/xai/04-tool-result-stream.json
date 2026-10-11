@@ -1,0 +1,687 @@
+{
+  "provider": "xai",
+  "step": "tool-result-stream",
+  "capturedAt": "2026-10-04",
+  "billed": true,
+  "request": {
+    "method": "POST",
+    "url": "https://api.x.ai/v1/responses",
+    "headers": {
+      "authorization": "<redacted>",
+      "content-type": "application/json"
+    },
+    "body": {
+      "model": "grok-4.3",
+      "instructions": "You are a capture assistant for an API wire-format test. When the user asks for the time, call the get_time tool, then answer in one short sentence.\n\nHouse rule 1: when a request mentions item 1, answer briefly, name the source of each fact, and never invent a value for field 1 or option 7.\nHouse rule 2: when a request mentions item 2, answer briefly, name the source of each fact, and never invent a value for field 2 or option 14.\nHouse rule 3: when a request mentions item 3, answer briefly, name the source of each fact, and never invent a value for field 3 or option 21.\nHouse rule 4: when a request mentions item 4, answer briefly, name the source of each fact, and never invent a value for field 4 or option 5.\nHouse rule 5: when a request mentions item 5, answer briefly, name the source of each fact, and never invent a value for field 5 or option 12.\nHouse rule 6: when a request mentions item 6, answer briefly, name the source of each fact, and never invent a value for field 6 or option 19.\nHouse rule 7: when a request mentions item 7, answer briefly, name the source of each fact, and never invent a value for field 7 or option 3.\nHouse rule 8: when a request mentions item 8, answer briefly, name the source of each fact, and never invent a value for field 8 or option 10.\nHouse rule 9: when a request mentions item 9, answer briefly, name the source of each fact, and never invent a value for field 9 or option 17.\nHouse rule 10: when a request mentions item 10, answer briefly, name the source of each fact, and never invent a value for field 10 or option 1.\nHouse rule 11: when a request mentions item 11, answer briefly, name the source of each fact, and never invent a value for field 11 or option 8.\nHouse rule 12: when a request mentions item 12, answer briefly, name the source of each fact, and never invent a value for field 12 or option 15.\nHouse rule 13: when a request mentions item 13, answer briefly, name the source of each fact, and never invent a value for field 13 or option 22.\nHouse rule 14: when a request mentions item 14, answer briefly, name the source of each fact, and never invent a value for field 14 or option 6.\nHouse rule 15: when a request mentions item 15, answer briefly, name the source of each fact, and never invent a value for field 15 or option 13.\nHouse rule 16: when a request mentions item 16, answer briefly, name the source of each fact, and never invent a value for field 16 or option 20.\nHouse rule 17: when a request mentions item 17, answer briefly, name the source of each fact, and never invent a value for field 0 or option 4.\nHouse rule 18: when a request mentions item 18, answer briefly, name the source of each fact, and never invent a value for field 1 or option 11.\nHouse rule 19: when a request mentions item 19, answer briefly, name the source of each fact, and never invent a value for field 2 or option 18.\nHouse rule 20: when a request mentions item 20, answer briefly, name the source of each fact, and never invent a value for field 3 or option 2.\nHouse rule 21: when a request mentions item 21, answer briefly, name the source of each fact, and never invent a value for field 4 or option 9.\nHouse rule 22: when a request mentions item 22, answer briefly, name the source of each fact, and never invent a value for field 5 or option 16.\nHouse rule 23: when a request mentions item 23, answer briefly, name the source of each fact, and never invent a value for field 6 or option 0.\nHouse rule 24: when a request mentions item 24, answer briefly, name the source of each fact, and never invent a value for field 7 or option 7.\nHouse rule 25: when a request mentions item 25, answer briefly, name the source of each fact, and never invent a value for field 8 or option 14.\nHouse rule 26: when a request mentions item 26, answer briefly, name the source of each fact, and never invent a value for field 9 or option 21.\nHouse rule 27: when a request mentions item 27, answer briefly, name the source of each fact, and never invent a value for field 10 or option 5.\nHouse rule 28: when a request mentions item 28, answer briefly, name the source of each fact, and never invent a value for field 11 or option 12.\nHouse rule 29: when a request mentions item 29, answer briefly, name the source of each fact, and never invent a value for field 12 or option 19.\nHouse rule 30: when a request mentions item 30, answer briefly, name the source of each fact, and never invent a value for field 13 or option 3.\nHouse rule 31: when a request mentions item 31, answer briefly, name the source of each fact, and never invent a value for field 14 or option 10.\nHouse rule 32: when a request mentions item 32, answer briefly, name the source of each fact, and never invent a value for field 15 or option 17.\nHouse rule 33: when a request mentions item 33, answer briefly, name the source of each fact, and never invent a value for field 16 or option 1.\nHouse rule 34: when a request mentions item 34, answer briefly, name the source of each fact, and never invent a value for field 0 or option 8.\nHouse rule 35: when a request mentions item 35, answer briefly, name the source of each fact, and never invent a value for field 1 or option 15.\nHouse rule 36: when a request mentions item 36, answer briefly, name the source of each fact, and never invent a value for field 2 or option 22.",
+      "input": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "input_text",
+              "text": "What time is it in UTC right now? Call get_time, then answer in one short sentence."
+            }
+          ]
+        },
+        {
+          "id": "rs_23c4f4ae-e809-9127-831b-ff49fd7f5888",
+          "summary": [
+            {
+              "text": "Fetching the current UTC time.",
+              "type": "summary_text"
+            }
+          ],
+          "type": "reasoning",
+          "status": "completed",
+          "encrypted_content": "gnZF92aWFrelR35jy8qJYR6ZOFeXGnIUslh7KQKxONAKfjubqSs5Mr7gAtImTtMS8kgnqXQYAuc2cxNCpxTvz8p8jf3FeVAKCLYe8ePX0C/Hazk073BCZ6HCL2G+6tPRzCnYvVP5ttSvrR1TXckMY3bLTx54nXxzCEqVKWb8U5J6BkPYQuMUB10L9g97lJJnPTaimbKjvwZ0Fe3B3TnhfAOMTHkcnfa5eO/YvWaCrMbUQ3NjYcGu5gFqGE9QrM64PCsu5qBGnYIomo70kXLwcdEkH1dkm2uGnSA+VstGbWOq2y/W8oEWLjVJJJYUCkwt4ejHpFGAR/e3/u/b3H1x0kGbWzBQzAx+FESEZ7TtvTdasIctugCC3KhHVg08LVFCCgv6GWPJQYZtqvQfIQSAs35BX8EF2z8YdiflklR4pbYo0MdyPLOnKr0K4Rltik42jOTKm/+nY9NQ1g2pV/5am4rqXTMEOGBdHFlsIk3OubuJcFgiCK7e00GBTFWpnL0CDJXVSaE1IWqiDD7RIvVvoL2L58ZToe5tPYHsMchBcUlXTvkAurkg7qoYdGuQgWNckJR8C9RsRGpDxzsEpTjPeJomFnf9G1+LJ1oH9D5Dowy75e3uj+DGpknRCgvOQSh9naFCkIkn90fBsxdZWR2hlU5q2PpxZPBQ1NcnS83vmfRT4j9Jkngawfp0EiH8OL74CocCwEiT3G2vE4l3z0vlhU4m+tCjaPCfLnNAa0kDXSiayWTPG+bvvcZfcFAyicX8iykb22eZm2EDK9zmJaeB0JAKov73zY55mWv2UTW8nBV9PjJrz74YGLJn/FlkUe0zCYykDUX1Nfj4S4L8hi7ZA0RqH1gwJCuIoyzI039VfU4etpZV86p9QUhDVjK6sw/rPbj65NK/fqKQ9uPik6zwNjwwkltbJ/VnM799LKQzYT3bIl3o6KEc3uFu4+vXlfLnoMgg3IABdlY"
+        },
+        {
+          "arguments": "{\"timezone\":\"UTC\"}",
+          "call_id": "call-d5a79da2-f9ad-4ca5-bcd1-883dfcd2891a-0",
+          "name": "get_time",
+          "type": "function_call",
+          "id": "fc_23c4f4ae-e809-9127-831b-ff49fd7f5888_0",
+          "status": "completed"
+        },
+        {
+          "type": "function_call_output",
+          "call_id": "call-d5a79da2-f9ad-4ca5-bcd1-883dfcd2891a-0",
+          "output": "{\"timezone\":\"UTC\",\"time\":\"2026-10-04T12:00:00Z\"}"
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "name": "get_time",
+          "description": "Returns the current time in the given IANA time zone.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "timezone": {
+                "type": "string",
+                "description": "An IANA time zone such as UTC."
+              }
+            },
+            "required": ["timezone"]
+          },
+          "strict": false
+        }
+      ],
+      "tool_choice": "auto",
+      "stream": true,
+      "store": false,
+      "include": ["reasoning.encrypted_content"],
+      "max_output_tokens": 1024,
+      "prompt_cache_key": "m95-capture-xai",
+      "reasoning": {
+        "effort": "low"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "access-control-expose-headers": "*",
+      "cache-control": "no-cache",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a457b11b5ff10d82-LAX",
+      "connection": "keep-alive",
+      "content-type": "text/event-stream",
+      "date": "Sun, 04 Oct 2026 22:41:03 GMT",
+      "server": "cloudflare",
+      "set-cookie": "<redacted>",
+      "strict-transport-security": "max-age=31536000",
+      "traceparent": "00-ca4974cf92c917990c871ed4301e0571-af8967bb000746e5-01",
+      "transfer-encoding": "chunked",
+      "vary": "origin, access-control-request-method, access-control-request-headers",
+      "x-data-retention": "general",
+      "x-ratelimit-limit-requests": "1800",
+      "x-ratelimit-limit-tokens": "10000000",
+      "x-ratelimit-remaining-requests": "1800",
+      "x-ratelimit-remaining-tokens": "10000000",
+      "x-request-id": "d9bf487f-adba-9825-977d-db328c44fc6f",
+      "x-zero-data-retention": "false"
+    },
+    "events": [
+      {
+        "event": "response.created",
+        "data": {
+          "sequence_number": 0,
+          "type": "response.created",
+          "response": {
+            "created_at": 1791153663,
+            "completed_at": null,
+            "id": "d9bf487f-adba-9825-977d-db328c44fc6f",
+            "max_output_tokens": 1024,
+            "model": "grok-4.3",
+            "object": "response",
+            "output": [],
+            "parallel_tool_calls": true,
+            "previous_response_id": null,
+            "reasoning": {
+              "effort": "low",
+              "summary": "detailed"
+            },
+            "temperature": 0.699999988079071,
+            "text": {
+              "format": {
+                "type": "text"
+              }
+            },
+            "tool_choice": "auto",
+            "tools": [
+              {
+                "type": "function",
+                "description": "Returns the current time in the given IANA time zone.",
+                "name": "get_time",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "timezone": {
+                      "type": "string",
+                      "description": "An IANA time zone such as UTC."
+                    }
+                  },
+                  "required": ["timezone"]
+                },
+                "strict": false
+              }
+            ],
+            "top_p": 0.949999988079071,
+            "usage": null,
+            "user": null,
+            "incomplete_details": null,
+            "status": "in_progress",
+            "store": false,
+            "metadata": {
+              "system_fingerprint": "fp_eb3c003fc66c14ed"
+            },
+            "background": false,
+            "service_tier": "default",
+            "truncation": "disabled",
+            "top_logprobs": 0,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "prompt_cache_key": "m95-capture-xai",
+            "max_tool_calls": null,
+            "safety_identifier": null,
+            "error": null,
+            "instructions": "You are a capture assistant for an API wire-format test. When the user asks for the time, call the get_time tool, then answer in one short sentence.\n\nHouse rule 1: when a request mentions item 1, answer briefly, name the source of each fact, and never invent a value for field 1 or option 7.\nHouse rule 2: when a request mentions item 2, answer briefly, name the source of each fact, and never invent a value for field 2 or option 14.\nHouse rule 3: when a request mentions item 3, answer briefly, name the source of each fact, and never invent a value for field 3 or option 21.\nHouse rule 4: when a request mentions item 4, answer briefly, name the source of each fact, and never invent a value for field 4 or option 5.\nHouse rule 5: when a request mentions item 5, answer briefly, name the source of each fact, and never invent a value for field 5 or option 12.\nHouse rule 6: when a request mentions item 6, answer briefly, name the source of each fact, and never invent a value for field 6 or option 19.\nHouse rule 7: when a request mentions item 7, answer briefly, name the source of each fact, and never invent a value for field 7 or option 3.\nHouse rule 8: when a request mentions item 8, answer briefly, name the source of each fact, and never invent a value for field 8 or option 10.\nHouse rule 9: when a request mentions item 9, answer briefly, name the source of each fact, and never invent a value for field 9 or option 17.\nHouse rule 10: when a request mentions item 10, answer briefly, name the source of each fact, and never invent a value for field 10 or option 1.\nHouse rule 11: when a request mentions item 11, answer briefly, name the source of each fact, and never invent a value for field 11 or option 8.\nHouse rule 12: when a request mentions item 12, answer briefly, name the source of each fact, and never invent a value for field 12 or option 15.\nHouse rule 13: when a request mentions item 13, answer briefly, name the source of each fact, and never invent a value for field 13 or option 22.\nHouse rule 14: when a request mentions item 14, answer briefly, name the source of each fact, and never invent a value for field 14 or option 6.\nHouse rule 15: when a request mentions item 15, answer briefly, name the source of each fact, and never invent a value for field 15 or option 13.\nHouse rule 16: when a request mentions item 16, answer briefly, name the source of each fact, and never invent a value for field 16 or option 20.\nHouse rule 17: when a request mentions item 17, answer briefly, name the source of each fact, and never invent a value for field 0 or option 4.\nHouse rule 18: when a request mentions item 18, answer briefly, name the source of each fact, and never invent a value for field 1 or option 11.\nHouse rule 19: when a request mentions item 19, answer briefly, name the source of each fact, and never invent a value for field 2 or option 18.\nHouse rule 20: when a request mentions item 20, answer briefly, name the source of each fact, and never invent a value for field 3 or option 2.\nHouse rule 21: when a request mentions item 21, answer briefly, name the source of each fact, and never invent a value for field 4 or option 9.\nHouse rule 22: when a request mentions item 22, answer briefly, name the source of each fact, and never invent a value for field 5 or option 16.\nHouse rule 23: when a request mentions item 23, answer briefly, name the source of each fact, and never invent a value for field 6 or option 0.\nHouse rule 24: when a request mentions item 24, answer briefly, name the source of each fact, and never invent a value for field 7 or option 7.\nHouse rule 25: when a request mentions item 25, answer briefly, name the source of each fact, and never invent a value for field 8 or option 14.\nHouse rule 26: when a request mentions item 26, answer briefly, name the source of each fact, and never invent a value for field 9 or option 21.\nHouse rule 27: when a request mentions item 27, answer briefly, name the source of each fact, and never invent a value for field 10 or option 5.\nHouse rule 28: when a request mentions item 28, answer briefly, name the source of each fact, and never invent a value for field 11 or option 12.\nHouse rule 29: when a request mentions item 29, answer briefly, name the source of each fact, and never invent a value for field 12 or option 19.\nHouse rule 30: when a request mentions item 30, answer briefly, name the source of each fact, and never invent a value for field 13 or option 3.\nHouse rule 31: when a request mentions item 31, answer briefly, name the source of each fact, and never invent a value for field 14 or option 10.\nHouse rule 32: when a request mentions item 32, answer briefly, name the source of each fact, and never invent a value for field 15 or option 17.\nHouse rule 33: when a request mentions item 33, answer briefly, name the source of each fact, and never invent a value for field 16 or option 1.\nHouse rule 34: when a request mentions item 34, answer briefly, name the source of each fact, and never invent a value for field 0 or option 8.\nHouse rule 35: when a request mentions item 35, answer briefly, name the source of each fact, and never invent a value for field 1 or option 15.\nHouse rule 36: when a request mentions item 36, answer briefly, name the source of each fact, and never invent a value for field 2 or option 22."
+          }
+        }
+      },
+      {
+        "event": "response.in_progress",
+        "data": {
+          "sequence_number": 1,
+          "type": "response.in_progress",
+          "response": {
+            "created_at": 1791153663,
+            "completed_at": null,
+            "id": "d9bf487f-adba-9825-977d-db328c44fc6f",
+            "max_output_tokens": 1024,
+            "model": "grok-4.3",
+            "object": "response",
+            "output": [],
+            "parallel_tool_calls": true,
+            "previous_response_id": null,
+            "reasoning": {
+              "effort": "low",
+              "summary": "detailed"
+            },
+            "temperature": 0.699999988079071,
+            "text": {
+              "format": {
+                "type": "text"
+              }
+            },
+            "tool_choice": "auto",
+            "tools": [
+              {
+                "type": "function",
+                "description": "Returns the current time in the given IANA time zone.",
+                "name": "get_time",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "timezone": {
+                      "type": "string",
+                      "description": "An IANA time zone such as UTC."
+                    }
+                  },
+                  "required": ["timezone"]
+                },
+                "strict": false
+              }
+            ],
+            "top_p": 0.949999988079071,
+            "usage": null,
+            "user": null,
+            "incomplete_details": null,
+            "status": "in_progress",
+            "store": false,
+            "metadata": {
+              "system_fingerprint": "fp_eb3c003fc66c14ed"
+            },
+            "background": false,
+            "service_tier": "default",
+            "truncation": "disabled",
+            "top_logprobs": 0,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "prompt_cache_key": "m95-capture-xai",
+            "max_tool_calls": null,
+            "safety_identifier": null,
+            "error": null,
+            "instructions": "You are a capture assistant for an API wire-format test. When the user asks for the time, call the get_time tool, then answer in one short sentence.\n\nHouse rule 1: when a request mentions item 1, answer briefly, name the source of each fact, and never invent a value for field 1 or option 7.\nHouse rule 2: when a request mentions item 2, answer briefly, name the source of each fact, and never invent a value for field 2 or option 14.\nHouse rule 3: when a request mentions item 3, answer briefly, name the source of each fact, and never invent a value for field 3 or option 21.\nHouse rule 4: when a request mentions item 4, answer briefly, name the source of each fact, and never invent a value for field 4 or option 5.\nHouse rule 5: when a request mentions item 5, answer briefly, name the source of each fact, and never invent a value for field 5 or option 12.\nHouse rule 6: when a request mentions item 6, answer briefly, name the source of each fact, and never invent a value for field 6 or option 19.\nHouse rule 7: when a request mentions item 7, answer briefly, name the source of each fact, and never invent a value for field 7 or option 3.\nHouse rule 8: when a request mentions item 8, answer briefly, name the source of each fact, and never invent a value for field 8 or option 10.\nHouse rule 9: when a request mentions item 9, answer briefly, name the source of each fact, and never invent a value for field 9 or option 17.\nHouse rule 10: when a request mentions item 10, answer briefly, name the source of each fact, and never invent a value for field 10 or option 1.\nHouse rule 11: when a request mentions item 11, answer briefly, name the source of each fact, and never invent a value for field 11 or option 8.\nHouse rule 12: when a request mentions item 12, answer briefly, name the source of each fact, and never invent a value for field 12 or option 15.\nHouse rule 13: when a request mentions item 13, answer briefly, name the source of each fact, and never invent a value for field 13 or option 22.\nHouse rule 14: when a request mentions item 14, answer briefly, name the source of each fact, and never invent a value for field 14 or option 6.\nHouse rule 15: when a request mentions item 15, answer briefly, name the source of each fact, and never invent a value for field 15 or option 13.\nHouse rule 16: when a request mentions item 16, answer briefly, name the source of each fact, and never invent a value for field 16 or option 20.\nHouse rule 17: when a request mentions item 17, answer briefly, name the source of each fact, and never invent a value for field 0 or option 4.\nHouse rule 18: when a request mentions item 18, answer briefly, name the source of each fact, and never invent a value for field 1 or option 11.\nHouse rule 19: when a request mentions item 19, answer briefly, name the source of each fact, and never invent a value for field 2 or option 18.\nHouse rule 20: when a request mentions item 20, answer briefly, name the source of each fact, and never invent a value for field 3 or option 2.\nHouse rule 21: when a request mentions item 21, answer briefly, name the source of each fact, and never invent a value for field 4 or option 9.\nHouse rule 22: when a request mentions item 22, answer briefly, name the source of each fact, and never invent a value for field 5 or option 16.\nHouse rule 23: when a request mentions item 23, answer briefly, name the source of each fact, and never invent a value for field 6 or option 0.\nHouse rule 24: when a request mentions item 24, answer briefly, name the source of each fact, and never invent a value for field 7 or option 7.\nHouse rule 25: when a request mentions item 25, answer briefly, name the source of each fact, and never invent a value for field 8 or option 14.\nHouse rule 26: when a request mentions item 26, answer briefly, name the source of each fact, and never invent a value for field 9 or option 21.\nHouse rule 27: when a request mentions item 27, answer briefly, name the source of each fact, and never invent a value for field 10 or option 5.\nHouse rule 28: when a request mentions item 28, answer briefly, name the source of each fact, and never invent a value for field 11 or option 12.\nHouse rule 29: when a request mentions item 29, answer briefly, name the source of each fact, and never invent a value for field 12 or option 19.\nHouse rule 30: when a request mentions item 30, answer briefly, name the source of each fact, and never invent a value for field 13 or option 3.\nHouse rule 31: when a request mentions item 31, answer briefly, name the source of each fact, and never invent a value for field 14 or option 10.\nHouse rule 32: when a request mentions item 32, answer briefly, name the source of each fact, and never invent a value for field 15 or option 17.\nHouse rule 33: when a request mentions item 33, answer briefly, name the source of each fact, and never invent a value for field 16 or option 1.\nHouse rule 34: when a request mentions item 34, answer briefly, name the source of each fact, and never invent a value for field 0 or option 8.\nHouse rule 35: when a request mentions item 35, answer briefly, name the source of each fact, and never invent a value for field 1 or option 15.\nHouse rule 36: when a request mentions item 36, answer briefly, name the source of each fact, and never invent a value for field 2 or option 22."
+          }
+        }
+      },
+      {
+        "event": "response.output_item.added",
+        "data": {
+          "sequence_number": 2,
+          "type": "response.output_item.added",
+          "item": {
+            "id": "rs_d9bf487f-adba-9825-977d-db328c44fc6f",
+            "summary": [],
+            "type": "reasoning",
+            "status": "in_progress"
+          },
+          "output_index": 0
+        }
+      },
+      {
+        "event": "response.output_item.done",
+        "data": {
+          "sequence_number": 3,
+          "type": "response.output_item.done",
+          "item": {
+            "id": "rs_d9bf487f-adba-9825-977d-db328c44fc6f",
+            "summary": [],
+            "type": "reasoning",
+            "status": "completed",
+            "encrypted_content": "WThC1hSFSeGNsvmxVu3N1MqxmSWftQf42VkiZX4JXbDV+yBHYPUDNIA2tz/39q9Vc+cHSSRhRhgVAZI6wPsh8+1Vx9gQTWlv1cKpkPVsC3ix8RCHwXsMAtl4kNHm1MsZ5IYpM7frLHeydWOWYS1qSaq11AJc34tNWcpf4pO6fpppZvxESDjWBMnUC3GnyDzktpji11gVR5Yv2cTPT4rTD7OClmprvC0yNmWWIKHdRPuv8MWlsfn1p7aTmeaigDCJaZxkIxma/+IkDMiYkIai+JzPqTSsHCEo3adGzGi6qY0anySqZVmQdw7DdMWfy6OkbYaP4TxHhndUHpioTqm5gjmRyfmyg4G0ibNtwmDtDPYoPU1VHBXV2hPxVmszmYUf+ZAaVRdPu/q5XP4P0kgY1NMbTXUCT5N5KEEm8H6qgHheKlFBvonyXGrGzDjbBnj8o+FN8uNyfng0sNg"
+          },
+          "output_index": 0
+        }
+      },
+      {
+        "event": "response.output_item.added",
+        "data": {
+          "sequence_number": 4,
+          "type": "response.output_item.added",
+          "item": {
+            "content": [],
+            "id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+            "role": "assistant",
+            "type": "message",
+            "status": "in_progress"
+          },
+          "output_index": 1
+        }
+      },
+      {
+        "event": "response.content_part.added",
+        "data": {
+          "sequence_number": 5,
+          "type": "response.content_part.added",
+          "content_index": 0,
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "part": {
+            "type": "output_text",
+            "text": "",
+            "logprobs": [],
+            "annotations": []
+          }
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 6,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": "It",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 7,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": " is",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 8,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": " ",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 9,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": "202",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 10,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": "6",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 11,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": "-",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 12,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": "10",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 13,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": "-",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 14,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": "04",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 15,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": "T",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 16,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": "12",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 17,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": ":",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 18,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": "00",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 19,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": ":",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 20,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": "00",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 21,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": "Z",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 22,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": " in",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 23,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": " UTC",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.delta",
+        "data": {
+          "sequence_number": 24,
+          "type": "response.output_text.delta",
+          "content_index": 0,
+          "delta": ".",
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.output_text.done",
+        "data": {
+          "sequence_number": 25,
+          "type": "response.output_text.done",
+          "content_index": 0,
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "text": "It is 2026-10-04T12:00:00Z in UTC.",
+          "logprobs": []
+        }
+      },
+      {
+        "event": "response.content_part.done",
+        "data": {
+          "sequence_number": 26,
+          "type": "response.content_part.done",
+          "content_index": 0,
+          "item_id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+          "output_index": 1,
+          "part": {
+            "type": "output_text",
+            "text": "It is 2026-10-04T12:00:00Z in UTC.",
+            "logprobs": [],
+            "annotations": []
+          }
+        }
+      },
+      {
+        "event": "response.output_item.done",
+        "data": {
+          "sequence_number": 27,
+          "type": "response.output_item.done",
+          "item": {
+            "content": [
+              {
+                "type": "output_text",
+                "text": "It is 2026-10-04T12:00:00Z in UTC.",
+                "logprobs": [],
+                "annotations": []
+              }
+            ],
+            "id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+            "role": "assistant",
+            "type": "message",
+            "status": "completed"
+          },
+          "output_index": 1
+        }
+      },
+      {
+        "event": "response.completed",
+        "data": {
+          "sequence_number": 28,
+          "type": "response.completed",
+          "response": {
+            "created_at": 1791153663,
+            "completed_at": 1791153664,
+            "id": "d9bf487f-adba-9825-977d-db328c44fc6f",
+            "max_output_tokens": 1024,
+            "model": "grok-4.3",
+            "object": "response",
+            "output": [
+              {
+                "id": "rs_d9bf487f-adba-9825-977d-db328c44fc6f",
+                "summary": [],
+                "type": "reasoning",
+                "status": "completed",
+                "encrypted_content": "WThC1hSFSeGNsvmxVu3N1MqxmSWftQf42VkiZX4JXbDV+yBHYPUDNIA2tz/39q9Vc+cHSSRhRhgVAZI6wPsh8+1Vx9gQTWlv1cKpkPVsC3ix8RCHwXsMAtl4kNHm1MsZ5IYpM7frLHeydWOWYS1qSaq11AJc34tNWcpf4pO6fpppZvxESDjWBMnUC3GnyDzktpji11gVR5Yv2cTPT4rTD7OClmprvC0yNmWWIKHdRPuv8MWlsfn1p7aTmeaigDCJaZxkIxma/+IkDMiYkIai+JzPqTSsHCEo3adGzGi6qY0anySqZVmQdw7DdMWfy6OkbYaP4TxHhndUHpioTqm5gjmRyfmyg4G0ibNtwmDtDPYoPU1VHBXV2hPxVmszmYUf+ZAaVRdPu/q5XP4P0kgY1NMbTXUCT5N5KEEm8H6qgHheKlFBvonyXGrGzDjbBnj8o+FN8uNyfng0sNg"
+              },
+              {
+                "content": [
+                  {
+                    "type": "output_text",
+                    "text": "It is 2026-10-04T12:00:00Z in UTC.",
+                    "logprobs": [],
+                    "annotations": []
+                  }
+                ],
+                "id": "msg_d9bf487f-adba-9825-977d-db328c44fc6f",
+                "role": "assistant",
+                "type": "message",
+                "status": "completed"
+              }
+            ],
+            "parallel_tool_calls": true,
+            "previous_response_id": null,
+            "reasoning": {
+              "effort": "low",
+              "summary": "detailed"
+            },
+            "temperature": 0.699999988079071,
+            "text": {
+              "format": {
+                "type": "text"
+              }
+            },
+            "tool_choice": "auto",
+            "tools": [
+              {
+                "type": "function",
+                "description": "Returns the current time in the given IANA time zone.",
+                "name": "get_time",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "timezone": {
+                      "type": "string",
+                      "description": "An IANA time zone such as UTC."
+                    }
+                  },
+                  "required": ["timezone"]
+                },
+                "strict": false
+              }
+            ],
+            "top_p": 0.949999988079071,
+            "usage": {
+              "input_tokens": 1874,
+              "input_tokens_details": {
+                "cached_tokens": 1664
+              },
+              "output_tokens": 110,
+              "output_tokens_details": {
+                "reasoning_tokens": 91
+              },
+              "total_tokens": 1984,
+              "num_sources_used": 0,
+              "num_server_side_tools_used": 0,
+              "cost_in_usd_ticks": 8703000,
+              "context_details": {
+                "input_tokens": 1874,
+                "output_tokens": 117
+              }
+            },
+            "user": null,
+            "incomplete_details": null,
+            "status": "completed",
+            "store": false,
+            "metadata": {
+              "system_fingerprint": "fp_eb3c003fc66c14ed"
+            },
+            "background": false,
+            "service_tier": "default",
+            "truncation": "disabled",
+            "top_logprobs": 0,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "prompt_cache_key": "m95-capture-xai",
+            "max_tool_calls": null,
+            "safety_identifier": null,
+            "error": null,
+            "instructions": "You are a capture assistant for an API wire-format test. When the user asks for the time, call the get_time tool, then answer in one short sentence.\n\nHouse rule 1: when a request mentions item 1, answer briefly, name the source of each fact, and never invent a value for field 1 or option 7.\nHouse rule 2: when a request mentions item 2, answer briefly, name the source of each fact, and never invent a value for field 2 or option 14.\nHouse rule 3: when a request mentions item 3, answer briefly, name the source of each fact, and never invent a value for field 3 or option 21.\nHouse rule 4: when a request mentions item 4, answer briefly, name the source of each fact, and never invent a value for field 4 or option 5.\nHouse rule 5: when a request mentions item 5, answer briefly, name the source of each fact, and never invent a value for field 5 or option 12.\nHouse rule 6: when a request mentions item 6, answer briefly, name the source of each fact, and never invent a value for field 6 or option 19.\nHouse rule 7: when a request mentions item 7, answer briefly, name the source of each fact, and never invent a value for field 7 or option 3.\nHouse rule 8: when a request mentions item 8, answer briefly, name the source of each fact, and never invent a value for field 8 or option 10.\nHouse rule 9: when a request mentions item 9, answer briefly, name the source of each fact, and never invent a value for field 9 or option 17.\nHouse rule 10: when a request mentions item 10, answer briefly, name the source of each fact, and never invent a value for field 10 or option 1.\nHouse rule 11: when a request mentions item 11, answer briefly, name the source of each fact, and never invent a value for field 11 or option 8.\nHouse rule 12: when a request mentions item 12, answer briefly, name the source of each fact, and never invent a value for field 12 or option 15.\nHouse rule 13: when a request mentions item 13, answer briefly, name the source of each fact, and never invent a value for field 13 or option 22.\nHouse rule 14: when a request mentions item 14, answer briefly, name the source of each fact, and never invent a value for field 14 or option 6.\nHouse rule 15: when a request mentions item 15, answer briefly, name the source of each fact, and never invent a value for field 15 or option 13.\nHouse rule 16: when a request mentions item 16, answer briefly, name the source of each fact, and never invent a value for field 16 or option 20.\nHouse rule 17: when a request mentions item 17, answer briefly, name the source of each fact, and never invent a value for field 0 or option 4.\nHouse rule 18: when a request mentions item 18, answer briefly, name the source of each fact, and never invent a value for field 1 or option 11.\nHouse rule 19: when a request mentions item 19, answer briefly, name the source of each fact, and never invent a value for field 2 or option 18.\nHouse rule 20: when a request mentions item 20, answer briefly, name the source of each fact, and never invent a value for field 3 or option 2.\nHouse rule 21: when a request mentions item 21, answer briefly, name the source of each fact, and never invent a value for field 4 or option 9.\nHouse rule 22: when a request mentions item 22, answer briefly, name the source of each fact, and never invent a value for field 5 or option 16.\nHouse rule 23: when a request mentions item 23, answer briefly, name the source of each fact, and never invent a value for field 6 or option 0.\nHouse rule 24: when a request mentions item 24, answer briefly, name the source of each fact, and never invent a value for field 7 or option 7.\nHouse rule 25: when a request mentions item 25, answer briefly, name the source of each fact, and never invent a value for field 8 or option 14.\nHouse rule 26: when a request mentions item 26, answer briefly, name the source of each fact, and never invent a value for field 9 or option 21.\nHouse rule 27: when a request mentions item 27, answer briefly, name the source of each fact, and never invent a value for field 10 or option 5.\nHouse rule 28: when a request mentions item 28, answer briefly, name the source of each fact, and never invent a value for field 11 or option 12.\nHouse rule 29: when a request mentions item 29, answer briefly, name the source of each fact, and never invent a value for field 12 or option 19.\nHouse rule 30: when a request mentions item 30, answer briefly, name the source of each fact, and never invent a value for field 13 or option 3.\nHouse rule 31: when a request mentions item 31, answer briefly, name the source of each fact, and never invent a value for field 14 or option 10.\nHouse rule 32: when a request mentions item 32, answer briefly, name the source of each fact, and never invent a value for field 15 or option 17.\nHouse rule 33: when a request mentions item 33, answer briefly, name the source of each fact, and never invent a value for field 16 or option 1.\nHouse rule 34: when a request mentions item 34, answer briefly, name the source of each fact, and never invent a value for field 0 or option 8.\nHouse rule 35: when a request mentions item 35, answer briefly, name the source of each fact, and never invent a value for field 1 or option 15.\nHouse rule 36: when a request mentions item 36, answer briefly, name the source of each fact, and never invent a value for field 2 or option 22."
+          }
+        }
+      }
+    ]
+  }
+}

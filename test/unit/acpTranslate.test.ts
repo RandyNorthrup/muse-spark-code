@@ -1,14 +1,18 @@
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { fill } from '../../src/shared/l10n/text'
+import { pdfFixture } from './helpers/pdfFixture'
 import { formAnswers, questionForm, questionsText } from '../../src/acp/questions'
 import {
   approvalToolCall,
   decidedChoice,
+  decodeAcpBlob,
   mcpServersFrom,
   permissionOptions,
   permissionResponse,
   promptParts,
+  type PromptMediaPort,
   toolKind,
   toolName,
   UpdateTranslator,
@@ -157,7 +161,7 @@ describe('UpdateTranslator', () => {
       result: { summary: 'Mapped' },
     }
     expect(translator.updates({ type: 'itemCompleted', item: subagent })).toMatchObject([
-      { title: 'Spawn agent: Map the workspace', kind: 'other' },
+      { title: 'Spawn Agent: Map the workspace', kind: 'other' },
       { rawOutput: { summary: 'Mapped' } },
     ])
   })
@@ -335,7 +339,7 @@ describe('tool names and kinds', () => {
 
 describe('approvals', () => {
   const choices: ApprovalChoice[] = [
-    { choiceId: 'a1', label: 'Allow once', decision: 'approved', scope: 'once' },
+    { choiceId: 'a1', label: 'Allow Once', decision: 'approved', scope: 'once' },
     {
       choiceId: 'a2',
       label: 'Always',
@@ -365,7 +369,7 @@ describe('approvals', () => {
 
   it('offers each choice under its own id, label and kind', () => {
     expect(permissionOptions(choices)).toEqual([
-      { optionId: 'a1', name: 'Allow once', kind: 'allow_once' },
+      { optionId: 'a1', name: 'Allow Once', kind: 'allow_once' },
       { optionId: 'a2', name: 'Always', kind: 'allow_always' },
       { optionId: 'd2', name: 'Never', kind: 'reject_always' },
       { optionId: 'd1', name: 'Reject', kind: 'reject_once' },
@@ -429,10 +433,141 @@ describe('approvals', () => {
 })
 
 describe('promptParts', () => {
-  it('reads a file whose name begins with two dots as inside the folder', () => {
+  it('bounds encoded blobs before decoding and refuses MIME mismatches on direct images', async () => {
+    const allocate = vi.spyOn(Buffer, 'from')
+    const bounded = decodeAcpBlob('YWJjZA==', 2, 'blob', 'too large')
+    const allocations = allocate.mock.calls.length
+    allocate.mockRestore()
+    expect(bounded).toBe('too large')
+    expect(allocations).toBe(0)
+    expect(decodeAcpBlob(Buffer.from('abc').toString('base64'), 2, 'blob', 'too large')).toBe(
+      'too large',
+    )
+    expect(decodeAcpBlob('@@@@', 2, 'blob', 'too large')).toBe(
+      fill(UI_TEXT.media.attachmentUnknownType, { type: 'blob' }),
+    )
+    expect(await promptParts([{ type: 'image', data: PNG, mimeType: 'image/jpeg' }], CWD)).toEqual({
+      ok: false,
+      reason: fill(UI_TEXT.media.attachmentUnknownType, { type: 'image/jpeg' }),
+    })
+  })
+  it('dispatches a PDF blob as a document and checks MIME against its bytes', async () => {
+    const blob = Buffer.from(pdfFixture(2)).toString('base64')
+    const resource = { uri: 'file:///docs/report.pdf', mimeType: 'application/pdf', blob }
+    expect(await promptParts([{ type: 'resource', resource }], CWD, undefined, true)).toMatchObject(
+      {
+        ok: true,
+        parts: [{ type: 'file', name: 'report.pdf', mediaType: 'application/pdf', pageCount: 2 }],
+      },
+    )
+    expect(await promptParts([{ type: 'resource', resource }], CWD)).toEqual({
+      ok: false,
+      reason: UI_TEXT.pdfNeedsModelApi,
+    })
+    expect(
+      await promptParts(
+        [{ type: 'resource', resource: { ...resource, mimeType: 'image/png' } }],
+        CWD,
+        undefined,
+        true,
+      ),
+    ).toEqual({
+      ok: false,
+      reason: fill(UI_TEXT.media.attachmentUnknownType, { type: 'image/png' }),
+    })
+  })
+
+  it('routes video and audio to the injected media path, refusing the whole prompt on a refusal', async () => {
+    const block = vi.fn().mockResolvedValue(UI_TEXT.media.museCodeRefusal)
+    expect(
+      await promptParts(
+        [
+          { type: 'text', text: 'look' },
+          {
+            type: 'resource',
+            resource: { uri: 'file:///clip.mp4', mimeType: 'video/mp4', blob: 'AAAA' },
+          },
+        ],
+        CWD,
+        { block },
+      ),
+    ).toEqual({ ok: false, reason: UI_TEXT.media.museCodeRefusal })
+    expect(block).toHaveBeenCalledTimes(1)
+    block.mockResolvedValue({ type: 'text', text: 'registered-media' })
+    expect(
+      await promptParts([{ type: 'audio', mimeType: 'audio/wav', data: 'AAAA' }], CWD, { block }),
+    ).toMatchObject({
+      ok: true,
+      parts: [{ type: 'text', text: 'registered-media' }],
+    })
+  })
+
+  it('refuses a media link when no confined reader is installed', async () => {
+    expect(
+      await promptParts([{ type: 'resource_link', uri: 'file:///clip.mp4', name: 'clip' }], CWD),
+    ).toEqual({
+      ok: false,
+      reason: UI_TEXT.media.museCodeRefusal,
+    })
+    // On the Model API backend an unbound port is an unbound pipeline, not a
+    // reason to switch backends (M105 E2 review).
+    expect(
+      await promptParts(
+        [{ type: 'resource_link', uri: 'file:///clip.mp4', name: 'clip' }],
+        CWD,
+        undefined,
+        true,
+      ),
+    ).toEqual({ ok: false, reason: UI_TEXT.media.uploadStorageUnknown })
+    expect(
+      await promptParts(
+        [{ type: 'audio', data: 'AAAA', mimeType: 'audio/wav' }],
+        CWD,
+        undefined,
+        true,
+      ),
+    ).toEqual({ ok: false, reason: UI_TEXT.media.uploadStorageUnknown })
+  })
+
+  it('keeps ordinary links as mentions even when the media port is bound', async () => {
+    const block = vi.fn<PromptMediaPort['block']>(() =>
+      Promise.resolve({ type: 'text', text: 'opened' }),
+    )
+    const inside = pathToFileURL(path.join(CWD, 'src', 'app.ts')).href
+    const result = await promptParts(
+      [
+        { type: 'text', text: 'Look at' },
+        { type: 'resource_link', uri: inside, name: 'app.ts' },
+        { type: 'resource_link', uri: 'https://example.com/doc', name: 'doc' },
+      ],
+      CWD,
+      { block },
+    )
+    expect(result).toMatchObject({
+      ok: true,
+      parts: [
+        { type: 'text', text: 'Look at' },
+        { type: 'text', text: '@src/app.ts' },
+        { type: 'text', text: 'https://example.com/doc' },
+      ],
+    })
+    // Binding the port must not file-open context links (M105 E2 review).
+    expect(block).not.toHaveBeenCalled()
+    const mediaBlock = vi.fn<PromptMediaPort['block']>(() =>
+      Promise.resolve({ type: 'text', text: 'opened' }),
+    )
+    const media = await promptParts(
+      [{ type: 'resource_link', uri: 'file:///clip.mp4', name: 'clip' }],
+      CWD,
+      { block: mediaBlock },
+    )
+    expect(media).toMatchObject({ ok: true, parts: [{ type: 'text', text: 'opened' }] })
+    expect(mediaBlock).toHaveBeenCalledOnce()
+  })
+  it('reads a file whose name begins with two dots as inside the folder', async () => {
     const dotted = pathToFileURL(path.join(CWD, '..cache')).href
     const parent = pathToFileURL(path.resolve(CWD, '..', 'x.ts')).href
-    const result = promptParts(
+    const result = await promptParts(
       [
         { type: 'resource_link', uri: dotted, name: '..cache' },
         { type: 'resource_link', uri: parent, name: 'x.ts' },
@@ -445,10 +580,10 @@ describe('promptParts', () => {
     ])
   })
 
-  it('takes text, images, links inside the folder as mentions and attached text as context', () => {
+  it('takes text, images, links inside the folder as mentions and attached text as context', async () => {
     const inside = pathToFileURL(path.join(CWD, 'src', 'app.ts')).href
     const outside = pathToFileURL(path.resolve('/elsewhere/x.ts')).href
-    const result = promptParts(
+    const result = await promptParts(
       [
         { type: 'text', text: 'Look at' },
         { type: 'resource_link', uri: inside, name: 'app.ts' },
@@ -486,21 +621,26 @@ describe('promptParts', () => {
     })
   })
 
-  it('refuses a prompt with an image too large, a file that is not one, audio, or a link it cannot map', () => {
+  it('refuses a prompt with an image too large, a file that is not one, audio, or a link it cannot map', async () => {
     const huge = Buffer.alloc(10 * 1024 * 1024 + 1).toString('base64')
-    expect(promptParts([{ type: 'image', data: huge, mimeType: 'image/png' }], CWD)).toEqual({
+    expect(await promptParts([{ type: 'image', data: huge, mimeType: 'image/png' }], CWD)).toEqual({
       ok: false,
       reason: UI_TEXT.attachmentTooLarge,
     })
     expect(
-      promptParts([{ type: 'resource', resource: { uri: 'file:///a.bin', blob: 'AAAA' } }], CWD),
-    ).toEqual({ ok: false, reason: UI_TEXT.attachmentUnsupported })
-    expect(promptParts([{ type: 'audio', data: 'AAAA', mimeType: 'audio/wav' }], CWD)).toEqual({
+      await promptParts(
+        [{ type: 'resource', resource: { uri: 'file:///a.bin', blob: 'AAAA' } }],
+        CWD,
+      ),
+    ).toEqual({ ok: false, reason: fill(UI_TEXT.media.attachmentUnknownType, { type: 'blob' }) })
+    expect(
+      await promptParts([{ type: 'audio', data: 'AAAA', mimeType: 'audio/wav' }], CWD),
+    ).toEqual({
       ok: false,
-      reason: UI_TEXT.attachmentUnsupported,
+      reason: UI_TEXT.media.museCodeRefusal,
     })
     const share = 'file://server/share/x.ts'
-    const mapped = promptParts([{ type: 'resource_link', uri: share, name: 'x' }], CWD)
+    const mapped = await promptParts([{ type: 'resource_link', uri: share, name: 'x' }], CWD)
     expect(mapped.ok && mapped.parts[0]?.type === 'text' ? mapped.parts[0].text : '').toMatch(
       /x\.ts/,
     )
@@ -677,5 +817,39 @@ describe('questions', () => {
     expect(questionsText([single, open])).toBe(
       `${UI_TEXT.acpOpenQuestionAsked}\nWhich one?\n- Blue\n- Red\nWhat name?`,
     )
+  })
+})
+
+describe('FIXM101T ACP path parity', () => {
+  it.each(['@safe.txt', pathToFileURL(path.join(CWD, 'safe.txt')).href])(
+    'shows the tool target in permissions and write previews (%s)',
+    (given) => {
+      const translator = new UpdateTranslator(CWD, false)
+      const write = tool({
+        tool: 'write_file',
+        args: JSON.stringify({ path: given, content: 'new' }),
+        status: 'completed',
+      })
+      const updates = translator.updates({ type: 'itemCompleted', item: write })
+      expect(updates[0]).toMatchObject({ locations: [{ path: path.join(CWD, 'safe.txt') }] })
+      expect(updates[1]).toMatchObject({
+        content: [
+          { type: 'diff', path: path.join(CWD, 'safe.txt'), oldText: null, newText: 'new' },
+        ],
+      })
+    },
+  )
+  it('omits locations and previews for an escaping normalized path', () => {
+    const translator = new UpdateTranslator(CWD, false)
+    const updates = translator.updates({
+      type: 'itemCompleted',
+      item: tool({
+        tool: 'write_file',
+        args: '{"path":"@../outside.txt","content":"new"}',
+        status: 'completed',
+      }),
+    })
+    expect(updates[0]).toMatchObject({ locations: [] })
+    expect(updates[1]).toMatchObject({ content: [] })
   })
 })

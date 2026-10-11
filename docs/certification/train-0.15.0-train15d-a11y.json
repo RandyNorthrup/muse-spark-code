@@ -1,0 +1,1826 @@
+[
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "light",
+    "scenario": "legal",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "light",
+    "scenario": "legal",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "light",
+    "scenario": "legal",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "light",
+    "scenario": "legal",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "light",
+    "scenario": "legal-preview",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "light",
+    "scenario": "legal-preview",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "light",
+    "scenario": "legal-preview",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "light",
+    "scenario": "legal-preview",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "light",
+    "scenario": "legal-narrow",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "light",
+    "scenario": "legal-narrow",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "light",
+    "scenario": "legal-narrow",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "light",
+    "scenario": "legal-narrow",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "dark",
+    "scenario": "legal",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "dark",
+    "scenario": "legal",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "dark",
+    "scenario": "legal",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "dark",
+    "scenario": "legal",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "dark",
+    "scenario": "legal-preview",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "dark",
+    "scenario": "legal-preview",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "dark",
+    "scenario": "legal-preview",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "dark",
+    "scenario": "legal-preview",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "dark",
+    "scenario": "legal-narrow",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "dark",
+    "scenario": "legal-narrow",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "dark",
+    "scenario": "legal-narrow",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "dark",
+    "scenario": "legal-narrow",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-dark",
+    "scenario": "legal",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-dark",
+    "scenario": "legal",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-dark",
+    "scenario": "legal",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-dark",
+    "scenario": "legal",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-dark",
+    "scenario": "legal-preview",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-dark",
+    "scenario": "legal-preview",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-dark",
+    "scenario": "legal-preview",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-dark",
+    "scenario": "legal-preview",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-dark",
+    "scenario": "legal-narrow",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-dark",
+    "scenario": "legal-narrow",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-dark",
+    "scenario": "legal-narrow",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-dark",
+    "scenario": "legal-narrow",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-light",
+    "scenario": "legal",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-light",
+    "scenario": "legal",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-light",
+    "scenario": "legal",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-light",
+    "scenario": "legal",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-light",
+    "scenario": "legal-preview",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-light",
+    "scenario": "legal-preview",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-light",
+    "scenario": "legal-preview",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-light",
+    "scenario": "legal-preview",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-light",
+    "scenario": "legal-narrow",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-light",
+    "scenario": "legal-narrow",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-light",
+    "scenario": "legal-narrow",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "en",
+    "theme": "hc-light",
+    "scenario": "legal-narrow",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "light",
+    "scenario": "legal",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "light",
+    "scenario": "legal",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "light",
+    "scenario": "legal",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "light",
+    "scenario": "legal",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "light",
+    "scenario": "legal-preview",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "light",
+    "scenario": "legal-preview",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "light",
+    "scenario": "legal-preview",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "light",
+    "scenario": "legal-preview",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "light",
+    "scenario": "legal-narrow",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "light",
+    "scenario": "legal-narrow",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "light",
+    "scenario": "legal-narrow",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "light",
+    "scenario": "legal-narrow",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "dark",
+    "scenario": "legal",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "dark",
+    "scenario": "legal",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "dark",
+    "scenario": "legal",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "dark",
+    "scenario": "legal",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "dark",
+    "scenario": "legal-preview",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "dark",
+    "scenario": "legal-preview",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "dark",
+    "scenario": "legal-preview",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "dark",
+    "scenario": "legal-preview",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "dark",
+    "scenario": "legal-narrow",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "dark",
+    "scenario": "legal-narrow",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "dark",
+    "scenario": "legal-narrow",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "dark",
+    "scenario": "legal-narrow",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-dark",
+    "scenario": "legal",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-dark",
+    "scenario": "legal",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-dark",
+    "scenario": "legal",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-dark",
+    "scenario": "legal",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-dark",
+    "scenario": "legal-preview",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-dark",
+    "scenario": "legal-preview",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-dark",
+    "scenario": "legal-preview",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-dark",
+    "scenario": "legal-preview",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-dark",
+    "scenario": "legal-narrow",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-dark",
+    "scenario": "legal-narrow",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-dark",
+    "scenario": "legal-narrow",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-dark",
+    "scenario": "legal-narrow",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-light",
+    "scenario": "legal",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-light",
+    "scenario": "legal",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-light",
+    "scenario": "legal",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-light",
+    "scenario": "legal",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-light",
+    "scenario": "legal-preview",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-light",
+    "scenario": "legal-preview",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-light",
+    "scenario": "legal-preview",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-light",
+    "scenario": "legal-preview",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-light",
+    "scenario": "legal-narrow",
+    "width": 690,
+    "zoom": 1,
+    "layout": {
+      "width": 672,
+      "content": 672,
+      "viewport": 690,
+      "scale": 1,
+      "right": 682,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-light",
+    "scenario": "legal-narrow",
+    "width": 690,
+    "zoom": 2,
+    "layout": {
+      "width": 327,
+      "content": 327,
+      "viewport": 345,
+      "scale": 2,
+      "right": 337,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-light",
+    "scenario": "legal-narrow",
+    "width": 320,
+    "zoom": 1,
+    "layout": {
+      "width": 302,
+      "content": 302,
+      "viewport": 320,
+      "scale": 1,
+      "right": 312,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  },
+  {
+    "platform": "linux",
+    "language": "pseudo",
+    "theme": "hc-light",
+    "scenario": "legal-narrow",
+    "width": 320,
+    "zoom": 2,
+    "layout": {
+      "width": 144,
+      "content": 144,
+      "viewport": 160,
+      "scale": 2,
+      "right": 153,
+      "named": true,
+      "focused": true
+    },
+    "accessibilityTree": true,
+    "keyboard": true
+  }
+]

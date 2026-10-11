@@ -5,8 +5,9 @@ import { afterAll, describe, expect, it } from 'vitest'
 import {
   createInsightsReader,
   readTraceLogs,
+  readTraceAttempts,
   traceLogDirectory,
-} from '../../src/host/usage/traceLogs'
+} from '../../src/runtime/usage/traceLogs'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const home = mkdtempSync(path.join(tmpdir(), 'muse-trace-home-'))
@@ -29,6 +30,30 @@ describe('readTraceLogs', () => {
 
   it('is empty without the directory', async () => {
     expect(await readTraceLogs({ homeDir: path.join(home, 'nowhere') })).toEqual([])
+  })
+})
+
+describe('readTraceAttempts', () => {
+  it('keeps attempts older than a week and distinguishes the captured reminder and subagent origins', async () => {
+    const oldHome = path.join(home, 'old')
+    const oldDirectory = traceLogDirectory({ homeDir: oldHome })
+    mkdirSync(oldDirectory, { recursive: true })
+    writeFileSync(
+      path.join(oldDirectory, 'cli-old.log'),
+      [
+        '2025-01-01T00:00:00.000Z INFO event="tool.surface.registered" run_id=reminder x registered_tool_count=1',
+        '2025-01-01T00:00:00.000Z INFO event="native_subagent.child" x child_run_id=child',
+        admission('2025-01-01T00:01:00.000Z', 'turn'),
+        admission('2025-01-01T00:02:00.000Z', 'reminder'),
+        admission('2025-01-01T00:03:00.000Z', 'child'),
+      ].join('\n'),
+    )
+    const rows = await readTraceAttempts({ homeDir: oldHome })
+    expect(rows.map(({ origin, attempts }) => ({ origin, attempts }))).toEqual([
+      { origin: 'reminder', attempts: 1 },
+      { origin: 'subagent', attempts: 1 },
+      { origin: 'turn', attempts: 1 },
+    ])
   })
 })
 

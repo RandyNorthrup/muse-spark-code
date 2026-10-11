@@ -45,6 +45,7 @@ import path from 'node:path'
 import process from 'node:process'
 import * as prettier from 'prettier'
 import ts from 'typescript'
+import { collectThemeVariables } from './lib/themeInventory.mjs'
 
 const RECORD = 'docs/ide-compatibility/host-api.md'
 const MANIFEST = 'package.json'
@@ -74,7 +75,6 @@ const VSCODE_MODULE = 'vscode'
 const VSCODE_DECLARATIONS = '/node_modules/@types/vscode/'
 const NODE_SCHEME = 'node:'
 const WEBVIEW_HOST_CALL = 'acquireVsCodeApi'
-const THEME_VARIABLE = /--vscode-[\w-]+/g
 const SCRIPT_FILE = /\.tsx?$/
 const STYLE_FILE = /\.css$/
 const RESOLVABLE_SUFFIXES = ['', '.ts', '.tsx', '/index.ts', '/index.tsx']
@@ -484,16 +484,10 @@ function webviewHostCalls(graph) {
 }
 
 function themeVariables() {
-  const variables = new Map()
-  for (const file of [
+  return collectThemeVariables([
     ...listFiles(WEBVIEW_ROOT, SCRIPT_FILE),
     ...listFiles(WEBVIEW_ROOT, STYLE_FILE),
-  ]) {
-    for (const [variable] of readFileSync(file, 'utf8').matchAll(THEME_VARIABLE)) {
-      addTo(variables, variable, file)
-    }
-  }
-  return variables
+  ])
 }
 
 // --- the record ------------------------------------------------------------------

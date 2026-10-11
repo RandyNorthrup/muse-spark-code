@@ -1,3 +1,4 @@
+import { type UsdAmount } from '../../shared/usd'
 // Shared judge types and answer assembly (M98, D77, phase 1: same model).
 // The zod request/answer/`muse` schemas and the named limits live in lane 0;
 // this file holds the plan-named shapes those schemas bound, plus the pure
@@ -64,8 +65,8 @@ export interface JudgeMuseMeta {
   readonly confidence: number
   readonly vendorConfidence?: number | undefined
   readonly partial: boolean
-  readonly reservedCostUsd?: number | undefined
-  readonly settledCostUsd?: number | undefined
+  readonly reservedCostUsd?: UsdAmount | undefined
+  readonly settledCostUsd?: UsdAmount | undefined
 }
 
 interface JudgeAnswerBase {
@@ -138,8 +139,8 @@ export interface AssembleAnswerInputs {
   readonly question: JudgeQuestion
   readonly material: AnswerMaterial
   readonly model: string
-  readonly reservedCostUsd?: number | undefined
-  readonly settledCostUsd?: number | undefined
+  readonly reservedCostUsd?: UsdAmount | undefined
+  readonly settledCostUsd?: UsdAmount | undefined
 }
 
 /**

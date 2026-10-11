@@ -130,6 +130,7 @@ describe('renderWhatsNewPage', () => {
     const scripts = page.querySelectorAll('script')
     expect(scripts).toHaveLength(1)
     expect(scripts[0]?.getAttribute('nonce')).toBe(NONCE)
+    expect(scripts[0]?.getAttribute('type')).toBe('module')
     expect(scripts[0]?.getAttribute('src')).toBe('webview/dist/webview/whatsNew.js')
     expect(page.querySelector('link[rel="stylesheet"]')?.getAttribute('href')).toBe(
       'webview/dist/webview/whatsNew.css',

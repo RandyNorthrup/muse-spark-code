@@ -1,0 +1,57 @@
+{
+  "activationLane0Bytes": 449024,
+  "activationGrowth": 1017,
+  "activationGrowthCap": 1024,
+  "artifacts": [
+    {
+      "artifact": "dist/extension.js",
+      "bytes": 450041,
+      "cap": 614400
+    },
+    {
+      "artifact": "dist/prompts.js",
+      "bytes": 167354,
+      "cap": 204800
+    },
+    {
+      "artifact": "dist/sharingRuntime.js",
+      "bytes": 156485,
+      "cap": 179200
+    },
+    {
+      "artifact": "dist/acp.js",
+      "bytes": 846517,
+      "cap": 870400
+    },
+    {
+      "artifact": "webview startup JS",
+      "bytes": 819385,
+      "cap": 921600
+    },
+    {
+      "artifact": "webview deferred JS",
+      "bytes": 51188,
+      "cap": 51200
+    },
+    {
+      "artifact": "webview code highlighting",
+      "bytes": 95366,
+      "cap": 128000
+    },
+    {
+      "artifact": "webview action dialogs",
+      "bytes": 21986,
+      "cap": 25600
+    },
+    {
+      "artifact": "webview chat sharing",
+      "bytes": 13702,
+      "cap": 25600
+    },
+    {
+      "artifact": "webview tasks tab",
+      "bytes": 1375,
+      "cap": 25600
+    }
+  ]
+}

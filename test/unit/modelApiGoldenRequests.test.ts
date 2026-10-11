@@ -22,7 +22,7 @@
 // - Scripted call ids (`c1`, `spawn1`, …) stay: the test chose them, and a
 //   lane that renamed or dropped a call must fail loudly.
 // - Dates: the instructions carry `today` from the host's `now()` dep, and
-//   the harness clock counts up from a fixed start, so `today` is always
+//   the harness clock counts up from local midnight on 1970-01-01, so `today` is always
 //   1970-01-01. No wall clock, no temporary path and no random marker
 //   reaches these request bodies (observation-pack markers are per recall
 //   response, and this tree has no checkpoint shadow repository without the
@@ -32,7 +32,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import {
   ModelApiHost,
@@ -44,7 +44,18 @@ import { fakeModelApi, fakeModelApiClientSettings, type FakeModelApi } from './h
 import { memoryToolIo, type MemoryToolIo } from './helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { watchSessionTurns } from './helpers/sessionTurns'
-import { editThenRunCall } from './helpers/shellTurns'
+
+import type { TeamDecisionSource } from '../../src/core/team/teamSeams'
+import type * as TeamEntry from '../../src/core/team/teamEntry'
+import { isSameTeamModel } from '../../src/core/team/sameModel'
+import { memorySessionStore } from './helpers/fakeSessionStore'
+
+const teamLoads = vi.hoisted(() => ({ count: 0 }))
+vi.mock('../../src/core/team/teamEntry.js', async (importOriginal) => {
+  teamLoads.count += 1
+  return await importOriginal<typeof TeamEntry>()
+})
+
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { promptCacheKey } from '../../src/core/backends/modelapi/promptCache'
 import { isJudgeEngineOn } from '../../src/core/judge/engine'
@@ -57,6 +68,9 @@ import {
 } from '../../src/host/judge/modelApiSameJudge'
 import { JudgeResultCache } from '../../src/core/judge/same/resultCache'
 import { judgeJob, judgeOnce, SpyJudgeStore, startJudgeEntry } from './helpers/judgeSameRig'
+import * as z from 'zod/mini'
+import { CONSERVATIVE_CAPABILITIES } from '../../src/core/providers/capabilities'
+import { FORMAT_QUIRKS } from '../../src/core/providers/presets'
 
 const ROOT = '/ws'
 const FIXTURE_DIR = path.join(__dirname, '..', 'fixtures', 'golden-requests')
@@ -73,6 +87,7 @@ function isRegenerate(): boolean {
 }
 
 interface Harness {
+  readonly shouldUseStrictTools: boolean
   readonly api: FakeModelApi
   readonly rawBodies: string[]
   readonly host: ModelApiHost
@@ -81,9 +96,16 @@ interface Harness {
   readonly turnDone: () => Promise<void>
 }
 
-async function setup(
+async function baseSetup(
   files: Record<string, string>,
-  options: { readonly paidSubagents?: boolean; readonly judge?: JudgeAdvisory } = {},
+  options: {
+    readonly paidSubagents?: boolean
+    readonly judge?: JudgeAdvisory
+    readonly shouldUseStrictTools?: boolean
+    readonly teamSource?: () => TeamDecisionSource | undefined
+    readonly store?: ReturnType<typeof memorySessionStore>
+    readonly idPrefix?: string
+  } = {},
 ): Promise<Harness> {
   const api = fakeModelApi()
   const rawBodies: string[] = []
@@ -105,15 +127,34 @@ async function setup(
   const base = fakeModelApiHostDeps({ client, workspaceRoot: ROOT, io, log })
   const deps: ModelApiHostDeps = {
     ...base,
+    // A's date is local; preserve the same captured day on every test rig.
+    now: () => new Date(1970, 0, 1).getTime() + base.now(),
     judge: options.judge,
+    outputContinuation: () => false,
+    parallelReads: () => false,
+
+    ...(options.idPrefix !== undefined && {
+      newId: () => `${options.idPrefix ?? ''}${base.newId()}`,
+    }),
+    ...(options.teamSource !== undefined && { teamDecisionSource: options.teamSource }),
+    ...(options.store !== undefined && { store: options.store }),
+    teamRosterData: () => ({ stable: [] }),
     // Hooks OFF: the golden baseline every later M91 lane must not move.
     isHooksEnabled: () => false,
     // Packing stays on (it is not a hook): scenario 4 watches a long output
     // ride whole twice, then as a placeholder.
     observationPacking: () => true,
+    // Integration resolves the session setting AND model record before building the prefix.
+    modelFacts: () => ({
+      capabilities: {
+        ...CONSERVATIVE_CAPABILITIES,
+        supportsStrictTools: options.shouldUseStrictTools === true,
+      },
+      quirks: FORMAT_QUIRKS.responses,
+    }),
     ...(options.paidSubagents === true && {
       isPaidFeatureOn: () => true,
-      allowsPaidUse: () => Promise.resolve(true),
+      allowsPaidUse: (request) => Promise.resolve(request.feature !== 'webSearch' || request.quote),
     }),
   }
   const host = new ModelApiHost(deps)
@@ -125,7 +166,15 @@ async function setup(
   if (!(session instanceof ModelApiSession)) {
     throw new TypeError('expected the Model API session')
   }
-  return { api, rawBodies, host, io, session, ...watchSessionTurns(session) }
+  return {
+    api,
+    rawBodies,
+    host,
+    io,
+    session,
+    shouldUseStrictTools: options.shouldUseStrictTools === true,
+    ...watchSessionTurns(session),
+  }
 }
 
 /** One user text turn, driven to completion. */
@@ -223,15 +272,42 @@ function normalizeBodies(bodies: readonly string[]): string[] {
   })
 }
 
+// D78 (PLAN.md, FIXDEF follow-up): recall_output is declared only when the
+// request contains a packed observation. Fixtures include the resulting key;
+// all other raw request bytes and the existing id-only normalization stay exact.
 function checkGolden(scenario: string, harness: Harness): void {
   expect(harness.rawBodies).toHaveLength(harness.api.responseBodies().length)
+  expect(
+    harness.api.requests.filter(
+      (request) => !['/responses', '/responses/input_tokens'].includes(request.path),
+    ),
+  ).toEqual([])
   // The fixture envelope is formatted JSON; each entry is the raw request
   // string, not a parsed/reserialized body. Its whitespace and order survive.
   const doc = { scenario, requests: normalizeBodies(harness.rawBodies) }
   const text = `${JSON.stringify(doc, undefined, 2)}\n`
-  const file = path.join(FIXTURE_DIR, `${scenario}.json`)
+  const directory = harness.shouldUseStrictTools ? path.join(FIXTURE_DIR, 'strict') : FIXTURE_DIR
+  const file = path.join(directory, `${scenario}.json`)
+  if (harness.shouldUseStrictTools) {
+    const baseline = z
+      .object({ requests: z.array(z.string()) })
+      .parse(JSON.parse(readFileSync(path.join(FIXTURE_DIR, `${scenario}.json`), 'utf8')))
+    expect(doc.requests).toHaveLength(baseline.requests.length)
+    const fields = z.object({ tools: z.unknown(), prompt_cache_key: z.string() })
+    for (const [index, raw] of doc.requests.entries()) {
+      const offRaw = baseline.requests[index]
+      const on = fields.parse(JSON.parse(raw))
+      const off = fields.parse(JSON.parse(offRaw ?? ''))
+      // Only rewritten schemas/flags and their existing cache digest may differ.
+      expect(
+        raw
+          .replace(JSON.stringify(on.tools), () => JSON.stringify(off.tools))
+          .replace(JSON.stringify(on.prompt_cache_key), () => JSON.stringify(off.prompt_cache_key)),
+      ).toBe(offRaw)
+    }
+  }
   if (isRegenerate()) {
-    mkdirSync(FIXTURE_DIR, { recursive: true })
+    mkdirSync(directory, { recursive: true })
     writeFileSync(file, text)
     return
   }
@@ -300,6 +376,291 @@ describe('golden request normalization boundaries', () => {
   })
 })
 
+function teamSource(overrides: Partial<TeamDecisionSource> = {}): TeamDecisionSource {
+  return {
+    teamSwitchOn: true,
+    soloTemplate: false,
+    orchestratorModelId: 'muse-spark-1.3',
+    customEntries: [],
+    isSameModel: isSameTeamModel,
+    isEntryReady: () => false,
+    teamWorkersOn: false,
+    ...overrides,
+  }
+}
+
+const OTHER_ENTRY = {
+  entryId: 'other',
+  modelId: 'other-model',
+  kind: 'engine' as const,
+  billsKey: false,
+  isAvailable: true,
+}
+
+const BASELINES: readonly { label: string; source?: () => TeamDecisionSource }[] = [
+  { label: 'no team source' },
+  {
+    label: 'team off',
+    source: () =>
+      teamSource({ teamSwitchOn: false, customEntries: [OTHER_ENTRY], isEntryReady: () => true }),
+  },
+  {
+    label: 'Solo',
+    source: () =>
+      teamSource({ soloTemplate: true, customEntries: [OTHER_ENTRY], isEntryReady: () => true }),
+  },
+  { label: 'only Default', source: () => teamSource() },
+  {
+    label: 'key entries off',
+    source: () =>
+      teamSource({ customEntries: [{ ...OTHER_ENTRY, billsKey: true }], isEntryReady: () => true }),
+  },
+  {
+    label: 'duplicate models',
+    source: () =>
+      teamSource({
+        customEntries: [
+          { ...OTHER_ENTRY, modelId: 'muse-spark-1.3' },
+          { ...OTHER_ENTRY, entryId: 'duplicate', modelId: ' muse-spark-1.3 ', kind: 'musecode' },
+        ],
+        isEntryReady: () => true,
+      }),
+  },
+  {
+    label: 'unavailable',
+    source: () =>
+      teamSource({
+        customEntries: [{ ...OTHER_ENTRY, isAvailable: false }],
+        isEntryReady: () => true,
+      }),
+  },
+  { label: 'failed probe', source: () => teamSource({ customEntries: [OTHER_ENTRY] }) },
+  {
+    label: 'not loaded',
+    source: () => teamSource({ customEntries: [{ ...OTHER_ENTRY, modelId: 'unloaded-model' }] }),
+  },
+]
+
+const GOLDEN_CASES = BASELINES.flatMap((baseline) =>
+  [false, true].map((shouldUseStrictTools) => ({ ...baseline, shouldUseStrictTools })),
+)
+describe.each(GOLDEN_CASES)(
+  'M91-G golden requests: $label strict=$shouldUseStrictTools',
+  ({ source, shouldUseStrictTools }) => {
+    afterEach(() => {
+      expect(teamLoads.count).toBe(0)
+    })
+    const setup = (files: Record<string, string>, options: { paidSubagents?: boolean } = {}) =>
+      baseSetup(files, {
+        ...options,
+        shouldUseStrictTools,
+        ...(source !== undefined && { teamSource: source }),
+      })
+    it('records a plain one-turn reply', async () => {
+      const harness = await setup({})
+      await plainGolden(harness)
+      await harness.host.close()
+    })
+
+    it('records a turn with one tool call and its result', async () => {
+      const harness = await setup({ 'a.txt': 'Alpha.\n' })
+      await readGolden(harness)
+      await harness.host.close()
+    })
+
+    it('records an edit_file with then_run', async () => {
+      const harness = await setup({ 'owned.ts': 'export const one = 1\n' })
+      harness.api.script(
+        {
+          calls: [
+            {
+              name: 'edit_file',
+              arguments: JSON.stringify({
+                path: 'owned.ts',
+                find: 'one',
+                replace: 'two',
+                then_run: 'echo then',
+              }),
+              callId: 'e1',
+            },
+          ],
+        },
+        { text: 'Renamed, and the command ran.' },
+      )
+      await runTurn(harness, 'Rename one to two, then run echo then.')
+      expect(harness.api.responseBodies()).toHaveLength(2)
+      checkGolden('03-edit-then-run', harness)
+      await harness.host.close()
+    })
+
+    it('records a long tool output whole twice, then as a placeholder', async () => {
+      const harness = await setup({ 'big.txt': BIG })
+      harness.api.script(
+        {
+          calls: [{ name: 'read_file', arguments: '{"path":"big.txt"}', callId: 'c1' }],
+        },
+        { text: 'Read it.' },
+      )
+      await runTurn(harness, 'Read big.txt.')
+      harness.api.script({ text: 'Again.' })
+      await runTurn(harness, 'And?')
+      harness.api.script({ text: 'Once more.' })
+      await runTurn(harness, 'And?')
+      expect(harness.api.responseBodies()).toHaveLength(4)
+      checkGolden('04-packed-output', harness)
+      await harness.host.close()
+    })
+
+    it('records a manual compaction and the turn after it', async () => {
+      const harness = await setup({})
+      harness.api.script({ text: 'First reply.' })
+      await runTurn(harness, 'First.')
+      harness.api.inputTokens = 77
+      harness.api.script({ text: 'THE SUMMARY' })
+      await expect(harness.session.compact()).resolves.toEqual({
+        status: 'accepted',
+        reason: undefined,
+      })
+      harness.api.script({ text: 'Later.' })
+      await runTurn(harness, 'Next.')
+      expect(harness.api.responseBodies()).toHaveLength(3)
+      checkGolden('05-manual-compaction', harness)
+      await harness.host.close()
+    })
+
+    it('records a subagent child turn', async () => {
+      const harness = await setup({}, { paidSubagents: true })
+      harness.api.script(
+        {
+          calls: [
+            {
+              name: 'subagent_spawn',
+              arguments: '{"role":"worker","objective":"Map the workspace files"}',
+              callId: 'spawn1',
+            },
+          ],
+        },
+        { text: 'Mapped.' },
+        { text: 'Parent continues.' },
+      )
+      await harness.session.sendTurn([{ type: 'text', text: 'Delegate.' }])
+      await vi.waitFor(() => {
+        expect(harness.api.responseBodies()).toHaveLength(3)
+        expect(harness.session.status).toBe('idle')
+      })
+      checkGolden('06-subagent-child', harness)
+      await harness.host.close()
+    })
+
+    it('records a turn with skills and rules loaded', async () => {
+      const harness = await setup({
+        'AGENTS.md': 'End every reply with PINEAPPLE.\n',
+        '.agents/skills/shout/SKILL.md': skillFile('shout', 'Repeat in caps', 'UPPER CASE.'),
+      })
+      harness.api.script({ text: 'Done.' })
+      await runTurn(harness, 'Go.')
+      expect(harness.api.responseBodies()).toHaveLength(1)
+      checkGolden('07-skills-and-rules', harness)
+      await harness.host.close()
+    })
+  },
+)
+
+async function runResumedTurn(first: Harness, second: Harness): Promise<void> {
+  await second.host.load()
+  const revived = await second.host.resumeSession(first.session.sessionId, 'muse-spark-1.3')
+  const watching = watchSessionTurns(revived.session)
+  second.api.script({ text: 'Later.' })
+  await revived.session.sendTurn([{ type: 'text', text: 'Next.' }])
+  await watching.turnDone()
+  expect(second.api.responseBodies()[0]?.['instructions']).toBe(
+    first.api.responseBodies()[0]?.['instructions'],
+  )
+  await first.host.close()
+  await second.host.close()
+}
+
+describe('M96 conversation boundaries', () => {
+  it('keeps golden continuation when an entry becomes ready mid-turn, and enables the next conversation', async () => {
+    let isReady = false
+    const source = () => teamSource({ customEntries: [OTHER_ENTRY], isEntryReady: () => isReady })
+    const baseline = await baseSetup({})
+    baseline.api.script({ text: 'First reply.' })
+    await runTurn(baseline, 'First.')
+    baseline.api.script({ text: 'Later.' })
+    await runTurn(baseline, 'Next.')
+    checkGolden('09-single-continuation', baseline)
+    const current = await baseSetup({}, { teamSource: source })
+    const held = Promise.withResolvers<undefined>()
+    const entered = Promise.withResolvers<undefined>()
+    current.api.script({
+      text: 'First reply.',
+      hold: held.promise,
+      onRequest: () => {
+        entered.resolve(undefined)
+      },
+    })
+    const turning = runTurn(current, 'First.')
+    await entered.promise
+    isReady = true
+    held.resolve(undefined)
+    await turning
+    current.api.script({ text: 'Later.' })
+    await runTurn(current, 'Next.')
+    expect(normalizeBodies(current.rawBodies)).toEqual(normalizeBodies(baseline.rawBodies))
+    const next = await baseSetup({}, { teamSource: source })
+    next.api.script({ text: 'Team ready.' })
+    await runTurn(next, 'Start.')
+    expect(next.rawBodies[0]).toContain('"name":"delegate"')
+    expect(next.rawBodies[0]).not.toContain('subagent_spawn')
+    checkGolden('08-team-on', next)
+    await baseline.host.close()
+    await current.host.close()
+    await next.host.close()
+  })
+
+  it('keeps the team declaration and stable roster across resume when readiness changes', async () => {
+    let isReady = true
+    const store = memorySessionStore()
+    const source = () => teamSource({ customEntries: [OTHER_ENTRY], isEntryReady: () => isReady })
+    const first = await baseSetup({}, { teamSource: source, store })
+    first.api.script({ text: 'First reply.' })
+    await runTurn(first, 'First.')
+    const saved = await store.load(first.session.sessionId)
+    expect(saved?.teamMode).toBe('team')
+    isReady = false
+    const second = await baseSetup({}, { teamSource: source, store, idPrefix: 'revived-' })
+    await first.host.flush()
+    await runResumedTurn(first, second)
+    expect(second.rawBodies[0]).toContain('"name":"delegate"')
+  })
+
+  it('keeps a legacy session single-model when today’s setup has a team', async () => {
+    const store = memorySessionStore()
+    const first = await baseSetup({}, { store })
+    first.api.script({ text: 'First reply.' })
+    await runTurn(first, 'First.')
+    await first.host.flush()
+    const saved = await store.load(first.session.sessionId)
+    if (saved === undefined) throw new Error('Expected a saved session')
+    const legacy = { ...saved }
+    delete legacy.teamMode
+    delete legacy.teamRoster
+    delete legacy.teamCommands
+    await store.save(legacy)
+    const second = await baseSetup(
+      {},
+      {
+        store,
+        idPrefix: 'legacy-',
+        teamSource: () => teamSource({ customEntries: [OTHER_ENTRY], isEntryReady: () => true }),
+      },
+    )
+    await runResumedTurn(first, second)
+    expect(second.rawBodies[0]).not.toContain('"name":"delegate"')
+  })
+})
+
 async function plainGolden(harness: Harness): Promise<void> {
   harness.api.script({ text: 'Hello back.' })
   await runTurn(harness, 'Hello.')
@@ -317,111 +678,13 @@ async function readGolden(harness: Harness): Promise<void> {
   checkGolden('02-tool-call', harness)
 }
 
-describe('M91-G golden requests with hooks off', () => {
-  it('records a plain one-turn reply', async () => {
-    const harness = await setup({})
-    await plainGolden(harness)
-    await harness.host.close()
-  })
-
-  it('records a turn with one tool call and its result', async () => {
-    const harness = await setup({ 'a.txt': 'Alpha.\n' })
-    await readGolden(harness)
-    await harness.host.close()
-  })
-
-  it('records an edit_file with then_run', async () => {
-    const harness = await setup({ 'owned.ts': 'export const one = 1\n' })
-    harness.api.script({ calls: [editThenRunCall()] }, { text: 'Renamed, and the command ran.' })
-    await runTurn(harness, 'Rename one to two, then run echo then.')
-    expect(harness.api.responseBodies()).toHaveLength(2)
-    checkGolden('03-edit-then-run', harness)
-    await harness.host.close()
-  })
-
-  it('records a long tool output whole twice, then as a placeholder', async () => {
-    const harness = await setup({ 'big.txt': BIG })
-    harness.api.script(
-      {
-        calls: [{ name: 'read_file', arguments: '{"path":"big.txt"}', callId: 'c1' }],
-      },
-      { text: 'Read it.' },
-    )
-    await runTurn(harness, 'Read big.txt.')
-    harness.api.script({ text: 'Again.' })
-    await runTurn(harness, 'And?')
-    harness.api.script({ text: 'Once more.' })
-    await runTurn(harness, 'And?')
-    expect(harness.api.responseBodies()).toHaveLength(4)
-    checkGolden('04-packed-output', harness)
-    await harness.host.close()
-  })
-
-  it('records a manual compaction and the turn after it', async () => {
-    const harness = await setup({})
-    harness.api.script({ text: 'First reply.' })
-    await runTurn(harness, 'First.')
-    harness.api.inputTokens = 77
-    harness.api.script({ text: 'THE SUMMARY' })
-    await expect(harness.session.compact()).resolves.toEqual({
-      status: 'accepted',
-      reason: undefined,
-    })
-    harness.api.script({ text: 'Later.' })
-    await runTurn(harness, 'Next.')
-    expect(harness.api.responseBodies()).toHaveLength(3)
-    checkGolden('05-manual-compaction', harness)
-    await harness.host.close()
-  })
-
-  it('records a subagent child turn', async () => {
-    const harness = await setup({}, { paidSubagents: true })
-    harness.api.script(
-      {
-        calls: [
-          {
-            name: 'subagent_spawn',
-            arguments: '{"role":"worker","objective":"Map the workspace files"}',
-            callId: 'spawn1',
-          },
-        ],
-      },
-      { text: 'Mapped.' },
-      { text: 'Parent continues.' },
-    )
-    await harness.session.sendTurn([{ type: 'text', text: 'Delegate.' }])
-    await vi.waitFor(() => {
-      expect(harness.api.responseBodies()).toHaveLength(3)
-      expect(harness.session.status).toBe('idle')
-    })
-    checkGolden('06-subagent-child', harness)
-    await harness.host.close()
-  })
-
-  it('records a turn with skills and rules loaded', async () => {
-    const harness = await setup({
-      'AGENTS.md': 'End every reply with PINEAPPLE.\n',
-      '.agents/skills/shout/SKILL.md': skillFile('shout', 'Repeat in caps', 'UPPER CASE.'),
-    })
-    harness.api.script({ text: 'Done.' })
-    await runTurn(harness, 'Go.')
-    expect(harness.api.responseBodies()).toHaveLength(1)
-    checkGolden('07-skills-and-rules', harness)
-    await harness.host.close()
-  })
-})
-
-// Lane M98-G: the judge's invariance over the M91-G harness (PLAN.md M98
-// acceptance item 1). No independent baseline: every main-body comparison
-// below reads the fixtures above. Both engine cases install the approval
-// interface on the real host; direct allows must not start its runner.
 const G_NOUL = { id: 'risk', kind: 'noul' as const, text: 'Is deleting this risky?' }
 
 describe('M98 integrated Model API source', () => {
   it.each(['complete', 'missing', 'partial', 'invalid'] as const)(
     'reads the actual sent body and keeps a %s receipt honest without changing the main replay',
     async (receipt) => {
-      const harness = await setup({})
+      const harness = await baseSetup({})
       const held = Promise.withResolvers<undefined>()
       harness.api.script(
         { text: 'Hello back.', hold: held.promise },
@@ -577,7 +840,7 @@ function directAllowJudge(engine: 'off' | 'same') {
 describe('M98-G judge invariance (Model API)', () => {
   it('engine off sends nothing beyond the golden bytes', async () => {
     const rig = directAllowJudge('off')
-    const harness = await setup({}, { judge: rig.judge })
+    const harness = await baseSetup({}, { judge: rig.judge })
     await plainGolden(harness)
     expect(rig.start).not.toHaveBeenCalled()
     await harness.host.close()
@@ -585,14 +848,14 @@ describe('M98-G judge invariance (Model API)', () => {
 
   it('engine same with no hint keeps the golden bytes', async () => {
     const rig = directAllowJudge('same')
-    const harness = await setup({ 'a.txt': 'Alpha.\n' }, { judge: rig.judge })
+    const harness = await baseSetup({ 'a.txt': 'Alpha.\n' }, { judge: rig.judge })
     await readGolden(harness)
     expect(rig.start).not.toHaveBeenCalled()
     await harness.host.close()
   })
 
   it('a side request shares the main cached prefix byte-exact', async () => {
-    const harness = await setup({})
+    const harness = await baseSetup({})
     const { main, raw: mainRaw } = await capturedPlain(harness)
     const { before, rig, sent } = await sideJudge(main)
     // The side prefix is the main body byte for byte; only the tail is new.
@@ -613,7 +876,7 @@ describe('M98-G judge invariance (Model API)', () => {
   })
 
   it('redaction sends a standalone side body carrying only the tail', async () => {
-    const harness = await setup({})
+    const harness = await baseSetup({})
     const { main: clean } = await capturedPlain(harness)
     const main: CreateResponseBody = {
       ...clean,

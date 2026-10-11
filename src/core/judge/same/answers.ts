@@ -1,3 +1,4 @@
+import { type UsdAmount } from '../../../shared/usd'
 // One judge batch's answers from its reply text (M98 lane S, PLAN.md D77):
 // the shared stated-confidence settle both backends run after their call.
 // The reply's JSON value is decoded (the whole text, or its outermost object
@@ -33,8 +34,8 @@ export interface SettleBatchInputs {
   readonly model: string
   /** A `noul` needs at least this p(yes) to settle `caution`. */
   readonly advisoryThreshold?: number | undefined
-  readonly reservedCostUsd?: number | undefined
-  readonly settledCostUsd?: number | undefined
+  readonly reservedCostUsd?: UsdAmount | undefined
+  readonly settledCostUsd?: UsdAmount | undefined
 }
 
 /**

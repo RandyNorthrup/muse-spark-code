@@ -1,0 +1,471 @@
+{
+  "schema": 1,
+  "date": "2026-10-07",
+  "rig": "macmini",
+  "branch": "release/0.16.0",
+  "startingHead": "434303f7b",
+  "completedCommits": ["126de64b2", "d360364ea", "a2346e57a", "3b8c73cb1"],
+  "merges": [
+    {
+      "source": "main-0150",
+      "target": "c22be5d0d",
+      "conflicts": [
+        "CHANGELOG.md",
+        "PLAN.md",
+        "docs/orchestration-gotchas.md",
+        "docs/research/makers-2026-10-05.md",
+        "docs/research/makers-printers-cnc-2026-10-05.md",
+        "media/readme/question.png",
+        "scripts/sast.mjs",
+        "src/runtime/companion/page.ts",
+        "test/e2e/execStdio.e2e.test.ts",
+        "test/unit/checkSlots.test.ts",
+        "test/unit/companionBrowser.test.ts",
+        "test/unit/journalStore.test.ts",
+        "test/unit/modelApiHost.test.ts",
+        "test/unit/runtimeChatGptPackage.test.ts",
+        "test/unit/teamHarness.test.mjs"
+      ]
+    },
+    {
+      "source": "int/0160-ux",
+      "target": "d7837b659",
+      "conflicts": [
+        "CHANGELOG.md",
+        "PLAN.md",
+        "docs/reference.md",
+        "l10n/ui.cs.json",
+        "l10n/ui.de.json",
+        "l10n/ui.es.json",
+        "l10n/ui.fr.json",
+        "l10n/ui.hu.json",
+        "l10n/ui.it.json",
+        "l10n/ui.ja.json",
+        "l10n/ui.ko.json",
+        "l10n/ui.pl.json",
+        "l10n/ui.pt-br.json",
+        "l10n/ui.ru.json",
+        "l10n/ui.tr.json",
+        "l10n/ui.zh-cn.json",
+        "l10n/ui.zh-tw.json",
+        "media/readme/help.png",
+        "media/readme/open-question.png",
+        "src/acp/agent.ts",
+        "src/core/backends/modelapi/ModelApiHost.ts",
+        "src/core/backends/modelapi/sessionStore.ts",
+        "src/core/backends/musecode/MuseCodeHost.ts",
+        "src/shared/agentEvents.ts",
+        "src/shared/featureCatalog.ts",
+        "src/shared/reference/reference.generated.json",
+        "src/shared/reference/reference.generated.ts",
+        "src/shared/reference/referenceSource.ts",
+        "src/webview/components/ToolRow.tsx",
+        "test/fixtures/golden-requests/06-subagent-child.json",
+        "test/unit/Transcript.test.tsx"
+      ]
+    },
+    {
+      "source": "main-0150 (lead 17:10 amendment)",
+      "target": "18dc73651",
+      "conflicts": [
+        "CHANGELOG.md",
+        "PLAN.md",
+        "test/harness/index.html",
+        "test/unit/harnessWaits.test.ts",
+        "test/unit/teamHarness.test.mjs"
+      ]
+    }
+  ],
+  "initialVerification": [
+    {
+      "command": ["npm", "run", "format:check"],
+      "exit": 0,
+      "seconds": 85.03,
+      "log": "temp/rel0160-final/final-01.log",
+      "summary": []
+    },
+    {
+      "command": ["npm", "run", "lint"],
+      "exit": 0,
+      "seconds": 248.34,
+      "log": "temp/rel0160-final/final-02.log",
+      "summary": []
+    },
+    {
+      "command": ["npm", "run", "check:l10n"],
+      "exit": 0,
+      "seconds": 2.77,
+      "log": "temp/rel0160-final/final-03.log",
+      "summary": []
+    },
+    {
+      "command": ["npm", "run", "check:reference"],
+      "exit": 0,
+      "seconds": 2.32,
+      "log": "temp/rel0160-final/final-04.log",
+      "summary": []
+    },
+    {
+      "command": ["npm", "run", "check:host-api"],
+      "exit": 0,
+      "seconds": 19.59,
+      "log": "temp/rel0160-final/final-05.log",
+      "summary": []
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiHost.test.ts",
+        "test/unit/modelApiGoldenRequests.test.ts",
+        "test/unit/modelApiLoopContracts.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 34.89,
+      "log": "temp/rel0160-final/final-06.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  813 passed (813)",
+        "Duration  34.03s (tests 86%, transform 10%, import 3%, setup 1%)"
+      ]
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/MuseCodeHost.test.ts",
+        "test/unit/sessionStore.test.ts",
+        "test/unit/agentOutcome.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 2.57,
+      "log": "temp/rel0160-final/final-07.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  149 passed (149)",
+        "Duration  1.82s (transform 40%, tests 31%, import 16%, setup 12%)"
+      ]
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/acpAgent.test.ts",
+        "test/unit/acpQuestionDeferral.test.ts",
+        "test/unit/acpUsage.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 7.83,
+      "log": "temp/rel0160-final/final-08.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  197 passed (197)",
+        "Duration  7.06s (tests 66%, transform 22%, import 8%, setup 4%)"
+      ]
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/toolRows.test.tsx",
+        "test/unit/Transcript.test.tsx",
+        "test/unit/protocol.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 4.8,
+      "log": "temp/rel0160-final/final-09.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  234 passed (234)",
+        "Duration  4.01s (tests 44%, transform 21%, environment 19%, import 11%, setup 5%)"
+      ]
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/checkSlots.test.ts",
+        "test/unit/journalStore.test.ts",
+        "test/unit/companionPage.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 13.96,
+      "log": "temp/rel0160-final/final-10.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  38 passed (38)",
+        "Duration  13.12s (tests 87%, transform 6%, environment 3%, import 3%, setup 2%)"
+      ]
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/companionBrowser.test.ts",
+        "test/unit/runtimeChatGptPackage.test.ts",
+        "test/e2e/execStdio.e2e.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 114.42,
+      "log": "temp/rel0160-final/final-11.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  56 passed (56)",
+        "Duration  113.53s (tests 90%, import 9%, transform 1%)"
+      ]
+    },
+    {
+      "command": ["npx", "vitest", "run", "test/unit/teamHarness.test.mjs", "--maxWorkers=3"],
+      "exit": 0,
+      "seconds": 45.14,
+      "log": "temp/rel0160-final/final-12.log",
+      "summary": [
+        "Test Files  1 passed (1)",
+        "Tests  22 passed (22)",
+        "Duration  44.33s (tests 98%, import 1%, transform 1%)"
+      ]
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/sastLauncher.test.mjs",
+        "test/unit/changelogVersion.test.ts",
+        "test/unit/whatsNewContent.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 3.28,
+      "log": "temp/rel0160-final/final-13.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  21 passed (21)",
+        "Duration  2.48s (tests 59%, import 19%, transform 13%, setup 10%)"
+      ]
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/checkBadges.test.mjs",
+        "test/unit/referenceGenerator.test.mjs",
+        "test/unit/chatReference.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 8.92,
+      "log": "temp/rel0160-final/final-14.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  159 passed (159)",
+        "Duration  8.00s (tests 64%, transform 17%, import 16%, setup 3%)"
+      ]
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/referenceKeyboardTruth.test.tsx",
+        "test/unit/l10n.test.ts",
+        "test/unit/browserUiText.test.mjs",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 6.95,
+      "log": "temp/rel0160-final/final-15.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  32 passed (32)",
+        "Duration  6.01s (tests 62%, transform 18%, environment 8%, import 7%, setup 4%)"
+      ]
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/uiTextRegions.test.mjs",
+        "test/unit/bundleSize.test.mjs",
+        "test/unit/webviewBundle.test.mjs",
+        "--maxWorkers=3"
+      ],
+      "exit": 1,
+      "seconds": 9.18,
+      "log": "temp/rel0160-final/final-16.log",
+      "summary": [
+        "Test Files  1 failed | 2 passed (3)",
+        "Tests  1 failed | 102 passed (103)",
+        "Duration  8.40s (tests 87%, transform 6%, import 4%, setup 3%)"
+      ]
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/AgentMap.test.tsx",
+        "test/unit/questionApp.test.tsx",
+        "test/unit/attentionDock.test.tsx",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 6.23,
+      "log": "temp/rel0160-final/final-17.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  45 passed (45)",
+        "Duration  5.36s (tests 46%, transform 24%, environment 19%, import 8%, setup 3%)"
+      ]
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/noticesInput.test.mjs",
+        "test/unit/releaseIntegrity.test.mjs",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 1.49,
+      "log": "temp/rel0160-final/final-18.log",
+      "summary": [
+        "Test Files  2 passed (2)",
+        "Tests  25 passed (25)",
+        "Duration  631ms (tests 50%, setup 28%, transform 12%, import 9%, worker 1%)"
+      ]
+    }
+  ],
+  "startupRepair": {
+    "command": "npx vitest run test/unit/webviewBundle.test.mjs test/unit/agentOutcome.test.ts test/unit/AgentMap.test.tsx --maxWorkers=3",
+    "exit": 0,
+    "cases": 82
+  },
+  "finalTypecheck": {
+    "command": "npm run typecheck",
+    "exit": 0,
+    "projects": 5
+  },
+  "finalSequentialVerification": [
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/webviewBundle.test.mjs",
+        "test/unit/browserUiText.test.mjs",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 9.15,
+      "log": "temp/rel0160-final/finish-1.log",
+      "summary": ["Test Files  2 passed (2)", "Tests  47 passed (47)"]
+    },
+    {
+      "command": ["npx", "vitest", "run", "test/unit/teamHarness.test.mjs", "--maxWorkers=3"],
+      "exit": 0,
+      "seconds": 44.04,
+      "log": "temp/rel0160-final/finish-2.log",
+      "summary": ["Test Files  1 passed (1)", "Tests  23 passed (23)"]
+    },
+    {
+      "command": ["npm", "run", "check:l10n"],
+      "exit": 0,
+      "seconds": 2.4,
+      "log": "temp/rel0160-final/finish-3.log",
+      "summary": []
+    },
+    {
+      "command": ["npm", "run", "check:reference"],
+      "exit": 0,
+      "seconds": 2.21,
+      "log": "temp/rel0160-final/finish-4.log",
+      "summary": []
+    },
+    {
+      "command": ["npm", "run", "check:host-api"],
+      "exit": 0,
+      "seconds": 19.28,
+      "log": "temp/rel0160-final/finish-5.log",
+      "summary": []
+    },
+    {
+      "command": ["npm", "run", "build"],
+      "exit": 0,
+      "seconds": 9.1,
+      "log": "temp/rel0160-final/finish-6.log",
+      "summary": []
+    },
+    {
+      "command": ["node", "temp/rel0160-final/stage-inventory.mjs"],
+      "exit": 0,
+      "seconds": 31.81,
+      "log": "temp/rel0160-final/finish-7.log",
+      "summary": [
+        "muse-spark-code: 86 shipped dependency versions in CycloneDX",
+        "muse-spark-code-acp: 48 shipped dependency versions in CycloneDX"
+      ]
+    }
+  ],
+  "surfaceRegressionDrill": {
+    "mutation": "duplicate resource-only English in general deferred surface",
+    "redExit": 1,
+    "beforeSha256": "399bc00df13c9c3ceea7f3854115f0615216781c7568300e9eb83bf6ab5b2a8d",
+    "afterSha256": "399bc00df13c9c3ceea7f3854115f0615216781c7568300e9eb83bf6ab5b2a8d",
+    "byteExact": true
+  },
+  "excludedOverlappingBuildBatch": {
+    "command": "npx vitest run test/unit/teamHarness.test.mjs test/unit/browserUiText.test.mjs test/unit/webviewBundle.test.mjs --maxWorkers=3",
+    "exit": 1,
+    "failedCases": 5,
+    "reason": "Two whole test files concurrently rebuild and delete the same dist inventories; sequential full-file reruns pass."
+  },
+  "artifacts": [
+    {
+      "path": "THIRD_PARTY_NOTICES.txt",
+      "bytes": 76559,
+      "sha256": "65bcc594d94d4eeb739ee6889def76e74bb4f31113bf62825fbb163860b418c2"
+    },
+    {
+      "path": "dist/acp-package/THIRD_PARTY_NOTICES.txt",
+      "bytes": 44992,
+      "sha256": "48b29c98a13ceb222d352270b96b172908086496ee44ba7ba6969010d77c8e7a"
+    },
+    {
+      "path": "dist/sbom/muse-spark-code.cdx.json",
+      "bytes": 81565,
+      "sha256": "d060376d42e216caea121f19bd861462221c74f8e1c6d14067fad6351df346dd"
+    },
+    {
+      "path": "dist/sbom/muse-spark-code-acp.cdx.json",
+      "bytes": 48031,
+      "sha256": "7cb963fad07ea7b35eea658a4aa375f5baae10938e4e027a0fae0b24d861b76f"
+    },
+    {
+      "path": "dist/muse-spark-code-acp-0.16.0.tgz",
+      "bytes": 2173719,
+      "sha256": "e8eab63d40738c6143f4542e80ed75addf145504885eab6a3eac3e5244549d86"
+    }
+  ],
+  "remaining": [
+    "Hosted full quality on Windows, Linux and macOS",
+    "Named live release receipts; no live or paid model call in this lane"
+  ],
+  "pushed": false,
+  "published": false
+}

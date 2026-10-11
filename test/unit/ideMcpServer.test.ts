@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { McpTool } from '../../src/core/mcp'
 import { IdeMcpServer } from '../../src/host/ide/ideMcpServer'
+import * as loopback from '../../src/host/mcpLoopback'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { postLoopback, postLoopbackJson } from './helpers/loopbackHttp'
 
 const tool: McpTool = {
   name: 'getDiagnostics',
@@ -31,25 +33,8 @@ interface Endpoint {
   readonly headers: Readonly<Record<string, string>>
 }
 
-async function post(
-  endpoint: Endpoint,
-  body: string,
-  headers: Record<string, string> = endpoint.headers,
-): Promise<Response> {
-  return await fetch(endpoint.url, {
-    method: 'POST',
-    headers: { ...headers, 'content-type': 'application/json' },
-    body,
-  })
-}
-
-async function postJson(endpoint: Endpoint, body: unknown): Promise<unknown> {
-  const response = await post(endpoint, JSON.stringify(body))
-  return await response.json()
-}
-
 async function status(endpoint: Endpoint, body: string, headers?: Record<string, string>) {
-  const response = await post(endpoint, body, headers)
+  const response = await postLoopback(endpoint, body, headers)
   return response.status
 }
 
@@ -88,6 +73,31 @@ function holdingTool() {
 }
 
 describe('IdeMcpServer', () => {
+  it('RVM96RB2-8: close during start leaves no endpoint or listener and permits a later start', async () => {
+    const server = new IdeMcpServer(() => [tool], new FakeLogOutputChannel())
+    servers.push(server)
+    const opened = Promise.withResolvers<loopback.LoopbackListener>()
+    const listen = loopback.listenLoopback
+    const spy = vi.spyOn(loopback, 'listenLoopback').mockImplementationOnce(async (...args) => {
+      const listener = await listen(...args)
+      opened.resolve(listener)
+      return listener
+    })
+    try {
+      const pending = server.start()
+      expect(server.start()).toBe(pending)
+      server.close()
+      await expect(pending).rejects.toThrow('closed during start')
+      expect(server.current).toBeUndefined()
+      const listener = await opened.promise
+      expect(listener.server.listening).toBe(false)
+      await expect(server.start()).resolves.toHaveProperty('url')
+    } finally {
+      const listener = await opened.promise
+      listener.server.close()
+      spy.mockRestore()
+    }
+  })
   it('listens on loopback with a bearer token and answers the MCP handshake', async () => {
     const { server, log } = await start()
     const endpoint = server.current
@@ -102,7 +112,7 @@ describe('IdeMcpServer', () => {
     if (endpoint === undefined) {
       throw new Error('no endpoint')
     }
-    const response = await post(
+    const response = await postLoopback(
       endpoint,
       JSON.stringify({
         jsonrpc: '2.0',
@@ -118,9 +128,9 @@ describe('IdeMcpServer', () => {
       id: 1,
       result: { protocolVersion: '2025-06-18', serverInfo: { name: 'muse_spark_ide' } },
     })
-    const listed = await postJson(endpoint, { jsonrpc: '2.0', id: 2, method: 'tools/list' })
+    const listed = await postLoopbackJson(endpoint, { jsonrpc: '2.0', id: 2, method: 'tools/list' })
     expect(listed).toMatchObject({ result: { tools: [{ name: 'getDiagnostics' }] } })
-    const called = await postJson(endpoint, {
+    const called = await postLoopbackJson(endpoint, {
       jsonrpc: '2.0',
       id: 3,
       method: 'tools/call',
@@ -149,7 +159,7 @@ describe('IdeMcpServer', () => {
     expect(await status(endpoint, '{}', { Authorization: 'Bearer wrong' })).toBe(401)
     expect(await status(endpoint, '{}', {})).toBe(401)
     expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('without the session token'))
-    const malformed = await post(endpoint, '{oops')
+    const malformed = await postLoopback(endpoint, '{oops')
     expect(malformed.status).toBe(200)
     const body = await malformed.json()
     expect(body).toMatchObject({ error: { code: -32_700 } })
@@ -218,7 +228,7 @@ describe('IdeMcpServer', () => {
     servers.push(server)
     const endpoint = await server.start()
     const names = async () => {
-      const listed = (await postJson(endpoint, {
+      const listed = (await postLoopbackJson(endpoint, {
         jsonrpc: '2.0',
         id: 1,
         method: 'tools/list',
@@ -258,7 +268,7 @@ describe('IdeMcpServer', () => {
     const server = new IdeMcpServer(() => [seen.tool], new FakeLogOutputChannel())
     servers.push(server)
     const endpoint = await server.start()
-    const calling = postJson(endpoint, callBody(3))
+    const calling = postLoopbackJson(endpoint, callBody(3))
     const signal = await seen.called
     // Another id, and a malformed notice, stop nothing.
     expect(await status(endpoint, JSON.stringify(cancelBody(4)))).toBe(202)

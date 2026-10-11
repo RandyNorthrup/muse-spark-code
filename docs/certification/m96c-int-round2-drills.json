@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-05",
+  "machine": "macmini",
+  "branch": "m96c/int",
+  "mergedHead": "11f692a8",
+  "naturalRed": {
+    "exitCode": 1,
+    "reason": "C otherAttempt rejected as an unrecognized key by TaskBoard.applyEvent",
+    "tests": {
+      "failed": 1,
+      "passed": 4
+    }
+  },
+  "drills": [
+    {
+      "id": "prediction-second-attempt-retained",
+      "mutation": "Remove otherAttempt from the strict event.",
+      "source": "src/shared/team.ts",
+      "sha256Before": "53767fb4635528b4404751f0074aad63d5c3c524cdfff38136936180c45aeaca",
+      "sha256Mutated": "7a5e8e9a20405597899d0ae3651a1d7beda5f4acdd7bced34b689065a78e2cce",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamSchedulerRoster.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "red": {
+        "exitCode": 1,
+        "failedTests": [
+          "M96c live roster and state-change notes preserves both C prediction attempts through S admission and T2 answers and notes"
+        ]
+      },
+      "sha256AfterRestore": "53767fb4635528b4404751f0074aad63d5c3c524cdfff38136936180c45aeaca"
+    },
+    {
+      "id": "prediction-second-attempt-valid",
+      "mutation": "Accept any numeric otherAttempt, including zero, negative and fractional values.",
+      "source": "src/shared/team.ts",
+      "sha256Before": "53767fb4635528b4404751f0074aad63d5c3c524cdfff38136936180c45aeaca",
+      "sha256Mutated": "3c3126953c82d2043a54b530236f802ae1bad6d7989d3824a60ff1dc78bbbae7",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamSchedulerRoster.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "red": {
+        "exitCode": 1,
+        "failedTests": [
+          "M96c live roster and state-change notes preserves both C prediction attempts through S admission and T2 answers and notes"
+        ]
+      },
+      "sha256AfterRestore": "53767fb4635528b4404751f0074aad63d5c3c524cdfff38136936180c45aeaca"
+    }
+  ],
+  "restoredGreen": {
+    "exitCode": 0,
+    "passed": 5,
+    "failed": 0
+  }
+}

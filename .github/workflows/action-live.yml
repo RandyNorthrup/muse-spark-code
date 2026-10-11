@@ -64,6 +64,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run package:acp
+        env:
+          # The packaged-README badge check lists public main (GitHub API).
+          GITHUB_TOKEN: ${{ github.token }}
       - name: record the product package
         id: record
         run: |

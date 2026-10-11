@@ -1,3 +1,4 @@
+import { Usd } from '../../../src/shared/usd'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -269,7 +270,7 @@ function packingReport(saved: Readonly<Record<string, number>>): EvalReport {
     inputTokens: 1,
     cachedTokens: 0,
     outputTokens: 1,
-    costUsd: 0,
+    costUsd: Usd.from(0).toAmount(),
     toolCalls: 0,
     approvals: 0,
     questions: 0,

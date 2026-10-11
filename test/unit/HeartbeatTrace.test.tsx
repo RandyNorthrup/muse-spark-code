@@ -210,7 +210,7 @@ describe('HeartbeatTrace (M87)', () => {
     const begin = log.indexOf('beginPath')
     expect(clear).toBeGreaterThanOrEqual(0)
     expect(begin).toBeGreaterThan(clear)
-    // Two 6 ms ticks in a 16 ms frame: two segments from the left edge.
+    // Two 7 ms ticks in a 16 ms frame: two segments from the left edge.
     expect(lastFrameSegments()).toEqual([
       [0, 0.5],
       [0.5, 1],

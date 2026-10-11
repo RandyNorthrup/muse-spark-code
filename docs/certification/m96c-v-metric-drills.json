@@ -1,0 +1,42 @@
+[
+  {
+    "drill": "ready-clock",
+    "exit": 1,
+    "restoredSha256": "53037e3a4e8bea17b12af0dc240ecdd5c1732992da0d2956f32c53fbf94c4f51"
+  },
+  {
+    "drill": "capacity",
+    "exit": 1,
+    "restoredSha256": "53037e3a4e8bea17b12af0dc240ecdd5c1732992da0d2956f32c53fbf94c4f51"
+  },
+  {
+    "drill": "reported-estimated",
+    "exit": 1,
+    "restoredSha256": "53037e3a4e8bea17b12af0dc240ecdd5c1732992da0d2956f32c53fbf94c4f51"
+  },
+  {
+    "drill": "token-subsets",
+    "exit": 1,
+    "restoredSha256": "53037e3a4e8bea17b12af0dc240ecdd5c1732992da0d2956f32c53fbf94c4f51"
+  },
+  {
+    "drill": "merged-only",
+    "exit": 1,
+    "restoredSha256": "53037e3a4e8bea17b12af0dc240ecdd5c1732992da0d2956f32c53fbf94c4f51"
+  },
+  {
+    "drill": "entry-attribution",
+    "exit": 1,
+    "restoredSha256": "53037e3a4e8bea17b12af0dc240ecdd5c1732992da0d2956f32c53fbf94c4f51"
+  },
+  {
+    "drill": "period-clipping",
+    "exit": 1,
+    "restoredSha256": "53037e3a4e8bea17b12af0dc240ecdd5c1732992da0d2956f32c53fbf94c4f51"
+  },
+  {
+    "drill": "finished-queue",
+    "exit": 1,
+    "restoredSha256": "53037e3a4e8bea17b12af0dc240ecdd5c1732992da0d2956f32c53fbf94c4f51"
+  }
+]

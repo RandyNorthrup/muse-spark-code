@@ -1,0 +1,93 @@
+[
+  {
+    "name": "unknown-yes",
+    "path": "src/core/providers/capabilities.ts",
+    "suite": "test/unit/capabilityRecord.test.ts",
+    "expected": "unknown never proves tools",
+    "mutated_exit": 1,
+    "before_sha256": "e483a2ba4e1650af23212b48b64bb3ab397671cc43eaff840d5afae892c9e5a1",
+    "mutated_sha256": "cf183a9c6691ed60ba812ada67a9d13c03c7557b9818dd6922876607503d2186",
+    "log": "temp/caprec-drill-unknown-yes.log",
+    "after_sha256": "e483a2ba4e1650af23212b48b64bb3ab397671cc43eaff840d5afae892c9e5a1",
+    "restored_exit": 0,
+    "restored_log": "temp/caprec-drill-unknown-yes-restored.log"
+  },
+  {
+    "name": "haiku-adaptive",
+    "path": "src/core/backends/modelapi/codecs/anthropic.ts",
+    "suite": "test/unit/capabilityRecord.test.ts",
+    "expected": "Anthropic capture keeps per-model manual/adaptive",
+    "mutated_exit": 1,
+    "before_sha256": "1b6930ed44e59db5aab891d84a3a76272990ed77ee68ecb5db66c5325e19de81",
+    "mutated_sha256": "77a5a28ccd4a099531dee734338a779a72c5b83cebefeaf8d1297531daa14524",
+    "log": "temp/caprec-drill-haiku-adaptive.log",
+    "after_sha256": "1b6930ed44e59db5aab891d84a3a76272990ed77ee68ecb5db66c5325e19de81",
+    "restored_exit": 0,
+    "restored_log": "temp/caprec-drill-haiku-adaptive-restored.log"
+  },
+  {
+    "name": "parser-drop",
+    "path": "src/core/backends/modelapi/codecs/anthropic.ts",
+    "suite": "test/unit/capabilityRecord.test.ts",
+    "expected": "Anthropic capture keeps per-model manual/adaptive",
+    "mutated_exit": 1,
+    "before_sha256": "1b6930ed44e59db5aab891d84a3a76272990ed77ee68ecb5db66c5325e19de81",
+    "mutated_sha256": "c78b7c1f3c07fcbbbdd402d3bfbcff2bc42d77d7c4f66e1f2e4fcb28ecbe6edf",
+    "log": "temp/caprec-drill-parser-drop.log",
+    "after_sha256": "1b6930ed44e59db5aab891d84a3a76272990ed77ee68ecb5db66c5325e19de81",
+    "restored_exit": 0,
+    "restored_log": "temp/caprec-drill-parser-drop-restored.log"
+  },
+  {
+    "name": "override-ignored",
+    "path": "src/core/providers/capabilityRecord.ts",
+    "suite": "test/unit/capabilityRecord.test.ts",
+    "expected": "resolves each field by source priority",
+    "mutated_exit": 1,
+    "before_sha256": "9cfbdc03772ddacc573375b6f2fda3f209da98845c5173e47ef50b322fa99e62",
+    "mutated_sha256": "ae2757e06c217e33040fcc5209643c555595dcd366493608de40c3e910cbf4e0",
+    "log": "temp/caprec-drill-override-ignored.log",
+    "after_sha256": "9cfbdc03772ddacc573375b6f2fda3f209da98845c5173e47ef50b322fa99e62",
+    "restored_exit": 0,
+    "restored_log": "temp/caprec-drill-override-ignored-restored.log"
+  },
+  {
+    "name": "manual-replay",
+    "path": "src/core/backends/modelapi/codecs/anthropic.ts",
+    "suite": "test/unit/capabilityRecord.test.ts",
+    "expected": "Haiku manual thinking replays signed blocks",
+    "mutated_exit": 1,
+    "before_sha256": "1b6930ed44e59db5aab891d84a3a76272990ed77ee68ecb5db66c5325e19de81",
+    "mutated_sha256": "3607c84348cab5d04c42a00fe7cca5d523557f291d7dc2d5c14107a2749d53f7",
+    "log": "temp/caprec-drill-manual-replay.log",
+    "after_sha256": "1b6930ed44e59db5aab891d84a3a76272990ed77ee68ecb5db66c5325e19de81",
+    "restored_exit": 0,
+    "restored_log": "temp/caprec-drill-manual-replay-restored.log"
+  },
+  {
+    "name": "empty-effort",
+    "path": "src/webview/App.tsx",
+    "suite": "test/unit/App.test.tsx",
+    "expected": "keeps empty native effort lists from posting fallback tiers",
+    "mutated_exit": 1,
+    "before_sha256": "516b6af1bcebe5848106c8ea9390eddb3a43d41b13d6304198322de4f423ae05",
+    "mutated_sha256": "268d464126ace2aef15293182559defcc4b8b761b8583b590b8245d8f8acbf3b",
+    "log": "temp/caprec-drill-empty-effort.log",
+    "after_sha256": "516b6af1bcebe5848106c8ea9390eddb3a43d41b13d6304198322de4f423ae05",
+    "restored_exit": 0,
+    "restored_log": "temp/caprec-drill-empty-effort-restored.log"
+  },
+  {
+    "name": "media-unknown",
+    "path": "src/core/attachments.ts",
+    "suite": "test/unit/attachments.test.ts",
+    "expected": "admits images only within the selected record MIME",
+    "mutated_exit": 1,
+    "before_sha256": "fd24f7c24c0396d583183cec0d02c0c1e15907dd08471472c18ff7bf948a3050",
+    "mutated_sha256": "bf00f5134fa0c678d0cada64e9ccfc2c2c047672d3f7fce72b4b04159395ce0b",
+    "log": "temp/caprec-drill-media-unknown.log",
+    "after_sha256": "fd24f7c24c0396d583183cec0d02c0c1e15907dd08471472c18ff7bf948a3050",
+    "restored_exit": 0,
+    "restored_log": "temp/caprec-drill-media-unknown-restored.log"
+  }
+]

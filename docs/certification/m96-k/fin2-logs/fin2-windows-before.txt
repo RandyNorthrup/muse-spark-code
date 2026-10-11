@@ -1,0 +1,63 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 C:/Users/Randy/Coding/mx-m96k
+
+ ❯ test/unit/teamNativeLifetime.test.ts (5 tests | 3 failed) 27542ms
+   ❯ M96 K real native lifetime (5)
+     × preserves the real command exit code through its native container 5258ms
+     × reconciles foreign journals before startup returns and preserves all foreign bytes 5180ms
+     × hard host death closes jobs and ends detached grandchildren 4987ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > preserves the real command exit code through its native container
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ test/unit/teamNativeLifetime.test.ts:150:3
+    148|     await host.close()
+    149|   })
+    150|   it('preserves the real command exit code through its native containe…
+       |   ^
+    151|     const f = await fixture()
+    152|     const launched = await f.lifetime.launch(f.request('setTimeout(()=…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > preserves the real command exit code through its native container
+Error: EBUSY: resource busy or locked, rmdir 'C:\Users\Randy\AppData\Local\Temp\m96-native-zbnTnP'
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > reconciles foreign journals before startup returns and preserves all foreign bytes
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ test/unit/teamNativeLifetime.test.ts:161:3
+    159|     await launched.ended
+    160|   })
+    161|   it('reconciles foreign journals before startup returns and preserves…
+       |   ^
+    162|     const f = await fixture()
+    163|     const child = await f.lifetime.launch(f.request('setTimeout(()=>{}…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > hard host death closes jobs and ends detached grandchildren
+Error: native observation deadline
+ ❯ until test/unit/teamNativeLifetime.test.ts:84:39
+     82|   const deadline = Date.now() + 4000
+     83|   while (!(await isReady())) {
+     84|     if (Date.now() >= deadline) throw new Error('native observation de…
+       |                                       ^
+     85|     await delay(10)
+     86|   }
+ ❯ test/unit/teamNativeLifetime.test.ts:286:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  3 failed | 26 passed (29)
+   Start at  08:18:08
+   Duration  53.64s (tests 73%, import 14%, transform 7%, setup 6%)
+

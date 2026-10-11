@@ -14,6 +14,7 @@ import {
   PROMPT_CACHE_KEY_DIGEST_CHARS,
   PROMPT_CACHE_KEY_HASH,
   PROMPT_CACHE_KEY_PREFIX,
+  PROMPT_CACHE_MISS_TOKENS,
 } from '../../../shared/constants'
 import type { CreateResponseBody } from './schemas'
 
@@ -26,4 +27,18 @@ export function promptCacheKey(prefix: CachedPrefix): string {
     .digest('hex')
     .slice(0, PROMPT_CACHE_KEY_DIGEST_CHARS)
   return `${PROMPT_CACHE_KEY_PREFIX}${digest}`
+}
+
+/** Report a cache miss only for a format that exposes cache usage (M101; log only). */
+export function cacheMissTokens(
+  previous: number | undefined,
+  current: number,
+  cached: number,
+  cachedUsageFields: readonly string[],
+): number | undefined {
+  if (previous === undefined || cachedUsageFields.length === 0) {
+    return undefined
+  }
+  const missed = Math.min(previous, current) - cached
+  return missed > PROMPT_CACHE_MISS_TOKENS ? missed : undefined
 }

@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "review": "owner-2026-10-10-menu-fan",
+  "sourceRevision": "71ca4b93e89e60e50225e5d5114f345a4a518042",
+  "previousRevision": "6636c84beb804af52e49363ac10ede3223d3d295",
+  "archive": "/var/tmp/l-MENUFAN/visual-owner-2026-10-10-menu-fan-final",
+  "browser": "150.0.7871.186",
+  "platform": "linux",
+  "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+  "policy": {
+    "threshold": 0.1,
+    "includeAA": false,
+    "maxChangedPixelRatio": 0.0001,
+    "maxChangedPixels": 12
+  },
+  "captures": 9792,
+  "totalBytes": 447111110,
+  "widths": [320, 690],
+  "height": 760,
+  "themes": ["light", "dark", "hc-dark", "hc-light", "one-dark-pro", "dracula"],
+  "states": ["default", "hover", "focus-visible", "pressed", "disabled", "selected"],
+  "changedScenes": [
+    "chat-tool-menu-narrow",
+    "history-archived",
+    "palette",
+    "prompt-library",
+    "quote-menu"
+  ],
+  "changedCaptures": 360,
+  "toleratedCaptures": 1057,
+  "comparisonLog": "temp/menufan/visual-comparison.log",
+  "comparisonDetails": "temp/menufan/visual-comparison.json",
+  "verification": {
+    "command": "npm run check:visual",
+    "revision": "71ca4b93e89e60e50225e5d5114f345a4a518042",
+    "manifestSha256": "3951179a8aa655657632557845efdeca6c82c0916a5f60738aa0733efdd86542",
+    "candidateSha256": "7f9b992f84a61034badd2ea209146c6a4764573154ecb0458c22b59e2d94761f",
+    "selectionSha256": "6b26f11bcfa3b6dbf26400de28bb5a2682895da231835c7d07bc2fe7eb0e43cd",
+    "checked": 9792,
+    "changedPixels": 8,
+    "maxImageChangedPixels": 1,
+    "regenerated": false,
+    "baselineBytes": 447111110,
+    "candidateBytes": 447112737,
+    "browser": "150.0.7871.186",
+    "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+    "platform": "linux",
+    "policy": {
+      "threshold": 0.1,
+      "includeAA": false,
+      "maxChangedPixelRatio": 0.0001,
+      "maxChangedPixels": 12
+    }
+  }
+}

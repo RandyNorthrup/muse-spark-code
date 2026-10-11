@@ -1,0 +1,123 @@
+{
+  "provider": "gemini",
+  "step": "cache-call-1",
+  "capturedAt": "2026-10-04",
+  "billed": true,
+  "request": {
+    "method": "POST",
+    "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse",
+    "headers": {
+      "x-goog-api-key": "<redacted>",
+      "content-type": "application/json"
+    },
+    "body": {
+      "systemInstruction": {
+        "parts": [
+          {
+            "text": "Cache probe for gemini.\nProbe rule 1: when a request mentions item 1, answer briefly, name the source of each fact, and never invent a value for field 1 or option 7.\nProbe rule 2: when a request mentions item 2, answer briefly, name the source of each fact, and never invent a value for field 2 or option 14.\nProbe rule 3: when a request mentions item 3, answer briefly, name the source of each fact, and never invent a value for field 3 or option 21.\nProbe rule 4: when a request mentions item 4, answer briefly, name the source of each fact, and never invent a value for field 4 or option 5.\nProbe rule 5: when a request mentions item 5, answer briefly, name the source of each fact, and never invent a value for field 5 or option 12.\nProbe rule 6: when a request mentions item 6, answer briefly, name the source of each fact, and never invent a value for field 6 or option 19.\nProbe rule 7: when a request mentions item 7, answer briefly, name the source of each fact, and never invent a value for field 7 or option 3.\nProbe rule 8: when a request mentions item 8, answer briefly, name the source of each fact, and never invent a value for field 8 or option 10.\nProbe rule 9: when a request mentions item 9, answer briefly, name the source of each fact, and never invent a value for field 9 or option 17.\nProbe rule 10: when a request mentions item 10, answer briefly, name the source of each fact, and never invent a value for field 10 or option 1.\nProbe rule 11: when a request mentions item 11, answer briefly, name the source of each fact, and never invent a value for field 11 or option 8.\nProbe rule 12: when a request mentions item 12, answer briefly, name the source of each fact, and never invent a value for field 12 or option 15.\nProbe rule 13: when a request mentions item 13, answer briefly, name the source of each fact, and never invent a value for field 13 or option 22.\nProbe rule 14: when a request mentions item 14, answer briefly, name the source of each fact, and never invent a value for field 14 or option 6.\nProbe rule 15: when a request mentions item 15, answer briefly, name the source of each fact, and never invent a value for field 15 or option 13.\nProbe rule 16: when a request mentions item 16, answer briefly, name the source of each fact, and never invent a value for field 16 or option 20.\nProbe rule 17: when a request mentions item 17, answer briefly, name the source of each fact, and never invent a value for field 0 or option 4.\nProbe rule 18: when a request mentions item 18, answer briefly, name the source of each fact, and never invent a value for field 1 or option 11.\nProbe rule 19: when a request mentions item 19, answer briefly, name the source of each fact, and never invent a value for field 2 or option 18.\nProbe rule 20: when a request mentions item 20, answer briefly, name the source of each fact, and never invent a value for field 3 or option 2.\nProbe rule 21: when a request mentions item 21, answer briefly, name the source of each fact, and never invent a value for field 4 or option 9.\nProbe rule 22: when a request mentions item 22, answer briefly, name the source of each fact, and never invent a value for field 5 or option 16.\nProbe rule 23: when a request mentions item 23, answer briefly, name the source of each fact, and never invent a value for field 6 or option 0.\nProbe rule 24: when a request mentions item 24, answer briefly, name the source of each fact, and never invent a value for field 7 or option 7.\nProbe rule 25: when a request mentions item 25, answer briefly, name the source of each fact, and never invent a value for field 8 or option 14.\nProbe rule 26: when a request mentions item 26, answer briefly, name the source of each fact, and never invent a value for field 9 or option 21.\nProbe rule 27: when a request mentions item 27, answer briefly, name the source of each fact, and never invent a value for field 10 or option 5.\nProbe rule 28: when a request mentions item 28, answer briefly, name the source of each fact, and never invent a value for field 11 or option 12.\nProbe rule 29: when a request mentions item 29, answer briefly, name the source of each fact, and never invent a value for field 12 or option 19.\nProbe rule 30: when a request mentions item 30, answer briefly, name the source of each fact, and never invent a value for field 13 or option 3.\nProbe rule 31: when a request mentions item 31, answer briefly, name the source of each fact, and never invent a value for field 14 or option 10.\nProbe rule 32: when a request mentions item 32, answer briefly, name the source of each fact, and never invent a value for field 15 or option 17.\nProbe rule 33: when a request mentions item 33, answer briefly, name the source of each fact, and never invent a value for field 16 or option 1.\nProbe rule 34: when a request mentions item 34, answer briefly, name the source of each fact, and never invent a value for field 0 or option 8.\nProbe rule 35: when a request mentions item 35, answer briefly, name the source of each fact, and never invent a value for field 1 or option 15.\nProbe rule 36: when a request mentions item 36, answer briefly, name the source of each fact, and never invent a value for field 2 or option 22.\nProbe rule 37: when a request mentions item 37, answer briefly, name the source of each fact, and never invent a value for field 3 or option 6.\nProbe rule 38: when a request mentions item 38, answer briefly, name the source of each fact, and never invent a value for field 4 or option 13.\nProbe rule 39: when a request mentions item 39, answer briefly, name the source of each fact, and never invent a value for field 5 or option 20.\nProbe rule 40: when a request mentions item 40, answer briefly, name the source of each fact, and never invent a value for field 6 or option 4.\nProbe rule 41: when a request mentions item 41, answer briefly, name the source of each fact, and never invent a value for field 7 or option 11.\nProbe rule 42: when a request mentions item 42, answer briefly, name the source of each fact, and never invent a value for field 8 or option 18.\nProbe rule 43: when a request mentions item 43, answer briefly, name the source of each fact, and never invent a value for field 9 or option 2.\nProbe rule 44: when a request mentions item 44, answer briefly, name the source of each fact, and never invent a value for field 10 or option 9.\nProbe rule 45: when a request mentions item 45, answer briefly, name the source of each fact, and never invent a value for field 11 or option 16.\nProbe rule 46: when a request mentions item 46, answer briefly, name the source of each fact, and never invent a value for field 12 or option 0.\nProbe rule 47: when a request mentions item 47, answer briefly, name the source of each fact, and never invent a value for field 13 or option 7.\nProbe rule 48: when a request mentions item 48, answer briefly, name the source of each fact, and never invent a value for field 14 or option 14.\nProbe rule 49: when a request mentions item 49, answer briefly, name the source of each fact, and never invent a value for field 15 or option 21.\nProbe rule 50: when a request mentions item 50, answer briefly, name the source of each fact, and never invent a value for field 16 or option 5.\nProbe rule 51: when a request mentions item 51, answer briefly, name the source of each fact, and never invent a value for field 0 or option 12.\nProbe rule 52: when a request mentions item 52, answer briefly, name the source of each fact, and never invent a value for field 1 or option 19.\nProbe rule 53: when a request mentions item 53, answer briefly, name the source of each fact, and never invent a value for field 2 or option 3.\nProbe rule 54: when a request mentions item 54, answer briefly, name the source of each fact, and never invent a value for field 3 or option 10.\nProbe rule 55: when a request mentions item 55, answer briefly, name the source of each fact, and never invent a value for field 4 or option 17.\nProbe rule 56: when a request mentions item 56, answer briefly, name the source of each fact, and never invent a value for field 5 or option 1.\nProbe rule 57: when a request mentions item 57, answer briefly, name the source of each fact, and never invent a value for field 6 or option 8.\nProbe rule 58: when a request mentions item 58, answer briefly, name the source of each fact, and never invent a value for field 7 or option 15.\nProbe rule 59: when a request mentions item 59, answer briefly, name the source of each fact, and never invent a value for field 8 or option 22.\nProbe rule 60: when a request mentions item 60, answer briefly, name the source of each fact, and never invent a value for field 9 or option 6.\nProbe rule 61: when a request mentions item 61, answer briefly, name the source of each fact, and never invent a value for field 10 or option 13.\nProbe rule 62: when a request mentions item 62, answer briefly, name the source of each fact, and never invent a value for field 11 or option 20.\nProbe rule 63: when a request mentions item 63, answer briefly, name the source of each fact, and never invent a value for field 12 or option 4.\nProbe rule 64: when a request mentions item 64, answer briefly, name the source of each fact, and never invent a value for field 13 or option 11.\nProbe rule 65: when a request mentions item 65, answer briefly, name the source of each fact, and never invent a value for field 14 or option 18.\nProbe rule 66: when a request mentions item 66, answer briefly, name the source of each fact, and never invent a value for field 15 or option 2.\nProbe rule 67: when a request mentions item 67, answer briefly, name the source of each fact, and never invent a value for field 16 or option 9.\nProbe rule 68: when a request mentions item 68, answer briefly, name the source of each fact, and never invent a value for field 0 or option 16.\nProbe rule 69: when a request mentions item 69, answer briefly, name the source of each fact, and never invent a value for field 1 or option 0.\nProbe rule 70: when a request mentions item 70, answer briefly, name the source of each fact, and never invent a value for field 2 or option 7.\nProbe rule 71: when a request mentions item 71, answer briefly, name the source of each fact, and never invent a value for field 3 or option 14.\nProbe rule 72: when a request mentions item 72, answer briefly, name the source of each fact, and never invent a value for field 4 or option 21.\nProbe rule 73: when a request mentions item 73, answer briefly, name the source of each fact, and never invent a value for field 5 or option 5.\nProbe rule 74: when a request mentions item 74, answer briefly, name the source of each fact, and never invent a value for field 6 or option 12.\nProbe rule 75: when a request mentions item 75, answer briefly, name the source of each fact, and never invent a value for field 7 or option 19.\nProbe rule 76: when a request mentions item 76, answer briefly, name the source of each fact, and never invent a value for field 8 or option 3.\nProbe rule 77: when a request mentions item 77, answer briefly, name the source of each fact, and never invent a value for field 9 or option 10.\nProbe rule 78: when a request mentions item 78, answer briefly, name the source of each fact, and never invent a value for field 10 or option 17.\nProbe rule 79: when a request mentions item 79, answer briefly, name the source of each fact, and never invent a value for field 11 or option 1.\nProbe rule 80: when a request mentions item 80, answer briefly, name the source of each fact, and never invent a value for field 12 or option 8.\nProbe rule 81: when a request mentions item 81, answer briefly, name the source of each fact, and never invent a value for field 13 or option 15.\nProbe rule 82: when a request mentions item 82, answer briefly, name the source of each fact, and never invent a value for field 14 or option 22.\nProbe rule 83: when a request mentions item 83, answer briefly, name the source of each fact, and never invent a value for field 15 or option 6.\nProbe rule 84: when a request mentions item 84, answer briefly, name the source of each fact, and never invent a value for field 16 or option 13.\nProbe rule 85: when a request mentions item 85, answer briefly, name the source of each fact, and never invent a value for field 0 or option 20.\nProbe rule 86: when a request mentions item 86, answer briefly, name the source of each fact, and never invent a value for field 1 or option 4.\nProbe rule 87: when a request mentions item 87, answer briefly, name the source of each fact, and never invent a value for field 2 or option 11.\nProbe rule 88: when a request mentions item 88, answer briefly, name the source of each fact, and never invent a value for field 3 or option 18.\nProbe rule 89: when a request mentions item 89, answer briefly, name the source of each fact, and never invent a value for field 4 or option 2.\nProbe rule 90: when a request mentions item 90, answer briefly, name the source of each fact, and never invent a value for field 5 or option 9.\nProbe rule 91: when a request mentions item 91, answer briefly, name the source of each fact, and never invent a value for field 6 or option 16.\nProbe rule 92: when a request mentions item 92, answer briefly, name the source of each fact, and never invent a value for field 7 or option 0.\nProbe rule 93: when a request mentions item 93, answer briefly, name the source of each fact, and never invent a value for field 8 or option 7.\nProbe rule 94: when a request mentions item 94, answer briefly, name the source of each fact, and never invent a value for field 9 or option 14.\nProbe rule 95: when a request mentions item 95, answer briefly, name the source of each fact, and never invent a value for field 10 or option 21.\nProbe rule 96: when a request mentions item 96, answer briefly, name the source of each fact, and never invent a value for field 11 or option 5.\nProbe rule 97: when a request mentions item 97, answer briefly, name the source of each fact, and never invent a value for field 12 or option 12.\nProbe rule 98: when a request mentions item 98, answer briefly, name the source of each fact, and never invent a value for field 13 or option 19.\nProbe rule 99: when a request mentions item 99, answer briefly, name the source of each fact, and never invent a value for field 14 or option 3.\nProbe rule 100: when a request mentions item 100, answer briefly, name the source of each fact, and never invent a value for field 15 or option 10.\nProbe rule 101: when a request mentions item 101, answer briefly, name the source of each fact, and never invent a value for field 16 or option 17.\nProbe rule 102: when a request mentions item 102, answer briefly, name the source of each fact, and never invent a value for field 0 or option 1.\nProbe rule 103: when a request mentions item 103, answer briefly, name the source of each fact, and never invent a value for field 1 or option 8.\nProbe rule 104: when a request mentions item 104, answer briefly, name the source of each fact, and never invent a value for field 2 or option 15.\nProbe rule 105: when a request mentions item 105, answer briefly, name the source of each fact, and never invent a value for field 3 or option 22.\nProbe rule 106: when a request mentions item 106, answer briefly, name the source of each fact, and never invent a value for field 4 or option 6.\nProbe rule 107: when a request mentions item 107, answer briefly, name the source of each fact, and never invent a value for field 5 or option 13.\nProbe rule 108: when a request mentions item 108, answer briefly, name the source of each fact, and never invent a value for field 6 or option 20.\nProbe rule 109: when a request mentions item 109, answer briefly, name the source of each fact, and never invent a value for field 7 or option 4.\nProbe rule 110: when a request mentions item 110, answer briefly, name the source of each fact, and never invent a value for field 8 or option 11.\nProbe rule 111: when a request mentions item 111, answer briefly, name the source of each fact, and never invent a value for field 9 or option 18.\nProbe rule 112: when a request mentions item 112, answer briefly, name the source of each fact, and never invent a value for field 10 or option 2.\nProbe rule 113: when a request mentions item 113, answer briefly, name the source of each fact, and never invent a value for field 11 or option 9.\nProbe rule 114: when a request mentions item 114, answer briefly, name the source of each fact, and never invent a value for field 12 or option 16.\nProbe rule 115: when a request mentions item 115, answer briefly, name the source of each fact, and never invent a value for field 13 or option 0.\nProbe rule 116: when a request mentions item 116, answer briefly, name the source of each fact, and never invent a value for field 14 or option 7.\nProbe rule 117: when a request mentions item 117, answer briefly, name the source of each fact, and never invent a value for field 15 or option 14.\nProbe rule 118: when a request mentions item 118, answer briefly, name the source of each fact, and never invent a value for field 16 or option 21.\nProbe rule 119: when a request mentions item 119, answer briefly, name the source of each fact, and never invent a value for field 0 or option 5.\nProbe rule 120: when a request mentions item 120, answer briefly, name the source of each fact, and never invent a value for field 1 or option 12.\nProbe rule 121: when a request mentions item 121, answer briefly, name the source of each fact, and never invent a value for field 2 or option 19.\nProbe rule 122: when a request mentions item 122, answer briefly, name the source of each fact, and never invent a value for field 3 or option 3.\nProbe rule 123: when a request mentions item 123, answer briefly, name the source of each fact, and never invent a value for field 4 or option 10.\nProbe rule 124: when a request mentions item 124, answer briefly, name the source of each fact, and never invent a value for field 5 or option 17.\nProbe rule 125: when a request mentions item 125, answer briefly, name the source of each fact, and never invent a value for field 6 or option 1.\nProbe rule 126: when a request mentions item 126, answer briefly, name the source of each fact, and never invent a value for field 7 or option 8.\nProbe rule 127: when a request mentions item 127, answer briefly, name the source of each fact, and never invent a value for field 8 or option 15.\nProbe rule 128: when a request mentions item 128, answer briefly, name the source of each fact, and never invent a value for field 9 or option 22.\nProbe rule 129: when a request mentions item 129, answer briefly, name the source of each fact, and never invent a value for field 10 or option 6.\nProbe rule 130: when a request mentions item 130, answer briefly, name the source of each fact, and never invent a value for field 11 or option 13.\nProbe rule 131: when a request mentions item 131, answer briefly, name the source of each fact, and never invent a value for field 12 or option 20.\nProbe rule 132: when a request mentions item 132, answer briefly, name the source of each fact, and never invent a value for field 13 or option 4.\nProbe rule 133: when a request mentions item 133, answer briefly, name the source of each fact, and never invent a value for field 14 or option 11."
+          }
+        ]
+      },
+      "contents": [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Reply with the single word OK."
+            }
+          ]
+        }
+      ],
+      "generationConfig": {
+        "maxOutputTokens": 256,
+        "thinkingConfig": {
+          "thinkingLevel": "low"
+        }
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "content-disposition": "attachment",
+      "content-type": "text/event-stream",
+      "date": "Sun, 04 Oct 2026 22:43:33 GMT",
+      "server": "scaffolding on HTTPServer2",
+      "server-timing": "gfet4t7; dur=1107",
+      "transfer-encoding": "chunked",
+      "vary": "Origin, X-Origin, Referer",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "SAMEORIGIN",
+      "x-xss-protection": "0"
+    },
+    "events": [
+      {
+        "data": {
+          "candidates": [
+            {
+              "content": {
+                "parts": [
+                  {
+                    "text": "OK"
+                  }
+                ],
+                "role": "model"
+              },
+              "index": 0
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 5514,
+            "candidatesTokenCount": 1,
+            "totalTokenCount": 5660,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 5514
+              }
+            ],
+            "thoughtsTokenCount": 145,
+            "serviceTier": "standard"
+          },
+          "modelVersion": "gemini-3.5-flash-lite",
+          "responseId": "lNbCarv3G_yNmtkP0sSsqAM"
+        }
+      },
+      {
+        "data": {
+          "candidates": [
+            {
+              "content": {
+                "parts": [
+                  {
+                    "text": "",
+                    "thoughtSignature": "EtsFCtgFAWkUfRO2ZwZXhQSIzU7uBrTDHiUHUr1QRt8zhSVW10M0TWOKuOXB8xbMtF6PGKRfcaLmjOE4gEuG9hQoWXzvzA9FE2FV0ePdq3UqEqcQp479MyKor44MWl43z4CUBezIJ42FCeXGoQ24U8TfRtX2C16U3wirHjn1neD0QoA3nORhLdIAhQX1Ww8xYybiXtjkSX9MAA3gOPpfXjxEO95O0yDIrLSWvddawam+W/erX8Yqh8Fa4GUjABmF9uJq8wt5XQiaybhOYOlnXGemuHtgstzZ5ZgJTzc8izd28t+72ef5wJU4OT0ZufDZZ8giBmGJgvE4Srkes9BuWgfCtV7ul/pzXXWP9Qd4qLQGnf+B6paLSxKU2/dJTcqKHkh8pb3eR1rKXvd68Z72rfSi3KNLGJmv5dk4G61p8sk4Ze88Dd4wfXAFEaPWZFeUlP5oWPPJ9o8oloJGLN3E8VbCKg9GZ/vO07tfLoBavekS1MdraNRWilzPWK4zkYwTBVd+4hTvOmh8QNw9iceoio08rkY+05/w3jXQ5Y5EZ0oyL2ZfaTfLg93mw7e8XxNlEWxhUgT9HuCHXbkwiamRzXDbdUJacOS/d+1ackjDcLt1ivjV4NOddWImu0FcixHYiBxNVNwKH0DGElL0VmwhbrfaO5o7cbN9Rgd3nvYT6K45xa1qirAltqP7d4DwZasixxyMM5rl/SkBHioLT1mbdpTvcgh2MN3Z+kcR9pipGquZ2LnjgcovRpT+AaGOAQGVrvR0rIBSkkZK0nBfkGvTqcSJLvHaqGBq3l7U6Vf60JtBeXi8GnXHBmKS3nd7BPwLp2zEPzAZVrh1CcdEbaxlemgjUybqsWvQQZdhF+h1TyjcE1RdOJkHyqilO3+bv2VSAd8/22gTksGTzTChT+CtkCHtY8khpciq4+GVZGqXC72NxwkU+Ncu9akr4Elqmp/mhrPJI1crX46cU3QWXTk="
+                  }
+                ],
+                "role": "model"
+              },
+              "finishReason": "STOP",
+              "index": 0
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 5514,
+            "candidatesTokenCount": 1,
+            "totalTokenCount": 5660,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 5514
+              }
+            ],
+            "thoughtsTokenCount": 145,
+            "serviceTier": "standard"
+          },
+          "modelVersion": "gemini-3.5-flash-lite",
+          "responseId": "lNbCarv3G_yNmtkP0sSsqAM"
+        }
+      }
+    ]
+  }
+}

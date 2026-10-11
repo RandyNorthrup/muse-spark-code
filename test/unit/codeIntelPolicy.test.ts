@@ -257,7 +257,7 @@ describe('code intelligence file policy over native IO (M67/M78)', () => {
       workspaceRoot: t.root,
       platform: process.platform,
       io: t.io,
-      seen: new Map(),
+      provisionalSeen: new Map(),
       signal: new AbortController().signal,
       beforeAccess: t.assertAccess,
     })
@@ -285,7 +285,7 @@ describe('code intelligence file policy over native IO (M67/M78)', () => {
       workspaceRoot: t.root,
       platform: process.platform,
       io: t.io,
-      seen: new Map(),
+      provisionalSeen: new Map(),
       signal: new AbortController().signal,
       beforeAccess: t.assertAccess,
     })

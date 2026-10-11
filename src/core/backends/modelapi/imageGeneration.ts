@@ -32,7 +32,7 @@ import {
 } from '../../../shared/constants'
 import type { PaidUseRequest } from '../../../shared/paid'
 import { pathModule } from '../../workspaceRoot'
-import type { ModelApiClient, ResponseAttemptGuard } from './client'
+import type { ProviderClient, ResponseAttemptGuard } from './client'
 import { IMAGE_ASPECTS } from './imageToolDefinitions'
 import type { ImagesResponse } from './schemas'
 import { confineWorkspacePath } from '../../workspacePath'
@@ -222,7 +222,7 @@ function parseImageArgs(
 }
 
 export interface ImageRunDeps {
-  readonly client: ModelApiClient
+  readonly client: ProviderClient
   readonly io: ToolIo
   readonly signal: AbortSignal
   /** Whether the feature is still on: checked after the question, before anything is bought. */

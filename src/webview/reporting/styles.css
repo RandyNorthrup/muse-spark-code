@@ -1,0 +1,70 @@
+@import url('../tokens.css');
+
+/* M113 V: the independently loaded report page. */
+body {
+  margin: 0;
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+}
+
+.reporting-page {
+  box-sizing: border-box;
+  padding: 12px;
+  width: 100%;
+  min-width: 0;
+  font-family: var(--vscode-font-family, system-ui, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+}
+
+.reporting-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.reporting-page button,
+.reporting-page select {
+  min-height: 32px;
+  max-width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--vscode-contrastBorder, var(--vscode-button-border, var(--ms-border)));
+  background: var(--vscode-button-secondaryBackground, var(--vscode-editor-background));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+  font: inherit;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.reporting-page :focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
+}
+
+.reporting-page button:disabled,
+.reporting-page select:disabled {
+  opacity: 60%;
+  cursor: default;
+}
+
+.reporting-document {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 70vh;
+  min-height: 320px;
+  border: 1px solid var(--vscode-contrastBorder, var(--vscode-foreground));
+}
+
+.reporting-history,
+.reporting-diff {
+  overflow-wrap: anywhere;
+}
+
+.reporting-row-values dd {
+  margin-inline-start: 0;
+  white-space: pre-wrap;
+}

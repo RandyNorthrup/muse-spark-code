@@ -1,0 +1,234 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
+// Canonical Usage is already normalised by the captured provider codecs.
+// Never add cached input or reasoning output a second time here.
+import {
+  MODEL_API_PRICED_MODELS,
+  MODEL_API_PRICES_VERIFIED_ON,
+  PAID_PRICES_USD,
+  PAID_PRICES_VERIFIED_ON,
+  SEARCHES_PER_PRICE_UNIT,
+  SECONDS_PER_HOUR,
+  USAGE_JOURNAL_VERSION,
+} from '../../shared/constants'
+import {
+  usageRecordSchema,
+  usageTokensSchema,
+  type UsageCost,
+  type UsageRecord,
+  type UsageTokens,
+} from '../../shared/usageJournal'
+import type { Usage } from '../backends/modelapi/schemas'
+import {
+  isValidUsage,
+  settleUsageUsd,
+  ticksToUsdPerToken,
+  type ModelPricing,
+  type PriceCard,
+  type PricedUsage,
+} from '../providers/priceCard'
+import { estimateCostUsd } from './insights'
+import { usageLocalDay } from './localDay'
+export { usageLocalDay } from './localDay'
+
+export type UsageRecordContext = Omit<
+  UsageRecord,
+  'v' | 'type' | 'tokens' | 'cost' | 'day' | 'timezoneOffsetMins'
+> & {
+  readonly pricing?: ModelPricing
+  /** The same model's list card only; never an alias or a user override. */
+  readonly apiEquivalentCard?: PriceCard
+  readonly priceDate?: string
+  readonly providerCostUsd?: UsdAmount
+  readonly costInUsdTicks?: number
+  readonly estimatedTokens?: boolean
+  readonly uncertain?: boolean
+  readonly retainedLiabilityUsd?: UsdAmount
+}
+
+export function normaliseUsage(
+  usage: Partial<Usage> | undefined,
+  isEstimated = false,
+): UsageTokens {
+  if (usage === undefined) {
+    return {}
+  }
+  const details = usage.input_tokens_details
+  const written = details?.cache_write_tokens
+  const written1h = details?.cache_write_tokens_1h
+  const tokens = usageTokensSchema.parse({
+    ...(usage.input_tokens !== undefined && { input: usage.input_tokens }),
+    ...(usage.output_tokens !== undefined && { output: usage.output_tokens }),
+    ...(details?.cached_tokens !== undefined && { cached: details.cached_tokens }),
+    ...(written !== undefined && { cacheWrite: written }),
+    ...(written1h !== undefined && { cacheWrite1h: written1h }),
+    ...(written !== undefined && written1h !== undefined && { cacheWrite5m: written - written1h }),
+    ...(usage.output_tokens_details?.reasoning_tokens !== undefined && {
+      reasoning: usage.output_tokens_details.reasoning_tokens,
+    }),
+    ...(isEstimated && { estimated: true }),
+  })
+  const billable = pricedUsage(tokens)
+  if (
+    (billable !== undefined && !isValidUsage(billable)) ||
+    (tokens.input !== undefined &&
+      (tokens.cached ?? 0) + (tokens.cacheWrite ?? 0) > tokens.input) ||
+    (tokens.cacheWrite1h ?? 0) > (tokens.cacheWrite ?? 0) ||
+    (tokens.output !== undefined && (tokens.reasoning ?? 0) > tokens.output)
+  ) {
+    throw new Error('invalidUsage')
+  }
+  return tokens
+}
+
+function pricedUsage(tokens: UsageTokens, canPricePartial = false): PricedUsage | undefined {
+  if (!canPricePartial && (tokens.input === undefined || tokens.output === undefined))
+    return undefined
+  if (
+    tokens.input === undefined &&
+    tokens.output === undefined &&
+    tokens.reasoning === undefined &&
+    tokens.cached === undefined &&
+    tokens.cacheWrite === undefined
+  )
+    return undefined
+  // Only the known portion is settled; absent counters stay absent in the record.
+  return {
+    inputTokens: tokens.input ?? (tokens.cached ?? 0) + (tokens.cacheWrite ?? 0),
+    outputTokens: tokens.output ?? tokens.reasoning ?? 0,
+    cachedTokens: tokens.cached,
+    cacheWriteTokens: tokens.cacheWrite,
+    cacheWriteTokens1h: tokens.cacheWrite1h,
+  }
+}
+
+function cardCost(card: PriceCard, tokens: UsageTokens): number | undefined {
+  const billable = pricedUsage(tokens, true)
+  return billable === undefined ? undefined : settleUsageUsd(card, billable)
+}
+
+function hasMetaPrice(context: UsageRecordContext): boolean {
+  if (context.provider !== 'meta' && context.backend !== 'museCode') {
+    return false
+  }
+  const models: readonly string[] = Object.values(MODEL_API_PRICED_MODELS).flat()
+  return models.includes(context.model)
+}
+
+function metaCost(context: UsageRecordContext, tokens: UsageTokens): number | undefined {
+  const billable = pricedUsage(tokens, true)
+  return billable !== undefined && hasMetaPrice(context)
+    ? Number(
+        estimateCostUsd({ ...billable, cachedTokens: billable.cachedTokens ?? 0 }, context.model),
+      )
+    : undefined
+}
+
+function paidCost(context: UsageRecordContext): number | undefined {
+  const units = context.units
+  if (context.kind === 'search' && units?.searches !== undefined) {
+    return (units.searches / SEARCHES_PER_PRICE_UNIT) * Number(PAID_PRICES_USD.webSearchPerThousand)
+  }
+  if (context.kind === 'image' && units?.images !== undefined) {
+    return units.images * Number(PAID_PRICES_USD.imageGeneration)
+  }
+  return context.kind === 'voice' && units?.audioSeconds !== undefined
+    ? (units.audioSeconds / SECONDS_PER_HOUR) * Number(PAID_PRICES_USD.voicePerHour)
+    : undefined
+}
+
+function settleCost(context: UsageRecordContext, tokens: UsageTokens): UsageCost {
+  const pricing = context.pricing
+  if (pricing?.kind === 'local') {
+    return { certainty: 'local', usd: 0 }
+  }
+  const isPlan = context.backend === 'museCode' || pricing?.kind === 'plan'
+  if (isPlan) {
+    const card = context.apiEquivalentCard
+    const usd = card?.source === 'list' ? cardCost(card, tokens) : metaCost(context, tokens)
+    return { certainty: 'plan', ...(usd !== undefined && { apiEquivalentUsd: usd }) }
+  }
+  if (context.uncertain === true || context.kind === 'voice') {
+    const usd =
+      (context.retainedLiabilityUsd === undefined
+        ? undefined
+        : Number(context.retainedLiabilityUsd)) ?? paidCost(context)
+    if (usd !== undefined || context.kind === 'voice')
+      return { certainty: 'uncertain', ...(usd !== undefined && { usd }) }
+  }
+  const reported = context.providerCostUsd
+  let usd =
+    reported !== undefined && Usd.from(reported).compare(Usd.from(0)) >= 0
+      ? Number(reported)
+      : undefined
+  if (usd === undefined && context.costInUsdTicks !== undefined) {
+    usd = ticksToUsdPerToken(context.costInUsdTicks)
+  }
+  if (usd !== undefined) {
+    return { certainty: context.uncertain === true ? 'uncertain' : 'reported', usd }
+  }
+  const card = pricing?.kind === 'priced' ? pricing.card : undefined
+  const tool = paidCost(context)
+  const computed = tool ?? (card === undefined ? metaCost(context, tokens) : cardCost(card, tokens))
+  if (computed === undefined) {
+    return {
+      certainty:
+        card !== undefined || context.uncertain === true || hasMetaPrice(context)
+          ? 'uncertain'
+          : 'unpriced',
+    }
+  }
+  let date = context.priceDate
+  if (date === undefined) {
+    if (tool !== undefined) date = PAID_PRICES_VERIFIED_ON
+    else if (card === undefined) date = MODEL_API_PRICES_VERIFIED_ON
+    else date = card.fetchedAt?.split('T', 1)[0]
+  }
+  let certainty: UsageCost['certainty'] = 'computed'
+  if (
+    context.uncertain === true ||
+    (tool === undefined && (tokens.input === undefined || tokens.output === undefined))
+  )
+    certainty = 'uncertain'
+  else if (context.estimatedTokens === true) certainty = 'estimated'
+  return {
+    certainty,
+    usd: computed,
+    source: tool !== undefined || card === undefined ? 'meta-published' : card.source,
+    ...(date !== undefined && { date }),
+  }
+}
+
+/** Copies only the journal's allow-listed fields; context cannot smuggle content. */
+export function createUsageRecord(
+  usage: Partial<Usage> | undefined,
+  context: UsageRecordContext,
+): UsageRecord {
+  const tokens = normaliseUsage(usage, context.estimatedTokens)
+  return usageRecordSchema.parse({
+    v: USAGE_JOURNAL_VERSION,
+    type: 'usage',
+    id: context.id,
+    at: context.at,
+    startedAt: context.startedAt,
+    day: usageLocalDay(context.at),
+    timezoneOffsetMins: new Date(context.at).getTimezoneOffset(),
+    client: context.client,
+    backend: context.backend,
+    provider: context.provider,
+    model: context.model,
+    served: context.served,
+    kind: context.kind,
+    tokens,
+    units: context.units,
+    cost: settleCost(context, tokens),
+    outcome: context.outcome,
+    durationMs: context.durationMs,
+    firstTokenMs: context.firstTokenMs,
+    retries: context.retries,
+    rateLimited: context.rateLimited,
+    retryDelayMs: context.retryDelayMs,
+    session: context.session,
+    packedAvoided: context.packedAvoided,
+    headers: context.headers,
+  })
+}

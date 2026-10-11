@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reports harness</title>
+    <link rel="stylesheet" href="../../../dist/webview/reportingPage.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      // Test-only states come from lane 0/R's fixture, rendered by the actual renderer.
+      const params = new URLSearchParams(location.search)
+      const themeName = params.get('theme') ?? 'light'
+      const [theme, fixtures] = await Promise.all([
+        fetch(`../themes/${themeName}.json`).then((response) => response.json()),
+        fetch('../../../temp/m113-v/scenes.json').then((response) => response.json()),
+      ])
+      for (const [name, value] of Object.entries(theme.variables)) {
+        document.documentElement.style.setProperty(name, value)
+      }
+      document.body.classList.add(...theme.bodyClass.split(' '))
+      const scene = params.get('scene') ?? 'report'
+      const state = structuredClone(fixtures[themeName])
+      if (scene === 'history') {
+        state.history = [{ id: 'saved', header: state.header }]
+      } else if (scene === 'diff') {
+        state.diff = fixtures.diff
+      } else if (scene === 'error') {
+        state.status = 'The report could not be generated.'
+        state.isError = true
+      }
+      window.harnessMessages = []
+      window.acquireVsCodeApi = () => ({
+        postMessage: (message) => {
+          window.harnessMessages.push(message)
+          if (message.type === 'reportingReady') {
+            window.dispatchEvent(new MessageEvent('message', { data: state }))
+          }
+        },
+        getState: () => undefined,
+        setState: () => {},
+      })
+      await import('../../../dist/webview/reportingPage.js')
+    </script>
+  </body>
+</html>

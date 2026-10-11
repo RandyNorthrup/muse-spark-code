@@ -1,0 +1,1546 @@
+{
+  "base": "a882809b2",
+  "machine": "kubuntu",
+  "steps": [
+    {
+      "stage": "train15d-step1",
+      "extension": 454262,
+      "modelApi": 486463,
+      "startup": 821206,
+      "acp": 840264,
+      "vsix": 2397730,
+      "deferred": [
+        {
+          "name": "deferred JS",
+          "bytes": 48104,
+          "cap": 51200
+        },
+        {
+          "name": "paid usage",
+          "bytes": 4018,
+          "cap": 25600
+        },
+        {
+          "name": "provider usage",
+          "bytes": 1683,
+          "cap": 25600
+        },
+        {
+          "name": "code highlighting",
+          "bytes": 90229,
+          "cap": 128000
+        },
+        {
+          "name": "action dialogs",
+          "bytes": 9490,
+          "cap": 25600
+        },
+        {
+          "name": "tasks tab",
+          "bytes": 1424,
+          "cap": 25600
+        },
+        {
+          "name": "team UI",
+          "bytes": 16132,
+          "cap": 25600
+        }
+      ]
+    },
+    {
+      "stage": "train15d-step2",
+      "extension": 454262,
+      "modelApi": 486463,
+      "startup": 821206,
+      "acp": 840264,
+      "vsix": 2397730,
+      "deferred": [
+        {
+          "name": "deferred JS",
+          "bytes": 48104,
+          "cap": 51200
+        },
+        {
+          "name": "paid usage",
+          "bytes": 4018,
+          "cap": 25600
+        },
+        {
+          "name": "provider usage",
+          "bytes": 1683,
+          "cap": 25600
+        },
+        {
+          "name": "code highlighting",
+          "bytes": 90229,
+          "cap": 128000
+        },
+        {
+          "name": "action dialogs",
+          "bytes": 9490,
+          "cap": 25600
+        },
+        {
+          "name": "tasks tab",
+          "bytes": 1424,
+          "cap": 25600
+        },
+        {
+          "name": "team UI",
+          "bytes": 16132,
+          "cap": 25600
+        }
+      ]
+    },
+    {
+      "stage": "train15d-step3",
+      "extension": 454262,
+      "modelApi": 486312,
+      "startup": 821206,
+      "acp": 840264,
+      "vsix": 2396321,
+      "deferred": [
+        {
+          "name": "deferred JS",
+          "bytes": 48104,
+          "cap": 51200
+        },
+        {
+          "name": "paid usage",
+          "bytes": 4018,
+          "cap": 25600
+        },
+        {
+          "name": "provider usage",
+          "bytes": 1683,
+          "cap": 25600
+        },
+        {
+          "name": "code highlighting",
+          "bytes": 90229,
+          "cap": 128000
+        },
+        {
+          "name": "action dialogs",
+          "bytes": 9490,
+          "cap": 25600
+        },
+        {
+          "name": "tasks tab",
+          "bytes": 1424,
+          "cap": 25600
+        },
+        {
+          "name": "team UI",
+          "bytes": 16132,
+          "cap": 25600
+        }
+      ]
+    },
+    {
+      "stage": "train15d-step4",
+      "extension": 454262,
+      "modelApi": 486312,
+      "startup": 821206,
+      "acp": 840264,
+      "vsix": 2396407,
+      "deferred": [
+        {
+          "name": "deferred JS",
+          "bytes": 48104,
+          "cap": 51200
+        },
+        {
+          "name": "paid usage",
+          "bytes": 4018,
+          "cap": 25600
+        },
+        {
+          "name": "provider usage",
+          "bytes": 1683,
+          "cap": 25600
+        },
+        {
+          "name": "code highlighting",
+          "bytes": 90229,
+          "cap": 128000
+        },
+        {
+          "name": "action dialogs",
+          "bytes": 9490,
+          "cap": 25600
+        },
+        {
+          "name": "tasks tab",
+          "bytes": 1424,
+          "cap": 25600
+        },
+        {
+          "name": "team UI",
+          "bytes": 16132,
+          "cap": 25600
+        }
+      ]
+    },
+    {
+      "stage": "train15d-step5",
+      "extension": 454262,
+      "modelApi": 486312,
+      "startup": 821206,
+      "acp": 840264,
+      "vsix": 2397289,
+      "deferred": [
+        {
+          "name": "deferred JS",
+          "bytes": 48104,
+          "cap": 51200
+        },
+        {
+          "name": "paid usage",
+          "bytes": 4018,
+          "cap": 25600
+        },
+        {
+          "name": "provider usage",
+          "bytes": 1683,
+          "cap": 25600
+        },
+        {
+          "name": "code highlighting",
+          "bytes": 90229,
+          "cap": 128000
+        },
+        {
+          "name": "action dialogs",
+          "bytes": 9490,
+          "cap": 25600
+        },
+        {
+          "name": "tasks tab",
+          "bytes": 1424,
+          "cap": 25600
+        },
+        {
+          "name": "team UI",
+          "bytes": 16132,
+          "cap": 25600
+        }
+      ]
+    },
+    {
+      "stage": "train15d-step6",
+      "extension": 461171,
+      "modelApi": 485864,
+      "startup": 851272,
+      "acp": 852845,
+      "vsix": 2512254,
+      "deferred": [
+        {
+          "name": "deferred JS",
+          "bytes": 48104,
+          "cap": 51200
+        },
+        {
+          "name": "paid usage",
+          "bytes": 4205,
+          "cap": 25600
+        },
+        {
+          "name": "provider usage",
+          "bytes": 1683,
+          "cap": 25600
+        },
+        {
+          "name": "code highlighting",
+          "bytes": 90229,
+          "cap": 128000
+        },
+        {
+          "name": "action dialogs",
+          "bytes": 9490,
+          "cap": 25600
+        },
+        {
+          "name": "tasks tab",
+          "bytes": 1424,
+          "cap": 25600
+        },
+        {
+          "name": "team UI",
+          "bytes": 16132,
+          "cap": 25600
+        }
+      ]
+    }
+  ],
+  "drills": [
+    {
+      "name": "m96-shared-graph-membership",
+      "target": "scripts/lib/webviewBundles.mjs",
+      "sha256Before": "74bcb6973955f642f2096b49c9ef5b2f16c245b62a83dca0cac18df795406046",
+      "sha256After": "74bcb6973955f642f2096b49c9ef5b2f16c245b62a83dca0cac18df795406046",
+      "exitCode": 1,
+      "command": "npx vitest run test/unit/webviewBundle.test.mjs --maxWorkers=3 --testTimeout=120000"
+    },
+    {
+      "name": "team-event-drain-admission",
+      "target": "src/core/team/roster.ts",
+      "sha256Before": "abcd65b03f686bfddbc8c955866e071dee02eb99a848a43f49c5a32d65746105",
+      "sha256After": "abcd65b03f686bfddbc8c955866e071dee02eb99a848a43f49c5a32d65746105",
+      "exitCode": 1,
+      "command": "npx vitest run test/unit/teamRoster.test.ts test/unit/teamDeclaration.test.ts --maxWorkers=3 --testTimeout=120000"
+    },
+    {
+      "name": "universal-vsix-cap",
+      "target": "scripts/check-vsix-size.mjs",
+      "sha256Before": "c976aac1c4c4c98872f5f4bd40500fa8e3046daeaf7a044dc5726992151119ab",
+      "sha256After": "c976aac1c4c4c98872f5f4bd40500fa8e3046daeaf7a044dc5726992151119ab",
+      "exitCode": 1,
+      "command": "npx vitest run test/unit/releaseIntegrity.test.mjs --maxWorkers=3 --testTimeout=120000"
+    },
+    {
+      "name": "legal-paid-admission",
+      "command": "npx vitest run test/unit/paidDailyBudget.test.ts test/unit/paidHost.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=default --reporter=json --outputFile=temp/train15d/drill-legal-paid-admission.json",
+      "exitCode": 1,
+      "targets": [
+        {
+          "path": "src/host/paid/paidDailyBudget.ts",
+          "sha256Before": "024ff3e3d7547847f1d2ea8e42f6c78a6a4aff59ec0f59944360f954f9b0dc1d",
+          "sha256After": "024ff3e3d7547847f1d2ea8e42f6c78a6a4aff59ec0f59944360f954f9b0dc1d"
+        },
+        {
+          "path": "src/host/paid/paidHost.ts",
+          "sha256Before": "35a5dcf4620aa3e138be0c55b9a1a3efba0afed5fdfddd5f5c54c229007ad2bc",
+          "sha256After": "35a5dcf4620aa3e138be0c55b9a1a3efba0afed5fdfddd5f5c54c229007ad2bc"
+        }
+      ]
+    },
+    {
+      "name": "shared-legal-installed-language",
+      "command": "npx vitest run test/unit/modelApiLegalScan.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=default --reporter=json --outputFile=temp/train15d/drill-shared-legal-installed-language.json",
+      "exitCode": 1,
+      "targets": [
+        {
+          "path": "src/core/backends/modelapi/legalScanTool.ts",
+          "sha256Before": "9b0e32e90543d1809c33118e3562d7bd2d3ef0055fb6708242713d43556eeba0",
+          "sha256After": "9b0e32e90543d1809c33118e3562d7bd2d3ef0055fb6708242713d43556eeba0"
+        }
+      ]
+    },
+    {
+      "name": "shared-paid-legal-owner",
+      "command": "npx vitest run test/unit/deferredBundles.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=default --reporter=json --outputFile=temp/train15d/drill-shared-paid-legal-owner.json",
+      "exitCode": 1,
+      "targets": [
+        {
+          "path": "scripts/lib/deferredBundles.mjs",
+          "sha256Before": "026c289a001ffd510e81fed5c2a7f59ac2ab1fb9a00922d5822bb86a64a84bf9",
+          "sha256After": "026c289a001ffd510e81fed5c2a7f59ac2ab1fb9a00922d5822bb86a64a84bf9"
+        }
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "files": [
+        "test/unit/webviewBundle.test.mjs",
+        "test/unit/webviewBundles.test.mjs",
+        "test/unit/bundleSize.test.mjs"
+      ],
+      "passed": 34
+    },
+    {
+      "files": [
+        "test/unit/teamRoster.test.ts",
+        "test/unit/teamDeclaration.test.ts",
+        "test/unit/modelApiGoldenRequests.test.ts"
+      ],
+      "passed": 107
+    },
+    {
+      "files": [
+        "test/unit/teamRoster.test.ts",
+        "test/unit/teamDeclaration.test.ts",
+        "test/unit/releaseIntegrity.test.mjs"
+      ],
+      "passed": 48
+    },
+    {
+      "files": [
+        "test/unit/webviewBundle.test.mjs",
+        "test/unit/teamDeclaration.test.ts",
+        "test/unit/releaseIntegrity.test.mjs"
+      ],
+      "passed": 54
+    }
+  ],
+  "m96LooseAssets": [
+    {
+      "path": "extension/native/runner/runner-helper.ps1",
+      "raw": 20596,
+      "zip": 5308
+    },
+    {
+      "path": "extension/native/runner/runner-helper.sh",
+      "raw": 6476,
+      "zip": 2376
+    }
+  ],
+  "m96SourceAssets": [
+    "docs/certification/m96-b-final-drills.json",
+    "docs/certification/m96-b-round3-drills.json",
+    "docs/certification/m96-int-results.json",
+    "docs/certification/m96-int-round2-results.json",
+    "docs/certification/m96-int-round3a-results.json",
+    "docs/certification/m96-int-round3b-drills.json",
+    "docs/certification/m96-int-round3b-results.json",
+    "docs/certification/m96-int-round3b-x2-drills.json",
+    "docs/certification/m96-int-round3c-d78.json",
+    "docs/certification/m96-int-round3c-late.json",
+    "docs/certification/m96-int-round3c-results.json",
+    "docs/certification/m96-int-round3d-drills.json",
+    "docs/certification/m96-int-round3d-results.json",
+    "docs/certification/m96-k/drills.json",
+    "docs/certification/m96-k/fin-checks.json",
+    "docs/certification/m96-k/fin-drills.json",
+    "docs/certification/m96-k/fin2-checks.json",
+    "docs/certification/m96-k/fin2-drills.json",
+    "docs/certification/m96-k/final-checks.json",
+    "docs/certification/m96-k/final-drills.json",
+    "docs/certification/m96-k/fix-checks.json",
+    "docs/certification/m96-k/fix-drills.json",
+    "docs/certification/m96-k/redesign-checks.json",
+    "docs/certification/m96-k/redesign-drills.json",
+    "docs/certification/m96-t-drills.json",
+    "docs/certification/m96-t-review-drills.json",
+    "docs/certification/m96c-0c-manifest.json",
+    "docs/certification/m96c-c-drills.json",
+    "docs/certification/m96c-c-fix-drills.json",
+    "docs/certification/m96c-int-drills.json",
+    "docs/certification/m96c-int-round2-drills.json",
+    "docs/certification/m96c-int-round2-gates.json",
+    "docs/certification/m96c-v-drills.json",
+    "docs/certification/m96c-v-metric-drills.json",
+    "docs/certification/m96c-v-review-browser.json",
+    "docs/certification/m96c-v-review-drills.json",
+    "docs/certification/m96c-v/a11y-checks.json",
+    "docs/certification/m96c-v/en-light-0.png",
+    "docs/certification/m96c-v/en-light-4.png",
+    "docs/certification/m96c-v/en-light-6.png",
+    "docs/certification/m96c-v/en-light-7.png",
+    "docs/certification/m96c-v/en-light-runners.png",
+    "docs/certification/m96c-v/harness-gate-drill.json",
+    "docs/certification/m96c-v/pseudo-dark-0.png",
+    "docs/certification/m96c-v/pseudo-dark-4.png",
+    "docs/certification/m96c-v/pseudo-dark-6.png",
+    "docs/certification/m96c-v/pseudo-dark-7.png",
+    "docs/certification/m96c-v/pseudo-hc-dark-0.png",
+    "docs/certification/m96c-v/pseudo-hc-dark-4.png",
+    "docs/certification/m96c-v/pseudo-hc-dark-6.png",
+    "docs/certification/m96c-v/pseudo-hc-dark-7.png",
+    "docs/certification/m96c-v/pseudo-hc-dark-runners.png",
+    "docs/certification/m96c-v/pseudo-hc-light-0.png",
+    "docs/certification/m96c-v/pseudo-hc-light-4.png",
+    "docs/certification/m96c-v/pseudo-hc-light-6.png",
+    "docs/certification/m96c-v/pseudo-hc-light-7.png",
+    "docs/certification/m96c-v/render-checks.json",
+    "docs/certification/m96c-v/runner-render-checks.json",
+    "docs/certification/train-0.15.0-continuation.json",
+    "l10n/ui.cs.json",
+    "l10n/ui.de.json",
+    "l10n/ui.es.json",
+    "l10n/ui.fr.json",
+    "l10n/ui.hu.json",
+    "l10n/ui.it.json",
+    "l10n/ui.ja.json",
+    "l10n/ui.ko.json",
+    "l10n/ui.pl.json",
+    "l10n/ui.pt-br.json",
+    "l10n/ui.ru.json",
+    "l10n/ui.tr.json",
+    "l10n/ui.zh-cn.json",
+    "l10n/ui.zh-tw.json",
+    "l10n/untranslated.json",
+    "native/runner/runner-helper.ps1",
+    "native/runner/runner-helper.sh",
+    "package.json",
+    "package.nls.cs.json",
+    "package.nls.de.json",
+    "package.nls.es.json",
+    "package.nls.fr.json",
+    "package.nls.hu.json",
+    "package.nls.it.json",
+    "package.nls.ja.json",
+    "package.nls.json",
+    "package.nls.ko.json",
+    "package.nls.pl.json",
+    "package.nls.pt-br.json",
+    "package.nls.ru.json",
+    "package.nls.tr.json",
+    "package.nls.zh-cn.json",
+    "package.nls.zh-tw.json",
+    "src/shared/teamToolSchemas.json",
+    "test/fixtures/golden-frames/musecode-session-resume-single.json",
+    "test/fixtures/golden-frames/musecode-session-resume-team.json",
+    "test/fixtures/golden-frames/musecode-session-start-single.json",
+    "test/fixtures/golden-frames/musecode-session-start-team.json",
+    "test/fixtures/golden-requests/08-team-on.json",
+    "test/fixtures/golden-requests/09-single-continuation.json",
+    "test/harness/tsconfig.json"
+  ],
+  "helper": {
+    "bytes": 289568,
+    "sha256": "f42e757a0d78a6bc6a6af22c3bcf34fc7d082eb9e8130d9336024a55c19f0f36"
+  },
+  "vsixBudgetDecision": {
+    "measuredBytes": 2396321,
+    "headroomPercent": 5,
+    "roundingBytes": 25600,
+    "newCapBytes": 2534400,
+    "rationale": "0.15.0 ships M95 providers, M96 teams, M101 compaction and M102 usage; caps for every individual bundle are unchanged"
+  },
+  "recoveryChecks": {
+    "typecheck": "all five projects exit 0",
+    "eslint": "changed files exit 0 after prefer-ternary fix",
+    "l10n": "14 tables; zero problems",
+    "hostApi": "exit 0; no inventory delta",
+    "schemas": "exec schema check exit 0",
+    "reference": "featureCatalogue and generator absent on this input",
+    "productionBuild": "all individual size/split/global/notices gates exit 0",
+    "package": "npm run package exit 0; universal 2,396,407 / 2,534,400; 42 native module checks"
+  },
+  "step5": {
+    "input": "c2e4220f1",
+    "firstParent": "7b7893b44",
+    "conflicts": ["CHANGELOG.md", "PLAN.md", "test/unit/teamMerge.test.ts"],
+    "resolution": "union docs; fast-import fixture with restored mask and explicit starting mode",
+    "initialTests": {
+      "passed": 102,
+      "failed": 2
+    },
+    "tests": [
+      {
+        "files": [
+          "test/unit/teamMerge.test.ts",
+          "test/unit/teamWorkspaces.test.ts",
+          "test/unit/teamReviewGate.test.ts"
+        ],
+        "passed": 120
+      },
+      {
+        "files": ["test/unit/teamRefFence.test.ts", "test/unit/teamStagingCopy.test.ts"],
+        "passed": 106
+      }
+    ],
+    "open": "incoming loaded Windows task publication acceptance blocker remains external",
+    "checks": "five-project typecheck, scoped ESLint/Prettier, regenerated/checked host API, l10n, production build and universal package exit 0"
+  },
+  "step6": {
+    "input": "24c211b2c",
+    "firstParent": "2c4f7bfe1",
+    "conflicts": [
+      ".github/workflows/build.yml",
+      ".vscodeignore",
+      "CHANGELOG.md",
+      "PLAN.md",
+      "README.md",
+      "docs/PRIVACY.md",
+      "docs/ide-compatibility/host-api.md",
+      "knip.jsonc",
+      "l10n/ui.cs.json",
+      "l10n/ui.de.json",
+      "l10n/ui.es.json",
+      "l10n/ui.fr.json",
+      "l10n/ui.hu.json",
+      "l10n/ui.it.json",
+      "l10n/ui.ja.json",
+      "l10n/ui.ko.json",
+      "l10n/ui.pl.json",
+      "l10n/ui.pt-br.json",
+      "l10n/ui.ru.json",
+      "l10n/ui.tr.json",
+      "l10n/ui.zh-cn.json",
+      "l10n/ui.zh-tw.json",
+      "l10n/untranslated.json",
+      "package.json",
+      "package.nls.cs.json",
+      "package.nls.de.json",
+      "package.nls.es.json",
+      "package.nls.fr.json",
+      "package.nls.hu.json",
+      "package.nls.it.json",
+      "package.nls.ja.json",
+      "package.nls.json",
+      "package.nls.ko.json",
+      "package.nls.pl.json",
+      "package.nls.pt-br.json",
+      "package.nls.ru.json",
+      "package.nls.tr.json",
+      "package.nls.zh-cn.json",
+      "package.nls.zh-tw.json",
+      "scripts/a11y.mjs",
+      "scripts/build.mjs",
+      "scripts/check-bundle-split.mjs",
+      "scripts/lib/harnessServer.mjs",
+      "scripts/package-acp.mjs",
+      "scripts/third-party-notices.mjs",
+      "src/acp/agent.ts",
+      "src/core/backends/modelapi/ModelApiHost.ts",
+      "src/core/backends/modelapi/client.ts",
+      "src/core/backends/modelapi/tools.ts",
+      "src/core/context/catalogFiles.ts",
+      "src/core/context/skills.ts",
+      "src/core/context/workspaceContext.ts",
+      "src/extension.ts",
+      "src/host/backend/modelApiEntry.ts",
+      "src/host/conversation/conversationController.ts",
+      "src/host/l10n.ts",
+      "src/host/paid/paidDailyBudget.ts",
+      "src/host/paid/paidHost.ts",
+      "src/host/settings.ts",
+      "src/runtime/cliArgs.ts",
+      "src/runtime/main.ts",
+      "src/shared/constants.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/paid.ts",
+      "src/webview/App.tsx",
+      "src/webview/components/UsageDialog.tsx",
+      "src/webview/state/uiState.ts",
+      "test/e2e/execStdio.e2e.test.ts",
+      "test/harness/index.html",
+      "test/unit/acpAgent.test.ts",
+      "test/unit/actionRunExec.test.ts",
+      "test/unit/conversationController.test.ts",
+      "test/unit/deferredBundles.test.ts",
+      "test/unit/execRun.test.ts",
+      "test/unit/modelApiBackendManager.test.ts",
+      "test/unit/modelApiHost.test.ts",
+      "test/unit/paletteRegistry.test.ts",
+      "test/unit/skills.test.ts",
+      "test/unit/workspaceContext.test.ts"
+    ],
+    "scalarPolicyResolutions": [
+      {
+        "path": "l10n/ui.cs.json.acpUsage",
+        "decision": "retain current reviewed train value",
+        "ours": "Použití:\n  {command} [volby]              Poskytuje Agent Client Protocol přes stdin a stdout\n  {command} [volby] login        Přihlásí se k Muse Code v tomto terminálu\n  {command} auth set|status|clear  Uloží, zkontroluje nebo odebere klíč Meta Model API\n  {command} exec [options] <prompt>  Spustit jeden běh bez rozhraní\n  {command} scan-secrets <file> [--key-stdin]  Spočítat pravděpodobná tajemství v jednom souboru (vypíše jen počet)\n  {command} report [options]  Vytisknout vyčištěnou zprávu o problému (nespouští žádný backend, neotvírá prohlížeč)\nVolby:\n  --backend museCode|modelApi      Kdo platí: Muse Code (výchozí) nebo klíč Model API\n  --trust-workspace                Načte pravidla, dovednosti a paměť složky\n  --muse-binary <cesta>             Rozhraní CLI Muse Code, které se spustí\n  --shell-sandbox auto|muse|off    Izolované prostředí shellu Muse Code\n  --allow-dangerously-skip-permissions  Nabídne režim „Obejít oprávnění“\n  --allow-contributor-models       Zobrazí modely úrovně contributor (Meta může trénovat na jejich obsahu)\n  --web-search                     Nabídne placené hledání na webu (back-end Model API; nejprve se zeptá na cenu)\n  --image-generation               Nabídne placené vytváření obrázků (back-end Model API; nejprve se zeptá na cenu)\n  --verbose                        Zapisuje každý detail do stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Spustí hooky Setup a skončí",
+        "theirs": "Použití:\n  {command} [volby]              Poskytuje Agent Client Protocol přes stdin a stdout\n  {command} [volby] login        Přihlásí se k Muse Code v tomto terminálu\n  {command} auth set|status|clear  Uloží, zkontroluje nebo odebere klíč Meta Model API\n  {command} exec [options] <prompt>  Spustit jeden běh bez rozhraní\n  {command} scan-secrets <file> [--key-stdin]  Spočítat pravděpodobná tajemství v jednom souboru (vypíše jen počet)\n\n  {command} legal [options]  Spustit kontrolu licencí jen pro čtení (bez backendu a přihlášení)\nVolby:\n  --backend museCode|modelApi      Kdo platí: Muse Code (výchozí) nebo klíč Model API\n  --trust-workspace                Načte pravidla, dovednosti a paměť složky\n  --muse-binary <cesta>             Rozhraní CLI Muse Code, které se spustí\n  --shell-sandbox auto|muse|off    Izolované prostředí shellu Muse Code\n  --allow-dangerously-skip-permissions  Nabídne režim „Obejít oprávnění“\n  --allow-contributor-models       Zobrazí modely úrovně contributor (Meta může trénovat na jejich obsahu)\n  --web-search                     Nabídne placené hledání na webu (back-end Model API; nejprve se zeptá na cenu)\n  --image-generation               Nabídne placené vytváření obrázků (back-end Model API; nejprve se zeptá na cenu)\n  --verbose                        Zapisuje každý detail do stderr\n  --help, --version"
+      },
+      {
+        "path": "l10n/ui.cs.json.paidDailyBudgetLine",
+        "decision": "retain current reviewed train value",
+        "ours": "Společný denní rozpočet pro interaktivní placené doplňky: {budget}. Tab má vlastní samostatný rozpočet.",
+        "theirs": "Společný denní rozpočet placených doplňků: {budget}."
+      },
+      {
+        "path": "l10n/ui.de.json.acpUsage",
+        "decision": "retain current reviewed train value",
+        "ours": "Verwendung:\n  {command} [Optionen]              Das Agent Client Protocol über stdin und stdout bereitstellen\n  {command} [Optionen] login        In diesem Terminal bei Muse Code anmelden\n  {command} auth set|status|clear  Den Schlüssel für die Meta Model API speichern, prüfen oder entfernen\n  {command} exec [options] <prompt>  Einen Lauf ohne Oberfläche ausführen\n  {command} scan-secrets <file> [--key-stdin]  Mögliche Geheimnisse in einer Datei zählen (gibt nur die Anzahl aus)\n  {command} report [options]  Einen bereinigten Problembericht ausgeben (startet kein Backend, öffnet keinen Browser)\nOptionen:\n  --backend museCode|modelApi      Wer bezahlt: Muse Code (Standard) oder der Model API-Schlüssel\n  --trust-workspace                Regeln, Skills und Speicher des Ordners laden\n  --muse-binary <Pfad>             Die auszuführende Muse Code-CLI\n  --shell-sandbox auto|muse|off    Die Shell-Sandbox von Muse Code\n  --allow-dangerously-skip-permissions  Den Modus „Berechtigungen umgehen“ anbieten\n  --allow-contributor-models       Modelle der Contributor-Stufe auflisten (Meta darf mit ihren Inhalten trainieren)\n  --web-search                     Kostenpflichtige Websuche anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --image-generation               Kostenpflichtige Bilderzeugung anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --verbose                        Jedes Detail auf stderr protokollieren\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Die Setup-Hooks ausführen und beenden",
+        "theirs": "Verwendung:\n  {command} [Optionen]              Das Agent Client Protocol über stdin und stdout bereitstellen\n  {command} [Optionen] login        In diesem Terminal bei Muse Code anmelden\n  {command} auth set|status|clear  Den Schlüssel für die Meta Model API speichern, prüfen oder entfernen\n  {command} exec [options] <prompt>  Einen Lauf ohne Oberfläche ausführen\n  {command} scan-secrets <file> [--key-stdin]  Mögliche Geheimnisse in einer Datei zählen (gibt nur die Anzahl aus)\n\n  {command} legal [options]  Den schreibgeschützten Legal-Scan ausführen (kein Backend, keine Anmeldung)\nOptionen:\n  --backend museCode|modelApi      Wer bezahlt: Muse Code (Standard) oder der Model API-Schlüssel\n  --trust-workspace                Regeln, Skills und Speicher des Ordners laden\n  --muse-binary <Pfad>             Die auszuführende Muse Code-CLI\n  --shell-sandbox auto|muse|off    Die Shell-Sandbox von Muse Code\n  --allow-dangerously-skip-permissions  Den Modus „Berechtigungen umgehen“ anbieten\n  --allow-contributor-models       Modelle der Contributor-Stufe auflisten (Meta darf mit ihren Inhalten trainieren)\n  --web-search                     Kostenpflichtige Websuche anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --image-generation               Kostenpflichtige Bilderzeugung anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --verbose                        Jedes Detail auf stderr protokollieren\n  --help, --version"
+      },
+      {
+        "path": "l10n/ui.de.json.paidDailyBudgetLine",
+        "decision": "retain current reviewed train value",
+        "ours": "Gemeinsames Tagesbudget für interaktive kostenpflichtige Extras: {budget}. Tab hat ein eigenes separates Budget.",
+        "theirs": "Gemeinsames Tagesbudget für kostenpflichtige Extras: {budget}."
+      },
+      {
+        "path": "l10n/ui.es.json.acpUsage",
+        "decision": "retain current reviewed train value",
+        "ours": "Uso:\n  {command} [opciones]              Servir el Agent Client Protocol por stdin y stdout\n  {command} [opciones] login        Iniciar sesión en Muse Code en este terminal\n  {command} auth set|status|clear  Guardar, comprobar o quitar la clave de Meta Model API\n  {command} exec [options] <prompt>  Ejecutar un turno sin interfaz\n  {command} scan-secrets <file> [--key-stdin]  Contar posibles secretos en un archivo (solo muestra el número)\n  {command} report [options]  Mostrar un informe de problema depurado (no inicia ningún backend, no abre el navegador)\nOpciones:\n  --backend museCode|modelApi      Quién paga: Muse Code (predeterminado) o la clave de Model API\n  --trust-workspace                Cargar las reglas, las habilidades y la memoria de la carpeta\n  --muse-binary <ruta>             La CLI de Muse Code que se ejecuta\n  --shell-sandbox auto|muse|off    El espacio aislado del shell de Muse Code\n  --allow-dangerously-skip-permissions  Ofrecer el modo «Omitir permisos»\n  --allow-contributor-models       Mostrar los modelos de nivel colaborador (Meta puede entrenar con su contenido)\n  --web-search                     Ofrecer la búsqueda web de pago (back-end de Model API; primero se pregunta su precio)\n  --image-generation               Ofrecer la generación de imágenes de pago (back-end de Model API; primero se pregunta su precio)\n  --verbose                        Registrar cada detalle en stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Ejecutar los hooks Setup y salir",
+        "theirs": "Uso:\n  {command} [opciones]              Servir el Agent Client Protocol por stdin y stdout\n  {command} [opciones] login        Iniciar sesión en Muse Code en este terminal\n  {command} auth set|status|clear  Guardar, comprobar o quitar la clave de Meta Model API\n  {command} exec [options] <prompt>  Ejecutar un turno sin interfaz\n  {command} scan-secrets <file> [--key-stdin]  Contar posibles secretos en un archivo (solo muestra el número)\n\n  {command} legal [options]  Ejecutar el análisis legal de solo lectura (sin backend ni inicio de sesión)\nOpciones:\n  --backend museCode|modelApi      Quién paga: Muse Code (predeterminado) o la clave de Model API\n  --trust-workspace                Cargar las reglas, las habilidades y la memoria de la carpeta\n  --muse-binary <ruta>             La CLI de Muse Code que se ejecuta\n  --shell-sandbox auto|muse|off    El espacio aislado del shell de Muse Code\n  --allow-dangerously-skip-permissions  Ofrecer el modo «Omitir permisos»\n  --allow-contributor-models       Mostrar los modelos de nivel colaborador (Meta puede entrenar con su contenido)\n  --web-search                     Ofrecer la búsqueda web de pago (back-end de Model API; primero se pregunta su precio)\n  --image-generation               Ofrecer la generación de imágenes de pago (back-end de Model API; primero se pregunta su precio)\n  --verbose                        Registrar cada detalle en stderr\n  --help, --version"
+      },
+      {
+        "path": "l10n/ui.es.json.paidDailyBudgetLine",
+        "decision": "retain current reviewed train value",
+        "ours": "Presupuesto diario compartido para extras interactivos de pago: {budget}. Tab tiene su propio presupuesto independiente.",
+        "theirs": "Presupuesto diario compartido para extras de pago: {budget}."
+      },
+      {
+        "path": "l10n/ui.fr.json.acpUsage",
+        "decision": "retain current reviewed train value",
+        "ours": "Utilisation :\n  {command} [options]              Servir l’Agent Client Protocol sur stdin et stdout\n  {command} [options] login        Se connecter à Muse Code dans ce terminal\n  {command} auth set|status|clear  Enregistrer, vérifier ou supprimer la clé Meta Model API\n  {command} exec [options] <prompt>  Exécuter un tour sans interface\n  {command} scan-secrets <file> [--key-stdin]  Compter les secrets probables dans un fichier (affiche seulement leur nombre)\n  {command} report [options]  Afficher un rapport de problème épuré (ne démarre aucun backend, n’ouvre aucun navigateur)\nOptions :\n  --backend museCode|modelApi      Qui paie : Muse Code (par défaut) ou la clé Model API\n  --trust-workspace                Charger les règles, les compétences et la mémoire du dossier\n  --muse-binary <chemin>             La CLI Muse Code à exécuter\n  --shell-sandbox auto|muse|off    Le bac à sable du shell de Muse Code\n  --allow-dangerously-skip-permissions  Proposer le mode « Contourner les autorisations »\n  --allow-contributor-models       Lister les modèles de niveau contributeur (Meta peut s’entraîner sur leur contenu)\n  --web-search                     Proposer la recherche web payante (back-end Model API ; son prix est demandé d’abord)\n  --image-generation               Proposer la génération d’images payante (back-end Model API ; son prix est demandé d’abord)\n  --verbose                        Journaliser chaque détail sur stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Exécuter les hooks Setup puis quitter",
+        "theirs": "Utilisation :\n  {command} [options]              Servir l’Agent Client Protocol sur stdin et stdout\n  {command} [options] login        Se connecter à Muse Code dans ce terminal\n  {command} auth set|status|clear  Enregistrer, vérifier ou supprimer la clé Meta Model API\n  {command} exec [options] <prompt>  Exécuter un tour sans interface\n  {command} scan-secrets <file> [--key-stdin]  Compter les secrets probables dans un fichier (affiche seulement leur nombre)\n\n  {command} legal [options]  Exécuter l’analyse juridique en lecture seule (sans backend ni connexion)\nOptions :\n  --backend museCode|modelApi      Qui paie : Muse Code (par défaut) ou la clé Model API\n  --trust-workspace                Charger les règles, les compétences et la mémoire du dossier\n  --muse-binary <chemin>             La CLI Muse Code à exécuter\n  --shell-sandbox auto|muse|off    Le bac à sable du shell de Muse Code\n  --allow-dangerously-skip-permissions  Proposer le mode « Contourner les autorisations »\n  --allow-contributor-models       Lister les modèles de niveau contributeur (Meta peut s’entraîner sur leur contenu)\n  --web-search                     Proposer la recherche web payante (back-end Model API ; son prix est demandé d’abord)\n  --image-generation               Proposer la génération d’images payante (back-end Model API ; son prix est demandé d’abord)\n  --verbose                        Journaliser chaque détail sur stderr\n  --help, --version"
+      },
+      {
+        "path": "l10n/ui.fr.json.paidDailyBudgetLine",
+        "decision": "retain current reviewed train value",
+        "ours": "Budget quotidien partagé pour les options interactives payantes : {budget}. Tab possède son propre budget distinct.",
+        "theirs": "Budget quotidien partagé des suppléments payants : {budget}."
+      },
+      {
+        "path": "l10n/ui.hu.json.acpUsage",
+        "decision": "retain current reviewed train value",
+        "ours": "Használat:\n  {command} [kapcsolók]              Az Agent Client Protocol kiszolgálása stdin és stdout felett\n  {command} [kapcsolók] login        Bejelentkezés a Muse Code-ba ebben a terminálban\n  {command} auth set|status|clear  A Meta Model API-kulcs tárolása, ellenőrzése vagy törlése\n  {command} exec [options] <prompt>  Egy kör futtatása felület nélkül\n  {command} scan-secrets <file> [--key-stdin]  Valószínű titkok megszámolása egy fájlban (csak a számot írja ki)\n  {command} report [options]  Tisztított hibajelentés kiírása (nem indít backendet, nem nyit böngészőt)\nKapcsolók:\n  --backend museCode|modelApi      Ki fizet: a Muse Code (alapértelmezett) vagy a Model API-kulcs\n  --trust-workspace                A mappa szabályainak, képességeinek és memóriájának betöltése\n  --muse-binary <útvonal>             A futtatandó Muse Code parancssori eszköz\n  --shell-sandbox auto|muse|off    A Muse Code parancsértelmező-védőkörnyezete\n  --allow-dangerously-skip-permissions  A(z) „Engedélyek megkerülése” mód felkínálása\n  --allow-contributor-models       A közreműködői szintű modellek listázása (a Meta tanulhat a tartalmukból)\n  --web-search                     Fizetős webes keresés felajánlása (Model API háttérrendszer; előbb az áráról kérdez)\n  --image-generation               Fizetős képkészítés felajánlása (Model API háttérrendszer; előbb az áráról kérdez)\n  --verbose                        Minden részlet naplózása az stderr-re\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  A Setup hookok futtatása, majd kilépés",
+        "theirs": "Használat:\n  {command} [kapcsolók]              Az Agent Client Protocol kiszolgálása stdin és stdout felett\n  {command} [kapcsolók] login        Bejelentkezés a Muse Code-ba ebben a terminálban\n  {command} auth set|status|clear  A Meta Model API-kulcs tárolása, ellenőrzése vagy törlése\n  {command} exec [options] <prompt>  Egy kör futtatása felület nélkül\n  {command} scan-secrets <file> [--key-stdin]  Valószínű titkok megszámolása egy fájlban (csak a számot írja ki)\n\n  {command} legal [options]  Csak olvasható jogi vizsgálat futtatása (háttérrendszer és bejelentkezés nélkül)\nKapcsolók:\n  --backend museCode|modelApi      Ki fizet: a Muse Code (alapértelmezett) vagy a Model API-kulcs\n  --trust-workspace                A mappa szabályainak, képességeinek és memóriájának betöltése\n  --muse-binary <útvonal>             A futtatandó Muse Code parancssori eszköz\n  --shell-sandbox auto|muse|off    A Muse Code parancsértelmező-védőkörnyezete\n  --allow-dangerously-skip-permissions  A(z) „Engedélyek megkerülése” mód felkínálása\n  --allow-contributor-models       A közreműködői szintű modellek listázása (a Meta tanulhat a tartalmukból)\n  --web-search                     Fizetős webes keresés felajánlása (Model API háttérrendszer; előbb az áráról kérdez)\n  --image-generation               Fizetős képkészítés felajánlása (Model API háttérrendszer; előbb az áráról kérdez)\n  --verbose                        Minden részlet naplózása az stderr-re\n  --help, --version"
+      },
+      {
+        "path": "l10n/ui.hu.json.paidDailyBudgetLine",
+        "decision": "retain current reviewed train value",
+        "ours": "Közös napi keret az interaktív fizetős extrákhoz: {budget}. A Tab saját, külön kerettel rendelkezik.",
+        "theirs": "A fizetős extrák közös napi kerete: {budget}."
+      },
+      {
+        "path": "l10n/ui.it.json.acpUsage",
+        "decision": "retain current reviewed train value",
+        "ours": "Uso:\n  {command} [opzioni]              Serve l’Agent Client Protocol su stdin e stdout\n  {command} [opzioni] login        Accedi a Muse Code in questo terminale\n  {command} auth set|status|clear  Salva, controlla o rimuovi la chiave Meta Model API\n  {command} exec [options] <prompt>  Eseguire un turno senza interfaccia\n  {command} scan-secrets <file> [--key-stdin]  Contare i probabili segreti in un file (stampa solo il numero)\n  {command} report [options]  Stampare una segnalazione depurata (non avvia backend, non apre il browser)\nOpzioni:\n  --backend museCode|modelApi      Chi paga: Muse Code (predefinito) o la chiave Model API\n  --trust-workspace                Carica regole, skill e memoria della cartella\n  --muse-binary <percorso>             La CLI di Muse Code da eseguire\n  --shell-sandbox auto|muse|off    La sandbox della shell di Muse Code\n  --allow-dangerously-skip-permissions  Offri la modalità «Ignora autorizzazioni»\n  --allow-contributor-models       Elenca i modelli di livello contributor (Meta può addestrarsi sui loro contenuti)\n  --web-search                     Offre la ricerca web a pagamento (back-end Model API; prima ne chiede il prezzo)\n  --image-generation               Offre la generazione di immagini a pagamento (back-end Model API; prima ne chiede il prezzo)\n  --verbose                        Registra ogni dettaglio su stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Esegui gli hook Setup ed esci",
+        "theirs": "Uso:\n  {command} [opzioni]              Serve l’Agent Client Protocol su stdin e stdout\n  {command} [opzioni] login        Accedi a Muse Code in questo terminale\n  {command} auth set|status|clear  Salva, controlla o rimuovi la chiave Meta Model API\n  {command} exec [options] <prompt>  Eseguire un turno senza interfaccia\n  {command} scan-secrets <file> [--key-stdin]  Contare i probabili segreti in un file (stampa solo il numero)\n\n  {command} legal [options]  Esegui la scansione legale in sola lettura (senza backend né accesso)\nOpzioni:\n  --backend museCode|modelApi      Chi paga: Muse Code (predefinito) o la chiave Model API\n  --trust-workspace                Carica regole, skill e memoria della cartella\n  --muse-binary <percorso>             La CLI di Muse Code da eseguire\n  --shell-sandbox auto|muse|off    La sandbox della shell di Muse Code\n  --allow-dangerously-skip-permissions  Offri la modalità «Ignora autorizzazioni»\n  --allow-contributor-models       Elenca i modelli di livello contributor (Meta può addestrarsi sui loro contenuti)\n  --web-search                     Offre la ricerca web a pagamento (back-end Model API; prima ne chiede il prezzo)\n  --image-generation               Offre la generazione di immagini a pagamento (back-end Model API; prima ne chiede il prezzo)\n  --verbose                        Registra ogni dettaglio su stderr\n  --help, --version"
+      },
+      {
+        "path": "l10n/ui.it.json.paidDailyBudgetLine",
+        "decision": "retain current reviewed train value",
+        "ours": "Budget giornaliero condiviso per extra interattivi a pagamento: {budget}. Tab ha un proprio budget separato.",
+        "theirs": "Budget giornaliero condiviso per gli extra a pagamento: {budget}."
+      },
+      {
+        "path": "l10n/ui.ja.json.acpUsage",
+        "decision": "retain current reviewed train value",
+        "ours": "使い方:\n  {command} [オプション]              stdin と stdout で Agent Client Protocol を提供します\n  {command} [オプション] login        このターミナルで Muse Code にサインインします\n  {command} auth set|status|clear  Meta Model API キーを保存、確認、または削除します\n  {command} exec [options] <prompt>  ヘッドレスで1ターン実行\n  {command} scan-secrets <file> [--key-stdin]  1つのファイル内の秘密情報らしきものを数える（件数のみ出力）\n  {command} report [options]  問題レポート（無害化済み）を出力する（バックエンドを起動せず、ブラウザも開かない）\nオプション:\n  --backend museCode|modelApi      支払い元: Muse Code (既定) または Model API キー\n  --trust-workspace                フォルダーのルール、スキル、メモリを読み込みます\n  --muse-binary <パス>             実行する Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code のシェル サンドボックス\n  --allow-dangerously-skip-permissions  「権限バイパス」モードを表示します\n  --allow-contributor-models       コントリビューター階層のモデルを表示します (Meta がその内容で学習する場合があります)\n  --web-search                     有料の Web 検索を提供します (Model API バックエンド、先に料金を確認します)\n  --image-generation               有料の画像生成を提供します (Model API バックエンド、先に料金を確認します)\n  --verbose                        すべての詳細を stderr に記録します\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Setup フックを実行して終了します",
+        "theirs": "使い方:\n  {command} [オプション]              stdin と stdout で Agent Client Protocol を提供します\n  {command} [オプション] login        このターミナルで Muse Code にサインインします\n  {command} auth set|status|clear  Meta Model API キーを保存、確認、または削除します\n  {command} exec [options] <prompt>  ヘッドレスで1ターン実行\n  {command} scan-secrets <file> [--key-stdin]  1つのファイル内の秘密情報らしきものを数える（件数のみ出力）\n\n  {command} legal [options]  読み取り専用のリーガルスキャンを実行する（バックエンド・サインイン不要）\nオプション:\n  --backend museCode|modelApi      支払い元: Muse Code (既定) または Model API キー\n  --trust-workspace                フォルダーのルール、スキル、メモリを読み込みます\n  --muse-binary <パス>             実行する Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code のシェル サンドボックス\n  --allow-dangerously-skip-permissions  「権限バイパス」モードを表示します\n  --allow-contributor-models       コントリビューター階層のモデルを表示します (Meta がその内容で学習する場合があります)\n  --web-search                     有料の Web 検索を提供します (Model API バックエンド、先に料金を確認します)\n  --image-generation               有料の画像生成を提供します (Model API バックエンド、先に料金を確認します)\n  --verbose                        すべての詳細を stderr に記録します\n  --help, --version"
+      },
+      {
+        "path": "l10n/ui.ja.json.paidDailyBudgetLine",
+        "decision": "retain current reviewed train value",
+        "ours": "対話型有料機能の共有1日予算: {budget}。Tabには別の専用予算があります。",
+        "theirs": "有料追加機能の共有日次予算：{budget}。"
+      },
+      {
+        "path": "l10n/ui.ko.json.acpUsage",
+        "decision": "retain current reviewed train value",
+        "ours": "사용법:\n  {command} [옵션]              stdin과 stdout으로 Agent Client Protocol을 제공합니다\n  {command} [옵션] login        이 터미널에서 Muse Code에 로그인합니다\n  {command} auth set|status|clear  Meta Model API 키를 저장, 확인 또는 제거합니다\n  {command} exec [options] <prompt>  헤드리스 한 턴 실행\n  {command} scan-secrets <file> [--key-stdin]  파일 하나에서 비밀로 보이는 항목 수 세기(개수만 출력)\n  {command} report [options]  정제된 문제 보고서 출력(백엔드를 시작하지 않고 브라우저를 열지 않음)\n옵션:\n  --backend museCode|modelApi      결제 주체: Muse Code(기본값) 또는 Model API 키\n  --trust-workspace                폴더의 규칙, 스킬, 메모리를 불러옵니다\n  --muse-binary <경로>             실행할 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code의 셸 샌드박스\n  --allow-dangerously-skip-permissions  \"권한 우회\" 모드를 제공합니다\n  --allow-contributor-models       기여자 등급 모델을 표시합니다(Meta가 해당 콘텐츠로 학습할 수 있음)\n  --web-search                     유료 웹 검색을 제공합니다(Model API 백엔드, 먼저 요금을 묻습니다)\n  --image-generation               유료 이미지 생성을 제공합니다(Model API 백엔드, 먼저 요금을 묻습니다)\n  --verbose                        모든 세부 정보를 stderr에 기록합니다\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Setup 후크를 실행하고 종료합니다",
+        "theirs": "사용법:\n  {command} [옵션]              stdin과 stdout으로 Agent Client Protocol을 제공합니다\n  {command} [옵션] login        이 터미널에서 Muse Code에 로그인합니다\n  {command} auth set|status|clear  Meta Model API 키를 저장, 확인 또는 제거합니다\n  {command} exec [options] <prompt>  헤드리스 한 턴 실행\n  {command} scan-secrets <file> [--key-stdin]  파일 하나에서 비밀로 보이는 항목 수 세기(개수만 출력)\n\n  {command} legal [options]  읽기 전용 법률 검사를 실행합니다(백엔드, 로그인 불필요)\n옵션:\n  --backend museCode|modelApi      결제 주체: Muse Code(기본값) 또는 Model API 키\n  --trust-workspace                폴더의 규칙, 스킬, 메모리를 불러옵니다\n  --muse-binary <경로>             실행할 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code의 셸 샌드박스\n  --allow-dangerously-skip-permissions  \"권한 우회\" 모드를 제공합니다\n  --allow-contributor-models       기여자 등급 모델을 표시합니다(Meta가 해당 콘텐츠로 학습할 수 있음)\n  --web-search                     유료 웹 검색을 제공합니다(Model API 백엔드, 먼저 요금을 묻습니다)\n  --image-generation               유료 이미지 생성을 제공합니다(Model API 백엔드, 먼저 요금을 묻습니다)\n  --verbose                        모든 세부 정보를 stderr에 기록합니다\n  --help, --version"
+      },
+      {
+        "path": "l10n/ui.ko.json.paidDailyBudgetLine",
+        "decision": "retain current reviewed train value",
+        "ours": "대화형 유료 기능의 공유 일일 예산: {budget}. Tab은 자체 별도 예산을 사용합니다.",
+        "theirs": "유료 추가 기능의 공유 일일 예산: {budget}."
+      },
+      {
+        "path": "l10n/ui.pl.json.acpUsage",
+        "decision": "retain current reviewed train value",
+        "ours": "Użycie:\n  {command} [opcje]              Obsługuj Agent Client Protocol przez stdin i stdout\n  {command} [opcje] login        Zaloguj się do Muse Code w tym terminalu\n  {command} auth set|status|clear  Zapisz, sprawdź lub usuń klucz Meta Model API\n  {command} exec [options] <prompt>  Uruchomić jedną turę bez interfejsu\n  {command} scan-secrets <file> [--key-stdin]  Policzyć prawdopodobne sekrety w jednym pliku (wypisuje tylko liczbę)\n  {command} report [options]  Wypisać oczyszczony raport o problemie (nie uruchamia backendu, nie otwiera przeglądarki)\nOpcje:\n  --backend museCode|modelApi      Kto płaci: Muse Code (domyślnie) lub klucz Model API\n  --trust-workspace                Wczytaj reguły, umiejętności i pamięć folderu\n  --muse-binary <ścieżka>             Interfejs CLI Muse Code do uruchomienia\n  --shell-sandbox auto|muse|off    Piaskownica powłoki Muse Code\n  --allow-dangerously-skip-permissions  Udostępnij tryb „Pomijanie uprawnień”\n  --allow-contributor-models       Wyświetl modele poziomu contributor (Meta może trenować na ich treści)\n  --web-search                     Udostępnij płatne wyszukiwanie w sieci (backend Model API; najpierw pyta o cenę)\n  --image-generation               Udostępnij płatne generowanie obrazów (backend Model API; najpierw pyta o cenę)\n  --verbose                        Zapisuj każdy szczegół w stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Uruchom hooki Setup i zakończ",
+        "theirs": "Użycie:\n  {command} [opcje]              Obsługuj Agent Client Protocol przez stdin i stdout\n  {command} [opcje] login        Zaloguj się do Muse Code w tym terminalu\n  {command} auth set|status|clear  Zapisz, sprawdź lub usuń klucz Meta Model API\n  {command} exec [options] <prompt>  Uruchomić jedną turę bez interfejsu\n  {command} scan-secrets <file> [--key-stdin]  Policzyć prawdopodobne sekrety w jednym pliku (wypisuje tylko liczbę)\n\n  {command} legal [options]  Uruchom skanowanie prawne tylko do odczytu (bez backendu i logowania)\nOpcje:\n  --backend museCode|modelApi      Kto płaci: Muse Code (domyślnie) lub klucz Model API\n  --trust-workspace                Wczytaj reguły, umiejętności i pamięć folderu\n  --muse-binary <ścieżka>             Interfejs CLI Muse Code do uruchomienia\n  --shell-sandbox auto|muse|off    Piaskownica powłoki Muse Code\n  --allow-dangerously-skip-permissions  Udostępnij tryb „Pomijanie uprawnień”\n  --allow-contributor-models       Wyświetl modele poziomu contributor (Meta może trenować na ich treści)\n  --web-search                     Udostępnij płatne wyszukiwanie w sieci (backend Model API; najpierw pyta o cenę)\n  --image-generation               Udostępnij płatne generowanie obrazów (backend Model API; najpierw pyta o cenę)\n  --verbose                        Zapisuj każdy szczegół w stderr\n  --help, --version"
+      },
+      {
+        "path": "l10n/ui.pl.json.paidDailyBudgetLine",
+        "decision": "retain current reviewed train value",
+        "ours": "Wspólny dzienny budżet interaktywnych płatnych dodatków: {budget}. Tab ma własny osobny budżet.",
+        "theirs": "Wspólny dzienny budżet płatnych dodatków: {budget}."
+      },
+      {
+        "path": "l10n/ui.pt-br.json.acpUsage",
+        "decision": "retain current reviewed train value",
+        "ours": "Uso:\n  {command} [opções]              Servir o Agent Client Protocol em stdin e stdout\n  {command} [opções] login        Entrar no Muse Code neste terminal\n  {command} auth set|status|clear  Guardar, verificar ou remover a chave da Meta Model API\n  {command} exec [options] <prompt>  Executar um turno sem interface\n  {command} scan-secrets <file> [--key-stdin]  Contar possíveis segredos em um arquivo (mostra só o número)\n  {command} report [options]  Mostrar um relatório de problema depurado (não inicia backend, não abre o navegador)\nOpções:\n  --backend museCode|modelApi      Quem paga: o Muse Code (padrão) ou a chave da Model API\n  --trust-workspace                Carregar as regras, as skills e a memória da pasta\n  --muse-binary <caminho>             A CLI do Muse Code a executar\n  --shell-sandbox auto|muse|off    A sandbox do shell do Muse Code\n  --allow-dangerously-skip-permissions  Oferecer o modo “Ignorar permissões”\n  --allow-contributor-models       Listar os modelos de nível colaborador (a Meta pode treinar com o conteúdo deles)\n  --web-search                     Oferecer a pesquisa na web paga (back-end da Model API; o preço é perguntado antes)\n  --image-generation               Oferecer a geração de imagens paga (back-end da Model API; o preço é perguntado antes)\n  --verbose                        Registrar cada detalhe em stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Executar os ganchos Setup e sair",
+        "theirs": "Uso:\n  {command} [opções]              Servir o Agent Client Protocol em stdin e stdout\n  {command} [opções] login        Entrar no Muse Code neste terminal\n  {command} auth set|status|clear  Guardar, verificar ou remover a chave da Meta Model API\n  {command} exec [options] <prompt>  Executar um turno sem interface\n  {command} scan-secrets <file> [--key-stdin]  Contar possíveis segredos em um arquivo (mostra só o número)\n\n  {command} legal [options]  Executar a verificação jurídica somente leitura (sem backend nem login)\nOpções:\n  --backend museCode|modelApi      Quem paga: o Muse Code (padrão) ou a chave da Model API\n  --trust-workspace                Carregar as regras, as skills e a memória da pasta\n  --muse-binary <caminho>             A CLI do Muse Code a executar\n  --shell-sandbox auto|muse|off    A sandbox do shell do Muse Code\n  --allow-dangerously-skip-permissions  Oferecer o modo “Ignorar permissões”\n  --allow-contributor-models       Listar os modelos de nível colaborador (a Meta pode treinar com o conteúdo deles)\n  --web-search                     Oferecer a pesquisa na web paga (back-end da Model API; o preço é perguntado antes)\n  --image-generation               Oferecer a geração de imagens paga (back-end da Model API; o preço é perguntado antes)\n  --verbose                        Registrar cada detalhe em stderr\n  --help, --version"
+      },
+      {
+        "path": "l10n/ui.pt-br.json.paidDailyBudgetLine",
+        "decision": "retain current reviewed train value",
+        "ours": "Orçamento diário compartilhado para extras interativos pagos: {budget}. Tab tem seu próprio orçamento separado.",
+        "theirs": "Orçamento diário compartilhado para extras pagos: {budget}."
+      },
+      {
+        "path": "l10n/ui.ru.json.acpUsage",
+        "decision": "retain current reviewed train value",
+        "ours": "Использование:\n  {command} [параметры]              Обслуживать Agent Client Protocol через stdin и stdout\n  {command} [параметры] login        Войти в Muse Code в этом терминале\n  {command} auth set|status|clear  Сохранить, проверить или удалить ключ Meta Model API\n  {command} exec [options] <prompt>  Выполнить один ход без интерфейса\n  {command} scan-secrets <file> [--key-stdin]  Подсчитать вероятные секреты в одном файле (выводит только число)\n  {command} report [options]  Вывести очищенный отчет о проблеме (не запускает backend, не открывает браузер)\nПараметры:\n  --backend museCode|modelApi      Кто платит: Muse Code (по умолчанию) или ключ Model API\n  --trust-workspace                Загрузить правила, навыки и память папки\n  --muse-binary <путь>             Запускаемый CLI Muse Code\n  --shell-sandbox auto|muse|off    Песочница оболочки Muse Code\n  --allow-dangerously-skip-permissions  Предлагать режим «Обход разрешений»\n  --allow-contributor-models       Показывать модели уровня contributor (Meta может обучаться на их содержимом)\n  --web-search                     Предлагать платный веб-поиск (бэкенд Model API; сначала запрашивается согласие с ценой)\n  --image-generation               Предлагать платное создание изображений (бэкенд Model API; сначала запрашивается согласие с ценой)\n  --verbose                        Записывать все подробности в stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Запустить хуки Setup и выйти",
+        "theirs": "Использование:\n  {command} [параметры]              Обслуживать Agent Client Protocol через stdin и stdout\n  {command} [параметры] login        Войти в Muse Code в этом терминале\n  {command} auth set|status|clear  Сохранить, проверить или удалить ключ Meta Model API\n  {command} exec [options] <prompt>  Выполнить один ход без интерфейса\n  {command} scan-secrets <file> [--key-stdin]  Подсчитать вероятные секреты в одном файле (выводит только число)\n\n  {command} legal [options]  Запустить сканирование лицензий только для чтения (без бэкенда и входа)\nПараметры:\n  --backend museCode|modelApi      Кто платит: Muse Code (по умолчанию) или ключ Model API\n  --trust-workspace                Загрузить правила, навыки и память папки\n  --muse-binary <путь>             Запускаемый CLI Muse Code\n  --shell-sandbox auto|muse|off    Песочница оболочки Muse Code\n  --allow-dangerously-skip-permissions  Предлагать режим «Обход разрешений»\n  --allow-contributor-models       Показывать модели уровня contributor (Meta может обучаться на их содержимом)\n  --web-search                     Предлагать платный веб-поиск (бэкенд Model API; сначала запрашивается согласие с ценой)\n  --image-generation               Предлагать платное создание изображений (бэкенд Model API; сначала запрашивается согласие с ценой)\n  --verbose                        Записывать все подробности в stderr\n  --help, --version"
+      },
+      {
+        "path": "l10n/ui.ru.json.paidDailyBudgetLine",
+        "decision": "retain current reviewed train value",
+        "ours": "Общий дневной бюджет интерактивных платных дополнений: {budget}. У Tab свой отдельный бюджет.",
+        "theirs": "Общий дневной бюджет платных функций: {budget}."
+      },
+      {
+        "path": "l10n/ui.tr.json.acpUsage",
+        "decision": "retain current reviewed train value",
+        "ours": "Kullanım:\n  {command} [seçenekler]              Agent Client Protocol'ü stdin ve stdout üzerinden sunar\n  {command} [seçenekler] login        Bu terminalde Muse Code'da oturum açar\n  {command} auth set|status|clear  Meta Model API anahtarını saklar, denetler veya kaldırır\n  {command} exec [options] <prompt>  Arayüzsüz bir tur çalıştır\n  {command} scan-secrets <file> [--key-stdin]  Bir dosyadaki olası gizli bilgileri say (yalnızca sayıyı yazar)\n  {command} report [options]  Düzeltilmiş sorun raporu yazdır (arka uç başlatmaz, tarayıcı açmaz)\nSeçenekler:\n  --backend museCode|modelApi      Kim öder: Muse Code (varsayılan) veya Model API anahtarı\n  --trust-workspace                Klasörün kurallarını, becerilerini ve belleğini yükler\n  --muse-binary <yol>             Çalıştırılacak Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code'un kabuk korumalı alanı\n  --allow-dangerously-skip-permissions  \"İzinleri atla\" modunu sunar\n  --allow-contributor-models       Katkıda bulunan düzeyindeki modelleri listeler (Meta bunların içeriğiyle eğitim yapabilir)\n  --web-search                     Ücretli web aramasını sunar (Model API arka ucu; önce fiyatı sorulur)\n  --image-generation               Ücretli görüntü oluşturmayı sunar (Model API arka ucu; önce fiyatı sorulur)\n  --verbose                        Her ayrıntıyı stderr'e kaydeder\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Setup kancalarını çalıştırır ve çıkar",
+        "theirs": "Kullanım:\n  {command} [seçenekler]              Agent Client Protocol'ü stdin ve stdout üzerinden sunar\n  {command} [seçenekler] login        Bu terminalde Muse Code'da oturum açar\n  {command} auth set|status|clear  Meta Model API anahtarını saklar, denetler veya kaldırır\n  {command} exec [options] <prompt>  Arayüzsüz bir tur çalıştır\n  {command} scan-secrets <file> [--key-stdin]  Bir dosyadaki olası gizli bilgileri say (yalnızca sayıyı yazar)\n\n  {command} legal [options]  Salt okunur yasal taramayı çalıştır (arka uç veya oturum gerekmez)\nSeçenekler:\n  --backend museCode|modelApi      Kim öder: Muse Code (varsayılan) veya Model API anahtarı\n  --trust-workspace                Klasörün kurallarını, becerilerini ve belleğini yükler\n  --muse-binary <yol>             Çalıştırılacak Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code'un kabuk korumalı alanı\n  --allow-dangerously-skip-permissions  \"İzinleri atla\" modunu sunar\n  --allow-contributor-models       Katkıda bulunan düzeyindeki modelleri listeler (Meta bunların içeriğiyle eğitim yapabilir)\n  --web-search                     Ücretli web aramasını sunar (Model API arka ucu; önce fiyatı sorulur)\n  --image-generation               Ücretli görüntü oluşturmayı sunar (Model API arka ucu; önce fiyatı sorulur)\n  --verbose                        Her ayrıntıyı stderr'e kaydeder\n  --help, --version"
+      },
+      {
+        "path": "l10n/ui.tr.json.paidDailyBudgetLine",
+        "decision": "retain current reviewed train value",
+        "ours": "Etkileşimli ücretli ek özellikler için ortak günlük bütçe: {budget}. Tab’ın kendi ayrı bütçesi vardır.",
+        "theirs": "Ücretli ek özelliklerin ortak günlük bütçesi: {budget}."
+      },
+      {
+        "path": "l10n/ui.zh-cn.json.acpUsage",
+        "decision": "retain current reviewed train value",
+        "ours": "用法：\n  {command} [选项]              通过 stdin 和 stdout 提供 Agent Client Protocol\n  {command} [选项] login        在此终端中登录 Muse Code\n  {command} auth set|status|clear  存储、检查或移除 Meta Model API 密钥\n  {command} exec [options] <prompt>  无界面运行一轮\n  {command} scan-secrets <file> [--key-stdin]  统计单个文件中疑似机密的数量（仅输出数量）\n  {command} report [options]  输出已清理的问题报告（不启动后端，不打开浏览器）\n选项：\n  --backend museCode|modelApi      由谁付费：Muse Code（默认）或 Model API 密钥\n  --trust-workspace                加载文件夹的规则、技能和记忆\n  --muse-binary <路径>             要运行的 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code 的 shell 沙盒\n  --allow-dangerously-skip-permissions  提供“绕过权限”模式\n  --allow-contributor-models       列出贡献者级模型（Meta 可能使用其内容进行训练）\n  --web-search                     提供付费网页搜索（Model API 后端；会先询问价格）\n  --image-generation               提供付费图片生成（Model API 后端；会先询问价格）\n  --verbose                        在 stderr 上记录所有细节\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  运行 Setup 钩子并退出",
+        "theirs": "用法：\n  {command} [选项]              通过 stdin 和 stdout 提供 Agent Client Protocol\n  {command} [选项] login        在此终端中登录 Muse Code\n  {command} auth set|status|clear  存储、检查或移除 Meta Model API 密钥\n  {command} exec [options] <prompt>  无界面运行一轮\n  {command} scan-secrets <file> [--key-stdin]  统计单个文件中疑似机密的数量（仅输出数量）\n\n  {command} legal [options]  运行只读法律扫描（无需后端、无需登录）\n选项：\n  --backend museCode|modelApi      由谁付费：Muse Code（默认）或 Model API 密钥\n  --trust-workspace                加载文件夹的规则、技能和记忆\n  --muse-binary <路径>             要运行的 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code 的 shell 沙盒\n  --allow-dangerously-skip-permissions  提供“绕过权限”模式\n  --allow-contributor-models       列出贡献者级模型（Meta 可能使用其内容进行训练）\n  --web-search                     提供付费网页搜索（Model API 后端；会先询问价格）\n  --image-generation               提供付费图片生成（Model API 后端；会先询问价格）\n  --verbose                        在 stderr 上记录所有细节\n  --help, --version"
+      },
+      {
+        "path": "l10n/ui.zh-cn.json.paidDailyBudgetLine",
+        "decision": "retain current reviewed train value",
+        "ours": "交互式付费附加功能的共享每日预算：{budget}。Tab 有独立预算。",
+        "theirs": "付费附加功能的共用每日预算：{budget}。"
+      },
+      {
+        "path": "l10n/ui.zh-tw.json.acpUsage",
+        "decision": "retain current reviewed train value",
+        "ours": "用法：\n  {command} [選項]              透過 stdin 與 stdout 提供 Agent Client Protocol\n  {command} [選項] login        在此終端機中登入 Muse Code\n  {command} auth set|status|clear  儲存、檢查或移除 Meta Model API 金鑰\n  {command} exec [options] <prompt>  無介面執行一輪\n  {command} scan-secrets <file> [--key-stdin]  統計單一檔案中疑似機密的數量（僅輸出數量）\n  {command} report [options]  輸出已清理的問題報告（不啟動後端，不開啟瀏覽器）\n選項：\n  --backend museCode|modelApi      由誰付費：Muse Code（預設）或 Model API 金鑰\n  --trust-workspace                載入資料夾的規則、技能與記憶\n  --muse-binary <路徑>             要執行的 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code 的 shell 沙箱\n  --allow-dangerously-skip-permissions  提供「略過權限」模式\n  --allow-contributor-models       列出貢獻者層級模型（Meta 可能會以其內容進行訓練）\n  --web-search                     提供付費網頁搜尋（Model API 後端；會先詢問價格）\n  --image-generation               提供付費圖片產生（Model API 後端；會先詢問價格）\n  --verbose                        在 stderr 記錄所有細節\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  執行 Setup 鉤子並結束",
+        "theirs": "用法：\n  {command} [選項]              透過 stdin 與 stdout 提供 Agent Client Protocol\n  {command} [選項] login        在此終端機中登入 Muse Code\n  {command} auth set|status|clear  儲存、檢查或移除 Meta Model API 金鑰\n  {command} exec [options] <prompt>  無介面執行一輪\n  {command} scan-secrets <file> [--key-stdin]  統計單一檔案中疑似機密的數量（僅輸出數量）\n\n  {command} legal [options]  執行唯讀法律掃描（無需後端、無需登入）\n選項：\n  --backend museCode|modelApi      由誰付費：Muse Code（預設）或 Model API 金鑰\n  --trust-workspace                載入資料夾的規則、技能與記憶\n  --muse-binary <路徑>             要執行的 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code 的 shell 沙箱\n  --allow-dangerously-skip-permissions  提供「略過權限」模式\n  --allow-contributor-models       列出貢獻者層級模型（Meta 可能會以其內容進行訓練）\n  --web-search                     提供付費網頁搜尋（Model API 後端；會先詢問價格）\n  --image-generation               提供付費圖片產生（Model API 後端；會先詢問價格）\n  --verbose                        在 stderr 記錄所有細節\n  --help, --version"
+      },
+      {
+        "path": "l10n/ui.zh-tw.json.paidDailyBudgetLine",
+        "decision": "retain current reviewed train value",
+        "ours": "互動式付費附加功能的共用每日預算：{budget}。Tab 有獨立預算。",
+        "theirs": "付費附加功能的共用每日預算：{budget}。"
+      },
+      {
+        "path": "package.json.scripts.cycles",
+        "decision": "retain current reviewed train value",
+        "ours": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/shared/wireEntry.ts src/shared/modelApiBoundariesEntry.ts src/extension.ts src/host/conversation/conversationEntry.ts src/host/judge/judgeEntry.ts src/host/tab/tabEntry.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/core/backends/modelapi/foreignHooksEntry.ts src/core/backends/modelapi/pluginHooksEntry.ts src/core/backends/modelapi/hookRuntimeEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts src/host/git/conversationGitEntry.ts src/host/backend/providersEntry.ts src/shared/validationEntry.ts src/host/models/modelsPanelEntry.ts src/webview/models/models.tsx src/host/teamViewBundle.ts src/core/team/teamEntry.ts src/core/team/teamSchedulerEntry.ts src/host/runners/teamRunnersEntry.ts",
+        "theirs": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/core/legal/entry.ts src/extension.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts"
+      },
+      {
+        "path": "package.json.scripts.package",
+        "decision": "retain current reviewed train value",
+        "ours": "npm run build && node scripts/package-vsix.mjs",
+        "theirs": "vsce package --no-dependencies && node scripts/compress-vsix.mjs"
+      }
+    ],
+    "countSlotKeys": {
+      "m037": "v0",
+      "m046": "v0",
+      "m147": "v0",
+      "m148": "v0",
+      "m153": "v0",
+      "m154": "v0",
+      "m158": "v0",
+      "m159": "v0",
+      "m162": "v0",
+      "m163": "v0",
+      "m168": "v0",
+      "m169": "v0",
+      "m174": "v0",
+      "m176": "v1",
+      "m179": "v0",
+      "m182": "v0",
+      "m183": "v0",
+      "m188": "v0",
+      "m191": "v1",
+      "m194": "v0",
+      "m195": "v0",
+      "m115": "v0",
+      "m116": "v0",
+      "m119": "v0",
+      "m122": "v0",
+      "m123": "v0"
+    },
+    "testSummary": {
+      "files": 73,
+      "passed": 2850,
+      "failed": 0,
+      "skipped": 0,
+      "results": [
+        {
+          "file": "test/e2e/execStdio.e2e.test.ts",
+          "passed": 38,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-final-tests-03.json"
+        },
+        {
+          "file": "test/unit/App.test.tsx",
+          "passed": 161,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-final-tests-03.json"
+        },
+        {
+          "file": "test/unit/UsageDialog.test.tsx",
+          "passed": 46,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-final-tests-06.json"
+        },
+        {
+          "file": "test/unit/acpAgent.test.ts",
+          "passed": 99,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-01.json"
+        },
+        {
+          "file": "test/unit/actionRunExec.test.ts",
+          "passed": 34,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-02.json"
+        },
+        {
+          "file": "test/unit/bundleSize.test.mjs",
+          "passed": 13,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-22.json"
+        },
+        {
+          "file": "test/unit/bundledSkillsInstall.test.ts",
+          "passed": 39,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-02.json"
+        },
+        {
+          "file": "test/unit/compressedEnglish.test.mjs",
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-final-tests-04.json"
+        },
+        {
+          "file": "test/unit/conversationController.test.ts",
+          "passed": 627,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-02.json"
+        },
+        {
+          "file": "test/unit/deferredBundles.test.ts",
+          "passed": 46,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-owners-restored.json"
+        },
+        {
+          "file": "test/unit/execRun.test.ts",
+          "passed": 56,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-03.json"
+        },
+        {
+          "file": "test/unit/hostL10n.test.ts",
+          "passed": 16,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-final-tests-04.json"
+        },
+        {
+          "file": "test/unit/htmlToMarkdown.test.ts",
+          "passed": 23,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-03.json"
+        },
+        {
+          "file": "test/unit/l10n.test.ts",
+          "passed": 26,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-final-tests-07.json"
+        },
+        {
+          "file": "test/unit/l10nPacked.test.ts",
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-04.json"
+        },
+        {
+          "file": "test/unit/legalArgs.test.ts",
+          "passed": 12,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-04.json"
+        },
+        {
+          "file": "test/unit/legalCommand.test.ts",
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-04.json"
+        },
+        {
+          "file": "test/unit/legalCompat.test.ts",
+          "passed": 16,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-05.json"
+        },
+        {
+          "file": "test/unit/legalContract.test.ts",
+          "passed": 18,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-05.json"
+        },
+        {
+          "file": "test/unit/legalCoverage.test.ts",
+          "passed": 10,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-05.json"
+        },
+        {
+          "file": "test/unit/legalDepsCargo.test.ts",
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-06.json"
+        },
+        {
+          "file": "test/unit/legalDepsComposer.test.ts",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-06.json"
+        },
+        {
+          "file": "test/unit/legalDepsGems.test.ts",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-06.json"
+        },
+        {
+          "file": "test/unit/legalDepsGo.test.ts",
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-07.json"
+        },
+        {
+          "file": "test/unit/legalDepsJvm.test.ts",
+          "passed": 5,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-07.json"
+        },
+        {
+          "file": "test/unit/legalDepsNpm.test.ts",
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-07.json"
+        },
+        {
+          "file": "test/unit/legalDepsNuget.test.ts",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-08.json"
+        },
+        {
+          "file": "test/unit/legalDepsPython.test.ts",
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-08.json"
+        },
+        {
+          "file": "test/unit/legalDistribution.test.ts",
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-08.json"
+        },
+        {
+          "file": "test/unit/legalEvidence.test.ts",
+          "passed": 24,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-09.json"
+        },
+        {
+          "file": "test/unit/legalExplanation.test.ts",
+          "passed": 10,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-final-tests-07.json"
+        },
+        {
+          "file": "test/unit/legalFix.test.ts",
+          "passed": 27,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-09.json"
+        },
+        {
+          "file": "test/unit/legalFixProduction.test.ts",
+          "passed": 10,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-10.json"
+        },
+        {
+          "file": "test/unit/legalFixSecurity.test.ts",
+          "passed": 21,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-10.json"
+        },
+        {
+          "file": "test/unit/legalFixWriter.test.ts",
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-10.json"
+        },
+        {
+          "file": "test/unit/legalGuards.test.ts",
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-11.json"
+        },
+        {
+          "file": "test/unit/legalHeaders.test.ts",
+          "passed": 14,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-11.json"
+        },
+        {
+          "file": "test/unit/legalIntegration.test.ts",
+          "passed": 5,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-11.json"
+        },
+        {
+          "file": "test/unit/legalLimits.test.ts",
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-12.json"
+        },
+        {
+          "file": "test/unit/legalLocalization.test.ts",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-final-tests-07.json"
+        },
+        {
+          "file": "test/unit/legalMarkdown.test.ts",
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-12.json"
+        },
+        {
+          "file": "test/unit/legalProject.test.ts",
+          "passed": 15,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-13.json"
+        },
+        {
+          "file": "test/unit/legalRegistry.test.ts",
+          "passed": 23,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-13.json"
+        },
+        {
+          "file": "test/unit/legalRegistryConsent.test.ts",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-13.json"
+        },
+        {
+          "file": "test/unit/legalReport.test.tsx",
+          "passed": 22,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-final-tests-03.json"
+        },
+        {
+          "file": "test/unit/legalRun.test.ts",
+          "passed": 19,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-14.json"
+        },
+        {
+          "file": "test/unit/legalScan.test.ts",
+          "passed": 8,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-14.json"
+        },
+        {
+          "file": "test/unit/legalScanBundle.test.ts",
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-final-tests-04.json"
+        },
+        {
+          "file": "test/unit/legalScanTool.test.ts",
+          "passed": 14,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-15.json"
+        },
+        {
+          "file": "test/unit/legalSpdx.test.ts",
+          "passed": 27,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-15.json"
+        },
+        {
+          "file": "test/unit/legalSwRegression.test.ts",
+          "passed": 20,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-16.json"
+        },
+        {
+          "file": "test/unit/legalWorkspace.test.ts",
+          "passed": 11,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-16.json"
+        },
+        {
+          "file": "test/unit/manifest.test.ts",
+          "passed": 35,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-final-tests-02.json"
+        },
+        {
+          "file": "test/unit/modelApiBackendManager.test.ts",
+          "passed": 20,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-17.json"
+        },
+        {
+          "file": "test/unit/modelApiGoldenRequests.test.ts",
+          "passed": 77,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-final-tests-06.json"
+        },
+        {
+          "file": "test/unit/modelApiHost.test.ts",
+          "passed": 661,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-17.json"
+        },
+        {
+          "file": "test/unit/modelApiLegalScan.test.ts",
+          "passed": 13,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-drill-restored.json"
+        },
+        {
+          "file": "test/unit/modelApiPolicyFence.test.ts",
+          "passed": 108,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-18.json"
+        },
+        {
+          "file": "test/unit/paidDailyBudget.test.ts",
+          "passed": 19,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-drill-restored.json"
+        },
+        {
+          "file": "test/unit/paidFeatures.test.ts",
+          "passed": 30,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-final-tests-06.json"
+        },
+        {
+          "file": "test/unit/paidHost.test.ts",
+          "passed": 33,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-drill-restored.json"
+        },
+        {
+          "file": "test/unit/paletteRegistry.test.ts",
+          "passed": 35,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-owners-restored.json"
+        },
+        {
+          "file": "test/unit/providersL10n.test.ts",
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-21.json"
+        },
+        {
+          "file": "test/unit/releaseIntegrity.test.mjs",
+          "passed": 18,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-22.json"
+        },
+        {
+          "file": "test/unit/review.test.ts",
+          "passed": 26,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-18.json"
+        },
+        {
+          "file": "test/unit/skills.test.ts",
+          "passed": 20,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-19.json"
+        },
+        {
+          "file": "test/unit/teamDeclaration.test.ts",
+          "passed": 21,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-final-tests-05.json"
+        },
+        {
+          "file": "test/unit/teamRoster.test.ts",
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-final-tests-05.json"
+        },
+        {
+          "file": "test/unit/vsixCompression.test.mjs",
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-19.json"
+        },
+        {
+          "file": "test/unit/vsixPackaging.test.mjs",
+          "passed": 51,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-final-tests-05.json"
+        },
+        {
+          "file": "test/unit/webviewBundle.test.mjs",
+          "passed": 15,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-21.json"
+        },
+        {
+          "file": "test/unit/webviewBundles.test.mjs",
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-22.json"
+        },
+        {
+          "file": "test/unit/workspaceContext.test.ts",
+          "passed": 13,
+          "failed": 0,
+          "skipped": 0,
+          "status": "passed",
+          "receipt": "temp/train15d/step6-tests-19.json"
+        }
+      ]
+    },
+    "checks": [
+      {
+        "name": "format",
+        "exit": 0,
+        "seconds": 24.33
+      },
+      {
+        "name": "eslint",
+        "exit": 0,
+        "seconds": 73.65
+      },
+      {
+        "name": "typecheck",
+        "exit": 0,
+        "seconds": 93.42
+      },
+      {
+        "name": "deadcode",
+        "exit": 0,
+        "seconds": 5.32
+      },
+      {
+        "name": "duplication",
+        "exit": 0,
+        "seconds": 1.42
+      },
+      {
+        "name": "cycles",
+        "exit": 0,
+        "seconds": 8.1
+      },
+      {
+        "name": "l10n",
+        "exit": 0,
+        "seconds": 2.96
+      },
+      {
+        "name": "host-api",
+        "exit": 0,
+        "seconds": 20.66
+      },
+      {
+        "name": "schemas",
+        "exit": 0,
+        "seconds": 0.67
+      }
+    ],
+    "initialVsixBytes": 2536048,
+    "surfacesExperimentVsixBytes": 2543484,
+    "maximumBrotliVsixBytesBeforeFinalDocs": 2512465,
+    "caps": "every existing individual cap unchanged; input legalScan guard 150 KiB",
+    "legalReportSourceExactToInput": true,
+    "badgeNetworkException": "one final stdio replay inherited no BADGE_CHECK_SKIP_NETWORK, so ACP package badge HTTPS validation ran; remaining packaging uses its supported named skip",
+    "a11y": {
+      "platform": "linux",
+      "keyboardAXZoomChecks": 96,
+      "wcagPages": 24,
+      "violations": 0,
+      "undecided": 0,
+      "exemptions": 0,
+      "missingPages": 0,
+      "notVisibleContrastElements": {
+        "en": 104,
+        "pseudo": 128
+      },
+      "receipt": "train-0.15.0-train15d-a11y.json"
+    },
+    "package": {
+      "vsixBytes": 2512254,
+      "capBytes": 2534400,
+      "headroomBytes": 22146,
+      "vsixNativeProbes": 43,
+      "acpBytes": 1266362,
+      "acpNativeProbes": 21,
+      "vsixSha256": "99ffb1ec25ee9566ecc4c4487f89fdf467f614313cec68d01b4d574e39a48381",
+      "acpSha256": "1e36ba7ad375151db4828cbf55a4054fd7f48f887f7cf5294fbffeced4f8f84b",
+      "commands": ["npm run package", "npm run package:acp"],
+      "exitCode": 0
+    },
+    "integration": {
+      "platform": "linux",
+      "editor": "VS Code 1.130.0",
+      "files": ["test/integration/legal.test.ts"],
+      "passed": 2,
+      "exitCode": 0,
+      "profile": "isolated temporary profile; updates/telemetry disabled; explicit Model API backend; registry lookups off"
+    },
+    "keylessCli": [
+      {
+        "args": ["exec", "legal-scan", "--json"],
+        "exitCode": 2,
+        "incompleteChecks": 11,
+        "findings": 0,
+        "registryBytes": 0
+      },
+      {
+        "args": ["legal", "--format", "text"],
+        "exitCode": 2,
+        "textReport": true
+      },
+      {
+        "args": [
+          "legal",
+          "--format",
+          "json",
+          "--out",
+          "/home/randy/lanes/TRAIN15A/temp/train15d/legal-export.json"
+        ],
+        "exitCode": 2,
+        "incompleteChecks": 11,
+        "findings": 0,
+        "registryBytes": 0
+      }
+    ],
+    "followupChecks": [
+      "changed palette/consent ESLint exit 0",
+      "styles.css stylelint exit 0",
+      "host and unit compiler projects exit 0 after final palette/fixture edits"
+    ],
+    "sharedOwnerBytes": 23871,
+    "scannerBytes": 120409
+  }
+}

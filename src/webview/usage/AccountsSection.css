@@ -1,0 +1,22 @@
+.account-usage {
+  display: grid;
+  gap: 1em;
+  min-width: 0;
+  color: var(--vscode-foreground);
+  overflow-wrap: anywhere;
+}
+
+.account-usage h2,
+.account-usage h3,
+.account-usage p {
+  margin: 0 0 0.5em;
+}
+
+.account-usage-meter progress {
+  width: 100%;
+  accent-color: var(--vscode-progressBar-background);
+}
+
+.account-usage li {
+  margin-bottom: 1em;
+}

@@ -1,0 +1,164 @@
+[
+  {
+    "drill": "flush-keeps-minute",
+    "file": "src/core/usage/resourceRecords.ts",
+    "suite": "test/unit/resourceRecords.test.ts",
+    "test": "merges a read-time flush and same-timestamp final tree accounting into one known minute",
+    "exitCode": 1,
+    "sha256": "800e5d94d3de1d314b4a9373935509c97bfe594b2fa2514898c77b9e7a233513",
+    "restoredSha256": "800e5d94d3de1d314b4a9373935509c97bfe594b2fa2514898c77b9e7a233513"
+  },
+  {
+    "drill": "minute-snapshot-merge",
+    "file": "src/core/usage/aggregate.ts",
+    "suite": "test/unit/resourceRecords.test.ts",
+    "test": "merges a read-time flush and same-timestamp final tree accounting into one known minute",
+    "exitCode": 1,
+    "sha256": "ff80183bd5ce3c4678fe72c03f6fccc058e402a52e7d76bdca3d3e923b2b99da",
+    "restoredSha256": "ff80183bd5ce3c4678fe72c03f6fccc058e402a52e7d76bdca3d3e923b2b99da"
+  },
+  {
+    "drill": "history-date-range",
+    "file": "src/shared/resourceHistory.ts",
+    "suite": "test/unit/ResourcesSection.test.tsx",
+    "test": "refuses unrepresentable and non-finite minute timestamps, event times and override deadlines",
+    "exitCode": 1,
+    "sha256": "3d176327b2508f214ae842319efc109777ab28edcf30abf2f1e98dc6bcac349a",
+    "restoredSha256": "3d176327b2508f214ae842319efc109777ab28edcf30abf2f1e98dc6bcac349a"
+  },
+  {
+    "drill": "history-event-time",
+    "file": "src/shared/resourceHistory.ts",
+    "suite": "test/unit/ResourcesSection.test.tsx",
+    "test": "refuses unrepresentable and non-finite minute timestamps, event times and override deadlines",
+    "exitCode": 1,
+    "sha256": "3d176327b2508f214ae842319efc109777ab28edcf30abf2f1e98dc6bcac349a",
+    "restoredSha256": "3d176327b2508f214ae842319efc109777ab28edcf30abf2f1e98dc6bcac349a"
+  },
+  {
+    "drill": "history-override-deadline",
+    "file": "src/shared/resourceHistory.ts",
+    "suite": "test/unit/ResourcesSection.test.tsx",
+    "test": "refuses unrepresentable and non-finite minute timestamps, event times and override deadlines",
+    "exitCode": 1,
+    "sha256": "3d176327b2508f214ae842319efc109777ab28edcf30abf2f1e98dc6bcac349a",
+    "restoredSha256": "3d176327b2508f214ae842319efc109777ab28edcf30abf2f1e98dc6bcac349a"
+  },
+  {
+    "drill": "history-bridge-minute-time",
+    "file": "src/shared/resourceHistory.ts",
+    "suite": "test/unit/ResourcesSection.test.tsx",
+    "test": "refuses unrepresentable and non-finite minute timestamps, event times and override deadlines",
+    "exitCode": 1,
+    "sha256": "3d176327b2508f214ae842319efc109777ab28edcf30abf2f1e98dc6bcac349a",
+    "restoredSha256": "3d176327b2508f214ae842319efc109777ab28edcf30abf2f1e98dc6bcac349a"
+  },
+  {
+    "drill": "minute-age-retention",
+    "file": "src/core/usage/aggregate.ts",
+    "suite": "test/unit/resourceRecords.test.ts",
+    "test": "evicts minute detail older than seven recorded days without losing exact work totals",
+    "exitCode": 1,
+    "sha256": "ff80183bd5ce3c4678fe72c03f6fccc058e402a52e7d76bdca3d3e923b2b99da",
+    "restoredSha256": "ff80183bd5ce3c4678fe72c03f6fccc058e402a52e7d76bdca3d3e923b2b99da"
+  },
+  {
+    "drill": "minute-count-retention",
+    "file": "src/core/usage/aggregate.ts",
+    "suite": "test/unit/resourceRecords.test.ts",
+    "test": "evicts oldest minute segments and events at their caps while retaining exact totals",
+    "exitCode": 1,
+    "sha256": "ff80183bd5ce3c4678fe72c03f6fccc058e402a52e7d76bdca3d3e923b2b99da",
+    "restoredSha256": "ff80183bd5ce3c4678fe72c03f6fccc058e402a52e7d76bdca3d3e923b2b99da"
+  },
+  {
+    "drill": "event-count-retention",
+    "file": "src/core/usage/aggregate.ts",
+    "suite": "test/unit/resourceRecords.test.ts",
+    "test": "evicts oldest minute segments and events at their caps while retaining exact totals",
+    "exitCode": 1,
+    "sha256": "ff80183bd5ce3c4678fe72c03f6fccc058e402a52e7d76bdca3d3e923b2b99da",
+    "restoredSha256": "ff80183bd5ce3c4678fe72c03f6fccc058e402a52e7d76bdca3d3e923b2b99da"
+  },
+  {
+    "drill": "minute-bridge-bound",
+    "file": "src/shared/resourceHistory.ts",
+    "suite": "test/unit/ResourcesSection.test.tsx",
+    "test": "rejects bridge lists exceeding the named minute, event, count and work bounds",
+    "exitCode": 1,
+    "sha256": "3d176327b2508f214ae842319efc109777ab28edcf30abf2f1e98dc6bcac349a",
+    "restoredSha256": "3d176327b2508f214ae842319efc109777ab28edcf30abf2f1e98dc6bcac349a"
+  },
+  {
+    "drill": "event-bridge-bound",
+    "file": "src/shared/resourceHistory.ts",
+    "suite": "test/unit/ResourcesSection.test.tsx",
+    "test": "rejects bridge lists exceeding the named minute, event, count and work bounds",
+    "exitCode": 1,
+    "sha256": "3d176327b2508f214ae842319efc109777ab28edcf30abf2f1e98dc6bcac349a",
+    "restoredSha256": "3d176327b2508f214ae842319efc109777ab28edcf30abf2f1e98dc6bcac349a"
+  },
+  {
+    "drill": "totals-bridge-bound",
+    "file": "src/shared/resourceHistory.ts",
+    "suite": "test/unit/ResourcesSection.test.tsx",
+    "test": "rejects bridge lists exceeding the named minute, event, count and work bounds",
+    "exitCode": 1,
+    "sha256": "3d176327b2508f214ae842319efc109777ab28edcf30abf2f1e98dc6bcac349a",
+    "restoredSha256": "3d176327b2508f214ae842319efc109777ab28edcf30abf2f1e98dc6bcac349a"
+  },
+  {
+    "drill": "work-bridge-bound",
+    "file": "src/shared/resourceHistory.ts",
+    "suite": "test/unit/ResourcesSection.test.tsx",
+    "test": "rejects bridge lists exceeding the named minute, event, count and work bounds",
+    "exitCode": 1,
+    "sha256": "3d176327b2508f214ae842319efc109777ab28edcf30abf2f1e98dc6bcac349a",
+    "restoredSha256": "3d176327b2508f214ae842319efc109777ab28edcf30abf2f1e98dc6bcac349a"
+  },
+  {
+    "drill": "chart-page-bound",
+    "file": "src/webview/usage/ResourcesSection.tsx",
+    "suite": "test/unit/ResourcesSection.test.tsx",
+    "test": "pages a full week of minutes and large event detail without rendering unbounded rows or chart paths",
+    "exitCode": 1,
+    "sha256": "faa4c687bc02777fce147669f26f398b871f5d055fcf54ac606b48af017fd062",
+    "restoredSha256": "faa4c687bc02777fce147669f26f398b871f5d055fcf54ac606b48af017fd062"
+  },
+  {
+    "drill": "minute-table-page-bound",
+    "file": "src/webview/usage/ResourcesSection.tsx",
+    "suite": "test/unit/ResourcesSection.test.tsx",
+    "test": "pages a full week of minutes and large event detail without rendering unbounded rows or chart paths",
+    "exitCode": 1,
+    "sha256": "faa4c687bc02777fce147669f26f398b871f5d055fcf54ac606b48af017fd062",
+    "restoredSha256": "faa4c687bc02777fce147669f26f398b871f5d055fcf54ac606b48af017fd062"
+  },
+  {
+    "drill": "event-table-page-bound",
+    "file": "src/webview/usage/ResourcesSection.tsx",
+    "suite": "test/unit/ResourcesSection.test.tsx",
+    "test": "pages a full week of minutes and large event detail without rendering unbounded rows or chart paths",
+    "exitCode": 1,
+    "sha256": "faa4c687bc02777fce147669f26f398b871f5d055fcf54ac606b48af017fd062",
+    "restoredSha256": "faa4c687bc02777fce147669f26f398b871f5d055fcf54ac606b48af017fd062"
+  },
+  {
+    "drill": "page-clamp",
+    "file": "src/webview/usage/ResourcesSection.tsx",
+    "suite": "test/unit/ResourcesSection.test.tsx",
+    "test": "pages a full week of minutes and large event detail without rendering unbounded rows or chart paths",
+    "exitCode": 1,
+    "sha256": "faa4c687bc02777fce147669f26f398b871f5d055fcf54ac606b48af017fd062",
+    "restoredSha256": "faa4c687bc02777fce147669f26f398b871f5d055fcf54ac606b48af017fd062"
+  },
+  {
+    "drill": "page-next-segment",
+    "file": "src/webview/usage/ResourcesSection.tsx",
+    "suite": "test/unit/ResourcesSection.test.tsx",
+    "test": "clips an older chart page at the next hidden threshold segment within the same minute",
+    "exitCode": 1,
+    "sha256": "faa4c687bc02777fce147669f26f398b871f5d055fcf54ac606b48af017fd062",
+    "restoredSha256": "faa4c687bc02777fce147669f26f398b871f5d055fcf54ac606b48af017fd062"
+  }
+]

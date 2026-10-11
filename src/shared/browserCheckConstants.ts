@@ -51,8 +51,9 @@ export const BROWSER_BLANK_PAGE = 'about:blank'
 // store). Each must appear exactly once, byte for byte, in what the browser
 // reports. No `--use-mock-keychain`: it means something on macOS only, where
 // the pinned shell adds it itself (captured), so passing it too would double
-// it. Built in a pure call so bundles that never launch a browser drop it:
-// esbuild keeps an unused array of template literals.
+// it.
+// Pure: its template substitutions would otherwise keep it in every bundle
+// that imports constants.ts, used or not.
 export const BROWSER_LAUNCH_FLAGS: readonly string[] = /* @__PURE__ */ (() => [
   '--remote-debugging-pipe',
   '--enable-automation',

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PopoverMenu, type PopoverMenuProps } from '../../src/webview/components/PopoverMenu'
 
 function renderMenu(overrides: Partial<PopoverMenuProps> = {}) {
@@ -16,8 +16,8 @@ function renderMenu(overrides: Partial<PopoverMenuProps> = {}) {
     onClose: vi.fn(),
     ...overrides,
   }
-  render(<PopoverMenu {...props} />)
-  return { props, menu: screen.getByRole('menu') }
+  const view = render(<PopoverMenu {...props} />)
+  return { props, menu: screen.getByRole('menu'), view }
 }
 
 function activeItem(): HTMLElement | undefined {
@@ -27,6 +27,50 @@ function activeItem(): HTMLElement | undefined {
 }
 
 describe('PopoverMenu', () => {
+  let onResize: (() => void) | undefined
+  const observe = vi.fn()
+  const disconnect = vi.fn()
+  beforeEach(() => {
+    vi.clearAllMocks()
+    onResize = undefined
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        public observe = observe
+        public disconnect = disconnect
+        public constructor(callback: () => void) {
+          onResize = callback
+        }
+      },
+    )
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('anchors at the pointer and clamps to the viewport after resize', () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(240)
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(150)
+    const { menu, view } = renderMenu({ anchor: { x: 1020, y: 760 } })
+    const popover = menu.parentElement
+    expect(popover).toHaveClass('popover-pointer')
+    expect(popover).toHaveStyle({ left: '784px', top: '618px' })
+    expect(observe).toHaveBeenCalledWith(document.documentElement)
+    expect(observe).toHaveBeenCalledWith(popover)
+    vi.stubGlobal('innerWidth', 320)
+    onResize?.()
+    expect(popover).toHaveStyle({ left: '80px', top: '618px' })
+    view.unmount()
+    expect(disconnect).toHaveBeenCalledOnce()
+  })
+
+  it('keeps a pointer anchor with room at its exact coordinates', () => {
+    const { menu } = renderMenu({ anchor: { x: 120, y: 140 } })
+    expect(menu.parentElement).toHaveStyle({ left: '120px', top: '140px' })
+  })
+
   it('takes focus, starts on the checked row, and shows details and the tick', () => {
     const { menu } = renderMenu()
     expect(document.activeElement).toBe(menu)

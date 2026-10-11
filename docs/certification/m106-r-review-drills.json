@@ -1,0 +1,213 @@
+[
+  {
+    "drill": "local-snapshot-minimum",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "test": "test/unit/pacing.test.ts",
+    "namedTest": "retains concurrent debits when a stale ten-RPM response reports nine remaining",
+    "exit": 1,
+    "failedTests": [
+      "retains concurrent debits when a stale ten-RPM response reports nine remaining",
+      "retains post-dispatch debits even when provider headroom is lower than local headroom",
+      "reads every U12 snapshot, including the streamed response, as reported at 150 RPM"
+    ],
+    "beforeSha256": "8bc9c3cc913b5353df15242aa63eba969ab5f3d6ddd5fefaf62d85291347615b",
+    "afterSha256": "8bc9c3cc913b5353df15242aa63eba969ab5f3d6ddd5fefaf62d85291347615b"
+  },
+  {
+    "drill": "snapshot-later-debits",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "test": "test/unit/pacing.test.ts",
+    "namedTest": "retains post-dispatch debits even when provider headroom is lower than local headroom",
+    "exit": 1,
+    "failedTests": [
+      "retains post-dispatch debits even when provider headroom is lower than local headroom"
+    ],
+    "beforeSha256": "8bc9c3cc913b5353df15242aa63eba969ab5f3d6ddd5fefaf62d85291347615b",
+    "afterSha256": "8bc9c3cc913b5353df15242aa63eba969ab5f3d6ddd5fefaf62d85291347615b"
+  },
+  {
+    "drill": "foreground-token-reserve",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "test": "test/unit/modelApiClient.test.ts",
+    "namedTest": "allows a foreground request immediately after a background burst without exhausting provider tokens",
+    "exit": 1,
+    "failedTests": [
+      "allows a foreground request immediately after a background burst without exhausting provider tokens"
+    ],
+    "beforeSha256": "8bc9c3cc913b5353df15242aa63eba969ab5f3d6ddd5fefaf62d85291347615b",
+    "afterSha256": "8bc9c3cc913b5353df15242aa63eba969ab5f3d6ddd5fefaf62d85291347615b"
+  },
+  {
+    "drill": "dispatch-snapshot",
+    "file": "src/core/backends/modelapi/client.ts",
+    "test": "test/unit/modelApiClient.test.ts",
+    "namedTest": "taps captured headers before reading streamed and token-count bodies",
+    "exit": 1,
+    "failedTests": ["taps captured headers before reading streamed and token-count bodies"],
+    "beforeSha256": "4d9e28247df403f8dde81bb9a9da6b4abb38344e1413a6968a319605f1da0d24",
+    "afterSha256": "4d9e28247df403f8dde81bb9a9da6b4abb38344e1413a6968a319605f1da0d24"
+  },
+  {
+    "drill": "localized-refusal",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "test": "test/unit/pacing.test.ts",
+    "namedTest": "reads the Japanese fan-out refusal at call time",
+    "exit": 1,
+    "failedTests": [
+      "reserves half the observed token budget for foreground after a background burst",
+      "reads the Japanese fan-out refusal at call time",
+      "refuses an impossible fan-out token request and a stopped request before waiting"
+    ],
+    "beforeSha256": "8bc9c3cc913b5353df15242aa63eba969ab5f3d6ddd5fefaf62d85291347615b",
+    "afterSha256": "8bc9c3cc913b5353df15242aa63eba969ab5f3d6ddd5fefaf62d85291347615b"
+  },
+  {
+    "drill": "admission-deadline",
+    "file": "src/core/backends/modelapi/client.ts",
+    "test": "test/unit/modelApiClient.test.ts",
+    "namedTest": "bounds local admission with an honest rate-limit failure and cancels its queued work",
+    "exit": 1,
+    "failedTests": [
+      "bounds local admission with an honest rate-limit failure and cancels its queued work",
+      "ends a reply stream that sends nothing for the idle time, and aborts its request",
+      "ends a reply whose headers never come the same way",
+      "announces each retry and stops waiting when the turn is stopped (D25)"
+    ],
+    "beforeSha256": "4d9e28247df403f8dde81bb9a9da6b4abb38344e1413a6968a319605f1da0d24",
+    "afterSha256": "4d9e28247df403f8dde81bb9a9da6b4abb38344e1413a6968a319605f1da0d24"
+  },
+  {
+    "drill": "pacing-status",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiHost.test.ts",
+    "namedTest": "shows a local pacing wait as status without claiming a failed retry",
+    "exit": 1,
+    "failedTests": ["shows a local pacing wait as status without claiming a failed retry"],
+    "beforeSha256": "d7d8ec8d7bf2db740632ea55226ed51d8609678f701c88ff11c88ebc65b1cf5f",
+    "afterSha256": "d7d8ec8d7bf2db740632ea55226ed51d8609678f701c88ff11c88ebc65b1cf5f"
+  },
+  {
+    "drill": "dispatch-idle",
+    "file": "src/core/backends/modelapi/client.ts",
+    "test": "test/unit/modelApiClient.test.ts",
+    "namedTest": "dispatches six one-RPM background requests after admission without starting provider idle timing in the queue",
+    "exit": 1,
+    "failedTests": [
+      "dispatches six one-RPM background requests after admission without starting provider idle timing in the queue",
+      "bounds local admission with an honest rate-limit failure and cancels its queued work"
+    ],
+    "beforeSha256": "4d9e28247df403f8dde81bb9a9da6b4abb38344e1413a6968a319605f1da0d24",
+    "afterSha256": "4d9e28247df403f8dde81bb9a9da6b4abb38344e1413a6968a319605f1da0d24"
+  },
+  {
+    "drill": "status-error-allowlist",
+    "file": "src/core/backends/modelapi/client.ts",
+    "test": "test/unit/modelApiClient.test.ts",
+    "namedTest": "scrubs service-status failures to fixed fields without provider marker, account or token",
+    "exit": 1,
+    "failedTests": [
+      "scrubs service-status failures to fixed fields without provider marker, account or token"
+    ],
+    "beforeSha256": "4d9e28247df403f8dde81bb9a9da6b4abb38344e1413a6968a319605f1da0d24",
+    "afterSha256": "4d9e28247df403f8dde81bb9a9da6b4abb38344e1413a6968a319605f1da0d24"
+  },
+  {
+    "drill": "provider-header-idle",
+    "file": "src/core/backends/modelapi/client.ts",
+    "test": "test/unit/modelApiClient.test.ts",
+    "namedTest": "starts the provider idle deadline at dispatch when response headers never arrive",
+    "exit": 1,
+    "failedTests": [
+      "starts the provider idle deadline at dispatch when response headers never arrive",
+      "ends a reply whose headers never come the same way"
+    ],
+    "beforeSha256": "4d9e28247df403f8dde81bb9a9da6b4abb38344e1413a6968a319605f1da0d24",
+    "afterSha256": "4d9e28247df403f8dde81bb9a9da6b4abb38344e1413a6968a319605f1da0d24"
+  },
+  {
+    "drill": "compaction-wait-accounting",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiHost.test.ts",
+    "namedTest": "keeps a compaction pacing wait out of ambiguous paid-attempt accounting",
+    "exit": 1,
+    "failedTests": ["keeps a compaction pacing wait out of ambiguous paid-attempt accounting"],
+    "beforeSha256": "1f1eb977ad8d10258458e5599887a123c8903f45031cefeb8020d1e6efeede24",
+    "afterSha256": "1f1eb977ad8d10258458e5599887a123c8903f45031cefeb8020d1e6efeede24"
+  },
+  {
+    "drill": "pacing-ui-budget",
+    "file": "scripts/check-bundle-size.mjs",
+    "test": "test/unit/bundleSize.test.mjs",
+    "namedTest": "rejects one byte over the independent pacing UI budget",
+    "exit": 1,
+    "failedTests": ["rejects one byte over the independent pacing UI budget"],
+    "beforeSha256": "b8205064e784fe1de28cd065f531258a69f307034cd307f8d59d028e7cfc8121",
+    "afterSha256": "b8205064e784fe1de28cd065f531258a69f307034cd307f8d59d028e7cfc8121"
+  },
+  {
+    "drill": "original-deferred-budget",
+    "file": "scripts/check-bundle-size.mjs",
+    "test": "test/unit/bundleSize.test.mjs",
+    "namedTest": "keeps the original deferred group capped at 50 KiB",
+    "exit": 1,
+    "failedTests": ["keeps the original deferred group capped at 50 KiB"],
+    "beforeSha256": "b8205064e784fe1de28cd065f531258a69f307034cd307f8d59d028e7cfc8121",
+    "afterSha256": "b8205064e784fe1de28cd065f531258a69f307034cd307f8d59d028e7cfc8121"
+  },
+  {
+    "drill": "shared-ui-budget-ownership",
+    "file": "scripts/lib/webviewBundles.mjs",
+    "test": "test/unit/bundleSize.test.mjs",
+    "namedTest": "keeps static dependencies shared with another optional surface in the original group",
+    "exit": 1,
+    "failedTests": [
+      "keeps static dependencies shared with another optional surface in the original group"
+    ],
+    "beforeSha256": "6ab7f15dd00452dbf7a324916d73bf7712cfddcac40a63f42af50e913d407f8a",
+    "afterSha256": "6ab7f15dd00452dbf7a324916d73bf7712cfddcac40a63f42af50e913d407f8a"
+  },
+  {
+    "drill": "pacing-lazy-inventory",
+    "file": "scripts/check-bundle-split.mjs",
+    "test": "test/unit/webviewBundle.test.mjs",
+    "namedTest": "keeps provider pacing in its lazy Model API inventory",
+    "exit": 1,
+    "failedTests": ["keeps provider pacing in its lazy Model API inventory"],
+    "beforeSha256": "0708a188e6ea4657a7a4374cc2cffddcab8d2ebb572fb7e30c4a772317f18c7d",
+    "afterSha256": "0708a188e6ea4657a7a4374cc2cffddcab8d2ebb572fb7e30c4a772317f18c7d"
+  },
+  {
+    "drill": "status-ui-lazy",
+    "file": "src/webview/components/UsageDialog.tsx",
+    "test": "test/unit/webviewBundle.test.mjs",
+    "namedTest": "loads ServiceStatusRow only through its dynamic import",
+    "exit": 1,
+    "failedTests": ["loads ServiceStatusRow only through its dynamic import"],
+    "beforeSha256": "cea8efb700b462f1aef15d033010960ca842b2537e136c8c5e9925c34c5b576b",
+    "afterSha256": "cea8efb700b462f1aef15d033010960ca842b2537e136c8c5e9925c34c5b576b"
+  },
+  {
+    "drill": "local-token-snapshot-minimum",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "test": "test/unit/pacing.test.ts",
+    "namedTest": "retains concurrent debits when a stale ten-RPM response reports nine remaining",
+    "exit": 1,
+    "failedTests": [
+      "retains concurrent debits when a stale ten-RPM response reports nine remaining"
+    ],
+    "beforeSha256": "8bc9c3cc913b5353df15242aa63eba969ab5f3d6ddd5fefaf62d85291347615b",
+    "afterSha256": "8bc9c3cc913b5353df15242aa63eba969ab5f3d6ddd5fefaf62d85291347615b"
+  },
+  {
+    "drill": "background-token-share-refusal",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "test": "test/unit/pacing.test.ts",
+    "namedTest": "reserves half the observed token budget for foreground after a background burst",
+    "exit": 1,
+    "failedTests": [
+      "reserves half the observed token budget for foreground after a background burst"
+    ],
+    "beforeSha256": "8bc9c3cc913b5353df15242aa63eba969ab5f3d6ddd5fefaf62d85291347615b",
+    "afterSha256": "8bc9c3cc913b5353df15242aa63eba969ab5f3d6ddd5fefaf62d85291347615b"
+  }
+]

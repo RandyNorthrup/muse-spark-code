@@ -12,6 +12,7 @@ import {
   NONCE_BYTES,
   MAKER_STOP_SHELL_ID,
   PRODUCT_NAME,
+  WEBVIEW_DOCUMENT_ATTRIBUTE,
   WEBVIEW_L10N_ELEMENT_ID,
   WEBVIEW_ROOT_ELEMENT_ID,
 } from '../shared/constants'
@@ -26,6 +27,8 @@ export interface WebviewHtmlOptions {
   /** The installed table and its language (`<html lang>` for screen readers). */
   readonly l10n: UiTable
   readonly surface?: 'tasks'
+  /** A chat document's host-issued id (M107), from `createNonce`: base64url, attribute-safe. */
+  readonly documentId?: string
 }
 
 // What must not appear raw inside a script element: `<` could close it
@@ -70,6 +73,8 @@ export function buildWebviewHtml(options: WebviewHtmlOptions): string {
     options.surface === 'tasks'
       ? ''
       : `<div id="${MAKER_STOP_SHELL_ID}" class="maker-static-stop"><button type="button">${stopLabel}</button></div>`
+  const documentAttribute =
+    options.documentId === undefined ? '' : ` ${WEBVIEW_DOCUMENT_ATTRIBUTE}="${options.documentId}"`
 
   return `<!DOCTYPE html>
 <html lang="${locale}">
@@ -80,7 +85,7 @@ export function buildWebviewHtml(options: WebviewHtmlOptions): string {
 <link rel="stylesheet" href="${options.styleUri}" nonce="${options.nonce}">
 <title>${PRODUCT_NAME}</title>
 </head>
-<body${options.surface === 'tasks' ? ' data-surface="tasks"' : ''}>
+<body data-native-context-menu="true"${options.surface === 'tasks' ? ' data-surface="tasks"' : ''}${documentAttribute}>
 ${stopShell}
 <div id="${WEBVIEW_ROOT_ELEMENT_ID}"></div>
 <script type="application/json" id="${WEBVIEW_L10N_ELEMENT_ID}">${scriptSafeJson({ locale, table })}</script>

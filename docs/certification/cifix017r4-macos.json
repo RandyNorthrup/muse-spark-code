@@ -1,0 +1,369 @@
+{
+  "kind": "CIR4MAC-scoped-ci-repair-receipts",
+  "date": "2026-10-09",
+  "base": "249218f4ee85b6d43dc5c61dcf283ea6d297527b",
+  "platform": "darwin",
+  "osRelease": "24.6.0",
+  "logicalCpus": 12,
+  "totalMemoryBytes": 34359738368,
+  "browser": "Chrome 155.0.8059.39",
+  "hostedNode": "22; replay remains lead-owned",
+  "hostedRun": "38018090551",
+  "hostedJobs": ["114112783499", "114112783564"],
+  "hostedLogs": "both GET /logs endpoints returned HTTP 403",
+  "modelAttempts": 0,
+  "paidCalls": 0,
+  "productionSourceChanged": false,
+  "sources": [
+    {
+      "file": "test/unit/m114ConversationReview.test.mjs",
+      "sha256": "2c27085d9bcb2eae03feb54bdabf560ff254bdc2ee062720e1502ee7c0337318"
+    },
+    {
+      "file": "test/unit/AppPaletteLazy.test.tsx",
+      "sha256": "12fde1de6a1a15796d9143b88a642a8766b6d38935ddc26781cb0f88fb6f3838"
+    },
+    {
+      "file": "src/webview/styles.css",
+      "sha256": "e546b30b35aae47762bc1260746ac2883463f0f5d2e988f257096f248807275e"
+    }
+  ],
+  "sceneProfile": {
+    "pages": 18,
+    "stageTotalMilliseconds": {
+      "newPage": 7740,
+      "media-route-clock": 535,
+      "navigation": 1521,
+      "theme": 465,
+      "initial-render": 9763,
+      "scenario-render": 2844,
+      "deferred-render": 1159
+    },
+    "stageMeanMilliseconds": {
+      "newPage": 430,
+      "media-route-clock": 30,
+      "navigation": 85,
+      "theme": 26,
+      "initial-render": 542,
+      "scenario-render": 158,
+      "deferred-render": 64
+    }
+  },
+  "receipts": [
+    {
+      "name": "before-load",
+      "variant": "unchanged source",
+      "command": "npx vitest run test/unit/m114ConversationReview.test.mjs test/unit/AppPaletteLazy.test.tsx --maxWorkers=3 --reporter=json --outputFile=temp/cir4mac/before-load.vitest.json --reporter=default",
+      "testTimeout": "repository default: 5000 ms on macOS",
+      "node": "v24.21.0",
+      "cpuWorkers": 8,
+      "heldBytes": 1342177280,
+      "workerBufferBytes": 33554432,
+      "startUtc": "2026-10-10T03:14:43.886Z",
+      "endUtc": "2026-10-10T03:18:43.670Z",
+      "exitCode": 0,
+      "passed": 126,
+      "failed": 0,
+      "pending": 0,
+      "freeBytesMinimum": 897622016,
+      "availableBytesMinimum": 13173977088,
+      "supervisorRssBytesMaximum": 1755160576,
+      "sizeCases": {
+        "count": 6,
+        "minimumMilliseconds": 3613.7781470000045,
+        "maximumMilliseconds": 4033.019790999999,
+        "failed": 0
+      },
+      "palette": {
+        "status": "passed",
+        "milliseconds": 808.2218909999992
+      },
+      "failures": []
+    },
+    {
+      "name": "profile-before-load",
+      "variant": "temporary scene profiler; held view with premature alert lookup",
+      "command": "npx vitest run test/unit/m114ConversationReview.test.mjs test/unit/AppPaletteLazy.test.tsx --maxWorkers=3 --reporter=json --outputFile=temp/cir4mac/profile-before-load.vitest.json --reporter=default",
+      "testTimeout": "repository default: 5000 ms on macOS",
+      "node": "v24.21.0",
+      "cpuWorkers": 12,
+      "heldBytes": 1342177280,
+      "workerBufferBytes": 33554432,
+      "startUtc": "2026-10-10T03:19:24.017Z",
+      "endUtc": "2026-10-10T03:24:06.750Z",
+      "exitCode": 1,
+      "passed": 125,
+      "failed": 1,
+      "pending": 0,
+      "freeBytesMinimum": 712675328,
+      "availableBytesMinimum": 13064818688,
+      "supervisorRssBytesMaximum": 1938182144,
+      "sizeCases": {
+        "count": 6,
+        "minimumMilliseconds": 4142.964378999983,
+        "maximumMilliseconds": 4323.27533199999,
+        "failed": 0
+      },
+      "palette": {
+        "status": "failed",
+        "milliseconds": 1906.5377640000006
+      },
+      "failures": [
+        {
+          "title": "loads palette data only on use, permits dismissal, and offers a saved-state retry after failure",
+          "message": "Error: Unable to find role=\"alert\""
+        }
+      ]
+    },
+    {
+      "name": "original-before-load20",
+      "variant": "unchanged source",
+      "command": "npx vitest run test/unit/m114ConversationReview.test.mjs test/unit/AppPaletteLazy.test.tsx --maxWorkers=3 --reporter=json --outputFile=temp/cir4mac/original-before-load20.vitest.json --reporter=default",
+      "testTimeout": "repository default: 5000 ms on macOS",
+      "node": "v24.21.0",
+      "cpuWorkers": 20,
+      "heldBytes": 1342177280,
+      "workerBufferBytes": 33554432,
+      "startUtc": "2026-10-10T03:24:24.616Z",
+      "endUtc": "2026-10-10T03:30:12.042Z",
+      "exitCode": 1,
+      "passed": 120,
+      "failed": 6,
+      "pending": 0,
+      "freeBytesMinimum": 413589504,
+      "availableBytesMinimum": 13067345920,
+      "supervisorRssBytesMaximum": 2304139264,
+      "sizeCases": {
+        "count": 6,
+        "minimumMilliseconds": 5000.229285999987,
+        "maximumMilliseconds": 5003.59327100002,
+        "failed": 6
+      },
+      "palette": {
+        "status": "passed",
+        "milliseconds": 1473.286682
+      },
+      "failures": [
+        {
+          "title": "light: actual attachment, tool and steps targets are at least 24 by 24 at 320 px",
+          "message": "Error: Test timed out in 5000ms."
+        },
+        {
+          "title": "dark: actual attachment, tool and steps targets are at least 24 by 24 at 320 px",
+          "message": "Error: Test timed out in 5000ms."
+        },
+        {
+          "title": "hc-dark: actual attachment, tool and steps targets are at least 24 by 24 at 320 px",
+          "message": "Error: Test timed out in 5000ms."
+        },
+        {
+          "title": "hc-light: actual attachment, tool and steps targets are at least 24 by 24 at 320 px",
+          "message": "Error: Test timed out in 5000ms."
+        },
+        {
+          "title": "one-dark-pro: actual attachment, tool and steps targets are at least 24 by 24 at 320 px",
+          "message": "Error: Test timed out in 5000ms."
+        },
+        {
+          "title": "dracula: actual attachment, tool and steps targets are at least 24 by 24 at 320 px",
+          "message": "Error: Test timed out in 5000ms."
+        }
+      ]
+    },
+    {
+      "name": "after-load20",
+      "variant": "both repairs",
+      "command": "npx vitest run test/unit/m114ConversationReview.test.mjs test/unit/AppPaletteLazy.test.tsx --maxWorkers=3 --reporter=json --outputFile=temp/cir4mac/after-load20.vitest.json --reporter=default",
+      "testTimeout": "repository default: 5000 ms on macOS",
+      "node": "v24.21.0",
+      "cpuWorkers": 20,
+      "heldBytes": 1342177280,
+      "workerBufferBytes": 33554432,
+      "startUtc": "2026-10-10T03:31:21.970Z",
+      "endUtc": "2026-10-10T03:37:11.308Z",
+      "exitCode": 0,
+      "passed": 138,
+      "failed": 0,
+      "pending": 0,
+      "freeBytesMinimum": 413241344,
+      "availableBytesMinimum": 13078949888,
+      "supervisorRssBytesMaximum": 2303717376,
+      "sizeCases": {
+        "count": 18,
+        "minimumMilliseconds": 1505.1256189999986,
+        "maximumMilliseconds": 2054.4219609999855,
+        "failed": 0
+      },
+      "palette": {
+        "status": "passed",
+        "milliseconds": 1524.3346820000006
+      },
+      "failures": []
+    },
+    {
+      "name": "drills-red-load20",
+      "variant": "16 px attachment controls; premature palette alert lookup",
+      "command": "npx vitest run test/unit/m114ConversationReview.test.mjs test/unit/AppPaletteLazy.test.tsx --maxWorkers=3 --reporter=json --outputFile=temp/cir4mac/drills-red-load20.vitest.json --reporter=default",
+      "testTimeout": "repository default: 5000 ms on macOS",
+      "node": "v24.21.0",
+      "cpuWorkers": 20,
+      "heldBytes": 1342177280,
+      "workerBufferBytes": 33554432,
+      "startUtc": "2026-10-10T03:37:41.751Z",
+      "endUtc": "2026-10-10T03:43:27.174Z",
+      "exitCode": 1,
+      "passed": 131,
+      "failed": 7,
+      "pending": 0,
+      "freeBytesMinimum": 558346240,
+      "availableBytesMinimum": 13182386176,
+      "supervisorRssBytesMaximum": 2300612608,
+      "sizeCases": {
+        "count": 18,
+        "minimumMilliseconds": 1484.1483280000102,
+        "maximumMilliseconds": 2026.3253550000081,
+        "failed": 6
+      },
+      "palette": {
+        "status": "failed",
+        "milliseconds": 2191.982215
+      },
+      "failures": [
+        {
+          "title": "loads palette data only on use, permits dismissal, and offers a saved-state retry after failure",
+          "message": "Error: Unable to find role=\"alert\""
+        },
+        {
+          "title": "light chips: actual targets are at least 24 by 24 at 320 px",
+          "message": "AssertionError: chips .chip-remove: expected 16 to be greater than or equal to 24"
+        },
+        {
+          "title": "dark chips: actual targets are at least 24 by 24 at 320 px",
+          "message": "AssertionError: chips .chip-remove: expected 16 to be greater than or equal to 24"
+        },
+        {
+          "title": "hc-dark chips: actual targets are at least 24 by 24 at 320 px",
+          "message": "AssertionError: chips .chip-remove: expected 16 to be greater than or equal to 24"
+        },
+        {
+          "title": "hc-light chips: actual targets are at least 24 by 24 at 320 px",
+          "message": "AssertionError: chips .chip-remove: expected 16 to be greater than or equal to 24"
+        },
+        {
+          "title": "one-dark-pro chips: actual targets are at least 24 by 24 at 320 px",
+          "message": "AssertionError: chips .chip-remove: expected 16 to be greater than or equal to 24"
+        },
+        {
+          "title": "dracula chips: actual targets are at least 24 by 24 at 320 px",
+          "message": "AssertionError: chips .chip-remove: expected 16 to be greater than or equal to 24"
+        }
+      ]
+    },
+    {
+      "name": "final-load20",
+      "variant": "both repairs restored byte-exact",
+      "command": "npx vitest run test/unit/m114ConversationReview.test.mjs test/unit/AppPaletteLazy.test.tsx --maxWorkers=3 --reporter=json --outputFile=temp/cir4mac/final-load20.vitest.json --reporter=default",
+      "testTimeout": "repository default: 5000 ms on macOS",
+      "node": "v24.21.0",
+      "cpuWorkers": 20,
+      "heldBytes": 1342177280,
+      "workerBufferBytes": 33554432,
+      "startUtc": "2026-10-10T03:43:44.378Z",
+      "endUtc": "2026-10-10T03:49:30.595Z",
+      "exitCode": 0,
+      "passed": 138,
+      "failed": 0,
+      "pending": 0,
+      "freeBytesMinimum": 571760640,
+      "availableBytesMinimum": 13207441408,
+      "supervisorRssBytesMaximum": 2302574592,
+      "sizeCases": {
+        "count": 18,
+        "minimumMilliseconds": 1547.156965000031,
+        "maximumMilliseconds": 2093.4052450000017,
+        "failed": 0
+      },
+      "palette": {
+        "status": "passed",
+        "milliseconds": 1588.4986439999993
+      },
+      "failures": []
+    }
+  ],
+  "relatedVerification": {
+    "command": "npx vitest run test/unit/AppPaletteLazy.test.tsx test/unit/AppPaletteEnglish.test.tsx test/unit/DeferredSurface.test.tsx --maxWorkers=3 --reporter=json --outputFile=temp/cir4mac/related.vitest.json --reporter=default",
+    "passed": 20,
+    "failed": 0,
+    "pending": 0,
+    "durationSeconds": 8.71
+  },
+  "gates": [
+    {
+      "command": "npm run typecheck",
+      "exitCode": 0
+    },
+    {
+      "command": "npx eslint --max-warnings=0 test/unit/m114ConversationReview.test.mjs test/unit/AppPaletteLazy.test.tsx",
+      "exitCode": 0
+    },
+    {
+      "command": "npx prettier --check CHANGELOG.md PLAN.md docs/certification/cifix017.md docs/certification/cifix017r4-macos.json test/unit/m114ConversationReview.test.mjs test/unit/AppPaletteLazy.test.tsx",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run deadcode",
+      "exitCode": 0
+    },
+    {
+      "command": "npx jscpd",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run check:l10n",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run check:host-api",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run check:reference",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run check:plan",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run check:roadmap",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run cycles",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run build",
+      "exitCode": 0
+    }
+  ],
+  "bundleMeasurementsKiB": {
+    "extension": {
+      "measured": 550.1,
+      "budget": 600
+    },
+    "modelApi": {
+      "measured": 515.8,
+      "budget": 525
+    },
+    "chatStartupJavaScript": {
+      "measured": 742.2,
+      "budget": 900
+    },
+    "originalDeferredJavaScript": {
+      "measured": 31.9,
+      "budget": 50
+    }
+  },
+  "qualification": "Scoped local checks only; aggregate quality and hosted Node 22/three-platform replay remain lead-owned."
+}

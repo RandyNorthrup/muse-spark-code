@@ -1,0 +1,1154 @@
+[
+  {
+    "drill": "workspace scope",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > refuses unknown fields, foreign windows, stale attempts and unavailable handoffs"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 2.09,
+    "changes": [
+      {
+        "before": "message.workspaceId !== state.board.workspaceId",
+        "after": "false"
+      }
+    ]
+  },
+  {
+    "drill": "window scope",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > refuses unknown fields, foreign windows, stale attempts and unavailable handoffs"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.95,
+    "changes": [
+      {
+        "before": "message.windowInstanceId !== state.board.windowInstanceId",
+        "after": "false"
+      }
+    ]
+  },
+  {
+    "drill": "current attempt",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > refuses unknown fields, foreign windows, stale attempts and unavailable handoffs"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.74,
+    "changes": [
+      {
+        "before": "row.taskId === message.taskId && row.attempt === message.attempt",
+        "after": "row.taskId === message.taskId"
+      },
+      {
+        "before": "task?.currentAttempt !== message.attempt || !actions?.actions.includes(message.action)",
+        "after": "!actions?.actions.includes(message.action)"
+      }
+    ]
+  },
+  {
+    "drill": "task action availability",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > refuses unknown fields, foreign windows, stale attempts and unavailable handoffs"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.67,
+    "changes": [
+      {
+        "before": "!actions?.actions.includes(message.action)",
+        "after": "actions === undefined"
+      }
+    ]
+  },
+  {
+    "drill": "priority value required",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > routes priority and same-role entry choices, conflicts and queue actions"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.66,
+    "changes": [
+      {
+        "before": "message.priority !== undefined",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "drill": "same role reassignment",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > routes priority and same-role entry choices, conflicts and queue actions"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.68,
+    "changes": [
+      {
+        "before": "entry.id === message.entryId && entry.roleId === task.roleId",
+        "after": "entry.id === message.entryId"
+      }
+    ]
+  },
+  {
+    "drill": "known peer only",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > offers other windows only opening, never stopping or releasing their work"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.71,
+    "changes": [
+      {
+        "before": "return state.windows.some((hint) => hint.windowInstanceId === message.otherWindowId)",
+        "after": "return true"
+      }
+    ]
+  },
+  {
+    "drill": "resource action availability",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > refuses actions withdrawn from a resource, conflict or recovery row"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.85,
+    "changes": [
+      {
+        "before": "row.id === message.resourceId && row.actions.includes(message.action)",
+        "after": "row.id === message.resourceId"
+      }
+    ]
+  },
+  {
+    "drill": "recovery action availability",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > refuses actions withdrawn from a resource, conflict or recovery row"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.71,
+    "changes": [
+      {
+        "before": "if (!row?.actions.includes(message.action)) return false",
+        "after": "if (!row) return false"
+      }
+    ]
+  },
+  {
+    "drill": "live recovery owner",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > preserves possibly live owners, held locks and unmerged copies; permits explicit takeover"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.7,
+    "changes": [
+      {
+        "before": "if (row.ownerMayBeLive &&",
+        "after": "if (false &&"
+      }
+    ]
+  },
+  {
+    "drill": "held recovery lock",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > preserves possibly live owners, held locks and unmerged copies; permits explicit takeover"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.72,
+    "changes": [
+      {
+        "before": "if (message.action === 'recover' && row.lockPath !== undefined) return false",
+        "after": "if (false) return false"
+      }
+    ]
+  },
+  {
+    "drill": "conflict action availability",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > refuses actions withdrawn from a resource, conflict or recovery row"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.7,
+    "changes": [
+      {
+        "before": "row.id === message.conflictId && row.actions.includes(message.action)",
+        "after": "row.id === message.conflictId"
+      }
+    ]
+  },
+  {
+    "drill": "merge action availability",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > confirms retirement, orphan stop and discard, and refuses withdrawn merge actions"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.72,
+    "changes": [
+      {
+        "before": "row.taskId === message.taskId && row.actions.includes(message.action)",
+        "after": "row.taskId === message.taskId"
+      }
+    ]
+  },
+  {
+    "drill": "cleanup merged or discarded only",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > preserves possibly live owners, held locks and unmerged copies; permits explicit takeover"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 2.31,
+    "changes": [
+      {
+        "before": "row.taskId === message.taskId && (row.state === 'merged' || row.state === 'discarded')",
+        "after": "row.taskId === message.taskId"
+      }
+    ]
+  },
+  {
+    "drill": "retirement confirmation",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > confirms retirement, orphan stop and discard, and refuses withdrawn merge actions"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.76,
+    "changes": [
+      {
+        "before": "return ['handOffAnyway', 'continueAnyway', 'restartTeamHost'].includes(message.action)",
+        "after": "return false"
+      }
+    ]
+  },
+  {
+    "drill": "uncertain release confirmation",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > asks for every landing, without-checks landing and uncertain release, and rechecks after the card"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.82,
+    "changes": [
+      {
+        "before": "if (message.type === 'traffic/resource') return message.action === 'releaseAnyway'",
+        "after": "if (message.type === 'traffic/resource') return false"
+      }
+    ]
+  },
+  {
+    "drill": "recovery confirmation",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > confirms retirement, orphan stop and discard, and refuses withdrawn merge actions",
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > preserves possibly live owners, held locks and unmerged copies; permits explicit takeover"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.76,
+    "changes": [
+      {
+        "before": "? ['stop', 'takeOver', 'discard'].includes(message.action)",
+        "after": "? false"
+      }
+    ]
+  },
+  {
+    "drill": "landing confirmation",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > asks for every landing, without-checks landing and uncertain release, and rechecks after the card"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.58,
+    "changes": [
+      {
+        "before": "['landNow', 'landWithoutChecks', 'apply'].includes(message.action)",
+        "after": "false"
+      }
+    ]
+  },
+  {
+    "drill": "denied confirmation",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > asks for every landing, without-checks landing and uncertain release, and rechecks after the card"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.65,
+    "changes": [
+      {
+        "before": "if (!(await deps.confirm(message))) return { handled: false }",
+        "after": "if ((await deps.confirm(message)) && false) return { handled: false }"
+      }
+    ]
+  },
+  {
+    "drill": "state after confirmation",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > asks for every landing, without-checks landing and uncertain release, and rechecks after the card"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.67,
+    "changes": [
+      {
+        "before": "    // A card can outlive an attempt, lock or ownership change.\n    if (!isAvailable(message, trafficSliceSchema.parse(await deps.traffic())))\n      return { handled: false }",
+        "after": "    // Deliberately removed in the red drill."
+      }
+    ]
+  },
+  {
+    "drill": "runner restricted mode",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Runners user configuration boundary > refuses tests in Restricted Mode or for unknown runners; routes user saves and removal"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.63,
+    "changes": [
+      {
+        "before": "&& !state.trusted",
+        "after": "&& false"
+      }
+    ]
+  },
+  {
+    "drill": "runner known id",
+    "path": "src/host/modelsPanelTraffic.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Runners user configuration boundary > refuses tests in Restricted Mode or for unknown runners; routes user saves and removal"
+    ],
+    "exitCode": 1,
+    "sha256Before": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "sha256Restored": "1579164b53384100dc16f0e7f43b3910c1413f22d00431d3a5b6aec0667a1b35",
+    "seconds": 1.7,
+    "changes": [
+      {
+        "before": "state.runners.every((runner) => runner.id !== message.runnerId)",
+        "after": "false"
+      }
+    ]
+  },
+  {
+    "drill": "strict messages and envelopes",
+    "path": "src/shared/modelsPanel.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > validates host envelopes and bounds projections, fits, positions and counts",
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > refuses unknown fields, foreign windows, stale attempts and unavailable handoffs",
+      "FAIL  test/unit/trafficHandlers.test.ts > Runners user configuration boundary > rejects credentials, environment values, SSH options and repository authority"
+    ],
+    "exitCode": 1,
+    "sha256Before": "953bdd175f1237c00278bf8b9c304bef9c6bc4dd38e56c8a2d49f78fae473016",
+    "sha256Restored": "953bdd175f1237c00278bf8b9c304bef9c6bc4dd38e56c8a2d49f78fae473016",
+    "seconds": 1.75,
+    "changes": [
+      {
+        "before": "z.strictObject(",
+        "after": "z.object("
+      }
+    ]
+  },
+  {
+    "drill": "bounded history projections",
+    "path": "src/shared/modelsPanel.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > validates host envelopes and bounds projections, fits, positions and counts"
+    ],
+    "exitCode": 1,
+    "sha256Before": "953bdd175f1237c00278bf8b9c304bef9c6bc4dd38e56c8a2d49f78fae473016",
+    "sha256Restored": "953bdd175f1237c00278bf8b9c304bef9c6bc4dd38e56c8a2d49f78fae473016",
+    "seconds": 1.76,
+    "changes": [
+      {
+        "before": "z.array(schema).check(z.maxLength(TEAM_SCHED_HISTORY_MAX))",
+        "after": "z.array(schema)"
+      }
+    ]
+  },
+  {
+    "drill": "bounded path projections",
+    "path": "src/shared/modelsPanel.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > validates host envelopes and bounds projections, fits, positions and counts"
+    ],
+    "exitCode": 1,
+    "sha256Before": "953bdd175f1237c00278bf8b9c304bef9c6bc4dd38e56c8a2d49f78fae473016",
+    "sha256Restored": "953bdd175f1237c00278bf8b9c304bef9c6bc4dd38e56c8a2d49f78fae473016",
+    "seconds": 1.95,
+    "changes": [
+      {
+        "before": "z.array(runnerSchema.shape.workFolder).check(z.maxLength(TEAM_WRITE_SET_MAX))",
+        "after": "z.array(runnerSchema.shape.workFolder)"
+      }
+    ]
+  },
+  {
+    "drill": "nonnegative projection counts",
+    "path": "src/shared/modelsPanel.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > validates host envelopes and bounds projections, fits, positions and counts"
+    ],
+    "exitCode": 1,
+    "sha256Before": "953bdd175f1237c00278bf8b9c304bef9c6bc4dd38e56c8a2d49f78fae473016",
+    "sha256Restored": "953bdd175f1237c00278bf8b9c304bef9c6bc4dd38e56c8a2d49f78fae473016",
+    "seconds": 2.15,
+    "changes": [
+      {
+        "before": "const count = z.int().check(z.nonnegative())",
+        "after": "const count = z.int()"
+      }
+    ]
+  },
+  {
+    "drill": "bounded fit",
+    "path": "src/shared/modelsPanel.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > validates host envelopes and bounds projections, fits, positions and counts"
+    ],
+    "exitCode": 1,
+    "sha256Before": "953bdd175f1237c00278bf8b9c304bef9c6bc4dd38e56c8a2d49f78fae473016",
+    "sha256Restored": "953bdd175f1237c00278bf8b9c304bef9c6bc4dd38e56c8a2d49f78fae473016",
+    "seconds": 2.27,
+    "changes": [
+      {
+        "before": "fit: z.number().check(z.gte(0), z.lte(1))",
+        "after": "fit: z.number()"
+      }
+    ]
+  },
+  {
+    "drill": "one based queue position",
+    "path": "src/shared/modelsPanel.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > validates host envelopes and bounds projections, fits, positions and counts"
+    ],
+    "exitCode": 1,
+    "sha256Before": "953bdd175f1237c00278bf8b9c304bef9c6bc4dd38e56c8a2d49f78fae473016",
+    "sha256Restored": "953bdd175f1237c00278bf8b9c304bef9c6bc4dd38e56c8a2d49f78fae473016",
+    "seconds": 2.18,
+    "changes": [
+      {
+        "before": "position: count.check(z.gte(1))",
+        "after": "position: count"
+      }
+    ]
+  },
+  {
+    "drill": "bounded runner health",
+    "path": "src/shared/modelsPanel.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > validates host envelopes and bounds projections, fits, positions and counts"
+    ],
+    "exitCode": 1,
+    "sha256Before": "953bdd175f1237c00278bf8b9c304bef9c6bc4dd38e56c8a2d49f78fae473016",
+    "sha256Restored": "953bdd175f1237c00278bf8b9c304bef9c6bc4dd38e56c8a2d49f78fae473016",
+    "seconds": 2.17,
+    "changes": [
+      {
+        "before": ".check(z.maxLength(RUNNER_CONFIG_MAX))",
+        "after": ""
+      }
+    ]
+  },
+  {
+    "drill": "single model lazy guard",
+    "path": "src/webview/components/traffic/TrafficView.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > renders nothing and sends nothing in single-model mode"
+    ],
+    "exitCode": 1,
+    "sha256Before": "b4239ab279e52f611ce93d97e9d65e3ab29b5bf53a41e8191ce3f713547fc903",
+    "sha256Restored": "b4239ab279e52f611ce93d97e9d65e3ab29b5bf53a41e8191ce3f713547fc903",
+    "seconds": 4.92,
+    "changes": [
+      {
+        "before": "if (props.mode === 'singleModel') return null",
+        "after": "if (false) return null"
+      }
+    ]
+  },
+  {
+    "drill": "roving tab stop",
+    "path": "src/webview/components/traffic/TrafficSurface.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > has one tab stop and supports arrows, Home and End with focus following selection"
+    ],
+    "exitCode": 1,
+    "sha256Before": "bdc069bbf81a64431a99101e262cf45ec9ed3c8ddd19bc43ad430ffb8abe7c20",
+    "sha256Restored": "bdc069bbf81a64431a99101e262cf45ec9ed3c8ddd19bc43ad430ffb8abe7c20",
+    "seconds": 4.32,
+    "changes": [
+      {
+        "before": "tabIndex={selected === tab ? 0 : -1}",
+        "after": "tabIndex={0}"
+      }
+    ]
+  },
+  {
+    "drill": "tab keyboard focus",
+    "path": "src/webview/components/traffic/TrafficSurface.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > has one tab stop and supports arrows, Home and End with focus following selection"
+    ],
+    "exitCode": 1,
+    "sha256Before": "bdc069bbf81a64431a99101e262cf45ec9ed3c8ddd19bc43ad430ffb8abe7c20",
+    "sha256Restored": "bdc069bbf81a64431a99101e262cf45ec9ed3c8ddd19bc43ad430ffb8abe7c20",
+    "seconds": 4.9,
+    "changes": [
+      {
+        "before": "tabButtons.current.get(tab)?.focus()",
+        "after": "void tab"
+      }
+    ]
+  },
+  {
+    "drill": "announcement deduplication",
+    "path": "src/webview/components/traffic/TrafficSurface.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > skips announcement history on mount and uses the existing panel announcer for new events"
+    ],
+    "exitCode": 1,
+    "sha256Before": "bdc069bbf81a64431a99101e262cf45ec9ed3c8ddd19bc43ad430ffb8abe7c20",
+    "sha256Restored": "bdc069bbf81a64431a99101e262cf45ec9ed3c8ddd19bc43ad430ffb8abe7c20",
+    "seconds": 5.45,
+    "changes": [
+      {
+        "before": "if (seen.current.has(event.id)) continue",
+        "after": "if (false) continue"
+      }
+    ]
+  },
+  {
+    "drill": "mount history suppression",
+    "path": "src/webview/components/traffic/TrafficSurface.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > skips announcement history on mount and uses the existing panel announcer for new events"
+    ],
+    "exitCode": 1,
+    "sha256Before": "bdc069bbf81a64431a99101e262cf45ec9ed3c8ddd19bc43ad430ffb8abe7c20",
+    "sha256Restored": "bdc069bbf81a64431a99101e262cf45ec9ed3c8ddd19bc43ad430ffb8abe7c20",
+    "seconds": 6.02,
+    "changes": [
+      {
+        "before": "new Set(state.announcements.map((event) => event.id))",
+        "after": "new Set<string>()"
+      }
+    ]
+  },
+  {
+    "drill": "single live region",
+    "path": "src/webview/components/traffic/TrafficSurface.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > announces only new landings or returned candidates once, never turns the Traffic view into a live region",
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > skips announcement history on mount and uses the existing panel announcer for new events"
+    ],
+    "exitCode": 1,
+    "sha256Before": "bdc069bbf81a64431a99101e262cf45ec9ed3c8ddd19bc43ad430ffb8abe7c20",
+    "sha256Restored": "bdc069bbf81a64431a99101e262cf45ec9ed3c8ddd19bc43ad430ffb8abe7c20",
+    "seconds": 6.4,
+    "changes": [
+      {
+        "before": "<div className=\"traffic-view\">",
+        "after": "<div className=\"traffic-view\" aria-live=\"polite\">"
+      }
+    ]
+  },
+  {
+    "drill": "parent announcer exclusivity",
+    "path": "src/webview/components/traffic/TrafficSurface.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > announces only new landings or returned candidates once, never turns the Traffic view into a live region",
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > skips announcement history on mount and uses the existing panel announcer for new events"
+    ],
+    "exitCode": 1,
+    "sha256Before": "bdc069bbf81a64431a99101e262cf45ec9ed3c8ddd19bc43ad430ffb8abe7c20",
+    "sha256Restored": "bdc069bbf81a64431a99101e262cf45ec9ed3c8ddd19bc43ad430ffb8abe7c20",
+    "seconds": 6.2,
+    "changes": [
+      {
+        "before": "{!announce && (",
+        "after": "{true && ("
+      }
+    ]
+  },
+  {
+    "drill": "fresh peer hints only",
+    "path": "src/webview/components/traffic/TrafficWindows.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > sums only fresh other-window hints and offers only opening a peer window"
+    ],
+    "exitCode": 1,
+    "sha256Before": "3e15b25f8197aabad272fbbd0f4bdf96e9a82a49686fd3aa67d8375bc3cc3ab0",
+    "sha256Restored": "3e15b25f8197aabad272fbbd0f4bdf96e9a82a49686fd3aa67d8375bc3cc3ab0",
+    "seconds": 7.27,
+    "changes": [
+      {
+        "before": "hint.fresh && hint.windowInstanceId !== state.board.windowInstanceId",
+        "after": "hint.windowInstanceId !== state.board.windowInstanceId"
+      }
+    ]
+  },
+  {
+    "drill": "recovery live owner controls",
+    "path": "src/webview/components/traffic/TrafficRecovery.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > keeps recovery read-only for possibly live owners and offers no lock removal or locked recovery"
+    ],
+    "exitCode": 1,
+    "sha256Before": "9508e0d97e7b0b483b0553cf70081c0e74abac67780d121797071074aac4deb7",
+    "sha256Restored": "9508e0d97e7b0b483b0553cf70081c0e74abac67780d121797071074aac4deb7",
+    "seconds": 7.1,
+    "changes": [
+      {
+        "before": "row.ownerMayBeLive && ['resume', 'discard', 'recover', 'stop'].includes(action)",
+        "after": "false"
+      }
+    ]
+  },
+  {
+    "drill": "recovery held lock controls",
+    "path": "src/webview/components/traffic/TrafficRecovery.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > keeps recovery read-only for possibly live owners and offers no lock removal or locked recovery"
+    ],
+    "exitCode": 1,
+    "sha256Before": "9508e0d97e7b0b483b0553cf70081c0e74abac67780d121797071074aac4deb7",
+    "sha256Restored": "9508e0d97e7b0b483b0553cf70081c0e74abac67780d121797071074aac4deb7",
+    "seconds": 5.8,
+    "changes": [
+      {
+        "before": "(action !== 'recover' || row.lockPath === undefined)",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "drill": "safe cleanup controls",
+    "path": "src/webview/components/traffic/TrafficMergeQueue.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > shows lanes, leases, conflicts, serial merge reasons, flaky checks and safe disk cleanup"
+    ],
+    "exitCode": 1,
+    "sha256Before": "9d64b0972c85e0e9a52fbd3feb37d3cc094bc9211750d8db96124ba216a18d4a",
+    "sha256Restored": "9d64b0972c85e0e9a52fbd3feb37d3cc094bc9211750d8db96124ba216a18d4a",
+    "seconds": 6.21,
+    "changes": [
+      {
+        "before": "(copy.state === 'merged' || copy.state === 'discarded')",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "drill": "runner test controls restricted",
+    "path": "src/webview/models/sections/runners/RunnersSection.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Runners section > shows health/fingerprint and input-hang instructions, disables remote tests when untrusted"
+    ],
+    "exitCode": 1,
+    "sha256Before": "851c691498c92a6cbf4a4dcea8ba0ac037b533274f0c0cfbdbcf2fa1443d901a",
+    "sha256Restored": "851c691498c92a6cbf4a4dcea8ba0ac037b533274f0c0cfbdbcf2fa1443d901a",
+    "seconds": 5.96,
+    "changes": [
+      {
+        "before": "disabled={!state.trusted}",
+        "after": "disabled={false}"
+      }
+    ]
+  },
+  {
+    "drill": "runner form validation",
+    "path": "src/webview/models/sections/runners/RunnerForm.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Runners section > edits a validated user runner and refuses credential variables before posting"
+    ],
+    "exitCode": 1,
+    "sha256Before": "7c6a50cc15c0e89fc232cc685d7e43b54d9e544fc41292e13ab14b28672c583f",
+    "sha256Restored": "7c6a50cc15c0e89fc232cc685d7e43b54d9e544fc41292e13ab14b28672c583f",
+    "seconds": 5.84,
+    "changes": [
+      {
+        "before": "if (!parsed.success) {",
+        "after": "if (false) {"
+      }
+    ]
+  },
+  {
+    "drill": "harness ready only after render",
+    "path": "test/harness/trafficHarness.tsx",
+    "testFile": "test/unit/trafficHarness.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficHarness.test.tsx > finishes each Traffic harness scenario on a rendered surface before axe may scan it"
+    ],
+    "exitCode": 1,
+    "sha256Before": "c72013e80d11a4460e2323f1e55a93a27e6d529f563978beb3a76b018054035e",
+    "sha256Restored": "c72013e80d11a4460e2323f1e55a93a27e6d529f563978beb3a76b018054035e",
+    "seconds": 5.21,
+    "changes": [
+      {
+        "before": "document.body.dataset['trafficReady'] = scenario",
+        "after": "document.body.dataset['trafficReady'] = 'not-ready'"
+      }
+    ]
+  },
+  {
+    "drill": "event counters attempt attribution",
+    "path": "src/core/team/trafficMetrics.ts",
+    "testFile": "test/unit/trafficMetrics.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficMetrics.test.ts > Traffic ledger metrics > attributes every matching attempt separately without counting nonmerged cost or token subsets twice"
+    ],
+    "exitCode": 1,
+    "sha256Before": "43c34109813cd03920ee706bc145f2ee09bdae3be4aa5d77ebca95e1677fe79c",
+    "sha256Restored": "43c34109813cd03920ee706bc145f2ee09bdae3be4aa5d77ebca95e1677fe79c",
+    "seconds": 2.42,
+    "changes": [
+      {
+        "before": "return attempt !== undefined && isMatchingAttempt(attempt)",
+        "after": "return true"
+      }
+    ]
+  },
+  {
+    "drill": "factory does not prefetch",
+    "path": "src/webview/components/traffic/TrafficView.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > renders nothing and sends nothing in single-model mode"
+    ],
+    "exitCode": 1,
+    "sha256Before": "b4239ab279e52f611ce93d97e9d65e3ab29b5bf53a41e8191ce3f713547fc903",
+    "sha256Restored": "b4239ab279e52f611ce93d97e9d65e3ab29b5bf53a41e8191ce3f713547fc903",
+    "seconds": 4.8,
+    "changes": [
+      {
+        "before": "const TrafficSurface = lazy(loadSurface)",
+        "after": "const TrafficSurface = lazy(loadSurface)\n  void loadSurface()"
+      }
+    ]
+  },
+  {
+    "drill": "board ignores stale availability",
+    "path": "src/webview/components/traffic/TrafficBoard.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > withholds board controls when the available actions belong to a stale attempt"
+    ],
+    "exitCode": 1,
+    "sha256Before": "8dbe9c5e6c611f0b053f3aaf43088b3e49afff6ab0e995a1527a56b865183e27",
+    "sha256Restored": "8dbe9c5e6c611f0b053f3aaf43088b3e49afff6ab0e995a1527a56b865183e27",
+    "seconds": 7.5,
+    "changes": [
+      {
+        "before": "row.taskId === task.id && row.attempt === task.currentAttempt",
+        "after": "row.taskId === task.id"
+      }
+    ]
+  },
+  {
+    "drill": "board same-role entry choices",
+    "path": "src/webview/components/traffic/TrafficBoard.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > ranks ready tasks by scheduler order, explains scores and sends current attempts with every board action"
+    ],
+    "exitCode": 1,
+    "sha256Before": "8dbe9c5e6c611f0b053f3aaf43088b3e49afff6ab0e995a1527a56b865183e27",
+    "sha256Restored": "8dbe9c5e6c611f0b053f3aaf43088b3e49afff6ab0e995a1527a56b865183e27",
+    "seconds": 7.25,
+    "changes": [
+      {
+        "before": ".filter((entry) => entry.roleId === task.roleId)",
+        "after": ".filter(() => true)"
+      }
+    ]
+  },
+  {
+    "drill": "rework counts read-only tasks",
+    "path": "src/core/team/trafficMetrics.ts",
+    "testFile": "test/unit/trafficMetrics.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficMetrics.test.ts > Traffic ledger metrics > counts read-only tasks in rework denominators while keeping writing conflict denominators separate"
+    ],
+    "exitCode": 1,
+    "sha256Before": "8aa18b286937964f3fbf72bdf951685c89b688ffd2ccc5e468986c17be9c5c14",
+    "sha256Restored": "8aa18b286937964f3fbf72bdf951685c89b688ffd2ccc5e468986c17be9c5c14",
+    "seconds": 3.03,
+    "changes": [
+      {
+        "before": "taskCount: active.length",
+        "after": "taskCount: active.filter((task) => task.writing).length"
+      }
+    ]
+  },
+  {
+    "drill": "rework rates use all tasks",
+    "path": "src/webview/components/traffic/TrafficMetrics.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > reads the installed table at render time and shows reported and estimated metrics separately"
+    ],
+    "exitCode": 1,
+    "sha256Before": "7eba10803400c2bd3104642f29ee877bbaee2f867665b9fd8fb37b9c35f8b1f3",
+    "sha256Restored": "7eba10803400c2bd3104642f29ee877bbaee2f867665b9fd8fb37b9c35f8b1f3",
+    "seconds": 6.26,
+    "changes": [
+      {
+        "before": "metrics.taskCount",
+        "after": "metrics.writingTasks"
+      }
+    ]
+  },
+  {
+    "drill": "metric projection validates utilization",
+    "path": "src/shared/modelsPanel.ts",
+    "testFile": "test/unit/trafficHandlers.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficHandlers.test.ts > Traffic action boundary > validates host envelopes and bounds projections, fits, positions and counts"
+    ],
+    "exitCode": 1,
+    "sha256Before": "e64476ba9f3a5670cba9a3feae8bc9e66bf94a78b02ed4bcbe254de3f00c616d",
+    "sha256Restored": "e64476ba9f3a5670cba9a3feae8bc9e66bf94a78b02ed4bcbe254de3f00c616d",
+    "seconds": 2.26,
+    "changes": [
+      {
+        "before": "z.refine((metrics) => metrics.busySlotMs <= metrics.availableSlotMs)",
+        "after": "z.refine(() => true)"
+      }
+    ]
+  },
+  {
+    "drill": "queue events attributed to their own attempt",
+    "path": "src/core/team/trafficMetrics.ts",
+    "testFile": "test/unit/trafficMetrics.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficMetrics.test.ts > Traffic ledger metrics > attributes every matching attempt separately without counting nonmerged cost or token subsets twice"
+    ],
+    "exitCode": 1,
+    "sha256Before": "e22127592e6372abf868f19c13e3737ccfbc50870adb6da87c5cf4abca093404",
+    "sha256Restored": "e22127592e6372abf868f19c13e3737ccfbc50870adb6da87c5cf4abca093404",
+    "seconds": 5.56,
+    "changes": [
+      {
+        "before": "return attempt !== undefined && isMatchingAttempt(attempt)",
+        "after": "return true"
+      }
+    ]
+  },
+  {
+    "drill": "future task source and period filters",
+    "path": "src/core/team/trafficMetrics.ts",
+    "testFile": "test/unit/trafficMetrics.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficMetrics.test.ts > Traffic ledger metrics > ignores future and foreign-role observations in a scoped local period"
+    ],
+    "exitCode": 1,
+    "sha256Before": "e22127592e6372abf868f19c13e3737ccfbc50870adb6da87c5cf4abca093404",
+    "sha256Restored": "e22127592e6372abf868f19c13e3737ccfbc50870adb6da87c5cf4abca093404",
+    "seconds": 2.47,
+    "changes": [
+      {
+        "before": "task.createdAt <= now &&",
+        "after": "true &&"
+      },
+      {
+        "before": "at >= start && at <= now",
+        "after": "at >= start"
+      }
+    ],
+    "preliminaryProbe": "Removing the source filter alone stayed green because the independent period filter still excluded the future task. Both layers were removed for this recorded red drill."
+  },
+  {
+    "drill": "foreign task role excluded",
+    "path": "src/core/team/trafficMetrics.ts",
+    "testFile": "test/unit/trafficMetrics.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficMetrics.test.ts > Traffic ledger metrics > ignores future and foreign-role observations in a scoped local period"
+    ],
+    "exitCode": 1,
+    "sha256Before": "e22127592e6372abf868f19c13e3737ccfbc50870adb6da87c5cf4abca093404",
+    "sha256Restored": "e22127592e6372abf868f19c13e3737ccfbc50870adb6da87c5cf4abca093404",
+    "seconds": 2.77,
+    "changes": [
+      {
+        "before": "(scope.roleId === undefined || task.roleId === scope.roleId)",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "drill": "future event excluded",
+    "path": "src/core/team/trafficMetrics.ts",
+    "testFile": "test/unit/trafficMetrics.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficMetrics.test.ts > Traffic ledger metrics > ignores future and foreign-role observations in a scoped local period"
+    ],
+    "exitCode": 1,
+    "sha256Before": "e22127592e6372abf868f19c13e3737ccfbc50870adb6da87c5cf4abca093404",
+    "sha256Restored": "e22127592e6372abf868f19c13e3737ccfbc50870adb6da87c5cf4abca093404",
+    "seconds": 2.46,
+    "changes": [
+      {
+        "before": "event.at <= now && byId.has(event.taskId)",
+        "after": "byId.has(event.taskId)"
+      },
+      {
+        "before": "at >= start && at <= now",
+        "after": "at >= start"
+      }
+    ]
+  },
+  {
+    "drill": "future slot excluded",
+    "path": "src/core/team/trafficMetrics.ts",
+    "testFile": "test/unit/trafficMetrics.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficMetrics.test.ts > Traffic ledger metrics > ignores future and foreign-role observations in a scoped local period"
+    ],
+    "exitCode": 1,
+    "sha256Before": "e22127592e6372abf868f19c13e3737ccfbc50870adb6da87c5cf4abca093404",
+    "sha256Restored": "e22127592e6372abf868f19c13e3737ccfbc50870adb6da87c5cf4abca093404",
+    "seconds": 2.04,
+    "changes": [
+      {
+        "before": "if (sample.at > now) return",
+        "after": "if (false) return"
+      }
+    ]
+  },
+  {
+    "drill": "foreign slot role excluded",
+    "path": "src/core/team/trafficMetrics.ts",
+    "testFile": "test/unit/trafficMetrics.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficMetrics.test.ts > Traffic ledger metrics > ignores future and foreign-role observations in a scoped local period"
+    ],
+    "exitCode": 1,
+    "sha256Before": "e22127592e6372abf868f19c13e3737ccfbc50870adb6da87c5cf4abca093404",
+    "sha256Restored": "e22127592e6372abf868f19c13e3737ccfbc50870adb6da87c5cf4abca093404",
+    "seconds": 2.02,
+    "changes": [
+      {
+        "before": "(scope.roleId === undefined || row.roleId === scope.roleId)",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "drill": "local window omitted from peers",
+    "path": "src/webview/components/traffic/TrafficWindows.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > sums only fresh other-window hints and offers only opening a peer window"
+    ],
+    "exitCode": 1,
+    "sha256Before": "866e49153557b0f035090b5750afcff904dd6a4bf06b731b485c4c3b84031b0a",
+    "sha256Restored": "866e49153557b0f035090b5750afcff904dd6a4bf06b731b485c4c3b84031b0a",
+    "seconds": 6.59,
+    "changes": [
+      {
+        "before": "(hint) => hint.windowInstanceId !== state.board.windowInstanceId",
+        "after": "() => true"
+      }
+    ]
+  },
+  {
+    "drill": "empty updates are not announced",
+    "path": "src/webview/components/traffic/TrafficSurface.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > skips announcement history on mount and uses the existing panel announcer for new events"
+    ],
+    "exitCode": 1,
+    "sha256Before": "bdc069bbf81a64431a99101e262cf45ec9ed3c8ddd19bc43ad430ffb8abe7c20",
+    "sha256Restored": "bdc069bbf81a64431a99101e262cf45ec9ed3c8ddd19bc43ad430ffb8abe7c20",
+    "seconds": 4.49,
+    "changes": [
+      {
+        "before": "if (messages.length === 0) return",
+        "after": "if (false) return"
+      }
+    ]
+  },
+  {
+    "drill": "arrows follow receiving button",
+    "path": "src/webview/components/traffic/TrafficSurface.tsx",
+    "testFile": "test/unit/trafficView.test.tsx",
+    "failures": [
+      "FAIL  test/unit/trafficView.test.tsx > Traffic accessibility and controls > has one tab stop and supports arrows, Home and End with focus following selection"
+    ],
+    "exitCode": 1,
+    "sha256Before": "10520b0147ab7bc9c8baf0c4b1aea3fb37facb0c114a9865ad15a5f14783cf76",
+    "sha256Restored": "10520b0147ab7bc9c8baf0c4b1aea3fb37facb0c114a9865ad15a5f14783cf76",
+    "seconds": 4.97,
+    "changes": [
+      {
+        "before": "const index = tabs.findIndex((tab) => tabButtons.current.get(tab) === event.currentTarget)",
+        "after": "const index = tabs.indexOf(selected)"
+      }
+    ]
+  },
+  {
+    "drill": "review charges included",
+    "path": "src/core/team/trafficMetrics.ts",
+    "testFile": "test/unit/trafficMetrics.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficMetrics.test.ts > Traffic ledger metrics > includes separate review charges with their own accuracy and attributes them to the owning attempt"
+    ],
+    "exitCode": 1,
+    "sha256Before": "5a0b46041c33ac78a7346187e06a569f404723f521ac71307f639ddc47cc88a9",
+    "sha256Restored": "5a0b46041c33ac78a7346187e06a569f404723f521ac71307f639ddc47cc88a9",
+    "seconds": 2.44,
+    "changes": [
+      {
+        "before": "for (const review of task.reviews ?? [])",
+        "after": "for (const review of [])"
+      }
+    ]
+  },
+  {
+    "drill": "review charges attributed to owner",
+    "path": "src/core/team/trafficMetrics.ts",
+    "testFile": "test/unit/trafficMetrics.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficMetrics.test.ts > Traffic ledger metrics > includes separate review charges with their own accuracy and attributes them to the owning attempt"
+    ],
+    "exitCode": 1,
+    "sha256Before": "5a0b46041c33ac78a7346187e06a569f404723f521ac71307f639ddc47cc88a9",
+    "sha256Restored": "5a0b46041c33ac78a7346187e06a569f404723f521ac71307f639ddc47cc88a9",
+    "seconds": 2.49,
+    "changes": [
+      {
+        "before": "if (isMatchingAttempt(owner)) charges.push(review.usage)",
+        "after": "charges.push(review.usage)"
+      }
+    ]
+  },
+  {
+    "drill": "orphan review charge rejected",
+    "path": "src/core/team/trafficMetrics.ts",
+    "testFile": "test/unit/trafficMetrics.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficMetrics.test.ts > Traffic ledger metrics > includes separate review charges with their own accuracy and attributes them to the owning attempt"
+    ],
+    "exitCode": 1,
+    "sha256Before": "5a0b46041c33ac78a7346187e06a569f404723f521ac71307f639ddc47cc88a9",
+    "sha256Restored": "5a0b46041c33ac78a7346187e06a569f404723f521ac71307f639ddc47cc88a9",
+    "seconds": 2.31,
+    "changes": [
+      {
+        "before": "if (!owner) throw new Error('Review charge has no owning attempt')",
+        "after": "if (!owner) continue"
+      }
+    ]
+  },
+  {
+    "drill": "week starts on Monday",
+    "path": "src/core/team/trafficMetrics.ts",
+    "testFile": "test/unit/trafficMetrics.test.ts",
+    "failures": [
+      "FAIL  test/unit/trafficMetrics.test.ts > Traffic ledger metrics > starts the current calendar week on Monday when today is Wednesday"
+    ],
+    "exitCode": 1,
+    "sha256Before": "5a0b46041c33ac78a7346187e06a569f404723f521ac71307f639ddc47cc88a9",
+    "sha256Restored": "5a0b46041c33ac78a7346187e06a569f404723f521ac71307f639ddc47cc88a9",
+    "seconds": 2.46,
+    "changes": [
+      {
+        "before": "if (period === 'week') {",
+        "after": "if (false) {"
+      }
+    ]
+  }
+]

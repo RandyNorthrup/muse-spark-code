@@ -1,0 +1,52 @@
+base=/home/randy/gates/base-c78aedc3ea0dab3c lock=c78aedc3ea0dab3cf7e685e18926e181d01a96535223c740d26598931bce86ce
+base reused
+rig=kubuntu slot=finm96k-red snapshot=eca9d5d3 base=/home/randy/gates/base-c78aedc3ea0dab3c
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamProcessLifetime.test.ts test/unit/teamHintsAndLoad.test.ts test/unit/teamNativeLifetime.test.ts
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/gates/rt-finm96k-red
+
+ ✓ test/unit/teamHintsAndLoad.test.ts (9 tests) 129ms
+ ✓ test/unit/teamProcessLifetime.test.ts (15 tests) 383ms
+ ❯ test/unit/teamNativeLifetime.test.ts (7 tests | 1 failed) 5733ms
+   ❯ M96 K real native lifetime (7)
+     ✓ starts a separate journalled team Muse Code host over real fake-CLI pipes 135ms
+     ✓ preserves the real command exit code through its native container 925ms
+     ✓ reconciles foreign journals before startup returns and preserves all foreign bytes 992ms
+     × runs marked child at below-normal priority with intent and OS confirmation on disk 242ms
+     ✓ scans real marked descendants and stops only after click and second identity check 1379ms
+     ✓ retains no-scope detached descendants as uncertain after direct child exit 1658ms
+     ✓ hard parent death kills the real direct child under setpriv without a user scope 357ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > runs marked child at below-normal priority with intent and OS confirmation on disk
+AssertionError: expected { …(2) } to deeply equal { …(2) }
+
+- Expected
++ Received
+
+  {
+    "marker": "c66cf1d0-400a-417b-8803-6cce0d70cccf",
+-   "priority": 10,
++   "priority": 0,
+  }
+
+ ❯ test/unit/teamNativeLifetime.test.ts:211:56
+
+    209|       }
+    210|     })
+    211|     expect(JSON.parse(await readFile(output, 'utf8'))).toEqual({
+       |                                                        ^
+    212|       marker: child.launchId,
+    213|       priority: os.constants.priority.PRIORITY_BELOW_NORMAL,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 30 passed (31)
+   Start at  07:27:56
+   Duration  6.98s (tests 67%, transform 20%, import 7%, setup 6%)

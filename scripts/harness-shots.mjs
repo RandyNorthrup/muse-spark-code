@@ -14,17 +14,18 @@
 //   CHROME_PATH=/path/to/chrome node scripts/harness-shots.mjs
 
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { findChrome } from './lib/chrome.mjs'
-import { screenshotUrl } from './lib/harnessCapture.mjs'
+import { screenshotUrl, waitForHarness } from './lib/harnessCapture.mjs'
 import { harnessArgs, langQuery, prepareLang } from './lib/harnessLang.mjs'
 import {
   HARNESS_PATH,
   LOOPBACK,
   SCENARIOS,
+  bundleFor,
   SIZED_SCENARIOS,
   serveRepo,
   withSizedPage,
@@ -32,17 +33,22 @@ import {
 
 const OUT_DIR = 'harness-shots'
 const BUNDLE_PATH = 'dist/webview/main.js'
+const MODELS_BUNDLE_PATH = 'dist/webview/models.js'
 const SHOT_WIDTH = 690
 const SHOT_HEIGHT = 760
 const repoRoot = process.cwd()
-const THEMES = new Set(['light', 'dark', 'hc-dark', 'hc-light'])
+const THEMES = new Set(
+  JSON.parse(await readFile(new URL('../test/harness/visual-matrix.json', import.meta.url), 'utf8'))
+    .themes,
+)
 
 async function shoot(chrome, port, scenario, lang, theme, outDir, profileDir) {
   const file = path.join(outDir, `${scenario}.png`)
-  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${scenario}${langQuery(lang)}${theme === undefined ? '' : `&theme=${theme}`}`
+  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${scenario}&bundle=${bundleFor(scenario)}${langQuery(lang)}${theme === undefined ? '' : `&theme=${theme}`}`
   const sized = SIZED_SCENARIOS[scenario]
   if (sized !== undefined) {
     await withSizedPage(chrome, profileDir, url, sized, async (page) => {
+      await waitForHarness(page)
       await page.locator(sized.ready).first().waitFor()
       await page.screenshot({ path: file, animations: 'disabled' })
     })
@@ -72,6 +78,12 @@ async function main() {
   const { lang, scenarios: requested } = harnessArgs(
     args.filter((arg) => !arg.startsWith('--theme=')),
   )
+  if (
+    (requested.length === 0 || requested.some((name) => bundleFor(name) === 'models')) &&
+    !existsSync(path.join(repoRoot, MODELS_BUNDLE_PATH))
+  ) {
+    throw new Error(`${MODELS_BUNDLE_PATH} is missing; run npm run build:dev first`)
+  }
   const unknown = requested.filter((name) => !SCENARIOS.includes(name))
   if (unknown.length > 0) {
     throw new Error(`Unknown scenario(s): ${unknown.join(', ')}. Known: ${SCENARIOS.join(', ')}`)

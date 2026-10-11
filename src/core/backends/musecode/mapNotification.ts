@@ -23,6 +23,28 @@ import {
 } from '../../../shared/constants'
 import { isProtectedFileAccess } from '../../protectedPaths'
 import { toSessionGoal, toSnapshot, wireGoalSchema, wireItemSchema } from './sessionRecords'
+import type { SessionRecord } from '../../agent/agentBackend'
+
+/** Parsed domain values for lane W's captured-frame lifecycle adapter. */
+export type MuseCodeLifecycleEvent =
+  | { readonly type: 'started'; readonly record: SessionRecord }
+  | {
+      readonly type: 'deleteCompleted'
+      readonly sessionId: string
+      readonly commandId: string
+      readonly outcome: string
+      readonly reason?: string
+      readonly physicalChange?: string
+    }
+
+/** No default wire parser: new frames require the missing served captures. */
+export interface MuseCodeLifecycleReader {
+  parseNotification(notification: {
+    readonly method: string
+    readonly params: unknown
+  }): MuseCodeLifecycleEvent
+  parseDeleteAdmission(receipt: unknown, commandId: string): void
+}
 
 export type MappedNotification =
   | { readonly sessionId: string; readonly event: AgentEvent }
@@ -42,7 +64,7 @@ type WireChoice = z.infer<typeof approvalChoiceSchema>
 
 /**
  * A file write the extension's list protects (D24, 2026-10-04) offers no
- * approval that outlasts it: "Always allow" would be a rule Muse Code
+ * approval that outlasts it: "Always Allow" would be a rule Muse Code
  * answers later writes by, without a card. Allow once and every refusal
  * stay, as Muse Code offers for its own protected writes.
  */
@@ -100,7 +122,10 @@ const schemas = {
   'session/tokenUsage': z.object({
     ...sessionScoped,
     modelId: z.optional(z.nullable(z.string())),
-    cumulative: z.object({ promptTokens: z.number(), outputTokens: z.number() }),
+    cumulative: z.object({
+      promptTokens: z.int().check(z.gte(0)),
+      outputTokens: z.int().check(z.gte(0)),
+    }),
   }),
   'session/contextUsage': z.object({
     ...sessionScoped,

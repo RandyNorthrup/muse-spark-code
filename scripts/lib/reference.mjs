@@ -1,5 +1,7 @@
+import { brotliCompressSync } from 'node:zlib'
 // HELPREF: code/manifest-derived reference and freshness gate. No model calls.
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import LZString from 'lz-string'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import * as esbuild from 'esbuild'
@@ -127,7 +129,7 @@ export async function referenceSources(root) {
   const result = await esbuild.build({
     stdin: {
       contents:
-        "export * from './src/shared/reference/referenceSource'; export { readSettings } from './src/host/settings'; export { parseCommandLine } from './src/runtime/cliArgs'; export { parseLoopPrompt } from './src/core/backends/modelapi/schedules'; export { locateDictationHelper, locateCaptureHelper } from './src/core/voice/helperLocation'",
+        "export * from './src/shared/reference/referenceSource'; export { readSettings } from './src/host/settings'; export { readResourceSettings, resourceSettingsSchema } from './src/shared/resources'; export { parseCommandLine } from './src/runtime/cliArgs'; export { parseLoopPrompt } from './src/core/backends/modelapi/schedules'; export { locateDictationHelper, locateCaptureHelper } from './src/core/voice/helperLocation'",
       resolveDir: root,
       sourcefile: 'reference-tooling.ts',
     },
@@ -142,6 +144,7 @@ export async function referenceSources(root) {
   )
   const files = [
     'src/shared/protocol.ts',
+    'src/shared/estimatorProtocol.ts',
     'src/runtime/backends.ts',
     'src/extension.ts',
     'src/acp/agent.ts',
@@ -227,6 +230,21 @@ export function referenceFacts(source) {
     (platform) => source.locateCaptureHelper(platformProbe(platform)).isAvailable,
   )
   return {
+    providers: {
+      management: ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'],
+      modelRequests: 'modelApi',
+    },
+    'team-workers': {
+      dispatch: 'integrationPending',
+      controls: 'capturedTaskState',
+      tariff: 'selectedProviderModel',
+    },
+    usage: {
+      journal: 'sharedAcpHeadlessLocalDay',
+      companion: 'loopback',
+      credentials: 'neverExported',
+    },
+    compaction: { automatic: 'evaluationPending', manual: '/compact' },
     acp: {
       operations: source.evidence['src/acp/agent.ts']
         .matchAll(/\.on(?:Request|Notification)\('([^']+)'/g)
@@ -390,6 +408,10 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     .split('export type WebviewToHostMessage', 1)[0]
   const operationNames = [
     ...source.HOST_ACTIONS,
+    ...source.evidence['src/shared/estimatorProtocol.ts']
+      .split('const hostToEstimatorSchema', 1)[0]
+      .matchAll(/type: z.literal\('([^']+)'\)/g)
+      .map((match) => match[1]),
     ...protocol.matchAll(/type: z.literal\('([^']+)'\)/g).map((match) => match[1]),
   ]
   for (const operation of operationNames) {
@@ -497,7 +519,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
                     configuredDefault: false,
                     flag: source.ACP_PAID_FLAGS[paidId],
                     consent: 'editorPermission',
-                    ledger: false,
+                    ledger: 'runtime:paidDailyBudgetUsd',
                   },
                 ]
               return [
@@ -507,7 +529,9 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
                   key: 'SecretStorage',
                   explicitOptIn: paidId !== 'tab',
                   consent: source.PAID_USE_REGISTRY[paidId].once,
-                  ledger: paidId === 'tab' && 'tabDailyBudgetUsd',
+                  ledger:
+                    { tab: 'tabDailyBudgetUsd', legalExplanation: 'paidDailyBudgetUsd' }[paidId] ??
+                    false,
                 },
               ]
             }),
@@ -544,18 +568,53 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     )
       errors.push(`Paid registry identity is missing or duplicated: ${feature}`)
   }
+  // Resource settings intentionally use their separate inspected-machine reader.
+  const resourceFields = {
+    resourceGovernor: 'enabled',
+    resourceCpuMaxPercent: 'cpuMaxPercent',
+    resourceMemoryMaxPercent: 'memoryMaxPercent',
+    resourceMemoryMinFreeGiB: 'memoryMinFreeGiB',
+    resourceGpuMaxPercent: 'gpuMaxPercent',
+    resourceDiskBusyMaxPercent: 'diskBusyMaxPercent',
+    resourceDiskMinFreeGiB: 'diskMinFreeGiB',
+    resourceRelocate: 'relocate',
+  }
+  const resourceDefaults = source.resourceSettingsSchema.parse({})
+  const runtimeSetting = (key, value, log) => {
+    const field = resourceFields[key]
+    if (field === undefined)
+      return source.readSettings(
+        { get: (requested) => (requested === key ? value : undefined) },
+        log,
+      )[key]
+    try {
+      return source.readResourceSettings((requested) =>
+        requested === key ? { globalValue: value } : undefined,
+      )[field]
+    } catch {
+      return
+    }
+  }
+  const moneySettings = new Set([
+    'modelApiSessionBudgetUsd',
+    'paidDailyBudgetUsd',
+    'tabDailyBudgetUsd',
+  ])
+  const isSameSetting = (key, actual, expected) =>
+    moneySettings.has(key)
+      ? source.Usd.from(actual).compare(source.Usd.from(expected)) === 0
+      : JSON.stringify(actual) === JSON.stringify(expected)
   for (const [id, schema] of Object.entries(properties)) {
     const key = id.slice('museSpark.'.length)
-    const canonical = source.SETTING_DEFAULTS[key]
+    const field = resourceFields[key]
+    if (field !== undefined && schema.scope !== 'machine')
+      errors.push(`Resource setting is not machine-scoped: ${id}`)
+    const canonical = field === undefined ? source.SETTING_DEFAULTS[key] : resourceDefaults[field]
     if (JSON.stringify(canonical) !== JSON.stringify(schema.default))
       errors.push(`Runtime default mismatch: ${id}`)
     for (const value of [schema.default, ...(schema.enum ?? [])]) {
-      const actual = source.readSettings(
-        { get: (requested) => (requested === key ? value : undefined) },
-        silentLog,
-      )[key]
-      if (JSON.stringify(actual) !== JSON.stringify(value))
-        errors.push(`Runtime value mismatch: ${id}`)
+      const actual = runtimeSetting(key, value, silentLog)
+      if (!isSameSetting(key, actual, value)) errors.push(`Runtime value mismatch: ${id}`)
     }
   }
 
@@ -565,23 +624,22 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       /* Invalid probes are expected; they are not reference errors. */
     },
   }
-  const readSetting = (key, value) =>
-    source.readSettings({ get: (requested) => (requested === key ? value : undefined) }, probeLog)[
-      key
-    ]
+  const readSetting = (key, value) => runtimeSetting(key, value, probeLog)
   for (const [id, schema] of Object.entries(properties)) {
-    if (!['number', 'integer'].includes(schema.type)) continue
+    if ([schema.type].flat().every((type) => !['number', 'integer'].includes(type))) continue
     const key = id.slice('museSpark.'.length)
     for (const value of [schema.minimum, schema.maximum]) {
       if (value === undefined) continue
-      if (readSetting(key, value) !== value) errors.push(`Runtime bound mismatch: ${id}`)
+      if (!isSameSetting(key, readSetting(key, value), value))
+        errors.push(`Runtime bound mismatch: ${id}`)
     }
     for (const value of [
       schema.minimum === undefined ? undefined : schema.minimum - 1,
       schema.maximum === undefined ? undefined : schema.maximum + 1,
     ]) {
       if (value === undefined) continue
-      if (readSetting(key, value) === value) errors.push(`Runtime bound mismatch: ${id}`)
+      if (isSameSetting(key, readSetting(key, value), value))
+        errors.push(`Runtime bound mismatch: ${id}`)
     }
   }
   const duplicateChecks = [
@@ -724,6 +782,15 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     ...(entry.text !== undefined && { text: source.referenceDescription(entry.text) }),
   }))
   const optionFacts = {
+    'usage-history': { enum: ['on', 'off'], default: 'on' },
+    'no-auto-compaction': { purpose: 'disableAutoCompaction', effective: 'evaluationPending' },
+    privacy: { enum: ['zdr', 'no-training', 'any'] },
+    range: { enum: ['today', '7d', '30d', '90d', 'custom'], default: '30d' },
+    by: { enum: ['provider', 'model', 'kind', 'client'] },
+    from: { format: 'YYYY-MM-DD' },
+    to: { format: 'YYYY-MM-DD' },
+    stdio: { route: 'usage serve', protocol: 'usageCompanion' },
+    registry: { route: 'legal', consent: 'explicitFlag', privateRegistries: 'neverRead' },
     'untrusted-file': {
       maxItems: source.EXEC_UNTRUSTED_FILES_MAX,
       perFileMaxBytes: source.EXEC_UNTRUSTED_FILE_MAX_BYTES,
@@ -769,7 +836,11 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       errors.push(`CLI option lacks contract: --${option.name}`)
     const routes = option.routes
     for (const route of routes) {
-      let text = { cli: source.CLI_OPTION_TEXT[option.name] }
+      let text = {
+        cli:
+          source.CLI_OPTION_REGISTRY[route]?.text?.[option.name] ??
+          source.CLI_OPTION_TEXT[option.name],
+      }
       if (route === 'exec' && option.name === 'image-generation')
         text = { ui: 'referenceExecImages' }
       else if (
@@ -781,6 +852,15 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
         text = { ui: 'referenceExecContract' }
       text = source.referenceDescription(text)
 
+      // Account targeting is limited to auth set and exec. The release's
+      // provider-only auth status/clear routes still select a provider.
+      if (
+        (option.name === 'account' && !['authSet', 'exec'].includes(route)) ||
+        (option.name === 'provider' &&
+          !['authSet', 'authStatus', 'authClear', 'exec'].includes(route))
+      )
+        continue
+
       cli.push({
         route,
         name: `${route}: --${option.name}${option.short ? ` / -${option.short}` : ''}${option.type === 'string' ? ' <value>' : ''}`,
@@ -791,12 +871,56 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
           ...(option.name === 'maintenance' && route !== 'setup' && { refused: true }),
           repeatable: option.multiple === true,
           ...optionFacts[option.name],
+          ...(['serve', 'login'].includes(route) &&
+            [
+              'provider',
+              'preset',
+              'as',
+              'address',
+              'format',
+              'model',
+              'privacy',
+              'private-ok',
+              'key-stdin',
+            ].includes(option.name) && { refused: true }),
+          ...(['authSet', 'authStatus', 'authClear'].includes(route) &&
+            [
+              'preset',
+              'as',
+              'address',
+              'format',
+              'model',
+              'privacy',
+              'private-ok',
+              'key-stdin',
+            ].includes(option.name) && { refused: true }),
+          ...(route === 'providersAdd' &&
+            option.name === 'format' && {
+              enum: ['chat', 'responses', 'anthropic'],
+              preset: 'custom',
+            }),
+          ...(route === 'providersAdd' && option.name === 'privacy' && { preset: 'openrouter' }),
+          ...(option.name === 'format' && route === 'legal' && { enum: ['text', 'json'] }),
+          ...(option.name === 'json' && { output: 'json' }),
+          ...(option.name === 'csv' && { output: 'csv' }),
+          ...(option.name === 'private-ok' && { consent: 'privateNetwork' }),
           ...(option.type === 'boolean' && { default: false }),
           ...(['login', 'authSet', 'authStatus', 'authClear'].includes(route) &&
+            ![
+              'preset',
+              'as',
+              'address',
+              'format',
+              'model',
+              'privacy',
+              'private-ok',
+              'key-stdin',
+            ].includes(option.name) &&
+            !(route === 'login' && option.name === 'provider') &&
             !(
               route === 'login'
                 ? ['muse-binary', 'verbose', 'help', 'version']
-                : ['help', 'version']
+                : ['help', 'version', 'provider']
             ).includes(option.name) && {
               purpose: 'acceptedUnused',
             }),
@@ -808,9 +932,12 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
             }),
           ...(route === 'setup' && option.name === 'maintenance' && { event: 'maintenance' }),
           ...(route === 'exec' && {
-            ...(['trust-workspace', 'allow-dangerously-skip-permissions', 'web-search'].includes(
-              option.name,
-            ) && { refused: true }),
+            ...([
+              'trust-workspace',
+              'allow-dangerously-skip-permissions',
+              'web-search',
+              'record',
+            ].includes(option.name) && { refused: true }),
             purpose:
               {
                 'max-requests': 'maxRequests',
@@ -843,6 +970,12 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       name: 'scan-secrets <file> [--key-stdin]',
       description: source.EN.referenceKeyStdin,
       text: { ui: 'referenceKeyStdin' },
+    },
+    {
+      route: 'playbook',
+      name: 'playbook <status|record|settings ...>',
+      description: source.EN.referencePlaybookCommand,
+      text: { ui: 'referencePlaybookCommand' },
     },
   )
 
@@ -1255,7 +1388,6 @@ export async function generateReference(root, isCheck = false) {
   const tipKeys = [...new Set(texts.filter((text) => 'tip' in text).map((text) => text.tip))]
   const cliKeys = Object.keys(source.EN.referenceCliOptions)
   const textKeys = [...new Set([...uiKeys, ...tipKeys, ...cliKeys])]
-  const textIndices = new Map(textKeys.map((key, index) => [JSON.stringify(key), index]))
   const keyArray = (keys) =>
     `[${keys.map((key) => `textKeys[${textKeys.indexOf(key)}]`).join(',')}]`
   const schema = `
@@ -1361,25 +1493,29 @@ export async function generateReference(root, isCheck = false) {
   const remap = (json) => json.replaceAll(tokens, (token) => remappedTokens.get(token) ?? token)
   for (const [index, { fragment }] of orderedPool.entries()) pool[index] = remap(fragment)
   packed = remap(packed)
-  // Share text identifiers with their boundary enums instead of shipping them twice.
-  const encodeTextKeys = (json) =>
-    json.replaceAll(tokens, (token, offset) => {
-      const index = textIndices.get(token)
-      if (index === undefined) return token
-      const expression = `textKeys[${index}]`
-      return json[offset + token.length] === ':' ? `[${expression}]` : expression
-    })
+  // Lossless generated data; decoded dictionaries and models retain schema validation.
+  const encodedPayload = LZString.compressToBase64(
+    JSON.stringify({
+      pool: pool.map((fragment) => JSON.parse(fragment)),
+      model: JSON.parse(packed),
+    }),
+  )
   const formatting = await resolveConfig(path.join(root, MODULE))
   const module = await format(
     `// Generated by scripts/gen-reference.mjs; do not edit.
 import * as z from 'zod/mini'
+import LZString from 'lz-string'
 import type { ReferenceModel } from './types'
-const textKeys = ${JSON.stringify(textKeys)} as const
+import { parseReferenceModel } from './referenceSchema.generated'
+export { parseReferenceModel } from './referenceSchema.generated'
 export function referenceModel(): ReferenceModel {
   const referenceRadix = ${source.REFERENCE_POOL_RADIX}
   const numericPrefix = ${JSON.stringify(numericPrefix)}
   const stringPrefixes = ${JSON.stringify(stringPrefixes)}
-  const pool: readonly unknown[] = ${encodeTextKeys(JSON.stringify(pool.map((fragment) => JSON.parse(fragment))))}
+  const packed = z.object({ pool: z.array(z.unknown()), model: z.unknown() }).parse(
+    JSON.parse(LZString.decompressFromBase64(${JSON.stringify(encodedPayload)})),
+  )
+  const pool = packed.pool
   const expand = (value: unknown): unknown => {
     if (typeof value === 'string') {
       if (value.startsWith(numericPrefix)) return Number(value.slice(numericPrefix.length))
@@ -1403,9 +1539,8 @@ export function referenceModel(): ReferenceModel {
       return [name, expand(entry)]
     }))
   }
-  return parseReferenceModel(expand(${encodeTextKeys(packed)}))
+  return parseReferenceModel(expand(packed.model))
 }
-${schema}
 `,
     { ...formatting, filepath: MODULE },
   )
@@ -1417,6 +1552,20 @@ ${schema}
   const json = await format(JSON.stringify(model), { ...formatting, filepath: JSON_MODEL })
   for (const [file, content] of [
     [MODULE, module],
+    [
+      'src/runtime/reference.node.generated.ts',
+      await format(
+        `// Generated by scripts/gen-reference.mjs; do not edit.\nimport type { ReferenceModel } from '../shared/reference/types'\nimport { parseReferenceModel } from '../shared/reference/referenceSchema.generated'\nimport { brotliDecompressSync } from 'node:zlib'\nexport function referenceModel(): ReferenceModel { return parseReferenceModel(JSON.parse(brotliDecompressSync(Buffer.from('${brotliCompressSync(Buffer.from(JSON.stringify(model))).toString('base64')}', 'base64')).toString('utf8'))) }\n`,
+        { ...formatting, filepath: 'src/runtime/reference.node.generated.ts' },
+      ),
+    ],
+    [
+      'src/shared/reference/referenceSchema.generated.ts',
+      await format(
+        `// Generated by scripts/gen-reference.mjs; do not edit.\nimport * as z from 'zod/mini'\nimport type { ReferenceModel } from './types'\nexport const textKeys = ${JSON.stringify(textKeys)} as const\n${schema}\n`,
+        { ...formatting, filepath: 'src/shared/reference/referenceSchema.generated.ts' },
+      ),
+    ],
     [DOC, markdown],
     [JSON_MODEL, json],
   ]) {

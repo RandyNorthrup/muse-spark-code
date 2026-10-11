@@ -1,0 +1,379 @@
+[
+  {
+    "drill": "host-session",
+    "file": "src/host/prompts/chatSharing.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/chatSharingHost.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "mutation": {
+      "before": "if (previewSession !== undefined && deps.currentSessionId() !== previewSession)",
+      "after": "if (false)",
+      "beforeLength": 79,
+      "afterLength": 10
+    },
+    "exit": 1,
+    "sha256Before": "f6dea4badb65a261ac19263703f67123557973f09efa6e454bebd3175329d981",
+    "sha256Restored": "f6dea4badb65a261ac19263703f67123557973f09efa6e454bebd3175329d981",
+    "failures": [
+      "FAIL  test/unit/chatSharingHost.test.ts > M118 real chat destinations > refuses outside output, changed policy and a replacement session before any sink"
+    ]
+  },
+  {
+    "drill": "host-output-root",
+    "file": "src/host/prompts/chatSharing.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/chatSharingHost.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "mutation": {
+      "before": "if (!checked.ok) throw new Error(UI_TEXT.sharePreviewExpired)",
+      "after": "if (checked.ok) throw new Error(UI_TEXT.sharePreviewExpired)",
+      "beforeLength": 61,
+      "afterLength": 60
+    },
+    "exit": 1,
+    "sha256Before": "f6dea4badb65a261ac19263703f67123557973f09efa6e454bebd3175329d981",
+    "sha256Restored": "f6dea4badb65a261ac19263703f67123557973f09efa6e454bebd3175329d981",
+    "failures": [
+      "FAIL  test/unit/chatSharingHost.test.ts > M118 real chat destinations > writes exact reviewed bytes privately only after confirmation, with no preview sink"
+    ]
+  },
+  {
+    "drill": "rpc-reconnect",
+    "file": "src/webview/sharing/sharingRpc.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/sharingBridge.test.tsx",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "mutation": {
+      "before": "window.addEventListener('message', receive)",
+      "after": "void receive",
+      "beforeLength": 43,
+      "afterLength": 12
+    },
+    "exit": 1,
+    "sha256Before": "bd9b874d032e8cfdd9171347c0b627cff5e6fda2492d3ebb9d1f60717602f7bb",
+    "sha256Restored": "bd9b874d032e8cfdd9171347c0b627cff5e6fda2492d3ebb9d1f60717602f7bb",
+    "failures": [
+      "FAIL  test/unit/sharingBridge.test.tsx > M118 shared host bridge > renders host-owned prompts and sends an insert action without a model submission",
+      "FAIL  test/unit/sharingBridge.test.tsx > M118 shared host bridge > renders an exact chat preview and confirms only from the final button"
+    ]
+  },
+  {
+    "drill": "raw-html",
+    "file": "src/core/web/webFetch.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/webFetch.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "mutation": {
+      "before": "if (isHtml && deps.rawTextLimit !== undefined) refuse('contentType', { type })",
+      "after": "if (false) refuse('contentType', { type })",
+      "beforeLength": 78,
+      "afterLength": 42
+    },
+    "exit": 1,
+    "sha256Before": "461ae11a17a66fc3a2c9a93c31c74612bf296b49b635e56acddc0a846792c1d4",
+    "sha256Restored": "461ae11a17a66fc3a2c9a93c31c74612bf296b49b635e56acddc0a846792c1d4",
+    "failures": [
+      "FAIL  test/unit/webFetch.test.ts > fetchWebPage (M69) > refuses raw HTML even when it is below the ingress byte cap"
+    ]
+  },
+  {
+    "drill": "raw-byte-cap",
+    "file": "src/core/web/webFetch.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/webFetch.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "mutation": {
+      "before": "readCapped(response, headers, signal, deps.rawTextLimit)",
+      "after": "readCapped(response, headers, signal)",
+      "beforeLength": 56,
+      "afterLength": 37
+    },
+    "exit": 1,
+    "sha256Before": "461ae11a17a66fc3a2c9a93c31c74612bf296b49b635e56acddc0a846792c1d4",
+    "sha256Restored": "461ae11a17a66fc3a2c9a93c31c74612bf296b49b635e56acddc0a846792c1d4",
+    "failures": [
+      "FAIL  test/unit/webFetch.test.ts > fetchWebPage (M69) > enforces the smaller raw cap on compressed and decoded bytes independently"
+    ]
+  },
+  {
+    "drill": "message-save-bytes",
+    "file": "src/webview/App.tsx",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/App.test.tsx",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "mutation": {
+      "before": "sharingAction('saveText', { text })",
+      "after": "sharingAction('saveText', { text: text.trim() })",
+      "beforeLength": 35,
+      "afterLength": 48
+    },
+    "exit": 1,
+    "sha256Before": "378d35f1f0c192b44cbb8a20c0986159d5216a352fb9fb6f2028f267705f5ceb",
+    "sha256Restored": "378d35f1f0c192b44cbb8a20c0986159d5216a352fb9fb6f2028f267705f5ceb",
+    "failures": [
+      "FAIL  test/unit/App.test.tsx > M118 shared message context menu > saves exactly the own user prompt text and retains Share"
+    ]
+  },
+  {
+    "drill": "controller-lifetime",
+    "file": "src/host/conversation/conversationController.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/conversationController.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "mutation": {
+      "before": "if (this.isDisposed || current !== this.session) throw new Error(UI_TEXT.sharePreviewExpired)",
+      "after": "if (this.isDisposed) throw new Error(UI_TEXT.sharePreviewExpired)",
+      "beforeLength": 93,
+      "afterLength": 65
+    },
+    "exit": 1,
+    "sha256Before": "982624decfe421cffa209f2c0c5c0f442541c65d0bdf94f7601f8f8a0ea07a52",
+    "sha256Restored": "982624decfe421cffa209f2c0c5c0f442541c65d0bdf94f7601f8f8a0ea07a52",
+    "failures": [
+      "FAIL  test/unit/conversationController.test.ts > ConversationController: session history (M6) > reads sharing from fresh stored history and retires reads after session replacement (M118)"
+    ]
+  },
+  {
+    "drill": "prompt-common-scrub",
+    "file": "src/core/sharing/promptShare.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/runtimeSharing.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "mutation": {
+      "before": "scrubShareText(value, privacy)",
+      "after": "value",
+      "beforeLength": 30,
+      "afterLength": 5
+    },
+    "exit": 1,
+    "sha256Before": "da5d6c1323f6e3de3ab5a20c765441024d9716893036630031d2252063ed7077",
+    "sha256Restored": "da5d6c1323f6e3de3ab5a20c765441024d9716893036630031d2252063ed7077",
+    "failures": [
+      "FAIL  test/unit/runtimeSharing.test.ts > M118 production runtime bindings > uses the same deterministic scrubbed saved-prompt document for Markdown, HTML and JSON"
+    ]
+  },
+  {
+    "drill": "validation-default",
+    "file": "dist/validation.js",
+    "command": ["node", "scripts/check-bundle-split.mjs"],
+    "mutation": {
+      "before": "_default:()=>",
+      "after": "_defaultRemoved:()=>",
+      "beforeLength": 13,
+      "afterLength": 20
+    },
+    "exit": 1,
+    "sha256Before": "6114b8bfe32d2e3408b908be625cc35303e3cc55bdc280902f4a17ec2f493f21",
+    "sha256Restored": "6114b8bfe32d2e3408b908be625cc35303e3cc55bdc280902f4a17ec2f493f21",
+    "failures": [],
+    "diagnostic": "bundle split: 5 problem(s); see PLAN.md D6 and M57\n  src/shared/share.ts reads zod/mini._default, absent from validation.js\n  src/shared/share.ts reads zod/mini._default, absent from validation.js\n  src/shared/share.ts reads zod/mini._default, absent from validation.js\n  src/shared/share.ts reads zod/mini._default, absent from validation.js\n  src/shared/share.ts reads zod/mini._default, absent from validation.js\n"
+  },
+  {
+    "drill": "activation-split",
+    "file": "dist/meta/extension.json",
+    "command": ["node", "scripts/check-bundle-split.mjs"],
+    "mutation": {
+      "before": "{\"inputs\":{\"src/host/lazyBundle.ts\":{\"bytes\":2726,\"imports\":[{\"path\":\"node:module\",\"kind\":\"import-statement\",\"external\":true}],\"format\":\"esm\"},\"src/shared/browserCheckConstants.ts\":{\"bytes\":12655,\"imports\":[],\"format\":\"esm\"},\"src/shared/l10",
+      "after": "{\"inputs\": {\"src/host/lazyBundle.ts\": {\"bytes\": 2726, \"imports\": [{\"path\": \"node:module\", \"kind\": \"import-statement\", \"external\": true}], \"format\": \"esm\"}, \"src/shared/browserCheckConstants.ts\": {\"bytes\": 12655, \"imports\": [], \"format\": \"es",
+      "beforeLength": 114135,
+      "afterLength": 122083
+    },
+    "exit": 1,
+    "sha256Before": "b74b6d08f1dfbc994554728e3e2d962c5d591f284a50e737617cf54b8145f0bd",
+    "sha256Restored": "b74b6d08f1dfbc994554728e3e2d962c5d591f284a50e737617cf54b8145f0bd",
+    "failures": [],
+    "diagnostic": "bundle split: 1 problem(s); see PLAN.md D6 and M57\n  dist/extension.js carries lazy sharing implementation src/core/prompts/promptStore.ts\n"
+  },
+  {
+    "drill": "prompt-presence",
+    "file": "dist/meta/prompts.json",
+    "command": ["node", "scripts/check-bundle-split.mjs"],
+    "mutation": {
+      "before": "{\"inputs\":{\"src/shared/browserCheckConstants.ts\":{\"bytes\":12655,\"imports\":[],\"format\":\"esm\"},\"src/shared/l10n/text.ts\":{\"bytes\":8240,\"imports\":[{\"path\":\"./uiText.js\",\"kind\":\"import-statement\",\"external\":true}],\"format\":\"esm\"},\"src/shared/co",
+      "after": "{\"inputs\": {\"src/shared/browserCheckConstants.ts\": {\"bytes\": 12655, \"imports\": [], \"format\": \"esm\"}, \"src/shared/l10n/text.ts\": {\"bytes\": 8240, \"imports\": [{\"path\": \"./uiText.js\", \"kind\": \"import-statement\", \"external\": true}], \"format\": \"e",
+      "beforeLength": 45293,
+      "afterLength": 47920
+    },
+    "exit": 1,
+    "sha256Before": "4aab66260d649307d694b1e0d02a38373be48a0a5eb634b2ff4c86f4ff1be300",
+    "sha256Restored": "4aab66260d649307d694b1e0d02a38373be48a0a5eb634b2ff4c86f4ff1be300",
+    "failures": [],
+    "diagnostic": "bundle split: 1 problem(s); see PLAN.md D6 and M57\n  dist/prompts.js no longer carries src/core/prompts/promptStore.ts\n"
+  },
+  {
+    "drill": "runtime-presence",
+    "file": "dist/meta/sharingRuntime.json",
+    "command": ["node", "scripts/check-bundle-split.mjs"],
+    "mutation": {
+      "before": "{\"inputs\":{\"src/shared/browserCheckConstants.ts\":{\"bytes\":12655,\"imports\":[],\"format\":\"esm\"},\"src/shared/l10n/text.ts\":{\"bytes\":8240,\"imports\":[{\"path\":\"./uiText.js\",\"kind\":\"import-statement\",\"external\":true}],\"format\":\"esm\"},\"src/shared/co",
+      "after": "{\"inputs\": {\"src/shared/browserCheckConstants.ts\": {\"bytes\": 12655, \"imports\": [], \"format\": \"esm\"}, \"src/shared/l10n/text.ts\": {\"bytes\": 8240, \"imports\": [{\"path\": \"./uiText.js\", \"kind\": \"import-statement\", \"external\": true}], \"format\": \"e",
+      "beforeLength": 43162,
+      "afterLength": 45641
+    },
+    "exit": 1,
+    "sha256Before": "30bd31ec24463071d3e60f52dd4c521fbc90c2d44f8296b85ff2ac15491ed57c",
+    "sha256Restored": "30bd31ec24463071d3e60f52dd4c521fbc90c2d44f8296b85ff2ac15491ed57c",
+    "failures": [],
+    "diagnostic": "bundle split: 1 problem(s); see PLAN.md D6 and M57\n  dist/sharingRuntime.js no longer carries src/runtime/sharing/sharingEntry.ts\n"
+  },
+  {
+    "drill": "new-bundle-cap",
+    "file": "dist/prompts.js",
+    "command": ["node", "scripts/check-bundle-size.mjs"],
+    "mutation": {
+      "before": "\"use strict\";var $s=Object.create;var Mt=Object.defineProperty;var Js=Object.getOwnPropertyDescriptor;var Qs=Object.getOwnPropertyNames;var Zs=Object.getPrototypeOf,ei=Object.prototype.hasOwnProperty;var Rn=(e,r)=>{for(var t in r)Mt(e,t,{ge",
+      "after": "\"use strict\";var $s=Object.create;var Mt=Object.defineProperty;var Js=Object.getOwnPropertyDescriptor;var Qs=Object.getOwnPropertyNames;var Zs=Object.getPrototypeOf,ei=Object.prototype.hasOwnProperty;var Rn=(e,r)=>{for(var t in r)Mt(e,t,{ge",
+      "beforeLength": 167355,
+      "afterLength": 372356
+    },
+    "exit": 1,
+    "sha256Before": "005b500cd59341588edbe9cc46d561898c370d12f48b3db168d2189b58834614",
+    "sha256Restored": "005b500cd59341588edbe9cc46d561898c370d12f48b3db168d2189b58834614",
+    "failures": [],
+    "diagnostic": "35.9 KiB (budget 75 KiB)\nok   dist/report.js: 21.6 KiB (budget 75 KiB)\nok   dist/recorder.js: 24.2 KiB (budget 75 KiB)\nok   dist/whatsNew.js: 18.6 KiB (budget 50 KiB)\nok   dist/whatsNew.json: 28.2 KiB (budget 40 KiB)\nok   dist/judge.js: 47.1 KiB (budget 100 KiB)\nok   dist/uiText.js: 48.9 KiB (budget 125 KiB)\nok   dist/uiTextRuntime.js: 3.5 KiB (budget 25 KiB)\nok   dist/uiTextHooks.js: 4.6 KiB (budget 25 KiB)\nok   dist/uiTextSurfaces.js: 2.5 KiB (budget 25 KiB)\nok   dist/validation.js: 40.5 KiB (budget 50 KiB)\nok   dist/wire.js: 40.9 KiB (budget 50 KiB)\nok   dist/searchWorker.js: 4.9 KiB (budget 50 KiB)\nok   dist/pageWorker.js: 188.6 KiB (budget 300 KiB)\nok   dist/webview/main.js + static imports: 800.1 KiB (budget 900 KiB)\nok   dist/webview/whatsNew.js: 0.7 KiB (budget 25 KiB)\nok   dist/acp.js: 826.4 KiB (budget 850 KiB)\nok   dist/webview deferred JS: 50.0 KiB (budget 50 KiB)\nok   dist/webview code highlighting: 93.1 KiB (budget 125 KiB)\nok   dist/webview action dialogs: 21.4 KiB (budget 25 KiB)\nok   dist/webview chat sharing: 13.4 KiB (budget 25 KiB)\nok   dist/webview tasks tab: 1.3 KiB (budget 25 KiB)\nbundle size budget exceeded or a bundle is missing; see PLAN.md section 2 (D6)\n"
+  },
+  {
+    "drill": "reference-staleness",
+    "file": "src/shared/featureCatalog.ts",
+    "command": ["npm", "run", "check:reference"],
+    "mutation": {
+      "before": "syntax: 'museSpark.savePrompt'",
+      "after": "syntax: 'museSpark.savePromptChanged'",
+      "beforeLength": 30,
+      "afterLength": 37
+    },
+    "exit": 1,
+    "sha256Before": "e4e78afa721836b000fcd58e4b9ca6acf8d1ba605710797445d9acabeb24cadb",
+    "sha256Restored": "e4e78afa721836b000fcd58e4b9ca6acf8d1ba605710797445d9acabeb24cadb",
+    "failures": [],
+    "diagnostic": "npm notice run muse-spark-code@0.14.1 check:reference\nnpm notice run node scripts/gen-reference.mjs --check\nfile:///home/randy/lanes/M118INT/scripts/gen-reference.mjs:28\n    throw new Error('Sharing reference is stale: node scripts/gen-reference.mjs')\n          ^\n\nError: Sharing reference is stale: node scripts/gen-reference.mjs\n    at file:///home/randy/lanes/M118INT/scripts/gen-reference.mjs:28:11\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n\nNode.js v24.18.0\n"
+  },
+  {
+    "drill": "legacy-ui-cap",
+    "file": "dist/webview/chunks/BRCA3KBQ.js",
+    "command": ["node", "scripts/check-bundle-size.mjs"],
+    "mutation": {
+      "before": "import{b as q}from\"./T6IWE4RE.js\";import{b as $,c as O,d as B,e as _,f as F,g as V}from\"./R4VBSIU4.js\";import{b as K,c as N}from\"./UWW2PJU3.js\";import{h as R,r as T}from\"./R4SLIWUW.js\";import{a as G}from\"./2HVEACRS.js\";import\"./75TB5HDP.js\"",
+      "after": "import{b as q}from\"./T6IWE4RE.js\";import{b as $,c as O,d as B,e as _,f as F,g as V}from\"./R4VBSIU4.js\";import{b as K,c as N}from\"./UWW2PJU3.js\";import{h as R,r as T}from\"./R4SLIWUW.js\";import{a as G}from\"./2HVEACRS.js\";import\"./75TB5HDP.js\"",
+      "beforeLength": 3619,
+      "afterLength": 4643
+    },
+    "exit": 1,
+    "sha256Before": "397d0cdedefeed307c6616dd108e6f98653378b59490372ab4e01cd98a77d8e6",
+    "sha256Restored": "397d0cdedefeed307c6616dd108e6f98653378b59490372ab4e01cd98a77d8e6",
+    "failures": [],
+    "diagnostic": "35.9 KiB (budget 75 KiB)\nok   dist/report.js: 21.6 KiB (budget 75 KiB)\nok   dist/recorder.js: 24.2 KiB (budget 75 KiB)\nok   dist/whatsNew.js: 18.6 KiB (budget 50 KiB)\nok   dist/whatsNew.json: 28.2 KiB (budget 40 KiB)\nok   dist/judge.js: 47.1 KiB (budget 100 KiB)\nok   dist/uiText.js: 48.9 KiB (budget 125 KiB)\nok   dist/uiTextRuntime.js: 3.5 KiB (budget 25 KiB)\nok   dist/uiTextHooks.js: 4.6 KiB (budget 25 KiB)\nok   dist/uiTextSurfaces.js: 2.5 KiB (budget 25 KiB)\nok   dist/validation.js: 40.5 KiB (budget 50 KiB)\nok   dist/wire.js: 40.9 KiB (budget 50 KiB)\nok   dist/searchWorker.js: 4.9 KiB (budget 50 KiB)\nok   dist/pageWorker.js: 188.6 KiB (budget 300 KiB)\nok   dist/webview/main.js + static imports: 800.1 KiB (budget 900 KiB)\nok   dist/webview/whatsNew.js: 0.7 KiB (budget 25 KiB)\nok   dist/acp.js: 826.4 KiB (budget 850 KiB)\nOVER dist/webview deferred JS: 51.0 KiB (budget 50 KiB)\nok   dist/webview code highlighting: 93.1 KiB (budget 125 KiB)\nok   dist/webview action dialogs: 21.4 KiB (budget 25 KiB)\nok   dist/webview chat sharing: 13.4 KiB (budget 25 KiB)\nok   dist/webview tasks tab: 1.3 KiB (budget 25 KiB)\nbundle size budget exceeded or a bundle is missing; see PLAN.md section 2 (D6)\n"
+  },
+  {
+    "drill": "ci-runtime-archive",
+    "file": ".github/workflows/build.yml",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/e2e/execStdio.e2e.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "mutation": {
+      "before": "package/dist/acp.js package/dist/sharingRuntime.js package/dist/modelApi.js",
+      "after": "package/dist/acp.js package/dist/modelApi.js",
+      "beforeLength": 75,
+      "afterLength": 44
+    },
+    "exit": 1,
+    "sha256Before": "da65bd85e1477c6c38d1363c994ed93a90e9898006368fd66d451e453cbfffbe",
+    "sha256Restored": "da65bd85e1477c6c38d1363c994ed93a90e9898006368fd66d451e453cbfffbe",
+    "failures": [
+      "FAIL  test/e2e/execStdio.e2e.test.ts > M80 D package guards > build tarball guard rejects missing dist/sharingRuntime.js"
+    ]
+  },
+  {
+    "drill": "runtime-preview-values",
+    "file": "src/runtime/sharing/sharingEntry.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/runtimeSharing.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "mutation": {
+      "before": "redactRegisteredSecrets: (text) => redactSecrets(text, registered)",
+      "after": "redactRegisteredSecrets: redactSecrets",
+      "beforeLength": 66,
+      "afterLength": 38
+    },
+    "exit": 1,
+    "sha256Before": "c603cbae101e565699f57f29df7923dae060a0a906e033847cf4705ca02e4e53",
+    "sha256Restored": "c603cbae101e565699f57f29df7923dae060a0a906e033847cf4705ca02e4e53",
+    "failures": [
+      "FAIL  test/unit/runtimeSharing.test.ts > M118 production runtime bindings > refreshes registered values for previews and refuses a newly sensitive JSON document at release"
+    ]
+  },
+  {
+    "drill": "runtime-release-values",
+    "file": "src/runtime/sharing/sharingEntry.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/runtimeSharing.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "mutation": {
+      "before": "if (clean !== JSON.stringify(preview.document)) throw new Error(UI_TEXT.sharePreviewExpired)",
+      "after": "if (false) throw new Error(UI_TEXT.sharePreviewExpired)",
+      "beforeLength": 92,
+      "afterLength": 55
+    },
+    "exit": 1,
+    "sha256Before": "c603cbae101e565699f57f29df7923dae060a0a906e033847cf4705ca02e4e53",
+    "sha256Restored": "c603cbae101e565699f57f29df7923dae060a0a906e033847cf4705ca02e4e53",
+    "failures": [
+      "FAIL  test/unit/runtimeSharing.test.ts > M118 production runtime bindings > refreshes registered values for previews and refuses a newly sensitive JSON document at release"
+    ]
+  }
+]

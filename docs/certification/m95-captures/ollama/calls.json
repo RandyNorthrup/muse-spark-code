@@ -1,0 +1,90 @@
+[
+  {
+    "number": 1,
+    "step": "version",
+    "method": "GET",
+    "path": "/api/version",
+    "billed": false,
+    "state": "recorded",
+    "status": 200
+  },
+  {
+    "number": 2,
+    "step": "tags",
+    "method": "GET",
+    "path": "/api/tags",
+    "billed": false,
+    "state": "recorded",
+    "status": 200
+  },
+  {
+    "number": 3,
+    "step": "plain-stream",
+    "method": "POST",
+    "path": "/api/chat",
+    "model": "qwen3:4b-instruct-2507-q4_K_M",
+    "billed": false,
+    "state": "recorded",
+    "status": 200
+  },
+  {
+    "number": 4,
+    "step": "two-tool-stream",
+    "method": "POST",
+    "path": "/api/chat",
+    "model": "qwen3:4b-instruct-2507-q4_K_M",
+    "billed": false,
+    "state": "recorded",
+    "status": 200
+  },
+  {
+    "number": 5,
+    "step": "tool-follow-up",
+    "method": "POST",
+    "path": "/api/chat",
+    "model": "qwen3:4b-instruct-2507-q4_K_M",
+    "billed": false,
+    "state": "recorded",
+    "status": 200
+  },
+  {
+    "number": 6,
+    "step": "thinking-on",
+    "method": "POST",
+    "path": "/api/chat",
+    "model": "qwen3:1.7b",
+    "billed": false,
+    "state": "recorded",
+    "status": 200
+  },
+  {
+    "number": 7,
+    "step": "thinking-off",
+    "method": "POST",
+    "path": "/api/chat",
+    "model": "qwen3:1.7b",
+    "billed": false,
+    "state": "recorded",
+    "status": 200
+  },
+  {
+    "number": 8,
+    "step": "unknown-model",
+    "method": "POST",
+    "path": "/api/chat",
+    "model": "no-such-model-m95",
+    "billed": false,
+    "state": "recorded",
+    "status": 404
+  },
+  {
+    "number": 9,
+    "step": "two-tool-chunks",
+    "method": "POST",
+    "path": "/api/chat",
+    "model": "qwen3:1.7b",
+    "billed": false,
+    "state": "recorded",
+    "status": 200
+  }
+]

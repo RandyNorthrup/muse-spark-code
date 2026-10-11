@@ -1,7 +1,14 @@
+import { parseEstimateOptions } from '../../src/runtime/estimator/command.ts'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { fromMarkdown } from 'mdast-util-from-markdown'
+import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
+import * as modelApiEntry from '../../src/host/backend/modelApiEntry'
+import { fakeManagerDeps } from './helpers/modelApiManager'
+import { fakeModelApi } from './helpers/fakeModelApi'
+import { FakeLogOutputChannel } from './helpers/fakes'
+import { memorySessionStore } from './helpers/fakeSessionStore'
 import {
   buildReference,
   generateReference,
@@ -53,6 +60,26 @@ describe('the code-derived reference gate', () => {
     expect(model.cli.map((c) => c.route)).toContain('authClear')
     expect(model.commands.find((c) => c.id === 'museSpark.signOut').canRun).toBe(false)
   })
+  it('omits credential-slot flags on routes the parser refuses (M108/W)', () => {
+    const rows = build().cli
+    for (const route of ['serve', 'login', 'setup'])
+      expect(
+        rows.filter((row) => row.route === route && /--(provider|account)( |$)/.test(row.name)),
+      ).toEqual([])
+    for (const name of [
+      'authSet: --provider <value>',
+      'authSet: --account <value>',
+      'authStatus: --provider <value>',
+      'authClear: --provider <value>',
+      'exec: --account <value>',
+      'exec: --account-pool',
+    ])
+      expect(rows.some((row) => row.name === name)).toBe(true)
+    for (const route of ['authStatus', 'authClear'])
+      expect(
+        rows.some((row) => row.route === route && row.name.startsWith(`${route}: --account`)),
+      ).toBe(false)
+  })
   it('rejects a newly contributed command without a catalogue entry', () => {
     const pkg = globalThis.structuredClone(manifest)
     pkg.contributes.commands.push({ command: 'museSpark.undocumented', title: 'Undocumented' })
@@ -67,6 +94,33 @@ describe('the code-derived reference gate', () => {
     expect(() => build(pkg)).toThrow('Missing description: museSpark.undocumented')
     pkg.contributes.configuration.properties['museSpark.undocumented'].description = 'Description'
     expect(() => build(pkg)).toThrow('No feature covers museSpark.undocumented')
+  })
+  it('M107 validates resource defaults, nullable bounds and machine scope against the runtime reader', () => {
+    const settings = manifest.contributes.configuration.properties
+    const resources = Object.keys(settings).filter((id) => id.startsWith('museSpark.resource'))
+    expect(resources).toHaveLength(8)
+    expect(build().features.find((row) => row.id === 'resources').settings).toEqual(resources)
+    for (const [id, field, value, message] of [
+      ['museSpark.resourceGovernor', 'scope', 'window', 'Resource setting is not machine-scoped'],
+      ['museSpark.resourceCpuMaxPercent', 'default', 80, 'Runtime default mismatch'],
+      ['museSpark.resourceGpuMaxPercent', 'minimum', 0, 'Runtime bound mismatch'],
+      [
+        'museSpark.resourceRelocate',
+        'enum',
+        ['paired', 'ask', 'off', 'always'],
+        'Runtime value mismatch',
+      ],
+    ]) {
+      const pkg = globalThis.structuredClone(manifest)
+      pkg.contributes.configuration.properties[id][field] = value
+      expect(() => build(pkg)).toThrow(`${message}: ${id}`)
+    }
+    for (const key of [
+      'resourceGpuMaxPercent',
+      'resourceDiskBusyMaxPercent',
+      'resourceDiskMinFreeGiB',
+    ])
+      expect(settings[`museSpark.${key}`].default).toBeNull()
   })
   it('rejects unknown feature links and empty descriptions', () => {
     const features = globalThis.structuredClone(source.featureCatalog())
@@ -190,33 +244,7 @@ const commandText = (key) => {
 }
 
 describe('RVHELPREF truth regressions', () => {
-  let admission
-  beforeAll(async () => {
-    // Share cold module setup; each production-admission assertion keeps 5 s.
-    const { ModelApiBackendManager } = await import('../../src/host/backend/modelApiBackendManager')
-    const modelApiEntry = await import('../../src/host/backend/modelApiEntry')
-    const { fakeManagerDeps } = await import('./helpers/modelApiManager')
-    const { fakeModelApi } = await import('./helpers/fakeModelApi')
-    const { FakeLogOutputChannel } = await import('./helpers/fakes')
-    const { memorySessionStore } = await import('./helpers/fakeSessionStore')
-    admission = {
-      ModelApiBackendManager,
-      modelApiEntry,
-      fakeManagerDeps,
-      fakeModelApi,
-      FakeLogOutputChannel,
-      memorySessionStore,
-    }
-  })
   it('RVHELPREF4 P1 derives the Best-of-N budget prerequisite from production admission', async () => {
-    const {
-      ModelApiBackendManager,
-      modelApiEntry,
-      fakeManagerDeps,
-      fakeModelApi,
-      FakeLogOutputChannel,
-      memorySessionStore,
-    } = admission
     const manager = new ModelApiBackendManager(
       fakeManagerDeps(fakeModelApi(), new FakeLogOutputChannel(), {
         workspaceRoot: '/reference-budget',
@@ -265,7 +293,7 @@ describe('RVHELPREF truth regressions', () => {
       await manager.dispose()
     }
   })
-  it('C01 describes every Auto reviewer and its no-card approval path', () => {
+  it('C01 describes every Auto Reviewer and its no-card approval path', () => {
     const auto = setting('initialPermissionMode').enumDescriptions[3]
     const limits = source.EN.referencePermissionLimits
     for (const backend of ['museCode', 'modelApi']) {
@@ -292,7 +320,7 @@ describe('RVHELPREF truth regressions', () => {
     expect(card).toBeGreaterThan(allow)
     expect(host.slice(allow, card)).toContain('return { isApproved: true, feedback: undefined }')
     expect(host).toContain("this.deps.isPaidFeatureOn('autoReviewer')")
-    expect(host).toContain("{ feature: 'autoReviewer', modelId, tool: call.name, action }")
+    expect(host).toMatch(/feature: 'autoReviewer',\s+modelId,\s+tool: call.name,\s+action,/)
     // Muse Code: controller isReviewerApproval() gates the reviewer;
     // ReviewedApprovals.judge()/allow() answers the captured allow-once choice.
     expect(
@@ -356,7 +384,7 @@ describe('RVHELPREF truth regressions', () => {
       'acp:modelApi',
     ])
     expect(feature('budget').surfaces).toEqual(['vscode:modelApi'])
-    expect(source.EN.referencePaidContexts).toContain('ordinary ACP has no mandatory hard budget')
+    expect(source.EN.referencePaidContexts).toContain('runtime daily budget')
     expect(source.EN.referencePaidContexts).toContain('explicit opt-in')
     expect(feature('images').facts.configuredDefaults).toEqual({
       'museSpark.modelApiImageGeneration': true,
@@ -703,7 +731,7 @@ describe('RVHELPREF truth regressions', () => {
 })
 
 describe('RVHELPREF2 runtime truth regressions', () => {
-  it('RVHELPREF4 P2-1 rejects the closed state vocabulary at the generator boundary', () => {
+  const stateClaims = (() => {
     const predicates = ['is', 'are', 'was', 'becomes']
     const states = [
       'available',
@@ -721,7 +749,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       'installed',
       'configured',
     ]
-    const claims = [
+    return [
       'Delegation is available in this conversation.',
       'A future feature is on.',
       'It works right now.',
@@ -729,13 +757,18 @@ describe('RVHELPREF2 runtime truth regressions', () => {
         states.map((state) => `A future feature ${predicate} ${state}.`),
       ),
     ]
-    for (const claim of claims) {
+  })()
+  it.each(stateClaims)(
+    'RVHELPREF4 P2-1 rejects the closed state vocabulary at the generator boundary: %s',
+    (claim) => {
       const changed = { ...source, EN: { ...source.EN, referenceNativeAgents: claim } }
       expect(
         () => referenceMarkdown(build(manifest, changed), changed, nls, manifest),
         claim,
       ).toThrow('Catalogue asserts conditional state: native-agents')
-    }
+    },
+  )
+  it('RVHELPREF4 P2-1 renders a neutral description', () => {
     const neutral = {
       ...source,
       EN: { ...source.EN, referenceNativeAgents: 'Use agent controls to delegate work.' },
@@ -1095,19 +1128,43 @@ describe('RVHELPREF2 runtime truth regressions', () => {
         expect(table[key], `${language}:${key}`).toBeTruthy()
         expect(table[key], `${language}:${key}`).not.toBe(source.EN[key])
       }
-      expect(Object.keys(table.referenceCliOptions)).toEqual(
-        Object.keys(source.EN.referenceCliOptions),
+      expect(
+        Object.keys(table.referenceCliOptions).toSorted((a, b) => a.localeCompare(b, 'en')),
+      ).toEqual(
+        Object.keys(source.EN.referenceCliOptions).toSorted((a, b) => a.localeCompare(b, 'en')),
       )
     }
   })
+  it('keeps estimator deadline and format help distinct from usage and provider options', () => {
+    const rows = build().cli
+    const text = (route, option) =>
+      rows.find((row) => row.route === route && row.name.startsWith(`${route}: --${option} `))?.text
+    expect(text('estimate', 'by')).toEqual({ cli: 'estimate-by' })
+    expect(text('estimate', 'format')).toEqual({ cli: 'estimate-format' })
+    expect(text('usage', 'by')).toEqual({ cli: 'by' })
+    expect(text('providersAdd', 'format')).toEqual({ cli: 'format' })
+  })
   it('B12 accepts or explicitly refuses every parser option on its documented route', () => {
     const samples = {
+      provider: 'custom',
+      preset: 'custom',
+      as: 'custom',
+      address: 'https://example.test',
+      format: 'text',
+      privacy: 'zdr',
+      'usage-history': 'on',
+      range: 'today',
+      by: 'provider',
+      from: '2026-10-01',
+      to: '2026-10-06',
       backend: 'modelApi',
       'muse-binary': '/tmp/muse',
       'shell-sandbox': 'off',
       cwd: '/tmp',
       'prompt-file': '/tmp/prompt',
+      'output-schema': '/tmp/answer.json',
       'untrusted-file': '/tmp/data',
+      attach: '/tmp/clip.mp4',
       'permission-mode': 'acceptEdits',
       model: 'muse-spark-1.3',
       effort: 'high',
@@ -1115,23 +1172,43 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       'max-budget-usd': '1',
       'max-requests': '2',
       timeout: '10',
+      'resource-governor': 'on',
+      'cpu-max': '85',
+      'memory-max': '90',
       'questions-defer-after': '60',
       out: '/tmp/report',
       description: 'description',
+      account: 'work',
+      fleet: 'current',
+      seed: '17',
     }
     const rows = build().cli
     for (const [route, definition] of Object.entries(source.CLI_OPTION_REGISTRY)) {
       for (const [name, option] of Object.entries(definition.options)) {
+        // Keep account targeting separate from provider-only authentication.
+        const isRefusedSlot =
+          (name === 'account' && !['authSet', 'exec'].includes(route)) ||
+          (name === 'provider' && !['authSet', 'authStatus', 'authClear', 'exec'].includes(route))
         const row = rows.find(
           (entry) => entry.route === route && entry.name.startsWith(`${route}: --${name}`),
         )
-        expect(row, `${route}: --${name}`).toBeDefined()
+        if (isRefusedSlot) expect(row, `${route}: --${name}`).toBeUndefined()
+        else expect(row, `${route}: --${name}`).toBeDefined()
         const flag = [`--${name}`, ...(option.type === 'string' ? [samples[name]] : [])]
         let command = [route]
         if (route === 'serve') command = []
+        else if (route === 'providersAdd')
+          command = ['providers', 'add', '--preset', name === 'privacy' ? 'openrouter' : 'custom']
         else if (route.startsWith('auth'))
           command = ['auth', { authSet: 'set', authStatus: 'status', authClear: 'clear' }[route]]
+        else if (route === 'fontsInstall') command = ['fonts', 'install']
         let args = [...command]
+        if (route === 'usage' && name === 'stdio') args.push('serve')
+        if (route === 'usage' && name === 'from') args.push('--to', samples.to)
+        if (route === 'usage' && name === 'to') args.push('--from', samples.from)
+        if (route === 'providersAdd' && name === 'format') flag[1] = 'chat'
+        if (route === 'estimate' && name === 'by') flag[1] = '2026-10-09'
+        if (route === 'estimate' && name === 'format') flag[1] = 'json'
         if (['serve', 'login', 'setup', 'authSet', 'authStatus', 'authClear'].includes(route)) {
           args.push('--backend', 'modelApi', ...(route === 'setup' ? ['--trust-workspace'] : []))
         } else if (route === 'exec') {
@@ -1141,16 +1218,27 @@ describe('RVHELPREF2 runtime truth regressions', () => {
           )
           if (!['muse-binary', 'shell-sandbox'].includes(name)) args.push('--max-budget-usd', '1')
           if (name === 'image-generation') args.push('--permission-mode', 'acceptEdits')
+          else if (name === 'output-schema-outside')
+            args.push('--output-schema', '/tmp/answer.json')
         }
+        if (route === 'estimate' && name !== 'help') args.push('M117')
         args.push(...flag)
         if (route === 'exec' && name !== 'prompt-file') args.push('prompt')
         if (route === 'scan-secrets') args.push('/tmp/patch')
         const parsed = source.parseCommandLine(args)
         let expected = route
-        if (row.contract.refused === true) expected = 'invalid'
-        else if (name === 'help') expected = 'help'
+        if (isRefusedSlot || row.contract.refused === true) expected = 'invalid'
+        else if (name === 'help' && route !== 'estimate') expected = 'help'
         else if (name === 'version') expected = 'version'
         expect(parsed.command, `${route}: --${name}: ${parsed.reason ?? ''}`).toBe(expected)
+        if (route === 'estimate') {
+          // The outer dispatcher delegates this route; its own parser validates all flags.
+          expect(parsed.argv).toEqual(args.slice(1))
+          expect(parseEstimateOptions(parsed.argv).kind).toBe(name === 'help' ? 'help' : 'estimate')
+          expect(parseEstimateOptions([...parsed.argv, '--unknown', 'ignored']).kind).toBe(
+            'invalid',
+          )
+        }
         if (option.short === undefined) continue
         const aliasArgs = args.map((arg) => (arg === `--${name}` ? `-${option.short}` : arg))
         expect(source.parseCommandLine(aliasArgs).command, `${route}: -${option.short}`).toBe(

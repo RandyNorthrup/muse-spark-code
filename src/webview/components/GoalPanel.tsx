@@ -89,7 +89,7 @@ function ObjectiveForm({
     <form className="goal-edit" onSubmit={submit}>
       <input
         ref={inputRef}
-        className="question-input goal-edit-input"
+        className="question-input goal-edit-input chat-control"
         type="text"
         dir="auto"
         aria-label={UI_TEXT.goalEditLabel}
@@ -99,10 +99,14 @@ function ObjectiveForm({
         }}
         onKeyDown={onKeyDown}
       />
-      <button type="submit" className="tool-more" disabled={isPending || draft.trim() === ''}>
+      <button
+        type="submit"
+        className="tool-more chat-control"
+        disabled={isPending || draft.trim() === ''}
+      >
         {UI_TEXT.goalEditSave}
       </button>
-      <button type="button" className="tool-more" onClick={onCancel}>
+      <button type="button" className="tool-more chat-control" onClick={onCancel}>
         {UI_TEXT.goalEditCancel}
       </button>
     </form>
@@ -158,7 +162,7 @@ function GoalPanelBody({
           {isActive ? (
             <button
               type="button"
-              className="tool-more"
+              className="tool-more chat-control"
               title={UI_TEXT.goalPauseTitle}
               onClick={() => {
                 onCommand('pause')
@@ -170,7 +174,7 @@ function GoalPanelBody({
           {isPaused ? (
             <button
               type="button"
-              className="tool-more"
+              className="tool-more chat-control"
               title={UI_TEXT.goalResumeTitle}
               onClick={() => {
                 onCommand('resume')
@@ -183,7 +187,7 @@ function GoalPanelBody({
             <button
               ref={editRef}
               type="button"
-              className="tool-more"
+              className="tool-more chat-control"
               title={UI_TEXT.goalEditTitle}
               aria-expanded={isFormShown}
               onClick={() => {
@@ -200,7 +204,7 @@ function GoalPanelBody({
           ) : null}
           <button
             type="button"
-            className="tool-more"
+            className="tool-more chat-control"
             title={UI_TEXT.goalClearTitle}
             onClick={() => {
               closeForm()

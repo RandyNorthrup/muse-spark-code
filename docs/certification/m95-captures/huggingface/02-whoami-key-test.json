@@ -1,0 +1,70 @@
+{
+  "provider": "huggingface",
+  "step": "whoami-key-test",
+  "capturedAt": "2026-10-04",
+  "billed": false,
+  "request": {
+    "method": "GET",
+    "url": "https://huggingface.co/api/whoami-v2",
+    "headers": {
+      "authorization": "<redacted>"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "https://huggingface.co",
+      "access-control-expose-headers": "X-Repo-Commit,X-Request-Id,X-Error-Code,X-Error-Message,X-Total-Count,ETag,Link,Accept-Ranges,Content-Range,X-Linked-Size,X-Linked-ETag,X-Xet-Hash",
+      "access-control-max-age": "86400",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "connection": "keep-alive",
+      "content-length": "556",
+      "content-type": "application/json; charset=utf-8",
+      "cross-origin-opener-policy": "same-origin",
+      "date": "Sun, 04 Oct 2026 22:39:38 GMT",
+      "etag": "W/\"22c-yJA3eK8sPP/iYQT2iVgdfEE+ml8\"",
+      "ratelimit": "\"api\";r=999;t=40",
+      "ratelimit-policy": "\"fixed window\";\"api\";q=1000;w=300",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "strict-transport-security": "max-age=31536000",
+      "vary": "Origin",
+      "via": "1.1 b120e3774f3cfb82b3f2af8dd84a9e72.cloudfront.net (CloudFront)",
+      "x-amz-cf-id": "9h_v8kCyeSQKYgxhm9PMBJRR5Pj0wp9cXYAHHlBvzgm49mKNC9RHyQ==",
+      "x-amz-cf-pop": "LAX53-P4",
+      "x-cache": "Miss from cloudfront",
+      "x-powered-by": "huggingface-moon",
+      "x-request-id": "Root=1-6ac2d5aa-40da84426b09cc2a0159b971"
+    },
+    "bodySummary": {
+      "type": "string",
+      "id": "string",
+      "name": "string",
+      "fullname": "<redacted>",
+      "isPro": "boolean",
+      "avatarUrl": "<redacted>",
+      "orgs": "<redacted>",
+      "auth": {
+        "type": "string",
+        "accessToken": {
+          "displayName": "string",
+          "role": "string",
+          "createdAt": "string",
+          "fineGrained": {
+            "canReadGatedRepos": "boolean",
+            "global": [],
+            "scoped": [
+              {
+                "entity": {
+                  "_id": "string",
+                  "type": "string",
+                  "name": "string"
+                },
+                "permissions": ["string"]
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

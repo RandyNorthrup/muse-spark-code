@@ -1,8 +1,10 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import { scrubSecretApproval } from '../../src/core/agent/approvalSecrets'
 import type { AgentEvent, ItemSnapshot } from '../../src/shared/agentEvents'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { AttachmentSummary, HostToWebviewMessage } from '../../src/shared/protocol'
+import type { TeamTreeData } from '../../src/shared/teamView'
 import { restoredUiState, webviewStateOf } from '../../src/webview/state/snapshot'
 import type { ScheduleView } from '../../src/shared/schedule'
 import {
@@ -119,7 +121,7 @@ const SHELL_APPROVAL = {
   requirementId: { approvalId: 'a1', sourceIndex: 0 },
   subject: { kind: 'shell', command: 'ls' },
   availableChoices: [
-    { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+    { choiceId: 'allow_once', label: 'Allow Once', decision: 'approved', scope: 'once' },
   ],
   isJudgeEscalated: false,
   isProtectedWrite: false,
@@ -149,7 +151,7 @@ describe('uiReducer: shell', () => {
     expect(uiReducer(state, { type: 'insertApplied' }).pendingInsert).toBeUndefined()
   })
 
-  it('counts the host’s Account & usage requests (the Tab menu, RVM94HU 21)', () => {
+  it('counts the host’s Account & Usage requests (the Tab menu, RVM94HU 21)', () => {
     const state = reduceAll([host(init), host({ type: 'openUsage' }), host({ type: 'openUsage' })])
     expect(state.usageRequests).toBe(2)
     expect(state.focusRequests).toBe(1)
@@ -401,9 +403,9 @@ describe('uiReducer: sending', () => {
   it('marks the echo failed with the reason on sendFailed', () => {
     const state = reduceAll([
       { type: 'submitted', localId: 'l1', text: 'hello', attachments: [], contextLabel: undefined },
-      host({ type: 'sendFailed', localId: 'l1', reason: 'Sign in first' }),
+      host({ type: 'sendFailed', localId: 'l1', reason: 'Sign In first' }),
     ])
-    expect(state.transcript[0]).toMatchObject({ status: 'failed', reason: 'Sign in first' })
+    expect(state.transcript[0]).toMatchObject({ status: 'failed', reason: 'Sign In first' })
     expect(state.activeTurnId).toBeUndefined()
   })
 
@@ -747,7 +749,7 @@ describe('uiReducer: agent events', () => {
     expect(raw.transcript[0]).toMatchObject({ kind: 'reasoning', parts: ['raw text'] })
   })
 
-  it.each(['Reviewer asks: confirm deletion', 'Command rule asks: pushes are reviewed'])(
+  it.each(['Reviewer asks: confirm deletion', 'Command Rule asks: pushes are reviewed'])(
     'keeps the approval reason through delivery, stage updates and restoration: %s',
     (note) => {
       const delivered = reduceAll([agent({ ...SHELL_APPROVAL, note })], {
@@ -780,7 +782,7 @@ describe('uiReducer: agent events', () => {
       approvalId: 'a1',
       itemId: 'c1',
       decision: 'approved',
-      resolvedBy: 'Auto reviewer',
+      resolvedBy: 'Auto Reviewer',
       reason: 'Allowed: reads workspace file',
     }
     const held = reduceAll([agent(resolution)])
@@ -828,7 +830,7 @@ describe('uiReducer: agent events', () => {
         approvalId: `a${String(index)}`,
         itemId: `c${String(index)}`,
         decision: 'approved',
-        resolvedBy: 'Auto reviewer',
+        resolvedBy: 'Auto Reviewer',
       }),
     )
     const state = reduceAll(resolutions)
@@ -845,7 +847,7 @@ describe('uiReducer: agent events', () => {
       approvalId: 'a1',
       itemId: 'c1',
       decision: 'approved',
-      resolvedBy: 'Auto reviewer',
+      resolvedBy: 'Auto Reviewer',
       reason: 'Allowed: lists files',
     } as const
     const items = [{ itemId: 'c1', kind: 'toolCall', status: 'completed', tool: 'powershell' }]
@@ -871,7 +873,7 @@ describe('uiReducer: agent events', () => {
     expect(other.pendingApprovalResolutions).toEqual([])
   })
 
-  it('keeps the Auto reviewer’s reason on an approval it allowed, through restoration (M90)', () => {
+  it('keeps the Auto Reviewer’s reason on an approval it allowed, through restoration (M90)', () => {
     const reason = 'Allowed: reads workspace file to fulfill line-count request'
     const resolved = reduceAll(
       [
@@ -881,13 +883,13 @@ describe('uiReducer: agent events', () => {
           approvalId: SHELL_APPROVAL.approvalId,
           itemId: SHELL_APPROVAL.itemId,
           decision: 'approved',
-          resolvedBy: 'Auto reviewer',
+          resolvedBy: 'Auto Reviewer',
           reason,
         }),
       ],
       { ...initialUiState, sessionId: 'reviewed-session' },
     )
-    const outcome = { decision: 'approved', resolvedBy: 'Auto reviewer', reason }
+    const outcome = { decision: 'approved', resolvedBy: 'Auto Reviewer', reason }
     expect(resolved.transcript[0]).toMatchObject({ approvalOutcome: outcome })
     expect(restoredUiState(webviewStateOf(resolved, true)).transcript[0]).toMatchObject({
       approvalOutcome: outcome,
@@ -1217,7 +1219,9 @@ describe('uiReducer: agent events', () => {
       }),
     ])
     expect(state.activeTurnId).toBeUndefined()
-    expect(state.transcript).toEqual([{ kind: 'error', id: 'error:t1', text: 'not logged in' }])
+    expect(state.transcript).toEqual([
+      { kind: 'error', id: 'error:t1', text: 'not logged in', errorKind: 'authRequired' },
+    ])
   })
 
   it('records usage, context and model changes', () => {
@@ -1335,6 +1339,104 @@ describe('uiReducer: account & usage and announcements (M8)', () => {
     expect(
       reduceAll([host({ type: 'notice', level: 'info', text: 'fyi' })], base).announcement,
     ).toBeUndefined()
+  })
+})
+
+describe('uiReducer: team tree, usage and cards (M96 lane U2)', () => {
+  const team: TeamTreeData = {
+    orchestrator: { model: 'muse-spark-1.3', backend: 'modelApi', slot: 'default' },
+    roles: [],
+  }
+
+  it('keeps the host’s team tree, across a cleared conversation but not an account change', () => {
+    const withTree = reduceAll([host(init), host({ type: 'teamTree', tree: team })])
+    expect(withTree.teamTree).toEqual(team)
+    // The team is the workspace's: a new conversation keeps it.
+    expect(uiReducer(withTree, { type: 'conversationCleared' }).teamTree).toEqual(team)
+    // The tree names the account's models: sign-out clears it with the usage.
+    const signedOut = uiReducer(withTree, host({ type: 'authState', status: 'signedOut' }))
+    expect(signedOut.teamTree).toBeUndefined()
+    expect(signedOut.usageReport).toBeUndefined()
+  })
+
+  it('starts with no team: the map, the pill and the dialog are today’s', () => {
+    expect(reduceAll([host(init)]).teamTree).toBeUndefined()
+  })
+
+  it('carries the usage Team section on the report', () => {
+    const figures = {
+      tasks: 1,
+      inputTokens: 100,
+      outputTokens: 50,
+      costUsd: 0.01,
+      estimated: false,
+    }
+    const state = reduceAll([
+      host(init),
+      host({
+        type: 'usageReport',
+        backend: 'modelApi',
+        team: { today: figures, window: figures, byRole: [], byEntry: [] },
+      }),
+    ])
+    expect(state.usageReport?.team?.today.tasks).toBe(1)
+  })
+
+  it('turns team items into cards, and a payload-less one into today’s row', () => {
+    const state = reduceAll([
+      host(init),
+      agent({
+        type: 'itemStarted',
+        item: {
+          itemId: 's1',
+          kind: 'teamSwitch',
+          status: 'completed',
+          teamSwitch: {
+            roleId: 'engineering',
+            fromEntry: 'entry 1',
+            toEntry: 'entry 2',
+            reason: 'cap',
+          },
+        },
+      }),
+      agent({
+        type: 'itemStarted',
+        item: { itemId: 'm1', kind: 'teamMerge', status: 'inProgress' },
+      }),
+    ])
+    expect(state.transcript[0]).toMatchObject({ kind: 'teamSwitch', reason: 'cap' })
+    expect(state.transcript[1]).toMatchObject({ kind: 'item', itemKind: 'teamMerge' })
+  })
+
+  it('labels a worker’s own approval from the task', () => {
+    const state = reduceAll([
+      host(init),
+      agent({
+        type: 'itemStarted',
+        item: {
+          itemId: 'c1',
+          kind: 'toolCall',
+          status: 'inProgress',
+          tool: 'edit',
+          teamWorker: { roleId: 'engineering', agentLabel: 'Codex', taskId: 't3' },
+        },
+      }),
+      agent({
+        type: 'approvalRequested',
+        approvalId: 'a1',
+        itemId: 'c1',
+        toolName: 'edit',
+        requirementId: { approvalId: 'a1', sourceIndex: 0 },
+        subject: { kind: 'tool', toolName: 'edit' },
+        rawArgs: '{}',
+        availableChoices: [],
+        isProtectedWrite: false,
+        isJudgeEscalated: false,
+      }),
+    ])
+    expect(waitingApprovals(state.transcript)[0]).toMatchObject({
+      teamWorker: { roleId: 'engineering', agentLabel: 'Codex', taskId: 't3' },
+    })
   })
 })
 
@@ -1920,7 +2022,7 @@ describe('chat references (M17)', () => {
     let state = uiReducer(initialUiState, { type: 'referenceSet', reference })
     expect(state.reference).toEqual(reference)
     expect(referenceLabel(reference)).toBe(
-      'Replying to: Use pnpm because it is fast and saves disk space on every in…',
+      'Replying To: Use pnpm because it is fast and saves disk space on every in…',
     )
     state = uiReducer(state, {
       type: 'submitted',
@@ -1932,14 +2034,14 @@ describe('chat references (M17)', () => {
     })
     expect(state.transcript.at(-1)).toMatchObject({
       kind: 'user',
-      referenceLabel: 'Replying to: Use pnpm because it is fast and saves disk space on every in…',
+      referenceLabel: 'Replying To: Use pnpm because it is fast and saves disk space on every in…',
     })
     state = uiReducer(state, {
       type: 'referenceSet',
       reference: { ...reference, intent: 'comment' },
     })
     expect(referenceLabel({ ...reference, intent: 'comment', text: 'short' })).toBe(
-      'Commenting on: short',
+      'Commenting On: short',
     )
     state = uiReducer(state, { type: 'referenceCleared' })
     expect(state.reference).toBeUndefined()
@@ -2475,7 +2577,7 @@ describe('clears, restores and refusals (M25)', () => {
     ]
     const refused = reduceAll([
       ...sent,
-      host({ type: 'sendFailed', localId: 'l1', reason: 'Sign in first', attachmentsKept: true }),
+      host({ type: 'sendFailed', localId: 'l1', reason: 'Sign In first', attachmentsKept: true }),
     ])
     expect(refused.attachments.map((chip) => chip.id)).toEqual(['att-1', 'att-2'])
     expect(refused.unsentAttachments).toEqual({})
@@ -3118,7 +3220,13 @@ function replyUpdated(
 ): AgentEvent {
   return {
     type: 'itemUpdated',
-    item: { itemId: 'm', kind: 'agentMessage', status: 'completed', text: 'A', ...extra },
+    item: {
+      itemId: 'm',
+      kind: 'agentMessage',
+      status: 'completed',
+      text: 'A',
+      ...('costUsd' in extra ? { ...extra, costUsd: Usd.from(extra.costUsd).toAmount() } : extra),
+    },
   }
 }
 
@@ -3166,7 +3274,7 @@ describe('uiReducer: paid features (M33, PLAN.md D30)', () => {
       agent(replyCompleted()),
       agent(replyUpdated({ usage, costUsd: 0.01 })),
     ])
-    expect(entryOf(state, 'm')).toMatchObject({ usage, costUsd: 0.01 })
+    expect(entryOf(state, 'm')).toMatchObject({ usage, costUsd: '0.01' })
   })
 
   it('says which engine the microphone uses', () => {
@@ -3563,6 +3671,7 @@ describe('uiReducer: the session goal (M45)', () => {
         backend: 'museCode',
         subscription: undefined,
         account: { signInMethod: 'cli' },
+        providers: undefined,
         insights: undefined,
       },
       editorContext: { relativePath: 'private-a.ts', startLine: 1, endLine: 2, isEmpty: false },
@@ -4084,6 +4193,67 @@ describe('uiReducer: share files read-only (M84)', () => {
   })
 })
 
+describe('uiReducer: finished provider setup (M95)', () => {
+  const finished = host({
+    type: 'setupComplete',
+    provider: 'OpenRouter',
+    model: 'openrouter/deepseek/deepseek-v3',
+  })
+
+  it('confirms once with the provider and model, announces it, and dismisses', () => {
+    const state = reduceAll([finished])
+    expect(state.setupComplete).toEqual({
+      provider: 'OpenRouter',
+      model: 'openrouter/deepseek/deepseek-v3',
+    })
+    expect(state.announcement?.text).toContain('OpenRouter')
+    expect(state.announcement?.text).toContain('openrouter/deepseek/deepseek-v3')
+    const dismissed = uiReducer(state, { type: 'setupCompleteDismissed' })
+    expect(dismissed.setupComplete).toBeUndefined()
+  })
+
+  it('drops the confirmation with the account', () => {
+    const state = reduceAll([
+      host({ type: 'authState', status: 'signedIn', backend: 'modelApi' }),
+      finished,
+    ])
+    expect(state.setupComplete).toBeDefined()
+    expect(
+      uiReducer(state, host({ type: 'authState', status: 'signedOut' })).setupComplete,
+    ).toBeUndefined()
+  })
+
+  it('keeps per-provider tallies from the usage report', () => {
+    const providers = [
+      {
+        providerId: 'openrouter',
+        providerLabel: 'OpenRouter',
+        pricing: 'priced' as const,
+        inputTokens: 1200,
+        outputTokens: 300,
+        costUsd: 0.001,
+      },
+    ]
+    const state = reduceAll([host({ type: 'usageReport', backend: 'modelApi', providers })])
+    expect(state.usageReport?.providers).toEqual(providers)
+  })
+
+  it('stores provider fields on the listed models', () => {
+    const models = [
+      {
+        modelId: 'openrouter/deepseek/deepseek-v3',
+        displayLabel: 'DeepSeek V3',
+        isDefault: true,
+        providerId: 'openrouter',
+        providerLabel: 'OpenRouter',
+        pricing: 'priced' as const,
+        isPinned: true,
+      },
+    ]
+    expect(reduceAll([host({ type: 'modelList', models })]).models).toEqual(models)
+  })
+})
+
 describe('uiReducer: the secret-prompt hold (M92e, PLAN.md D71)', () => {
   // Built at runtime: no secret-shaped literal sits in the repository.
   const text = `deploy with sk-${'k'.repeat(24)} now`
@@ -4191,7 +4361,7 @@ describe('uiReducer: the secret-prompt hold (M92e, PLAN.md D71)', () => {
     expect(edited.draft).toBe('newer draft')
   })
 
-  it('removes the optimistic card, restores the draft and arms Send anyway', () => {
+  it('removes the optimistic card, restores the draft and arms Send Anyway', () => {
     const state = reduceAll([{ type: 'draftChanged', draft: text }, submit, held])
     expect(state.transcript).toEqual([])
     expect(state.draft).toBe(text)

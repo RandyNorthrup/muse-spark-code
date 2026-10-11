@@ -1,0 +1,290 @@
+[
+  {
+    "check": "normal-raw-runtime-host",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/webFetch.test.ts",
+      "test/unit/runtimeSharing.test.ts",
+      "test/unit/chatSharingHost.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 0,
+    "seconds": 3.1
+  },
+  {
+    "check": "normal-acp-commands",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/acpSharing.test.ts",
+      "test/unit/shareCommand.test.ts",
+      "test/unit/promptBridge.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 0,
+    "seconds": 1.9
+  },
+  {
+    "check": "normal-app-history",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/paletteRegistry.test.ts",
+      "test/unit/App.test.tsx",
+      "test/unit/HistoryDialog.test.tsx",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 0,
+    "seconds": 16.9
+  },
+  {
+    "check": "normal-controller-bridge-menus",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/conversationController.test.ts",
+      "test/unit/sharingBridge.test.tsx",
+      "test/unit/promptMenus.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 0,
+    "seconds": 22.3
+  },
+  {
+    "check": "typecheck",
+    "command": ["npm", "run", "typecheck"],
+    "exit": 0,
+    "seconds": 83.0
+  },
+  {
+    "check": "eslint",
+    "command": [
+      "npx",
+      "eslint",
+      "--max-warnings=0",
+      "scripts/build.mjs",
+      "scripts/check-bundle-size.mjs",
+      "scripts/check-bundle-split.mjs",
+      "scripts/check-l10n.mjs",
+      "scripts/gen-reference.mjs",
+      "scripts/lib/harnessServer.mjs",
+      "scripts/lib/webviewBundles.mjs",
+      "scripts/package-acp.mjs",
+      "src/acp/agent.ts",
+      "src/acp/sharing.ts",
+      "src/core/sharing/promptShare.ts",
+      "src/core/web/webFetch.ts",
+      "src/extension.ts",
+      "src/host/conversation/conversationController.ts",
+      "src/host/fsAtomic.ts",
+      "src/host/prompts/chatSharing.ts",
+      "src/host/prompts/promptBundle.ts",
+      "src/host/prompts/promptCommands.ts",
+      "src/host/prompts/promptEntry.ts",
+      "src/host/web/webFetchBundle.ts",
+      "src/host/web/webFetchEntry.ts",
+      "src/host/web/webFetcher.ts",
+      "src/runtime/main.ts",
+      "src/runtime/sharing/commands.ts",
+      "src/runtime/sharing/sharingBundle.ts",
+      "src/runtime/sharing/sharingEntry.ts",
+      "src/shared/constants.ts",
+      "src/shared/featureCatalog.ts",
+      "src/shared/palette.ts",
+      "src/shared/protocol.ts",
+      "src/shared/validationEntry.ts",
+      "src/webview/App.tsx",
+      "src/webview/components/Composer.tsx",
+      "src/webview/components/HistoryDialog.tsx",
+      "src/webview/components/paletteDialog.tsx",
+      "src/webview/prompts/PromptLibrary.tsx",
+      "src/webview/prompts/PromptLibraryBridge.tsx",
+      "src/webview/sharing/ChatShareBridge.tsx",
+      "src/webview/sharing/sharingRpc.ts",
+      "src/webview/state/uiState.ts",
+      "test/e2e/acpStdio.e2e.test.ts",
+      "test/e2e/execStdio.e2e.test.ts",
+      "test/unit/App.test.tsx",
+      "test/unit/HistoryDialog.test.tsx",
+      "test/unit/chatSharingHost.test.ts",
+      "test/unit/conversationController.test.ts",
+      "test/unit/promptEntry.test.ts",
+      "test/unit/promptLibrary.test.tsx",
+      "test/unit/promptWorkspaceIntegration.test.ts",
+      "test/unit/runtimeSharing.test.ts",
+      "test/unit/shareCommand.test.ts",
+      "test/unit/sharingArtifacts.test.ts",
+      "test/unit/sharingBridge.test.tsx",
+      "test/unit/webFetch.test.ts",
+      "test/unit/webFetchBundle.test.ts"
+    ],
+    "exit": 0,
+    "seconds": 56.9
+  },
+  {
+    "check": "knip",
+    "command": ["npx", "knip"],
+    "exit": 0,
+    "seconds": 7.0
+  },
+  {
+    "check": "cycles",
+    "command": ["npm", "run", "cycles"],
+    "exit": 0,
+    "seconds": 9.5
+  },
+  {
+    "check": "duplication",
+    "command": ["npx", "jscpd"],
+    "exit": 0,
+    "seconds": 1.4
+  },
+  {
+    "check": "l10n",
+    "command": ["npm", "run", "check:l10n"],
+    "exit": 0,
+    "seconds": 2.7
+  },
+  {
+    "check": "host-api",
+    "command": ["npm", "run", "check:host-api"],
+    "exit": 0,
+    "seconds": 17.4
+  },
+  {
+    "check": "reference",
+    "command": ["npm", "run", "check:reference"],
+    "exit": 0,
+    "seconds": 0.4
+  },
+  {
+    "check": "privacy-restored",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/runtimeSharing.test.ts",
+      "test/unit/acpRuntime.test.ts",
+      "test/unit/acpSharing.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 0
+  },
+  {
+    "check": "privacy-typecheck",
+    "command": ["npm", "run", "typecheck"],
+    "exit": 0
+  },
+  {
+    "check": "privacy-eslint",
+    "command": [
+      "npx",
+      "eslint",
+      "--max-warnings=0",
+      "src/runtime/main.ts",
+      "src/runtime/sharing/sharingEntry.ts",
+      "test/unit/runtimeSharing.test.ts"
+    ],
+    "exit": 0
+  },
+  {
+    "check": "privacy-duplication",
+    "command": ["npx", "jscpd"],
+    "exit": 0
+  },
+  {
+    "check": "privacy-host-api",
+    "command": ["npm", "run", "check:host-api"],
+    "exit": 0
+  },
+  {
+    "check": "final-package-vsix",
+    "command": ["npm", "run", "package"],
+    "exit": 0
+  },
+  {
+    "check": "final-package-acp",
+    "command": ["npm", "run", "package:acp"],
+    "exit": 0
+  },
+  {
+    "check": "final-install",
+    "command": [
+      "npm",
+      "install",
+      "--offline",
+      "--ignore-scripts",
+      "--prefix",
+      "temp/m118-installed-final",
+      "<worktree>/dist/muse-spark-code-acp-0.14.1.tgz"
+    ],
+    "exit": 0
+  },
+  {
+    "check": "final-installed-commands",
+    "command": ["python3", "temp/m118-installed-receipts.py"],
+    "exit": 0
+  },
+  {
+    "check": "final-installed-e2e",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/e2e/acpStdio.e2e.test.ts",
+      "test/e2e/execStdio.e2e.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 0
+  },
+  {
+    "check": "final-source-acp",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/e2e/acpStdio.e2e.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 0
+  },
+  {
+    "check": "sharing-a11y",
+    "command": [
+      "npm",
+      "run",
+      "test:a11y",
+      "--",
+      "prompt-library",
+      "prompt-library-narrow",
+      "chat-sharing",
+      "chat-sharing-narrow"
+    ],
+    "exit": 0,
+    "pages": 16,
+    "themes": 4,
+    "violations": 0,
+    "undecided": 0,
+    "exempt": 0,
+    "missing": 0
+  },
+  {
+    "check": "static-html-a11y",
+    "command": ["node", "temp/m118-html-a11y.mjs"],
+    "exit": 0,
+    "pages": 4,
+    "overflow": false
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "rig": "macmini",
+  "node": "v24.21.0",
+  "os": "24.6.0",
+  "arch": "x64",
+  "modelAttempts": 0,
+  "paidCalls": 0,
+  "credentialStoreReads": 0,
+  "relationship": "sibling processes with the same user, neither elevated",
+  "target": "Node process holding a generated unpooled buffer; no real credential or secret output",
+  "targetTaskAccessGranted": false,
+  "targetResult": 5,
+  "selfControlResult": 0,
+  "memoryBytesRead": 0,
+  "targetScript": "const { randomBytes } = require('node:crypto'); const held = Buffer.alloc(32); held.set(randomBytes(32)); const timer = setTimeout(() => { held.fill(0); process.exit(0); }, 30000); process.on('SIGTERM', () => { clearTimeout(timer); held.fill(0); process.exit(0); }); process.stdout.write('ready');",
+  "helperSource": "#include <mach/mach.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <unistd.h>\nint main(int argc, char **argv) {\n  if (argc != 2) return 1;\n  char *end;\n  long value = strtol(argv[1], &end, 10);\n  if (*end != '\\0' || value <= 0) return 1;\n  mach_port_t task = MACH_PORT_NULL;\n  kern_return_t result = task_for_pid(mach_task_self(), (pid_t)value, &task);\n  kern_return_t control = task_for_pid(mach_task_self(), getpid(), &task);\n  if (task != MACH_PORT_NULL) mach_port_deallocate(mach_task_self(), task);\n  printf(\"{\\\"targetTaskAccessGranted\\\":%s,\\\"targetResult\\\":%d,\\\"selfControlResult\\\":%d}\\n\",\n    result == KERN_SUCCESS ? \"true\" : \"false\", result, control);\n  return 0;\n}\n",
+  "helperSourceSha256": "8aa8373d9cb98e67d77b2fa7696580b86f6da9b63e10a6b5e4b9e8e8951ea1a8",
+  "targetScriptSha256": "9f9046c77eb2a569f80867ed6ed945d9533568f1032d43be0748345b4eaf24be",
+  "limitation": "Measures task access for this Node executable on this rig. The integrated broker and platform signing/debug entitlements need their own capture."
+}

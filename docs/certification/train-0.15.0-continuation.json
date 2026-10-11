@@ -1,0 +1,1606 @@
+{
+  "rig": "kubuntu",
+  "startingHead": "a2bf65c5c",
+  "stages": [
+    {
+      "stage": "split",
+      "extension": 456846,
+      "modelApi": 486338,
+      "startup": 797449,
+      "acp": 843696,
+      "vsix": 2214704,
+      "models": 418077,
+      "whatsNew": 1351,
+      "deferred": [
+        {
+          "name": "deferred JS",
+          "bytes": 50538,
+          "cap": 51200
+        },
+        {
+          "name": "provider usage",
+          "bytes": 1683,
+          "cap": 25600
+        },
+        {
+          "name": "code highlighting",
+          "bytes": 95393,
+          "cap": 128000
+        },
+        {
+          "name": "action dialogs",
+          "bytes": 9490,
+          "cap": 25600
+        },
+        {
+          "name": "tasks tab",
+          "bytes": 1402,
+          "cap": 25600
+        }
+      ],
+      "node": {
+        "acp.js": 843696,
+        "agentImport.js": 119416,
+        "browserCheck.js": 43694,
+        "browserRuntime.js": 19762,
+        "bundledSkills.js": 17096,
+        "checkpointStore.js": 79793,
+        "codeIntel.js": 41034,
+        "conversation.js": 201166,
+        "conversationGit.js": 76869,
+        "extension.js": 456846,
+        "extensionHooks.js": 37692,
+        "foreignHooks.js": 71923,
+        "hookRuntime.js": 45055,
+        "imageResizeWorker.js": 60060,
+        "judge.js": 50161,
+        "modelApi.js": 486338,
+        "modelsPanel.js": 55017,
+        "museCodeReviewer.js": 23777,
+        "pageWorker.js": 193171,
+        "planMarkdown.js": 147608,
+        "pluginHooks.js": 35691,
+        "providerCatalog.js": 514771,
+        "providers.js": 111871,
+        "recorder.js": 26857,
+        "report.js": 24212,
+        "review.js": 29875,
+        "reviewer.js": 23437,
+        "searchWorker.js": 5184,
+        "sessionBoard.js": 48985,
+        "tab.js": 52781,
+        "uiText.js": 54121,
+        "uiTextHooks.js": 4746,
+        "uiTextRuntime.js": 3638,
+        "uiTextSurfaces.js": 2510,
+        "validation.js": 40823,
+        "voice.js": 20428,
+        "webFetch.js": 40271,
+        "whatsNew.js": 19421,
+        "wire.js": 42401
+      }
+    }
+  ],
+  "drills": [
+    {
+      "name": "drill-provider-budget",
+      "file": "scripts/lib/webviewBundles.mjs",
+      "tests": ["test/unit/bundleSize.test.mjs", "test/unit/webviewBundles.test.mjs"],
+      "exit": 1,
+      "sha256Before": "4a1235236d79ebc4d21020b428ea0a056a9ce5bcd8438ffda499d71e87204c29",
+      "sha256After": "4a1235236d79ebc4d21020b428ea0a056a9ce5bcd8438ffda499d71e87204c29"
+    },
+    {
+      "name": "drill-provider-static-import",
+      "file": "src/webview/components/UsageDialog.tsx",
+      "tests": ["test/unit/webviewBundle.test.mjs"],
+      "exit": 1,
+      "sha256Before": "8194733557e4a547134c61251c5ee924d4425d22bd3dc993357888fd54cbc4e0",
+      "sha256After": "8194733557e4a547134c61251c5ee924d4425d22bd3dc993357888fd54cbc4e0"
+    }
+  ],
+  "modelAttempts": 0,
+  "paidCalls": 0,
+  "m96Candidate": {
+    "input": "m96/int3d",
+    "inputSha": "0f0ce2ceafefa7175719cc0bbfcbea130bbdc7cb",
+    "base": "532aca298",
+    "disposition": "review candidate; size recovery and later ordered merges held pending explicit override of the shared stop rule",
+    "conflicts": [
+      "CHANGELOG.md",
+      "PLAN.md",
+      "docs/acp.md",
+      "docs/certification/README.md",
+      "docs/ide-compatibility/host-api.md",
+      "knip.jsonc",
+      "l10n/untranslated.json",
+      "package.json",
+      "scripts/build.mjs",
+      "scripts/check-bundle-size.mjs",
+      "scripts/check-bundle-split.mjs",
+      "src/core/backends/modelapi/ModelApiHost.ts",
+      "src/shared/constants.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/modelsPanel.ts",
+      "src/shared/protocol.ts",
+      "src/webview/components/UsageDialog.tsx",
+      "src/webview/state/uiState.ts",
+      "test/e2e/execStdio.e2e.test.ts",
+      "test/harness/index.html",
+      "test/unit/bundleSize.test.mjs",
+      "test/unit/modelApiGoldenRequests.test.ts"
+    ],
+    "sizes": {
+      "stage": "merge5",
+      "extension": 454262,
+      "modelApi": 486463,
+      "startup": 821206,
+      "acp": 840264,
+      "vsix": 2397730,
+      "models": 447584,
+      "whatsNew": 1351,
+      "deferred": [
+        {
+          "name": "deferred JS",
+          "bytes": 48104,
+          "cap": 51200
+        },
+        {
+          "name": "paid usage",
+          "bytes": 4018,
+          "cap": 25600
+        },
+        {
+          "name": "provider usage",
+          "bytes": 1683,
+          "cap": 25600
+        },
+        {
+          "name": "code highlighting",
+          "bytes": 90229,
+          "cap": 128000
+        },
+        {
+          "name": "action dialogs",
+          "bytes": 9490,
+          "cap": 25600
+        },
+        {
+          "name": "tasks tab",
+          "bytes": 1424,
+          "cap": 25600
+        },
+        {
+          "name": "team UI",
+          "bytes": 16132,
+          "cap": 25600
+        }
+      ],
+      "node": {
+        "acp.js": 840264,
+        "agentImport.js": 119205,
+        "browserCheck.js": 43479,
+        "browserRuntime.js": 19762,
+        "bundledSkills.js": 16881,
+        "checkpointStore.js": 79575,
+        "codeIntel.js": 41059,
+        "conversation.js": 201780,
+        "conversationGit.js": 76654,
+        "extension.js": 454262,
+        "extensionHooks.js": 37135,
+        "foreignHooks.js": 71371,
+        "hookRuntime.js": 44498,
+        "imageResizeWorker.js": 59842,
+        "judge.js": 49605,
+        "modelApi.js": 486463,
+        "modelApiBoundaries.js": 16991,
+        "modelsPanel.js": 74198,
+        "museCodeReviewer.js": 23562,
+        "pageWorker.js": 193171,
+        "planMarkdown.js": 147608,
+        "pluginHooks.js": 35476,
+        "providerCatalog.js": 514771,
+        "providers.js": 105635,
+        "recorder.js": 26703,
+        "report.js": 24058,
+        "review.js": 29660,
+        "reviewer.js": 18979,
+        "searchWorker.js": 5184,
+        "sessionBoard.js": 48429,
+        "tab.js": 52569,
+        "team.js": 49143,
+        "teamRunners.js": 53847,
+        "teamScheduler.js": 59913,
+        "uiText.js": 64389,
+        "uiTextHooks.js": 4938,
+        "uiTextRuntime.js": 3754,
+        "uiTextSurfaces.js": 2594,
+        "validation.js": 42175,
+        "voice.js": 20213,
+        "webFetch.js": 40056,
+        "whatsNew.js": 19229,
+        "wire.js": 39737
+      }
+    },
+    "budgetStop": {
+      "modelApi": {
+        "initial": 494346,
+        "cap": 486400,
+        "attempt1": 486677,
+        "attempt2": 486463,
+        "over": 63
+      },
+      "universalVsix": {
+        "bytes": 2397730,
+        "cap": 2252800,
+        "over": 144930
+      }
+    },
+    "owningFiles": [
+      {
+        "file": "test/e2e/execStdio.e2e.test.ts",
+        "status": "passed",
+        "receipt": "merge5-repair-tests2.json",
+        "passed": 38,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/AgentMap.test.tsx",
+        "status": "passed",
+        "receipt": "merge5-tests-1.json",
+        "passed": 14,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/DiffTallyRow.test.tsx",
+        "status": "passed",
+        "receipt": "merge5-tests-1.json",
+        "passed": 5,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/TeamApp.test.tsx",
+        "status": "passed",
+        "receipt": "merge5-tests-2.json",
+        "passed": 7,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/TeamCards.test.tsx",
+        "status": "passed",
+        "receipt": "merge5-tests-2.json",
+        "passed": 18,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/TeamTree.test.tsx",
+        "status": "passed",
+        "receipt": "merge5-tests-2.json",
+        "passed": 16,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/UsageDialog.test.tsx",
+        "status": "passed",
+        "receipt": "merge5-tests-3.json",
+        "passed": 46,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/acpAgent.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-3.json",
+        "passed": 96,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/bridgeChecks.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-3.json",
+        "passed": 8,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/bundleSize.test.mjs",
+        "status": "passed",
+        "receipt": "merge5-restored-tests1.json",
+        "passed": 13,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/checkSlots.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-4.json",
+        "passed": 11,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/compressedEnglish.test.mjs",
+        "status": "passed",
+        "receipt": "merge5-tests-4.json",
+        "passed": 7,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/conversationController.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-5.json",
+        "passed": 600,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/deferredBundles.test.ts",
+        "status": "passed",
+        "receipt": "merge5-restored-tests1.json",
+        "passed": 41,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/highlightBuild.test.mjs",
+        "status": "passed",
+        "receipt": "merge5-repair-tests2.json",
+        "passed": 5,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/ideMcpServer.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-6.json",
+        "passed": 9,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/judgeConsent.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-6.json",
+        "passed": 10,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/mcpPool.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-6.json",
+        "passed": 15,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/modelApiGoldenRequests.test.ts",
+        "status": "passed",
+        "receipt": "merge5-final-owning.json",
+        "passed": 77,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/modelApiPolicyFence.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-7.json",
+        "passed": 106,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/paidConsent.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-7.json",
+        "passed": 21,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/paidDailyBudget.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-8.json",
+        "passed": 18,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/paidHookModels.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-8.json",
+        "passed": 10,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/paletteRegistry.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-8.json",
+        "passed": 35,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/pluginDispatch.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-9.json",
+        "passed": 29,
+        "failed": 0,
+        "pending": 1
+      },
+      {
+        "file": "test/unit/runnerHelperNative.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-9.json",
+        "passed": 1,
+        "failed": 0,
+        "pending": 1
+      },
+      {
+        "file": "test/unit/runnerRouting.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-9.json",
+        "passed": 10,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/sshRunner.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-10.json",
+        "passed": 22,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/team/teamBuiltInRoles.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-10.json",
+        "passed": 7,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/team/teamCapabilityCheck.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-10.json",
+        "passed": 5,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/team/teamCharter.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-11.json",
+        "passed": 8,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/team/teamConfig.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-11.json",
+        "passed": 11,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/team/teamRoleResolution.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-11.json",
+        "passed": 21,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/team/teamRoles.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-12.json",
+        "passed": 20,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/team/teamSameModel.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-12.json",
+        "passed": 4,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/team/teamTables.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-12.json",
+        "passed": 16,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamAcpProcess.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-13.json",
+        "passed": 40,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamAcpWorker.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-13.json",
+        "passed": 39,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/team/teamToolsets.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-13.json",
+        "passed": 18,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamActivationGraph.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-14.json",
+        "passed": 1,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamAdmission.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-14.json",
+        "passed": 13,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamAutofill.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-14.json",
+        "passed": 17,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamCapValidation.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-15.json",
+        "passed": 12,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamCeilings.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-15.json",
+        "passed": 12,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamChangelog.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-15.json",
+        "passed": 6,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamClaimJournal.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-16.json",
+        "passed": 15,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamCleanup.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-16.json",
+        "passed": 5,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamCollisionRepositories.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-16.json",
+        "passed": 1,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamCollisions.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-17.json",
+        "passed": 14,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamConflictPredict.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-17.json",
+        "passed": 7,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamConstants.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-17.json",
+        "passed": 49,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamDeclaration.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-18.json",
+        "passed": 21,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamEngineWorker.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-18.json",
+        "passed": 22,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamEntries.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-18.json",
+        "passed": 14,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamGitClassifier.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-19.json",
+        "passed": 14,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamGitIndexLock.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-19.json",
+        "passed": 10,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamHarness.test.mjs",
+        "status": "failed",
+        "receipt": "merge5-final-owning.json",
+        "passed": 21,
+        "failed": 1,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamHintsAndLoad.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-20.json",
+        "passed": 21,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamHistory.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-20.json",
+        "passed": 30,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamIntensity.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-20.json",
+        "passed": 13,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamJsonTable.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-21.json",
+        "passed": 24,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamLanding.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-21.json",
+        "passed": 28,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamLedger.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-21.json",
+        "passed": 32,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamMcpBridge.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-22.json",
+        "passed": 44,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamMcpServer.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-22.json",
+        "passed": 17,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamMerge.test.ts",
+        "status": "passed",
+        "receipt": "merge5-repair-tests1.json",
+        "passed": 54,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamMergeBatchRepository.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-23.json",
+        "passed": 4,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamMergeQueue.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-23.json",
+        "passed": 9,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamMeter.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-23.json",
+        "passed": 12,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamModelSettings.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-24.json",
+        "passed": 12,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamMuseCodeWorker.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-24.json",
+        "passed": 67,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamNativeLifetime.test.ts",
+        "status": "passed",
+        "receipt": "merge5-final-owning.json",
+        "passed": 21,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamOrchestratorSlot.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-25.json",
+        "passed": 9,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamPipelines.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-25.json",
+        "passed": 36,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamPlanRecord.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-25.json",
+        "passed": 2,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamPool.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-26.json",
+        "passed": 17,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamPreview.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-26.json",
+        "passed": 14,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamProcessLifetime.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-26.json",
+        "passed": 25,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamProcessOwnership.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-27.json",
+        "passed": 13,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamProtocolLoading.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-27.json",
+        "passed": 3,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamRefFence.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-27.json",
+        "passed": 95,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamResources.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-28.json",
+        "passed": 49,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamReviewGate.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-28.json",
+        "passed": 16,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamRoster.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-28.json",
+        "passed": 8,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamRuntimePackage.test.mjs",
+        "status": "passed",
+        "receipt": "merge5-tests-29.json",
+        "passed": 1,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamSchedulerBoard.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-29.json",
+        "passed": 17,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamSchedulerPick.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-29.json",
+        "passed": 11,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamSchedulerPool.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-30.json",
+        "passed": 12,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamSchedulerRetire.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-30.json",
+        "passed": 9,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamSchedulerReview.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-30.json",
+        "passed": 14,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamSchedulerRoster.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-31.json",
+        "passed": 5,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamSchedulerSchemas.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-31.json",
+        "passed": 12,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamSchedulerStalls.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-31.json",
+        "passed": 8,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamSchedulerText.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-32.json",
+        "passed": 17,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamSchedulerTools.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-32.json",
+        "passed": 14,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamServerToolList.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-32.json",
+        "passed": 3,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamSettlement.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-33.json",
+        "passed": 6,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamSingleModel.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-33.json",
+        "passed": 15,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamStagingCopy.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-33.json",
+        "passed": 11,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamStartup.test.mjs",
+        "status": "passed",
+        "receipt": "merge5-tests-34.json",
+        "passed": 5,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamTemplates.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-34.json",
+        "passed": 12,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamTools.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-34.json",
+        "passed": 33,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamTransfer.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-35.json",
+        "passed": 14,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamWindowsControl.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-35.json",
+        "passed": 2,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamWorkerCertification.test.ts",
+        "status": "passed",
+        "receipt": "merge5-binding-postcommit.json",
+        "passed": 1,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamWorkerEnv.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-36.json",
+        "passed": 9,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamWorkerFence.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-36.json",
+        "passed": 51,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamWorkerReport.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-36.json",
+        "passed": 16,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamWorkersPaid.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-37.json",
+        "passed": 14,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/teamWorkspaces.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-37.json",
+        "passed": 50,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/trafficHandlers.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-37.json",
+        "passed": 56,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/trafficHarness.test.tsx",
+        "status": "passed",
+        "receipt": "merge5-tests-38.json",
+        "passed": 1,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/trafficMetrics.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-38.json",
+        "passed": 10,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/trafficView.test.tsx",
+        "status": "passed",
+        "receipt": "merge5-tests-38.json",
+        "passed": 13,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/uiState.test.ts",
+        "status": "passed",
+        "receipt": "merge5-tests-39.json",
+        "passed": 182,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/webviewBundle.test.mjs",
+        "status": "passed",
+        "receipt": "merge5-restored-tests2.json",
+        "passed": 14,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "file": "test/unit/webviewBundles.test.mjs",
+        "status": "passed",
+        "receipt": "merge5-restored-tests2.json",
+        "passed": 6,
+        "failed": 0,
+        "pending": 0
+      }
+    ],
+    "owningTotals": {
+      "files": 117,
+      "passed": 3050,
+      "failed": 1,
+      "pending": 2
+    },
+    "checks": {
+      "fiveCompilerProjects": "pass",
+      "scopedEslint": "pass after two native-fixture lint findings repaired",
+      "supportedFormatPrettier": "pass",
+      "plainKnip": "pass",
+      "cycles": "pass",
+      "duplication": "pass after deduplicating the existing read-request helper",
+      "localization": "pass: 14 tables, 173 manifest strings, 762 source files, zero problems",
+      "hostApi": "regenerated and checked",
+      "execSchemas": "pass",
+      "fullQuality": "not run; explicitly reserved for the lead after M95/M102"
+    },
+    "packageChecks": [
+      {
+        "check": "package",
+        "command": ["npm", "run", "package"],
+        "exit": 1
+      },
+      {
+        "check": "split",
+        "command": ["node", "scripts/check-bundle-split.mjs"],
+        "exit": 0
+      },
+      {
+        "check": "globals",
+        "command": ["node", "scripts/check-host-globals.mjs"],
+        "exit": 0
+      },
+      {
+        "check": "notices",
+        "command": ["node", "scripts/third-party-notices.mjs"],
+        "exit": 0
+      },
+      {
+        "check": "vsix",
+        "command": ["node", "scripts/package-vsix.mjs"],
+        "exit": 1
+      },
+      {
+        "check": "acp-package",
+        "command": ["node", "scripts/package-acp.mjs"],
+        "exit": 0
+      },
+      {
+        "check": "measure",
+        "command": ["node", "temp/train15c/measure.mjs", "merge5"],
+        "exit": 0
+      },
+      {
+        "check": "native-validator-drill",
+        "command": [
+          "node",
+          "test/packaging/moduleExports.test.mjs",
+          "acp",
+          "dist/muse-spark-code-acp-0.14.1.tgz"
+        ],
+        "exit": 1
+      },
+      {
+        "check": "native-restored",
+        "command": [
+          "node",
+          "test/packaging/moduleExports.test.mjs",
+          "acp",
+          "dist/muse-spark-code-acp-0.14.1.tgz"
+        ],
+        "exit": 0
+      }
+    ],
+    "drills": [
+      {
+        "name": "drill-paid-budget",
+        "file": "scripts/lib/webviewBundles.mjs",
+        "tests": ["test/unit/bundleSize.test.mjs", "test/unit/webviewBundles.test.mjs"],
+        "exit": 1,
+        "sha256Before": "74bcb6973955f642f2096b49c9ef5b2f16c245b62a83dca0cac18df795406046",
+        "sha256After": "74bcb6973955f642f2096b49c9ef5b2f16c245b62a83dca0cac18df795406046"
+      },
+      {
+        "name": "drill-paid-static-import",
+        "file": "src/webview/components/UsageDialog.tsx",
+        "tests": ["test/unit/webviewBundle.test.mjs"],
+        "exit": 1,
+        "sha256Before": "2085339a663a488f209cb440a40e805d6becebf38bb7de2837e31b821f988902",
+        "sha256After": "2085339a663a488f209cb440a40e805d6becebf38bb7de2837e31b821f988902"
+      },
+      {
+        "name": "drill-boundary-exports",
+        "file": "src/shared/modelApiBoundariesEntry.ts",
+        "tests": ["test/unit/deferredBundles.test.ts"],
+        "exit": 1,
+        "sha256Before": "11114774fb6f8217362577f0dab0648ee0726202df0e6ded9de12a623864b015",
+        "sha256After": "11114774fb6f8217362577f0dab0648ee0726202df0e6ded9de12a623864b015"
+      },
+      {
+        "name": "drill-native-durable-confirmation",
+        "file": "src/host/team/processLifetime.ts",
+        "tests": ["test/unit/teamNativeLifetime.test.ts"],
+        "exit": 1,
+        "sha256Before": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409",
+        "sha256After": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409"
+      },
+      {
+        "name": "native-negative-input-validator",
+        "file": "dist/modelApiBoundaries.js",
+        "exit": 1,
+        "sha256Before": "e514a51ff64768e7e28edc42d3b1043d8b9a6303cc176b1db7495c20c83c1c1e",
+        "sha256After": "e514a51ff64768e7e28edc42d3b1043d8b9a6303cc176b1db7495c20c83c1c1e",
+        "tests": ["test/packaging/moduleExports.test.mjs"],
+        "command": [
+          "node",
+          "test/packaging/moduleExports.test.mjs",
+          "acp",
+          "dist/muse-spark-code-acp-0.14.1.tgz"
+        ]
+      },
+      {
+        "name": "drill-native-save-after-resume",
+        "file": "src/host/team/processLifetime.ts",
+        "tests": ["test/unit/teamNativeLifetime.test.ts"],
+        "exit": 1,
+        "sha256Before": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409",
+        "sha256After": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409"
+      },
+      {
+        "name": "native-team-off",
+        "file": "dist/modelApiBoundaries.js",
+        "exit": 1,
+        "sha256Before": "e514a51ff64768e7e28edc42d3b1043d8b9a6303cc176b1db7495c20c83c1c1e",
+        "sha256After": "e514a51ff64768e7e28edc42d3b1043d8b9a6303cc176b1db7495c20c83c1c1e",
+        "tests": ["test/packaging/moduleExports.test.mjs"],
+        "command": [
+          "node",
+          "test/packaging/moduleExports.test.mjs",
+          "acp",
+          "dist/muse-spark-code-acp-0.14.1.tgz"
+        ]
+      },
+      {
+        "name": "native-refusal-detail",
+        "file": "dist/modelApiBoundaries.js",
+        "exit": 1,
+        "sha256Before": "e514a51ff64768e7e28edc42d3b1043d8b9a6303cc176b1db7495c20c83c1c1e",
+        "sha256After": "e514a51ff64768e7e28edc42d3b1043d8b9a6303cc176b1db7495c20c83c1c1e",
+        "tests": ["test/packaging/moduleExports.test.mjs"],
+        "command": [
+          "node",
+          "test/packaging/moduleExports.test.mjs",
+          "acp",
+          "dist/muse-spark-code-acp-0.14.1.tgz"
+        ]
+      }
+    ],
+    "universalVsixLargest20EntryDeltas": [
+      {
+        "path": "extension/l10n/ui.tables.json.br",
+        "before": {
+          "bytes": 480143,
+          "compressed": 480293
+        },
+        "after": {
+          "bytes": 566358,
+          "compressed": 566533
+        },
+        "compressedDelta": 86240,
+        "rawDelta": 86215
+      },
+      {
+        "path": "extension/dist/webview/chunks/PHVUTGO7.js",
+        "before": {
+          "bytes": 0,
+          "compressed": 0
+        },
+        "after": {
+          "bytes": 121015,
+          "compressed": 84429
+        },
+        "compressedDelta": 84429,
+        "rawDelta": 121015
+      },
+      {
+        "path": "extension/dist/webview/chunks/3ISLD6ID.js",
+        "before": {
+          "bytes": 0,
+          "compressed": 0
+        },
+        "after": {
+          "bytes": 218103,
+          "compressed": 68201
+        },
+        "compressedDelta": 68201,
+        "rawDelta": 218103
+      },
+      {
+        "path": "extension/dist/webview/chunks/ZL4WWECT.js",
+        "before": {
+          "bytes": 0,
+          "compressed": 0
+        },
+        "after": {
+          "bytes": 163363,
+          "compressed": 50333
+        },
+        "compressedDelta": 50333,
+        "rawDelta": 163363
+      },
+      {
+        "path": "extension/dist/runtime.bundles.json.br",
+        "before": {
+          "bytes": 510295,
+          "compressed": 510450
+        },
+        "after": {
+          "bytes": 550903,
+          "compressed": 551073
+        },
+        "compressedDelta": 40623,
+        "rawDelta": 40608
+      },
+      {
+        "path": "extension/dist/webview/chunks/IKQKJ2OV.js",
+        "before": {
+          "bytes": 0,
+          "compressed": 0
+        },
+        "after": {
+          "bytes": 90229,
+          "compressed": 30567
+        },
+        "compressedDelta": 30567,
+        "rawDelta": 90229
+      },
+      {
+        "path": "extension/dist/webview/chunks/BWZLEBP7.js",
+        "before": {
+          "bytes": 0,
+          "compressed": 0
+        },
+        "after": {
+          "bytes": 79252,
+          "compressed": 23552
+        },
+        "compressedDelta": 23552,
+        "rawDelta": 79252
+      },
+      {
+        "path": "extension/dist/webview/chunks/RNIUQKHL.js",
+        "before": {
+          "bytes": 0,
+          "compressed": 0
+        },
+        "after": {
+          "bytes": 34236,
+          "compressed": 10203
+        },
+        "compressedDelta": 10203,
+        "rawDelta": 34236
+      },
+      {
+        "path": "extension/changelog.md",
+        "before": {
+          "bytes": 42684,
+          "compressed": 17124
+        },
+        "after": {
+          "bytes": 67255,
+          "compressed": 25280
+        },
+        "compressedDelta": 8156,
+        "rawDelta": 24571
+      },
+      {
+        "path": "extension/dist/uiText.js",
+        "before": {
+          "bytes": 51144,
+          "compressed": 38024
+        },
+        "after": {
+          "bytes": 61488,
+          "compressed": 45875
+        },
+        "compressedDelta": 7851,
+        "rawDelta": 10344
+      },
+      {
+        "path": "extension/native/runner/runner-helper.ps1",
+        "before": {
+          "bytes": 0,
+          "compressed": 0
+        },
+        "after": {
+          "bytes": 20596,
+          "compressed": 5308
+        },
+        "compressedDelta": 5308,
+        "rawDelta": 20596
+      },
+      {
+        "path": "extension/dist/webview/chunks/E3XPO2PV.js",
+        "before": {
+          "bytes": 0,
+          "compressed": 0
+        },
+        "after": {
+          "bytes": 16132,
+          "compressed": 4427
+        },
+        "compressedDelta": 4427,
+        "rawDelta": 16132
+      },
+      {
+        "path": "extension/dist/webview/models.js",
+        "before": {
+          "bytes": 43239,
+          "compressed": 10567
+        },
+        "after": {
+          "bytes": 54745,
+          "compressed": 14736
+        },
+        "compressedDelta": 4169,
+        "rawDelta": 11506
+      },
+      {
+        "path": "extension/dist/webview/chunks/MC3R775Q.js",
+        "before": {
+          "bytes": 0,
+          "compressed": 0
+        },
+        "after": {
+          "bytes": 8806,
+          "compressed": 2850
+        },
+        "compressedDelta": 2850,
+        "rawDelta": 8806
+      },
+      {
+        "path": "extension/dist/webview/chunks/RBVPEQPO.js",
+        "before": {
+          "bytes": 0,
+          "compressed": 0
+        },
+        "after": {
+          "bytes": 8792,
+          "compressed": 2750
+        },
+        "compressedDelta": 2750,
+        "rawDelta": 8792
+      },
+      {
+        "path": "extension/native/windows/MuseSparkJob.cs",
+        "before": {
+          "bytes": 2388,
+          "compressed": 938
+        },
+        "after": {
+          "bytes": 10987,
+          "compressed": 3627
+        },
+        "compressedDelta": 2689,
+        "rawDelta": 8599
+      },
+      {
+        "path": "extension/dist/webview/chunks/LIDNB3P3.js",
+        "before": {
+          "bytes": 0,
+          "compressed": 0
+        },
+        "after": {
+          "bytes": 8942,
+          "compressed": 2658
+        },
+        "compressedDelta": 2658,
+        "rawDelta": 8942
+      },
+      {
+        "path": "extension/native/runner/runner-helper.sh",
+        "before": {
+          "bytes": 0,
+          "compressed": 0
+        },
+        "after": {
+          "bytes": 6476,
+          "compressed": 2376
+        },
+        "compressedDelta": 2376,
+        "rawDelta": 6476
+      },
+      {
+        "path": "extension/dist/webview/chunks/3BKV34PK.js",
+        "before": {
+          "bytes": 0,
+          "compressed": 0
+        },
+        "after": {
+          "bytes": 9000,
+          "compressed": 2311
+        },
+        "compressedDelta": 2311,
+        "rawDelta": 9000
+      },
+      {
+        "path": "extension/dist/webview/chunks/W4T4P7WR.js",
+        "before": {
+          "bytes": 0,
+          "compressed": 0
+        },
+        "after": {
+          "bytes": 4961,
+          "compressed": 2133
+        },
+        "compressedDelta": 2133,
+        "rawDelta": 4961
+      }
+    ],
+    "credentialsRead": false,
+    "liveOrPaidModelAttempts": 0,
+    "installs": [],
+    "capsRaised": false,
+    "hooksChanged": false,
+    "pushOrRebase": false,
+    "reviewCheckpoint": "45c3439bd3bb16088fb5749ec81b3ff3341957a8"
+  }
+}

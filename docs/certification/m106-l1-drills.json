@@ -1,0 +1,352 @@
+[
+  {
+    "drill": "preview-bounds",
+    "file": "src/core/backends/modelapi/argumentPreview.ts",
+    "test": "test/unit/argumentPreview.test.ts",
+    "expectedFailure": "bounds accumulated and final previews",
+    "exit": 1,
+    "failures": [
+      "\u00d7 bounds accumulated and final previews without clipping a credential into visible bytes 72ms",
+      "FAIL  test/unit/argumentPreview.test.ts > display-only argument prefixes > bounds accumulated and final previews without clipping a credential into visible bytes"
+    ],
+    "sha256Before": "56d22b64036ac7f40303bfc848d28dbe46d9701997e7b9cc2ab858677f713ac3",
+    "sha256After": "56d22b64036ac7f40303bfc848d28dbe46d9701997e7b9cc2ab858677f713ac3"
+  },
+  {
+    "drill": "done-authority",
+    "file": "src/core/backends/modelapi/argumentPreview.ts",
+    "test": "test/unit/argumentPreview.test.ts",
+    "expectedFailure": "uses done arguments authoritatively",
+    "exit": 1,
+    "failures": [
+      "\u00d7 streams complete content lines while withholding the unfinished line 11ms",
+      "\u00d7 decodes escaped Unicode before scrubbing and holds a split bearer introducer 2ms",
+      "\u00d7 scrubs multiline named credentials before decoding their JSON escapes 1ms",
+      "\u00d7 uses done arguments authoritatively and ignores later deltas 4ms",
+      "\u00d7 holds incomplete escapes and refuses malformed strings without throwing 1ms",
+      "FAIL  test/unit/argumentPreview.test.ts > display-only argument prefixes > streams complete content lines while withholding the unfinished line",
+      "FAIL  test/unit/argumentPreview.test.ts > display-only argument prefixes > decodes escaped Unicode before scrubbing and holds a split bearer introducer",
+      "FAIL  test/unit/argumentPreview.test.ts > display-only argument prefixes > scrubs multiline named credentials before decoding their JSON escapes",
+      "FAIL  test/unit/argumentPreview.test.ts > display-only argument prefixes > uses done arguments authoritatively and ignores later deltas",
+      "FAIL  test/unit/argumentPreview.test.ts > display-only argument prefixes > holds incomplete escapes and refuses malformed strings without throwing"
+    ],
+    "sha256Before": "56d22b64036ac7f40303bfc848d28dbe46d9701997e7b9cc2ab858677f713ac3",
+    "sha256After": "56d22b64036ac7f40303bfc848d28dbe46d9701997e7b9cc2ab858677f713ac3"
+  },
+  {
+    "drill": "ignore-late-deltas",
+    "file": "src/core/backends/modelapi/argumentPreview.ts",
+    "test": "test/unit/argumentPreview.test.ts",
+    "expectedFailure": "uses done arguments authoritatively",
+    "exit": 1,
+    "failures": [
+      "\u00d7 uses done arguments authoritatively and ignores later deltas 10ms",
+      "FAIL  test/unit/argumentPreview.test.ts > display-only argument prefixes > uses done arguments authoritatively and ignores later deltas"
+    ],
+    "sha256Before": "56d22b64036ac7f40303bfc848d28dbe46d9701997e7b9cc2ab858677f713ac3",
+    "sha256After": "56d22b64036ac7f40303bfc848d28dbe46d9701997e7b9cc2ab858677f713ac3"
+  },
+  {
+    "drill": "scrub-before-decode",
+    "file": "src/core/backends/modelapi/argumentPreview.ts",
+    "test": "test/unit/argumentPreview.test.ts",
+    "expectedFailure": "scrubs multiline named credentials",
+    "exit": 1,
+    "failures": [
+      "\u00d7 scrubs multiline named credentials before decoding their JSON escapes 8ms",
+      "FAIL  test/unit/argumentPreview.test.ts > display-only argument prefixes > scrubs multiline named credentials before decoding their JSON escapes"
+    ],
+    "sha256Before": "56d22b64036ac7f40303bfc848d28dbe46d9701997e7b9cc2ab858677f713ac3",
+    "sha256After": "56d22b64036ac7f40303bfc848d28dbe46d9701997e7b9cc2ab858677f713ac3"
+  },
+  {
+    "drill": "scrub-after-decode",
+    "file": "src/core/backends/modelapi/argumentPreview.ts",
+    "test": "test/unit/argumentPreview.test.ts",
+    "expectedFailure": "decodes escaped Unicode before scrubbing",
+    "exit": 1,
+    "failures": [
+      "\u00d7 decodes escaped Unicode before scrubbing and holds a split bearer introducer 11ms",
+      "FAIL  test/unit/argumentPreview.test.ts > display-only argument prefixes > decodes escaped Unicode before scrubbing and holds a split bearer introducer"
+    ],
+    "sha256Before": "56d22b64036ac7f40303bfc848d28dbe46d9701997e7b9cc2ab858677f713ac3",
+    "sha256After": "56d22b64036ac7f40303bfc848d28dbe46d9701997e7b9cc2ab858677f713ac3"
+  },
+  {
+    "drill": "withhold-split-tokens",
+    "file": "src/core/backends/modelapi/argumentPreview.ts",
+    "test": "test/unit/argumentPreview.test.ts",
+    "expectedFailure": "scrubs credentials split at every character",
+    "exit": 1,
+    "failures": [
+      "\u00d7 streams complete content lines while withholding the unfinished line 11ms",
+      "\u00d7 scrubs credentials split at every character before emitting any preview 4ms",
+      "\u00d7 decodes escaped Unicode before scrubbing and holds a split bearer introducer 1ms",
+      "\u00d7 bounds accumulated and final previews without clipping a credential into visible bytes 29ms",
+      "\u00d7 holds incomplete escapes and refuses malformed strings without throwing 1ms",
+      "FAIL  test/unit/argumentPreview.test.ts > display-only argument prefixes > streams complete content lines while withholding the unfinished line",
+      "FAIL  test/unit/argumentPreview.test.ts > display-only argument prefixes > scrubs credentials split at every character before emitting any preview",
+      "FAIL  test/unit/argumentPreview.test.ts > display-only argument prefixes > decodes escaped Unicode before scrubbing and holds a split bearer introducer",
+      "FAIL  test/unit/argumentPreview.test.ts > display-only argument prefixes > bounds accumulated and final previews without clipping a credential into visible bytes",
+      "FAIL  test/unit/argumentPreview.test.ts > display-only argument prefixes > holds incomplete escapes and refuses malformed strings without throwing"
+    ],
+    "sha256Before": "56d22b64036ac7f40303bfc848d28dbe46d9701997e7b9cc2ab858677f713ac3",
+    "sha256After": "56d22b64036ac7f40303bfc848d28dbe46d9701997e7b9cc2ab858677f713ac3"
+  },
+  {
+    "drill": "invalid-strings",
+    "file": "src/core/backends/modelapi/argumentPreview.ts",
+    "test": "test/unit/argumentPreview.test.ts",
+    "expectedFailure": "holds incomplete escapes",
+    "exit": 1,
+    "failures": [
+      "\u00d7 holds incomplete escapes and refuses malformed strings without throwing 8ms",
+      "FAIL  test/unit/argumentPreview.test.ts > display-only argument prefixes > holds incomplete escapes and refuses malformed strings without throwing"
+    ],
+    "sha256Before": "56d22b64036ac7f40303bfc848d28dbe46d9701997e7b9cc2ab858677f713ac3",
+    "sha256After": "56d22b64036ac7f40303bfc848d28dbe46d9701997e7b9cc2ab858677f713ac3"
+  },
+  {
+    "drill": "preview-event-no-args",
+    "file": "src/shared/agentEvents.ts",
+    "test": "test/unit/argumentPreview.test.ts",
+    "expectedFailure": "validates preview events independently",
+    "exit": 1,
+    "failures": [
+      "\u00d7 validates preview events independently of executable arguments at the shared boundary 11ms",
+      "FAIL  test/unit/argumentPreview.test.ts > display-only argument prefixes > validates preview events independently of executable arguments at the shared boundary"
+    ],
+    "sha256Before": "5993d3a7811975a5c93cbf8fe2b4098c42efebc2ab4f92f5e6863dc718164d28",
+    "sha256After": "5993d3a7811975a5c93cbf8fe2b4098c42efebc2ab4f92f5e6863dc718164d28"
+  },
+  {
+    "drill": "preview-event-bound",
+    "file": "src/shared/agentEvents.ts",
+    "test": "test/unit/argumentPreview.test.ts",
+    "expectedFailure": "validates preview events independently",
+    "exit": 1,
+    "failures": [
+      "\u00d7 validates preview events independently of executable arguments at the shared boundary 11ms",
+      "FAIL  test/unit/argumentPreview.test.ts > display-only argument prefixes > validates preview events independently of executable arguments at the shared boundary"
+    ],
+    "sha256Before": "5993d3a7811975a5c93cbf8fe2b4098c42efebc2ab4f92f5e6863dc718164d28",
+    "sha256After": "5993d3a7811975a5c93cbf8fe2b4098c42efebc2ab4f92f5e6863dc718164d28"
+  },
+  {
+    "drill": "selected-capability",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiArgumentPreview.test.ts",
+    "expectedFailure": "keeps previews off when the selected record",
+    "exit": 1,
+    "failures": [
+      "\u00d7 keeps previews off when the selected record says no 15ms",
+      "\u00d7 keeps previews off when the selected record says unknown 5ms",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > keeps previews off when the selected record says no",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > keeps previews off when the selected record says unknown"
+    ],
+    "sha256Before": "86c3bfd3ab8f13bb8ae7ca7e6358ee504c201c04fbd0bdc5d94c311caf749709",
+    "sha256After": "86c3bfd3ab8f13bb8ae7ca7e6358ee504c201c04fbd0bdc5d94c311caf749709"
+  },
+  {
+    "drill": "execute-on-delta",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiArgumentPreview.test.ts",
+    "expectedFailure": "never executes, asks or calls a tool hook on a delta",
+    "exit": 1,
+    "failures": [
+      "\u00d7 never executes, asks or calls a tool hook on a delta, then reuses the row after done 41ms",
+      "\u00d7 keeps on/off request bytes identical and sends no preview fields into replay 16ms",
+      "\u00d7 waits for a complete response even after arguments.done and deduplicates identical previews 7ms",
+      "\u00d7 stops resending an unchanged bounded prefix while consuming the rest of the stream 15ms",
+      "\u00d7 settles failure calls as interrupted without executing 4ms",
+      "\u00d7 settles omitted calls as interrupted without executing 3ms",
+      "\u00d7 refuses a stream that reuses a preview item id for a message 3ms",
+      "\u00d7 settles a stopped preview without running a tool or leaving a pending row 5ms",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > never executes, asks or calls a tool hook on a delta, then reuses the row after done",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > keeps on/off request bytes identical and sends no preview fields into replay",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > waits for a complete response even after arguments.done and deduplicates identical previews",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > stops resending an unchanged bounded prefix while consuming the rest of the stream",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > settles failure calls as interrupted without executing",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > settles omitted calls as interrupted without executing",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > refuses a stream that reuses a preview item id for a message",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > settles a stopped preview without running a tool or leaving a pending row"
+    ],
+    "sha256Before": "86c3bfd3ab8f13bb8ae7ca7e6358ee504c201c04fbd0bdc5d94c311caf749709",
+    "sha256After": "86c3bfd3ab8f13bb8ae7ca7e6358ee504c201c04fbd0bdc5d94c311caf749709"
+  },
+  {
+    "drill": "row-identity",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiArgumentPreview.test.ts",
+    "expectedFailure": "never executes, asks or calls a tool hook on a delta",
+    "exit": 1,
+    "failures": [
+      "\u00d7 never executes, asks or calls a tool hook on a delta, then reuses the row after done 64ms",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > never executes, asks or calls a tool hook on a delta, then reuses the row after done"
+    ],
+    "sha256Before": "86c3bfd3ab8f13bb8ae7ca7e6358ee504c201c04fbd0bdc5d94c311caf749709",
+    "sha256After": "86c3bfd3ab8f13bb8ae7ca7e6358ee504c201c04fbd0bdc5d94c311caf749709"
+  },
+  {
+    "drill": "preview-interruption",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiArgumentPreview.test.ts",
+    "expectedFailure": "settles a stopped preview",
+    "exit": 1,
+    "failures": [
+      "\u00d7 settles failure calls as interrupted without executing 10ms",
+      "\u00d7 settles omitted calls as interrupted without executing 3ms",
+      "\u00d7 settles a stopped preview without running a tool or leaving a pending row 6ms",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > settles failure calls as interrupted without executing",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > settles omitted calls as interrupted without executing",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > settles a stopped preview without running a tool or leaving a pending row"
+    ],
+    "sha256Before": "86c3bfd3ab8f13bb8ae7ca7e6358ee504c201c04fbd0bdc5d94c311caf749709",
+    "sha256After": "86c3bfd3ab8f13bb8ae7ca7e6358ee504c201c04fbd0bdc5d94c311caf749709"
+  },
+  {
+    "drill": "preview-deduplication",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiArgumentPreview.test.ts",
+    "expectedFailure": "stops resending an unchanged bounded prefix",
+    "exit": 1,
+    "failures": [
+      "\u00d7 waits for a complete response even after arguments.done and deduplicates identical previews 12ms",
+      "\u00d7 stops resending an unchanged bounded prefix while consuming the rest of the stream 10ms",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > waits for a complete response even after arguments.done and deduplicates identical previews",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > stops resending an unchanged bounded prefix while consuming the rest of the stream"
+    ],
+    "sha256Before": "86c3bfd3ab8f13bb8ae7ca7e6358ee504c201c04fbd0bdc5d94c311caf749709",
+    "sha256After": "86c3bfd3ab8f13bb8ae7ca7e6358ee504c201c04fbd0bdc5d94c311caf749709"
+  },
+  {
+    "drill": "preview-tool-name",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiArgumentPreview.test.ts",
+    "expectedFailure": "scrubs a provider-authored tool name",
+    "exit": 1,
+    "failures": [
+      "\u00d7 scrubs a provider-authored tool name before displaying its preview row 10ms",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > scrubs a provider-authored tool name before displaying its preview row"
+    ],
+    "sha256Before": "86c3bfd3ab8f13bb8ae7ca7e6358ee504c201c04fbd0bdc5d94c311caf749709",
+    "sha256After": "86c3bfd3ab8f13bb8ae7ca7e6358ee504c201c04fbd0bdc5d94c311caf749709"
+  },
+  {
+    "drill": "captured-phase-replay",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiArgumentPreview.test.ts",
+    "expectedFailure": "resends U13 commentary and absent phases exactly",
+    "exit": 1,
+    "failures": [
+      "\u00d7 resends U13 commentary and absent phases exactly without inventing a final-answer phase 14ms",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > resends U13 commentary and absent phases exactly without inventing a final-answer phase"
+    ],
+    "sha256Before": "86c3bfd3ab8f13bb8ae7ca7e6358ee504c201c04fbd0bdc5d94c311caf749709",
+    "sha256After": "86c3bfd3ab8f13bb8ae7ca7e6358ee504c201c04fbd0bdc5d94c311caf749709"
+  },
+  {
+    "drill": "escaped-rendering",
+    "file": "src/webview/components/ToolArgumentPreview.tsx",
+    "test": "test/unit/toolArgumentPreview.test.tsx",
+    "expectedFailure": "renders escaped text",
+    "exit": 1,
+    "failures": [
+      "\u00d7 renders escaped text with its label, waiting status and truncation marker 1048ms",
+      "FAIL  test/unit/toolArgumentPreview.test.tsx > argument preview across editor surfaces > renders escaped text with its label, waiting status and truncation marker"
+    ],
+    "sha256Before": "5e52052c4ff2f857c7776dae36d00001d6f663d25938591a5873d5610c819747",
+    "sha256After": "5e52052c4ff2f857c7776dae36d00001d6f663d25938591a5873d5610c819747"
+  },
+  {
+    "drill": "runtime-language",
+    "file": "src/webview/components/ToolRow.tsx",
+    "test": "test/unit/toolArgumentPreview.test.tsx",
+    "expectedFailure": "uses installed translations at render time",
+    "exit": 1,
+    "failures": [
+      "\u00d7 uses installed translations at render time 86ms",
+      "FAIL  test/unit/toolArgumentPreview.test.tsx > argument preview across editor surfaces > uses installed translations at render time"
+    ],
+    "sha256Before": "c0d594e9fd39bd9de473d77d0f2e8964d8ef23dead6b5020fc95595499634227",
+    "sha256After": "c0d594e9fd39bd9de473d77d0f2e8964d8ef23dead6b5020fc95595499634227"
+  },
+  {
+    "drill": "preview-clears-on-call",
+    "file": "src/webview/state/uiState.ts",
+    "test": "test/unit/toolArgumentPreview.test.tsx",
+    "expectedFailure": "replaces a preview in one tool row",
+    "exit": 1,
+    "failures": [
+      "\u00d7 replaces a preview in one tool row and clears it when executable arguments arrive 59ms",
+      "FAIL  test/unit/toolArgumentPreview.test.tsx > argument preview across editor surfaces > replaces a preview in one tool row and clears it when executable arguments arrive"
+    ],
+    "sha256Before": "77d7d06f7307f18118ad79afa60c4205c813d1be592e1f100181e4dc7c80c1e7",
+    "sha256After": "77d7d06f7307f18118ad79afa60c4205c813d1be592e1f100181e4dc7c80c1e7"
+  },
+  {
+    "drill": "acp-preview-delivery",
+    "file": "src/acp/translate.ts",
+    "test": "test/unit/toolArgumentPreview.test.tsx",
+    "expectedFailure": "sends the same labeled preview through ACP",
+    "exit": 1,
+    "failures": [
+      "\u00d7 sends the same labeled preview through ACP, pending until the real call begins 11ms",
+      "FAIL  test/unit/toolArgumentPreview.test.tsx > argument preview across editor surfaces > sends the same labeled preview through ACP, pending until the real call begins"
+    ],
+    "sha256Before": "a9a987eca1382a8431043f50c2b5fb102374766197134068b5f84d6ca2b3402f",
+    "sha256After": "a9a987eca1382a8431043f50c2b5fb102374766197134068b5f84d6ca2b3402f"
+  },
+  {
+    "drill": "acp-promotion-clears-preview",
+    "file": "src/acp/translate.ts",
+    "test": "test/unit/toolArgumentPreview.test.tsx",
+    "expectedFailure": "sends the same labeled preview through ACP",
+    "exit": 1,
+    "failures": [
+      "\u00d7 sends the same labeled preview through ACP, pending until the real call begins 15ms",
+      "FAIL  test/unit/toolArgumentPreview.test.tsx > argument preview across editor surfaces > sends the same labeled preview through ACP, pending until the real call begins"
+    ],
+    "sha256Before": "a9a987eca1382a8431043f50c2b5fb102374766197134068b5f84d6ca2b3402f",
+    "sha256After": "a9a987eca1382a8431043f50c2b5fb102374766197134068b5f84d6ca2b3402f"
+  },
+  {
+    "drill": "preview-replay-isolation",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiArgumentPreview.test.ts",
+    "expectedFailure": "keeps on/off request bytes identical",
+    "exit": 1,
+    "failures": [
+      "\u00d7 keeps on/off request bytes identical and sends no preview fields into replay 20ms",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > keeps on/off request bytes identical and sends no preview fields into replay"
+    ],
+    "sha256Before": "86c3bfd3ab8f13bb8ae7ca7e6358ee504c201c04fbd0bdc5d94c311caf749709",
+    "sha256After": "86c3bfd3ab8f13bb8ae7ca7e6358ee504c201c04fbd0bdc5d94c311caf749709"
+  },
+  {
+    "drill": "msp-wire-isolation",
+    "file": "src/shared/agentEvents.ts",
+    "test": "test/unit/argumentPreview.test.ts",
+    "expectedFailure": "keeps extension previews out of the Muse Code wire schema",
+    "exit": 1,
+    "failures": [
+      "\u00d7 keeps extension previews out of the Muse Code wire schema 9ms",
+      "FAIL  test/unit/argumentPreview.test.ts > display-only argument prefixes > keeps extension previews out of the Muse Code wire schema"
+    ],
+    "sha256Before": "5993d3a7811975a5c93cbf8fe2b4098c42efebc2ab4f92f5e6863dc718164d28",
+    "sha256After": "5993d3a7811975a5c93cbf8fe2b4098c42efebc2ab4f92f5e6863dc718164d28"
+  },
+  {
+    "drill": "preview-wire-id-collision",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiArgumentPreview.test.ts",
+    "expectedFailure": "refuses a stream that reuses a preview item id for a message",
+    "exit": 1,
+    "failures": [
+      "\u00d7 refuses a stream that reuses a preview item id for a message 66ms",
+      "FAIL  test/unit/modelApiArgumentPreview.test.ts > Model API argument preview admission > refuses a stream that reuses a preview item id for a message"
+    ],
+    "sha256Before": "86c3bfd3ab8f13bb8ae7ca7e6358ee504c201c04fbd0bdc5d94c311caf749709",
+    "sha256After": "86c3bfd3ab8f13bb8ae7ca7e6358ee504c201c04fbd0bdc5d94c311caf749709"
+  }
+]

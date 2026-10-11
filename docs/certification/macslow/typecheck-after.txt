@@ -1,0 +1,23 @@
+
+> muse-spark-code@0.15.0 typecheck:unit
+> node scripts/typecheck-unit.mjs
+
+Unit types: 1864 configured files, 5 sequential projects
+      101.70 real       154.59 user         6.94 sys
+          1688055808  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+             1958950  page reclaims
+                1587  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   2  voluntary context switches
+              193084  involuntary context switches
+           836259383  instructions retired
+           723339104  cycles elapsed
+            22548480  peak memory footprint

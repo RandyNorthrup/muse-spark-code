@@ -1,0 +1,48 @@
+[
+  {
+    "drill": "shard-omission",
+    "source": "scripts/lib/visualManifest.mjs",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > partitions the reviewed matrix exactly once without splitting scene states",
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > requires every shard, exact coverage and environment, and the combined archive budget"
+    ],
+    "restoredSha256": "e93dbc3862a00425de894b1c163b41de44dd02580f19ba8bda11c50519869a1f"
+  },
+  {
+    "drill": "missing-receipt",
+    "source": "scripts/lib/visualManifest.mjs",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > requires every shard, exact coverage and environment, and the combined archive budget"
+    ],
+    "restoredSha256": "e93dbc3862a00425de894b1c163b41de44dd02580f19ba8bda11c50519869a1f"
+  },
+  {
+    "drill": "combined-budget",
+    "source": "scripts/lib/visualManifest.mjs",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > requires every shard, exact coverage and environment, and the combined archive budget"
+    ],
+    "restoredSha256": "e93dbc3862a00425de894b1c163b41de44dd02580f19ba8bda11c50519869a1f"
+  },
+  {
+    "drill": "candidate-binding",
+    "source": "scripts/lib/visualManifest.mjs",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > requires every shard, exact coverage and environment, and the combined archive budget"
+    ],
+    "restoredSha256": "e93dbc3862a00425de894b1c163b41de44dd02580f19ba8bda11c50519869a1f"
+  },
+  {
+    "drill": "ci-shards",
+    "source": ".github/workflows/build.yml",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > requires visual source replay and tokens in both CI tiers and the required aggregate"
+    ],
+    "restoredSha256": "30d3923fc3320644ce85e7a9cca8691f64669eb1fdc3e29d0f135e7032bb92ab"
+  }
+]

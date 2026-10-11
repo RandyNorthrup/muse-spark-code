@@ -12,6 +12,21 @@
 **Reviewed baseline:** manifest version 0.8.0, main commit [`bdaede45417ac8dbcaf5f52aa9b3ff307396ab03`](https://github.com/RandyNorthrup/muse-spark-code/commit/bdaede45417ac8dbcaf5f52aa9b3ff307396ab03)  
 **Status:** Proposed roadmap based on repository inspection and current primary documentation. No additional IDE has been installation-tested or certified during this review.
 
+## Subscription platform boundary (M95b, 2026-10-05)
+
+Copilot models are exposed to this extension through VS Code's Language
+Model API (`vscode.lm`) and its permission flow. An editor without that API
+cannot offer this product's Copilot route. JetBrains, Visual Studio, Eclipse,
+Zed, Xcode, Neovim, Emacs and Sublime keep their own Copilot plugin and can
+use this agent's shared ChatGPT/API-key routes where implemented. The ACP
+runtime uses the same shared engine for those routes. No Copilot token is
+read, extracted or reverse-engineered. Compatible VS Code extension hosts
+need an actual Language Model API implementation, not just the webview API.
+
+Offline integration is recorded in [M95R3 certification](certification/m95-r3.md).
+Installed-editor and live plan receipts remain pending; the rig's stopped
+Copilot dispatch regression must be repaired before claiming support.
+
 ## 1. Recommended direction
 
 Develop Muse Spark Code as one product with a shared agent engine, a reusable React interface, and a small set of integration families:
@@ -250,6 +265,18 @@ Open VSX distribution is central to reaching several compatible editors. Zed's c
 
 ## 11. Connection to the Muse Spark Code companion app
 
+M102's local Usage & cost page uses the shared React usage bundle and the same
+journal/service as VS Code. ACP editors can request `/usage`, run the agent's
+`usage` command, or open its loopback browser companion. Native JCEF, WebView2
+and SWT usage bridges carry the same checked messages. The browser companion
+exchanges a one-use fragment code for a separate memory bearer per window;
+authenticated fetch streams use Authorization headers and no cookies. Reading,
+filtering, exporting and counted history deletion use the shared service.
+Native editor installation receipts remain required before claiming editor
+support. Browser requests to reveal an OS folder, open host settings or open the
+native Models panel currently return an explicit unsupported result; those host
+navigation adapters are still outstanding in the integration certification.
+
 The same shared UI and application contracts can support the planned phone companion. Keep media capture as an optional host capability: phone camera, desktop microphone, or a future glasses source. Route captured assets to a specifically paired workspace/session.
 
 The reviewed backend turn contract accepts text, images, and skills; it does not establish universal video-input support. Future video/live capture therefore needs its own backend capability and processing plan. ACP's documented media content does not define a universal camera button or live-glasses interface in every editor. [Current turn contract](https://github.com/RandyNorthrup/muse-spark-code/blob/main/src/core/agent/agentBackend.ts), [ACP content types](https://agentclientprotocol.com/protocol/v1/content)
@@ -270,3 +297,8 @@ For remote development, capture happens on the user's device while execution occ
 10. Build the IntelliJ/Android Studio and Visual Studio native hosts using the shared React bundle.
 
 The next engineering milestone should deliver a portable runtime/contract foundation plus a small number of verified hosts. The broader matrix defines the expansion path, and each support claim follows measured behavior in the relevant editor.
+
+M118's shared sharing core and React/ACP/CLI bindings are integrated; native
+menus and the companion page still wait on M104, and TUI mounting waits on
+M110a0 lane T. Exact pending envelopes/DTOs and each editor's availability are
+listed in [the host record](ide-compatibility/hosts.md#m118-sharing-integration-2026-10-06).

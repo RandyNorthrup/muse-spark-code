@@ -1,0 +1,966 @@
+[
+  {
+    "name": "single-model golden gate",
+    "path": "src/core/team/singleModel.ts",
+    "tests": ["test/unit/modelApiGoldenRequests.test.ts", "test/unit/teamSingleModel.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M96 conversation boundaries > keeps golden continuation when an entry becomes ready mid-turn, and enables the next conversation",
+      "test/unit/teamSingleModel.test.ts > decideTeamConversationMode > stays single-model on the Solo template",
+      "test/unit/teamSingleModel.test.ts > decideTeamConversationMode > stays single-model with nothing configured (only Default)",
+      "test/unit/teamSingleModel.test.ts > decideTeamConversationMode > stays single-model on duplicate models, whatever the caps or provider",
+      "test/unit/teamSingleModel.test.ts > decideTeamConversationMode > dedupes through sameModel, not string equality",
+      "test/unit/teamSingleModel.test.ts > decideTeamConversationMode > stays single-model when only key entries exist while teamWorkers is off",
+      "test/unit/teamSingleModel.test.ts > decideTeamConversationMode > stays single-model when every custom entry is unavailable",
+      "test/unit/teamSingleModel.test.ts > decideTeamConversationMode > stays single-model when no distinct entry is observably loaded",
+      "test/unit/teamSingleModel.test.ts > decideTeamConversationMode > ignores an unknown entry in the probe results"
+    ],
+    "sha256": "f1043110b5ac7b651205d051c80510f0d2be121d433b605de361ea4598a8f447",
+    "restored": true,
+    "mutation": {
+      "from": "  if (!source.teamSwitchOn) {",
+      "to": "  if (source.teamSwitchOn) return { mode: 'team', reason: 'ready' }\n  if (!source.teamSwitchOn) {",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "sameModel dedupe",
+    "path": "src/core/team/singleModel.ts",
+    "tests": ["test/unit/teamSingleModel.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamSingleModel.test.ts > decideTeamConversationMode > dedupes through sameModel, not string equality"
+    ],
+    "sha256": "f1043110b5ac7b651205d051c80510f0d2be121d433b605de361ea4598a8f447",
+    "restored": true,
+    "mutation": {
+      "from": "!source.isSameModel(entry.modelId, source.orchestratorModelId)",
+      "to": "entry.modelId !== source.orchestratorModelId",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "observably loaded readiness",
+    "path": "src/core/team/singleModel.ts",
+    "tests": ["test/unit/modelApiGoldenRequests.test.ts", "test/unit/teamSingleModel.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M96 conversation boundaries > keeps golden continuation when an entry becomes ready mid-turn, and enables the next conversation",
+      "test/unit/teamSingleModel.test.ts > decideTeamConversationMode > stays single-model when no distinct entry is observably loaded",
+      "test/unit/teamSingleModel.test.ts > decideTeamConversationMode > ignores an unknown entry in the probe results"
+    ],
+    "sha256": "f1043110b5ac7b651205d051c80510f0d2be121d433b605de361ea4598a8f447",
+    "restored": true,
+    "mutation": {
+      "from": "runnable.filter((entry) => source.isEntryReady(entry.entryId))",
+      "to": "runnable",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "availability",
+    "path": "src/core/team/singleModel.ts",
+    "tests": ["test/unit/modelApiGoldenRequests.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a turn with skills and rules loaded"
+    ],
+    "sha256": "f1043110b5ac7b651205d051c80510f0d2be121d433b605de361ea4598a8f447",
+    "restored": true,
+    "mutation": {
+      "from": "entry.isAvailable && (!entry.billsKey || source.teamWorkersOn)",
+      "to": "(!entry.billsKey || source.teamWorkersOn)",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "conversation mode storage validation",
+    "path": "src/core/team/singleModel.ts",
+    "tests": ["test/unit/teamSingleModel.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamSingleModel.test.ts > conversation mode storage > keeps each session decision and treats unknown sessions as single-model"
+    ],
+    "sha256": "f1043110b5ac7b651205d051c80510f0d2be121d433b605de361ea4598a8f447",
+    "restored": true,
+    "mutation": {
+      "from": "return parsed.success ? (parsed.data[sessionId] ?? 'single-model') : 'single-model'",
+      "to": "return 'single-model'",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "rubric reasons required",
+    "path": "src/core/team/teamTools.ts",
+    "tests": ["test/unit/teamTools.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamTools.test.ts > delegate arguments > refuses a task without a reason"
+    ],
+    "sha256": "9eb0c7da9b2c05442d7b52d651039d6e0935c390d55ec02a1ab0845230d54863",
+    "restored": true,
+    "mutation": {
+      "from": "reason: reasonSchema,",
+      "to": "reason: z.optional(reasonSchema),",
+      "occurrences": 2
+    }
+  },
+  {
+    "name": "brief and command id boundaries",
+    "path": "src/core/team/teamTools.ts",
+    "tests": ["test/unit/teamTools.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamTools.test.ts > concurrent command retries > rejects empty retry ids and oversized briefs before a runner sees them"
+    ],
+    "sha256": "9eb0c7da9b2c05442d7b52d651039d6e0935c390d55ec02a1ab0845230d54863",
+    "restored": true,
+    "mutation": {
+      "from": "z.trim(), z.minLength(1), z.maxLength(TEAM_BRIEF_MAX_CHARS)",
+      "to": "z.trim(), z.minLength(1)",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "empty command id refused",
+    "path": "src/core/team/teamTools.ts",
+    "tests": ["test/unit/teamTools.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamTools.test.ts > concurrent command retries > rejects empty retry ids and oversized briefs before a runner sees them"
+    ],
+    "sha256": "9eb0c7da9b2c05442d7b52d651039d6e0935c390d55ec02a1ab0845230d54863",
+    "restored": true,
+    "mutation": {
+      "from": "command_id: z.optional(z.string().check(z.trim(), z.minLength(1)))",
+      "to": "command_id: z.optional(z.string())",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "workers never merge",
+    "path": "src/core/team/teamTools.ts",
+    "tests": ["test/unit/teamTools.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamTools.test.ts > team tool names > withholds merge from workers, and every tool from a role that never delegates"
+    ],
+    "sha256": "9eb0c7da9b2c05442d7b52d651039d6e0935c390d55ec02a1ab0845230d54863",
+    "restored": true,
+    "mutation": {
+      "from": "['roster', 'delegate', 'collect', 'cancel'] as const",
+      "to": "['roster', 'delegate', 'collect', 'cancel', 'merge'] as const",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "concurrent idempotency",
+    "path": "src/core/team/teamTools.ts",
+    "tests": ["test/unit/teamTools.test.ts", "test/unit/teamMcpServer.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamTools.test.ts > concurrent command retries > shares pending work, rejects changed nested reasons and persists replay"
+    ],
+    "sha256": "9eb0c7da9b2c05442d7b52d651039d6e0935c390d55ec02a1ab0845230d54863",
+    "restored": true,
+    "mutation": {
+      "from": "if (pending !== undefined) {",
+      "to": "if (false && pending !== undefined) {",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "completed command replay",
+    "path": "src/core/team/teamTools.ts",
+    "tests": ["test/unit/teamTools.test.ts", "test/unit/teamDeclaration.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamDeclaration.test.ts > runTeamTool > replays a retried command_id and refuses a reused one",
+      "test/unit/teamTools.test.ts > concurrent command retries > shares pending work, rejects changed nested reasons and persists replay"
+    ],
+    "sha256": "9eb0c7da9b2c05442d7b52d651039d6e0935c390d55ec02a1ab0845230d54863",
+    "restored": true,
+    "mutation": {
+      "from": "if (claim.kind === 'replay') return { output: claim.answer, visibleOutput: '' }",
+      "to": "if (claim.kind === 'replay') return await start()",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "nested task fingerprint",
+    "path": "src/core/team/teamTools.ts",
+    "tests": ["test/unit/teamTools.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamTools.test.ts > concurrent command retries > shares pending work, rejects changed nested reasons and persists replay"
+    ],
+    "sha256": "9eb0c7da9b2c05442d7b52d651039d6e0935c390d55ec02a1ab0845230d54863",
+    "restored": true,
+    "mutation": {
+      "from": ".map(([key, entry]) => [key, sorted(entry)])",
+      "to": ".map(([key, entry]) => [key, entry])",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "bounded collect wait",
+    "path": "src/core/team/teamTools.ts",
+    "tests": [
+      "test/unit/teamTools.test.ts",
+      "test/unit/teamMcpServer.test.ts",
+      "test/unit/teamDeclaration.test.ts"
+    ],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamDeclaration.test.ts > team request stability and authority > passes the caller and cancellation signal to the runner and clamps collect",
+      "test/unit/teamMcpServer.test.ts > team MCP admission > reuses a conversation token and validates arguments before dispatch",
+      "test/unit/teamTools.test.ts > collect wait bound > clamps a longer wait to the backend bound, never refusing"
+    ],
+    "sha256": "9eb0c7da9b2c05442d7b52d651039d6e0935c390d55ec02a1ab0845230d54863",
+    "restored": true,
+    "mutation": {
+      "from": "Math.min(waitSeconds, TEAM_COLLECT_WAIT_MAX_SECONDS)",
+      "to": "waitSeconds",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "team only at conversation boundary",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "tests": ["test/unit/modelApiGoldenRequests.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/modelApiGoldenRequests.test.ts > M96 conversation boundaries > keeps golden continuation when an entry becomes ready mid-turn, and enables the next conversation",
+      "test/unit/modelApiGoldenRequests.test.ts > M96 conversation boundaries > keeps the team declaration and stable roster across resume when readiness changes"
+    ],
+    "sha256": "fdc37656c4ba6cb34107a49db38f8920a9e6dbca25120c7722fb18d9f61f81ab",
+    "restored": true,
+    "mutation": {
+      "from": "if (decided !== undefined) {",
+      "to": "if (false && decided !== undefined) {",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "stored mode at resume",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "tests": ["test/unit/modelApiGoldenRequests.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/modelApiGoldenRequests.test.ts > M96 conversation boundaries > keeps the team declaration and stable roster across resume when readiness changes"
+    ],
+    "sha256": "fdc37656c4ba6cb34107a49db38f8920a9e6dbca25120c7722fb18d9f61f81ab",
+    "restored": true,
+    "mutation": {
+      "from": "this.teamMode = stored.teamMode ?? 'single-model'",
+      "to": "this.teamMode = undefined",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "stable roster prefix",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "tests": ["test/unit/teamDeclaration.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamDeclaration.test.ts > team request stability and authority > keeps instructions fixed, shows current roster in results and sends changes only at the tail"
+    ],
+    "sha256": "fdc37656c4ba6cb34107a49db38f8920a9e6dbca25120c7722fb18d9f61f81ab",
+    "restored": true,
+    "mutation": {
+      "from": "if (this.teamRosterStable !== undefined) {",
+      "to": "if (false && this.teamRosterStable !== undefined) {",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "current roster in answers",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "tests": ["test/unit/teamDeclaration.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamDeclaration.test.ts > team request stability and authority > keeps instructions fixed, shows current roster in results and sends changes only at the tail"
+    ],
+    "sha256": "fdc37656c4ba6cb34107a49db38f8920a9e6dbca25120c7722fb18d9f61f81ab",
+    "restored": true,
+    "mutation": {
+      "from": "const stable = buildStableRosterSection(data.stable)",
+      "to": "const stable = this.teamRosterStable ?? ''",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "state and edit notes at tail",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "tests": ["test/unit/teamDeclaration.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamDeclaration.test.ts > team request stability and authority > keeps instructions fixed, shows current roster in results and sends changes only at the tail"
+    ],
+    "sha256": "fdc37656c4ba6cb34107a49db38f8920a9e6dbca25120c7722fb18d9f61f81ab",
+    "restored": true,
+    "mutation": {
+      "from": "this.appendTeamNotes(turn.turnId)",
+      "to": "void turn.turnId",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "ready-entry refusal at admission",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "tests": ["test/unit/teamDeclaration.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamDeclaration.test.ts > runTeamTool > refuses delegate from the next turn once the last ready entry goes away"
+    ],
+    "sha256": "fdc37656c4ba6cb34107a49db38f8920a9e6dbca25120c7722fb18d9f61f81ab",
+    "restored": true,
+    "mutation": {
+      "from": "now === undefined || decideTeamConversationMode(now).mode !== 'team'",
+      "to": "false",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "dry run never starts",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "tests": ["test/unit/teamDeclaration.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamDeclaration.test.ts > runTeamTool > plans a dry run without starting or spending anything",
+      "test/unit/teamDeclaration.test.ts > team request stability and authority > refuses starting and merging in Plan while a dry run still plans"
+    ],
+    "sha256": "fdc37656c4ba6cb34107a49db38f8920a9e6dbca25120c7722fb18d9f61f81ab",
+    "restored": true,
+    "mutation": {
+      "from": "if (dryRun === true) return await runner.preview(parsed.data, context)",
+      "to": "if (dryRun === true) return await runner.delegate(parsed.data, context)",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "Plan refuses starting and merge",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "tests": ["test/unit/teamDeclaration.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamDeclaration.test.ts > team request stability and authority > refuses starting and merging in Plan while a dry run still plans"
+    ],
+    "sha256": "fdc37656c4ba6cb34107a49db38f8920a9e6dbca25120c7722fb18d9f61f81ab",
+    "restored": true,
+    "mutation": {
+      "from": "this.approvalMode === 'denyUnmatched' &&\n      (name === 'merge'",
+      "to": "false &&\n      (name === 'merge'",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "in-place sole writer",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "tests": ["test/unit/teamDeclaration.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamDeclaration.test.ts > in-place admission > refuses the orchestrator’s writing tools while a worker writes in place"
+    ],
+    "sha256": "fdc37656c4ba6cb34107a49db38f8920a9e6dbca25120c7722fb18d9f61f81ab",
+    "restored": true,
+    "mutation": {
+      "from": "if (this.isSubagent || this.deps.isTeamInPlaceActive?.() !== true) {",
+      "to": "if (true) {",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "reserved team server name",
+    "path": "src/core/backends/modelapi/mcp/servers.ts",
+    "tests": ["test/unit/teamDeclaration.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamDeclaration.test.ts > team server name > refuses a user MCP server named team"
+    ],
+    "sha256": "be7c518a879ebfc70ef94dcc67233a1c65c1f101b9b5a5e72fcaa1e18b941212",
+    "restored": true,
+    "mutation": {
+      "from": "if (mcpServerPart(view.name) === TEAM_MCP_SERVER_NAME) {",
+      "to": "if (false) {",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "MCP bearer identity",
+    "path": "src/host/team/teamMcpServer.ts",
+    "tests": ["test/unit/teamMcpServer.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamMcpServer.test.ts > TeamMcpServer tokens > routes each conversation’s token to its own tasks",
+      "test/unit/teamMcpServer.test.ts > TeamMcpServer tokens > refuses no token, and another window’s token",
+      "test/unit/teamMcpServer.test.ts > team MCP admission > cancels only its conversation even when request ids collide, and revocation cancels the rest"
+    ],
+    "sha256": "10c104cfdd63fbef81d455cf52fe3557c06af47b8b3d522c072ca593e64150ad",
+    "restored": true,
+    "mutation": {
+      "from": "return timingSafeEqual(Buffer.from(presented, 'hex'), Buffer.from(expected, 'hex'))",
+      "to": "return true",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "MCP token revocation",
+    "path": "src/host/team/teamMcpServer.ts",
+    "tests": ["test/unit/teamMcpServer.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamMcpServer.test.ts > TeamMcpServer tokens > refuses a revoked conversation’s token"
+    ],
+    "sha256": "10c104cfdd63fbef81d455cf52fe3557c06af47b8b3d522c072ca593e64150ad",
+    "restored": true,
+    "mutation": {
+      "from": "this.bindings.delete(token)",
+      "to": "void token",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "MCP cancellation isolation",
+    "path": "src/host/team/teamMcpServer.ts",
+    "tests": ["test/unit/teamMcpServer.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamMcpServer.test.ts > team MCP admission > cancels only its conversation even when request ids collide, and revocation cancels the rest"
+    ],
+    "sha256": "10c104cfdd63fbef81d455cf52fe3557c06af47b8b3d522c072ca593e64150ad",
+    "restored": true,
+    "mutation": {
+      "from": "`${found.token}:${id}`",
+      "to": "`${id}`",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "MCP stable endpoint",
+    "path": "src/host/team/teamMcpServer.ts",
+    "tests": ["test/unit/teamMcpServer.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamMcpServer.test.ts > team MCP admission > reuses a conversation token and validates arguments before dispatch"
+    ],
+    "sha256": "10c104cfdd63fbef81d455cf52fe3557c06af47b8b3d522c072ca593e64150ad",
+    "restored": true,
+    "mutation": {
+      "from": "if (existing !== undefined) return existing",
+      "to": "if (false && existing !== undefined) return existing",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "MCP arguments before dispatch",
+    "path": "src/host/team/teamMcpServer.ts",
+    "tests": ["test/unit/teamMcpServer.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamMcpServer.test.ts > team MCP admission > reuses a conversation token and validates arguments before dispatch"
+    ],
+    "sha256": "10c104cfdd63fbef81d455cf52fe3557c06af47b8b3d522c072ca593e64150ad",
+    "restored": true,
+    "mutation": {
+      "from": "if (!parsed.ok) throw new Error(parsed.reason)",
+      "to": "if (!parsed.ok) return await binding.run(tool.name, {}, signal)",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "orchestrator reset",
+    "path": "src/core/team/orchestratorSlot.ts",
+    "tests": ["test/unit/teamOrchestratorSlot.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamOrchestratorSlot.test.ts > resetOrchestratorSlot > clears the stored override, so the picker decides again"
+    ],
+    "sha256": "68e9806779e857ed887493212896ceb5add2859e1a9a3ba0011bc753bcefc315",
+    "restored": true,
+    "mutation": {
+      "from": "await state.update(OVERRIDE_KEY, undefined)",
+      "to": "void state",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "Default follows picker live",
+    "path": "src/core/team/orchestratorSlot.ts",
+    "tests": ["test/unit/teamOrchestratorSlot.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamOrchestratorSlot.test.ts > resolveDefaultModel > follows the picker live: a change applies to the next delegation",
+      "test/unit/teamOrchestratorSlot.test.ts > resolveDefaultModel > follows the override while one is set"
+    ],
+    "sha256": "68e9806779e857ed887493212896ceb5add2859e1a9a3ba0011bc753bcefc315",
+    "restored": true,
+    "mutation": {
+      "from": "return { modelId: resolved.modelId, backend: resolved.backend }",
+      "to": "return { modelId: 'fixed-model', backend: resolved.backend }",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "live counts excluded from stable roster",
+    "path": "src/core/team/roster.ts",
+    "tests": ["test/unit/teamRoster.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamRoster.test.ts > buildRosterStable > is byte-identical for the same roles, whatever the live numbers are"
+    ],
+    "sha256": "f87efb5f8274296935b531ff65addc4ffa3f7ea89485a1cdce6d2d79cc091588",
+    "restored": true,
+    "mutation": {
+      "from": "['# Team', ...roles.flatMap((role) => roleLines(role))]",
+      "to": "['# Team 3/5 free', ...roles.flatMap((role) => roleLines(role))]",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "single-model Muse Code frame",
+    "path": "src/host/conversation/conversationController.ts",
+    "tests": ["test/unit/conversationController.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/conversationController.test.ts > ConversationController: team server and orchestrator slot (M96 lane T) > keeps a single-model resume byte-identical after the setup gains another model",
+      "test/unit/conversationController.test.ts > ConversationController: team server and orchestrator slot (M96 lane T) > restores history from its saved decision and keeps a team token out of another session",
+      "test/unit/conversationController.test.ts > ConversationController: team server and orchestrator slot (M96 lane T) > decides again for a new conversation"
+    ],
+    "sha256": "672ec1c70958ca17ac1db5dd4aa22a9e137ac10efea81654c7df96bd0b2187cc",
+    "restored": true,
+    "mutation": {
+      "from": "!this.isSideChat && this.deps.teamMcp?.modeForNewConversation() === 'team'",
+      "to": "!this.isSideChat && this.deps.teamMcp !== undefined",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "Muse Code fixed resume decision",
+    "path": "src/host/conversation/conversationController.ts",
+    "tests": ["test/unit/conversationController.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/conversationController.test.ts > ConversationController: team server and orchestrator slot (M96 lane T) > keeps the attached set at resume when the mode flips mid-conversation"
+    ],
+    "sha256": "672ec1c70958ca17ac1db5dd4aa22a9e137ac10efea81654c7df96bd0b2187cc",
+    "restored": true,
+    "mutation": {
+      "from": "} else if (resumeSessionId !== this.teamServerSessionId) {",
+      "to": "} else if (true) {",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "contributor override admission",
+    "path": "src/host/conversation/conversationController.ts",
+    "tests": ["test/unit/conversationController.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/conversationController.test.ts > ConversationController: team server and orchestrator slot (M96 lane T) > keeps the picker when a contributor override is refused (true)",
+      "test/unit/conversationController.test.ts > ConversationController: team server and orchestrator slot (M96 lane T) > keeps the picker when a contributor override is refused (false)"
+    ],
+    "sha256": "672ec1c70958ca17ac1db5dd4aa22a9e137ac10efea81654c7df96bd0b2187cc",
+    "restored": true,
+    "mutation": {
+      "from": "modelId !== this.modelId && !(await this.allowsModel(modelId))",
+      "to": "false",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "zero setup HTTP traffic on send",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "tests": ["test/unit/modelApiGoldenRequests.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: no team source > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: no team source > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: no team source > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: no team source > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: no team source > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: no team source > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: team off > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: no team source > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: team off > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: team off > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: team off > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: team off > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: team off > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: team off > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M96 conversation boundaries > keeps golden continuation when an entry becomes ready mid-turn, and enables the next conversation"
+    ],
+    "sha256": "fdc37656c4ba6cb34107a49db38f8920a9e6dbca25120c7722fb18d9f61f81ab",
+    "restored": true,
+    "mutation": {
+      "from": "const source = this.deps.teamDecisionSource?.()",
+      "to": "void this.deps.client.listModels()\n    const source = this.deps.teamDecisionSource?.()",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "concurrent idempotency",
+    "path": "src/core/team/teamTools.ts",
+    "tests": ["test/unit/teamTools.test.ts", "test/unit/teamMcpServer.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamMcpServer.test.ts > team MCP admission > shares concurrent delegate retries within a conversation",
+      "test/unit/teamTools.test.ts > concurrent command retries > shares pending work, rejects changed nested reasons and persists replay"
+    ],
+    "sha256": "9eb0c7da9b2c05442d7b52d651039d6e0935c390d55ec02a1ab0845230d54863",
+    "restored": true,
+    "mutation": {
+      "from": "if (pending !== undefined) {",
+      "to": "if (false && pending !== undefined) {",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "key workers opt-in",
+    "path": "src/core/team/singleModel.ts",
+    "tests": ["test/unit/modelApiGoldenRequests.test.ts", "test/unit/teamSingleModel.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a turn with skills and rules loaded",
+      "test/unit/teamSingleModel.test.ts > decideTeamConversationMode > stays single-model when only key entries exist while teamWorkers is off"
+    ],
+    "sha256": "f1043110b5ac7b651205d051c80510f0d2be121d433b605de361ea4598a8f447",
+    "restored": true,
+    "mutation": {
+      "from": "source.teamWorkersOn",
+      "to": "true",
+      "occurrences": 2
+    }
+  },
+  {
+    "name": "legacy sessions keep their declaration",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "tests": ["test/unit/modelApiGoldenRequests.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/modelApiGoldenRequests.test.ts > M96 conversation boundaries > keeps a legacy session single-model when today’s setup has a team"
+    ],
+    "sha256": "fdc37656c4ba6cb34107a49db38f8920a9e6dbca25120c7722fb18d9f61f81ab",
+    "restored": true,
+    "mutation": {
+      "from": "this.teamMode = stored.teamMode ?? 'single-model'",
+      "to": "this.teamMode = stored.teamMode",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "stored commands restored into runner registry",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "tests": ["test/unit/teamDeclaration.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamDeclaration.test.ts > team storage > keeps the declared set and command claims on disk and replays after resume"
+    ],
+    "sha256": "fdc37656c4ba6cb34107a49db38f8920a9e6dbca25120c7722fb18d9f61f81ab",
+    "restored": true,
+    "mutation": {
+      "from": "this.teamCommands.restore(stored.teamCommands)",
+      "to": "void stored.teamCommands",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "stored team field projection",
+    "path": "src/core/backends/modelapi/sessionStore.ts",
+    "tests": ["test/unit/teamDeclaration.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamDeclaration.test.ts > team storage > keeps the declared set and command claims on disk and replays after resume"
+    ],
+    "sha256": "8671b99cfbf9bd7a9dc261c6ff9ed5e9f54ed975edce5c668bb5ba37bef83181",
+    "restored": true,
+    "mutation": {
+      "from": "...(teamCommands !== undefined && { teamCommands })",
+      "to": "...(false && { teamCommands })",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "golden instruction bytes",
+    "path": "src/core/backends/modelapi/instructions.ts",
+    "tests": ["test/unit/modelApiGoldenRequests.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: no team source > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: no team source > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: no team source > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: no team source > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: no team source > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: no team source > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: team off > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a subagent child turn",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: no team source > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: team off > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a turn with skills and rules loaded",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: team off > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a plain one-turn reply",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: team off > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a turn with one tool call and its result",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: team off > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records an edit_file with then_run",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: team off > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a long tool output whole twice, then as a placeholder",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: team off > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: Solo > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: only Default > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: key entries off > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: duplicate models > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: unavailable > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: failed probe > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M91-G golden requests: not loaded > records a manual compaction and the turn after it",
+      "test/unit/modelApiGoldenRequests.test.ts > M96 conversation boundaries > keeps golden continuation when an entry becomes ready mid-turn, and enables the next conversation"
+    ],
+    "sha256": "8e7d18c7475f356f14d0d609a7240a2b0069ac73c6651969dd65bc704df5ee57",
+    "restored": true,
+    "mutation": {
+      "from": "return sections.filter((section) => section !== undefined).join(PARAGRAPH)",
+      "to": "return sections.filter((section) => section !== undefined).join(PARAGRAPH) + 'changed'",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "raw bytes comparator",
+    "path": "test/unit/modelApiGoldenRequests.test.ts",
+    "tests": ["test/unit/modelApiGoldenRequests.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/modelApiGoldenRequests.test.ts > golden request normalization boundaries > preserves raw formatting and key order"
+    ],
+    "sha256": "d8463af2e3fa3da720581c231c9a652e18cf9a36e023a1c8846aff2dae7caf99",
+    "restored": true,
+    "mutation": {
+      "from": "return parts.join('')",
+      "to": "return JSON.stringify(JSON.parse(parts.join('')))",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "MCP missing bearer",
+    "path": "src/host/team/teamMcpServer.ts",
+    "tests": ["test/unit/teamMcpServer.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamMcpServer.test.ts > TeamMcpServer tokens > refuses no token, and another window’s token"
+    ],
+    "sha256": "10c104cfdd63fbef81d455cf52fe3557c06af47b8b3d522c072ca593e64150ad",
+    "restored": true,
+    "mutation": {
+      "from": "if (typeof header !== 'string' || !header.startsWith(BEARER_PREFIX)) {\n      return undefined",
+      "to": "if (typeof header !== 'string' || !header.startsWith(BEARER_PREFIX)) {\n      return [...this.bindings].map(([token, binding]) => ({ token, binding }))[0]",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "localized missing runner refusal",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "tests": ["test/unit/teamDeclaration.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamDeclaration.test.ts > runTeamTool > refuses missing runner with an explicit reason"
+    ],
+    "sha256": "c72fa9fe6eac13445b2f27294fda054e15e7194285d7118bf68f4ae5eb62f11b",
+    "restored": true,
+    "mutation": {
+      "from": "const visible = fill(UI_TEXT.teamRunnerUnavailable, { tool: name })",
+      "to": "const visible = teamRunnerMissing(name)",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "omitted Model API collect wait polls",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "tests": ["test/unit/teamDeclaration.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamDeclaration.test.ts > team request stability and authority > passes caller authority and bounds collect ({})"
+    ],
+    "sha256": "53d02f669e116e2b966e1e9262e4a9f6bda0057dcdbbb70b805958af233bcaaa",
+    "restored": true,
+    "mutation": {
+      "from": "wait_seconds: clampCollectWait(wait ?? 0)",
+      "to": "wait_seconds: clampCollectWait(wait)",
+      "occurrences": 1
+    }
+  },
+  {
+    "name": "omitted MCP collect wait polls",
+    "path": "src/host/team/teamMcpServer.ts",
+    "tests": ["test/unit/teamMcpServer.test.ts"],
+    "exit": 1,
+    "failures": [
+      "test/unit/teamMcpServer.test.ts > team MCP admission > reuses a conversation token and validates arguments before dispatch"
+    ],
+    "sha256": "6c4b7d1ca13119cee3f36385b5a81dab2aa6537226fb01c70959d0fd13162e45",
+    "restored": true,
+    "mutation": {
+      "from": "wait_seconds: clampCollectWait(typeof wait === 'number' ? wait : 0)",
+      "to": "...(typeof wait === 'number' && { wait_seconds: clampCollectWait(wait) })",
+      "occurrences": 1
+    }
+  }
+]

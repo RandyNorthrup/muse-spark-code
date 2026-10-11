@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Tab's provider and its eligibility (M94, PLAN.md D73, Acceptance 3–5):
 // quiet wherever D73 says quiet, one item otherwise, every byte sent
 // redacted, and the inferred partial accept. Each exclusion has its own
@@ -62,7 +63,7 @@ const USAGE: TabReportedUsage = { inputTokens: 10, cachedTokens: 2, outputTokens
 const NOTHING_SENT: TabReportedUsage = { inputTokens: 0, cachedTokens: 0, outputTokens: 0 }
 const RESERVATION: TabReservation = {
   model: 'muse-spark-1.3',
-  worstCaseUsd: 0.01,
+  worstCaseUsd: Usd.from(0.01).toAmount(),
   date: '2026-10-04',
 }
 
@@ -508,7 +509,7 @@ function providerHarness(
     spend: {
       reserve,
       settle,
-      todayTotalUsd: () => 0,
+      todayTotalUsd: () => Usd.from(0).toAmount(),
       todayRequests: () => 0,
     },
     consent: { requestUse },
@@ -674,7 +675,7 @@ describe('createTabProvider', () => {
       spend: {
         reserve: () => Promise.resolve(undefined),
         settle: () => undefined,
-        todayTotalUsd: () => 1,
+        todayTotalUsd: () => Usd.from(1).toAmount(),
         todayRequests: () => 20,
       },
     })
@@ -942,7 +943,7 @@ describe('createTabProvider', () => {
         settle: (...args) => {
           settled.push(args)
         },
-        todayTotalUsd: () => 0,
+        todayTotalUsd: () => Usd.from(0).toAmount(),
         todayRequests: () => 0,
       },
     })

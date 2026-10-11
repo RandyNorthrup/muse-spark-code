@@ -1,0 +1,26 @@
+base=/home/randy/gates/base-c78aedc3ea0dab3c lock=c78aedc3ea0dab3cf7e685e18926e181d01a96535223c740d26598931bce86ce
+base reused
+rig=kubuntu slot=finm96k-red snapshot=62d3de01 base=/home/randy/gates/base-c78aedc3ea0dab3c
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamProcessLifetime.test.ts test/unit/teamHintsAndLoad.test.ts test/unit/teamNativeLifetime.test.ts
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/gates/rt-finm96k-red
+
+ ✓ test/unit/teamHintsAndLoad.test.ts (9 tests) 114ms
+ ✓ test/unit/teamProcessLifetime.test.ts (15 tests) 418ms
+ ✓ test/unit/teamNativeLifetime.test.ts (7 tests) 5795ms
+   ✓ M96 K real native lifetime (7)
+     ✓ starts a separate journalled team Muse Code host over real fake-CLI pipes 340ms
+     ✓ preserves the real command exit code through its native container 957ms
+     ✓ reconciles foreign journals before startup returns and preserves all foreign bytes 467ms
+     ✓ scans real marked descendants and stops only after click and second identity check 2027ms
+     ✓ retains no-scope detached descendants as uncertain after direct child exit 1246ms
+     ✓ hard parent death kills the real direct child under setpriv without a user scope 408ms
+
+ Test Files  3 passed (3)
+      Tests  31 passed (31)
+   Start at  07:27:38
+   Duration  7.28s (tests 64%, transform 22%, import 9%, setup 5%)

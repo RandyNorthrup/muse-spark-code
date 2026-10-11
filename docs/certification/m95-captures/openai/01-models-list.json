@@ -1,0 +1,50 @@
+{
+  "provider": "openai",
+  "step": "models-list",
+  "capturedAt": "2026-10-04",
+  "billed": false,
+  "request": {
+    "method": "GET",
+    "url": "https://api.openai.com/v1/models",
+    "headers": {
+      "authorization": "<redacted>"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-expose-headers": "X-Request-ID, CF-Ray, CF-Ray",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a457b3f77f1198a2-LAX",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json",
+      "date": "Sun, 04 Oct 2026 22:43:01 GMT",
+      "openai-processing-ms": "589",
+      "openai-version": "2020-10-01",
+      "server": "cloudflare",
+      "set-cookie": "<redacted>",
+      "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+      "transfer-encoding": "chunked",
+      "x-content-type-options": "nosniff",
+      "x-openai-proxy-wasm": "v0.1",
+      "x-request-id": "2d7ec555-f762-4d2d-ba49-402183477773"
+    },
+    "bodySummary": {
+      "note": "trimmed: count, keys and sample entries",
+      "count": 1,
+      "topLevelKeys": ["object", "data"],
+      "entryKeys": ["created", "id", "object", "owned_by", "shutdown_date"],
+      "sample": [
+        {
+          "id": "gpt-5.6-luna",
+          "object": "model",
+          "created": 1782228658,
+          "owned_by": "system",
+          "shutdown_date": null
+        }
+      ]
+    }
+  }
+}

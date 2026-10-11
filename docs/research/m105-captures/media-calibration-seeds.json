@@ -1,0 +1,278 @@
+[
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.3-contributor",
+    "variant": {
+      "kind": "video",
+      "fps": null
+    },
+    "units": 10,
+    "inputTokens": 2751,
+    "captureId": "m105-r1-2026-10-05-U4-1.3",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.3-contributor",
+    "variant": {
+      "kind": "video",
+      "fps": null
+    },
+    "units": 30,
+    "inputTokens": 8207,
+    "captureId": "m105-r2-2026-10-05-R03",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.3-contributor",
+    "variant": {
+      "kind": "video",
+      "fps": 1
+    },
+    "units": 30,
+    "inputTokens": 8207,
+    "captureId": "m105-r2-2026-10-05-R04",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.3-contributor",
+    "variant": {
+      "kind": "video",
+      "fps": 2
+    },
+    "units": 30,
+    "inputTokens": 8207,
+    "captureId": "m105-r3-2026-10-08-V13f2",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.3-contributor",
+    "variant": {
+      "kind": "video",
+      "fps": null
+    },
+    "units": 120,
+    "inputTokens": 32731,
+    "captureId": "m105-r2-2026-10-05-O1",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.3-contributor",
+    "variant": {
+      "kind": "video",
+      "fps": 1
+    },
+    "units": 120,
+    "inputTokens": 32731,
+    "captureId": "m105-r2-2026-10-05-R07",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.3-contributor",
+    "variant": {
+      "kind": "video",
+      "fps": null
+    },
+    "units": 600,
+    "inputTokens": 85531,
+    "captureId": "m105-r2-2026-10-05-R05",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.3-contributor",
+    "variant": {
+      "kind": "video",
+      "fps": 1
+    },
+    "units": 600,
+    "inputTokens": 85531,
+    "captureId": "m105-r2-2026-10-05-R06",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.2-contributor",
+    "variant": {
+      "kind": "video",
+      "fps": null
+    },
+    "units": 10,
+    "inputTokens": 1671,
+    "captureId": "m105-r1-2026-10-05-U4-1.2",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.2-contributor",
+    "variant": {
+      "kind": "video",
+      "fps": null
+    },
+    "units": 30,
+    "inputTokens": 4967,
+    "captureId": "m105-r2-2026-10-05-R12",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.2-contributor",
+    "variant": {
+      "kind": "video",
+      "fps": 1
+    },
+    "units": 30,
+    "inputTokens": 4967,
+    "captureId": "m105-r2-2026-10-05-R13",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.2-contributor",
+    "variant": {
+      "kind": "video",
+      "fps": null
+    },
+    "units": 120,
+    "inputTokens": 19771,
+    "captureId": "m105-r3-2026-10-08-V12d",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.2-contributor",
+    "variant": {
+      "kind": "video",
+      "fps": 1
+    },
+    "units": 120,
+    "inputTokens": 10651,
+    "captureId": "m105-r3-2026-10-08-V12f",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.2-contributor",
+    "variant": {
+      "kind": "video",
+      "fps": null
+    },
+    "units": 600,
+    "inputTokens": 53131,
+    "captureId": "m105-r2-2026-10-05-R14",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.2-contributor",
+    "variant": {
+      "kind": "video",
+      "fps": 1
+    },
+    "units": 600,
+    "inputTokens": 53131,
+    "captureId": "m105-r2-2026-10-05-R15",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.3-contributor",
+    "variant": {
+      "kind": "image",
+      "detail": "auto"
+    },
+    "units": 1,
+    "inputTokens": 4086,
+    "captureId": "m105-r3-2026-10-08-I13a",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.3-contributor",
+    "variant": {
+      "kind": "image",
+      "detail": "low"
+    },
+    "units": 1,
+    "inputTokens": 4086,
+    "captureId": "m105-r3-2026-10-08-I13l",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.3-contributor",
+    "variant": {
+      "kind": "image",
+      "detail": "high"
+    },
+    "units": 1,
+    "inputTokens": 4086,
+    "captureId": "m105-r3-2026-10-08-I13h",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.3-contributor",
+    "variant": {
+      "kind": "image",
+      "detail": "original"
+    },
+    "units": 1,
+    "inputTokens": 4086,
+    "captureId": "m105-r3-2026-10-08-I13o",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.2-contributor",
+    "variant": {
+      "kind": "image",
+      "detail": "auto"
+    },
+    "units": 1,
+    "inputTokens": 4086,
+    "captureId": "m105-r3-2026-10-08-I12a",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.2-contributor",
+    "variant": {
+      "kind": "image",
+      "detail": "low"
+    },
+    "units": 1,
+    "inputTokens": 4086,
+    "captureId": "m105-r3-2026-10-08-I12l",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.2-contributor",
+    "variant": {
+      "kind": "image",
+      "detail": "high"
+    },
+    "units": 1,
+    "inputTokens": 4086,
+    "captureId": "m105-r3-2026-10-08-I12h",
+    "upperOnly": false
+  },
+  {
+    "provider": "meta",
+    "modelId": "muse-spark-1.2-contributor",
+    "variant": {
+      "kind": "image",
+      "detail": "original"
+    },
+    "units": 1,
+    "inputTokens": 4086,
+    "captureId": "m105-r3-2026-10-08-I12o",
+    "upperOnly": false
+  }
+]

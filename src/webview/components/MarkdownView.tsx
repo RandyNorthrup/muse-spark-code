@@ -17,7 +17,11 @@ import type { LineRange } from '../../shared/protocol'
 import { parseReviewFindings } from '../../shared/reviewFindings'
 import { linkHref, linkTarget } from '../links'
 import { CodeBlock } from './CodeBlock'
-import { ReviewFindings } from './ReviewFindings'
+import { deferred } from './DeferredSurface'
+const ReviewFindings = deferred(async () => {
+  const module = await import('./ReviewFindings')
+  return { default: module.ReviewFindings }
+})
 
 export interface MarkdownViewProps {
   readonly text: string

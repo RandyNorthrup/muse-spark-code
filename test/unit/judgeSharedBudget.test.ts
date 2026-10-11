@@ -1,10 +1,13 @@
+import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createWindowJudge } from '../../src/host/judge/judgeEntry'
 import { createPaidFeatures } from '../../src/host/paid/paidHost'
-import { UI_TEXT } from '../../src/shared/constants'
+import { metaSideCallFormats } from '../../src/core/backends/modelapi/modelCapabilities'
+import { estimateCostUsd } from '../../src/core/usage/insights'
+import { M106_CAPTURED_META_MODEL, UI_TEXT } from '../../src/shared/constants'
 import { memento } from './helpers/memento'
 import { confirmModal } from './helpers/vscodeViews'
 import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
@@ -33,7 +36,7 @@ function daily(capUsd = 5) {
   return createPaidDailyBudget({
     directory: state.directory,
     now: () => state.now,
-    capUsd: () => capUsd,
+    capUsd: () => Usd.from(capUsd).toAmount(),
     sleep: () => Promise.resolve(),
     isModelApi: () => true,
   })
@@ -53,45 +56,51 @@ describe('Judge on the real D78 shared journal', () => {
       'imageGeneration',
     )
     if (image === undefined) throw new Error('Image claim absent')
-    expect(await daily().judgeLedger.remainingUsd()).toBe(4.99)
-    const judge = await daily().judgeLedger.reserve(0.1)
-    expect(await daily().judgeLedger.remainingUsd()).toBe(4.89)
-    await image.settle(0)
-    await judge.settle(0)
-    expect(await daily().judgeLedger.remainingUsd()).toBe(5)
+    expect(await daily().judgeLedger.remainingUsd()).toBe(Usd.from(4.99).toAmount())
+    const judge = await daily().judgeLedger.reserve(Usd.from(0.1).toAmount())
+    expect(await daily().judgeLedger.remainingUsd()).toBe(Usd.from(4.89).toAmount())
+    await image.settle(Usd.from(0).toAmount())
+    await judge.settle(Usd.from(0).toAmount())
+    expect(await daily().judgeLedger.remainingUsd()).toBe(Usd.from(5).toAmount())
   })
 
   it('shares claims, settlement, retained liability, restart lookup and live cap/day checks', async () => {
     const first = daily()
-    const claim = await first.judgeLedger.reserve(0.2)
-    expect(await daily().judgeLedger.remainingUsd()).toBe(4.8)
+    const claim = await first.judgeLedger.reserve(Usd.from(0.2).toAmount())
+    expect(await daily().judgeLedger.remainingUsd()).toBe(Usd.from(4.8).toAmount())
     const day = await first.latestDay()
-    expect(day).toMatchObject({ day: '2026-10-5', capUsd: 5, spentUsd: 0.2 })
-    expect(await daily().lookupByClaimId(day.day, claim.claimId)).toMatchObject({
-      reservedUsd: 0.2,
+    expect(day).toMatchObject({
+      day: '2026-10-5',
+      capUsd: Usd.from(5).toAmount(),
+      spentUsd: Usd.from(0.2).toAmount(),
     })
-    await claim.settle(0.1)
-    await claim.settle(0.1)
-    await expect(claim.settle(0.2)).rejects.toThrow()
-    expect(await daily().lookupByClaimId(day.day, claim.claimId)).toMatchObject({ settledUsd: 0.1 })
-    const refund = await first.judgeLedger.reserve(0.2)
-    await refund.settle(0)
-    expect(await daily().judgeLedger.remainingUsd()).toBe(4.9)
-    const retained = await first.judgeLedger.reserve(0.4)
-    expect(await daily().judgeLedger.remainingUsd()).toBe(4.5)
-    await expect(daily(0.5).judgeLedger.reserve(0.1)).rejects.toThrow()
+    expect(await daily().lookupByClaimId(day.day, claim.claimId)).toMatchObject({
+      reservedUsd: Usd.from(0.2).toAmount(),
+    })
+    await claim.settle(Usd.from(0.1).toAmount())
+    await claim.settle(Usd.from(0.1).toAmount())
+    await expect(claim.settle(Usd.from(0.2).toAmount())).rejects.toThrow()
+    expect(await daily().lookupByClaimId(day.day, claim.claimId)).toMatchObject({
+      settledUsd: Usd.from(0.1).toAmount(),
+    })
+    const refund = await first.judgeLedger.reserve(Usd.from(0.2).toAmount())
+    await refund.settle(Usd.from(0).toAmount())
+    expect(await daily().judgeLedger.remainingUsd()).toBe(Usd.from(4.9).toAmount())
+    const retained = await first.judgeLedger.reserve(Usd.from(0.4).toAmount())
+    expect(await daily().judgeLedger.remainingUsd()).toBe(Usd.from(4.5).toAmount())
+    await expect(daily(0.5).judgeLedger.reserve(Usd.from(0.1).toAmount())).rejects.toThrow()
     state.now = new Date(2026, 9, 6, 12).getTime()
     expect(() => {
       retained.check()
     }).toThrow()
-    expect(await daily().judgeLedger.remainingUsd()).toBe(5)
+    expect(await daily().judgeLedger.remainingUsd()).toBe(Usd.from(5).toAmount())
     expect(await daily().lookupByClaimId(day.day, retained.claimId)).not.toHaveProperty(
       'settledUsd',
     )
   })
 
   it.each(['complete', 'missing', 'nonsend'] as const)(
-    'uses exactly one shared reservation through the actual Judge source and client: %s receipt',
+    'uses exactly one shared reservation and captured verdict format through the production Judge: %s receipt',
     async (receipt) => {
       const shared = daily()
       const api = fakeModelApi()
@@ -105,12 +114,17 @@ describe('Judge on the real D78 shared journal', () => {
       })
       const host = new ModelApiHost({
         ...fakeModelApiHostDeps({ client, workspaceRoot: '/ws', io: memoryToolIo({}, '/ws'), log }),
+        sideCallFormats: metaSideCallFormats,
       })
       const session = await host.startSession({
         workspaceRoot: '/ws',
-        modelId: 'muse-spark-1.3',
+        modelId: receipt === 'complete' ? M106_CAPTURED_META_MODEL : 'muse-spark-1.3',
         approvalMode: 'allowAll',
       })
+      const settledCost = estimateCostUsd(
+        { inputTokens: 10, outputTokens: 2, cachedTokens: 1 },
+        session.modelId,
+      )
       const watched = watchSessionTurns(session)
       api.script(
         { text: 'Main answer', hold: held.promise },
@@ -128,8 +142,8 @@ describe('Judge on the real D78 shared journal', () => {
         const connection = host.judgeConnection(session.sessionId, submitted.turnId)
         if (connection === undefined) throw new Error('Judge source absent')
         let owned: JudgeLedgerClaim | undefined
-        const observed = vi.fn(async (cost: number) => {
-          owned = await shared.judgeLedger.reserve(cost)
+        const observed = vi.fn(async (cost: UsdAmount) => {
+          owned = await shared.judgeLedger.reserve(Usd.from(cost).toAmount())
           return owned
         })
         const rows = new JudgeUsageRows({
@@ -156,7 +170,7 @@ describe('Judge on the real D78 shared journal', () => {
         })
         if (receipt === 'nonsend')
           observed.mockImplementationOnce(async (cost) => {
-            const claim = await shared.judgeLedger.reserve(cost)
+            const claim = await shared.judgeLedger.reserve(Usd.from(cost).toAmount())
             owned = claim
             signal.abort()
             return claim
@@ -222,7 +236,10 @@ describe('Judge on the real D78 shared journal', () => {
               expect(owned).toBeDefined()
               if (owned === undefined) throw new Error('Judge claim absent')
               const settled = await shared.lookupByClaimId('2026-10-5', owned.claimId)
-              expect(settled.settledUsd).toBe(0.0000199)
+              expect(settled.settledUsd).toBe(settledCost)
+            })
+            expect(api.responseBodies()[1]?.['text']).toMatchObject({
+              format: { name: 'judge_answer', strict: true },
             })
             expect(confirmModal).toHaveBeenCalledWith(
               expect.any(String),
@@ -240,10 +257,15 @@ describe('Judge on the real D78 shared journal', () => {
         if (claim === undefined) throw new Error('Judge claim absent')
         const snapshot = await shared.lookupByClaimId('2026-10-5', claim.claimId)
         if (receipt === 'missing') expect(snapshot).not.toHaveProperty('settledUsd')
-        else expect(snapshot.settledUsd).toBe(receipt === 'complete' ? 0.0000199 : 0)
+        else
+          expect(snapshot.settledUsd).toBe(
+            receipt === 'complete' ? settledCost : Usd.from(0).toAmount(),
+          )
         const latest = await daily().latestDay()
         expect(latest.spentUsd).toBe(
-          receipt === 'missing' ? claim.reservedUsd : (snapshot.settledUsd ?? 0),
+          receipt === 'missing'
+            ? claim.reservedUsd
+            : (snapshot.settledUsd ?? Usd.from(0).toAmount()),
         )
         expect(api.responseBodies()).toHaveLength(receipt === 'nonsend' ? 1 : 2)
       } finally {
