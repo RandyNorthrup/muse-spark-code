@@ -191,6 +191,9 @@
   "estimateSeed": "模擬種子",
   "estimateAsOf": "快照時間",
   "estimateMarginal": "新增這台機器節省的時間",
+  "estimateMissingMore": {
+    "other": "還有 {count} 個"
+  },
   "estimateHourly": "每小時價格",
   "estimateCatalog": "{date} 的目錄價格，並非報價。",
   "estimateNoPrice": "沒有可用的公開目錄價格。",

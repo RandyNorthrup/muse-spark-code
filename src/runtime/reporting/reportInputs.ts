@@ -17,6 +17,7 @@ import {
   STORED_SESSION_VERSION,
   REPORT_STORAGE_LINK_COUNT,
 } from '../../shared/constants'
+import type { UiText } from '../../shared/l10n/en'
 import type { BackendKind } from '../../shared/protocol'
 import type { AgentHost } from '../../core/agent/agentBackend'
 import { itemSnapshotSchema, type ItemSnapshot } from '../../shared/agentEvents'
@@ -272,9 +273,13 @@ export async function readStoredReportSession(
  * only the validated request crosses into this bundle and only the run's
  * result crosses back. The core source validates, scrubs and projects it.
  */
-export function createEstimateReportReader(input: {
-  readonly run: (request: EstimateRequest, signal: AbortSignal) => Promise<unknown>
-}): ReportEstimateReader {
+export function createEstimateReportReader(
+  input: {
+    readonly run: (request: EstimateRequest, signal: AbortSignal) => Promise<unknown>
+  },
+  table?: UiText,
+  locale?: string,
+): ReportEstimateReader {
   return {
     read: async (request, context) => {
       const section = await input.run(request, context.signal)
@@ -283,6 +288,20 @@ export function createEstimateReportReader(input: {
       // source reads fresh at age zero instead of unknown.
       return { section, observedAt: request.asOf }
     },
+    // The report's refusal language, captured once when the request starts
+    // (RVCM1134G P2): the source renders refusals only from these strings,
+    // so another generation's `setUiText` while the estimator runs cannot
+    // move the language under this one.
+    ...(table !== undefined &&
+      locale !== undefined && {
+        text: {
+          failed: table.estimateFailed,
+          noCapacity: table.estimateNoCapacity,
+          notFound: table.estimateNotFound,
+          missingMore: table.estimateMissingMore,
+          locale,
+        },
+      }),
   }
 }
 

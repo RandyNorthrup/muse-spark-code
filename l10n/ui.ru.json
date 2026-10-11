@@ -191,6 +191,12 @@
   "estimateSeed": "Начальное значение симуляции",
   "estimateAsOf": "Время снимка",
   "estimateMarginal": "Время, сэкономленное этой дополнительной машиной",
+  "estimateMissingMore": {
+    "one": "и ещё {count} дорожка",
+    "few": "и ещё {count} дорожки",
+    "many": "и ещё {count} дорожек",
+    "other": "и ещё {count} дорожки"
+  },
   "estimateHourly": "Цена за час",
   "estimateCatalog": "Каталожная цена на {date}, а не коммерческое предложение.",
   "estimateNoPrice": "Публичная каталожная цена недоступна.",

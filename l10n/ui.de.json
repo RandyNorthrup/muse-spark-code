@@ -191,6 +191,10 @@
   "estimateSeed": "Startwert der Simulation",
   "estimateAsOf": "Zeitpunkt der Bestandsaufnahme",
   "estimateMarginal": "Durch diesen zusätzlichen Rechner eingesparte Zeit",
+  "estimateMissingMore": {
+    "one": "und {count} weitere",
+    "other": "und {count} weitere"
+  },
   "estimateHourly": "Stundenpreis",
   "estimateCatalog": "Ein Katalogpreis vom {date}, kein Angebot.",
   "estimateNoPrice": "Kein öffentlicher Katalogpreis verfügbar.",

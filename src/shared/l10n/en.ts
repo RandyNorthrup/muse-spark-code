@@ -271,6 +271,9 @@ export const EN = {
   estimateWaiting: 'Waiting for {dependency}.',
   estimateRunning: 'Estimating…',
   estimateFailed: 'Estimate failed: {detail}',
+  // A refused estimate's omitted lanes: {count} is the lanes the estimator
+  // did not name, rendered in the report's language from that number.
+  estimateMissingMore: forms({ one: 'and {count} more', other: 'and {count} more' }),
   estimateSchedule: 'Lane schedule',
   estimateGantt: 'Schedule for {goal}, with the critical path and P50 and P90 finish marks.',
   estimateOptimizeDescription:

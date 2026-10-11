@@ -191,6 +191,9 @@
   "estimateSeed": "시뮬레이션 시드",
   "estimateAsOf": "스냅샷 시각",
   "estimateMarginal": "이 머신을 추가하여 절약되는 시간",
+  "estimateMissingMore": {
+    "other": "외 {count}개"
+  },
   "estimateHourly": "시간당 가격",
   "estimateCatalog": "{date}의 카탈로그 가격이며 견적이 아닙니다.",
   "estimateNoPrice": "공개 카탈로그 가격이 없습니다.",

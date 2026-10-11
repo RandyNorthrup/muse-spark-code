@@ -627,16 +627,6 @@ function runtimeReports(
                     l10n.locale,
                   )
                   .read(request, context),
-              // The estimator bundle renders refusals in the process
-              // language it installed at first load, which `--lang` does
-              // not change; the source decodes them with these templates
-              // and writes the report-language sentence (RVCM1134E P2).
-              // Snapshotted: setUiText mutates the shared table in place.
-              refusalTemplates: {
-                failed: UI_TEXT.estimateFailed,
-                noCapacity: UI_TEXT.estimateNoCapacity,
-                notFound: UI_TEXT.estimateNotFound,
-              },
             },
             network: {
               policy: {

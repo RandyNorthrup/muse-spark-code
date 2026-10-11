@@ -191,6 +191,12 @@
   "estimateSeed": "Ziarno symulacji",
   "estimateAsOf": "Czas migawki",
   "estimateMarginal": "Czas zaoszczędzony dzięki tej dodatkowej maszynie",
+  "estimateMissingMore": {
+    "one": "i {count} kolejny",
+    "few": "i {count} kolejne",
+    "many": "i {count} kolejnych",
+    "other": "i {count} kolejnych"
+  },
   "estimateHourly": "Cena za godzinę",
   "estimateCatalog": "Cena katalogowa z dnia {date}, nie oferta.",
   "estimateNoPrice": "Brak dostępnej publicznej ceny katalogowej.",

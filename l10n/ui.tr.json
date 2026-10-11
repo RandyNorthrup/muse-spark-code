@@ -191,6 +191,10 @@
   "estimateSeed": "Simülasyon tohumu",
   "estimateAsOf": "Anlık görüntü zamanı",
   "estimateMarginal": "Bu ek makineyle kazanılan süre",
+  "estimateMissingMore": {
+    "one": "ve {count} tane daha",
+    "other": "ve {count} tane daha"
+  },
   "estimateHourly": "Saatlik fiyat",
   "estimateCatalog": "{date} tarihli katalog fiyatıdır, fiyat teklifi değildir.",
   "estimateNoPrice": "Herkese açık katalog fiyatı yok.",

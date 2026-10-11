@@ -191,6 +191,9 @@
   "estimateSeed": "模拟种子",
   "estimateAsOf": "快照时间",
   "estimateMarginal": "添加这台机器节省的时间",
+  "estimateMissingMore": {
+    "other": "还有 {count} 个"
+  },
   "estimateHourly": "每小时价格",
   "estimateCatalog": "{date} 的目录价格，并非报价。",
   "estimateNoPrice": "没有可用的公开目录价格。",

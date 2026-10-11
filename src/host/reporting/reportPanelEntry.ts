@@ -154,16 +154,6 @@ export function createReportingWindow(
                     locale,
                   )
                   .read(request, context),
-              // The estimator bundle renders refusals in the language it
-              // installed at first load; the source decodes them with these
-              // templates and writes the report-language sentence
-              // (RVCM1134E P2). Snapshotted: setUiText mutates the shared
-              // table in place.
-              refusalTemplates: {
-                failed: table.estimateFailed,
-                noCapacity: table.estimateNoCapacity,
-                notFound: table.estimateNotFound,
-              },
             },
           }),
           workspaceKey,
