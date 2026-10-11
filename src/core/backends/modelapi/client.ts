@@ -16,6 +16,7 @@ import {
   readBoundedText,
   redactModelApiError,
   redactStreamDiagnostics,
+  staleConfirmedError,
   type ConfirmedModelRequest,
   type ResponseAttemptGuard,
   type RetryBudget,
@@ -453,7 +454,7 @@ export class ModelApiClient implements TransportProviderClient {
       (body.model !== confirmed.modelId || !confirmed.isStillAllowed())
     ) {
       await admitAttempt?.mediaAccounting?.finish()
-      throw new Error(UI_TEXT.scheduleConfirmationExpired)
+      throw staleConfirmedError(confirmed)
     }
     let feature = admitAttempt?.paidFeature
     if (feature === undefined && confirmed !== undefined) {

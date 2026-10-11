@@ -18,6 +18,7 @@ import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 import {
   MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
   M106_CAPTURED_META_MODEL,
+  UI_TEXT,
 } from '../../src/shared/constants'
 import {
   restoreOptionalToolArguments,
@@ -31,6 +32,7 @@ import {
   fakeModelApi,
   fakeModelApiClientSettings,
   responseOutputsByCall,
+  type FakeModelApi,
 } from './helpers/fakeModelApi'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { hookResult, memoryToolIo } from './helpers/fakeToolIo'
@@ -114,6 +116,27 @@ it.each([true, false, undefined])(
   },
 )
 
+/** One seeded turn on the bare model, then a fork onto the qualified record. */
+async function seedAndFork(
+  host: ModelApiHost,
+  api: FakeModelApi,
+  ref: string,
+): Promise<{ fork: ModelApiSession }> {
+  const session = await host.startSession({
+    workspaceRoot: '/ws',
+    modelId: 'muse-spark-1.3',
+    approvalMode: 'allowAll',
+  })
+  const watched = watchSessionTurns(session)
+  api.script({ text: 'seed' })
+  await session.sendTurn([{ type: 'text', text: 'hello' }])
+  await watched.turnDone()
+  const fork = await host.forkSession(session.sessionId, ref)
+  if (!(fork.session instanceof ModelApiSession))
+    throw new TypeError('expected a Model API session')
+  return { fork: fork.session }
+}
+
 describe('resolved-record cap ordering (RVCM1062C P2)', () => {
   it.each([false, true])(
     'binds one record per compaction and resolves before counting after same-ref replacement (hook invalidation %s)',
@@ -173,29 +196,29 @@ describe('resolved-record cap ordering (RVCM1062C P2)', () => {
         isHooksEnabled: () => true,
       })
       try {
-        const session = await host.startSession({
-          workspaceRoot: '/ws',
-          modelId: 'muse-spark-1.3',
-          approvalMode: 'allowAll',
-        })
-        const watched = watchSessionTurns(session)
-        api.script({ text: 'seed' })
-        await session.sendTurn([{ type: 'text', text: 'hello' }])
-        await watched.turnDone()
-        const fork = await host.forkSession(session.sessionId, ref)
-        if (!(fork.session instanceof ModelApiSession))
-          throw new TypeError('expected a Model API session')
+        const { fork } = await seedAndFork(host, api, ref)
         api.script({ text: 'first summary' })
         replacementApi.script({ text: 'replacement summary' })
         if (invalidateInHook) {
-          const before = JSON.stringify(fork.session.snapshot().replay)
-          await expect(fork.session.compact()).rejects.toThrow()
+          const before = JSON.stringify(fork.snapshot().replay)
+          let refusal: unknown
+          try {
+            await fork.compact()
+          } catch (error: unknown) {
+            refusal = error
+          }
+          if (!(refusal instanceof Error)) throw new Error('expected a stale-record refusal')
+          // RVCM1062E P3: a stale record during manual compaction names
+          // compaction, never a schedule confirmation that does not exist.
+          expect(refusal.message).toContain(UI_TEXT.requestStaleCompaction)
+          expect(refusal.message).not.toContain('schedule')
+          expect(refusal.message).not.toContain('Run again')
           expect(resolve).toHaveBeenCalledTimes(1)
           expect(api.responseBodies()).toHaveLength(1)
           expect(replacementApi.responseBodies()).toHaveLength(0)
-          expect(JSON.stringify(fork.session.snapshot().replay)).toBe(before)
+          expect(JSON.stringify(fork.snapshot().replay)).toBe(before)
         }
-        await expect(fork.session.compact()).resolves.toMatchObject({ status: 'accepted' })
+        await expect(fork.compact()).resolves.toMatchObject({ status: 'accepted' })
         const sent = invalidateInHook ? replacementApi.responseBodies()[0] : api.responseBodies()[1]
         expect(sent).toMatchObject({
           model: ref,
@@ -219,6 +242,57 @@ describe('resolved-record cap ordering (RVCM1062C P2)', () => {
       }
     },
   )
+
+  it('refuses a turn on a record that lapsed after resolution with turn retry guidance', async () => {
+    // RVCM1062E P3: the same stale-record class as the compaction refusal,
+    // but the user ran a turn, so the refusal names the turn instead of a
+    // schedule confirmation.
+    const api = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const io = memoryToolIo({}, '/ws')
+    const client = new ModelApiClient({ ...fakeModelApiClientSettings(log), fetch: api.fetch })
+    const ref = 'team/small'
+    const base: ResolvedModel = {
+      ...metaResolvedModel(ref, client),
+      policy: modelPolicyFor(ref, {
+        capabilities: { toolCalling: true },
+        maxOutputTokens: 65_536,
+        effortLevels: ['none'],
+      }),
+    }
+    // Current at the resolveModel identity check, lapsed at its key-digest
+    // recheck: the refusal fires before any hook or dispatch.
+    let checks = 0
+    const resolve = vi.fn((name: string) => {
+      if (name !== ref) return Promise.resolve(metaResolvedModel(name, client))
+      return Promise.resolve({
+        ...base,
+        isCurrent: () => {
+          checks += 1
+          return checks === 1
+        },
+      })
+    })
+    const host = new ModelApiHost({
+      ...fakeModelApiHostDeps({ client, io, workspaceRoot: '/ws', log }),
+      models: { resolve },
+    })
+    try {
+      const { fork } = await seedAndFork(host, api, ref)
+      const forked = watchSessionTurns(fork)
+      await fork.sendTurn([{ type: 'text', text: 'hi' }])
+      await forked.turnDone()
+      const completed = forked.events.findLast((event) => event.type === 'turnCompleted')
+      expect(completed?.type === 'turnCompleted' ? completed.terminal : undefined).toBe('failed')
+      const reason = completed?.type === 'turnCompleted' ? (completed.reason ?? '') : ''
+      expect(reason).toContain(UI_TEXT.requestStaleTurn)
+      expect(reason).not.toContain('schedule')
+      expect(reason).not.toContain('Run again')
+      expect(api.responseBodies()).toHaveLength(1)
+    } finally {
+      await host.close()
+    }
+  })
 
   it('compacts a forked qualified model before any switch at its resolved cap', async () => {
     // This optional cap supplier starts empty and fills only as the

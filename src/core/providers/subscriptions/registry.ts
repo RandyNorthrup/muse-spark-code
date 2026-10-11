@@ -213,7 +213,12 @@ export function createSubscriptionClient(
         if ('response' in event && event.response.usage != null) usage = event.response.usage
       }
       try {
-        if (confirmed !== undefined) throw new Error(UI_TEXT.scheduleConfirmationExpired)
+        if (confirmed !== undefined)
+          throw new Error(
+            confirmed.runKind === 'hookModel'
+              ? UI_TEXT.requestStaleHookModel
+              : UI_TEXT.scheduleConfirmationExpired,
+          )
         if (ref.providerId === 'copilot') {
           const adapter = deps.copilot?.().get(ref.modelId)
           if (adapter === undefined) throw new Error(UI_TEXT.actionFailed)
