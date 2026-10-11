@@ -1356,7 +1356,7 @@ describe('RVCM96B0F strict entry parse', () => {
     expect(teamPlanEntries(atRuntime(plan))).toHaveLength(1)
     expect(
       teamExecAdmission(atRuntime(Object.freeze({ mode: 'acceptEdits', backend: 'modelApi' }))),
-    ).toEqual({ ok: false, reason: UI_TEXT.execTeamNotReady })
+    ).toEqual({ ok: true })
   })
 
   // Whatever a hostile getter or trap throws — an `Error` or a bare value —
@@ -1505,7 +1505,7 @@ describe('RVCM96B0G JSON shapes and failure paths', () => {
 })
 
 describe('M96b exec --team admission', () => {
-  it('needs the Model API backend, acceptEdits and the runner lane', () => {
+  it('needs the Model API backend and acceptEdits after exec budget validation', () => {
     expect(teamExecAdmission({ mode: 'acceptEdits', backend: 'museCode' })).toEqual({
       ok: false,
       reason: UI_TEXT.execModelApiOnly,
@@ -1514,9 +1514,6 @@ describe('M96b exec --team admission', () => {
       ok: false,
       reason: UI_TEXT.execTeamNeedsEdits,
     })
-    expect(teamExecAdmission({ mode: 'acceptEdits', backend: 'modelApi' })).toEqual({
-      ok: false,
-      reason: UI_TEXT.execTeamNotReady,
-    })
+    expect(teamExecAdmission({ mode: 'acceptEdits', backend: 'modelApi' })).toEqual({ ok: true })
   })
 })

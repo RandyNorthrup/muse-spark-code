@@ -519,6 +519,17 @@ export function featureCatalog(): readonly Feature[] {
       ['vscode', 'acp'],
     ),
     feature(
+      'headless-teams',
+      { ui: 'paidTeamWorkersName' },
+      { cli: 'team' },
+      [],
+      [],
+      'headless-runs',
+      ['modelApi'],
+      true,
+      ['acp'],
+    ),
+    feature(
       'output-schema',
       { cli: 'output-schema' },
       { cli: 'output-schema' },

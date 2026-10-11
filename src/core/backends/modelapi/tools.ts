@@ -94,6 +94,7 @@ import { LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS } from './legalScanTool'
 import { RECALL_TOOL_DEFINITION } from './observationPack'
 import { SUBAGENT_TOOL_DEFINITIONS } from './subagentTools'
 import type { TEAM_TOOL_DEFINITIONS } from '../../team/teamTools'
+import { NON_STRICT_TOOL } from './schemas'
 import { runChecksDefinition, THEN_RUN_PROPERTY } from './verifyTools'
 
 import type { ShellResult } from '../../shellResult'
@@ -923,9 +924,13 @@ export function toolDefinitions(
         )
       : []),
     // M96 (PLAN.md D75): the orchestrator's five, never beside M48's six.
-    ...(options.teamTools ?? []).map((tool) =>
-      define(tool.name, tool.description, tool.properties, tool.required),
-    ),
+    ...(options.teamTools ?? []).map((tool) => ({
+      ...define(tool.name, tool.description, tool.properties, tool.required),
+      // collect's numeric bounds are valid ordinary JSON Schema but outside
+      // the captured native strict subset. Preserve its full schema and the
+      // runtime boundary rather than silently dropping those constraints.
+      ...(tool.name === 'collect' && { [NON_STRICT_TOOL]: true as const }),
+    })),
     ...(options.hasMemory === true
       ? MEMORY_TOOL_DEFINITIONS.map((tool) =>
           define(tool.name, tool.description, tool.properties, tool.required),

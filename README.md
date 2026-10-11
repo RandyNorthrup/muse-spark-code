@@ -4949,6 +4949,17 @@ See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 [M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform
 results and what is still open.
 
+`exec --team --backend modelApi --permission-mode acceptEdits
+--max-budget-usd <usd>` runs the configured workspace team in-process.
+Every worker request shares the hard run budget; local engines need no key.
+Questions deny, protected merges deny, and ordinary merges enter the run's
+working tree after local checks, for M80's exact patch review. The run removes
+its board and copies on shutdown. Store the workspace `TeamSnapshot` in the
+agent data folder's `acp/<workspaceKey>/team.json`; Default follows exec's
+provider/model, and `.muse/team.json` can only lower limits. Muse Code and
+external workers cannot run headlessly. See [the headless contract](docs/ci.md)
+for snapshot fields, billing and cleanup.
+
 ## Keeping your machine responsive
 
 M107's integration candidate adds one portable governor per harness process.

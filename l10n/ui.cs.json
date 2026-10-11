@@ -323,7 +323,7 @@
     "effort": "Zvolte, kolik úsilí Muse věnuje každé odpovědi.",
     "output": "Vybrat formát výsledku: text, json nebo jsonl.",
     "max-budget-usd": "Nastavit pevný limit výdajů v USD pro tento běh.",
-    "team": "--team: Požádat o týmové spuštění (backend Model API, acceptEdits a pevný rozpočet; do přistání dráhy týmového spouštěče odmítnuto: každý požadavek končí 2).",
+    "team": "--team: Spouštět týmy jádra s Model API, acceptEdits a pevným rozpočtem sdíleným všemi pracovníky; dotazy se odmítají a sloučení se ukládají do pracovního stromu běhu.",
     "max-requests": "Nastavit nejvyšší počet požadavků modelu.",
     "timeout": "Nastavit dobu běhu v sekundách.",
     "fail-on-denial": "Zastavit běh při zamítnutí oprávnění.",
@@ -3601,7 +3601,6 @@
   "execPaidNeedsEdits": "Generování obrázků vyžaduje acceptEdits.",
   "execModelApiOnly": "Tyto možnosti vyžadují backend Model API.",
   "execTeamNeedsEdits": "--team vyžaduje --permission-mode acceptEdits.",
-  "execTeamNotReady": "Týmová spuštění potřebují dráhu týmového spouštěče; ověření požadavku prošlo.",
   "execMuseCodeOnly": "Tyto možnosti vyžadují backend Muse Code.",
   "execModelUnpriced": "Tento model nemá známý tarif.",
   "execPromptMissing": "Zadejte jeden neprázdný pokyn.",
@@ -5548,5 +5547,8 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
-  }
+  },
+  "execTeamWorkerUnsupported": "Týmy bez rozhraní spouštějí pouze pracovníky jádra; {kind} nelze spustit v CI.",
+  "execTeamConfigInvalid": "Neplatná konfigurace týmu bez rozhraní: {reason}.",
+  "execTeamProtectedDenied": "Sloučení týmu bez rozhraní odmítnuto: chráněné cesty vyžadují schválení."
 }

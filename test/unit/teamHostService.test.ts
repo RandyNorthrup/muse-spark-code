@@ -1517,3 +1517,25 @@ it('R4-merge: a missing lazy bundle refuses without hanging the card', async () 
   }
   await service.dispose()
 })
+
+it('headless disposal waits for the worker handoff and its final state writes', async () => {
+  const h = harness(team([entry('e1', WORKER_MODEL)]))
+  const service = createTeamHostService(h.deps)
+  await service.probeEntries()
+  await service.teamRunner.delegate(delegateOne, context())
+  let isDrained = false
+  const updates = vi.spyOn(h.deps.state, 'update')
+  const closing = (async () => {
+    await service.dispose({ waitForWorkers: true })
+    isDrained = true
+  })()
+  await settle()
+  expect(h.signals[0]?.aborted).toBe(true)
+  expect(isDrained).toBe(false)
+  h.finish(0)
+  await closing
+  expect(isDrained).toBe(true)
+  const count = updates.mock.calls.length
+  await settle()
+  expect(updates.mock.calls).toHaveLength(count)
+})

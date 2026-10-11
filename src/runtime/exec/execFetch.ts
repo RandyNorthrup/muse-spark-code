@@ -81,6 +81,17 @@ export function execFetch(input: {
     if (reason !== 'closed') input.onLatch({ kind: reason })
     throw new Error(UI_TEXT.execRequestShape)
   }
+  const pinnedFetch = async (url: string, init?: RequestInit): Promise<Response> =>
+    await input.lifecycle.race(
+      input.fetch(url, {
+        ...init,
+        redirect: 'error',
+        signal: AbortSignal.any([
+          input.lifecycle.signal,
+          ...(init?.signal == null ? [] : [init.signal]),
+        ]),
+      }),
+    )
   const transport: typeof fetch = async (url, init) => {
     if (typeof url !== 'string') return refuse('request_shape')
     let parsed: URL
@@ -101,17 +112,9 @@ export function execFetch(input: {
       return refuse('request_shape')
     const method = init?.method ?? 'GET'
     if (method === 'GET' && parsed.pathname === EXEC_ENDPOINTS.models) {
-      if (isClosed || input.lifecycle.signal.aborted) return refuse('closed')
-      return await input.lifecycle.race(
-        input.fetch(url, {
-          ...init,
-          redirect: 'error',
-          signal: AbortSignal.any([
-            input.lifecycle.signal,
-            ...(init?.signal == null ? [] : [init.signal]),
-          ]),
-        }),
-      )
+      return isClosed || input.lifecycle.signal.aborted
+        ? refuse('closed')
+        : await pinnedFetch(url, init)
     }
     const isResponse = parsed.pathname === EXEC_ENDPOINTS.responses
     const endpoint =
@@ -132,7 +135,8 @@ export function execFetch(input: {
     if (
       isResponse &&
       (!responseShape.success ||
-        (input.responsesThroughEngine !== true && responseShape.data.model !== input.selectedModel) ||
+        (input.responsesThroughEngine !== true &&
+          responseShape.data.model !== input.selectedModel) ||
         'background' in responseShape.data ||
         'previous_response_id' in responseShape.data)
     )
@@ -146,17 +150,9 @@ export function execFetch(input: {
     )
     if (isResponse && tier === undefined) return refuse('unpriced')
     if (isResponse && input.responsesThroughEngine === true) {
-      if (isClosed || input.lifecycle.signal.aborted) return refuse('closed')
-      return await input.lifecycle.race(
-        input.fetch(url, {
-          ...init,
-          redirect: 'error',
-          signal: AbortSignal.any([
-            input.lifecycle.signal,
-            ...(init.signal == null ? [] : [init.signal]),
-          ]),
-        }),
-      )
+      return isClosed || input.lifecycle.signal.aborted
+        ? refuse('closed')
+        : await pinnedFetch(url, init)
     }
     // Each caller captures the current tail synchronously. Rechecking after
     // this wait and reserving have no intervening await.

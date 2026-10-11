@@ -7,7 +7,7 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-- Headless team groundwork: concurrent worker reservations share the exact run budget; unsent engine attempts release only their own claim. Team dispatch remains gated until the runner is complete.
+- **Headless engine teams** (M96b): `exec --team` runs with the Model API backend, `acceptEdits` and a hard run budget. Every worker request and retry reserves against that budget; configured local engines need no key. Worker approval questions deny, ordinary merges enter the run working tree after local Git checks, and protected merges deny. The CI key stays in the engine process. The run owns and removes its board, copies and task refs. Team dispatch loads lazily; the headless preflight budget stays 100 KiB.
 
 ### Added
 
@@ -38,13 +38,11 @@ happened, not what was planned; superseded entries are kept.
   task is a `tool_call` whose report is text content and whose diff is
   `diff` content; the merge is a permission request carrying the diff; the
   agent map goes out as a `plan` with one entry per running task.
-  `exec --team` parses and validates (Model API backend, `acceptEdits`,
-  hard budget) but exits 2 with an explicit error; it never runs a `--team`
-  request as a single session. Team runs in the ACP agent and headless
-  follow in their own lanes. Review hardening: a merge permission carries
+  Headless `exec --team` now binds these contracts to the engine runner
+  described above. ACP session bindings remain C-M96b-1. Review hardening: a merge permission carries
   at least one real diff; option kinds are exactly the SDK's; a completed
-  task re-sends the diffs it showed; Help says `--team` is refused until
-  the runner lane lands; the refusal runs after full request validation.
+  task re-sends the diffs it showed; headless team admission runs after
+  full prompt, provider and hard-budget validation.
   Every structured builder now validates its final frozen shape and throws
   a typed contract error for invalid caller content, including empty diff
   paths, unsupported media/terminal content, empty option ids and plan titles.

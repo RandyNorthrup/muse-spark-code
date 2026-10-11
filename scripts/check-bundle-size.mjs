@@ -280,6 +280,9 @@ const BUDGETS = [
   { path: 'dist/acp.js', budgetKiB: 850 },
   // TRAIN15E: headless preflight before the lazy engine; 77.9 KiB +15%.
   { path: 'dist/headless.js', budgetKiB: 100 },
+  // M96b: run-owned team policy, loaded only for --team; measured 30.9 KiB
+  // plus 15%, rounded to 25 KiB. Headless retains its original 100 KiB cap.
+  { path: 'dist/execTeam.js', budgetKiB: 50 },
   // M114 F: runtime-only installer, measured with the shared validation API.
   { path: 'dist/fontsInstall.js', budgetKiB: 25 },
   { path: 'dist/scheduleBackground.js', budgetKiB: 50 },

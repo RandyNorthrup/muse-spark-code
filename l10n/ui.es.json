@@ -323,7 +323,7 @@
     "effort": "Elige cuánto esfuerzo dedica Muse a cada respuesta.",
     "output": "Elegir el formato del resultado: text, json o jsonl.",
     "max-budget-usd": "Fijar el límite estricto de gasto en USD para esta ejecución.",
-    "team": "--team: Solicitar una ejecución de equipo (backend de Model API, acceptEdits y un presupuesto fijo; rechazado hasta que llegue el carril del ejecutor de equipo: toda solicitud sale con 2).",
+    "team": "--team: Ejecutar equipos del motor con Model API, acceptEdits y un presupuesto fijo compartido por todos los trabajadores; las preguntas se deniegan y las fusiones se aplican al árbol de trabajo de la ejecución.",
     "max-requests": "Fijar el máximo de solicitudes al modelo.",
     "timeout": "Fijar el límite de tiempo de ejecución en segundos.",
     "fail-on-denial": "Detener la ejecución si se deniega un permiso.",
@@ -3528,7 +3528,6 @@
   "execPaidNeedsEdits": "La generación de imágenes requiere acceptEdits.",
   "execModelApiOnly": "Estas opciones requieren el motor Model API.",
   "execTeamNeedsEdits": "--team necesita --permission-mode acceptEdits.",
-  "execTeamNotReady": "Las ejecuciones de equipo necesitan el carril del ejecutor de equipo; la validación de la solicitud pasó.",
   "execMuseCodeOnly": "Estas opciones requieren el motor Muse Code.",
   "execModelUnpriced": "Este modelo no tiene una tarifa conocida.",
   "execPromptMissing": "Proporciona una única instrucción no vacía.",
@@ -5395,5 +5394,8 @@
       "other": "{count} autorizaciones",
       "many": "{count} autorizaciones"
     }
-  }
+  },
+  "execTeamWorkerUnsupported": "Los equipos sin interfaz solo ejecutan trabajadores del motor; {kind} no puede ejecutarse en CI.",
+  "execTeamConfigInvalid": "La configuración del equipo sin interfaz no es válida: {reason}.",
+  "execTeamProtectedDenied": "Fusión del equipo sin interfaz denegada: las rutas protegidas requieren aprobación."
 }

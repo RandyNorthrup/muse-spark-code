@@ -23,3 +23,9 @@ export {
   MuseWorkerFolderError,
   withWorkerFile,
 } from '../../core/team/workers/workerFence'
+// Headless installs its lifecycle/merge policy around these same engine ports.
+export { createTeamHostService } from '../../core/team/teamHost'
+export { createEngineTeamPorts } from './teamEnginePorts'
+export { setUiText } from '../../shared/l10n/text'
+export { processTeamGit } from './teamEnginePorts'
+export { teamProgramFreeGit } from '../../core/team/teamWorkspaces'

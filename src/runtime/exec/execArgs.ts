@@ -56,7 +56,7 @@ export interface ExecOptions {
    */
   readonly provider: string | undefined
   readonly model: string | undefined
-  /** M96b: ask for a team run. The runner lane admits; until then parsing refuses out loud. */
+  /** M96b: explicit opt-in to bounded, in-process headless engine teams. */
   readonly team: boolean
   readonly effort: EffortLevel | undefined
   readonly allowsContributorModels: boolean
@@ -302,9 +302,7 @@ export function parseExec(
   if (rawModel !== undefined && model === undefined) {
     return invalid(UI_TEXT.execUnknownModel)
   }
-  // The team refusal runs after every other request check, so a team request
-  // never masks a missing prompt, a duplicate source or an unknown provider —
-  // and `execTeamNotReady` only says validation passed once it really did.
+  // Team admission follows the prompt, provider and hard-budget checks.
   if (values['team'] === true) {
     const admission = teamExecAdmission({ mode, backend })
     if (!admission.ok) return invalid(admission.reason)

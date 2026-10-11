@@ -23,6 +23,8 @@ import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
 import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
+import type { TeamHostSeams } from '../core/team/teamHostService'
+import type { EngineTeamPortsDeps } from '../host/team/teamEnginePorts'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
 import {
   buildChildEnvironment,
@@ -83,11 +85,13 @@ import {
   withoutKeyringRoutes,
 } from './credentialVariables'
 import { walkFiles } from './fileWalk'
+import { openTeamWorkerSession } from '../host/backend/teamWorkerSession'
 import { paidGrantFile } from './paidGrants'
 
 import type { AssembledProviderRun } from './exec/providerExec'
 
 export interface ExecRuntimeOptions {
+  readonly secretLiterals?: (() => readonly string[]) | undefined
   readonly providerRun?: AssembledProviderRun
   readonly responseAccounting?: RuntimeAccountingEntry.RuntimeResponseAccounting
   readonly isEphemeral: boolean
@@ -96,6 +100,7 @@ export interface ExecRuntimeOptions {
 }
 
 export interface RuntimeBackendDeps {
+  readonly team?: TeamHostSeams | undefined
   readonly usageRecording?: UsageRecording | undefined
   readonly questions?: { remove(sessionId: string): Promise<void> }
   readonly exec?: ExecRuntimeOptions
@@ -116,6 +121,11 @@ export interface RuntimeBackendDeps {
 }
 
 export interface RuntimeBackend {
+  /** In-process engine worker; never launches Muse Code or an external agent. */
+  readonly startTeamWorker: (
+    cwd: string,
+    input: Parameters<EngineTeamPortsDeps['startWorker']>[0],
+  ) => ReturnType<EngineTeamPortsDeps['startWorker']>
   readonly readUsageBudgets: () => Promise<readonly UsageBudgetRead[]>
   readonly backend: AcpBackend
   /** Muse Code's launch and environment, for `login`. */
@@ -140,6 +150,10 @@ export interface RuntimeBackend {
 // No editor proxy setting exists outside VS Code; the CLI reads the
 // environment's HTTPS_PROXY and NO_PROXY as it inherits them.
 const NO_EDITOR_PROXY: ProxySettings = { proxy: '', noProxy: [] }
+
+function ignoreWorkerTranscript(): void {
+  // Worker responses have their own reports; only the orchestrator enters exec output.
+}
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -330,11 +344,15 @@ function modelApiManager(
           async save(snapshot: Parameters<typeof store.save>[0]) {
             const key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
             const copy = structuredClone(snapshot)
-            redactSnapshot(copy, key === undefined ? [] : [key])
+            redactSnapshot(copy, deps.exec?.secretLiterals?.() ?? (key === undefined ? [] : [key]))
             await store.save(copy)
           },
         }
   return new ModelApiBackendManager({
+    team: deps.team,
+    ...(deps.team !== undefined && {
+      isTeamTrusted: () => deps.team?.teamDecisionSource()?.teamSwitchOn === true,
+    }),
     log,
     usageRecording: deps.usageRecording,
     hasExternalPaidRecording: deps.exec !== undefined,
@@ -359,13 +377,13 @@ function modelApiManager(
       signal.throwIfAborted()
       return handle.result
     },
-    createProviderClient: async (meta: ProviderClient) => {
+    createProviderClient: async (meta: ProviderClient, usageKind) => {
       let client = meta
       const run = deps.exec?.providerRun
       if (run !== undefined) {
         const entry = await import('../host/backend/configuredProvidersEntry')
         entry.setUiText(UI_TEXT, uiLocale())
-        headlessProviders = entry.createConfiguredProviderServices(meta, {
+        headlessProviders ??= entry.createConfiguredProviderServices(meta, {
           configFile: providerConfigFile,
           catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
           secrets: run.secrets,
@@ -409,6 +427,18 @@ function modelApiManager(
           },
         })
         client = headlessProviders.client
+      } else if (deps.team !== undefined && existsSync(providerConfigFile)) {
+        // A Meta orchestrator may delegate to a configured keyless local engine.
+        // Only the user's provider file supplies origins; the repository cannot.
+        const entry = await import('../host/backend/configuredProvidersEntry')
+        entry.setUiText(UI_TEXT, uiLocale())
+        headlessProviders ??= entry.createConfiguredProviderServices(meta, {
+          configFile: providerConfigFile,
+          catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
+          secrets: deps.secrets,
+          hasMetaKey: async () => (await deps.secrets.get(SECRET_KEYS.modelApiKey)) !== undefined,
+        })
+        client = headlessProviders.client
       } else if (
         deps.exec === undefined &&
         (existsSync(providerConfigFile) ||
@@ -419,7 +449,19 @@ function modelApiManager(
       }
       const entry = await accountingEntry()
       entry.setUiText(UI_TEXT, uiLocale())
-      return entry.withRuntimeAccounting(client, await dailyBudget(), deps.exec?.responseAccounting)
+      const accounting = deps.exec?.responseAccounting
+      return entry.withRuntimeAccounting(
+        client,
+        await dailyBudget(),
+        usageKind === 'worker' && accounting !== undefined
+          ? {
+              ...accounting,
+              isWorker: true,
+              started: ignoreWorkerTranscript,
+              settled: ignoreWorkerTranscript,
+            }
+          : accounting,
+      )
     },
     reservePaidRequest: async (
       body,
@@ -694,6 +736,21 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   }
 
   return {
+    startTeamWorker: async (cwd, input) => {
+      if (deps.options.backend !== 'modelApi') throw new Error(UI_TEXT.execModelApiOnly)
+      await modelApiHostFor(cwd)
+      const manager = modelApiHosts.get(cwd)?.manager
+      if (manager === undefined) throw new Error(UI_TEXT.teamBudgetUnavailable)
+      const budgetScope = await manager.bestOfNBudgetScope(input.parentSessionId)
+      const host = await manager.buildTeamWorkerHost(
+        input.folder,
+        input.admit,
+        input.noteUsage,
+        budgetScope,
+        input.fenceIo,
+      )
+      return await openTeamWorkerSession(host, input)
+    },
     readUsageBudgets: async () => {
       const budgets = await Promise.all(
         Array.from(modelApiHosts.values(), ({ manager }) => manager.readUsageBudgets()),

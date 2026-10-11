@@ -706,7 +706,7 @@
     {
       "id": "M96b",
       "title": "Teams in other editors and headless runs",
-      "summary": "The same teams, roles, pools and caps in the ACP agent and headless runs, with each surface's approval rules and contracts that validate complete JSON collections using the shipped parser, while runtime wiring and acceptance remain pending.",
+      "summary": "Headless exec runs engine teams with hard-budget reservations, keyless local workers, denied questions and checked working-tree merges, while ACP bindings, parity certification, editor receipts and hosted CI follow in their named slices.",
       "area": "agents"
     },
     {

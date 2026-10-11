@@ -323,7 +323,7 @@
     "effort": "각 답변에 Muse가 들이는 노력을 선택합니다.",
     "output": "결과 형식을 text, json 또는 jsonl로 선택합니다.",
     "max-budget-usd": "이 실행의 엄격한 지출 한도를 USD로 설정합니다.",
-    "team": "--team: 팀 실행 요청(Model API 백엔드, acceptEdits 및 고정 예산. 팀 러너 레인이 마련될 때까지 거부: 모든 요청은 종료 코드 2).",
+    "team": "--team: Model API, acceptEdits 및 모든 작업자가 공유하는 엄격한 예산으로 엔진 팀을 실행합니다. 질문은 거부되고 병합은 실행의 작업 트리에 적용됩니다.",
     "max-requests": "최대 모델 요청 수를 설정합니다.",
     "timeout": "실행 시간 제한을 초 단위로 설정합니다.",
     "fail-on-denial": "권한이 거부되면 실행을 중지합니다.",
@@ -3382,7 +3382,6 @@
   "execPaidNeedsEdits": "이미지 생성에는 acceptEdits가 필요합니다.",
   "execModelApiOnly": "이 옵션에는 Model API 백엔드가 필요합니다.",
   "execTeamNeedsEdits": "--team에는 --permission-mode acceptEdits가 필요합니다.",
-  "execTeamNotReady": "팀 실행에는 팀 러너 레인이 필요합니다. 요청 유효성 검사를 통과했습니다.",
   "execMuseCodeOnly": "이 옵션에는 Muse Code 백엔드가 필요합니다.",
   "execModelUnpriced": "이 모델의 요금을 알 수 없습니다.",
   "execPromptMissing": "비어 있지 않은 프롬프트 하나를 제공하세요.",
@@ -5089,5 +5088,8 @@
     "grantsCount": {
       "other": "{count} 개 권한"
     }
-  }
+  },
+  "execTeamWorkerUnsupported": "헤드리스 팀은 엔진 작업자만 실행합니다. {kind}는 CI에서 실행할 수 없습니다.",
+  "execTeamConfigInvalid": "헤드리스 팀 구성이 잘못되었습니다: {reason}.",
+  "execTeamProtectedDenied": "헤드리스 팀 병합 거부: 보호된 경로에는 승인이 필요합니다."
 }

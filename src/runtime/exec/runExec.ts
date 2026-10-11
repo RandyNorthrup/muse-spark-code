@@ -48,6 +48,7 @@ import {
   PAID_PRICES_USD,
   MODEL_API_IMAGE_MODEL,
   SECRET_KEYS,
+  PROVIDER_SECRET_PREFIX,
   UI_TEXT,
 } from '../../shared/constants'
 import { effortLevelsFor } from '../../shared/effort'
@@ -462,9 +463,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
    * pinned fetch — then the ordinary ACP engine runs the turn.
    */
   async function runWithProvider(): Promise<number | undefined> {
-    const [{ assembleProviderRun }, { providersFilePath, resolveEndpointHost }] = await Promise.all(
-      [import('./providerExec'), import('../providersCommands')],
-    )
+    const providerEngine = await import('../runtimeEngineEntry')
+    providerEngine.setUiText(UI_TEXT, uiLocale())
+    const { assembleProviderRun, providersFilePath, resolveEndpointHost } = providerEngine
     const providerId = options.provider ?? ''
     // Past argument parsing: failures from here are the run's, not usage,
     // unless assembly says otherwise.
@@ -642,12 +643,23 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             if (!isValidModelApiKey(value)) return
             if (!literals.includes(value)) literals.push(value)
           }
+          if (value !== undefined && name.startsWith(PROVIDER_SECRET_PREFIX)) {
+            const { parseStoredProviderSecret } = await import('../runtimeEngineEntry')
+            let envelope: unknown
+            try {
+              envelope = JSON.parse(value)
+            } catch {
+              return
+            }
+            const stored = parseStoredProviderSecret(envelope)
+            if (stored !== undefined && !literals.includes(stored.key)) literals.push(stored.key)
+          }
           return value
         },
         store: secrets.store.bind(secrets),
         delete: secrets.delete.bind(secrets),
       }
-      if (options.team && ledger !== undefined && options.budgetUsd !== undefined) {
+      if (ledger !== undefined && options.budgetUsd !== undefined && options.team) {
         const { createExecTeam } = await import('./execTeamEntry')
         team = await lifecycle.race(
           createExecTeam(
@@ -656,6 +668,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               cwd,
               platform: deps.platform,
               provider: options.provider,
+              defaultPays: providerRun?.provider.entry.auth === 'none' ? 'local' : 'key',
               budgetUsd: options.budgetUsd,
               signal: lifecycle.signal,
               now: deps.now,
@@ -664,14 +677,20 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               listModels: async () => {
                 const host = await runtime?.backend.hostFor(cwd)
                 if (host === undefined) throw new Error(UI_TEXT.teamBudgetUnavailable)
-                return (await host.listModels()).map((entry) => entry.modelId)
+                const models = await host.listModels()
+                return models.map((entry) => entry.modelId)
               },
               startWorker: async (input) => {
                 if (runtime === undefined) throw new Error(UI_TEXT.teamBudgetUnavailable)
                 return await runtime.startTeamWorker(cwd, input)
               },
-              onWritten: (files) => { for (const file of files) filesChanged.add(file) },
+              onWritten: (files) => {
+                for (const file of files) filesChanged.add(file)
+              },
               secretLiterals: () => literals,
+              lowerWorkerCap: (cap) => {
+                ledger.lowerWorkerCap(cap)
+              },
             },
             UI_TEXT,
             uiLocale(),
@@ -747,6 +766,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         log,
         usageRecording,
         exec: {
+          secretLiterals: () => literals,
           isEphemeral: options.ephemeral,
           ...(providerRun !== undefined && { providerRun }),
           ...((providerRun !== undefined || options.team) &&

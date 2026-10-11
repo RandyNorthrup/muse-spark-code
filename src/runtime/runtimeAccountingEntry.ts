@@ -13,6 +13,7 @@ import {
   type ResolvedModel,
 } from '../core/backends/modelapi/modelPolicy'
 import type { SessionBudgetClaim } from '../core/backends/modelapi/sessionBudget'
+import { estimateInput, requestParts } from '../core/backends/modelapi/sessionBudget'
 import type { ResponseObject } from '../core/backends/modelapi/schemas'
 import {
   EXEC_USD_DECIMALS,
@@ -92,10 +93,30 @@ export function createRuntimeDailyBudget(deps: {
 }
 
 export interface RuntimeResponseAccounting {
+  readonly isWorker?: boolean
   readonly ledger: RunLedger
   readonly refuse: (reason: Refusal | 'breach' | 'accounting_invalid') => void
   readonly started: (n: number) => void
   readonly settled: (outcome: LastResponse) => void
+}
+
+// Claim directories intentionally block admission until their payload is durable.
+// Serialize local publication/settlement with the final synchronous send fence;
+// otherwise one worker can see another's half-published intent. Network streams
+// remain concurrent. Cross-process intents still fail closed in the journal.
+const journalTurns = new WeakMap<object, { tail: Promise<void> }>()
+async function acquireJournalTurn(daily: object): Promise<() => void> {
+  const queue = journalTurns.get(daily) ?? { tail: Promise.resolve() }
+  journalTurns.set(daily, queue)
+  const previous = queue.tail
+  let release: (() => void) | undefined
+  // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- Shared host typechecks target ES2023/Node 20, which lacks withResolvers (PLAN.md section 8); the executor installs this release synchronously.
+  queue.tail = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await previous
+  if (release === undefined) throw new Error(UI_TEXT.execIncomplete)
+  return release
 }
 
 /** Preserve all native clients and codecs; attach admission to their shared transport guard. */
@@ -121,7 +142,13 @@ export function withRuntimeAccounting(
         )
           throw new Error(UI_TEXT.execModelUnpriced)
         const reserveUsd = model.price.reserve({
-          inputTokens: contextTokens - body.max_output_tokens,
+          // Same worker bound the engine hands TeamTaskMeter.reserveRequest:
+          // serialized UTF-8 input, no cache discount, plus the output ceiling.
+          inputTokens:
+            accounting?.isWorker === true
+              ? (guard?.paidEstimatedInputTokens ??
+                estimateInput(requestParts(body), undefined).inputTokens)
+              : contextTokens - body.max_output_tokens,
           outputTokens: body.max_output_tokens,
           images: requestImageCount(body),
         })
@@ -132,46 +159,53 @@ export function withRuntimeAccounting(
         let wasSent = false
         let response: ResponseObject | undefined
         let hasEof = false
+        let releaseDispatch: (() => void) | undefined
         const settle = async () => {
+          releaseDispatch?.()
+          releaseDispatch = undefined
           if (claim === undefined && ticket === undefined) return
           const owned = claim
           claim = undefined
-          const actual =
-            hasEof && response?.status === 'completed' && response.usage != null
-              ? model.price.settle(modelPricedUsage(response.usage), {
-                  cost: response.usage.provider_cost_usd,
-                })
-              : undefined
-          const cost = actual === undefined ? undefined : ceilUsd(actual)
-          // A sent request without a verified price keeps its original durable reservation.
-          if (owned !== undefined && (!wasSent || cost !== undefined))
-            await owned.settle(wasSent ? (cost ?? owned.reservedUsd) : Usd.from(0).toAmount())
-          if (ticket !== undefined && accounting !== undefined) {
-            if (!wasSent) {
-              accounting.ledger.releaseUnsent(ticket)
+          const release = await acquireJournalTurn(daily)
+          try {
+            const actual =
+              hasEof && response?.status === 'completed' && response.usage != null
+                ? model.price.settle(modelPricedUsage(response.usage), {
+                    cost: response.usage.provider_cost_usd,
+                  })
+                : undefined
+            const cost = actual === undefined ? undefined : ceilUsd(actual)
+            // A sent request without a verified price keeps its original durable reservation.
+            if (owned !== undefined && (!wasSent || cost !== undefined))
+              await owned.settle(wasSent ? (cost ?? owned.reservedUsd) : Usd.from(0).toAmount())
+            if (ticket !== undefined && accounting !== undefined) {
+              if (!wasSent) {
+                accounting.ledger.releaseUnsent(ticket)
+                ticket = undefined
+                return
+              }
+              const result = accounting.ledger.settleResponse(
+                ticket,
+                {
+                  ...(hasEof
+                    ? ({ kind: 'eof', parseInvalid: false } as const)
+                    : ({ kind: 'transport', why: 'error' } as const)),
+                  terminal: response?.status ?? null,
+                  incompleteReason: response?.incomplete_details?.reason ?? null,
+                  usage: response?.usage,
+                },
+                { costUsd: cost },
+                accounting.settled,
+              )
               ticket = undefined
-              return
+              if (result.latch !== undefined) accounting.refuse(result.latch)
             }
-            const result = accounting.ledger.settleResponse(
-              ticket,
-              {
-                ...(hasEof
-                  ? ({ kind: 'eof', parseInvalid: false } as const)
-                  : ({ kind: 'transport', why: 'error' } as const)),
-                terminal: response?.status ?? null,
-                incompleteReason: response?.incomplete_details?.reason ?? null,
-                usage: response?.usage,
-              },
-              { costUsd: cost },
-            )
-            ticket = undefined
-            const last = accounting.ledger.lastResponse
-            if (last !== null) accounting.settled(last)
-            if (result.latch !== undefined) accounting.refuse(result.latch)
+            wasSent = false
+            response = undefined
+            hasEof = false
+          } finally {
+            release()
           }
-          wasSent = false
-          response = undefined
-          hasEof = false
         }
         const attempt: ResponseAttemptGuard = Object.assign(
           (digest: string | undefined) => {
@@ -184,44 +218,54 @@ export function withRuntimeAccounting(
             prepare: async () => {
               await settle()
               await guard?.prepare?.()
-              // Free local models hold concurrency, but require no paid journal or key.
-              claim =
-                model.policy.pricing.kind === 'local'
-                  ? undefined
-                  : await daily.reserve(reserveUsd, signal)
-              if (accounting === undefined) return
-              const pricing = model.policy.pricing
-              const price =
-                pricing.kind === 'priced'
-                  ? {
-                      input: Usd.from(pricing.card.input).times(TOKENS_PER_MILLION).toAmount(),
-                      cachedInput: Usd.from(pricing.card.cachedInput ?? pricing.card.input)
-                        .times(TOKENS_PER_MILLION)
-                        .toAmount(),
-                      output: Usd.from(pricing.card.output).times(TOKENS_PER_MILLION).toAmount(),
-                    }
-                  : {
-                      input: Usd.from(0).toAmount(),
-                      cachedInput: Usd.from(0).toAmount(),
-                      output: Usd.from(0).toAmount(),
-                    }
-              const admission = accounting.ledger.admitResponse({
-                model: body.model,
-                maxOutputTokens: body.max_output_tokens,
-                contextTokens,
-                reserveUsd: ceilUsd(reserveUsd),
-                price,
-              })
-              if ('refused' in admission) {
-                accounting.refuse(admission.refused)
-                throw new Error(UI_TEXT.execBudgetRefused)
+              releaseDispatch = await acquireJournalTurn(daily)
+              try {
+                // Free local models hold concurrency, but require no paid journal or key.
+                claim =
+                  model.policy.pricing.kind === 'local'
+                    ? undefined
+                    : await daily.reserve(reserveUsd, signal)
+                if (accounting === undefined) return
+                const pricing = model.policy.pricing
+                const price =
+                  pricing.kind === 'priced'
+                    ? {
+                        input: Usd.from(pricing.card.input).times(TOKENS_PER_MILLION).toAmount(),
+                        cachedInput: Usd.from(pricing.card.cachedInput ?? pricing.card.input)
+                          .times(TOKENS_PER_MILLION)
+                          .toAmount(),
+                        output: Usd.from(pricing.card.output).times(TOKENS_PER_MILLION).toAmount(),
+                      }
+                    : {
+                        input: Usd.from(0).toAmount(),
+                        cachedInput: Usd.from(0).toAmount(),
+                        output: Usd.from(0).toAmount(),
+                      }
+                const admission = accounting.ledger.admitResponse({
+                  model: body.model,
+                  maxOutputTokens: body.max_output_tokens,
+                  contextTokens,
+                  reserveUsd: ceilUsd(reserveUsd),
+                  price,
+                  recordsLastResponse: accounting.isWorker !== true,
+                })
+                if ('refused' in admission) {
+                  accounting.refuse(admission.refused)
+                  throw new Error(UI_TEXT.execBudgetRefused)
+                }
+                ticket = admission
+              } catch (error: unknown) {
+                releaseDispatch()
+                releaseDispatch = undefined
+                throw error
               }
-              ticket = admission
             },
             onRequestStarted: () => {
               wasSent = true
               if (ticket !== undefined) accounting?.started(ticket.n)
               guard?.onRequestStarted?.()
+              releaseDispatch?.()
+              releaseDispatch = undefined
             },
           },
         )
