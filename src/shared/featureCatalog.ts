@@ -53,7 +53,9 @@ const UI_CONDITIONS: Readonly<
 const NLS_CONDITIONS: Readonly<Partial<Record<string, string>>> = {
   'config.reports.network.enumDescriptions.whenSignedIn': 'reportsNetwork&githubSignIn',
   'config.backend.enumDescriptions.auto': 'backendAvailability',
-  'config.resourceRelocate.enumDescriptions.paired': 'resourceRelocation',
+  'config.resourceRelocate.enumDescriptions.paired': 'resourceRelocation=noRoute',
+  'config.resourceRelocate.enumDescriptions.ask': 'resourceRelocation=noRoute',
+  'config.resourceRelocate.enumDescriptions.off': 'resourceRelocation=off',
   'config.browserCheckRuntime.enumDescriptions.download': 'browserRuntimeAcquisition',
   'config.tabMultiline.enumDescriptions.auto': 'multilineMode',
   'config.tabTrigger.enumDescriptions.onInvoke': 'tabTrigger',
@@ -85,6 +87,7 @@ const SETTING_CONDITIONS: Readonly<
   // through a validated decimal-to-number boundary.
   modelApiSessionBudgetUsd: 'sessionBudget',
 
+  schedules: 'scheduleRuntime=unbound&backend=museCode',
   modelApiObservationPacking: 'conversationStart',
   modelApiAutoCompaction: 'conversationStart&modelPricing',
   modelApiStrictTools: 'conversationStart&tools.strict',
@@ -189,7 +192,7 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   diagnostics: { description: { ui: 'referenceDiagnostics' }, canRun: true },
   reportProblem: { description: { ui: 'referenceReport' }, canRun: true },
   showReport: { description: { ui: 'reportSlashDescription' }, canRun: true },
-  estimate: { description: { ui: 'referenceEstimate' }, canRun: true },
+  estimate: { description: { ui: 'referenceEstimate' }, canRun: false },
   newConversation: { description: { tip: 'clear' }, canRun: false },
   signOut: { description: { tip: 'signOut' }, canRun: false },
   openInTerminal: { description: { ui: 'referenceTerminal' }, canRun: false },
@@ -237,9 +240,9 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   deleteUploadedFiles: { description: { ui: 'referenceUploadedFiles' }, canRun: false },
   nextOpenQuestion: { description: { ui: 'questionNextOpen' }, canRun: false },
   previousOpenQuestion: { description: { ui: 'questionPreviousOpen' }, canRun: false },
-  schedulePrompt: { description: { tip: 'schedulePrompt' }, canRun: true },
-  showSchedules: { description: { tip: 'schedule' }, canRun: true },
-  showScheduleTimeline: { description: { tip: 'scheduleTimeline' }, canRun: true },
+  schedulePrompt: { description: { tip: 'schedulePrompt' }, canRun: false },
+  showSchedules: { description: { tip: 'schedule' }, canRun: false },
+  showScheduleTimeline: { description: { tip: 'scheduleTimeline' }, canRun: false },
   vault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
   lockVault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
 }
@@ -271,6 +274,17 @@ function feature(
     editors,
   }
 }
+
+// CX1R3: retained for coverage validation, omitted from published Help.
+// CX1R4 F1: accounts joins the list; CM108ACC re-adds it when the runtime lands.
+export const REFERENCE_IN_PROGRESS_FEATURES: readonly string[] = [
+  'team-workers',
+  'vault',
+  'estimator',
+  'auto-compaction',
+  'argument-preview',
+  'accounts',
+]
 
 export function featureCatalog(): readonly Feature[] {
   return [
@@ -405,7 +419,7 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'compaction',
       { ui: 'compactItem' },
-      { ui: 'autoCompactionAwaitingEvaluation' },
+      { tip: 'compact' },
       [],
       ['modelApiAutoCompaction'],
       'observation-packing-model-api',
@@ -982,6 +996,7 @@ export function featureCatalog(): readonly Feature[] {
       'paid-features',
       ['modelApi'],
       false,
+      ['vscode', 'acp'],
     ),
     feature(
       'tab',
@@ -1072,9 +1087,14 @@ export function featureCatalog(): readonly Feature[] {
       ['vscode', 'acp'],
     ),
   ].map((entry) => {
-    const surfaces = REFERENCE_SURFACES[entry.id] ?? entry.surfaces
+    const isInProgress = REFERENCE_IN_PROGRESS_FEATURES.includes(entry.id)
+    const surfaces = isInProgress ? [] : (REFERENCE_SURFACES[entry.id] ?? entry.surfaces)
     return {
       ...entry,
+      ...(isInProgress && {
+        summary: { ui: 'referenceInProgress' },
+        description: { ui: 'referenceInProgress' },
+      }),
       surfaces,
       editors: [
         ...new Set(
@@ -1093,14 +1113,16 @@ export function featureCatalog(): readonly Feature[] {
       paid: Object.values(PAID_USE_REGISTRY).some((paid) => paid.featureId === entry.id),
       // Feature-level details (schedules, accounts) and REFERENCE_DETAILS
       // combine: neither source may silently erase the other.
-      details: [...entry.details, ...(REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui }))],
+      details: isInProgress
+        ? []
+        : [...entry.details, ...(REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui }))],
       facts: {},
     }
   })
 }
 
 export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
-  estimator: ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'],
+  'orchestrator-playbook': ['acp:museCode', 'acp:modelApi'],
   'web-fetch': ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
   search: ['vscode:modelApi', 'acp:modelApi'],
   images: ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],

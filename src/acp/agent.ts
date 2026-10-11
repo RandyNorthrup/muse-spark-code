@@ -26,6 +26,7 @@ import type { PlaybookSurfacePort } from '../runtime/playbook/command'
 import {
   agent as acpAgent,
   type AgentApp,
+  type AvailableCommand,
   type AgentContext,
   type AuthMethod,
   type ClientCapabilities,
@@ -317,7 +318,7 @@ class AcpSession {
   private readonly questionBundle: () => AcpQuestionBundle
   private media: Promise<AcpMediaPort> | undefined
   private readonly attachments: AcpAttachment[] = []
-  private readonly accounts: AcpAccounts | undefined
+  private accounts: AcpAccounts | undefined
   private readonly translator: UpdateTranslator
   private unsubscribe: (() => void) | undefined
   private readonly unsubscribeResources: (() => void) | undefined
@@ -517,126 +518,130 @@ class AcpSession {
     }
     this.send({
       sessionUpdate: 'available_commands_update',
-      availableCommands: [
-        ...(this.deps.sharing
-          ?.commands()
-          .filter((command) => command.name !== SLASH_COMMAND_NAMES.help) ?? []),
-        { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
-        ...(this.deps.vault === undefined
-          ? []
-          : [
-              {
-                name: 'vault',
-                description: UI_TEXT.vault.title,
-                input: { hint: 'status | list | lock | audit' },
-              },
-            ]),
-        ...(this.accounts === undefined
-          ? []
-          : [{ name: 'accounts', description: UI_TEXT.accounts.slashDescription, input: null }]),
-        { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
-        {
-          name: SLASH_COMMAND_NAMES.report,
-          description: UI_TEXT.reportSlashDescription,
-          input: { hint: '<kind> [args] | history' },
-        },
-        ...(this.deps.legalScan === undefined
-          ? []
-          : [{ name: 'legal', description: UI_TEXT.legalScanDisclaimer, input: null }]),
-        ...(this.deps.usage === undefined
-          ? []
-          : [
-              {
-                name: 'usage',
-                description: UI_TEXT.acpUsageDescription,
-                input: null,
-              },
-            ]),
-        ...(this.deps.resources === undefined
-          ? []
-          : resourceCommands().filter(
-              (command) => command.name !== 'usage' || this.deps.usage === undefined,
-            )),
-        {
-          name: 'agents',
-          description: UI_TEXT.referenceAgentOutcomes,
-          input: { hint: '[receipt|continue|retry] [ID]' },
-        },
-        ...(this.deps.playbookFor === undefined
-          ? []
-          : [
-              {
-                name: 'playbook',
-                description: UI_TEXT.playbookHelpDescription,
-                input: { hint: 'status|record|settings' },
-              },
-            ]),
-        ...(this.deps.schedules === undefined
-          ? []
-          : [
-              {
-                name: 'schedule',
-                description: UI_TEXT.scheduleV2.labels.title,
-                input: { hint: UI_TEXT.scheduleV2.runtime.usage },
-              },
-            ]),
-        ...(this.deps.media === undefined || this.deps.options.isHeadless === true
-          ? []
-          : [
-              {
-                name: 'attach',
-                description: UI_TEXT.paletteTips.attachFile,
-                input: { hint: '<path>' },
-              },
-              { name: 'record', description: UI_TEXT.media.attachRecording, input: null },
-            ]),
-        ...(this.deps.estimate === undefined
-          ? []
-          : [
-              {
-                name: SLASH_COMMAND_NAMES.estimate,
-                description: UI_TEXT.estimateCliHelp,
-                input: { hint: UI_TEXT.estimateUsage },
-              },
-            ]),
-        ...this.skills
-          .filter(
-            (skill) =>
-              skill.selector !== SLASH_COMMAND_NAMES.help &&
-              skill.selector !== SLASH_COMMAND_NAMES.estimate &&
-              skill.selector !== ACP_COMPACT_COMMAND &&
-              skill.selector !== 'legal' &&
-              ![
-                'answer',
-                'questions',
-                'share',
-                'prompt',
-                'resources',
-                'agents',
-                SLASH_COMMAND_NAMES.report,
-                'attach',
-                'record',
-                'accounts',
-                'vault',
-              ].includes(skill.selector) &&
-              ((this.deps.usage === undefined && this.deps.resources === undefined) ||
-                skill.selector !== 'usage') &&
-              (this.deps.playbookFor === undefined || skill.selector !== 'playbook') &&
-              (this.deps.schedules === undefined || skill.selector !== 'schedule'),
-          )
-          .map((skill) => ({
-            name: skill.selector,
-            description: skill.description === '' ? skill.displayName : skill.description,
-            input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
-          })),
-        ...(this.questionRegistry === undefined
-          ? []
-          : [
-              { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
-              { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
-            ]),
-      ],
+      availableCommands: this.availableCommands(),
     })
+  }
+
+  private availableCommands(): AvailableCommand[] {
+    return [
+      ...(this.deps.sharing
+        ?.commands()
+        .filter((command) => command.name !== SLASH_COMMAND_NAMES.help) ?? []),
+      { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
+      ...(this.deps.vault === undefined
+        ? []
+        : [
+            {
+              name: 'vault',
+              description: UI_TEXT.vault.title,
+              input: { hint: 'status | list | lock | audit' },
+            },
+          ]),
+      ...(this.accounts === undefined
+        ? []
+        : [{ name: 'accounts', description: UI_TEXT.accounts.slashDescription, input: null }]),
+      { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
+      {
+        name: SLASH_COMMAND_NAMES.report,
+        description: UI_TEXT.reportSlashDescription,
+        input: { hint: '<kind> [args] | history' },
+      },
+      ...(this.deps.legalScan === undefined
+        ? []
+        : [{ name: 'legal', description: UI_TEXT.legalScanDisclaimer, input: null }]),
+      ...(this.deps.usage === undefined
+        ? []
+        : [
+            {
+              name: 'usage',
+              description: UI_TEXT.acpUsageDescription,
+              input: null,
+            },
+          ]),
+      ...(this.deps.resources === undefined
+        ? []
+        : resourceCommands().filter(
+            (command) => command.name !== 'usage' || this.deps.usage === undefined,
+          )),
+      {
+        name: 'agents',
+        description: UI_TEXT.referenceAgentOutcomes,
+        input: { hint: '[receipt|continue|retry] [ID]' },
+      },
+      ...(this.deps.playbookFor === undefined
+        ? []
+        : [
+            {
+              name: 'playbook',
+              description: UI_TEXT.playbookHelpDescription,
+              input: { hint: 'status|record|settings' },
+            },
+          ]),
+      ...(this.deps.schedules === undefined || this.deps.schedules.isAvailable === false
+        ? []
+        : [
+            {
+              name: 'schedule',
+              description: UI_TEXT.scheduleV2.labels.title,
+              input: { hint: UI_TEXT.scheduleV2.runtime.usage },
+            },
+          ]),
+      ...(this.deps.media === undefined || this.deps.options.isHeadless === true
+        ? []
+        : [
+            {
+              name: 'attach',
+              description: UI_TEXT.paletteTips.attachFile,
+              input: { hint: '<path>' },
+            },
+            { name: 'record', description: UI_TEXT.media.attachRecording, input: null },
+          ]),
+      ...(this.deps.estimate === undefined || this.deps.estimate.isAvailable === false
+        ? []
+        : [
+            {
+              name: SLASH_COMMAND_NAMES.estimate,
+              description: UI_TEXT.estimateCliHelp,
+              input: { hint: UI_TEXT.estimateUsage },
+            },
+          ]),
+      ...this.skills
+        .filter(
+          (skill) =>
+            skill.selector !== SLASH_COMMAND_NAMES.help &&
+            skill.selector !== SLASH_COMMAND_NAMES.estimate &&
+            skill.selector !== ACP_COMPACT_COMMAND &&
+            skill.selector !== 'legal' &&
+            ![
+              'answer',
+              'questions',
+              'share',
+              'prompt',
+              'resources',
+              'agents',
+              SLASH_COMMAND_NAMES.report,
+              'attach',
+              'record',
+              'accounts',
+              'vault',
+            ].includes(skill.selector) &&
+            ((this.deps.usage === undefined && this.deps.resources === undefined) ||
+              skill.selector !== 'usage') &&
+            (this.deps.playbookFor === undefined || skill.selector !== 'playbook') &&
+            skill.selector !== 'schedule',
+        )
+        .map((skill) => ({
+          name: skill.selector,
+          description: skill.description === '' ? skill.displayName : skill.description,
+          input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
+        })),
+      ...(this.questionRegistry === undefined
+        ? []
+        : [
+            { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
+            { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
+          ]),
+    ]
   }
 
   private mediaPort(): Promise<AcpMediaPort> {
@@ -1327,7 +1332,18 @@ class AcpSession {
   }
 
   public async startAccounts(): Promise<void> {
-    await this.accounts?.start()
+    try {
+      await this.accounts?.start()
+    } catch (error: unknown) {
+      const accounts = this.accounts
+      this.accounts = undefined
+      this.deps.log.warn(`ACP accounts startup failed: ${failureForLog(error)}`)
+      try {
+        accounts?.dispose()
+      } catch (error: unknown) {
+        this.deps.log.warn(`ACP accounts cleanup failed: ${failureForLog(error)}`)
+      }
+    }
   }
 
   /** Broker-owned request; Bypass, tools and paid grants never enter this path. */
@@ -1687,12 +1703,18 @@ class AcpSession {
           await this.announceCommands()
           if ('error' in preparing) throw preparing.error
           if (this.wasEstimateCancelled(preparing)) return 'cancelled'
-          let text = UI_TEXT.estimateUsage
-          if (parsed.parts.length === 1)
-            text =
-              this.deps.estimate === undefined
-                ? fill(UI_TEXT.estimateWaiting, { dependency: 'M117-W-estimator-binding' })
-                : await this.deps.estimate.run(estimatePart.text, this.cwd, controller.signal)
+          let text =
+            this.deps.estimate !== undefined &&
+            this.deps.estimate.isAvailable !== false &&
+            parsed.parts.length !== 1
+              ? UI_TEXT.estimateUsage
+              : UI_TEXT.estimateRuntimeUnavailable
+          if (
+            this.deps.estimate !== undefined &&
+            this.deps.estimate.isAvailable !== false &&
+            parsed.parts.length === 1
+          )
+            text = await this.deps.estimate.run(estimatePart.text, this.cwd, controller.signal)
           if ('error' in preparing) throw preparing.error
           if (this.wasEstimateCancelled(preparing)) return 'cancelled'
           this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
@@ -1738,31 +1760,7 @@ class AcpSession {
             sessionUpdate: 'agent_message_chunk',
             content: {
               type: 'text',
-              text: compactReference([
-                ACP_COMPACT_COMMAND,
-                ...(this.deps.legalScan === undefined ? [] : ['legal']),
-                ...(this.deps.usage === undefined ? [] : ['usage']),
-                ...(this.deps.media === undefined || this.deps.options.isHeadless === true
-                  ? []
-                  : ['attach', 'record']),
-                ...this.skills
-                  .map((skill) => skill.selector)
-                  .filter(
-                    (name) =>
-                      ![
-                        'answer',
-                        'questions',
-                        'share',
-                        'prompt',
-                        'agents',
-                        'attach',
-                        'record',
-                      ].includes(name),
-                  ),
-                'agents',
-                ...(this.questionRegistry === undefined ? [] : ['questions', 'answer']),
-                ...(this.deps.sharing?.commands().map((command) => command.name) ?? []),
-              ]),
+              text: compactReference(this.availableCommands().map((command) => command.name)),
             },
           })
         await this.outbox
@@ -1780,7 +1778,9 @@ class AcpSession {
       if (local === undefined) await this.announceCommands()
       if (/^\/schedule(?:\s|$)/.test(parsed.displayText)) {
         const result =
-          this.deps.schedules === undefined || !this.isScheduleHostAvailable
+          this.deps.schedules === undefined ||
+          this.deps.schedules.isAvailable === false ||
+          !this.isScheduleHostAvailable
             ? UI_TEXT.scheduleV2.runtime.unavailable
             : await this.deps.schedules.run(parsed.displayText, {
                 cwd: this.cwd,
@@ -2028,6 +2028,7 @@ class AcpSession {
   }
 
   public async holdSchedules(): Promise<void> {
+    if (this.deps.schedules?.isAvailable === false) return
     try {
       const release = await this.deps.schedules?.holdWorkspace?.(this.cwd)
       if (this.isDisposed) await release?.()

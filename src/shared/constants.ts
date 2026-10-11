@@ -552,6 +552,11 @@ export const BACKEND_SETTING = 'museSpark.backend'
 export const IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT = true
 // The panel reads the M115 schedules default the same way.
 export const ARE_SCHEDULES_ON_BY_DEFAULT = true
+// Management surfaces exist, but installed execution/snapshot owners are unbound (C-X-1).
+export const OPTIONAL_RUNTIME_AVAILABILITY: Readonly<{ schedules: boolean; estimator: boolean }> = {
+  schedules: false,
+  estimator: false,
+}
 
 export const SETTING_DEFAULTS = {
   preferredLocation: 'panel' as PreferredLocation,
@@ -5218,6 +5223,16 @@ export const REPORT_KINDS = [
   'issues',
   'schedules',
   'keybindings',
+] as const
+// CX1R4 F3: the kinds with production sources on every installed surface.
+// Current command Help and the editor picker list only these; the parsers and
+// history keep accepting every REPORT_KINDS value.
+export const REPORT_WORKING_KINDS = [
+  'project',
+  'milestone',
+  'release',
+  'changes',
+  'quality',
 ] as const
 export const REPORT_FORMATS = ['md', 'html', 'json', 'text'] as const
 export const REPORT_FAIL_ON = [

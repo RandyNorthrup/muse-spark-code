@@ -11,6 +11,7 @@ import {
 
 /** Agent imports this type only; W's lazy loader supplies the implementation. */
 export interface AcpEstimatePort {
+  readonly isAvailable?: boolean
   run(text: string, cwd: string, signal: AbortSignal): Promise<string>
 }
 

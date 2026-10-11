@@ -1,7 +1,14 @@
+import { setTimeout as delay } from 'node:timers/promises'
 import { chromium } from 'playwright-core'
 import { afterAll, afterEach, beforeAll, beforeEach, expect, inject, it } from 'vitest'
 import { REVIEW_BROWSER_KEY } from './helpers/reviewBrowser.mjs'
-import { CAPTURE_CONTEXT, openScene, waitForDeferredPaint } from '../harness/goldens/capture.mjs'
+import {
+  CAPTURE_CONTEXT,
+  openScene,
+  playScenarioClock,
+  trackRequests,
+  waitForDeferredPaint,
+} from '../harness/goldens/capture.mjs'
 
 const runtime = { connection: undefined, browser: undefined, page: undefined }
 beforeAll(async () => {
@@ -83,10 +90,50 @@ it('continues waiting for ordinary deferred renderers', async () => {
 })
 
 it('refuses an unsettled question rather than capturing its temporary layout', async () => {
-  await runtime.page.setContent(
-    '<div data-question-slot="dock" aria-busy="true">Loading output…</div>',
-  )
-  await expect(waitForDeferredPaint(runtime.page, 'quote-menu')).rejects.toThrow(
+  // A permanently busy marker tests the bounded refusal without 100 CDP round trips.
+  let steps = 0
+  const busyPage = {
+    locator: () => ({ count: async () => 1 }),
+    clock: {
+      runFor: async () => {
+        steps += 1
+      },
+    },
+  }
+  await expect(waitForDeferredPaint(busyPage, 'quote-menu')).rejects.toThrow(
     'Deferred renderer did not settle: quote-menu',
   )
+  expect(steps).toBe(100)
+})
+
+it('settles a lazy agent chunk before spending the scenario readiness clock', async () => {
+  trackRequests(runtime.page)
+  await runtime.page.route('https://capture.invalid/chunk', async (route) => {
+    await delay(50)
+    await route.fulfill({
+      contentType: 'text/plain',
+      headers: { 'access-control-allow-origin': '*' },
+      body: 'ready',
+    })
+  })
+  await runtime.page.setContent('<main></main>')
+  await runtime.page.evaluate(() => {
+    globalThis.setTimeout(() => {
+      void fetch('https://capture.invalid/chunk').then(() => {
+        globalThis.document.querySelector('main').innerHTML =
+          '<button class="agent-node-clickable">Agent</button>'
+      })
+      globalThis.setTimeout(() => {
+        if (globalThis.document.querySelector('.agent-node-clickable') === null)
+          throw new Error('agent chunk missed its existing readiness deadline')
+      }, 3000)
+    }, 300)
+  })
+  const errors = []
+  runtime.page.on('pageerror', (error) => {
+    errors.push(error.message)
+  })
+  await playScenarioClock(runtime.page)
+  expect(errors).toEqual([])
+  expect(await runtime.page.locator('.agent-node-clickable').count()).toBe(1)
 })

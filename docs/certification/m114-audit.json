@@ -10523,7 +10523,7 @@
   "sources": [
     {
       "file": "src/webview/App.tsx",
-      "sha256": "3cdf482511388ef5c6e75616d1a77f6755fdba0c63aa4dd5b7b239290b1b70b1"
+      "sha256": "3fdfe276d60e3b831c5ba1f75d4bdd74e078d3ab9c9acee906302470b22580f1"
     },
     {
       "file": "src/webview/TasksApp.tsx",
