@@ -118,6 +118,7 @@ import type { RestoreOutcome } from '../../src/host/checkpoints/checkpointStore'
 import { createReviewCollector, type ReviewCollection } from '../../src/host/review/reviewCollector'
 import { processGitRunner } from '../../src/host/git'
 import { aliasedReviewRepositories, reviewParts } from './helpers/reviewRoots'
+import { isolatedGitConfig, type IsolatedGitConfig } from './helpers/isolatedGitConfig'
 import type {
   HostAction,
   HostToWebviewMessage,
@@ -11200,12 +11201,17 @@ describe('ConversationController: review (M70)', () => {
   describe('native material admission', () => {
     let folder: string
     let roots: Awaited<ReturnType<typeof aliasedReviewRepositories>> | undefined
+    let gitConfig: IsolatedGitConfig | undefined
     beforeAll(async () => {
       folder = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'm70-send-root-')))
       roots = await aliasedReviewRepositories(folder, 'admission')
+      // Never the machine's Git configuration: the native collector must
+      // read the same empty filter inventory on every machine.
+      gitConfig = isolatedGitConfig()
     })
     afterAll(async () => {
       await removeFolder(folder)
+      await gitConfig?.dispose()
     })
 
     describe.each([
@@ -11241,7 +11247,7 @@ describe('ConversationController: review (M70)', () => {
         current.collect.mockImplementationOnce(
           createReviewCollector({
             workspaceRoot: roots.alias,
-            runGit: processGitRunner(),
+            runGit: processGitRunner({ env: { ...process.env, ...gitConfig?.env } }),
             pickOne: vi.fn(),
           }),
         )
