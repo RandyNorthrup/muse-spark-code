@@ -56,16 +56,7 @@ async function rig(isEditor = false) {
 }
 
 async function heldRequest(t: Awaited<ReturnType<typeof rig>>) {
-  const arrived = Promise.withResolvers<undefined>(),
-    release = Promise.withResolvers<undefined>()
-  t.api.script({
-    text: 'held',
-    hold: release.promise,
-    onRequest: () => {
-      arrived.resolve(undefined)
-    },
-    usage: { input: 10, output: 2 },
-  })
+  const { arrived, release } = holdReply(t)
   const pending = t.send()
   await arrived.promise
   return { pending, release }
@@ -301,16 +292,7 @@ describe('production account composition', () => {
         cwd: t.folder,
         mcpServers: [],
       })
-      const arrived = Promise.withResolvers<undefined>(),
-        release = Promise.withResolvers<undefined>()
-      t.api.script({
-        text: 'held',
-        hold: release.promise,
-        onRequest: () => {
-          arrived.resolve(undefined)
-        },
-        usage: { input: 10, output: 2 },
-      })
+      const { arrived, release } = holdReply(t)
       const send = () =>
         connection.request('session/prompt', {
           sessionId,
@@ -358,3 +340,17 @@ describe('production account composition', () => {
     })
   })
 })
+
+function holdReply(t: Awaited<ReturnType<typeof rig>>) {
+  const arrived = Promise.withResolvers<undefined>(),
+    release = Promise.withResolvers<undefined>()
+  t.api.script({
+    text: 'held',
+    hold: release.promise,
+    onRequest: () => {
+      arrived.resolve(undefined)
+    },
+    usage: { input: 10, output: 2 },
+  })
+  return { arrived, release }
+}

@@ -711,9 +711,9 @@ export function featureCatalog(): readonly Feature[] {
         false,
         ['vscode', 'acp'],
       ),
-      details: ACCOUNT_REQUEST_CERTIFICATION.isComplete
+      details: (ACCOUNT_REQUEST_CERTIFICATION.isComplete
         ? [{ ui: 'referenceDeveloper' }, { ui: 'referenceAccountRequests' }]
-        : [{ ui: 'referenceDeveloper' }],
+        : [{ ui: 'referenceDeveloper' }]) satisfies readonly ReferenceText[],
     },
     feature(
       'permissions',

@@ -1,3 +1,4 @@
+import { runAccountCrashProcess } from './helpers/accountCrashProcess'
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, rmSync } from 'node:fs'
 import path from 'node:path'
@@ -12,7 +13,11 @@ const root = mkdtempSync(path.join(tmpdir(), 'cm1082-recovery-'))
 const program = path.join(root, 'crash.cjs')
 beforeAll(async () => {
   await build({
-    entryPoints: ['test/unit/helpers/accountCrashProcess.ts'],
+    stdin: {
+      contents: `import { runAccountCrashProcess } from './test/unit/helpers/accountCrashProcess'; void ${runAccountCrashProcess.name}().catch(() => { process.exitCode = 1 })`,
+      resolveDir: process.cwd(),
+      loader: 'ts',
+    },
     outfile: program,
     bundle: true,
     platform: 'node',

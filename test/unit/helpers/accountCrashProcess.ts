@@ -17,7 +17,7 @@ import { CURRENT_SHAPE_KEYS } from './modelApiKeys'
 import { fakeModelApi } from './fakeModelApi'
 import { accountSecretKey } from '../../../src/core/providers/accountCredentialRecord'
 
-async function run() {
+export async function runAccountCrashProcess() {
   ACCOUNT_REQUEST_CERTIFICATION.isComplete = true
   const [folder, action] = process.argv.slice(2)
   if (folder === undefined) throw new Error('missing fixture directory')
@@ -89,6 +89,3 @@ async function run() {
   )
   services.dispose()
 }
-void run().catch(() => {
-  process.exitCode = 1
-})
