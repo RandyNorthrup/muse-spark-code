@@ -21,6 +21,7 @@ export function modelApiMigrationCredential(now: () => number): MigrationCredent
   return {
     key: SECRET_KEYS.modelApiKey,
     itemId,
+    name,
     request: { v: VAULT_PROTOCOL_VERSION, kind: 'firstPartyRead', itemId, origin, client: 'model' },
     decode(value): VaultItem {
       if (!MODEL_API_KEY_PATTERN.test(new TextDecoder('utf-8', { fatal: true }).decode(value)))

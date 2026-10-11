@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
-import { UI_TEXT, VAULT_LIMITS } from '../../../shared/constants'
+import { ACCOUNT_ID_PATTERN, UI_TEXT, VAULT_LIMITS } from '../../../shared/constants'
+import { PROVIDER_ID_PATTERN } from '../../providers/modelRef'
 import { vaultItemSchema, type VaultItem } from '../../../shared/vault'
 import type { AccountCredential } from '../../providers/accountCredentialRecord'
 import { VaultMigrationFault, type MigrationCredential } from './ports'
@@ -94,19 +95,43 @@ export function accountRecordCanonicalJson(record: AccountCredential): string {
 }
 
 /**
- * Deterministic vault item name that always fits the vault handle
- * (`secret://` plus at most 48 lowercase alphanumerics and dashes). Short
- * names stay readable; a longer installed name hashes to its full length so
- * a valid account can never be refused for its length.
+ * The closed kinds of migrated vault item names. No kind is another kind
+ * followed by `-`, so names of different kinds can never meet.
  */
-export function migrationItemName(prefix: string, ...parts: string[]): string {
-  const candidate = [prefix, ...parts].join('-')
-  if (candidate.length <= VAULT_LIMITS.name && /^[a-z][a-z0-9-]*$/u.test(candidate))
-    return candidate
-  return `${prefix}-${createHash('sha256')
-    .update(candidate)
+export type MigrationItemKind = 'provider' | 'account'
+const MIGRATION_ITEM_KINDS = new Set<MigrationItemKind>(['provider', 'account'])
+
+/**
+ * Deterministic, one-to-one vault item name that always fits the vault
+ * handle (`secret://` plus at most 48 lowercase alphanumerics and dashes).
+ * One id stays `provider-<id>`. Two or more ids write every id except the
+ * last as `<decimal length>-<id>` with the last id bare, so the reading is
+ * unambiguous even though ids may hold `-`: a one-id name starts with a
+ * letter after the kind and a multi-id name starts with a digit, so the two
+ * shapes cannot meet. A readable name past the limit becomes
+ * `<kind>-<hex>`, the SHA-256 over the canonical JSON array
+ * `[kind, id1, id2, ...]` (never over a joined string) cut to the room that
+ * is left: a readable multi-id name carries a `-` within three characters
+ * after the kind and a hash carries none, so the two forms cannot meet.
+ * Every id is validated against its own pattern first; an invalid id is
+ * refused, never normalised. Deterministic across platforms and versions.
+ */
+export function migrationItemName(kind: MigrationItemKind, ...ids: string[]): string {
+  if (!MIGRATION_ITEM_KINDS.has(kind)) throw new VaultMigrationFault('invalid')
+  if (ids.length === 0) throw new VaultMigrationFault('invalid')
+  for (const [index, id] of ids.entries()) {
+    const pattern = index === 0 ? PROVIDER_ID_PATTERN : ACCOUNT_ID_PATTERN
+    if (!pattern.test(id)) throw new VaultMigrationFault('invalid')
+  }
+  const readable =
+    ids.length === 1
+      ? `${kind}-${ids.join('-')}`
+      : `${kind}-${ids.map((id, index) => (index === ids.length - 1 ? id : `${String(id.length)}-${id}`)).join('-')}`
+  if (readable.length <= VAULT_LIMITS.name) return readable
+  return `${kind}-${createHash('sha256')
+    .update(JSON.stringify([kind, ...ids]))
     .digest('hex')
-    .slice(0, VAULT_LIMITS.name - prefix.length - 1)}`
+    .slice(0, VAULT_LIMITS.name - kind.length - 1)}`
 }
 
 /**
@@ -148,6 +173,7 @@ export function migrationCodec<T>(
   return {
     key,
     itemId,
+    name,
     request: null,
     decode(value): VaultItem {
       const record = shape.parse(utf8(value))

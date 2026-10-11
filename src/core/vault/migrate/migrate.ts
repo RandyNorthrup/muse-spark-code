@@ -28,7 +28,8 @@ export class VaultMigration {
     )
     if (
       this.credentials.size !== credentials.length ||
-      new Set(credentials.map((entry) => entry.itemId)).size !== credentials.length
+      new Set(credentials.map((entry) => entry.itemId)).size !== credentials.length ||
+      new Set(credentials.map((entry) => entry.name)).size !== credentials.length
     )
       throw new VaultMigrationFault('conflict')
   }
@@ -189,14 +190,38 @@ export class VaultMigration {
       eraseItem(item)
     }
   }
+  /**
+   * Whether the legacy copy changed since the migration, reusing
+   * `verifyLegacy` (which wipes every buffer): a legacy copy that no longer
+   * verifies against the vault — mismatched or undecodable — reports a
+   * boolean instead of throwing. Anything else, including the vault itself,
+   * still throws.
+   */
+  private async legacyDiverged(
+    entry: MigrationCredential,
+    row: MigrationRecord,
+    lease: MigrationLease,
+  ): Promise<boolean> {
+    try {
+      await this.verifyLegacy(entry, row, lease)
+      return false
+    } catch (error: unknown) {
+      if (
+        error instanceof VaultMigrationFault &&
+        (error.code === 'conflict' || error.code === 'invalid')
+      )
+        return true
+      throw error
+    }
+  }
   /** Idempotent, including restart after copy or verification failure; source is never removed here. */
-  async migrate(key: string): Promise<'missing' | 'active' | 'retired'> {
+  async migrate(key: string): Promise<'missing' | 'active' | 'retired' | 'diverged'> {
     const entry = this.credential(key)
     return await this.run(async (lease) => {
       const old = await this.record(entry, lease)
       if (old?.phase === 'active' || old?.phase === 'retired') {
         await this.verified(old, lease)
-        return old.phase
+        return (await this.legacyDiverged(entry, old, lease)) ? 'diverged' : old.phase
       }
       if (old && old.phase !== 'copying' && old.phase !== 'undone')
         throw new VaultMigrationFault('conflict')
