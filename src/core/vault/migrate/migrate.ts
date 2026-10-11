@@ -210,6 +210,20 @@ export class VaultMigration {
     }
   }
   /**
+   * Whether the legacy copy is absent while the slot still retains it. Only
+   * an `active` slot with `retainLegacy` can report this: a retired slot
+   * owns no legacy copy, and every other phase is refused before this runs.
+   */
+  private async legacyAbsent(entry: MigrationCredential, lease: MigrationLease): Promise<boolean> {
+    const source = await this.deps.legacy.read(entry.key)
+    lease.assertCurrent()
+    try {
+      return source === null
+    } finally {
+      source?.fill(0)
+    }
+  }
+  /**
    * Whether the legacy copy changed since the migration, reusing
    * `verifyLegacy` (which wipes every buffer): a legacy copy that no longer
    * verifies against the vault — mismatched or undecodable — reports a
@@ -234,12 +248,20 @@ export class VaultMigration {
     }
   }
   /** Idempotent, including restart after copy or verification failure; source is never removed here. */
-  async migrate(key: string): Promise<'missing' | 'active' | 'retired' | 'diverged'> {
+  async migrate(
+    key: string,
+  ): Promise<'missing' | 'active' | 'retired' | 'diverged' | 'legacyDeleted'> {
     const entry = this.credential(key)
     return await this.run(async (lease) => {
       const old = await this.record(entry, lease)
       if (old?.phase === 'active' || old?.phase === 'retired') {
         await this.verified(old, lease)
+        // A legacy copy deleted behind an active slot is a change like an
+        // overwrite: report it with its own typed state instead of `active`,
+        // so undo cannot write the deleted key back. A retired slot without
+        // a legacy copy is complete and still reports `retired`.
+        if (old.phase === 'active' && old.retainLegacy && (await this.legacyAbsent(entry, lease)))
+          return 'legacyDeleted'
         return (await this.legacyDiverged(entry, old, lease)) ? 'diverged' : old.phase
       }
       if (old && old.phase !== 'copying' && old.phase !== 'undone')
@@ -377,6 +399,10 @@ export class VaultMigration {
         this.currentRelease() - row.startedRelease >= VAULT_LEGACY_RETAIN_RELEASES
       )
         throw new VaultMigrationFault('window')
+      // A legacy copy deleted behind the vault is never written back: refuse
+      // with a reason and leave the source absent, instead of resurrecting
+      // the key the user deleted.
+      if (await this.legacyAbsent(entry, lease)) throw new VaultMigrationFault('conflict')
       await this.verifyLegacy(entry, row, lease)
       await this.mirror(entry, row, lease)
       await this.save({ ...row, phase: 'undone' }, lease)
