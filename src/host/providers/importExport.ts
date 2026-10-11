@@ -6,6 +6,7 @@
 
 import * as z from 'zod/mini'
 import { modelRef, providersFile } from '../backend/providersEntry'
+import { pruneModelLimits } from '../../shared/providerRouting'
 import { UI_TEXT } from '../../shared/constants'
 import type { ProviderCredentialStore } from './credentialRecords'
 import type { AddressCheck, AddressPolicy, ProviderEntry, ProvidersStore } from './providerPorts'
@@ -175,10 +176,15 @@ export async function importProviders(deps: ProvidersImportDeps, text: string): 
   for (const id of ids) {
     await deps.credentials.clearProviderCredential(id)
   }
+  // C-M95-4 R5: limits exist only for ticked models; an imported file
+  // never stores a window for a model it does not list.
   const incoming = document.providers.map((entry) => {
     const checked = preview.rows.find((row) => row.entry.id === entry.id)?.address
     const { privateNetwork: _old, ...rest } = entry
-    return checked?.kind === 'private' ? { ...rest, privateNetwork: true } : rest
+    const modelLimits = pruneModelLimits(rest.models, rest.modelLimits)
+    return checked?.kind === 'private'
+      ? { ...rest, modelLimits, privateNetwork: true }
+      : { ...rest, modelLimits }
   })
   await deps.store.replaceAll(incoming, { defaultModel: document.defaultModel })
   return incoming.length

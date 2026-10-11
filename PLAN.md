@@ -28092,6 +28092,30 @@ scoped accessibility pass. Lane fixes and certification are complete with
 hooks enabled. Full quality and installed-editor qualification remain the
 lead's integration gates; no reviewed finding is deferred.
 
+**CM954 R5 (2026-10-11, linuxlt; RVCM954C, third review of this lane).**
+LEAD REDESIGN: ONE RESOLVER FOR A MODEL'S LIMITS, READ AT USE TIME. Fix
+every P2/P3 finding and its class, no residuals. (1) A model's context
+window and output limit come from its saved provider record through one
+resolver every consumer calls at the moment of use: the request body, the
+output cap, manual and automatic compaction, the windowless refusal, the
+panel. No consumer keeps its own copy: the per-host output-cap cache is
+deleted, and peek reads through to providers.json at call time (the file
+is tiny; catalogue fallback is static). Registry resolve/list re-read the
+file on every call, so no snapshot survives a read and no write needs a
+separate invalidation. (2) Manual compact resolves the model first and
+sizes its summary from that same resolution; automatic compaction prefers
+the turn's fresh resolution for registry models and keeps the seam for
+Meta models (a stored Meta resolution's static window must never shadow
+the seam). (3) Limits exist only for ticked models: wizard untick drops
+the limit, saves (wizard, import) keep limits for listed models only, and
+loads prune the rest for every reader. (4) The R3 changelog note is
+corrected to point at the R4 manual-entry UI. Regressions: edit the
+window after a warm listing, then compact and send (cap and summary follow
+the new window up and down); wizard tick, set window, untick, save (no
+resurrection on re-tick). Fakes only; no model server. Touch ModelApiHost
+only at the output-cap and compact call sites. Record drills in
+docs/certification/m95-c4.md.
+
 **M95R5 integration (2026-10-05, Windows 11).** Merge lane T with
 `--no-ff`, then merge a single sanitized squash of X's net changes on its
 merge-base. Remove the scanner-flagged certification line unseen before

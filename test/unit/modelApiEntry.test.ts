@@ -196,4 +196,93 @@ describe('production entry local compaction', () => {
       }
     },
   )
+
+  it('follows an edited window after the listing is warm, growing and shrinking', async () => {
+    // C-M95-4 R5 (RVCM954C findings 1-2): the listing is warm at 4096 and
+    // a turn has sent. The window is edited to 8192, then shrunk to 6144.
+    // The manual summary and every later send carry the edited window's
+    // cap, never the warmed snapshot's or a cached cap.
+    const root = await mkdtemp(path.join(tmpdir(), 'm95-entry-edit-'))
+    const ref = 'llamacpp/local-model'
+    const configFile = path.join(root, 'providers.json')
+    const api = fakeModelApi()
+    let host
+    try {
+      const save = async (contextTokens: number) => {
+        const saved = await writeProvidersFileAtomic(configFile, {
+          v: 1,
+          providers: [
+            {
+              id: 'llamacpp',
+              preset: 'llamacpp',
+              auth: 'none',
+              address: 'http://127.0.0.1:8080',
+              models: ['local-model'],
+              modelLimits: {
+                'local-model': { contextTokens, outputTokens: contextTokens },
+              },
+              modelCapabilities: {
+                'local-model': { tools: { calling: { state: 'yes', value: true } } },
+              },
+            },
+          ],
+        })
+        expect(saved.ok).toBe(true)
+      }
+      await save(4096)
+      const services = createConfiguredProviderServices(undefined, {
+        configFile,
+        catalogFile: path.resolve('vendor/models-dev/snapshot.json'),
+        secrets: memorySecrets(),
+        resolve: () => Promise.resolve(['127.0.0.1']),
+        send: () => Promise.reject(new Error('No network expected')),
+      })
+      await services.registry.resolve(ref)
+      const deps = entryDeps((model) => services.client.peekContextModel?.(model), api, ref)
+      const fakeClient = fakeModelApiClient(api, new FakeLogOutputChannel())
+      host = await createModelApiHost({
+        ...deps,
+        host: {
+          ...deps.host,
+          models: {
+            resolve: async (model) => ({
+              ...(await services.registry.resolve(model)),
+              client: fakeClient,
+            }),
+          },
+        },
+      })
+      const session = await host.startSession({
+        workspaceRoot: '/ws',
+        modelId: ref,
+        approvalMode: 'onRequest',
+      })
+      const watched = watchSessionTurns(session)
+      api.script({ text: 'earlier history' })
+      let done = watched.turnDone()
+      await session.sendTurn([{ type: 'text', text: 'remember this task' }])
+      await done
+      expect(api.responseBodies()[0]?.['max_output_tokens']).toBe(4096)
+      await save(8192)
+      api.script({ text: 'summary' })
+      expect(await session.compact()).toMatchObject({ status: 'accepted' })
+      expect(api.responseBodies()[1]?.['max_output_tokens']).toBe(Math.floor(8192 * 0.05))
+      api.script({ text: 'more history' })
+      done = watched.turnDone()
+      await session.sendTurn([{ type: 'text', text: 'go on' }])
+      await done
+      expect(api.responseBodies()[2]?.['max_output_tokens']).toBe(8192)
+      // Shrink below the grown window (staying above the prompt
+      // scaffolding, so the send goes out): the cap shrinks with it.
+      await save(6144)
+      api.script({ text: 'still more history' })
+      done = watched.turnDone()
+      await session.sendTurn([{ type: 'text', text: 'go on again' }])
+      await done
+      expect(api.responseBodies()[3]?.['max_output_tokens']).toBe(6144)
+    } finally {
+      await host?.close()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
 })

@@ -241,6 +241,49 @@ describe('saveWizardDraft', () => {
     expect(outcome.providerId).toBe('ollama')
     expect(savingParts.secrets.values.size).toBe(0)
   })
+
+  it('stores limits only for listed models, dropping an unticked window', async () => {
+    // C-M95-4 R5 (RVCM954C finding 3): the draft still carries the
+    // unticked model's window (an older untick path, an import). The save
+    // keeps limits for models in the list only, so a later re-tick scans
+    // afresh instead of resurrecting the stale window.
+    const savingParts = saving()
+    const outcome = await saveWizardDraft(
+      {
+        store: savingParts.store,
+        credentials: savingParts.credentials,
+        policy: POLICY,
+        setComposerModel: () => Promise.resolve(),
+      },
+      {
+        ...DRAFT,
+        provider: {
+          id: 'ollama',
+          preset: 'ollama',
+          address: 'http://127.0.0.1:11434',
+          auth: 'none',
+          models: ['qwen3:8b'],
+          modelLimits: {
+            'qwen3:0.6b': { contextTokens: 1_000_000, outputTokens: 1_000_000 },
+            'qwen3:8b': { contextTokens: 4096, outputTokens: 4096 },
+          },
+        },
+        credential: undefined,
+        defaultModel: 'ollama/qwen3:8b',
+      },
+    )
+    expect(outcome.providerId).toBe('ollama')
+    expect(savingParts.store.current).toEqual([
+      {
+        id: 'ollama',
+        preset: 'ollama',
+        address: 'http://127.0.0.1:11434',
+        auth: 'none',
+        models: ['qwen3:8b'],
+        modelLimits: { 'qwen3:8b': { contextTokens: 4096, outputTokens: 4096 } },
+      },
+    ])
+  })
 })
 
 function localRow(id: string, context: number | undefined): ProviderModelRow {

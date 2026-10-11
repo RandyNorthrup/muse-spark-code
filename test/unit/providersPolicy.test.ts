@@ -378,6 +378,41 @@ describe('providersFile', () => {
     expect(await readProvidersFile(filePath)).toEqual({ ok: true, file: valid })
   })
 
+  it('prunes limits for unlisted models on load, keeping listed windows', async () => {
+    // C-M95-4 R5 (RVCM954C finding 3): an older file can still carry a
+    // window for a model its list no longer has. Every reader sees the
+    // pruned entry, so the stale window can never win over a later scan.
+    dir = await mkdtemp(path.join(tmpdir(), 'providers-'))
+    const filePath = path.join(dir, 'pruned.json')
+    const stored = {
+      v: 1,
+      providers: [
+        {
+          ...entry,
+          models: ['kept'],
+          modelLimits: {
+            kept: { contextTokens: 4096, outputTokens: 4096 },
+            dropped: { contextTokens: 1_000_000, outputTokens: 1_000_000 },
+          },
+        },
+      ],
+    }
+    expect(await writeProvidersFileAtomic(filePath, stored)).toEqual({ ok: true })
+    expect(await readProvidersFile(filePath)).toEqual({
+      ok: true,
+      file: {
+        v: 1,
+        providers: [
+          {
+            ...entry,
+            models: ['kept'],
+            modelLimits: { kept: { contextTokens: 4096, outputTokens: 4096 } },
+          },
+        ],
+      },
+    })
+  })
+
   it('keeps compatibility overrides on custom servers and refuses them elsewhere (M101 BYO 14)', async () => {
     dir = await mkdtemp(path.join(tmpdir(), 'providers-'))
     const filePath = path.join(dir, 'custom.json')

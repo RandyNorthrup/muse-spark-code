@@ -106,6 +106,15 @@ async function fixture() {
     catalogFile: path.resolve('vendor/models-dev/snapshot.json'),
   }
 }
+const windowedLocalEntry = (contextTokens: number) =>
+  providerEntrySchema.parse({
+    id: 'llamacpp',
+    preset: 'llamacpp',
+    address: 'http://127.0.0.1:8080',
+    auth: 'none',
+    models: ['Qwen3-0.6B-Q8_0'],
+    modelLimits: { 'Qwen3-0.6B-Q8_0': { contextTokens, outputTokens: contextTokens } },
+  })
 const body = (): CreateResponseBody => ({
   model: REF,
   instructions: 'Test',
@@ -390,12 +399,12 @@ describe('configured provider production transport', () => {
     expect(send).not.toHaveBeenCalled()
   })
 
-  it('peeks the carried local window for compaction sizing', async () => {
-    // C-M95-4 R3: the registry's last listing feeds the host's
-    // `contextModel` seam, so manual compact sizes the summary to the
-    // server's reported window and auto-compact sees it. Unlisted models
-    // and unknown windows read undefined (the previous fallback stands;
-    // the request refuses instead).
+  it('peeks the saved local window at use time, with no listing in between', async () => {
+    // C-M95-4 R5 (RVCM954C finding 1): one resolver read at use time. The
+    // peek reads through to providers.json, so a Models-table edit after a
+    // warm listing is what compaction and the request path size from; no
+    // new listing is needed. Unlisted models and unknown windows read
+    // undefined (the request refuses instead).
     const f = await fixture()
     const carried = providerEntrySchema.parse({
       id: 'llamacpp',
@@ -418,16 +427,35 @@ describe('configured provider production transport', () => {
       resolve: () => Promise.resolve(['127.0.0.1']),
       send: () => Promise.resolve(response(Buffer.from(''))),
     })
-    expect(services.client.peekContextModel?.('llamacpp/Qwen3-0.6B-Q8_0')).toBeUndefined()
-    const resolved = await services.registry.resolve('llamacpp/Qwen3-0.6B-Q8_0')
-    expect(resolved.contextTokens).toBe(4096)
     expect(services.client.peekContextModel?.('llamacpp/Qwen3-0.6B-Q8_0')).toEqual({
       format: 'chat',
       contextTokens: 4096,
     })
+    const resolved = await services.registry.resolve('llamacpp/Qwen3-0.6B-Q8_0')
+    expect(resolved.contextTokens).toBe(4096)
     await services.registry.resolve('llamacpp-bare/Qwen3-0.6B-Q8_0')
     expect(services.client.peekContextModel?.('llamacpp-bare/Qwen3-0.6B-Q8_0')).toBeUndefined()
     expect(services.client.peekContextModel?.('llamacpp/unknown')).toBeUndefined()
+  })
+
+  it('follows a providers.json window edit with no new listing', async () => {
+    // C-M95-4 R5 (RVCM954C findings 1-2): the listing is warm at 4096,
+    // then the file is edited. Growing and shrinking must both show up in
+    // the peek at once: the next compact and send size from the new
+    // window, never from a snapshot or a cached cap.
+    const f = await fixture()
+    await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [windowedLocalEntry(4096)] })
+    const services = createConfiguredProviderServices(undefined, {
+      ...f,
+      resolve: () => Promise.resolve(['127.0.0.1']),
+      send: () => Promise.resolve(response(Buffer.from(''))),
+    })
+    await services.registry.resolve('llamacpp/Qwen3-0.6B-Q8_0')
+    expect(services.client.peekContextModel?.('llamacpp/Qwen3-0.6B-Q8_0')?.contextTokens).toBe(4096)
+    await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [windowedLocalEntry(8192)] })
+    expect(services.client.peekContextModel?.('llamacpp/Qwen3-0.6B-Q8_0')?.contextTokens).toBe(8192)
+    await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [windowedLocalEntry(2048)] })
+    expect(services.client.peekContextModel?.('llamacpp/Qwen3-0.6B-Q8_0')?.contextTokens).toBe(2048)
   })
 
   it('never replays thinking to a local server, even one that streams it', async () => {

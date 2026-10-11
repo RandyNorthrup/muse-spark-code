@@ -7,7 +7,7 @@ import { type UsdAmount } from '../../shared/usd'
 
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { modelLimitsSchema } from '../../shared/providerRouting'
+import { modelLimitsSchema, pruneModelLimits } from '../../shared/providerRouting'
 import type { ProviderCredentialStore as CredentialStore } from './credentialRecords'
 import type {
   AddressPolicy,
@@ -82,60 +82,63 @@ export async function saveWizardDraft(
   deps: WizardSaveDeps,
   draft: WizardDraft,
 ): Promise<WizardSaveOutcome> {
+  // C-M95-4 R5: limits exist only for ticked models. The save keeps limits
+  // for models in the list and drops the rest, so an unticked model's
+  // manual window never reaches the file (a later re-tick scans afresh).
+  const provider: ProviderEntry = {
+    ...draft.provider,
+    modelLimits: pruneModelLimits(draft.provider.models, draft.provider.modelLimits),
+  }
   if (
-    draft.provider.auth === 'none' &&
-    draft.provider.models.some(
-      (id) => !modelLimitsSchema.safeParse(draft.provider.modelLimits?.[id]).success,
-    )
+    provider.auth === 'none' &&
+    provider.models.some((id) => !modelLimitsSchema.safeParse(provider.modelLimits?.[id]).success)
   )
     throw new Error(fill(UI_TEXT.localModelWindowUnknown, { model: draft.defaultModel }))
   if (
-    draft.provider.id.trim() === '' ||
-    draft.provider.preset.trim() === '' ||
-    draft.provider.address.trim() === '' ||
+    provider.id.trim() === '' ||
+    provider.preset.trim() === '' ||
+    provider.address.trim() === '' ||
     draft.defaultModel.trim() === ''
   ) {
     throw new Error(UI_TEXT.actionFailed)
   }
-  if (draft.provider.auth !== 'none' && (draft.credential ?? '').trim() === '') {
-    throw new Error(fill(UI_TEXT.providerNeedsKey, { id: draft.provider.id }))
+  if (provider.auth !== 'none' && (draft.credential ?? '').trim() === '') {
+    throw new Error(fill(UI_TEXT.providerNeedsKey, { id: provider.id }))
   }
-  const address = await deps.policy.check(draft.provider.address)
+  const address = await deps.policy.check(provider.address)
   if (address.kind === 'refused') {
     throw new Error(fill(UI_TEXT.providerAddressInvalid, { detail: address.detail }))
   }
-  if (address.kind === 'private' && deps.isPrivateConfirmed?.(draft.provider.address) !== true) {
+  if (address.kind === 'private' && deps.isPrivateConfirmed?.(provider.address) !== true) {
     throw new Error(UI_TEXT.providerPrivateConfirm)
   }
   let origin: string
   try {
-    origin = new URL(draft.provider.address).origin
+    origin = new URL(provider.address).origin
   } catch {
-    throw new Error(fill(UI_TEXT.providerAddressInvalid, { detail: draft.provider.address }))
+    throw new Error(fill(UI_TEXT.providerAddressInvalid, { detail: provider.address }))
   }
   const secret = (draft.credential ?? '').trim()
-  if (
-    draft.provider.models.every((model) => draft.defaultModel !== `${draft.provider.id}/${model}`)
-  ) {
+  if (provider.models.every((model) => draft.defaultModel !== `${provider.id}/${model}`)) {
     throw new Error(UI_TEXT.actionFailed)
   }
   const previousDefault = await deps.store.defaultModel()
-  const previousSecret = await deps.credentials.getProviderCredential(draft.provider.id)
+  const previousSecret = await deps.credentials.getProviderCredential(provider.id)
   const previousEntries = await deps.store.list()
   if (draft.editing === true) {
-    if (previousEntries.every((entry) => entry.id !== draft.provider.id)) {
+    if (previousEntries.every((entry) => entry.id !== provider.id)) {
       throw new Error(UI_TEXT.actionFailed)
     }
     await deps.store.replaceAll(
-      previousEntries.map((entry) => (entry.id === draft.provider.id ? draft.provider : entry)),
+      previousEntries.map((entry) => (entry.id === provider.id ? provider : entry)),
     )
   } else {
-    await deps.store.add(draft.provider)
+    await deps.store.add(provider)
   }
   let isComposerSet = false
   try {
     if (secret !== '') {
-      await deps.credentials.setProviderCredential(draft.provider.id, {
+      await deps.credentials.setProviderCredential(provider.id, {
         v: 1,
         auth: draft.credentialAuth === 'oauth' ? 'apiKey' : draft.credentialAuth,
         origin,
@@ -150,15 +153,15 @@ export async function saveWizardDraft(
   } catch (error) {
     await deps.store.replaceAll(previousEntries)
     if (previousSecret === undefined) {
-      await deps.credentials.clearProviderCredential(draft.provider.id)
+      await deps.credentials.clearProviderCredential(provider.id)
     } else {
-      await deps.credentials.setProviderCredential(draft.provider.id, previousSecret)
+      await deps.credentials.setProviderCredential(provider.id, previousSecret)
     }
     await deps.store.setDefaultModel(previousDefault)
     throw error
   }
   return {
-    providerId: draft.provider.id,
+    providerId: provider.id,
     modelRef: draft.defaultModel,
     composerSet: isComposerSet,
     sessionBudgetUsd: draft.sessionBudgetUsd,

@@ -732,6 +732,15 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             ...draft.models.filter((value) => value !== model),
             ...(message.ticked ? [model] : []),
           ]
+          // C-M95-4 R5: limits exist only for ticked models. Unticking
+          // drops the manual window, so a later save cannot store (and a
+          // later re-tick cannot resurrect) a window for an unticked model.
+          if (!message.ticked && draft.modelLimits !== undefined) {
+            const kept = Object.fromEntries(
+              Object.entries(draft.modelLimits).filter(([key]) => key !== model),
+            )
+            draft.modelLimits = Object.keys(kept).length > 0 ? kept : undefined
+          }
         } else {
           const entry = await entryOf(id)
           const models = [
