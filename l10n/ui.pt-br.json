@@ -5313,6 +5313,7 @@
     "cancelSetup": "Cancelar a Configuração",
     "setupNeeded": "Configure o cofre antes de guardar um segredo nele.",
     "setupExists": "Já existe um cofre para este usuário.",
+    "itemConflict": "Um item com o mesmo nome já está no cofre, ou a origem mudou durante a importação. Nada foi adicionado.",
     "setupPending": "Guarde o código de recuperação e confirme para concluir a configuração do cofre.",
     "setupCancelled": "A configuração do cofre foi cancelada. Nada foi salvo.",
     "setupHeadless": "A configuração e a recuperação do cofre precisam de um terminal interativo; execuções sem interface não podem fazê-las.",

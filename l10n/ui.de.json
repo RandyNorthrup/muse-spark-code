@@ -5163,6 +5163,7 @@
     "cancelSetup": "Einrichtung abbrechen",
     "setupNeeded": "Richten Sie den Tresor ein, bevor Sie ein Geheimnis darin speichern.",
     "setupExists": "Für diesen Benutzer gibt es bereits einen Tresor.",
+    "itemConflict": "Ein Eintrag mit demselben Namen ist bereits im Tresor, oder die Quelle hat sich während des Imports geändert. Es wurde nichts hinzugefügt.",
     "setupPending": "Speichern Sie den Wiederherstellungscode und bestätigen Sie dann, um die Einrichtung des Tresors abzuschließen.",
     "setupCancelled": "Die Einrichtung des Tresors wurde abgebrochen. Es wurde nichts gespeichert.",
     "setupHeadless": "Einrichtung und Wiederherstellung des Tresors brauchen ein interaktives Terminal; Headless-Läufe können sie nicht ausführen.",

@@ -5463,6 +5463,7 @@
     "cancelSetup": "Zrušit nastavení",
     "setupNeeded": "Než do trezoru uložíte tajný údaj, nastavte ho.",
     "setupExists": "Pro tohoto uživatele už trezor existuje.",
+    "itemConflict": "Položka se stejným názvem je již v trezoru, nebo se zdroj během importu změnil. Nic nebylo přidáno.",
     "setupPending": "Uložte obnovovací kód a potvrďte tím dokončení nastavení trezoru.",
     "setupCancelled": "Nastavení trezoru bylo zrušeno. Nic nebylo uloženo.",
     "setupHeadless": "Nastavení a obnova trezoru vyžadují interaktivní terminál; běhy bez rozhraní je provést nemohou.",

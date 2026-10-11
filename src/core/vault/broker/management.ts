@@ -117,7 +117,7 @@ function importRefusal(error: unknown): unknown {
   if (!(error instanceof VaultMigrationFault)) return error
   switch (error.code) {
     case 'conflict': {
-      return new VaultManagementError('exists')
+      return new VaultManagementError('conflict')
     }
     case 'window': {
       return new VaultManagementError('locked')
@@ -350,7 +350,7 @@ export class VaultManagement implements VaultManagementPort {
       const store = this.store()
       const items = await store.list()
       if (items.some((entry) => entry.id === item.metadata.id || entry.name === item.metadata.name))
-        throw new VaultManagementError('exists')
+        throw new VaultManagementError('conflict')
       // Checked again inside the writer transaction (RVCM1091A F6).
       await refusingInvalid(store.write(item, 'absent'))
     } finally {

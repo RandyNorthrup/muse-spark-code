@@ -5313,6 +5313,7 @@
     "cancelSetup": "Annuler la configuration",
     "setupNeeded": "Configurez le coffre-fort avant d’y enregistrer un secret.",
     "setupExists": "Un coffre-fort existe déjà pour cet utilisateur.",
+    "itemConflict": "Un élément du même nom est déjà dans le coffre, ou la source a changé pendant l’importation. Rien n’a été ajouté.",
     "setupPending": "Enregistrez le code de récupération, puis confirmez pour terminer la configuration du coffre-fort.",
     "setupCancelled": "La configuration du coffre-fort a été annulée. Rien n’a été enregistré.",
     "setupHeadless": "La configuration et la récupération du coffre-fort nécessitent un terminal interactif ; les exécutions sans interface ne peuvent pas les faire.",

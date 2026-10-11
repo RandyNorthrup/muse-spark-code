@@ -5163,6 +5163,7 @@
     "cancelSetup": "Kurulumu İptal Et",
     "setupNeeded": "Bir sırrı saklamadan önce kasayı kurun.",
     "setupExists": "Bu kullanıcı için zaten bir kasa var.",
+    "itemConflict": "Aynı adda bir öğe zaten kasada var ya da kaynak içe aktarma sırasında değişti. Hiçbir şey eklenmedi.",
     "setupPending": "Kurtarma kodunu kaydedin, ardından kasa kurulumunu bitirmek için onaylayın.",
     "setupCancelled": "Kasa kurulumu iptal edildi. Hiçbir şey kaydedilmedi.",
     "setupHeadless": "Kasa kurulumu ve kurtarma etkileşimli bir terminal gerektirir; arayüzsüz çalıştırmalar bunları yapamaz.",

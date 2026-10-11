@@ -214,6 +214,9 @@ export const vaultBrokerResponseSchema = z.strictObject({
         'locked',
         'uncreated',
         'exists',
+        // RVCM1091D P2: an item or path collision is not "a vault already
+        // exists"; it has its own reason and sentence.
+        'conflict',
         'busy',
         'invalid',
         'rollback',
