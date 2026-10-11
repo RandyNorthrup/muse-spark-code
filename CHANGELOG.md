@@ -275,6 +275,14 @@ happened, not what was planned; superseded entries are kept.
   Visual captures wait for money amounts, and filtered model tables now have
   reviewed coverage across every theme, width and interaction state.
 
+- Release-train bundle diet (repository only, no user-visible change):
+  shared top-level initialisers the bundler cannot drop (computed
+  `Math.ceil`, `String.raw`, `String.fromCodePoint`, `'0'.repeat`,
+  templates over constants, call-argument `new Set`) are literals or pure
+  factories now, and single-surface schemas live behind pure builders, so
+  small bundles stop carrying them: usagePanel.js back under its cap with
+  room to spare. Recorded in `docs/certification/train-bundle-diet.md`.
+
 ### Documentation
 
 - PLAN.md had grown to 4,157,477 bytes, 36,827 short of the 4 MiB bound at
