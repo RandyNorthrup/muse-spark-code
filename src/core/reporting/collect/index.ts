@@ -38,7 +38,7 @@ const forwardedKinds = {
   security: ['vault', 'breakdown', 'grants', 'usage', 'denials', 'locks', 'developerAudit'],
   accounts: ['accounts', 'limits', 'usage', 'swaps', 'refusals', 'confirmations'],
   estimate: ['totals', 'criticalPath', 'limitingResource', 'setups', 'inputs', 'calibration'],
-  playbook: ['totals', 'decisions', 'drills', 'disabledRules', 'refusals'],
+  playbook: ['totals', 'decisions', 'hookVerification', 'disabledRules', 'refusals'],
   issues: ['issues', 'limits'],
   schedules: ['timeline', 'schedules', 'fires', 'refusals', 'cost'],
   keybindings: ['keybindings', 'conflicts'],

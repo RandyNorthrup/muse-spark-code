@@ -5346,6 +5346,13 @@ export const REPORT_LABEL_KEYS = [
   'removed',
   'changed',
   'unchanged',
+  'paused',
+  'active',
+  'all',
+  'total',
+  'once',
+  'user',
+  'hookVerification',
 ] as const
 export const REFERENCE_DOCS_URL =
   'https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/reference.md'

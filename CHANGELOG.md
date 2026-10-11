@@ -47,16 +47,21 @@ happened, not what was planned; superseded entries are kept.
 - **Playbook and schedules report kinds are real end to end** (M113 C-M113-4).
   `/report playbook` reads M116's orchestrator journal through the owner's
   replay, so strike counts per module and class match enforcement; design
-  decisions carry their outcomes, gate drills their pass/fail records, and
+  decisions carry their outcomes, hook-verification receipts their pass/fail
+  results, and
   every disabled rule its reason and actor, with route-around refusals in
-  their own section. `--module <glob>` and `--milestone <id>` filter
-  modules while workspace-wide rows stay. `/report schedules` reads M115's
+  their own section. Only true refusals are listed: admitted commands and
+  applied fallback reviewers never appear as refusals. `--module <glob>`
+  and `--milestone <id>` filter
+  modules while workspace-wide rows stay; `--milestone` matches whole
+  milestone tokens, never substrings. Paused schedules stay out of the
+  upcoming-fires timeline with their paused status shown. `/report schedules` reads M115's
   store and fire record: upcoming fires with collisions, triggers, targets,
   delivery, grants and creators, recent fires with outcomes, refused actions
   and cost with a summed total. Until delivery is registered no v2 fire
   exists, so the fire sections stay empty instead of invented. Both kinds
   work in VS Code, ACP and the terminal without a model call, through a new
-  lazy `dist/playbookSchedulesInputs.js` chunk (50.5 KiB measured, 75 KiB
+  lazy `dist/playbookSchedulesInputs.js` chunk (50.9 KiB measured, 59 KiB
   budget) beside the session/usage chunk, whose budget stays unchanged;
   only their two kind-table lines changed, and every other kind still
   reports unavailable as before.

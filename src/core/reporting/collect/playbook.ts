@@ -5,7 +5,7 @@
 // pre-rendered because collectors never touch the clock.
 import { PLAYBOOK_SAFETY_RULE } from '../../../shared/constants'
 import type { ReportOptions, ReportSection, ReportValue } from '../../../shared/reportSchema'
-import { count, normalizeMilestone, row, section, text } from './common'
+import { count, label, normalizeMilestone, row, section, text } from './common'
 
 export interface PlaybookModuleView {
   readonly id: string
@@ -74,8 +74,36 @@ export function isModuleMatch(key: string, glob: string): boolean {
 }
 
 function isMilestoneMatch(candidates: readonly (string | undefined)[], milestone: string): boolean {
-  const wanted = normalizeMilestone(milestone)
-  return candidates.some((candidate) => candidate?.toUpperCase().includes(wanted) ?? false)
+  // A milestone is named by a whole token, never by a substring: `--milestone
+  // M13` must not keep lane `C-M113-4`, `--milestone M110` must not keep lane
+  // `C-M110a0`, and `--milestone M1` must not keep a UUID that happens to
+  // contain a `1`. Lane ids carry their milestone as `M<id>` (`C-M113-4`
+  // names M113), so the token allows that one leading `M`.
+  const wanted = normalizeMilestone(milestone).replaceAll(/[^0-9A-Z]/gu, '')
+  if (wanted === '') return false
+  return candidates.some((candidate) => {
+    if (candidate === undefined) return false
+    const upper = candidate.toUpperCase()
+    let index = upper.indexOf(wanted)
+    while (index !== -1) {
+      const after = upper[index + wanted.length]
+      if (after !== undefined && /[0-9A-Z]/u.test(after)) {
+        index = upper.indexOf(wanted, index + 1)
+        continue
+      }
+      const before = upper[index - 1]
+      if (before === undefined || /[^0-9A-Z]/u.test(before)) return true
+      // Lane ids carry their milestone as `M<id>` (`C-M113-4` names M113):
+      // that one leading `M` is a marker, not a token character, but only
+      // when it stands on its own. Wanted `13` must not match inside `M113`.
+      if (before === 'M') {
+        const beforeBefore = upper[index - 2]
+        if (beforeBefore === undefined || /[^0-9A-Z]/u.test(beforeBefore)) return true
+      }
+      index = upper.indexOf(wanted, index + 1)
+    }
+    return false
+  })
 }
 
 function dateCell(at: number, dateIso: string | undefined): ReportValue {
@@ -111,7 +139,7 @@ export function playbookSections(view: PlaybookView, options: ReportOptions): Re
           [module.key, entry.class ?? 'all', String(entry.round), String(module.strikes)],
           {
             module: text(module.key),
-            class: text(entry.class ?? 'all'),
+            class: entry.class === null ? label('all') : text(entry.class),
             strikes: count(module.strikes),
             rounds: count(entry.round),
           },
@@ -212,7 +240,9 @@ export function playbookSections(view: PlaybookView, options: ReportOptions): Re
     ),
     section(
       'playbook/drills',
-      'drills',
+      // The journal holds hook-verification receipts, not the board's
+      // break-on-purpose drill records: the heading states what it holds.
+      'hookVerification',
       [
         { key: 'name', label: 'name' },
         { key: 'module', label: 'name' },
@@ -251,7 +281,13 @@ export function playbookSections(view: PlaybookView, options: ReportOptions): Re
   ]
 }
 
-/** Route-around refusals are the safety-rule notes, however they were filed. */
-export function isRouteAroundRefusal(rule: string): boolean {
-  return rule === PLAYBOOK_SAFETY_RULE
+/**
+ * Route-around refusals are the safety-rule notes that refused something.
+ * Allowed safety-rule notes (`checksPassed` for an admitted command or hook
+ * check, `fallbackReviewer` for an applied fallback reviewer) are not
+ * refusals: listing them would bury a real `hookTampering`, `gateSkipped`,
+ * `permissionLaundering` or `classifierBlocked` refusal past the row cap.
+ */
+export function isRouteAroundRefusal(rule: string, code: string): boolean {
+  return rule === PLAYBOOK_SAFETY_RULE && code !== 'checksPassed' && code !== 'fallbackReviewer'
 }
