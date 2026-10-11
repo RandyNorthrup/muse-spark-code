@@ -186,6 +186,37 @@ describe('Native feedback reader from the captured 1.4.4 receipt', () => {
   })
 })
 
+describe('Feedback submit golden and refusals', () => {
+  const report = {
+    sessionId: 's',
+    classification: 'badResult',
+    note: 'A wrong answer',
+    withFiles: false,
+    attachSessionRecord: false,
+  } as const
+
+  it('serializes the submit params byte-identically', async () => {
+    const { host, server } = setup({ feedback: NATIVE_FEEDBACK_READER }, ['feedback'])
+    server.handle('feedback/submit', () => receivedResult(5) as Record<string, unknown>)
+    await host.submitFeedback({ ...report })
+    expect(server.requestsFor('feedback/submit')).toHaveLength(1)
+    expect(JSON.stringify(server.requestsFor('feedback/submit')[0]?.params)).toBe(
+      '{"sessionId":"s","classification":"badResult","note":"A wrong answer","withFiles":false,"attachSessionRecord":false}',
+    )
+  })
+
+  it('refuses without the reader or the grant before dispatch', async () => {
+    const bare = setup()
+    await expect(bare.host.submitFeedback({ ...report })).rejects.toThrow(UI_TEXT.feedbackFailed)
+    expect(bare.server.requestsFor('feedback/submit')).toHaveLength(0)
+    const ungranted = setup({ feedback: NATIVE_FEEDBACK_READER })
+    await expect(ungranted.host.submitFeedback({ ...report })).rejects.toThrow(
+      UI_TEXT.feedbackFailed,
+    )
+    expect(ungranted.server.requestsFor('feedback/submit')).toHaveLength(0)
+  })
+})
+
 describe('Deletion refusal where Muse Code sends no frame', () => {
   it('refuses before dispatch with the upstream request', async () => {
     const { host, server } = setup()

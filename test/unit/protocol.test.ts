@@ -93,6 +93,17 @@ describe('parseWebviewToHostMessage', () => {
       'withdrawQueued without a user item id',
       { type: 'withdrawQueued', localId: 'l2', turnId: 't2' },
     ],
+    ['previewFeedback', { type: 'previewFeedback', requestId: 1, note: 'A wrong answer' }],
+    [
+      'submitFeedback',
+      {
+        type: 'submitFeedback',
+        requestId: 2,
+        sessionId: 's1',
+        classification: 'badResult',
+        note: 'A wrong answer',
+      },
+    ],
   ])('accepts %s', (_label, message) => {
     expect(parseWebviewToHostMessage(message)).toEqual({ ok: true, message })
   })
@@ -171,6 +182,19 @@ describe('parseWebviewToHostMessage', () => {
     [
       'withdraw with a numeric user item id',
       { type: 'withdrawQueued', localId: 'l2', turnId: 't2', userMessageId: 2 },
+    ],
+    ['previewFeedback without its note', { type: 'previewFeedback', requestId: 1 }],
+    [
+      'previewFeedback with an overlong note',
+      { type: 'previewFeedback', requestId: 1, note: 'x'.repeat(2001) },
+    ],
+    [
+      'submitFeedback without its session',
+      { type: 'submitFeedback', requestId: 2, classification: 'bug', note: 'Steps' },
+    ],
+    [
+      'submitFeedback without its classification',
+      { type: 'submitFeedback', requestId: 2, sessionId: 's1', note: 'Steps' },
     ],
   ])('rejects %s', (_label, input) => {
     const result = parseWebviewToHostMessage(input)
@@ -334,6 +358,12 @@ describe('parseHostToWebviewMessage', () => {
       'mentionResults',
       { type: 'mentionResults', requestId: 1, items: [{ path: 'a.ts', isFolder: false }] },
     ],
+    ['feedbackPreview', { type: 'feedbackPreview', requestId: 1, note: 'Scrubbed' }],
+    ['feedbackOutcome', { type: 'feedbackOutcome', requestId: 2, outcome: 'Feedback uploaded.' }],
+    [
+      'feedback refusal',
+      { type: 'feedbackOutcome', requestId: 2, error: 'Could not submit feedback.' },
+    ],
     [
       'attachmentAdded',
       {
@@ -391,6 +421,7 @@ describe('parseHostToWebviewMessage', () => {
       { type: 'goalCommandResult', requestId: 1, accepted: true },
     ],
     ['unknown type', { type: 'explode' }],
+    ['feedbackPreview without its note', { type: 'feedbackPreview', requestId: 1 }],
     [
       'briefSubmitted without its local id',
       { type: 'briefSubmitted', localId: '', text: 'x', attachments: [] },

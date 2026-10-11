@@ -169,6 +169,8 @@ import {
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
 import { reportCommandArguments } from '../shared/reportCommand'
+import type { FeedbackSubmitPort } from '../core/backends/musecode/feedback'
+import { feedbackBridge } from './feedbackBridge'
 import { deferred } from './components/DeferredSurface'
 import { Modal } from './components/Modal'
 import type { ResourceSurfaceLoader } from './resources/resourcePort'
@@ -208,6 +210,12 @@ const HistoryDialog = deferred(async () => {
   const module = await import('./components/HistoryDialog')
   return { default: module.HistoryDialog }
 })
+// "Send feedback" on a reply's actions menu (C-M106-3R2): the dialog and its
+// strings load here, on first open, never with first paint.
+const FeedbackDialog = deferred(async () => {
+  const module = await import('./components/FeedbackDialog')
+  return { default: module.FeedbackDialog }
+}, true)
 const AgentMap = deferred(async () => {
   const module = await import('./components/AgentMap')
   return { default: module.AgentMap }
@@ -1434,6 +1442,43 @@ export function App({
   >(undefined)
   // A clear can come from another panel. A saved selection from its rows is inert.
   const quoteMenu = quoteMenuState?.epoch === state.attachmentEpoch ? quoteMenuState : undefined
+  // "Send feedback" on a reply's menu (C-M106-3R2): the bridge opens with
+  // the dialog and closes with it, so a closed dialog's late answer settles
+  // nothing. The dialog itself (and its strings) loads lazily on first open.
+  // The port rides in state (never a ref read in render); the ref only owns
+  // the close lifecycle.
+  const [feedback, setFeedback] = useState<{ sessionId: string; port: FeedbackSubmitPort } | null>(
+    null,
+  )
+  const feedbackBridgeRef = useRef<ReturnType<typeof feedbackBridge> | null>(null)
+  const openFeedback = useCallback(() => {
+    const snapshot = store.getState()
+    if (snapshot.sessionId === undefined || snapshot.auth.backend !== 'museCode') return
+    feedbackBridgeRef.current?.close()
+    const bridge = feedbackBridge(postMessage)
+    bridge.open()
+    feedbackBridgeRef.current = bridge
+    setFeedback({ sessionId: snapshot.sessionId, port: bridge.port })
+  }, [store, postMessage])
+  const closeFeedback = useCallback(() => {
+    feedbackBridgeRef.current?.close()
+    feedbackBridgeRef.current = null
+    setFeedback(null)
+  }, [])
+  useEffect(
+    () => () => {
+      feedbackBridgeRef.current?.close()
+      feedbackBridgeRef.current = null
+    },
+    [],
+  )
+  // A session change hides the dialog (its bridge closes on the next open,
+  // close or unmount); a send for the old session would be refused before
+  // dispatch anyway.
+  const feedbackDialog =
+    feedback !== null && feedback.sessionId === state.sessionId ? (
+      <FeedbackDialog sessionId={feedback.sessionId} port={feedback.port} onClose={closeFeedback} />
+    ) : null
   const onDismissReference = useCallback(() => {
     dispatch({ type: 'referenceCleared' })
   }, [dispatch])
@@ -2865,6 +2910,11 @@ export function App({
               : undefined
           }
           onReply={onReply}
+          onSendFeedback={
+            state.sessionId !== undefined && state.auth.backend === 'museCode'
+              ? openFeedback
+              : undefined
+          }
           showReplyUsage={state.settings.modelApiReplyUsage}
           planReplyId={planReplyIdOf(state)}
           onSavePlan={onSavePlan}
@@ -3161,6 +3211,7 @@ export function App({
   const isPlanDialogOpen = hasPlan && (isPlanModalOpen ?? true)
   const isModalOpen =
     isOtherModalOpen ||
+    feedbackDialog !== null ||
     legalReport !== null ||
     state.handoff !== undefined ||
     state.secretPrompt !== undefined ||
@@ -3202,6 +3253,7 @@ export function App({
           />
           {history}
           {board}
+          {feedbackDialog}
         </div>
         <>
           {overlay === 'help' ? (

@@ -251,7 +251,8 @@
       "teamTemplates.solo",
       "teamCapabilityWarning",
       "teamTreeLabel",
-      "teamUsageTitle"
+      "teamUsageTitle",
+      "feedbackClassificationBug"
     ],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],

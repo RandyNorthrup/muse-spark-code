@@ -16,8 +16,13 @@ happened, not what was planned; superseded entries are kept.
   exposing receipt identifiers). Where Muse Code sends no frame, the
   feature refuses with an upstream SDK request: record-attached feedback
   outcomes and session deletion stay unavailable, and History stays
-  archive-only. Reader binding at the host constructions remains for
-  integration.
+  archive-only. Both readers are bound in the VS Code window and in the
+  CLI/ACP runtime (the handshake asks for the `feedback` grant the capture
+  proves; the effort reader loads on first spawn, never at activation). A
+  reply's actions menu offers **Send feedback to Muse Code**: a note with
+  its classification, previewed scrubbed before consent, uploaded without
+  files or session record; the dialog loads on first open with its own
+  strings, and Help lists it too.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

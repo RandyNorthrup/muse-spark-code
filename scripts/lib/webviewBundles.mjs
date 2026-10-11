@@ -238,6 +238,7 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
       'src/webview/components/PlanUi.tsx',
       'src/webview/components/UsageProviderSections.tsx',
       'src/webview/components/SetupBanner.tsx',
+      'src/webview/components/FeedbackDialog.tsx',
     ],
     budgetKiB: 25,
   },
