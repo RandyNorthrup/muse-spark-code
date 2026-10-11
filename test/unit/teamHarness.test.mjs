@@ -15,7 +15,7 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { PLAYED_SCENARIOS, serveRepo, TRAFFIC_SCENARIOS } from '../../scripts/lib/harnessServer.mjs'
@@ -23,6 +23,7 @@ import { testSettings } from './helpers/fakes'
 import { buildWebviewHtml } from '../../src/host/html'
 import { EN } from '../../src/shared/l10n/en'
 import { warmBrowser } from './helpers/warmBrowser'
+import { buildProductionPackage, PRODUCTION_BUILD_KEY } from './helpers/productionPackage'
 
 // Preparation builds production chunks and inventories the complete real VSIX.
 const REAL_HARNESS_PREPARE_TIMEOUT_MS = 60_000
@@ -65,12 +66,18 @@ const rig = {
   origin: '',
   packagedFiles: [],
   inventory: undefined,
+  folder: undefined,
 }
 beforeAll(async () => {
-  execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
-  execFileSync(process.execPath, ['scripts/pseudo-l10n.mjs'], { stdio: 'pipe' })
-  mkdirSync('temp', { recursive: true })
-  rig.inventory = mkdtempSync(path.resolve('temp/team-inventory-'))
+  const shared = inject(PRODUCTION_BUILD_KEY)
+  if (typeof shared !== 'string') throw new Error('Team harness needs its shared production build')
+  rig.folder = mkdtempSync(path.join(tmpdir(), 'team-harness-'))
+  buildProductionPackage(process.cwd(), rig.folder, shared)
+  execFileSync(process.execPath, [path.join(rig.folder, 'scripts/pseudo-l10n.mjs')], {
+    cwd: rig.folder,
+    stdio: 'pipe',
+  })
+  rig.inventory = mkdtempSync(path.join(tmpdir(), 'team-inventory-'))
   // VSCE traverses before filtering. Keep its unchanged policy over real
   // publication roots, without walking other workers' changing fixture trees.
   const roots = new Set(
@@ -87,7 +94,11 @@ beforeAll(async () => {
         (root) => entry === root || (root.includes('*') && entry.startsWith(root.split('*', 1)[0])),
       )
     )
-      cpSync(entry, path.join(rig.inventory, entry), { recursive: true })
+      cpSync(
+        entry === 'dist' || entry === 'native' ? path.join(rig.folder, entry) : entry,
+        path.join(rig.inventory, entry),
+        { recursive: true },
+      )
   }
   cpSync('.vscodeignore', path.join(rig.inventory, '.vscodeignore'))
   rig.packagedFiles = execFileSync(
@@ -95,7 +106,7 @@ beforeAll(async () => {
     [path.resolve('node_modules/@vscode/vsce/vsce'), 'ls', '--no-dependencies'],
     { cwd: rig.inventory, encoding: 'utf8' },
   ).split('\n')
-  const serving = await serveRepo(process.cwd())
+  const serving = await serveRepo(rig.folder)
   rig.server = serving.server
   rig.origin = `http://127.0.0.1:${String(serving.port)}`
   const executablePath = existsSync(chromium.executablePath())
@@ -123,6 +134,7 @@ afterAll(async () => {
   await rig.browser?.close()
   if (rig.server !== undefined) await new Promise((resolve) => rig.server.close(resolve))
   if (rig.inventory !== undefined) rmSync(rig.inventory, { recursive: true, force: true })
+  if (rig.folder !== undefined) rmSync(rig.folder, { recursive: true, force: true })
 })
 
 // Waits, within what is left of `doneBy`, for the scene to call scenarioDone();
@@ -297,7 +309,7 @@ describe('RVM96B browser regressions', { timeout: REAL_HARNESS_CASE_TIMEOUT_MS }
   })
 
   it('reports the team scene played before its lazy cards load, so their deadline starts there', async () => {
-    const meta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+    const meta = JSON.parse(readFileSync(path.join(rig.folder, 'dist/meta/webview.json'), 'utf8'))
     const [chunk] =
       Object.entries(meta.outputs).find(
         ([, output]) => output.entryPoint === 'src/webview/components/TeamUi.tsx',
@@ -353,21 +365,21 @@ describe('RVM96B browser regressions', { timeout: REAL_HARNESS_CASE_TIMEOUT_MS }
 
   it('23 packages every emitted webview JavaScript chunk', () => {
     const files = rig.packagedFiles
-    const meta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+    const meta = JSON.parse(readFileSync(path.join(rig.folder, 'dist/meta/webview.json'), 'utf8'))
     for (const output of Object.keys(meta.outputs)) {
       if (output.endsWith('.js')) expect(files).toContain(output)
     }
   })
 
   it('23 counts lazy bytes in the deferred size gate and restores its chunk byte-exact', () => {
-    const meta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+    const meta = JSON.parse(readFileSync(path.join(rig.folder, 'dist/meta/webview.json'), 'utf8'))
     const [chunk] =
       Object.entries(meta.outputs).find(
         ([, output]) => output.entryPoint === 'src/webview/components/TeamUi.tsx',
       ) ?? []
     expect(chunk).toBeDefined()
     const fixture = mkdtempSync(path.join(tmpdir(), 'team-budget-'))
-    cpSync('dist', path.join(fixture, 'dist'), { recursive: true })
+    cpSync(path.join(rig.folder, 'dist'), path.join(fixture, 'dist'), { recursive: true })
     cpSync('docs/schemas', path.join(fixture, 'docs/schemas'), { recursive: true })
     mkdirSync(path.join(fixture, 'scripts'), { recursive: true })
     cpSync('scripts/check-bundle-size.mjs', path.join(fixture, 'scripts/check-bundle-size.mjs'))
@@ -396,7 +408,7 @@ describe('RVM96B browser regressions', { timeout: REAL_HARNESS_CASE_TIMEOUT_MS }
   })
 
   it('23 loads neither team UI module for a single-model page, then imports tree and cards under the unchanged nonce CSP', async () => {
-    const meta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+    const meta = JSON.parse(readFileSync(path.join(rig.folder, 'dist/meta/webview.json'), 'utf8'))
     const initial = new Set()
     const visit = (file) => {
       if (initial.has(file)) return

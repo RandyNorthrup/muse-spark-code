@@ -19816,6 +19816,10 @@ observe the named tests fail, restore byte-exact and record the evidence in
 - **M88 one-shot confirmation on the Model API (D67, item 15).** **Resolved 2026-10-03 (owner): confirm when scheduling.** The D48 popup is shown once at scheduling, for that run only, bound to its prompt, model, session and key digest. At its time all of these are checked again; any change sends it back to Run, and nothing is billed without a match.
 - **M88 unattended timed sends on Muse Code (D67, items 15 and 16).** **Resolved 2026-10-03 (owner): yes, on both backends.** A Muse Code timed send or resume goes at its time without Send now. It runs in the conversation's current mode, so Manual still stops at each approval. The Model API follows the scheduling-time confirmation above.
 - **M88 Muse Code usage-limit capture (D67, item 16).** **Resolved 2026-10-03 (lead, under the owner's live-spend authorisation of 2026-09-25 and 2026-10-02): capture it.** The next time the owner's window is full, run one short contributor-model turn in an empty workspace and record the error.
+- **Q-CM963J charter ownership (2026-10-11):** saved charter consumption
+  requires `src/host/team/teamEnginePorts.ts`, which the join brief reserves
+  for CM963R6. A scoped configuration-only ownership clarification was asked;
+  default: leave the reserved adapter untouched until it is answered.
 - **Q-M96a–c (D75): external presets, subscription tasks, and live checks
   on third-party plans.** **Resolved 2026-10-04 (lead, under the owner's
   ruling "use your best discretion for all of the unanswered questions but i
@@ -24130,6 +24134,19 @@ and uncertain usage does not become a learned sample. Reuse the engine's
 existing task schemas rather than a second guessed record. Async getters read
 fresh on every derived view; absent sources keep both sections hidden, and a
 failed read refuses instead of returning empty history or a preset balance.
+
+**CM963J joined verification.** Exercise every team unit file in serial batches
+of at most three, with repository deadlines, and the real Roles fixture in
+headless Chrome. Align the engine's stale label assertions with U1's reviewed
+English table. Move the browser suite's production build into the existing
+once-per-run producer, giving the suite its own complete mutable copy under
+the OS temporary directory. Keep every browser assertion, size cap and timeout;
+prove both the label assertions and required producer guard fail under a
+byte-exact restored mutation. The complete visual matrix and aggregate quality
+remain lead-owned; this lane records six-theme Roles accessibility and overflow
+coverage without updating baselines or claiming a production saved-team run.
+The unchanged zero-clone gate also exposed two test-fixture overlaps: share
+missing-source cases and spy cleanup while preserving every assertion.
 
 **C-M96-3 team host service (2026-10-10, host lane, `c/m96-3`).** The
 interface every surface binds to is `src/core/team/teamHostService.ts`; its
@@ -38186,6 +38203,18 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**CM963J join qualification (2026-10-11, kubuntu).** The explicit rig/common
+brief forbids aggregate quality and leaves native Mac/Windows editor replay
+with the lead. Scoped typecheck, lint, formatting, dead-code, zero-clone,
+cycle, localization, token, reference, host API and roadmap checks pass.
+The owned 97-file team run has 2,021 passing cases and one unchanged size
+assertion failure; all browser cases now execute at their original deadlines.
+The actual production build refuses Models body at 78,803 / 76,800 bytes;
+this existing MODELSPLIT blocker is not waived, and its unaccepted round-four
+branch is not merged. Roles fixtures pass 168 six-theme accessibility and
+overflow cases. Team configuration remains hidden, with the missing registry,
+saved-charter/override and paid Try sources recorded in `docs/certification/m96-3.md`.
 
 **C-M96-2 RVCM962B repairs (2026-10-10, kubuntu).** All eight findings
 have regressions and ten byte-exact red/restored drill groups. The explicit

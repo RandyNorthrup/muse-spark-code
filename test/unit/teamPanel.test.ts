@@ -1,7 +1,7 @@
 import { teamOffers } from './helpers/teamPanelOffers'
 import * as autofill from '../../src/core/team/autofill'
 import { Usd } from '../../src/shared/usd'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { panelRig } from './helpers/teamPanelRig'
 import { teamPanelExportSchema } from '../../src/shared/teamPanel'
 import { parsePanelToHostMessage } from '../../src/shared/modelsPanel'
@@ -16,20 +16,18 @@ async function pairSlice(rig: ReturnType<typeof panelRig>) {
 }
 
 describe('M96 U1 portable panel', () => {
+  afterEach(() => vi.restoreAllMocks())
+
   it('uses the actual remaining budget and history for suggestions', async () => {
     const records: autofill.TeamRoleRecord[] = []
     const suggestions = vi.spyOn(autofill, 'buildTeamSuggestions')
-    try {
-      const rig = panelRig({
-        remainingDailyBudgetUsd: () => Usd.from(0).toAmount(),
-        records: () => records,
-      })
-      const slice = await pairSlice(rig)
-      expect(slice.suggestions.some((item) => item.kind === 'roleBudget')).toBe(false)
-      expect(suggestions.mock.calls.at(-1)?.[0].records).toBe(records)
-    } finally {
-      suggestions.mockRestore()
-    }
+    const rig = panelRig({
+      remainingDailyBudgetUsd: () => Usd.from(0).toAmount(),
+      records: () => records,
+    })
+    const slice = await pairSlice(rig)
+    expect(slice.suggestions.some((item) => item.kind === 'roleBudget')).toBe(false)
+    expect(suggestions.mock.calls.at(-1)?.[0].records).toBe(records)
   })
   it('awaits fresh durable budget and history getters on every refresh', async () => {
     let remaining = Usd.from('0.25').toAmount()
@@ -37,25 +35,21 @@ describe('M96 U1 portable panel', () => {
       { role: 'engineering', taskTokens: [100, 200, 300, 400, 500] },
     ]
     const suggestions = vi.spyOn(autofill, 'buildTeamSuggestions')
-    try {
-      const rig = panelRig({
-        remainingDailyBudgetUsd: () => Promise.resolve(remaining),
-        records: () => Promise.resolve(records),
-      })
-      const slice = await pairSlice(rig)
-      expect(slice.suggestions.some((item) => item.kind === 'roleBudget')).toBe(true)
-      expect(suggestions.mock.calls.at(-1)?.[0]).toMatchObject({
-        remainingDailyBudgetUsd: remaining,
-        records,
-      })
-      remaining = Usd.from(0).toAmount()
-      records = [{ role: 'engineering', taskTokens: [1, 2] }]
-      const refreshed = await rig.read()
-      expect(refreshed.suggestions.some((item) => item.kind === 'roleBudget')).toBe(false)
-      expect(suggestions.mock.calls.at(-1)?.[0].records).toBe(records)
-    } finally {
-      suggestions.mockRestore()
-    }
+    const rig = panelRig({
+      remainingDailyBudgetUsd: () => Promise.resolve(remaining),
+      records: () => Promise.resolve(records),
+    })
+    const slice = await pairSlice(rig)
+    expect(slice.suggestions.some((item) => item.kind === 'roleBudget')).toBe(true)
+    expect(suggestions.mock.calls.at(-1)?.[0]).toMatchObject({
+      remainingDailyBudgetUsd: remaining,
+      records,
+    })
+    remaining = Usd.from(0).toAmount()
+    records = [{ role: 'engineering', taskTokens: [1, 2] }]
+    const refreshed = await rig.read()
+    expect(refreshed.suggestions.some((item) => item.kind === 'roleBudget')).toBe(false)
+    expect(suggestions.mock.calls.at(-1)?.[0].records).toBe(records)
   })
 
   it.each(['budget', 'history'] as const)(

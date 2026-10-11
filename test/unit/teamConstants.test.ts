@@ -771,14 +771,14 @@ describe('team strings', () => {
     expect(EN.teamHistoryTitle).toBe('Team history')
     expect(EN.teamOrchestratorSlot).toBe('Orchestrator')
     expect(EN.teamResetToDefault).toBe('Reset to Default')
-    expect(EN.teamAddCustomRole).toBe('Add custom role')
+    expect(EN.teamAddCustomRole).toBe('Add Custom Role')
   })
 
   it('labels modes, levels, templates and steps for the Roles section', () => {
     expect(EN.teamAccessModes).toEqual({
-      readOnly: 'Read-only',
-      ownBranch: 'Own branch',
-      inPlace: 'In place',
+      readOnly: 'Read-Only',
+      ownBranch: 'Own Branch',
+      inPlace: 'In Place',
     })
     expect(Object.keys(EN.teamIntensityLevels)).toEqual([
       'minimal',

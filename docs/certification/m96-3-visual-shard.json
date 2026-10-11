@@ -1,0 +1,30 @@
+{
+  "revision": "6636c84beb804af52e49363ac10ede3223d3d295",
+  "manifestSha256": "aaa2f8fdf0fd4322083a1fc3b9f0357f648da34bcb345ee1ec70a9ad0cac23ea",
+  "candidateSha256": "98deec984d5c92a9afeb8ade5d6956b2283ace2a5aea8db8cad80e6d795bf7fc",
+  "shard": {
+    "index": 1,
+    "count": 16
+  },
+  "selectionSha256": "0061833938622d8208799755d9817a12b3a607ec6334d5b02f276cc55371f116",
+  "checked": 612,
+  "changedPixels": 0,
+  "maxImageChangedPixels": 0,
+  "regenerated": false,
+  "baselineBytes": 25464915,
+  "candidateBytes": 25464865,
+  "browser": "150.0.7871.186",
+  "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+  "platform": "linux",
+  "policy": {
+    "threshold": 0.1,
+    "includeAA": false,
+    "maxChangedPixelRatio": 0.0001,
+    "maxChangedPixels": 12
+  },
+  "command": "npm run check:visual -- --shard=1/16",
+  "candidateBaseRevision": "a30d3d1a5a1d34f48d786f7db2fd9be485c9d58a",
+  "scope": "102 Light/320 px scene groups, including twelve Models scenes; remaining fifteen shards not run",
+  "baselineUpdates": false,
+  "modelAttempts": 0
+}

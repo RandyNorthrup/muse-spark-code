@@ -1,0 +1,294 @@
+{
+  "sourceRevision": "a30d3d1a5a1d34f48d786f7db2fd9be485c9d58a",
+  "command": "npm run harness:team",
+  "rig": "kubuntu",
+  "fixture": "Injected complete test configuration; production configuration remains unavailable",
+  "cases": 168,
+  "themes": ["light", "dark", "hc-light", "hc-dark", "one-dark-pro", "dracula"],
+  "languages": [
+    "en",
+    "zh-cn",
+    "zh-tw",
+    "ja",
+    "ko",
+    "de",
+    "fr",
+    "es",
+    "pt-br",
+    "ru",
+    "it",
+    "tr",
+    "pl",
+    "cs",
+    "hu"
+  ],
+  "widths": [320, 690],
+  "violations": 0,
+  "overflow": 0,
+  "browserErrors": 0,
+  "screenshots": [
+    {
+      "file": "empty-light.png",
+      "sha256": "3fe54439f4286d7e31bfb18d7c306ae774774d920e71485805bef9a489af5eef",
+      "width": 320,
+      "height": 1527
+    },
+    {
+      "file": "template-light.png",
+      "sha256": "930f8916cb98cd844430bafa5e3b166960a3f0dce69ed70cfeb0a12e7b8babac",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "validation-light.png",
+      "sha256": "220d1e2100c060f57874d47766e1d3dce0020a14c5174695e6732a3d96efef45",
+      "width": 320,
+      "height": 5482
+    },
+    {
+      "file": "suggestions-light.png",
+      "sha256": "b4bad4e5c8c58469544af5af524abca7bb423b81c2a5a101c85f115674c3b936",
+      "width": 320,
+      "height": 6443
+    },
+    {
+      "file": "preview-light.png",
+      "sha256": "930f8916cb98cd844430bafa5e3b166960a3f0dce69ed70cfeb0a12e7b8babac",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "in-place-light.png",
+      "sha256": "72f4d151a2e2fe4d6dd682e8e4b143897734cff7eb3ce49de951fae1649d4cf3",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "agents-light.png",
+      "sha256": "f199814e3735c2121ff8b5fcdd174e1ea07b8e7c374d365f7d665b8ac5ce34fc",
+      "width": 320,
+      "height": 917
+    },
+    {
+      "file": "empty-dark.png",
+      "sha256": "e8b0862e82b2dd3d1501d2304d92ba91c93a6fdba0bc141ab90dac704e4dbe4d",
+      "width": 320,
+      "height": 1527
+    },
+    {
+      "file": "template-dark.png",
+      "sha256": "3a3a6700ab7e92768e0b05500b8ae6019b6c09907310901bc10b2560b5310938",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "validation-dark.png",
+      "sha256": "57af99b5fb406c33c645ed4a79765e018e3f28279ca1eba1db8f4c787f851b32",
+      "width": 320,
+      "height": 5482
+    },
+    {
+      "file": "suggestions-dark.png",
+      "sha256": "04cc6a718520eb23c3776bb9a074c89ce72af9799eee248e5401f5df2b1576f3",
+      "width": 320,
+      "height": 6443
+    },
+    {
+      "file": "preview-dark.png",
+      "sha256": "3a3a6700ab7e92768e0b05500b8ae6019b6c09907310901bc10b2560b5310938",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "in-place-dark.png",
+      "sha256": "338b0d36504d6883325c0df629bf053baa25e268aa1b003590faa18526c55450",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "agents-dark.png",
+      "sha256": "b584673b99447db64eba3f27f24dbf95c1a4bddaa92ceb07be0496e85b4b1be8",
+      "width": 320,
+      "height": 917
+    },
+    {
+      "file": "empty-hc-light.png",
+      "sha256": "fb378aa76f74d9d3dd3583086cbcbd3930dffc46bfd5b4ca9e21757fcba0495e",
+      "width": 320,
+      "height": 1527
+    },
+    {
+      "file": "template-hc-light.png",
+      "sha256": "35aed012f8cd52b843afac6caba78302db8b564b6676bf28ab188b3cb633e0c0",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "validation-hc-light.png",
+      "sha256": "46ca60cdb2c80f4a08624f3cda1e60e6c1989c40244693f0f056959c32009734",
+      "width": 320,
+      "height": 5482
+    },
+    {
+      "file": "suggestions-hc-light.png",
+      "sha256": "59d5d7d6dc526ab1c100f951ed791716b3f7c87fcaad9c5c17b765c28dd48628",
+      "width": 320,
+      "height": 6443
+    },
+    {
+      "file": "preview-hc-light.png",
+      "sha256": "35aed012f8cd52b843afac6caba78302db8b564b6676bf28ab188b3cb633e0c0",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "in-place-hc-light.png",
+      "sha256": "85e9cd528a392b1a7525019f00085c2065c836ba590e7d964d89290fc496ce36",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "agents-hc-light.png",
+      "sha256": "2c0994dd001c9447dbd7ec8dd4bfb1cc97358d6e34f24588fc2a14a7034bff7c",
+      "width": 320,
+      "height": 917
+    },
+    {
+      "file": "empty-hc-dark.png",
+      "sha256": "b3f5511329a3e3b73d9a00b173bbc607090f219962cf3ea0f6965458d8354843",
+      "width": 320,
+      "height": 1527
+    },
+    {
+      "file": "template-hc-dark.png",
+      "sha256": "82d0b78e7bd1cfd3e4c69b7978fff367c1a3827097c39bd69654ac3bd15e0cb9",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "validation-hc-dark.png",
+      "sha256": "0f8f1816fc29c6508248ac8afd666d470de155d599ec5db1e61321ce513619de",
+      "width": 320,
+      "height": 5482
+    },
+    {
+      "file": "suggestions-hc-dark.png",
+      "sha256": "d9d28d0cb82040ea3ee133fa6b88d931eb94f95360e2de4afb24921dfdc8d155",
+      "width": 320,
+      "height": 6443
+    },
+    {
+      "file": "preview-hc-dark.png",
+      "sha256": "82d0b78e7bd1cfd3e4c69b7978fff367c1a3827097c39bd69654ac3bd15e0cb9",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "in-place-hc-dark.png",
+      "sha256": "7b689c9ba6df7ad4f489307284965a3f06676b2782d1257da5c5a2fc4d462edc",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "agents-hc-dark.png",
+      "sha256": "ac79ed802a2eed35fe40ec941fe56b54f3fe780c3b072a3c9df94959518bd902",
+      "width": 320,
+      "height": 917
+    },
+    {
+      "file": "empty-one-dark-pro.png",
+      "sha256": "8394668b8afa6607ca8c74c1d0e9e01f2aa33e443b44bd96c4db9b68df86469d",
+      "width": 320,
+      "height": 1523
+    },
+    {
+      "file": "template-one-dark-pro.png",
+      "sha256": "fc280fc5637b3d951a742e0cfdbc9651b79bf86351651e8afb238a72f5d6c28c",
+      "width": 320,
+      "height": 5512
+    },
+    {
+      "file": "validation-one-dark-pro.png",
+      "sha256": "ebe66f9c87ff52d5546a4c6fdaec30fa0b257cae863a0652316f9eeddfebab6e",
+      "width": 320,
+      "height": 5454
+    },
+    {
+      "file": "suggestions-one-dark-pro.png",
+      "sha256": "223f4888e1c4206d8101c6ca96ba4433209266be71b1e0226cdae0d87ea73953",
+      "width": 320,
+      "height": 6413
+    },
+    {
+      "file": "preview-one-dark-pro.png",
+      "sha256": "fc280fc5637b3d951a742e0cfdbc9651b79bf86351651e8afb238a72f5d6c28c",
+      "width": 320,
+      "height": 5512
+    },
+    {
+      "file": "in-place-one-dark-pro.png",
+      "sha256": "3ecd0999bd4be8896a165f22cb64c1a03423cc48f0618ff8486501abf15ea0cc",
+      "width": 320,
+      "height": 5512
+    },
+    {
+      "file": "agents-one-dark-pro.png",
+      "sha256": "ff30158abb2b66396406d88d844d2e7a1d87750aed8f5fad1e1cc67f58aeb527",
+      "width": 320,
+      "height": 917
+    },
+    {
+      "file": "empty-dracula.png",
+      "sha256": "efec8baee99841529539b433db69ae774d6053e97bf420812a2a6d38d6d29aef",
+      "width": 320,
+      "height": 1527
+    },
+    {
+      "file": "template-dracula.png",
+      "sha256": "0333d82c2a97474f1885cf0fa4f1b2740a91932fa4cb03a0305367fd5f11b773",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "validation-dracula.png",
+      "sha256": "f1d875f0fe6cb7d0ad7d9ce5a360ccce7dc23e9868844f972949016ece2b48d1",
+      "width": 320,
+      "height": 5482
+    },
+    {
+      "file": "suggestions-dracula.png",
+      "sha256": "e71f81c60ba0356a96899f36fb7c7a40da02c8b7d365361de1733183984abccf",
+      "width": 320,
+      "height": 6443
+    },
+    {
+      "file": "preview-dracula.png",
+      "sha256": "0333d82c2a97474f1885cf0fa4f1b2740a91932fa4cb03a0305367fd5f11b773",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "in-place-dracula.png",
+      "sha256": "e755b2b7f938ab12344ed23ba92f830f8b0170efc4aedb8ba93850aafeb0bc58",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "agents-dracula.png",
+      "sha256": "5b530e3c0ab57a4a711510f974453a9ecf6c6326faeeb5760ef79aaaec226b50",
+      "width": 320,
+      "height": 917
+    }
+  ],
+  "inspectedFrames": [
+    "template-light.png",
+    "validation-light.png",
+    "in-place-light.png",
+    "agents-dark.png",
+    "preview-dracula.png",
+    "suggestions-hc-dark.png",
+    "empty-hc-light.png"
+  ],
+  "baselineUpdates": false,
+  "modelAttempts": 0
+}

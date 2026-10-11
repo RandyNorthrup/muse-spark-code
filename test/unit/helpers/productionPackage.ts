@@ -24,6 +24,7 @@ declare module 'vitest' {
   }
 }
 export const PRODUCTION_BUILD_SUITES = [
+  '/teamHarness.test.mjs',
   '/runtimeChatGptPackage.test.ts',
   '/webviewBundle.test.mjs',
   '/execStdio.e2e.test.ts',
