@@ -11,6 +11,7 @@ import {
   type VaultUse,
 } from '../../../../src/shared/vault'
 import { type VaultPanelState } from '../../../../src/shared/modelsPanel'
+import { type VaultPanelService } from '../../../../src/host/vault/vaultPanelHost'
 
 export function requester(): VaultRequester {
   return {
@@ -154,5 +155,21 @@ export function panel(): VaultPanelState {
     audit: [audit()],
     pending: [],
     ambientFiles: [],
+  }
+}
+
+/**
+ * The setup flow of a stub panel service: unused unless the test drives
+ * `vaultSetup`. Plain functions, not spies: tests that assert on the
+ * setup flow replace them.
+ */
+export function inertVaultSetup(): Pick<
+  VaultPanelService,
+  'setup' | 'confirmSetup' | 'cancelSetup'
+> {
+  return {
+    setup: () => Promise.reject(new Error('unused')),
+    confirmSetup: () => Promise.resolve(),
+    cancelSetup: () => Promise.resolve(),
   }
 }
