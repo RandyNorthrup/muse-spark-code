@@ -1,5 +1,8 @@
-// R7 runtime admission: hash the bundle that executes, and let Node enforce
-// filesystem, loader and process boundaries for every spelling.
+// R9 threat model (PLAN.md M101, review RVCM1012I): hash the bundle that
+// executes. The freeze-time metafile allowlist stops accidental undeclared
+// imports; Node's `--permission` flags stop undeclared file reads and loads
+// at run time. A deliberately hostile arm is out of scope: arms change only
+// through review.
 import { createHash } from 'node:crypto'
 import {
   mkdirSync,
@@ -193,7 +196,9 @@ describe('frozen arm bundle execution', () => {
     ).toThrow('repeated')
   })
 
-  it('blocks dynamic require and computed import at runtime', () => {
+  it('blocks dynamic require and computed import of undeclared files at runtime', () => {
+    // The permission grants cover only the frozen bundle and fixture files:
+    // loading any other file fails in the child, however it is spelled.
     const root = tree({ 'arm.ts': '', 'helper.js': 'module.exports = 1' })
     const helper = path.join(root, 'helper.js')
     writeFileSync(
@@ -202,19 +207,18 @@ describe('frozen arm bundle execution', () => {
     )
     const frozen = bundle(root) // Builds successfully: enforcement belongs to execution.
     expect(() => executeArmBundle(frozen)).toThrow(/ERR_ACCESS_DENIED/)
-    // A dynamic `import()` has no loader inside the guard and fails closed.
+    // A dynamic `import()` of an undeclared file fails the same way.
     writeFileSync(
       path.join(root, 'arm.ts'),
       `export const run = async () => { const target = ${JSON.stringify(pathToFileURL(helper).href)}; return import(target); }`,
     )
     expect(new URL(pathToFileURL(helper).href).protocol).toBe('file:')
-    expect(() => executeArmBundle(bundle(root))).toThrow(/ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING/)
+    expect(() => executeArmBundle(bundle(root))).toThrow(/ERR_ACCESS_DENIED/)
   })
 
   it('blocks the whole indirect-loader class, including every review-F escape', () => {
-    // The guard's `require` is the only loader the arm sees: static imports
-    // of loaders fail the freeze instead (pinned below), so every spelling
-    // here reaches the run-time refusal through a global.
+    // Static imports of loaders fail the freeze instead (pinned below), so
+    // every spelling here reaches the permission denial through a global.
     const root = tree({ 'arm.ts': '', 'helper.js': 'module.exports = 1' })
     const helper = JSON.stringify(path.join(root, 'helper.js'))
     const probes = [
@@ -259,7 +263,7 @@ describe('frozen arm bundle execution', () => {
     }
   })
 
-  it('refuses workers and child processes at freeze time and through computed names at run time', () => {
+  it('refuses workers and child processes at freeze time', () => {
     const root = tree({ 'arm.ts': '' })
     const frozenProbes = [
       "import { Worker } from 'node:worker_threads'; export const run = async () => { const worker = new Worker('1', { eval: true }); await worker.terminate(); return 1 }",
@@ -269,16 +273,6 @@ describe('frozen arm bundle execution', () => {
     for (const probe of frozenProbes) {
       writeFileSync(path.join(root, 'arm.ts'), probe)
       expect(() => bundle(root), probe).toThrow(/outside the frozen arm allowlist/)
-    }
-    const runtimeProbes = [
-      // Array joins defeat the minifier's constant folding, so the name is
-      // genuinely computed at run time.
-      `export const run = () => require(['node:worker', 'threads'].join('_'))`,
-      `export const run = () => require(['node:child', 'process'].join('_'))`,
-    ]
-    for (const probe of runtimeProbes) {
-      writeFileSync(path.join(root, 'arm.ts'), probe)
-      expect(() => executeArmBundle(bundle(root)), probe).toThrow(/ERR_ACCESS_DENIED/)
     }
   })
 
@@ -291,7 +285,17 @@ describe('frozen arm bundle execution', () => {
         "import { DatabaseSync } from 'node:sqlite'; export const run = () => new DatabaseSync('data.db').prepare('SELECT x FROM t').get()",
         'node:sqlite',
       ],
+      // Review RVCM1012I finding 2: bare spellings fail like `node:`-prefixed
+      // ones — there is no deny-list to miss them — and neither does a `..`
+      // dodge through an allowlisted name.
       ["const target = require('process'); export const run = () => target", 'process'],
+      ["import os from 'os'; export const run = () => os.platform()", 'os'],
+      ["import crypto from 'crypto'; export const run = () => crypto", 'crypto'],
+      [
+        "import slash from 'node:fs/../sqlite'; export const run = () => slash",
+        'node:fs/../sqlite',
+      ],
+      ["import { test } from 'node:test'; export const run = () => test", 'node:test'],
       [
         "import { execFileSync } from 'node:child_process'; export const run = () => execFileSync",
         'node:child_process',
@@ -316,65 +320,58 @@ describe('frozen arm bundle execution', () => {
     }
   })
 
-  it('refuses a non-allowlisted built-in reached through a computed name at run time', () => {
-    const root = tree({ 'arm.ts': '' })
-    const cases: [source: string, name: string][] = [
-      // Array joins defeat the minifier's constant folding, so each name is
-      // genuinely computed at run time.
-      [`export const run = () => require(['node', 'sqlite'].join(':'))`, 'node:sqlite'],
-      [`export const run = () => require(['sqli', 'te'].join(''))`, 'sqlite'],
-      [
-        `export const run = () => process.getBuiltinModule(['node', 'sqlite'].join(':'))`,
-        'node:sqlite',
-      ],
-      [
-        `export const run = () => require(['node:worker', 'threads'].join('_'))`,
-        'node:worker_threads',
-      ],
-    ]
-    for (const [source, name] of cases) {
-      writeFileSync(path.join(root, 'arm.ts'), source)
-      const frozen = bundle(root)
-      expect(() => executeArmBundle(frozen), name).toThrow(/outside the frozen arm allowlist/)
-      expect(frozen.sha256).toBe(armBundleDigest(frozen))
-    }
-    // The runner path reports the refusal as an error, never as a pass.
-    writeFileSync(
-      path.join(root, 'arm.ts'),
-      `export const run = () => require(['node', 'sqlite'].join(':'))`,
-    )
-    expect(() => frozenBundleChange(bundle(root))).toThrow(/outside the frozen arm allowlist/)
+  it('maps an undeclared file read at run time to a failed task, never a pass', () => {
+    // The runner path reports a run-time refusal as an error, never as a
+    // pass: the child exits nonzero, so the change throws before any model
+    // request. A computed built-in loader name is outside the threat model
+    // (PLAN.md M101) and is not refused here — only the freeze-time
+    // allowlist and the file grants are.
+    const root = tree({
+      'arm.ts':
+        "import { readFileSync } from 'node:fs'; export const run = () => readFileSync('/definitely-outside-the-grants.txt', 'utf8')",
+    })
+    expect(() => executeArmBundle(bundle(root))).toThrow(/ERR_ACCESS_DENIED/)
+    expect(() => frozenBundleChange(bundle(root))).toThrow(/ERR_ACCESS_DENIED/)
   })
 
-  it('fails a computed dynamic import at run time', () => {
-    const root = tree({ 'arm.ts': '' })
-    writeFileSync(
-      path.join(root, 'arm.ts'),
-      `export const run = async () => import(['node', 'sqlite'].join(':'))`,
-    )
-    expect(() => executeArmBundle(bundle(root))).toThrow(/ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING/)
-  })
-
-  it('covers the guard prefix with the frozen digest', () => {
+  it('covers the entry prologue with the frozen digest', () => {
     const root = tree({ 'arm.ts': 'export const run = () => 1' })
     const frozen = bundle(root)
-    const marker = '// __FROZEN_ARM_BUNDLE_FOLLOWS__\n'
-    const at = frozen.code.indexOf(marker)
-    expect(at).toBeGreaterThan(0)
-    expect(frozen.code).toContain('the frozen arm cannot load')
+    expect(frozen.code).toContain('started without an arm name')
     expect(executeArmBundle(frozen)).toBe(1)
-    const tampered = { ...frozen, code: `${frozen.code.slice(0, at)}${frozen.code.slice(at + 1)}` }
+    const tampered = { ...frozen, code: `${frozen.code} ` }
     expect(armBundleDigest(tampered)).not.toBe(frozen.sha256)
     expect(() => executeArmBundle(tampered)).toThrow('changed after freezing')
   })
 
   it('refuses to run on a Node without the permission flags and names the minimum', () => {
-    for (const version of ['v22.12.0', 'v22.0.0', 'v21.7.1', 'not-a-version']) {
+    // Review RVCM1012I finding 3: the 23.0–23.4 line still gates the flags
+    // behind `--experimental-permission`, so only 23.5.0 and newer qualify.
+    for (const version of [
+      'v22.12.0',
+      'v22.0.0',
+      'v21.7.1',
+      'v23.0.0',
+      'v23.4.0',
+      'not-a-version',
+    ]) {
       expect(() => {
         requireEvalArmRuntime(version)
       }, version).toThrow(/22\.13\.0/)
     }
-    for (const version of ['v22.13.0', 'v22.23.3', 'v24.21.0', process.version]) {
+    for (const version of ['v23.4.0', 'v23.0.0']) {
+      expect(() => {
+        requireEvalArmRuntime(version)
+      }, version).toThrow(/23\.5\.0/)
+    }
+    for (const version of [
+      'v22.13.0',
+      'v22.23.3',
+      'v23.5.0',
+      'v23.6.1',
+      'v24.21.0',
+      process.version,
+    ]) {
       expect(() => {
         requireEvalArmRuntime(version)
       }, version).not.toThrow()
@@ -419,9 +416,14 @@ describe('frozen arm bundle execution', () => {
     expect(() => executeArmBundle(bundle(root))).toThrow(SyntaxError)
   })
 
-  it('removes the scanner and its unverified TypeScript cast', () => {
+  it('enforces the allowlist from the bundler metafile, with no scanner cast', () => {
+    // Review RVCM1012I finding 2: the freeze reads the same build's own
+    // metafile (`inputs[*].imports`, `external: true`), never a second
+    // resolver or a TypeScript-compiler scan.
     const source = readFileSync(path.resolve('src/core/eval/armSources.ts'), 'utf8')
-    expect(source).not.toMatch(/from ['"]typescript['"]|refuseDynamicLoads|metafile|as ts\./)
+    expect(source).not.toMatch(/from ['"]typescript['"]|refuseDynamicLoads|as ts\./)
+    expect(source).toMatch(/metafile: true/)
+    expect(source).toMatch(/refuseNonAllowlistedBuiltinImports/)
   })
 
   it('keeps an own __proto__ field and refuses non-data canonical values', () => {
