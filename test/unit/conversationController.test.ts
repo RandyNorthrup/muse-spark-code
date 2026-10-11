@@ -4,6 +4,7 @@ import { questionAnswerText } from './helpers/questions/registry'
 import { FakeQuestionClock } from './helpers/questions/clock'
 import { FakeQuestionStore } from './helpers/questions/store'
 import { questionFixture } from './helpers/questions/fixtures'
+import { fakeUploadedFilesLedger, uploadedFilesReportFixture } from './helpers/uploadedFiles'
 import { QUESTION_CLARIFIED } from './helpers/m46Capture'
 import { metaSideCallFormats } from '../../src/core/backends/modelapi/modelCapabilities'
 import {
@@ -4670,13 +4671,7 @@ describe('ConversationController: account & usage (M8)', () => {
   })
 
   it('deletes uploaded files from the usage dialog messages', async () => {
-    const port = {
-      read: vi.fn(() => Promise.resolve({})),
-      post: vi.fn(),
-      deleteFile: vi.fn(() => Promise.resolve()),
-      deleteAllOurs: vi.fn(() => Promise.resolve()),
-      confirmForeign: vi.fn(() => Promise.resolve(false)),
-    }
+    const port = fakeUploadedFilesLedger(uploadedFilesReportFixture())
     const t = setup({ uploadedFiles: port })
     await t.controller.handle({ type: 'deleteUploadedFile', fileId: 'file-one' })
     expect(port.deleteFile).toHaveBeenCalledWith('file-one', expect.any(Function))
@@ -4685,30 +4680,23 @@ describe('ConversationController: account & usage (M8)', () => {
   })
 
   it('refuses byte-bearing uploaded-file reports and does not post after disposal', async () => {
-    const port = {
-      read: vi.fn(() =>
-        Promise.resolve({
-          provider: 'meta',
-          isReadOnly: false,
-          poolBytes: 100,
-          usedBytes: 3,
-          files: [
-            {
-              fileId: 'file-one',
-              name: 'clip.mp4',
-              bytes: 3,
-              ours: true,
-              sessions: [],
-              file_data: 'data:CANARY',
-            },
-          ],
-        }),
-      ),
-      post: vi.fn(),
-      deleteFile: vi.fn(() => Promise.resolve()),
-      deleteAllOurs: vi.fn(() => Promise.resolve()),
-      confirmForeign: vi.fn(() => Promise.resolve(false)),
+    const byteReport = {
+      provider: 'meta',
+      isReadOnly: false,
+      poolBytes: 100,
+      usedBytes: 3,
+      files: [
+        {
+          fileId: 'file-one',
+          name: 'clip.mp4',
+          bytes: 3,
+          ours: true,
+          sessions: [],
+          file_data: 'data:CANARY',
+        },
+      ],
     }
+    const port = fakeUploadedFilesLedger(byteReport)
     const t = setup({ uploadedFiles: port })
     await t.controller.handle({ type: 'readUsage' })
     expect(port.post).not.toHaveBeenCalled()
