@@ -18,6 +18,14 @@ happened, not what was planned; superseded entries are kept.
   instead of the authority; linked registry and audit files refuse like
   linked session files; and a vault view that fails validation no longer
   hides a readable developer audit.
+- **Accounts and security reports never drop good rows for one bad record** (RVCM1133B).
+  Every registry entry, usage, event and confirmation row, every vault item,
+  grant and audit record, and every developer audit line validates on its
+  own: a bad one is skipped with the invalid reason while the good rows
+  still report, and a registry, adapter, vault view or audit rotation that
+  fails outright keeps its own reason beside the rows the other sub-sources
+  return. Hard-linked registry and audit files refuse like linked session
+  files, and the vault view's state and tier validate before use.
 - **Session and usage reports agree with their notes and show the shared daily budget everywhere** (CM1132R3).
   Session totals exclude rolled-up history and say so; budget stamps use the
   machine-local day like the report period; terminal and ACP usage reports show

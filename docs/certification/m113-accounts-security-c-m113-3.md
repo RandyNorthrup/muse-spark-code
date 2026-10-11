@@ -153,3 +153,85 @@ and after; no red mutation is retained). Base commit `a222a4187`.
   green.
 - `test/e2e/reports.e2e.test.ts`: 24 of 24 green, including the two new
   live accounts/security cases.
+
+## RVCM1133B repairs (2026-10-11, this lane, kubuntu rig)
+
+Review round 2 left one P2 (a developer-audit parse failure throws
+`invalid` for the whole security read, discarding accepted rows) and one
+P3 (`readDataFile` never checks `nlink`, so a hard-linked registry or
+audit reads like a normal file). Both are fixed as classes, not lines.
+
+- P2 class: no read in `src/runtime/reporting/reportInputs.ts` discards
+  rows it already accepted, or partial reasons it already collected,
+  because one later record or one sub-source failed. Each registry entry,
+  usage, event and confirmation row, vault item, grant and audit record,
+  and developer audit line validates on its own and yields a row or a
+  skip with the invalid reason; a registry, adapter, vault view or audit
+  rotation that fails outright keeps its own true sentence
+  (`failureReason`: the failure's own code, else the generic failure)
+  beside the rows the other sub-sources still return. Only a missing
+  registry file still reads as null (fresh install). New sub-source
+  inventories (`ACCOUNTS_REPORT_SUB_SOURCES`,
+  `SECURITY_REPORT_SUB_SOURCES`) name every consumed sub-source.
+- P3: `readDataFile` refuses a hard-linked final component (`nlink !==
+1`, like the sibling session reader) with a handle/path identity
+  re-check against an open/lstat swap; the vault view's `state`/`tier`
+  validate against `vaultStatusSchema` before use; every injected usage,
+  event and confirmation row validates against its source row schema
+  (newly exported from `src/core/reporting/sources/accounts.ts`) before
+  use. Reasons carry only fixed sentences, so no secret, key material or
+  vault item value can reach one; the resilience table asserts `{nope}`
+  and `bogus` never appear in a reason.
+- Behaviour changes locked by updated cases: a corrupt registry or audit
+  is now partial with the invalid reason (adapters/rotations survive),
+  not unavailable; a linked file is partial with the refused reason, not
+  unavailable; a registry with no good entry is partial, not invalid; a
+  snapshot with one bad item reports zero counts with the invalid reason
+  instead of dropping the whole vault view.
+
+## RVCM1133B red-drill receipts (2026-10-11, this lane)
+
+Each guard below was broken on purpose, the named test failed, and the
+file was restored byte-exact (SHA-256 compared before and after; no red
+mutation is retained). Base commit `ce0be6648`.
+
+| Finding          | Breakage                                              | Named test failure                                                                                                                 | Restored SHA-256                                         |
+| ---------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| P2 audit lines   | bad-line skip back to `throw invalid` (both branches) | 7 failed, 31 passed: corrupt-audit, developerAudit unparseable/badRecord/wrongVersion, previous unparseable/badRecord/wrongVersion | `3f23191f…5d3185e9eb` (`reportInputs.ts`)                |
+| P3 hard links    | `nlink` refusal replaced with `void`                  | 3 failed, 35 passed: registry/developerAudit/developerAuditPrevious unreadable                                                     | `3f23191f…5d3185e9eb` (`reportInputs.ts`)                |
+| P3 vault scalars | state/tier pick replaced with pass-through            | 1 failed, 37 passed: vault wrong version                                                                                           | `3f23191f…5d3185e9eb` (`reportInputs.ts`)                |
+| Coverage guard   | one resilience case deleted                           | 1 failed, 35 passed: covers every sub-source in every way it can fail                                                              | `c0b66c63…7d2844382a520` (`reportSourceReasons.test.ts`) |
+
+The coverage drill's restore first landed the re-inserted case at the
+array end and dropped the closing bracket; repaired by moving the block
+back and re-adding the bracket, verified byte-exact by SHA-256 and a
+clean `git status` before continuing.
+
+## RVCM1133B gates (kubuntu, this lane)
+
+- `npx tsc --noEmit -p tsconfig.json`: exit 0.
+- ESLint `--max-warnings=0` over every changed file: exit 0. Prettier: clean.
+- `node scripts/check-l10n.mjs`: 0 problems (no new key; the fixes reuse
+  the shared invalid/refused/failed sentences and existing detail reasons).
+- `npm run duplication` (jscpd): 0 clones. The first dense table
+  introduced 18; extracted the shared reason context/assertion into
+  `test/unit/helpers/reporting/reasonCases.ts`, one-line survivor
+  assertions (`checkAccounts`/`checkSecurity`) and data-driven entries,
+  and pointed the sibling reader suite at the shared context.
+- `npm run build`: `dist/reportInputs.js` 91.4 KiB of its 100 KiB budget
+  (was an unconfirmed 87.8 KiB). The only failure is the pre-existing,
+  untouched `dist/usagePanel.js` 75.1 KiB over 75 KiB overage recorded
+  above; no budget was changed.
+- Unit suites at repository deadlines (`npx vitest run <files>
+--maxWorkers=3`, at most three files per run):
+  `reportSourceReasons` (38: 11 reason cases + 26 resilience cases + the
+  coverage case), `reportInputsAccountsSecurity` + `reportInputs` +
+  `reportSecurityCanary` (32), `accountsReportSource` +
+  `securityReportSource` + `reportAccountsSecurityGoldens` (10),
+  `collect.accounts` + `collect.security` (8) — all green.
+- `test/e2e/reports.e2e.test.ts` (`--maxWorkers=1`): 24 of 24 green.
+- No new dependency, no widened guard, no Meta endorsement change, no
+  paid or live model call. Windows was not executed: hard-link cases use
+  `fs.link` and reason assertions avoid separator compares, and the
+  `nlink`/`sameFile` checks mirror the session reader that already runs
+  on Windows CI.
