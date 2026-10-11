@@ -84,7 +84,16 @@ export async function waitForDeferredPaint(page, scene) {
   if ((await loading.count()) > 0) throw new Error(`Deferred renderer did not settle: ${scene}`)
 }
 
-async function openScene(page, root, port, scene, theme, width, height, fixtures) {
+/** Let real chunk I/O settle before spending the next frozen-clock paint step. */
+export async function playScenarioClock(page) {
+  for (let played = 0; played < 6500; played += 100) {
+    await requestsSettled(page)
+    await page.clock.runFor(100)
+    await delay(10)
+  }
+}
+
+export async function openScene(page, root, port, scene, theme, width, height, fixtures) {
   let resource = `test/harness/index.html?scenario=${width === 320 ? scene : scene.replace(/-narrow$/, '')}&theme=${theme}&bundle=${bundleFor(scene)}`
   if (fixtureScenes.has(scene)) resource = `${fixtures}/index.html?scene=${scene}`
   if (Object.hasOwn(additionalScenes, scene)) {
@@ -125,7 +134,7 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     },
     { fixture, width },
   )
-  await page.clock.runFor(6500)
+  await playScenarioClock(page)
   if (scene === 'playbook-status') await waitForPaint(page, '.playbook-record')
   if (scene.startsWith('traffic-')) {
     await waitForPaint(page, '.traffic-tabs')
@@ -135,7 +144,7 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
   for (const [name, selector, label] of [
     ['accounts-edit', '.accounts-section button', 'Edit'],
     ['accounts-thresholds', '.accounts-section button', 'Edit'],
-    ['vault-grant', '.vault-actions button', 'Create grant'],
+    ['vault-grant', '.vault-actions button', 'Create Grant'],
     ['resource-controls', '.resource-chip', undefined],
   ]) {
     if (scene !== name) continue
@@ -144,7 +153,8 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     if (label === undefined) await buttons.first().click()
     else
       await buttons
-        .filter({ hasText: new RegExp(`^${label}$`) })
+        // Recorded source revisions retain sentence-case action labels.
+        .filter({ hasText: new RegExp(`^${label}$`, 'i') })
         .first()
         .click()
     await page.clock.runFor(100)
@@ -163,7 +173,8 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
   if (scene === 'share' || scene === 'share-narrow')
     await waitForPaint(page, '.code-block-body code.hljs [class^="hljs-"]')
   if ((await page.locator('h3.usage-heading', { hasText: /^Account$/ }).count()) > 0) {
-    await waitForPaint(page, 'dl.usage-facts dt:text-is("Auth method")')
+    // Reconstruct both the recorded sentence-case source and Title Case UI.
+    await waitForPaint(page, 'dl.usage-facts dt:text-matches("^Auth method$", "i")')
     // Its status and usage rows also load lazily behind "Reading usage…".
     const reading = page.locator('[role="status"]', { hasText: /^Reading usage…$/ })
     for (let attempt = 0; attempt < 100 && (await reading.count()) > 0; attempt += 1) {
@@ -214,6 +225,10 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
   switch (scene) {
     case 'quote-menu': {
       // The initial context click can precede fonts and the host's final layout.
+      // Close it first: an open row menu makes its prose inert, so selecting
+      // that prose again would collapse the range and open ordinary row actions.
+      await page.locator('[role="menu"]').dispatchEvent('keydown', { key: 'Escape', bubbles: true })
+      await page.clock.runFor(100)
       // Reopen through the real handler at the settled passage, like a pointer.
       await page
         .locator('.message-assistant .message-body p')
@@ -340,6 +355,136 @@ async function stateShot(page, cdp, state, target) {
   return { bytes, applied: isApplied }
 }
 
+/**
+ * The capture page: VS Code's API shim, loopback-only requests, the frozen
+ * clock and focus emulation. One page serves every scene opened on it.
+ */
+export async function openCapturePage(context) {
+  const page = await context.newPage()
+  trackRequests(page)
+  const errors = []
+  page.on('pageerror', (error) => {
+    errors.push(error.message)
+  })
+  await page.addInitScript(() => {
+    Object.defineProperty(globalThis, 'acquireVsCodeApi', {
+      configurable: true,
+      writable: true,
+      value: () => ({
+        postMessage: (message) => message,
+        getState: () => null,
+        setState: (state) => state,
+      }),
+    })
+  })
+  await page.route('**/*', (route) =>
+    new URL(route.request().url()).hostname === '127.0.0.1' ? route.continue() : route.abort(),
+  )
+  await page.clock.install({ time: FIXED_TIME })
+  await page.clock.pauseAt(new Date(FIXED_TIME.getTime() + 60_000))
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true })
+  await cdp.send('DOM.enable')
+  await cdp.send('CSS.enable')
+  return { page, cdp, errors }
+}
+
+/**
+ * Open one scene on a capture page and wait until every audited component of
+ * it has painted, with the smallest one scrolled into view.
+ */
+export async function prepareScene({ page, errors, root, port, fixtures }, audit, view) {
+  const { scene, theme, width, height } = view
+  errors.length = 0
+  try {
+    await openScene(page, root, port, scene, theme, width, height, fixtures)
+  } catch (error) {
+    throw new Error(
+      `Visual scene failed: ${scene}/${theme}/${width}/en: ${error.message}; page errors: ${errors.join('; ') || 'none'}`,
+      { cause: error },
+    )
+  }
+  const rows = audit.components.filter((row) => row.scene === scene)
+  for (const row of rows) {
+    try {
+      await waitForPaint(page, row.captureSelector)
+    } catch (error) {
+      const fixtureText = await page.locator('body').textContent()
+      throw new Error(
+        `Missing component render: ${row.file} in ${scene}; page errors: ${errors.join('; ') || 'none'}; fixture text: ${fixtureText.slice(0, 300)}`,
+        { cause: error },
+      )
+    }
+  }
+  const components = await page.evaluate(
+    (rows) =>
+      rows.map((row) => {
+        const element = globalThis.document.querySelector(row.captureSelector)
+        if (
+          element === null ||
+          element.getBoundingClientRect().width === 0 ||
+          element.getBoundingClientRect().height === 0
+        )
+          throw new Error(`Missing component render: ${row.file}`)
+        return row.file
+      }),
+    rows,
+  )
+  // Canonical descendants must appear in the viewport, not merely in
+  // a long page's DOM. Keep parents visible around the smallest scope.
+  const reviewSelector = await page.evaluate(
+    (rows) =>
+      rows
+        .map((row) => ({
+          selector: row.captureSelector,
+          box: globalThis.document.querySelector(row.captureSelector).getBoundingClientRect(),
+        }))
+        .toSorted((a, b) => a.box.width * a.box.height - b.box.width * b.box.height)[0]?.selector,
+    rows,
+  )
+  if (reviewSelector !== undefined)
+    await page.locator(reviewSelector).first().scrollIntoViewIfNeeded()
+  if ((await page.locator('.gooey-menu').count()) > 0) await settleMenuPlacement(page)
+  if (errors.length > 0) throw new Error(`${scene}: ${errors.join('; ')}`)
+  return { rows, components }
+}
+
+const MENU_SETTLE_ATTEMPTS = 10
+
+/**
+ * An open menu follows its opener on animation frames, which the frozen clock
+ * does not run: a row that moves after the menu opened (a lazy part painting)
+ * left the fan where the opener had been, in some captures and not others.
+ * Re-place it through its own resize listener, let React's render task run
+ * (a message posted after it), and repeat until no pill moves.
+ */
+async function settleMenuPlacement(page) {
+  const boxes = () =>
+    page
+      .locator('.gooey-menu-pill')
+      .evaluateAll((pills) =>
+        JSON.stringify(pills.map((pill) => Object.values(pill.getBoundingClientRect().toJSON()))),
+      )
+  for (let attempt = 0; attempt < MENU_SETTLE_ATTEMPTS; attempt += 1) {
+    const before = await boxes()
+    await page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          globalThis.dispatchEvent(new globalThis.Event('resize'))
+          const channel = new globalThis.MessageChannel()
+          channel.port1.addEventListener('message', () => {
+            resolve()
+          })
+          // addEventListener, unlike onmessage, needs the port started.
+          channel.port1.start()
+          channel.port2.postMessage(null)
+        }),
+    )
+    if ((await boxes()) === before) return
+  }
+  throw new Error('Open menu did not settle beside its opener')
+}
+
 /** Streaming comparison avoids retaining thousands of images in memory. */
 /**
  * `rasterization` is a fingerprint already measured on the browser at
@@ -380,89 +525,16 @@ export async function captureMatrix(
       browser = await connection.newContext(CAPTURE_CONTEXT)
     }
     const fingerprint = rasterization ?? (await rasterizationFingerprint(browser))
-    const page = await browser.newPage()
-    trackRequests(page)
-    const errors = []
-    page.on('pageerror', (error) => {
-      errors.push(error.message)
-    })
-    await page.addInitScript(() => {
-      Object.defineProperty(globalThis, 'acquireVsCodeApi', {
-        configurable: true,
-        writable: true,
-        value: () => ({
-          postMessage: (message) => message,
-          getState: () => null,
-          setState: (state) => state,
-        }),
-      })
-    })
-    await page.route('**/*', (route) =>
-      new URL(route.request().url()).hostname === '127.0.0.1' ? route.continue() : route.abort(),
-    )
-    await page.clock.install({ time: FIXED_TIME })
-    await page.clock.pauseAt(new Date(FIXED_TIME.getTime() + 60_000))
-    const cdp = await page.context().newCDPSession(page)
-    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true })
-    await cdp.send('DOM.enable')
-    await cdp.send('CSS.enable')
+    const { page, cdp, errors } = await openCapturePage(browser)
     for (const theme of matrix.themes)
       for (const width of matrix.widths)
         for (const scene of audit.scenes) {
           if (groups !== undefined && !groups.has(captureGroup({ scene, theme, width }))) continue
-          errors.length = 0
-          try {
-            await openScene(page, root, port, scene, theme, width, matrix.height, fixtures)
-          } catch (error) {
-            throw new Error(
-              `Visual scene failed: ${scene}/${theme}/${width}/en: ${error.message}; page errors: ${errors.join('; ') || 'none'}`,
-              { cause: error },
-            )
-          }
-          const rows = audit.components.filter((row) => row.scene === scene)
-          for (const row of rows) {
-            try {
-              await waitForPaint(page, row.captureSelector)
-            } catch (error) {
-              const fixtureText = await page.locator('body').textContent()
-              throw new Error(
-                `Missing component render: ${row.file} in ${scene}; page errors: ${errors.join('; ') || 'none'}; fixture text: ${fixtureText.slice(0, 300)}`,
-                { cause: error },
-              )
-            }
-          }
-          const components = await page.evaluate(
-            (rows) =>
-              rows.map((row) => {
-                const element = globalThis.document.querySelector(row.captureSelector)
-                if (
-                  element === null ||
-                  element.getBoundingClientRect().width === 0 ||
-                  element.getBoundingClientRect().height === 0
-                )
-                  throw new Error(`Missing component render: ${row.file}`)
-                return row.file
-              }),
-            rows,
+          const { rows, components } = await prepareScene(
+            { page, errors, root, port, fixtures },
+            audit,
+            { scene, theme, width, height: matrix.height },
           )
-          // Canonical descendants must appear in the viewport, not merely in
-          // a long page's DOM. Keep parents visible around the smallest scope.
-          const reviewSelector = await page.evaluate(
-            (rows) =>
-              rows
-                .map((row) => ({
-                  selector: row.captureSelector,
-                  box: globalThis.document
-                    .querySelector(row.captureSelector)
-                    .getBoundingClientRect(),
-                }))
-                .toSorted((a, b) => a.box.width * a.box.height - b.box.width * b.box.height)[0]
-                ?.selector,
-            rows,
-          )
-          if (reviewSelector !== undefined)
-            await page.locator(reviewSelector).first().scrollIntoViewIfNeeded()
-          if (errors.length > 0) throw new Error(`${scene}: ${errors.join('; ')}`)
           for (const state of matrix.states) {
             const target = await targetFor(page, rows, state)
             const { bytes, applied } = await stateShot(page, cdp, state, target)

@@ -190,17 +190,17 @@ describe('M112 question tab title', () => {
       type: 'openQuestions',
       snapshot: { sessionId: 'session-1', questions: [questionFixture()] },
     })
-    expect(panel.title).toBe('Choices · 1 open')
+    expect(panel.title).toBe('Choices · 1 Open')
     panel.active = false
     surface?.markUnread()
-    expect(panel.title).toBe('● Choices · 1 open')
+    expect(panel.title).toBe('● Choices · 1 Open')
     surface?.setTitle('Renamed')
-    expect(panel.title).toBe('● Renamed · 1 open')
+    expect(panel.title).toBe('● Renamed · 1 Open')
     surface?.post({ type: 'openQuestions', snapshot: { sessionId: 'other', questions: [] } })
-    expect(panel.title).toBe('● Renamed · 1 open')
+    expect(panel.title).toBe('● Renamed · 1 Open')
     panel.active = true
     panel.viewStateChanges.fire({ webviewPanel: panel })
-    expect(panel.title).toBe('Renamed · 1 open')
+    expect(panel.title).toBe('Renamed · 1 Open')
     surface?.post({ type: 'sessionInfo', sessionId: 'other', modelId: 'test' })
     expect(panel.title).toBe('Renamed')
   })

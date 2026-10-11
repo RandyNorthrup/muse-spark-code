@@ -48,20 +48,20 @@ describe('SchedulePanel (M52)', () => {
   })
   it('shows only extension-owned jobs with accessible run and cancel controls', () => {
     const { onRun, onCancel } = show(true)
-    const panel = screen.getByRole('region', { name: 'Scheduled prompts for this conversation' })
+    const panel = screen.getByRole('region', { name: 'Scheduled Prompts for This Conversation' })
     expect(panel.textContent).toContain('Model API · this workspace, conversation and key')
     expect(panel.textContent).toContain('Review tests')
     expect(panel.textContent).toContain('Due · waiting for you to run it')
-    fireEvent.click(screen.getByRole('button', { name: 'Run scheduled prompt job-a' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Run Scheduled Prompt job-a' }))
     expect(onRun).toHaveBeenCalledWith('job-a', due.nextFireAtMs)
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel scheduled prompt job-a' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel Scheduled Prompt job-a' }))
     expect(onCancel).toHaveBeenCalledWith('job-a')
   })
 
   it('offers the paid gate when it is off, without sending a turn', () => {
     const { onEnable, onRun } = show(false)
     fireEvent.click(
-      screen.getByRole('button', { name: 'Enable paid runs for scheduled prompt job-a' }),
+      screen.getByRole('button', { name: 'Enable Paid Runs for Scheduled Prompt job-a' }),
     )
     expect(onEnable).toHaveBeenCalledOnce()
     expect(onRun).not.toHaveBeenCalled()
@@ -70,8 +70,8 @@ describe('SchedulePanel (M52)', () => {
   it('shows the next local time and hides Run before the occurrence is due', () => {
     show(true, [{ ...due, nextFireAtMs: due.nextFireAtMs + 60 * 1000, fireCount: 2 }])
     expect(screen.getByText('Ran 2 times')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Run scheduled prompt job-a' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Cancel scheduled prompt job-a' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Run Scheduled Prompt job-a' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Cancel Scheduled Prompt job-a' })).toBeTruthy()
   })
 
   it('renders no panel for a session without schedules', () => {

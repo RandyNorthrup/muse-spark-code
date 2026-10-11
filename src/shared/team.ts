@@ -1,5 +1,7 @@
 import { teamTreeSchema as teamViewTreeSchema } from './teamView'
 import {
+  MODEL_API_MIN_OUTPUT_TOKENS,
+  MODEL_API_MODEL_PREFIX,
   TEAM_BRIEF_MAX_CHARS,
   TEAM_EXHAUSTED_POLICIES,
   TEAM_ROLE_IDS,
@@ -23,6 +25,9 @@ import {
   TEAM_WRITE_SET_MAX,
   UI_TEXT,
 } from './constants'
+// From its leaf, never providerRouting.ts: that module's provider-file English
+// (UI_TEXT.providerText) must stay out of the browser bundles this file is in.
+import { outputTokenMinimumMessage } from './outputTokenMinimum'
 import { isCredentialVariable } from './credentialEnvironment'
 // The team: agents, roles, pools, tasks and the ledger (M96, PLAN.md D75),
 // as the host, the wire protocol and the webview share them. Lane 0 owns
@@ -61,6 +66,17 @@ export const teamAgentRefSchema = z.object({
   pays: teamAgentPaysSchema,
 })
 export type TeamAgentRef = z.infer<typeof teamAgentRefSchema>
+
+function teamOutputMinimum(agent: TeamAgentRef | undefined, selectedModel = agent?.model): number {
+  if (agent !== undefined && agent.kind !== 'engine') return 1
+  const model = selectedModel?.startsWith('meta/')
+    ? selectedModel.slice('meta/'.length)
+    : selectedModel
+  return (agent?.provider === undefined || agent.provider === 'meta') &&
+    model?.startsWith(MODEL_API_MODEL_PREFIX)
+    ? MODEL_API_MIN_OUTPUT_TOKENS
+    : 1
+}
 
 // A cap's measures (D75): `tokens` is input plus output; `spendUsd` only on
 // priced entries.
@@ -108,13 +124,27 @@ export type TeamModelSettings = z.infer<typeof teamModelSettingsSchema>
  * is Default: whatever the orchestrator slot resolves to when the task
  * starts. Default alone never turns the team on (acceptance 47).
  */
-export const teamPoolEntrySchema = z.object({
-  id: z.string().check(z.minLength(1)),
-  agent: z.optional(teamAgentRefSchema),
-  concurrent: z.int().check(z.gte(1)),
-  caps: z.array(teamCapSchema),
-  settings: z.optional(teamModelSettingsSchema),
-})
+export const teamPoolEntrySchema = z
+  .object({
+    id: z.string().check(z.minLength(1)),
+    agent: z.optional(teamAgentRefSchema),
+    concurrent: z.int().check(z.gte(1)),
+    caps: z.array(teamCapSchema),
+    settings: z.optional(teamModelSettingsSchema),
+  })
+  .check((payload) => {
+    const minimum = teamOutputMinimum(payload.value.agent)
+    if (
+      payload.value.settings?.outputCap !== undefined &&
+      payload.value.settings.outputCap < minimum
+    )
+      payload.issues.push({
+        code: 'custom',
+        input: payload.value,
+        path: ['settings', 'outputCap'],
+        message: outputTokenMinimumMessage(minimum),
+      })
+  })
 export type TeamPoolEntry = z.infer<typeof teamPoolEntrySchema>
 
 // A role's workspace mode (D75), held by the harness, never by a prompt.
@@ -387,6 +417,43 @@ export const teamSnapshotSchema = z
     ),
   })
   .check(
+    (payload) => {
+      const { orchestrator } = payload.value
+      const minimum = teamOutputMinimum(
+        orchestrator?.agent,
+        payload.value.orchestratorModel ?? orchestrator?.agent?.model,
+      )
+      if (
+        orchestrator?.settings?.outputCap !== undefined &&
+        orchestrator.settings.outputCap < minimum
+      )
+        payload.issues.push({
+          code: 'custom',
+          input: payload.value,
+          path: ['orchestrator', 'settings', 'outputCap'],
+          message: outputTokenMinimumMessage(minimum),
+        })
+    },
+    (payload) => {
+      const { orchestrator, orchestratorModel, roles } = payload.value
+      const minimum = teamOutputMinimum(
+        orchestrator?.agent,
+        orchestratorModel ?? orchestrator?.agent?.model,
+      )
+      for (const [roleIndex, role] of roles.entries())
+        for (const [entryIndex, entry] of role.pool.entries())
+          if (
+            entry.agent === undefined &&
+            entry.settings?.outputCap !== undefined &&
+            entry.settings.outputCap < minimum
+          )
+            payload.issues.push({
+              code: 'custom',
+              input: payload.value,
+              path: ['roles', roleIndex, 'pool', entryIndex, 'settings', 'outputCap'],
+              message: outputTokenMinimumMessage(minimum),
+            })
+    },
     z.refine(
       (snapshot) =>
         snapshot.orchestratorModel === undefined ||

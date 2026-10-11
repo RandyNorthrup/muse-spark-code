@@ -1,7 +1,17 @@
 // The provider file and team import share these non-secret option shapes
 // (M95, PLAN.md D74). Keep it outside provider core so panel imports stay lazy.
 import * as z from 'zod/mini'
+import {
+  MODEL_API_BASE_URL,
+  MODEL_API_MIN_OUTPUT_TOKENS,
+  MODEL_API_MODEL_PREFIX,
+} from './constants'
 import { UI_TEXT } from './l10n/text'
+import { outputTokenMinimumMessage } from './outputTokenMinimum'
+
+// The message has a leaf of its own for the browser's team settings; provider
+// code keeps reading it from here.
+export { outputTokenMinimumMessage } from './outputTokenMinimum'
 
 export const openRouterRoutingSchema = z.object({
   privacy: z.enum(['zdr', 'no-training', 'any']),
@@ -49,10 +59,29 @@ export const customCompatSchema = z.strictObject({
 export const modelLimitsSchema = z
   .object({
     contextTokens: z.int().check(z.positive()),
-    outputTokens: z.int().check(z.positive()),
+    outputTokens: z.int().check(z.gte(1, { error: () => outputTokenMinimumMessage(1) })),
   })
   .check(
     z.refine((limits) => limits.outputTokens <= limits.contextTokens, {
       error: () => UI_TEXT.providerText.schema.outputCap,
     }),
   )
+
+/** A custom entry at Meta's captured endpoint retains its provider minimum. */
+export function providerOutputMinimum(
+  address: string | undefined,
+  model: string,
+  minimum: number,
+  format: string | undefined,
+): number {
+  if (format !== 'responses' || address === undefined || !model.startsWith(MODEL_API_MODEL_PREFIX))
+    return minimum
+  try {
+    return new URL(address).origin === new URL(MODEL_API_BASE_URL).origin
+      ? Math.max(minimum, MODEL_API_MIN_OUTPUT_TOKENS)
+      : minimum
+  } catch {
+    // Endpoint validation reports malformed addresses; no minimum is inferred.
+    return minimum
+  }
+}

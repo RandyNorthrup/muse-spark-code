@@ -26,7 +26,8 @@ const readme = readFileSync(path.join(root, 'README.md'), 'utf8')
 const source = await referenceSources(root)
 const baseline = { model: undefined }
 beforeAll(async () => {
-  baseline.model = await generateReference(root, true)
+  await generateReference(root, true)
+  baseline.model = buildReference(manifest, nls, source, runtime, readme)
 })
 const build = (pkg = manifest, overrides = {}) =>
   pkg === manifest && Object.keys(overrides).length === 0
@@ -34,6 +35,17 @@ const build = (pkg = manifest, overrides = {}) =>
     : buildReference(pkg, nls, { ...source, ...overrides }, runtime, readme)
 
 describe('the code-derived reference gate', () => {
+  it('C-X-1 rejects a compatibility-only stored reader even when it returns the default', () => {
+    expect(() =>
+      build(manifest, {
+        readSettings: (config, log) => {
+          config.get('vault.enabled')
+          return source.readSettings(config, log)
+        },
+      }),
+    ).toThrow('Compatibility setting has a runtime reader: museSpark.vault.enabled')
+  })
+
   it('shares the unchanged reference between lookups', () => {
     expect(build()).toBe(baseline.model)
     expect(build()).toBe(build())
@@ -279,7 +291,7 @@ describe('RVHELPREF truth regressions', () => {
       await manager.dispose()
     }
   })
-  it('C01 describes every Auto reviewer and its no-card approval path', () => {
+  it('C01 describes every Auto Reviewer and its no-card approval path', () => {
     const auto = setting('initialPermissionMode').enumDescriptions[3]
     const limits = source.EN.referencePermissionLimits
     for (const backend of ['museCode', 'modelApi']) {
@@ -369,7 +381,7 @@ describe('RVHELPREF truth regressions', () => {
       'vscode:modelApi',
       'acp:modelApi',
     ])
-    expect(feature('budget').surfaces).toEqual(['vscode:modelApi'])
+    expect(feature('budget').surfaces).toEqual(['vscode:modelApi', 'acp:modelApi'])
     expect(source.EN.referencePaidContexts).toContain('runtime daily budget')
     expect(source.EN.referencePaidContexts).toContain('explicit opt-in')
     expect(feature('images').facts.configuredDefaults).toEqual({

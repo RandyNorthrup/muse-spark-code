@@ -63,8 +63,8 @@ describe('the verify rows', () => {
         },
       }),
     ])
-    await screen.findByText('Check edits')
-    const found = row('Check edits')
+    await screen.findByText('Check Edits')
+    const found = row('Check Edits')
     expect(within(found).getByText('src/a.ts, src/b.ts')).toBeTruthy()
     expect(
       within(found).getByText('1 error, 2 warnings · lint failed · test passed · types not run'),
@@ -108,12 +108,12 @@ describe('the verify rows', () => {
 
   it('label the model’s run_checks and the automatic row, with their files', () => {
     expect(describeTool('run_checks', '{"names":["lint"],"paths":["src/a.ts"]}')).toMatchObject({
-      label: 'Run checks',
+      label: 'Run Checks',
       summary: 'src/a.ts',
       body: 'verify',
     })
     expect(describeTool('verify_edits', '{"paths":[1,"x"]}')).toMatchObject({
-      label: 'Check edits',
+      label: 'Check Edits',
       summary: '',
     })
   })
@@ -133,11 +133,11 @@ describe('an edit’s then_run', () => {
     ])
     await screen.findByText('Edit')
     const found = row('Edit')
-    await within(found).findByText('Then ran')
+    await within(found).findByText('Then Ran')
     expect(found.querySelector('.diff-add')?.textContent).toContain('const a = 2')
     const block = found.querySelector('.then-run')
     expect(block).not.toBeNull()
-    expect(within(block as HTMLElement).getByText('Then ran')).toBeTruthy()
+    expect(within(block as HTMLElement).getByText('Then Ran')).toBeTruthy()
     expect(within(block as HTMLElement).getByText('npm test')).toBeTruthy()
     expect(within(block as HTMLElement).getByText('1 failing')).toBeTruthy()
     expect(within(block as HTMLElement).getByText('Exit code 1').className).toContain(

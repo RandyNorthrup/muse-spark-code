@@ -2022,7 +2022,8 @@ export class MuseCodeHost implements AgentHost {
       grantedCapabilities: parsed.grantedCapabilities ?? [],
       // Muse Code refuses `session/rename` and `session/fork` on Windows
       // (meta-models/muse-code-sdk#30, #31): verified on 1.3.0 (2026-09-22)
-      // and 1.4.0 (2026-09-27). No release has fixed them, so every version
+      // and 1.4.0 (2026-09-27), still refused on 1.4.3 (2026-10-05,
+      // docs/certification/muse143.md). No release has fixed them, so every version
       // is limited there until one is verified (D26). A 1.3.0 ceiling showed
       // the failing actions again on 1.4.0 (0.9.1, release-0.9.1.md).
       canEditSessions: parsed.platformOs !== WINDOWS_OS,

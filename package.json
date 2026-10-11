@@ -2,7 +2,7 @@
   "name": "muse-spark-code",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.17.0",
+  "version": "0.17.1",
   "publisher": "RandyNorthrup",
   "license": "MIT",
   "private": true,
@@ -577,6 +577,30 @@
         {
           "command": "museSpark.deleteUploadedFiles",
           "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
+        },
+        {
+          "command": "museSpark.schedulePrompt",
+          "when": "false"
+        },
+        {
+          "command": "museSpark.showSchedules",
+          "when": "false"
+        },
+        {
+          "command": "museSpark.showScheduleTimeline",
+          "when": "false"
+        },
+        {
+          "command": "museSpark.vault",
+          "when": "false"
+        },
+        {
+          "command": "museSpark.lockVault",
+          "when": "false"
+        },
+        {
+          "command": "museSpark.estimate",
+          "when": "false"
         }
       ],
       "view/title": [
@@ -879,7 +903,8 @@
           ],
           "default": "ask",
           "description": "%config.schedules.agentCreation.description%",
-          "scope": "machine"
+          "scope": "machine",
+          "deprecationMessage": "%config.schedules.agentCreation.description%"
         },
         "museSpark.modelApiSubagents": {
           "type": "boolean",
@@ -1486,7 +1511,8 @@
           "type": "boolean",
           "default": true,
           "description": "%config.modelApiTeamWorkers.description%",
-          "scope": "machine"
+          "scope": "machine",
+          "deprecationMessage": "%config.modelApiTeamWorkers.description%"
         },
         "museSpark.usageHistory": {
           "type": "boolean",
@@ -1609,25 +1635,29 @@
           "type": "boolean",
           "default": true,
           "description": "%config.accountSwap.description%",
-          "scope": "machine"
+          "scope": "machine",
+          "deprecationMessage": "%config.accountSwap.description%"
         },
         "museSpark.accountParallel": {
           "type": "boolean",
           "default": true,
           "description": "%config.accountParallel.description%",
-          "scope": "machine"
+          "scope": "machine",
+          "deprecationMessage": "%config.accountParallel.description%"
         },
         "museSpark.accounts.severalOnThisDevice": {
           "type": "boolean",
           "default": false,
           "description": "%config.accounts.severalOnThisDevice.description%",
-          "scope": "machine"
+          "scope": "machine",
+          "deprecationMessage": "%config.accounts.severalOnThisDevice.description%"
         },
         "museSpark.vault.enabled": {
           "type": "boolean",
           "default": true,
           "description": "%config.vault.description%",
-          "scope": "machine"
+          "scope": "machine",
+          "deprecationMessage": "%config.vault.description%"
         },
         "museSpark.vault.protection": {
           "type": "string",
@@ -1645,7 +1675,8 @@
           ],
           "default": "auto",
           "description": "%config.vault.protection.description%",
-          "scope": "machine"
+          "scope": "machine",
+          "deprecationMessage": "%config.vault.protection.description%"
         },
         "museSpark.vault.agentFence": {
           "type": "boolean",
@@ -1658,13 +1689,15 @@
           "minimum": 0,
           "default": 240,
           "description": "%config.vault.lockAfterIdleMinutes.description%",
-          "scope": "machine"
+          "scope": "machine",
+          "deprecationMessage": "%config.vault.lockAfterIdleMinutes.description%"
         },
         "museSpark.vault.lockOnScreenLock": {
           "type": "boolean",
           "default": true,
           "description": "%config.vault.lockOnScreenLock.description%",
-          "scope": "machine"
+          "scope": "machine",
+          "deprecationMessage": "%config.vault.lockOnScreenLock.description%"
         },
         "museSpark.estimator.optimize": {
           "type": "string",
@@ -1678,13 +1711,15 @@
           ],
           "default": "cost",
           "description": "%config.estimator.optimize.description%",
-          "scope": "machine"
+          "scope": "machine",
+          "deprecationMessage": "%config.estimator.optimize.description%"
         },
         "museSpark.estimator.priceLookup": {
           "type": "boolean",
           "default": false,
           "description": "%config.estimator.priceLookup.description%",
-          "scope": "machine"
+          "scope": "machine",
+          "deprecationMessage": "%config.estimator.priceLookup.description%"
         }
       }
     },

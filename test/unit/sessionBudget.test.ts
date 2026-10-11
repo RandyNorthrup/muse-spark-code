@@ -1,7 +1,7 @@
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { Usd } from '../../src/shared/usd'
+import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   estimateInput,
@@ -12,16 +12,29 @@ import {
   withAccountBudgetAdmission,
   type SessionBudgetClaim,
 } from '../../src/core/backends/modelapi/sessionBudget'
+import type { ModelPricePolicy } from '../../src/core/backends/modelapi/modelPolicy'
 import { createSessionBudgetJournal } from '../../src/host/backend/sessionBudgetJournal'
 import { removeFolder } from './helpers/temporaryFolders'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { formatUsd } from '../../src/core/usage/insights'
-import { MODEL_API_MAX_OUTPUT_TOKENS, UI_TEXT } from '../../src/shared/constants'
+import {
+  MODEL_API_MAX_OUTPUT_TOKENS,
+  TOKENS_PER_MILLION,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, fill, setUiText } from '../../src/shared/l10n/text'
 
 const MODEL = 'muse-spark-1.3'
 const CONTRIBUTOR = 'muse-spark-1.3-contributor'
+
+function priceCardCapFor(tokens: number): UsdAmount {
+  return Usd.from('1.25')
+    .times(1000)
+    .add(Usd.from('4.25').times(tokens))
+    .divide(TOKENS_PER_MILLION)
+    .toAmount()
+}
 // Standard output: $4.25 per million tokens.
 const STANDARD_OUTPUT_TOKEN_USD = 4.25 / 1_000_000
 const FLOAT_SLACK = 1e-12
@@ -349,6 +362,96 @@ describe('reserveRequest', () => {
         }
       }
     }
+  })
+
+  // Meta rejects max_output_tokens below 16 (lead live capture 2026-10-10):
+  // a budget that cannot fit the provider minimum refuses with the budget
+  // message instead of sending a request the provider rejects.
+  describe('provider minimum output tokens', () => {
+    const inputCost = Usd.from('0.00125')
+    const outputPrice = Usd.from('4.25').divide(TOKENS_PER_MILLION)
+    const capFor = (tokens: number): UsdAmount =>
+      inputCost.add(outputPrice.times(tokens)).toAmount()
+    const base = (capUsd: UsdAmount) => ({
+      capUsd,
+      spentUsd: Usd.from(0).toAmount(),
+      estimatedInputTokens: 1000,
+      modelId: MODEL,
+    })
+
+    it('refuses a budget that affords 15 tokens when the minimum is 16, and says why', () => {
+      const capUsd = capFor(15)
+      const refuse = () => reserveRequest({ ...base(capUsd), minOutputTokens: 16 })
+      expect(refuse).toThrow(SessionBudgetExceededError)
+      expect(refuse).toThrow(
+        fill(UI_TEXT.sessionBudgetStopped, {
+          estimate: formatUsd(inputCost.toAmount()),
+          cap: formatUsd(capUsd),
+          spent: formatUsd(0),
+        }),
+      )
+    })
+
+    it('sends 16 when the provider minimum exactly fits, without rounding up', () => {
+      const capUsd = capFor(16)
+      const reservation = reserveRequest({ ...base(capUsd), minOutputTokens: 16 })
+      expect(reservation.maxOutputTokens).toBe(16)
+      expect(reservation.costUsd).toBe(capUsd)
+    })
+
+    it('still sends 1 for a provider with no captured minimum', () => {
+      expect(reserveRequest(base(capFor(1))).maxOutputTokens).toBe(1)
+    })
+
+    it('refuses an invalid provider minimum without sending', () => {
+      for (const minOutputTokens of [0, -1, 1.5, NaN, Infinity]) {
+        expect(() => reserveRequest({ ...base(capFor(16)), minOutputTokens })).toThrow(
+          'invalid output.minTokens',
+        )
+      }
+    })
+  })
+
+  describe('price-card provider minimum output tokens', () => {
+    const price: ModelPricePolicy = {
+      reserve: (usage) =>
+        Usd.from('1.25')
+          .times(usage.inputTokens)
+          .add(Usd.from('4.25').times(usage.outputTokens))
+          .divide(TOKENS_PER_MILLION)
+          .toAmount(),
+      settle: () => undefined,
+    }
+    const priced = (capUsd: UsdAmount, minOutputTokens?: number) =>
+      reserveRequest({
+        capUsd,
+        spentUsd: Usd.from(0).toAmount(),
+        estimatedInputTokens: 1000,
+        modelId: MODEL,
+        price,
+        minOutputTokens,
+      })
+
+    it('refuses 15 affordable tokens against a minimum of 16 without sending', () => {
+      const capUsd = priceCardCapFor(15)
+      const refuse = () => priced(capUsd, 16)
+      expect(refuse).toThrow(SessionBudgetExceededError)
+      expect(refuse).toThrow(
+        fill(UI_TEXT.sessionBudgetStopped, {
+          estimate: formatUsd('0.00125'),
+          cap: formatUsd(capUsd),
+          spent: formatUsd(0),
+        }),
+      )
+    })
+
+    it('sends 16 when the minimum exactly fits', () => {
+      expect(priced(priceCardCapFor(16), 16).maxOutputTokens).toBe(16)
+    })
+
+    it('still sends 1 when no minimum was captured', () => {
+      expect(priced(priceCardCapFor(1)).maxOutputTokens).toBe(1)
+    })
   })
 })
 

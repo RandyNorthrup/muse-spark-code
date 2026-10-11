@@ -5,7 +5,7 @@ Generated as of 2026-10-06T12:00:00+00:00
 Version: 0.14.2
 SHA-256: 2ec8034c0bc7fca92d119d0af9a0feefce798fa78b69145adbe5affb5224f5a9
 
-Needs you
+Needs You
 Questions: Choose the release channel.
 Sources: plan
 
@@ -60,25 +60,25 @@ Sources
 Name: git
 Status: Partial
 Reason: Commit bound reached.
-Observed at: 2026-10-06T11:00:00.000+00:00
+Observed At: 2026-10-06T11:00:00.000+00:00
 Freshness: Stale (3,600s)
 
 Name: github
 Status: Unavailable
 Reason: Network is off.
-Observed at: Unknown
+Observed At: Unknown
 Freshness: Unknown
 
 Name: plan
 Status: Available
 Reason:
-Observed at: 2026-10-06T12:00:00.000+00:00
+Observed At: 2026-10-06T12:00:00.000+00:00
 Freshness: Fresh (0s)
 
 Name: usage
-Status: Not applicable
+Status: Not Applicable
 Reason: Journal integration is not present.
-Observed at: Unknown
+Observed At: Unknown
 Freshness: Unknown
 
 Renderer 1; ICU 77.1; locale en

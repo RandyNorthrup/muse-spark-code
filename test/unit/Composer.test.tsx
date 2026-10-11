@@ -40,7 +40,7 @@ afterEach(() => {
 /** The "/" list's commands (M38): two commands and a skill. */
 const slashCommands: readonly SlashCommand[] = [
   { name: 'compact', detail: 'Summarise older context', action: { type: 'compact' } },
-  { name: 'clear', detail: 'Clear conversation', action: { type: 'clearConversation' } },
+  { name: 'clear', detail: 'Clear Conversation', action: { type: 'clearConversation' } },
   {
     name: 'code-review',
     detail: 'Reviews the diff',
@@ -275,10 +275,10 @@ it('closes the attached slash list while the prompt menu is open', async () => {
   const { props, view, textarea } = renderComposer({ onUseSavedPrompt: vi.fn() })
   textarea.focus()
   const typed = type(view, props, '/co')
-  expect(await screen.findByRole('listbox', { name: 'Slash commands' })).toBeInTheDocument()
+  expect(await screen.findByRole('listbox', { name: 'Slash Commands' })).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.promptLibrary }))
   await screen.findByRole('menu', { name: UI_TEXT.promptLibrary })
-  expect(screen.queryByRole('listbox', { name: 'Slash commands' })).toBeNull()
+  expect(screen.queryByRole('listbox', { name: 'Slash Commands' })).toBeNull()
   expect(typed).not.toHaveAttribute('aria-controls')
 })
 
@@ -357,13 +357,13 @@ describe('M105 E1 media gestures and chips', () => {
         onRemove={remove}
       />,
     )
-    expect(await screen.findByText(/Duration unknown.*Sound unknown/)).toBeInTheDocument()
+    expect(await screen.findByText(/Duration Unknown.*Sound Unknown/)).toBeInTheDocument()
     expect(screen.queryByText('PDF')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Remove clip.mov' }))
     expect(remove).toHaveBeenCalledWith('video')
     for (const [hasSoundtrack, label] of [
       [true, 'Sound'],
-      [false, 'No sound'],
+      [false, 'No Sound'],
     ] as const) {
       view.rerender(
         <AttachmentChips
@@ -397,7 +397,7 @@ describe('M105 E1 media gestures and chips', () => {
         onRemove={remove}
       />,
     )
-    expect(screen.queryByText(/Sound unknown/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Sound Unknown/)).not.toBeInTheDocument()
     expect(await screen.findByText(/12s.*3 kB/)).toBeInTheDocument()
   })
 })
@@ -1122,7 +1122,7 @@ describe('Composer input methods (M25)', () => {
 describe('Composer chrome', () => {
   it('routes the toolbar buttons without blurring an open menu', () => {
     const { props } = renderComposer({ permissionMode: 'auto' })
-    for (const label of ['Attach', 'Commands', 'Model', 'Permission mode: Auto']) {
+    for (const label of ['Attach', 'Commands', 'Model', 'Permission Mode: Auto']) {
       expect(fireEvent.mouseDown(screen.getByLabelText(label))).toBe(false)
       fireEvent.click(screen.getByLabelText(label))
     }
@@ -1237,7 +1237,7 @@ describe('Composer open-file chip (M5)', () => {
       'Shared with Muse as context; × leaves it out',
     )
     expect(chip.closest('.composer-toolbar-group')).toContainElement(screen.getByLabelText('Model'))
-    fireEvent.click(screen.getByLabelText('Leave the open file out: App.tsx L5-10'))
+    fireEvent.click(screen.getByLabelText('Leave the Open File Out: App.tsx L5-10'))
     expect(props.onDismissEditorContext).toHaveBeenCalledTimes(1)
   })
 
@@ -1247,7 +1247,7 @@ describe('Composer open-file chip (M5)', () => {
   })
 })
 
-const mic = () => screen.getByLabelText('Record voice')
+const mic = () => screen.getByLabelText('Record Voice')
 
 describe('Composer microphone (M9)', () => {
   it('shows the Claude Code tooltip and starts on a tap', () => {
@@ -1349,17 +1349,17 @@ describe('Composer microphone (M9)', () => {
 describe('Composer reference chip (M17)', () => {
   it('shows what the next message replies to or quotes, and its × drops it', () => {
     const onDismissReference = vi.fn()
-    renderComposer({ referenceLabel: 'Replying to: Use pnpm.', onDismissReference })
-    const chip = screen.getByText('Replying to: Use pnpm.').closest('.reference-chip')
+    renderComposer({ referenceLabel: 'Replying To: Use pnpm.', onDismissReference })
+    const chip = screen.getByText('Replying To: Use pnpm.').closest('.reference-chip')
     expect(chip).toHaveAttribute('title', 'Goes to the agent with your message as context')
-    fireEvent.click(screen.getByLabelText('Remove: Replying to: Use pnpm.'))
+    fireEvent.click(screen.getByLabelText('Remove: Replying To: Use pnpm.'))
     expect(onDismissReference).toHaveBeenCalledOnce()
   })
 })
 
 /** The "/" list's command names, in order (the menu body loads on first open). */
 async function slashNames(): Promise<readonly (string | undefined)[]> {
-  const list = await screen.findByRole('listbox', { name: 'Slash commands' })
+  const list = await screen.findByRole('listbox', { name: 'Slash Commands' })
   return within(list)
     .getAllByRole('option')
     .map((option) => option.querySelector('.palette-item-label')?.textContent)
@@ -1429,7 +1429,7 @@ describe('Composer "/" menus (M38)', () => {
     textarea.focus()
     const typed = type(view, props, '/co')
     expect(screen.queryByRole('dialog')).toBeNull()
-    // Name matches first; "Clear conversation" holds "co" in its description.
+    // Name matches first; "Clear Conversation" holds "co" in its description.
     expect(await slashNames()).toEqual(['/code-review', '/compact', '/clear'])
     expect(typed).toHaveAttribute('aria-controls', 'slash-listbox')
     expect(typed).toHaveAttribute('aria-activedescendant', 'slash-option-0')
@@ -1568,9 +1568,9 @@ describe('Composer "/" menus (M38)', () => {
 describe('Composer: the paid badge (M33, PLAN.md D30)', () => {
   it('names the paid features that are on, prices them in its tooltip, and opens the tally', () => {
     const { props } = renderComposer({
-      paidBadge: { label: 'Paid: Web search', title: 'Billed to your Model API key: …' },
+      paidBadge: { label: 'Paid: Web Search', title: 'Billed to your Model API key: …' },
     })
-    const badge = screen.getByRole('button', { name: 'Paid: Web search' })
+    const badge = screen.getByRole('button', { name: 'Paid: Web Search' })
     expect(badge).toHaveAttribute('title', 'Billed to your Model API key: …')
     fireEvent.click(badge)
     expect(props.onOpenUsage).toHaveBeenCalledTimes(1)
@@ -1585,7 +1585,7 @@ describe('Composer: the paid badge (M33, PLAN.md D30)', () => {
 describe('Composer: the microphone on Muse Voice (M35, PLAN.md D30)', () => {
   it('names the paid engine and its price, and marks the button', async () => {
     renderComposer({ dictation: { status: 'idle', reason: undefined, engine: 'museVoice' } })
-    const button = screen.getByRole('button', { name: 'Record voice with Muse Voice (paid)' })
+    const button = screen.getByRole('button', { name: 'Record Voice With Muse Voice (Paid)' })
     // The exact price arrives with the lazy money chunk (STARTUP017): the
     // button marks itself at once, the tooltip fills in exactly, never guessed.
     expect(button).toHaveClass('mic-paid')
@@ -1598,7 +1598,7 @@ describe('Composer: the microphone on Muse Voice (M35, PLAN.md D30)', () => {
 
   it('keeps the free engine’s name and look', () => {
     renderComposer()
-    const button = screen.getByRole('button', { name: 'Record voice' })
+    const button = screen.getByRole('button', { name: 'Record Voice' })
     expect(button).not.toHaveClass('mic-paid')
   })
 })

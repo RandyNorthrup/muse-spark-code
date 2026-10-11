@@ -139,7 +139,7 @@ describe('M117 calibration and its honest prior', () => {
         samples: 0,
         uncertainty: { kind: 'unknown' },
       })
-      expect(calibrationLabel(result)).toBe('Uncalibrated prior')
+      expect(calibrationLabel(result)).toBe('Uncalibrated Prior')
     }
   })
 
@@ -153,7 +153,7 @@ describe('M117 calibration and its honest prior', () => {
       samples: 20,
       uncertainty: { kind: 'unknown' },
     })
-    expect(calibrationLabel(result)).toBe('Calibrated from history')
+    expect(calibrationLabel(result)).toBe('Calibrated From History')
     const section = fakeEstimate()
     section.calibration = [result.calibration]
     // Disclosures are the surface owner's concern; this exercises the frozen row shape itself.

@@ -121,34 +121,34 @@ describe('showMemory (M49)', () => {
   it('lists every scope’s notes with their scope and summary, then the actions', async () => {
     const t = harness({ files: NOTES })
     await showMemory(t.deps)
-    expect(t.picks[0]?.title).toBe('Muse memory')
+    expect(t.picks[0]?.title).toBe('Muse Memory')
     expect(t.picks[0]?.placeholder).toBe('4 memory notes')
     expect(t.picks[0]?.items).toEqual([
       {
         id: 'note:0',
         label: 'MEMORY.md',
-        description: 'Project memory, shared with the repository',
+        description: 'Project Memory, Shared With the Repository',
         detail: 'The index Muse reads at the start of every session',
       },
       {
         id: 'note:1',
         label: 'deploy.md',
-        description: 'Project memory, shared with the repository',
+        description: 'Project Memory, Shared With the Repository',
         detail: 'Deploy day',
       },
       {
         id: 'note:2',
         label: 'prefs.md',
-        description: 'Your memory for every project',
+        description: 'Your Memory for Every Project',
         detail: 'Prefers tabs.',
       },
-      { id: 'note:3', label: 'taken.md', description: 'Your memory for every project' },
+      { id: 'note:3', label: 'taken.md', description: 'Your Memory for Every Project' },
       {
         id: 'action:new',
-        label: 'New note…',
+        label: 'New Note…',
         detail: 'A Markdown note Muse reads in later sessions, listed in MEMORY.md',
       },
-      { id: 'action:docs', label: 'Memory in Muse Code (documentation)' },
+      { id: 'action:docs', label: 'Memory in Muse Code (Documentation)' },
     ])
   })
 

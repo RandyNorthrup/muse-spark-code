@@ -9,6 +9,7 @@ import { hookResult } from './helpers/fakeToolIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
+import { metaResolvedModel, modelPolicyFor } from '../../src/core/backends/modelapi/modelPolicy'
 import {
   MODEL_API_MODEL_TEXT,
   MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
@@ -78,7 +79,7 @@ async function setup(overrides: Partial<ModelApiHostDeps> = {}, { hookRunner = f
     ...overrides,
   })
   const watched = await startWatchedSession(host, ROOT, 'allowAll')
-  return { api, io, host, log, rawBodies, ...watched }
+  return { api, io, host, log, rawBodies, client, ...watched }
 }
 
 async function setupCommandHooks(hooks: Record<string, unknown>) {
@@ -142,6 +143,15 @@ async function send(rig: Awaited<ReturnType<typeof setup>>) {
   const done = rig.turnDone()
   await rig.session.sendTurn([{ type: 'text', text: 'Work.' }])
   await done
+}
+
+/** One turn under a stored output cap the host must refuse: nothing is requested. */
+async function sendRefusedCap(cap: number) {
+  const rig = await setup({ modelOutputMaxTokens: () => cap })
+  rig.api.script({ text: 'Never requested.' })
+  await send(rig)
+  expect(rig.api.responseBodies()).toHaveLength(0)
+  return rig
 }
 
 async function attemptOverwrite(rig: Awaited<ReturnType<typeof setup>>) {
@@ -361,7 +371,7 @@ describe('M106 loop guarantees', () => {
     await rig.host.close()
   })
 
-  it('uses the selected per-model output cap and fixes it for that model', async () => {
+  it('recomputes the selected per-model output cap on every request', async () => {
     const cap = vi.fn((modelId: string) =>
       modelId === 'muse-spark-1.3' ? MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS : 4096,
     )
@@ -372,7 +382,7 @@ describe('M106 loop guarantees', () => {
     expect(rig.api.responseBodies().map((body) => body['max_output_tokens'])).toEqual([
       131_072, 131_072,
     ])
-    expect(cap).toHaveBeenCalledExactlyOnceWith('muse-spark-1.3')
+    expect(cap).toHaveBeenCalledWith('muse-spark-1.3')
     await rig.session.setModel('muse-spark-1.2')
     rig.api.script({ text: 'Other model.' })
     await send(rig)
@@ -380,21 +390,79 @@ describe('M106 loop guarantees', () => {
     await rig.session.setModel('muse-spark-1.3')
     rig.api.script({ text: 'Original model.' })
     await send(rig)
-    expect(cap).toHaveBeenCalledTimes(2)
+    expect(cap).toHaveBeenLastCalledWith('muse-spark-1.3')
     expect(rig.api.responseBodies().at(-1)?.['max_output_tokens']).toBe(131_072)
+    await rig.host.close()
+  })
+
+  it('picks up a provider-file edit between turns instead of reusing the first cap', async () => {
+    // RVMINOUT P2: the first turn resolves a custom entry with outputTokens 20
+    // and no captured minimum; the provider file is then edited to an entry
+    // with outputTokens 64 and minimum 16. The next turn must send 64, never
+    // the stale 20. (The first cap stays sendable so the Meta transport
+    // accepts it; the stale-cache class is the same.)
+    const record: { isEdited: boolean; client: ModelApiClient | undefined } = {
+      isEdited: false,
+      client: undefined,
+    }
+    const rig = await setup({
+      models: {
+        resolve: (ref: string) => {
+          const client = record.client
+          if (client === undefined) throw new Error('resolve before client ready')
+          return Promise.resolve({
+            ...metaResolvedModel(ref, client),
+            policy: modelPolicyFor(ref, {
+              capabilities: { toolCalling: true },
+              maxOutputTokens: record.isEdited ? 64 : 20,
+              ...(record.isEdited && { minOutputTokens: 16 }),
+            }),
+          })
+        },
+      },
+    })
+    record.client = rig.client
+    await rig.session.setModel('acme/muse-spark-1.3')
+    rig.api.script({ text: 'first' })
+    await send(rig)
+    expect(rig.api.responseBodies().at(-1)?.['max_output_tokens']).toBe(20)
+    record.isEdited = true
+    rig.api.script({ text: 'second' })
+    await send(rig)
+    expect(rig.api.responseBodies().at(-1)?.['max_output_tokens']).toBe(64)
+    await rig.host.close()
+  })
+
+  it('refuses stored Meta output caps below sixteen before dispatch', async () => {
+    for (const cap of [0, 1, 15]) {
+      const rig = await sendRefusedCap(cap)
+      expect(rig.events).toContainEqual(
+        expect.objectContaining({
+          type: 'turnCompleted',
+          reason: expect.stringContaining('Output cap must be at least 16 tokens.'),
+        }),
+      )
+      await rig.host.close()
+    }
+    const rig = await setup({ modelOutputMaxTokens: () => 16 })
+    rig.api.script({ text: 'Accepted.' })
+    await send(rig)
+    expect(rig.api.responseBodies().at(-1)?.['max_output_tokens']).toBe(16)
     await rig.host.close()
   })
 
   it('refuses invalid model output records before dispatch', async () => {
     for (const cap of [0, -1, 1.5, Infinity, NaN]) {
-      const rig = await setup({ modelOutputMaxTokens: () => cap })
-      rig.api.script({ text: 'Never requested.' })
-      await send(rig)
-      expect(rig.api.responseBodies()).toHaveLength(0)
+      const rig = await sendRefusedCap(cap)
       expect(
         rig.events.some(
           (event) =>
-            event.type === 'turnCompleted' && event.reason?.includes('invalid output.maxTokens'),
+            event.type === 'turnCompleted' &&
+            event.reason?.includes(
+              Number.isSafeInteger(cap)
+                ? 'Output cap must be at least 16 tokens.'
+                : 'invalid output.maxTokens',
+            ),
         ),
       ).toBe(true)
       await rig.host.close()

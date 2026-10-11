@@ -172,12 +172,14 @@ export const GOOEY_MENU = {
   /** A pill's height, the old bubble's; its ends are half circles. */
   pillHeight: 40,
   edgePadding: 8,
-  /** Between the fan's pills at rest. */
-  gap: 20,
-  /** The least room from the origin to a pill: clears a 26 px control centred there. */
+  /** Fallback for non-CSS layout callers; the renderer derives this from focus tokens. */
+  gap: 6,
+  /** Clear space beyond a neighbouring focus ring. */
+  outlineClearance: 2,
+  /** The least room from the origin to a pill: clears the 24 px row button centred there. */
   reach: 16,
   /** How much farther the fan's middle reaches than its ends: the arc. */
-  bow: 32,
+  bow: 16,
   /** Each pill starts its scale-in this long after the one before it. */
   staggerMs: 30,
 } as const
@@ -307,7 +309,7 @@ export const PAID_APPROVAL_ORDER_DIRECTORY = 'paid-approval-order'
 
 // Extension-private `globalState` keys (never machine-wide configuration).
 export const GLOBAL_STATE_KEYS = {
-  /** "Don't ask again" on the Windows sandbox setup prompt. */
+  /** "Don't Ask Again" on the Windows sandbox setup prompt. */
   sandboxPromptSuppressed: 'museSpark.sandboxPromptSuppressed',
   /** Credential-free sign-out hold, so activation cannot restore an old CLI credential. */
   cliLogoutHold: 'museSpark.cliLogoutHold',
@@ -322,7 +324,7 @@ export const GLOBAL_STATE_KEYS = {
   subagentPriceAcceptance: 'museSpark.subagentPriceAcceptance',
   /**
    * Each paid feature's grant generation (M58): every change to its price
-   * acceptance counts it up, so an "Allow always in this workspace" given
+   * acceptance counts it up, so an "Allow Always in This Workspace" given
    * before the change is void in every workspace.
    */
   paidGrantGenerations: 'museSpark.paidGrantGenerations',
@@ -550,6 +552,11 @@ export const BACKEND_SETTING = 'museSpark.backend'
 export const IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT = true
 // The panel reads the M115 schedules default the same way.
 export const ARE_SCHEDULES_ON_BY_DEFAULT = true
+// Management surfaces exist, but installed execution/snapshot owners are unbound (C-X-1).
+export const OPTIONAL_RUNTIME_AVAILABILITY: Readonly<{ schedules: boolean; estimator: boolean }> = {
+  schedules: false,
+  estimator: false,
+}
 
 export const SETTING_DEFAULTS = {
   preferredLocation: 'panel' as PreferredLocation,
@@ -567,7 +574,7 @@ export const SETTING_DEFAULTS = {
   // Claude Code's `archiveInactiveSessions`: hide sessions idle this many
   // days from the History dialog (1 / 2 / 7 / 14; 0 never). Hidden, not
   // deleted: the extension does not call session/delete (available since
-  // Muse Code 1.4.0-R4302.1), and "Show archived" brings them back.
+  // Muse Code 1.4.0-R4302.1), and "Show Archived" brings them back.
   archiveInactiveSessions: 14,
   // Claude Code's `cleanupPeriodDays` (PLAN.md D26): Model API conversations
   // idle longer than this are deleted when a window reads them; 0 keeps them.
@@ -2087,6 +2094,11 @@ export const MODEL_API_LEGACY_CONTEXT_MODELS: readonly string[] = [
 ]
 // U8/U10 captured selected model; other models retain unknown capability states.
 export const M106_CAPTURED_META_MODEL = 'muse-spark-1.3-contributor'
+// Live capture 2026-10-10 (muse-spark-1.3-contributor): POST /v1/responses
+// with max_output_tokens 1 is a 400 naming max_output_tokens, "The number
+// must be `>= 16`". Never send a smaller output cap to Meta; a budget that
+// cannot fit this refuses instead (sessionBudget.ts).
+export const MODEL_API_MIN_OUTPUT_TOKENS = 16
 export const MODEL_API_MAX_OUTPUT_TOKENS = 32_768
 // M101 C1: keep whole recent turns; summaries and the tail scale down for small windows.
 export const NO_COMPACTABLE_HISTORY = 'no_compactable_history'
@@ -3962,7 +3974,8 @@ export const EXEC_OBSERVER_HIGH_WATER_BYTES = 16_777_216
 export const EXEC_SCAN_MAX_BYTES = 16_777_216
 export const EXEC_SCAN_TIMEOUT_MS = 30_000
 export const EXEC_SCAN_EXIT_FOUND = 10
-export const EXEC_MIN_OUTPUT_TOKENS = 16
+// Headless runs refuse smaller caps at the same floor Meta enforces.
+export const EXEC_MIN_OUTPUT_TOKENS: number = MODEL_API_MIN_OUTPUT_TOKENS
 export const EXEC_IMAGE_N = 1
 export const EXEC_STREAM_IDLE_MS = 300_000
 export const EXEC_USD_UNITS = 1_000_000
@@ -4060,7 +4073,7 @@ export const ACP_DATA_FOLDER = {
 } as const
 export const ACP_SESSIONS_SUBFOLDER = 'acp'
 export const ACP_WORKSPACE_HASH_CHARS = 16
-// "Allow always in this workspace" for paid uses (M58), every folder's in one
+// "Allow Always in This Workspace" for paid uses (M58), every folder's in one
 // file beside the folders' own, keyed by the same hash.
 export const ACP_PAID_GRANTS_FILE = 'paid-uses.json'
 // M108 (PLAN.md D88.1): the runtime's own providers file beside the session
@@ -4351,7 +4364,7 @@ export const CHOICE_STEERING_NOTE =
   '<harness_note>When you offer the user a choice between options, ask through the request_user_input tool instead of listing the options in prose, so the panel can show a picker.</harness_note>'
 // The verify loop's guidance to Muse Code (M68) rides in a note of its own.
 export const HARNESS_NOTE_TAG = 'harness_note'
-// Collapsed tool bodies show this many lines before "Show more".
+// Collapsed tool bodies show this many lines before "Show More".
 export const OUTPUT_PREVIEW_LINES = 12
 /** Shell IN/OUT previews share a compact five-line limit (M87). */
 export const IO_PREVIEW_LINES = 5
@@ -4538,6 +4551,9 @@ export const MSP_LONG_COMMANDS: ReadonlySet<string> = new Set([
 // Windows now and then since 1.3.0, meta-models/muse-code-sdk#29).
 export const MUSE_APPROVAL_REPLAY_FAULT = 'approval replay failed'
 export const MUSE_APPROVAL_LEDGER_FAULT = 'approval ledger durability fence'
+// Upstream's #29 fix floor; the owner-authorized live probe accepted a
+// decision without the ledger fault (docs/certification/muse143.md).
+export const MUSE_APPROVAL_LEDGER_FIXED_VERSION = '1.4.3'
 // A Stop under a part-decided approval rejects its waiting stage first
 // (MuseSession.cancel); a stage that moved on is rejected once more there.
 // Each try waits this long at most, then the Stop goes on: a decision takes
@@ -5207,6 +5223,16 @@ export const REPORT_KINDS = [
   'issues',
   'schedules',
   'keybindings',
+] as const
+// CX1R4 F3: the kinds with production sources on every installed surface.
+// Current command Help and the editor picker list only these; the parsers and
+// history keep accepting every REPORT_KINDS value.
+export const REPORT_WORKING_KINDS = [
+  'project',
+  'milestone',
+  'release',
+  'changes',
+  'quality',
 ] as const
 export const REPORT_FORMATS = ['md', 'html', 'json', 'text'] as const
 export const REPORT_FAIL_ON = [

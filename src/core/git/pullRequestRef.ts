@@ -1,4 +1,4 @@
-// "Open a pull request in a conversation…" (M71): what the user typed, `51`
+// "Open a Pull Request in a Conversation…" (M71): what the user typed, `51`
 // or `#51`, or a pull request's page on github.com, which names its
 // repository too. The host then picks the remote that repository is
 // fetched from. Pure.

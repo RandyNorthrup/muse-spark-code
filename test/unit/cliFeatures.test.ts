@@ -128,7 +128,7 @@ describe('createCliFeatures: MCP servers and hooks (M31)', () => {
     )
     const t = setup(() => ({ exitCode: 0, stdout: '', stderr: '' }), { settingsPath })
     vi.mocked(pickOne).mockImplementation((items) =>
-      Promise.resolve(items.find((item) => item.label === 'docs' || item.label === 'Sign in')),
+      Promise.resolve(items.find((item) => item.label === 'docs' || item.label === 'Sign In')),
     )
     await t.features.showMcpServers()
     const [items, options] = vi.mocked(pickOne).mock.calls[0]!
@@ -136,10 +136,10 @@ describe('createCliFeatures: MCP servers and hooks (M31)', () => {
       label: 'docs',
       description: 'streamable-http · https://d.example',
     })
-    expect(options).toMatchObject({ title: 'Muse Code MCP servers' })
-    expect(t.terminals).toEqual([[['mcp', 'login', 'docs'], 'Muse Code MCP sign-in']])
+    expect(options).toMatchObject({ title: 'Muse Code MCP Servers' })
+    expect(t.terminals).toEqual([[['mcp', 'login', 'docs'], 'Muse Code MCP Sign-In']])
     vi.mocked(pickOne).mockImplementation((choices) =>
-      Promise.resolve(choices.find((item) => item.label.includes('documentation'))),
+      Promise.resolve(choices.find((item) => item.label.includes('Documentation'))),
     )
     await t.features.showMcpServers()
     expect(env.openExternal).toHaveBeenCalledWith(
@@ -182,12 +182,12 @@ describe('createCliFeatures', () => {
     vi.mocked(pickMany).mockResolvedValue([])
     vi.mocked(inform).mockImplementation((message) =>
       Promise.resolve(
-        message.startsWith('Muse Code loads skill changes') ? 'Restart now' : undefined,
+        message.startsWith('Muse Code loads skill changes') ? 'Restart Now' : undefined,
       ),
     )
     await t.features.manageSkills()
     const [, options] = vi.mocked(window.showQuickPick).mock.calls[0]!
-    expect(options).toMatchObject({ canPickMany: true, title: 'Muse Code skills' })
+    expect(options).toMatchObject({ canPickMany: true, title: 'Muse Code Skills' })
     expect(t.runs.map(([args, timeoutMs]) => [args[1], timeoutMs])).toEqual([
       ['list', 30_000],
       ['disable', 30_000],
