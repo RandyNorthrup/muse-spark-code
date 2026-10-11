@@ -23,7 +23,11 @@ answer again, at most twice more under the same 10 s deadline, never after
 an answer (one request past its deadline failed three hosted jobs of one
 run); and `browserUiText`'s source-graph walks run in its setup hook (the
 fix batch's pin had put a whole-graph walk inside a case, which missed its
-5 s deadline on hosted Linux). `CHANGELOG.md` is a capture input and gets no
+5 s deadline on hosted Linux); and `m114Panel`'s tool-menu scene plays until
+its menu is attached (an open menu walks every ancestor's computed style on
+each animation frame since this release's menu work, which spent that case's
+deadline on hosted macOS in every run; known at release, the walk itself is
+repaired in 0.18.0). `CHANGELOG.md` is a capture input and gets no
 line for the two fixes here; 0.18.0's Fixed section carries "Screen readers
 announce several provider-save errors as a list (shipped in 0.17.1)". Then
 one reviewed What's New visual update (108 frames in two scenes, every one
