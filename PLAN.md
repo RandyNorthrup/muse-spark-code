@@ -333,7 +333,19 @@ boundary, with pricing supplied by the existing providers chunk. Preserve
 fail-closed reservation, consent, cancellation and per-attempt accounting.
 Measure the unchanged immutable pre-K activation budget after each cut;
 move further on-demand helpers only as needed to retain at least 150 bytes
-of room below 3,072 bytes. No cap, baseline, allow-list, string, behavior,
+of room below 3,072 bytes. The paid-use question formatter moves whole to
+the existing imported-hook runtime, preserving its async API and installed
+language; the smaller hook runtime retains its cap. The admission factory
+loads from that same runtime on first compaction to retain the backend
+ratchet. Refresh the owning size-drill fixture with the two existing Models
+section entries missing after the train merge; remove the unused type
+alias `GitHubLeaseResult` reported by knip, with
+no emitted-code change. Keep the compaction refusal error in a dependency-free
+shared leaf, re-exported through its existing consent API, to prevent the
+new lazy runtime edge from cycling back into consent. Consolidate only
+the duplicated runtime-account test fixtures reported by the unchanged
+clone gate, preserving every assertion. No cap, baseline, allow-list,
+string, behavior,
 wire shape or evaluation-latch change. No merge, push or subagents.
 Certification: `docs/certification/train-activation.md`.
 

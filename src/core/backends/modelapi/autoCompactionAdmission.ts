@@ -7,7 +7,7 @@ import type { CoreLogger } from '../../logging'
 import type { reserveRequestAmount } from '../../providers/priceCard'
 import type { requestImageCount } from './modelPolicy'
 import type { AutoCompactModel } from './autoCompact'
-import { AutoCompactionNotAuthorizedError } from '../../paid/paidConsent'
+import { AutoCompactionNotAuthorizedError } from '../../paid/autoCompactionError'
 import type { ModelApiHostDeps } from './ModelApiHost'
 import type { CreateResponseBody, Usage } from './schemas'
 

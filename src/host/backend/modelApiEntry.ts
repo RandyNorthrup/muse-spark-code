@@ -44,16 +44,13 @@ import {
 
 import { sparkHooksFiles } from '../../core/backends/modelapi/hookNames'
 
-import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
-import {
-  createAutoCompactionAdmission,
-  resolveAutoCompactModel,
-} from '../../core/backends/modelapi/autoCompactionAdmission'
+import { ModelApiHost, type ModelApiHostDeps } from '../../core/backends/modelapi/ModelApiHost'
+import { resolveAutoCompactModel } from '../../core/backends/modelapi/autoCompactionAdmission'
 import { requestImageCount } from '../../core/backends/modelapi/modelPolicy'
 import { Usd } from '../../shared/usd'
 
 import type { UiText } from '../../shared/l10n/en'
-import { setUiText } from '../../shared/l10n/text'
+import { setUiText, uiLocale } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
 
 /**
@@ -103,7 +100,9 @@ async function loadSparkHooks(sources: HookLoadDeps): Promise<readonly Extension
 }
 
 /** The same admission authority, constructed behind the backend's existing boundary. */
-function autoCompactionAdmission(deps: ModelApiBundleDeps) {
+function autoCompactionAdmission(
+  deps: ModelApiBundleDeps,
+): ModelApiHostDeps['admitAutoCompaction'] {
   const config = deps.autoCompaction
   if (
     config?.reserveAutoCompaction === undefined &&
@@ -111,33 +110,38 @@ function autoCompactionAdmission(deps: ModelApiBundleDeps) {
   )
     return
   const host = deps.host
-  return createAutoCompactionAdmission({
-    loadPricing: async () => {
-      const { priceCard } = await import('./providersEntry')
-      return { reserveRequestAmount: priceCard.reserveRequestAmount, requestImageCount }
-    },
-    accounting:
-      config.autoCompactionAccounting === 'transport'
-        ? 'transport'
-        : {
-            reserveCompaction: async (amount, signal) => {
-              if (config.reserveAutoCompaction === undefined)
-                throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-              return await config.reserveAutoCompaction(amount, signal)
+  return async (request) => {
+    const runtime = await import('../../core/backends/modelapi/foreignHooksEntry')
+    runtime.setUiText(UI_TEXT, uiLocale())
+    return await runtime.createAutoCompactionAdmission({
+      loadPricing: async () => {
+        const { priceCard } = await import('./providersEntry')
+        return { reserveRequestAmount: priceCard.reserveRequestAmount, requestImageCount }
+      },
+      accounting:
+        config.autoCompactionAccounting === 'transport'
+          ? 'transport'
+          : {
+              reserveCompaction: async (amount, signal) => {
+                if (config.reserveAutoCompaction === undefined)
+                  throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+                return await config.reserveAutoCompaction(amount, signal)
+              },
             },
-          },
-    allowsPaidUse: host.allowsPaidUse,
-    isOn: () => host.isPaidFeatureOn('autoCompaction') && host.autoCompaction?.() !== false,
-    isTrusted: host.isWorkspaceTrusted,
-    isEvaluated: () => host.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED,
-    paidUseFence: (sessionId) =>
-      config.paidUseFence?.('autoCompaction', sessionId) ?? (() => false),
-    dailyBudgetUsd:
-      config.paidDailyBudgetUsd ?? (() => Usd.from(SETTING_DEFAULTS.paidDailyBudgetUsd).toAmount()),
-    notePaidUse: host.notePaidUse,
-    log: host.log,
-    storeUnavailable: UI_TEXT.sessionBudgetStoreUnavailable,
-  })
+      allowsPaidUse: host.allowsPaidUse,
+      isOn: () => host.isPaidFeatureOn('autoCompaction') && host.autoCompaction?.() !== false,
+      isTrusted: host.isWorkspaceTrusted,
+      isEvaluated: () => host.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED,
+      paidUseFence: (sessionId) =>
+        config.paidUseFence?.('autoCompaction', sessionId) ?? (() => false),
+      dailyBudgetUsd:
+        config.paidDailyBudgetUsd ??
+        (() => Usd.from(SETTING_DEFAULTS.paidDailyBudgetUsd).toAmount()),
+      notePaidUse: host.notePaidUse,
+      log: host.log,
+      storeUnavailable: UI_TEXT.sessionBudgetStoreUnavailable,
+    })(request)
+  }
 }
 
 /** The host over the given dependencies, its stored sessions read. */

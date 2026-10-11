@@ -361,6 +361,14 @@ function runLegalGate(name: string) {
         imports: [],
         entryPoint: 'src/webview/models/panel.tsx',
       },
+      'dist/webview/models-providers-section.js': {
+        imports: [],
+        entryPoint: 'src/webview/models/ProvidersSection.tsx',
+      },
+      'dist/webview/models-models-section.js': {
+        imports: [],
+        entryPoint: 'src/webview/models/ModelsSection.tsx',
+      },
       'dist/webview/usage-body.js': {
         imports: [],
         entryPoint: 'src/webview/usage/UsageApp.tsx',
