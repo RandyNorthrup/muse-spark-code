@@ -1938,7 +1938,10 @@
     "rolledUpSessionExcluded": "Az összesített előzmények nem számítanak bele a munkamenet összesítéseibe és bontásába.",
     "journalIncomplete": "A használati napló sérült, hiányos vagy újabb verziójú bejegyzéseket tartalmaz; az összesítés ezeket kizárja.",
     "sessionUsageUnavailable": "A megőrzött naplóban a használat nem rendelhető ehhez a munkamenethez; a tokenek és költségek összesítése nem érhető el.",
-    "budgetsUnavailable": "A kiválasztott időszak költségkeret-pillanatképei nem érhetők el."
+    "budgetsUnavailable": "A kiválasztott időszak költségkeret-pillanatképei nem érhetők el.",
+    "accountsFacetsUnavailable": "Nem érhetők el a fiókadatok: {facets}.",
+    "securityVaultUnavailable": "A tároló zárolt vagy nem érhető el.",
+    "securityDeveloperAuditUnavailable": "A fejlesztői napló nem érhető el."
   },
   "reportRowsMore": {
     "one": "További {count} sor",

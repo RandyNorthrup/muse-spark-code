@@ -1910,7 +1910,10 @@
     "rolledUpSessionExcluded": "彙總歷史不計入此工作階段的總數和明細。",
     "journalIncomplete": "使用日誌包含損壞、不完整或較新版本的記錄；總計不包含這些記錄。",
     "sessionUsageUnavailable": "保留的日誌無法將使用量歸屬於此工作階段；權杖與費用總計無法使用。",
-    "budgetsUnavailable": "所選期間的預算快照無法使用。"
+    "budgetsUnavailable": "所選期間的預算快照無法使用。",
+    "accountsFacetsUnavailable": "無法使用的帳戶詳細資訊：{facets}。",
+    "securityVaultUnavailable": "保管庫已鎖定或無法使用。",
+    "securityDeveloperAuditUnavailable": "開發人員稽核無法使用。"
   },
   "reportRowsMore": {
     "other": "另外 {count} 列"

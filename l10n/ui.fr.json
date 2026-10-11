@@ -1966,7 +1966,10 @@
     "rolledUpSessionExcluded": "L’historique cumulé est exclu des totaux et du détail de cette session.",
     "journalIncomplete": "Le journal contient des entrées endommagées, incomplètes ou de version plus récente ; les totaux les excluent.",
     "sessionUsageUnavailable": "L’utilisation de cette session ne peut pas être attribuée dans le journal conservé ; les totaux de jetons et de coûts sont indisponibles.",
-    "budgetsUnavailable": "Les instantanés de budget pour la période sélectionnée sont indisponibles."
+    "budgetsUnavailable": "Les instantanés de budget pour la période sélectionnée sont indisponibles.",
+    "accountsFacetsUnavailable": "Détails de compte indisponibles : {facets}.",
+    "securityVaultUnavailable": "Le coffre est verrouillé ou indisponible.",
+    "securityDeveloperAuditUnavailable": "L’audit développeur est indisponible."
   },
   "reportRowsMore": {
     "one": "{count} ligne de plus",

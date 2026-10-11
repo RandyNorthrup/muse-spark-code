@@ -1994,7 +1994,10 @@
     "rolledUpSessionExcluded": "Zbiorcza historia jest wykluczona z sum i podziału tej sesji.",
     "journalIncomplete": "Dziennik zawiera uszkodzone, niepełne wpisy lub wpisy nowszej wersji; sumy je pomijają.",
     "sessionUsageUnavailable": "Nie można przypisać użycia do tej sesji w zachowanym dzienniku; sumy tokenów i kosztów są niedostępne.",
-    "budgetsUnavailable": "Migawki budżetu dla wybranego okresu są niedostępne."
+    "budgetsUnavailable": "Migawki budżetu dla wybranego okresu są niedostępne.",
+    "accountsFacetsUnavailable": "Niedostępne szczegóły konta: {facets}.",
+    "securityVaultUnavailable": "Magazyn jest zablokowany lub niedostępny.",
+    "securityDeveloperAuditUnavailable": "Audyt deweloperski jest niedostępny."
   },
   "reportRowsMore": {
     "one": "{count} dodatkowy wiersz",
