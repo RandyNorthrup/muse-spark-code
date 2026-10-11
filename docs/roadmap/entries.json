@@ -848,7 +848,7 @@
     {
       "id": "M115",
       "title": "Scheduled prompts v2",
-      "summary": "Joined VS Code, ACP and terminal delivery candidates preserve dispatch authority, owner-only output and paid consent; automatic delivery stays disabled pending shared settlement and cross-platform certification.",
+      "summary": "Joined VS Code, ACP and terminal candidates share core-owned durable settlement, owner-only output and paid consent; automatic delivery is disabled: the running editor neither asks for v2 consent nor reserves paid caps pending cross-platform certification.",
       "area": "agents",
       "release": "0.17.0"
     },

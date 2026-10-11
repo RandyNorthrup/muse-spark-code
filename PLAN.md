@@ -35883,9 +35883,13 @@ delivery remains behind certification. Browser/GUI qualification runs on Linux,
 never this owner's MacBook. Receipts: `docs/certification/m115-join.md`.
 
 - [x] Join all three reviewed heads with both authority and lifecycle behavior.
-- [ ] Core settlement, durable dispatch state and at-most-once recovery.
+- [x] Core settlement and dispatch journal implemented; known, never-dispatched
+      and ambiguous recovery plus legacy fail-closed rows have regressions.
 - [ ] Existing lazy owners meet every production byte cap.
 - [ ] Dependent suites, red drills and scoped gates; lead cross-platform replay.
+      The full production assembly test cannot run on MacBook: native resource
+      retirement requires the forbidden muse-dictate helper, absent in this
+      checkout; retain the test for Linux with the packaged native helpers.
 
 **C-M115-1 review repair (2026-10-11):** repair RVCM1151B/G as classes:
 one final scheduled dispatch gate after asynchronous work, live schedule and

@@ -2303,7 +2303,7 @@ is absent. Paid consent and the shared daily budget still apply.
 The Command Palette's **Schedule this prompt…**, **Show schedules** and
 **Show schedule timeline** open the v2 editor, list and timeline in the
 active chat, opening a chat when needed. The schedule surface loads on
-first use and manages durable records. Automatic VS Code v2 prompt delivery is
+first use and manages durable records. Automatic v2 prompt delivery in VS Code, ACP and the terminal is
 disabled: its candidate holds the workspace independently of open chats and
 rechecks authority immediately before sending. Unattended IDE tools enforce
 resolved-file policy and use prompt-free executors, with offline legal scans.

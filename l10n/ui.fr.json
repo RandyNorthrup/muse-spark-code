@@ -565,7 +565,8 @@
       "refused": "Refusé",
       "missed": "Manqué",
       "skipped": "Ignoré",
-      "failed": "Échoué"
+      "failed": "Échoué",
+      "uncertain": "Incertain"
     }
   },
   "scheduleV2": {
@@ -789,7 +790,9 @@
       "changedRevision": "La planification ou sa session active a changé. Rechargez-la avant une autre exécution payante.",
       "lostOnceClaim": "Cette exécution ne possède plus le consentement unique. Renouvelez-le pour une autre exécution.",
       "capReached": "Le plafond quotidien de la planification ou le plafond partagé ne permet pas cette exécution payante.",
-      "paidUnavailable": "Cette opération payante est indisponible ou n’a pas été approuvée pour cette planification."
+      "paidUnavailable": "Cette opération payante est indisponible ou n’a pas été approuvée pour cette planification.",
+      "dispatchUncertain": "L’envoi a commencé, mais le résultat final est inconnu. Cette exécution ne sera pas répétée ; le montant réservé reste comptabilisé.",
+      "costUnknown": "Le prompt a été livré, mais le coût réel n’a pas pu être lu. Le montant réservé reste comptabilisé."
     },
     "endAfterRuns": {
       "one": "Terminer après {count} exécution",
@@ -5395,5 +5398,5 @@
       "many": "{count} autorisations"
     }
   },
-  "referenceRuntimeSchedules": "Exécutez des instructions Muse Code sans surveillance depuis ACP ou le terminal, avec des autorisations permanentes, des historiques persistants et des conversations en arrière-plan comme cibles."
+  "referenceRuntimeSchedules": "La livraison automatique v2 dans VS Code, ACP et le terminal reste désactivée jusqu’à la certification. L’interface préparée permet de : Exécutez des instructions Muse Code sans surveillance depuis ACP ou le terminal, avec des autorisations permanentes, des historiques persistants et des conversations en arrière-plan comme cibles."
 }

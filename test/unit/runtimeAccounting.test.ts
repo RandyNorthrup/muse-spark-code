@@ -5,19 +5,22 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import {
   createRuntimeDailyBudget,
   withRuntimeAccounting,
 } from '../../src/runtime/runtimeAccountingEntry'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
-import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { createRunLedger } from '../../src/runtime/exec/runLedger'
 import { PAID_DAILY_BUDGET, UI_TEXT } from '../../src/shared/constants'
+import { createSchedulePaidScope } from '../../src/core/paid/paidConsent'
+import { unattendedRun } from './helpers/schedules/unattended'
+import { fakeRunContext } from './helpers/schedules/fixtures'
 import { fakeSchedule } from './helpers/schedules/fixtures'
 
 const roots: string[] = []
@@ -60,6 +63,48 @@ const body: CreateResponseBody = {
 }
 
 describe('standalone daily admission', () => {
+  it('preserves scheduled transport authority and reserves both caps without a second shared charge', async () => {
+    const daily = dailyBudgetAt(folder())
+    const api = fakeModelApi()
+    const client = withRuntimeAccounting(fakeModelApiClient(api, new FakeLogOutputChannel()), daily)
+    const base = paidSchedule(1, 5)
+    if (base.paidConsent === undefined || client.models === undefined)
+      throw new Error('missing fixture authority')
+    const schedule = fakeSchedule({
+      ...base,
+      paidConsent: { ...base.paidConsent, accountId: FAKE_MODEL_API_ACCOUNT_ID },
+    })
+    const identity = {
+      modelId: body.model,
+      accountId: FAKE_MODEL_API_ACCOUNT_ID,
+      priceTier: 'verified',
+      payerKind: 'paidKey' as const,
+      price: 'Verified fixture rates',
+      sharedDailyBudgetUsd: Usd.from(5).toAmount(),
+    }
+    const reserve = vi.spyOn(daily, 'reserveSchedule')
+    const interactive = vi.spyOn(daily, 'reserve')
+    const policy = createSchedulePaidScope({
+      backend: 'modelApi',
+      schedule,
+      identity,
+      currentIdentity: () => identity,
+      isCurrent: () => true,
+      isOn: () => true,
+      estimate: () => Usd.from('0.1').toAmount(),
+      reserve: (...args) => daily.reserveSchedule(...args),
+    })
+    const { run } = unattendedRun({ context: fakeRunContext(schedule), paid: policy })
+    const model = await client.models.resolve(body.model)
+    if (model.client.withScheduleAuthority === undefined)
+      throw new Error('scheduled transport authority lost')
+    const bound = model.client.withScheduleAuthority(() => run, model.price)
+    await Array.fromAsync(bound.streamResponse(body, new AbortController().signal))
+    expect(api.responseBodies()).toHaveLength(1)
+    expect(reserve).toHaveBeenCalledOnce()
+    expect(interactive).not.toHaveBeenCalled()
+    expect(policy.cost()).toMatchObject({ certainty: 'exact', retainedLiabilityUsd: '0' })
+  })
   it.each(['schedule', 'shared'] as const)(
     'refuses scheduled HTTP past the %s cap and refunds nonsends exactly',
     async (cap) => {

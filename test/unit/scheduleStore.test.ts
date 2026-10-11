@@ -34,6 +34,8 @@ import {
   MemoryScheduleFs,
 } from './helpers/schedules/storage'
 
+// Real child startup plus repeated durable fsync transactions are a bounded OS operation.
+const SCHEDULE_PROCESS_JOURNAL_TIMEOUT_MS = 15_000
 const exec = promisify(execFile)
 const root = mkdtempSync(path.join(tmpdir(), 'muse-m115-s-'))
 const child = path.join(root, 'worker.cjs')
@@ -376,8 +378,8 @@ describe('M115 durable shared store', () => {
     }
   })
   it('keeps cost, refusal and liability facts intact, refusing conflicting settlement', async () => {
-    const directory = path.join(root, 'settlement')
-    const store = createScheduleStore(createNodeScheduleFs(directory))
+    // Value/ordering assertions use the same serialized journal, without OS fsync cost.
+    const store = createScheduleStore(new MemoryScheduleFs())
     const job = fakeSchedule()
     await store.create(job)
     const fire = scheduleFireRecordSchema.parse({
@@ -414,30 +416,34 @@ describe('M115 durable shared store', () => {
     await store.remove(job.workspaceKey, job.id)
     expect(await store.fires(job.workspaceKey)).toHaveLength(4)
   })
-  it('recovers dead process intents but never steals work from a live owner', async () => {
-    const directory = path.join(root, 'intent')
-    const store = createScheduleStore(createNodeScheduleFs(directory))
-    const job = fakeSchedule()
-    await store.create(job)
-    const intent = {
-      schedule: job,
-      runId: 'schedule-1:123',
-      occurrenceMs: 123,
-      advancesTime: false,
-    }
-    expect(await worker(directory, 'admit', JSON.stringify(intent))).toBe('true')
-    expect(await store.abandoned(job.workspaceKey)).toEqual([intent])
-    const live = { ...intent, runId: 'schedule-1:124' }
-    expect(await store.admit(live)).toBe(true)
-    expect(await store.abandoned(job.workspaceKey)).toEqual([intent])
-    await store.advance(intent)
-    await store.advance(intent)
-    const [current] = await store.list(job.workspaceKey)
-    expect(current?.fireCount).toBe(1)
-    expect(await store.admit(intent)).toBe(false)
-  })
+  it(
+    'recovers dead process intents but never steals work from a live owner',
+    async () => {
+      const directory = path.join(root, 'intent')
+      const store = createScheduleStore(createNodeScheduleFs(directory))
+      const job = fakeSchedule()
+      await store.create(job)
+      const intent = {
+        schedule: job,
+        runId: 'schedule-1:123',
+        occurrenceMs: 123,
+        advancesTime: false,
+      }
+      expect(await worker(directory, 'admit', JSON.stringify(intent))).toBe('true')
+      expect(await store.abandoned(job.workspaceKey)).toEqual([intent])
+      const live = { ...intent, runId: 'schedule-1:124' }
+      expect(await store.admit(live)).toBe(true)
+      expect(await store.abandoned(job.workspaceKey)).toEqual([intent])
+      await store.advance(intent)
+      await store.advance(intent)
+      const [current] = await store.list(job.workspaceKey)
+      expect(current?.fireCount).toBe(1)
+      expect(await store.admit(intent)).toBe(false)
+    },
+    SCHEDULE_PROCESS_JOURNAL_TIMEOUT_MS,
+  )
   it('orders failures by admission even when manual wall time moves backward', async () => {
-    const store = createScheduleStore(createNodeScheduleFs(path.join(root, 'failure-clock')))
+    const store = createScheduleStore(new MemoryScheduleFs())
     const job = fakeSchedule()
     await store.create(job)
     const earlier = {
@@ -482,31 +488,39 @@ describe('M115 durable shared store', () => {
       paused: false,
     })
   })
-  it('enforces after-N in two real processes and permanently refuses declined or removed runs', async () => {
-    const directory = path.join(root, 'admission-limit')
-    const store = createScheduleStore(createNodeScheduleFs(directory))
-    const job = fakeSchedule({ end: { afterRuns: 1 } })
-    await store.create(job)
-    const first = { schedule: job, runId: 'schedule-1:first', occurrenceMs: 1, advancesTime: false }
-    const second = { ...first, runId: 'schedule-1:second' }
-    for (const intent of [first, second]) await store.admit(intent)
-    const results = await Promise.all(
-      [first, second].map((intent) => worker(directory, 'advance', JSON.stringify(intent))),
-    )
-    expect(results.toSorted((a, b) => a.localeCompare(b))).toEqual(['false', 'true'])
-    const declined = results[0] === 'false' ? first : second
-    const [current] = await store.list(job.workspaceKey)
-    expect(current?.fireCount).toBe(1)
-    await store.update({ ...current!, end: { afterRuns: 2 } })
-    expect(await store.advance(declined)).toBe(false)
-    const removed = { ...first, runId: 'schedule-1:removed' }
-    await store.admit(removed)
-    await store.remove(job.workspaceKey, job.id)
-    expect(await store.advance(removed)).toBe(false)
-  })
+  it(
+    'enforces after-N in two real processes and permanently refuses declined or removed runs',
+    async () => {
+      const directory = path.join(root, 'admission-limit')
+      const store = createScheduleStore(createNodeScheduleFs(directory))
+      const job = fakeSchedule({ end: { afterRuns: 1 } })
+      await store.create(job)
+      const first = {
+        schedule: job,
+        runId: 'schedule-1:first',
+        occurrenceMs: 1,
+        advancesTime: false,
+      }
+      const second = { ...first, runId: 'schedule-1:second' }
+      for (const intent of [first, second]) await store.admit(intent)
+      const results = await Promise.all(
+        [first, second].map((intent) => worker(directory, 'advance', JSON.stringify(intent))),
+      )
+      expect(results.toSorted((a, b) => a.localeCompare(b))).toEqual(['false', 'true'])
+      const declined = results[0] === 'false' ? first : second
+      const [current] = await store.list(job.workspaceKey)
+      expect(current?.fireCount).toBe(1)
+      await store.update({ ...current!, end: { afterRuns: 2 } })
+      expect(await store.advance(declined)).toBe(false)
+      const removed = { ...first, runId: 'schedule-1:removed' }
+      await store.admit(removed)
+      await store.remove(job.workspaceKey, job.id)
+      expect(await store.advance(removed)).toBe(false)
+    },
+    SCHEDULE_PROCESS_JOURNAL_TIMEOUT_MS,
+  )
   it('never regresses a newer time cursor during crash recovery or confuses it with a manual wall time', async () => {
-    const directory = path.join(root, 'cursor')
-    const store = createScheduleStore(createNodeScheduleFs(directory))
+    const store = createScheduleStore(new MemoryScheduleFs())
     const job = fakeSchedule()
     await store.create(job)
     const newer = {
@@ -544,8 +558,7 @@ describe('M115 durable shared store', () => {
     expect(jobs[0]).toMatchObject({ fireCount: 3, nextFireAtMs: 400, lastFireAtMs: 1000 })
   })
   it('never advances an unclaimed or mismatched run and never quotes private corrupt JSON', async () => {
-    const directory = path.join(root, 'run-boundary')
-    const fs = createNodeScheduleFs(directory)
+    const fs = new MemoryScheduleFs()
     const store = createScheduleStore(fs)
     const job = fakeSchedule()
     await store.create(job)
@@ -560,7 +573,7 @@ describe('M115 durable shared store', () => {
     await expect(store.advance({ ...intent, occurrenceMs: 124 })).rejects.toThrow('IntentMismatch')
     const [current] = await store.list(job.workspaceKey)
     expect(current?.fireCount).toBe(0)
-    await writeFile(path.join(directory, await scheduleStateFile(fs)), 'private phrase')
+    await fs.replace(await scheduleStateFile(fs), 'private phrase')
     await expect(store.list(job.workspaceKey)).rejects.toThrow('scheduleStoredJsonInvalid')
   })
   it('refuses more than the bounded pending outbox without changing committed state', async () => {
@@ -657,4 +670,28 @@ describe('M115 durable shared store', () => {
       await store.claim(`${initial.id}:${String(initial.createdAtMs + SCHEDULE_MIN_INTERVAL_MS)}`),
     ).toBe(false)
   })
+})
+
+it('treats legacy admitted rows without a dispatch flag as potentially sent', async () => {
+  const fs = new MemoryScheduleFs()
+  const store = createScheduleStore(fs)
+  const schedule = fakeSchedule()
+  await store.create(schedule)
+  const intent = {
+    schedule,
+    runId: `${schedule.id}:legacy`,
+    occurrenceMs: schedule.nextFireAtMs!,
+    advancesTime: false,
+  }
+  await store.admit(intent)
+  await store.advance(intent)
+  expect(await store.lookupRun(schedule.workspaceKey, intent.runId)).toEqual({ status: 'admitted' })
+  // This is the exact pre-write-ahead journal shape, not a provider frame.
+  for (const [file, content] of fs.files)
+    fs.files.set(file, content.replaceAll(',"dispatchStarted":false', ''))
+  const reopened = createScheduleStore(fs)
+  expect(await reopened.lookupRun(schedule.workspaceKey, intent.runId)).toMatchObject({
+    status: 'dispatchStarted',
+  })
+  expect(await reopened.startDispatch(intent)).toBe(false)
 })

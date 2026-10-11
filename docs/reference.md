@@ -1195,9 +1195,9 @@ Commands: `museSpark.schedulePrompt`, `museSpark.showSchedules`, `museSpark.show
 
 Schedule unattended Muse Code prompts in ACP or the terminal
 
-Run unattended Muse Code prompts from ACP or the terminal, with standing grants, persistent fire records and background conversation targets.
+scheduleDeliveryCertified=false: Automatic v2 delivery in VS Code, ACP and the terminal is disabled pending certification. The candidate runs unattended Muse Code prompts with standing grants, persistent fire records and background conversation targets.
 
-Surfaces: acp:museCode. Paid: no extra feature charge; model usage still applies.
+Surfaces: acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#runtime-scheduled-delivery)
 

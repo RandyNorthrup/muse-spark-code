@@ -108,6 +108,7 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
       if (
         options.runtimeDelivery !== undefined &&
         options.runtimeDelivery.paid === undefined &&
+        options.runtimeDelivery.billing === undefined &&
         schedule.action.kind === 'prompt' &&
         'backend' in schedule.target &&
         schedule.target.backend === 'modelApi'
@@ -172,24 +173,35 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
       : fire
   const coreScheduler = createScheduler({
     store: { ...store, record: (fire) => store.record(terminalReason(fire)) },
-    runs: { ...store, acknowledge: (fire) => store.acknowledge(terminalReason(fire)) },
+    runs: {
+      ...store,
+      advance: (intent) => store.advance(intent),
+      startDispatch: (intent, liabilityUsd) => store.startDispatch(intent, liabilityUsd),
+      lookupRun: (workspace, runId) => store.lookupRun(workspace, runId),
+      acknowledge: (fire) => store.acknowledge(terminalReason(fire)),
+    },
     queue: options.queue,
     host,
     time: { plan: (schedule, clock) => scheduleTimePlan(schedule, clock) },
-    failureSettlement: (intent: ScheduleRunIntent) => Promise.resolve({
-      runId: intent.runId,
-      scheduleId: intent.schedule.id,
-      workspaceKey: intent.schedule.workspaceKey,
-      occurrenceMs: intent.occurrenceMs,
-      observedAtMs: now(),
-      target: intent.schedule.target,
-      delivery: intent.schedule.delivery,
-      outcome: 'failed',
-      reason: UI_TEXT.scheduleCommandFailed,
-      refusedActions: [],
-      cost: { ...noScheduleCost(), certainty: 'unknown', retainedLiabilityUsd: intent.schedule.grant.paidCapUsd },
-      ...(intent.event !== undefined && { event: intent.event }),
-    }),
+    failureSettlement: (intent: ScheduleRunIntent) =>
+      Promise.resolve({
+        runId: intent.runId,
+        scheduleId: intent.schedule.id,
+        workspaceKey: intent.schedule.workspaceKey,
+        occurrenceMs: intent.occurrenceMs,
+        observedAtMs: now(),
+        target: intent.schedule.target,
+        delivery: intent.schedule.delivery,
+        outcome: 'failed',
+        reason: UI_TEXT.scheduleCommandFailed,
+        refusedActions: [],
+        cost: {
+          ...noScheduleCost(),
+          certainty: 'unknown',
+          retainedLiabilityUsd: intent.schedule.grant.paidCapUsd,
+        },
+        ...(intent.event !== undefined && { event: intent.event }),
+      }),
     deferEvent: async (schedule: ScheduleV2, event: ScheduleEvent) => {
       const dueMs = nextScheduleTime(
         {
@@ -334,7 +346,14 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     const existing = controls.get(key)
     if (existing !== undefined) return Promise.resolve(existing)
     const control = createScheduleControl({
-      ...(options.consent !== undefined && { consent: options.consent }),
+      ...(options.consent === undefined
+        ? runtimeDelivery !== undefined && options.runtimeDelivery?.billing !== undefined
+          ? {
+              consent: (schedule, caller) =>
+                runtimeDelivery.consent(schedule, path.resolve(cwd), caller),
+            }
+          : {}
+        : { consent: options.consent }),
       store,
       authority,
       scheduler,
@@ -449,8 +468,8 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
       await Promise.allSettled(activeDispatches)
       await Promise.allSettled(activeTicks)
       // Core retries durable acknowledgement/record after every host has drained.
-      for (const workspace of new Set([...controls.keys(), ...(await registry.list())]))
-        await coreScheduler.recover(workspace)
+      const workspaces = new Set([...controls.keys(), ...(await registry.list())])
+      for (const workspace of workspaces) await coreScheduler.recover(workspace)
       controls.clear()
     },
     verifyWake: options.verifyWake ?? (() => Promise.resolve({ scheduledPrompts: false })),

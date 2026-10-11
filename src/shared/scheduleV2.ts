@@ -431,6 +431,7 @@ export type ScheduleDeliveryResult = ScheduleFireRecord
 export const scheduleDeliveryStateSchema = z.discriminatedUnion('status', [
   z.strictObject({ status: z.literal('absent') }),
   z.strictObject({ status: z.literal('admitted') }),
+  z.strictObject({ status: z.literal('dispatchStarted'), retainedLiabilityUsd: z.optional(money) }),
   z
     .strictObject({ status: z.enum(['settled', 'uncertain']), fire: scheduleFireRecordSchema })
     .check(
@@ -439,6 +440,7 @@ export const scheduleDeliveryStateSchema = z.discriminatedUnion('status', [
 ])
 export type ScheduleDeliveryState = z.infer<typeof scheduleDeliveryStateSchema>
 export interface ScheduleHostPort {
+  readonly signal?: AbortSignal | undefined
   now(): number
   monotonicNow(): number
   holds(workspaceKey: string): boolean

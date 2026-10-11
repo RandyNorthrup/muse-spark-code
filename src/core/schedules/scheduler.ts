@@ -138,15 +138,18 @@ export function createScheduler(deps: SchedulerDeps) {
     await deps.store.record(fire)
     knownSettlements.delete(intent.runId)
   }
-  const uncertain = (intent: ScheduleRunIntent): ScheduleFireRecord => ({
+  const uncertain = (
+    intent: ScheduleRunIntent,
+    liabilityUsd = intent.schedule.grant.paidCapUsd,
+  ): ScheduleFireRecord => ({
     ...unspent(intent, deps.host.now(), 'skipped'),
     outcome: 'uncertain',
     reason: UI_TEXT.scheduleV2.messages.dispatchUncertain,
     cost: {
       usd: Usd.from(0).toAmount(),
       certainty: 'unknown',
-      retainedLiabilityUsd: intent.schedule.action.kind === 'report'
-        ? Usd.from(0).toAmount() : intent.schedule.grant.paidCapUsd,
+      retainedLiabilityUsd:
+        intent.schedule.action.kind === 'report' ? Usd.from(0).toAmount() : liabilityUsd,
     },
   })
   const execute = async (intent: ScheduleRunIntent): Promise<void> => {
@@ -166,7 +169,23 @@ export function createScheduler(deps: SchedulerDeps) {
       return
     }
     if (ledger.status === 'dispatchStarted') {
-      await settle(intent, uncertain(intent))
+      // The journal forbids another send. A still-live host may supply known
+      // terminal facts; a restarted host supplies none, so recovery is uncertain.
+      let fire = uncertain(intent, ledger.retainedLiabilityUsd)
+      try {
+        const reported = scheduleDeliveryStateSchema.parse(await deps.host.lookupRun(intent.runId))
+        if (reported.status === 'settled' || reported.status === 'uncertain')
+          fire = validateScheduleSettlement(
+            intent.schedule,
+            intent.runId,
+            intent.occurrenceMs,
+            reported.fire,
+            intent.event,
+          )
+      } catch {
+        /* Missing/invalid host facts cannot reopen dispatch. */
+      }
+      await settle(intent, fire)
       return
     }
     const job = await load(intent.schedule.workspaceKey, intent.schedule.id)
@@ -209,21 +228,27 @@ export function createScheduler(deps: SchedulerDeps) {
       return
     }
     const delivery = { ...intent, schedule: fresh }
-    if (!(await deps.runs.startDispatch(intent))) {
+    if (!(await deps.runs.startDispatch(intent, fresh.grant.paidCapUsd))) {
       const state = await deps.runs.lookupRun(intent.schedule.workspaceKey, intent.runId)
-      await settle(intent, state.status === 'settled' || state.status === 'uncertain'
-        ? state.fire : uncertain(intent))
+      await settle(
+        intent,
+        state.status === 'settled' || state.status === 'uncertain' ? state.fire : uncertain(intent),
+      )
       return
     }
     let result: unknown
     let hasReturned = false
-    let stopAbort = () => undefined
+    let stopAbort: (() => void) | undefined
     try {
       signal.throwIfAborted()
       const aborted = new Promise<never>((_resolve, reject) => {
-        const abort = () => reject(new Error(UI_TEXT.scheduleV2.messages.targetClosed))
+        const abort = () => {
+          reject(new Error(UI_TEXT.scheduleV2.messages.targetClosed))
+        }
         signal.addEventListener('abort', abort, { once: true })
-        stopAbort = () => signal.removeEventListener('abort', abort)
+        stopAbort = () => {
+          signal.removeEventListener('abort', abort)
+        }
         if (signal.aborted) abort()
       })
       result = await Promise.race([
@@ -237,23 +262,34 @@ export function createScheduler(deps: SchedulerDeps) {
       ])
       hasReturned = true
       validateScheduleSettlement(
-        delivery.schedule, delivery.runId, delivery.occurrenceMs, result, delivery.event,
+        delivery.schedule,
+        delivery.runId,
+        delivery.occurrenceMs,
+        result,
+        delivery.event,
       )
     } catch (error: unknown) {
       // Only the core journals terminal facts. A host may offer a known result,
       // but absence/admission cannot keep a dispatched fire replayable.
       try {
         const after = scheduleDeliveryStateSchema.parse(await deps.host.lookupRun(intent.runId))
-        result = after.status === 'settled' || after.status === 'uncertain'
-          ? validateScheduleSettlement(
-              delivery.schedule, delivery.runId, delivery.occurrenceMs, after.fire, delivery.event,
-            )
-          : hasReturned ? await deps.failureSettlement(delivery, error) : uncertain(delivery)
+        result =
+          after.status === 'settled' || after.status === 'uncertain'
+            ? validateScheduleSettlement(
+                delivery.schedule,
+                delivery.runId,
+                delivery.occurrenceMs,
+                after.fire,
+                delivery.event,
+              )
+            : hasReturned
+              ? await deps.failureSettlement(delivery, error)
+              : uncertain(delivery)
       } catch {
         result = uncertain(delivery)
       }
     } finally {
-      stopAbort()
+      stopAbort?.()
     }
     await settle(intent, result)
   }
@@ -384,6 +420,8 @@ export function createScheduler(deps: SchedulerDeps) {
       await deps.deferEvent(job, event)
       return { kind: 'accepted' as const, id }
     }
+    if (signal.aborted)
+      return { kind: 'refused' as const, reason: UI_TEXT.scheduleV2.messages.targetClosed }
     const intent = {
       schedule: job,
       runId: scheduleEventRunId(job.id, event),
@@ -391,7 +429,6 @@ export function createScheduler(deps: SchedulerDeps) {
       event,
       advancesTime: false,
     }
-    if (signal.aborted) return { kind: 'refused' as const, reason: UI_TEXT.scheduleV2.messages.targetClosed }
     await dispatch([{ intent, missed: false }])
     return { kind: 'accepted' as const, id }
   }
@@ -496,7 +533,7 @@ export function createScheduler(deps: SchedulerDeps) {
       )
     },
     async recover(workspaceKey: string): Promise<void> {
-      if (!deps.host.holds(workspaceKey)) return
+      if (!signal.aborted && !deps.host.holds(workspaceKey)) return
       await drain([workspaceKey])
     },
     start(workspaces: () => readonly string[], onError: (error: unknown) => void) {

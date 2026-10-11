@@ -566,7 +566,8 @@
       "refused": "Odmítnuto",
       "missed": "Zmeškáno",
       "skipped": "Přeskočeno",
-      "failed": "Selhalo"
+      "failed": "Selhalo",
+      "uncertain": "Nejisté"
     }
   },
   "scheduleV2": {
@@ -790,7 +791,9 @@
       "changedRevision": "Změnil se plán nebo jeho běžící relace. Před dalším placeným spuštěním jej znovu načtěte.",
       "lostOnceClaim": "Toto spuštění již nevlastní jednorázový souhlas. Pro další spuštění jej obnovte.",
       "capReached": "Denní limit plánu nebo sdílený denní limit toto placené spuštění neumožňuje.",
-      "paidUnavailable": "Tato placená operace není dostupná nebo nebyla pro tento plán schválena."
+      "paidUnavailable": "Tato placená operace není dostupná nebo nebyla pro tento plán schválena.",
+      "dispatchUncertain": "Odesílání začalo, ale konečný výsledek není znám. Tento běh se nebude opakovat; rezervovaná částka zůstává započtena.",
+      "costUnknown": "Výzva byla doručena, ale skutečné náklady nelze přečíst. Rezervovaná částka zůstává započtena."
     },
     "endAfterRuns": {
       "one": "Ukončit po {count} spuštění",
@@ -5548,5 +5551,5 @@
       "many": "{count} oprávnění"
     }
   },
-  "referenceRuntimeSchedules": "Spouštějte příkazy Muse Code bez dozoru z ACP nebo terminálu s trvalými oprávněními, uloženými záznamy spuštění a cílovými konverzacemi na pozadí."
+  "referenceRuntimeSchedules": "Automatické doručování v2 je ve VS Code, ACP i terminálu vypnuto, dokud neprojde certifikací. Připravené rozhraní umožňuje: Spouštějte příkazy Muse Code bez dozoru z ACP nebo terminálu s trvalými oprávněními, uloženými záznamy spuštění a cílovými konverzacemi na pozadí."
 }

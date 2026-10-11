@@ -53,7 +53,10 @@ function admittedDraft(
 }
 
 export interface ScheduleControlDeps {
-  readonly consent?: (schedule: ScheduleV2) => Promise<ScheduleV2['paidConsent']>
+  readonly consent?: (
+    schedule: ScheduleV2,
+    caller?: ScheduleCallerContext,
+  ) => Promise<ScheduleV2['paidConsent']>
   readonly store: ScheduleStoreV2
   readonly authority: ScheduleAuthorityStore
   readonly scheduler: ReturnType<typeof createScheduler>
@@ -160,7 +163,7 @@ export function createScheduleControl(deps: ScheduleControlDeps): ScheduleContro
       schedule.target.backend === 'modelApi' &&
       deps.consent !== undefined
     ) {
-      const consent = await deps.consent(schedule)
+      const consent = await deps.consent(schedule, caller)
       if (consent === undefined)
         return refused(UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired)
       schedule = scheduleV2Schema.parse({ ...schedule, paidConsent: consent })
@@ -213,7 +216,7 @@ export function createScheduleControl(deps: ScheduleControlDeps): ScheduleContro
       next.target.backend === 'modelApi' &&
       deps.consent !== undefined
     ) {
-      const consent = await deps.consent(next)
+      const consent = await deps.consent(next, caller)
       if (consent === undefined)
         return refused(UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired)
       next = scheduleV2Schema.parse({ ...next, paidConsent: consent })

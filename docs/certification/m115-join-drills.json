@@ -1,0 +1,68 @@
+[
+  {
+    "name": "dispatch-liability",
+    "file": "src/core/schedules/store.ts",
+    "suite": "test/unit/scheduleSettlementMatrix.test.ts",
+    "from": "liabilityUsd ?? intent.schedule.grant.paidCapUsd",
+    "to": "intent.schedule.grant.paidCapUsd",
+    "expected": "dispatch-time liability snapshot",
+    "exit": 1,
+    "beforeSha256": "0af8357d972b63c278ce1fbdbea53f3db073f73fa65618705f530c2193ee76bb",
+    "restoredSha256": "0af8357d972b63c278ce1fbdbea53f3db073f73fa65618705f530c2193ee76bb"
+  },
+  {
+    "name": "native-billing",
+    "file": "src/runtime/schedules/delivery.ts",
+    "suite": "test/unit/scheduleRuntimeDelivery.test.ts",
+    "from": "if ('backend' in job.target && job.target.backend === 'museCode')",
+    "to": "if (false)",
+    "expected": "native subscription delivery independent",
+    "exit": 1,
+    "beforeSha256": "db8ad422fe3c7dd51be51eab83442d7b3f7d44d3220d577bb8c6597914bd5191",
+    "restoredSha256": "db8ad422fe3c7dd51be51eab83442d7b3f7d44d3220d577bb8c6597914bd5191"
+  },
+  {
+    "name": "write-ahead",
+    "file": "src/core/schedules/store.ts",
+    "suite": "test/unit/scheduleSettlementMatrix.test.ts",
+    "from": "pending.dispatchStarted = true",
+    "to": "pending.dispatchStarted = false",
+    "expected": "journals returned",
+    "exit": 1,
+    "beforeSha256": "0af8357d972b63c278ce1fbdbea53f3db073f73fa65618705f530c2193ee76bb",
+    "restoredSha256": "0af8357d972b63c278ce1fbdbea53f3db073f73fa65618705f530c2193ee76bb"
+  },
+  {
+    "name": "terminal",
+    "file": "src/core/schedules/scheduler.ts",
+    "suite": "test/unit/scheduleSettlementMatrix.test.ts",
+    "from": "await settle(intent, result)",
+    "to": "return",
+    "expected": "drains next fire",
+    "exit": 1,
+    "beforeSha256": "daf6060a95bf96ce4b1def8a2a22a7f37107846bbea04bd266779412615c0465",
+    "restoredSha256": "daf6060a95bf96ce4b1def8a2a22a7f37107846bbea04bd266779412615c0465"
+  },
+  {
+    "name": "inactive-cause",
+    "file": "src/core/schedules/unattended.ts",
+    "suite": "test/unit/scheduleRefusalCauses.test.ts",
+    "from": "isActive ? this.modelText.protectedRefused : this.modelText.inactiveRefused",
+    "to": "this.modelText.protectedRefused",
+    "expected": "ordinary-file refusal",
+    "exit": 1,
+    "beforeSha256": "ac12f39e7172af16bf53f0bd00b9cdb7c1be61485c5c724506da536c338bf602",
+    "restoredSha256": "ac12f39e7172af16bf53f0bd00b9cdb7c1be61485c5c724506da536c338bf602"
+  },
+  {
+    "name": "runtime-authority",
+    "file": "src/runtime/runtimeAccountingEntry.ts",
+    "suite": "test/unit/runtimeAccounting.test.ts",
+    "from": "withScheduleAuthority: original.withScheduleAuthority.bind(original)",
+    "to": "withScheduleAuthority: undefined",
+    "expected": "preserves scheduled transport authority",
+    "exit": 1,
+    "beforeSha256": "70f1a635a3af1e4a5800b0e3539190dd5dd0a79410261f05dab761842690eca9",
+    "restoredSha256": "70f1a635a3af1e4a5800b0e3539190dd5dd0a79410261f05dab761842690eca9"
+  }
+]

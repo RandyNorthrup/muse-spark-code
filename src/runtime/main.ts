@@ -123,6 +123,7 @@ import { jobSourceReader } from '../host/backend/jobSource'
 import { reportsLoader } from './reporting/reportsLoader'
 import type { createRuntimeReports } from './reporting/reportsEntry'
 import { runtimeSchedulesBinding } from './schedules/binding'
+import type { ScheduleWakeAuthorization } from './schedules/registration'
 import { runtimeScheduleSessionFactory } from './schedules/sessionFactory'
 import { settleScheduleCommand } from './schedules/settle'
 
@@ -1258,9 +1259,26 @@ async function main(): Promise<number> {
       )().runRuntimeSharing(command, sharingPorts(log), UI_TEXT, uiLocale())
     }
     case 'schedule': {
+      let scheduleAuthorization: ScheduleWakeAuthorization = {
+        scheduledPrompts: command.options.scheduledPrompts === true,
+        ...(command.options.maxBudgetUsd !== undefined && {
+          maxBudgetUsd: command.options.maxBudgetUsd,
+        }),
+      }
       const scheduleSessions = runtimeScheduleSessionFactory({
         create: (backend) => {
-          const parsed = parseCommandLine(['serve', '--backend', backend])
+          const parsed = parseCommandLine([
+            'serve',
+            '--backend',
+            backend,
+            ...(backend === 'modelApi' && scheduleAuthorization.scheduledPrompts
+              ? [
+                  '--scheduled-prompts',
+                  '--max-budget-usd',
+                  scheduleAuthorization.maxBudgetUsd ?? '0',
+                ]
+              : []),
+          ])
           if (parsed.command !== 'serve') throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
           return runtimeFor(parsed.options, log)
         },
@@ -1290,7 +1308,7 @@ async function main(): Promise<number> {
             const { createRuntimeScheduleBackground } = await import('./schedules/backgroundEntry')
             const { verifyScheduleWake, beginScheduleWake, waitForScheduleWake } =
               createRuntimeScheduleBackground(UI_TEXT, uiLocale())
-            await verifyScheduleWake(
+            scheduleAuthorization = await verifyScheduleWake(
               process.execPath,
               __filename,
               undefined,

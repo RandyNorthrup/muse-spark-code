@@ -564,7 +564,8 @@
       "refused": "Abgelehnt",
       "missed": "Verpasst",
       "skipped": "Übersprungen",
-      "failed": "Fehlgeschlagen"
+      "failed": "Fehlgeschlagen",
+      "uncertain": "Ungewiss"
     }
   },
   "scheduleV2": {
@@ -788,7 +789,9 @@
       "changedRevision": "Der Zeitplan oder seine laufende Sitzung hat sich geändert. Laden Sie ihn vor der nächsten kostenpflichtigen Ausführung neu.",
       "lostOnceClaim": "Diese Ausführung besitzt die einmalige Zustimmung nicht mehr. Erneuern Sie sie für eine weitere Ausführung.",
       "capReached": "Das Tageslimit des Zeitplans oder das gemeinsame Tageslimit erlaubt diese kostenpflichtige Ausführung nicht.",
-      "paidUnavailable": "Dieser kostenpflichtige Vorgang ist nicht verfügbar oder wurde für diesen Zeitplan nicht genehmigt."
+      "paidUnavailable": "Dieser kostenpflichtige Vorgang ist nicht verfügbar oder wurde für diesen Zeitplan nicht genehmigt.",
+      "dispatchUncertain": "Die Übermittlung hat begonnen, aber das Endergebnis ist unbekannt. Dieser Lauf wird nicht wiederholt; der reservierte Betrag bleibt angerechnet.",
+      "costUnknown": "Der Prompt wurde zugestellt, aber die tatsächlichen Kosten konnten nicht gelesen werden. Der reservierte Betrag bleibt angerechnet."
     },
     "endAfterRuns": {
       "one": "Nach {count} Ausführung beenden",
@@ -5242,5 +5245,5 @@
       "other": "{count} Freigaben"
     }
   },
-  "referenceRuntimeSchedules": "Führen Sie Muse-Code-Prompts unbeaufsichtigt über ACP oder das Terminal aus, mit dauerhaften Berechtigungen, gespeicherten Ausführungsprotokollen und Hintergrundgesprächen als Zielen."
+  "referenceRuntimeSchedules": "Die automatische v2-Zustellung in VS Code, ACP und Terminal bleibt bis zur Zertifizierung deaktiviert. Der vorbereitete Anschluss ermöglicht: Führen Sie Muse-Code-Prompts unbeaufsichtigt über ACP oder das Terminal aus, mit dauerhaften Berechtigungen, gespeicherten Ausführungsprotokollen und Hintergrundgesprächen als Zielen."
 }

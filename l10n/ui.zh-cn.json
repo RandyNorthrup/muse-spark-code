@@ -563,7 +563,8 @@
       "refused": "已拒绝",
       "missed": "已错过",
       "skipped": "已跳过",
-      "failed": "失败"
+      "failed": "失败",
+      "uncertain": "不确定"
     }
   },
   "scheduleV2": {
@@ -787,7 +788,9 @@
       "changedRevision": "计划或其运行会话已更改。请在下次付费执行前重新加载。",
       "lostOnceClaim": "本次执行已失去一次性同意。请为另一次执行更新同意。",
       "capReached": "计划或共享每日上限不允许此次付费执行。",
-      "paidUnavailable": "此付费操作不可用，或未获此计划批准。"
+      "paidUnavailable": "此付费操作不可用，或未获此计划批准。",
+      "dispatchUncertain": "发送已开始，但最终结果未知。本次运行不会再次发送；预留金额仍计入已用金额。",
+      "costUnknown": "提示已送达，但无法读取实际费用。预留金额仍计入已用金额。"
     },
     "endAfterRuns": {
       "other": "执行{count}次后结束"
@@ -5089,5 +5092,5 @@
       "other": "{count} 个授权"
     }
   },
-  "referenceRuntimeSchedules": "通过 ACP 或终端无人值守运行 Muse Code 提示词，使用持续授权、持久执行记录和后台对话目标。"
+  "referenceRuntimeSchedules": "VS Code、ACP 和终端中的 v2 自动发送在认证前保持禁用。候选连接提供以下功能：通过 ACP 或终端无人值守运行 Muse Code 提示词，使用持续授权、持久执行记录和后台对话目标。"
 }

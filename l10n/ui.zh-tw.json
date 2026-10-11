@@ -563,7 +563,8 @@
       "refused": "已拒絕",
       "missed": "已錯過",
       "skipped": "已略過",
-      "failed": "失敗"
+      "failed": "失敗",
+      "uncertain": "不確定"
     }
   },
   "scheduleV2": {
@@ -787,7 +788,9 @@
       "changedRevision": "排程或其執行中的工作階段已變更。請在下次付費執行前重新載入。",
       "lostOnceClaim": "本次執行已失去一次性同意。請為另一次執行更新同意。",
       "capReached": "排程或共用每日上限不允許此次付費執行。",
-      "paidUnavailable": "此付費操作無法使用，或未獲此排程核准。"
+      "paidUnavailable": "此付費操作無法使用，或未獲此排程核准。",
+      "dispatchUncertain": "傳送已開始，但最終結果未知。本次執行不會再次傳送；預留金額仍計入已用金額。",
+      "costUnknown": "提示已送達，但無法讀取實際費用。預留金額仍計入已用金額。"
     },
     "endAfterRuns": {
       "other": "執行{count}次後結束"
@@ -5089,5 +5092,5 @@
       "other": "{count} 個授權"
     }
   },
-  "referenceRuntimeSchedules": "透過 ACP 或終端機無人值守執行 Muse Code 提示詞，使用持續授權、永久執行記錄及背景對話目標。"
+  "referenceRuntimeSchedules": "VS Code、ACP 和終端中的 v2 自動傳送在認證前保持停用。候選連接提供以下功能：透過 ACP 或終端機無人值守執行 Muse Code 提示詞，使用持續授權、永久執行記錄及背景對話目標。"
 }

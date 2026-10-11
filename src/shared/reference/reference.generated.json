@@ -1575,10 +1575,19 @@
       "commands": [],
       "settings": [],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#runtime-scheduled-delivery",
-      "backends": ["museCode"],
+      "backends": ["museCode", "modelApi"],
       "paid": false,
-      "surfaces": ["acp:museCode"],
-      "details": [{ "ui": "referenceRuntimeSchedules" }],
+      "surfaces": ["acp:museCode", "acp:modelApi"],
+      "details": [
+        {
+          "conditions": [
+            {
+              "when": "scheduleDeliveryCertified=false",
+              "text": { "ui": "referenceRuntimeSchedules" }
+            }
+          ]
+        }
+      ],
       "facts": {},
       "editors": ["acp"]
     },

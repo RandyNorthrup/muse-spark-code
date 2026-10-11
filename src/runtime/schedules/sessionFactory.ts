@@ -44,6 +44,17 @@ export function runtimeScheduleSessionFactory(input: {
         const runtime = await pending
         return runtime.backend
       },
+      async billing(cwd, modelId, caller) {
+        if (isClosed) throw new Error(UI_TEXT.schedulePaidOff)
+        let pending = backends.get('modelApi')
+        if (pending === undefined) {
+          pending = input.create('modelApi')
+          backends.set('modelApi', pending)
+        }
+        const runtime = await pending
+        if (runtime.scheduleBilling === undefined) throw new Error(UI_TEXT.schedulePaidOff)
+        return await runtime.scheduleBilling(cwd, modelId, caller)
+      },
       row: (text) => {
         process.stderr.write(`${text}\n`)
       },

@@ -565,7 +565,8 @@
       "refused": "Recusado",
       "missed": "Perdido",
       "skipped": "Ignorado",
-      "failed": "Falhou"
+      "failed": "Falhou",
+      "uncertain": "Incerto"
     }
   },
   "scheduleV2": {
@@ -789,7 +790,9 @@
       "changedRevision": "O agendamento ou sua sessão ativa mudou. Recarregue-o antes de outra execução paga.",
       "lostOnceClaim": "Esta execução não possui mais o consentimento de uso único. Renove-o para outra execução.",
       "capReached": "O limite diário do agendamento ou o compartilhado não permite esta execução paga.",
-      "paidUnavailable": "Esta operação paga está indisponível ou não foi aprovada para este agendamento."
+      "paidUnavailable": "Esta operação paga está indisponível ou não foi aprovada para este agendamento.",
+      "dispatchUncertain": "O envio começou, mas o resultado final é desconhecido. Esta execução não será repetida; o valor reservado continua contabilizado.",
+      "costUnknown": "O prompt foi entregue, mas não foi possível ler o custo real. O valor reservado continua contabilizado."
     },
     "endAfterRuns": {
       "one": "Encerrar após {count} execução",
@@ -5395,5 +5398,5 @@
       "many": "{count} autorizações"
     }
   },
-  "referenceRuntimeSchedules": "Execute prompts do Muse Code sem supervisão pelo ACP ou terminal, com permissões permanentes, registros persistentes de execução e conversas em segundo plano como destinos."
+  "referenceRuntimeSchedules": "A entrega automática v2 no VS Code, ACP e terminal permanece desativada até a certificação. A integração preparada permite: Execute prompts do Muse Code sem supervisão pelo ACP ou terminal, com permissões permanentes, registros persistentes de execução e conversas em segundo plano como destinos."
 }

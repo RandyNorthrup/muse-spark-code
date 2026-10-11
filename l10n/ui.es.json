@@ -565,7 +565,8 @@
       "refused": "Rechazado",
       "missed": "Perdido",
       "skipped": "Omitido",
-      "failed": "Fallido"
+      "failed": "Fallido",
+      "uncertain": "Incierto"
     }
   },
   "scheduleV2": {
@@ -789,7 +790,9 @@
       "changedRevision": "Cambió la programación o su sesión activa. Recárgala antes de otra ejecución de pago.",
       "lostOnceClaim": "Esta ejecución ya no posee el consentimiento de un solo uso. Renuévalo para otra ejecución.",
       "capReached": "El límite diario de la programación o el compartido no permite esta ejecución de pago.",
-      "paidUnavailable": "Esta operación de pago no está disponible o no fue aprobada para esta programación."
+      "paidUnavailable": "Esta operación de pago no está disponible o no fue aprobada para esta programación.",
+      "dispatchUncertain": "El envío comenzó, pero se desconoce el resultado final. Esta ejecución no se repetirá; el importe reservado sigue contabilizado.",
+      "costUnknown": "El prompt se entregó, pero no se pudo leer el coste real. El importe reservado sigue contabilizado."
     },
     "endAfterRuns": {
       "one": "Finalizar tras {count} ejecución",
@@ -5395,5 +5398,5 @@
       "many": "{count} autorizaciones"
     }
   },
-  "referenceRuntimeSchedules": "Ejecuta instrucciones de Muse Code sin supervisión desde ACP o la terminal, con permisos permanentes, registros persistentes de ejecución y conversaciones en segundo plano como destino."
+  "referenceRuntimeSchedules": "La entrega automática v2 en VS Code, ACP y terminal está desactivada hasta su certificación. El enlace preparado permite: Ejecuta instrucciones de Muse Code sin supervisión desde ACP o la terminal, con permisos permanentes, registros persistentes de ejecución y conversaciones en segundo plano como destino."
 }

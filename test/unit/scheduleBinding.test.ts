@@ -1,12 +1,19 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   runtimeSchedulesBinding,
   type RuntimeSchedulesBinding,
 } from '../../src/runtime/schedules/binding'
-import { UI_TEXT } from '../../src/shared/constants'
+import { SCHEDULE_EDITOR_DELIVERY_CERTIFICATION, UI_TEXT } from '../../src/shared/constants'
 import { uiLocale } from '../../src/shared/l10n/text'
 import type { ScheduleEditorDeliveryPorts } from '../../src/host/schedules/deliveryBinding'
 import { memoryToolIo } from './helpers/fakeToolIo'
+
+beforeEach(() =>
+  Object.defineProperty(SCHEDULE_EDITOR_DELIVERY_CERTIFICATION, 'isReady', { value: true }),
+)
+afterEach(() =>
+  Object.defineProperty(SCHEDULE_EDITOR_DELIVERY_CERTIFICATION, 'isReady', { value: false }),
+)
 
 describe('lazy runtime schedule binding', () => {
   it('passes certified host ports to the lazy factory without installing them by default', async () => {

@@ -565,7 +565,8 @@
       "refused": "Rifiutato",
       "missed": "Perso",
       "skipped": "Saltato",
-      "failed": "Fallito"
+      "failed": "Fallito",
+      "uncertain": "Incerto"
     }
   },
   "scheduleV2": {
@@ -789,7 +790,9 @@
       "changedRevision": "La pianificazione o la sua sessione attiva è cambiata. Ricaricala prima di un’altra esecuzione a pagamento.",
       "lostOnceClaim": "Questa esecuzione non possiede più il consenso monouso. Rinnovalo per un’altra esecuzione.",
       "capReached": "Il limite giornaliero della pianificazione o quello condiviso non consente questa esecuzione a pagamento.",
-      "paidUnavailable": "Questa operazione a pagamento non è disponibile o non è stata approvata per questa pianificazione."
+      "paidUnavailable": "Questa operazione a pagamento non è disponibile o non è stata approvata per questa pianificazione.",
+      "dispatchUncertain": "L’invio è iniziato, ma il risultato finale è sconosciuto. Questa esecuzione non verrà ripetuta; l’importo riservato resta conteggiato.",
+      "costUnknown": "Il prompt è stato consegnato, ma il costo effettivo non è leggibile. L’importo riservato resta conteggiato."
     },
     "endAfterRuns": {
       "one": "Termina dopo {count} esecuzione",
@@ -5395,5 +5398,5 @@
       "many": "{count} autorizzazioni"
     }
   },
-  "referenceRuntimeSchedules": "Esegui richieste Muse Code senza supervisione da ACP o dal terminale, con autorizzazioni permanenti, registri persistenti delle esecuzioni e conversazioni in background come destinazioni."
+  "referenceRuntimeSchedules": "La consegna automatica v2 in VS Code, ACP e terminale resta disattivata fino alla certificazione. Il collegamento predisposto permette di: Esegui richieste Muse Code senza supervisione da ACP o dal terminale, con autorizzazioni permanenti, registri persistenti delle esecuzioni e conversazioni in background come destinazioni."
 }

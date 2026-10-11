@@ -33,7 +33,9 @@ export interface RuntimeScheduleHostDeps {
 export class RuntimeScheduleHost implements ScheduleHostPort {
   private readonly workspaces = new Map<string, number>()
   constructor(private readonly deps: RuntimeScheduleHostDeps) {}
-  get signal(): AbortSignal | undefined { return this.deps.signal }
+  get signal(): AbortSignal | undefined {
+    return this.deps.signal
+  }
   async lookupRun(runId: string): Promise<ScheduleDeliveryState> {
     for (const workspace of this.workspaces.keys()) {
       const state = await this.deps.lookupRun?.(workspace, runId)

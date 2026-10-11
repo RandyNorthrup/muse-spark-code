@@ -12,11 +12,18 @@ import {
 import type { BackendSession } from '../../host/schedules/backgroundTarget'
 import { isChildTurn } from '../../shared/agentEvents'
 import { CONTRIBUTOR_MODEL_SUFFIX, UI_TEXT } from '../../shared/constants'
+import { createScheduleBilling, type ScheduleBillingPorts } from '../../host/schedules/paidBinding'
+import type { ScheduleCallerContext } from './args'
 import type { ScheduleV2 } from '../../shared/scheduleV2'
 import { workspaceKey } from '../dataFolder'
 import type { createWorkspaceRegistry } from './registry'
 
 export interface RuntimeScheduleDeliveryPorts {
+  billing?(
+    cwd: string,
+    modelId: string,
+    caller?: ScheduleCallerContext,
+  ): Promise<ScheduleBillingPorts>
   backendFor(backend: AcpBackend['kind']): Promise<AcpBackend>
   readonly allowsContributorModels: boolean
   row(text: string): void
@@ -208,7 +215,21 @@ export function createRuntimeScheduleDelivery(
               // UnattendedRun enforces the portable class/path policy. The
               // runtime installs no additional physical or vault adapters.
             },
-            ...(ports.paid !== undefined && { paid: ports.paid }),
+            ...(ports.billing === undefined
+              ? ports.paid === undefined
+                ? {}
+                : { paid: ports.paid }
+              : {
+                  paid: async (job, agent, context, authority) => {
+                    // Native subscription turns need no Model API billing route.
+                    if ('backend' in job.target && job.target.backend === 'museCode')
+                      return await ports.paid?.(job, agent, context, authority)
+                    if (ports.billing === undefined) throw unavailable()
+                    return await createScheduleBilling(
+                      await ports.billing(root, agent.modelId),
+                    ).paid(job, agent, context, authority)
+                  },
+                }),
           },
           authority,
         )
@@ -223,6 +244,28 @@ export function createRuntimeScheduleDelivery(
     return pending
   }
   return {
+    async consent(schedule: ScheduleV2, cwd: string, caller?: ScheduleCallerContext) {
+      if (ports.billing === undefined || abort.signal.aborted) return
+      const owner =
+        schedule.target.kind === 'conversation'
+          ? live.get(liveKey(path.resolve(cwd), schedule.target.backend, schedule.target.sessionId))
+          : undefined
+      const backend = await ports.backendFor('modelApi')
+      const host = await backend.hostFor(cwd)
+      const models = await host.listModels()
+      const offered = models.filter(
+        (model) =>
+          ports.allowsContributorModels || !model.modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX),
+      )
+      const modelId =
+        owner?.owner.agent.modelId ??
+        offered.find((model) => model.isDefault)?.modelId ??
+        offered[0]?.modelId
+      if (modelId === undefined) throw unavailable()
+      return await createScheduleBilling(await ports.billing(cwd, modelId, caller)).consent(
+        schedule,
+      )
+    },
     delivery: {
       targets: {
         find: async (schedule) => {

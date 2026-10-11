@@ -31,6 +31,7 @@ const UI_CONDITIONS: Readonly<
   // lifetime; the delivery certification switch still owns availability.
   referenceSchedules: 'scheduleDeliveryCertified=false',
   referenceSchedulePaidConsent: 'scheduleDeliveryCertified=false',
+  referenceRuntimeSchedules: 'scheduleDeliveryCertified=false',
   referenceVaultPanel: 'vaultBroker=absent',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
@@ -925,7 +926,7 @@ export function featureCatalog(): readonly Feature[] {
         [],
         [],
         'runtime-scheduled-delivery',
-        ['museCode'],
+        ['museCode', 'modelApi'],
         false,
         ['acp'],
       ),

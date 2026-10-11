@@ -2,7 +2,7 @@
 import type { UiText } from '../../shared/l10n/en'
 import type { Logger } from '../../host/logger'
 import { lazyBundleLoader } from '../../host/lazyBundle'
-import { UI_TEXT } from '../../shared/constants'
+import { SCHEDULE_EDITOR_DELIVERY_CERTIFICATION, UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import type { ScheduleCommandOptions } from './args'
 import type { ScheduleCommandResult } from './settle'
@@ -60,6 +60,10 @@ export function runtimeSchedulesBinding(
   let binding: Promise<RuntimeSchedulesBinding> | undefined
   return async () => {
     if (binding === undefined) {
+      if (!SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady) {
+        delivery = undefined
+        runtimeDelivery = undefined
+      }
       if (runtimeDelivery === undefined) {
         binding =
           delivery === undefined

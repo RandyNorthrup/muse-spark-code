@@ -13,6 +13,9 @@ export function unattendedRun(overrides: Partial<ScheduleRunDeps> = {}) {
     modelText: {
       unattendedNote: 'Scheduled; nobody is watching.',
       approvalRefused: 'Outside grant.',
+      inactiveRefused: 'Run inactive.',
+      auditRefused: 'Audit unavailable.',
+      pathUnverified: 'Path unverified.',
       physicalRefused: 'Physical refused.',
       protectedRefused: 'Protected refused.',
       requiresAskingRefused: 'Person required.',

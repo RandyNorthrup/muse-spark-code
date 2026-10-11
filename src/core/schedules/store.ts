@@ -17,6 +17,7 @@ import {
   scheduleV2Schema,
   type ScheduleStoreV2,
   type ScheduleFireRecord,
+  type ScheduleDeliveryState,
 } from '../../shared/scheduleV2'
 import { scheduleEventSchema } from '../../shared/scheduleEvents'
 import { createScheduleJournal, parseScheduleStoredJson, type ScheduleFsPort } from './journal'
@@ -50,6 +51,8 @@ const pendingSchema = z.strictObject({
   intent: intentSchema,
   ownerPid: z.int().check(z.gte(1)),
   admitted: z.optional(z.boolean()),
+  dispatchStarted: z.optional(z.boolean()),
+  dispatchLiabilityUsd: z.optional(scheduleFireRecordSchema.shape.cost.shape.retainedLiabilityUsd),
   sequence: z.optional(z.int().check(z.gte(0))),
   ack: z.optional(scheduleFireRecordSchema),
 })
@@ -100,6 +103,12 @@ export interface ScheduleRunJournalPort {
   admit(intent: ScheduleRunIntent): Promise<boolean>
   /** Cursor CAS and after-N admission, idempotent for an already admitted run. */
   advance(intent: ScheduleRunIntent): Promise<boolean>
+  /** Durable at-most-once fence before entering any host delivery boundary. */
+  startDispatch(
+    intent: ScheduleRunIntent,
+    liabilityUsd?: ScheduleFireRecord['cost']['retainedLiabilityUsd'],
+  ): Promise<boolean>
+  lookupRun(workspaceKey: string, runId: string): Promise<ScheduleDeliveryState>
   /** Bounded dispatchers select from this persisted queue, including live owners. */
   pending(workspaceKey: string): Promise<readonly ScheduleRunIntent[]>
   abandoned(workspaceKey: string): Promise<readonly ScheduleRunIntent[]>
@@ -417,6 +426,7 @@ export function createScheduleStore(
                 (cursor === undefined || intent.occurrenceMs > cursor)))
           const sequence = revision + 1
           pending.admitted = isAdmitted
+          pending.dispatchStarted = false
           pending.sequence = sequence
           decision = {
             admitted: isAdmitted,
@@ -450,6 +460,46 @@ export function createScheduleStore(
           'scheduleAdmissionConflict',
         )
       return isResult
+    },
+    async startDispatch(input, liabilityUsd) {
+      const intent = intentSchema.parse(input)
+      return await index(intent.schedule.workspaceKey).transact((value) => {
+        const pending = value.pending[intent.runId]
+        if (pending?.admitted !== true) throw new Error('scheduleRunNotClaimed')
+        if (JSON.stringify(pending.intent) !== JSON.stringify(intent))
+          throw new Error('scheduleRunIntentMismatch')
+        if (pending.dispatchStarted !== false || pending.ack !== undefined)
+          return { value, result: false }
+        pending.dispatchStarted = true
+        pending.dispatchLiabilityUsd =
+          scheduleFireRecordSchema.shape.cost.shape.retainedLiabilityUsd.parse(
+            liabilityUsd ?? intent.schedule.grant.paidCapUsd,
+          )
+        pending.ownerPid = process.pid
+        return { value, result: true }
+      })
+    },
+    async lookupRun(workspaceKey, runId) {
+      const current = await index(workspaceKey).read()
+      const pending = current.value.pending[runId]
+      const saved =
+        pending?.ack === undefined
+          ? await read(`${workspaceKey}/fires/${scheduleStorageHash(runId)}.json`, (raw) =>
+              fireEnvelopeSchema.parse(raw),
+            )
+          : undefined
+      const fire = pending?.ack ?? saved?.fire
+      if (fire !== undefined)
+        return { status: fire.outcome === 'uncertain' ? 'uncertain' : 'settled', fire }
+      // Legacy admitted rows lack a write-ahead flag; they cannot prove unsent.
+      if (pending?.admitted === true && pending.dispatchStarted !== false)
+        return {
+          status: 'dispatchStarted',
+          ...(pending.dispatchLiabilityUsd !== undefined && {
+            retainedLiabilityUsd: pending.dispatchLiabilityUsd,
+          }),
+        }
+      return { status: pending === undefined ? 'absent' : 'admitted' }
     },
     async pending(workspaceKey) {
       const current = await index(workspaceKey).read()

@@ -723,6 +723,7 @@ export const EN = {
       missed: 'Missed',
       skipped: 'Skipped',
       failed: 'Failed',
+      uncertain: 'Uncertain',
     },
   },
   // M115 lane 0: strings for the lazy schedule surfaces and adapters.
@@ -913,6 +914,10 @@ export const EN = {
       manual: 'Manual trigger',
     },
     messages: {
+      dispatchUncertain:
+        'Dispatch started, but its final result is unknown. This fire will not be sent again; its reserved amount remains counted.',
+      costUnknown:
+        'The prompt was delivered, but its actual cost could not be read. Its reserved amount remains counted.',
       targetUnavailable: 'This schedule’s target is unavailable in this host.',
       targetClosed: 'The target closed or this held fire was skipped.',
       catchUpSkipped: 'Missed fire skipped by this schedule’s catch-up policy.',
@@ -982,7 +987,7 @@ export const EN = {
   runtimeSchedulesItem: 'Runtime schedules',
   runtimeSchedulesItemDetail: 'Schedule unattended Muse Code prompts in ACP or the terminal',
   referenceRuntimeSchedules:
-    'Run unattended Muse Code prompts from ACP or the terminal, with standing grants, persistent fire records and background conversation targets.',
+    'Automatic v2 delivery in VS Code, ACP and the terminal is disabled pending certification. The candidate runs unattended Muse Code prompts with standing grants, persistent fire records and background conversation targets.',
   referenceSchedulePaidConsent:
     'Automatic delivery is disabled; the running editor neither asks for v2 schedule consent nor reserves its paid caps. The candidate billing port binds consent to payer kind, model, key, verified tariff and shared daily budget; changing any requires renewal. Allow once covers one fire; Allow always covers this schedule.',
   media: {

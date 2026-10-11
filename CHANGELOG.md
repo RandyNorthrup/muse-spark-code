@@ -32,6 +32,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **Joined schedule settlement** (M115). The candidate scheduler writes a
+  durable dispatch fence and owns every terminal record across VS Code, ACP
+  and CLI. Ambiguous dispatch becomes uncertain without replay; failed cost
+  reads preserve delivered output and retained spend. Runtime money ports join
+  schedule consent and both daily caps. One certification switch keeps all
+  automatic v2 delivery disabled until cross-platform qualification.
+
 - **Schedule delivery review repairs** (C-M115-1). The disabled candidate
   revalidates schedule, workspace, account, model and billing authority at
   dispatch, refunds refused reservations, and retains queued-message identity

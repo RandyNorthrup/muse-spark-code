@@ -4159,7 +4159,14 @@ export const SCHEDULE_DELIVERIES = [
   'whenIdle',
   'newConversation',
 ] as const
-export const SCHEDULE_FIRE_OUTCOMES = ['ran', 'refused', 'missed', 'skipped', 'failed'] as const
+export const SCHEDULE_FIRE_OUTCOMES = [
+  'ran',
+  'refused',
+  'missed',
+  'skipped',
+  'failed',
+  'uncertain',
+] as const
 export const SCHEDULE_ACTION_CLASSES = [
   'shell',
   'edit',
@@ -6182,6 +6189,9 @@ export const WINDOWS_PATH_MODEL_TEXT = {
 export const SCHEDULE_MODEL_TEXT = {
   unattendedNote:
     "This prompt was sent on a schedule. Nobody is watching. Requests outside this schedule's standing grant are refused; questions are deferred for later.",
+  inactiveRefused: 'This scheduled run is no longer active.',
+  auditRefused: 'The schedule grant audit could not be recorded.',
+  pathUnverified: 'The requested file path could not be verified inside the workspace.',
   approvalRefused:
     'Refused on schedule: this action needs approval and is outside the standing grant.',
   physicalRefused: 'Physical actions are refused on schedule.',

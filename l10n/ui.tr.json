@@ -564,7 +564,8 @@
       "refused": "Reddedildi",
       "missed": "Kaçırıldı",
       "skipped": "Atlandı",
-      "failed": "Başarısız"
+      "failed": "Başarısız",
+      "uncertain": "Belirsiz"
     }
   },
   "scheduleV2": {
@@ -788,7 +789,9 @@
       "changedRevision": "Zamanlama veya çalışan oturumu değişti. Başka bir ücretli çalıştırmadan önce yeniden yükleyin.",
       "lostOnceClaim": "Bu çalıştırma artık tek kullanımlık onaya sahip değil. Başka bir çalıştırma için onayı yenileyin.",
       "capReached": "Zamanlamanın günlük sınırı veya paylaşılan günlük sınır bu ücretli çalıştırmaya izin vermiyor.",
-      "paidUnavailable": "Bu ücretli işlem kullanılamıyor veya bu zamanlama için onaylanmadı."
+      "paidUnavailable": "Bu ücretli işlem kullanılamıyor veya bu zamanlama için onaylanmadı.",
+      "dispatchUncertain": "Gönderim başladı, ancak nihai sonuç bilinmiyor. Bu çalışma tekrar gönderilmeyecek; ayrılan tutar hesaba katılmaya devam edecek.",
+      "costUnknown": "İstem iletildi, ancak gerçek maliyet okunamadı. Ayrılan tutar hesaba katılmaya devam edecek."
     },
     "endAfterRuns": {
       "one": "{count} çalıştırmadan sonra bitir",
@@ -5242,5 +5245,5 @@
       "other": "{count} izin"
     }
   },
-  "referenceRuntimeSchedules": "ACP veya terminalden kalıcı izinler, kalıcı çalıştırma kayıtları ve arka plan konuşma hedefleriyle gözetimsiz Muse Code istemleri çalıştırın."
+  "referenceRuntimeSchedules": "VS Code, ACP ve terminalde otomatik v2 iletimi sertifikasyona kadar devre dışıdır. Hazır bağlantı şu işlevi sağlar: ACP veya terminalden kalıcı izinler, kalıcı çalıştırma kayıtları ve arka plan konuşma hedefleriyle gözetimsiz Muse Code istemleri çalıştırın."
 }

@@ -566,7 +566,8 @@
       "refused": "Odmówiono",
       "missed": "Przegapiono",
       "skipped": "Pominięto",
-      "failed": "Niepowodzenie"
+      "failed": "Niepowodzenie",
+      "uncertain": "Niepewne"
     }
   },
   "scheduleV2": {
@@ -790,7 +791,9 @@
       "changedRevision": "Zmienił się harmonogram lub jego działająca sesja. Wczytaj go ponownie przed kolejnym płatnym uruchomieniem.",
       "lostOnceClaim": "To uruchomienie nie posiada już jednorazowej zgody. Odnów ją dla kolejnego uruchomienia.",
       "capReached": "Dzienny limit harmonogramu lub wspólny limit nie pozwala na to płatne uruchomienie.",
-      "paidUnavailable": "Ta płatna operacja jest niedostępna lub nie została zatwierdzona dla tego harmonogramu."
+      "paidUnavailable": "Ta płatna operacja jest niedostępna lub nie została zatwierdzona dla tego harmonogramu.",
+      "dispatchUncertain": "Wysyłanie rozpoczęło się, ale wynik końcowy jest nieznany. To uruchomienie nie zostanie powtórzone; zarezerwowana kwota nadal jest wliczana.",
+      "costUnknown": "Prompt został dostarczony, ale nie można odczytać rzeczywistego kosztu. Zarezerwowana kwota nadal jest wliczana."
     },
     "endAfterRuns": {
       "one": "Zakończ po {count} uruchomieniu",
@@ -5548,5 +5551,5 @@
       "many": "{count} uprawnień"
     }
   },
-  "referenceRuntimeSchedules": "Uruchamiaj polecenia Muse Code bez nadzoru z ACP lub terminala, ze stałymi uprawnieniami, trwałymi zapisami uruchomień i rozmowami w tle jako celami."
+  "referenceRuntimeSchedules": "Automatyczne dostarczanie v2 w VS Code, ACP i terminalu pozostaje wyłączone do certyfikacji. Przygotowane połączenie umożliwia: Uruchamiaj polecenia Muse Code bez nadzoru z ACP lub terminala, ze stałymi uprawnieniami, trwałymi zapisami uruchomień i rozmowami w tle jako celami."
 }

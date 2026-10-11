@@ -522,7 +522,8 @@ price, and the agent log counts each billed use. Subagents,
 best-of-N, the Auto reviewer and Muse Voice are not offered: the agent has no flag for them
 (Muse Voice needs the VS Code panel's microphone).
 
-`/schedule` delivers unattended Muse Code prompts to live ACP sessions or
+Automatic v2 delivery stays disabled behind the shared certification switch.
+The candidate `/schedule` delivers unattended Muse Code prompts to live ACP sessions or
 background targets through the shared schedule engine. Approval requests
 outside the standing grant refuse immediately; their rows appear as session
 updates, and questions defer into the persistent question registry. Closing

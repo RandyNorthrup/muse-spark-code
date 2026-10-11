@@ -327,7 +327,28 @@ describe('unregistered schedule delivery factory', () => {
     }
   })
 
-  it('does not retry a failed authoritative cost read or record a zero bill', async () => {
+  it('keeps completed delivery after authority retires before an unreadable cost', async () => {
+    const rig = await fixture()
+    let isActive = true
+    rig.ports.isActive = () => isActive
+    rig.ports.paid = () =>
+      Promise.resolve({
+        policy: unusedPaidPolicy(rig.agent.modelId),
+        cost: () => Promise.reject(new Error('ledger unavailable')),
+      })
+    const running = rig.run()
+    try {
+      await vi.waitFor(() => {
+        expect(rig.agent.sendScheduledTurn).toHaveBeenCalledOnce()
+      })
+      rig.agent.emit({ type: 'turnCompleted', turnId: 'admitted', terminal: 'completed' })
+      isActive = false
+      expect(await running).toMatchObject({ outcome: 'ran', cost: { certainty: 'unknown' } })
+    } finally {
+      await rig.lease.release()
+    }
+  })
+  it('keeps a delivered turn with unknown cost and retained liability after cost read failure', async () => {
     const rig = await fixture()
     const cost = vi.fn(() => Promise.reject(new Error('ledger unavailable')))
     rig.ports.paid = () =>
@@ -336,13 +357,16 @@ describe('unregistered schedule delivery factory', () => {
         cost,
       })
     const result = rig.run()
-    const rejected = expect(result).rejects.toThrow('ledger unavailable')
+    const settled = expect(result).resolves.toMatchObject({
+      outcome: 'ran',
+      cost: { certainty: 'unknown' },
+    })
     try {
       await vi.waitFor(() => {
         expect(rig.agent.sendScheduledTurn).toHaveBeenCalledOnce()
       })
       rig.agent.emit({ type: 'turnCompleted', turnId: 'admitted', terminal: 'completed' })
-      await rejected
+      await settled
       expect(cost).toHaveBeenCalledOnce()
     } finally {
       await rig.lease.release()

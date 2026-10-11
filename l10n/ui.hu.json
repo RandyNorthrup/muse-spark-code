@@ -564,7 +564,8 @@
       "refused": "Elutasítva",
       "missed": "Elmulasztva",
       "skipped": "Kihagyva",
-      "failed": "Sikertelen"
+      "failed": "Sikertelen",
+      "uncertain": "Bizonytalan"
     }
   },
   "scheduleV2": {
@@ -788,7 +789,9 @@
       "changedRevision": "Megváltozott az ütemezés vagy annak futó munkamenete. Töltse be újra egy újabb fizetős futtatás előtt.",
       "lostOnceClaim": "Ez a futtatás már nem birtokolja az egyszeri hozzájárulást. Újítsa meg egy újabb futtatáshoz.",
       "capReached": "Az ütemezés napi korlátja vagy a közös napi korlát nem engedi ezt a fizetős futtatást.",
-      "paidUnavailable": "Ez a fizetős művelet nem érhető el, vagy nem hagyták jóvá ehhez az ütemezéshez."
+      "paidUnavailable": "Ez a fizetős művelet nem érhető el, vagy nem hagyták jóvá ehhez az ütemezéshez.",
+      "dispatchUncertain": "A küldés elkezdődött, de a végső eredmény ismeretlen. Ez a futás nem ismétlődik meg; a lefoglalt összeg továbbra is beleszámít.",
+      "costUnknown": "A prompt kézbesítve lett, de a tényleges költség nem olvasható. A lefoglalt összeg továbbra is beleszámít."
     },
     "endAfterRuns": {
       "one": "Befejezés {count} futás után",
@@ -5242,5 +5245,5 @@
       "other": "{count} engedély"
     }
   },
-  "referenceRuntimeSchedules": "Futtasson felügyelet nélküli Muse Code kéréseket ACP-ből vagy terminálból, állandó engedélyekkel, tartós futási naplókkal és háttérben futó beszélgetési célokkal."
+  "referenceRuntimeSchedules": "Az automatikus v2-kézbesítés VS Code-ban, ACP-ben és a terminálban a tanúsításig ki van kapcsolva. Az előkészített kapcsolat lehetővé teszi: Futtasson felügyelet nélküli Muse Code kéréseket ACP-ből vagy terminálból, állandó engedélyekkel, tartós futási naplókkal és háttérben futó beszélgetési célokkal."
 }

@@ -67,11 +67,14 @@ export interface ScheduleEditorDeliveryPorts {
     session: BackendSession,
     context: ScheduleRunContext,
     authority: ScheduleAuthorityStore,
-  ): Promise<{
-    readonly policy: NonNullable<ScheduleRunDeps['paid']>
-    cost(): Promise<ScheduleRunSettlement['cost']>
-    readonly consent?: ScheduleV2['paidConsent']
-  }>
+  ): Promise<
+    | {
+        readonly policy: NonNullable<ScheduleRunDeps['paid']>
+        cost(): Promise<ScheduleRunSettlement['cost']>
+        readonly consent?: ScheduleV2['paidConsent']
+      }
+    | undefined
+  >
 }
 
 interface PendingRun {
@@ -318,7 +321,10 @@ export function createScheduleDeliveryBinding(
                 terminal.reason !== undefined && { reason: terminal.reason }),
               refusedActions: entry.run.refusedActions,
             }
-            if (entry.run.dispatchRefusal !== undefined || !entry.run.isActive())
+            if (
+              result.outcome !== 'ran' &&
+              (entry.run.dispatchRefusal !== undefined || !entry.run.isActive())
+            )
               result = {
                 ...result,
                 outcome: 'refused',
@@ -368,7 +374,11 @@ export function createScheduleDeliveryBinding(
             return {
               ...result,
               reason: UI_TEXT.scheduleV2.messages.costUnknown,
-              cost: { ...noScheduleCost(), certainty: 'unknown', retainedLiabilityUsd: schedule.grant.paidCapUsd },
+              cost: {
+                ...noScheduleCost(),
+                certainty: 'unknown',
+                retainedLiabilityUsd: schedule.grant.paidCapUsd,
+              },
             }
           }
         } finally {

@@ -24,6 +24,9 @@ import type { CreateResponseBody, CreateImageBody } from '../backends/modelapi/s
 export interface ScheduleModelText {
   readonly unattendedNote: string
   readonly approvalRefused: string
+  readonly inactiveRefused: string
+  readonly auditRefused: string
+  readonly pathUnverified: string
   readonly physicalRefused: string
   readonly protectedRefused: string
   readonly requiresAskingRefused: string
@@ -81,6 +84,7 @@ export class UnattendedRun {
   public readonly reservePaidRequest: NonNullable<ModelApiClientDeps['reservePaidRequest']> =
     async (body, feature, tokens, signal = new AbortController().signal, reservationUsd) => {
       try {
+        if (!this.isActive()) throw new Error(this.modelText.inactiveRefused)
         if (
           !this.allowsPaid(feature) ||
           this.paid === undefined ||
@@ -101,7 +105,7 @@ export class UnattendedRun {
             requiresAsking: false,
             protectedPath: false,
           },
-          this.modelText.paidRefused,
+          this.dispatchRefusal,
         )
         throw error
       }
@@ -122,7 +126,7 @@ export class UnattendedRun {
       reason = this.modelText.protectedRefused
     else if (action.class === 'requiresAsking' || action.requiresAsking)
       reason = this.modelText.requiresAskingRefused
-    else if (!this.isActive()) reason = this.modelText.approvalRefused
+    else if (!this.isActive()) reason = this.modelText.inactiveRefused
     const canonical: string[] = []
     if (reason === undefined) {
       for (const path of action.paths) {
@@ -131,7 +135,7 @@ export class UnattendedRun {
         try {
           root = await (this.canonicalRoot ??= this.deps.io.realPath(this.deps.workspaceRoot))
         } catch {
-          reason = this.modelText.protectedRefused
+          reason = this.modelText.pathUnverified
           break
         }
         const relative =
@@ -158,7 +162,7 @@ export class UnattendedRun {
           isProtectedPath(confined.relative) ||
           isProtectedPath(confined.canonical)
         ) {
-          reason = this.modelText.protectedRefused
+          reason = confined.ok ? this.modelText.protectedRefused : this.modelText.pathUnverified
           break
         }
         canonical.push(confined.canonical)
@@ -167,12 +171,21 @@ export class UnattendedRun {
     const checked = { ...action, paths: canonical }
     reason ??= this.deps.safety(checked, `schedule:${this.context.scheduleId}`)
     if (reason !== undefined) return { allowed: false, reason: this.refuse(action, reason) }
-    if (!requiresApproval) return { allowed: this.isActive() }
+    if (!requiresApproval)
+      return this.isActive()
+        ? { allowed: true }
+        : { allowed: false, reason: this.refuse(action, this.modelText.inactiveRefused) }
     const grant = await this.deps.readGrant()
     const rule = grant === undefined ? undefined : this.deps.matcher.matches(grant, checked)
     const captured = this.deps.matcher.matches(this.context.grant, checked)
     if (rule === undefined || captured === undefined || !this.isActive()) {
-      return { allowed: false, reason: this.refuse(action, this.modelText.approvalRefused) }
+      return {
+        allowed: false,
+        reason: this.refuse(
+          action,
+          this.isActive() ? this.modelText.approvalRefused : this.modelText.inactiveRefused,
+        ),
+      }
     }
     try {
       await this.deps.audit({
@@ -184,11 +197,17 @@ export class UnattendedRun {
         actionClass: action.class,
       })
     } catch {
-      return { allowed: false, reason: this.refuse(action, this.modelText.approvalRefused) }
+      return {
+        allowed: false,
+        reason: this.refuse(
+          action,
+          this.isActive() ? this.modelText.auditRefused : this.modelText.inactiveRefused,
+        ),
+      }
     }
     return this.isActive()
       ? { allowed: true }
-      : { allowed: false, reason: this.refuse(action, this.modelText.approvalRefused) }
+      : { allowed: false, reason: this.refuse(action, this.modelText.inactiveRefused) }
   }
   public get modelText(): ScheduleModelText {
     return this.deps.modelText
@@ -227,8 +246,9 @@ export class UnattendedRun {
   /** Adapters call this on confined relative/canonical files at read and return. */
   public canReadFile(relative: string, canonical = relative): boolean {
     const paths = [relative, canonical].map((file) => file.replaceAll('\\', '/'))
+    const isActive = this.isActive()
     const isAllowed =
-      this.isActive() &&
+      isActive &&
       paths.every(
         (file) =>
           isBelow(file, nodePath.posix) &&
@@ -243,9 +263,9 @@ export class UnattendedRun {
           tool: 'file',
           paths,
           requiresAsking: false,
-          protectedPath: true,
+          protectedPath: isActive,
         },
-        this.modelText.protectedRefused,
+        isActive ? this.modelText.protectedRefused : this.modelText.inactiveRefused,
       )
     return isAllowed
   }

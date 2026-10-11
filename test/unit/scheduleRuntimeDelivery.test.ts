@@ -7,7 +7,6 @@ import type { AgentHost, AgentSession } from '../../src/core/agent/agentBackend'
 import type { RuntimeScheduleDeliveryPorts } from '../../src/runtime/schedules/delivery'
 import type { ScheduledAgentSession } from '../../src/core/schedules/unattended'
 import { createScheduleEngine } from '../../src/runtime/schedules/engine'
-import { RuntimeScheduleHost } from '../../src/runtime/schedules/host'
 import { ScheduleBackgroundTargets } from '../../src/host/schedules/backgroundTarget'
 import { createWorkspaceRegistry } from '../../src/runtime/schedules/registry'
 import { FakeScheduleBackground } from './helpers/schedules/background'
@@ -64,6 +63,7 @@ function fixture(
     fs?: MemoryScheduleFs
     backend?: 'museCode' | 'modelApi'
     paid?: RuntimeScheduleDeliveryPorts['paid']
+    billing?: RuntimeScheduleDeliveryPorts['billing']
   } = {},
 ) {
   const fs = input.fs ?? new MemoryScheduleFs()
@@ -104,6 +104,7 @@ function fixture(
       row,
       deferQuestions: vi.fn(),
       ...(input.paid !== undefined && { paid: input.paid }),
+      ...(input.billing !== undefined && { billing: input.billing }),
     },
     verifyWake: () => Promise.resolve({ scheduledPrompts: false }),
     platform: 'linux',
@@ -155,6 +156,25 @@ async function retiredFire(engine: ReturnType<typeof createScheduleEngine>, key:
 }
 
 describe('runtime schedule session supplier', () => {
+  it('keeps native subscription delivery independent of the Model API billing port', async () => {
+    const billing = vi.fn<NonNullable<RuntimeScheduleDeliveryPorts['billing']>>(() =>
+      Promise.reject(new Error('no paid key')),
+    )
+    const rig = fixture({ billing })
+    try {
+      await rig.engine.runtime.holdWorkspace(root)
+      const schedule = rig.job()
+      await rig.fire(schedule, 'native-without-key')
+      expect(await firstFire(rig.engine, schedule.workspaceKey)).toMatchObject({
+        outcome: 'ran',
+        cost: noScheduleCost(),
+      })
+      expect(billing).not.toHaveBeenCalled()
+      expect(rig.backendFor.mock.calls.every(([kind]) => kind === 'museCode')).toBe(true)
+    } finally {
+      await rig.engine.runtime.close()
+    }
+  })
   it('records an unavailable backend without opening a target session', async () => {
     const rig = fixture()
     rig.backendFor.mockResolvedValue({
@@ -349,7 +369,7 @@ describe('runtime schedule session supplier', () => {
         await rig.engine.runtime.close()
         expect(await run).toMatchObject({ kind: 'refused' })
         expect(await firstFire(rig.engine, schedule.workspaceKey)).toMatchObject({
-          outcome: delivery === 'interrupt' ? 'skipped' : 'missed',
+          outcome: 'uncertain',
           reason: expect.any(String),
         })
         expect(await rig.engine.store.pending(schedule.workspaceKey)).toEqual([])
@@ -391,8 +411,11 @@ describe('runtime schedule session supplier', () => {
       await closing
       await request
       expect(await retiredFire(rig.engine, schedule.workspaceKey)).toMatchObject({
-        outcome: 'skipped',
+        outcome: exit === 'detach' ? 'skipped' : 'uncertain',
         reason: expect.any(String),
+      })
+      await vi.waitFor(() => {
+        expect(agent.withdrawQueued).toHaveBeenCalledOnce()
       })
       expect(agent.withdrawQueued).toHaveBeenCalledOnce()
       expect(agent.withdrawQueued).toHaveBeenCalledWith(
@@ -458,7 +481,7 @@ describe('runtime schedule session supplier', () => {
         break
       }
       case 'lookup': {
-        vi.spyOn(RuntimeScheduleHost.prototype, 'lookupRun').mockImplementationOnce(() =>
+        vi.spyOn(rig.engine.store, 'lookupRun').mockImplementationOnce(() =>
           hold({ status: 'absent' }),
         )
         break
@@ -636,7 +659,7 @@ describe('runtime schedule session supplier', () => {
       rig.host.exit('fixture target closed')
       await request
       expect(await firstFire(rig.engine, schedule.workspaceKey)).toMatchObject({
-        outcome: 'failed',
+        outcome: 'uncertain',
       })
       expect(await rig.engine.store.pending(schedule.workspaceKey)).toEqual([])
       await rig.engine.runtime.close()
@@ -727,24 +750,30 @@ describe('runtime schedule session supplier', () => {
       hasClosed = true
     })()
     try {
-      await new Promise((resolve) => setTimeout(resolve, 0))
-      expect(hasClosed).toBe(false)
+      await closing
+      expect(hasClosed).toBe(true)
+      expect(await retiredFire(rig.engine, schedule.workspaceKey)).toMatchObject({
+        outcome: 'uncertain',
+      })
     } finally {
       resume.resolve(undefined)
       await closing
       await request
+      await vi.waitFor(() => {
+        expect(agent.withdrawQueued).toHaveBeenCalledOnce()
+      })
     }
     expect({
       records: await rig.engine.store.fires(schedule.workspaceKey),
       intents: await rig.engine.store.pending(schedule.workspaceKey),
       withdrawals: agent.withdrawQueued.mock.calls.length,
     }).toMatchObject({
-      records: [expect.objectContaining({ outcome: 'skipped' })],
+      records: [expect.objectContaining({ outcome: 'uncertain' })],
       intents: [],
       withdrawals: 1,
     })
   })
-  it('recovers an abandoned admitted claim without delivering it again', async () => {
+  it('recovers an abandoned dispatched claim as uncertain without delivering it again', async () => {
     const rig = fixture(),
       schedule = rig.job()
     await rig.engine.store.create(schedule)
@@ -764,11 +793,12 @@ describe('runtime schedule session supplier', () => {
     }
     await rig.engine.store.admit(intent)
     await rig.engine.store.advance(intent)
+    await rig.engine.store.startDispatch(intent)
     vi.spyOn(rig.engine.store, 'abandoned').mockResolvedValue([intent])
     await rig.engine.runtime.holdWorkspace(root)
     await rig.engine.scheduler.recover(schedule.workspaceKey)
     expect(await retiredFire(rig.engine, schedule.workspaceKey)).toMatchObject({
-      outcome: 'skipped',
+      outcome: 'uncertain',
       reason: expect.any(String),
     })
     expect(rig.backendFor).not.toHaveBeenCalled()
@@ -804,7 +834,7 @@ describe('runtime schedule session supplier', () => {
     })
     await rig.engine.scheduler.recover(schedule.workspaceKey)
     expect(await firstFire(rig.engine, schedule.workspaceKey)).toMatchObject({
-      outcome: 'failed',
+      outcome: 'ran',
       cost: { certainty: 'unknown', retainedLiabilityUsd: '1' },
     })
     expect(cost).toHaveBeenCalledOnce()

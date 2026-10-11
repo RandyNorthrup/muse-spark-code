@@ -79,6 +79,8 @@ async function dispatchFixture() {
       return Promise.resolve(true)
     },
     advance: () => Promise.resolve(true),
+    startDispatch: () => Promise.resolve(true),
+    lookupRun: (_workspace, runId) => host.lookupRun(runId),
     pending: () =>
       Promise.resolve(
         Array.from(entries, ([, intent]) => intent).toSorted(
@@ -117,7 +119,7 @@ async function dispatchFixture() {
     occurrenceMs: job.nextFireAtMs!,
     advancesTime: false,
   }
-  return { store, host, scheduler, job, entries, intent }
+  return { store, host, scheduler, job, entries, intent, runs }
 }
 function fireOf(
   intent: ScheduleRunIntent,
@@ -292,6 +294,7 @@ describe('schedule outbox reconciliation', () => {
           step,
         )
       ) {
+        await store.startDispatch(intent)
         host.result = fire
         await host.deliver(
           job,
@@ -323,20 +326,25 @@ describe('schedule outbox reconciliation', () => {
       await assertSingleSettlement(store, host, job.workspaceKey)
     },
   )
-  it('leaves a definitely unsent delivery failure pending and retries it once', async () => {
+  it('settles a host throw after the dispatch fence and never retries it', async () => {
     const { host, store, scheduler, job, deps } = await fixture()
-    vi.spyOn(host, 'deliver').mockRejectedValueOnce(new Error('no target admission'))
-    await failedPoll(scheduler, job.workspaceKey, 'no target admission')
-    expect(await store.fires(job.workspaceKey)).toEqual([])
+    const deliver = vi
+      .spyOn(host, 'deliver')
+      .mockRejectedValueOnce(new Error('no target admission'))
     await scheduler.poll(job.workspaceKey)
-    expect(host.deliveries).toHaveLength(1)
-    expect(deps.failureSettlement).not.toHaveBeenCalled()
+    expect(await store.fires(job.workspaceKey)).toEqual([
+      expect.objectContaining({ outcome: 'uncertain' }),
+    ])
+    await createScheduler(deps).poll(job.workspaceKey)
+    expect(deliver).toHaveBeenCalledOnce()
+    expect(await store.pending(job.workspaceKey)).toEqual([])
   })
   it('never resends a dispatched request whose response was lost and retains its uncertain liability', async () => {
     const { host, store, scheduler, intent, job } = await fixture()
     const delivery = vi.spyOn(host, 'deliver')
     await store.admit(intent)
     await store.advance(intent)
+    await store.startDispatch(intent)
     const uncertain = fireOf(intent, host.now(), 'failed')
     host.ledger.set(intent.runId, { status: 'uncertain', fire: uncertain })
     await scheduler.poll(job.workspaceKey)
@@ -347,18 +355,19 @@ describe('schedule outbox reconciliation', () => {
     const [counted] = await store.list(job.workspaceKey)
     expect(counted?.fireCount).toBe(1)
   })
-  it('waits for acknowledged target work and reconciles its eventual settlement without a second delivery', async () => {
+  it('waits for active delivery and journals its terminal without a second send', async () => {
     const { host, store, scheduler, intent, job } = await fixture()
-    const delivery = vi.spyOn(host, 'deliver')
-    await store.admit(intent)
-    await store.advance(intent)
-    host.ledger.set(intent.runId, { status: 'admitted' })
-    await scheduler.recover(job.workspaceKey)
-    expect(await store.pending(job.workspaceKey)).toHaveLength(1)
-    host.ledger.set(intent.runId, { status: 'settled', fire: fireOf(intent, host.now()) })
+    host.deferSettlements = true
+    const running = scheduler.poll(job.workspaceKey)
+    await vi.waitFor(() => {
+      expect(host.deliveries).toHaveLength(1)
+    })
     await scheduler.poll(job.workspaceKey)
-    expect(host.deliveries).toEqual([])
-    expect(delivery).not.toHaveBeenCalled()
+    expect(await store.pending(job.workspaceKey)).toHaveLength(1)
+    host.settle(fireOf(intent, host.now()))
+    await running
+    await scheduler.poll(job.workspaceKey)
+    expect(host.deliveries).toHaveLength(1)
     expect(await store.pending(job.workspaceKey)).toEqual([])
   })
   it('recovers final-before-ack storage failure by looking up the target run id', async () => {
@@ -369,33 +378,32 @@ describe('schedule outbox reconciliation', () => {
     expect(host.deliveries).toHaveLength(1)
     expect(await store.pending(job.workspaceKey)).toEqual([])
   })
-  it('keeps a target-owned admitted run pending when delivery throws before its final response', async () => {
+  it('terminates an admitted host throw and preserves that terminal across late reports', async () => {
     const { host, store, scheduler, deps, job, intent } = await fixture()
     const delivery = vi.spyOn(host, 'deliver').mockImplementationOnce(() => {
       host.ledger.set(intent.runId, { status: 'admitted' })
       return Promise.reject(new Error('target response interrupted'))
     })
-    await expect(scheduler.poll(job.workspaceKey)).rejects.toThrow('target response interrupted')
-    expect(await store.fires(job.workspaceKey)).toEqual([])
-    expect(await store.pending(job.workspaceKey)).toHaveLength(1)
+    await scheduler.poll(job.workspaceKey)
+    const records = await store.fires(job.workspaceKey)
+    expect(records).toEqual([expect.objectContaining({ outcome: 'uncertain' })])
+    expect(await store.pending(job.workspaceKey)).toEqual([])
     expect(deps.failureSettlement).not.toHaveBeenCalled()
-    await scheduler.poll(job.workspaceKey)
-    expect(delivery).toHaveBeenCalledTimes(1)
-    const final = fireOf(intent, host.now())
-    host.ledger.set(intent.runId, { status: 'settled', fire: final })
-    await scheduler.poll(job.workspaceKey)
-    expect(await store.fires(job.workspaceKey)).toEqual([final])
-    expect(delivery).toHaveBeenCalledTimes(1)
+    host.ledger.set(intent.runId, { status: 'settled', fire: fireOf(intent, host.now()) })
+    await createScheduler(deps).poll(job.workspaceKey)
+    expect(await store.fires(job.workspaceKey)).toEqual(records)
+    expect(delivery).toHaveBeenCalledOnce()
   })
-  it('refuses exact accounting on an uncertain ledger response and records corrected liability without sending', async () => {
+  it('terminates malformed uncertain host accounting conservatively without sending', async () => {
     const { host, store, scheduler, job, intent } = await fixture()
     await store.admit(intent)
+    await store.advance(intent)
+    await store.startDispatch(intent)
     const delivery = vi.spyOn(host, 'deliver')
-    const uncertain = fireOf(intent, host.now(), 'failed')
     host.ledger.set(intent.runId, {
       status: 'uncertain',
       fire: {
-        ...uncertain,
+        ...fireOf(intent, host.now()),
         cost: {
           usd: PortUsd.from(0).toAmount(),
           certainty: 'exact',
@@ -403,12 +411,18 @@ describe('schedule outbox reconciliation', () => {
         },
       },
     })
-    await expect(scheduler.recover(job.workspaceKey)).rejects.toThrow()
-    expect(await store.fires(job.workspaceKey)).toEqual([])
-    expect(await store.pending(job.workspaceKey)).toHaveLength(1)
-    host.ledger.set(intent.runId, { status: 'uncertain', fire: uncertain })
     await scheduler.recover(job.workspaceKey)
-    expect(await store.fires(job.workspaceKey)).toEqual([uncertain])
+    expect(await store.fires(job.workspaceKey)).toEqual([
+      expect.objectContaining({
+        outcome: 'uncertain',
+        cost: {
+          usd: PortUsd.from(0).toAmount(),
+          certainty: 'unknown',
+          retainedLiabilityUsd: job.grant.paidCapUsd,
+        },
+      }),
+    ])
+    expect(await store.pending(job.workspaceKey)).toEqual([])
     expect(delivery).not.toHaveBeenCalled()
   })
   it('orders concurrent younger-first singleton batches from two schedulers by creation time then id', async () => {
@@ -497,13 +511,15 @@ describe('schedule outbox reconciliation', () => {
     expect(entries.size).toBe(1)
   })
   it('round-robins past a blocked old target and reaches every independent target', async () => {
-    const { store, scheduler, host, job, intent, entries } = await dispatchFixture()
+    const { store, scheduler, host, job, intent, entries, runs } = await dispatchFixture()
     for (let index = 0; index < SCHEDULE_RECONCILE_MAX_RUNS; index += 1) {
       const runId = `${job.id}:blocked-${String(index).padStart(2, '0')}`
       entries.set(runId, { ...intent, runId, advancesTime: false })
     }
     const blockedId = `${job.id}:blocked-00`
-    host.ledger.set(blockedId, { status: 'admitted' })
+    const lookup = runs.lookupRun
+    runs.lookupRun = (workspace, id) =>
+      id === blockedId ? Promise.reject(new Error('journal unavailable')) : lookup(workspace, id)
     for (let index = 0; index < SCHEDULE_RECONCILE_MAX_RUNS + 1; index += 1) {
       const schedule = fakeSchedule({
         id: `healthy-${String(index)}`,
@@ -518,7 +534,17 @@ describe('schedule outbox reconciliation', () => {
       const runId = `${schedule.id}:1`
       entries.set(runId, { ...intent, schedule, runId, advancesTime: false })
     }
-    for (let poll = 0; poll < 3; poll += 1) await scheduler.recover(job.workspaceKey)
+    const attempts = []
+    for (let poll = 0; poll < 3; poll += 1)
+      attempts.push(...(await Promise.allSettled([scheduler.recover(job.workspaceKey)])))
+    expect(
+      attempts.some(
+        (attempt) =>
+          attempt.status === 'rejected' &&
+          attempt.reason instanceof Error &&
+          attempt.reason.message === 'journal unavailable',
+      ),
+    ).toBe(true)
     expect(host.deliveries).toHaveLength(SCHEDULE_RECONCILE_MAX_RUNS + 1)
     expect(new Set(host.deliveries.map((item) => item.schedule.id)).size).toBe(
       SCHEDULE_RECONCILE_MAX_RUNS + 1,
@@ -527,7 +553,7 @@ describe('schedule outbox reconciliation', () => {
     expect(scheduler.blockedRuns()).toContainEqual({
       runId: blockedId,
       status: 'blocked',
-      reason: 'targetPending',
+      reason: 'recoveryFailed',
     })
   })
   it('plans healthy due schedules on every tick while one recovery ledger fails', async () => {
@@ -538,10 +564,10 @@ describe('schedule outbox reconciliation', () => {
     })
     await store.create(healthy)
     await store.admit({ ...intent, advancesTime: false })
-    const lookup = host.lookupRun.bind(host)
-    vi.spyOn(host, 'lookupRun').mockImplementation(async (runId) => {
+    const lookup = store.lookupRun.bind(store)
+    vi.spyOn(store, 'lookupRun').mockImplementation(async (workspace, runId) => {
       if (runId === intent.runId) throw new Error('ledger unavailable')
-      return await lookup(runId)
+      return await lookup(workspace, runId)
     })
     const plan = vi.fn(deps.time.plan)
     const scheduler = createScheduler({
