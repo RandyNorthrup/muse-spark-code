@@ -127,6 +127,7 @@ describe('migration lifecycle across release/store owners', () => {
       const codec: MigrationCredential = {
         key: `installed-${kind}`,
         itemId: f.credential.itemId,
+        name: `installed-${kind}-item`,
         request: null,
         decode(value) {
           const item = f.credential.decode(generatedKey())

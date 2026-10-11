@@ -26,7 +26,12 @@ import {
   type MigrationLease,
   type MigrationRecord,
 } from '../../../src/core/vault/migrate/ports'
-import { eraseItem } from '../../../src/core/vault/migrate/material'
+import {
+  eraseItem,
+  migrationItemName,
+  type MigrationItemKind,
+} from '../../../src/core/vault/migrate/material'
+import { VaultMigration } from '../../../src/core/vault/migrate/migrate'
 import { vaultItemSchema, type VaultItem } from '../../../src/shared/vault'
 import {
   ACCOUNT_DEFAULT_ID,
@@ -330,7 +335,7 @@ describe('C-M109-4 account secret codecs', () => {
     try {
       expect(vaultItemSchema.parse(item)).toBeDefined()
       expect(item.metadata).toMatchObject({
-        name: 'account-openai-work',
+        name: 'account-6-openai-work',
         kind: 'apiKey',
         firstParty: true,
         hidden: true,
@@ -665,6 +670,300 @@ describe('C-M109-4 account secret codecs', () => {
       ],
     ]
     await expectRefused(() => accountFixture(), cases)
+  })
+})
+
+/** Seeded so the random run below is deterministic. */
+function mulberry32(seed: number): () => number {
+  let state = seed >>> 0
+  return () => {
+    state = (state + 1_831_565_813) >>> 0
+    let mixed = state
+    mixed = Math.imul(mixed ^ (mixed >>> 15), mixed | 1)
+    mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61)
+    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4_294_967_296
+  }
+}
+
+describe('C-M109-4 R3 vault item names', () => {
+  const HANDLE_PATTERN = /^[a-z][a-z0-9-]{0,47}$/
+
+  it('gives the review\u{2019}s colliding pairs different names and migrates all four to active', async () => {
+    // RVCM1094B P2: `openai`/`team-prod` met `openai-team`/`prod`, in the
+    // readable form and again past the limit in the hashed form. Every id
+    // except the last is now length-prefixed, and the hash covers the JSON
+    // array rather than the joined string.
+    const pairs: [string, string][] = [
+      ['openai', 'team-prod'],
+      ['openai-team', 'prod'],
+      ['abcdefghij-klmnopqrst', 'uvwxyzabcdefghijklmn'],
+      ['abcdefghij', 'klmnopqrst-uvwxyzabcdefghijklmn'],
+    ]
+    const credentials = pairs.map(([provider, account]) =>
+      accountSecretMigrationCredential(provider, account, () => 1000),
+    )
+    const names = credentials.map((credential) => credential.name)
+    expect(names[0]).toBe('account-6-openai-team-prod')
+    expect(names[1]).toBe('account-11-openai-team-prod')
+    expect(names[2]).toMatch(/^account-[0-9a-f]{40}$/)
+    expect(names[3]).toMatch(/^account-[0-9a-f]{40}$/)
+    expect(new Set(names).size).toBe(pairs.length)
+    const f = codecsFixture(credentials)
+    for (const [index, [provider, account]] of pairs.entries()) {
+      await f.secrets.store(
+        credentials[index]!.key,
+        JSON.stringify({
+          provider,
+          account,
+          origin: 'https://api.openai.com',
+          v: 1,
+          auth: 'apiKey',
+          secret: `synthetic-r3-key-${String(index)}`,
+        }),
+      )
+    }
+    for (const credential of credentials)
+      expect(await f.service.migrate(credential.key)).toBe('active')
+    for (const [index, credential] of credentials.entries()) {
+      const item = await f.vault.read(credential.itemId)
+      try {
+        expect(item.metadata.name).toBe(names[index])
+      } finally {
+        eraseItem(item)
+      }
+    }
+  })
+
+  it('keeps a closed kind union no other kind can meet', () => {
+    const kinds: MigrationItemKind[] = ['provider', 'account']
+    expect(kinds).toHaveLength(2)
+    expect(migrationItemName('provider', 'openai')).toBe('provider-openai')
+    expect(migrationItemName('account', 'openai', 'work')).toBe('account-6-openai-work')
+    const untyped = migrationItemName as (...args: string[]) => string
+    for (const kind of ['meta', 'chatgpt', '', 'provider-', 'account ']) {
+      try {
+        untyped(kind, 'openai')
+        expect.unreachable(`kind ${kind} must be refused`)
+      } catch (error) {
+        expect(error).toMatchObject({ code: 'invalid' })
+      }
+    }
+    // Every id is validated against its own pattern, never normalised.
+    for (const id of ['Openai', '', '-work', 'a b', 'a'.repeat(33), 'a_b']) {
+      try {
+        migrationItemName('provider', id)
+        expect.unreachable(`id ${id} must be refused`)
+      } catch (error) {
+        expect(error).toMatchObject({ code: 'invalid' })
+      }
+    }
+    try {
+      migrationItemName('provider')
+      expect.unreachable('an empty id tuple must be refused')
+    } catch (error) {
+      expect(error).toMatchObject({ code: 'invalid' })
+    }
+  })
+
+  it('names every short id-tuple one-to-one across kinds and both readable shapes', () => {
+    // Exhaustive over every valid id of length 1 to 4 from {a, b, 1, -}:
+    // a shared name for two different tuples would shrink this map.
+    const rest = ['a', 'b', '1', '-']
+    const heads = ['a', 'b']
+    function tails(length: number): string[] {
+      return length === 0
+        ? ['']
+        : tails(length - 1).flatMap((tail) => rest.map((cell) => tail + cell))
+    }
+    const ids: string[] = []
+    for (let length = 1; length <= 4; length += 1) {
+      const endings = tails(length - 1)
+      for (const head of heads) for (const tail of endings) ids.push(head + tail)
+    }
+    expect(ids).toHaveLength(170)
+    const seen = new Map<string, string>()
+    function check(kind: MigrationItemKind, ...parts: string[]): void {
+      const name = migrationItemName(kind, ...parts)
+      expect(name).toMatch(HANDLE_PATTERN)
+      expect(migrationItemName(kind, ...parts)).toBe(name)
+      const clash = seen.get(name)
+      expect(clash, `${kind}(${parts.join(',')}) meets ${String(clash)}`).toBeUndefined()
+      seen.set(name, `${kind}(${parts.join(',')})`)
+    }
+    for (const provider of ids) check('provider', provider)
+    for (const provider of ids) for (const account of ids) check('account', provider, account)
+    expect(seen.size).toBe(170 + 170 * 170)
+  })
+
+  it('keeps random full-length names distinct, including pairs split only by a dash', () => {
+    // Every tuple is checked against every other, so a dash that only
+    // moves still changes the name.
+    const letters = 'abcdefghijklmnopqrstuvwxyz'
+    const cells = 'abcdefghijklmnopqrstuvwxyz0123456789-'
+    function randomId(rand: () => number, maxLength: number): string {
+      const length = 1 + Math.floor(rand() * maxLength)
+      let id = letters[Math.floor(rand() * letters.length)]!
+      for (let at = 1; at < length; at += 1) id += cells[Math.floor(rand() * cells.length)]!
+      return id
+    }
+    const tuples: [string, string][] = []
+    const rand = mulberry32(4244)
+    for (let index = 0; index < 200; index += 1) {
+      const provider = randomId(rand, 32)
+      const account = randomId(rand, 32)
+      tuples.push([provider, account])
+      // A partner that differs only in where one dash falls.
+      const dash = account.indexOf('-', 1)
+      if (dash > 1)
+        tuples.push([
+          provider,
+          `${account.slice(0, dash - 1)}-${account.slice(dash - 1, dash)}${account.slice(dash + 1)}`,
+        ])
+      else if (account.length < 32)
+        tuples.push([provider, `${account.slice(0, 1)}-${account.slice(1)}`])
+      else tuples.push([`${provider.slice(0, 1)}-${provider.slice(1, 31)}`, account])
+    }
+    const seen = new Map<string, string>()
+    for (const [provider, account] of tuples) {
+      const name = migrationItemName('account', provider, account)
+      expect(name).toMatch(HANDLE_PATTERN)
+      expect(migrationItemName('account', provider, account)).toBe(name)
+      // A readable multi-id name carries a dash within three characters
+      // after the kind; a hash carries none anywhere in its hex body.
+      expect(name.startsWith('account-')).toBe(true)
+      const body = name.slice('account-'.length)
+      if (/^\d{1,2}-/u.test(body)) expect(body).toMatch(/^\d{1,2}-/u)
+      else expect(name).toMatch(/^account-[0-9a-f]{40}$/)
+      const clash = seen.get(name)
+      expect(clash, `(${provider},${account}) meets ${String(clash)}`).toBeUndefined()
+      seen.set(name, `(${provider},${account})`)
+    }
+    expect(seen.size).toBe(tuples.length)
+  })
+
+  it('keeps the readable and hashed forms and the two kinds apart at the limit', () => {
+    // Exactly 48 characters stays readable; one more hashes. The hash is
+    // always 48 characters of hex, which no one-id name (at most 40) and no
+    // readable multi-id name (always dashed) can meet.
+    const readable48 = migrationItemName('account', 'p'.repeat(10), 'a'.repeat(26))
+    expect(readable48).toBe(`account-10-${'p'.repeat(10)}-${'a'.repeat(26)}`)
+    expect(readable48).toHaveLength(48)
+    expect(migrationItemName('account', 'p'.repeat(10), 'a'.repeat(26))).toBe(readable48)
+    const hashed = migrationItemName('account', 'p'.repeat(10), 'a'.repeat(27))
+    expect(hashed).toMatch(/^account-[0-9a-f]{40}$/)
+    expect(hashed).toHaveLength(48)
+    expect(hashed).not.toBe(readable48)
+    expect(migrationItemName('account', 'p'.repeat(10), 'a'.repeat(27))).toBe(hashed)
+    const oneId = migrationItemName('account', 'a'.repeat(32))
+    expect(oneId).toBe(`account-${'a'.repeat(32)}`)
+    expect(oneId).toHaveLength(40)
+    const provider = migrationItemName('provider', 'openai')
+    expect(provider).toBe('provider-openai')
+    // Kinds never meet: every name carries its kind before the first dash.
+    for (const name of [readable48, hashed, oneId]) expect(name.startsWith('account-')).toBe(true)
+    expect(provider.startsWith('provider-')).toBe(true)
+  })
+
+  it('refuses two credentials that share an item name before any journal row or write', async () => {
+    // Defence in depth with the existing key/id refusal: the constructor
+    // never reads either source, so both stay byte-identical.
+    const first = providerCredentialMigrationCredential('openai', () => 1000)
+    // The constructor refuses before `decode` is ever consulted, so reusing
+    // the codec body under a different key and item id is exact here.
+    const second = { ...first, key: `${first.key}.copy`, itemId: 'b'.repeat(32) }
+    const f = codecsFixture([])
+    const stored: [string, string][] = [
+      [
+        first.key,
+        JSON.stringify({
+          v: 1,
+          auth: 'apiKey',
+          origin: 'https://api.openai.com',
+          secret: 'synthetic-first-key',
+        }),
+      ],
+      [
+        second.key,
+        JSON.stringify({
+          v: 1,
+          auth: 'apiKey',
+          origin: 'https://api.openai.com',
+          secret: 'synthetic-second-key',
+        }),
+      ],
+    ]
+    for (const [key, value] of stored) await f.secrets.store(key, value)
+    // The constructor takes full deps but never reads either source.
+    const deps: MigrationDeps = {
+      ...f.deps,
+      legacy: {
+        read: () => Promise.resolve(null),
+        write: () => Promise.resolve(),
+        remove: () => Promise.resolve(),
+      },
+    }
+    try {
+      new VaultMigration(deps, [first, second])
+      expect.unreachable('a shared item name must be refused')
+    } catch (error) {
+      expect(error).toMatchObject({ code: 'conflict' })
+    }
+    for (const [key, value] of stored) expect(f.entries.get(key)).toBe(value)
+    expect(f.journal.size).toBe(0)
+    expect(await f.vault.list()).toEqual([])
+  })
+
+  it('reports a legacy copy changed behind the vault instead of returning active', async () => {
+    // The journal already holds the vault digest, so `migrate` on an
+    // `active` slot re-reads the legacy bytes and SHA-256-compares them
+    // exactly like `verifyLegacy`, with every buffer wiped. `verifyLegacy`
+    // itself is unchanged: undo and retire still refuse the changed copy.
+    const f = providerFixture()
+    const first: CredentialRecord = {
+      v: 1,
+      auth: 'apiKey',
+      origin: 'https://api.openai.com',
+      secret: 'synthetic-first-key',
+    }
+    await saveProviderCredential(f.secrets, 'openai', first)
+    expect(await f.service.migrate(f.credential.key)).toBe('active')
+    expect(await f.service.migrate(f.credential.key)).toBe('active')
+    await saveProviderCredential(f.secrets, 'openai', { ...first, secret: 'synthetic-second-key' })
+    expect(await f.service.migrate(f.credential.key)).toBe('diverged')
+    expect(f.journal.get(f.credential.key)?.phase).toBe('active')
+    // The detection leaves no secret material in the journal or the listing.
+    for (const row of f.journal.values()) expect(JSON.stringify(row)).not.toContain('synthetic-')
+    expect(JSON.stringify(await f.vault.list())).not.toContain('synthetic-')
+    await expect(f.service.undo(f.credential.key)).rejects.toMatchObject({ code: 'conflict' })
+    await f.secrets.store(f.credential.key, 'not JSON at all')
+    expect(await f.service.migrate(f.credential.key)).toBe('diverged')
+  })
+
+  it.skip('vault join (lane W): a key set after its slot is active goes through the vault', async () => {
+    // Owed by the vault join: once `migrate` reports `active`, a key set
+    // through `activateApiKey`, `auth set` or `providers add` must reach the
+    // vault (the join routes the write through `store`), the legacy mirror
+    // must match, and `migrate` must report `active` rather than `diverged`
+    // while undo still verifies. Un-skip when the join lands.
+    const f = providerFixture()
+    await saveProviderCredential(f.secrets, 'openai', {
+      v: 1,
+      auth: 'apiKey',
+      origin: 'https://api.openai.com',
+      secret: 'synthetic-first-key',
+    })
+    expect(await f.service.migrate(f.credential.key)).toBe('active')
+    const rotated: CredentialRecord = {
+      v: 1,
+      auth: 'apiKey',
+      origin: 'https://api.openai.com',
+      secret: 'synthetic-second-key',
+    }
+    await f.service.store(f.credential.key, Buffer.from(JSON.stringify(rotated), 'utf8'))
+    expect(await readProviderCredential(f.secrets, 'openai')).toEqual(rotated)
+    expect(await f.service.migrate(f.credential.key)).toBe('active')
+    await f.service.undo(f.credential.key)
+    expect(f.journal.get(f.credential.key)?.phase).toBe('undone')
   })
 })
 

@@ -38,6 +38,8 @@ export interface LegacyCredentialPort {
 export interface MigrationCredential {
   readonly key: string
   readonly itemId: string
+  /** The vault item name `decode` builds; the constructor refuses a shared one. */
+  readonly name: string
   decode(value: Uint8Array): VaultItem
   encode(item: VaultItem): Uint8Array
   /** Null for records whose owner's API consumes structured material rather than a key. */
