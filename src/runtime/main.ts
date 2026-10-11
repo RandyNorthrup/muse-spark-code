@@ -510,9 +510,10 @@ function runtimeReports(
             dataFolder,
             ...(recording !== undefined && { beforeRead: () => recording.flush() }),
             ...(readBudgets !== undefined && { readBudgets }),
-            // The budget stamp keeps the machine-local day, like the usage
-            // period and M102's page (RVCM1132B finding 2).
-            timezoneOffsetMins: new Date().getTimezoneOffset(),
+            // One offset per report: the budget stamp shares the usage
+            // period's sample through the run, like M102's page (RVCM1132B
+            // finding 2, RVCM1132C finding 3).
+            timezoneOffsetMins: inputs().reportTimezoneOffset,
           })
           return journalReader(context)
         }
@@ -582,7 +583,9 @@ function runtimeReports(
                   readJournal,
                   // The machine-local day, like M102's page and the journal's
                   // own day stamps; the contract carries it explicitly (D93).
-                  timezoneOffsetMins: new Date().getTimezoneOffset(),
+                  // The shared per-run sample keeps the period on the budget
+                  // stamp's day (RVCM1132C finding 3).
+                  timezoneOffsetMins: inputs().reportTimezoneOffset,
                 },
                 l10n.table,
                 l10n.locale,

@@ -33,6 +33,7 @@ import {
   createUsageReportReader,
   readStoredReportSession,
   readUsageReportJournal,
+  reportTimezoneOffset,
 } from '../../src/runtime/reporting/reportInputs'
 import { usageLocalDay } from '../../src/core/usage/aggregate'
 import type { UsageReportJournal } from '../../src/core/usage/reportUsage'
@@ -688,6 +689,54 @@ describe('RVCM1132 input regressions', () => {
   it('RVCM1132B reports an empty model catalogue as a failure, not missing history', async () => {
     const host = fakeReportHost([], [])
     await expect(readHostReportSession(host, 's1')).rejects.toMatchObject({ code: 'failed' })
+  })
+
+  it('RVCM1132C samples one timezone offset per report for the budget day and the period day', async () => {
+    const data = await dir('shared-offset-report-')
+    await journalWith(data, [usageEntry('r1', 's1')])
+    // 2026-10-07T07:30Z falls on 2026-10-06 at offset 480 but 2026-10-07 at
+    // offset 420: two samples would stamp the budget and the period apart.
+    const evening = Date.parse('2026-10-07T07:30:00Z')
+    const zone = vi
+      .spyOn(Date.prototype, 'getTimezoneOffset')
+      .mockReturnValueOnce(480)
+      .mockReturnValue(420)
+    try {
+      const readJournal = createReportJournalReader({
+        dataFolder: data,
+        now: () => evening,
+        timezoneOffsetMins: reportTimezoneOffset,
+        readBudgets: () =>
+          Promise.resolve([
+            {
+              budget: {
+                id: 'daily',
+                kind: 'paidDaily' as const,
+                spentUsd: 0.5,
+                capUsd: 1,
+                stopped: false,
+              },
+            },
+          ]),
+      })
+      const usageOptions = { ...context().options, kind: 'usage' as const, scope: '' }
+      const run = {}
+      const usage = await createUsageReportReader({
+        dataFolder: data,
+        readJournal,
+        now: () => evening,
+        timezoneOffsetMins: reportTimezoneOffset,
+      })({ ...context(), run, options: usageOptions })
+      const journal = await readJournal({ ...context(), run, options: usageOptions })
+      // Both days keep the run's first sample, so the budget still applies.
+      expect(journal.budgetDay).toBe('2026-10-06')
+      expect(usage.partial ?? '').not.toContain(EN.reportDetailReasons.budgetsUnavailable)
+      expect(usage.usage.limits).toEqual([
+        { key: 'paidDaily/daily', used: 0.5, limit: 1, resetsAt: null, unit: 'usd' },
+      ])
+    } finally {
+      zone.mockRestore()
+    }
   })
 
   it('RVCM1132B surfaces a failed session resolution as a failure, not missing history', async () => {
