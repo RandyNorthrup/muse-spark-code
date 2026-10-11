@@ -6,6 +6,8 @@ import {
 import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
+import { installGerman } from './helpers/germanTable'
+import { FakeLogOutputChannel } from './helpers/fakes'
 import { scheduleFireRecordSchema, scheduleV2Schema } from '../../src/shared/scheduleV2'
 import {
   FIXTURE_WORKSPACE_KEY,
@@ -60,7 +62,7 @@ describe('schedules source', () => {
     expect(schedules.rows[0]!.cells).toMatchObject({
       // Schedule names are report text: the scrub applies to them too.
       name: { type: 'text', value: 'Morning build [redacted]' },
-      status: { type: 'text', value: 'active' },
+      status: { type: 'label', value: 'active' },
     })
     const fires = sectionById(result.data, 'schedules/fires')
     expect(fires.rows[0]!.cells).toMatchObject({
@@ -68,6 +70,22 @@ describe('schedules source', () => {
     })
     const cost = sectionById(result.data, 'schedules/cost')
     expect(cost.rows).toHaveLength(2)
+  })
+
+  it('pre-renders trigger and grant prose in the installed language', async () => {
+    await installGerman(new FakeLogOutputChannel())
+    try {
+      const result = await schedulesSource(reader([stored(schedule)], []), scrub).read(context())
+      expect(result.record.status).toBe('ok')
+      expect(sectionById(result.data, 'schedules/schedules').rows[0]!.cells).toMatchObject({
+        trigger: { type: 'text', value: 'alle 3600000 ms' },
+        grant: { type: 'text', value: '0 Regeln, 0 Ziele, Limit 0' },
+        creator: { type: 'label', value: 'user' },
+        status: { type: 'label', value: 'active' },
+      })
+    } finally {
+      setUiText(EN, 'en')
+    }
   })
 
   it('reads an empty store as ok with empty sections, never invented rows', async () => {

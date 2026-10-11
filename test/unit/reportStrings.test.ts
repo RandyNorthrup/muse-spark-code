@@ -22,6 +22,7 @@ const reportEnglish = {
   reportSlashDescription: EN.reportSlashDescription,
   reportUsageAction: EN.reportUsageAction,
   reportLabels: EN.reportLabels,
+  reportScheduleCells: EN.reportScheduleCells,
   reportKinds: EN.reportKinds,
   reportUi: EN.reportUi,
   reportRowsMore: EN.reportRowsMore,
@@ -66,7 +67,22 @@ describe('M113 regional reporting text', () => {
           typeof raw === 'object' && raw !== null ? Reflect.get(raw, key) : undefined,
         ]),
       )
-      expect(tableProblems(reportEnglish, table, { locale, isStrict: true })).toEqual([])
+      // The same keys `l10n/untranslated.json` lets stay English, so the
+      // unit check and the gate agree on them.
+      const untranslated: unknown = JSON.parse(
+        await readFile(new URL('../../l10n/untranslated.json', import.meta.url), 'utf8'),
+      )
+      const ui =
+        typeof untranslated === 'object' && untranslated !== null
+          ? (Reflect.get(untranslated, 'ui') as Record<string, readonly string[]>)
+          : {}
+      expect(
+        tableProblems(reportEnglish, table, {
+          locale,
+          isStrict: true,
+          untranslated: new Set([...(ui['*'] ?? []), ...(ui[locale] ?? [])]),
+        }),
+      ).toEqual([])
     },
   )
   it('reads the installed language at runtime, including templates and counts', async () => {
@@ -76,6 +92,18 @@ describe('M113 regional reporting text', () => {
     expect(UI_TEXT.reportLabels.inputTokens).toBe('Eingabetokens')
     expect(UI_TEXT.reportLabels.current).toBe('Aktuell')
     expect(UI_TEXT.reportLabels.lagging).toBe('Im Rückstand')
+    expect(UI_TEXT.reportLabels.paused).toBe('Pausiert')
+    expect(UI_TEXT.reportLabels.hookVerification).toBe('Hook-Prüfung')
+    expect(fill(UI_TEXT.reportScheduleCells.triggerInterval, { everyMs: '3600000' })).toBe(
+      'alle 3600000 ms',
+    )
+    expect(
+      fill(UI_TEXT.reportScheduleCells.scheduleGrant, {
+        rules: '0',
+        destinations: '0',
+        cap: '0',
+      }),
+    ).toBe('0 Regeln, 0 Ziele, Limit 0')
     expect(fill(UI_TEXT.reportUi.noChange, { asOf: '2026-10-06' })).toBe(
       'Keine Änderung seit 2026-10-06',
     )

@@ -526,7 +526,7 @@ describe('playbook and schedules report kinds over the real store', () => {
     expect(result.code).toBe(0)
     expect(result.stdout).toContain('E2E build')
     expect(result.stdout).toContain('every 3600000 ms')
-    expect(result.stdout).toContain('active')
+    expect(result.stdout).toContain('Active')
   })
 })
 

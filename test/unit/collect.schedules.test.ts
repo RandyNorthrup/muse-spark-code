@@ -15,16 +15,26 @@ function schedule(overrides: Record<string, unknown> = {}) {
 function fire(overrides: Record<string, unknown> = {}) {
   return scheduleFireRecordSchema.parse(fireFixture(overrides))
 }
+// Source pre-rendered prose in the installed language; the collector must
+// pass it through unchanged, never rebuild it.
+const entry = (
+  overrides: Record<string, unknown> = {},
+  iso = '1970-01-01T00:00:02.000Z',
+): SchedulesView['schedules'][number] => ({
+  schedule: schedule(overrides),
+  triggerText: 'every 3600000 ms',
+  grantText: '0 rules, 0 destinations, cap 0',
+  nextFireIso: iso,
+})
 const view: SchedulesView = {
   schedules: [
-    { schedule: schedule(), nextFireIso: '1970-01-01T00:00:02.000Z' },
+    entry(),
+    entry({ id: 'sched-2', name: 'Evening build', nextFireAtMs: 2000 }),
     {
-      schedule: schedule({ id: 'sched-2', name: 'Evening build', nextFireAtMs: 2000 }),
-      nextFireIso: '1970-01-01T00:00:02.000Z',
-    },
-    {
-      schedule: schedule({ id: 'sched-3', name: 'Paused job', paused: true, nextFireAtMs: 3000 }),
-      nextFireIso: '1970-01-01T00:00:03.000Z',
+      ...entry(
+        { id: 'sched-3', name: 'Paused job', paused: true, nextFireAtMs: 3000 },
+        '1970-01-01T00:00:03.000Z',
+      ),
     },
   ],
   fires: [
@@ -47,7 +57,9 @@ describe('schedules sections', () => {
   it('flags timeline collisions between schedules sharing a fire time', () => {
     const sections = schedulesSections(view, reportOptions('schedules'))
     const timeline = sections[0]!
-    expect(timeline.rows).toHaveLength(3)
+    // The paused job shares no timeline: it keeps its stored next-fire time
+    // but the scheduler will not fire it.
+    expect(timeline.rows).toHaveLength(2)
     const morning = timeline.rows.find(
       (row) => row.cells['name']?.type === 'text' && row.cells['name'].value === 'Morning build',
     )!
@@ -70,10 +82,27 @@ describe('schedules sections', () => {
       target: { type: 'text', value: 'newConversation:modelApi' },
       delivery: { type: 'text', value: 'newConversation' },
       grant: { type: 'text', value: '0 rules, 0 destinations, cap 0' },
-      creator: { type: 'text', value: 'user' },
-      status: { type: 'text', value: 'active' },
+      creator: { type: 'label', value: 'user' },
+      status: { type: 'label', value: 'active' },
     })
-    expect(byName('Paused job')['status']).toEqual({ type: 'text', value: 'paused' })
+    expect(byName('Paused job')['status']).toEqual({ type: 'label', value: 'paused' })
+  })
+
+  it('keeps a paused schedule out of the timeline and collision lists', () => {
+    const pausedAtSameTime: SchedulesView = {
+      ...view,
+      schedules: [
+        entry(),
+        entry({ id: 'sched-9', name: 'Paused twin', paused: true, nextFireAtMs: 2000 }),
+      ],
+      fires: [],
+    }
+    const sections = schedulesSections(pausedAtSameTime, reportOptions('schedules'))
+    const timeline = sections[0]!
+    expect(timeline.rows).toHaveLength(1)
+    expect(timeline.rows[0]!.cells['collision']).toEqual({ type: 'text', value: '' })
+    // The paused twin stays visible in the schedules table, never dropped.
+    expect(sections[1]!.rows).toHaveLength(2)
   })
 
   it('lists refused fires with their refused actions and summed cost', () => {
@@ -98,7 +127,10 @@ describe('schedules sections', () => {
       certainty: { type: 'label', value: 'estimated' },
     })
     // The total over one observed fire repeats its cost, never an invented zero.
-    expect(costByName('total')).toMatchObject({
+    const total = cost.rows.find(
+      (row) => row.cells['name']?.type === 'label' && row.cells['name'].value === 'total',
+    )!.cells
+    expect(total).toMatchObject({
       cost: { type: 'usd', value: '1.25', certainty: 'estimated' },
     })
   })
@@ -135,6 +167,7 @@ describe('schedules sections', () => {
       'status',
       'reason',
     ])
-    expect(timeline.rows).toHaveLength(3)
+    // The paused schedule has no timeline row: only the two live ones forward.
+    expect(timeline.rows).toHaveLength(2)
   })
 })

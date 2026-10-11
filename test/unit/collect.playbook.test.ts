@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   isModuleMatch,
+  isRouteAroundRefusal,
   playbookSections,
   type PlaybookView,
 } from '../../src/core/reporting/collect/playbook'
@@ -67,7 +68,7 @@ describe('playbook sections', () => {
     expect(sections.map((section) => [section.id, section.label])).toEqual([
       ['playbook/totals', 'totals'],
       ['playbook/decisions', 'decisions'],
-      ['playbook/drills', 'drills'],
+      ['playbook/drills', 'hookVerification'],
       ['playbook/disabledRules', 'disabledRules'],
       ['playbook/refusals', 'refusals'],
     ])
@@ -81,7 +82,7 @@ describe('playbook sections', () => {
     expect(totals.rows.map((row) => row.cells)).toEqual([
       {
         module: { type: 'text', value: 'src/alpha' },
-        class: { type: 'text', value: 'all' },
+        class: { type: 'label', value: 'all' },
         strikes: { type: 'count', value: 1 },
         rounds: { type: 'count', value: 2 },
       },
@@ -108,6 +109,45 @@ describe('playbook sections', () => {
     // The redesign lane names the milestone; the module key does not.
     expect(byMilestone.find((section) => section.id === 'playbook/decisions')!.rows).toHaveLength(1)
     expect(byMilestone.find((section) => section.id === 'playbook/totals')!.rows).toHaveLength(0)
+  })
+
+  it('matches milestones by whole token, never by substring', () => {
+    const lanes: PlaybookView = {
+      ...view,
+      modules: [],
+      designs: [
+        { ...view.designs[0]!, id: 'd113', redesignLane: 'C-M113-4' },
+        { ...view.designs[0]!, id: 'd110', moduleKey: 'src/beta', redesignLane: 'C-M110-2' },
+        { ...view.designs[0]!, id: 'd110a', moduleKey: 'src/gamma', redesignLane: 'C-M110a0' },
+      ],
+      drills: [],
+      disabledRules: [],
+      refusals: [],
+    }
+    const kept = (milestone: string) =>
+      playbookSections(lanes, reportOptions('playbook', { milestone }))
+        .find((section) => section.id === 'playbook/decisions')!
+        .rows.map((row) => row.cells['name'])
+    // The lane id names its own milestone only: M13 is not inside M113,
+    // M110 is not M110a0, and M1 never matches a lane or module id.
+    expect(kept('M113').map((cell) => (cell as { value: string }).value)).toEqual(['d113'])
+    expect(kept('M13')).toHaveLength(0)
+    expect(kept('M11')).toHaveLength(0)
+    expect(kept('M110').map((cell) => (cell as { value: string }).value)).toEqual(['d110'])
+    expect(kept('M110a0').map((cell) => (cell as { value: string }).value)).toEqual(['d110a'])
+    expect(kept('M1')).toHaveLength(0)
+  })
+
+  it('counts only true refusals as route-around refusals', () => {
+    // Admitted commands and applied fallback reviewers journal safety-rule
+    // notes too; they must never bury a real refusal past the row cap.
+    expect(isRouteAroundRefusal('neverAround', 'hookTampering')).toBe(true)
+    expect(isRouteAroundRefusal('neverAround', 'gateSkipped')).toBe(true)
+    expect(isRouteAroundRefusal('neverAround', 'permissionLaundering')).toBe(true)
+    expect(isRouteAroundRefusal('neverAround', 'classifierBlocked')).toBe(true)
+    expect(isRouteAroundRefusal('neverAround', 'checksPassed')).toBe(false)
+    expect(isRouteAroundRefusal('neverAround', 'fallbackReviewer')).toBe(false)
+    expect(isRouteAroundRefusal('threeStrikes', 'lineageRequired')).toBe(false)
   })
 
   it('keeps out-of-range stamps visible as numbers, never guessed dates', () => {

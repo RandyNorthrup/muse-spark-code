@@ -38,7 +38,7 @@ describe('playbook source', () => {
     expect(totals.rows).toHaveLength(1)
     const strikes = totals.rows[0]!.cells
     expect(strikes['module']).toEqual({ type: 'text', value: 'src/alpha' })
-    expect(strikes['class']).toEqual({ type: 'text', value: 'all' })
+    expect(strikes['class']).toEqual({ type: 'label', value: 'all' })
     expect(strikes['strikes']).toEqual({ type: 'count', value: 1 })
     expect(strikes['rounds']).toEqual({ type: 'count', value: 1 })
     const decisions = sectionById(result.data, 'playbook/decisions')
@@ -57,6 +57,85 @@ describe('playbook source', () => {
     expect(sectionById(result.data, 'playbook/refusals').rows[0]!.cells).toMatchObject({
       code: { type: 'text', value: 'lineageRequired' },
     })
+  })
+
+  it('lists only true refusals, never admitted commands or fallback reviewers', async () => {
+    const records: readonly unknown[] = [
+      ...journal,
+      {
+        kind: 'note',
+        value: { rule: 'neverAround', code: 'checksPassed', at: 9000, needsUser: false },
+      },
+      {
+        kind: 'note',
+        value: {
+          rule: 'neverAround',
+          code: 'fallbackReviewer',
+          module: 'src/alpha',
+          actor: 'lead',
+          reason: 'Pre-named fallback',
+          at: 9001,
+          needsUser: false,
+        },
+      },
+      {
+        kind: 'note',
+        value: {
+          rule: 'neverAround',
+          code: 'hookTampering',
+          module: 'src/alpha',
+          actor: 'lead',
+          reason: 'Around the gate',
+          at: 9002,
+          needsUser: true,
+        },
+      },
+    ]
+    const result = await playbookSource(reader(records), scrub).read(context())
+    expect(result.record.status).toBe('ok')
+    const codes = sectionById(result.data, 'playbook/refusals').rows.map(
+      (row) => row.cells['code']?.value,
+    )
+    // The fixture's safety-rule note and the tampering refusal stay;
+    // the admitted command and the applied fallback reviewer never do.
+    expect(codes).toContain('lineageRequired')
+    expect(codes).toContain('hookTampering')
+    expect(codes).not.toContain('checksPassed')
+    expect(codes).not.toContain('fallbackReviewer')
+  })
+
+  it('dedupes one switched-off rule across snapshots and its note', async () => {
+    const settings = journal.find(
+      (record) =>
+        typeof record === 'object' &&
+        record !== null &&
+        (record as { kind: unknown }).kind === 'settings',
+    )
+    const records: readonly unknown[] = [
+      ...journal,
+      settings,
+      {
+        kind: 'note',
+        value: {
+          rule: 'loudFailures',
+          code: 'ruleDisabled',
+          actor: 'lead',
+          reason: 'Too noisy',
+          at: 6000,
+          needsUser: false,
+        },
+      },
+    ]
+    const result = await playbookSource(reader(records), scrub).read(context())
+    expect(result.record.status).toBe('ok')
+    // Two identical snapshots plus the switch-off note are one fact, so a
+    // second disabled rule still fits the section instead of drowning.
+    expect(sectionById(result.data, 'playbook/disabledRules').rows).toHaveLength(1)
+  })
+
+  it('heads the receipts section with what the journal holds', async () => {
+    const result = await playbookSource(reader(journal), scrub).read(context())
+    expect(sectionById(result.data, 'playbook/drills').label).toBe('hookVerification')
   })
 
   it('reads an empty journal as ok with empty sections, never a miss', async () => {
