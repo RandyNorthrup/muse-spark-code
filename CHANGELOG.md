@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Estimator provisioning lifecycle** (M117 C-M117-6). The portable core
+  behind Spin it up is complete on fakes: exact per-server quotes with the
+  batch total shown before any confirmation, one confirmation per spend, a
+  hard run budget refused before any request, liability reserved before
+  create and retained on uncertain outcomes, install-then-pair through the
+  node bindings, idle Keep that never extends funding, and wipe-before-delete
+  with a deleted status receipt. Rented provisioning stays advice-only until
+  the M109 broker and M110d/M110f bindings land; no new command or surface.
+
 - **Estimator plan snapshots** (M117 C-M117-1). `/estimate` goals now resolve
   from your workspace `PLAN.md` with its git and `gh` evidence — lane hours,
   Starts dependencies, rigs, file affinities, the delivery order and §10
