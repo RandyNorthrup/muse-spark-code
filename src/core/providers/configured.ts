@@ -37,7 +37,12 @@ import { parseNdjson } from '../backends/modelapi/ndjson'
 import { parseSse } from '../backends/modelapi/sse'
 import { ApiKeyAuthSource, NoAuthSource } from '../backends/modelapi/authSource'
 import { CodecClient, type WireCodec } from '../backends/modelapi/providerClient'
-import { RequestTransport, parseJsonResponse, ModelApiError } from '../backends/modelapi/transport'
+import {
+  RequestTransport,
+  isModelApiError,
+  parseJsonResponse,
+  ModelApiError,
+} from '../backends/modelapi/transport'
 import { withDeadline } from '../timeouts'
 import {
   ADDRESS_FAMILIES,
@@ -88,6 +93,20 @@ const costSchema = z.object({
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
 const fail = (): never => {
   throw new Error(UI_TEXT.modelsPanelUnavailable)
+}
+
+/**
+ * Provider refusals in the product's own words (never provider text, so no
+ * key, path or account can leak): each reaches the person as its own
+ * sentence instead of the generic build notice. Anything else still fails
+ * generic through `rethrowTypedRefusal` below.
+ */
+const TYPED_PROVIDER_REFUSALS: ReadonlySet<string> = new Set([UI_TEXT.azureDeploymentInvalid])
+
+/** A typed refusal keeps its sentence; every other failure stays generic. */
+const rethrowTypedRefusal = (error: unknown): never => {
+  if (isModelApiError(error) && TYPED_PROVIDER_REFUSALS.has(error.message)) throw error
+  return fail()
 }
 
 function ignoreTransportLog(): void {
@@ -342,6 +361,40 @@ export function createConfiguredProviderServices(
     const prefix = url.pathname.replace(/\/$/, '')
     return { baseUrl: url.origin, path: prefix + path }
   }
+  // One error reader for the turn and the list: a typed refusal is built
+  // once here so both `scan` and the stream codec below can surface it.
+  const parseErrorOf = (entry: ProviderEntry) => {
+    const preset = presetFor(entry)
+    const format = entry.format ?? preset.format
+    return (status: number, value: unknown) => {
+      switch (format) {
+        case 'anthropic': {
+          return anthropic.parseAnthropicError(status, value)
+        }
+        case 'gemini': {
+          return gemini.parseGeminiError(status, value)
+        }
+        case 'ollama': {
+          return ollama.parseOllamaError(status, value, '')
+        }
+        default: {
+          // Azure names a missing deployment with a 404 on the resource:
+          // refuse it in plain words instead of a generic failure. A 404
+          // is in no retry table, so this is never retried.
+          const azureRefusal =
+            preset.origin.kind === 'azure-resource'
+              ? presets.azureDeploymentRefusal(status)
+              : undefined
+          return new ModelApiError(
+            azureRefusal ?? UI_TEXT.modelsPanelUnavailable,
+            status,
+            undefined,
+            undefined,
+          )
+        }
+      }
+    }
+  }
   const scan = async (
     entry: ProviderEntry,
     supplied?: string,
@@ -354,6 +407,7 @@ export function createConfiguredProviderServices(
         ...bound.transport,
         auth: bound.auth,
         verifyEndpoint: bound.verifyEndpoint,
+        parseError: parseErrorOf(entry),
         baseUrl: address.baseUrl,
       })
       const result = await transport.request(
@@ -376,8 +430,8 @@ export function createConfiguredProviderServices(
       return entry.format === 'ollama'
         ? ollama.parseOllamaModelsList(value)
         : modelMetadata.parseNativeModelsList(value)
-    } catch {
-      return fail()
+    } catch (error: unknown) {
+      return rethrowTypedRefusal(error)
     }
   }
   const models = async (): Promise<RegistryModel[]> => {
@@ -561,34 +615,7 @@ export function createConfiguredProviderServices(
             maxOutputTokens: record.output.maxTokens ?? 0,
           })),
       },
-      parseError: (status, value) => {
-        switch (format) {
-          case 'anthropic': {
-            return anthropic.parseAnthropicError(status, value)
-          }
-          case 'gemini': {
-            return gemini.parseGeminiError(status, value)
-          }
-          case 'ollama': {
-            return ollama.parseOllamaError(status, value, '')
-          }
-          default: {
-            // Azure names a missing deployment with a 404 on the resource:
-            // refuse it in plain words instead of a generic failure. A 404
-            // is in no retry table, so this is never retried.
-            const azureRefusal =
-              preset.origin.kind === 'azure-resource'
-                ? presets.azureDeploymentRefusal(status)
-                : undefined
-            return new ModelApiError(
-              azureRefusal ?? UI_TEXT.modelsPanelUnavailable,
-              status,
-              undefined,
-              undefined,
-            )
-          }
-        }
-      },
+      parseError: parseErrorOf(entry),
       encode: (body) => {
         // The deployment rides as the request's model, as the v1 API
         // names it (research §1.2); the path is the preset's own.
@@ -718,8 +745,8 @@ export function createConfiguredProviderServices(
             if ('response' in event && event.response.usage != null) usage = event.response.usage
             yield event
           }
-        } catch {
-          return fail()
+        } catch (error: unknown) {
+          return rethrowTypedRefusal(error)
         } finally {
           if (presets.planKeyPresetById(entry.preset) !== undefined)
             for (let index = 0; index < dispatch.attempts; index++)

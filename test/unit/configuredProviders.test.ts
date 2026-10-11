@@ -590,6 +590,83 @@ describe('configured provider production transport', () => {
     await expect(services.scan(ENTRY)).rejects.toThrow(UI_TEXT.modelsPanelUnavailable)
   })
 
+  it('surfaces a typed Azure deployment refusal instead of the generic build notice', async () => {
+    // `wireCapture: false` refuses an apiKey Azure entry before any send
+    // (rule 13 gate); auth `none` exercises the same refusal-propagation
+    // path through `scan` and `streamResponse` without touching the gate.
+    const f = await fixture()
+    const entry = providerEntrySchema.parse({
+      id: 'azure',
+      preset: 'azure',
+      address: 'https://myres.openai.azure.com/openai/v1',
+      format: 'responses',
+      auth: 'none',
+      models: ['missing'],
+    })
+    const written = await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
+    expect(written.ok).toBe(true)
+    const services = createConfiguredProviderServices(undefined, {
+      ...f,
+      resolve: () => Promise.resolve(['8.8.8.8']),
+      send: () =>
+        Promise.resolve(
+          response(
+            Buffer.from(
+              JSON.stringify({
+                error: { message: 'DeploymentNotFound', code: 'DeploymentNotFound' },
+              }),
+            ),
+            404,
+          ),
+        ),
+    })
+    await expect(services.scan(entry, undefined)).rejects.toThrow(UI_TEXT.azureDeploymentInvalid)
+    const model = await services.registry.resolve('azure/missing')
+    await expect(
+      consume(
+        model.client.streamResponse({ ...body(), model: model.ref }, new AbortController().signal),
+      ),
+    ).rejects.toThrow(UI_TEXT.azureDeploymentInvalid)
+  })
+
+  it('keeps provider-chosen error text behind the generic build notice', async () => {
+    // Only refusals in the product's own words surface; a provider envelope
+    // (which can name accounts or paths) still fails generic.
+    const f = await fixture()
+    const entry = providerEntrySchema.parse({
+      id: 'anthropic',
+      preset: 'anthropic',
+      address: 'https://api.anthropic.com',
+      format: 'anthropic',
+      auth: 'apiKey',
+      models: ['claude-x'],
+    })
+    const services = createConfiguredProviderServices(undefined, {
+      ...f,
+      resolve: () => Promise.resolve(['8.8.8.8']),
+      send: () =>
+        Promise.resolve(
+          response(
+            Buffer.from(
+              JSON.stringify({
+                type: 'error',
+                error: { type: 'authentication_error', message: 'bare-synthetic-overload' },
+              }),
+            ),
+            // 401 is never retried; 500 would burn the test's 5 s on backoff.
+            401,
+          ),
+        ),
+    })
+    let message = 'resolved'
+    try {
+      await services.scan(entry, 'test-owned-key')
+    } catch (error: unknown) {
+      message = (error as Error).message
+    }
+    expect(message).toBe(UI_TEXT.modelsPanelUnavailable)
+  })
+
   it('invalidates an existing resolution after the same model is reconfigured', async () => {
     const f = await fixture()
     const services = createConfiguredProviderServices(undefined, f)
