@@ -124,6 +124,11 @@ happened, not what was planned; superseded entries are kept.
   behavior, paid admission, displayed text and all bundle limits stay unchanged.
   Remove the unused internal GitHub lease-result type found by the train gate.
 
+- The activity-bar icon is now the extension's own mark: the squiggled "m"
+  from the Marketplace icon as a single-colour mask, replacing the Meta logo
+  silhouette. The Marketplace icon, banner and social preview already used
+  the "m"; the activity-bar icon was missed.
+
 ### Fixed
 
 - Local report sources sort every tied list to a total order, so the same
