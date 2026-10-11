@@ -14,8 +14,9 @@ import { describe, expect, it } from 'vitest'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const folder = path.join(root, 'docs/plan-archive')
+// `at` names the commit the line numbers refer to; the first move's blocks carry none.
 const BLOCK =
-  /<!-- plan-archive:begin id="([^"]+)" lines="(\d+)-(\d+)" bytes="(\d+)" sha256="([0-9a-f]{64})" -->\n\n([^]*?)\n<!-- plan-archive:end id="\1" -->/g
+  /<!-- plan-archive:begin id="([^"]+)" lines="(\d+)-(\d+)"(?: at="[0-9a-f]{7,40}")? bytes="(\d+)" sha256="([0-9a-f]{64})" -->\n\n([^]*?)\n<!-- plan-archive:end id="\1" -->/g
 
 interface Block {
   readonly id: string
