@@ -338,10 +338,11 @@ never inspected alerts outside the section either.
 Fix (same file, whole class): `assertUsageResourceInvalid` still asserts
 the marker plus the section's own alert text, then requires exactly one
 `alert` on the whole page — any page-level error beside the section alert
-fails with `unexpected page-level error`. The sibling
-`assertUsageError` had the mirror hole (a page-wide role query that could
-read past a section alert), so it now requires exactly one page alert
-before checking the text (`expected one page error`). `assertUsageContent`
+fails with `unexpected page-level error`. The sibling `assertUsageError`
+needed no count guard: a real strict page-level alert locator rejects the
+pair at its `waitFor` before any text is read (RVCM1141F P3 corrected the
+round-6 claim of a mirror hole and removed the unreachable `expected one
+page error` guard; see Round 7). `assertUsageContent`
 already refused any alert and is unchanged. Swept every caller: the only
 `assertUsageResourceInvalid` caller is `usage-resource-scenes.mjs:57` (the
 `unavailable` scene, which now fails honest on a combined delivery instead
@@ -355,15 +356,19 @@ Regression (`test/unit/usageBrowserReadiness.test.mjs`, now 13 cases): the
 stub's page-level alert count sums the page and section alerts the way
 Playwright does, a new `COMBINED_FAILURE_SHELL` carries both, and the new
 `rejects a page-level error riding alongside the resource failure` case
-proves the marker wait still passes the pair while all three assertions
-refuse it with their named reasons.
+proves the marker wait still passes the pair while the resource and
+success assertions refuse it with their named reasons and the error
+assertion rejects with the strict-mode violation (corrected in Round 7:
+the round-6 text here claimed a second count guard and its drill, which
+never existed in real browser behaviour).
 
 Red drills (each restored byte-exact from a backup copy, `sha256sum`
 identical before and after): weakened the resource guard to `void total` —
 exactly the combined case failed (12 passed, 1 failed, at the
-`unexpected page-level error` line). Weakened the error guard the same
-way — exactly the combined case failed (12 passed, 1 failed, at the
-`expected one page error` line). Guard SHAs at drill time:
+`unexpected page-level error` line). The error-guard drill claimed here
+(breaking a count guard to fail at `expected one page error`) is struck:
+the stub omitted strict locator behaviour, so that drill proved the stub,
+not the browser; Round 7 re-drills it honestly. Guard SHAs at drill time:
 `usageReadiness.mjs` `dc6a0dae…` (pre-prettier; final `6fe8f8b8…` after
 `prettier --write` reflowed the long lines, tests re-run green on the
 final bytes), regression `337d290f…` (drill time; final `39f14d33…`).
@@ -379,3 +384,78 @@ build or reference/roadmap regeneration applies. Blocked in this sandbox
 the lead runs unsandboxed `test/harness/usage-check.mjs`,
 `usage-accounts.mjs`, `usage-companion.mjs`,
 `usage-resource-scenes.mjs` and `test/unit/companionThemedBrowser.test.mjs`.
+
+## Round 7 — RVCM1141F P3: the stub rejects the pair the way the browser does
+
+Finding: the round-6 sibling error regression and its certification
+described a false pass that real Playwright already rejected, and its
+mutation proof depended on a stub that omitted strict locator behaviour.
+On the two-alert combined shell, real `page.getByRole('alert').waitFor()`
+throws a strict-mode violation before `assertUsageError` reaches any count
+guard (reviewer-confirmed in Chromium: the base helper, the current
+helper, and a guard-free in-memory version all reject the same two-alert
+DOM at `locator.waitFor`). The stub's `waitFor` accepted two matches, so
+the unit test expected the new `expected one page error` diagnostic and
+failed when that guard was removed — although the removal changed nothing
+real.
+
+Fix (same lane files, no production code): the stub's page-level
+`getByRole` now behaves like a real strict locator — `waitFor` and
+`textContent` throw `strict mode violation: getByRole("alert") resolved
+to 2 elements` when the locator matches more than one element, while
+`count()` still reports the pair. The combined regression case now
+expects that strict rejection from `assertUsageError`. The `expected one
+page error` count guard in `assertUsageError`
+(`test/harness/usageReadiness.mjs`) could never fire past the strict
+`waitFor` (zero alerts reject there; two or more reject as a strict-mode
+violation), so it was deleted with its comment and the helper now says so.
+Kept unchanged: the `assertUsageResourceInvalid` page-level count guard —
+`count()` is not a strict action, so that guard is reachable, and the
+resource false-pass repair it guards was independently confirmed on the
+real page (review §"Real-page combined-failure injection"). `assertUsageContent`
+already refused any alert via `count()` and is unchanged.
+
+Sweep for siblings of the same class (fake locators omitting strictness):
+the only Playwright-locator stub in the lane is `stubPage` in
+`test/unit/usageBrowserReadiness.test.mjs`. Its section-scoped alert and
+`page.locator` arms resolve to at most one element by construction, so
+they need no strict arm. Every other `getByRole('alert')` in
+`test/unit` is Testing Library (jsdom) or a real Playwright page
+(`companionBrowser.test.ts`, `usageCompanionChunks.test.ts:88`, whose
+`count()` is strict-exempt). No caller changes: the sole
+`assertUsageResourceInvalid` caller (`usage-resource-scenes.mjs:57`)
+still sees one alert, and the `assertUsageError` caller
+(`usage-check.mjs:117`, native-transport failure with no section alert)
+still sees exactly one.
+
+Regression (`test/unit/usageBrowserReadiness.test.mjs`, still 13 cases):
+the combined case proves the marker wait still passes the pair while the
+resource assertion names the outside-section alert, the error assertion
+rejects with the strict-mode violation, and the success assertion refuses
+the pair.
+
+Red drills (each restored byte-exact from a backup copy, `sha256sum -c`
+OK on both files after every restore): removed both strict arms from the
+stub — exactly the combined case failed (12 passed, 1 failed, at the
+`strict mode violation` line), proving the test pins strict modelling.
+Weakened the resource guard to `void total` + `if (false)` — exactly the
+combined case failed (12 passed, 1 failed, at the `unexpected page-level
+error` line), re-confirming the kept resource regression. Positive
+control for the corrected claim: removed only the `textContent` strict
+arm — 13/13 still pass, so the rejection lands at `waitFor`, matching the
+reviewer's Chromium confirmation. Guard SHAs at drill time:
+`usageBrowserReadiness.test.mjs` `1d1eba6c…`,
+`usageReadiness.mjs` `92dc1648…` (final bytes; tests re-run green on them
+below).
+
+Verification (repository timeouts, no `--testTimeout`): the regression
+13/13 pass on this rig; neighbours `usageReadyMarker` + `UsageApp` +
+`companionThemedPage` 45/45 pass. ESLint `--max-warnings=0` on both code
+files and prettier on all three touched files — clean. No production code,
+bundle, setting, dependency, gate, locale key, command or milestone
+status touched, so no build, reference, roadmap or l10n regeneration
+applies. Blocked in this sandbox (2026-10-08 rule, no workaround built):
+never launched a browser here, so the lead runs unsandboxed
+`test/harness/usage-check.mjs`, `usage-accounts.mjs`,
+`usage-companion.mjs`, `usage-resource-scenes.mjs` and
+`test/unit/companionThemedBrowser.test.mjs`.

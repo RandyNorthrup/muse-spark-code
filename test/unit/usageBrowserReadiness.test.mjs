@@ -5,7 +5,9 @@
 // success wait must also refuse the alert (assertUsageContent), and the
 // harness http page must carry the companion theme nonce or it never mounts.
 // RVCM1141E P3: a page-level error beside the section alert keeps the marker
-// too, so both alert assertions count the page and refuse the pair.
+// too. The resource assertion counts the page and refuses the pair; the
+// error assertion never gets that far — a strict page-level alert locator
+// rejects the pair at its waitFor first (RVCM1141F P3).
 //
 // Part 1 drives the shared helper (test/harness/usageReadiness.mjs) with a
 // stub page through each shell. Part 2 pins the whole class: every Usage
@@ -60,23 +62,38 @@ function stubPage(state) {
       },
     }),
     // A page-level alert query sees every alert on the page, including a
-    // section-scoped one, the way Playwright's page.getByRole does.
-    getByRole: (role, options = {}) => ({
-      waitFor: async () => {
-        if (role === 'alert' && state.alert === null && state.sectionAlert === null)
-          throw new Error('waiting for role "alert" found nothing')
-        if (role === 'heading' && !state.headings.includes(options.name))
-          throw new Error(`waiting for heading "${options.name}" found nothing`)
-      },
-      count: async () => {
+    // section-scoped one, the way Playwright's page.getByRole does. Like a
+    // real strict locator, it also rejects strict actions (waitFor,
+    // textContent) when it resolves to more than one element; only count()
+    // reports the pair (RVCM1141F P3).
+    getByRole: (role, options = {}) => {
+      const total = () => {
         // Like Playwright, a page-level alert query sees every alert on
         // the page: the page shell's plus the Resources section's.
         if (role === 'alert')
           return (state.alert === null ? 0 : 1) + (state.sectionAlert === null ? 0 : 1)
         return state.headings.includes(options.name) ? 1 : 0
-      },
-      textContent: async () => state.alert ?? state.sectionAlert,
-    }),
+      }
+      const strictReject = () => {
+        throw new Error(
+          `strict mode violation: getByRole("${role}") resolved to ${String(total())} elements`,
+        )
+      }
+      return {
+        waitFor: async () => {
+          if (total() > 1) strictReject()
+          if (role === 'alert' && state.alert === null && state.sectionAlert === null)
+            throw new Error('waiting for role "alert" found nothing')
+          if (role === 'heading' && !state.headings.includes(options.name))
+            throw new Error(`waiting for heading "${options.name}" found nothing`)
+        },
+        count: async () => total(),
+        textContent: async () => {
+          if (total() > 1) strictReject()
+          return state.alert ?? state.sectionAlert
+        },
+      }
+    },
     getByText: (text) => {
       const waitFor = async () => {
         if (state.texts.every((line) => !line.includes(text)))
@@ -247,13 +264,15 @@ describe('usage browser readiness', () => {
     // wait nor section-text check fails this shell on its own.
     await expect(waitForUsageReady(page)).resolves.toBeUndefined()
     // The resource assertion names the outside-section alert instead of
-    // certifying the scene, and the error assertion refuses the pair
-    // instead of reading past the section alert.
+    // certifying the scene. The error assertion rejects at the alert
+    // waitFor: the strict page-level locator resolves to two alerts here,
+    // so it throws before any text is read (its old count guard could never
+    // fire past that wait and is gone; see usageReadiness.mjs).
     await expect(
       assertUsageResourceInvalid(page, { title: 'probe', message: RESOURCE_INVALID }),
     ).rejects.toThrow('unexpected page-level error')
     await expect(assertUsageError(page, { title: 'probe', message: READ_FAILED })).rejects.toThrow(
-      'expected one page error',
+      'strict mode violation',
     )
     // The success assertion refuses the pair as well.
     await expect(
