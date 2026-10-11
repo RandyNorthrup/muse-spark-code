@@ -850,6 +850,55 @@ describe('App conversation', () => {
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'low' })
   })
 
+  it('renders the served catalogue tiers in the Modes menu footer', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'modelList',
+      models: [
+        {
+          modelId: 'muse-spark-1.3',
+          displayLabel: 'Muse Spark 1.3',
+          isDefault: true,
+          variants: ['low', 'high'],
+          reasoningEffortVariants: [{ tier: 'high', description: 'Deepest analysis' }],
+          defaultReasoningEffort: 'high',
+        },
+      ],
+    })
+    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
+    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+    // The catalogue replaces the family table: two dots, not six.
+    expect(screen.queryByTitle('Max')).toBeNull()
+    expect(screen.getByTitle('Deepest analysis')).toBeInTheDocument()
+    fireEvent.click(screen.getByTitle('Low'))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'low' })
+  })
+
+  it('closes the feedback bridge when the session changes', async () => {
+    renderReady()
+    deliver({ type: 'authState', status: 'signedIn', backend: 'museCode' })
+    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
+    deliver({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 't1' } })
+    streamReply('m1', 'hi there')
+    deliver({
+      type: 'agentEvent',
+      event: { type: 'turnCompleted', turnId: 't1', terminal: 'completed' },
+    })
+    const rowButton = document.querySelector('[data-role="assistant"] .row-actions-button')
+    if (!(rowButton instanceof HTMLElement)) throw new Error('Missing assistant row menu')
+    fireEvent.click(rowButton)
+    fireEvent.click(await screen.findByRole('menuitem', { name: UI_TEXT.feedbackTitle }))
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    const removed = vi.spyOn(window, 'removeEventListener')
+    try {
+      deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's2' })
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(removed).toHaveBeenCalledWith('message', expect.any(Function))
+    } finally {
+      removed.mockRestore()
+    }
+  })
+
   it('keeps empty native effort lists from posting fallback tiers', () => {
     const postMessage = renderReady()
     deliver({

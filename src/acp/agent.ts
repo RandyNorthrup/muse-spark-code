@@ -310,6 +310,46 @@ function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
   return levels.includes(wanted) ? wanted : (levels.at(-1) ?? DEFAULT_EFFORT)
 }
 
+/**
+ * The effort a session starts on (C-M106-3R3): the served catalogue's
+ * default where it names a known tier, else the panel default. The captured
+ * contributor catalogue defaults to `max`, which the static default would
+ * never select (RVCM1063 #3).
+ */
+function startingEffort(models: readonly ModelSummary[], modelId: string): EffortLevel {
+  const catalogueDefault = models.find((model) => model.modelId === modelId)?.defaultReasoningEffort
+  const wanted =
+    catalogueDefault !== undefined && isEffortLevel(catalogueDefault)
+      ? catalogueDefault
+      : DEFAULT_EFFORT
+  return servedEffort(modelId, wanted)
+}
+
+/**
+ * The effort options for one model: the catalogue's tiers in catalogue order
+ * with the catalogue's names, projected to the selectable vocabulary (a tier
+ * outside it cannot be set, so it is not offered); the family table where
+ * the row carries no catalogue.
+ */
+function effortOptionsFor(
+  models: readonly ModelSummary[],
+  modelId: string,
+): { readonly value: string; readonly name: string }[] {
+  const row = models.find((model) => model.modelId === modelId)
+  const variants = row?.variants
+  if (variants !== undefined && variants !== 'unknown') {
+    const options = variants.flatMap((tier) => {
+      if (!isEffortLevel(tier)) return []
+      const description = row?.reasoningEffortVariants?.find(
+        (variant) => variant.tier === tier,
+      )?.description
+      return [{ value: tier, name: description ?? effortLabel(tier) }]
+    })
+    if (options.length > 0) return options
+  }
+  return effortLevelsFor(modelId).map((level) => ({ value: level, name: effortLabel(level) }))
+}
+
 /** One ACP session over one AgentSession. */
 class AcpSession {
   private readonly questionRegistry: AcpQuestionRegistry | undefined
@@ -1439,10 +1479,7 @@ class AcpSession {
         category: 'thought_level',
         type: 'select',
         currentValue: this.effort,
-        options: effortLevelsFor(this.modelId).map((level) => ({
-          value: level,
-          name: effortLabel(level),
-        })),
+        options: effortOptionsFor(this.models, this.modelId),
       },
     ]
   }
@@ -2387,7 +2424,7 @@ class AgentState {
     // The mode and model went with the start; the effort is set here.
     const claim = this.claimSession(session.sessionId)
     const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
-      started.applyEffort(DEFAULT_EFFORT),
+      started.applyEffort(startingEffort(models, modelId)),
     )
     return { sessionId: session.sessionId, modes: acp.modes(), configOptions: acp.configOptions() }
   }

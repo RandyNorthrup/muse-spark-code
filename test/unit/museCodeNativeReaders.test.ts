@@ -112,6 +112,23 @@ describe('Native effort reader from the captured 1.4.4 catalogue', () => {
     expect(contributor).toMatchObject({ defaultReasoningEffort: 'max' })
     expect(contributor?.variants).toEqual(['minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
   })
+
+  it('isolates a malformed catalogue row instead of failing the list', async () => {
+    const { host, server } = setup({ modelEfforts: NATIVE_MODEL_EFFORTS })
+    const result = receivedResult(2) as { models: Record<string, unknown>[] }
+    server.handle('model/list', () => ({
+      ...result,
+      models: result.models.map((row) =>
+        row['modelId'] === 'muse-spark-1.2' ? { ...row, variants: [1] } : row,
+      ),
+    }))
+    const models = await host.listModels()
+    expect(models).toHaveLength(result.models.length)
+    expect(models.find((model) => model.modelId === 'muse-spark-1.2')?.variants).toBeUndefined()
+    expect(
+      models.find((model) => model.modelId === 'muse-spark-1.3-contributor')?.variants,
+    ).toEqual(['minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
+  })
 })
 
 describe('Native feedback reader from the captured 1.4.4 receipt', () => {

@@ -155,12 +155,14 @@ export interface MuseHostInfo extends HostInfo {
 }
 
 export interface MuseCodeEffortInfo {
-  readonly variants?: readonly string[] | 'unknown'
-  readonly reasoningEffortVariants?: readonly {
-    readonly tier: string
-    readonly description?: string
-  }[]
-  readonly defaultReasoningEffort?: string
+  readonly variants?: readonly string[] | 'unknown' | undefined
+  readonly reasoningEffortVariants?:
+    | readonly {
+        readonly tier: string
+        readonly description?: string | undefined
+      }[]
+    | undefined
+  readonly defaultReasoningEffort?: string | undefined
 }
 
 export interface MuseCodeModelSummary extends ModelSummary, MuseCodeEffortInfo {}
@@ -1973,6 +1975,27 @@ export class MuseSession implements ScheduledAgentSession {
   }
 }
 
+/**
+ * One catalogue row's effort extras (C-M106-3R3): a malformed row reads as
+ * before instead of failing the whole catalogue (RVCM1063 #3). The row's
+ * identity is logged; its content stays out of the log.
+ */
+function effortExtrasOf(
+  reader: MuseCodeFeaturePorts['modelEfforts'],
+  model: { readonly modelId: string },
+  log: CoreLogger,
+): MuseCodeEffortInfo {
+  if (reader === undefined) return {}
+  try {
+    return reader.parseModel(model)
+  } catch {
+    log.warn(
+      `model/list row for ${model.modelId} has malformed effort extras; reading it without tiers`,
+    )
+    return {}
+  }
+}
+
 export class MuseCodeHost implements AgentHost {
   /** Injected once by the editor/runtime before hosts are constructed. */
   public static usageRecording: UsageRecording | undefined
@@ -2696,7 +2719,7 @@ export class MuseCodeHost implements AgentHost {
       contextLimit: model.contextLimit ?? undefined,
       isDefault: model.isDefault,
       isActive: model.isActive ?? false,
-      ...this.features.modelEfforts?.parseModel(model),
+      ...effortExtrasOf(this.features.modelEfforts, model, this.log),
     }))
   }
 

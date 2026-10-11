@@ -58,6 +58,29 @@ it('uses record effort tiers in the composer palette', () => {
   })
 })
 
+it('carries the served catalogue on the effort slider widget', () => {
+  const groups = pricedPalette({
+    ...context,
+    models: [
+      {
+        modelId: 'muse-spark-1.3',
+        displayLabel: 'Muse',
+        isDefault: true,
+        variants: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+        reasoningEffortVariants: [{ tier: 'xhigh', description: 'Deepest analysis' }],
+        defaultReasoningEffort: 'max',
+      },
+    ],
+  })
+  expect(flattenPalette(groups).find((item) => item.id === 'effort')?.widget).toMatchObject({
+    catalogue: {
+      variants: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+      reasoningEffortVariants: [{ tier: 'xhigh', description: 'Deepest analysis' }],
+      defaultReasoningEffort: 'max',
+    },
+  })
+})
+
 it('disables the effort palette row when the record has no effort tiers', () => {
   const groups = pricedPalette({
     ...context,

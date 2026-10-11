@@ -46,7 +46,14 @@ import { isLegalPrompt, parseLegalPrompt } from '../shared/legalCommand'
 import type { LegalScanRequestMessage, LegalFinding } from '../shared/legal'
 import { editorContextLabel } from '../shared/editorContext'
 
-import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
+import {
+  catalogueSliderProps,
+  effortAt,
+  effortIndex,
+  effortLabel,
+  effortLevelsFor,
+  isEffortLevel,
+} from '../shared/effort'
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
@@ -2750,6 +2757,12 @@ export function App({
   const runningAgentCount =
     agents.filter((agent) => agent.status === 'inProgress').length +
     workflowAgents.filter((child) => isChildRunning(child)).length
+  // The served catalogue rides the model list the controller sends
+  // (C-M106-3R3): its tiers render the dots with the catalogue's names, and
+  // the pressed dot is the session's running effort (the catalogue default
+  // takes it whenever the session runs it). A tier outside the extension's
+  // vocabulary renders with its catalogue name but cannot travel the
+  // EffortLevel-typed setEffort path, so only known tiers select.
   const effortLevels =
     state.models.find((model) => model.modelId === state.model?.modelId)?.effortLevels ??
     effortLevelsFor(state.model?.modelId)
@@ -2988,6 +3001,13 @@ export function App({
                   levels={effortLevels}
                   current={state.effort}
                   onSelect={onSelectEffort}
+                  model={catalogueSliderProps(
+                    state.models.find((model) => model.modelId === state.model?.modelId),
+                    state.effort,
+                    (tier) => {
+                      if (isEffortLevel(tier)) onSelectEffort(tier)
+                    },
+                  )}
                 />
               </div>
             )

@@ -8,7 +8,8 @@ import type { MuseCodeEffortInfo, MuseCodeFeaturePorts } from './MuseCodeHost'
 // and `defaultReasoningEffort`. Tiers are preserved verbatim, including
 // future strings the slider shows as they arrive; the explicit `unknown`
 // catalogue keeps the legacy family table. Rows without extras read as
-// before; malformed extras refuse rather than guess.
+// before; malformed extras throw, and the host isolates that throw to the
+// row instead of failing the whole catalogue.
 
 const effortVariantSchema = z.looseObject({
   tier: z.string(),

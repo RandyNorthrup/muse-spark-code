@@ -51,6 +51,7 @@ import {
   isSessionNotLoadedError,
   isSteerRefusedError,
   type LoadedSession,
+  type ModelSummary,
   type MuseCodeFaultError,
   type OutputPage,
   type OutputPageRequest,
@@ -951,6 +952,41 @@ function turnEndLine(
 
 function isContributorModel(modelId: string): boolean {
   return modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
+}
+
+/**
+ * The webview's model row for one host summary (C-M106-3R3): everything the
+ * picker shows plus the served catalogue's tiers, so the sliders render the
+ * catalogue the host sent instead of the static family table (RVCM1063 #3).
+ */
+export function toModelOption(model: ModelSummary): ModelOption {
+  return {
+    modelId: model.modelId,
+    displayLabel: model.displayLabel,
+    ...(model.contextLimit !== undefined && { contextLimit: model.contextLimit }),
+    isDefault: model.isDefault,
+    ...(model.providerId !== undefined && { providerId: model.providerId }),
+    ...(model.providerLabel !== undefined && { providerLabel: model.providerLabel }),
+    ...(model.pricing !== undefined && { pricing: model.pricing }),
+    ...(model.inputUsdPerMTokens !== undefined && {
+      inputUsdPerMTokens: model.inputUsdPerMTokens,
+    }),
+    ...(model.outputUsdPerMTokens !== undefined && {
+      outputUsdPerMTokens: model.outputUsdPerMTokens,
+    }),
+    ...(model.isPinned === true && { isPinned: model.isPinned }),
+    ...(model.planLimitsUrl !== undefined && { planLimitsUrl: model.planLimitsUrl }),
+    ...(model.trainsOnContent === true && { trainsOnContent: model.trainsOnContent }),
+    ...(model.variants !== undefined && {
+      variants: model.variants === 'unknown' ? 'unknown' : [...model.variants],
+    }),
+    ...(model.reasoningEffortVariants !== undefined && {
+      reasoningEffortVariants: model.reasoningEffortVariants.map((variant) => ({ ...variant })),
+    }),
+    ...(model.defaultReasoningEffort !== undefined && {
+      defaultReasoningEffort: model.defaultReasoningEffort,
+    }),
+  }
 }
 
 /**
@@ -3716,24 +3752,7 @@ export class ConversationController {
           (model) => !isContributorModel(model.modelId) && model.trainsOnContent !== true,
         )
       : listed
-    this.models = models.map((model) => ({
-      modelId: model.modelId,
-      displayLabel: model.displayLabel,
-      ...(model.contextLimit !== undefined && { contextLimit: model.contextLimit }),
-      isDefault: model.isDefault,
-      ...(model.providerId !== undefined && { providerId: model.providerId }),
-      ...(model.providerLabel !== undefined && { providerLabel: model.providerLabel }),
-      ...(model.pricing !== undefined && { pricing: model.pricing }),
-      ...(model.inputUsdPerMTokens !== undefined && {
-        inputUsdPerMTokens: model.inputUsdPerMTokens,
-      }),
-      ...(model.outputUsdPerMTokens !== undefined && {
-        outputUsdPerMTokens: model.outputUsdPerMTokens,
-      }),
-      ...(model.isPinned === true && { isPinned: model.isPinned }),
-      ...(model.planLimitsUrl !== undefined && { planLimitsUrl: model.planLimitsUrl }),
-      ...(model.trainsOnContent === true && { trainsOnContent: model.trainsOnContent }),
-    }))
+    this.models = models.map((model) => toModelOption(model))
     this.post({ type: 'modelList', models: [...this.models] })
   }
 

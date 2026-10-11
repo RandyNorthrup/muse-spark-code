@@ -9,7 +9,7 @@
 // itself carries the value ("Effort (Extra high)") and takes Left / Right.
 
 import { type EffortLevel, UI_TEXT } from '../../shared/constants'
-import { effortLabel, isEffortLevel } from '../../shared/effort'
+import { effortLabel, isEffortLevel, type CatalogueTiers } from '../../shared/effort'
 
 export interface EffortSliderProps {
   readonly levels: readonly EffortLevel[]
@@ -19,16 +19,12 @@ export interface EffortSliderProps {
   /** In a row that is itself the control: dots for the mouse only. */
   readonly isInsideOption?: boolean
   /** Lane W supplies the validated Muse Code catalogue through the shared bridge. */
-  readonly model?: {
-    readonly variants: readonly string[] | 'unknown'
-    readonly reasoningEffortVariants?: readonly {
-      readonly tier: string
-      readonly description?: string
-    }[]
-    readonly defaultReasoningEffort?: string
-    readonly current?: string
-    readonly onSelect?: (tier: string) => void
-  }
+  readonly model?:
+    | (CatalogueTiers & {
+        readonly current?: string
+        readonly onSelect?: (tier: string) => void
+      })
+    | undefined
 }
 
 function stepClass(index: number, currentIndex: number): string {

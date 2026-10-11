@@ -441,6 +441,11 @@ export function buildPalette(
               context.models.find((model) => model.modelId === context.currentModel?.modelId)
                 ?.effortLevels ?? effortLevelsFor(context.currentModel?.modelId),
             current: context.effort,
+            // The served catalogue rides the row (C-M106-3R3): its tiers
+            // render the dots with the catalogue's names.
+            catalogue: context.models.find(
+              (model) => model.modelId === context.currentModel?.modelId,
+            ),
           },
           action: { type: 'setEffort', effort: context.effort },
           isSlider: true,
