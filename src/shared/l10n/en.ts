@@ -6125,6 +6125,11 @@ export const EN = {
     title: 'Vault',
     locked: 'Locked',
     unlocked: 'Unlocked',
+    // RVCM1091D P2: every vault state has its own true heading, so no state
+    // falls through to 'Locked'.
+    stateUncreated: 'Not set up',
+    stateSetupPending: 'Setup pending',
+    stateUnavailable: 'Unavailable',
     empty: 'No vault items yet.',
     add: 'Add to Vault',
     edit: 'Edit Item',
@@ -6256,6 +6261,9 @@ export const EN = {
       'Protected by your operating system’s credential store. Programs running as you may unlock it too.',
     unknownTierWarning:
       'The protection tier is unknown because the vault is locked. Unlock to see how it is protected.',
+    // RVCM1091D P2: an open vault with no observed slot names no protection
+    // and never asks for an unlock.
+    tierUnknown: 'The protection tier is unknown.',
     hardwareWarning:
       'Protected by this device’s hardware. It unlocks silently, so programs running as you can unlock it too.',
     presenceTierWarning:
