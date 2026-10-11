@@ -366,3 +366,70 @@ already covers this behaviour; the fixes correct it pre-release).
 not a finding; still withdrawn). PLAN's C-M113-5a paragraph is
 behaviour-level and still accurate (name and gate parity, clause-keyed
 conflicts, bindings-only blank omission), so it stands unchanged.
+
+## R5 — RVCM1135D repairs (lane CM1135AR5, 2026-10-11, rig kubuntu)
+
+Both P3 fixed, no residuals, no source change (test file only, as the
+review expected). Suite is now 16 tests in
+`test/unit/keybindingsReportSource.test.ts` (was 15), all passing at the
+repository timeout with `--maxWorkers=3`. No new dependency, no guard
+widened, no new UI string.
+
+- P3-1 parity helper dropped qualifiers (suite only): `observedGates`
+  (first word before the comma) is replaced by `observedQualifiers`
+  (every comma-separated qualifier of every `|` alternative, as a set)
+  plus `expectedQualifiers`/`fullGateMismatches`, which build each
+  command's full gate from what the registrar really does in each mode —
+  the announcing gates plus `not headless` exactly when the all-ports run
+  announces it normally but withholds it headless. The attribution test
+  requires zero mismatches across all reported facts in both modes, and
+  the headless test now also requires the attach/record facts to carry
+  exactly `{media, not headless}`. Regression: the new "flags a
+  reported gate that drops not headless" test runs the reviewer's
+  mutation (attach/record
+  as `media`) through the same helper against synthetic registrar sets
+  and requires both to be flagged — no registrar run, so it stays fast.
+  Sweep of every other comparison in the file: `normalizeTestChord` is
+  the conflict contract itself (mirrors the collector), the `.trim()` at
+  the gesture read mirrors the blank-chord skip, the `slice` calls take
+  fixed fixture subsets, and the docs `split(..., 2)` takes the section
+  after the heading — none drops part of what is compared. No change
+  needed beyond the gate helper.
+- P3-2 unaudited `AcpGate` assertions (suite only): the three
+  `Object.keys`/`Object.entries … as …` casts are gone. Gate iteration
+  uses the typed `ACP_GATES` list (`readonly AcpGate[]`), so a mistyped
+  gate fails `tsc` instead of compiling silently; the pins test requires
+  `new Set(ACP_GATES)` to equal `new Set(Object.keys(GATE_COMMANDS))`,
+  so a gate added to one side but not the other fails loudly. No escape
+  hatch remains, so no inline reason and no PLAN §8 entry were needed.
+  Sweep of rounds 3–5 additions: no `eslint-disable`, no
+  `@ts-expect-error`, no other `as` (the one pre-R3 `key as keyof …`
+  left with the withdrawn scanner). The `!` non-null index assertions
+  follow the file's pre-R3 convention and are outside AGENTS.md rule 4's
+  list. `tsc`, ESLint zero warnings and Prettier are clean on the file.
+
+Red drills (break guard → named test fails → restore byte-exact,
+SHA-256 verified after each restore; final SHA below):
+
+| Finding | Break                                             | Named test                                                                                          | Result                |
+| ------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------- | --------------------- |
+| P3-1    | source facts attach/record `when` back to `media` | attributes each announced command to its registrar gate; withholds the media commands when headless | 2 failed / 14 passed  |
+| P3-1    | `observedQualifiers` back to first-word-only      | flags a reported gate that drops `not headless`                                                     | 1 failed / 15 skipped |
+| P3-2    | `media` removed from `ACP_GATES`                  | pins the ACP table to the registrar announced commands                                              | 1 failed / 15 skipped |
+
+Post-drill: 16 passed, the test file matched its pre-drill SHA-256
+(`sha256sum -c`), and the source file shows no diff (restored by
+re-applying the exact lines).
+
+| File                                        | SHA-256                                                            |
+| ------------------------------------------- | ------------------------------------------------------------------ |
+| `test/unit/keybindingsReportSource.test.ts` | `657d3e1b668296c7af274d77f945387df5159a6a2dad885033be8a6d083bb681` |
+| `src/core/reporting/sources/keybindings.ts` | unchanged since R2 (`fdc83a2…`, no diff)                           |
+| `src/core/reporting/collect/keybindings.ts` | unchanged since R4 (`2a567e3…`, no diff)                           |
+
+Decisions recorded: CHANGELOG untouched (test-only change, behaviour
+already described). Dependent suite `test/unit/paidMoneyStructure.test.ts`
+fails 1/8 on this tree (`flags every money-named numeric leaf`); neither
+it nor its sources are touched by this lane (last commit CM1132R3), so it
+is the same pre-existing base failure RVCM1135D reported — routed to the
+lead, not fixed here.
